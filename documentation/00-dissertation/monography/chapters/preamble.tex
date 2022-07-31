@@ -1,0 +1,187 @@
+\documentclass[
+12pt,				% Font size
+openright,			% 
+oneside,			% Enables one side print
+a4paper,			% Paper size 
+english,			% Main language hyphenation
+french,				% Second language hyphenation
+spanish,			% Third language hyphenation
+brazil,				% Document main language
+twocolumn			% Enables two column parts
+]{abntex2}
+
+% Packages used
+	\input{chapters/data/packages.tex}
+
+% Document and author informations (you can edit it)
+	\input{chapters/data/date.tex}
+	\input{chapters/data/keyWords.tex}
+	\input{chapters/data/faceAndCover.tex}
+	\input{chapters/data/documentPreamble.tex}
+
+% Code listing settings
+	% Translate Listing -> Algoritmo
+	\renewcommand{\lstlistingname}{Algoritmo}
+	% Translate List of Listings -> Lista de Algoritmos
+	\renewcommand{\lstlistlistingname}{Lista de \lstlistingname s}
+	
+	% The code style
+	\definecolor{codegreen}{rgb}{0,0.6,0}
+	\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+	\definecolor{codepurple}{rgb}{0.58,0,0.82}
+	\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+	
+	% Defines code listing style
+	\lstdefinestyle{mystyle}{
+		backgroundcolor=\color{backcolour},   
+		commentstyle=\color{codegreen},
+		keywordstyle=\color{magenta},
+		numberstyle=\tiny\color{codegray},
+		stringstyle=\color{codepurple},
+		basicstyle=\ttfamily\footnotesize,
+		breakatwhitespace=false,         
+		breaklines=true,                 
+		captionpos=b,                    
+		keepspaces=true,                 
+		numbers=left,                    
+		numbersep=5pt,                  
+		showspaces=false,                
+		showstringspaces=false,
+		showtabs=false,                  
+		tabsize=2
+	}
+	
+	\lstset{style=mystyle}
+
+% Forces a new page
+\newcommand{\forceNewPage}{
+	\FloatBarrier
+	\clearpage
+	\newpage
+}
+
+% Toggle off clearpage
+\newcommand{\disableClearpage}{
+	\let\oldclearpage\clearpage
+	\let\clearpage\relax
+}
+
+% Toggle on clearpage
+\newcommand{\enableClearpage}{
+	\let\clearpage\oldclearpage
+}
+
+% Redefine cover macro
+\renewcommand{\imprimircapa}{%
+	\begin{capa}%
+		\center
+		\centering \includegraphics[angle=-90]{unesp.pdf}
+		\vspace{3cm}
+		\par {\ABNTEXchapterfont\Large\imprimirautor}
+		\vfill
+		\begin{center}
+			\ABNTEXchapterfont\LARGE\huge\imprimirtitulo
+		\end{center}
+		\vfill
+		\ABNTEXchapterfont \large\imprimirlocal\\
+		\large\imprimirdata
+		\vspace*{1cm}
+	\end{capa}
+}
+
+% Redefine face macro
+\renewcommand{\folhaderostocontent}{
+	\begin{center}
+		
+		%\vspace*{1cm}
+		\ABNTEXchapterfont\large\imprimirautor
+		
+		\vspace*{\fill}
+		\vspace*{\fill}
+		\begin{center}
+			\ABNTEXchapterfont\LARGE\imprimirtitulo
+		\end{center}
+		\vspace*{\fill}
+		
+		\hspace{.45\textwidth}
+		\begin{minipage}{.5\textwidth}
+			\SingleSpacing
+			\imprimirpreambulo
+		\end{minipage}%
+		\vspace*{\fill}
+		
+		\imprimirinstituicao\vspace*{\fill}
+		
+		\large\imprimirorientadorRotulo~\imprimirorientador
+		
+		\vspace*{\fill}
+		
+		\large\imprimirlocal
+		\par
+		\large\imprimirdata
+		\vspace*{1cm}
+		
+	\end{center}
+}
+
+% Pdf informations
+	\makeatletter
+	\hypersetup{
+		pdftitle={\@title}, 
+		pdfauthor={\@author},
+		pdfsubject={\imprimirpreambulo},
+		pdfcreator={LaTeX with abnTeX2},
+		pdfkeywords={\ptBRkeyWords, \enUSkeyWords}, 
+		colorlinks=true,       		% false: boxed links; true: colored links
+		linkcolor=black,          	% color of internal links
+		citecolor=black,        		% color of links to bibliography
+		filecolor=black,      	% color of file links
+		urlcolor=black,
+		bookmarksdepth=4
+	}
+	\makeatother
+
+% Put orfan images on the top of page. 
+% See https://github.com/abntex/abntex2/issues/170
+	\makeatletter
+	\setlength{\@fptop}{5pt}
+	\makeatother
+
+% Enables the creation of frame en frame lists.
+% See https://github.com/abntex/abntex2/issues/176
+	\newcommand{\quadroname}{Quadro}
+	\newcommand{\listofquadrosname}{Lista de quadros}
+	\newfloat[chapter]{quadro}{loq}{\quadroname}
+	\newlistof{listofquadros}{loq}{\listofquadrosname}
+	\newlistentry{quadro}{loq}{0}
+
+% ABNT settings
+	\setfloatadjustment{quadro}{\centering}
+	\counterwithout{quadro}{chapter}
+	\renewcommand{\cftquadroname}{\quadroname\space} 
+	\renewcommand*{\cftquadroaftersnum}{\hfill--\hfill}
+
+% See https://github.com/abntex/abntex2/issues/176
+	\setfloatlocations{quadro}{hbtp} 
+
+% Paragraph size
+	\setlength{\parindent}{1.3cm}
+
+% Beetween paragraph spacing:
+	\setlength{\parskip}{0.2cm}  % tente também \onelineskip
+
+% Document language
+	\selectlanguage{brazil}
+
+% Builds the index
+	\makeindex
+
+% Remove useless extra spaces
+	\frenchspacing 
+	
+% By default this is a one column document, use	\twocolumn to enable two columns
+	\onecolumn
+% For some reason i couldn't put this package in the
+% chapters/data/packages.tex file. If i do tex raises
+% a "there is no begin(document)" error
+    \usepackage{float}

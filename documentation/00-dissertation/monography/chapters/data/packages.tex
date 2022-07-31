@@ -1,0 +1,107 @@
+% Basic packages 
+
+	% Enables custom datetimes
+	\usepackage[useregional]{datetime2}
+
+	% Enables text replacing
+	\usepackage{xstring}
+
+	% Enable long tables
+	\usepackage{longtable}
+
+	% Enable cvs data load
+	\usepackage{csvsimple, booktabs}
+
+	% Allow more floats whatever is this
+	\usepackage{morefloats}
+	
+	% Use latim special characters
+	\usepackage[utf8]{inputenc}
+	
+	% Use colors
+	\usepackage{color}
+	
+	% Enables landscape pages
+	\usepackage{lscape}
+	
+	% Enables graphics
+	\usepackage{graphicx}
+	
+	% Better text justification
+	\usepackage{microtype}
+	
+	% Indent the section first paragraph.
+	\usepackage{indentfirst}
+	
+	% Tables colors!!
+	\usepackage[table]{xcolor}
+	
+	% Enables code listing
+	\usepackage{listings}
+	
+	% Enables multicolumn text
+	\usepackage{multicol}
+	
+	% Enables math
+	\usepackage{amsthm}
+	\usepackage{amsmath}
+	\usepackage{amssymb}
+	
+	% Adds some symbols (like slash on a non mathematical context)
+	\usepackage{textcomp}
+	
+	% Enables the use of subfigures
+	\usepackage{subfig}
+
+	% Float barriers, prevents figures floats accross
+	% an determined \FloatBarrier
+	\usepackage[section]{placeins}
+	
+	% Eanbles the use of landscape pages
+	\usepackage{lscape}
+	\usepackage{pdflscape}
+
+% Quote packages
+	% ABNT standard
+	\usepackage[alf]{abntex2cite}
+	% Bibliography 
+	\usepackage[brazilian,hyperpageref]{backref}
+
+% Drawing and plot packages
+	\usepackage{relsize}
+	\usepackage{tikz}
+		\usetikzlibrary{calc}
+		\usetikzlibrary{datavisualization}
+		\usetikzlibrary{positioning}
+		\usetikzlibrary{mindmap}
+		\usetikzlibrary{snakes}
+		\usetikzlibrary{shapes}
+		\usetikzlibrary{decorations.pathreplacing}
+		\usetikzlibrary{spy}
+		\usetikzlibrary{backgrounds}
+		\usetikzlibrary{patterns}
+
+	\usepackage{pgfplots}
+	\usepackage{pgfplotstable}
+	\pgfplotsset{compat=newest}
+	\usepgfplotslibrary{units}
+
+% Packages configuration
+
+	% Long tables pre and post spacing
+	\setlength{\LTpre}{0pt}
+	\setlength{\LTpost}{-30pt}
+
+	% Backref confis
+	\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
+	\renewcommand{\backref}{}
+
+	% Quote text
+	\renewcommand*{\backrefalt}[4]{
+		\ifcase #1
+			
+		\or
+			Citado na página #2.
+		\else
+			Citado #1 vezes nas páginas #2.
+		\fi}
