@@ -1,0 +1,5 @@
+Neural networks in python
+	https://www.youtube.com/watch?v=eIctiV51uqg&list=PLZ3V9XyVA528Nr3MFod54HJARmC2yJ3B_
+
+Auto-encoders:
+	https://www.youtube.com/watch?v=ADbPhK5-bvE
