@@ -9,5 +9,5 @@
 *.lot
 *.toc
 *.gz
-/build
+/src/build
 
