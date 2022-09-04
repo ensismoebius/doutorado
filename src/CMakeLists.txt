@@ -6,10 +6,10 @@ enable_testing()
 
 add_executable(Doutorado 
 main.cpp
-lib/neuralNetwork/optimizer/AdamOptimizer.cpp
-lib/neuralNetwork/model/Sequential.cpp
-lib/neuralNetwork/layer/Dense.cpp
 )
+
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+target_link_libraries (Doutorado Eigen3::Eigen)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
