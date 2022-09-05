@@ -7,19 +7,3 @@ Layer::Layer(
 {
 
 }
-
-void Layer::init(const scalar &mu, scalar &sigma, Rng &rng) {
-    
-}
-
-void Layer::foward(const Matrix &prevLayerOutput) {
-    
-}
-
-void Layer::backprop(const Matrix &prevLayerOutput, const Matrix &netxLayerData) {
-    
-}
-
-void Layer::setParameter(std::vector<scalar> param) {
-    
-}
