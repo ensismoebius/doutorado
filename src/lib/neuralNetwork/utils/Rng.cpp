@@ -1,16 +1,17 @@
 #include "Rng.h"
-Rng::Rng(unsigned long seed):
-    rand(seed ? (seed & max) : 1),
-    multiplier(16807),
-    max(2147483647L)
+Rng::Rng(unsigned long seed) : rand(seed ? (seed & max) : 1),
+                               multiplier(16807),
+                               max(2147483647L)
 {
 }
 
-void Rng::seed(const unsigned long seed) {
+void Rng::seed(const unsigned long seed)
+{
     rand = (seed ? (seed & max) : 1);
 }
 
-double Rng::random() {
+double Rng::random()
+{
     rand = nextRandonLong(rand);
     return double(rand) / double(max);
 }

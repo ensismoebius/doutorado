@@ -15,6 +15,8 @@ lib/neuralNetwork/layer/FullyConnected.cpp
 
 lib/neuralNetwork/optimizer/Optimizer.cpp
 lib/neuralNetwork/output/Output.cpp
+
+lib/neuralNetwork/utils/Generator.cpp
 lib/neuralNetwork/utils/Rng.cpp
 )
 

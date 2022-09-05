@@ -1,5 +1,5 @@
 #pragma once
-
+#include <Eigen/Core>
 typedef double scalar;
 
 typedef Eigen::Matrix<scalar, Eigen::Dynamic, Eigen::Dynamic> Matrix;
