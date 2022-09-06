@@ -5,6 +5,7 @@
 class MaxAverage
 {
 private:
+    int findMax(const scalar *x, int rows);
 public:
     MaxAverage();
     ~MaxAverage();
@@ -16,5 +17,4 @@ public:
         const int columnStride,
         int &loc);
 
-    int findMax(const scalar *x, int rows);
 };

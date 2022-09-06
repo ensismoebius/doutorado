@@ -20,13 +20,38 @@ scalar MaxAverage::findMaxValue(
     scalar val = x[loc];
 
     x += columnStride;
-
     int locNext = findMax(x, rows);
-
     scalar valNext = x[locNext];
+    if (valNext > val)
+    {
+        loc = columnStride + locNext;
+        val = valNext;
+    }
+    if (cols == 2)
+        return val;
+
+    // Other columns
+    for (int i = 2; i < cols; i++)
+    {
+        x += columnStride;
+        locNext = findMax(x, rows);
+        valNext = x[locNext];
+        if (valNext > val)
+        {
+            loc = i * locNext + locNext;
+            val = valNext;
+        }
+    }
+    return val;
 }
 
 int MaxAverage::findMax(const scalar *x, int rows)
 {
-    return 1;
+    int loc = 0;
+    for (int i = 1; i < rows; i++)
+    {
+        loc = (x[i] > x[loc]) ? i : loc;
+    }
+
+    return loc;
 }
