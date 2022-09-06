@@ -28,4 +28,6 @@ public:
 
     virtual std::vector<scalar> getParameters() const = 0;
     virtual std::vector<scalar> getDerivative() const = 0;
+
+    virtual void update(Optimizer &optimizer) const = 0;
 };

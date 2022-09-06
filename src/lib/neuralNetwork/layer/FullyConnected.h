@@ -6,6 +6,7 @@
 
 #include "../Config.h"
 #include "../layer/Layer.h"
+#include "../optimizer/Optimizer.h"
 
 class FullyConnected : private Layer
 {
@@ -35,4 +36,6 @@ public:
 
     std::vector<scalar> getParameters() const = 0;
     std::vector<scalar> getDerivative() const = 0;
+
+    void update(Optimizer &optimizer) const = 0;
 };

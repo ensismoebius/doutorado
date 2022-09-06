@@ -12,7 +12,7 @@ void Generator::setNormalDistributionRandomValues(
     const scalar &mean,
     const scalar &sigma)
 {
-    const double twoPi = M_PI * 2;
+    const double twoPi = M_PI * 2.0;
 
     for (int i = 0; i < n - 1; i += 2)
     {

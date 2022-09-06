@@ -18,6 +18,8 @@ lib/neuralNetwork/output/Output.cpp
 
 lib/neuralNetwork/utils/Generator.cpp
 lib/neuralNetwork/utils/Rng.cpp
+
+lib/neuralNetwork/activation/Activation.cpp
 )
 
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
