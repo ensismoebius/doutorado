@@ -10,4 +10,7 @@
 *.toc
 *.gz
 /src/build
-
+/build
+/.vscode
+.vscode/settings.json
+src/.vscode/c_cpp_properties.json

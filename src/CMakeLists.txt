@@ -9,7 +9,7 @@ main.cpp
 lib/neuralNetwork/Neuralnet.cpp
 
 lib/neuralNetwork/layer/Layer.cpp
-#lib/neuralNetwork/layer/Pooling.cpp
+lib/neuralNetwork/layer/Pooling.cpp
 #lib/neuralNetwork/layer/Convolutional.cpp
 lib/neuralNetwork/layer/FullyConnected.cpp
 
