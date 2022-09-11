@@ -1,3 +1,4 @@
+#include <iostream>
 #include "../lib/gaussian/gaussian.h"
 void experiment00(){
         int start = -7;

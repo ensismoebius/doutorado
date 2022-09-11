@@ -44,7 +44,6 @@ find_package(OpenMP)
 set (SRCS
 src/main.cpp
 src/lib/gaussian/gaussian.cpp
-src/experiments/experiment01.cpp
 )
 
 # Include dirs
