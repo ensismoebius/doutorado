@@ -43,11 +43,8 @@ find_package(OpenMP)
 
 set (SRCS
 src/main.cpp
+src/lib/gaussian/gaussian.cpp
 )
-
-# User libraries
-#target_include_directories(${CMAKE_PROJECT_NAME}
-#)
 
 # Include dirs
 include_directories(${ARMADILLO_INCLUDE_DIRS})
@@ -58,6 +55,11 @@ endif()
 
 # Executable
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
+
+# User libraries
+target_include_directories(${CMAKE_PROJECT_NAME}
+	PUBLIC src/lib/gaussian
+)
 
 # Libraries to link
 set(SFML_LIBS sfml-system sfml-window sfml-graphics)
