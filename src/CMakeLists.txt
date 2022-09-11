@@ -1,32 +1,89 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(Doutorado VERSION 0.1.0)
+cmake_minimum_required(VERSION 3.9)
 
-include(CTest)
-enable_testing()
+if (APPLE)
+	set (CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING
+    "Minimum OS X deployment version" FORCE)
+	
+	# Fix behavior of CMAKE_CXX_STANDARD when targeting macOS.
+	if (POLICY CMP0025)
+		cmake_policy(SET CMP0025 NEW)
+	endif ()
+endif()
 
-add_executable(Doutorado 
-main.cpp
-lib/neuralNetwork/Neuralnet.cpp
+project(Doutorado
+        VERSION 1.0
+        DESCRIPTION "Many things!!!"
+        LANGUAGES CXX)  
 
-lib/neuralNetwork/layer/Layer.cpp
-lib/neuralNetwork/layer/Pooling.cpp
-#lib/neuralNetwork/layer/Convolutional.cpp
-lib/neuralNetwork/layer/FullyConnected.cpp
+# C++ version
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-lib/neuralNetwork/optimizer/Optimizer.cpp
-lib/neuralNetwork/output/Output.cpp
+#set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
-lib/neuralNetwork/utils/Generator.cpp
-lib/neuralNetwork/utils/Rng.cpp
+message(STATUS "***********************COMPILING FOR:***********************")
+message(STATUS ${CMAKE_SYSTEM})
+message(STATUS ${CMAKE_TOOLCHAIN_FILE})
+message(STATUS "************************************************************")
 
-lib/neuralNetwork/activation/Activation.cpp
+###############################################
+###############################################
+### Executable and libraries configuration  ###
+###############################################
+###############################################
 
-lib/neuralNetwork/utils/MaxAverage.cpp
+# For visualizations
+find_package(SFML 2 REQUIRED COMPONENTS graphics system window)
+# For matrices operations
+find_package(Armadillo REQUIRED)
+# For paralelism
+find_package(Threads REQUIRED)
+find_package(OpenMP)
+
+set (SRCS
+src/main.cpp
 )
 
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
-target_link_libraries (Doutorado Eigen3::Eigen)
+# User libraries
+#target_include_directories(${CMAKE_PROJECT_NAME}
+#)
 
-set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-include(CPack)
+# Include dirs
+include_directories(${ARMADILLO_INCLUDE_DIRS})
+
+if(OpenMP_CXX_FOUND)
+    include_directories(${OpenMP_CXX_INCLUDE_DIRS})
+endif()
+
+# Executable
+add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
+
+# Libraries to link
+set(SFML_LIBS sfml-system sfml-window sfml-graphics)
+target_link_libraries(${PROJECT_NAME} ${SFML_LIBS})
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
+endif()
+
+target_link_libraries(${PROJECT_NAME} ${ARMADILLO_LIBRARIES})
+
+########################################
+########################################
+### Google Unit Testing suite setup  ###
+########################################
+########################################
+
+if (NOT APPLE)
+	# Locate GTest
+	find_package(GTest REQUIRED)
+	include_directories(${GTEST_INCLUDE_DIRS})
+	
+	# Load paraconsistent tests
+	#add_executable( ${PROJECT_NAME}Tests
+	#)
+	
+	# Link paraconsistentTests with what we want to test and the GTest and pthread library
+	target_link_libraries(${PROJECT_NAME}Tests PUBLIC ${GTEST_LIBRARIES} pthread)
+endif()
