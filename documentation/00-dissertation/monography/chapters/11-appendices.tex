@@ -58,8 +58,9 @@
 		
 		\par Pode-se considerar tal junção como uma a rede neural. É possível perceber que a mesma passa ter múltiplas entradas tornando-se necessário, antes que a função de ativação seja aplicada, que a soma dessas entradas seja feita. A este procedimento se dá o nome de \textit{feedforward} \cite{haykinredes}:
 		
-		\par Via de regra uma rede neural tem pelo menos 2 camadas: A camada de entrada que é usada apenas para representar os valores que serão processados e a camada de saída, cujo papel é fazer a soma ponderada das entradas passando então o resultado dessa operação para uma função de ativação que finalmente gerará as saídas de nossa rede neural como ilustrado na figura \ref{fig:simpleNeuralNetwork}.
-		\begin{figure}
+		\par Via de regra uma rede neural tem, no mínimo, duas camadas: A camada de entrada que é usada apenas para representar os valores que serão processados e a camada de saída, cujo papel é fazer a soma ponderada das entradas passando então o resultado dessa operação para uma função de ativação que finalmente gerará as saídas de nossa rede neural como ilustrado na figura \ref{fig:simpleNeuralNetwork}.
+		
+		\begin{figure}[H]
 			%TODO Fazer a figura de uma rede neural simples
 			\centering
 			\caption[Uma rede neural simples Fonte: O autor]{Uma rede neural simples Fonte: O autor}
@@ -68,14 +69,67 @@
 		\end{figure}		
 
 	\section{Uma rede neural simples}
-		\par Como visto na figura \ref{fig:simpleNeuralNetwork} da sessão anterior uma rede neural conecta suas camadas usando pesos que servirão como moderadores das entradas da próxima camada com o fim desse evitar o \textit{overfitting}. É possível representar uma rede neural de várias formas, no entanto, como ilustrado na figura \ref{fig:tempmatrixmultnn}, a forma mais eficiente computacionalmente será a matricial, usando esta abordagem será possível representar facilmente as camadas e os respectivos pesos que as ligam, melhorando também o desempenho computacional já que tais operações são altamente paralelizáveis.
+		\par Como visto na figura \ref{fig:simpleNeuralNetwork} da sessão anterior uma rede neural conecta suas camadas usando pesos que servirão como moderadores das entradas da próxima camada com o fim desse evitar o \textit{overfitting}. É possível representar uma rede neural de várias formas, no entanto, como ilustrado na figura \ref{fig:matrixmultnn}, a forma mais eficiente computacionalmente será a matricial, usando esta abordagem será possível representar facilmente as camadas e os respectivos pesos que as ligam, melhorando também o desempenho computacional já que tais operações são altamente paralelizáveis.
 		
 		
-		\begin{figure}
+		\begin{figure}[H]
 			\centering
 			\caption[Representação de uma rede neural usando matrizes]{Representação de uma rede neural usando matrizes}
-			\label{fig:tempmatrixmultnn}
+			\label{fig:matrixmultnn}
 			\includegraphics[width=0.7\linewidth]{images/TEMPMatrixMultNN}
+		\end{figure}
+		
+	\section{Redes neurais multicamadas}
+		\par A depender da complexidade do problema apenas duas camadas não são suficientes para que este aproximados universal de funções, mais conhecido como rede neural, consiga obter resultados satisfatórios. Assim, se torna necessário adição de uma ou mais camadas que servirão para aumentar a complexidade do espaço das soluções de nossa rede.
+		
+		\par Então, considerando o contexto, as tais camadas que devem ser adicionadas serão chamadas de ocultas ou \textit{hidden layers}\cite{rashid2016make}. 
+		
+		\par Em redes neurais multicamadas surge um novo problema: Como atualizar os valores dos pesos entre as camadas já que o erro produzido depende das várias entradas da camada anterior? Como mostrado na figura \ref{fig:simpleNeuralNetwork} o valor da próxima camada depende da soma ponderada pelos pesos dos valores da anterior sendo que tal soma deve passar por uma função de ativação escolhida, portanto, após o cálculo do erro na resposta da rede é preciso recalcular os pesos de forma a distribuir esses erros usando um algoritmo ao qual daremos o nome de retro-propagação ou \textit{backpropagation} \cite{haykinredes}. É importante frisar que este é apenas um dos vários métodos de treinamento da rede neural, é possível, por exemplo, usar uma abordagem bio-inspirada e/ou evolutiva.
+		
+		\begin{figure}[H]
+			\centering
+			\caption{Retro-propagação}
+			\label{fig:backpropagation}
+			\includegraphics[width=0.7\linewidth]{images/TEMPbackpropagation}
+		\end{figure}
+	
+	\section{Retro-propagação}
+		\par Primeiramente é importante notar que os pesos associados a cada item da camada (neurônio) Contribuem com o erro resultante de forma proporcional aos seus respectivos valores, sendo assim, é necessário ao fazer a retro-propagação que esses erros sejam distribuídos proporcionalmente como indicado na figura \ref{fig:backpropagationErrors}.
+		
+		\begin{figure}[H]
+			\centering
+			\caption{Parcela da distribuição do erro na retro-propagação para o $erro_1$, o mesmo deve ser feito para todos os outros erros.}
+			\label{fig:backpropagationErrors}
+			\includegraphics[width=0.4\linewidth]{images/TEMPbackpropagationErros}
+		\end{figure}
+		
+		\par Calculada a parcela da participação de cada peso nos erros produzidos, Se passar a fase do erro resultante na camada oculta para que, usando o mesmo raciocínio de cálculo da participação no erro, se possa continuar com algoritmo de retro-propagação. Assim, o cálculo do erro da camada oculta se dar como mostrado na equação \ref{eq:hiddenLayerError}.
+		
+		\begin{equation}
+			\label{eq:hiddenLayerError}
+			erro_{oculto_1} = \begin{cases} 
+				erro_{resultado_1}  * \dfrac{peso_{1,1}}{peso_{1,1} + peso_{2,1}+ ... + peso_{n,1}}  + \\\\
+				erro_{resultado_2}  * \dfrac{peso_{1,2}}{peso_{1,2} + peso_{2,2}+ ... + peso_{n,2}}  + \\
+				\qquad\qquad \vdots \\
+				+ erro_{resultado_k}  * \dfrac{peso_{1,k}}{peso_{1,k} + peso_{2,k}+ ... + peso_{n,k}} 
+			\end{cases}			 
+		\end{equation}
+	
+		\par Onde, em relação ao neurônio atual da camada oculta($oculto_1$), $n$ representa a quantidade de pesos vinculados e $k$ o número de neurônios na camada de saída . As figuras \ref{fig:backpropagationerros1} e \ref{fig:backpropagationerros2} mostram em mais detalhes o funcionamento do algoritmo.
+		
+		\begin{figure}[H]
+			\centering
+			\caption{Retro-propagação da camada de saída para a oculta}
+			\label{fig:backpropagationerros1}
+			\includegraphics[width=0.7\linewidth]{images/TEMPbackpropagationErros1}
+		\end{figure}
+		
+		
+		\begin{figure}[H]
+			\centering
+			\caption{Retro-propagação da camada oculta para a entrada}
+			\label{fig:backpropagationerros2}
+			\includegraphics[width=0.7\linewidth]{images/TEMPbackpropagationErros2}
 		\end{figure}
 		
 		
