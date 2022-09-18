@@ -58,6 +58,26 @@
 		
 		\par Pode-se considerar tal junção como uma a rede neural. É possível perceber que a mesma passa ter múltiplas entradas tornando-se necessário, antes que a função de ativação seja aplicada, que a soma dessas entradas seja feita. A este procedimento se dá o nome de \textit{feedforward} \cite{haykinredes}:
 		
+		\par Via de regra uma rede neural tem pelo menos 2 camadas: A camada de entrada que é usada apenas para representar os valores que serão processados e a camada de saída, cujo papel é fazer a soma ponderada das entradas passando então o resultado dessa operação para uma função de ativação que finalmente gerará as saídas de nossa rede neural como ilustrado na figura \ref{fig:simpleNeuralNetwork}.
+		\begin{figure}
+			%TODO Fazer a figura de uma rede neural simples
+			\centering
+			\caption[Uma rede neural simples Fonte: O autor]{Uma rede neural simples Fonte: O autor}
+			\label{fig:simpleNeuralNetwork}
+			\includegraphics[width=0.7\linewidth]{images/TEMPSimpleNN}
+		\end{figure}		
+
+	\section{Uma rede neural simples}
+		\par Como visto na figura \ref{fig:simpleNeuralNetwork} da sessão anterior uma rede neural conecta suas camadas usando pesos que servirão como moderadores das entradas da próxima camada com o fim desse evitar o \textit{overfitting}. É possível representar uma rede neural de várias formas, no entanto, como ilustrado na figura \ref{fig:tempmatrixmultnn}, a forma mais eficiente computacionalmente será a matricial, usando esta abordagem será possível representar facilmente as camadas e os respectivos pesos que as ligam, melhorando também o desempenho computacional já que tais operações são altamente paralelizáveis.
+		
+		
+		\begin{figure}
+			\centering
+			\caption[Representação de uma rede neural usando matrizes]{Representação de uma rede neural usando matrizes}
+			\label{fig:tempmatrixmultnn}
+			\includegraphics[width=0.7\linewidth]{images/TEMPMatrixMultNN}
+		\end{figure}
+		
 		
 		
 \end{apendicesenv}
