@@ -1,3 +1,72 @@
 \begin{apendicesenv}
-
+	\chapter{Como fazer uma rede neural}
+	
+	\section{Entendo aproximadores de função}
+		\begin{itemize}
+			\item Analisar o contexto do problema: O mesmo é linear, não linear \cite{rashid2016make}.
+			\item A partir do item anterior, definir qual a função da ativação será usada \cite{rashid2016make}.
+		\end{itemize}
+	
+		\par É importante também, dependendo do tipo de problema, saber escolher uma função de cálculo de erro, essa função, pode ser uma função quadrática, linear ou outra dependendo da importância que o erro tem na solução do problema. As funções de cálculo de erro mais usadas são mostradas abaixo:
+		
+		%TODO Colocar  exemplos de função de cálculo de erros
+		\begin{itemize}
+			\item $erro = valorDesejado - valorCalculado$
+			\item 
+		\end{itemize}
+	
+		\par Calculado o erro é necessário agora, de alguma forma, fazer com que esse erro seja corrigido utilizando uma abordagem iterativa que se aproxima cada vez mais do valor desejado usando pequenos passos. Considerando que $\Delta$ represente uma pequena variação em um valor $peso$, e sendo  $peso$ um dos parâmetros da função de ativação de um aproximador ($y = peso . x$ para uma função de ativação linear) então temos que a correção do valor deve ser dado como na equação abaixo:
+		
+		\begin{equation}
+			valorDesejado = (peso + \Delta peso) . entrada \qquad,
+		\end{equation}
+		\cite{rashid2016make}
+		
+		\par Então, sabendo que o $valorDesejado = peso + \Delta peso . entrada$ e que $erro = valorDesejado - valorCalculado$ se pode concluir que:
+		
+		\begin{equation}
+			\Delta peso = \dfrac{erro} { entrada} \qquad,
+		\end{equation}
+	
+		\par No tocante as funções de ativação se pode imaginar quantas forem necessárias, no entanto, algumas se destacam dentro do campo das redes neurais:
+	
+		\begin{itemize}
+			\item \textit{step function}: \begin{equation}
+				y = \begin{cases} 
+					0 & x\leq 0 \\
+					1 & x > 0 \\
+				\end{cases}
+			\end{equation}
+			\item \textit{sigmoid function}: \begin{equation}
+				y = \dfrac{1}{1 + e^{-x}}
+			\end{equation}
+			%TODO Apresentar outro exemplos de função de ativação
+		\end{itemize}
+	
+		\par No entanto, existe um problema quanto a esta abordagem, a função de ativação que recebe o parâmetro $peso$ Se adaptará ao último exemplo mostrado a ela criando uma situação conhecida como "overfitting", invalidando assim todos os os outros exemplos anteriormente usados, portanto, como se pode notar, é necessário a criação de um elemento que impeça esse ajustamento extremo, chamado de taxa de aprendizado:
+		
+		\begin{equation}
+			\Delta peso = taxaDeAprendizado . \left( \dfrac{erro} { entrada} \right) \qquad,
+		\end{equation}
+			
+		\par Usualmente a taxa de aprendizado é um valor suficientemente pequeno cujo o objetivo é garantir que o \textit{ovefitting} não aconteça mas, suficientemente grande para que a rede aprenda em um tempo razoável. Sendo $0,1$ um dos valores normalmente usados.
+		%TODO Não citar redes neurais nessa sessão
+	\section{Junção dos aproximadores: Redes neurais }
+		\par Já que a sessão anterior definiu o que é um aproximador de funções, nesta sessão, usando as definições já vistas, será apresentada a definição de uma rede neural que é a junção de vários aproximadores que, dessa forma, conseguem  delimitar espaços de resultados mais complexos além daqueles que podem ser separados por apenas uma função de ativação.
+		
+		\par Um dos exemplos clássicos que necessitam dessa abordagem mais complexa é o exemplo da porta lógica \textit{xor}. Quando se tenta usar apenas um aproximador de funções para conseguir os resultados dessa porta é possível notar que o mesmo não é capaz de criar um espaço de resultados suficientemente complexo afim de separar os pontos fornecidos, sendo assim, Torna-se necessário o uso de múltiplos aproximadores (ou, nesse caso, 2).
+		
+		\par Pode-se considerar tal junção como uma a rede neural. É possível perceber que a mesma passa ter múltiplas entradas tornando-se necessário, antes que a função de ativação seja aplicada, que a soma dessas entradas seja feita. A este procedimento se dá o nome de \textit{feedforward} \cite{haykinredes}:
+		
+		
+		
 \end{apendicesenv}
+
+
+
+
+
+
+
+
+
