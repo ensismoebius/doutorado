@@ -105,7 +105,7 @@
 		\end{figure}
 	
 	\section{Retro-propagação}
-		\par Primeiramente é importante notar que os pesos associados a cada item da camada (neurônio) Contribuem com o erro resultante de forma proporcional aos seus respectivos valores, sendo assim, é necessário ao fazer a retro-propagação que esses erros sejam distribuídos proporcionalmente como indicado na figura \ref{fig:backpropagationErrors}.
+		\par Primeiramente é importante notar que os pesos associados a cada item da camada (neurônio) Contribuem com o erro resultante de forma proporcional aos seus respectivos valores, sendo assim, é necessário, ao fazer a retro-propagação, que esses erros sejam distribuídos proporcionalmente como indicado na figura \ref{fig:backpropagationErrors}.
 		
 		\begin{figure}[H]
 			\centering
@@ -114,7 +114,7 @@
 			\includegraphics[width=0.4\linewidth]{images/TEMPbackpropagationErros}
 		\end{figure}
 		
-		\par Calculada a parcela da participação de cada peso nos erros produzidos, Se passar a fase do erro resultante na camada oculta para que, usando o mesmo raciocínio de cálculo da participação no erro, se possa continuar com algoritmo de retro-propagação. Assim, o cálculo do erro da camada oculta se dar como mostrado na equação \ref{eq:hiddenLayerError}.
+		\par Calculada a parcela da participação de cada peso nos erros produzidos possibilta calcular o erro resultante na camada oculta, usando o mesmo raciocínio de cálculo da participação no erro, é possível continuar com algoritmo de retro-propagação. Assim, o cálculo do erro da camada oculta se dá como mostrado na equação \ref{eq:hiddenLayerError}.
 		
 		\begin{equation}
 			\label{eq:hiddenLayerError}
@@ -145,6 +145,10 @@
 		
 	\chapter{Paralelismo}
 		\par 
+		
+		\chapter{Medidas dos tempos de execução do software}
+		% TODO Fazer testes de execução e medir os tempos de classificassão e treinamento do softwares
+		% perto sakr hotel em frente a BR, depois do balão
 		
 		
 \end{apendicesenv}
