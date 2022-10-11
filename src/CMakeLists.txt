@@ -15,6 +15,9 @@ project(Doutorado
         DESCRIPTION "Many things!!!"
         LANGUAGES CXX)  
 
+# Build type
+set(CMAKE_BUILD_TYPE Debug)
+
 # C++ version
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,7 +27,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 message(STATUS "***********************COMPILING FOR:***********************")
 message(STATUS ${CMAKE_SYSTEM})
-message(STATUS ${CMAKE_TOOLCHAIN_FILE})
 message(STATUS "************************************************************")
 
 ###############################################
@@ -87,5 +89,5 @@ if (NOT APPLE)
 	#)
 	
 	# Link paraconsistentTests with what we want to test and the GTest and pthread library
-	target_link_libraries(${PROJECT_NAME}Tests PUBLIC ${GTEST_LIBRARIES} pthread)
+	# target_link_libraries(${PROJECT_NAME} PUBLIC ${GTEST_LIBRARIES} pthread)
 endif()

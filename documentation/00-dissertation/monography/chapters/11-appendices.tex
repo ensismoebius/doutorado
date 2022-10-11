@@ -51,6 +51,17 @@
 			
 		\par Usualmente a taxa de aprendizado é um valor suficientemente pequeno cujo o objetivo é garantir que o \textit{ovefitting} não aconteça mas, suficientemente grande para que a rede aprenda em um tempo razoável. Sendo $0,1$ um dos valores normalmente usados.
 		%TODO Não citar redes neurais nessa sessão
+		
+		
+		%TODO citar as referências para es "outres autores" citades no texto abaixo
+		\par Já outros autores preferem usar uma função de erro "acumulada", desta forma, o erro é calculado em lote segundo várias entradas e saídas processadas pela rede de forma que se compute o erro acumulado segundo a expressão \ref{eq:batchError} onde $E$ é o erro $M$ é o tamanho do vetor de saída da rede, $N$ é a quantidade de amostras fornecidas, $y_{ik}$ é o vetor de resultante da rede e $t_{ik}$ é o vetor esperado.
+		
+		
+		\begin{equation}
+			E = \dfrac{1}{2MN} . \sum_{k}^{N}\sum_{i}^{M}(y_{ik}-t_{ik})^2 \qquad,
+			\label{eq:batchError}
+		\end{equation}
+		
 	\section{Junção dos aproximadores: Redes neurais }
 		\par Já que a sessão anterior definiu o que é um aproximador de funções, nesta sessão, usando as definições já vistas, será apresentada a definição de uma rede neural que é a junção de vários aproximadores que, dessa forma, conseguem  delimitar espaços de resultados mais complexos além daqueles que podem ser separados por apenas uma função de ativação.
 		
