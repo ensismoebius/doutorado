@@ -142,7 +142,126 @@
 			\label{fig:backpropagationerros2}
 			\includegraphics[width=0.7\linewidth]{images/TEMPbackpropagationErros2}
 		\end{figure}
+	
+	\section{Retro-propagação II}
+		\par Sendo uma rede neural um aproximador universal de funções, o algoritmo de retro-propagação será feito de forma que a taxa de variação dessa função (derivada) seja levado em conta. Especificamente, a função em questão, é o que se convencionou chamar função de custo ou de erro, que é um método para calcular o erro total que a rede produziu dada uma certa entrada, sendo assim, a função de custo também engloba a função de ativação ja que esta contribui para o erro, esse fato será importante mais a frente quando a derivada da mesma será necessária graças à regra da cadeia.
 		
+		\par Para melhor entender como a derivada da função de erro para uma rede neural deve ser tomada, é necessário primeiro entender o que é o vetor gradiente: O vetor gradiente é aquele que aponta para o maior crescimento da função dadas as derivadas parciais dos respectivos parâmetros da mesma. No caso de uma rede neural os parâmetros são os pesos que interliga cada neurônio que a compõem.
+		
+		\par Portanto se $f$ é uma função \ref{eq:function}  que contém os parâmetros $x_1, x_2, x_3$, por exemplo. Então o vetor gradiente da mesma será compostos pelas derivadas parciais de cada parâmetro \ref{eq:gradientVector}.
+
+		\begin{equation}\label{eq:function}
+			f(x_1, x_2, x_3)
+		\end{equation}
+
+		\begin{equation}\label{eq:gradientVector}
+			\nabla f(x_1, x_2, x_3) = \begin{bmatrix}
+				\dfrac{\delta f}{\delta x_1}  \\\\
+				\dfrac{\delta f}{\delta x_2}  \\\\
+				\dfrac{\delta f}{\delta x_3} 
+			\end{bmatrix}
+		\end{equation}
+	
+		\par Como já foi dito, o gradiente da função aponta para a direção dentro do domínio da função onde a mesma cresce mais rápido, no entanto, a intenção não é maximizar a função e sim minimiza-las, portanto, para que seja possível encontrar um mínimo da função, considera-se o valor oposto (negativo) do gradiente. Sendo assim, considerando que $X_t$ denota o valor atual  do parâmetro $X$ (que é um vetor) e  $X_{t+1}$ corresponde ao próximo valor que será fornecido a função $f$. O cálculo de $X_{t+!}$ se dará como mostrado na equação \ref{eq:nextX} .
+	
+			\begin{equation}\label{eq:nextX}
+				X_{t+1} = X_t  - \eta . \nabla f(X_t)
+			\end{equation}
+	
+			\par Onde $\eta$ é um coeficiente escalar \textbf{bastante pequeno} conhecido como \textbf{coeficiente de aprendizado} cujo valor geralmente está abaixo de 1 como 0.1, 0,3, etc.
+			
+			\par Ou, de forma mais explícita, combinando as equações \ref{eq:gradientVector} e \ref{eq:nextX} se tem a expressão \ref{eq:nextXII}.
+			
+			\begin{equation}\label{eq:nextXII}
+				X_{t+1} = \begin{bmatrix}
+					\dfrac{\delta f}{\delta {x[0]_t}}  \\\\
+					\dfrac{\delta f}{\delta {x[1]_t}}  \\
+					\vdots  \\
+					\dfrac{\delta f}{\delta {x[n]_t}} 
+				\end{bmatrix}  - \eta . \begin{bmatrix}
+				\dfrac{\delta f}{\delta {x[0]_t}}  \\\\
+				\dfrac{\delta f}{\delta {x[1]_t}}  \\
+				\vdots  \\
+				\dfrac{\delta f}{\delta {x[n]_t}} 
+			\end{bmatrix}  
+			\end{equation}
+		
+		\par O conteúdo acima apresentado ajudará no algoritmo de retro-propagação que, como já foi dito, considerará os pesos das sinapses da rede neural. É importante frisar que as entradas da rede neural e as respectivas saídas esperadas também serão importantes, já que, o valor da função de custo só pode ser calculado na existência desses dois valores.
+		
+		\par Considere a representação de uma rede neural.
+		%TODO Fazer uma figura de uma rede neural totalmente conectada 3,2,3,2,2
+			
+		\begin{figure}[H]
+			\centering
+			\caption{Rede neural de três camadas escondidas, os pesos representados pelas variáveis $w_1, w_2, w_3$ na figura \ref{fig:3LayersNeuralNetwork} são alguns dos parâmetros da rede que devem ser ajustados para que hajam resultados satisfatórios.}
+			\label{fig:3LayersNeuralNetwork}
+			\includegraphics[width=0.7\linewidth]{images/placeholder}
+		\end{figure}
+	
+		\par Considere  para fins de exemplo o vetor de entrada \ref{eq:inputVector}, o vetor de saída \ref{eq:outputVector} e o vetor da saída desejada \ref{eq:targetVector}.
+		
+		\begin{equation}\label{eq:inputVector}
+ 		 X = \begin{bmatrix}
+			 	1 \\
+			 	0 \\
+			 	2  
+			 \end{bmatrix}
+		\end{equation}
+	
+		\begin{equation}\label{eq:outputVector}
+			O = \begin{bmatrix}
+				-1 \\
+				3 
+			\end{bmatrix}
+		\end{equation}
+	
+		\begin{equation}\label{eq:targetVector}
+		T = \begin{bmatrix}
+			1 \\
+			0 
+		\end{bmatrix}
+		\end{equation}
+		
+		\par O vetor de entrada $X$ será processado pela rede produzindo um vetor de saída $O$, A função de custo usará os valores de $O$ e $T$ para calcular o custo total da rede para, dessa forma, ajustar seus parâmetros. A função de custo de uma rede pode ser das mais variadas, no entanto, para fins de entendimento usaremos o erro quadrática médio que, além de ser uma boa função de custo, se mostrará conveniente quando houver a necessidade de derivá-la.
+		
+		\par Para começar calcula-se o erro que é a diferença entre a saída desejada e a saída obtida pela rede como mostrado na equação \ref{eq:error}.
+		
+		\begin{equation}\label{eq:error}
+			E0 = O - T
+		\end{equation}
+	
+		\par Resultando nos valores:
+		
+		\begin{equation}\label{eq:outputVector}
+			E0 = \begin{bmatrix}
+					-1 \\
+					3 
+			\end{bmatrix}-\begin{bmatrix}
+				1 \\
+				0 
+			\end{bmatrix} =\begin{bmatrix}
+				-2 \\
+				3 
+			\end{bmatrix}
+		\end{equation}
+	
+	\par Calculado o erro $E0$, passa-se ao cálculo do custo $E$ aplicando-se a soma dos quadrados de cada item do vetor de erros, dividindo o resultado por dois, como já foi dito essa divisão é apenas uma conveniência pois facilitará os cálculos no momento da derivação, $n$ é a quantidade de elementos no vetor de saída.
+	
+	\begin{equation}\label{eq:averageQuadError}
+		E = \dfrac{1}{2.n}. \sum_{i=0}^{n}  (E_i)^2 = \dfrac{1}{2n} . (-2^2 + 3^2)  = \dfrac{1}{2.2} . (4 + 9) = \dfrac{1}{4} . 13 = \dfrac{13}{4} 
+	\end{equation}
+
+
+	\par Agora que o processo de cálculo de custo da rede foi explicado é necessário ter uma visão geral de como a rede será treinada:
+	
+	\begin{itemize}
+		\item Preparar as entradas e as respectivas saídas esperadas para rede neural
+		\item A partir do custo calculado calcular o gradiente dessa função de custo
+		\item Ajustar os pesos e os \textit{bias} da rede em direção oposta ao gradiente calculado
+		\item Repetir o processo até que uma condição de parada seja encontrada, muita das vezes essa será o custo máximo.
+	\end{itemize}
+		
+
 	\chapter{Paralelismo}
 		\par 
 		
