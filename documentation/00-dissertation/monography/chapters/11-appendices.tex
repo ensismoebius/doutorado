@@ -162,7 +162,7 @@
 			\end{bmatrix}
 		\end{equation}
 	
-		\par Como já foi dito, o gradiente da função aponta para a direção dentro do domínio da função onde a mesma cresce mais rápido, no entanto, a intenção não é maximizar a função e sim minimiza-las, portanto, para que seja possível encontrar um mínimo da função, considera-se o valor oposto (negativo) do gradiente. Sendo assim, considerando que $X_t$ denota o valor atual  do parâmetro $X$ (que é um vetor) e  $X_{t+1}$ corresponde ao próximo valor que será fornecido a função $f$. O cálculo de $X_{t+!}$ se dará como mostrado na equação \ref{eq:nextX} .
+		\par Como já foi dito, o gradiente da função aponta para a direção dentro do domínio da função onde a mesma cresce mais rápido, no entanto, a intenção não é maximizar a função e sim minimiza-las, portanto, para que seja possível encontrar um mínimo da função, considera-se o valor oposto (negativo) do gradiente. Sendo assim, considerando que $X_t$ denota o valor atual  do parâmetro $X$ (que é um vetor) e  $X_{t+1}$ corresponde ao próximo valor que será fornecido a função $f$. O cálculo de $X_{t+1}$ se dará como mostrado na equação \ref{eq:nextX} .
 	
 			\begin{equation}\label{eq:nextX}
 				X_{t+1} = X_t  - \eta . \nabla f(X_t)
@@ -260,8 +260,51 @@
 		\item Ajustar os pesos e os \textit{bias} da rede em direção oposta ao gradiente calculado
 		\item Repetir o processo até que uma condição de parada seja encontrada, muita das vezes essa será o custo máximo.
 	\end{itemize}
-		
+	
+	\par Tendo em mente essa visão geral, considere agora duas camadas $l - 1$ e $l$ de uma rede qualquer como mostrado na figura \ref{fig:layers}.
+	
+	\begin{figure}[H]
+		\centering
+		\caption{Duas camadas quaisquer de uma rede neural totalmente ligada, o neurônio $j$ pertence a camada $l -1$ e um neurônio $i$ pertence a camada $l$, dessa forma, o peso (ou peso sináptico) pertencente a camada $l$ que liga o neurônio $j$ ao neurônio $i$ é escrito como $w^l_{ij}$ }
+		\label{fig:layers}
+		\includegraphics[width=0.5\linewidth]{images/layers}
+	\end{figure}
 
+	\par Representados como mostrado na figura \ref{fig:layers} e considerando $W^l$ como a representação de todos os pesos sinápticos pertencentes a camada $l$ essa notação proporciona uma representação matricial descrita na equação \ref{eq:weightsMatrix} onde $i$ é a linha e $j$ a coluna da matriz. De outra forma: Cada linha $i$ representa o correspondente neurônio da camada $l$ e cada coluna representa o correspondente neurônio da camada $l-1$ e, as intersecções, representam os pesos sinápticos que ligam um neurônimo ao outro. Os \textit{bias} $B^l$ da camada $l$ são representados em \ref{eq:biasVector}. 
+	
+	\begin{equation}\label{eq:weightsMatrix}
+		W^l = \begin{bmatrix}
+			\vdots && \vdots && \vdots && \vdots \\
+			\hdots && w^l_{ij} && \hdots && \hdots \\
+			\vdots && \vdots && \vdots && \vdots \\
+			\vdots && \vdots && \vdots && \vdots \\
+		\end{bmatrix}
+	\end{equation}
+
+	\begin{equation}\label{eq:biasVector}
+		B^l = \begin{bmatrix}
+			\vdots \\
+			b^l_i  \\
+			\vdots \\
+			\vdots \\
+		\end{bmatrix}
+	\end{equation}
+
+	\par Para que a rede neural tenha seus pesos sináptica os atualizados é necessário que a operação de \textit{feedforward} seja realizada afim de poderem ser calculados os erros da rede e consequentemente o seu custo.
+	
+	\begin{figure}[H]
+		\centering
+		\caption{Representação do \textit{feedforward}: $S^l_i$ é a soma das saídas vindas da camada $l-1$ ponderadas pelos respectivos pesos $ w^l_{ij}$ mais os \textit{bias} $B^l$ da camada $l$, $Z^l_i$ é um valor escalar resultante da aplicação de uma função de ativação sobre $S^l_i$}
+		\label{fig:layersFeedforward}
+		\includegraphics[width=0.5\linewidth]{images/layersFeedforward}
+	\end{figure}
+
+	\par A função de ativação, também conhecida como função de transferência, citada na figura \ref{fig:layersFeedforward} é representada na equação \ref{eq:activationFunction}.
+	
+	\begin{equation}\label{eq:activationFunction}
+		Z^l_i = \sigma(S^l_i)
+	\end{equation}
+	
 	\chapter{Paralelismo}
 		\par 
 		
