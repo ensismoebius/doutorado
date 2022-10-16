@@ -1,0 +1,3 @@
+[submodule "software/src/lib/sfmlplot"]
+	path = software/src/lib/sfmlplot
+	url = git@github.com:ensismoebius/sfmlPlot.git
