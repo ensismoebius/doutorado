@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.9)
 
 if (APPLE)
 	set (CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING
-    "Minimum OS X deployment version" FORCE)
-	
+	"Minimum OS X deployment version" FORCE)
+
 	# Fix behavior of CMAKE_CXX_STANDARD when targeting macOS.
 	if (POLICY CMP0025)
 		cmake_policy(SET CMP0025 NEW)
@@ -11,9 +11,9 @@ if (APPLE)
 endif()
 
 project(Doutorado
-        VERSION 1.0
-        DESCRIPTION "Many things!!!"
-        LANGUAGES CXX)  
+	VERSION 1.0
+	DESCRIPTION "Many things!!!"
+	LANGUAGES CXX)
 
 # Build type
 set(CMAKE_BUILD_TYPE Debug)
@@ -55,6 +55,9 @@ if(OpenMP_CXX_FOUND)
     include_directories(${OpenMP_CXX_INCLUDE_DIRS})
 endif()
 
+# Adding sfmlplot library project
+add_subdirectory(src/lib/sfmlplot)
+
 # Executable
 add_executable(${CMAKE_PROJECT_NAME} ${SRCS})
 
@@ -63,15 +66,19 @@ target_include_directories(${CMAKE_PROJECT_NAME}
 	PUBLIC src/lib/gaussian
 )
 
+# Link the executable to the sfmlplot library. Since the sfmlplot library has
+# public include directories we will use those link directories when building
+target_link_libraries (${CMAKE_PROJECT_NAME} LINK_PUBLIC sfmlplot)
+
 # Libraries to link
 set(SFML_LIBS sfml-system sfml-window sfml-graphics)
-target_link_libraries(${PROJECT_NAME} ${SFML_LIBS})
+target_link_libraries(${CMAKE_PROJECT_NAME} LINK_PUBLIC ${SFML_LIBS})
 
 if(OpenMP_CXX_FOUND)
-    target_link_libraries(${PROJECT_NAME} OpenMP::OpenMP_CXX)
+    target_link_libraries(${CMAKE_PROJECT_NAME} LINK_PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-target_link_libraries(${PROJECT_NAME} ${ARMADILLO_LIBRARIES})
+target_link_libraries(${CMAKE_PROJECT_NAME} LINK_PUBLIC ${ARMADILLO_LIBRARIES})
 
 ########################################
 ########################################
@@ -83,11 +90,11 @@ if (NOT APPLE)
 	# Locate GTest
 	find_package(GTest REQUIRED)
 	include_directories(${GTEST_INCLUDE_DIRS})
-	
+
 	# Load paraconsistent tests
 	#add_executable( ${PROJECT_NAME}Tests
 	#)
-	
+
 	# Link paraconsistentTests with what we want to test and the GTest and pthread library
 	# target_link_libraries(${PROJECT_NAME} PUBLIC ${GTEST_LIBRARIES} pthread)
 endif()
