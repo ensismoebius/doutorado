@@ -15,9 +15,6 @@ project(Doutorado
 	DESCRIPTION "Many things!!!"
 	LANGUAGES CXX)
 
-# Build type
-set(CMAKE_BUILD_TYPE Debug)
-
 # C++ version
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -46,6 +43,8 @@ find_package(OpenMP)
 set (SRCS
 src/main.cpp
 src/lib/gaussian/gaussian.cpp
+src/experiments/experiment00.cpp
+src/experiments/experiment01.cpp
 )
 
 # Include dirs
@@ -79,6 +78,12 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 target_link_libraries(${CMAKE_PROJECT_NAME} LINK_PUBLIC ${ARMADILLO_LIBRARIES})
+
+# Copies the used font to folder
+file(
+    COPY ${CMAKE_CURRENT_SOURCE_DIR}/res/fonts/Arial.ttf
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res/fonts
+)
 
 ########################################
 ########################################
