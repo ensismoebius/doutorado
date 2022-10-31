@@ -76,11 +76,13 @@ void experiment00()
     sf::Font font;
     font.loadFromFile(FONT_PATH);
 
-    setData(data0, 8);
+    setData(data0, 16);
     sfplot::Heatmap hm0(font, 10, 1, 200, 200, 50, 50, data0);
     sfplot::Heatmap hm1(font, 10, 1, 200, 200, 50, 300, data0);
     hm0.axis = false;
     hm1.axis = false;
+
+    sf::Time t = sf::seconds(0.1);
 
     auto rng = std::default_random_engine {};
     // Aplication main loop
@@ -92,6 +94,7 @@ void experiment00()
         window.draw(hm1);
         window.display();
 
+        sf::sleep(t);
         // Window and keyboard events
         sf::Event event;
         while (window.pollEvent(event)) {
