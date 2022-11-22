@@ -76,7 +76,7 @@ void experiment00()
     sf::Font font;
     font.loadFromFile(FONT_PATH);
 
-    setData(data0, 16);
+    setData(data0, 64);
     sfplot::Heatmap hm0(font, 10, 1, 200, 200, 50, 50, data0);
     sfplot::Heatmap hm1(font, 10, 1, 200, 200, 50, 300, data0);
     hm0.axis = false;
