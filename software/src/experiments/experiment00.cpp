@@ -82,7 +82,7 @@ void experiment00()
     hm0.axis = false;
     hm1.axis = false;
 
-    sf::Time t = sf::seconds(0.1);
+    sf::Time t = sf::seconds(1);
 
     auto rng = std::default_random_engine {};
     // Aplication main loop
