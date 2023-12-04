@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297.00001"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (b0a8486541, 2022-12-01)"
+   sodipodi:docname="architecture.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="1"
+     inkscape:cx="346"
+     inkscape:cy="696"
+     inkscape:window-width="1920"
+     inkscape:window-height="1016"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2">
+    <marker
+       style="overflow:visible"
+       id="Arrow4"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Arrow4"
+       markerWidth="5"
+       markerHeight="6"
+       viewBox="0 0 5 6"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
+         id="path1741" />
+    </marker>
+    <rect
+       x="123.15026"
+       y="172.3569"
+       width="145.94247"
+       height="143.95946"
+       id="rect290" />
+    <rect
+       x="123.15026"
+       y="172.3569"
+       width="145.22763"
+       height="109.50244"
+       id="rect290-3" />
+    <rect
+       x="123.15026"
+       y="172.3569"
+       width="142.01279"
+       height="79.045395"
+       id="rect290-5" />
+    <rect
+       x="123.15026"
+       y="172.3569"
+       width="145.12997"
+       height="79.127426"
+       id="rect290-0" />
+    <marker
+       style="overflow:visible"
+       id="Arrow4-9"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Arrow4"
+       markerWidth="5"
+       markerHeight="6"
+       viewBox="0 0 5 6"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="xMidYMid">
+      <path
+         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
+         d="m 1,0 -3,3 h -2 l 3,-3 -3,-3 h 2 z"
+         id="path1741-2" />
+    </marker>
+  </defs>
+  <g
+     inkscape:label="Camada 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-13.33977,-5.5937039)">
+    <g
+       id="g457"
+       transform="translate(-1.661913,54.191007)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect234"
+         width="41.236603"
+         height="42.690464"
+         x="26.324795"
+         y="39.055302"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         transform="matrix(0.26458333,0,0,0.26458333,-4.4931326,1.7660127)"
+         id="text288"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;white-space:pre;shape-inside:url(#rect290);display:inline"><tspan
+           x="123.15039"
+           y="187.15742"
+           id="tspan4277">Convolutional layer
+</tspan><tspan
+           x="123.15039"
+           y="207.15742"
+           id="tspan4279">
+</tspan><tspan
+           x="123.15039"
+           y="227.15742"
+           id="tspan4281">Input channels: 6
+</tspan><tspan
+           x="123.15039"
+           y="247.15742"
+           id="tspan4283">Output channels: 16
+</tspan><tspan
+           x="123.15039"
+           y="267.15742"
+           id="tspan4285">kernel size: 5</tspan></text>
+    </g>
+    <g
+       id="g457-6"
+       transform="translate(82.082133,54.191007)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect234-7"
+         width="41.236603"
+         height="42.690464"
+         x="26.324795"
+         y="39.055302"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         transform="matrix(0.26458333,0,0,0.26458333,-4.4931326,1.236846)"
+         id="text288-5"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;white-space:pre;shape-inside:url(#rect290-3);display:inline"><tspan
+           x="123.15039"
+           y="187.15742"
+           id="tspan4287">Convolutional layer
+</tspan><tspan
+           x="123.15039"
+           y="207.15742"
+           id="tspan4289">
+</tspan><tspan
+           x="123.15039"
+           y="227.15742"
+           id="tspan4291">Input channels: 16
+</tspan><tspan
+           x="123.15039"
+           y="247.15742"
+           id="tspan4293">Output channels: 32
+</tspan><tspan
+           x="123.15039"
+           y="267.15742"
+           id="tspan4295">kernel size: 5</tspan></text>
+    </g>
+    <g
+       id="g471"
+       transform="rotate(-90,86.629323,104.53179)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect465"
+         width="38.905849"
+         height="15.425607"
+         x="57.116642"
+         y="97.342865"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="64.957733"
+         y="104.01893"
+         id="text461"><tspan
+           sodipodi:role="line"
+           id="tspan459"
+           style="stroke-width:0.264583"
+           x="64.957733"
+           y="104.01893">MaxPooling</tspan><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="64.957733"
+           y="109.31059"
+           id="tspan463">kernel size: 2</tspan></text>
+    </g>
+    <g
+       id="g471-3"
+       transform="rotate(-90,128.50135,62.659763)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect465-5"
+         width="38.905849"
+         height="15.425607"
+         x="57.116642"
+         y="97.342865"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="64.957733"
+         y="104.01893"
+         id="text461-6"><tspan
+           sodipodi:role="line"
+           id="tspan459-2"
+           style="stroke-width:0.264583"
+           x="64.957733"
+           y="104.01893">MaxPooling</tspan><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="64.957733"
+           y="109.31059"
+           id="tspan463-9">kernel size: 2</tspan></text>
+    </g>
+    <g
+       id="g471-3-1"
+       transform="rotate(-90,143.40784,47.753273)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect465-5-2"
+         width="38.905849"
+         height="15.425607"
+         x="57.116642"
+         y="97.342865"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="59.136894"
+         y="102.43142"
+         id="text461-6-7"><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="59.136894"
+           y="102.43142"
+           id="tspan463-9-9">Activatiion function</tspan><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="59.136894"
+           y="107.72308"
+           id="tspan673">RELU</tspan></text>
+    </g>
+    <path
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 65.899485,114.59154 13.540913,1e-5"
+       id="path720"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g457"
+       inkscape:connection-end="#g471" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 94.866005,114.59155 13.540925,-1e-5"
+       id="path722"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g457-6"
+       inkscape:connection-start="#g471" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 149.64353,114.59154 13.54092,1e-5"
+       id="path724"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g471-3"
+       inkscape:connection-start="#g457-6" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 178.61006,114.59155 14.38737,0"
+       id="path726"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g471-3"
+       inkscape:connection-end="#g471-3-1" />
+    <g
+       id="g1855"
+       transform="translate(-59.532057,-51.724979)">
+      <circle
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         id="path1846"
+         cx="104.81324"
+         cy="124.55363"
+         r="9.2242432" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="99.977356"
+         y="125.96233"
+         id="text1850"><tspan
+           sodipodi:role="line"
+           id="tspan1848"
+           style="stroke-width:0.264583"
+           x="99.977356"
+           y="125.96233">Input</tspan></text>
+    </g>
+    <g
+       id="g1927"
+       transform="translate(117.95352,13.012124)">
+      <circle
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         id="path1846-7"
+         cx="82.756706"
+         cy="139.46436"
+         r="9.2242432" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="76.171059"
+         y="141.20068"
+         id="text1850-9"><tspan
+           sodipodi:role="line"
+           id="tspan1848-2"
+           style="stroke-width:0.264583"
+           x="76.171059"
+           y="141.20068">Output</tspan></text>
+    </g>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 200.71023,134.04447 0,9.20777"
+       id="path1916"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g471-3-1" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4)"
+       d="m 45.281183,82.052891 0,11.193418"
+       id="path1857"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g1855"
+       inkscape:connection-end="#g457" />
+    <g
+       id="g457-28"
+       transform="translate(10.783447,161.82085)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect234-9"
+         width="41.236603"
+         height="42.690464"
+         x="26.324795"
+         y="39.055302"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         transform="matrix(0.26458333,0,0,0.26458333,-3.4347992,3.3535128)"
+         id="text288-73"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;white-space:pre;shape-inside:url(#rect290-5);display:inline"><tspan
+           x="123.15039"
+           y="187.15742"
+           id="tspan4297">Leaky Integrate and </tspan><tspan
+           x="123.15039"
+           y="207.15742"
+           id="tspan4299">Fire neurons layer
+</tspan><tspan
+           x="123.15039"
+           y="227.15742"
+           id="tspan4301">
+</tspan><tspan
+           x="123.15039"
+           y="247.15742"
+           id="tspan4303">Channels:6
+</tspan><tspan
+           x="123.15039"
+           y="266.20234"
+           id="tspan4305">
+</tspan></text>
+    </g>
+    <g
+       id="g457-2"
+       transform="translate(64.12365,160.70893)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect234-3"
+         width="41.236603"
+         height="42.690464"
+         x="26.324795"
+         y="39.055302"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         transform="matrix(0.26458333,0,0,0.26458333,-3.9639659,4.4118462)"
+         id="text288-7"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;white-space:pre;shape-inside:url(#rect290-0);display:inline"><tspan
+           x="123.15039"
+           y="187.15742"
+           id="tspan4307">Leaky Integrate and </tspan><tspan
+           x="123.15039"
+           y="207.15742"
+           id="tspan4309">Fire neurons layer
+</tspan><tspan
+           x="123.15039"
+           y="227.15742"
+           id="tspan4311">
+</tspan><tspan
+           x="123.15039"
+           y="247.15742"
+           id="tspan4313">Channels:6
+</tspan><tspan
+           x="123.15039"
+           y="266.28438"
+           id="tspan4315">
+</tspan></text>
+    </g>
+    <g
+       id="g471-3-6"
+       transform="rotate(-90,172.66395,126.12699)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect465-5-1"
+         width="38.905849"
+         height="15.425607"
+         x="57.116642"
+         y="97.342865"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="63.370232"
+         y="104.01893"
+         id="text461-6-2"><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="63.370232"
+           y="104.01893"
+           id="tspan3107">AveragePooling</tspan><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="63.370232"
+           y="109.31059"
+           id="tspan3111">kernel size: 27</tspan></text>
+    </g>
+    <g
+       id="g471-3-1-9"
+       transform="rotate(-90,187.57046,111.22051)">
+      <rect
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+         id="rect465-5-2-3"
+         width="38.905849"
+         height="15.425607"
+         x="57.116642"
+         y="97.342865"
+         ry="3.0483189" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="60.724396"
+         y="103.48975"
+         id="text461-6-7-1"><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="60.724396"
+           y="103.48975"
+           id="tspan673-9">Summation of the</tspan><tspan
+           sodipodi:role="line"
+           style="stroke-width:0.264583"
+           x="60.724396"
+           y="108.78142"
+           id="tspan3606">6 channels</tspan></text>
+    </g>
+    <path
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4-9)"
+       d="m 78.344845,221.79158 12.1036,-0.25231"
+       id="path720-4"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g457-2"
+       inkscape:connection-start="#g457-28" />
+    <path
+       style="display:inline;fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4-9)"
+       d="m 131.68505,221.67517 12.19477,0.33459"
+       id="path724-7"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-end="#g471-3-6"
+       inkscape:connection-start="#g457-2" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4-9)"
+       d="m 159.30543,222.22138 14.38738,2e-5"
+       id="path726-8"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g471-3-6"
+       inkscape:connection-end="#g471-3-1-9" />
+    <g
+       id="g1855-4"
+       transform="translate(-47.086696,55.904865)">
+      <circle
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         id="path1846-5"
+         cx="104.81324"
+         cy="124.55363"
+         r="9.2242432" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="99.977356"
+         y="125.96233"
+         id="text1850-0"><tspan
+           sodipodi:role="line"
+           id="tspan1848-3"
+           style="stroke-width:0.264583"
+           x="99.977356"
+           y="125.96233">Input</tspan></text>
+    </g>
+    <g
+       id="g1927-6"
+       transform="translate(98.648877,120.64197)">
+      <circle
+         style="fill:#ffffff;stroke:#808080;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         id="path1846-7-1"
+         cx="82.756706"
+         cy="139.46436"
+         r="9.2242432" />
+      <text
+         xml:space="preserve"
+         style="font-size:4.23333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;stroke-width:0.264583"
+         x="76.171059"
+         y="141.20068"
+         id="text1850-9-0"><tspan
+           sodipodi:role="line"
+           id="tspan1848-2-6"
+           style="stroke-width:0.264583"
+           x="76.171059"
+           y="141.20068">Output</tspan></text>
+    </g>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4-9)"
+       d="m 181.4056,241.67433 -1e-5,9.20775"
+       id="path1916-3"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g471-3-1-9" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#00bb00;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow4-9)"
+       d="m 57.726544,189.68274 0,11.19341"
+       id="path1857-2"
+       inkscape:connector-type="polyline"
+       inkscape:connector-curvature="0"
+       inkscape:connection-start="#g1855-4"
+       inkscape:connection-end="#g457-28" />
+  </g>
+</svg>

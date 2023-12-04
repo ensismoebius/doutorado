@@ -1,0 +1,14 @@
+\begin{lstlisting}[language=Python, caption={CNN architecture}]
+self.model = nn.Sequential(
+	nn.Conv1d(in_channels=6, out_channels=16, kernel_size=5
+	),
+	nn.MaxPool1d(kernel_size=2),
+	nn.Conv1d(in_channels=16, out_channels=32, kernel_size=5
+	),
+	nn.MaxPool1d(kernel_size=2),
+	nn.Flatten(),
+	nn.Linear(feature_size, 128),
+	nn.ReLU(),
+	nn.Linear(128, 27)
+)
+\end{lstlisting}

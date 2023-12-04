@@ -1,0 +1,15 @@
+\begin{lstlisting}[language=Python, caption={Helper functions representing the $\alpha$ and $\beta$}, label={lst:hodgkin-huxleymodelHelper}]
+# Helper functions for rate constants
+def alpha_m(V):
+	return 0.1 * (V + 40.0) / (1.0 - math.exp(-(V + 40.0) / 10.0))
+def beta_m(V):
+	return 4.0 * math.exp(-(V + 65.0) / 18.0)
+def alpha_h(V):
+	return 0.07 * math.exp(-(V + 65.0) / 20.0)
+def beta_h(V):
+	return 1.0 / (1.0 + math.exp(-(V + 35.0) / 10.0))
+def alpha_n(V):
+	return 0.01 * (V + 55.0) / (1.0 - math.exp(-(V + 55.0) / 10.0))
+def beta_n(V):
+	return 0.125 * math.exp(-(V + 65.0) / 80.0)
+\end{lstlisting}

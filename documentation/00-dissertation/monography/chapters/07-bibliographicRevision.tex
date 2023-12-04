@@ -293,8 +293,277 @@
 			\end{figure}
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais as os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
-	\subsection{Redes neurais}
-		\subsubsection{Autoencoders}
+	\subsection{Brain-Computer Interface and EEG}
+		\par Among the methods of Brain-Computer Interface (BCI), Electroencephalogram (EEG) stands out as the most cost-effective and simple system to implement. However, it does have some quirks, such as high sensitivity to electromagnetic interference and difficulty in capturing the signal due to suboptimal scalp placement of the electrodes. So one of the fundamental aspects that any EEG processing system must have is the tolerance to noise \cite{JALALYBIDGOLY2020101788}.
+		
+		\par The \textit{wet} electrodes are placed using conductive gel and are less prone to movement artifacts which are electromagnetic interferences caused by some motion like blinking. \textit{Dry} electrodes do not need the gel but is more sensible to artifacts.
+		
+		\par EEG records the electrical activities of the brain, typically placing along the scalp surface electrodes. These electrical activities result from ionic current flows induced by the synchronized synaptic activation of the brain's neurons. They manifest as rhythmic voltage fluctuations ranging from 5 to 100$\mu V$ in amplitude and between 0.5 and 40 Hz in frequency\cite{JALALYBIDGOLY2020101788}. The operational frequencies bands in the brain are following \cite{sanei2021eeg}:
+		
+		\begin{itemize}
+			\item \textbf{Delta (1–4Hz)}: The slowest and usually the highest amplitude waveform. The Delta band is observed in babies and during deep sleep in adults.
+			
+			\item \textbf{Theta (4–8Hz)}: Observed in children, drowsy adults, and during memory recall. Theta wave amplitude is typically less than 100$\mu V$.
+			
+			\item \textbf{Alpha (8–12Hz)}: Usually the dominant frequency band, appearing during relaxed awareness or when eyes are closed. Focused attention or relaxation with open eyes reduces the amplitude of the Alpha band. These waves are normally less than 50 $\mu V$.
+			
+			\item \textbf{Beta (12–25Hz)}: Associated with thinking, active concentration, and focused attention. Beta wave amplitude is normally less than 30 $\mu V$.
+			
+			\item \textbf{Gamma (over 25Hz)}: Observed during multiple sensory processing. Gamma patterns have the lowest amplitude.
+		\end{itemize}
+		
+		\par According to \cite{JALALYBIDGOLY2020101788}, for most of the tasks brain do, there are regions associated with it as seen in Table \ref{tb:brainRegions}.
+		
+		
+		\subsection{10-20 system and the brain's areas}
+		\begin{table}[H]
+			\begin{center}
+				\caption{Brain tasks and its corresponding regions. See Figure \ref{fig:1020standardandlobes} for more information.}
+				\begin{tabular}{|c|c|p{0.4\textwidth}|}
+					\hline
+					Region & Channels & Tasks\\
+					\hline
+					Frontal lobe & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memory, concentration, emotions.\\
+					\hline
+					Parietal lobe& P3, P4, Pz & Problem Solving, attention, grammar, sense of touch. \\
+					\hline
+					Temporal lobe& T3, T5, T4, T6 & Memory, recognition of faces, hearing, word and social clues. \\
+					\hline
+					Occipital lobe & O1, O2, Oz & Reading, vision.\\
+					\hline
+					Cerebellum && Motor control, balance. \\
+					\hline
+					Sensorimotor Cortex & C3, C4, Cz& Attention, mental processing, ﬁne motor control, sensory integration. \\
+					\hline
+				\end{tabular}
+				\label{tb:brainRegions}
+			\end{center}
+		\end{table}
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.8\linewidth]{images/10–20StandardAndLobes}
+			\caption[10-20 standard and brain lobes]{Electrodes placement according to 10-20 standard \cite{sistema10-20} and brain's lobes. Odd numbers are assigned to the electrodes on the left hemisphere, and even numbers are assigned to the electrodes on the right. Source \cite{JALALYBIDGOLY2020101788}}
+			\label{fig:1020standardandlobes}
+		\end{figure}
+	
+	\subsection{Spiking Neural Networks}
+		\par Neural Networks (NNs), as defined here as \textit{a multilayered, fully connected, with or without recurrent or convolutional layers network}, require that all neurons are activated in both the forward and backward passes. This implies that every unit in the network must process some data, leading to power consumption \cite{10242251}. 
+		
+		\par The sensory system of biological neurological systems converts external data, such as light, odors, touch, flavors, and others, into \textbf{spikes}. A spike is a voltage that convey information \cite{kasabov2019time}. These ones are then transmitted along the neuronal chain to be processed, generating a response to the environment.
+		
+		\par The biological neuron only spikes when a certain level of excitatory signals get accumulated above some threshold in its soma staying inactive when there is no signal, therefore, this type of cell is very efficient in terms of energy consumption and processing.
+		
+		\par In order to get the aforementioned advantages the Spiking Neural Networks (SNNs) instead of employing continuous activation values, like NNs, SNNs utilize \textbf{spikes} at the input, hidden and outputs layers. SNNs can have continuous inputs as well and keep its properties.
+		
+		
+		\par A SNN \textbf{is not} a one-to-one simulation of neurons. Instead, it approximates certain computational capabilities of specific biological properties. Some studies like \cite{jones2020single} created models way closer to natural neurons exploring the nonlinearity of dendrites and another neuron features yielding remarkable results in the classification.
+		
+		\par As can be seen in Figure \ref{fig:neuronspike} SNNs neurons, given the correct parameters, are very noise tolerant because it acts as a \textbf{lowpass filter}. Generating spikes even when a considerably level of interference is present. This units are very time-oriented too, being great when it comes to process streams of data \cite{10242251}.
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/neuronSpikes}
+			\caption{Spikes from a noisy signal. Source \cite{dan_goodman_2022_7044500}}
+			\label{fig:neuronspike}
+		\end{figure} 
+		
+		\subsection{Spiking Neuron}
+		\par Although the focus of this work is the \textit{Leaky Integrate and Fire Neurons} (LIF) because is simpler, more efficient and currently generalize better for most of the problems \cite{dan_goodman_2022_7044500}, there are more biological accurate model like \textbf{Hodgkin-Huxley neuron} \cite{gerstner2014neuronal} and ones like \cite{jones2020single} that created models closer to natural neurons exploring the nonlinearity of dendrites and other neuron features.
+		
+		\subsubsection{Leaky Integrate and Fire Neuron}
+		\par The Leaky Integrate and Fire Neuron (LIF) is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems in with SNNs can be used.
+		
+		\par LIF, like a NN neuron takes the sum of weighted inputs but, rather than pass it directly to its activation function, some \textit{leakage} is applied, which decreases in some degree the sum. 
+		\par LIF behave much like Resistor-Capacitor circuits as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.4\linewidth]{images/rcmodel}
+			\caption[The RC model]{RC model: Source: \cite{10242251}}
+			\label{fig:rcmodel}
+		\end{figure}
+		
+		\par Unlike the Hodgkin-Huxley neuron, spikes are represented as \textbf{sparsely} distributed \textbf{ones} in a train of \textbf{zeros}, as illustrated in Figure \ref{fig:spikessparsitystaticsupress} and \ref{fig:sparsity}. This approach simplify the models and reduces the computational power and needed storage to run a SNN.\newline
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/spikesSparsityStaticSupress}
+			\caption{Sparsity on Spike Neuron Networks. Source: \cite{10242251}}
+			\label{fig:spikessparsitystaticsupress}
+		\end{figure}
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=.5\linewidth]{images/sparsity}
+			\caption[Sparse activity of a SNN]{Sparse activity of a SNN: The horizontal axis represents the time step of some data being processed the vertical are the SNN neuron number. Note that, most of the time, very few neurons gets activated. Source: The author.}
+			\label{fig:sparsity}
+		\end{figure}
+		
+		\par As result of the mentioned above, in SNN information is coded in format of \textit{timing} and/or \textit{rate} of spikes giving consequently great capabilities of processing streams of data but limiting the processing of static data.\newline
+		
+		\par LIF model is governed by the Equations bellow \cite{10242251}.
+		
+		
+		\par Considering that $Q$ is a measurement of electrical charge and $V_{mem}(t)$ is the potential difference at the membrane in a certain time $t$ than the neuron capacitance $C$ is given by the Equation \ref{eq:capacitance}.
+		
+		\begin{equation}
+			\label{eq:capacitance}
+			C = \frac{Q}{V_{mem}(t)}
+		\end{equation}
+		
+		\par Than the neuron charge can be expressed as Equation \ref{eq:charge}.
+		
+		\begin{equation}
+			\label{eq:charge}
+			Q = C.V_{mem}(t)
+		\end{equation}
+		
+		\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
+		
+		\begin{equation}
+			\label{eq:rateOfChargeChange}
+			I_C = \dfrac{dQ}{dt} = C. \dfrac{dV_{mem}(t)}{dt}
+		\end{equation}
+		
+		
+		\par To calculate the total current passing by the resistive part of the circuit we may use the Ohm's law:
+		
+		\begin{equation}
+			\label{eq:ohmlaw}
+			V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
+		\end{equation}
+		
+		\par Than considering that the total current do not change, as seen in Figure \ref{fig:rcmodel2}, we have the total input current $I_{in}$ of the neuron as in Equation \ref{eq:totalNeuronCurrent}.
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.4\linewidth]{images/rcmodel2}
+			\caption[RC model for currents]{RC model for currents: $I_{in} = I_R + I_C$}
+			\label{fig:rcmodel2}
+		\end{figure}
+		
+		\begin{equation}
+			\label{eq:totalNeuronCurrent}
+			I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
+		\end{equation}
+		\par Therefore, to describe the passive membrane we got a linear Equation \ref{eq:memLinear}.
+		\begin{equation}
+			\label{eq:memLinear}
+			\begin{aligned}
+				I_{in}(t) &= \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt} \implies \\ 
+				I_{in}(t) - \frac{V_{mem}(t)}{R} &=  C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+				\Aboxed{R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt}}
+			\end{aligned}
+		\end{equation}
+		
+		\par Than, if we consider $\tau = R.C$ as the \textbf{membrane time constant} we get voltages on both sides of Equation \ref{eq:finalMem} which \textbf{describes the RC circuit}.
+		
+		\begin{equation}
+			\label{eq:finalMem}
+			\begin{aligned}
+				R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+				R.I_{in}(t) - V_{mem}(t) &=  \tau.\dfrac{dV_{mem}(t)}{dt} \implies \\
+				\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
+			\end{aligned}
+		\end{equation}
+		
+		\par From that, and setting $I_{in} = 0$ (i.e. no input) and considering $\tau = R.C$ is a constant and a starting voltage $V_{mem}(0)$ the neuron's voltage behavior can be modeled as an exponential curve as can be seen in Equation \ref{eq:expmembrane}.
+		
+		\begin{equation}
+			\label{eq:expmembrane}
+			\begin{aligned}
+				\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
+				\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
+				e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
+				\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
+			\end{aligned}
+		\end{equation}
+		
+		\par Then one can say that: In the absence of an input $I_{in}$, the membrane potential decays exponentially as illustrated in Figure \ref{fig:membranepotentialdecay} and implemented in Listing \ref{lst:membranepotentialdecay}.
+		
+		\input{listings/membranepotentialdecay.py}
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/membranePotentialDecay}
+			\caption{Membrane potential decaying. Source: The author}
+			\label{fig:membranepotentialdecay}
+		\end{figure}
+		
+		\par With the results from Equation \ref{eq:finalMem} it is possible to calculate the action potential increasing as seen in Equation \ref{eq:actionpotincrease}.
+		
+		\begin{equation}
+			\label{eq:actionpotincrease}
+			\begin{aligned}
+				&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
+				&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
+				&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
+				&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
+				&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
+				&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
+				& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
+				\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
+			\end{aligned}
+		\end{equation}
+		
+		\par Note that when action potentials increases there is still an exponential behavior as seen in Figure \ref{fig:membranepotentialincrease} and implemented in Listing \ref{lst:membranepotentialincrease}.
+		
+		\input{listings/membranepotentialincrease.py}
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/membranePotentialIncrease}
+			\caption{Membrane potential increasing. Source: The author}
+			\label{fig:membranepotentialincrease}
+		\end{figure}
+		
+		\par Then taking into account some \textbf{threshold} which indicates a reset into the neuron potential and two type of resets (to zero and threshold subtraction) finally is possible to model the full LIF  behavior as depicted in Figure \ref{fig:membranepotentialfull} and implemented in Listing \ref{lst:membranepotentialfull}:
+		
+		\input{listings/membranepotentialfull.py}
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/membranePotentialFull}
+			\caption{Plot of the full simulated LIF: A 0.5 mA was provided from time 51 to 70.}
+			\label{fig:membranepotentialfull}
+		\end{figure}
+		
+		\subsection{Another interpretation of LIF}
+		
+			\par Starting with the Equation \ref{eq:finalMem} and using Forward Euler Method to solve the LIF model:
+			
+			\begin{equation}
+				\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t)
+			\end{equation}
+			
+			\par Solving the derivative in Equation \ref{eq:membraneDerivative} results in the membrane potential for any time $t+\Delta t$ in future:
+			
+			\begin{equation}
+				\label{eq:membraneDerivative}
+				\begin{aligned}
+					\tau.\dfrac{V_{mem}(t+\Delta t) - V_{mem}(t)}{\Delta t} &= R.I_{in}(t) - V_{mem}(t) = \\
+					V_{mem}(t+\Delta t) - V_{mem}(t) &= \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t)) = \\
+					\Aboxed{V_{mem}(t+\Delta t) &= V_{mem}(t) + \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t))}
+				\end{aligned}
+			\end{equation}
+	
+		\subsection{Training}
+		
+		\par \textbf{How do SNNs get trained?} Well, this is still an open question. A SNN neuron has an activation-function behavior that is more relatable to a \textbf{step function}. Therefore, in principle, we can't use gradient descent-based solutions because this kind of function \textbf{is not} differentiable \cite{kasabov2019time}.
+		
+		\par But there are some insights out there that may shed some light on this subject: While some \textit{in vivo/in vitro} observations show that brains, in general, learn by strengthening/weakening and adding/removing synapses or even by creating new neurons or other cumbersome methods like RNA packets, there are some more acceptable ones like the ones in the list bellow \cite{kasabov2019time}:
+		
+		\begin{itemize}
+			\item \textbf{Spike Timing-Dependent Plasticity (STDP)}: If a pre-synaptic neuron fires \textbf{before} the post-synaptic one, there is a strengthening in connection, but if the post-synaptic neuron fires before, then there is a weakening.
+			\item \textbf{Surrogate Gradient Descent}: Approximates the step function by using another mathematical function, which is differentiable (like a sigmoid), in order to train the network. These approximations are used only in the backward pass, while keeping the step function in the forward pass \cite{kasabov2019time}.
+			\item \textbf{Evolving Algorithms}: Use the selection of the fittest throughout many generations of networks.
+			\item \textbf{Reservoir/Dynamic Computing}: \textbf{Echo state networks} or \textbf{Liquid state machines} respectively.
+		\end{itemize}
+		
+		\par The one used in the SNN made in this work were \textbf{Surrogate Gradient Descent}.
+	
+		\subsection{Autoencoders}
 		
 			\par Como ilustrado na Figura \ref{fig:autoencoder} \textit{Autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Eles consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um código ou representação comprimida da entrada \cite{Goodfellow-et-al-2016}. \newline
 			
@@ -311,7 +580,7 @@
 			
 			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, dentro do contexto das redes neurais, autoencoders são ótimos produtores de vetores de características.
 	
-		\subsubsection{Redes neurais residuais (ResNets)}
+		\subsection{Redes neurais residuais (ResNets)}
 			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás do \textit{ResNets} é a inclusão de conexões de salto como ilustrado na Figura \ref{fig:residualblock}, também conhecidas como mapeamentos de identidade, que permitem que a saída de uma camada seja adicionada diretamente à entrada da camada subsequente. Isso contorna as camadas intermediárias e garante que redes mais profundas possam aprender. Outra vantagem no uso de conexões de salto é que essa prática diminui a ocorrência de \textit{vanishing gradients} um problema comum em redes com muitas camadas que pode impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede.
 			
 			\begin{figure}
@@ -321,12 +590,3 @@
 				\\ Fonte: \cite{DBLP:journals/corr/HeZRS15}
 				\label{fig:residualblock}
 			\end{figure}
-	
-		\subsubsection{\textit{Spike Neural Networks}}
-			\par Em \cite{kasabov2018time} se define uma \textit{Spike Neural Network},com um tipo de rede neural artificial inspirada na maneira como os neurônios se comunicam no cérebro por meio do uso de picos ou potenciais de ação. Nesse tipo de rede as informações são representadas pelo tempo e pela taxa de picos, e não pela força das conexões entre os neurônios.
-			
-			\par Seu modo de operação pode ser altamente paralelo com, potencialmente, todos os neurônios operando em paralelo
-			
-			\par Nas SNNs, o tempo dos picos e a dinâmica temporal da rede desempenham um papel crucial no processamento da informação pois cada pico carrega informações de tempo, permitindo uma codificação mais precisa de informações e comunicação assíncrona entre os neurônios.
-			
-			\par Em se tratando do estudo atual e considerando a natureza temporal do sinais de voz e EEG, hipotéticamente, as SNNs são promissoras para classificação de tais informações.
