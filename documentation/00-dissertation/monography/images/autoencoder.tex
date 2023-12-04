@@ -1,0 +1,24 @@
+\begin{tikzpicture}[node distance=1.5cm, every edge/.style={draw=black,->}]
+	% Nodes
+	\node[draw, circle] (x) {$x$};
+	\node[draw, rectangle, above right=0.7cm and 1cm of x] (encoder) {Codificador};
+	\node[draw, circle, above right=0.7cm and 1cm of encoder] (h) {$h$};
+	\node[draw, rectangle, below right=0.7cm and 1cm of h] (decoder) {Decodificador};
+	\node[draw, circle, below right=0.7cm and 1cm of decoder] (r) {$r$};
+	
+	% Arrows
+	\draw (x) edge (encoder);
+	\draw (encoder) edge (h);
+	\draw (h) edge (decoder);
+	\draw (decoder) edge (r);
+	
+	% Loss
+	\node[below of=h, yshift=-0.7cm] (loss) {Perda na reconstrução};
+	\draw (x) edge (loss);
+	\draw (r) edge (loss);
+	
+	% Labels
+	\node[below of=x, yshift=0.7cm] {Entrada};
+	\node[below right=0.2cm and 0.8cm of decoder] {Saída};
+	\node[below of=r, yshift=0.7cm] {Entrada reconstruida};
+\end{tikzpicture}

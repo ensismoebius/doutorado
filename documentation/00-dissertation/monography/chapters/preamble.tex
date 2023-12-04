@@ -10,6 +10,9 @@ brazil,				% Document main language
 twocolumn			% Enables two column parts
 ]{abntex2}
 
+% Facilitates the detection of some ilegal chars in latex document
+\DeclareUnicodeCharacter{0301}{*************************************}
+
 % Packages used
 	\input{chapters/data/packages.tex}
 
