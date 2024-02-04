@@ -293,47 +293,48 @@
 			\end{figure}
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais as os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
-	\subsection{Brain-Computer Interface and EEG}
-		\par Among the methods of Brain-Computer Interface (BCI), Electroencephalogram (EEG) stands out as the most cost-effective and simple system to implement. However, it does have some quirks, such as high sensitivity to electromagnetic interference and difficulty in capturing the signal due to suboptimal scalp placement of the electrodes. So one of the fundamental aspects that any EEG processing system must have is the tolerance to noise \cite{JALALYBIDGOLY2020101788}.
+	\subsection{Interfaces Humano-Máquina e EEG}
 		
-		\par The \textit{wet} electrodes are placed using conductive gel and are less prone to movement artifacts which are electromagnetic interferences caused by some motion like blinking. \textit{Dry} electrodes do not need the gel but is more sensible to artifacts.
+		\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. No entanto, ele possui algumas peculiaridades, como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
 		
-		\par EEG records the electrical activities of the brain, typically placing along the scalp surface electrodes. These electrical activities result from ionic current flows induced by the synchronized synaptic activation of the brain's neurons. They manifest as rhythmic voltage fluctuations ranging from 5 to 100$\mu V$ in amplitude and between 0.5 and 40 Hz in frequency\cite{JALALYBIDGOLY2020101788}. The operational frequencies bands in the brain are following \cite{sanei2021eeg}:
+		\par Os eletrodos \textit{úmidos} são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, ao piscar dos olhos. Os eletrodos \textit{secos} não precisam do gel, mas são mais sensíveis a tais artefatos.
+		
+		\par O EEG registra as atividades elétricas do cérebro, geralmente colocando eletrodos ao longo da superfície do couro cabeludo. Essas atividades elétricas resultam de fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. As bandas de frequência operacionais no cérebro são as seguintes \cite{sanei2021eeg}:
 		
 		\begin{itemize}
-			\item \textbf{Delta (1–4Hz)}: The slowest and usually the highest amplitude waveform. The Delta band is observed in babies and during deep sleep in adults.
+			\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
 			
-			\item \textbf{Theta (4–8Hz)}: Observed in children, drowsy adults, and during memory recall. Theta wave amplitude is typically less than 100$\mu V$.
+			\item \textbf{Theta (4–8Hz)}: Observada em crianças, adultos sonolentos e durante a recordação de memórias. A amplitude da onda Theta é tipicamente inferior a 100$\mu V$.
 			
-			\item \textbf{Alpha (8–12Hz)}: Usually the dominant frequency band, appearing during relaxed awareness or when eyes are closed. Focused attention or relaxation with open eyes reduces the amplitude of the Alpha band. These waves are normally less than 50 $\mu V$.
+			\item \textbf{Alpha (8–12Hz)}: Geralmente a banda de frequência dominante, aparecendo durante a consciência relaxada ou quando os olhos estão fechados. A atenção focada ou a relaxamento com os olhos abertos reduzem a amplitude da banda Alpha. Essas ondas tem amplitudes normalmente inferiores a 50 $\mu V$.
 			
-			\item \textbf{Beta (12–25Hz)}: Associated with thinking, active concentration, and focused attention. Beta wave amplitude is normally less than 30 $\mu V$.
+			\item \textbf{Beta (12–25Hz)}: Associada ao pensamento, concentração ativa e atenção focada. A amplitude da onda Beta é normalmente inferior a 30 $\mu V$.
 			
-			\item \textbf{Gamma (over 25Hz)}: Observed during multiple sensory processing. Gamma patterns have the lowest amplitude.
+			\item \textbf{Gamma (acima de 25Hz)}: Observada durante o processamento sensorial múltiplo. Os padrões Gamma têm a menor amplitude.
+			
 		\end{itemize}
 		
-		\par According to \cite{JALALYBIDGOLY2020101788}, for most of the tasks brain do, there are regions associated with it as seen in Table \ref{tb:brainRegions}.
+		\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \ref{tb:brainRegions}.
 		
-		
-		\subsection{10-20 system and the brain's areas}
+		\subsection{Sistema 10-20 e as áreas do cérebro}
 		\begin{table}[H]
 			\begin{center}
-				\caption{Brain tasks and its corresponding regions. See Figure \ref{fig:1020standardandlobes} for more information.}
+				\caption{Tarefas cerebrais e suas regiões correspondentes. Veja a Figura \ref{fig:1020standardandlobes} para mais informações.}
 				\begin{tabular}{|c|c|p{0.4\textwidth}|}
 					\hline
-					Region & Channels & Tasks\\
+					Região & Canais & Tarefas\\
 					\hline
-					Frontal lobe & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memory, concentration, emotions.\\
+					Lobo frontal & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
 					\hline
-					Parietal lobe& P3, P4, Pz & Problem Solving, attention, grammar, sense of touch. \\
+					Lobo parietal & P3, P4, Pz & Resolução de problemas, atenção, sentido do tato. \\
 					\hline
-					Temporal lobe& T3, T5, T4, T6 & Memory, recognition of faces, hearing, word and social clues. \\
+					Lobo temporal & T3, T5, T4, T6 & Memória, reconhecimento de faces, audição, palavras e percepção social. \\
 					\hline
-					Occipital lobe & O1, O2, Oz & Reading, vision.\\
+					Lobo occipital & O1, O2, Oz & Leitura, visão.\\
 					\hline
-					Cerebellum && Motor control, balance. \\
+					Cerebelo && Controle motor, equilíbrio. \\
 					\hline
-					Sensorimotor Cortex & C3, C4, Cz& Attention, mental processing, ﬁne motor control, sensory integration. \\
+					Córtex senso-motor & C3, C4, Cz& Atenção, processamento mental, controle motor fino, integração sensorial. \\
 					\hline
 				\end{tabular}
 				\label{tb:brainRegions}
@@ -342,227 +343,230 @@
 		
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.8\linewidth]{images/10–20StandardAndLobes}
-			\caption[10-20 standard and brain lobes]{Electrodes placement according to 10-20 standard \cite{sistema10-20} and brain's lobes. Odd numbers are assigned to the electrodes on the left hemisphere, and even numbers are assigned to the electrodes on the right. Source \cite{JALALYBIDGOLY2020101788}}
+			\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
+			\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 \cite{sistema10-20} e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito. Fonte \cite{JALALYBIDGOLY2020101788}}
 			\label{fig:1020standardandlobes}
 		\end{figure}
 	
-	\subsection{Spiking Neural Networks}
-		\par Neural Networks (NNs), as defined here as \textit{a multilayered, fully connected, with or without recurrent or convolutional layers network}, require that all neurons are activated in both the forward and backward passes. This implies that every unit in the network must process some data, leading to power consumption \cite{10242251}. 
+	\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
 		
-		\par The sensory system of biological neurological systems converts external data, such as light, odors, touch, flavors, and others, into \textbf{spikes}. A spike is a voltage that convey information \cite{kasabov2019time}. These ones are then transmitted along the neuronal chain to be processed, generating a response to the environment.
+		\par Redes Neurais (RNs), conforme definido aqui como \textit{uma rede multicamadas, totalmente conectada, com ou sem camadas recorrentes ou convolucionais}, exigem que todos os neurônios sejam ativados tanto na fase de \textit{feed-forward} quanto na de \textit{backpropagation}. Isso implica que cada unidade na rede deve processar alguns dados, resultando em consumo de energia \cite{10242251}.
 		
-		\par The biological neuron only spikes when a certain level of excitatory signals get accumulated above some threshold in its soma staying inactive when there is no signal, therefore, this type of cell is very efficient in terms of energy consumption and processing.
+		\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
 		
-		\par In order to get the aforementioned advantages the Spiking Neural Networks (SNNs) instead of employing continuous activation values, like NNs, SNNs utilize \textbf{spikes} at the input, hidden and outputs layers. SNNs can have continuous inputs as well and keep its properties.
+		\par O neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de célula é muito eficiente em termos de consumo de energia e processamento.
 		
+		\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP), em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
 		
-		\par A SNN \textbf{is not} a one-to-one simulation of neurons. Instead, it approximates certain computational capabilities of specific biological properties. Some studies like \cite{jones2020single} created models way closer to natural neurons exploring the nonlinearity of dendrites and another neuron features yielding remarkable results in the classification.
+		\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Alguns estudos, como \cite{jones2020single}, criaram modelos muito mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais, obtendo resultados notáveis na classificação.
 		
-		\par As can be seen in Figure \ref{fig:neuronspike} SNNs neurons, given the correct parameters, are very noise tolerant because it acts as a \textbf{lowpass filter}. Generating spikes even when a considerably level of interference is present. This units are very time-oriented too, being great when it comes to process streams of data \cite{10242251}.
+		\par Como pode ser visto na Figura \ref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
 		
 		\begin{figure}[H]
 			\centering
-			\includegraphics[width=\linewidth]{images/neuronSpikes}
-			\caption{Spikes from a noisy signal. Source \cite{dan_goodman_2022_7044500}}
+			\includegraphics[width=0.7\linewidth]{images/neuronSpikes}
+			\caption{Pulsos de um sinal ruidoso. Fonte \cite{dan_goodman_2022_7044500}}
 			\label{fig:neuronspike}
-		\end{figure} 
-		
-		\subsection{Spiking Neuron}
-		\par Although the focus of this work is the \textit{Leaky Integrate and Fire Neurons} (LIF) because is simpler, more efficient and currently generalize better for most of the problems \cite{dan_goodman_2022_7044500}, there are more biological accurate model like \textbf{Hodgkin-Huxley neuron} \cite{gerstner2014neuronal} and ones like \cite{jones2020single} that created models closer to natural neurons exploring the nonlinearity of dendrites and other neuron features.
-		
-		\subsubsection{Leaky Integrate and Fire Neuron}
-		\par The Leaky Integrate and Fire Neuron (LIF) is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems in with SNNs can be used.
-		
-		\par LIF, like a NN neuron takes the sum of weighted inputs but, rather than pass it directly to its activation function, some \textit{leakage} is applied, which decreases in some degree the sum. 
-		\par LIF behave much like Resistor-Capacitor circuits as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.4\linewidth]{images/rcmodel}
-			\caption[The RC model]{RC model: Source: \cite{10242251}}
-			\label{fig:rcmodel}
 		\end{figure}
 		
-		\par Unlike the Hodgkin-Huxley neuron, spikes are represented as \textbf{sparsely} distributed \textbf{ones} in a train of \textbf{zeros}, as illustrated in Figure \ref{fig:spikessparsitystaticsupress} and \ref{fig:sparsity}. This approach simplify the models and reduces the computational power and needed storage to run a SNN.\newline
+	\subsection{Neurônio de Pulso}
+		\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
 		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=\linewidth]{images/spikesSparsityStaticSupress}
-			\caption{Sparsity on Spike Neuron Networks. Source: \cite{10242251}}
-			\label{fig:spikessparsitystaticsupress}
-		\end{figure}
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=.5\linewidth]{images/sparsity}
-			\caption[Sparse activity of a SNN]{Sparse activity of a SNN: The horizontal axis represents the time step of some data being processed the vertical are the SNN neuron number. Note that, most of the time, very few neurons gets activated. Source: The author.}
-			\label{fig:sparsity}
-		\end{figure}
-		
-		\par As result of the mentioned above, in SNN information is coded in format of \textit{timing} and/or \textit{rate} of spikes giving consequently great capabilities of processing streams of data but limiting the processing of static data.\newline
-		
-		\par LIF model is governed by the Equations bellow \cite{10242251}.
-		
-		
-		\par Considering that $Q$ is a measurement of electrical charge and $V_{mem}(t)$ is the potential difference at the membrane in a certain time $t$ than the neuron capacitance $C$ is given by the Equation \ref{eq:capacitance}.
-		
-		\begin{equation}
-			\label{eq:capacitance}
-			C = \frac{Q}{V_{mem}(t)}
-		\end{equation}
-		
-		\par Than the neuron charge can be expressed as Equation \ref{eq:charge}.
-		
-		\begin{equation}
-			\label{eq:charge}
-			Q = C.V_{mem}(t)
-		\end{equation}
-		
-		\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
-		
-		\begin{equation}
-			\label{eq:rateOfChargeChange}
-			I_C = \dfrac{dQ}{dt} = C. \dfrac{dV_{mem}(t)}{dt}
-		\end{equation}
-		
-		
-		\par To calculate the total current passing by the resistive part of the circuit we may use the Ohm's law:
-		
-		\begin{equation}
-			\label{eq:ohmlaw}
-			V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
-		\end{equation}
-		
-		\par Than considering that the total current do not change, as seen in Figure \ref{fig:rcmodel2}, we have the total input current $I_{in}$ of the neuron as in Equation \ref{eq:totalNeuronCurrent}.
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=0.4\linewidth]{images/rcmodel2}
-			\caption[RC model for currents]{RC model for currents: $I_{in} = I_R + I_C$}
-			\label{fig:rcmodel2}
-		\end{figure}
-		
-		\begin{equation}
-			\label{eq:totalNeuronCurrent}
-			I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
-		\end{equation}
-		\par Therefore, to describe the passive membrane we got a linear Equation \ref{eq:memLinear}.
-		\begin{equation}
-			\label{eq:memLinear}
-			\begin{aligned}
-				I_{in}(t) &= \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt} \implies \\ 
-				I_{in}(t) - \frac{V_{mem}(t)}{R} &=  C.\dfrac{dV_{mem}(t)}{dt} \implies \\
-				\Aboxed{R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt}}
-			\end{aligned}
-		\end{equation}
-		
-		\par Than, if we consider $\tau = R.C$ as the \textbf{membrane time constant} we get voltages on both sides of Equation \ref{eq:finalMem} which \textbf{describes the RC circuit}.
-		
-		\begin{equation}
-			\label{eq:finalMem}
-			\begin{aligned}
-				R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt} \implies \\
-				R.I_{in}(t) - V_{mem}(t) &=  \tau.\dfrac{dV_{mem}(t)}{dt} \implies \\
-				\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
-			\end{aligned}
-		\end{equation}
-		
-		\par From that, and setting $I_{in} = 0$ (i.e. no input) and considering $\tau = R.C$ is a constant and a starting voltage $V_{mem}(0)$ the neuron's voltage behavior can be modeled as an exponential curve as can be seen in Equation \ref{eq:expmembrane}.
-		
-		\begin{equation}
-			\label{eq:expmembrane}
-			\begin{aligned}
-				\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
-				\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
-				e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
-				\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
-			\end{aligned}
-		\end{equation}
-		
-		\par Then one can say that: In the absence of an input $I_{in}$, the membrane potential decays exponentially as illustrated in Figure \ref{fig:membranepotentialdecay} and implemented in Listing \ref{lst:membranepotentialdecay}.
-		
-		\input{listings/membranepotentialdecay.py}
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=\linewidth]{images/membranePotentialDecay}
-			\caption{Membrane potential decaying. Source: The author}
-			\label{fig:membranepotentialdecay}
-		\end{figure}
-		
-		\par With the results from Equation \ref{eq:finalMem} it is possible to calculate the action potential increasing as seen in Equation \ref{eq:actionpotincrease}.
-		
-		\begin{equation}
-			\label{eq:actionpotincrease}
-			\begin{aligned}
-				&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
-				&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
-				&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
-				&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
-				&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
-				&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
-				& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
-				\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
-			\end{aligned}
-		\end{equation}
-		
-		\par Note that when action potentials increases there is still an exponential behavior as seen in Figure \ref{fig:membranepotentialincrease} and implemented in Listing \ref{lst:membranepotentialincrease}.
-		
-		\input{listings/membranepotentialincrease.py}
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=\linewidth]{images/membranePotentialIncrease}
-			\caption{Membrane potential increasing. Source: The author}
-			\label{fig:membranepotentialincrease}
-		\end{figure}
-		
-		\par Then taking into account some \textbf{threshold} which indicates a reset into the neuron potential and two type of resets (to zero and threshold subtraction) finally is possible to model the full LIF  behavior as depicted in Figure \ref{fig:membranepotentialfull} and implemented in Listing \ref{lst:membranepotentialfull}:
-		
-		\input{listings/membranepotentialfull.py}
-		
-		\begin{figure}[H]
-			\centering
-			\includegraphics[width=\linewidth]{images/membranePotentialFull}
-			\caption{Plot of the full simulated LIF: A 0.5 mA was provided from time 51 to 70.}
-			\label{fig:membranepotentialfull}
-		\end{figure}
-		
-		\subsection{Another interpretation of LIF}
-		
-			\par Starting with the Equation \ref{eq:finalMem} and using Forward Euler Method to solve the LIF model:
+		\subsubsection{Entendendo o LIF}
+			
+			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas.
+			
+			\par O LIF, assim como um neurônio de RN, recebe a soma dos inputs ponderados, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau a soma.
+			
+			\par O LIF se comporta muito como circuitos Resistor-Capacitor, como pode ser visto na Figura \ref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=0.4\linewidth]{images/rcmodel}
+				\caption[O modelo RC]{Modelo RC: Fonte: \cite{10242251}}
+				\label{fig:rcmodel}
+			\end{figure}
+			
+			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} esparsamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado nas Figuras \ref{fig:pulsossparsitystaticsupress} e \ref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=.8\linewidth]{images/spikesSparsityStaticSupress}
+				\caption{Esparsidade em Redes Neurais de Pulsos. Fonte: \cite{10242251}}
+				\label{fig:pulsossparsitystaticsupress}
+			\end{figure}
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=.4\linewidth]{images/sparsity}
+				\caption[Atividade esparsa de uma RNP]{Atividade esparsa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados. Fonte: O autor.}
+				\label{fig:sparsity}
+			\end{figure}
+						
+			\par Como resultado do mencionado acima, em RNP, a informação é codificada no formato de \textit{tempo} e/ou \textit{taxa} de pulsos, proporcionando consequentemente grandes capacidades de processamento de fluxos de dados, mas limitando o processamento de dados estáticos.
+			
+			\par O modelo LIF é governado pelas equações abaixo \cite{10242251}.
+			
+			\par Considerando que $Q$ é uma medida de carga elétrica e $V_{\text{mem}}(t)$ é a diferença de potencial na membrana em um determinado tempo $t$, então a capacitância do neurônio $C$ é dada pela Equação \ref{eq:capacitance}.
 			
 			\begin{equation}
-				\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t)
+				\label{eq:capacitance}
+				C = \frac{Q}{V_{mem}(t)}
 			\end{equation}
 			
-			\par Solving the derivative in Equation \ref{eq:membraneDerivative} results in the membrane potential for any time $t+\Delta t$ in future:
+			\par Então, a carga do neurônio pode ser expressa pela Equação \ref{eq:charge}.
+			
+			\begin{equation}
+				\label{eq:charge}
+				Q = C.V_{mem}(t)
+			\end{equation}
+			
+			\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
+			
+			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na Equação \ref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
+			
+			\begin{equation}
+				\label{eq:rateOfChargeChange}
+				I_C = \dfrac{dQ}{dt} = C. \dfrac{dV_{mem}(t)}{dt}
+			\end{equation}
+			
+			\par Para calcular a corrente total passando pela parte resistiva do circuito, podemos usar a lei de Ohm:
+			
+			\begin{equation}
+				\label{eq:ohmlaw}
+				V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
+			\end{equation}
+			
+			\par Então, considerando que a corrente total não muda, como visto na Figura \ref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na Equação \ref{eq:totalNeuronCurrent}.
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=0.3\linewidth]{images/rcmodel2}
+				\caption[Modelo RC para correntes]{Modelo RC para correntes: $I_{in} = I_R + I_C$}
+				\label{fig:rcmodel2}
+			\end{figure}
+			
+			\begin{equation}
+				\label{eq:totalNeuronCurrent}
+				I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
+			\end{equation}
+		
+			\par Portanto, para descrever a membrana passiva, temos a Equação linear \ref{eq:memLinear}.
+			
+			\begin{equation}
+				\label{eq:memLinear}
+				\begin{aligned}
+					I_{in}(t) &= \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt} \implies \\ 
+					I_{in}(t) - \frac{V_{mem}(t)}{R} &=  C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+					\Aboxed{R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt}}
+				\end{aligned}
+			\end{equation}
+			
+			\par Então, se considerarmos $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \ref{eq:finalMem}, que \textbf{descreve o circuito RC}.
+			
+			\begin{equation}
+				\label{eq:finalMem}
+				\begin{aligned}
+					R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+					R.I_{in}(t) - V_{mem}(t) &=  \tau.\dfrac{dV_{mem}(t)}{dt} \implies \\
+					\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
+				\end{aligned}
+			\end{equation}
+			
+			\par A partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, o comportamento da voltagem do neurônio pode ser modelado como uma curva exponencial, como visto na Equação \ref{eq:expmembrane}.
+			
+			\begin{equation}
+				\label{eq:expmembrane}
+				\begin{aligned}
+					\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
+					\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
+					e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
+					\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
+				\end{aligned}
+			\end{equation}
+			
+			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na Figura \ref{fig:membranepotentialdecay} e implementado no Código \ref{lst:membranepotentialdecay}.
+			
+			\input{listings/membranepotentialdecay.py}
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=.7\linewidth]{images/membranePotentialDecay}
+				\caption{Decaimento do potencial da membrana. Fonte: O autor}
+				\label{fig:membranepotentialdecay}
+			\end{figure}
+			
+			\par Com os resultados da Equação \ref{eq:finalMem}, é possível calcular o aumento da voltagem, conforme visto na Equação \ref{eq:actionpotincrease}.
+			
+			\begin{equation}
+				\label{eq:actionpotincrease}
+				\begin{aligned}
+					&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
+					&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
+					&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
+					&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
+					&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
+					&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
+					& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
+					\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
+				\end{aligned}
+			\end{equation}
+			
+			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na Figura \ref{fig:membranepotentialincrease} e implementado no Código \ref{lst:membranepotentialincrease}.
+			
+			\input{listings/membranepotentialincrease.py}
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=.7\linewidth]{images/membranePotentialIncrease}
+				\caption{Aumento do potencial da membrana. Fonte: O autor}
+				\label{fig:membranepotentialincrease}
+			\end{figure}
+			
+			\par Levando em consideração um certo \textbf{limiar} que indica um \textit{reset} nvoltagem do neurônio e dois tipos de \textit{resets} (para zero e subtração do limiar), finalmente é possível modelar o comportamento completo do LIF, conforme ilustrado na Figura \ref{fig:membranepotentialfull} e implementado no Código \ref{lst:membranepotentialfull}:
+			
+			\input{listings/membranepotentialfull.py}
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=.8\linewidth]{images/membranePotentialFull}
+				\caption{Gráfico do LIF simulado completo: Foram fornecidos 0.5 mA de corrente no intervalo de tempo de 51 a 70. Fonte: O autor}
+				\label{fig:membranepotentialfull}
+			\end{figure}
+
+			
+		\subsection{Outra interpretação do LIF}
+			
+			\par Começando com a Equação \ref{eq:finalMem} e usando o Método de Euler para resolver o modelo LIF:
+			
+			\begin{equation}
+				\tau.\dfrac{dV_{\text{mem}}(t)}{dt} = R.I_{\text{in}}(t) - V_{\text{mem}}(t)
+			\end{equation}
+			
+			\par Resolvendo a derivada na Equação \ref{eq:membraneDerivative}, obtemos o potencial da membrana para qualquer tempo $t+\Delta t$ no futuro:
 			
 			\begin{equation}
 				\label{eq:membraneDerivative}
 				\begin{aligned}
-					\tau.\dfrac{V_{mem}(t+\Delta t) - V_{mem}(t)}{\Delta t} &= R.I_{in}(t) - V_{mem}(t) = \\
-					V_{mem}(t+\Delta t) - V_{mem}(t) &= \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t)) = \\
-					\Aboxed{V_{mem}(t+\Delta t) &= V_{mem}(t) + \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t))}
+					\tau.\dfrac{V_{\text{mem}}(t+\Delta t) - V_{\text{mem}}(t)}{\Delta t} &= R.I_{\text{in}}(t) - V_{\text{mem}}(t) = \\
+					V_{\text{mem}}(t+\Delta t) - V_{\text{mem}}(t) &= \frac{\Delta t}{\tau} . (R.I_{\text{in}}(t) - V_{\text{mem}}(t)) = \\
+					\Aboxed{V_{\text{mem}}(t+\Delta t) &= V_{\text{mem}}(t) + \frac{\Delta t}{\tau} . (R.I_{\text{in}}(t) - V_{\text{mem}}(t))}
 				\end{aligned}
 			\end{equation}
-	
-		\subsection{Training}
+
+		\subsection{Treinamento}
 		
-		\par \textbf{How do SNNs get trained?} Well, this is still an open question. A SNN neuron has an activation-function behavior that is more relatable to a \textbf{step function}. Therefore, in principle, we can't use gradient descent-based solutions because this kind of function \textbf{is not} differentiable \cite{kasabov2019time}.
+			\par \textbf{Como as RNPs são treinadas?} Bem, esta ainda é uma questão em aberto. Um neurônio RNP tem o comportamento de sua função de ativação mais parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
+			
+			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses ou até mesmo criando novos neurônios ou outros métodos complicados como pacotes de RNA, existem algumas mais aceitáveis como as da lista abaixo \cite{kasabov2019time}:
+			
+			\begin{itemize}
+				\item \textbf{Plasticidade Dependente do Tempo de Pulsos (STDP)}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
+				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm a função de passo na fase do \textit{feed-forward} \cite{kasabov2019time}.
+				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
+				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
+			\end{itemize}
 		
-		\par But there are some insights out there that may shed some light on this subject: While some \textit{in vivo/in vitro} observations show that brains, in general, learn by strengthening/weakening and adding/removing synapses or even by creating new neurons or other cumbersome methods like RNA packets, there are some more acceptable ones like the ones in the list bellow \cite{kasabov2019time}:
-		
-		\begin{itemize}
-			\item \textbf{Spike Timing-Dependent Plasticity (STDP)}: If a pre-synaptic neuron fires \textbf{before} the post-synaptic one, there is a strengthening in connection, but if the post-synaptic neuron fires before, then there is a weakening.
-			\item \textbf{Surrogate Gradient Descent}: Approximates the step function by using another mathematical function, which is differentiable (like a sigmoid), in order to train the network. These approximations are used only in the backward pass, while keeping the step function in the forward pass \cite{kasabov2019time}.
-			\item \textbf{Evolving Algorithms}: Use the selection of the fittest throughout many generations of networks.
-			\item \textbf{Reservoir/Dynamic Computing}: \textbf{Echo state networks} or \textbf{Liquid state machines} respectively.
-		\end{itemize}
-		
-		\par The one used in the SNN made in this work were \textbf{Surrogate Gradient Descent}.
-	
 		\subsection{Autoencoders}
 		
 			\par Como ilustrado na Figura \ref{fig:autoencoder} \textit{Autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Eles consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um código ou representação comprimida da entrada \cite{Goodfellow-et-al-2016}. \newline
@@ -571,7 +575,7 @@
 			
 			\par \textit{Autoencoders} podem ser treinados usando várias técnicas, como \textit{gradient descent} com \textit{minibatch} ou estocástico \cite{Goodfellow-et-al-2016}.
 	
-			\begin{figure}[h]
+			\begin{figure}[H]
 				\centering
 				\caption[autoencoder]{\textit{Autoencoder}: $x$ é codificado para uma dimensão menor $h$ e, em seguida, é reconstruído em $r$, tal processo pode implicar ou não em uma perda na reconstrução}
 				\input{images/autoencoder.tex}
