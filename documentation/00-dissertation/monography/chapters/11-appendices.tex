@@ -1,4 +1,73 @@
 \begin{apendicesenv}
+	\chapter{A inferência bayesiana}
+	\label{ch:bayesInfer}
+	
+	\par A inferência bayesiana é um método estatístico usado para atualizar crenças ou quantificar a incerteza sobre os parâmetros de um modelo com base em dados observados. É nomeado em homenagem ao Reverendo Thomas Bayes, um matemático do século XVIII que introduziu o teorema de Bayes, o princípio fundamental subjacente à inferência bayesiana.
+	
+	\par Na inferência bayesiana:
+	\begin{itemize}
+		\item \textbf{Prior}: Começa com uma crença inicial ou distribuição de probabilidade priori sobre os parâmetros de interesse. Isso representa o que se sabe sobre os parâmetros antes de observar quaisquer dados.
+		
+		\item \textbf{Verosimilhança}: Dados os dados observados, há uma função de verossimilhança que descreve quão prováveis são os dados para diferentes valores dos parâmetros no modelo.
+		
+		\item \textbf{Posterior}: Usando o teorema de Bayes, a distribuição prior é atualizada com a função de verossimilhança para obter a distribuição posterior. Esta distribuição posterior representa as crenças atualizadas sobre os parâmetros após observar os dados.
+	\end{itemize}
+	
+	\par Matematicamente, o teorema de Bayes afirma: $ P(\theta|D) = \frac{P(D|\theta) \times P(\theta)}{P(D)} $
+	
+	Onde:\par
+	\begin{itemize}
+		\item $ P(\theta|D) $ é a distribuição posterior dos parâmetros ($ \theta $) dado os dados ($ D $).
+		\item $ P(D|\theta) $ é a verossimilhança de observar os dados dados os parâmetros.
+		\item $ P(\theta) $ é a distribuição prior dos parâmetros.
+		\item $ P(D) $ é a probabilidade de observar os dados, também conhecida como verossimilhança marginal.
+	\end{itemize}
+
+	\par A inferência bayesiana fornece um framework coerente para atualizar crenças à medida que novas evidências se tornam disponíveis, permitindo a incorporação de conhecimento prévio e incerteza. É amplamente utilizado em diversos campos, incluindo estatística, aprendizado de máquina, econometria e inteligência artificial.
+	
+	\par Uma distribuição de probabilidade é uma função matemática que descreve a probabilidade de observar cada possível resultado de uma variável aleatória em um espaço amostral dado. Em outras palavras, ela nos diz como a probabilidade total está distribuída entre todos os possíveis valores que a variável aleatória pode assumir.\par
+	
+	\par Existem dois tipos principais de distribuições de probabilidade:
+	\begin{itemize}
+		\item \textbf{Distribuição de Probabilidade Discreta}: Esse tipo de distribuição está associado a variáveis aleatórias discretas, que só podem assumir um número contável de valores distintos. Exemplos incluem a distribuição binomial, distribuição de Poisson e distribuição geométrica. Em uma distribuição de probabilidade discreta, as probabilidades são atribuídas a resultados individuais, e a soma de todas as probabilidades é igual a 1.
+		
+		\item \textbf{Distribuição de Probabilidade Contínua}: Esse tipo de distribuição está associado a variáveis aleatórias contínuas, que podem assumir qualquer valor dentro de um intervalo especificado. Exemplos incluem a distribuição normal (Gaussiana), distribuição exponencial e distribuição uniforme. Em uma distribuição de probabilidade contínua, as probabilidades são atribuídas a intervalos de valores, e a área total sob a curva de densidade de probabilidade (PDF) é igual a 1.
+	\end{itemize}\par
+	
+	\par As distribuições de probabilidade são fundamentais na estatística e na teoria da probabilidade, pois nos permitem modelar incerteza e aleatoriedade em diversos fenômenos do mundo real. Elas são usadas para fazer previsões, estimar parâmetros e realizar inferência estatística em uma ampla gama de áreas, incluindo ciência, engenharia, finanças e ciências sociais.\par
+	
+	\section{Exemplo}
+
+	\par Vamos considerar um exemplo de uma distribuição de probabilidade discreta: a distribuição binomial.
+	
+	\par Imagine que você tem uma moeda viciada que tem uma probabilidade $ p $ de cair cara quando lançada para cima. Você quer saber a probabilidade de obter um certo número de caras, digamos $ k $, em $ n $ lançamentos da moeda.
+	
+	\par A função de massa de probabilidade (PMF) da distribuição binomial, denotada como $ P(X = k) $, dá a probabilidade de obter exatamente $ k $ caras em $ n $ lançamentos.
+	
+	\par A fórmula para a PMF da distribuição binomial é: $ P(X = k) = \binom{n}{k} \times p^k \times (1 - p)^{n - k} $
+	
+	\par Onde:
+	\begin{itemize}
+		\item $ n $ é o número de tentativas (lançamentos da moeda).
+		\item $ k $ é o número de sucessos (caras).
+		\item $ p $ é a probabilidade de sucesso (probabilidade de obter cara em cada lançamento).
+		\item $ (1 - p) $ é a probabilidade de falha (probabilidade de obter coroa em cada lançamento).
+		\item $ \binom{n}{k} $ é o coeficiente binomial, representando o número de maneiras de escolher $ k $ sucessos em $ n $ tentativas.
+	\end{itemize}
+
+	\par Por exemplo, se você quiser encontrar a probabilidade de obter exatamente 3 caras em 5 lançamentos da moeda, com uma probabilidade $ p = 0.5 $ de obter caras, você substituiria $ n = 5 $, $ k = 3 $ e $ p = 0.5 $ na fórmula:
+	
+	\begin{equation}
+		\begin{aligned}
+			P(X = 3) &= \binom{5}{3} \times (0.5)^3 \times (1 - 0.5)^{5 - 3} \\
+			P(X = 3) &= \frac{5!}{3!(5-3)!} \times (0.5)^3 \times (0.5)^2 \\
+			P(X = 3) &= \frac{5 \times 4}{2 \times 1} \times 0.125 \times 0.25 \\
+			P(X = 3) &= 0.3125
+		\end{aligned}
+	\end{equation}
+	
+	\par Portanto, a probabilidade de obter exatamente 3 caras em 5 lançamentos da moeda é aproximadamente $ 0.3125 $, ou 31.25%.
+	
 	\chapter{Como fazer uma rede neural}
 	
 	\section{Entendo aproximadores de função}
@@ -32,7 +101,7 @@
 	
 		\begin{itemize}
 			\item \textit{step function}: \begin{equation}
-				y = \begin{cases} 
+´				y = \begin{cases} 
 					0 & x\leq 0 \\
 					1 & x > 0 \\
 				\end{cases}
@@ -310,9 +379,53 @@
 		
 		\chapter{Medidas dos tempos de execução do software}
 		% TODO Fazer testes de execução e medir os tempos de classificassão e treinamento do softwares
-		% perto sakr hotel em frente a BR, depois do balão
+
+
+
+	\chapter{Regularização em redes neurais}
+
+	\section{Decaimento de Peso (Regularização L2)}
+		\label{Apend:regularization}
+		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos:
+		\begin{equation}
+			L_{\text{total}} = L_{\text{dados}} + \lambda \|W\|^2_2
+		\end{equation}
+		Aqui, \( L_{\text{dados}} \) representa a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), \( \lambda \) é o parâmetro de regularização, e \( \|W\|^2_2 \) é a norma L2 dos pesos.
+		Vamos supor que nossa matriz de pesos \( W \) seja:
+		\[ W = \begin{bmatrix} 
+			1 & 0.5 \\
+			-0.3 & 0.8 \\
+		\end{bmatrix} \]
+		Se definirmos \( \lambda = 0.1 \), o termo de regularização seria \( 0.1 \times (1^2 + 0.5^2 + (-0.3)^2 + 0.8^2) = 0.1 \times (1 + 0.25 + 0.09 + 0.64) = 0.1 \times 1.98 = 0.198 \).
+		Durante o treinamento, o otimizador atualiza os pesos considerando tanto a perda de dados quanto o termo de regularização. O termo de regularização incentiva pesos menores, prevenindo o sobreajuste.
+
+	\section{Penalidade de Esparsidade}:
+		\par Vamos considerar um autoencoder esparsificado com uma penalidade de esparsidade adicionada à função de perda para encorajar a esparsidade nas ativações das unidades ocultas.
+
+
+		\par Suponha que tenhamos uma camada oculta com valores de ativação \( h = [0.9, 0.1, 0.8, 0.05] \).
+
+		\par O termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e a média da ativação de cada unidade oculta:
+			
+		\begin{equation}
+			\Omega(h) = \sum_i (\rho \log(\rho / \hat{\rho}) + (1 - \rho) \log((1 - \rho) / (1 - \hat{\rho})))
+		\end{equation}
 		
 		
+		\par Aqui, $ \hat{\rho} $ é a média da ativação da unidade oculta $ i $.
+
+		\par  Vamos supor $ \rho = 0.2 $. Se a média da ativação da unidade oculta $ i $ for $ \hat{\rho}_i = 0.5 $, então a penalidade de esparsidade para essa unidade seria:
+		
+		\begin{equation}
+			\begin{aligned}
+				\Omega(h_i) &= (0.2 \log(0.2 / 0.5) + 0.8 \log(0.8 / 0.5)) \\
+							&= (0.2 \times -0.3219 + 0.8 \times 0.3219) \\
+							&= -0.0644 + 0.2575 \\
+							&= 0.1931 
+			\end{aligned}
+		\end{equation}
+		\par Durante o treinamento, a penalidade de esparsidade incentiva a rede a ter ativações esparsas, focando em características importantes dos dados.
+
 \end{apendicesenv}
 
 
