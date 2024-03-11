@@ -1,23 +1,33 @@
 \begin{tikzpicture}[node distance=3cm, every edge/.style={draw=black,->}]
 	% Nodes
-	\node[draw, circle, fill=gray] (x) {$x$};
-	\node[draw, rectangle, above right=0.7cm and 1cm of x] (encoder) {f(x)};
+	\node[draw, rectangle, fill=blue] (x) {$x$};
+	
+	\node[draw, rectangle, above right=-.6cm and 1cm of x] (noiser) {$n(x)$};
+	
+	\node[draw, circle, above right=-.6cm and 1cm of noiser, fill=gray] (x_hat) {$\hat{x}$};
+	
+	\node[draw, rectangle, above right=0.7cm and 1cm of x_hat] (encoder) {$f(\hat{x})$};
+	
 	\node[draw, circle, above right=0.7cm and 1cm of encoder, fill=yellow] (h) {$h$};
+	
 	\node[draw, rectangle, below right=0.7cm and 1cm of h] (decoder) {g(h)};
+	
 	\node[draw, circle, below right=0.7cm and 1cm of decoder, fill=red] (r) {$r$};
 	
 	% Arrows
-	\draw (x) edge (encoder);
+	\draw (x) edge (noiser);
+	\draw (noiser) edge (x_hat);
+	\draw (x_hat) edge (encoder);
 	\draw (encoder) edge (h);
 	\draw (h) edge (decoder);
 	\draw (decoder) edge (r);
 	
 	% Loss
 	\node[below of=h, yshift=-0.7cm] (loss) {eventual perda na reconstrução};
-	\draw (x) edge (loss);
-	\draw (r) edge (loss);
+	\draw [->,in=180,out=-90](x) edge (loss);
+	\draw [->,in=0,out=-90] (r) edge (loss);
 	
 	% Labels
 	\node[above of=x, yshift=-2cm] {entrada};
-	\node[above of=r, yshift=-2cm, xshift=1.5cm] {reconstrução};
+	\node[above of=r, yshift=-2cm, xshift=.5cm] {reconstrução};
 \end{tikzpicture}

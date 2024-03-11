@@ -2,13 +2,13 @@
 	\section{Conceitos utilizados}
 	\label{ch:revisao}
 		\subsection{Sinais digitais e sub-amostragem (\textit{downsampling})}
-			\par Os sinais digitais, tanto de voz quanto aqueles vindos das medições de Eletroencefalograma (ECG), isto é, aqueles que estão amostrados e quantizados \cite{haykin2011sistemas}, constituem a base deste trabalho. Além do processo de digitalização, inerente ao ato de armazenar sinais em computadores, os mesmos podem sofrer, a depender da necessidade ou possibilidade, sub-amostragens ou \textit{downsamplings} \cite{robi2003}. Isso implica em uma estratégia de redução de dimensão e, comumente, ocorre após a conversão de domínio dos sinais com base em filtros digitais do tipo \textit{wavelet}, a serem apresentados adiante. Um exemplo consta na Figura \ref{fig:downsampling}, na qual as partes pretas contêm dados e as brancas representam os elementos removidos. Tendo em vista que este trabalho está baseado em sinais digitais de voz e ECG com base em \textit{wavelets}, o processo de sub-amostragem é essencial. 
+			\par Os sinais digitais, tanto de voz quanto aqueles vindos das medições de Eletroencefalograma (ECG), isto é, aqueles que estão amostrados e quantizados \cite{haykin2011sistemas}, constituem a base deste trabalho. Além do processo de digitalização, inerente ao ato de armazenar sinais em computadores, os mesmos podem sofrer, a depender da necessidade ou possibilidade, sub-amostragens ou \textit{downsamplings} \cite{robi2003}. Isso implica em uma estratégia de redução de dimensão e, comumente, ocorre após a conversão de domínio dos sinais com base em filtros digitais do tipo \textit{wavelet}, a serem apresentados adiante. Um exemplo consta na  \autoref{fig:downsampling}, na qual as partes pretas contêm dados e as brancas representam os elementos removidos. Tendo em vista que este trabalho está baseado em sinais digitais de voz e ECG com base em \textit{wavelets}, o processo de sub-amostragem é essencial. 
 			\begin{figure}[h]
 				\centering
 				\caption{Sub-amostragem}
 				\includegraphics[width=0.4\linewidth]{images/downsampling}
 				\label{fig:downsampling}
-				\\Fonte: Elaborado pelo autor, 2023.
+				\legend{Fonte: O autor}
 			\end{figure}
 	
 		\subsection{Caracterização dos processos de produção da voz humana}
@@ -36,27 +36,28 @@
 			
 			$E$ pode ainda sofrer normalizações e ter a sua mensuração restrita a uma parte específica do sinal sob análise. Possibilidades para tais restrições podem, por exemplo, envolver a escala BARK \cite{doi:10.1121-1.1908630} e MEL \cite{beranek1949acoustic} que serão utilizadas neste trabalho.
 		\subsubsection{A escala BARK}
-			\par BARK foi definida tendo em mente vários tipos de sinais acústicos. Essa escala corresponde ao conjunto de 25 bandas críticas da audição humana. Suas frequências-base de audiometria são, em Hz: \textbf{20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500}. Nessa escala,os sinais digitais no domínio temporal atravessam filtros passa-faixas \cite{bosi2002introduction} para os quais o início e o final da banda de passagem correspondem à frequências-base consecutivas resultando em um vetor de características com 24 coeficientes e, em seguida, as energias dos sinais filtrados são utilizadas como características descritivas de propriedades do sinal sob análise, como mostrado na Figura \ref{fig:barkfeaturevect}.
+			\par BARK foi definida tendo em mente vários tipos de sinais acústicos. Essa escala corresponde ao conjunto de 25 bandas críticas da audição humana. Suas frequências-base de audiometria são, em Hz: \textbf{20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500}. Nessa escala,os sinais digitais no domínio temporal atravessam filtros passa-faixas \cite{bosi2002introduction} para os quais o início e o final da banda de passagem correspondem à frequências-base consecutivas resultando em um vetor de características com 24 coeficientes e, em seguida, as energias dos sinais filtrados são utilizadas como características descritivas de propriedades do sinal sob análise, como mostrado na  \autoref{fig:barkfeaturevect}.
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com BARK}
 				\includegraphics[width=0.6\linewidth]{images/barkFeatureVect}
 				\label{fig:barkfeaturevect}
-				\\Fonte: Elaborado pelo autor, 2023.
+				\legend{Fonte: O autor}
 			\end{figure}
+		
 		\subsubsection{A escala MEL}
 			\par Escala Mel, advinda do termo \textit{melody}, é uma adaptação da escala Bark para sinais de voz. Dentre as várias implementações de bandas críticas a escolhida foi a implementação que contém os valores em Hz: \textbf{20, 160, 394, 670, 1000, 1420, 1900, 2450, 3120, 4000, 5100, 6600, 9000, 14000}.
 			
 			\par A variante que será usada neste trabalho é conhecida como \textit{Mel-frequency cepstral coefficients}(MFCC) a qual inclui, além dos intervalos definidos, uma diminuição da correlação entre os componentes gerados via aplicação da Transformada Discreta Cosseno (DCT) \cite{salomon2007data} ou da Análise de Componentes Principais (PCA) \cite{jolliffe2006principal} seguida de duas derivações no vetor de características resultando em um total de 11 coeficientes. Nesse trabalho foi escolhida a DCT, no entanto, PCA poderia também ser escolhida sem prejuízos, o uso de uma ou outra depende da preferência do autor.
 			
-			\par Novamente, desconsiderando qualquer etapa intermediária que possa ser adicionada, as energias calculadas nos intervalos definidos na escala MEL podem, por si mesmas, constituir um vetor de características, como mostrado na Figura \ref{fig:barkfeaturevect}.
+			\par Novamente, desconsiderando qualquer etapa intermediária que possa ser adicionada, as energias calculadas nos intervalos definidos na escala MEL podem, por si mesmas, constituir um vetor de características, como mostrado na  \autoref{fig:barkfeaturevect}.
 			
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com MEL}
 				\includegraphics[width=0.8\linewidth]{images/melFeatureVect}
 				\label{fig:melfeaturevect}
-				\\Fonte: Elaborado pelo autor, 2023.
+				\legend{Fonte: O autor}
 			\end{figure}
 	
 		\subsection{Filtros digitais \textit{wavelet}}
@@ -66,14 +67,14 @@
 			
 			\par No contexto dos filtros digitais baseados em \textit{wavelets}, o tamanho da janela recebe o nome de \textbf{suporte}. Janelas definem o tamanho do filtro que será aplicado ao sinal. Quando esse é pequeno (limitado), se diz que a janela tem \textbf{um suporte compacto} \cite{robi2003}.
 			
-			\par Se diz que uma \textit{wavelet} tem boa \textbf{resposta em frequência} quando, na aplicação da mesma para filtragem, não são causadas muitas pertubações indesejadas ao sinal, no domínio da frequência. Os filtros \textit{wavelet} de Daubechies \cite{daubechies1992ten} se destacam nesse quesito por serem \textit{maximamente planos} (\textit{maximally-flat}) \cite{butterworth1930} \cite{bianchi2007electronic} nos platôs de resposta em frequência como indicado na Figura \ref{fig:daubechies} ao contrário do que ocorre na Figura \ref{fig:nomaximallyflat}.
+			\par Se diz que uma \textit{wavelet} tem boa \textbf{resposta em frequência} quando, na aplicação da mesma para filtragem, não são causadas muitas pertubações indesejadas ao sinal, no domínio da frequência. Os filtros \textit{wavelet} de Daubechies \cite{daubechies1992ten} se destacam nesse quesito por serem \textit{maximamente planos} (\textit{maximally-flat}) \cite{butterworth1930} \cite{bianchi2007electronic} nos platôs de resposta em frequência como indicado na  \autoref{fig:daubechies} ao contrário do que ocorre na  \autoref{fig:nomaximallyflat}.
 			
 			\begin{figure}[h]
 				\centering
 				\caption{Platôs maximamente planos em um filtro digital: característica da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/daubechies}
 				\label{fig:daubechies}
-				\\Fonte: Elaborado pelo autor, 2023.
+				\legend{Fonte: O autor}
 			\end{figure}
 			
 			\begin{figure}[h]
@@ -81,7 +82,7 @@
 				\caption{Platôs não maximamente planos de um filtro digital: características de outros filtros \textit{wavelet}, distintos da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/noMaximallyFlat}
 				\label{fig:nomaximallyflat}
-				\\Fonte: Elaborado pelo autor, 2023.
+				\legend{Fonte: O autor}
 			\end{figure}
 			
 			\par Além da resposta em frequência, na aplicação de um filtro digital \textit{wavelet} também é possível considerar a \textbf{resposta em fase}, que constitui um atraso ou adiantamento do sinal filtrado em relação ao sinal original, ambos no domínio temporal. Esse deslocamento pode ser \textbf{linear}, \textbf{quase linear} ou \textbf{não linear}: 
@@ -92,7 +93,7 @@
 				\item finalmente, quando a resposta é \textbf{não linear}, acontece um deslocamento significativamente heterogêneo para as diferentes frequências que compõe o sinal.
 			\end{itemize}
 			
-			\par Idealmente, é desejável que todo filtro apresente boa resposta em frequência e em fase linear. Características de fase e frequência de algumas famílias de filtros \textit{wavelet} constam na Tabela \ref{tab:waveletsProperties}.
+			\par Idealmente, é desejável que todo filtro apresente boa resposta em frequência e em fase linear. Características de fase e frequência de algumas famílias de filtros \textit{wavelet} constam na Tabela \autoref{tab:waveletsProperties}.
 			
 			\input{tables/someWaveletsProperties.tex}
 	
@@ -166,20 +167,20 @@
 				\label{eq:haarResult}
 			\end{equation}
 			
-			\par Percebe-se que, na transformação descrita nas Equações \ref{eq:haarFilters}, \ref{eq:haarMultiplic} e \ref{eq:haarResult}, a \textbf{aplicação dos filtros sobre o vetor de entrada ocorreu apenas uma vez}. Sendo assim, se diz que o sinal recebeu uma \textbf{transformação de nível 1}. A cada transformação, há uma separação do sinal em dois componentes: o de baixa e o de alta frequência.
+			\par Percebe-se que, na transformação descrita nas Equações \autoref{eq:haarFilters}, \autoref{eq:haarMultiplic} e \autoref{eq:haarResult}, a \textbf{aplicação dos filtros sobre o vetor de entrada ocorreu apenas uma vez}. Sendo assim, se diz que o sinal recebeu uma \textbf{transformação de nível 1}. A cada transformação, há uma separação do sinal em dois componentes: o de baixa e o de alta frequência.
 	
 			\par Embora haja um limite, que será mencionado adiante, é possível aplicar mais de um nível de decomposição ao sinal. Para que se possa fazer isso, a Transformada \textit{Wavelet} nível 2 deve considerar apenas a parte de baixas frequências da primeira transformada; a transformada de nível 3 deve considerar apenas a parte de baixas frequências da transformada nível 2, e assim consecutivamente.
 			
-			\par Nos exemplos numéricos mostrados nas Tabelas \ref{tab:regularWaveletExample}, \ref{tab:packetWaveletExampleLF} e \ref{tab:packetWaveletExampleHF}, usou-se um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{amarelo} correspondem às porções de \textbf{altas frequências}.
+			\par Nos exemplos numéricos mostrados nas Tabelas \autoref{tab:regularWaveletExample}, \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF}, usou-se um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{amarelo} correspondem às porções de \textbf{altas frequências}.
 			
-			\par Percebe-se que na Tabela \ref{tab:regularWaveletExample}, a partir da transformação nível 2, apenas as partes de baixa frequência são modificadas. Isso implica que, no momento da implementação do algoritmo de Mallat \textbf{para níveis maiores que 1}, a abordagem será \textbf{recursiva}. Em outras palavras, a partir do nível 1 se deve aplicar Mallat apenas às porções de baixas-frequências geradas pela transformação anterior.
+			\par Percebe-se que na Tabela \autoref{tab:regularWaveletExample}, a partir da transformação nível 2, apenas as partes de baixa frequência são modificadas. Isso implica que, no momento da implementação do algoritmo de Mallat \textbf{para níveis maiores que 1}, a abordagem será \textbf{recursiva}. Em outras palavras, a partir do nível 1 se deve aplicar Mallat apenas às porções de baixas-frequências geradas pela transformação anterior.
 	
 			\input{tables/regularWaveletExample.tex}
 	
 		\subsubsection{O algoritmo de Mallat e a Transformada \textit{Wavelet-Packet}}
 			\par Na Transformada \textit{Wavelet-Packet}, os filtros aplicados são os mesmos da Transformada \textit{Wavelet} e o procedimento recursivo de cálculo também é o mesmo, no entanto, realizada a transformação de nível 1, a transformada de nível 2 deve ser aplicada aos componentes de baixa e de alta frequência. Sendo assim a Transformada \textit{Wavelet-Packet} obtém um nível de detalhes em todo o espectro de frequência, maior do que uma transformação regular. 
 			
-			\par Os exemplos mostrados nas Tabelas \ref{tab:packetWaveletExampleLF} e \ref{tab:packetWaveletExampleHF} permitem perceber como se dão as transformações na porção de \textbf{baixa} e de \textbf{alta} frequências, respectivamente, após a transformação \textit{wavelet-packet} de nível 1, 2, 3 e 4.
+			\par Os exemplos mostrados nas Tabelas \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF} permitem perceber como se dão as transformações na porção de \textbf{baixa} e de \textbf{alta} frequências, respectivamente, após a transformação \textit{wavelet-packet} de nível 1, 2, 3 e 4.
 			
 			\par Devido ao \textit{downsampling} aplicado às porções de alta frequência, essas partes acabam por ficar ``espelhadas'' no espectro \cite{Jensen_2001}, ou seja, suas sequências ficam invertidas. Para resolver esse problema e preservar a ordem das sub-bandas no sinal transformado, os filtros são aplicados em ordem inversa nas porções de alta frequência. Isso altera como o algoritmo de Mallat deve ser implementado para a Transformada \textit{Wavelet-Packet}, já que dessa vez é preciso se atentar a ordem da aplicação dos filtros passa-alta e passa-baixa.
 	
@@ -200,17 +201,17 @@
 			
 			\par Particularmente, para calcular $\alpha$ e $\beta$, é necessária a normalização dos vetores de características de forma que todos os seus componentes estejam no intervalo entre $0$ e $1$. Em seguida, a obtenção de $\alpha$ se dá selecionando-se os maiores e os menores valores de cada uma das posições de todos os vetores de características para cada classe, gerando assim um vetor para os valores maiores e outro para os menores.
 			
-			\par O \textbf{vetor de similaridade da classe}$(svC_n)$ é obtido fazendo-se a diferença item-a-item dos maiores em relação aos menores. Finalmente, e para cada classe, é obtida a média dos valores para cada vetor de similaridade, sendo que $\alpha$ é o menor valor dentre essas médias. A Figura \ref{fig:calculoalpha} contém uma ilustração do processo.
+			\par O \textbf{vetor de similaridade da classe}$(svC_n)$ é obtido fazendo-se a diferença item-a-item dos maiores em relação aos menores. Finalmente, e para cada classe, é obtida a média dos valores para cada vetor de similaridade, sendo que $\alpha$ é o menor valor dentre essas médias. A  \autoref{fig:calculoalpha} contém uma ilustração do processo.
 	
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo do coeficiente $\alpha$.}
 				\includegraphics[width=0.5\linewidth]{images/calculoAlpha.pdf}
 				\label{fig:calculoalpha}
-				\\Fonte: Adaptado de \cite{8588433}.
+				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 			
-			\par A obtenção de $\beta$, assim como ilustrado na Figura \ref{fig:betacalculation}, também se dá selecionando os maiores e os menores valores de cada uma das posições de todos os vetores de características de cada classe, gerando assim um vetor para os valores maiores e outro para os menores.
+			\par A obtenção de $\beta$, assim como ilustrado na  \autoref{fig:betacalculation}, também se dá selecionando os maiores e os menores valores de cada uma das posições de todos os vetores de características de cada classe, gerando assim um vetor para os valores maiores e outro para os menores.
 			
 			\par Na sequência, realiza-se o cálculo de $R$ cujo valor é a quantidade de vezes que um valor do vetor de características de uma classe se encontra entre os valores maiores e menores de outra classe.
 			
@@ -237,7 +238,7 @@
 				\caption{Cálculo de $\beta$: Os itens destacados em azul e rosa são aqueles pertencentes a classe C1 e CN que se sobrepõe, em verde, a sobreposição é entre C1 e C2. Para cada sobreposição verificada soma-se 1 ao valor $R$. Essa comparação é feita para todos os vetores de características de cada uma das classes.}
 				\includegraphics[width=0.5\linewidth]{images/betaCalculation.pdf}
 				\label{fig:betacalculation}
-				\\Fonte: Adaptado de \cite{8588433}.
+				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 			
 			\par Considerando-se o plano paraconsistente \cite{8588433}, temos: 
@@ -260,14 +261,14 @@
 			
 			\par Os valores de $G_1$ e $G_2$, em conjunto, definem os graus entre verdade ($G_1=1$) e falsidade ($G_1=-1$) e também os graus entre indefinição ($G_2=-1$) e ambiguidade ($G_2=1$). Novamente, raramente tais valores inteiros serão alcançados já que $G_1$ e $G_2$ dependem de $\alpha$ e $\beta$.
 	
-			\par O Plano Paraconsistente, para fins de visualização e maior rapidez na avaliação dos resultados, encontra-se ilustrado na Figura \ref{fig:paraconsistentplane} e tem quatro arestas precisamente definidas:
+			\par O Plano Paraconsistente, para fins de visualização e maior rapidez na avaliação dos resultados, encontra-se ilustrado na  \autoref{fig:paraconsistentplane} e tem quatro arestas precisamente definidas:
 			\begin{itemize}
 				\item (-1,0) $\rightarrow$ falsidade;
 				\item (1,0) $\rightarrow$ verdade;
 				\item (0,-1) $\rightarrow$ indefinição;
 				\item (0,1) $\rightarrow$ ambiguidade.
 			\end{itemize}
-			\par A propósito de ilustração na Figura \ref{fig:paraconsistentplane}, é possível ver um pequeno círculo indicando os graus dos quatro casos listados.
+			\par A propósito de ilustração na  \autoref{fig:paraconsistentplane}, é possível ver um pequeno círculo indicando os graus dos quatro casos listados.
 			
 			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas. Tais cálculos podem ser feitos da seguinte forma:
 	
@@ -289,7 +290,7 @@
 				\caption{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
 				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
 				\label{fig:paraconsistentplane}
-				\\Fonte: Adaptado de \cite{8588433}.
+				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais as os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
@@ -314,12 +315,12 @@
 			
 		\end{itemize}
 		
-		\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \ref{tb:brainRegions}.
+		\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
 		
 		\subsection{Sistema 10-20 e as áreas do cérebro}
 		\begin{table}[H]
 			\begin{center}
-				\caption{Tarefas cerebrais e suas regiões correspondentes. Veja a Figura \ref{fig:1020standardandlobes} para mais informações.}
+				\caption{Tarefas cerebrais e suas regiões correspondentes \cite{sistema10-20}, \cite{JALALYBIDGOLY2020101788}}
 				\begin{tabular}{|c|c|p{0.4\textwidth}|}
 					\hline
 					Região & Canais & Tarefas\\
@@ -343,8 +344,9 @@
 		
 		\begin{figure}[H]
 			\centering
+			\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
 			\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
-			\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 \cite{sistema10-20} e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito. Fonte \cite{JALALYBIDGOLY2020101788}}
+			\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
 			\label{fig:1020standardandlobes}
 		\end{figure}
 	
@@ -360,17 +362,18 @@
 		
 		\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Alguns estudos, como \cite{jones2020single}, criaram modelos muito mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais, obtendo resultados notáveis na classificação.
 		
-		\par Como pode ser visto na Figura \ref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
+		\par Como pode ser visto na  \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
 		
 		\begin{figure}[H]
 			\centering
+			\caption{Pulsos de um sinal ruidoso.}
 			\includegraphics[width=0.7\linewidth]{images/neuronSpikes}
-			\caption{Pulsos de um sinal ruidoso. Fonte \cite{dan_goodman_2022_7044500}}
 			\label{fig:neuronspike}
+			\legend{Fonte: \cite{dan_goodman_2022_7044500}}
 		\end{figure}
-		
-	\subsection{Neurônio de Pulso}
-		\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
+			
+		\subsubsection{Neurônio de Pulso}
+			\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
 		
 		\subsubsection{Entendendo o LIF}
 			
@@ -378,7 +381,7 @@
 			
 			\par O LIF, assim como um neurônio de RN, recebe a soma dos inputs ponderados, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau a soma.
 			
-			\par O LIF se comporta muito como circuitos Resistor-Capacitor, como pode ser visto na Figura \ref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			\par O LIF se comporta muito como circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
 			\begin{figure}[H]
 				\centering
@@ -387,19 +390,19 @@
 				\label{fig:rcmodel}
 			\end{figure}
 			
-			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} esparsamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado nas Figuras \ref{fig:pulsossparsitystaticsupress} e \ref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
+			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado nas s \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
 			
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=.8\linewidth]{images/spikesSparsityStaticSupress}
-				\caption{Esparsidade em Redes Neurais de Pulsos. Fonte: \cite{10242251}}
+				\caption{Dispersão em Redes Neurais de Pulsos. Fonte: \cite{10242251}}
 				\label{fig:pulsossparsitystaticsupress}
 			\end{figure}
 			
 			\begin{figure}[H]
 				\centering
 				\includegraphics[width=.4\linewidth]{images/sparsity}
-				\caption[Atividade esparsa de uma RNP]{Atividade esparsa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados. Fonte: O autor.}
+				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados. Fonte: O autor.}
 				\label{fig:sparsity}
 			\end{figure}
 						
@@ -407,23 +410,23 @@
 			
 			\par O modelo LIF é governado pelas equações abaixo \cite{10242251}.
 			
-			\par Considerando que $Q$ é uma medida de carga elétrica e $V_{\text{mem}}(t)$ é a diferença de potencial na membrana em um determinado tempo $t$, então a capacitância do neurônio $C$ é dada pela Equação \ref{eq:capacitance}.
+			\par Considerando que $Q$ é uma medida de carga elétrica e $V_{\text{mem}}(t)$ é a diferença de potencial na membrana em um determinado tempo $t$, então a capacitância do neurônio $C$ é dada pela Equação \autoref{eq:capacitance}.
 			
 			\begin{equation}
 				\label{eq:capacitance}
 				C = \frac{Q}{V_{mem}(t)}
 			\end{equation}
 			
-			\par Então, a carga do neurônio pode ser expressa pela Equação \ref{eq:charge}.
+			\par Então, a carga do neurônio pode ser expressa pela Equação \autoref{eq:charge}.
 			
 			\begin{equation}
 				\label{eq:charge}
 				Q = C.V_{mem}(t)
 			\end{equation}
 			
-			\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
+			\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \autoref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
 			
-			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na Equação \ref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
+			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na Equação \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
 			
 			\begin{equation}
 				\label{eq:rateOfChargeChange}
@@ -437,7 +440,7 @@
 				V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
 			\end{equation}
 			
-			\par Então, considerando que a corrente total não muda, como visto na Figura \ref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na Equação \ref{eq:totalNeuronCurrent}.
+			\par Então, considerando que a corrente total não muda, como visto na  \autoref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na Equação \autoref{eq:totalNeuronCurrent}.
 			
 			\begin{figure}[H]
 				\centering
@@ -451,7 +454,7 @@
 				I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
 			\end{equation}
 		
-			\par Portanto, para descrever a membrana passiva, temos a Equação linear \ref{eq:memLinear}.
+			\par Portanto, para descrever a membrana passiva, temos a Equação linear \autoref{eq:memLinear}.
 			
 			\begin{equation}
 				\label{eq:memLinear}
@@ -462,7 +465,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Então, se considerarmos $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \ref{eq:finalMem}, que \textbf{descreve o circuito RC}.
+			\par Então, se considerarmos $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
 			
 			\begin{equation}
 				\label{eq:finalMem}
@@ -473,7 +476,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par A partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, o comportamento da voltagem do neurônio pode ser modelado como uma curva exponencial, como visto na Equação \ref{eq:expmembrane}.
+			\par A partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, o comportamento da voltagem do neurônio pode ser modelado como uma curva exponencial, como visto na Equação \autoref{eq:expmembrane}.
 			
 			\begin{equation}
 				\label{eq:expmembrane}
@@ -485,7 +488,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na Figura \ref{fig:membranepotentialdecay} e implementado no Código \ref{lst:membranepotentialdecay}.
+			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na  \autoref{fig:membranepotentialdecay} e implementado no Código \autoref{lst:membranepotentialdecay}.
 			
 			\input{listings/membranepotentialdecay.py}
 			
@@ -496,7 +499,7 @@
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
-			\par Com os resultados da Equação \ref{eq:finalMem}, é possível calcular o aumento da voltagem, conforme visto na Equação \ref{eq:actionpotincrease}.
+			\par Com os resultados da Equação \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, conforme visto na Equação \autoref{eq:actionpotincrease}.
 			
 			\begin{equation}
 				\label{eq:actionpotincrease}
@@ -512,7 +515,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na Figura \ref{fig:membranepotentialincrease} e implementado no Código \ref{lst:membranepotentialincrease}.
+			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na  \autoref{fig:membranepotentialincrease} e implementado no Código \autoref{lst:membranepotentialincrease}.
 			
 			\input{listings/membranepotentialincrease.py}
 			
@@ -523,7 +526,7 @@
 				\label{fig:membranepotentialincrease}
 			\end{figure}
 			
-			\par Levando em consideração um certo \textbf{limiar} que indica um \textit{reset} nvoltagem do neurônio e dois tipos de \textit{resets} (para zero e subtração do limiar), finalmente é possível modelar o comportamento completo do LIF, conforme ilustrado na Figura \ref{fig:membranepotentialfull} e implementado no Código \ref{lst:membranepotentialfull}:
+			\par Levando em consideração um certo \textbf{limiar} que indica um \textit{reset} nvoltagem do neurônio e dois tipos de \textit{resets} (para zero e subtração do limiar), finalmente é possível modelar o comportamento completo do LIF, conforme ilustrado na  \autoref{fig:membranepotentialfull} e implementado no Código \autoref{lst:membranepotentialfull}:
 			
 			\input{listings/membranepotentialfull.py}
 			
@@ -535,15 +538,15 @@
 			\end{figure}
 
 			
-		\subsection{Outra interpretação do LIF}
+		\subsubsection{Outra interpretação do LIF}
 			
-			\par Começando com a Equação \ref{eq:finalMem} e usando o Método de Euler para resolver o modelo LIF:
+			\par Começando com a Equação \autoref{eq:finalMem} e usando o Método de Euler para resolver o modelo LIF:
 			
 			\begin{equation}
 				\tau.\dfrac{dV_{\text{mem}}(t)}{dt} = R.I_{\text{in}}(t) - V_{\text{mem}}(t)
 			\end{equation}
 			
-			\par Resolvendo a derivada na Equação \ref{eq:membraneDerivative}, obtemos o potencial da membrana para qualquer tempo $t+\Delta t$ no futuro:
+			\par Resolvendo a derivada na Equação \autoref{eq:membraneDerivative}, obtemos o potencial da membrana para qualquer tempo $t+\Delta t$ no futuro:
 			
 			\begin{equation}
 				\label{eq:membraneDerivative}
@@ -554,9 +557,9 @@
 				\end{aligned}
 			\end{equation}
 
-		\subsection{Treinamento}
+		\subsubsection{Treinamento}
 		
-			\par \textbf{Como as RNPs são treinadas?} Bem, esta ainda é uma questão em aberto. Um neurônio RNP tem o comportamento de sua função de ativação mais parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
+			\par \textbf{Como as RNPs são treinadas?} Esta ainda é uma questão em aberto. Um neurônio RNP tem o comportamento de sua função de ativação mais parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
 			
 			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses ou até mesmo criando novos neurônios ou outros métodos complicados como pacotes de RNA, existem algumas mais aceitáveis como as da lista abaixo \cite{kasabov2019time}:
 			
@@ -567,30 +570,107 @@
 				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
 			\end{itemize}
 		
-		\subsection{Autoencoders}
+		\subsection{\textit{Autoencoders}}
 		
-			\par Como ilustrado na Figura \ref{fig:autoencoder} \textit{Autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um \textbf{código} ou representação comprimida da entrada \cite{Goodfellow-et-al-2016}. \newline
+			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um \textbf{código} ou representação da entrada que pode ser ou não ser comprimida \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na figura ou $x$ e $r$ podem ser redes profundas.
 			
-			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de código e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador. Geralmente, os \textit{autoencoders} são projetados para serem incapazes de copiar perfeitamente os dados de entrada. Eles tem sua camada de código limitada em dimensionalidade para apenas aproximar a entrada e priorizar certos aspectos dos dados extraindo dessa forma os componentes mais cruciais e significativos de uma dada entrada, o nome dado a esses \textit{autoencoders} é \textbf{Autoencoders subcompletos} \cite{Goodfellow-et-al-2016}.\newline
-			
-			\par \textit{Autoencoders} podem ser treinados usando várias técnicas, como \textit{gradient descent} com \textit{minibatch} ou estocástico \cite{Goodfellow-et-al-2016}.
-	
-			\begin{figure}[H]
+			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de \textbf{código} e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador. Geralmente, os \textit{autoencoders} são projetados para serem incapazes de copiar perfeitamente os dados de entrada pois isso os tornaria demasiadamente complexos e, em alguns casos, inúteis como será explicado adiante.
+
+			\begin{figure}[h]
 				\centering
-				\caption[autoencoder]{\textit{Autoencoder}: $x$ é codificado para uma dimensão menor $h$ e, em seguida, é reconstruído em $r$, tal processo pode implicar ou não em uma perda na reconstrução}
+				\caption[Representação funcional de um autoencoder]{Representação funcional de um \textit{autoencoder}: Sendo o vetor $x$ uma entrada, então o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, portanto $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. Tal processo pode ou não implicar em uma perda de informação.}
 				\input{images/autoencoder.tex}
 				\label{fig:autoencoder}
 			\end{figure}
-			
-			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, dentro do contexto das redes neurais, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \citeauthor{Goodfellow-et-al-2016} isso ainda não se verificou na prática.
-	
-		\subsection{Redes neurais residuais (ResNets)}
-			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás do \textit{ResNets} é a inclusão de conexões de salto como ilustrado na Figura \ref{fig:residualblock}, também conhecidas como mapeamentos de identidade, que permitem que a saída de uma camada seja adicionada diretamente à entrada da camada subsequente. Isso contorna as camadas intermediárias e garante que redes mais profundas possam aprender. Outra vantagem no uso de conexões de salto é que essa prática diminui a ocorrência de \textit{vanishing gradients} um problema comum em redes com muitas camadas que pode impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede.
-			
-			\begin{figure}
+		
+			\begin{figure}[H]
 				\centering
-				\caption[bloco de uma Resnet]{Bloco de uma Rede Neural Residual, $X$ é uma função identidade que contorna as camada intermediárias criando "\textit{highway connections}"}
+				\caption[Exemplo esquemático de um autoencoder]{Exemplo esquemático de um \textit{autoencoder}: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.}
+				\input{images/autoencoder2.tex}
+				\label{fig:autoencoder2}
+			\end{figure}
+			
+			
+			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \citeauthor{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
+
+			\par Em se tratando de treinamento as técnicas já conhecidas e testadas para redes neurais em geral (como, por exemplo, \textit{gradient descent} com \textit{minibatch} ou estocástico) podem ser usadas  \cite{Goodfellow-et-al-2016} incluindo as formas de regularização com será exposto mais adiante.
+			
+			\subsubsection{Autoencoders sub-completos ou clássicos}
+				\par Esse tipo de rede neural, como ilustrado na  \autoref{fig:autoencoder2}, tem sua camada de código limitada em dimensionalidade para apenas aproximar a entrada e priorizar certos aspectos dos dados extraindo dessa forma os componentes mais cruciais e significativos de um conjunto de dados \cite{Goodfellow-et-al-2016}. Um autoencoder clássico age de forma muito semelhante ao algoritmo
+				\textit{Principal Component Analysis} (PCA) \cite{bengio2014representation}.
+				  
+			\subsubsection{Autoencoders supra-completos}
+			
+				\begin{figure}[H]
+					\centering
+					\caption[Exemplo esquemático de um autoencoder supra-completo]{Exemplo esquemático de um \textit{autoencoder} supra-completo.}
+					\input{images/autoencoder3.tex}
+					\label{fig:autoencoder3}
+				\end{figure}
+			
+				\par Como mostrado na  \autoref{fig:autoencoder3}, ao contrário dos autoencoders sub-completos, os supra-completos tem sua camada de código com uma \textbf{dimensão maior} do que os dados de entrada. Dessa forma as características dos dados de entrada podem ser codificadas mais de uma vez e uma reconstrução perfeita é atingida. Estruturas assim são inúteis já que não conseguem extrair características significativas a não ser que sejam aplicadas técnicas de regularização \cite{bengio2014representation}.
+				
+			\subsubsection{\textit{Autoencoders} regularizados}
+				
+				\par Segundo \cite{bengio2014representation} uma das formas de regularização é justamente a limitação da dimensão da camada de código, a mesma aplicada aos \textit{autoencoders} sub-completos, como estes já foram explicados apresentar-se-ão a seguir outras formas de regularização.
+				
+				\par Considerando que \textit{autoencoders} devem ser treinados para minimizar uma função de erro $E$ que compara a entrada original $x$ com a reconstrução $r$ então um autoencoder \textbf{regularizado} deve ter adicionado a essa função um termo de regularizador $\phi$ como a mostrado na Equação \autoref{eq:autoreg} que é um termo que pode corresponder a uma regularização L1, L2, $\Omega(h)$ (discutidas no apêndice \autoref{Apend:regularization}).
+				
+				\begin{equation}
+					\label{eq:autoreg}
+					E(x, r) + \phi
+				\end{equation}
+			
+				\par Segundo \cite{Goodfellow-et-al-2016} usando técnicas de regularização é possível até mesmo para um \textit{autoencoder} supra-completo que o mesmo extraia características úteis para uso. Tais técnicas devem prover a seguintes propriedades para a rede:
+				
+				\begin{itemize}
+					\item dispersão: É a tendência de ativar apenas um pequena quantidade das unidades (também conhecidas como dimensões) da camada de código para qualquer entrada dada criando uma representação mais compacta.
+					\item pequena variação no gradiente: Garantir pouca amplitude nos valores dos gradientes em relação as variações ou ruídos de uma entrada evita que grandes flutuações ocorram na camada de código proporcionando um comportamento estável.
+				\end{itemize}
+
+				
+			\subsubsection{\textit{Denoising autoencoders}}
+				\par Tais redes podem ser caracterizadas também como \textit{autoencoders} regularizados. Porém há uma diferença fundamental: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalide de preencher falhas de informação nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
+				
+				\begin{figure}[h]
+					\centering
+					\caption[Representação funcional de um \textit{denoising autoencoder}]{Representação funcional de um \textit{denoising autoencoder}: Sendo o vetor $x$ uma entrada e $n$ um função que adiciona um ruído aleatório então a informação com ruído $\hat{x}$ é definida como $\hat{x} = n(x)$, portanto o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, finalmente $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. É importante notar que $r$ é comparada com $x$ e não com $\hat{x}$.}
+					\input{images/denoisingAutoencoder.tex}
+					\legend{Fonte: O autor}
+					\label{fig:denoisingAutoencoder}
+				\end{figure}
+							
+		\subsection{Redes neurais residuais (ResNets)}
+			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás das \textit{ResNets} é a inclusão de conexões de salto como ilustrado na  \autoref{fig:residualblock}, também conhecidas como mapeamentos de identidade, permitindo que a saída de uma camada seja adicionada elemento-a-elemento diretamente à entrada da camada subsequente. Para que isso aconteça é importante que tanto a saída quanto a entrada tenham a mesma dimensão.
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Bloco de uma Resnet]{Bloco de uma Rede Neural Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a $F(x)$ ao final do bloco.}
 				\includegraphics[width=0.7\linewidth]{images/residualBlock}
-				\\ Fonte: \cite{DBLP:journals/corr/HeZRS15}
+				\legend{Fonte: \cite{DBLP:journals/corr/HeZRS15}}
 				\label{fig:residualblock}
 			\end{figure}
+			
+			
+			\par Quando uma rede chega a um certo limite de acurácia, intuitivamente se pode pensar que adicionando mais camadas o desempenho da mesma melhore, no entanto, na prática isso não se verifica. O que se observa em redes mais profundas pode ser exatamente o contrário como mostrado na \autoref{fig:teaser}.
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Comparação de redes profundas não residuais]{Desempenho de duas redes neurais não residuais com 56 e 20 camadas. A esquerda a taxa de erro durante o treinamento, a direita a taxa de erro em relação ao conjunto de testes.}
+				\includegraphics[width=0.7\linewidth]{images/teaser}
+				\legend{Fonte: \cite{DBLP:journals/corr/HeZRS15}}
+				\label{fig:teaser}
+			\end{figure}
+			
+			\par Redes neurais muito profundas podem sofrer de problemas como o desaparecimento ou explosão do gradiente, onde os gradientes (ou seja, as direções para ajustar os pesos da rede) se tornam muito pequenos ou grandes à medida que são retro-propagados durante o treinamento. Isso pode dificultar o treinamento eficaz das camadas mais profundas.
+
+			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, se pode juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização (ver \autoref{chap:regularizacao}) diminui a ocorrência de \textit{vanishing/exploding gradients} um problema comum em redes com muitas camadas que pode piorar, impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede \cite{DBLP:journals/corr/HeZRS15}. 
+			
+			\par Em vez de aprender a mapear diretamente de $x$ para $y$, as camadas da rede aprendem a mapear de $x$ para a diferença entre $x$ e $y$, ou seja, para o \textbf{resíduo}. Isso simplifica o treinamento, pois a rede precisa apenas ajustar os resíduos, em vez de aprender a mapear completamente as entradas para as saídas.
+			
+			\par Além das características já expostas as redes residuais não adicionam complexidade computacional além da negligenciável adição elemento-a-elemento. Isso facilita a comparação com redes não residuais com o mesmo número de hiperparâmetros.
+
+			
+		
+		
+		
