@@ -1,0 +1,23 @@
+\begin{tikzpicture}[node distance=3cm, every edge/.style={draw=black,->}]
+	% Nodes
+	\node[draw, rectangle, fill=blue] (x) {$x$};
+	\node[draw, rectangle, above right=-.6cm and 1cm of x] (function) {$r = f(x)$};
+	\node[draw, rectangle, above right=1cm and -1.1cm of function] (identi) {$I(x)$};
+	\node[draw, circle, above right=-.5cm and 4cm of x] (plus) {$+$};
+	\node[draw, rectangle, above right=-.6cm and 1.5cm of plus, fill=gray] (hidden) {$h$};
+	
+	% Arrows
+	\draw (x) edge (function);
+	\draw (function) edge (plus);
+	\draw (plus) edge (hidden);
+	
+	
+	\draw [->,in=180,out=90](x) edge (identi);
+	\draw [->,in=90,out=0] (identi) edge (plus);
+	
+
+	% Labels
+	\node[above of=identi, yshift=-2.4cm] {Identidade};
+	\node[above of=x, yshift=-4cm] {Entrada};
+	\node[above of=hidden, yshift=-4cm, xshift=0cm] {Estado intermediário};
+\end{tikzpicture}

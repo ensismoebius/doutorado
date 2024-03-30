@@ -71,7 +71,7 @@
 			
 			\begin{figure}[h]
 				\centering
-				\caption{Platôs maximamente planos em um filtro digital: característica da família de Daubechies}
+				\caption[Platôs maximamente planos Daubechies]{Platôs maximamente planos em um filtro digital: característica da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/daubechies}
 				\label{fig:daubechies}
 				\legend{Fonte: O autor}
@@ -79,7 +79,7 @@
 			
 			\begin{figure}[h]
 				\centering
-				\caption{Platôs não maximamente planos de um filtro digital: características de outros filtros \textit{wavelet}, distintos da família de Daubechies}
+				\caption[Platôs maximamente planos outros filtros]{Platôs não maximamente planos de um filtro digital: características de outros filtros \textit{wavelet}, distintos da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/noMaximallyFlat}
 				\label{fig:nomaximallyflat}
 				\legend{Fonte: O autor}
@@ -235,7 +235,7 @@
 			
 			\begin{figure}[h]
 				\centering
-				\caption{Cálculo de $\beta$: Os itens destacados em azul e rosa são aqueles pertencentes a classe C1 e CN que se sobrepõe, em verde, a sobreposição é entre C1 e C2. Para cada sobreposição verificada soma-se 1 ao valor $R$. Essa comparação é feita para todos os vetores de características de cada uma das classes.}
+				\caption[Cálculo de $\beta$]{Cálculo de $\beta$: Os itens destacados em azul e rosa são aqueles pertencentes a classe C1 e CN que se sobrepõe, em verde, a sobreposição é entre C1 e C2. Para cada sobreposição verificada soma-se 1 ao valor $R$. Essa comparação é feita para todos os vetores de características de cada uma das classes.}
 				\includegraphics[width=0.5\linewidth]{images/betaCalculation.pdf}
 				\label{fig:betacalculation}
 				\legend{Adaptado de \cite{8588433}}
@@ -287,93 +287,93 @@
 			
 			\begin{figure}[H]
 				\centering
-				\caption{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
+				\caption[O plano paraconsistente]{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
 				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
 				\label{fig:paraconsistentplane}
 				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais as os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
-	\subsection{Interfaces Humano-Máquina e EEG}
-		
-		\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. No entanto, ele possui algumas peculiaridades, como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
-		
-		\par Os eletrodos \textit{úmidos} são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, ao piscar dos olhos. Os eletrodos \textit{secos} não precisam do gel, mas são mais sensíveis a tais artefatos.
-		
-		\par O EEG registra as atividades elétricas do cérebro, geralmente colocando eletrodos ao longo da superfície do couro cabeludo. Essas atividades elétricas resultam de fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. As bandas de frequência operacionais no cérebro são as seguintes \cite{sanei2021eeg}:
-		
-		\begin{itemize}
-			\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
+		\subsection{Interfaces Humano-Máquina e EEG}
 			
-			\item \textbf{Theta (4–8Hz)}: Observada em crianças, adultos sonolentos e durante a recordação de memórias. A amplitude da onda Theta é tipicamente inferior a 100$\mu V$.
+			\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. No entanto, ele possui algumas peculiaridades, como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
 			
-			\item \textbf{Alpha (8–12Hz)}: Geralmente a banda de frequência dominante, aparecendo durante a consciência relaxada ou quando os olhos estão fechados. A atenção focada ou a relaxamento com os olhos abertos reduzem a amplitude da banda Alpha. Essas ondas tem amplitudes normalmente inferiores a 50 $\mu V$.
+			\par Os eletrodos \textit{úmidos} são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, ao piscar dos olhos. Os eletrodos \textit{secos} não precisam do gel, mas são mais sensíveis a tais artefatos.
 			
-			\item \textbf{Beta (12–25Hz)}: Associada ao pensamento, concentração ativa e atenção focada. A amplitude da onda Beta é normalmente inferior a 30 $\mu V$.
+			\par O EEG registra as atividades elétricas do cérebro, geralmente colocando eletrodos ao longo da superfície do couro cabeludo. Essas atividades elétricas resultam de fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. As bandas de frequência operacionais no cérebro são as seguintes \cite{sanei2021eeg}:
 			
-			\item \textbf{Gamma (acima de 25Hz)}: Observada durante o processamento sensorial múltiplo. Os padrões Gamma têm a menor amplitude.
+			\begin{itemize}
+				\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
+				
+				\item \textbf{Theta (4–8Hz)}: Observada em crianças, adultos sonolentos e durante a recordação de memórias. A amplitude da onda Theta é tipicamente inferior a 100$\mu V$.
+				
+				\item \textbf{Alpha (8–12Hz)}: Geralmente a banda de frequência dominante, aparecendo durante a consciência relaxada ou quando os olhos estão fechados. A atenção focada ou a relaxamento com os olhos abertos reduzem a amplitude da banda Alpha. Essas ondas tem amplitudes normalmente inferiores a 50 $\mu V$.
+				
+				\item \textbf{Beta (12–25Hz)}: Associada ao pensamento, concentração ativa e atenção focada. A amplitude da onda Beta é normalmente inferior a 30 $\mu V$.
+				
+				\item \textbf{Gamma (acima de 25Hz)}: Observada durante o processamento sensorial múltiplo. Os padrões Gamma têm a menor amplitude.
+				
+			\end{itemize}
 			
-		\end{itemize}
-		
-		\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
-		
-		\subsection{Sistema 10-20 e as áreas do cérebro}
-		\begin{table}[H]
-			\begin{center}
-				\caption{Tarefas cerebrais e suas regiões correspondentes \cite{sistema10-20}, \cite{JALALYBIDGOLY2020101788}}
-				\begin{tabular}{|c|c|p{0.4\textwidth}|}
-					\hline
-					Região & Canais & Tarefas\\
-					\hline
-					Lobo frontal & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
-					\hline
-					Lobo parietal & P3, P4, Pz & Resolução de problemas, atenção, sentido do tato. \\
-					\hline
-					Lobo temporal & T3, T5, T4, T6 & Memória, reconhecimento de faces, audição, palavras e percepção social. \\
-					\hline
-					Lobo occipital & O1, O2, Oz & Leitura, visão.\\
-					\hline
-					Cerebelo && Controle motor, equilíbrio. \\
-					\hline
-					Córtex senso-motor & C3, C4, Cz& Atenção, processamento mental, controle motor fino, integração sensorial. \\
-					\hline
-				\end{tabular}
-				\label{tb:brainRegions}
-			\end{center}
-		\end{table}
-		
-		\begin{figure}[H]
-			\centering
-			\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
-			\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
-			\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
-			\label{fig:1020standardandlobes}
-		\end{figure}
-	
-	\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
-		
-		\par Redes Neurais (RNs), conforme definido aqui como \textit{uma rede multicamadas, totalmente conectada, com ou sem camadas recorrentes ou convolucionais}, exigem que todos os neurônios sejam ativados tanto na fase de \textit{feed-forward} quanto na de \textit{backpropagation}. Isso implica que cada unidade na rede deve processar alguns dados, resultando em consumo de energia \cite{10242251}.
-		
-		\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
-		
-		\par O neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de célula é muito eficiente em termos de consumo de energia e processamento.
-		
-		\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP), em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
-		
-		\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Alguns estudos, como \cite{jones2020single}, criaram modelos muito mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais, obtendo resultados notáveis na classificação.
-		
-		\par Como pode ser visto na  \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
-		
-		\begin{figure}[H]
-			\centering
-			\caption{Pulsos de um sinal ruidoso.}
-			\includegraphics[width=0.7\linewidth]{images/neuronSpikes}
-			\label{fig:neuronspike}
-			\legend{Fonte: \cite{dan_goodman_2022_7044500}}
-		\end{figure}
+			\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
 			
-		\subsubsection{Neurônio de Pulso}
-			\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
+			\subsection{Sistema 10-20 e as áreas do cérebro}
+			\begin{table}[H]
+				\begin{center}
+					\caption{Tarefas cerebrais e suas regiões correspondentes \cite{sistema10-20}, \cite{JALALYBIDGOLY2020101788}}
+					\begin{tabular}{|c|c|p{0.4\textwidth}|}
+						\hline
+						Região & Canais & Tarefas\\
+						\hline
+						Lobo frontal & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
+						\hline
+						Lobo parietal & P3, P4, Pz & Resolução de problemas, atenção, sentido do tato. \\
+						\hline
+						Lobo temporal & T3, T5, T4, T6 & Memória, reconhecimento de faces, audição, palavras e percepção social. \\
+						\hline
+						Lobo occipital & O1, O2, Oz & Leitura, visão.\\
+						\hline
+						Cerebelo && Controle motor, equilíbrio. \\
+						\hline
+						Córtex senso-motor & C3, C4, Cz& Atenção, processamento mental, controle motor fino, integração sensorial. \\
+						\hline
+					\end{tabular}
+					\label{tb:brainRegions}
+				\end{center}
+			\end{table}
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
+				\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
+				\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
+				\label{fig:1020standardandlobes}
+			\end{figure}
+		
+		\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
+			
+			\par Redes Neurais (RNs), conforme definido aqui como \textit{uma rede multicamadas, totalmente conectada, com ou sem camadas recorrentes ou convolucionais}, exigem que todos os neurônios sejam ativados tanto na fase de \textit{feed-forward} quanto na de \textit{backpropagation}. Isso implica que cada unidade na rede deve processar alguns dados, resultando em consumo de energia \cite{10242251}.
+			
+			\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
+			
+			\par O neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de célula é muito eficiente em termos de consumo de energia e processamento.
+			
+			\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP), em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
+			
+			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Alguns estudos, como \cite{jones2020single}, criaram modelos muito mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais, obtendo resultados notáveis na classificação.
+			
+			\par Como pode ser visto na  \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
+			
+			\begin{figure}[H]
+				\centering
+				\caption{Pulsos de um sinal ruidoso.}
+				\includegraphics[width=0.7\linewidth]{images/neuronSpikes}
+				\label{fig:neuronspike}
+				\legend{Fonte: \cite{dan_goodman_2022_7044500}}
+			\end{figure}
+				
+			\subsubsection{Neurônio de Pulso}
+				\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
 		
 		\subsubsection{Entendendo o LIF}
 			
@@ -385,24 +385,27 @@
 			
 			\begin{figure}[H]
 				\centering
+				\caption[Modelo RC]{O modelo RC}
 				\includegraphics[width=0.4\linewidth]{images/rcmodel}
-				\caption[O modelo RC]{Modelo RC: Fonte: \cite{10242251}}
 				\label{fig:rcmodel}
+				\legend{Fonte: \cite{10242251}}
 			\end{figure}
 			
 			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado nas s \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
 			
 			\begin{figure}[H]
 				\centering
+				\caption{Dispersão em Redes Neurais de Pulsos.}
 				\includegraphics[width=.8\linewidth]{images/spikesSparsityStaticSupress}
-				\caption{Dispersão em Redes Neurais de Pulsos. Fonte: \cite{10242251}}
+				\legend{Fonte: \cite{10242251}}
 				\label{fig:pulsossparsitystaticsupress}
 			\end{figure}
 			
 			\begin{figure}[H]
 				\centering
+				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
 				\includegraphics[width=.4\linewidth]{images/sparsity}
-				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados. Fonte: O autor.}
+				\legend{Fonte: O autor.}
 				\label{fig:sparsity}
 			\end{figure}
 						
@@ -444,8 +447,9 @@
 			
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.3\linewidth]{images/rcmodel2}
 				\caption[Modelo RC para correntes]{Modelo RC para correntes: $I_{in} = I_R + I_C$}
+				\includegraphics[width=0.3\linewidth]{images/rcmodel2}
+				\legend{Fonte: \cite{10242251}}
 				\label{fig:rcmodel2}
 			\end{figure}
 			
@@ -494,8 +498,9 @@
 			
 			\begin{figure}[H]
 				\centering
+				\caption{Decaimento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialDecay}
-				\caption{Decaimento do potencial da membrana. Fonte: O autor}
+				\legend{Fonte: O autor}
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
@@ -521,8 +526,9 @@
 			
 			\begin{figure}[H]
 				\centering
+				\caption{Aumento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialIncrease}
-				\caption{Aumento do potencial da membrana. Fonte: O autor}
+				\legend{Fonte: O autor}
 				\label{fig:membranepotentialincrease}
 			\end{figure}
 			
@@ -532,8 +538,9 @@
 			
 			\begin{figure}[H]
 				\centering
+				\caption[Gráfico do LIF]{Gráfico do LIF simulado completo: Foram fornecidos 0.5 mA de corrente no intervalo de tempo de 51 a 70.}
 				\includegraphics[width=.8\linewidth]{images/membranePotentialFull}
-				\caption{Gráfico do LIF simulado completo: Foram fornecidos 0.5 mA de corrente no intervalo de tempo de 51 a 70. Fonte: O autor}
+				\legend{Fonte: O Autor}
 				\label{fig:membranepotentialfull}
 			\end{figure}
 
@@ -580,18 +587,19 @@
 				\centering
 				\caption[Representação funcional de um autoencoder]{Representação funcional de um \textit{autoencoder}: Sendo o vetor $x$ uma entrada, então o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, portanto $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. Tal processo pode ou não implicar em uma perda de informação.}
 				\input{images/autoencoder.tex}
+				\legend{Fonte: O Autor}
 				\label{fig:autoencoder}
 			\end{figure}
 		
-			\begin{figure}[H]
+			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \cite{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
+
+			\begin{figure}[h]
 				\centering
 				\caption[Exemplo esquemático de um autoencoder]{Exemplo esquemático de um \textit{autoencoder}: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.}
 				\input{images/autoencoder2.tex}
+				\legend{Fonte: O Autor}
 				\label{fig:autoencoder2}
 			\end{figure}
-			
-			
-			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \citeauthor{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
 
 			\par Em se tratando de treinamento as técnicas já conhecidas e testadas para redes neurais em geral (como, por exemplo, \textit{gradient descent} com \textit{minibatch} ou estocástico) podem ser usadas  \cite{Goodfellow-et-al-2016} incluindo as formas de regularização com será exposto mais adiante.
 			
@@ -605,6 +613,7 @@
 					\centering
 					\caption[Exemplo esquemático de um autoencoder supra-completo]{Exemplo esquemático de um \textit{autoencoder} supra-completo.}
 					\input{images/autoencoder3.tex}
+					\legend{Fonte: O Autor}
 					\label{fig:autoencoder3}
 				\end{figure}
 			
@@ -645,7 +654,7 @@
 			
 			\begin{figure}[H]
 				\centering
-				\caption[Bloco de uma Resnet]{Bloco de uma Rede Neural Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a $F(x)$ ao final do bloco.}
+				\caption[Bloco residual]{Bloco Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a $F(x)$ ao final do bloco.}
 				\includegraphics[width=0.7\linewidth]{images/residualBlock}
 				\legend{Fonte: \cite{DBLP:journals/corr/HeZRS15}}
 				\label{fig:residualblock}
@@ -669,8 +678,85 @@
 			\par Em vez de aprender a mapear diretamente de $x$ para $y$, as camadas da rede aprendem a mapear de $x$ para a diferença entre $x$ e $y$, ou seja, para o \textbf{resíduo}. Isso simplifica o treinamento, pois a rede precisa apenas ajustar os resíduos, em vez de aprender a mapear completamente as entradas para as saídas.
 			
 			\par Além das características já expostas as redes residuais não adicionam complexidade computacional além da negligenciável adição elemento-a-elemento. Isso facilita a comparação com redes não residuais com o mesmo número de hiperparâmetros.
-
 			
+			\subsubsection{Aprendizado residual}
+			
+				\par Considerando então $x$ como a entrada de uma rede, $f(\cdot)$ como uma série de camadas cujas sucessivas aproximações, via treinamento, resultam em um desejado  estado intermediário na camada escondida $h$, então o que se convenciona chamar de resíduo $r$ é dado na \autoref{eq:residuo} considerando que $h$ e $x$ tenha a mesma dimensão.
+				
+				
+				\begin{equation}
+					\label{eq:residuo}
+					r = h - x
+				\end{equation}
+			
+				\par Considerando o resíduo, então se pode reformular o estado $h$ como mostrado na \autoref{eq:residuoH} demonstrando que, para se mapear $x$ em $h$ basta que $f(\cdot)$ atue sobre $r$, ou seja, que as aproximações sucessivas sejam feitas sobre o resíduo $r$.
+				
+				\begin{equation}
+					\label{eq:residuoH}
+					h = r + x
+				\end{equation}
+			
+				\par Se em uma rede não profunda forem adicionadas camadas cuja a única função é receber uma entrada e devolvê-la sem modificações (função identidade) então é trivial que uma rede possa atingir grandes profundidades. No entanto segundo \cite{DBLP:journals/corr/HeZRS15} em redes profundas os otimizadores tem dificuldade em aprender tais funções identidade levando a degradação do desempenho como mostrado na \autoref{fig:teaser}. Nas redes residuais se os mapeamentos identidade (também chamados de conexões de atalho) forem ótimos os otimizadores podem simplesmente zerar todos os pesos das camadas intermediárias de um bloco residual.
+				
+
+				\begin{figure}[h]
+					\centering
+					\caption[Obtenção do resíduo]{Obtenção do resíduo: $x$ um vetor de entrada na rede, $I(\cdot)$ é uma função identidade cujo valor é diretamente somado $\oplus$ com o resultado produzido pelas várias camadas representadas por $f(\cdot)$, $h$ é um vetor representando um estado intermediário de uma rede neural.}
+					\input{images/residuo.tex}
+					\legend{Fonte: O autor}
+					\label{fig:residuo}
+				\end{figure}
+			
+				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. Note que $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes e que essa estrutura pode ser usada multiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
+
+	\section{Trabalhos mais recentes}
+	
+		\par Afim de entender melhor o campo de pesquisa além de formar uma base sólida para compreensão do assunto foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais.
 		
+		\subsection{Protocolo de coleta}
 		
+			\par \textbf{Critérios de inclusão e exclusão} de artigos:
+			\begin{itemize}
+				\item dos últimos 5 anos
+				\item que correspondiam às palavras-chave de pesquisa constantes na \autoref{tab:basesdedados}
+				\item cujo \textit{abstract} continha as bases de dados usadas, os resultados e a metodologia brevemente descritos.
+				%TODO Será possivel manter isso?
+				\item foi dado preferência a artigos cuja a reprodutibilidade fosse possível afim de se evitar resultados sem base empírica.
+			\end{itemize}
+			
+			
+			\par A \textbf{estratégia de busca} dos artigos foi guiada segundo a base de dados e palavras-chaves constantes na \autoref{tab:basesdedados}.
+			\begin{table}[H]
+				\begin{center}
+					\caption[Bases de dados usadas]{Bases de dados usadas}
+					\begin{tabular}{|l|l|l|l|}
+						\hline
+						Base de dados & Palavras chave & Filtros aplicados & Limitações \\
+						\hline
+						Web of Science & & & \\
+						\hline
+						ACM & & & \\
+						\hline
+						Elsevier & & & \\
+						\hline
+						IEEE & & & \\
+						\hline
+					\end{tabular}
+					\label{tab:basesdedados}
+					\legend{Fonte: Elaborado pelo autor, 2024}
+				\end{center}
+			\end{table}
 		
+		\par \textbf{Seleção de Estudos} - Descreva o processo de seleção dos estudos, desde a triagem inicial até a seleção final dos estudos incluídos na revisão sistemática.
+		
+		\par Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise
+		
+		\par Extração de Dados: [Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise.]
+		
+		\par Síntese de Dados: [Descreva os métodos utilizados para sintetizar os dados dos estudos incluídos, seja por meio de uma análise qualitativa, quantitativa ou ambos.]
+
+		\par Exploração da Heterogeneidade:	[Se aplicável, explique como foi explorada a heterogeneidade entre os estudos incluídos e como isso foi considerado na análise.]
+		
+		\par  Sumário das Evidências: [Resuma as principais evidências encontradas na revisão, relacionando-as à pergunta de pesquisa e à literatura existente.]
+		
+		\par  Conclusões: [Apresente as conclusões da revisão, destacando suas implicações clínicas e práticas e sugerindo áreas para futuras investigações.]

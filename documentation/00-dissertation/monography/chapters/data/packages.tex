@@ -1,5 +1,12 @@
 % Basic packages 
 
+% Enables the use of acronyms
+\usepackage[
+	printonlyused, 
+	footnote, 
+	withpage
+]{acronym}
+
 % Enables custom datetimes
 \usepackage[useregional]{datetime2}
 
@@ -68,14 +75,17 @@
 % Quote packages
 % ABNT standard
 \usepackage[
-alf,
-abnt-etal-text=it,
-abnt-etal-list=0,
-abnt-missing-year=sd
+	alf,
+	abnt-etal-text=it,
+	abnt-etal-list=0,
+	abnt-missing-year=sd
 ]{abntex2cite}
 
 % Bibliography 
-\usepackage[brazilian,hyperpageref]{backref}
+\usepackage[
+	brazilian,
+	hyperpageref
+]{backref}
 
 % Drawing and plot packages
 \usepackage{relsize}
@@ -115,3 +125,6 @@ abnt-missing-year=sd
 	\else
 	Citado #1 vezes nas páginas #2.
 	\fi}
+
+% Solves some problems that appears when some text is copied and pasted with some unicode chars
+\DeclareUnicodeCharacter{200B}{{\hskip 0pt}}
