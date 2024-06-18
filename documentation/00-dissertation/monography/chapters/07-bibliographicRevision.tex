@@ -315,12 +315,12 @@
 				
 			\end{itemize}
 			
-			\par De acordo com \cite{JALALYBIDGOLY2020101788}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
+			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
 			
 			\subsection{Sistema 10-20 e as áreas do cérebro}
 			\begin{table}[H]
 				\begin{center}
-					\caption{Tarefas cerebrais e suas regiões correspondentes \cite{sistema10-20}, \cite{JALALYBIDGOLY2020101788}}
+					\caption{Tarefas cerebrais e suas regiões correspondentes}
 					\begin{tabular}{|c|c|p{0.4\textwidth}|}
 						\hline
 						Região & Canais & Tarefas\\
@@ -341,6 +341,18 @@
 					\label{tb:brainRegions}
 				\end{center}
 			\end{table}
+		
+			\par Segundo \cite{bioengineering10060649}, essencialmente, a área de Wernicke é responsável por garantir que a fala faça sentido enquanto que a área de broca garante que a fala seja produzida de forma fluente, portanto uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:wernickesandbrocasareas} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
+			%TODO Noo entanto a fala imaginada ocorre em todo o cérebro, citar fontes.
+			%TODO citar \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013} ?
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Áreas de Wernicke e Broca]{Áreas de Wernicke e Broca}
+				\includegraphics[width=0.7\linewidth]{images/wernickesAndBrocasAreas}
+				\label{fig:wernickesandbrocasareas}
+				\legend{Fonte: \cite{javed2023neuroanatomy}}
+			\end{figure}
 			
 			\begin{figure}[H]
 				\centering
@@ -711,7 +723,7 @@
 
 	\section{Trabalhos mais recentes}
 	
-		\par Afim de entender melhor o campo de pesquisa além de formar uma base sólida para compreensão do assunto foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais.
+		\par Afim de entender melhor o campo de pesquisa, além de formar uma base sólida para compreensão do assunto, foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais. A coleta dos trabalhos foi feita segundo os parâmetros descritos abaixo.
 		
 		\subsection{Protocolo de coleta}
 		
@@ -720,8 +732,6 @@
 				\item dos últimos 5 anos
 				\item que correspondiam às palavras-chave de pesquisa constantes na \autoref{tab:basesdedados}
 				\item cujo \textit{abstract} continha as bases de dados usadas, os resultados e a metodologia brevemente descritos.
-				%TODO Será possivel manter isso?
-				\item foi dado preferência a artigos cuja a reprodutibilidade fosse possível afim de se evitar resultados sem base empírica.
 			\end{itemize}
 			
 			
@@ -747,16 +757,46 @@
 				\end{center}
 			\end{table}
 		
-		\par \textbf{Seleção de Estudos} - Descreva o processo de seleção dos estudos, desde a triagem inicial até a seleção final dos estudos incluídos na revisão sistemática.
-		
-		\par Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise
-		
-		\par Extração de Dados: [Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise.]
-		
-		\par Síntese de Dados: [Descreva os métodos utilizados para sintetizar os dados dos estudos incluídos, seja por meio de uma análise qualitativa, quantitativa ou ambos.]
+			%\par \textbf{Seleção de Estudos} - Descreva o processo de seleção dos estudos, desde a triagem inicial até a seleção final dos estudos incluídos na revisão sistemática.
+			
+			%\par Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise
+			
+			%\par Extração de Dados: [Descreva como os dados foram extraídos dos estudos incluídos, incluindo as variáveis ​​extraídas e como foram organizadas para análise.]
+			
+			%\par Síntese de Dados: [Descreva os métodos utilizados para sintetizar os dados dos estudos incluídos, seja por meio de uma análise qualitativa, quantitativa ou ambos.]
+	
+			%\par Exploração da Heterogeneidade:	[Se aplicável, explique como foi explorada a heterogeneidade entre os estudos incluídos e como isso foi considerado na análise.]
+			
+			%\par  Sumário das Evidências: [Resuma as principais evidências encontradas na revisão, relacionando-as à pergunta de pesquisa e à literatura existente.]
+			
+			%\par  Conclusões: [Apresente as conclusões da revisão, destacando suas implicações clínicas e práticas e sugerindo áreas para futuras investigações.]
+			
+			
+			\par O primeiro estudo consultado \cite{ParkHyeong-jun2023Mcoi} aborda o uso de EEG para captação de fala imaginada usando as técnicas de decomposição de sinal NA-MEMD (\textit{multivariate empirical mode decomposition}) e DTWPT (Discrete time Wavelet Package Transform) e a arquitetura de redes neurais MRF-CNN. A NA-MEMD é uma extensão do EMD (\textit{Empirical mode decomposition}) para sinais multivariados permitindo a decomposição de sinais. O MRF-CNN é uma arquitetura de rede neural convolucional profunda que utiliza características estatísticas extraídas dos sinais decompostos como entrada para o classificador. Foram utilizadas técnicas de validação cruzada e divisão de dados para treinamento e teste do classificador. Os dados EEG foram coletados dos nove participantes saudáveis, estes tiveram que imaginar as vogais "a", "e", "i", "o", "u". O estudo atingiu uma média de 80,41\% de classificações corretas.
+			
+			\par Em \cite{AbdulghaniMokhlesM2023ISCU} usa \textit{Wavelet Scattering Transform}, técnica que aplica sobre o sinal transformadas wavelet combinadas operações não lineares, para extração de características para posterior classificação por uma Rede Neural LSTM(\textit{Long-Short term memory}) recorrente. Os quatro participantes imaginaram as seguintes expressões: \textit{"up", "down", "left" e "right"}. Em testes a acurácia alcançada foi 92,50\%.
+			
+			\par Com o fim de remover ruídos e artefatos causados por movimentos musculares relacionados a região da cabeça em \cite{MahapatraNrushinghCharan2023Ecoi} foi usada a DTWT (\textit{Discrete Time Wavelet Transform}) para processar os sinais EEG, que foram obtidos a partir das bases de dados EPOC e MUSES \cite{mindbigdata}. Depois da filtragem e geração de características variações de Redes Neurais Recorrentes Bidirecionais foram empregadas na classificação das classes compostas pelos dígitos de 0 a 9. Foram alcançadas acurácias máximas de 98,18\% na base MUSE e 71,60\% na EPOC.
+			
+			\par Nesta revisão \cite{ShahUzair2022TRoA} que foi feita segundo as orientações constantes no protocolo PRISMA-ScR foram selecionados 34 trabalhos que analisaram palavras e expressões imaginadas, nestes, a técnica mais usada para extração de características foram os filtros Wavelet e os algoritmos de classificação mais proeminentes foram as \textit{Support Vector Machines}(SVM) e as Redes Neurais Convolucionais. É reportado os estudos utilizam poucos tipos de métricas limitando-se na maioria dos casos a acurácia, a revisão sugere que também sejam usadas métricas como: Precisão, \textit{Recall}, Taxa de erro de palavras (Word Error Rate), AUC (Área Under the Curve), Sensitividade, Especificidade e Média Quadrática afim de se oferecer uma visão mais geral dos resultados. 
+			
+			\par Uma combinação de redes neurais convolucionais temporais (TCN) e convolucionais tradicionais (CNN) foi usada no estudo \cite{MahapatraNrushinghCharan2022MCoI} para classificar sinais de EEG pré-processados pelo algoritmo \textit{FastICA} afim de proporcionar uma melhor separação dos canais e por DTWT para remoção de artefatos e criação dos vetores de características. Os sinais foram obtidos da base \cite{10.1117/12.2255697} que é composta por sinais produzidos por 15 indivíduos falantes de espanhol com as vogais "a", "e", "i", "o", "u" e com os comandos \textit{"arriba", "abajo", "derecha" e "isquierda"}. O estudo alcançou uma acurácia de 96,49\%.
 
-		\par Exploração da Heterogeneidade:	[Se aplicável, explique como foi explorada a heterogeneidade entre os estudos incluídos e como isso foi considerado na análise.]
-		
-		\par  Sumário das Evidências: [Resuma as principais evidências encontradas na revisão, relacionando-as à pergunta de pesquisa e à literatura existente.]
-		
-		\par  Conclusões: [Apresente as conclusões da revisão, destacando suas implicações clínicas e práticas e sugerindo áreas para futuras investigações.]
+			\par Para classificar as letras do alfabeto imaginadas em inglês por 13 indivíduos o estudo \cite{AgarwalPrabhakar2022Ebia} usou a DTWT para remoção ruídos e separação de bandas de frequência do sinal a ser classificado por dois algoritmos simultaneamente: Árvores Aleatórias (ou \textit{Random Forrest})(RF) e SVM. O estudo alcançou uma acurácia média entre as classificações de todos os elementos do alfabeto de 77,97\%. Neste trabalho também foi utilizado o método \textit{Common Average Referecing}(CAR) que, via a subtração de uma média dos sinais captados em um certo intervalo de tempo, procura remover interferências induzidas em todos os eletrodos por variáveis ambientais aumentando a relação sinal/interferência (\textit{Signal-to-noise ratio})(SNR). Uma interessante constatação desse trabalho é de que as ondas cerebrais $\alpha$, $\beta$ e $\theta$ quando consideradas sozinhas melhoram o desempenho dos classificadores.
+			
+			\par Aqui \cite{Hernandez-Del-ToroTonatiuh2021TaEB} usa cinco métodos de extração de características: DTWT (para obtenção da energia de bandas), EMD, dimensões fractais e características extraídas segundo metodos da teoria do caos. Os dados foram obtidos a fim de se criar 3 bases de dados contendo as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"}, a primeira continha informações de 27 pessoas, a segunda também 27 e a terceira 20. Na primeira e segunda bases a taxa de captura foi de 128Hz e na terceira 500hz, esta foi subamostrada para 128Hz a posteriori. Para remoção de ruído o método CAR foi usado. Os classificadores usados foram RF, \textit{K-nearest-neighbors}(KNN), SVM e Regressão Logística. Para avaliação as métricas Pontuação F1 (PF1), Precisão e \textit{Recall} foram usadas. Os melhores resultados obtidos nas bases 1, 2 e 3 foram respectivamente: 0,73, 0,79 e 0,68 para PF1, 0,66, 0,70, 0.65 para Precisão e 0,87, 0,93 e 0,83 para \textit{Recall}.
+			
+			\par Constante nas referências de \cite{Hernandez-Del-ToroTonatiuh2021TaEB} um dos poucos trabalhos que discorreram sobre a identificação de pessoas \cite{MOCTEZUMA2019201} usou CAR para melhorar a SNR dos sinais armazenados e amostrados a 128Hz correspondentes as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"} imaginadas por 27 voluntários. Foi tratada também a identificação independentemente da palavra imaginada. A geração do vetor de características foi feita usando DTWT em 4 níveis e para cada nível foi calculada a Energia de \textit{Teager} ou \textit{Teager Energy Operator} (TEO). RF foi usada como classificador. Os resultados variaram entre 85\% quando todos os 27 indivíduos foram incluídos até 97\% quando apenas 5 foram considerados.
+			
+			\par Dada a pouca quantidade de dados e bases existentes quando se trata de EEG, o artigo \cite{PanachakelJerrinRamakrishnan} usou uma técnica de expansão de informação baseada em "janelas deslizantes" ao mesmo tempo em que, em vez de considerar separadamente cada sensor, agrupou os dados dos mesmos em matrizes tridimensionais semelhantes a imagens que foram processadas por uma rede Resnet50 \cite{DBLP:journals/corr/HeZRS15} adaptada usando a técnica de transferência de aprendizado. A base de dados usada \cite{nguyen2018inferring} é composta por EEG capturado de 64 canais a 1000Hz para as seguintes falas imaginadas por 11 pessoas do sexo masculino e 4 do feminino: \textit{"independent", "cooperate", "in", "out", "up", "a", "i", "u"}. As taxas de amostragem foram posteriormente diminuídas para 250Hz e filtradas para remoção de ruídos e artefatos. Os resultados variaram de um mínimo de 79,7\% de acurácia para classificação de vogais até um máximo de 95,5\% para palavra curtas e longas.
+			
+			\par \cite{tamm2020classification} usou uma base de dados composta por 15 voluntários imaginando as letras \textit{"a", "e", "i", "o", "u"} e mais seis diferentes palavras \cite{10.1117/12.2255697} e simplificou a estrutura de uma CNN criada em outro estudo usando uma técnica de transferência de aprendizado enquanto tentou manter a mesma acurácia. Os dados iniciais foram submetidos a sub-amostragem para que se chegasse a uma taxa de amostragem de 128Hz e dispostos em uma matriz de duas dimensões. O classificador simplificado atingiu uma acurácia média de 23,98\%.
+			
+			\par \cite{Panachakel_2019} utilizou 11 palavras da base de dados \cite{7178118}, extraindo de cada canal características baseadas em transformadas \textit{Wavelet} de nível 7, alcançando uma acurácia média de 57,15\%. A inovação aqui foi tratar separadamente os vetores de características dos 11 canais, inserindo-os, um por vez, em uma rede neural profunda com 2 camadas ocultas. A classificação foi realizada por votação de maioria simples após o processamento dos 11 sinais da fala imaginada a ser classificada. A base de dados é composta por 7 fonemas e 4 palavras imaginadas, com uma taxa de amostragem de 1KHz. Os dados foram filtrados em uma banda de 1 a 50Hz.
+			
+			\par Usando uma rede neural profunda de 4 camadas ocultas como classificador para duas palavras ("in" e "cooperate") presentes no banco de dados referenciado em \cite{dasalla2009single}, \cite{panachakel2020novel} criou vetores de características usando a transformada wavelet de 4 níveis, extraindo características como variância, entropia e Root Mean Square (RMS). Esses vetores foram então classificados usando um sistema de votação, onde cada vetor de características de cada canal é avaliado individualmente e a classe é determinada por maioria simples (similar a \cite{Panachakel_2019}). O banco de dados é composto por amostras coletadas de 15 indivíduos com taxa de amostragem de 1KHz. O sistema obteve uma acurácia média de 71,8\%.
+			
+			\par Apesar da autenticação por voz não ser um tema novo, há poucos trabalhos recentes que tratam do assunto. No que concerne a locutores disfônicos arrisca-se dizer que não há trabalhos recentes relacionados. Dito isso \cite{math11194205} combinou a arquitetura Res2Net \cite{gao2019res2net} com \textit{Perceptual Wavelet Packet Entropy} (PWPE) e um bloco \textit{Efficient Channel Attention} (ECA) \cite{DBLP:journals/corr/abs-1910-03151} para reconhecer indivíduos cujas vozes constam da base de dados \cite{fan2020cn} composta por vozes de celebridades chinesas em várias situações (gravação em estúdio, palestras, gravações em ambientes ruidosos, etc.). PWPE consiste em "podar" os nós da árvore de decomposição \textit{wavelet package} segundo seus "centros de frequência" e energia definidos anteriormente de acordo com a amplitude de audição da espécie (no caso: Humanos), dessa forma apenas as frequências pertencentes à escala auditiva humana permanecem. Em seguida é aplicado o operador não normalizado de entropia de Shannon gerando assim os vetores de características. Nesse artigo o objetivo foi verificar como os modelos se comportariam em termos de EER se fossem treinados em um contexto e depois aplicados a outros com, por exemplo, treinar em uma palestra em um auditório e testar com dados vindos de ambientes externos. Os resultados de classificação foram, em média, de menos do que 8\% de EER para contextos de médio e alto ruído.
+
+			\par Conclusão: Os estudos consultados forneceram ideias para a construção do protocolo para coleta de dados que será explicado no \autoref{chap:propApproach}, além disso, trouxeram a importância da filtragem das frequências próprias da rede elétrica local \cite{MahapatraNrushinghCharan2023Ecoi} afim de que tais interferências não sejam consideradas no vetor de características. Ainda no tópico de captação dos sinais \cite{MahapatraNrushinghCharan2022MCoI} usou o algoritmo \textit{FastICA} afim de garantir uma melhor separabilidade entre os vários canais EEG. Em um trabalho anterior \cite{furlan2021caracterizacao} e na revisão \cite{ShahUzair2022TRoA} se demonstrou que, em se tratando de processamento de sinais, a fase de extração de características é de grande importância pois esta impacta de forma sensível no desempenho dos algoritmos de classificação. Também em \cite{ShahUzair2022TRoA} foram destacadas várias métricas que contribuirão para uma melhor avaliação dos resultados nos procedimentos futuros, além disso, \cite{AgarwalPrabhakar2022Ebia} lembrou a importância de separar indivíduos por sexo, destros e canhotos além de constatar que as ondas cerebrais $\alpha$, $\beta$ e $\theta$ quando consideradas sozinhas melhoram o desempenho dos classificadores. Em se tratando de tratamento dos sinais além da DTWT, CAR pareceu uma escolha bem comum entre os trabalhos \cite{AgarwalPrabhakar2022Ebia}, \cite{Hernandez-Del-ToroTonatiuh2021TaEB}, \cite{MOCTEZUMA2019201}. Fez muito sentido quem em \cite{PanachakelJerrinRamakrishnan} os sinais foram analisados de forma conjunta criando matrizes tridimensionais, pois a fala imaginada acontece em todo o cérebro, sendo assim, analisar de forma isolada cada canal pode prejudicar o aprendizado das correlações entre os sinais. Em \cite{tamm2020classification} foi possível constatar que nem sempre redes neurais mais profundas terão um desempenho muito melhor do redes mais rasas. Indo na contramão da maioria dos estudos \cite{Panachakel_2019} e \cite{panachakel2020novel} trouxeram uma ideia interessante: Como os sinais da fala imaginada são altamente correlacionados, uma forma de aumentar a quantidade de dados fornecidos ao classificador é considerar separadamente cada um dos canais de EEG como uma entrada à rede de forma que, ao fim da classificação de todos os canais, a classe mais votada seja o resultado da classificação. E se tratando de transformadas Wavelet \cite{math11194205} trouxe uma ideia interessante: Selecionar os nós de uma árvore de decomposição Wavelet-Packet segundo uma amplitude de frequências desejadas, no caso, aquelas pertencentes a voz humana, no entanto, é interessante destacar que tal técnica pode ser aplicada a qualquer sinal, o que pode ser muito útil no momento do tratamento do sinal tanto de voz quando de EEG.
+			

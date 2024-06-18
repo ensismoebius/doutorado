@@ -7,5 +7,34 @@
 	\section{Estrutura da estratégia proposta}
 	
 	\section{Procedimentos}
+		\subsection{Protocolo de Coleta de Dados}
+			\par O procedimento tem como objetivo a coleta de uma ampla gama de dados, começando com a gravação exclusiva das falas imaginadas. Posteriormente, serão registradas as falas pronunciadas. Esse método permitirá a obtenção de dados sobre a fala imaginada sem a interferência dos músculos relacionados à fala, além dos dados sobre a fala efetivamente pronunciada.
+			
+			\begin{enumerate}
+				\item Primeiramente será exibido ao participante um sinal visual de espera por 5 segundos.
+				
+				\item Executar o ciclo silencioso. \label{itm:SilentCicle}
+				\begin{enumerate}
+					\item Por 5 segundos é exibida a palavra que deve ser pensada. 
+					\item Por 5 segundos a palavra deve ser \textbf{imaginada} uma única vez.
+					\item Um sinal visual é emitido novamente por 5 segundos
+					\item Por 5 segundos a palavra deve ser \textbf{pronunciada} uma única vez.
+				\end{enumerate}
+				
+				\item Executar o ciclo ruidoso.
+				\begin{enumerate}
+					\item Por 5 segundos é exibida a \textbf{mesma} palavra que deve ser pensada e sons de ambientes ruidosos começam a ser reproduzidos.
+					\item Por 5 segundos a palavra deve ser \textbf{imaginada} uma única vez.
+					\item Um sinal visual é emitido novamente por 5 segundos
+					\item Por 5 segundos a palavra deve ser \textbf{pronunciada} uma única vez.
+					\item A reprodução do ruído é finalizada.
+				\end{enumerate}
+				
+				\item Se deve selecionar uma nova palavra e voltar para o \autoref{itm:SilentCicle}.
+			\end{enumerate}
+		
+		\subsection{Tratamento do sinal}
+			\par Afim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa baixa de 100Hz} mantendo por uma boa margem as frequências operacionais típicas de um cérebro humano \cite{JALALYBIDGOLY2020101788}.
+			%TODO \par Uma normalização dos valores também se faz necessária, 
 
 	\subsection{Procedimento 01}

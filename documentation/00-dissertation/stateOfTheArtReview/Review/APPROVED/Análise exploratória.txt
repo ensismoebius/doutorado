@@ -1,0 +1,58 @@
+Análise exploratória:
+
+	Tentativa 1:
+		Período: Sem data
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, authentication
+		Filtros: Nenhum
+		Resultados: 01
+
+	Tentativa 3:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech
+		Filtros: Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+
+		Resultados: 348
+		
+	Tentativa 4:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, EEG
+		Filtros: Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+		Resultados: 96
+		
+	Tentativa 5:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, EEG
+		Filtros: "Prefiro material mais novo", Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+		Resultados: 96
+		
+	Tentativa 6:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, EEG
+		Filtros: "Prefiro material mais novo", "Ordenar por data mais recente", Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+		Resultados: 96
+
+	Tentativa 7:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, EEG
+		Filtros: "Idioma inglês", "Prefiro material mais novo", "Ordenar por data mais recente", Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+		Resultados: 91
+		
+	Tentativa 8:
+		Período: 30/03/2019 - 30/03/2024
+		Base de dados: Athena - https://unesp.primo.exlibrisgroup.com
+		Palavras chave: Imagined Speech, EEG, wavelet
+		Filtros: "Idioma inglês", "Prefiro material mais novo", "Ordenar por data mais recente", Apenas das áreas: Biologia, Ciência da Computação, Física, Medicina, Psicologia
+		Resultados: 17
+		Artigos:
+			- Multiclass classification of imagined speech EEG using noise-assisted multivariate empirical mode decomposition and multireceptive field convolutional neural network: https://www.frontiersin.org/articles/10.3389/fnhum.2023.1186594/full
+			- Imagined Speech Classification Using EEG and Deep Learning: https://www.mdpi.com/2306-5354/10/6/649
+			
+			- [INTERESSANTE!][REJEITADO DEVIDO A DATA DE PUBLICAÇÃO][SERÁ CITADO EM OUTRA PARTE DO TRABALHO DEVIDO A PROXIMIDADE COM O TRABALHO ATUAL] Subjects identification using EEG-recorded imagined speech: https://www.sciencedirect.com/science/article/pii/S0957417418306468?via%3Dihub
+			
+			
