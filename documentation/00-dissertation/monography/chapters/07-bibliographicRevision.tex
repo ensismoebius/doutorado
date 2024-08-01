@@ -1,6 +1,8 @@
 \chapter{Revisão de Bibliográfica}
-	\section{Conceitos utilizados}
 	\label{ch:revisao}
+	\par Para desenvolver o trabalho, é necessário definir os conceitos de downsampling, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as Interfaces Humano-Máquina para Eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as Redes Neurais de Pulso, Autoencoders e Redes Neurais Residuais.
+
+	\section{Conceitos utilizados}
 		\subsection{Sinais digitais e sub-amostragem (\textit{downsampling})}
 			\par Os sinais digitais, tanto de voz quanto aqueles vindos das medições de Eletroencefalograma (ECG), isto é, aqueles que estão amostrados e quantizados \cite{haykin2011sistemas}, constituem a base deste trabalho. Além do processo de digitalização, inerente ao ato de armazenar sinais em computadores, os mesmos podem sofrer, a depender da necessidade ou possibilidade, sub-amostragens ou \textit{downsamplings} \cite{robi2003}. Isso implica em uma estratégia de redução de dimensão e, comumente, ocorre após a conversão de domínio dos sinais com base em filtros digitais do tipo \textit{wavelet}, a serem apresentados adiante. Um exemplo consta na  \autoref{fig:downsampling}, na qual as partes pretas contêm dados e as brancas representam os elementos removidos. Tendo em vista que este trabalho está baseado em sinais digitais de voz e ECG com base em \textit{wavelets}, o processo de sub-amostragem é essencial. 
 			\begin{figure}[h]
