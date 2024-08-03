@@ -1,6 +1,6 @@
 \chapter{Revisão de Bibliográfica}
 	\label{ch:revisao}
-	\par Para desenvolver o trabalho, é necessário definir os conceitos de downsampling, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as Interfaces Humano-Máquina para Eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as Redes Neurais de Pulso, Autoencoders e Redes Neurais Residuais.
+	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as Interfaces Humano-Máquina para Eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as Redes Neurais de Pulso, Autoencoders e Redes Neurais Residuais.
 
 	\section{Conceitos utilizados}
 		\subsection{Sinais digitais e sub-amostragem (\textit{downsampling})}
@@ -298,11 +298,11 @@
 	
 		\subsection{Interfaces Humano-Máquina e EEG}
 			
-			\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. No entanto, ele possui algumas peculiaridades, como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
+			\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. O EEG registra as atividades elétricas do cérebro captando-as através de eletrodos colocados ao longo do couro cabeludo. No entanto possui algumas peculiaridades como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
 			
-			\par Os eletrodos \textit{úmidos} são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, ao piscar dos olhos. Os eletrodos \textit{secos} não precisam do gel, mas são mais sensíveis a tais artefatos.
+			\par As atividades elétricas surgem dos fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. Para cada tipo de ação realizada o cérebro trabalha segundo as bandas listadas em logo abaixo \cite{sanei2021eeg}.
 			
-			\par O EEG registra as atividades elétricas do cérebro, geralmente colocando eletrodos ao longo da superfície do couro cabeludo. Essas atividades elétricas resultam de fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. As bandas de frequência operacionais no cérebro são as seguintes \cite{sanei2021eeg}:
+			\par Para captação de sinais de EEG usam-se eletrodos que podem ser do tipo úmido ou seco. Os úmidos são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, com o piscar dos olhos. Os eletrodos secos não precisam do gel, mas são mais sensíveis a tais artefatos.
 			
 			\begin{itemize}
 				\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
@@ -317,7 +317,9 @@
 				
 			\end{itemize}
 			
-			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na Tabela \autoref{tb:brainRegions}.
+			\par As amplitudes das bandas Delta e Gamma não foram encontradas quando procuradas nas principais bases de dados.
+			
+			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na \autoref{tb:brainRegions}.
 			
 			\subsection{Sistema 10-20 e as áreas do cérebro}
 			\begin{table}[H]
@@ -343,8 +345,26 @@
 					\label{tb:brainRegions}
 				\end{center}
 			\end{table}
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
+				\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
+				\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
+				\label{fig:1020standardandlobes}
+			\end{figure}
+			
+%			\cite{pinto2012manual}
+%			A fala imaginada é um fenômeno em que uma pessoa "ouve" a si mesma falando internamente, sem produzir som. As regiões cerebrais envolvidas na fala imaginada são similares às que estão envolvidas na fala verbal, englobando áreas do córtex motor e pré-motor, além de outras áreas associadas à linguagem e à fala.
+%			
+%			Especificamente, a ativação cerebral durante processos linguísticos (incluindo a fala imaginada) envolve as seguintes regiões:
+%			1. **Área de Broca** - Localizada no lobo frontal esquerdo, é crucial para a produção da fala.
+%			2. **Área de Wernicke** - Situada no lobo temporal esquerdo, é fundamental para a compreensão da linguagem.
+%			3. **Córtex motor e pré-motor** - Envolvidos na execução e planejamento dos movimentos necessários para a articulação da fala.
+%			4. **Giro supramarginal** - Associado à integração sensorial e ao planejamento motor da fala.
+%			5. **Córtex temporal medial e giro supratemporal** - Responsáveis pelo processamento da compreensão linguística e pela articulação durante a repetição de sílabas【7:0†source】【7:1†source】【7:4†source】【7:5†source】.
 		
-			\par Segundo \cite{bioengineering10060649}, essencialmente, a área de Wernicke é responsável por garantir que a fala faça sentido enquanto que a área de broca garante que a fala seja produzida de forma fluente, portanto uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:wernickesandbrocasareas} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
+			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala fonada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:wernickesandbrocasareas} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
 			%TODO Noo entanto a fala imaginada ocorre em todo o cérebro, citar fontes.
 			%TODO citar \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013} ?
 			
@@ -354,14 +374,6 @@
 				\includegraphics[width=0.7\linewidth]{images/wernickesAndBrocasAreas}
 				\label{fig:wernickesandbrocasareas}
 				\legend{Fonte: \cite{javed2023neuroanatomy}}
-			\end{figure}
-			
-			\begin{figure}[H]
-				\centering
-				\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
-				\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
-				\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
-				\label{fig:1020standardandlobes}
 			\end{figure}
 		
 		\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
