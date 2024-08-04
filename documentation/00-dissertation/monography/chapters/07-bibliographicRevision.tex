@@ -28,7 +28,7 @@
 		
 		\subsubsection{Formantes}
 			\par O sinal de excitação que atravessa as pregas vocais é rico em harmônicas, isto é, frequências múltiplas da fundamental. Tais harmônicas podem ser atenuadas ou amplificadas, em função da estrutura dos tratos vocal e nasal de cada locutor. Particularmente, o primeiro formante ($F_1$), relaciona-se à  amplificação  sonora  na  cavidade  oral  posterior  e  à  posição  da  língua  no  plano  vertical;  o segundo  formante  ($F_2$)  à  cavidade  oral  anterior  e  à  posição  da  língua  no  plano  horizontal; o terceiro  formante  ($F_3$)  relaciona-se  às  cavidades  à  frente  e  atrás  do  ápice  da  língua e, finalmente,  o  quarto formante  ($F_4$) relaciona-se  ao  formato  da  laringe  e  da  faringe  na  mesma  altura  \cite{valencca2014analise}. Formantes caracterizam fortemente os locutores, pois cada indivíduo possui um formato de trato vocal e nasal. Assim, tais frequências, que podem ser capturadas com ferramentas diversas, a exemplo da Transformada \textit{Wavelet}, são de suma importância na área de verificação de locutores.
-	
+				
 		\subsection{Escalas e energias dos sinais}
 			\par A energia de um sinal digital $s[\cdot]$ com $M$ amostras é definida como
 			
@@ -44,7 +44,7 @@
 				\caption{Cálculo de vetores de características com BARK}
 				\includegraphics[width=0.6\linewidth]{images/barkFeatureVect}
 				\label{fig:barkfeaturevect}
-				\legend{Fonte: O autor}
+				\legend{Fonte: Elaborado pelo autor}
 			\end{figure}
 		
 		\subsubsection{A escala MEL}
@@ -57,10 +57,27 @@
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com MEL}
-				\includegraphics[width=0.8\linewidth]{images/melFeatureVect}
+				\includegraphics[width=0.6\linewidth]{images/melFeatureVect}
 				\label{fig:melfeaturevect}
-				\legend{Fonte: O autor}
+				\legend{Fonte: Elaborado pelo autor}
 			\end{figure}
+			
+		\subsection{Fala imaginada}
+			
+			\par A fala imaginada é um fenômeno em que uma pessoa "ouve" a si mesma falando internamente, sem produzir som. As regiões cerebrais usadas na fala imaginada são similares às que estão envolvidas na fala verbal, englobando áreas do córtex motor e pré-motor, além de outras áreas associadas à linguagem e a fala.
+			
+			\par A ativação cerebral durante processos linguísticos (incluindo a fala imaginada) envolve as seguintes regiões \cite{pinto2012manual}, \cite{Vanderah2020}, \cite{kenhub}:
+			
+			\begin{itemize}
+				\item \textbf{área de Broca}: Localizada no lobo frontal dominante, é crucial para a produção da fala.
+				\item \textbf{área de Wernicke}: Situada no lobo temporal e parietal esquerdo, é fundamental para a compreensão da linguagem.
+				\item \textbf{córtex motor e pré-motor}: Envolvidos na execução e planejamento dos movimentos necessários para a articulação da fala.
+				\item \textbf{giro supramarginal}: Associado à integração sensorial e ao planejamento motor da fala.
+				\item \textbf{giro supratemporal e médio}: Responsáveis pelo processamento da compreensão linguística e pela articulação durante a repetição de sílabas.
+			\end{itemize}
+			
+			\par Na maioria dos casos o lobo dominante é o esquerdo, em pessoas canhotas a probabilidade de ser o direito, embora baixa, é maior.
+			\par A localização de tais áreas serão mostradas na \autoref{subsec:BCIEEG}.
 	
 		\subsection{Filtros digitais \textit{wavelet}}
 			\par Filtros digitais \textit{wavelet} têm sido utilizados com sucesso para suprir as deficiências de janelamento de sinal apresentadas pelas Transformadas de Fourier e de Fourier de Tempo Reduzido. \textit{Wavelets} contam com variadas funções-filtro e têm tamanho de janela variável, o que permite uma análise multirresolução \cite{Rod5254905}. Particularmente, as \textit{wavelets} proporcionam a análise do sinal de forma detalhada tanto no espectro de baixa frequência quanto no de alta contando com diferentes funções-base não periódicas diferentemente da tradicional transformada de Fourrier que utilizam somente as bases periódicas senoidal e cossenoidal.
@@ -76,7 +93,7 @@
 				\caption[Platôs maximamente planos Daubechies]{Platôs maximamente planos em um filtro digital: característica da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/daubechies}
 				\label{fig:daubechies}
-				\legend{Fonte: O autor}
+				\legend{Fonte: Elaborado pelo autor}
 			\end{figure}
 			
 			\begin{figure}[h]
@@ -84,7 +101,7 @@
 				\caption[Platôs maximamente planos outros filtros]{Platôs não maximamente planos de um filtro digital: características de outros filtros \textit{wavelet}, distintos da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/noMaximallyFlat}
 				\label{fig:nomaximallyflat}
-				\legend{Fonte: O autor}
+				\legend{Fonte: Elaborado pelo autor}
 			\end{figure}
 			
 			\par Além da resposta em frequência, na aplicação de um filtro digital \textit{wavelet} também é possível considerar a \textbf{resposta em fase}, que constitui um atraso ou adiantamento do sinal filtrado em relação ao sinal original, ambos no domínio temporal. Esse deslocamento pode ser \textbf{linear}, \textbf{quase linear} ou \textbf{não linear}: 
@@ -297,6 +314,7 @@
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais as os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
 		\subsection{Interfaces Humano-Máquina e EEG}
+			\label{subsec:BCIEEG}
 			
 			\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. O EEG registra as atividades elétricas do cérebro captando-as através de eletrodos colocados ao longo do couro cabeludo. No entanto possui algumas peculiaridades como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
 			
@@ -348,47 +366,80 @@
 			
 			\begin{figure}[H]
 				\centering
-				\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20 e lobos cerebrais. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
+				\caption[Sistema 10-20 e lobos cerebrais]{Posicionamento dos eletrodos de acordo com o padrão 10-20. Números ímpares são atribuídos aos eletrodos no hemisfério esquerdo, e números pares são atribuídos aos eletrodos no hemisfério direito.}
 				\includegraphics[width=0.7\linewidth]{images/10–20StandardAndLobes}
 				\legend{Fonte: \cite{JALALYBIDGOLY2020101788}}
 				\label{fig:1020standardandlobes}
 			\end{figure}
-			
-%			\cite{pinto2012manual}
-%			A fala imaginada é um fenômeno em que uma pessoa "ouve" a si mesma falando internamente, sem produzir som. As regiões cerebrais envolvidas na fala imaginada são similares às que estão envolvidas na fala verbal, englobando áreas do córtex motor e pré-motor, além de outras áreas associadas à linguagem e à fala.
-%			
-%			Especificamente, a ativação cerebral durante processos linguísticos (incluindo a fala imaginada) envolve as seguintes regiões:
-%			1. **Área de Broca** - Localizada no lobo frontal esquerdo, é crucial para a produção da fala.
-%			2. **Área de Wernicke** - Situada no lobo temporal esquerdo, é fundamental para a compreensão da linguagem.
-%			3. **Córtex motor e pré-motor** - Envolvidos na execução e planejamento dos movimentos necessários para a articulação da fala.
-%			4. **Giro supramarginal** - Associado à integração sensorial e ao planejamento motor da fala.
-%			5. **Córtex temporal medial e giro supratemporal** - Responsáveis pelo processamento da compreensão linguística e pela articulação durante a repetição de sílabas【7:0†source】【7:1†source】【7:4†source】【7:5†source】.
 		
-			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala fonada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:wernickesandbrocasareas} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
+			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala fonada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:loboparietal}, \autoref{fig:lobotemporal} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
 			%TODO Noo entanto a fala imaginada ocorre em todo o cérebro, citar fontes.
 			%TODO citar \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013} ?
 			
 			\begin{figure}[H]
 				\centering
-				\caption[Áreas de Wernicke e Broca]{Áreas de Wernicke e Broca}
-				\includegraphics[width=0.7\linewidth]{images/wernickesAndBrocasAreas}
-				\label{fig:wernickesandbrocasareas}
-				\legend{Fonte: \cite{javed2023neuroanatomy}}
+				\caption[Lobos Frontal, Parietal, Occipital e Temporal]{Principais regiões do cérebro: Lobos Frontal, Parietal, Occipital e Temporal}
+				\includegraphics[width=0.65\linewidth]{images/lobosTelencefalo}
+				\legend{Fonte: Elaborado pelo autor}
+				\label{fig:lobostelencefalo}
 			\end{figure}
-		
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Lobo frontal]{Áreas relacionadas a fala no lobo frontal: A área de Broca geralmente se encontra no hemisfério esquerdo.}
+				\includegraphics[width=0.65\linewidth]{images/loboFrontal}
+				\legend{Fonte: Elaborado pelo autor}
+				\label{fig:lobofrontal}
+			\end{figure}
+			\newpage
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Lobo parietal]{Áreas relacionadas a fala no lobo parietal: A área de Wernicke também ocupa parte do lobo temporal e geralmente se encontra no hemisfério esquerdo.}
+				\includegraphics[width=0.72\linewidth]{images/loboparietal}
+				\legend{Fonte: Elaborado pelo autor}
+				\label{fig:loboparietal}
+			\end{figure}
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Lobo temporal]{Áreas relacionadas a fala no lobo temporal: A área de Wernicke também ocupa parte do lobo parietal e geralmente se encontra no hemisfério esquerdo.}
+				\includegraphics[width=0.72\linewidth]{images/loboTemporal}
+				\legend{Fonte: Elaborado pelo autor}
+				\label{fig:lobotemporal}
+			\end{figure}
+			
+			\begin{figure}[p]
+				\centering
+				\caption[Visão geral do telencéfalo]{Visão geral do telencéfalo e as áreas relacionadas à fala, é interessante notar que tais regiões avizinham-se da fissura de Sylvius, sendo então chamadas de perissilvianas \cite{pinto2012manual}}
+				\includegraphics[angle=-90,width=.76\paperwidth,keepaspectratio]{images/teleencefaloTudo}
+				\legend{Fonte: Elaborado pelo autor}
+				\label{fig:teleencefalotudo}
+			\end{figure}
+			
+			\par O processamento fonológico se dá na região perissilviana do hemisfério dominante, já o semântico inclui áreas corticais de ambos os hemisférios para dar significado as palavras, nas áreas frontais, temporais e parietais a articulação das palavra acontece. Quando se dá uma lesão em áreas como a de Wernicke, Broca ou em suas vizinhanças à condição resultante se dá o nome de \textbf{afasia} \cite{pinto2012manual}. Portanto  a fala tanto fonada quanto imaginada se realiza em quase todo o telencéfalo tendo como diferença a mobilização dos córtex motores quando o locutor ou locutora emite algum som.
+			
+			\begin{figure}[h]
+				\centering
+				\caption[Afasias e seus sintomas]{Afasias e seus sintomas: Sendo C.O. a compreensão oral. As afasias são resultado de lesões: Na área de Broca (Afasia de Broca), nas regiões superiores ou anteriores a área de Broca (Afasia transcortical motora), na área de Wernicke (Afasia de Wernicke) e finalmente ao redor da área de Wernicke (Afasia transcortical sensorial).}
+				\input{images/afasias.tex}
+				\legend{Fonte: Adaptado de \cite{pinto2012manual}.}
+			\end{figure}
+
+
 		\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
 			
 			\par Redes Neurais (RNs), conforme definido aqui como \textit{uma rede multicamadas, totalmente conectada, com ou sem camadas recorrentes ou convolucionais}, exigem que todos os neurônios sejam ativados tanto na fase de \textit{feed-forward} quanto na de \textit{backpropagation}. Isso implica que cada unidade na rede deve processar alguns dados, resultando em consumo de energia \cite{10242251}.
 			
+			\par Em contrapartida o neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de processamento é muito eficiente em termos de consumo de energia.
+
 			\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
 			
-			\par O neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de célula é muito eficiente em termos de consumo de energia e processamento.
+			\par Sendo assim, para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP) assim como seus referenciais biológicos, em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
 			
-			\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP), em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
+			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Caso haja interesse em algo do tipo existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} ou ainda outros que exploram a não linearidade dos dendritos e outras características neurais \cite{jones2020single} criando modelos muito mais próximos aos neurônios naturais, obtendo resultados bastante interessantes.
 			
-			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Alguns estudos, como \cite{jones2020single}, criaram modelos muito mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais, obtendo resultados notáveis na classificação.
-			
-			\par Como pode ser visto na  \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
+			\par Como pode ser visto na \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
 			
 			\begin{figure}[H]
 				\centering
@@ -399,15 +450,13 @@
 			\end{figure}
 				
 			\subsubsection{Neurônio de Pulso}
-				\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}, existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} e outros como \cite{jones2020single} que criaram modelos mais próximos aos neurônios naturais explorando a não linearidade dos dendritos e outras características neurais.
+				\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}.
 		
-		\subsubsection{Entendendo o LIF}
+		\subsubsection{Entendendo e modelando o LIF}
 			
-			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas.
+			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas, tal estrutura, assim como um neurônio de RN, recebe a soma das entradas ponderadas, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau o valor soma com o passar do tempo.
 			
-			\par O LIF, assim como um neurônio de RN, recebe a soma dos inputs ponderados, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau a soma.
-			
-			\par O LIF se comporta muito como circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
 			\begin{figure}[H]
 				\centering
@@ -429,7 +478,7 @@
 			
 			\begin{figure}[H]
 				\centering
-				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número de neurônios da RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
+				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número do neurônio (índice) na RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
 				\includegraphics[width=.4\linewidth]{images/sparsity}
 				\legend{Fonte: O autor.}
 				\label{fig:sparsity}
@@ -446,14 +495,12 @@
 				C = \frac{Q}{V_{mem}(t)}
 			\end{equation}
 			
-			\par Então, a carga do neurônio pode ser expressa pela Equação \autoref{eq:charge}.
+			\par Portanto, a carga do neurônio pode ser expressa pela Equação \autoref{eq:charge}.
 			
 			\begin{equation}
 				\label{eq:charge}
 				Q = C.V_{mem}(t)
 			\end{equation}
-			
-			\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \autoref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
 			
 			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na Equação \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
 			
@@ -484,7 +531,7 @@
 				I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
 			\end{equation}
 		
-			\par Portanto, para descrever a membrana passiva, temos a Equação linear \autoref{eq:memLinear}.
+			\par Portanto, para descrever a variação de potencial da membrana passiva, temos a \autoref{eq:memLinear}.
 			
 			\begin{equation}
 				\label{eq:memLinear}
@@ -495,7 +542,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Então, se considerarmos $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
+			\par Considerando $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
 			
 			\begin{equation}
 				\label{eq:finalMem}
@@ -506,7 +553,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par A partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, o comportamento da voltagem do neurônio pode ser modelado como uma curva exponencial, como visto na Equação \autoref{eq:expmembrane}.
+			\par O comportamento da voltagem do neurônio pode então ser modelado partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na Equação \autoref{eq:expmembrane}.
 			
 			\begin{equation}
 				\label{eq:expmembrane}
@@ -530,7 +577,7 @@
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
-			\par Com os resultados da Equação \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, conforme visto na Equação \autoref{eq:actionpotincrease}.
+			\par Com os resultados da \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, na presença de uma corrente de entrada, conforme visto na \autoref{eq:actionpotincrease}.
 			
 			\begin{equation}
 				\label{eq:actionpotincrease}
@@ -546,7 +593,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na  \autoref{fig:membranepotentialincrease} e implementado no Código \autoref{lst:membranepotentialincrease}.
+			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na  \autoref{fig:membranepotentialincrease} e implementado no  \autoref{lst:membranepotentialincrease}.
 			
 			\input{listings/membranepotentialincrease.py}
 			
