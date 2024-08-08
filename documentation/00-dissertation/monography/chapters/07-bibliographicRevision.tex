@@ -458,10 +458,10 @@
 			
 			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
-			\begin{figure}[H]
+			\begin{figure}[h]
 				\centering
 				\caption[Modelo RC]{O modelo RC}
-				\includegraphics[width=0.4\linewidth]{images/rcmodel}
+				\includegraphics[width=0.3\linewidth]{images/rcmodel}
 				\label{fig:rcmodel}
 				\legend{Fonte: \cite{10242251}}
 			\end{figure}
@@ -495,14 +495,14 @@
 				C = \frac{Q}{V_{mem}(t)}
 			\end{equation}
 			
-			\par Portanto, a carga do neurônio pode ser expressa pela Equação \autoref{eq:charge}.
+			\par Portanto, a carga do neurônio pode ser expressa pela \autoref{eq:charge}.
 			
 			\begin{equation}
 				\label{eq:charge}
 				Q = C.V_{mem}(t)
 			\end{equation}
 			
-			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na Equação \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
+			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
 			
 			\begin{equation}
 				\label{eq:rateOfChargeChange}
@@ -516,7 +516,7 @@
 				V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
 			\end{equation}
 			
-			\par Então, considerando que a corrente total não muda, como visto na  \autoref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na Equação \autoref{eq:totalNeuronCurrent}.
+			\par Então, considerando que a corrente total não muda, como visto na  \autoref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na \autoref{eq:totalNeuronCurrent}.
 			
 			\begin{figure}[H]
 				\centering
@@ -542,7 +542,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Considerando $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados da Equação \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
+			\par Já que o no lado direito da equação $\left(\dfrac{dV_{mem}(t)}{dt}\right)$ expressa uma  grandeza em $voltagem/s$ e o esquerdo $\left(R.I_{in}(t) - V_{mem}(t)\right)$ em $voltagem$ apenas, conclui-se pela igualdade, que $R.C$ é uma unidade de tempo. Definindo $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados na \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
 			
 			\begin{equation}
 				\label{eq:finalMem}
@@ -553,19 +553,36 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par O comportamento da voltagem do neurônio pode então ser modelado partir disso, igualando $I_{in} = 0$ (ou seja, sem entrada) e considerando que $\tau = R.C$ é uma constante e, além disso, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na Equação \autoref{eq:expmembrane}.
+			\par Então o comportamento do decaimento da voltagem no neurônio quando não há entrada $I_{in} = 0$ pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
 			
 			\begin{equation}
 				\label{eq:expmembrane}
 				\begin{aligned}
-					\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
+					\tau.\dfrac{dV_{mem}(t)}{dt} &= \cancel{R.I_{in}(t)} - V_{mem}(t) \implies \\
 					\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
-					e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
+					\dfrac{dV_{mem}(t)}{dt} &= \dfrac{-V_{mem}(t)}{\tau} = \\
+					\dfrac{dV_{mem}(t)}{V_{mem}(t)} &= \dfrac{-dt}{\tau} = \\
+					\int\dfrac{1}{V_{mem}(t)}.dV_{mem}(t) &= \int\dfrac{-1}{\tau}.dt = \\
+					\ln(|V_{mem}(t)|) &= -\dfrac{1}{\tau} . \int dt = \\
+					\ln(|V_{mem}(t)|) &= -\dfrac{1}{\tau} . t = \\
+					e^{\ln(|V_{mem}(t)|)} &= e^{-\frac{t}{\tau}} = \\
+					V_{mem}(t) &= e^{-\frac{t}{\tau}} \implies \\
+					\text{Considerando um valor inicial de } &V_{mem}(t) = V_{mem}(0) \text{ em } t=0 \implies \\
 					\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
 				\end{aligned}
 			\end{equation}
 			
-			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na  \autoref{fig:membranepotentialdecay} e implementado no Código \autoref{lst:membranepotentialdecay}.
+			%TODO PARA CHEGAR NISSO
+%			\par \textbf{PARA CHEGAR NISSO: } ${V_{mem}(t) = V_{mem}(0).e^{-\frac{t}{\tau}}}$ refazer considerando a constante c que a integral gera.
+%			\begin{figure}[H]
+%				\centering
+%				\includegraphics[width=0.7\linewidth]{apagar/screenshot001}
+%				\caption{}
+%				\label{fig:screenshot001}
+%			\end{figure}
+			
+			
+			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na  \autoref{fig:membranepotentialdecay} e implementado no \autoref{lst:membranepotentialdecay}.
 			
 			\input{listings/membranepotentialdecay.py}
 			
@@ -577,21 +594,56 @@
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
-			\par Com os resultados da \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, na presença de uma corrente de entrada, conforme visto na \autoref{eq:actionpotincrease}.
+			\par Com os resultados da \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, na presença de uma corrente de entrada, conforme visto na \autoref{eq:actionpotincrease0}.
 			
 			\begin{equation}
-				\label{eq:actionpotincrease}
+				\label{eq:actionpotincrease0}
 				\begin{aligned}
 					&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
-					&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
-					&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
-					&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
-					&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
-					&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
+					&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau}
+				\end{aligned}
+			\end{equation}
+			
+			\par A \autoref{eq:actionpotincrease0} se encaixa na categoria de Equação Ordinária de primeira ordem, portanto, para resolvê-la se determina o fator de integração $f$ definido na \autoref{eq:actionpotincrease1}:
+			
+			\begin{equation}
+				\label{eq:actionpotincrease1}
+				\begin{aligned}
+					f = e^{\int P(x) dx} \mid \dfrac{dy}{dx}&+P(x).y=Q(x) \therefore\\
+					x &= t \\
+					y &= V_{mem}(t) \\
+					P(x) &= \frac{1}{\tau} \\
+					Q(x) &= \frac{R.I_{in}}{\tau} \implies \\
+					e^{\int \frac{1}{\tau} dx} &= e^{\frac{1}{\tau}.\int dt} = \boxed{e^{\frac{t}{\tau}}}
+				\end{aligned}
+			\end{equation}
+			
+			\par Fazendo a substituição do fator na \autoref{eq:actionpotincrease2}:
+			
+			\begin{equation}
+				\label{eq:actionpotincrease2}
+				\begin{aligned}
+					\text{Substituindo em: } &(f.y)' = f.Q(x) \implies \\
+					(e^{\frac{t}{\tau}}.V_{mem}(t))' &= \frac{R.I_{in}(t)}{\tau}.e^{\frac{t}{\tau}} \implies \\
+					\int (e^{\frac{t}{\tau}}.V_{mem}(t))' &= \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{t}{\tau}} dt \implies \\
+					\Aboxed{e^{\frac{t}{\tau}}.V_{mem}(t) &= \frac{R.I_{in}(t)}{\tau}.\int e^{\frac{t}{\tau}} dt}
+				\end{aligned}
+			\end{equation}
+			
+			\par Que resolvendo pelo método da substituição na \autoref{eq:actionpotincrease3}:
+			
+			\begin{equation}
+				\label{eq:actionpotincrease3}
+				\begin{aligned}
+					&u=\frac{t}{\tau} \implies \dfrac{du}{dt} = \dfrac{t}{\tau}dt \implies dt = du.\tau \therefore \\
+					&\int e^u du.\tau = \tau.\int e^u du = \tau . e^u + c = \tau . e^{\frac{t}{\tau}} + c \implies \\
+					&e^{\frac{t}{\tau}}.V_{mem}(t) = \frac{R.I_{in}(t)}{\tau}.\tau.e^{\frac{t}{\tau}} \implies \\
+					&V_{mem}(t) = \frac{R.I_{in}(t)}{\tau . e^{\frac{t}{\tau}}}.\tau.e^{\frac{t}{\tau}} \implies \\
 					& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
 					\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
 				\end{aligned}
 			\end{equation}
+			
 			
 			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na  \autoref{fig:membranepotentialincrease} e implementado no  \autoref{lst:membranepotentialincrease}.
 			
@@ -605,7 +657,7 @@
 				\label{fig:membranepotentialincrease}
 			\end{figure}
 			
-			\par Levando em consideração um certo \textbf{limiar} que indica um \textit{reset} nvoltagem do neurônio e dois tipos de \textit{resets} (para zero e subtração do limiar), finalmente é possível modelar o comportamento completo do LIF, conforme ilustrado na  \autoref{fig:membranepotentialfull} e implementado no Código \autoref{lst:membranepotentialfull}:
+			\par Levando em consideração um certo \textbf{limiar} que determina um \textit{reset} na voltagem do neurônio e dois tipos de \textit{resets} (para zero e subtração do limiar), finalmente é possível modelar o comportamento completo do LIF, conforme ilustrado na  \autoref{fig:membranepotentialfull} e implementado no \autoref{lst:membranepotentialfull}:
 			
 			\input{listings/membranepotentialfull.py}
 			
@@ -620,13 +672,13 @@
 			
 		\subsubsection{Outra interpretação do LIF}
 			
-			\par Começando com a Equação \autoref{eq:finalMem} e usando o Método de Euler para resolver o modelo LIF:
+			\par Começando com a \autoref{eq:finalMem} e usando o Método de Euler para resolver o modelo LIF:
 			
 			\begin{equation}
 				\tau.\dfrac{dV_{\text{mem}}(t)}{dt} = R.I_{\text{in}}(t) - V_{\text{mem}}(t)
 			\end{equation}
 			
-			\par Resolvendo a derivada na Equação \autoref{eq:membraneDerivative}, obtemos o potencial da membrana para qualquer tempo $t+\Delta t$ no futuro:
+			\par Resolvendo a derivada na \autoref{eq:membraneDerivative}, obtemos o potencial da membrana para qualquer tempo $t+\Delta t$ no futuro:
 			
 			\begin{equation}
 				\label{eq:membraneDerivative}
@@ -641,18 +693,18 @@
 		
 			\par \textbf{Como as RNPs são treinadas?} Esta ainda é uma questão em aberto. Um neurônio RNP tem o comportamento de sua função de ativação mais parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
 			
-			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses ou até mesmo criando novos neurônios ou outros métodos complicados como pacotes de RNA, existem algumas mais aceitáveis como as da lista abaixo \cite{kasabov2019time}:
+			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses, criando novos neurônios ou até mesmo outros métodos como pacotes de RNA. \cite{kasabov2019time} cita algumas outras formas:
 			
 			\begin{itemize}
 				\item \textbf{Plasticidade Dependente do Tempo de Pulsos (STDP)}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
-				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm a função de passo na fase do \textit{feed-forward} \cite{kasabov2019time}.
+				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm a função de passo na fase do \textit{feed-forward}.
 				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
 				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
 			\end{itemize}
 		
 		\subsection{\textit{Autoencoders}}
 		
-			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um \textbf{código} ou representação da entrada que pode ser ou não ser comprimida \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na figura ou $x$ e $r$ podem ser redes profundas.
+			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um \textbf{código} ou representação da entrada que pode ser ou não ser comprimida \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder} ou $x$ e $r$ podem ser redes profundas.
 			
 			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de \textbf{código} e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador. Geralmente, os \textit{autoencoders} são projetados para serem incapazes de copiar perfeitamente os dados de entrada pois isso os tornaria demasiadamente complexos e, em alguns casos, inúteis como será explicado adiante.
 
@@ -696,7 +748,7 @@
 				
 				\par Segundo \cite{bengio2014representation} uma das formas de regularização é justamente a limitação da dimensão da camada de código, a mesma aplicada aos \textit{autoencoders} sub-completos, como estes já foram explicados apresentar-se-ão a seguir outras formas de regularização.
 				
-				\par Considerando que \textit{autoencoders} devem ser treinados para minimizar uma função de erro $E$ que compara a entrada original $x$ com a reconstrução $r$ então um autoencoder \textbf{regularizado} deve ter adicionado a essa função um termo de regularizador $\phi$ como a mostrado na Equação \autoref{eq:autoreg} que é um termo que pode corresponder a uma regularização L1, L2, $\Omega(h)$ (discutidas no apêndice \autoref{Apend:regularization}).
+				\par Considerando que \textit{autoencoders} devem ser treinados para minimizar uma função de erro $E$ que compara a entrada original $x$ com a reconstrução $r$ então um autoencoder \textbf{regularizado} deve ter adicionado a essa função um termo de regularizador $\phi$ como a mostrado na \autoref{eq:autoreg} que é um termo que pode corresponder a uma regularização L1, L2, $\Omega(h)$ (discutidas no apêndice \autoref{Apend:regularization}).
 				
 				\begin{equation}
 					\label{eq:autoreg}
@@ -712,7 +764,7 @@
 
 				
 			\subsubsection{\textit{Denoising autoencoders}}
-				\par Tais redes podem ser caracterizadas também como \textit{autoencoders} regularizados. Porém há uma diferença fundamental: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalide de preencher falhas de informação nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
+				\par Tais redes também podem ser caracterizadas como \textit{autoencoders} regularizados. Porém há diferenças: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalidade de preencher falhas de informação nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
 				
 				\begin{figure}[h]
 					\centering
@@ -723,7 +775,7 @@
 				\end{figure}
 							
 		\subsection{Redes neurais residuais (ResNets)}
-			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás das \textit{ResNets} é a inclusão de conexões de salto como ilustrado na  \autoref{fig:residualblock}, também conhecidas como mapeamentos de identidade, permitindo que a saída de uma camada seja adicionada elemento-a-elemento diretamente à entrada da camada subsequente. Para que isso aconteça é importante que tanto a saída quanto a entrada tenham a mesma dimensão.
+			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás das \textit{ResNets} é a inclusão de conexões de salto como ilustrado na  \autoref{fig:residualblock}, também conhecidas como mapeamentos de identidade, permitindo que a saída de uma camada seja adicionada elemento-a-elemento diretamente à entrada de uma camada subsequente. Para que isso aconteça é importante que tanto a saída quanto a entrada tenham a mesma dimensão.
 			
 			\begin{figure}[H]
 				\centering
@@ -746,7 +798,7 @@
 			
 			\par Redes neurais muito profundas podem sofrer de problemas como o desaparecimento ou explosão do gradiente, onde os gradientes (ou seja, as direções para ajustar os pesos da rede) se tornam muito pequenos ou grandes à medida que são retro-propagados durante o treinamento. Isso pode dificultar o treinamento eficaz das camadas mais profundas.
 
-			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, se pode juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização (ver \autoref{chap:regularizacao}) diminui a ocorrência de \textit{vanishing/exploding gradients} um problema comum em redes com muitas camadas que pode piorar, impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede \cite{DBLP:journals/corr/HeZRS15}. 
+			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, se pode juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização diminui a ocorrência do desaparecimento ou explosão de gradientes, um problema comum em redes com muitas camadas que pode piorar, impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede \cite{DBLP:journals/corr/HeZRS15}. 
 			
 			\par Em vez de aprender a mapear diretamente de $x$ para $y$, as camadas da rede aprendem a mapear de $x$ para a diferença entre $x$ e $y$, ou seja, para o \textbf{resíduo}. Isso simplifica o treinamento, pois a rede precisa apenas ajustar os resíduos, em vez de aprender a mapear completamente as entradas para as saídas.
 			
@@ -784,7 +836,7 @@
 
 	\section{Trabalhos mais recentes}
 	
-		\par Afim de entender melhor o campo de pesquisa, além de formar uma base sólida para compreensão do assunto, foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais. A coleta dos trabalhos foi feita segundo os parâmetros descritos abaixo.
+		\par Afim de entender melhor o campo de pesquisa, além de formar uma boa base para compreensão do assunto, foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais. A coleta dos trabalhos foi feita segundo os parâmetros descritos a seguir.
 		
 		\subsection{Protocolo de coleta}
 		
@@ -820,7 +872,7 @@
 		
 			\par O primeiro estudo consultado \cite{ParkHyeong-jun2023Mcoi} aborda o uso de EEG para captação de fala imaginada usando as técnicas de decomposição de sinal NA-MEMD (\textit{multivariate empirical mode decomposition}) e DTWPT (Discrete time Wavelet Package Transform) e a arquitetura de redes neurais MRF-CNN. A NA-MEMD é uma extensão do EMD (\textit{Empirical mode decomposition}) para sinais multivariados permitindo a decomposição de sinais. O MRF-CNN é uma arquitetura de rede neural convolucional profunda que utiliza características estatísticas extraídas dos sinais decompostos como entrada para o classificador. Foram utilizadas técnicas de validação cruzada e divisão de dados para treinamento e teste do classificador. Os dados EEG foram coletados dos nove participantes saudáveis, estes tiveram que imaginar as vogais "a", "e", "i", "o", "u". O estudo atingiu uma média de 80,41\% de classificações corretas.
 			
-			\par Em \cite{AbdulghaniMokhlesM2023ISCU} usa \textit{Wavelet Scattering Transform}, técnica que aplica sobre o sinal transformadas wavelet combinadas operações não lineares, para extração de características para posterior classificação por uma Rede Neural LSTM(\textit{Long-Short term memory}) recorrente. Os quatro participantes imaginaram as seguintes expressões: \textit{"up", "down", "left" e "right"}. Em testes a acurácia alcançada foi 92,50\%.
+			\par Em \cite{AbdulghaniMokhlesM2023ISCU} usa \textit{Wavelet Scattering Transform} (WST), técnica que aplica sobre o sinal transformadas wavelet combinadas com operações não lineares, para extração de características para posterior classificação por uma Rede Neural LSTM(\textit{Long-Short term memory}) recorrente. Os quatro participantes imaginaram as seguintes expressões: \textit{"up", "down", "left" e "right"}. Em testes a acurácia alcançada foi 92,50\%.
 			
 			\par Com o fim de remover ruídos e artefatos causados por movimentos musculares relacionados a região da cabeça em \cite{MahapatraNrushinghCharan2023Ecoi} foi usada a DTWT (\textit{Discrete Time Wavelet Transform}) para processar os sinais EEG, que foram obtidos a partir das bases de dados EPOC e MUSES \cite{mindbigdata}. Depois da filtragem e geração de características variações de Redes Neurais Recorrentes Bidirecionais foram empregadas na classificação das classes compostas pelos dígitos de 0 a 9. Foram alcançadas acurácias máximas de 98,18\% na base MUSE e 71,60\% na EPOC.
 			
@@ -830,9 +882,9 @@
 
 			\par Para classificar as letras do alfabeto imaginadas em inglês por 13 indivíduos o estudo \cite{AgarwalPrabhakar2022Ebia} usou a DTWT para remoção ruídos e separação de bandas de frequência do sinal a ser classificado por dois algoritmos simultaneamente: Árvores Aleatórias (ou \textit{Random Forrest})(RF) e SVM. O estudo alcançou uma acurácia média entre as classificações de todos os elementos do alfabeto de 77,97\%. Neste trabalho também foi utilizado o método \textit{Common Average Referecing}(CAR) que, via a subtração de uma média dos sinais captados em um certo intervalo de tempo, procura remover interferências induzidas em todos os eletrodos por variáveis ambientais aumentando a relação sinal/interferência (\textit{Signal-to-noise ratio})(SNR). Uma interessante constatação desse trabalho é de que as ondas cerebrais $\alpha$, $\beta$ e $\theta$ quando consideradas sozinhas melhoram o desempenho dos classificadores.
 			
-			\par Aqui \cite{Hernandez-Del-ToroTonatiuh2021TaEB} usa cinco métodos de extração de características: DTWT (para obtenção da energia de bandas), EMD, dimensões fractais e características extraídas segundo metodos da teoria do caos. Os dados foram obtidos a fim de se criar 3 bases de dados contendo as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"}, a primeira continha informações de 27 pessoas, a segunda também 27 e a terceira 20. Na primeira e segunda bases a taxa de captura foi de 128Hz e na terceira 500Hz, esta foi subamostrada para 128Hz a posteriori. Para remoção de ruído o método CAR foi usado. Os classificadores usados foram RF, \textit{K-nearest-neighbors}(KNN), SVM e Regressão Logística. Para avaliação as métricas Pontuação F1 (PF1), Precisão e \textit{Recall} foram usadas. Os melhores resultados obtidos nas bases 1, 2 e 3 foram respectivamente: 0,73, 0,79 e 0,68 para PF1, 0,66, 0,70, 0.65 para Precisão e 0,87, 0,93 e 0,83 para \textit{Recall}.
+			\par Aqui \cite{Hernandez-Del-ToroTonatiuh2021TaEB} usa os seguintes métodos de extração de características: DTWT (para obtenção da energia de bandas), EMD, dimensões fractais e características extraídas segundo metodos da teoria do caos. Os dados foram obtidos a fim de se criar 3 bases de dados contendo as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"}, a primeira continha informações de 27 pessoas, a segunda também 27 e a terceira 20. Na primeira e segunda bases a taxa de captura foi de 128Hz e na terceira 500Hz, esta foi subamostrada para 128Hz a posteriori. Para remoção de ruído o método CAR foi usado. Os classificadores usados foram RF, \textit{K-nearest-neighbors}(KNN), SVM e Regressão Logística. Para avaliação as métricas Pontuação F1 (PF1), Precisão e \textit{Recall} foram usadas. Os melhores resultados obtidos nas bases 1, 2 e 3 foram respectivamente: 0,73, 0,79 e 0,68 para PF1, 0,66, 0,70, 0.65 para Precisão e 0,87, 0,93 e 0,83 para \textit{Recall}.
 			
-			\par Constante nas referências de \cite{Hernandez-Del-ToroTonatiuh2021TaEB} um dos poucos trabalhos que discorreram sobre a identificação de pessoas \cite{MOCTEZUMA2019201} usou CAR para melhorar a SNR dos sinais armazenados e amostrados a 128Hz correspondentes as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"} imaginadas por 27 voluntários. Foi tratada também a identificação independentemente da palavra imaginada. A geração do vetor de características foi feita usando DTWT em 4 níveis e para cada nível foi calculada a Energia de \textit{Teager} ou \textit{Teager Energy Operator} (TEO). RF foi usada como classificador. Os resultados variaram entre 85\% quando todos os 27 indivíduos foram incluídos até 97\% quando apenas 5 foram considerados.
+			\par Constante nas referências de \cite{Hernandez-Del-ToroTonatiuh2021TaEB} um dos poucos trabalhos que discorreram sobre a identificação de pessoas \cite{MOCTEZUMA2019201} usou CAR para melhorar a SNR dos sinais armazenados e amostrados a 128Hz correspondentes as palavras em espanhol \textit{"arriba", "abajo", "derecha" e "isquierda"} imaginadas por 27 voluntários. A geração do vetor de características foi feita usando DTWT em 4 níveis e para cada nível foi calculada a Energia de \textit{Teager} ou \textit{Teager Energy Operator} (TEO). RF foi usada como classificador. Os resultados variaram entre 85\% quando todos os 27 indivíduos foram incluídos até 97\% quando apenas 5 foram considerados.
 			
 			\par Dada a pouca quantidade de dados e bases existentes quando se trata de EEG, o artigo \cite{PanachakelJerrinRamakrishnan} usou uma técnica de expansão de informação baseada em "janelas deslizantes" ao mesmo tempo em que, em vez de considerar separadamente cada sensor, agrupou os dados dos mesmos em matrizes tridimensionais semelhantes a imagens que foram processadas por uma rede Resnet50 \cite{DBLP:journals/corr/HeZRS15} adaptada usando a técnica de transferência de aprendizado. A base de dados usada \cite{nguyen2018inferring} é composta por EEG capturado de 64 canais a 1000Hz para as seguintes falas imaginadas por 11 pessoas do sexo masculino e 4 do feminino: \textit{"independent", "cooperate", "in", "out", "up", "a", "i", "u"}. As taxas de amostragem foram posteriormente diminuídas para 250Hz e filtradas para remoção de ruídos e artefatos. Os resultados variaram de um mínimo de 79,7\% de acurácia para classificação de vogais até um máximo de 95,5\% para palavra curtas e longas.
 			
