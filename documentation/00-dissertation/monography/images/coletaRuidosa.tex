@@ -1,0 +1,48 @@
+\begin{tikzpicture}[transform shape, scale=0.6]
+	% Definindo estilos de nós
+	
+	% Início
+	\tikzstyle{startstop} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=orange, text=black, font=\sffamily\bfseries]
+	
+	% Processo
+	\tikzstyle{process} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=green, font=\sffamily\bfseries, inner sep=0.4cm]
+	
+	% Decisão
+	\tikzstyle{decision} = [diamond, minimum width=3cm, minimum height=1cm, text centered, fill=yellow, text=black, font=\sffamily\bfseries, aspect=3]
+	
+	% Estilos das setas
+	\tikzstyle{arrow} = [thick,->,>=stealth, draw=white, line width=1.5mm]
+	
+	% Nós
+	\node (start) [startstop] {Início};
+	
+	\node (noise) [process, left=1cm of start] {Reproduzir ruído};
+	
+	\node (display) [process, below=1cm of noise] {Exibe próxima sentença por 5s};
+	\node (signal) [process, right=1cm of display] {Sinal por 1s};
+	\node (pronounce) [process, below=1cm of signal] {Captação por 5s};
+	\node (loop) [decision, left=1cm of pronounce, below=1.8cm of display] {Existem mais sentenças?};
+	
+	\node (stopNoise) [process, below=1.4cm of loop] {Silenciar ruído};
+	
+	\node (stop) [startstop, right=1.5cm of stopNoise] {Fim};
+	
+	
+	% Setas com curvas
+	\draw [arrow] (start) to (noise);
+	\draw [arrow] (noise) to (display);
+	\draw [arrow] (display) to (signal);
+	\draw [arrow] (signal) to (pronounce);
+	\draw [arrow, bend left=20] (pronounce) to (loop.east);
+	\draw [arrow, bend left=20] (loop.north) to node[midway, sloped, below, font=\sffamily\bfseries, text=white] {Sim} (display);
+	
+	\draw [arrow, bend left=20] (loop.south) to node[midway, sloped, below, font=\sffamily\bfseries, text=white] {Não} (stopNoise);
+	
+	\draw [arrow] (stopNoise) to (stop);
+	
+	% Agrupando o diagrama em um escopo
+	\begin{scope}[on background layer]
+		% Retângulo ao redor do diagrama com fundo azul
+		\node[rectangle, fill=blue, fit={(start) (display) (pronounce) (loop) (stop)}, inner sep=0.5cm] (background) {};
+	\end{scope}
+\end{tikzpicture}

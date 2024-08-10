@@ -1,37 +1,110 @@
 \chapter{Abordagem proposta} \label{chap:propApproach}
 	\section{A Base de sinais}
-	    \subsection{Coleta dos sinais}
+		\par Serão coletadas, de forma isolada, as falas imaginadas, as falas fonadas e as falas simultaneamente imaginadas e fonadas, resultando em três bases de dados distintas permitindo comparar os dois tipos de sinais e suas interações com os sensores, tanto quando isolados quanto combinados. Assim, será possível obter dados sobre a fala imaginada sem a interferência dos músculos relacionados à fala, além de dados sobre a fala efetivamente pronunciada e a fala imaginada.
+		
+		\par O objetivo é que haja uma ampla gama de dados para possibilitar pesquisas futuras tanto no campo da fala imaginada quanto na fala fonada, ou em ambas as áreas.
+		
+	    \subsection{Protocolo de Coleta de Dados}
+		    
+		    \par Os protocolos de coleta especificam dois ciclos: Um chamado de \textbf{ruidoso} esquematizado na \autoref{fig:coletaRuidosa}, no qual, durante a captura, serão reproduzidos ruídos comuns de lugares com pessoas conversando gravados previamente. E outro chamado \textbf{silencioso}, como mostrado na \autoref{fig:coletaSilenciosa}, no qual a captura se dará, na medida da disponibilidade dos equipamentos disponíveis, com o menor ruído ambiente possível. Dessa forma também se espera conseguir avaliar qual o impacto dessa variante na produção e classificação dos dados.
+		    
+		    \subsection{Sentenças coletadas}
+		    
+			    \par As sentenças coletadas, tanto fonadas quanto imaginadas, serão as seguintes:
+			    \begin{itemize}
+			    	\item \textbf{palavras:} Primeiro nome da/do voluntária(o), cima, baixo, esquerda, direita, senha inventada
+			    	\item \textbf{frases:} Estou com fome, Sinto dor, Estou com sede, Estou com sono, Entrar no sistema.
+			    \end{itemize}
+			    
+			    \par Tais sentenças foram escolhidas pois representam comandos básicos úteis em cenários que vão desde a autenticação da pessoa até comandos básicos que podem ser úteis em cenários diversos, muitos dos quais foram aproveitados e/ou inspirados pelos trabalhos revisados na \autoref{sec:trabalhosMaisRecentes}.
+		    
+		    \subsubsection{Questionário preliminar}
+		    
+			    \par Antes da coleta dos sinais de voz e neurológicos será feito um questionário com as seguintes perguntas:
+			    
+			    \begin{itemize}
+			    	\item ingeriu ou ingere algum medicamento? Há quanto tempo?
+			    	\item usou alguma droga legal ou ilegal? Há quanto tempo?
+			    	\item ingeriu alguma bebida energética? Há quanto tempo?
+			    	\item qual sua etnia?
+			    	\item qual seu sexo?
+			    	\item qual seu gênero?
+			    	\item é canhota, destra ou ambidestra?
+			    \end{itemize}
+			    
+			\subsubsection{Taxa de amostragem}
+			
+				\par Embora, em ratos, neurônios biológicos saudáveis possam proporcionar leituras de EEG de até 2Khz, tal fenômeno não é documentado em cérebros humanos saudáveis e estudos anteriores indicam que leituras acima de 120Hz ocorrem em cérebros de pessoas epiléticas \cite{Moffett2017}. No entanto, apenas a ocorrência de altas frequências, não indica necessariamente uma patologia já que na região mais externa do telencéfalo conhecida como neocórtex podem ocorrer oscilações rápidas que podem atingir em torno de 200Hz \cite{hfreOscEngel}.
+				
+				\par Portanto segundo o teorema de Nyquist a taxa de amostragem mínima é de 400Hz, no entanto, há que se adotar uma certa margem de segurança maior afim de não se perder dados importantes, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz.
+				
+				%TODO subamostrar depois?
+				
+		    \subsubsection{Protocolo de coleta da fala fonada}
+			    \begin{enumerate}
+			    	\item \textbf{ciclo silencioso.}
+			    	\begin{enumerate}
+			    		\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser pronunciada.\label{itm:exibePalavraFalaSilencio}
+			    		\item um sinal é tocado por 1 segundo
+			    		\item por 5 segundos a sentença deve ser \textbf{pronunciada} uma única vez.
+			    		\item volta para o \autoref{itm:exibePalavraFalaSilencio} até que todas as sentenças sejam pronunciadas.
+			    	\end{enumerate}
+			    	
+			    	\item \textbf{ciclo ruidoso}.
+			    	\begin{enumerate}
+			    		\item inicia-se a reprodução do ruído
+			    		\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser pronunciada.\label{itm:exibePalavraFalaRuido}
+			    		\item um sinal é tocado por 1 segundo
+			    		\item por 5 segundos a sentença deve ser \textbf{pronunciada} uma única vez.
+			    		\item volta para o \autoref{itm:exibePalavraFalaRuido} até que todas as sentenças sejam pronunciadas.
+			    		\item a reprodução do ruído é finalizada.
+			    	\end{enumerate}
+			    \end{enumerate}
+		    
+		    \subsubsection{Protocolo de coleta da fala imaginada}
+  			    \par No caso específico da fala imaginada serão coletados 5 segundos de sinais cerebrais dos voluntários antes que qualquer um dos protocolos citados sejam executados, se espera dessa forma captar um padrão que talvez se modifique devido a tensão emocional causada pelos sinais sonoros e ordens dadas. 
+		    	
+			    \begin{enumerate}
+			    	\item \textbf{ciclo silencioso.}
+			    	\begin{enumerate}
+			    		\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.\label{itm:exibePalavraImaginaSilencio}
+			    		\item um sinal é tocado por 1 segundo
+			    		\item Por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+			    		\item volta para o \autoref{itm:exibePalavraImaginaSilencio} até que todas as sentenças sejam imaginadas.
+			    	\end{enumerate}
+			    	\item \textbf{ciclo ruidoso}.
+			    	\begin{enumerate}
+			    		\item inicia-se a reprodução do ruído
+			    		\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.\label{itm:exibePalavraImaginaRuido}
+			    		\item um sinal é tocado por 1 segundo
+			    		\item por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+			    		\item volta para o \autoref{itm:exibePalavraImaginaRuido} até que todas as sentenças sejam pronunciadas.
+			    		\item a reprodução do ruído é finalizada.
+			    	\end{enumerate}
+			    \end{enumerate}
+			    
+				\begin{figure}[H]
+					\centering
+					\caption{Protocolo de coleta de dados}
+					\subfloat[Protocolo de coleta silenciosa]{
+						\input{images/coletaSilenciosa.tex}
+						\label{fig:coletaSilenciosa}
+					}
+					\subfloat[Protocolo de coleta ruidosa]{%
+						\input{images/coletaRuidosa.tex}
+						\label{fig:coletaRuidosa}
+					}
+					\legend{Fonte: Elaborado pelo autor}
+				\end{figure}
+				
+
 	    \subsection{Organização da base de sinais}
 
 
 	\section{Estrutura da estratégia proposta}
 	
 	\section{Procedimentos}
-		\subsection{Protocolo de Coleta de Dados}
-			\par O procedimento tem como objetivo a coleta de uma ampla gama de dados, começando com a gravação exclusiva das falas imaginadas. Posteriormente, serão registradas as falas pronunciadas. Esse método permitirá a obtenção de dados sobre a fala imaginada sem a interferência dos músculos relacionados à fala, além dos dados sobre a fala efetivamente pronunciada.
-			
-			\begin{enumerate}
-				\item Primeiramente será exibido ao participante um sinal visual de espera por 5 segundos.
-				
-				\item Executar o ciclo silencioso. \label{itm:SilentCicle}
-				\begin{enumerate}
-					\item Por 5 segundos é exibida a palavra que deve ser pensada. 
-					\item Por 5 segundos a palavra deve ser \textbf{imaginada} uma única vez.
-					\item Um sinal visual é emitido novamente por 5 segundos
-					\item Por 5 segundos a palavra deve ser \textbf{pronunciada} uma única vez.
-				\end{enumerate}
-				
-				\item Executar o ciclo ruidoso.
-				\begin{enumerate}
-					\item Por 5 segundos é exibida a \textbf{mesma} palavra que deve ser pensada e sons de ambientes ruidosos começam a ser reproduzidos.
-					\item Por 5 segundos a palavra deve ser \textbf{imaginada} uma única vez.
-					\item Um sinal visual é emitido novamente por 5 segundos
-					\item Por 5 segundos a palavra deve ser \textbf{pronunciada} uma única vez.
-					\item A reprodução do ruído é finalizada.
-				\end{enumerate}
-				
-				\item Se deve selecionar uma nova palavra e voltar para o \autoref{itm:SilentCicle}.
-			\end{enumerate}
+
 		
 		\subsection{Tratamento do sinal}
 			\par Afim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa baixa de 100Hz} mantendo por uma boa margem as frequências operacionais típicas de um cérebro humano \cite{JALALYBIDGOLY2020101788}.
