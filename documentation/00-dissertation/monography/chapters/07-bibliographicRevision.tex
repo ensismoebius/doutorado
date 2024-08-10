@@ -837,39 +837,47 @@
 	\section{Trabalhos mais recentes}
 		\label{sec:trabalhosMaisRecentes}
 	
-		\par Afim de entender melhor o campo de pesquisa, além de formar uma boa base para compreensão do assunto, foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais. A coleta dos trabalhos foi feita segundo os parâmetros descritos a seguir.
+		\par Afim de entender melhor o campo de pesquisa, além de formar uma boa base para compreensão do assunto, foram levantados os métodos de autenticação por fala e/ou análise de sinais cerebrais.
 		
 		\subsection{Protocolo de coleta}
 		
-			\par \textbf{Critérios de inclusão e exclusão} de artigos:
+			\par A estratégia de busca dos artigos foi guiada segundo as base de dados, palavras-chaves e critérios constantes na \autoref{sec:inclusaoCrit} e \autoref{sec:baseEPalavras} a seguir.
+		
+			\subsubsection{Critérios de inclusão e exclusão}
+			\label{sec:inclusaoCrit}
 			\begin{itemize}
-				\item dos últimos 5 anos
-				\item que correspondiam às palavras-chave de pesquisa constantes na \autoref{tab:basesdedados}
-				\item cujo \textit{abstract} continha as bases de dados usadas, os resultados e a metodologia brevemente descritos.
+				\item publicados entre 30/03/2019 e 30/03/2024 (últimos 5 anos)
+				\item que correspondam às palavras-chave de pesquisa constantes na listagem constante na \autoref{sec:baseEPalavras}
+				\item cujo \textit{abstract} contenha as bases de dados usadas, os resultados e a metodologia brevemente descritos.
+				\item que tratam de autenticação por EEG e/ou voz, e, quando da falta dos mesmos, que pelo menos auxiliem no tema estudado
 			\end{itemize}
 			
 			
-			\par A \textbf{estratégia de busca} dos artigos foi guiada segundo a base de dados e palavras-chaves constantes na \autoref{tab:basesdedados}.
-			\begin{table}[H]
-				\begin{center}
-					\caption[Bases de dados usadas]{Bases de dados usadas}
-					\begin{tabular}{|l|l|l|l|}
-						\hline
-						Base de dados & Palavras chave & Filtros aplicados & Limitações \\
-						\hline
-						Web of Science & & & \\
-						\hline
-						ACM & & & \\
-						\hline
-						Elsevier & & & \\
-						\hline
-						IEEE & & & \\
-						\hline
-					\end{tabular}
-					\label{tab:basesdedados}
-					\legend{Fonte: Elaborado pelo autor, 2024}
-				\end{center}
-			\end{table}
+			\subsubsection{Base de dados e palavras-chaves}
+			\label{sec:baseEPalavras}
+			\begin{itemize}
+				\item Web of Science \footnote{https://www.webofscience.com/ (Acesso restrito por VPN)}:
+				\begin{itemize}
+					\item palavras chave: voice AND authentication
+					\item filtros aplicados: Publication date: 2019-03-30 to 2024-03-30
+				\end{itemize}
+				
+				\item Google Scholar \footnote{https://scholar.google.com}:
+				\begin{itemize}
+					\item palavras chave: +voice +authentication
+					\item filtros aplicados: Período específico... 2019 - 2024; Incluir citações;
+				\end{itemize}
+				\item Athena \footnote{https://unesp.primo.exlibrisgroup.com/discovery/search?vid=55UNESP\_INST:UNESP (Necessita autenticação da Central de Acessos da UNESP)}:
+				\begin{itemize}
+					\item palavras chave: Qualquer campo contém Imagined Speech; E qualquer campo contém EEG; E qualquer campo contém wavelet
+					\item filtros aplicados: Data inicial: 30/03/2019; Data final: 30/03/2024; Idiomas: Excluir Coreano e Japonês
+				\end{itemize}
+				\item Athena:
+				\begin{itemize}
+					\item palavras chave: Qualquer campo contém authentication; E qualquer campo contém voice
+					\item filtros aplicados: Data inicial: 30/03/2019; Data final: 30/03/2024; Idiomas: Excluir Coreano e Japonês; Excluir artigos de newsletter
+				\end{itemize}
+			\end{itemize}
 		
 			\par O primeiro estudo consultado \cite{ParkHyeong-jun2023Mcoi} aborda o uso de EEG para captação de fala imaginada usando as técnicas de decomposição de sinal NA-MEMD (\textit{multivariate empirical mode decomposition}) e DTWPT (Discrete time Wavelet Package Transform) e a arquitetura de redes neurais MRF-CNN. A NA-MEMD é uma extensão do EMD (\textit{Empirical mode decomposition}) para sinais multivariados permitindo a decomposição de sinais. O MRF-CNN é uma arquitetura de rede neural convolucional profunda que utiliza características estatísticas extraídas dos sinais decompostos como entrada para o classificador. Foram utilizadas técnicas de validação cruzada e divisão de dados para treinamento e teste do classificador. Os dados EEG foram coletados dos nove participantes saudáveis, estes tiveram que imaginar as vogais "a", "e", "i", "o", "u". O estudo atingiu uma média de 80,41\% de classificações corretas.
 			

@@ -36,11 +36,12 @@
 			
 				\par Embora, em ratos, neurônios biológicos saudáveis possam proporcionar leituras de EEG de até 2Khz, tal fenômeno não é documentado em cérebros humanos saudáveis e estudos anteriores indicam que leituras acima de 120Hz ocorrem em cérebros de pessoas epiléticas \cite{Moffett2017}. No entanto, apenas a ocorrência de altas frequências, não indica necessariamente uma patologia já que na região mais externa do telencéfalo conhecida como neocórtex podem ocorrer oscilações rápidas que podem atingir em torno de 200Hz \cite{hfreOscEngel}.
 				
-				\par Portanto segundo o teorema de Nyquist a taxa de amostragem mínima é de 400Hz, no entanto, há que se adotar uma certa margem de segurança maior afim de não se perder dados importantes, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz.
+				\par Portanto, segundo o teorema de Nyquist, a taxa de amostragem mínima é de 400Hz, porém, dadas as possibilidades aventadas, há que se adotar uma certa margem de segurança, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz.
 				
 				%TODO subamostrar depois?
 				
 		    \subsubsection{Protocolo de coleta da fala fonada}
+		    	\label{sec:coletaFalaFonada}
 			    \begin{enumerate}
 			    	\item \textbf{ciclo silencioso.}
 			    	\begin{enumerate}
@@ -62,7 +63,11 @@
 			    \end{enumerate}
 		    
 		    \subsubsection{Protocolo de coleta da fala imaginada}
-  			    \par No caso específico da fala imaginada serão coletados 5 segundos de sinais cerebrais dos voluntários antes que qualquer um dos protocolos citados sejam executados, se espera dessa forma captar um padrão que talvez se modifique devido a tensão emocional causada pelos sinais sonoros e ordens dadas. 
+		    	\label{sec:coletaFalaImaginada}
+  			    \par No caso específico da fala imaginada serão coletados 5 segundos de sinais cerebrais dos voluntários antes que qualquer um dos protocolos citados sejam executados, se espera dessa forma captar um padrão que talvez se modifique devido a tensão emocional causada pelos sinais sonoros e ordens dadas.
+  			    
+  			    \par Afim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa banda de 1 a 800Hz} \cite{JALALYBIDGOLY2020101788}, \cite{Moffett2017}, \cite{hfreOscEngel}, e outro para excluir a frequência de 60Hz, típica da rede elétrica brasileira, mantendo assim, por uma boa margem, as frequências operacionais típicas de um cérebro humano .
+  			    %TODO \par Uma normalização dos valores também se faz necessária, 
 		    	
 			    \begin{enumerate}
 			    	\item \textbf{ciclo silencioso.}
@@ -85,7 +90,7 @@
 			    
 				\begin{figure}[H]
 					\centering
-					\caption{Protocolo de coleta de dados}
+					\caption[Protocolo de coleta de dados]{Protocolo de coleta de dados aplicado as falas fonadas, imaginadas e mistas}
 					\subfloat[Protocolo de coleta silenciosa]{
 						\input{images/coletaSilenciosa.tex}
 						\label{fig:coletaSilenciosa}
@@ -97,17 +102,39 @@
 					\legend{Fonte: Elaborado pelo autor}
 				\end{figure}
 				
+			\subsubsection{Protocolo de coleta da fala mista}
+				\par Deve seguir os mesmos protocolos descritos anteriormente (\autoref{sec:coletaFalaFonada}, \autoref{sec:coletaFalaImaginada}) porém captando ambos os sinais fonados e imaginados simultaneamente;
+				
 
 	    \subsection{Organização da base de sinais}
+	    	\par A organização da base dados deve se dividir em três categorias:
+	    	\begin{itemize}
+	    		\item fonadas
+	    		\begin{itemize}
+	    			\item com ruído
+	    			\item sem ruído
+	    		\end{itemize}
+	    		\item imaginadas
+	    		\begin{itemize}
+	    			\item com ruído
+	    			\item sem ruído
+	    		\end{itemize}
+	    		\item mista (fonadas e imaginadas simultaneamente)
+			    \begin{itemize}
+	    			\item com ruído
+	    			\item sem ruído
+	    		\end{itemize}
+	    	\end{itemize}
 
+			\par Cada registro deve ser vinculado a um código que deve referenciar os dados da pessoa que o gerou, a data, hora, minuto e segundo em que a fala iniciou e finalizou, a sentença e o tipo de fala (fonada ou imaginada).
 
 	\section{Estrutura da estratégia proposta}
+			
 	
 	\section{Procedimentos}
 
 		
 		\subsection{Tratamento do sinal}
-			\par Afim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa baixa de 100Hz} mantendo por uma boa margem as frequências operacionais típicas de um cérebro humano \cite{JALALYBIDGOLY2020101788}.
-			%TODO \par Uma normalização dos valores também se faz necessária, 
+			
 
 	\subsection{Procedimento 01}
