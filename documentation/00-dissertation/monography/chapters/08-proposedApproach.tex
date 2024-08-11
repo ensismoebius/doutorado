@@ -5,6 +5,7 @@
 		\par O objetivo é que haja uma ampla gama de dados para possibilitar pesquisas futuras tanto no campo da fala imaginada quanto na fala fonada, ou em ambas as áreas.
 		
 	    \subsection{Protocolo de Coleta de Dados}
+	    	\label{sec:protocolDeColetaDeDados}
 		    
 		    \par Os protocolos de coleta especificam dois ciclos: Um chamado de \textbf{ruidoso} esquematizado na \autoref{fig:coletaRuidosa}, no qual, durante a captura, serão reproduzidos ruídos comuns de lugares com pessoas conversando gravados previamente. E outro chamado \textbf{silencioso}, como mostrado na \autoref{fig:coletaSilenciosa}, no qual a captura se dará, na medida da disponibilidade dos equipamentos disponíveis, com o menor ruído ambiente possível. Dessa forma também se espera conseguir avaliar qual o impacto dessa variante na produção e classificação dos dados.
 		    
@@ -130,116 +131,112 @@
 
 	\section{Estrutura da estratégia proposta}
 	
-		\subsection{Objetivos Específicos}
-		\begin{enumerate}
-			\item Avaliar bases de dados públicas de imagined speech para identificar as mais adequadas ao estudo.
-			\item Desenvolver uma base de dados própria contendo sinais de voz e EEG de indivíduos com DLSs.
-			\item Implementar e testar diversas técnicas de extração de características, como Wavelets, autoencoders, e cálculo de energia do sinal.
-			\item Desenvolver e otimizar algoritmos de autenticação utilizando Spiking Neural Networks (SNNs) e redes neurais recorrentes.
-			\item Validar os algoritmos propostos com estudos experimentais e comparações com métodos existentes.
-			\item Publicar os resultados em periódicos e conferências de alto impacto.
-		\end{enumerate}
+		\subsection{Coleta dos dados}
+			\par A coleta dos dados será realizada com software próprio desenvolvido para esse fim e com equipamentos de captação de voz e eletroencefalograma (EEG), montados a partir de componentes eletrônicos pré-fabricados, como placas de circuito integrado, eletrodos e microfones. Para mais detalhes consulte \autoref{sec:protocolDeColetaDeDados}.
 	
-		\subsection{Extração de Características (2026)}
+		\subsection{Extração de Características}
 		
-		\begin{enumerate}
-			\item Implementar técnicas de extração de características utilizando métodos avançados, como aprendizado profundo e técnicas de redução de dimensionalidade.
-			\item Avaliar as características que melhor contribuem para a acurácia na autenticação biométrica.
-			\item Refinar os modelos de extração com base nos resultados experimentais.
-		\end{enumerate}
+			\par A extração de características será realizada de duas maneiras:
+			
+			\begin{enumerate}
+				\item \textbf{Método Manual (Handcrafting):} Características serão extraídas e formatadas por meio de métodos manuais de avaliação.
+				\item \textbf{Método Automatizado:} Características serão extraídas utilizando redes neurais profundas, mais especificamente autoencoders.
+			\end{enumerate}
+			
+			\par Dessa forma, além de avaliar quais características contribuem mais para a acurácia na autenticação biométrica, será possível comparar a abordagem manual com a automatizada.
+			
+			\par A confecção dos vetores de características, tanto no método manual quanto no automatizado, utilizará transformadas \textit{wavelet}, cálculos de energia nas frequências alvo e avaliação dos vetores por meio da engenharia paraconsistente de características.
+			
+		\subsection{Desenvolvimento e Validação de Algoritmos}
 		
-		\subsection{Desenvolvimento e Validação de Algoritmos (2026)}
-		
-		\begin{enumerate}
-			\item Desenvolver algoritmos de autenticação utilizando redes neurais profundas, adaptados às características específicas dos dados de voz e EEG.
-			\item Validar os algoritmos através de experimentos controlados, comparando com benchmarks do estado-da-arte.
-			\item Ajustar e otimizar os modelos para maximizar o desempenho em termos de precisão, eficiência e robustez.
-		\end{enumerate}
+			\par Quanto aos algoritmos de classificação, serão utilizadas redes neurais de pulso (SNN) em uma arquitetura de rede neural residual. Serão construídos modelos com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética. Esses classificadores serão testados por meio de experimentos controlados e comparados posteriormente com trabalhos do estado-da-arte.
+			
+			\newpage
 	
 	\section{Cronograma Detalhado}
 	
-	\begin{table}[h!]
-		\centering
-		\caption{Datas dos trabalhos a serem realizados}
-		\begin{tabular}{|p{10cm}|c|c|}
-			\hline
-			\textbf{Etapa} & \textbf{Início} & \textbf{Fim} \\
-			\hline
-			Programação do sistema de coleta de dados & 01/09/2024 & 01/12/2024 \\
-			\hline
-			Criação da base de dados & 01/01/2025 & 01/12/2025 \\
-			\hline
-			Extração e seleção de características & 01/02/2025 & 01/12/2025 \\
-			\hline
-			Desenvolvimento de classificadores & 01/12/2025 & 01/12/2026 \\
-			\hline
-			Validação experimental e comparação & 01/03/2026 & 01/02/2027 \\
-			\hline
-			Divulgação e publicação dos resultados & 01/02/2027 & 01/04/2027 \\
-			\hline
-			Redação da dissertação e preparação para defesa & 01/09/2024 & 01/03/2027 \\
-			\hline
-		\end{tabular}
-		\label{tab:cronograma}
-	\end{table}
-	
-	\begin{table}[h!]
-		\centering
-		\caption{Gráfico de Gantt dos trabalhos a serem realizados}
-		\begin{ganttchart}[
-			hgrid, % Adiciona linhas horizontais de grade para melhorar a legibilidade do gráfico
-			vgrid, % Adiciona linhas verticais de grade
-			x unit=.455cm, % Define a largura de cada unidade de tempo (neste caso, um mês) em centímetros
-			y unit chart=0.8cm, % Define a altura de cada linha de tarefa no gráfico em centímetros
-			bar/.append style={fill=green, draw=green}, % Estilo padrão para as barras: cor de preenchimento verde e borda verde
-			bar label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos das barras (pequeno e em negrito)
-			bar label node/.append style={text=black, anchor=west, xshift=0.2cm}, % Alinha o texto da barra ao início da barra com um pequeno deslocamento horizontal
-			group label node/.append style={anchor=east, font=\small}, % Define o estilo dos rótulos de grupo com ânfora à esquerda e fonte pequena
-			time slot format=isodate, % Define o formato de data para os slots de tempo (ISO: ano-mês-dia)
-			milestone/.append style={fill=green}, % Estilo para marcos: preenchimento verde
-			title/.append style={fill=blue, draw=black}, % Estilo do título: preenchimento azul e borda preta
-			title label font=\bfseries\footnotesize, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
-			title label anchor/.style={below=0ex}, % Ajusta a âncora do rótulo do título para baixo
-			title/.style={fill=blue!30, draw=none}, % Estilo do título: preenchimento azul claro e sem borda
-			title label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
-			milestone label font=\small\bfseries, % Define o estilo da fonte para os rótulos de marcos (pequeno e em negrito)
-			bar height=0.5, % Define a altura das barras
-			time slot unit=month, % Define a unidade de tempo como mês
-			y unit title=0.9cm % Define a altura da linha do título em centímetros
-			]{2024-08-10}{2027-05-01} % Define o intervalo de datas para o gráfico Gantt
-			
-			\gantttitlecalendar{year, month=number} \\ % Adiciona um título de calendário ao gráfico, mostrando ano e número do mês
-			
-			% Define as barras de tarefas com seus rótulos e datas de início e fim
-			\ganttbar[
-			bar label node/.append style={xshift=6pt} % Ajusta o texto da barra para começar no início da barra
-			]{Programação do sistema de coleta de dados}{2024-09-01}{2024-12-01} \\
-			\ganttbar[
-			bar label node/.append style={xshift=57pt} % Ajusta o texto da barra para começar no início da barra
-			]{Criação da base de dados}{2025-01-01}{2025-12-01} \\
-			\ganttbar[
-			bar label node/.append style={xshift=70pt} % Ajusta o texto da barra para começar no início da barra
-			]{Extração e seleção de características}{2025-02-01}{2025-12-01} \\
-			\ganttbar[
-			bar label node/.append style={xshift=200pt} % Ajusta o texto da barra para começar no início da barra
-			]{Desenvolvimento de classificadores}{2025-12-01}{2026-12-01} \\
-			\ganttbar[
-			bar label node/.append style={xshift=240pt} % Ajusta o texto da barra para começar no início da barra
-			]{Validação experimental e comparação}{2026-03-01}{2027-02-01} \\
-			\ganttbar[
-			bar label node/.append style={xshift=230pt} % Ajusta o texto da barra para começar no início da barra
-			]{Divulgação e publicação dos resultados}{2027-02-01}{2027-04-01} \\
-			\ganttbar[
-			bar/.append style={fill=orange}, % Altera a cor da barra para laranja
-			bar label node/.append style={xshift=4pt} % Ajusta o texto da barra para começar no início da barra
-			]{Redação da dissertação e preparação para defesa}{2024-09-01}{2027-03-01}
-		\end{ganttchart}
-		\label{tab:cronogramaGantt}
-	\end{table}
+		\begin{table}[h!]
+			\centering
+			\caption{Datas dos trabalhos a serem realizados}
+			\begin{tabular}{|p{10cm}|c|c|}
+				\hline
+				\textbf{Etapa} & \textbf{Início} & \textbf{Fim} \\
+				\hline
+				Programação do sistema de coleta de dados & 01/09/2024 & 01/12/2024 \\
+				\hline
+				Criação da base de dados & 01/01/2025 & 01/12/2025 \\
+				\hline
+				Extração e seleção de características & 01/02/2025 & 01/12/2025 \\
+				\hline
+				Desenvolvimento de classificadores & 01/12/2025 & 01/12/2026 \\
+				\hline
+				Validação experimental e comparação & 01/03/2026 & 01/02/2027 \\
+				\hline
+				Divulgação e publicação dos resultados & 01/02/2027 & 01/04/2027 \\
+				\hline
+				Redação da dissertação e preparação para defesa & 01/09/2024 & 01/03/2027 \\
+				\hline
+			\end{tabular}
+			\label{tab:cronograma}
+		\end{table}
+		
+		\begin{table}[h!]
+			\centering
+			\caption{Gráfico de Gantt dos trabalhos a serem realizados}
+			\begin{ganttchart}[
+				hgrid, % Adiciona linhas horizontais de grade para melhorar a legibilidade do gráfico
+				vgrid, % Adiciona linhas verticais de grade
+				x unit=.455cm, % Define a largura de cada unidade de tempo (neste caso, um mês) em centímetros
+				y unit chart=0.8cm, % Define a altura de cada linha de tarefa no gráfico em centímetros
+				bar/.append style={fill=green, draw=green}, % Estilo padrão para as barras: cor de preenchimento verde e borda verde
+				bar label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos das barras (pequeno e em negrito)
+				bar label node/.append style={text=black, anchor=west, xshift=0.2cm}, % Alinha o texto da barra ao início da barra com um pequeno deslocamento horizontal
+				group label node/.append style={anchor=east, font=\small}, % Define o estilo dos rótulos de grupo com ânfora à esquerda e fonte pequena
+				time slot format=isodate, % Define o formato de data para os slots de tempo (ISO: ano-mês-dia)
+				milestone/.append style={fill=green}, % Estilo para marcos: preenchimento verde
+				title/.append style={fill=blue, draw=black}, % Estilo do título: preenchimento azul e borda preta
+				title label font=\bfseries\footnotesize, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
+				title label anchor/.style={below=0ex}, % Ajusta a âncora do rótulo do título para baixo
+				title/.style={fill=blue!30, draw=none}, % Estilo do título: preenchimento azul claro e sem borda
+				title label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
+				milestone label font=\small\bfseries, % Define o estilo da fonte para os rótulos de marcos (pequeno e em negrito)
+				bar height=0.5, % Define a altura das barras
+				time slot unit=month, % Define a unidade de tempo como mês
+				y unit title=0.9cm % Define a altura da linha do título em centímetros
+				]{2024-08-10}{2027-05-01} % Define o intervalo de datas para o gráfico Gantt
+				
+				\gantttitlecalendar{year, month=number} \\ % Adiciona um título de calendário ao gráfico, mostrando ano e número do mês
+				
+				% Define as barras de tarefas com seus rótulos e datas de início e fim
+				\ganttbar[
+				bar label node/.append style={xshift=6pt} % Ajusta o texto da barra para começar no início da barra
+				]{Programação do sistema de coleta de dados}{2024-09-01}{2024-12-01} \\
+				\ganttbar[
+				bar label node/.append style={xshift=57pt} % Ajusta o texto da barra para começar no início da barra
+				]{Criação da base de dados}{2025-01-01}{2025-12-01} \\
+				\ganttbar[
+				bar label node/.append style={xshift=70pt} % Ajusta o texto da barra para começar no início da barra
+				]{Extração e seleção de características}{2025-02-01}{2025-12-01} \\
+				\ganttbar[
+				bar label node/.append style={xshift=200pt} % Ajusta o texto da barra para começar no início da barra
+				]{Desenvolvimento de classificadores}{2025-12-01}{2026-12-01} \\
+				\ganttbar[
+				bar label node/.append style={xshift=240pt} % Ajusta o texto da barra para começar no início da barra
+				]{Validação experimental e comparação}{2026-03-01}{2027-02-01} \\
+				\ganttbar[
+				bar label node/.append style={xshift=230pt} % Ajusta o texto da barra para começar no início da barra
+				]{Divulgação e publicação dos resultados}{2027-02-01}{2027-04-01} \\
+				\ganttbar[
+				bar/.append style={fill=orange}, % Altera a cor da barra para laranja
+				bar label node/.append style={xshift=4pt} % Ajusta o texto da barra para começar no início da barra
+				]{Redação da dissertação e preparação para defesa}{2024-09-01}{2027-03-01}
+			\end{ganttchart}
+			\label{tab:cronogramaGantt}
+		\end{table}
 
 \section{Resultados Esperados}
 
-	\par Espera-se desenvolver algoritmos para a autenticação biométrica que integrem sinais de voz e EEG.
+	\par Espera-se desenvolver algoritmos de extração de características e classificação para voz e eletroencefalograma (EEG) que aprimorem a acurácia na identificação de indivíduos. Além disso, serão avaliadas se as alegações sobre o consumo energético e a eficácia das redes neurais de pulso (SNN) na classificação de informações temporais são confirmadas na prática. Será constituída uma base de dados contendo sinais de voz, EEG e sinais mistos. Por fim, pretende-se comparar o desempenho das técnicas de extração de características manuais com as automatizadas.
 
 
 %\section{Procedimentos}
