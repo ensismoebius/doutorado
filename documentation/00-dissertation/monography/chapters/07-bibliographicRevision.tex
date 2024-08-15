@@ -1,6 +1,6 @@
 \chapter{Revisão de Bibliográfica}
 	\label{ch:revisao}
-	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as Interfaces Humano-Máquina para Eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as Redes Neurais de Pulso, Autoencoders e Redes Neurais Residuais.
+	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as bases das interfaces Humano-Máquina para eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as redes neurais de pulso, autoencoders e redes neurais residuais.
 
 	\section{Conceitos utilizados}
 		\subsection{Sinais digitais e sub-amostragem (\textit{downsampling})}
@@ -10,7 +10,7 @@
 				\caption{Sub-amostragem}
 				\includegraphics[width=0.4\linewidth]{images/downsampling}
 				\label{fig:downsampling}
-				\legend{Fonte: O autor}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 	
 		\subsection{Caracterização dos processos de produção da voz humana}
@@ -44,7 +44,7 @@
 				\caption{Cálculo de vetores de características com BARK}
 				\includegraphics[width=0.6\linewidth]{images/barkFeatureVect}
 				\label{fig:barkfeaturevect}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 		
 		\subsubsection{A escala MEL}
@@ -59,7 +59,7 @@
 				\caption{Cálculo de vetores de características com MEL}
 				\includegraphics[width=0.6\linewidth]{images/melFeatureVect}
 				\label{fig:melfeaturevect}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 	
 		\subsection{Filtros digitais \textit{wavelet}}
@@ -76,7 +76,7 @@
 				\caption[Platôs maximamente planos Daubechies]{Platôs maximamente planos em um filtro digital: característica da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/daubechies}
 				\label{fig:daubechies}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 			
 			\begin{figure}[h]
@@ -84,7 +84,7 @@
 				\caption[Platôs maximamente planos outros filtros]{Platôs não maximamente planos de um filtro digital: características de outros filtros \textit{wavelet}, distintos da família de Daubechies}
 				\includegraphics[width=0.3\linewidth]{images/noMaximallyFlat}
 				\label{fig:nomaximallyflat}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 			
 			\par Além da resposta em frequência, na aplicação de um filtro digital \textit{wavelet} também é possível considerar a \textbf{resposta em fase}, que constitui um atraso ou adiantamento do sinal filtrado em relação ao sinal original, ambos no domínio temporal. Esse deslocamento pode ser \textbf{linear}, \textbf{quase linear} ou \textbf{não linear}: 
@@ -95,7 +95,7 @@
 				\item finalmente, quando a resposta é \textbf{não linear}, acontece um deslocamento significativamente heterogêneo para as diferentes frequências que compõe o sinal.
 			\end{itemize}
 			
-			\par Idealmente, é desejável que todo filtro apresente boa resposta em frequência e em fase linear. Características de fase e frequência de algumas famílias de filtros \textit{wavelet} constam na Tabela \autoref{tab:waveletsProperties}.
+			\par Idealmente, é desejável que todo filtro apresente boa resposta em frequência e em fase linear. Características de fase e frequência de algumas famílias de filtros \textit{wavelet} constam na \autoref{tab:waveletsProperties}.
 			
 			\input{tables/someWaveletsProperties.tex}
 	
@@ -169,20 +169,20 @@
 				\label{eq:haarResult}
 			\end{equation}
 			
-			\par Percebe-se que, na transformação descrita nas Equações \autoref{eq:haarFilters}, \autoref{eq:haarMultiplic} e \autoref{eq:haarResult}, a \textbf{aplicação dos filtros sobre o vetor de entrada ocorreu apenas uma vez}. Sendo assim, se diz que o sinal recebeu uma \textbf{transformação de nível 1}. A cada transformação, há uma separação do sinal em dois componentes: o de baixa e o de alta frequência.
+			\par Percebe-se que, na transformação descrita na \autoref{eq:haarFilters}, \autoref{eq:haarMultiplic} e \autoref{eq:haarResult}, a \textbf{aplicação dos filtros sobre o vetor de entrada ocorreu apenas uma vez}. Sendo assim, se diz que o sinal recebeu uma \textbf{transformação de nível 1}. A cada transformação, há uma separação do sinal em dois componentes: o de baixa e o de alta frequência.
 	
 			\par Embora haja um limite, que será mencionado adiante, é possível aplicar mais de um nível de decomposição ao sinal. Para que se possa fazer isso, a Transformada \textit{Wavelet} nível 2 deve considerar apenas a parte de baixas frequências da primeira transformada; a transformada de nível 3 deve considerar apenas a parte de baixas frequências da transformada nível 2, e assim consecutivamente.
 			
-			\par Nos exemplos numéricos mostrados nas Tabelas \autoref{tab:regularWaveletExample}, \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF}, usou-se um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{amarelo} correspondem às porções de \textbf{altas frequências}.
+			\par Nos exemplos numéricos mostrados na \autoref{tab:regularWaveletExample}, \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF}, usou-se um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{amarelo} correspondem às porções de \textbf{altas frequências}.
 			
-			\par Percebe-se que na Tabela \autoref{tab:regularWaveletExample}, a partir da transformação nível 2, apenas as partes de baixa frequência são modificadas. Isso implica que, no momento da implementação do algoritmo de Mallat \textbf{para níveis maiores que 1}, a abordagem será \textbf{recursiva}. Em outras palavras, a partir do nível 1 se deve aplicar Mallat apenas às porções de baixas-frequências geradas pela transformação anterior.
+			\par Percebe-se que na \autoref{tab:regularWaveletExample}, a partir da transformação nível 2, apenas as partes de baixa frequência são modificadas. Isso implica que, no momento da implementação do algoritmo de Mallat \textbf{para níveis maiores que 1}, a abordagem será \textbf{recursiva}. Em outras palavras, a partir do nível 1 se deve aplicar Mallat apenas às porções de baixas-frequências geradas pela transformação anterior.
 	
 			\input{tables/regularWaveletExample.tex}
 	
 		\subsubsection{O algoritmo de Mallat e a Transformada \textit{Wavelet-Packet}}
 			\par Na Transformada \textit{Wavelet-Packet}, os filtros aplicados são os mesmos da Transformada \textit{Wavelet} e o procedimento recursivo de cálculo também é o mesmo, no entanto, realizada a transformação de nível 1, a transformada de nível 2 deve ser aplicada aos componentes de baixa e de alta frequência. Sendo assim a Transformada \textit{Wavelet-Packet} obtém um nível de detalhes em todo o espectro de frequência, maior do que uma transformação regular. 
 			
-			\par Os exemplos mostrados nas Tabelas \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF} permitem perceber como se dão as transformações na porção de \textbf{baixa} e de \textbf{alta} frequências, respectivamente, após a transformação \textit{wavelet-packet} de nível 1, 2, 3 e 4.
+			\par Os exemplos mostrados na \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF} permitem perceber como se dão as transformações na porção de \textbf{baixa} e de \textbf{alta} frequências, respectivamente, após a transformação \textit{wavelet-packet} de nível 1, 2, 3 e 4.
 			
 			\par Devido ao \textit{downsampling} aplicado às porções de alta frequência, essas partes acabam por ficar ``espelhadas'' no espectro \cite{Jensen_2001}, ou seja, suas sequências ficam invertidas. Para resolver esse problema e preservar a ordem das sub-bandas no sinal transformado, os filtros são aplicados em ordem inversa nas porções de alta frequência. Isso altera como o algoritmo de Mallat deve ser implementado para a Transformada \textit{Wavelet-Packet}, já que dessa vez é preciso se atentar a ordem da aplicação dos filtros passa-alta e passa-baixa.
 	
@@ -320,7 +320,7 @@
 			
 			\par As atividades elétricas surgem dos fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. Para cada tipo de ação realizada o cérebro trabalha segundo as bandas listadas em logo abaixo \cite{sanei2021eeg}.
 			
-			\par Para captação de sinais de EEG usam-se eletrodos que podem ser do tipo úmido ou seco. Os úmidos são colocados usando gel condutivo e são menos propensos a artefatos provocados por movimentos, que são interferências eletromagnéticas causadas, por exemplo, com o piscar dos olhos. Os eletrodos secos não precisam do gel, mas são mais sensíveis a tais artefatos.
+			\par Para captação de sinais de EEG usam-se eletrodos que podem ser do tipo úmido ou seco. Os úmidos são colocados usando gel condutivo e são menos propensos a gerar artefatos provocados por movimentos no sinal captado. Artefatos são interferências eletromagnéticas causadas, por exemplo, pelos músculos ao piscar dos olhos. Os eletrodos secos não precisam do gel, mas são mais sensíveis a tais ruídos.
 			
 			\begin{itemize}
 				\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
@@ -380,7 +380,7 @@
 				\centering
 				\caption[Lobos Frontal, Parietal, Occipital e Temporal]{Principais regiões do cérebro: Lobos Frontal, Parietal, Occipital e Temporal}
 				\includegraphics[width=0.65\linewidth]{images/lobosTelencefalo}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobostelencefalo}
 			\end{figure}
 			
@@ -388,7 +388,7 @@
 				\centering
 				\caption[Lobo frontal]{Áreas relacionadas a fala no lobo frontal: A área de Broca geralmente se encontra no hemisfério esquerdo.}
 				\includegraphics[width=0.65\linewidth]{images/loboFrontal}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobofrontal}
 			\end{figure}
 			\newpage
@@ -397,7 +397,7 @@
 				\centering
 				\caption[Lobo parietal]{Áreas relacionadas a fala no lobo parietal: A área de Wernicke também ocupa parte do lobo temporal e geralmente se encontra no hemisfério esquerdo.}
 				\includegraphics[width=0.72\linewidth]{images/loboparietal}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:loboparietal}
 			\end{figure}
 			
@@ -405,15 +405,15 @@
 				\centering
 				\caption[Lobo temporal]{Áreas relacionadas a fala no lobo temporal: A área de Wernicke também ocupa parte do lobo parietal e geralmente se encontra no hemisfério esquerdo.}
 				\includegraphics[width=0.72\linewidth]{images/loboTemporal}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobotemporal}
 			\end{figure}
 			
 			\begin{figure}[p]
 				\centering
-				\caption[Visão geral do telencéfalo]{Visão geral do telencéfalo e as áreas relacionadas à fala, é interessante notar que tais regiões avizinham-se da fissura de Sylvius, sendo então chamadas de perissilvianas \cite{pinto2012manual}}
+				\caption[Visão geral do telencéfalo]{Visão geral do telencéfalo e as áreas relacionadas à fala, tais regiões avizinham-se da fissura de Sylvius, sendo então chamadas de perissilvianas. O lobo occipital não contêm regiões relacionadas a fala \cite{pinto2012manual}}
 				\includegraphics[angle=-90,width=.76\paperwidth,keepaspectratio]{images/teleencefaloTudo}
-				\legend{Fonte: Elaborado pelo autor}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:teleencefalotudo}
 			\end{figure}
 			
@@ -466,7 +466,7 @@
 				\legend{Fonte: \cite{10242251}}
 			\end{figure}
 			
-			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado nas s \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
+			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado na \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
 			
 			\begin{figure}[h]
 				\centering
@@ -480,7 +480,7 @@
 				\centering
 				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número do neurônio (índice) na RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
 				\includegraphics[width=.4\linewidth]{images/sparsity}
-				\legend{Fonte: O autor.}
+				\legend{Fonte:Elaborado pelo autor, 2023.}
 				\label{fig:sparsity}
 			\end{figure}
 						
@@ -488,7 +488,7 @@
 			
 			\par O modelo LIF é governado pelas equações abaixo \cite{10242251}.
 			
-			\par Considerando que $Q$ é uma medida de carga elétrica e $V_{\text{mem}}(t)$ é a diferença de potencial na membrana em um determinado tempo $t$, então a capacitância do neurônio $C$ é dada pela Equação \autoref{eq:capacitance}.
+			\par Considerando que $Q$ é uma medida de carga elétrica e $V_{\text{mem}}(t)$ é a diferença de potencial na membrana em um determinado tempo $t$, então a capacitância do neurônio $C$ é dada pela \autoref{eq:capacitance}.
 			
 			\begin{equation}
 				\label{eq:capacitance}
@@ -590,7 +590,7 @@
 				\centering
 				\caption{Decaimento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialDecay}
-				\legend{Fonte: O autor}
+				\legend{Fonte:Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
@@ -653,7 +653,7 @@
 				\centering
 				\caption{Aumento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialIncrease}
-				\legend{Fonte: O autor}
+				\legend{Fonte:Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialincrease}
 			\end{figure}
 			
@@ -665,7 +665,7 @@
 				\centering
 				\caption[Gráfico do LIF]{Gráfico do LIF simulado completo: Foram fornecidos 0.5 mA de corrente no intervalo de tempo de 51 a 70.}
 				\includegraphics[width=.8\linewidth]{images/membranePotentialFull}
-				\legend{Fonte: O Autor}
+				\legend{Fonte:Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialfull}
 			\end{figure}
 
@@ -712,7 +712,7 @@
 				\centering
 				\caption[Representação funcional de um autoencoder]{Representação funcional de um \textit{autoencoder}: Sendo o vetor $x$ uma entrada, então o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, portanto $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. Tal processo pode ou não implicar em uma perda de informação.}
 				\input{images/autoencoder.tex}
-				\legend{Fonte: O Autor}
+				\legend{Fonte:Elaborado pelo autor, 2024.}
 				\label{fig:autoencoder}
 			\end{figure}
 		
@@ -722,7 +722,7 @@
 				\centering
 				\caption[Exemplo esquemático de um autoencoder]{Exemplo esquemático de um \textit{autoencoder}: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.}
 				\input{images/autoencoder2.tex}
-				\legend{Fonte: O Autor}
+				\legend{Fonte:Elaborado pelo autor, 2024.}
 				\label{fig:autoencoder2}
 			\end{figure}
 
@@ -738,7 +738,7 @@
 					\centering
 					\caption[Exemplo esquemático de um autoencoder supra-completo]{Exemplo esquemático de um \textit{autoencoder} supra-completo.}
 					\input{images/autoencoder3.tex}
-					\legend{Fonte: O Autor}
+					\legend{Fonte:Elaborado pelo autor, 2024.}
 					\label{fig:autoencoder3}
 				\end{figure}
 			
@@ -748,7 +748,7 @@
 				
 				\par Segundo \cite{bengio2014representation} uma das formas de regularização é justamente a limitação da dimensão da camada de código, a mesma aplicada aos \textit{autoencoders} sub-completos, como estes já foram explicados apresentar-se-ão a seguir outras formas de regularização.
 				
-				\par Considerando que \textit{autoencoders} devem ser treinados para minimizar uma função de erro $E$ que compara a entrada original $x$ com a reconstrução $r$ então um autoencoder \textbf{regularizado} deve ter adicionado a essa função um termo de regularizador $\phi$ como a mostrado na \autoref{eq:autoreg} que é um termo que pode corresponder a uma regularização L1, L2, $\Omega(h)$ (discutidas no apêndice \autoref{Apend:regularization}).
+				\par Considerando que \textit{autoencoders} devem ser treinados para minimizar uma função de erro $E$ que compara a entrada original $x$ com a reconstrução $r$ então um autoencoder \textbf{regularizado} deve ter adicionado a essa função um termo de regularizador $\phi$ como a mostrado na \autoref{eq:autoreg} que é um termo que pode corresponder a uma regularização L1, L2, $\Omega(h)$ (discutidas na \autoref{Apend:regularization}).
 				
 				\begin{equation}
 					\label{eq:autoreg}
@@ -770,7 +770,7 @@
 					\centering
 					\caption[Representação funcional de um \textit{denoising autoencoder}]{Representação funcional de um \textit{denoising autoencoder}: Sendo o vetor $x$ uma entrada e $n$ um função que adiciona um ruído aleatório então a informação com ruído $\hat{x}$ é definida como $\hat{x} = n(x)$, portanto o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, finalmente $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. É importante notar que $r$ é comparada com $x$ e não com $\hat{x}$.}
 					\input{images/denoisingAutoencoder.tex}
-					\legend{Fonte: O autor}
+					\legend{Fonte:Elaborado pelo autor, 2024.}
 					\label{fig:denoisingAutoencoder}
 				\end{figure}
 							
@@ -828,7 +828,7 @@
 					\centering
 					\caption[Obtenção do resíduo]{Obtenção do resíduo: $x$ um vetor de entrada na rede, $I(\cdot)$ é uma função identidade cujo valor é diretamente somado $\oplus$ com o resultado produzido pelas várias camadas representadas por $f(\cdot)$, $h$ é um vetor representando um estado intermediário de uma rede neural.}
 					\input{images/residuo.tex}
-					\legend{Fonte: O autor}
+					\legend{Fonte:Elaborado pelo autor, 2024.}
 					\label{fig:residuo}
 				\end{figure}
 			
