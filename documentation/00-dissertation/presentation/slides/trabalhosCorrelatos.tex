@@ -1,44 +1,115 @@
 \begin{frame}[allowframebreaks]
 	\frametitle{Trabalhos}
 	\begin{itemize}
-		\item \cite{Ren2019}: Energia e outras várias características do espectro do sinal, SVM.
-		\item \cite{DiqunYan2019} \textit{Modelo oculto de Markov} (HMM); \textit{Wavelets}, SVM.
-		\item \cite{7802552} \textit{Wavelets}, coeficientes cepstrais (SCCs), Modelos de mistura Gaussiana (GMM).
-		\item \cite{alluri2019replay} \textit{"Zero time windowing"}(ZTW), análise cepstral do espectro GMM.
-		\item \cite{8725688} Coeficientes cepstrais, GMM.
-		\item \cite{Hanilci2018} Predição linear, coeficientes cepstrais, GMM.
-		\item \cite{ISI:000473343500086} ``Texturas de voz'', padrões binários locais (LBP) e seus respectivos histogramas, SVM.
-		\item Uma abordagem que combina análise de sinal de fala usando a \textit{Transformada Constante Q} (CQT) com o processamento cepstral foi mostrada no artigo \cite{TODISCO2017516}.
-		\item No artigo \cite{Patel2015} é usada a \textit{Transformação Auditiva (TU)} que tem como base a transformada \textit{wavelet}, e a \textit{Cochlear Filter Cepstral Coefficients (CFCC)} juntamente com  \textit{estimação da frequência instantânea (IF)}.
-		\item \cite{ISI:000490497200068} Partes não vozeadas da fala, três GMMs.
-		\item \cite{ISI:000465363900136} amplitude instantânea vinda de flutuações de energia, GMM.
-		\item \cite{ISI:000465363900139} Diferenças entre bandas de frequências específicas, \textit{predição linear em domínio de frequência}(FDLP), GMMs.
-		\item \cite{Suthokumar2018} \textit{Modulation  spectral  centroid  frequency}, \textit{long term spectral average}, GMM.
-		\item \cite{ISI:000458728700054} Envelopamento das amplitudes e das frequências instantâneas em cada banda estreita filtrada, GMM.
-		\item \cite{ISI:000392503100008} \textit{Gammatone frequency cepstral coefficients}(MGFCC), GMM.
-		\item \cite{8396208} \textit{Hashing} sensível a locus(LSH), MFCC e LSH, tabela \textit{hash}. 
+		
+		\item \textbf{Classificação e tratamento de EEG:} \begin{itemize}
+			\item O estudo de \cite{ParkHyeong-jun2023Mcoi} explora o uso de EEG para fala imaginada com NA-MEMD e DTWPT, usando MRF-CNN para classificar sinais decompostos. A acurácia média foi 80,41\%.
+			
+			\item Em \cite{AbdulghaniMokhlesM2023ISCU}, utilizou-se Wavelet Scattering Transform (WST) e uma Rede Neural LSTM para classificar expressões imaginadas, alcançando 92,50\% de acurácia.
+			
+			\item O estudo \cite{MahapatraNrushinghCharan2023Ecoi} usou DTWT para processar sinais EEG e alcançou acurácias de 98,18\% e 71,60\% nas bases MUSE e EPOC, respectivamente.
+			
+			\item A revisão em \cite{ShahUzair2022TRoA} destacou o uso de filtros Wavelet e algoritmos SVM e CNN, sugerindo a inclusão de métricas como Precisão e Recall para uma visão mais completa.
+			
+			\item O estudo \cite{MahapatraNrushinghCharan2022MCoI} aplicou uma combinação de TCN e CNN com FastICA e DTWT para sinais EEG, alcançando 96,49\% de acurácia.
+			
+			\item \cite{AgarwalPrabhakar2022Ebia} usou DTWT e dois algoritmos (RF e SVM) para classificar letras imaginadas, obtendo 77,97\% de acurácia. Utilizou também CAR para melhorar a SNR.
+			
+			\item O trabalho em \cite{Hernandez-Del-ToroTonatiuh2021TaEB} usou DTWT, EMD e características baseadas em teoria do caos, alcançando melhores resultados com RF, KNN, SVM e Regressão Logística.
+			
+			\item Em \cite{MOCTEZUMA2019201}, CAR foi combinado com DTWT e TEO para melhorar a SNR, alcançando uma acurácia de 97\% com 5 voluntários.
+			
+			\item \cite{PanachakelJerrinRamakrishnan} usou janelas deslizantes e matrizes tridimensionais para classificar sinais EEG, alcançando acurácias de 79,7\% a 95,5\%.
+			
+			\item \cite{tamm2020classification} simplificou uma CNN com transferência de aprendizado, alcançando uma acurácia de 23,98\% em uma base de dados reduzida.
+			
+			\item O estudo de \cite{Panachakel_2019} aplicou transformadas Wavelet de nível 7 e obteve 57,15\% de acurácia ao tratar separadamente os vetores de características.
+			
+			\item \cite{panachakel2020novel} usou uma rede neural profunda e transformada wavelet para duas palavras, alcançando 71,8\% de acurácia.
+			
+			\item A revisão em \cite{s23125575} mostrou que SVM, RF, HMM e GMM foram comuns, com técnicas profundas como CNN e RNN emergindo desde 2020.
+		\end{itemize}
+		
+		
+		%%%%%
+		
+		\item \textbf{Classificação e tratamento de voz:} \begin{itemize}
+			
+			\item \cite{math11194205} combinou Res2Net com PWPE e ECA, alcançando menos de 8\% de EER em contextos variados.
+			
+			\item O estudo de \cite{ali2022speech} focou na classificação do gênero usando MFCC e LPC, alcançando 97,07\% de acurácia com redes neurais artificiais.
+			
+			\item \cite{WOS:000525844000004} introduziu o sistema AVA para autenticação ativa, com uma taxa média de WEER de 3\% a 4\%.
+			
+			\item O estudo \cite{10.1145/3448113} explorou microfones em fones para criar impressões digitais auditivas, alcançando um EER de 3,64\%.
+			
+			\item \cite{9744556} usou sons de estalos para prevenção de spoofing, alcançando uma classificação baseada em vetores de características de 3 dimensões.
+			
+			\item O estudo \cite{furlan2021caracterizacao} comparou métodos baseados em distâncias e SVM, alcançando mais de 99\% de precisão usando a escala BARK e wavelet Haar.
+
+		\end{itemize}
 	\end{itemize}
 \end{frame}
 \begin{frame}
-	\frametitle{Comparativo}
-		\begin{columns}
-			\column{0.5\textwidth}
-				\par \textbf{Referências}
-				\begin{itemize}
-					\item Apenas escala MEL.
-					\item Classificadores simples.
-					\item Uso escasso de wavelets.
-					\item Uso do EER como métrica.
-					\item Sem metodologia de seleção automática para os geradores de vetores de características.
-				\end{itemize}
-			\column{0.5\textwidth}
-				\par \textbf{Dissertação}
-				\begin{itemize}
-					\item Escalas MEL e BARK.
-					\item Classificadores simples.
-					\item Uso intensivo wavelets.
-					\item Uso de EER e acurácia como métrica.
-					\item Seleção automática baseada na engenharia paraconsistente de características.
-				\end{itemize}
-		\end{columns}
+	\frametitle{Trabalhos - Conclusões}
+	\par Os estudos analisados contribuíram para a construção do protocolo de coleta de dados, abordando a importância de filtrar interferências da rede elétrica local e a separabilidade dos canais EEG usando o algoritmo \textit{FastICA}. A fase de extração de características é crucial para o desempenho dos algoritmos de classificação. Também é importante a separação dos indivíduos por sexo, destros e canhotos, além da consideração das ondas cerebrais $\alpha$, $\beta$ e $\theta$ isoladamente ou em conjunto. Técnicas como DTWT e CAR são comuns na literatura. Estudos demonstram que redes neurais profundas não necessariamente superam redes rasas, e o uso de sinais EEG separados por canal para aumentar a quantidade de dados é uma abordagem interessante. Além disso, técnicas para extração de características continuam como um das partes mais importantes no projeto de sistemas de análise e reconhecimento de sinais.
+	
+\end{frame}
+\begin{frame}[allowframebreaks]
+	\frametitle{Comparativo - Referências}
+	
+	\par \textbf{Escalas de energia usadas}
+	\begin{itemize}
+		\item Energia de Teager (TEO): Usada para extração de características em \cite{MOCTEZUMA2019201}.
+		\item Energia de bandas: Obtida usando DTWT para cada banda de frequência em \cite{Hernandez-Del-ToroTonatiuh2021TaEB}.
+	\end{itemize}
+	
+	\par \textbf{Tipos de classificadores usados}
+	\begin{itemize}
+		\item Redes Neurais Convolucionais (CNN): Usadas em \cite{PanachakelJerrinRamakrishnan}, \cite{MahapatraNrushinghCharan2022MCoI}.
+		\item Redes Neurais Recorrentes LSTM (Long-Short Term Memory): Usadas em \cite{AbdulghaniMokhlesM2023ISCU}.
+		\item Support Vector Machines (SVM): Usadas em \cite{ShahUzair2022TRoA}, \cite{Hernandez-Del-ToroTonatiuh2021TaEB}.
+		\item Random Forest (RF): Usado em \cite{AgarwalPrabhakar2022Ebia}, \cite{Hernandez-Del-ToroTonatiuh2021TaEB}, \cite{MOCTEZUMA2019201}.
+		\item Bidirectional Recurrent Neural Networks: Usadas em \cite{MahapatraNrushinghCharan2023Ecoi}.
+		\item Deep Neural Networks (DNN): Usadas em \cite{Panachakel_2019}, \cite{panachakel2020novel}.
+		\item Hidden Markov Model (HMM): Usado em \cite{WOS:000525844000004}.
+		\item Análise Discriminante e redes neurais artificiais: Usadas em \cite{ali2022speech}.
+		\item ResNet50 com transferência de aprendizado: Usado em \cite{PanachakelJerrinRamakrishnan}.
+	\end{itemize}
+	
+	\par \textbf{Técnicas de extração de características}
+	\begin{itemize}
+		\item Transformada Wavelet Discreta (DTWT): Usada em \cite{MahapatraNrushinghCharan2023Ecoi}, \cite{Hernandez-Del-ToroTonatiuh2021TaEB}.
+		\item Empirical Mode Decomposition (EMD): Usada em \cite{ParkHyeong-jun2023Mcoi}.
+		\item Wavelet Scattering Transform (WST): Usada em \cite{AbdulghaniMokhlesM2023ISCU} e \cite{Panachakel_2019}.
+		\item FastICA (Independent Component Analysis): Usada em \cite{MahapatraNrushinghCharan2022MCoI}.
+		\item Mel-Frequency Cepstral Coefficients (MFCC): Usada em \cite{ali2022speech}, \cite{WOS:000525844000004}.
+		\item Linear Prediction Coefficients (LPC): Usados em \cite{ali2022speech}.
+		\item Teager Energy Operator (TEO): Usado em \cite{MOCTEZUMA2019201}.
+		\item Fourier Transform: Usada para alguns dados em \cite{s23125575}.
+		\item Common Average Referencing (CAR): Usado em \cite{AgarwalPrabhakar2022Ebia}, \cite{Hernandez-Del-ToroTonatiuh2021TaEB}, \cite{MOCTEZUMA2019201}.
+		\item Dimensionamento fractal e métodos da teoria do Caos: Usados em \cite{Hernandez-Del-ToroTonatiuh2021TaEB}.
+	\end{itemize}
+\end{frame}
+\begin{frame}
+	\frametitle{Comparativo - Tese}
+		\par \textbf{Escalas de energia usadas}
+		\begin{itemize}
+			\item energia das bandas na escala BARK
+			\item energia das bandas na escala MEL
+			\item energia das bandas $\alpha$, $\beta$, $\gamma$, $\theta$ e $\delta$
+		\end{itemize}
+		
+		\par \textbf{Tipos de classificadores usados}
+		\begin{itemize}
+			\item Redes neurais de pulso (SNN)
+			\item Redes neurais residuais (RNN)
+		\end{itemize}
+		
+		\par \textbf{Técnicas de extração de características}
+		\begin{itemize}
+			\item Transformada Wavelet Discreta (DTWT)
+			\item Mel-Frequency Cepstral Coefficients (MFCC)
+			\item Auto-encoders
+		\end{itemize}
 \end{frame}

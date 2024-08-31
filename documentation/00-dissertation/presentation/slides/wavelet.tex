@@ -3,19 +3,21 @@
 	\only<1>{
 		\framesubtitle{Propriedades}
 		\begin{itemize}
-			\item Suporte compacto.
-			\item Análise multirresolução.
-			\item Wavelet regular e wavelet packet.
-			\item Análise detalhada em altas e baixas frequências.
+			\item suporte compacto.
+			\item análise multirresolução.
+			\item wavelet regular e wavelet packet.
+			\item variadas funções-filtro não-periódicas.
+			\item análise detalhada em altas e baixas frequências.
 		\end{itemize}
 	}
 	\only<2>{
 		\framesubtitle{Restrição de escopo}
 		\begin{itemize}
-			\item Domínio discreto.
-			\item Apenas transformadas diretas.
-			\item Não haverá reconstrução do sinal.
-			\item Construção dos vetores de características.
+			\item wavelet packet
+			\item domínio discreto.
+			\item apenas transformadas diretas.
+			\item não haverá reconstrução do sinal.
+			\item construção dos vetores de características.
 		\end{itemize}
 	}
 
@@ -63,11 +65,19 @@
 	}
 
 	\only<5>{
-		\framesubtitle{Exemplo de wavelet regular e packet}
+		\framesubtitle{Exemplo de \textit{wavelet} regular e \textit{packet}}
 		\begin{figure}
 			\centering
 			\includegraphics[width=\linewidth]{../monography/images/haarWaveletExamples}
 		\end{figure}
+	}
+
+	\only<6>{
+		\framesubtitle{Porquê e \textit{wavelet packet}?}
+		\begin{itemize}
+			\item decompõe a aproximação e os detalhes
+			\item proporciona um nível de decomposição maior
+		\end{itemize}
 	}
 \end{frame}
 

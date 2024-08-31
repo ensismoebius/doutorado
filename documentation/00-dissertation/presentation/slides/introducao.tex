@@ -3,20 +3,16 @@
 	
 	\only<1>{
 		\framesubtitle{Motivações}
-		\par Os \textit{voice spoofing attacks} do tipo \textit{playback speech} constituem o tema deste trabalho, pois:
-		\begin{itemize}
-			\item Sistemas para verificação de voz são uma alternativa aos métodos atuais de autenticação dos usuários.
-			\item Podem servir como mais uma camada adicional de segurança.
-			\item Em tempos de emergência sanitária como alternativa ao 	reconhecimento por imagem de irís ou impressões digitais.
-			\item Devido ao crescimento da aplicação desta tecnologia mais tentativas de fraude são perpetradas.
-		\end{itemize}
+		\par A autenticação biométrica tem sido amplamente adotada por fornecer individualização baseada em traços únicos dos indivíduos. No entanto, características físicas que diferem das esperadas pelo sistema podem dificultar ou impedir o acesso de certas pessoas, especialmente aquelas pertencentes a grupos étnicos minorizados ou com deficiências. No caso da autenticação por voz, a exigência de uma palavra-chave ou outro tipo de fonação pode criar barreiras adicionais. Para mitigar esse problema, este trabalho propõe um sistema de autenticação biométrica aprimorado pela fala imaginada.
 	}
 	\only<2>{		
 		\framesubtitle{Objetivos}
 		\begin{itemize}
-			\item Encontrar um conjunto de características que demonstrem ser as mais disjuntas possíveis possibilitando a distinção entre locuções genuínas e falsificadas.
+			\item Criar um sistema de autenticação por voz aprimorado pela fala imaginada.
 			
-			\item Essas características devem melhorar o desempenho de classificadores em detectar tentativas de burlar os sistemas de verificação de locutores por voz.
+			\item Comparar o desempenho das estratégias de extração de características automatizadas com o uso de autoencoders com as que usam \textit{Wavelet-Packet} de tempo discreto e engenharia paraconsistente de características.
+			
+			\item Criar uma base com dados de autenticação voz, fala imaginada e ambos os sinais simultâneos fornecendo a comunidade cientifica mais uma fonte de dados.
 		\end{itemize}
 	}
 \end{frame}
