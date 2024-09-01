@@ -451,7 +451,7 @@
 			\end{figure}
 				
 			\subsubsection{Neurônio de Pulso}
-				\par Embora o foco deste trabalho seja nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}.
+				\par O foco deste trabalho é nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}.
 		
 		\subsubsection{Entendendo e modelando o LIF}
 			
@@ -767,7 +767,7 @@
 			\subsubsection{\textit{Denoising autoencoders}}
 				\par Tais redes também podem ser caracterizadas como \textit{autoencoders} regularizados. Porém há diferenças: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalidade de preencher falhas de informação nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
 				
-				\begin{figure}[h]
+				\begin{figure}[H]
 					\centering
 					\caption[Representação funcional de um \textit{denoising autoencoder}]{Representação funcional de um \textit{denoising autoencoder}: Sendo o vetor $x$ uma entrada e $n$ um função que adiciona um ruído aleatório então a informação com ruído $\hat{x}$ é definida como $\hat{x} = n(x)$, portanto o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, finalmente $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. É importante notar que $r$ é comparada com $x$ e não com $\hat{x}$.}
 					\input{images/denoisingAutoencoder.tex}

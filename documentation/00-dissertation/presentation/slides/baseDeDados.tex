@@ -1,38 +1,147 @@
 \begin{frame}
-	\frametitle{A Base de Sinais de Voz}
+	\frametitle{A base de sinais}
 	\only<1>{
 		\framesubtitle{Coleta dos dados}
 		\begin{itemize}
-			\item 20 pessoas.
-			\item Ambos sexos.
-			\item Idades entre 7 e 67 anos.
-			\item Dígitos falados de 0 a 9.
-			\item Língua portuguesa e inglesa.
-			\item Total de 820 sinais entre genuínos e falsificados.
-			\item Quantização de 16 bits.
-			\item Taxa de amostragem 44100Hz.
+			\item questionário preliminar.
+			\item ciclo silencioso e ruidoso.
+			\item coleta da fala, EEG, EEG e fala.
+			\item coleção de sentenças específicas.
+			\item quantização de 16 bits para voz e EEG.
+			\item taxa de amostragem 44100Hz para voz e 800Hz para EEG.
 		\end{itemize}
 	}
+	
 	\only<2>{
-		\framesubtitle{Organização dos dados}
-		\begin{textblock*}{\linewidth}(0cm,0.4cm)
+		\framesubtitle{Questionário preliminar}
+		\begin{itemize}
+			\item ingeriu ou ingere algum medicamento? Há quanto tempo?
+			\item usou alguma droga legal ou ilegal? Há quanto tempo?
+			\item ingeriu alguma bebida energética? Há quanto tempo?
+			\item é canhota, destra ou ambidestra?
+			\item qual seu gênero?
+			\item qual sua etnia?
+			\item qual seu sexo?
+		\end{itemize}
+	}
+	
+	\only<3>{
+		\framesubtitle{Protocolo de coleta da fala fonada}
+		\begin{enumerate}
+			\item \textbf{ciclo silencioso.}
+			\begin{enumerate}
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser pronunciada.
+				\item um sinal é tocado por 1 segundo
+				\item por 5 segundos a sentença deve ser \textbf{pronunciada} uma única vez.
+				\item volta para o item 1.1 até que todas as sentenças sejam pronunciadas.
+			\end{enumerate}
+			
+			\item \textbf{ciclo ruidoso}.
+			\begin{enumerate}
+				\item inicia-se a reprodução do ruído
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser pronunciada.
+				\item um sinal é tocado por 1 segundo
+				\item por 5 segundos a sentença deve ser \textbf{pronunciada} uma única vez.
+				\item volta para o item 2.2 até que todas as sentenças sejam pronunciadas.
+				\item a reprodução do ruído é finalizada.
+			\end{enumerate}
+		\end{enumerate}
+	}
+	
+	\only<4>{
+		\framesubtitle{Protocolo de coleta da fala imaginada}
+		
+		\begin{enumerate}
+	    	\item Coleta "pré-protocolar" de cinco segundos.	
+			\item \textbf{ciclo silencioso.}
+			\begin{enumerate}
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.
+				\item um sinal é tocado por 1 segundo
+				\item Por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+				\item volta para o item 2.1 até que todas as sentenças sejam imaginadas.
+			\end{enumerate}
+			\item \textbf{ciclo ruidoso}.
+			\begin{enumerate}
+				\item inicia-se a reprodução do ruído
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.
+				\item um sinal é tocado por 1 segundo
+				\item por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+				\item volta para o item 3.1 até que todas as sentenças sejam pronunciadas.
+				\item a reprodução do ruído é finalizada.
+			\end{enumerate}
+		\end{enumerate}
+	}
+	
+	\only<5>{
+		\framesubtitle{Protocolo de coleta da fala imaginada}
+		
+		\begin{enumerate}
+			\item Coleta "pré-protocolar" de cinco segundos.	
+			\item \textbf{ciclo silencioso.}
+			\begin{enumerate}
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.
+				\item um sinal é tocado por 1 segundo
+				\item Por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+				\item volta para o item 2.1 até que todas as sentenças sejam imaginadas.
+			\end{enumerate}
+			\item \textbf{ciclo ruidoso}.
+			\begin{enumerate}
+				\item inicia-se a reprodução do ruído
+				\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.
+				\item um sinal é tocado por 1 segundo
+				\item por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+				\item volta para o item 3.1 até que todas as sentenças sejam pronunciadas.
+				\item a reprodução do ruído é finalizada.
+			\end{enumerate}
+		\end{enumerate}
+	}
+	
+	\only<6>{
+		\framesubtitle{Protocolo de coleta da fala mista}
+		\par Deve seguir os mesmos protocolos descritos anteriormente porém captando ambos os sinais fonados e imaginados simultaneamente;
+	}
+
+	\only<7>{
+		\framesubtitle{Protocolo de coleta de dados}
+		\begin{textblock*}{\linewidth}(.3cm,.7cm)
 			\begin{figure}[t]
 				\centering
-				\subfloat[0.33\textwidth][Base em nível 1]{
-					%\includegraphics{../monography/images/directoryStructLevel01.pdf}
-					\label{fig:directorystructlevel01}
+				\subfloat[0.5\textwidth][Protocolo de coleta silenciosa]{
+					\scalebox{0.6}{
+						\input{../monography/images/coletaSilenciosa.tex}
+					}
+					\label{fig:coletaSilenciosa}
 				}
-				\subfloat[0.33\textwidth][Base em nível 2]{
-					%\includegraphics{../monography/images/directoryStructLevel02.pdf}
-					\label{fig:directorystructlevel02}
+				\subfloat[0.5\textwidth][Protocolo de coleta ruidosa]{
+					\scalebox{0.6}{
+						\input{../monography/images/coletaRuidosa.tex}
+					}
+					\label{fig:coletaRuidosa}
 				}
-				\subfloat[0.33\textwidth][Base em nível 3]{
-					%\includegraphics{../monography/images/directoryStructLevel03.pdf}
-					\label{fig:directorystructlevel03}
-				}
-				\caption{Organização da base de dados}
-				\label{fig:directorystructlevel010203}
+				\label{fig:coleta}
 			\end{figure}
 		\end{textblock*}
+	}
+	\only<8>{
+		\framesubtitle{Organização}
+	    	\begin{itemize}
+				\item fonadas
+				\begin{itemize}
+					\item com ruído
+					\item sem ruído
+				\end{itemize}
+				\item imaginadas
+				\begin{itemize}
+					\item com ruído
+					\item sem ruído
+				\end{itemize}
+				\item mista (fonadas e imaginadas simultaneamente)
+				\begin{itemize}
+					\item com ruído
+					\item sem ruído
+				\end{itemize}
+			\end{itemize}
+			
+			\par Cada registro deve ser vinculado a um código que deve referenciar os dados da pessoa que o gerou, a data, hora, minuto e segundo em que a fala iniciou e finalizou, a sentença e o tipo de fala (fonada ou imaginada).
 	}
 \end{frame}

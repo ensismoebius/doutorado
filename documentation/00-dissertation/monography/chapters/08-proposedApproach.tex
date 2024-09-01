@@ -39,7 +39,7 @@
 			
 				\par Embora, em ratos, neurônios biológicos saudáveis possam proporcionar leituras de EEG de até 2Khz, tal fenômeno não é documentado em cérebros humanos saudáveis e estudos anteriores indicam que leituras acima de 120Hz ocorrem em cérebros de pessoas epiléticas \cite{Moffett2017}. No entanto, apenas a ocorrência de altas frequências, não indica necessariamente uma patologia já que na região mais externa do telencéfalo conhecida como neocórtex podem ocorrer oscilações rápidas que podem atingir em torno de 200Hz \cite{hfreOscEngel}.
 				
-				\par Portanto, segundo o teorema de Nyquist, a taxa de amostragem mínima é de 400Hz, porém, dadas as possibilidades aventadas, há que se adotar uma certa margem de segurança, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz.
+				\par Portanto, segundo o teorema de Nyquist, a taxa de amostragem mínima é de 400Hz, porém, dadas as possibilidades aventadas, há que se adotar uma certa margem de segurança, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz com quantização de 16 bits.
 				
 				%TODO subamostrar depois?
 				
@@ -95,11 +95,15 @@
 					\centering
 					\caption[Protocolo de coleta de dados]{Protocolo de coleta de dados aplicado as falas fonadas, imaginadas e mistas}
 					\subfloat[Protocolo de coleta silenciosa]{
-						\input{images/coletaSilenciosa.tex}
+						\scalebox{0.6}{
+							\input{images/coletaSilenciosa.tex}
+						}
 						\label{fig:coletaSilenciosa}
 					}
-					\subfloat[Protocolo de coleta ruidosa]{%
-						\input{images/coletaRuidosa.tex}
+					\subfloat[Protocolo de coleta ruidosa]{
+						\scalebox{0.6}{
+							\input{images/coletaRuidosa.tex}
+						}
 						\label{fig:coletaRuidosa}
 					}
 					\legend{Fonte:Elaborado pelo autor, 2024.}
@@ -134,6 +138,26 @@
 
 	\section{Estrutura da estratégia proposta}
 		\label{sec:estruturaDaEstrategiaProposta}
+		
+		\par Após as coletas dos sinais, os procedimentos adotados serão os seguintes:
+		
+		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos nas bandas Bark e MEL para a extração de características. Será conduzida a "análise paraconsistente de características" afim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
+		
+		\par Em segundo lugar, tanto os dados de voz quanto os de EEG serão submetidos a autoencoders para extração de características.
+		
+		\par As características extraídas, tanto automatizadas quanto as manualmente obtidas, servirão de entrada para uma rede neural residual profunda de pulsos, que determinará as classes de cada um dos sinais.
+		
+		\par Uma visão geral do processo é mostrado na \autoref{fig:estruturaDaEstrategiaProposta}.		
+		
+		\begin{figure}[h]
+			\centering
+			\caption[Estratégia proposta]{Fluxograma da estratégia proposta}
+			\scalebox{0.75}	{
+				\input{images/strategicStructure.tex}
+			}
+			\legend{Fonte: Elaborado pelo autor, 2024.}
+			\label{fig:estruturaDaEstrategiaProposta}
+		\end{figure}
 	
 		\subsection{Coleta dos dados}
 			\par A coleta dos dados será realizada com software próprio desenvolvido para esse fim e com equipamentos de captação de voz e eletroencefalograma (EEG), montados a partir de componentes eletrônicos pré-fabricados, como placas de circuito integrado, eletrodos e microfones.
@@ -143,7 +167,7 @@
 			\par A extração de características será realizada de duas maneiras:
 			
 			\begin{enumerate}
-				\item \textbf{Método Manual (Handcrafting):} Características serão extraídas e formatadas por meio de métodos manuais de avaliação.
+				\item \textbf{Método Manual (Handcrafting):} Características serão extraídas e formatadas por meio de métodos manuais de avaliação usando DTWT e a engenharia paraconsistente de características.
 				\item \textbf{Método Automatizado:} Características serão extraídas utilizando redes neurais profundas, mais especificamente autoencoders.
 			\end{enumerate}
 			
@@ -151,12 +175,25 @@
 			
 			\par A confecção dos vetores de características, tanto no método manual quanto no automatizado, utilizará transformadas \textit{wavelet}, cálculos de energia nas frequências alvo e avaliação dos vetores por meio da engenharia paraconsistente de características.
 			
+		\subsection{Métricas}
+		
+			\par Afim de garantir a comparação do estudo com outros serão adotadas as seguintes métricas:
+			
+			\begin{itemize}
+				\item acurácia
+				\item pontuação F1
+				\item precisão
+				\item recall
+				\item Erro Médio Quadrático
+				\item área sob a Curva ROC
+				\item sensitividade
+				\item especificidade
+			\end{itemize}
+			
 		\subsection{Desenvolvimento e Validação de Algoritmos}
 		
-			\par Quanto aos algoritmos de classificação, serão utilizadas redes neurais de pulso (SNN) em uma arquitetura de rede neural residual. Serão construídos modelos com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética. Esses classificadores serão testados por meio de experimentos controlados e comparados posteriormente com trabalhos do estado-da-arte.
+			\par Quanto aos algoritmos de classificação, serão utilizadas redes neurais de pulso (SNN) em uma arquitetura de rede neural residual. Serão construídos modelos com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética. Esses classificadores serão testados por meio de experimentos controlados (como exposto no início dessa seção) e comparados posteriormente com trabalhos do estado-da-arte.
 			
-			\newpage
-	
 	\section{Cronograma}
 		\label{sec:cronograma}
 	

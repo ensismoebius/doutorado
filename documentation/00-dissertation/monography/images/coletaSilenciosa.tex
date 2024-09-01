@@ -1,4 +1,4 @@
-\begin{tikzpicture}[transform shape, scale=0.6]
+\begin{tikzpicture}[transform shape]
 	% Definindo estilos de nós
 	
 	% Início
@@ -11,7 +11,7 @@
 	\tikzstyle{decision} = [diamond, minimum width=3cm, minimum height=1cm, text centered, fill=yellow, text=black, font=\sffamily\bfseries, aspect=3]
 	
 	% Estilos das setas
-	\tikzstyle{arrow} = [thick,->,>=stealth, draw=white, line width=1.5mm]
+	\tikzstyle{arrow} = [thick,->,>=stealth, draw=gray, line width=1.5mm]
 	
 	% Nós
 	\node (start) [startstop] {Início};
@@ -33,6 +33,6 @@
 	% Agrupando o diagrama em um escopo
 	\begin{scope}[on background layer]
 		% Retângulo ao redor do diagrama com fundo azul
-		\node[rectangle, fill=blue, fit={(start) (display) (pronounce) (loop) (stop)}, inner sep=0.5cm] (background) {};
+		\node[rectangle, fill=none, fit={(start) (display) (pronounce) (loop) (stop)}, inner sep=0.5cm] (background) {};
 	\end{scope}
 \end{tikzpicture}

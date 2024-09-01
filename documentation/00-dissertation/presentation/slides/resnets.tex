@@ -1,0 +1,31 @@
+\begin{frame}
+	\frametitle{Redes neurais residuais (ResNets)}
+	
+	\only<1>{
+		\par Redes neurais profundas podem sofrer com desaparecimento ou explosão do gradiente. A solução é reproduzir o comportamento de redes neurais mais rasas usando conexões de salto. Essa é ideia das redes neurais residuais.
+	}
+	
+	\only<2>{
+		\begin{columns}
+			\column{.5\linewidth}
+				\begin{figure}[H]
+					\centering
+					\includegraphics[width=1\linewidth]{../monography/images/residualBlock}
+					\label{fig:residualblock}
+				\end{figure}
+			\column{.5\linewidth}
+				\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás das \textit{ResNets} é a inclusão de conexões de salto como ilustrado na  figura ao lado, também conhecidas como mapeamentos de identidade.
+				
+				\par Bloco Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a $F(x)$ ao final do bloco.
+		\end{columns}
+	}
+	
+	\only<3>{
+		\par Obtenção do resíduo: $x$ um vetor de entrada na rede, $I(\cdot)$ é uma função identidade cujo valor é diretamente somado $\oplus$ com o resultado produzido pelas várias camadas representadas por $f(\cdot)$, $h$ é um vetor representando um estado intermediário de uma rede neural.
+		\begin{figure}[h]
+			\centering
+			\input{../monography/images/residuo.tex}
+			\label{fig:residuo}
+		\end{figure}
+	}
+\end{frame}

@@ -3,7 +3,12 @@
 		\only<1>{
 			\framesubtitle{Diagrama}
 			\begin{textblock*}{\linewidth}(0.3cm,2cm)
-				\input{../monography/images/strategicStructure.tex}
+				\begin{figure}[h]
+					\centering
+					\scalebox{0.75}	{
+						\input{../monography/images/strategicStructure.tex}
+					}
+				\end{figure}
 			\end{textblock*}
 		}
 		\only<2>{
@@ -25,39 +30,36 @@
 						\item EER (Equal Error Rate).
 						\item Acurácia e seu respectivo desvio padrão.
 					\end{itemize}
+					\item pontuação F1
+					\item precisão
+					\item recall
+					\item Erro Médio Quadrático
+					\item área sob a Curva ROC
+					\item sensitividade
+					\item especificidade
 				\end{itemize}
 		}
-		\only<4>{
-			\framesubtitle{Tabela de confusão}
-				\begin{itemize}
-					\item \textbf{TP}: Quantidade de itens verdadeiros classificados como tal (\textit{True Positive}).
-					\item \textbf{TN}: Quantidade de itens falsos classificados como tal (\textit{True Negative}).
-					\item \textbf{FN}: Quantidade de itens verdadeiros classificados como falsos (\textit{False Negative}).
-					\item \textbf{FP}: Quantidade de itens falsos classificados como verdadeiros (\textit{False Positive}).
-				\end{itemize} 
-				%\input{../monography/tables/results/confusionMatrices/confusionMatrixSample.tex}
-		}
-		\only<5>{
-			\framesubtitle{Acurácia e EER}
-				\begin{columns}
-					\column{.5\textwidth}
-					\begin{equation}
-						acuracia = \dfrac{TP + TN}{N} \qquad,
-						\label{eq:calculoDaAcuracia}
-					\end{equation}
-					
-					\column{.5\textwidth}
-					\par São calculadas tabelas de confusão por um número suficiente de vezes até que \textbf{\textit{FAR} = \textit{FRR} = \textit{EER}}, a cada ciclo os vetores de características são comutados de forma aleatória.\newline
-
-					\begin{equation}
-						FAR=\dfrac{FP}{TN+FP} \qquad,
-						\label{eq:FAR}
-					\end{equation}
-					
-					\begin{equation}
-						FRR=\dfrac{FN}{TP+FN} \qquad,
-						\label{eq:FRR}
-					\end{equation}
-				\end{columns}
-		}
+%		\only<4>{
+%			\framesubtitle{Acurácia e EER}
+%				\begin{columns}
+%					\column{.5\textwidth}
+%					\begin{equation}
+%						acuracia = \dfrac{TP + TN}{N} \qquad,
+%						\label{eq:calculoDaAcuracia}
+%					\end{equation}
+%					
+%					\column{.5\textwidth}
+%					\par São calculadas tabelas de confusão por um número suficiente de vezes até que \textbf{\textit{FAR} = \textit{FRR} = \textit{EER}}, a cada ciclo os vetores de características são comutados de forma aleatória.\newline
+%
+%					\begin{equation}
+%						FAR=\dfrac{FP}{TN+FP} \qquad,
+%						\label{eq:FAR}
+%					\end{equation}
+%					
+%					\begin{equation}
+%						FRR=\dfrac{FN}{TP+FN} \qquad,
+%						\label{eq:FRR}
+%					\end{equation}
+%				\end{columns}
+%		}
 \end{frame}
