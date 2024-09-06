@@ -1,29 +1,6 @@
 \begin{frame}
 	\frametitle{Engenharia paraconsistente de características}
 	\only<1>{
-		\framesubtitle{Os vetores de características proporcionam uma boa separação interclasses?\cite{8588433}}
-		\begin{columns}
-		\column{.5\textwidth}				
-		\begin{figure}
-			\centering
-			\includegraphics[width=.85\linewidth, angle=-90]{../monography/images/paraconsistentPlane}
-			\label{fig:paraconsistentplane}
-			\caption{Plano paraconsistente}
-		\end{figure}
-		\column{.5\textwidth}
-		\begin{itemize}
-			\item \alert{Verdade:\\
-		 $\alpha = 1$ e $\beta = 0$.}
-			\item Ambiguidade:\\
-		 $\alpha = 1$ e $\beta = 1$.
-			\item Falsidade:\\
-		 $\alpha = 0$ e $\beta = 1$.
-			\item Indefinição:\\
-		 $\alpha = 0$ e $\beta = 0$.
-		\end{itemize}
-	\end{columns}
-	}
-	\only<2>{
 		\framesubtitle{Cálculo de $\alpha$}
 		\begin{columns}
 			\column{.5\textwidth}
@@ -35,7 +12,7 @@
 			\par Menor similaridade intraclasse, $\alpha$
 		\end{columns}
 	}
-	\only<3>{
+	\only<2>{
 		\framesubtitle{Cálculo de $\beta$}
 		\begin{columns}
 			\column{.5\textwidth}
@@ -45,9 +22,15 @@
 			\end{textblock*}
 			\column{.5\textwidth}
 			\par Razão de sobreposição interclasse, $\beta$.
+			\par $F = N.(N-1).X.T$
+			\begin{itemize}
+				\item N a quantidades de classes;
+				\item X a quantidade de vetores de características por classe;
+				\item T o tamanho do vetor de características.
+			\end{itemize}
 		\end{columns}
 	}
-	\only<4>{
+	\only<3>{
 		\framesubtitle{Graus de certeza e contradição}
 		\begin{itemize}
 			\item Grau de certeza $\rightarrow G_1=\alpha-\beta $.
@@ -56,13 +39,13 @@
 		Onde: $-1 \leqslant G_1 \leqslant 1$ e  $-1 \leqslant G_2 \leqslant 1\qquad$.\\
 		Seja $P=(G_1,G_2)$
 		\begin{itemize}
-			\item (-1,0) $\rightarrow$ Falsidade;
-			\item \alert{(1,0) $\rightarrow$ Verdade;}
-			\item (0,-1) $\rightarrow$ Indefinição;
-			\item (0,1) $\rightarrow$ Ambiguidade.
+			\item \alert{Verdade $\rightarrow$ fé total ($\alpha = 1$) e nenhum descrédito ($\beta = 0$)}
+			\item Ambiguidade $\rightarrow$ fé total ($\alpha = 1$) e descrédito total ($\beta = 1$)
+			\item Falsidade $\rightarrow$ fé nula ($\alpha = 0$) e descrédito total ($\beta = 1$)
+			\item Indefinição $\rightarrow$ fé nula ($\alpha = 0$) e nenhum descrédito ($\beta = 0$) \qquad.
 		\end{itemize}
 	}
-	\only<5>{
+	\only<4>{
 		\framesubtitle{Distancias no plano paraconsistente}
 		As distâncias$(D)$ do ponto $P=(G_1,G_2)$ dos limites supracitados. Tal cálculo pode ser feito da seguinte forma:
 		\begin{equation*}
@@ -79,5 +62,28 @@
 		\begin{equation*}
 		D_{0,1}=\sqrt{(G_1)^2+(G_2-1)^2}\qquad,
 		\end{equation*}
+	}
+	\only<5>{
+		\framesubtitle{Os vetores de características proporcionam uma boa separação interclasses?\cite{8588433}}
+		\begin{columns}
+			\column{.5\textwidth}				
+			\begin{figure}
+				\centering
+				\includegraphics[width=.85\linewidth, angle=-90]{../monography/images/paraconsistentPlane}
+				\label{fig:paraconsistentplane}
+				\caption{Plano paraconsistente}
+			\end{figure}
+			\column{.5\textwidth}
+			\begin{itemize}
+				\item \alert{Verdade:\\
+					$\alpha = 1$ e $\beta = 0$.}
+				\item Ambiguidade:\\
+				$\alpha = 1$ e $\beta = 1$.
+				\item Falsidade:\\
+				$\alpha = 0$ e $\beta = 1$.
+				\item Indefinição:\\
+				$\alpha = 0$ e $\beta = 0$.
+			\end{itemize}
+		\end{columns}
 	}
 \end{frame}

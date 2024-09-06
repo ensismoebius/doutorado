@@ -20,13 +20,19 @@
 			\item construção dos vetores de características.
 		\end{itemize}
 	}
-
 	\only<3>{
+		\framesubtitle{Porquê e \textit{wavelet packet}?}
+		\begin{itemize}
+			\item decompõe a aproximação e os detalhes
+			\item proporciona um nível de decomposição maior
+		\end{itemize}
+	}
+	\only<4>{
 		\framesubtitle{Resposta em frequência e linearidade}
 		\input{../monography/tables/someWaveletsProperties.tex}
 	}
 
-	\only<4>{
+	\only<5>{
 		\framesubtitle{Algoritmo de Malat}
 		\begin{itemize}
 			\item \textit{Wavelet} Haar: $h[\cdot] = [\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}]$.
@@ -64,20 +70,12 @@
 		\end{equation*}
 	}
 
-	\only<5>{
+	\only<6>{
 		\framesubtitle{Exemplo de \textit{wavelet} regular e \textit{packet}}
 		\begin{figure}
 			\centering
 			\includegraphics[width=\linewidth]{../monography/images/haarWaveletExamples}
 		\end{figure}
-	}
-
-	\only<6>{
-		\framesubtitle{Porquê e \textit{wavelet packet}?}
-		\begin{itemize}
-			\item decompõe a aproximação e os detalhes
-			\item proporciona um nível de decomposição maior
-		\end{itemize}
 	}
 \end{frame}
 
