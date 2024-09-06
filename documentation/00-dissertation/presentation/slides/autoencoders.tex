@@ -1,18 +1,7 @@
 \begin{frame}
 	\frametitle{Autoencoders}
-	
-	
 	\only<1>{
-		\framesubtitle{Características}
-		\begin{itemize}
-			\item serão usados os subcompletos.
-			\item a saída é uma aproximação da entrada.
-			\item seleciona características em sua camada de código.
-		\end{itemize}
-	}
-	
-	\only<2>{
-		\framesubtitle{Subcompletos}
+		\framesubtitle{Características de um autoencoder subcompleto}
 		\begin{columns}
 			\column{.3\linewidth}
 				\par Exemplo esquemático de um \textit{autoencoder}: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.
@@ -26,7 +15,7 @@
 				\end{figure}
 		\end{columns}
 	}
-	\only<3>{
+	\only<2>{
 		\framesubtitle{Denoising}
 		\par Representação funcional de um \textit{denoising autoencoder}: Sendo o vetor $x$ uma entrada e $n$ um função que adiciona um ruído aleatório então a informação com ruído $\hat{x}$ é definida como $\hat{x} = n(x)$, portanto o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, finalmente $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. É importante notar que $r$ é comparada com $x$ e não com $\hat{x}$.
 		
