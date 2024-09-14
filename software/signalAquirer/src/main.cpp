@@ -9,7 +9,6 @@ const int screenHeight = 600;
 const int bufferSize = 1024;
 const int sampleRate = 44100;
 
-// Function to initialize ALSA
 snd_pcm_t *initAlsa()
 {
     snd_pcm_t *handle;
@@ -18,7 +17,9 @@ snd_pcm_t *initAlsa()
     int dir;
     snd_pcm_uframes_t frames = bufferSize;
     int rc;
+    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE; // Default format
 
+    // Open PCM device
     rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
     if (rc < 0)
     {
@@ -28,10 +29,62 @@ snd_pcm_t *initAlsa()
 
     snd_pcm_hw_params_alloca(&params);
     snd_pcm_hw_params_any(handle, params);
-    snd_pcm_hw_params_set_format(handle, params, SND_PCM_FORMAT_S16_LE);
-    snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
-    snd_pcm_hw_params_set_channels(handle, params, 1);
-    snd_pcm_hw_params_set_period_size(handle, params, frames, 0);
+
+    // Test and select supported format
+    snd_pcm_format_t formats[] = {SND_PCM_FORMAT_S16_LE, SND_PCM_FORMAT_S32_LE, SND_PCM_FORMAT_U8};
+    bool formatSupported = false;
+
+    for (snd_pcm_format_t fmt : formats)
+    {
+        rc = snd_pcm_hw_params_test_format(handle, params, fmt);
+        if (rc == 0)
+        {
+            format = fmt;
+            formatSupported = true;
+            break;
+        }
+    }
+
+    if (!formatSupported)
+    {
+        std::cerr << "No supported format found" << std::endl;
+        snd_pcm_close(handle);
+        exit(EXIT_FAILURE);
+    }
+
+    // Set format
+    rc = snd_pcm_hw_params_set_format(handle, params, format);
+    if (rc < 0)
+    {
+        std::cerr << "Unable to set format: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Set sample rate
+    rc = snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
+    if (rc < 0)
+    {
+        std::cerr << "Unable to set rate: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Set channels
+    rc = snd_pcm_hw_params_set_channels(handle, params, 1);
+    if (rc < 0)
+    {
+        std::cerr << "Unable to set channels: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Set period size
+    rc = snd_pcm_hw_params_set_period_size(handle, params, frames, 0);
+    if (rc < 0)
+    {
+        std::cerr << "Unable to set period size: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Apply hardware parameters
     rc = snd_pcm_hw_params(handle, params);
     if (rc < 0)
     {
