@@ -1,3 +1,6 @@
 [submodule "software/src/lib/sfmlplot"]
 	path = software/src/lib/sfmlplot
 	url = git@github.com:ensismoebius/sfmlPlot.git
+[submodule "software/signalAquirer/lib/raylib"]
+	path = software/signalAquirer/lib/raylib
+	url = https://github.com/raysan5/raylib
