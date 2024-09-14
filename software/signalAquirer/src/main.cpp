@@ -6,29 +6,45 @@
 // Define constants
 const int screenWidth = 800;
 const int screenHeight = 600;
-const int bufferSize = 1024;
-const int sampleRate = 44100;
+const int bufferSize = 4096;
+const int channels = 2; // Stereo
+unsigned sampleRate = 44100;
 
 snd_pcm_t *initAlsa()
 {
     snd_pcm_t *handle;
     snd_pcm_hw_params_t *params;
-    unsigned int rate = sampleRate;
-    int dir;
-    snd_pcm_uframes_t frames = bufferSize;
+    snd_pcm_sw_params_t *sw_params;
+    snd_pcm_uframes_t frames;
     int rc;
-    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE; // Default format
 
-    // Open PCM device
+    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE; // 16-bit little-endian
+
+    // Open the PCM device
     rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
     if (rc < 0)
     {
-        std::cerr << "Unable to open PCM device: " << snd_strerror(rc) << std::endl;
+        std::cerr << "Failed to open PCM device: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
 
     snd_pcm_hw_params_alloca(&params);
-    snd_pcm_hw_params_any(handle, params);
+    snd_pcm_sw_params_alloca(&sw_params);
+
+    // Set hardware parameters
+    rc = snd_pcm_hw_params_any(handle, params);
+    if (rc < 0)
+    {
+        std::cerr << "Failed to initialize hardware parameters: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    rc = snd_pcm_hw_params_set_access(handle, params, SND_PCM_ACCESS_RW_INTERLEAVED);
+    if (rc < 0)
+    {
+        std::cerr << "Failed to set access type: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
     // Test and select supported format
     snd_pcm_format_t formats[] = {SND_PCM_FORMAT_S16_LE, SND_PCM_FORMAT_S32_LE, SND_PCM_FORMAT_U8};
@@ -60,35 +76,46 @@ snd_pcm_t *initAlsa()
         exit(EXIT_FAILURE);
     }
 
-    // Set sample rate
-    rc = snd_pcm_hw_params_set_rate_near(handle, params, &rate, &dir);
+    rc = snd_pcm_hw_params_set_channels(handle, params, channels);
     if (rc < 0)
     {
-        std::cerr << "Unable to set rate: " << snd_strerror(rc) << std::endl;
+        std::cerr << "Failed to set channels: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // Set channels
-    rc = snd_pcm_hw_params_set_channels(handle, params, 1);
+    rc = snd_pcm_hw_params_set_rate_near(handle, params, &sampleRate, 0);
     if (rc < 0)
     {
-        std::cerr << "Unable to set channels: " << snd_strerror(rc) << std::endl;
+        std::cerr << "Failed to set rate: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // Set period size
-    rc = snd_pcm_hw_params_set_period_size(handle, params, frames, 0);
-    if (rc < 0)
-    {
-        std::cerr << "Unable to set period size: " << snd_strerror(rc) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    // Apply hardware parameters
     rc = snd_pcm_hw_params(handle, params);
     if (rc < 0)
     {
-        std::cerr << "Unable to set HW params: " << snd_strerror(rc) << std::endl;
+        std::cerr << "Failed to set hardware parameters: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    rc = snd_pcm_sw_params_current(handle, sw_params);
+    if (rc < 0)
+    {
+        std::cerr << "Failed to get software parameters: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    // Set software parameters
+
+    rc = snd_pcm_sw_params_set_start_threshold(handle, sw_params, 0);
+    if (rc < 0)
+    {
+        std::cerr << "Failed to set start threshold: " << snd_strerror(rc) << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    rc = snd_pcm_sw_params(handle, sw_params);
+    if (rc < 0)
+    {
+        std::cerr << "Failed to set software parameters: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -99,7 +126,7 @@ snd_pcm_t *initAlsa()
 std::vector<short> readAudioData(snd_pcm_t *handle)
 {
     std::vector<short> buffer(bufferSize);
-    int rc = snd_pcm_readi(handle, buffer.data(), bufferSize);
+    int rc = snd_pcm_readi(handle, buffer.data(), bufferSize / channels);
     if (rc < 0)
     {
         std::cerr << "Error reading audio data: " << snd_strerror(rc) << std::endl;
