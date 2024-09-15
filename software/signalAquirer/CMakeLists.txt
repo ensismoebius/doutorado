@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(SignalAcquirer VERSION 1.0 LANGUAGES CXX)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
@@ -80,7 +81,7 @@ endif()
 # Define raylib library
 add_library(raylib STATIC IMPORTED)
 set_target_properties(raylib PROPERTIES
-    IMPORTED_LOCATION "${RAYLIB_BUILD_DIR}/raylib/libraylib.a"
+    IMPORTED_LOCATION "${RAYLIB_BUILD_DIR}/libraylib.a"
     INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_DIR}/src"
 )
 
@@ -113,7 +114,8 @@ if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
     # Create build directory and compile raygui
     file(MAKE_DIRECTORY ${RAYGUI_BUILD_DIR})
     execute_process(
-        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c
+        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c && gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wno-implicit-function-declaration
+        RESULT_VARIABLE result
     )
     execute_process(
         COMMAND gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wno-implicit-function-declaration
