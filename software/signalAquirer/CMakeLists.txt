@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(SignalAcquirer VERSION 1.0 LANGUAGES CXX)
 
+
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,8 +9,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Define paths
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
+
 set(RAYLIB_DIR "${LIB_DIR}/raylib")
 set(RAYLIB_BUILD_DIR "${RAYLIB_DIR}/build")
+
+set(RAYGUI_DIR "${LIB_DIR}/raygui")
+set(RAYGUI_BUILD_DIR "${RAYGUI_DIR}/build")
 
 # Add Armadillo and OpenMP dependencies
 find_package(Armadillo REQUIRED)
@@ -79,6 +84,55 @@ set_target_properties(raylib PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_DIR}/src"
 )
 
+# Check if raygui is already downloaded and compiled
+if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
+    message(STATUS "Raygui not found, downloading and compiling...")
+
+    if(NOT EXISTS "${RAYGUI_DIR}/.git")
+        # Clone raygui repository if not already cloned
+        execute_process(
+            COMMAND git clone https://github.com/raysan5/raygui.git ${RAYGUI_DIR}
+            RESULT_VARIABLE result
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(result)
+            message(FATAL_ERROR "Failed to clone raygui repository")
+        endif()
+    else()
+        # Update raygui repository if already cloned
+        execute_process(
+            COMMAND git -C ${RAYGUI_DIR} pull
+            RESULT_VARIABLE result
+        )
+        if(result)
+            message(FATAL_ERROR "Failed to update raygui repository")
+        endif()
+    endif()
+
+    # Create build directory and compile raygui
+    file(MAKE_DIRECTORY ${RAYGUI_BUILD_DIR})
+    execute_process(
+        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c
+    )
+    execute_process(
+        COMMAND gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wno-implicit-function-declaration
+        RESULT_VARIABLE result
+    )
+    if(result)
+        message(FATAL_ERROR "Compilation of raygui failed: " ${result})
+    endif()
+else()
+    message(STATUS "Raygui already exists, skipping download and compilation...")
+endif()
+
+# Define raygui library
+add_library(raygui SHARED IMPORTED)
+set_target_properties(raygui PROPERTIES
+    IMPORTED_LOCATION "${RAYGUI_BUILD_DIR}/raygui.so"
+    INTERFACE_INCLUDE_DIRECTORIES "${RAYGUI_DIR}/src"
+)
+
 # Add executable target
 add_executable(SignalAcquirer ${SRC_DIR}/main.cpp)
 target_link_libraries(SignalAcquirer
@@ -86,6 +140,7 @@ target_link_libraries(SignalAcquirer
         ${ARMADILLO_LIBRARIES}
         ${OpenMP_CXX_LIBRARIES}
         raylib
+        raygui
         ${ASOUND_LIBRARIES}
 )
 target_include_directories(SignalAcquirer

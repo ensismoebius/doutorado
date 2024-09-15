@@ -4,3 +4,6 @@
 [submodule "software/signalAquirer/lib/raylib"]
 	path = software/signalAquirer/lib/raylib
 	url = https://github.com/raysan5/raylib
+[submodule "software/signalAquirer/lib/raygui"]
+	path = software/signalAquirer/lib/raygui
+	url = https://github.com/raysan5/raygui.git

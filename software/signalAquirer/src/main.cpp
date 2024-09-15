@@ -1,13 +1,14 @@
 #include <raylib.h>
+#include <raygui.h>  // Required for GUI buttons
 #include <alsa/asoundlib.h>
 #include <vector>
 #include <iostream>
 
 // Define constants
-const int screenWidth = 800;
-const int screenHeight = 600;
+const int screenWidth = 1024;
+const int screenHeight = 420; // Increased height to fit the button
 const int bufferSize = 4096;
-const int channels = 2; // Stereo
+const int channels = 1; // Mono
 unsigned sampleRate = 44100;
 
 snd_pcm_t *initAlsa()
@@ -15,12 +16,10 @@ snd_pcm_t *initAlsa()
     snd_pcm_t *handle;
     snd_pcm_hw_params_t *params;
     snd_pcm_sw_params_t *sw_params;
-    snd_pcm_uframes_t frames;
     int rc;
 
-    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE; // 16-bit little-endian
+    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 
-    // Open the PCM device
     rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
     if (rc < 0)
     {
@@ -31,7 +30,6 @@ snd_pcm_t *initAlsa()
     snd_pcm_hw_params_alloca(&params);
     snd_pcm_sw_params_alloca(&sw_params);
 
-    // Set hardware parameters
     rc = snd_pcm_hw_params_any(handle, params);
     if (rc < 0)
     {
@@ -46,29 +44,6 @@ snd_pcm_t *initAlsa()
         exit(EXIT_FAILURE);
     }
 
-    // Test and select supported format
-    snd_pcm_format_t formats[] = {SND_PCM_FORMAT_S16_LE, SND_PCM_FORMAT_S32_LE, SND_PCM_FORMAT_U8};
-    bool formatSupported = false;
-
-    for (snd_pcm_format_t fmt : formats)
-    {
-        rc = snd_pcm_hw_params_test_format(handle, params, fmt);
-        if (rc == 0)
-        {
-            format = fmt;
-            formatSupported = true;
-            break;
-        }
-    }
-
-    if (!formatSupported)
-    {
-        std::cerr << "No supported format found" << std::endl;
-        snd_pcm_close(handle);
-        exit(EXIT_FAILURE);
-    }
-
-    // Set format
     rc = snd_pcm_hw_params_set_format(handle, params, format);
     if (rc < 0)
     {
@@ -103,7 +78,6 @@ snd_pcm_t *initAlsa()
         std::cerr << "Failed to get software parameters: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
-    // Set software parameters
 
     rc = snd_pcm_sw_params_set_start_threshold(handle, sw_params, 0);
     if (rc < 0)
@@ -132,22 +106,49 @@ std::vector<short> readAudioData(snd_pcm_t *handle)
         std::cerr << "Error reading audio data: " << snd_strerror(rc) << std::endl;
         return std::vector<short>(bufferSize, 0); // Return zeroed buffer on error
     }
-    else if (rc != bufferSize)
-    {
-        std::cerr << "Short read, read " << rc << " frames" << std::endl;
-    }
     return buffer;
+}
+
+// Function for downsampling the audio data for better performance
+std::vector<Vector2> downsampleAudioData(const std::vector<short>& audioData, int numPoints, int downsampleRate)
+{
+    std::vector<Vector2> points(numPoints);
+    float step = (float)(audioData.size() / downsampleRate) / numPoints;
+    
+    for (int i = 0; i < numPoints; ++i)
+    {
+        int index = (int)(i * step);
+        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
+    }
+    return points;
+}
+
+// Function for generating raw audio points (no downsampling)
+std::vector<Vector2> generateRawAudioPoints(const std::vector<short>& audioData, int numPoints)
+{
+    std::vector<Vector2> points(numPoints);
+    float step = (float)audioData.size() / numPoints;
+
+    for (int i = 0; i < numPoints; ++i)
+    {
+        int index = (int)(i * step);
+        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
+    }
+    return points;
 }
 
 // Main function
 int main()
 {
     // Initialize raylib
-    InitWindow(screenWidth, screenHeight, "Audio Plot with raylib");
+    InitWindow(screenWidth, screenHeight, "Audio Plot with Downsampling Toggle");
     SetTargetFPS(60);
 
     // Initialize ALSA
     snd_pcm_t *alsaHandle = initAlsa();
+
+    int downsampleRate = 2; // Default downsampling rate
+    bool downsamplingEnabled = true; // State for the toggle button
 
     // Main loop
     while (!WindowShouldClose())
@@ -155,16 +156,16 @@ int main()
         // Read audio data
         std::vector<short> audioData = readAudioData(alsaHandle);
 
-        // Calculate the number of points in the plot
-        int numPoints = screenWidth;
-        float xStep = (float)bufferSize / numPoints;
-
-        // Prepare points for plotting
-        std::vector<Vector2> points(numPoints);
-        for (int i = 0; i < numPoints; ++i)
+        // Downsample or use raw data based on toggle state
+        int numPoints = screenWidth; // Only plot one point per pixel
+        std::vector<Vector2> points;
+        if (downsamplingEnabled)
         {
-            int index = (int)(i * xStep);
-            points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f};
+            points = downsampleAudioData(audioData, numPoints, downsampleRate);
+        }
+        else
+        {
+            points = generateRawAudioPoints(audioData, numPoints);
         }
 
         // Clear the screen
@@ -174,7 +175,13 @@ int main()
         // Draw the audio plot
         if (numPoints > 1)
         {
-            DrawLineStrip(points.data(), numPoints, BLACK);
+            DrawLineStrip(points.data(), numPoints, BLUE);
+        }
+
+        // Draw the toggle button
+        if (GuiButton((Rectangle){screenWidth / 2 - 50, screenHeight - 40, 100, 30}, downsamplingEnabled ? "Downsample: ON" : "Downsample: OFF"))
+        {
+            downsamplingEnabled = !downsamplingEnabled; // Toggle state on button press
         }
 
         EndDrawing();
