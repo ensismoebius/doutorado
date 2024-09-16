@@ -81,7 +81,7 @@ endif()
 # Define raylib library
 add_library(raylib STATIC IMPORTED)
 set_target_properties(raylib PROPERTIES
-    IMPORTED_LOCATION "${RAYLIB_BUILD_DIR}/libraylib.a"
+    IMPORTED_LOCATION "${RAYLIB_BUILD_DIR}/raylib/libraylib.a"
     INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_DIR}/src"
 )
 
