@@ -114,7 +114,7 @@ if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
     # Create build directory and compile raygui
     file(MAKE_DIRECTORY ${RAYGUI_BUILD_DIR})
     execute_process(
-        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c && gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wno-implicit-function-declaration
+        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c
         RESULT_VARIABLE result
     )
     execute_process(
