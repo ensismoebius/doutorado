@@ -136,7 +136,10 @@ set_target_properties(raygui PROPERTIES
 )
 
 # Add executable target
-add_executable(SignalAcquirer ${SRC_DIR}/main.cpp)
+add_executable(SignalAcquirer 
+${SRC_DIR}/main.cpp
+${LIB_DIR}/AudioCapturer.cpp
+)
 target_link_libraries(SignalAcquirer
     PRIVATE
         ${ARMADILLO_LIBRARIES}
