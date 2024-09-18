@@ -5,7 +5,6 @@ AudioCapturer::AudioCapturer(unsigned int sampleRate, int channels) : sampleRate
 {
     int rc;
     snd_pcm_hw_params_t *params;
-    snd_pcm_sw_params_t *sw_params;
     snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
 
     rc = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
@@ -62,27 +61,6 @@ AudioCapturer::AudioCapturer(unsigned int sampleRate, int channels) : sampleRate
     {
         std::cerr << "Failed to set hardware parameters: " << snd_strerror(rc) << std::endl;
         snd_pcm_close(handle);
-        exit(EXIT_FAILURE);
-    }
-
-    rc = snd_pcm_sw_params_current(handle, sw_params);
-    if (rc < 0)
-    {
-        std::cerr << "Failed to get software parameters: " << snd_strerror(rc) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    rc = snd_pcm_sw_params_set_start_threshold(handle, sw_params, 0);
-    if (rc < 0)
-    {
-        std::cerr << "Failed to set start threshold: " << snd_strerror(rc) << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-    rc = snd_pcm_sw_params(handle, sw_params);
-    if (rc < 0)
-    {
-        std::cerr << "Failed to set software parameters: " << snd_strerror(rc) << std::endl;
         exit(EXIT_FAILURE);
     }
 }
