@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <raygui.h>
+#include <rlgl.h>
 #include <alsa/asoundlib.h>
 #include <vector>
 #include <iostream>
@@ -34,43 +35,36 @@ void threadCaptureAudioData(std::stop_token stopToken)
     std::cout << "Thread is stopping!" << std::endl;
 }
 
-// Function for downsampling the audio data for better performance
-void downsampleAudioData(int downsampleRate, int screenWidth, int screenHeight)
+void plotSignal(const int screenWidth, const int screenHeight, const int bufferSize, const int sampling = 1)
 {
-    float step = (float)(audioData.size() / downsampleRate) / screenWidth;
+    // Reinicia as variáveis no início de cada chamada
+    int startPosX = 0;
+    int startPosY = screenHeight / 2; // Começar no meio da tela
+
+    float step = (float)bufferSize / screenWidth / sampling;
+    float index = 0.0f;
+
+    rlBegin(RL_LINES);
+    rlColor4ub(BLUE.r, BLUE.g, BLUE.b, BLUE.a);
 
     for (int i = 0; i < screenWidth; ++i)
     {
-        int index = (int)(i * step);
-        plottingPoints[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
+        // Calcula a nova posição baseada no dado de áudio
+        int endPosX = i;
+        int endPosY = screenHeight / 2 - audioData[index] / 128.0f;
+
+        rlVertex2i(startPosX, startPosY);
+        rlVertex2i(endPosX, endPosY);
+
+        // Atualiza os pontos de início
+        startPosX = endPosX;
+        startPosY = endPosY;
+
+        // Avança no áudio
+        index += step;
     }
 
-    // Draw the audio plot
-    if (screenWidth > 1)
-    {
-        DrawLineStrip(plottingPoints.data(), screenWidth, BLUE);
-    }
-}
-
-// Function for generating raw audio points (no downsampling)
-void generateRawAudioPoints(int screenWidth, int screenHeight)
-{
-    static int startPosX, startPosY, endPosX, endPosY;
-
-    std::vector<Vector2> points(screenWidth);
-    float step = (float)audioData.size() / screenWidth;
-
-    for (int i = 0; i < screenWidth; ++i)
-    {
-        int index = (int)(i * step);
-        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 128.0f}; // Scale down for visualization
-    }
-
-    // Draw the audio plot
-    if (screenWidth > 1)
-    {
-        DrawLineStrip(points.data(), screenWidth, BLUE);
-    }
+    rlEnd();
 }
 
 // Main function
@@ -84,7 +78,7 @@ int main()
     InitWindow(screenWidth, screenHeight, "Audio Plot with Downsampling Toggle");
     SetTargetFPS(60);
 
-    int downsampleRate = 64;         // Default downsampling rate
+    int samplingStep = 1;          // Default downsampling rate
     bool downsamplingEnabled = true; // State for the toggle button
 
     // Main loop
@@ -95,19 +89,21 @@ int main()
         BeginDrawing();
         ClearBackground(BLACK);
 
-        if (downsamplingEnabled)
-        {
-            downsampleAudioData(downsampleRate, screenWidth, screenHeight);
-        }
-        else
-        {
-            generateRawAudioPoints(screenWidth, screenHeight);
-        }
+        plotSignal(screenWidth, screenHeight, bufferSize, samplingStep);
 
         // Draw the toggle button
         if (GuiButton((Rectangle){screenWidth / 2 - 50, screenHeight - 40, 100, 30}, downsamplingEnabled ? "Downsample: ON" : "Downsample: OFF"))
         {
             downsamplingEnabled = !downsamplingEnabled; // Toggle state on button press
+
+            if (downsamplingEnabled)
+            {
+                samplingStep = 64;
+            }
+            else
+            {
+                samplingStep = 1;
+            }
         }
 
         EndDrawing();
