@@ -70,16 +70,12 @@ AudioCapturer::~AudioCapturer()
     snd_pcm_close(handle);
 }
 
-std::vector<short> AudioCapturer::captureAudio(int bufferSize)
+void AudioCapturer::captureAudio(std::vector<short> *buffer, int bufferSize)
 {
-    std::vector<short> buffer(bufferSize);
-    
-    int rc = snd_pcm_readi(handle, buffer.data(), bufferSize / channels);
+    int rc = snd_pcm_readi(handle, buffer->data(), bufferSize / channels);
     if (rc < 0)
     {
         std::cerr << "Error reading audio data: " << snd_strerror(rc) << std::endl;
-        // Handle error appropriately, e.g., return an empty vector
-        return std::vector<short>();
+        return;
     }
-    return buffer;
 }

@@ -26,7 +26,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(ASOUND REQUIRED alsa)
 
 # Check if raylib is already downloaded and compiled
-if(NOT EXISTS "${RAYLIB_BUILD_DIR}/libraylib.a")
+if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
     message(STATUS "Raylib not found, downloading and compiling...")
 
     if(NOT EXISTS "${RAYLIB_DIR}/.git")
@@ -138,7 +138,7 @@ set_target_properties(raygui PROPERTIES
 # Add executable target
 add_executable(SignalAcquirer 
 ${SRC_DIR}/main.cpp
-${LIB_DIR}/AudioCapturer.cpp
+${LIB_DIR}/capture/AudioCapturer.cpp
 )
 target_link_libraries(SignalAcquirer
     PRIVATE

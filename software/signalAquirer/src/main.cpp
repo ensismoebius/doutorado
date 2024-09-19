@@ -1,55 +1,88 @@
 #include <raylib.h>
-#include <raygui.h> // Required for GUI buttons
+#include <raygui.h>
 #include <alsa/asoundlib.h>
 #include <vector>
 #include <iostream>
+#include <thread>
 
-#include "../lib/AudioCapturer.h"
+#include "../lib/capture/AudioCapturer.h"
 
 // Define constants
-const int screenWidth = 1024;
+const int screenWidth = 640;
 const int screenHeight = 420; // Increased height to fit the button
 
 const int bufferSize = 4096;
 const int channels = 1; // Mono
 unsigned sampleRate = 44100;
 
-// Function for downsampling the audio data for better performance
-std::vector<Vector2> downsampleAudioData(const std::vector<short> &audioData, int numPoints, int downsampleRate)
-{
-    std::vector<Vector2> points(numPoints);
-    float step = (float)(audioData.size() / downsampleRate) / numPoints;
+// Data conteiner
+std::vector<short> audioData(bufferSize);
 
-    for (int i = 0; i < numPoints; ++i)
+// Ploting points
+std::vector<Vector2> plottingPoints(screenWidth);
+
+AudioCapturer capturer(sampleRate, channels);
+
+// Using std::jthread in C++20 (automatically joins on destruction)
+void threadCaptureAudioData(std::stop_token stopToken)
+{
+    while (!stopToken.stop_requested())
+    {
+        // Read audio data
+        capturer.captureAudio(&audioData, bufferSize);
+    }
+    std::cout << "Thread is stopping!" << std::endl;
+}
+
+// Function for downsampling the audio data for better performance
+void downsampleAudioData(int downsampleRate, int screenWidth, int screenHeight)
+{
+    float step = (float)(audioData.size() / downsampleRate) / screenWidth;
+
+    for (int i = 0; i < screenWidth; ++i)
     {
         int index = (int)(i * step);
-        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
+        plottingPoints[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
     }
-    return points;
+
+    // Draw the audio plot
+    if (screenWidth > 1)
+    {
+        DrawLineStrip(plottingPoints.data(), screenWidth, BLUE);
+    }
 }
 
 // Function for generating raw audio points (no downsampling)
-std::vector<Vector2> generateRawAudioPoints(const std::vector<short> &audioData, int numPoints)
+void generateRawAudioPoints(int screenWidth, int screenHeight)
 {
-    std::vector<Vector2> points(numPoints);
-    float step = (float)audioData.size() / numPoints;
+    static int startPosX, startPosY, endPosX, endPosY;
 
-    for (int i = 0; i < numPoints; ++i)
+    std::vector<Vector2> points(screenWidth);
+    float step = (float)audioData.size() / screenWidth;
+
+    for (int i = 0; i < screenWidth; ++i)
     {
         int index = (int)(i * step);
-        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 256.0f}; // Scale down for visualization
+        points[i] = Vector2{(float)i, screenHeight / 2 - audioData[index] / 128.0f}; // Scale down for visualization
     }
-    return points;
+
+    // Draw the audio plot
+    if (screenWidth > 1)
+    {
+        DrawLineStrip(points.data(), screenWidth, BLUE);
+    }
 }
 
 // Main function
 int main()
 {
+
+    // Using std::jthread in C++20 (automatically joins on destruction)
+    std::jthread jt(threadCaptureAudioData);
+
     // Initialize raylib
     InitWindow(screenWidth, screenHeight, "Audio Plot with Downsampling Toggle");
     SetTargetFPS(60);
-
-    AudioCapturer capturer(sampleRate, channels);
 
     int downsampleRate = 64;         // Default downsampling rate
     bool downsamplingEnabled = true; // State for the toggle button
@@ -57,29 +90,18 @@ int main()
     // Main loop
     while (!WindowShouldClose())
     {
-        // Read audio data
-        std::vector<short> audioData = capturer.captureAudio(bufferSize);
-
-        // Downsample or use raw data based on toggle state
-        int numPoints = screenWidth; // Only plot one point per pixel
-        std::vector<Vector2> points;
-        if (downsamplingEnabled)
-        {
-            points = downsampleAudioData(audioData, numPoints, downsampleRate);
-        }
-        else
-        {
-            points = generateRawAudioPoints(audioData, numPoints);
-        }
 
         // Clear the screen
         BeginDrawing();
         ClearBackground(BLACK);
 
-        // Draw the audio plot
-        if (numPoints > 1)
+        if (downsamplingEnabled)
         {
-            DrawLineStrip(points.data(), numPoints, BLUE);
+            downsampleAudioData(downsampleRate, screenWidth, screenHeight);
+        }
+        else
+        {
+            generateRawAudioPoints(screenWidth, screenHeight);
         }
 
         // Draw the toggle button
@@ -93,6 +115,8 @@ int main()
 
     // Clean up
     CloseWindow();
+
+    jt.request_stop();
 
     return 0;
 }
