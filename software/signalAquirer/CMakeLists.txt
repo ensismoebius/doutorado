@@ -26,7 +26,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(ASOUND REQUIRED alsa)
 
 # Check if raylib is already downloaded and compiled
-if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
+if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a" OR NOT EXISTS "${RAYLIB_DIR}/src/raylib.h")
     message(STATUS "Raylib not found, downloading and compiling...")
 
     if(NOT EXISTS "${RAYLIB_DIR}/.git")
@@ -34,8 +34,6 @@ if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
         execute_process(
             COMMAND git clone https://github.com/raysan5/raylib ${RAYLIB_DIR}
             RESULT_VARIABLE result
-            OUTPUT_QUIET
-            ERROR_QUIET
         )
         if(result)
             message(FATAL_ERROR "Failed to clone raylib repository")
@@ -45,21 +43,17 @@ if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
         execute_process(
             COMMAND git -C ${RAYLIB_DIR} pull
             RESULT_VARIABLE result
-            OUTPUT_QUIET
-            ERROR_QUIET
         )
         if(result)
             message(FATAL_ERROR "Failed to update raylib repository")
         endif()
     endif()
 
-    # Create build directory and compile raylib
+    # Create build directory and compile raylib with -fPIC
     file(MAKE_DIRECTORY ${RAYLIB_BUILD_DIR})
     execute_process(
-        COMMAND cmake -S ${RAYLIB_DIR} -B ${RAYLIB_BUILD_DIR} -DCMAKE_BUILD_TYPE=Release
+        COMMAND cmake -S ${RAYLIB_DIR} -B ${RAYLIB_BUILD_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         RESULT_VARIABLE result
-        OUTPUT_QUIET
-        ERROR_QUIET
     )
     if(result)
         message(FATAL_ERROR "CMake configuration for raylib failed")
@@ -68,8 +62,6 @@ if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
     execute_process(
         COMMAND cmake --build ${RAYLIB_BUILD_DIR} --parallel
         RESULT_VARIABLE result
-        OUTPUT_QUIET
-        ERROR_QUIET
     )
     if(result)
         message(FATAL_ERROR "Raylib build failed")
@@ -77,6 +69,7 @@ if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a")
 else()
     message(STATUS "Raylib already exists, skipping download and compilation...")
 endif()
+
 
 # Define raylib library
 add_library(raylib STATIC IMPORTED)
@@ -86,7 +79,7 @@ set_target_properties(raylib PROPERTIES
 )
 
 # Check if raygui is already downloaded and compiled
-if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
+if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so" OR NOT EXISTS "${RAYGUI_DIR}/src/raygui.h")
     message(STATUS "Raygui not found, downloading and compiling...")
 
     if(NOT EXISTS "${RAYGUI_DIR}/.git")
@@ -94,8 +87,6 @@ if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
         execute_process(
             COMMAND git clone https://github.com/raysan5/raygui.git ${RAYGUI_DIR}
             RESULT_VARIABLE result
-            OUTPUT_QUIET
-            ERROR_QUIET
         )
         if(result)
             message(FATAL_ERROR "Failed to clone raygui repository")
@@ -117,8 +108,12 @@ if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so")
         COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c
         RESULT_VARIABLE result
     )
+    if(result)
+        message(FATAL_ERROR "Failed to copy raygui.h to raygui.c")
+    endif()
+
     execute_process(
-        COMMAND gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -Wno-implicit-function-declaration
+        COMMAND gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -I${RAYLIB_DIR}/src -L${RAYLIB_BUILD_DIR}/raylib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
         RESULT_VARIABLE result
     )
     if(result)
@@ -137,9 +132,10 @@ set_target_properties(raygui PROPERTIES
 
 # Add executable target
 add_executable(SignalAcquirer 
-${SRC_DIR}/main.cpp
-${LIB_DIR}/capture/AudioCapturer.cpp
+    ${SRC_DIR}/main.cpp
+    ${LIB_DIR}/capture/AudioCapturer.cpp
 )
+
 target_link_libraries(SignalAcquirer
     PRIVATE
         ${ARMADILLO_LIBRARIES}
@@ -148,6 +144,7 @@ target_link_libraries(SignalAcquirer
         raygui
         ${ASOUND_LIBRARIES}
 )
+
 target_include_directories(SignalAcquirer
     PRIVATE
         ${SRC_DIR}
