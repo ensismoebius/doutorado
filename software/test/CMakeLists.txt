@@ -133,6 +133,7 @@ set_target_properties(raygui PROPERTIES
 # Add executable target
 add_executable(SignalAcquirer 
     ${SRC_DIR}/main.cpp
+    ${SRC_DIR}/ScrollPanel.cpp
 )
 
 target_link_libraries(SignalAcquirer
