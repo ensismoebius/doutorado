@@ -15,7 +15,6 @@ private:
     Rectangle dimensions = {0, 0, 400, 0}; // Tamanho do painel de rolagem visível
     Vector2 scroll = {0, 0};               // Posição de rolagem
     std::string title;
-    std::vector<short> data;
     Color color;
 
     int startPosX = 0;
@@ -36,6 +35,6 @@ public:
 public:
     ScrollPanel(std::string title, Rectangle dimensions, Color color);
     void handleInput();
-    bool draw(std::vector<short> data);
+    bool draw(std::vector<short>* data);
 };
 #endif // __SCROOLPANEL_H__
