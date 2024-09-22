@@ -133,6 +133,7 @@ set_target_properties(raygui PROPERTIES
 # Add executable target
 add_executable(SignalAcquirer 
     ${SRC_DIR}/main.cpp
+    ${LIB_DIR}/widgets/ScrollPanel.cpp
     ${LIB_DIR}/capture/AudioCapturer.cpp
 )
 
