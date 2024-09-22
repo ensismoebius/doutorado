@@ -1,14 +1,19 @@
 #include "ScrollPanel.h"
+#include <iostream>
+#include <cmath>
 
 ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions)
     : dimensions(dimensions),
       title(title)
 {
-    this->content = {dimensions.x, dimensions.y, dimensions.width, 0}; // Tamanho do conteúdo do painel (maior para rolar)
+    this->content = {dimensions.x, dimensions.y, dimensions.width, dimensions.height}; // Tamanho do conteúdo do painel (maior para rolar)
 }
 
-bool ScrollPanel::draw()
+bool ScrollPanel::draw(std::vector<short> data)
 {
+
+    this->data.insert(this->data.end(), data.begin(), data.end());
+
     // Desenha o painel de rolagem
     this->isScrolling = GuiScrollPanel(
         this->dimensions,
@@ -30,34 +35,29 @@ bool ScrollPanel::draw()
         }
     }
 
-    this->content.width++;
-
     // Desenha o conteúdo (gráfico de seno) dentro do painel
     // Desenhar senoide apenas na área visível
     BeginScissorMode(dimensions.x, dimensions.y, dimensions.width, dimensions.height);
 
-    // Definir parâmetros do gráfico de seno
-    float amplitude = 100; // Amplitude da senoide
-    float frequency = .05; // Frequência da senoide
-
-    // DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color)
-    int startPosX = 0;
-    int startPosY = 0;
-    int endPosX = 0;
-    int endPosY = 0;
+    this->endPosX = 0;
+    this->endPosY = 0;
 
     // Desenhar a função seno dentro do painel
-    for (int x = 0; x < content.width; x++)
+    this->content.width++;
+
+    int limit = content.width > this->data.size() ? this->data.size() : content.width;
+
+    for (int i = 0; i < limit; i++)
     {
-        float y = amplitude * sin(frequency * x) + amplitude + 50; // Função seno
+            float y = this->data[i] + 50; // Função seno
 
-        endPosX = x + scroll.x - dimensions.width / 2;
-        endPosY = y + scroll.y;
+            endPosX = i + scroll.x - dimensions.width / 2;
+            endPosY = y + scroll.y;
 
-        DrawLine(startPosX, startPosY, endPosX, endPosY, RED);
+            DrawLine(startPosX, startPosY, endPosX, endPosY, RED);
 
-        startPosX = endPosX;
-        startPosY = endPosY;
+            startPosX = endPosX;
+            startPosY = endPosY;
     }
 
     EndScissorMode(); // Fim da área de rolagem

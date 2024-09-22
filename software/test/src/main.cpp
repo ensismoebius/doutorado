@@ -1,10 +1,6 @@
 #include "raylib.h"
 #include "raygui.h"
 #include "ScrollPanel.h"
-
-#include <cmath>
-#include <iostream>
-
 int main()
 {
     // Inicializa a janela
@@ -13,18 +9,21 @@ int main()
     // Definir os parâmetros do painel de rolagem
     Rectangle dimensions = {20, 20, 600, 250}; // Tamanho do painel de rolagem visível
 
-    ScrollPanel sp("Ola", dimensions);
+    ScrollPanel sp("Senoide", dimensions);
     sp.autoScroll = true;
     sp.scrollSpeed = 1;
 
-    SetTargetFPS(60); // FPS desejado
+    std::vector<short> data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
 
     while (!WindowShouldClose())
-    { // Loop principal
-        BeginDrawing();
+    {
         ClearBackground(RAYWHITE);
 
-        sp.draw();
+        SetTargetFPS(60);
+
+        BeginDrawing();
+
+        sp.draw(data);
 
         EndDrawing();
     }
