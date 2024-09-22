@@ -19,29 +19,53 @@ void ScrollPanel::handleInput()
     // Somente permitir zoom se o painel estiver em foco
     if (isInFocus)
     {
+        // Obter o ponto central do painel antes do zoom
+        Vector2 panelCenter = {
+            this->dimensions.x + this->dimensions.width / 2.0f,
+            this->dimensions.y + this->dimensions.height / 2.0f};
+
+        // Calcular a posição relativa do ponto central ao gráfico
+        Vector2 preZoomCenter = {
+            (panelCenter.x - this->scroll.x) / zoomLevel,
+            (panelCenter.y - this->scroll.y) / zoomLevel};
+
         // Aumentar ou diminuir o zoom com o scroll do mouse
         float mouseWheelMove = GetMouseWheelMove();
         if (mouseWheelMove != 0)
         {
-            zoomLevel += mouseWheelMove * 0.1f;    // Ajuste sensibilidade do zoom com base no scroll
-            zoomLevel = std::max(0.1f, zoomLevel); // Evita valores de zoom negativos ou muito pequenos
+            // Ajustar o nível de zoom com base no scroll do mouse
+            zoomLevel += mouseWheelMove * 0.1f;    // Ajuste de sensibilidade
+            zoomLevel = std::max(0.1f, zoomLevel); // Evitar zoom negativo ou muito pequeno
+
+            // Recalcular a posição de rolagem para manter o gráfico centralizado
+            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
 
         // Também permitir controle com as teclas UP e DOWN
         if (IsKeyPressed(KEY_UP))
         {
             zoomLevel += 0.1f;
+
+            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
 
         if (IsKeyPressed(KEY_DOWN))
         {
             zoomLevel = std::max(0.1f, zoomLevel - 0.1f);
+
+            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
     }
 }
 
 bool ScrollPanel::draw(std::vector<short> *data)
 {
+    // Ajusta a área do conteúdo baseado no zoom
+    this->content.height = dimensions.height * zoomLevel;
+
     // Desenha o painel de rolagem
     this->isScrolling = GuiScrollPanel(
         this->dimensions,
