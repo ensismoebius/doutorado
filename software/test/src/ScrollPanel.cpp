@@ -39,25 +39,24 @@ bool ScrollPanel::draw(std::vector<short> data)
     // Desenhar senoide apenas na área visível
     BeginScissorMode(dimensions.x, dimensions.y, dimensions.width, dimensions.height);
 
-    this->endPosX = 0;
-    this->endPosY = 0;
-
     // Desenhar a função seno dentro do painel
     this->content.width++;
-
-    int limit = content.width > this->data.size() ? this->data.size() : content.width;
-
+    int limit = content.width > this->data.size() ? this->data.size() - 1 : content.width - 1;
     for (int i = 0; i < limit; i++)
     {
-            float y = this->data[i] + 50; // Função seno
+        startPosX = i + scroll.x - dimensions.width / 2;
+        startPosY = this->data[i] + scroll.y;
 
-            endPosX = i + scroll.x - dimensions.width / 2;
-            endPosY = y + scroll.y;
+        endPosX = startPosX + 1;
+        endPosY = this->data[i + 1] + scroll.y;
 
-            DrawLine(startPosX, startPosY, endPosX, endPosY, RED);
-
-            startPosX = endPosX;
-            startPosY = endPosY;
+        DrawLine(
+            startPosX, 
+            startPosY + this->yPlotOffset + dimensions.height / 2, 
+            endPosX, 
+            endPosY + this->yPlotOffset + dimensions.height / 2, 
+            RED
+            );
     }
 
     EndScissorMode(); // Fim da área de rolagem

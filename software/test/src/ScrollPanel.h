@@ -2,7 +2,7 @@
  * @ Author: Your name
  * @ Create Time: 2024-09-21 18:28:09
  * @ Modified by: Your name
- * @ Modified time: 2024-09-21 23:05:35
+ * @ Modified time: 2024-09-22 00:45:42
  * @ Description:
  */
 
@@ -25,9 +25,6 @@ private:
     std::string title;
     std::vector<short> data;
 
-
-    int x = 0;
-
     int startPosX = 0;
     int endPosX = 0;
 
@@ -38,6 +35,9 @@ public:
     bool autoScroll = false;
     bool isScrolling = false; // O usuário está rolando?
     float scrollSpeed = 1.0f; // Velocidade de rolagem
+    int yPlotOffset = 0;
+    int xPlotOffset = 0;
+
 
 public:
     ScrollPanel(std::string title, Rectangle dimensions);
