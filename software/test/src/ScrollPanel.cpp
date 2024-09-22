@@ -1,4 +1,6 @@
 #include "ScrollPanel.h"
+#include <iostream>
+#include <algorithm>
 
 ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions, Color color)
     : dimensions(dimensions),
@@ -21,9 +23,12 @@ bool ScrollPanel::draw(std::vector<short> data)
         &this->scroll,
         nullptr);
 
-    // Ativa ou desativa o autoscroll se o usuárie está rolando
+    // Se o autoscroll estiver ativado e o usuário não estiver rolando manualmente
     if (autoScroll && !isScrolling)
     {
+        // Ajusta a velocidade de rolagem proporcional ao número de dados
+        scrollSpeed = static_cast<float>(data.size()) / 100.0f;
+
         // Atualiza a posição de rolagem automaticamente
         this->scroll.x -= scrollSpeed;
 
