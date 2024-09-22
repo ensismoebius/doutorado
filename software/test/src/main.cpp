@@ -1,25 +1,33 @@
 #include "raylib.h"
 #include "raygui.h"
 #include "ScrollPanel.h"
+#include <random>
 int main()
 {
     // Inicializa a janela
     InitWindow(800, 600, "GuiScrollPanel with Sine Plot");
 
     // Definir os parâmetros do painel de rolagem
-    Rectangle dimensions = {20, 20, 600, 250}; // Tamanho do painel de rolagem visível
+    Rectangle dimensions = {20, 20, 600, 300}; // Tamanho do painel de rolagem visível
 
-    ScrollPanel sp("Senoide", dimensions);
+    ScrollPanel sp("Senoide", dimensions, RED);
     sp.autoScroll = true;
     sp.scrollSpeed = 1;
 
-    std::vector<short> data = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20};
+    std::vector<short> data(1024);
+    std::random_device rd;                            // Usado para obter um valor aleatório a partir do hardware
+    std::mt19937 gen(rd());                           // Inicializa o gerador com um valor aleatório
+    std::uniform_int_distribution<short> dis(0, 255); // Intervalo para números aleatórios
+
+    for (auto &num : data)
+    {
+        num = dis(gen); // Preenche com números aleatórios
+    }
+    SetTargetFPS(60);
 
     while (!WindowShouldClose())
     {
         ClearBackground(RAYWHITE);
-
-        SetTargetFPS(60);
 
         BeginDrawing();
 

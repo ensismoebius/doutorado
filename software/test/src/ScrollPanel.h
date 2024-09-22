@@ -1,11 +1,3 @@
-/**
- * @ Author: Your name
- * @ Create Time: 2024-09-21 18:28:09
- * @ Modified by: Your name
- * @ Modified time: 2024-09-22 00:45:42
- * @ Description:
- */
-
 #ifndef __SCROOLPANEL_H__
 #define __SCROOLPANEL_H__
 
@@ -24,6 +16,7 @@ private:
     Vector2 scroll = {0, 0};               // Posição de rolagem
     std::string title;
     std::vector<short> data;
+    Color color;
 
     int startPosX = 0;
     int endPosX = 0;
@@ -40,7 +33,7 @@ public:
 
 
 public:
-    ScrollPanel(std::string title, Rectangle dimensions);
+    ScrollPanel(std::string title, Rectangle dimensions, Color color);
 
     bool draw(std::vector<short> data);
 };

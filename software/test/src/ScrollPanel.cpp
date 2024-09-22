@@ -1,12 +1,11 @@
 #include "ScrollPanel.h"
-#include <iostream>
-#include <cmath>
 
-ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions)
+ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions, Color color)
     : dimensions(dimensions),
-      title(title)
+      title(title),
+      color(color)
 {
-    this->content = {dimensions.x, dimensions.y, dimensions.width, dimensions.height}; // Tamanho do conteúdo do painel (maior para rolar)
+    this->content = {dimensions.x, dimensions.y, dimensions.width, dimensions.height - 40};
 }
 
 bool ScrollPanel::draw(std::vector<short> data)
@@ -35,28 +34,30 @@ bool ScrollPanel::draw(std::vector<short> data)
         }
     }
 
-    // Desenha o conteúdo (gráfico de seno) dentro do painel
-    // Desenhar senoide apenas na área visível
+    // Desenha o gráfico dentro do painel
     BeginScissorMode(dimensions.x, dimensions.y, dimensions.width, dimensions.height);
 
-    // Desenhar a função seno dentro do painel
+    // Aumenta o tamanho da área do gráfico
     this->content.width++;
+
+    // Evita erros de acesso pegando o menor tamanho que deve ser exibido
     int limit = content.width > this->data.size() ? this->data.size() - 1 : content.width - 1;
+
+    // Plota os dados
     for (int i = 0; i < limit; i++)
     {
         startPosX = i + scroll.x - dimensions.width / 2;
-        startPosY = this->data[i] + scroll.y;
+        startPosY = this->data[i] + scroll.y + dimensions.height / 4;
 
         endPosX = startPosX + 1;
-        endPosY = this->data[i + 1] + scroll.y;
+        endPosY = this->data[i + 1] + scroll.y + dimensions.height / 4; // i + 1 justifica o -1 no limit
 
         DrawLine(
-            startPosX, 
-            startPosY + this->yPlotOffset + dimensions.height / 2, 
-            endPosX, 
-            endPosY + this->yPlotOffset + dimensions.height / 2, 
-            RED
-            );
+            startPosX,
+            startPosY + this->yPlotOffset,
+            endPosX,
+            endPosY + this->yPlotOffset,
+            color);
     }
 
     EndScissorMode(); // Fim da área de rolagem
