@@ -13,6 +13,7 @@ int main()
     ScrollPanel sp("Senoide", dimensions, RED);
     sp.autoScroll = true;
     sp.scrollSpeed = 1;
+    sp.yPlotOffset = 50;
 
     std::vector<short> data(1024);
     std::random_device rd;                            // Usado para obter um valor aleatório a partir do hardware
@@ -23,7 +24,7 @@ int main()
     {
         num = dis(gen); // Preenche com números aleatórios
     }
-    SetTargetFPS(60);
+    // SetTargetFPS(60);
 
     while (!WindowShouldClose())
     {

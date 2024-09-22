@@ -37,20 +37,21 @@ bool ScrollPanel::draw(std::vector<short> data)
     // Desenha o gráfico dentro do painel
     BeginScissorMode(dimensions.x, dimensions.y, dimensions.width, dimensions.height);
 
-    // Aumenta o tamanho da área do gráfico
+    // Aumenta o tamanho da área do gráfico se necessário
     this->content.width++;
 
-    // Evita erros de acesso pegando o menor tamanho que deve ser exibido
-    int limit = content.width > this->data.size() ? this->data.size() - 1 : content.width - 1;
+    // Calcula o número de pontos visíveis, evitando desenhar fora da tela
+    int startIdx = std::max(0, static_cast<int>(-scroll.x));                                         // Ponto inicial visível
+    int endIdx = std::min(static_cast<int>(this->data.size() - 1), static_cast<int>(content.width)); // Ponto final visível
 
-    // Plota os dados
-    for (int i = 0; i < limit; i++)
+    // Plota os dados visíveis
+    for (int i = startIdx; i < endIdx; i++)
     {
         startPosX = i + scroll.x - dimensions.width / 2;
-        startPosY = this->data[i] + scroll.y + dimensions.height / 4;
+        startPosY = this->data[i] + scroll.y;
 
         endPosX = startPosX + 1;
-        endPosY = this->data[i + 1] + scroll.y + dimensions.height / 4; // i + 1 justifica o -1 no limit
+        endPosY = this->data[i + 1] + scroll.y;
 
         DrawLine(
             startPosX,
