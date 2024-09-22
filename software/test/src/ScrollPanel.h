@@ -30,11 +30,12 @@ public:
     float scrollSpeed = 1.0f; // Velocidade de rolagem
     int yPlotOffset = 0;
     int xPlotOffset = 0;
+    float zoomLevel = 1.0f;  // Valor inicial
 
 
 public:
     ScrollPanel(std::string title, Rectangle dimensions, Color color);
-
+    void handleInput();
     bool draw(std::vector<short> data);
 };
 #endif // __SCROOLPANEL_H__

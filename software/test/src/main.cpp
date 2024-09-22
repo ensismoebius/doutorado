@@ -33,6 +33,7 @@ int main()
         BeginDrawing();
 
         sp.draw(data);
+        sp.handleInput();
 
         EndDrawing();
     }

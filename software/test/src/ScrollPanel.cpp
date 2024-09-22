@@ -10,6 +10,15 @@ ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions, Color color)
     this->content = {dimensions.x, dimensions.y, dimensions.width, dimensions.height - 40};
 }
 
+// Evento de zoom (simulando um input para aumentar/diminuir o zoom)
+void ScrollPanel::handleInput()
+{
+    if (IsKeyPressed(KEY_UP)) // Pressione "UP" para aumentar o zoom
+        zoomLevel += 0.1f;
+    if (IsKeyPressed(KEY_DOWN))                       // Pressione "DOWN" para diminuir o zoom
+        zoomLevel = std::max(0.1f, zoomLevel - 0.1f); // Evita zoom negativo
+}
+
 bool ScrollPanel::draw(std::vector<short> data)
 {
 
@@ -26,8 +35,8 @@ bool ScrollPanel::draw(std::vector<short> data)
     // Se o autoscroll estiver ativado e o usuário não estiver rolando manualmente
     if (autoScroll && !isScrolling)
     {
-        // Ajusta a velocidade de rolagem proporcional ao número de dados
-        scrollSpeed = static_cast<float>(data.size()) / 100.0f;
+        // Ajusta a velocidade de rolagem proporcional ao número de dados e ao zoom
+        scrollSpeed = zoomLevel * static_cast<float>(data.size()) / 100.0f;
 
         // Atualiza a posição de rolagem automaticamente
         this->scroll.x -= scrollSpeed;
@@ -52,11 +61,11 @@ bool ScrollPanel::draw(std::vector<short> data)
     // Plota os dados visíveis
     for (int i = startIdx; i < endIdx; i++)
     {
-        startPosX = i + scroll.x - dimensions.width / 2;
-        startPosY = this->data[i] + scroll.y;
+        startPosX = (i + scroll.x - dimensions.width / 2) * this->zoomLevel;
+        startPosY = (this->data[i] + scroll.y) * this->zoomLevel;
 
         endPosX = startPosX + 1;
-        endPosY = this->data[i + 1] + scroll.y;
+        endPosY = (this->data[i + 1] + scroll.y) * this->zoomLevel;
 
         DrawLine(
             startPosX,
