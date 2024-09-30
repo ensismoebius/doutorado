@@ -14,16 +14,25 @@ set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 set(RAYLIB_DIR "${LIB_DIR}/raylib")
 set(RAYLIB_BUILD_DIR "${RAYLIB_DIR}/build")
 
-set(RAYGUI_DIR "${LIB_DIR}/raygui")
-set(RAYGUI_BUILD_DIR "${RAYGUI_DIR}/build")
+set(IMGUI_DIR "${LIB_DIR}/imgui")
+
+set(IMPLOT_DIR "${LIB_DIR}/implot")
 
 # Add Armadillo and OpenMP dependencies
 find_package(Armadillo REQUIRED)
 find_package(OpenMP REQUIRED)
 
-# Find ALSA library
+# Add Opengl dpendencies
+find_package(OpenGL REQUIRED)
+
+# Package finder
 find_package(PkgConfig REQUIRED)
+
+# Find ALSA library
 pkg_check_modules(ASOUND REQUIRED alsa)
+
+# Find GLFW package
+pkg_check_modules(GLFW REQUIRED glfw3)
 
 # Check if raylib is already downloaded and compiled
 if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a" OR NOT EXISTS "${RAYLIB_DIR}/src/raylib.h")
@@ -70,7 +79,6 @@ else()
     message(STATUS "Raylib already exists, skipping download and compilation...")
 endif()
 
-
 # Define raylib library
 add_library(raylib STATIC IMPORTED)
 set_target_properties(raylib PROPERTIES
@@ -78,80 +86,114 @@ set_target_properties(raylib PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_DIR}/src"
 )
 
-# Check if raygui is already downloaded and compiled
-if(NOT EXISTS "${RAYGUI_BUILD_DIR}/raygui.so" OR NOT EXISTS "${RAYGUI_DIR}/src/raygui.h")
-    message(STATUS "Raygui not found, downloading and compiling...")
+# Check if imgui is already downloaded and compiled
+if(NOT EXISTS "${IMGUI_DIR}/src/imgui.h")
+    message(STATUS "ImGui not found, downloading and compiling...")
 
-    if(NOT EXISTS "${RAYGUI_DIR}/.git")
-        # Clone raygui repository if not already cloned
+    if(NOT EXISTS "${IMGUI_DIR}/.git")
+        # Clone imgui repository if not already cloned
         execute_process(
-            COMMAND git clone --depth 1 https://github.com/raysan5/raygui.git ${RAYGUI_DIR}
+            COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git ${IMGUI_DIR}
             RESULT_VARIABLE result
         )
         if(result)
-            message(FATAL_ERROR "Failed to clone raygui repository")
+            message(FATAL_ERROR "Failed to clone ImGui repository")
         endif()
     else()
-        # Update raygui repository if already cloned
+        # Update imgui repository if already cloned
         execute_process(
-            COMMAND git -C ${RAYGUI_DIR} pull
+            COMMAND git -C ${IMGUI_DIR} pull
             RESULT_VARIABLE result
         )
         if(result)
-            message(FATAL_ERROR "Failed to update raygui repository")
+            message(FATAL_ERROR "Failed to update ImGui repository")
         endif()
     endif()
-
-    # Create build directory and compile raygui
-    file(MAKE_DIRECTORY ${RAYGUI_BUILD_DIR})
-    execute_process(
-        COMMAND cp ${RAYGUI_DIR}/src/raygui.h ${RAYGUI_BUILD_DIR}/raygui.c
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "Failed to copy raygui.h to raygui.c")
-    endif()
-
-    execute_process(
-        COMMAND gcc -o ${RAYGUI_BUILD_DIR}/raygui.so ${RAYGUI_BUILD_DIR}/raygui.c -shared -fpic -DRAYGUI_IMPLEMENTATION -I${RAYLIB_DIR}/src -L${RAYLIB_BUILD_DIR}/raylib -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "Compilation of raygui failed: " ${result})
-    endif()
 else()
-    message(STATUS "Raygui already exists, skipping download and compilation...")
+    message(STATUS "ImGui already exists, skipping download and compilation...")
 endif()
 
-# Define raygui library
-add_library(raygui SHARED IMPORTED)
-set_target_properties(raygui PROPERTIES
-    IMPORTED_LOCATION "${RAYGUI_BUILD_DIR}/raygui.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${RAYGUI_DIR}/src"
+# Check if ImPlot is already downloaded and compiled
+if(NOT EXISTS "${IMPLOT_DIR}/implot.h")
+    message(STATUS "ImPlot not found, downloading and compiling...")
+
+    if(NOT EXISTS "${IMPLOT_DIR}/.git")
+        # Clone ImPlot repository if not already cloned
+        execute_process(
+            COMMAND git clone --depth 1 --recursive https://github.com/epezent/implot.git ${IMPLOT_DIR}
+            RESULT_VARIABLE result
+        )
+        if(result)
+            message(FATAL_ERROR "Failed to clone ImPlot repository")
+        endif()
+    else()
+        # Update ImPlot repository if already cloned
+        execute_process(
+            COMMAND git -C ${IMPLOT_DIR} pull
+            RESULT_VARIABLE result
+        )
+        if(result)
+            message(FATAL_ERROR "Failed to update ImGui repository")
+        endif()
+    endif()
+else()
+    message(STATUS "ImPlot already exists, skipping download and compilation...")
+endif()
+
+# Add ImGui source files
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+)
+
+# Add ImPlot source files
+set(IMPLOT_SOURCES
+    ${IMPLOT_DIR}/implot_items.cpp
+    ${IMPLOT_DIR}/implot.cpp
+)
+
+# You might also need backend code for rendering and input depending on your setup
+# For example, if using SDL and OpenGL for ImGui:
+set(IMGUI_BACKEND_SOURCES
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
 # Add executable target
 add_executable(SignalAcquirer 
-    ${SRC_DIR}/main.cpp
-    ${LIB_DIR}/widgets/ScrollPanel.cpp
-    ${LIB_DIR}/capture/AudioCapturer.cpp
+${IMGUI_SOURCES}
+${IMGUI_BACKEND_SOURCES}
+${IMGUI_DIR}/imgui.cpp
+${IMPLOT_SOURCES}
+${LIB_DIR}/widgets/ScrollPanel.cpp
+${LIB_DIR}/capture/AudioCapturer.cpp
+${SRC_DIR}/main.cpp
 )
 
 target_link_libraries(SignalAcquirer
     PRIVATE
+        ${SDL2_LIBRARIES}
         ${ARMADILLO_LIBRARIES}
         ${OpenMP_CXX_LIBRARIES}
         raylib
-        raygui
+        glfw
         ${ASOUND_LIBRARIES}
+        ${OPENGL_LIBRARIES} 
 )
 
 target_include_directories(SignalAcquirer
     PRIVATE
         ${SRC_DIR}
+        ${SDL2_INCLUDE_DIRS}
         ${ARMADILLO_INCLUDE_DIRS}
         ${OpenMP_INCLUDE_DIRS}
         ${ASOUND_INCLUDE_DIRS}
+        ${IMGUI_DIR}
+        ${IMPLOT_SOURCES}
+        ${IMGUI_DIR}/backends
+        ${OPENGL_INCLUDE_DIRS}
 )
 
 # Print configuration for debugging

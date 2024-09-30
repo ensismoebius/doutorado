@@ -1,40 +1,39 @@
-#ifndef __SCROOLPANEL_H__
-#define __SCROOLPANEL_H__
+#ifndef __SCROLLPANEL_H__
+#define __SCROLLPANEL_H__
 
-#include "raylib.h"
-#include "raygui.h"
+#include <imgui.h>
+#include <imgui_internal.h>
+
 #include <vector>
-#include <cmath>
 #include <string>
 
 class ScrollPanel
 {
 private:
-    // Definir os parâmetros do painel de rolagem
-    Rectangle content = {0, 0, 400, 200};  // Tamanho do conteúdo do painel (maior para rolar)
-    Rectangle dimensions = {0, 0, 400, 0}; // Tamanho do painel de rolagem visível
-    Vector2 scroll = {0, 0};               // Posição de rolagem
-    std::string title;
-    Color color;
+    std::string title;          // Title of the scroll panel
+    ImVec2 dimensions;          // Dimensions of the panel
+    ImVec2 scroll;              // Scrolling position
+    ImVec2 contentSize;         // Size of the content
+    ImVec4 color;               // Color for the plot lines (RGBA)
 
-    int startPosX = 0;
-    int endPosX = 0;
-
-    int startPosY = 0;
-    int endPosY = 0;
+    ImRect horizontalBar;       // Rectangle for the horizontal scroll bar
+    ImRect verticalBar;         // Rectangle for the vertical scroll bar
 
 public:
-    bool autoScroll = false;
-    bool isScrolling = false; // O usuário está rolando?
-    float scrollSpeed = 1.0f; // Velocidade de rolagem
-    int yPlotOffset = 0;
-    int xPlotOffset = 0;
-    float zoomLevel = 1.0f;  // Valor inicial
-
+    bool autoScroll = false;    // Enable automatic scrolling
+    bool isScrolling = false;    // Is the user scrolling?
+    float scrollSpeed = 1.0f;    // Scroll speed
+    float zoomLevel = 1.0f;      // Initial zoom level
 
 public:
-    ScrollPanel(std::string title, Rectangle dimensions, Color color);
+    // Constructor
+    ScrollPanel(const std::string& title, ImVec2 dimensions, ImVec4 color);
+
+    // Method to handle user input for scrolling and zooming
     void handleInput();
+
+    // Method to draw the scroll panel and its contents
     bool draw(std::vector<short>* data);
 };
-#endif // __SCROOLPANEL_H__
+
+#endif // __SCROLLPANEL_H__

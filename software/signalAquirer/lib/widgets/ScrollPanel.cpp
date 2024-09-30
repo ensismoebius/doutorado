@@ -2,125 +2,54 @@
 #include <iostream>
 #include <algorithm>
 
-ScrollPanel::ScrollPanel(std::string title, Rectangle dimensions, Color color)
-    : dimensions(dimensions),
-      title(title),
-      color(color)
+ScrollPanel::ScrollPanel(const std::string &title, ImVec2 dimensions, ImVec4 color)
+    : title(title), dimensions(dimensions), color(color), scroll(0.0f, 0.0f), contentSize(400, 200), zoomLevel(1.0f), scrollSpeed(1.0f)
 {
-    this->content = {dimensions.x, dimensions.y, dimensions.width, dimensions.height - 40};
+    // Initialize the scroll bars dimensions
+    horizontalBar = ImRect(20, dimensions.y + dimensions.y + 20, dimensions.x - 20, dimensions.y + dimensions.y + 40);
+    verticalBar = ImRect(0, dimensions.y + 20, 20, dimensions.y - 20);
 }
 
 void ScrollPanel::handleInput()
 {
-    // Verifica se o painel está em foco (mouse sobre ele)
-    Vector2 mousePosition = GetMousePosition();
-    bool isInFocus = CheckCollisionPointRec(mousePosition, this->dimensions);
+    // Check if the panel is focused (mouse over it)
+    ImVec2 mousePos = ImGui::GetMousePos();
+    bool isInFocus = ImGui::IsMouseHoveringRect(dimensions,
+                                                ImVec2(dimensions.x + dimensions.x, dimensions.y + dimensions.y), false);
 
-    // Somente permitir zoom se o painel estiver em foco
+    // Allow zoom only if the panel is in focus
     if (isInFocus)
     {
-        // Obter o ponto central do painel antes do zoom
-        Vector2 panelCenter = {
-            this->dimensions.x + this->dimensions.width / 2.0f,
-            this->dimensions.y + this->dimensions.height / 2.0f};
+        ImVec2 panelCenter = {dimensions.x / 2.0f, dimensions.y / 2.0f};
+        ImVec2 preZoomCenter = {(panelCenter.x - scroll.x) / zoomLevel, (panelCenter.y - scroll.y) / zoomLevel};
 
-        // Calcular a posição relativa do ponto central ao gráfico
-        Vector2 preZoomCenter = {
-            (panelCenter.x - this->scroll.x) / zoomLevel,
-            (panelCenter.y - this->scroll.y) / zoomLevel};
-
-        // Aumentar ou diminuir o zoom com o scroll do mouse
-        float mouseWheelMove = GetMouseWheelMove();
+        // Handle mouse wheel zoom
+        float mouseWheelMove = ImGui::GetIO().MouseWheel;
         if (mouseWheelMove != 0)
         {
-            // Ajustar o nível de zoom com base no scroll do mouse
-            zoomLevel += mouseWheelMove * 0.1f;    // Ajuste de sensibilidade
-            zoomLevel = std::max(0.1f, zoomLevel); // Evitar zoom negativo ou muito pequeno
-
-            // Recalcular a posição de rolagem para manter o gráfico centralizado
-            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
-            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
+            zoomLevel += mouseWheelMove * 0.1f;    // Adjust sensitivity
+            zoomLevel = std::max(0.1f, zoomLevel); // Avoid negative or too small zoom
+            scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
 
-        // Também permitir controle com as teclas UP e DOWN
-        if (IsKeyPressed(KEY_UP))
+        // Handle keyboard zoom
+        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
         {
             zoomLevel += 0.1f;
-
-            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
-            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
+            scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
-
-        if (IsKeyPressed(KEY_DOWN))
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
         {
             zoomLevel = std::max(0.1f, zoomLevel - 0.1f);
-
-            this->scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
-            this->scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
+            scroll.x = panelCenter.x - preZoomCenter.x * zoomLevel;
+            scroll.y = panelCenter.y - preZoomCenter.y * zoomLevel;
         }
     }
 }
 
 bool ScrollPanel::draw(std::vector<short> *data)
 {
-    // Ajusta a área do conteúdo baseado no zoom
-    this->content.height = dimensions.height * zoomLevel;
-
-    // Desenha o painel de rolagem
-    this->isScrolling = GuiScrollPanel(
-        this->dimensions,
-        this->title.c_str(),
-        this->content,
-        &this->scroll,
-        nullptr);
-
-    // Se o autoscroll estiver ativado e o usuário não estiver rolando manualmente
-    if (autoScroll && !isScrolling)
-    {
-        // Ajusta a velocidade de rolagem proporcional ao número de dados e ao zoom
-        scrollSpeed = 10 * this->zoomLevel;
-
-        // Atualiza a posição de rolagem automaticamente
-        this->scroll.x -= scrollSpeed;
-
-        // Verifica se chegou ao final do conteúdo e reinicia a posição de rolagem
-        if (this->scroll.x > content.width - dimensions.width)
-        {
-            this->scroll.x = 0;
-        }
-    }
-
-    // Desenha o gráfico dentro do painel
-    BeginScissorMode(dimensions.x, dimensions.y, dimensions.width, dimensions.height);
-
-    // Aumenta o tamanho da área do gráfico se necessário
-    if (this->content.width < data->size())
-    {
-        this->content.width++;
-    }
-
-    // Calcula o número de pontos visíveis, evitando desenhar fora da tela
-    int startIdx = std::max(0, static_cast<int>(-scroll.x));                                    // Ponto inicial visível
-    int endIdx = std::min(static_cast<int>(data->size() - 1), static_cast<int>(content.width)); // Ponto final visível
-
-    // Plota os dados visíveis
-    for (int i = startIdx; i < endIdx; i++)
-    {
-        startPosX = (i + scroll.x - dimensions.width / 2) * this->zoomLevel;
-        startPosY = (data->at(i) + scroll.y) * this->zoomLevel;
-
-        endPosX = startPosX + 1;
-        endPosY = (data->at(i + 1) + scroll.y) * this->zoomLevel;
-
-        DrawLine(
-            startPosX,
-            startPosY + this->yPlotOffset,
-            endPosX,
-            endPosY + this->yPlotOffset,
-            color);
-    }
-
-    EndScissorMode(); // Fim da área de rolagem
-
-    return this->isScrolling;
+    return true; // Change based on your logic for returning if scrolling is active
 }

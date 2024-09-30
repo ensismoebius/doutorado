@@ -7,3 +7,9 @@
 [submodule "software/signalAquirer/lib/raygui"]
 	path = software/signalAquirer/lib/raygui
 	url = https://github.com/raysan5/raygui.git
+[submodule "software/signalAquirer/software/signalAquirer/lib/imgui"]
+	path = software/signalAquirer/software/signalAquirer/lib/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "software/signalAquirer/software/signalAquirer/lib/implot"]
+	path = software/signalAquirer/software/signalAquirer/lib/implot
+	url = https://github.com/epezent/implot

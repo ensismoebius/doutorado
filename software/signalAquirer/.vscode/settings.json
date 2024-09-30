@@ -50,6 +50,24 @@
         "__tuple": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "*.m": "c"
+        "*.m": "c",
+        "ratio": "cpp",
+        "system_error": "cpp",
+        "atomic": "cpp",
+        "cctype": "cpp",
+        "clocale": "cpp",
+        "ctime": "cpp",
+        "cwchar": "cpp",
+        "cwctype": "cpp",
+        "deque": "cpp",
+        "map": "cpp",
+        "string": "cpp",
+        "numeric": "cpp",
+        "string_view": "cpp",
+        "fstream": "cpp",
+        "istream": "cpp",
+        "numbers": "cpp",
+        "semaphore": "cpp",
+        "cinttypes": "cpp"
     }
 }
