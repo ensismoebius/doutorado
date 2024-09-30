@@ -6,8 +6,9 @@
 #include <thread>
 
 #include "Window.cpp"
-#include "../lib/widgets/ScrollPanel.h"
+
 #include "../lib/capture/AudioCapturer.h"
+#include "../lib/widgets/CustomImGuiWindow.cpp"
 
 // Define constants
 const int screenWidth = 800;
@@ -38,13 +39,18 @@ void threadCaptureAudioData(std::stop_token stopToken)
 
 bool teste = false;
 
-Window app("Teste", ImVec2(800, 600), ImVec4(255, 255, 255, 255));
+std::string title = "Teste";
+ImVec2 dimensions = {800, 600};
+ImVec4 color = {255, 255, 255, 255};
+
+Window app(title, dimensions, color);
 
 // Main function
 int main()
 {
-
     std::jthread jt(threadCaptureAudioData);
+
+    app.run();
 
     jt.request_stop();
     return 0;

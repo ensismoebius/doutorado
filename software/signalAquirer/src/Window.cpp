@@ -1,4 +1,4 @@
-#include "../lib/widgets/CustomImGuiWindow.h"
+#include "../lib/widgets/CustomImGuiWindow.cpp"
 #include <string>
 #include <imgui.h>
 
@@ -12,7 +12,7 @@ private:
 public:
     // Constructor initializes the base class with the required parameters
     Window(const std::string &title, ImVec2 dimensions, ImVec4 color)
-        : CustomImGuiWindow<Window>(title, dimensions, color), // Pass parameters to the base class constructor
+        : CustomImGuiWindow<Window>(title, dimensions, color),
           title(title),
           dimensions(dimensions),
           color(color)

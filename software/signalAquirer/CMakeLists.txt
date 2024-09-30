@@ -167,7 +167,6 @@ ${IMGUI_SOURCES}
 ${IMGUI_BACKEND_SOURCES}
 ${IMGUI_DIR}/imgui.cpp
 ${IMPLOT_SOURCES}
-${LIB_DIR}/widgets/ScrollPanel.cpp
 ${LIB_DIR}/capture/AudioCapturer.cpp
 ${LIB_DIR}/widgets/CustomImGuiWindow.cpp
 ${SRC_DIR}/Window.cpp
