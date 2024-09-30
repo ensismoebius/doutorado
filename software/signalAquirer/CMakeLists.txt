@@ -169,6 +169,8 @@ ${IMGUI_DIR}/imgui.cpp
 ${IMPLOT_SOURCES}
 ${LIB_DIR}/widgets/ScrollPanel.cpp
 ${LIB_DIR}/capture/AudioCapturer.cpp
+${LIB_DIR}/widgets/CustomImGuiWindow.cpp
+${SRC_DIR}/Window.cpp
 ${SRC_DIR}/main.cpp
 )
 
@@ -191,7 +193,7 @@ target_include_directories(SignalAcquirer
         ${OpenMP_INCLUDE_DIRS}
         ${ASOUND_INCLUDE_DIRS}
         ${IMGUI_DIR}
-        ${IMPLOT_SOURCES}
+        ${IMPLOT_DIR}
         ${IMGUI_DIR}/backends
         ${OPENGL_INCLUDE_DIRS}
 )

@@ -1,14 +1,11 @@
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include <GLFW/glfw3.h> // For GLFW and OpenGL
-
 #include <raylib.h>
 #include <alsa/asoundlib.h>
 
 #include <vector>
 #include <iostream>
 #include <thread>
+
+#include "Window.cpp"
 #include "../lib/widgets/ScrollPanel.h"
 #include "../lib/capture/AudioCapturer.h"
 
@@ -41,76 +38,13 @@ void threadCaptureAudioData(std::stop_token stopToken)
 
 bool teste = false;
 
+Window app("Teste", ImVec2(800, 600), ImVec4(255, 255, 255, 255));
+
 // Main function
 int main()
 {
 
-    // Initialize GLFW
-    if (!glfwInit())
-        return -1;
-
-    // Create a windowed mode window and its OpenGL context
-    GLFWwindow *window = glfwCreateWindow(screenWidth, screenHeight, "ImGui Minimal Example", NULL, NULL);
-    if (window == NULL)
-        return -1;
-
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
-
-    // Initialize ImGui
-    // IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
-
     std::jthread jt(threadCaptureAudioData);
-
-    // Main loop
-    while (!glfwWindowShouldClose(window))
-    {
-        // Poll and handle events
-        glfwPollEvents();
-
-        // Start the ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-
-        ImGui::NewFrame();
-
-        // Create a simple window with a button
-        ImGui::Begin("Hello, ImGui!");
-
-        if (ImGui::Button("Press me"))
-        {
-            std::cout << "Teste" << std::endl;
-            teste = !teste;
-        }
-
-        if(teste){
-            ImGui::Text("Teste");
-            ImGui::Text("Teste");
-            ImGui::Text("Teste");
-            ImGui::Text("Teste");
-            ImGui::Text("Teste");
-        }
-
-        ImGui::End();
-
-        // Rendering
-        ImGui::Render();
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        // Swap buffers
-        glfwSwapBuffers(window);
-    }
-
-    // Cleanup
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    glfwDestroyWindow(window);
-    glfwTerminate();
 
     jt.request_stop();
     return 0;
