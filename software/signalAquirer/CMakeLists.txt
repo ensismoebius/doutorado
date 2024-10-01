@@ -34,6 +34,9 @@ pkg_check_modules(ASOUND REQUIRED alsa)
 # Find GLFW package
 pkg_check_modules(GLFW REQUIRED glfw3)
 
+# Find port audio
+pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
+
 # Check if raylib is already downloaded and compiled
 if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a" OR NOT EXISTS "${RAYLIB_DIR}/src/raylib.h")
     message(STATUS "Raylib not found, downloading and compiling...")
@@ -181,7 +184,8 @@ target_link_libraries(SignalAcquirer
         raylib
         glfw
         ${ASOUND_LIBRARIES}
-        ${OPENGL_LIBRARIES} 
+        ${OPENGL_LIBRARIES}
+        ${PORTAUDIO_LIBRARIES}
 )
 
 target_include_directories(SignalAcquirer
@@ -195,6 +199,7 @@ target_include_directories(SignalAcquirer
         ${IMPLOT_DIR}
         ${IMGUI_DIR}/backends
         ${OPENGL_INCLUDE_DIRS}
+        ${PORTAUDIO_INCLUDE_DIRS}
 )
 
 # Print configuration for debugging

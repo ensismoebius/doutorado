@@ -1,57 +1,105 @@
-#include <raylib.h>
-#include <alsa/asoundlib.h>
-
-#include <vector>
 #include <iostream>
-#include <thread>
+#include <vector>
+#include <portaudio.h>
 
-#include "Window.cpp"
+#define SAMPLE_RATE 44100
+#define FRAMES_PER_BUFFER 256
 
-#include "../lib/capture/AudioCapturer.h"
-#include "../lib/widgets/CustomImGuiWindow.cpp"
-
-// Define constants
-const int screenWidth = 800;
-const int screenHeight = 600; // Increased height to fit the button
-
-const int bufferSize = 4096;
-const int channels = 1; // Mono
-unsigned sampleRate = 44100;
-
-int samplingStep = 1;             // Default downsampling rate
-bool downsamplingEnabled = false; // State for the toggle button
-
-// Data container
-float audioData[bufferSize];
-
-AudioCapturer capturer(sampleRate, channels);
-
-// Using std::jthread in C++20 (automatically joins on destruction)
-void threadCaptureAudioData(std::stop_token stopToken)
-{
-    while (!stopToken.stop_requested())
-    {
-        // Read audio data
-        capturer.captureAudio(audioData, bufferSize);
+class AudioCapture {
+public:
+    AudioCapture(int maxFrames) : maxFrameIndex(maxFrames), frameIndex(0) {
+        buffer.resize(maxFrameIndex);
     }
-    std::cout << "Thread is stopping!" << std::endl;
-}
 
-bool teste = false;
+    ~AudioCapture() {
+        stop();
+    }
 
-std::string title = "Teste";
-ImVec2 dimensions = {800, 600};
-ImVec4 color = {255, 255, 255, 255};
+    bool start() {
+        PaError err;
 
-Window app(title, dimensions, color);
+        // Inicializa o PortAudio
+        err = Pa_Initialize();
+        if (err != paNoError) {
+            std::cerr << "Erro ao inicializar o PortAudio: " << Pa_GetErrorText(err) << std::endl;
+            return false;
+        }
 
-// Main function
-int main()
-{
-    std::jthread jt(threadCaptureAudioData);
-    app.data = audioData;
-    app.run();
+        // Abre um stream de áudio para captura
+        err = Pa_OpenStream(&stream, nullptr, nullptr, SAMPLE_RATE, FRAMES_PER_BUFFER, paClipOff, audioCallback, this);
+        if (err != paNoError) {
+            std::cerr << "Erro ao abrir o stream: " << Pa_GetErrorText(err) << std::endl;
+            return false;
+        }
 
-    jt.request_stop();
+        // Inicia a captura
+        err = Pa_StartStream(stream);
+        if (err != paNoError) {
+            std::cerr << "Erro ao iniciar o stream: " << Pa_GetErrorText(err) << std::endl;
+            return false;
+        }
+
+        frameIndex = 0; // Reseta o índice
+        return true;
+    }
+
+    void stop() {
+        if (stream) {
+            Pa_StopStream(stream);
+            Pa_CloseStream(stream);
+            Pa_Terminate(); // Finaliza o PortAudio
+            stream = nullptr;
+        }
+    }
+
+    const std::vector<float>& getBuffer() const {
+        return buffer;
+    }
+
+private:
+    static int audioCallback(const void* inputBuffer, void* outputBuffer,
+                             unsigned long framesPerBuffer,
+                             const PaStreamCallbackTimeInfo* timeInfo,
+                             PaStreamCallbackFlags statusFlags,
+                             void* userData) {
+        AudioCapture* data = static_cast<AudioCapture*>(userData);
+        const float* in = static_cast<const float*>(inputBuffer);
+
+        for (unsigned long i = 0; i < framesPerBuffer; i++) {
+            if (data->frameIndex < data->maxFrameIndex) {
+                data->buffer[data->frameIndex++] = *in++; // Armazena o dado de áudio no buffer
+            }
+        }
+
+        return paContinue; // Continua a captura
+    }
+
+    PaStream* stream = nullptr;
+    std::vector<float> buffer;
+    int frameIndex;
+    int maxFrameIndex;
+};
+
+int main() {
+    const int maxFrames = SAMPLE_RATE; // Captura 1 segundo de áudio
+    AudioCapture audioCapture(maxFrames);
+
+    if (!audioCapture.start()) {
+        return -1; // Saída se a captura falhar
+    }
+
+    std::cout << "Gravando... Pressione Enter para parar." << std::endl;
+    std::cin.get(); // Espera pela entrada do usuário
+
+    audioCapture.stop(); // Para a captura
+
+    // Exibe alguns dados gravados
+    const auto& buffer = audioCapture.getBuffer();
+    std::cout << "Dados gravados: " << std::endl;
+    for (size_t i = 0; i < audioCapture.getBuffer().size(); i++) {
+        std::cout << buffer[i] << " ";
+    }
+    std::cout << std::endl;
+
     return 0;
 }
