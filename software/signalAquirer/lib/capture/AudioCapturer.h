@@ -10,7 +10,7 @@ public:
     AudioCapturer(unsigned int sampleRate = 44100, int channels = 1);
     ~AudioCapturer();
 
-    void captureAudio(std::vector<short> *buffer, int bufferSize);
+    void captureAudio(float *buffer, int bufferSize);
 
 private:
     snd_pcm_t *handle;

@@ -68,6 +68,8 @@
         "istream": "cpp",
         "numbers": "cpp",
         "semaphore": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "iomanip": "cpp",
+        "sstream": "cpp"
     }
 }

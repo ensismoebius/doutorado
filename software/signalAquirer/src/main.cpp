@@ -22,7 +22,7 @@ int samplingStep = 1;             // Default downsampling rate
 bool downsamplingEnabled = false; // State for the toggle button
 
 // Data container
-std::vector<short> audioData(bufferSize);
+float audioData[bufferSize];
 
 AudioCapturer capturer(sampleRate, channels);
 
@@ -32,7 +32,7 @@ void threadCaptureAudioData(std::stop_token stopToken)
     while (!stopToken.stop_requested())
     {
         // Read audio data
-        capturer.captureAudio(&audioData, bufferSize);
+        capturer.captureAudio(audioData, bufferSize);
     }
     std::cout << "Thread is stopping!" << std::endl;
 }
@@ -49,7 +49,7 @@ Window app(title, dimensions, color);
 int main()
 {
     std::jthread jt(threadCaptureAudioData);
-
+    app.data = audioData;
     app.run();
 
     jt.request_stop();
