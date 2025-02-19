@@ -13,3 +13,6 @@
 [submodule "software/signalAquirer/software/signalAquirer/lib/implot"]
 	path = software/signalAquirer/software/signalAquirer/lib/implot
 	url = https://github.com/epezent/implot
+[submodule "software/signalAquirer/software/signalAquirer/lib/lsllib"]
+	path = software/signalAquirer/software/signalAquirer/lib/lsllib
+	url = https://github.com/sccn/liblsl.git

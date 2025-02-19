@@ -1,97 +1,36 @@
+#include <raylib.h>
+#include <lsl_cpp.h>
+#include <alsa/asoundlib.h>
+
+#include <vector>
 #include <iostream>
-#include <portaudio.h>
+#include <thread>
+#include <stdexcept>
 
-class AudioRecorder {
-public:
-    AudioRecorder() : stream(nullptr) {}
+#include "Window.cpp"
 
-    ~AudioRecorder() {
-        Pa_Terminate();
-    }
+#include "../lib/widgets/CustomImGuiWindow.cpp"
 
-    bool initialize() {
-        PaError err = Pa_Initialize();
-        if (err != paNoError) {
-            std::cerr << "Erro ao inicializar o PortAudio: " << Pa_GetErrorText(err) << std::endl;
-            return false;
-        }
+// Define constants
+const int screenWidth = 800;
+const int screenHeight = 600;
 
-        inputParameters.device = Pa_GetDeviceCount() > 1 ? 1 : Pa_GetDefaultInputDevice();
-        if (inputParameters.device == paNoDevice) {
-            std::cerr << "Nenhum dispositivo de áudio encontrado." << std::endl;
-            return false;
-        }
+const int channels = 1;
+const int bufferSize = 256;
+unsigned sampleRate = 44100;
 
-        inputParameters.channelCount = 1;  // Captura mono
-        inputParameters.sampleFormat = paInt16;
-        inputParameters.suggestedLatency = Pa_GetDeviceInfo(inputParameters.device)->defaultLowInputLatency;
-        inputParameters.hostApiSpecificStreamInfo = nullptr;
+// Data container
+float audioData[bufferSize];
 
-        err = Pa_OpenStream(&stream, &inputParameters, nullptr, 44100, 256, paClipOff, audioCallback, this);
-        if (err != paNoError) {
-            std::cerr << "Erro ao abrir o stream: " << Pa_GetErrorText(err) << std::endl;
-            return false;
-        }
+std::string title = "Teste";
+ImVec2 dimensions = {800, 600};
+ImVec4 color = {255, 255, 255, 255};
 
-        return true;
-    }
+Window app(title, dimensions, color);
 
-    static int audioCallback(const void* input, void* output,
-                             unsigned long frameCount,
-                             const PaStreamCallbackTimeInfo* timeInfo,
-                             PaStreamCallbackFlags statusFlags,
-                             void* userData) {
-        const int16_t* in = static_cast<const int16_t*>(input);
-        AudioRecorder* recorder = static_cast<AudioRecorder*>(userData);
-
-        // Processar o áudio capturado
-        recorder->processAudio(in, frameCount);
-
-        return paContinue;  // Continue capturando
-    }
-
-    void processAudio(const int16_t* input, unsigned long frameCount) {
-        std::cout << "Frame capturado: ";
-        for (unsigned long i = 0; i < frameCount; ++i) {
-            std::cout << input[i] << " ";  // Exibe os primeiros valores capturados
-        }
-        std::cout << std::endl;
-    }
-
-    bool startRecording() {
-        PaError err = Pa_StartStream(stream);
-        if (err != paNoError) {
-            std::cerr << "Erro ao iniciar o stream: " << Pa_GetErrorText(err) << std::endl;
-            return false;
-        }
-        return true;
-    }
-
-    void stopRecording() {
-        Pa_StopStream(stream);
-        Pa_CloseStream(stream);
-    }
-
-private:
-    PaStream* stream;
-    PaStreamParameters inputParameters;
-};
-
-int main() {
-    AudioRecorder recorder;
-    if (!recorder.initialize()) {
-        return -1;
-    }
-
-    std::cout << "Iniciando gravação..." << std::endl;
-    if (!recorder.startRecording()) {
-        return -1;
-    }
-
-    Pa_Sleep(5000);  // Grava por 5 segundos
-
-    recorder.stopRecording();
-    std::cout << "Gravação concluída." << std::endl;
-
+// Main function
+int main()
+{
+    app.run();
     return 0;
 }
