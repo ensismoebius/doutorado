@@ -2,7 +2,7 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-#include <GLFW/glfw3.h> // Will include OpenGL headers
+#include <GLFW/glfw3.h> // Inclui os headers do OpenGL
 
 const char *glsl_version = "#version 330";
 GLFWwindow *window;
@@ -14,42 +14,46 @@ void glfw_error_callback(int error, const char *description)
 
 bool InitializeGLFW()
 {
-    // Initialize GLFW
+    // Inicializa GLFW
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
         return false;
     }
-    // OpenGL 3.3 Core Profile
+
+    // Configurações do OpenGL
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // Para compatibilidade com MacOS
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    // Create a windowed mode window and its OpenGL context
+    // Criação da janela
     window = glfwCreateWindow(800, 600, "ImGui Fullscreen Frame", nullptr, nullptr);
     if (!window)
     {
         glfwTerminate();
-        return -1;
+        return false;
     }
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Enable vsync
+    glfwSwapInterval(1); // Ativa V-Sync
 
     return true;
 }
 
 bool InitializeImGui()
 {
-    // Initialize ImGui
     IMGUI_CHECKVERSION();
-    // ImGui::CreateContext();
+    ImGui::CreateContext(); // Criando contexto do ImGui
+
     ImGuiIO &io = ImGui::GetIO();
     (void)io;
 
-    // Setup Platform/Renderer bindings
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init(glsl_version);
+    // Configuração do backend para GLFW e OpenGL
+    if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init(glsl_version))
+    {
+        return false;
+    }
 
     return true;
 }
@@ -62,24 +66,25 @@ int main()
     }
     if (!InitializeImGui())
     {
+        glfwTerminate();
         return -1;
     }
 
-    // Main loop
+    // Loop principal
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
 
-        // Get window size
+        // Obtém o tamanho da janela
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
 
-        // Start ImGui frame
+        // Começa um novo frame do ImGui
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // Create a fullscreen ImGui window (with a visible background)
+        // Janela fullscreen do ImGui
         ImGui::SetNextWindowPos(ImVec2(0, 0));
         ImGui::SetNextWindowSize(ImVec2(width, height));
 
@@ -87,14 +92,14 @@ int main()
                      ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
                          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
 
-        ImGui::Text("This ImGui window fills the entire application window.");
-        ImGui::Text("Resize the window and see how the UI adapts.");
+        ImGui::Text("Esta janela do ImGui ocupa toda a janela da aplicação.");
+        ImGui::Text("Redimensione a janela e veja como a UI se adapta.");
         ImGui::Separator();
-        ImGui::Text("Add more UI elements here...");
+        ImGui::Text("Adicione mais elementos de UI aqui...");
 
         ImGui::End();
 
-        // Rendering
+        // Renderização
         ImGui::Render();
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
