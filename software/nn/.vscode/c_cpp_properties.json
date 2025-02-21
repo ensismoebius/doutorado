@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include/eigen3"   // Add this if Eigen is in /usr/include/eigen3
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang-18",
+            "intelliSenseMode": "linux-clang-x64"
+        }
+    ],
+    "version": 4
+}

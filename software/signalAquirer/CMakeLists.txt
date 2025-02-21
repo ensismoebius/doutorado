@@ -96,7 +96,7 @@ else()
 endif()
 
 # Define lsllib library
-add_library(lsllib STATIC IMPORTED)
+add_library(lsllib SHARED IMPORTED)
 set_target_properties(lsllib PROPERTIES
     IMPORTED_LOCATION "${LSLLIB_BUILD_DIR}/liblsl.so"
     INTERFACE_INCLUDE_DIRECTORIES "${LSLLIB_DIR}/include"
@@ -233,8 +233,6 @@ add_executable(SignalAcquirer
     ${IMGUI_BACKEND_SOURCES}
     ${IMGUI_SOURCES}
     ${IMPLOT_SOURCES}
-    ${LIB_DIR}/widgets/CustomImGuiWindow.cpp
-    ${SRC_DIR}/Window.cpp
     ${SRC_DIR}/main.cpp
 )
 
@@ -266,6 +264,13 @@ target_include_directories(SignalAcquirer
         ${OPENGL_INCLUDE_DIRS}
         ${PORTAUDIO_INCLUDE_DIRS}
         ${LSLLIB_DIR}/include
+)
+
+# Copy the shared library to the executable's directory
+add_custom_command(TARGET SignalAcquirer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${LSLLIB_BUILD_DIR}/liblsl.so
+        $<TARGET_FILE_DIR:SignalAcquirer>
 )
 
 # Print configuration for debugging
