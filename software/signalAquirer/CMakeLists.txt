@@ -231,8 +231,9 @@ set(IMGUI_BACKEND_SOURCES
 # Add executable target
 add_executable(SignalAcquirer 
     ${IMGUI_BACKEND_SOURCES}
-    ${IMGUI_SOURCES}
     ${IMPLOT_SOURCES}
+    ${IMGUI_SOURCES}
+    ${LIB_DIR}/util/imguiGlfw.cpp
     ${SRC_DIR}/main.cpp
 )
 
@@ -264,6 +265,7 @@ target_include_directories(SignalAcquirer
         ${OPENGL_INCLUDE_DIRS}
         ${PORTAUDIO_INCLUDE_DIRS}
         ${LSLLIB_DIR}/include
+        ${LIB_DIR}/util
 )
 
 # Copy the shared library to the executable's directory
