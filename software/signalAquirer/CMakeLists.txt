@@ -18,10 +18,6 @@ set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 set(RAYLIB_DIR "${LIB_DIR}/raylib")
 set(RAYLIB_BUILD_DIR "${RAYLIB_DIR}/build")
 
-# Lsllib configuration
-set(LSLLIB_DIR "${LIB_DIR}/lsllib")
-set(LSLLIB_BUILD_DIR "${LSLLIB_DIR}/build")
-
 # IMGui configuration
 set(IMGUI_DIR "${LIB_DIR}/imgui")
 
@@ -49,58 +45,6 @@ pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
 
 # Find SDL2
 find_package(SDL2 REQUIRED)
-
-# Check if lsllib is already downloaded and compiled
-if(NOT EXISTS "${LSLLIB_BUILD_DIR}/liblsl.so" OR NOT EXISTS "${LSLLIB_DIR}/include/lsl_cpp.h")
-    message(STATUS "Lab Streaming Layer not found, downloading and compiling...")
-
-    if(NOT EXISTS "${LSLLIB_DIR}/.git")
-        # Clone lsllib repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 https://github.com/sccn/liblsl.git ${LSLLIB_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone Lab Streaming Layer library repository")
-        endif()
-    else()
-        # Update lsllib repository if already cloned
-        execute_process(
-            COMMAND git -C ${LSLLIB_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update Lab Streaming Layer repository")
-        endif()
-    endif()
-
-    # Create build directory and compile lsllib with -fPIC
-    file(MAKE_DIRECTORY ${LSLLIB_BUILD_DIR})
-    execute_process(
-        COMMAND cmake -S ${LSLLIB_DIR} -B ${LSLLIB_BUILD_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "CMake configuration for Lab Streaming Layer library failed")
-    endif()
-
-    execute_process(
-        COMMAND cmake --build ${LSLLIB_BUILD_DIR} --parallel
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "Lab Streaming Layer build failed")
-    endif()
-else()
-    message(STATUS "Lab Streaming Layer already exists, skipping download and compilation...")
-endif()
-
-# Define lsllib library
-add_library(lsllib SHARED IMPORTED)
-set_target_properties(lsllib PROPERTIES
-    IMPORTED_LOCATION "${LSLLIB_BUILD_DIR}/liblsl.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${LSLLIB_DIR}/include"
-)
 
 # Check if raylib is already downloaded and compiled
 if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a" OR NOT EXISTS "${RAYLIB_DIR}/src/raylib.h")
@@ -248,7 +192,6 @@ target_link_libraries(SignalAcquirer
         ${ASOUND_LIBRARIES}
         ${OPENGL_LIBRARIES}
         ${PORTAUDIO_LIBRARIES}
-        lsllib
 )
 
 # Include directories
@@ -264,21 +207,18 @@ target_include_directories(SignalAcquirer
         ${IMGUI_DIR}/backends
         ${OPENGL_INCLUDE_DIRS}
         ${PORTAUDIO_INCLUDE_DIRS}
-        ${LSLLIB_DIR}/include
         ${LIB_DIR}/util
 )
 
 # Copy the shared library to the executable's directory
-add_custom_command(TARGET SignalAcquirer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${LSLLIB_BUILD_DIR}/liblsl.so
-        $<TARGET_FILE_DIR:SignalAcquirer>
-)
+# add_custom_command(TARGET SignalAcquirer POST_BUILD
+#     COMMAND ${CMAKE_COMMAND} -E copy
+#         ${LSLLIB_BUILD_DIR}/liblsl.so
+#         $<TARGET_FILE_DIR:SignalAcquirer>
+# )
 
 # Print configuration for debugging
 message(STATUS "ASOUND_INCLUDE_DIRS: ${ASOUND_INCLUDE_DIRS}")
 message(STATUS "ASOUND_LIBRARIES: ${ASOUND_LIBRARIES}")
 message(STATUS "SDL2_INCLUDE_DIRS: ${SDL2_INCLUDE_DIRS}")
 message(STATUS "SDL2_LIBRARIES: ${SDL2_LIBRARIES}")
-message(STATUS "LSLLIB_INCLUDE_DIRS: ${LSLLIB_DIR}/include")
-message(STATUS "LSLLIB_LIBRARY: ${LSLLIB_BUILD_DIR}/liblsl.so")
