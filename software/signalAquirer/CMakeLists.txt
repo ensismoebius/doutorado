@@ -14,6 +14,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 
+# Sets opengl provider to a more
+# modern option: GLVND (OpenGL 
+# Vendor-Neutral Dispatch).
+# If you are having compatibilities
+# issues set to "LEGACY"
+set(OpenGL_GL_PREFERENCE "GLVND")
+
 # Raylib configuration
 set(RAYLIB_DIR "${LIB_DIR}/raylib")
 set(RAYLIB_BUILD_DIR "${RAYLIB_DIR}/build")

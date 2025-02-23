@@ -3,19 +3,18 @@
 
 int main()
 {
-    if (!initializeWindow())
-        return -1;
-
-    // Loop principal
-    while (!windowShouldClose())
+    ImGuiApp app("ImGui Fullscreen Frame", 800, 600);
+    if (!app.initialize())
     {
-        prepareNextFrame();
-
-        ImGui::Text("Adicione mais elementos de UI aqui...");
-
-        renderNextFrame();
+        return -1;
     }
+    // Pass a lambda to run
+    app.run([]()
+            {
+            ImGui::Text("Hello, ImGui!");
+            if (ImGui::Button("Click Me")) {
+                std::cout << "Button clicked!" << std::endl;
+            } });
 
-    terminateWindow();
     return 0;
 }

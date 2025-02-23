@@ -2,18 +2,33 @@
 #define IMGUI_GLFW
 
 #include <iostream>
+#include <functional>
+
 #include <imgui.h>
+#include <GLFW/glfw3.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <GLFW/glfw3.h> // Inclui os headers do OpenGL
 
-void glfw_error_callback(int error, const char *description);
-bool InitializeGLFW();
-bool InitializeImGui();
-bool windowShouldClose();
-void prepareNextFrame();
-void renderNextFrame();
-void terminateWindow();
-bool initializeWindow();
+class ImGuiApp
+{
+public:
+    ImGuiApp(const std::string &title, int width, int height);
+    ~ImGuiApp();
+    bool initialize();
+    void run(const std::function<void()> &uiCode);
+
+private:
+    GLFWwindow *window;
+    const char *glsl_version = "#version 330";
+    std::string title;
+    int width, height;
+
+    static void glfw_error_callback(int error, const char *description);
+    bool initializeGLFW();
+    bool initializeImGui();
+    void prepareFrame();
+    void renderFrame();
+    void shutdown();
+};
 
 #endif
