@@ -36,7 +36,7 @@ void audio_visualization()
     if (ImPlot::BeginPlot("Audio Waveform", "Time (s)", "Amplitude", plot_size))
     {
         ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, time.back(), ImGuiCond_Always);
-        ImPlot::SetupAxisLimits(ImAxis_Y1, -1.0f, 1.0f);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -2.0f, 2.0f);
         ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 1), 1.5f); // Green line, 1.5px thick
 
         ImPlot::PlotLine("Audio Signal",
@@ -50,8 +50,6 @@ void audio_visualization()
 
 void widgets()
 {
-    ImGui::Begin("Audio Control");
-
     if (ImGui::Button(is_capturing ? "Stop Capture" : "Start Capture"))
     {
         if (!is_capturing)
@@ -110,8 +108,6 @@ void widgets()
 
     // Show visualization
     audio_visualization();
-
-    ImGui::End();
 }
 
 int main()
