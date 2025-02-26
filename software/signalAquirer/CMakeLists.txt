@@ -184,6 +184,7 @@ add_executable(SignalAcquirer
     ${IMGUI_BACKEND_SOURCES}
     ${IMPLOT_SOURCES}
     ${IMGUI_SOURCES}
+    ${LIB_DIR}/util/AudioCapture.cpp
     ${LIB_DIR}/util/imguiGlfw.cpp
     ${SRC_DIR}/main.cpp
 )
