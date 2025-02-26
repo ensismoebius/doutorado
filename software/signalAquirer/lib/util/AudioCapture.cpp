@@ -4,10 +4,15 @@
 AudioCapture::AudioCapture(size_t buffer_size)
     : running_(false),
       stream_(nullptr),
-      buffer_size_(1 << static_cast<size_t>(std::log2(buffer_size) + 1)),
-      buffer_mask_(buffer_size_ - 1)
+      // Calculates the size of the ring buffer, ensuring it’s a power of two
+      // This is important because:
+      //    Powers of two allow efficient modulo operations using bitwise AND (&).
+      //    Ring buffers often use powers of two to simplify index wrapping.
+      ring_buffer_size_(1 << static_cast<size_t>(std::log2(buffer_size) + 1)),
+      // Used for the wrap around
+      ring_buffer_mask_(ring_buffer_size_ - 1)
 {
-    ring_buffer_.resize(buffer_size_);
+    ring_buffer_.resize(ring_buffer_size_);
 }
 
 AudioCapture::~AudioCapture()
@@ -84,7 +89,7 @@ std::vector<float> AudioCapture::get_available_samples()
 
     while (current_read != current_write)
     {
-        result.push_back(ring_buffer_[current_read & buffer_mask_]);
+        result.push_back(ring_buffer_[current_read & ring_buffer_mask_]);
         current_read++;
     }
 
@@ -98,14 +103,17 @@ const std::string &AudioCapture::last_error() const
 }
 
 int AudioCapture::static_audio_callback(
-    const void *input, void *output,
+    const void *input,
+    void *output,
     unsigned long frameCount,
     const PaStreamCallbackTimeInfo *timeInfo,
     PaStreamCallbackFlags statusFlags,
     void *userData)
 {
     static_cast<AudioCapture *>(userData)->handle_audio_data(
-        static_cast<const float *>(input), frameCount);
+        static_cast<const float *>(input),
+        frameCount);
+
     return paContinue;
 }
 
@@ -115,7 +123,7 @@ void AudioCapture::handle_audio_data(const float *input, size_t frame_count)
 
     for (size_t i = 0; i < frame_count; ++i)
     {
-        ring_buffer_[current_write & buffer_mask_] = input[i];
+        ring_buffer_[current_write & ring_buffer_mask_] = input[i];
         current_write++;
     }
 

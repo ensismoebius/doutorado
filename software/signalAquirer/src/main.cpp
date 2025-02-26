@@ -4,6 +4,7 @@
 
 #include "../lib/util/imguiGlfw.hpp"
 #include "../lib/util/AudioCapture.hpp"
+#include "../lib/implot/implot.h"
 
 // Global state for audio capture
 std::unique_ptr<AudioCapture> audio_capture;
@@ -11,45 +12,117 @@ bool is_capturing = false;
 std::vector<float> audio_samples;
 std::string error_message;
 
-// In your GUI rendering loop
 void audio_visualization()
 {
-    auto samples = audio_capture->get_available_samples();
-    if (!samples.empty())
+    if (!audio_capture || !is_capturing || audio_samples.empty())
+        return;
+
+    // Create time axis data
+    static std::vector<float> time;
+    if (time.size() != audio_samples.size())
     {
-        ImGui::PlotLines("Audio Input", samples.data(),
-                         static_cast<int>(samples.size()),
-                         0, nullptr, -1.0f, 1.0f,
-                         ImVec2(0, 80.0f));
+        time.resize(audio_samples.size());
+        const float dt = 1.0f / AudioCapture::SAMPLE_RATE;
+        for (size_t i = 0; i < time.size(); ++i)
+        {
+            time[i] = static_cast<float>(i) * dt;
+        }
+    }
+
+    // Configure plot
+    const float plot_height = 200.0f;
+    const ImVec2 plot_size(-1, plot_height);
+
+    if (ImPlot::BeginPlot("Audio Waveform", "Time (s)", "Amplitude", plot_size))
+    {
+        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, time.back(), ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -1.0f, 1.0f);
+        ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 1), 1.5f); // Green line, 1.5px thick
+
+        ImPlot::PlotLine("Audio Signal",
+                         time.data(),
+                         audio_samples.data(),
+                         static_cast<int>(audio_samples.size()));
+
+        ImPlot::EndPlot();
     }
 }
 
 void widgets()
 {
+    ImGui::Begin("Audio Control");
+
+    if (ImGui::Button(is_capturing ? "Stop Capture" : "Start Capture"))
+    {
+        if (!is_capturing)
+        {
+            audio_capture = std::make_unique<AudioCapture>();
+            if (!audio_capture->start())
+            {
+                error_message = audio_capture->last_error();
+                audio_capture.reset();
+            }
+            else
+            {
+                is_capturing = true;
+                audio_samples.clear();
+            }
+        }
+        else
+        {
+            audio_capture->stop();
+            is_capturing = false;
+            audio_capture.reset();
+        }
+    }
+
+    if (ImGui::Button("Clear Display"))
+    {
+        audio_samples.clear();
+    }
+
+    if (!error_message.empty())
+    {
+        ImGui::TextColored(ImVec4(1, 0, 0, 1), "Error: %s", error_message.c_str());
+        if (ImGui::Button("Clear Error"))
+        {
+            error_message.clear();
+        }
+    }
+
+    // Update audio buffer
+    if (is_capturing && audio_capture)
+    {
+        auto new_samples = audio_capture->get_available_samples();
+        if (!new_samples.empty())
+        {
+            audio_samples.insert(audio_samples.end(), new_samples.begin(), new_samples.end());
+
+            // Keep last 2 seconds of data
+            const size_t max_samples = 2 * AudioCapture::SAMPLE_RATE;
+            if (audio_samples.size() > max_samples)
+            {
+                audio_samples.erase(audio_samples.begin(),
+                                    audio_samples.end() - max_samples);
+            }
+        }
+    }
+
+    // Show visualization
     audio_visualization();
 
-    ImGui::Text("Hello, ImGui!");
-    if (ImGui::Button("Click Me"))
-    {
-        std::cout << "Button clicked!" << std::endl;
-    }
+    ImGui::End();
 }
 
 int main()
 {
-
-    // PAREI AQUI, TÔ TENTANDO DEBUGAR A CLASSE AUDIO CAPTURE E ENTENDÊ-LA
-    // https://chat.deepseek.com/a/chat/s/d2eb88ef-506d-4514-ada9-13e8c8a6151d
-    audio_capture = std::make_unique<AudioCapture>();
-    audio_capture->start();
-
-    ImGuiApp app("ImGui Fullscreen Frame", 800, 600);
+    ImGuiApp app("Audio Visualizer", 1280, 720);
     if (!app.initialize())
         return -1;
 
-    // Pass a function to run
+    ImPlot::CreateContext();
     app.run(widgets);
+    ImPlot::DestroyContext();
 
-    audio_capture->stop();
     return 0;
 }

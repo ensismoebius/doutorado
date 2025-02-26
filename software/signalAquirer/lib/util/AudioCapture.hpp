@@ -33,8 +33,8 @@ private:
     std::vector<float> ring_buffer_;
     std::atomic<size_t> write_pos_{0};
     std::atomic<size_t> read_pos_{0};
-    const size_t buffer_size_;
-    const size_t buffer_mask_;
+    const size_t ring_buffer_size_;
+    const size_t ring_buffer_mask_;
 
     static int static_audio_callback(
         const void *input, void *output,
