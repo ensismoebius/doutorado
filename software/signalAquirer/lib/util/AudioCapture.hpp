@@ -55,7 +55,7 @@ public:
 
     // Constants
     static constexpr int SAMPLE_RATE = 44100;
-    static constexpr int FRAMES_PER_BUFFER = 256;
+    static constexpr int FRAMES_PER_BUFFER = 2048;
     static constexpr int NUM_CHANNELS = 1;
 
 private:

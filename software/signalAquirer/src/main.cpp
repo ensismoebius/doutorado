@@ -168,11 +168,6 @@ void widgets()
             }
         }
     }
-
-    // Show visualization
-    audio_visualization();
-
-    Demo_Tables();
 }
 
 int main()
@@ -182,7 +177,13 @@ int main()
         return -1;
 
     ImPlot::CreateContext();
-    app.run(widgets);
+    app.run(
+        []()
+        {
+            widgets();
+            audio_visualization();
+            Demo_Tables();
+        });
     ImPlot::DestroyContext();
 
     return 0;
