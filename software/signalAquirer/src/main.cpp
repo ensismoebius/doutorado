@@ -1,6 +1,7 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <random>
 
 #include "../lib/util/imguiGlfw.hpp"
 #include "../lib/util/AudioCapture.hpp"
@@ -11,6 +12,68 @@ std::unique_ptr<AudioCapture> audio_capture;
 bool is_capturing = false;
 std::vector<float> audio_samples;
 std::string error_message;
+
+template <typename T>
+inline T RandomRange(T min, T max)
+{
+    T scale = rand() / (T)RAND_MAX;
+    return min + scale * (max - min);
+}
+
+void Sparkline(const char *id, const float *values, int count, float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size)
+{
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
+    if (ImPlot::BeginPlot(id, size, ImPlotFlags_CanvasOnly))
+    {
+        ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
+        ImPlot::SetupAxesLimits(0, count - 1, min_v, max_v, ImGuiCond_Always);
+        ImPlot::SetNextLineStyle(col);
+        ImPlot::SetNextFillStyle(col, 0.25);
+        ImPlot::PlotLine(id, values, count, 1, 0, ImPlotLineFlags_Shaded, offset);
+        ImPlot::EndPlot();
+    }
+    ImPlot::PopStyleVar();
+}
+
+void Demo_Tables()
+{
+    static ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
+                                   ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable;
+    static bool anim = true;
+    static int offset = 0;
+    ImGui::BulletText("Plots can be used inside of ImGui tables as another means of creating subplots.");
+    ImGui::Checkbox("Animate", &anim);
+
+    if (anim)
+        offset = (offset + 1) % 100;
+
+    if (ImGui::BeginTable("##table", 3, flags, ImVec2(-1, 0)))
+    {
+        ImGui::TableSetupColumn("Electrode", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("Voltage", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+        ImGui::TableSetupColumn("EMG Signal");
+        ImGui::TableHeadersRow();
+        ImPlot::PushColormap(ImPlotColormap_Cool);
+        for (int row = 0; row < 10; row++)
+        {
+            ImGui::TableNextRow();
+            static float data[100];
+            srand(row);
+            for (int i = 0; i < 100; ++i)
+                data[i] = RandomRange(0.0f, 10.0f);
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("EMG %d", row);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.3f V", data[offset]);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::PushID(row);
+            Sparkline("##spark", data, 100, 0, 11.0f, offset, ImPlot::GetColormapColor(row), ImVec2(-1, 35));
+            ImGui::PopID();
+        }
+        ImPlot::PopColormap();
+        ImGui::EndTable();
+    }
+}
 
 void audio_visualization()
 {
@@ -30,7 +93,7 @@ void audio_visualization()
     }
 
     // Configure plot
-    const float plot_height = 200.0f;
+    const float plot_height = 400.0f;
     const ImVec2 plot_size(-1, plot_height);
 
     if (ImPlot::BeginPlot("Audio Waveform", "Time (s)", "Amplitude", plot_size))
@@ -96,8 +159,8 @@ void widgets()
         {
             audio_samples.insert(audio_samples.end(), new_samples.begin(), new_samples.end());
 
-            // Keep last 2 seconds of data
-            const size_t max_samples = 2 * AudioCapture::SAMPLE_RATE;
+            // Keep last 5 seconds of data
+            const size_t max_samples = 5 * AudioCapture::SAMPLE_RATE;
             if (audio_samples.size() > max_samples)
             {
                 audio_samples.erase(audio_samples.begin(),
@@ -108,6 +171,8 @@ void widgets()
 
     // Show visualization
     audio_visualization();
+
+    Demo_Tables();
 }
 
 int main()
