@@ -89,6 +89,7 @@
         "mutex": "cpp",
         "shared_mutex": "cpp",
         "span": "cpp",
-        "text_encoding": "cpp"
+        "text_encoding": "cpp",
+        "*.ipp": "cpp"
     }
 }

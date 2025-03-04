@@ -75,37 +75,40 @@ void Demo_Tables()
     }
 }
 
-void audio_visualization()
+void const audio_visualization(std::vector<float> &samples, bool &is_capturing, const float &plot_height)
 {
-    if (!audio_capture || !is_capturing || audio_samples.empty())
+    if (!is_capturing || samples.empty())
         return;
 
-    // Create time axis data
+    // Create time axis data persistent across functions calls
     static std::vector<float> time;
-    if (time.size() != audio_samples.size())
+
+    if (time.size() != samples.size())
     {
-        time.resize(audio_samples.size());
-        const float dt = 1.0f / AudioCapture::SAMPLE_RATE;
+        time.resize(samples.size());
+
+        // Constant calculated at compile time and persistent across functions calls
+        static constexpr float timeStep = 1.0f / AudioCapture::SAMPLE_RATE;
         for (size_t i = 0; i < time.size(); ++i)
         {
-            time[i] = static_cast<float>(i) * dt;
+            time[i] = i * timeStep;
         }
     }
 
     // Configure plot
-    const float plot_height = 400.0f;
-    const ImVec2 plot_size(-1, plot_height);
-
-    if (ImPlot::BeginPlot("Audio Waveform", "Time (s)", "Amplitude", plot_size))
+    if (ImPlot::BeginPlot("Audio Waveform", ImVec2(-1, plot_height)))
     {
+        ImPlot::SetupAxis(ImAxis_X1, "Time (s)");
+        ImPlot::SetupAxis(ImAxis_Y1, "Amplitude");
         ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, time.back(), ImGuiCond_Always);
         ImPlot::SetupAxisLimits(ImAxis_Y1, -2.0f, 2.0f);
         ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 1), 1.5f); // Green line, 1.5px thick
 
-        ImPlot::PlotLine("Audio Signal",
-                         time.data(),
-                         audio_samples.data(),
-                         static_cast<int>(audio_samples.size()));
+        ImPlot::PlotLine(
+            "Audio Signal",
+            time.data(),
+            samples.data(),
+            static_cast<int>(samples.size()));
 
         ImPlot::EndPlot();
     }
@@ -115,7 +118,13 @@ void widgets()
 {
     if (ImGui::Button(is_capturing ? "Stop Capture" : "Start Capture"))
     {
-        if (!is_capturing)
+        if (is_capturing)
+        {
+            audio_capture->stop();
+            is_capturing = false;
+            audio_capture.reset();
+        }
+        else
         {
             audio_capture = std::make_unique<AudioCapture>();
             if (!audio_capture->start())
@@ -128,12 +137,6 @@ void widgets()
                 is_capturing = true;
                 audio_samples.clear();
             }
-        }
-        else
-        {
-            audio_capture->stop();
-            is_capturing = false;
-            audio_capture.reset();
         }
     }
 
@@ -163,8 +166,9 @@ void widgets()
             const size_t max_samples = 5 * AudioCapture::SAMPLE_RATE;
             if (audio_samples.size() > max_samples)
             {
-                audio_samples.erase(audio_samples.begin(),
-                                    audio_samples.end() - max_samples);
+                audio_samples.erase(
+                    audio_samples.begin(),
+                    audio_samples.end() - max_samples);
             }
         }
     }
@@ -181,7 +185,7 @@ int main()
         []()
         {
             widgets();
-            audio_visualization();
+            audio_visualization(audio_samples, is_capturing, 400);
             Demo_Tables();
         });
     ImPlot::DestroyContext();
