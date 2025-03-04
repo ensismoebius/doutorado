@@ -80,34 +80,28 @@ void const audio_visualization(std::vector<float> &samples, bool &is_capturing, 
     if (!is_capturing || samples.empty())
         return;
 
-    // Create time axis data persistent across functions calls
-    static std::vector<float> time;
+    constexpr float TIME_STEP = 1.0f / AudioCapture::SAMPLE_RATE;
 
-    if (time.size() != samples.size())
+    // Pass function pointer with correct signature
+    auto getter = [](int idx, void *data) -> ImPlotPoint
     {
-        time.resize(samples.size());
-
-        // Constant calculated at compile time and persistent across functions calls
-        static constexpr float timeStep = 1.0f / AudioCapture::SAMPLE_RATE;
-        for (size_t i = 0; i < time.size(); ++i)
-        {
-            time[i] = i * timeStep;
-        }
-    }
+        const auto &samples = *static_cast<std::vector<float> *>(data);
+        return ImPlotPoint(idx * TIME_STEP, samples[idx]);
+    };
 
     // Configure plot
     if (ImPlot::BeginPlot("Audio Waveform", ImVec2(-1, plot_height)))
     {
         ImPlot::SetupAxis(ImAxis_X1, "Time (s)");
         ImPlot::SetupAxis(ImAxis_Y1, "Amplitude");
-        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, time.back(), ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, samples.size() * TIME_STEP, ImGuiCond_Always);
         ImPlot::SetupAxisLimits(ImAxis_Y1, -2.0f, 2.0f);
         ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 1), 1.5f); // Green line, 1.5px thick
 
-        ImPlot::PlotLine(
+        ImPlot::PlotLineG(
             "Audio Signal",
-            time.data(),
-            samples.data(),
+            getter,
+            &samples,
             static_cast<int>(samples.size()));
 
         ImPlot::EndPlot();
@@ -176,6 +170,7 @@ void widgets()
 
 int main()
 {
+
     ImGuiApp app("Audio Visualizer", 1280, 720);
     if (!app.initialize())
         return -1;
