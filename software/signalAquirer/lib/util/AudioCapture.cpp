@@ -18,7 +18,7 @@ AudioCapture::~AudioCapture()
 // Starts audio capture
 bool AudioCapture::start()
 {
-    if (running_)
+    if (capturing)
         return true;
 
     if (!setup_stream())
@@ -33,26 +33,26 @@ bool AudioCapture::start()
         return false;
     }
 
-    running_ = true;
+    capturing = true;
     return true;
 }
 
 // Stops audio capture
 void AudioCapture::stop()
 {
-    if (running_)
+    if (capturing)
     {
         Pa_StopStream(stream_);
         Pa_CloseStream(stream_);
         Pa_Terminate();
-        running_ = false;
+        capturing = false;
     }
 }
 
 // Checks if the audio capture is running
-bool AudioCapture::is_running() const
+bool AudioCapture::isCapturing() const
 {
-    return running_;
+    return capturing;
 }
 
 // Retrieves the last error message
@@ -62,7 +62,7 @@ const std::string &AudioCapture::last_error() const
 }
 
 // Retrieves available audio samples from the ring buffer
-std::vector<float> AudioCapture::get_available_samples()
+std::vector<float> AudioCapture::getAvailableSamples()
 {
     size_t avail = available_samples();
     std::vector<float> result;

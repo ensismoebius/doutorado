@@ -39,13 +39,13 @@ public:
      * @brief Checks if the audio capture is running.
      * @return true if running, false otherwise.
      */
-    bool is_running() const;
+    bool isCapturing() const;
 
     /**
      * @brief Retrieves the available audio samples from the ring buffer.
      * @return A vector containing the captured audio samples.
      */
-    std::vector<float> get_available_samples();
+    std::vector<float> getAvailableSamples();
 
     /**
      * @brief Retrieves the last error message.
@@ -59,9 +59,9 @@ public:
     static constexpr int NUM_CHANNELS = 1;
 
 private:
-    std::atomic<bool> running_{false}; ///< Indicates if audio capture is running.
-    std::string last_error_;           ///< Stores the last error message.
-    PaStream *stream_{nullptr};        ///< PortAudio stream handle.
+    std::atomic<bool> capturing{false}; ///< Indicates if audio capture is running.
+    std::string last_error_;            ///< Stores the last error message.
+    PaStream *stream_{nullptr};         ///< PortAudio stream handle.
 
     // Ring buffer
     std::vector<float> ring_buffer_;   ///< Circular buffer for storing audio samples.
