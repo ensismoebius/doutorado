@@ -6,11 +6,14 @@
 #include <atomic>
 #include <string>
 #include <cmath>
+#include "ICapturer.hpp"
+
+using namespace std;
 
 /**
  * @brief AudioCapture class for handling real-time audio capture using PortAudio.
  */
-class AudioCapture
+class AudioCapture : public ICapturer
 {
 public:
     /**
@@ -28,30 +31,30 @@ public:
      * @brief Starts the audio capture.
      * @return true if successful, false on failure.
      */
-    bool start();
+    bool start() override;
 
     /**
      * @brief Stops the audio capture.
      */
-    void stop();
+    void stop() override;
 
     /**
      * @brief Checks if the audio capture is running.
      * @return true if running, false otherwise.
      */
-    bool isCapturing() const;
+    bool isCapturing() const override;
 
     /**
      * @brief Retrieves the available audio samples from the ring buffer.
      * @return A vector containing the captured audio samples.
      */
-    std::vector<float> getAvailableSamples();
+    const vector<float> getAvailableSamples() override;
 
     /**
      * @brief Retrieves the last error message.
      * @return A string containing the last encountered error.
      */
-    const std::string &last_error() const;
+    const string &last_error() const override;
 
     // Constants
     static constexpr int SAMPLE_RATE = 44100;
@@ -59,16 +62,16 @@ public:
     static constexpr int NUM_CHANNELS = 1;
 
 private:
-    std::atomic<bool> capturing{false}; ///< Indicates if audio capture is running.
-    std::string last_error_;            ///< Stores the last error message.
-    PaStream *stream_{nullptr};         ///< PortAudio stream handle.
+    atomic<bool> capturing{false}; ///< Indicates if audio capture is running.
+    string last_error_;            ///< Stores the last error message.
+    PaStream *stream_{nullptr};    ///< PortAudio stream handle.
 
     // Ring buffer
-    std::vector<float> ring_buffer_;   ///< Circular buffer for storing audio samples.
-    std::atomic<size_t> write_pos_{0}; ///< Write position in the ring buffer.
-    std::atomic<size_t> read_pos_{0};  ///< Read position in the ring buffer.
-    const size_t ring_buffer_size_;    ///< Size of the ring buffer (power of two).
-    const size_t ring_buffer_mask_;    ///< Mask for efficient index wrapping.
+    vector<float> ring_buffer_;     ///< Circular buffer for storing audio samples.
+    atomic<size_t> write_pos_{0};   ///< Write position in the ring buffer.
+    atomic<size_t> read_pos_{0};    ///< Read position in the ring buffer.
+    const size_t ring_buffer_size_; ///< Size of the ring buffer (power of two).
+    const size_t ring_buffer_mask_; ///< Mask for efficient index wrapping.
 
     /**
      * @brief PortAudio callback function (static).

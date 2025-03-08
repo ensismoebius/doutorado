@@ -1,3 +1,6 @@
+#ifndef I_CAPTURER_H
+#define I_CAPTURER_H
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -11,7 +14,7 @@ public:
     virtual bool start() = 0;
     virtual bool isCapturing() const = 0;
     virtual const string &last_error() const = 0;
-    virtual vector<float> getAvailableSamples() const = 0;
+    virtual const vector<float> getAvailableSamples() = 0;
     virtual ~ICapturer()
     {
         cout << "Destroyed " << endl;
@@ -20,3 +23,5 @@ public:
 protected:
     ICapturer() = default; // Construtor protegido para evitar instanciação direta
 };
+
+#endif

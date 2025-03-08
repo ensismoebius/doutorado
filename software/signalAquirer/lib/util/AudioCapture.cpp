@@ -1,6 +1,8 @@
 #include "AudioCapture.hpp"
 #include <iostream>
 
+using namespace std;
+
 // Constructor: Initializes ring buffer size as the next power of two
 AudioCapture::AudioCapture(size_t buffer_size)
     : ring_buffer_size_(1 << static_cast<size_t>(std::log2(buffer_size) + 1)),
@@ -62,7 +64,7 @@ const std::string &AudioCapture::last_error() const
 }
 
 // Retrieves available audio samples from the ring buffer
-std::vector<float> AudioCapture::getAvailableSamples()
+const vector<float> AudioCapture::getAvailableSamples()
 {
     size_t avail = available_samples();
     std::vector<float> result;

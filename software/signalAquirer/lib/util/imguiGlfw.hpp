@@ -1,5 +1,5 @@
-#ifndef IMGUI_GLFW
-#define IMGUI_GLFW
+#ifndef IMGUI_GLFW_H
+#define IMGUI_GLFW_H
 
 #include <iostream>
 #include <functional>

@@ -1,5 +1,5 @@
-#ifndef SIGNAL_CAPTURE
-#define SIGNAL_CAPTURE
+#ifndef CAPTURE_MANAGER_H
+#define CAPTURE_MANAGER_H
 
 #include <vector>
 #include <memory>
@@ -11,21 +11,21 @@
 
 using namespace std;
 
-class SignalCapturer
+class CapturerManager
 {
 private:
-    vector<unique_ptr<ICapturer>> capturers; // Use smart pointers to manage memory
+    vector<std::shared_ptr<ICapturer>> capturers; // Use smart pointers to manage memory
     string errors;
     mutex error_mutex; // Mutex to protect the shared 'errors' string
 
 public:
-    SignalCapturer() = default;
-    ~SignalCapturer() = default;
+    CapturerManager() = default;
+    ~CapturerManager() = default;
 
     void stopCapturing();
     bool startCapturing();
 
-    void addCapturer(unique_ptr<ICapturer> capturer);
+    void addCapturer(std::shared_ptr<ICapturer> capturer);
     const string &getErrors() const { return errors; } // Getter for errors
 };
 
