@@ -10,6 +10,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set more readable and friendly error messages
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wextra -Wpedantic -Wshadow")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wextra -Wpedantic -Wshadow")
+
+
 # Define paths
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
@@ -186,6 +191,7 @@ add_executable(SignalAcquirer
     ${IMGUI_SOURCES}
     ${LIB_DIR}/util/AudioCapture.cpp
     ${LIB_DIR}/util/imguiGlfw.cpp
+    ${SRC_DIR}/SignalCapturer.cpp
     ${SRC_DIR}/main.cpp
 )
 
