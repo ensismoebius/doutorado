@@ -2,6 +2,16 @@
 
 using namespace std;
 
+bool CapturerManager::isCapturing()
+{
+    return capturing;
+}
+
+const string CapturerManager::getErrors() const
+{
+    return errors;
+}
+
 /**
  * @brief Starts all capturers in its own thread
  *
@@ -10,9 +20,7 @@ using namespace std;
  */
 bool CapturerManager::startCapturing()
 {
-
     vector<thread> threads;
-    atomic<bool> all_success{true};
 
     for (const auto &capturer : capturers)
     {
@@ -22,7 +30,7 @@ bool CapturerManager::startCapturing()
             {
                 if (!capturer->start())
                 {
-                    all_success = false;
+                    capturing = false;
 
                     lock_guard<mutex> lock(error_mutex);
                     errors += capturer->last_error() + "\n";
@@ -36,7 +44,8 @@ bool CapturerManager::startCapturing()
         t.join();
     }
 
-    return all_success;
+    capturing = true;
+    return capturing;
 }
 
 void CapturerManager::addCapturer(std::shared_ptr<ICapturer> capturer)
@@ -50,4 +59,6 @@ void CapturerManager::stopCapturing()
     {
         capturer->stop();
     }
+
+    capturing = false;
 }

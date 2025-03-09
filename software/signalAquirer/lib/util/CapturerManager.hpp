@@ -17,16 +17,18 @@ private:
     vector<std::shared_ptr<ICapturer>> capturers; // Use smart pointers to manage memory
     string errors;
     mutex error_mutex; // Mutex to protect the shared 'errors' string
+    atomic<bool> capturing{false};
 
 public:
     CapturerManager() = default;
     ~CapturerManager() = default;
 
+    bool isCapturing();
     void stopCapturing();
     bool startCapturing();
 
     void addCapturer(std::shared_ptr<ICapturer> capturer);
-    const string &getErrors() const { return errors; } // Getter for errors
+    const string getErrors() const; // Getter for errors
 };
 
 #endif

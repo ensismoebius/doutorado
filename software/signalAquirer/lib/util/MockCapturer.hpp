@@ -17,6 +17,7 @@ private:
     string error_msg;
     bool capturing;
     thread capture_thread;
+    vector<float> data;
 
 public:
     MockCapturer(bool fail = false, string err = "Mock error");
@@ -30,4 +31,4 @@ public:
     ~MockCapturer();
 };
 
-#endif // MOCKCAPTURER_HPP
+#endif

@@ -1,5 +1,12 @@
 #include "MockCapturer.hpp"
 
+template <typename T>
+inline T RandomRange(T min, T max)
+{
+    T scale = rand() / (T)RAND_MAX;
+    return min + scale * (max - min);
+}
+
 MockCapturer::MockCapturer(bool fail, string err)
     : should_fail(fail), error_msg(err), capturing(false) {}
 
@@ -11,20 +18,22 @@ bool MockCapturer::start()
         return false;
     }
 
+    this->data.resize(100);
+
     capturing = true;
 
-    // Inicia a captura em uma thread separada
-    capture_thread = thread(
-        [this]()
-        {
-            int i = 0;
-            while (capturing)
-            {
-                i++;
-                cout << "Capturing data... " << i << endl;
-                this_thread::sleep_for(chrono::seconds(2));
-            }
-        });
+    // // Inicia a captura em uma thread separada
+    // capture_thread = thread(
+    //     [this]()
+    //     {
+    //         int i = 0;
+    //         while (capturing)
+    //         {
+    //             i++;
+    //             cout << "Capturing data... " << i << endl;
+    //             this_thread::sleep_for(chrono::seconds(2));
+    //         }
+    //     });
 
     return true;
 }
@@ -50,7 +59,11 @@ const string &MockCapturer::last_error() const
 
 const vector<float> MockCapturer::getAvailableSamples()
 {
-    return {1.0, 2.0, 3.0}; // Simula dados
+
+    for (int i = 0; i < data.size(); ++i)
+        this->data[i] = RandomRange(-1.0f, 1.0f);
+
+    return this->data; // Simula dados
 }
 
 MockCapturer::~MockCapturer()
