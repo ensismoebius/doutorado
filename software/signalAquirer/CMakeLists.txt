@@ -15,10 +15,10 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 
 # Loads and compiles the required libraries
-include(GTestGMock.cmake)
-include(Raylib.cmake)
-include(Implot.cmake)
 include(Imgui.cmake)
+include(Implot.cmake)
+include(Raylib.cmake)
+include(GTestGMock.cmake)
 
 # Compiles the main program
 include(Main.cmake)

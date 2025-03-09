@@ -2,7 +2,7 @@
 set(IMGUI_DIR "${LIB_DIR}/imgui")
 
 # Check if imgui is already downloaded and compiled
-if(NOT EXISTS "${IMGUI_DIR}/src/imgui.h")
+if(NOT EXISTS "${IMGUI_DIR}/imgui.h")
     message(STATUS "ImGui not found, downloading and compiling...")
 
     if(NOT EXISTS "${IMGUI_DIR}/.git")
