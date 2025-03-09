@@ -16,3 +16,6 @@
 [submodule "software/signalAquirer/software/signalAquirer/lib/lsllib"]
 	path = software/signalAquirer/software/signalAquirer/lib/lsllib
 	url = https://github.com/sccn/liblsl.git
+[submodule "software/signalAquirer/software/signalAquirer/lib/gtest"]
+	path = software/signalAquirer/software/signalAquirer/lib/gtest
+	url = https://github.com/google/googletest.git
