@@ -7,6 +7,7 @@ add_executable(SignalAcquirer
     ${LIB_DIR}/util/CapturerManager.cpp
     ${LIB_DIR}/util/AudioCapture.cpp
     ${LIB_DIR}/util/MockCapturer.cpp
+    ${LIB_DIR}/util/SignalPlotter.hpp
     ${SRC_DIR}/main.cpp
 )
 

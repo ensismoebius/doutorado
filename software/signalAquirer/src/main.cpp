@@ -6,9 +6,11 @@
 #include "../lib/util/CapturerManager.hpp"
 #include "../lib/util/AudioCapture.hpp"
 #include "../lib/util/MockCapturer.hpp"
+#include "../lib/util/SignalPlotter.hpp"
 
 #include "../lib/util/imguiGlfw.hpp"
 #include "../lib/implot/implot.h"
+#include "main.h"
 
 using namespace std;
 
@@ -19,6 +21,8 @@ CapturerManager capturerManager;
 // Global state for audio capture
 std::vector<float> audioSamples;
 std::string errorMessage;
+
+#define TIMELINE_SIZE 10
 
 template <typename T>
 inline T RandomRange(T min, T max)
@@ -108,9 +112,6 @@ void demoTables()
 
 void const audioVisualization(std::vector<float> &samples, bool isCapturing, const float &plotHeight)
 {
-    if (!isCapturing || samples.empty())
-        return;
-
     constexpr float TIME_STEP = 1.0f / AudioCapture::SAMPLE_RATE;
 
     // Pass function pointer with correct signature
@@ -125,9 +126,9 @@ void const audioVisualization(std::vector<float> &samples, bool isCapturing, con
     {
         ImPlot::SetupAxis(ImAxis_X1, "Time (s)");
         ImPlot::SetupAxis(ImAxis_Y1, "Amplitude");
-        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, samples.size() * TIME_STEP, ImGuiCond_Always);
-        ImPlot::SetupAxisLimits(ImAxis_Y1, -2.0f, 2.0f);
-        ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, 1), 1.5f); // Green line, 1.5px thick
+        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, TIMELINE_SIZE, ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -1.2f, 1.2f);
+        ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, .5), 1.5f); // Green line, 1.5px thick
 
         ImPlot::PlotLineG(
             "Audio Signal",
@@ -159,17 +160,20 @@ void widgets()
             errorMessage.clear();
         }
     }
+}
 
+void getSamples(vector<float> &audioSamples)
+{
     // Update audio buffer
     if (capturerManager.isCapturing())
     {
-        auto new_samples = audioCapturer->getAvailableSamples();
+        const auto new_samples = audioCapturer->getAvailableSamples();
         if (!new_samples.empty())
         {
             audioSamples.insert(audioSamples.end(), new_samples.begin(), new_samples.end());
 
-            // Keep last 5 seconds of data
-            const size_t max_samples = 5 * AudioCapture::SAMPLE_RATE;
+            // Keep last TIMELINE_SIZE seconds of data
+            const size_t max_samples = TIMELINE_SIZE * AudioCapture::SAMPLE_RATE;
             if (audioSamples.size() > max_samples)
             {
                 audioSamples.erase(
@@ -179,7 +183,6 @@ void widgets()
         }
     }
 }
-
 int main()
 {
     capturerManager.addCapturer(audioCapturer);
@@ -193,6 +196,7 @@ int main()
         []()
         {
             widgets();
+            getSamples(audioSamples);
             audioVisualization(audioSamples, capturerManager.isCapturing(), 400);
             demoTables();
         });
