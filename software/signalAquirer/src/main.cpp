@@ -7,6 +7,7 @@
 #include "../lib/util/AudioCapture.hpp"
 #include "../lib/util/MockCapturer.hpp"
 #include "../lib/util/SignalPlotter.hpp"
+#include "../lib/util/PlotsTable.hpp"
 
 #include "../lib/util/imguiGlfw.hpp"
 #include "../lib/implot/implot.h"
@@ -19,6 +20,7 @@ using namespace std;
 // Signal capture manager and signal capturer
 shared_ptr<ICapturer> audioCapturer = make_shared<AudioCapture>();
 CapturerManager capturerManager;
+PlotsTable plotsTable;
 
 // Global state for audio capture
 std::vector<float> audioSamples;
@@ -77,71 +79,6 @@ inline T RandomRange(T min, T max)
     return min + scale * (max - min);
 }
 
-void Sparkline(const char *id, const float *values, int count, float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size)
-{
-    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
-    if (ImPlot::BeginPlot(id, size, ImPlotFlags_CanvasOnly))
-    {
-        ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
-        ImPlot::SetupAxesLimits(0, count - 1, min_v, max_v, ImGuiCond_Always);
-        ImPlot::SetNextLineStyle(col);
-        ImPlot::SetNextFillStyle(col, 0.25);
-        ImPlot::PlotLine(id, values, count, 1, 0, ImPlotLineFlags_Shaded, offset);
-        ImPlot::EndPlot();
-    }
-    ImPlot::PopStyleVar();
-}
-
-void demoTables()
-{
-    static ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
-                                   ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable;
-    static bool anim = true;
-    static int offset = 0;
-    ImGui::BulletText("Plots can be used inside of ImGui tables as another means of creating subplots.");
-    ImGui::Checkbox("Animate", &anim);
-
-    if (anim)
-        offset = (offset + 1) % 100;
-
-    if (ImGui::BeginTable("##table", 3, flags, ImVec2(-1, 0)))
-    {
-        ImGui::TableSetupColumn("Electrode", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-        ImGui::TableSetupColumn("Voltage", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-        ImGui::TableSetupColumn("EMG Signal");
-
-        ImGui::TableHeadersRow();
-
-        ImPlot::PushColormap(ImPlotColormap_Cool);
-
-        for (int rowIndex = 0; rowIndex < 20; rowIndex++)
-        {
-            ImGui::TableNextRow();
-
-            srand(rowIndex);
-
-            static float data[100];
-            for (int i = 0; i < 100; ++i)
-                data[i] = RandomRange(-1.0f, 1.0f);
-
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("EMG %d", rowIndex);
-
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%.3f V", data[offset]);
-
-            ImGui::TableSetColumnIndex(2);
-            ImGui::PushID(rowIndex);
-
-            Sparkline("##spark", data, 100, -1.0f, 1.0f, offset, ImPlot::GetColormapColor(rowIndex), ImVec2(-1, 100));
-
-            ImGui::PopID();
-        }
-        ImPlot::PopColormap();
-        ImGui::EndTable();
-    }
-}
-
 void widgets()
 {
     if (ImGui::Button(capturerManager.isCapturing() ? "Stop Capture" : "Start Capture"))
@@ -180,7 +117,7 @@ int main()
             widgets();
             getSamples(audioSamples);
             signalPlotterl.plot(audioSamples, TIMELINE_SIZE);
-            demoTables();
+            plotsTable.plotAll({audioSamples});
         });
     ImPlot::DestroyContext();
 
