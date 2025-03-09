@@ -1,253 +1,24 @@
 cmake_minimum_required(VERSION 3.10)
 project(SignalAcquirer VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
-
-# Generate compile_commands.json for code completion
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# Set C++20 standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-# Set more readable and friendly error messages
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wpedantic -Wshadow")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wpedantic -Wshadow")
+# Sets up the flags for CMake and compiler
+include(CMakeFlags.cmake)
 
 # Define paths
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 
-# Sets opengl provider to a more
-# modern option: GLVND (OpenGL 
-# Vendor-Neutral Dispatch).
-# If you are having compatibilities
-# issues set to "LEGACY"
-set(OpenGL_GL_PREFERENCE "GLVND")
-
-# Raylib configuration
-set(RAYLIB_DIR "${LIB_DIR}/raylib")
-set(RAYLIB_BUILD_DIR "${RAYLIB_DIR}/build")
-
-# Gtest and Gmock configuration
-set(GTEST_DIR "${LIB_DIR}/gtest")
-set(GTEST_BUILD_DIR "${GTEST_DIR}/build")
-
-# IMGui configuration
-set(IMGUI_DIR "${LIB_DIR}/imgui")
-
-# IMPlot configuration
-set(IMPLOT_DIR "${LIB_DIR}/implot")
-
-# Add Armadillo and OpenMP dependencies
-find_package(Armadillo REQUIRED)
-find_package(OpenMP REQUIRED)
-
-# Add OpenGL dependencies
-find_package(OpenGL REQUIRED)
-
-# Package finder
-find_package(PkgConfig REQUIRED)
-
-# Find ALSA library
-pkg_check_modules(ASOUND REQUIRED alsa)
-
-# Find GLFW package
-pkg_check_modules(GLFW REQUIRED glfw3)
-
-# Find PortAudio
-pkg_check_modules(PORTAUDIO REQUIRED portaudio-2.0)
-
-# Find SDL2
-find_package(SDL2 REQUIRED)
+# Do the required libraries check
+include(CMakePackageChecking.cmake)
 
 # Enable testing
 enable_testing()
 
-# Check if Gtest and Gmock is already downloaded and compiled
-if(NOT EXISTS "${GTEST_BUILD_DIR}/lib/libgtest.a" OR NOT EXISTS "${GTEST_DIR}/googletest/include/gtest/gtest.h")
-    message(STATUS "Gtest and Gmock not found, downloading and compiling...")
-
-    if(NOT EXISTS "${GTEST_DIR}/.git")
-        # Clone Gtest and Gmock repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 https://github.com/google/googletest ${GTEST_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone Gtest and Gmock repository")
-        endif()
-    else()
-        # Update Gtest and Gmock repository if already cloned
-        execute_process(
-            COMMAND git -C ${GTEST_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update Gtest and Gmock repository")
-        endif()
-    endif()
-
-    # Create build directory and compile Gtest and Gmock with -fPIC
-    file(MAKE_DIRECTORY ${GTEST_BUILD_DIR})
-    execute_process(
-        COMMAND cmake -S ${GTEST_DIR} -B ${GTEST_BUILD_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "CMake configuration for Gtest and Gmock failed")
-    endif()
-
-    execute_process(
-        COMMAND cmake --build ${GTEST_BUILD_DIR} --parallel
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "Gtest and Gmock build failed")
-    endif()
-else()
-    message(STATUS "Gtest and Gmock already exists, skipping download and compilation...")
-endif()
-
-# Define Gtest and Gmock library
-add_library(gtest STATIC IMPORTED)
-set_target_properties(gtest PROPERTIES
-    IMPORTED_LOCATION "${GTEST_BUILD_DIR}/lib/libgtest.a"
-    INTERFACE_INCLUDE_DIRECTORIES "${GTEST_DIR}/googletest/include"
-)
-
-# Define Gmock library
-add_library(gmock STATIC IMPORTED)
-set_target_properties(gmock PROPERTIES
-    IMPORTED_LOCATION "${GTEST_BUILD_DIR}/lib/libgmock.a"
-    INTERFACE_INCLUDE_DIRECTORIES "${GTEST_DIR}/googlemock/include"
-)
-
-# Check if raylib is already downloaded and compiled
-if(NOT EXISTS "${RAYLIB_BUILD_DIR}/raylib/libraylib.a" OR NOT EXISTS "${RAYLIB_DIR}/src/raylib.h")
-    message(STATUS "Raylib not found, downloading and compiling...")
-
-    if(NOT EXISTS "${RAYLIB_DIR}/.git")
-        # Clone raylib repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 https://github.com/raysan5/raylib ${RAYLIB_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone raylib repository")
-        endif()
-    else()
-        # Update raylib repository if already cloned
-        execute_process(
-            COMMAND git -C ${RAYLIB_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update raylib repository")
-        endif()
-    endif()
-
-    # Create build directory and compile raylib with -fPIC
-    file(MAKE_DIRECTORY ${RAYLIB_BUILD_DIR})
-    execute_process(
-        COMMAND cmake -S ${RAYLIB_DIR} -B ${RAYLIB_BUILD_DIR} -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "CMake configuration for raylib failed")
-    endif()
-
-    execute_process(
-        COMMAND cmake --build ${RAYLIB_BUILD_DIR} --parallel
-        RESULT_VARIABLE result
-    )
-    if(result)
-        message(FATAL_ERROR "Raylib build failed")
-    endif()
-else()
-    message(STATUS "Raylib already exists, skipping download and compilation...")
-endif()
-
-# Define raylib library
-add_library(raylib STATIC IMPORTED)
-set_target_properties(raylib PROPERTIES
-    IMPORTED_LOCATION "${RAYLIB_BUILD_DIR}/raylib/libraylib.a"
-    INTERFACE_INCLUDE_DIRECTORIES "${RAYLIB_DIR}/src"
-)
-
-# Check if imgui is already downloaded and compiled
-if(NOT EXISTS "${IMGUI_DIR}/src/imgui.h")
-    message(STATUS "ImGui not found, downloading and compiling...")
-
-    if(NOT EXISTS "${IMGUI_DIR}/.git")
-        # Clone imgui repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git ${IMGUI_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone ImGui repository")
-        endif()
-    else()
-        # Update imgui repository if already cloned
-        execute_process(
-            COMMAND git -C ${IMGUI_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update ImGui repository")
-        endif()
-    endif()
-else()
-    message(STATUS "ImGui already exists, skipping download and compilation...")
-endif()
-
-# Check if ImPlot is already downloaded and compiled
-if(NOT EXISTS "${IMPLOT_DIR}/implot.h")
-    message(STATUS "ImPlot not found, downloading and compiling...")
-
-    if(NOT EXISTS "${IMPLOT_DIR}/.git")
-        # Clone ImPlot repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 --recursive https://github.com/epezent/implot.git ${IMPLOT_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone ImPlot repository")
-        endif()
-    else()
-        # Update ImPlot repository if already cloned
-        execute_process(
-            COMMAND git -C ${IMPLOT_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update ImPlot repository")
-        endif()
-    endif()
-else()
-    message(STATUS "ImPlot already exists, skipping download and compilation...")
-endif()
-
-# Add ImGui source files
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-)
-
-# Add ImPlot source files
-set(IMPLOT_SOURCES
-    ${IMPLOT_DIR}/implot_items.cpp
-    ${IMPLOT_DIR}/implot.cpp
-)
-
-# Add ImGui backend source files
-set(IMGUI_BACKEND_SOURCES
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-)
+# Loads an compiles the required libraries
+include(CMakeGTestGMock.cmake)
+include(CMakeRaylib.cmake)
+include(CMakeImplot.cmake)
+include(CMakeImgui.cmake)
 
 # Add executable target
 add_executable(SignalAcquirer 
@@ -290,31 +61,9 @@ target_include_directories(SignalAcquirer
         ${LIB_DIR}/util
 )
 
-add_executable(tests 
-    tests/main.cpp
-)
-target_include_directories(tests
-    PRIVATE
-        ${GTEST_DIR}/googletest/include
-        ${GTEST_DIR}/googlemock/include
-)
+# Compiles unity tests
+include(CMakeTests.cmake)
 
-target_link_libraries(tests 
-    PRIVATE
-        gtest
-        gmock
-        ${SDL2_LIBRARIES}
-        ${ARMADILLO_LIBRARIES}
-        ${OpenMP_CXX_LIBRARIES}
-        raylib
-        glfw
-        ${ASOUND_LIBRARIES}
-        ${OPENGL_LIBRARIES}
-        ${PORTAUDIO_LIBRARIES}
-)
-
-# Register the test
-add_test(NAME Test01 COMMAND tests)
 
 # Copy the shared library to the executable's directory
 # add_custom_command(TARGET SignalAcquirer POST_BUILD
