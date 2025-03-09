@@ -19,9 +19,10 @@ public:
 
 private:
     GLFWwindow *window;
-    const char *glsl_version = "#version 330";
     std::string title;
-    int width, height;
+    int width;
+    int height;
+    const char *glsl_version = "#version 330";
 
     static void glfw_error_callback(int error, const char *description);
     bool initializeGLFW();

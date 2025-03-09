@@ -1,7 +1,7 @@
 #include "imguiGlfw.hpp"
 
 ImGuiApp::ImGuiApp(const std::string &title, int width, int height)
-    : title(title), width(width), height(height), window(nullptr) {}
+    : window(nullptr), title(title), width(width), height(height) {}
 
 ImGuiApp::~ImGuiApp()
 {
@@ -62,15 +62,15 @@ void ImGuiApp::prepareFrame()
 {
     glfwPollEvents();
 
-    int width, height;
-    glfwGetFramebufferSize(window, &width, &height);
+    int frameWidth, frameHeight;
+    glfwGetFramebufferSize(window, &frameWidth, &frameHeight);
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
     ImGui::SetNextWindowPos(ImVec2(0, 0));
-    ImGui::SetNextWindowSize(ImVec2(width, height));
+    ImGui::SetNextWindowSize(ImVec2(frameWidth, frameHeight));
 
     ImGui::Begin("Fullscreen Window", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
