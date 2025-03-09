@@ -12,6 +12,8 @@
 #include "../lib/implot/implot.h"
 #include "main.h"
 
+#define TIMELINE_SIZE 10
+
 using namespace std;
 
 // Signal capture manager and signal capturer
@@ -21,30 +23,6 @@ CapturerManager capturerManager;
 // Global state for audio capture
 std::vector<float> audioSamples;
 std::string errorMessage;
-
-#define TIMELINE_SIZE 10
-
-template <typename T>
-inline T RandomRange(T min, T max)
-{
-    T scale = rand() / (T)RAND_MAX;
-    return min + scale * (max - min);
-}
-
-void Sparkline(const char *id, const float *values, int count, float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size)
-{
-    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
-    if (ImPlot::BeginPlot(id, size, ImPlotFlags_CanvasOnly))
-    {
-        ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
-        ImPlot::SetupAxesLimits(0, count - 1, min_v, max_v, ImGuiCond_Always);
-        ImPlot::SetNextLineStyle(col);
-        ImPlot::SetNextFillStyle(col, 0.25);
-        ImPlot::PlotLine(id, values, count, 1, 0, ImPlotLineFlags_Shaded, offset);
-        ImPlot::EndPlot();
-    }
-    ImPlot::PopStyleVar();
-}
 
 inline void toggleAudioCapture(
     CapturerManager *captureManager,
@@ -70,6 +48,50 @@ inline void toggleAudioCapture(
     errorMessages = captureManager->getErrors();
 }
 
+void getSamples(vector<float> &audioSamples)
+{
+    // Update audio buffer
+    if (capturerManager.isCapturing())
+    {
+        const auto new_samples = audioCapturer->getAvailableSamples();
+        if (!new_samples.empty())
+        {
+            audioSamples.insert(audioSamples.end(), new_samples.begin(), new_samples.end());
+
+            // Keep last TIMELINE_SIZE seconds of data
+            const size_t max_samples = TIMELINE_SIZE * AudioCapture::SAMPLE_RATE;
+            if (audioSamples.size() > max_samples)
+            {
+                audioSamples.erase(
+                    audioSamples.begin(),
+                    audioSamples.end() - max_samples);
+            }
+        }
+    }
+}
+
+template <typename T>
+inline T RandomRange(T min, T max)
+{
+    T scale = rand() / (T)RAND_MAX;
+    return min + scale * (max - min);
+}
+
+void Sparkline(const char *id, const float *values, int count, float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size)
+{
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
+    if (ImPlot::BeginPlot(id, size, ImPlotFlags_CanvasOnly))
+    {
+        ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
+        ImPlot::SetupAxesLimits(0, count - 1, min_v, max_v, ImGuiCond_Always);
+        ImPlot::SetNextLineStyle(col);
+        ImPlot::SetNextFillStyle(col, 0.25);
+        ImPlot::PlotLine(id, values, count, 1, 0, ImPlotLineFlags_Shaded, offset);
+        ImPlot::EndPlot();
+    }
+    ImPlot::PopStyleVar();
+}
+
 void demoTables()
 {
     static ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
@@ -87,56 +109,36 @@ void demoTables()
         ImGui::TableSetupColumn("Electrode", ImGuiTableColumnFlags_WidthFixed, 75.0f);
         ImGui::TableSetupColumn("Voltage", ImGuiTableColumnFlags_WidthFixed, 75.0f);
         ImGui::TableSetupColumn("EMG Signal");
+
         ImGui::TableHeadersRow();
+
         ImPlot::PushColormap(ImPlotColormap_Cool);
-        for (int row = 0; row < 20; row++)
+
+        for (int rowIndex = 0; rowIndex < 20; rowIndex++)
         {
             ImGui::TableNextRow();
+
+            srand(rowIndex);
+
             static float data[100];
-            srand(row);
             for (int i = 0; i < 100; ++i)
-                data[i] = RandomRange(0.0f, 10.0f);
+                data[i] = RandomRange(-1.0f, 1.0f);
+
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("EMG %d", row);
+            ImGui::Text("EMG %d", rowIndex);
+
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%.3f V", data[offset]);
+
             ImGui::TableSetColumnIndex(2);
-            ImGui::PushID(row);
-            Sparkline("##spark", data, 100, 0, 11.0f, offset, ImPlot::GetColormapColor(row), ImVec2(-1, 35));
+            ImGui::PushID(rowIndex);
+
+            Sparkline("##spark", data, 100, -1.0f, 1.0f, offset, ImPlot::GetColormapColor(rowIndex), ImVec2(-1, 100));
+
             ImGui::PopID();
         }
         ImPlot::PopColormap();
         ImGui::EndTable();
-    }
-}
-
-void const audioVisualization(std::vector<float> &samples, bool isCapturing, const float &plotHeight)
-{
-    constexpr float TIME_STEP = 1.0f / AudioCapture::SAMPLE_RATE;
-
-    // Pass function pointer with correct signature
-    auto getter = [](int idx, void *data) -> ImPlotPoint
-    {
-        const auto &samples = *static_cast<std::vector<float> *>(data);
-        return ImPlotPoint(idx * TIME_STEP, samples[idx]);
-    };
-
-    // Configure plot
-    if (ImPlot::BeginPlot("Audio Waveform", ImVec2(-1, plotHeight)))
-    {
-        ImPlot::SetupAxis(ImAxis_X1, "Time (s)");
-        ImPlot::SetupAxis(ImAxis_Y1, "Amplitude");
-        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, TIMELINE_SIZE, ImGuiCond_Always);
-        ImPlot::SetupAxisLimits(ImAxis_Y1, -1.2f, 1.2f);
-        ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, .5), 1.5f); // Green line, 1.5px thick
-
-        ImPlot::PlotLineG(
-            "Audio Signal",
-            getter,
-            &samples,
-            static_cast<int>(samples.size()));
-
-        ImPlot::EndPlot();
     }
 }
 
@@ -162,30 +164,10 @@ void widgets()
     }
 }
 
-void getSamples(vector<float> &audioSamples)
-{
-    // Update audio buffer
-    if (capturerManager.isCapturing())
-    {
-        const auto new_samples = audioCapturer->getAvailableSamples();
-        if (!new_samples.empty())
-        {
-            audioSamples.insert(audioSamples.end(), new_samples.begin(), new_samples.end());
-
-            // Keep last TIMELINE_SIZE seconds of data
-            const size_t max_samples = TIMELINE_SIZE * AudioCapture::SAMPLE_RATE;
-            if (audioSamples.size() > max_samples)
-            {
-                audioSamples.erase(
-                    audioSamples.begin(),
-                    audioSamples.end() - max_samples);
-            }
-        }
-    }
-}
 int main()
 {
     capturerManager.addCapturer(audioCapturer);
+    SignalPlotter signalPlotterl(400, AudioCapture::SAMPLE_RATE);
 
     ImGuiApp app("Audio Visualizer", 1280, 720);
     if (!app.initialize())
@@ -193,11 +175,11 @@ int main()
 
     ImPlot::CreateContext();
     app.run(
-        []()
+        [&]()
         {
             widgets();
             getSamples(audioSamples);
-            audioVisualization(audioSamples, capturerManager.isCapturing(), 400);
+            signalPlotterl.plot(audioSamples, TIMELINE_SIZE);
             demoTables();
         });
     ImPlot::DestroyContext();
