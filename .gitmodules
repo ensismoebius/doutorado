@@ -1,21 +1,18 @@
-[submodule "software/src/lib/sfmlplot"]
-	path = software/src/lib/sfmlplot
-	url = git@github.com:ensismoebius/sfmlPlot.git
 [submodule "software/signalAquirer/lib/raylib"]
 	path = software/signalAquirer/lib/raylib
 	url = https://github.com/raysan5/raylib
 [submodule "software/signalAquirer/lib/raygui"]
 	path = software/signalAquirer/lib/raygui
 	url = https://github.com/raysan5/raygui.git
-[submodule "software/signalAquirer/software/signalAquirer/lib/imgui"]
-	path = software/signalAquirer/software/signalAquirer/lib/imgui
+[submodule "software/signalAquirer/lib/imgui"]
+	path = software/signalAquirer/lib/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "software/signalAquirer/software/signalAquirer/lib/implot"]
-	path = software/signalAquirer/software/signalAquirer/lib/implot
+[submodule "software/signalAquirer/lib/implot"]
+	path = software/signalAquirer/lib/implot
 	url = https://github.com/epezent/implot
-[submodule "software/signalAquirer/software/signalAquirer/lib/lsllib"]
-	path = software/signalAquirer/software/signalAquirer/lib/lsllib
+[submodule "software/signalAquirer/lib/lsllib"]
+	path = software/signalAquirer/lib/lsllib
 	url = https://github.com/sccn/liblsl.git
-[submodule "software/signalAquirer/software/signalAquirer/lib/gtest"]
-	path = software/signalAquirer/software/signalAquirer/lib/gtest
+[submodule "software/signalAquirer/lib/gtest"]
+	path = software/signalAquirer/lib/gtest
 	url = https://github.com/google/googletest.git
