@@ -25,7 +25,6 @@ void SignalPlotter::plot(std::vector<float> &samples, const float TIMELINE_SIZE)
 
     static const float timeStep = this->TIME_STEP;
 
-    // Pass function pointer with correct signature
     static auto getter = [](int idx, void *data) -> ImPlotPoint
     {
         const auto &samples = *static_cast<std::vector<float> *>(data);

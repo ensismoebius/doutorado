@@ -50,7 +50,7 @@ inline void toggleAudioCapture(
     errorMessages = captureManager->getErrors();
 }
 
-void getSamples(vector<float> &audioSamples)
+void getSamples(vector<float> &audioSamplesConteiner)
 {
     // Update audio buffer
     if (capturerManager.isCapturing())
@@ -58,15 +58,15 @@ void getSamples(vector<float> &audioSamples)
         const auto new_samples = audioCapturer->getAvailableSamples();
         if (!new_samples.empty())
         {
-            audioSamples.insert(audioSamples.end(), new_samples.begin(), new_samples.end());
+            audioSamplesConteiner.insert(audioSamplesConteiner.end(), new_samples.begin(), new_samples.end());
 
             // Keep last TIMELINE_SIZE seconds of data
             const size_t max_samples = TIMELINE_SIZE * AudioCapture::SAMPLE_RATE;
-            if (audioSamples.size() > max_samples)
+            if (audioSamplesConteiner.size() > max_samples)
             {
-                audioSamples.erase(
-                    audioSamples.begin(),
-                    audioSamples.end() - max_samples);
+                audioSamplesConteiner.erase(
+                    audioSamplesConteiner.begin(),
+                    audioSamplesConteiner.end() - max_samples);
             }
         }
     }
@@ -101,6 +101,19 @@ void widgets()
     }
 }
 
+vector<float> downsample(vector<float> samples, unsigned int factor)
+{
+    std::vector<float> downsampled;
+    downsampled.reserve(samples.size() / factor);
+
+    for (size_t i = 0; i < samples.size(); i += factor)
+    {
+        downsampled.push_back(samples[i]);
+    }
+
+    return downsampled;
+}
+
 int main()
 {
     capturerManager.addCapturer(audioCapturer);
@@ -116,8 +129,7 @@ int main()
         {
             widgets();
             getSamples(audioSamples);
-            signalPlotterl.plot(audioSamples, TIMELINE_SIZE);
-            plotsTable.plotAll({audioSamples});
+            plotsTable.plotAll({audioSamples}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
         });
     ImPlot::DestroyContext();
 

@@ -22,10 +22,13 @@ public:
     ~PlotsTable();
 
     // Correção no parâmetro: Recebe um vetor de shared_ptr
-    void plotAll(const vector<vector<float>> &table);
+    void plotAll(const vector<vector<float>> &table, const unsigned int TIMELINE_SIZE, const unsigned int SAMPLE_RATE);
 
-    static void Sparkline(const char *id, const vector<float> &values, int count,
-                          float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size);
+    static void Sparkline(
+        const char *id,
+        const std::vector<float> &samples,
+        const unsigned int TIMELINE_SIZE,
+        const unsigned int SAMPLE_RATE);
 };
 
 #endif
@@ -34,9 +37,12 @@ PlotsTable::PlotsTable() {}
 
 PlotsTable::~PlotsTable() {}
 
-void PlotsTable::plotAll(const vector<vector<float>> &table)
+void PlotsTable::plotAll(
+    const vector<vector<float>> &table,
+    const unsigned int TIMELINE_SIZE,
+    const unsigned int SAMPLE_RATE)
 {
-    if (ImGui::BeginTable("##table", 3, flags, ImVec2(-1, 0)))
+    if (ImGui::BeginTable("##table", 2, flags, ImVec2(-1, 0)))
     {
         ImGui::TableSetupColumn("Electrode", ImGuiTableColumnFlags_WidthFixed, 75.0f);
         ImGui::TableSetupColumn("EMG Signal");
@@ -57,12 +63,8 @@ void PlotsTable::plotAll(const vector<vector<float>> &table)
             Sparkline(
                 "##spark",
                 table[rowIndex],
-                table[rowIndex].size(),
-                -1.0f,
-                1.0f,
-                100,
-                ImPlot::GetColormapColor(rowIndex),
-                ImVec2(-1, 100));
+                TIMELINE_SIZE,
+                SAMPLE_RATE);
 
             ImGui::PopID();
         }
@@ -72,17 +74,34 @@ void PlotsTable::plotAll(const vector<vector<float>> &table)
     }
 }
 
-void PlotsTable::Sparkline(const char *id, const vector<float> &values, int count,
-                           float min_v, float max_v, int offset, const ImVec4 &col, const ImVec2 &size)
+void PlotsTable::Sparkline(
+    const char *id,
+    const std::vector<float> &samples,
+    const unsigned int TIMELINE_SIZE,
+    const unsigned int SAMPLE_RATE)
 {
+    static const float timeStep = 1.0f / SAMPLE_RATE;
+
+    static auto getter = [](int idx, void *data) -> ImPlotPoint
+    {
+        float *samples = static_cast<float *>(data); // Directly cast to float array
+        return ImPlotPoint(idx * timeStep, samples[idx]);
+    };
+
     ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
-    if (ImPlot::BeginPlot(id, size, ImPlotFlags_CanvasOnly))
+    if (ImPlot::BeginPlot(id, ImVec2(-1, 100), ImPlotFlags_CanvasOnly))
     {
         ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
-        ImPlot::SetupAxesLimits(0, count - 1, min_v, max_v, ImGuiCond_Always);
-        ImPlot::SetNextLineStyle(col);
-        ImPlot::SetNextFillStyle(col, 0.25);
-        ImPlot::PlotLine(id, values.data(), count, 1, 0, ImPlotLineFlags_Shaded, offset);
+        ImPlot::SetupAxisLimits(ImAxis_X1, 0.0f, TIMELINE_SIZE, ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, -1.2f, 1.2f);
+        ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, .5), 1.5f); // Green line, 1.5px thick
+
+        ImPlot::PlotLineG(
+            "Audio Signal",
+            getter,
+            (void *)samples.data(),
+            static_cast<int>(samples.size()));
+
         ImPlot::EndPlot();
     }
     ImPlot::PopStyleVar();
