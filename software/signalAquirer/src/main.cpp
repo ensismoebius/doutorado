@@ -59,15 +59,6 @@ void getSamples(vector<float> &audioSamplesConteiner)
         if (!new_samples.empty())
         {
             audioSamplesConteiner.insert(audioSamplesConteiner.end(), new_samples.begin(), new_samples.end());
-
-            // Keep last TIMELINE_SIZE seconds of data
-            const size_t max_samples = TIMELINE_SIZE * AudioCapture::SAMPLE_RATE;
-            if (audioSamplesConteiner.size() > max_samples)
-            {
-                audioSamplesConteiner.erase(
-                    audioSamplesConteiner.begin(),
-                    audioSamplesConteiner.end() - max_samples);
-            }
         }
     }
 }
