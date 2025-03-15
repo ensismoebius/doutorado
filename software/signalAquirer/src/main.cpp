@@ -114,13 +114,23 @@ int main()
     if (!app.initialize())
         return -1;
 
+    static bool teste = false;
+
     ImPlot::CreateContext();
     app.run(
         [&]()
         {
+            if (ImGui::Button(teste ? "Plotando" : "Não plotando"))
+            {
+                teste = !teste;
+            }
             widgets();
             getSamples(audioSamples);
-            plotsTable.plotAll({audioSamples}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
+
+            if (teste)
+            {
+                plotsTable.plotAll({audioSamples}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
+            }
         });
     ImPlot::DestroyContext();
 

@@ -108,7 +108,7 @@ void PlotsTable::Sparkline(
             "Audio Signal",
             getter,
             (void *)samples.data(),
-            static_cast<int>(samples.size()));
+            samples.size());
 
         ImPlot::EndPlot();
     }
