@@ -82,13 +82,15 @@ void PlotsTable::Sparkline(
     const unsigned int SAMPLE_RATE)
 {
     static const float timeStep = 1.0f / SAMPLE_RATE;
-    static float scrollOffset = 0.0f; // Track user scroll position
+    static float scrollOffset = 0.0f;    // Track user scroll position
+    static float previousMouseX = -1.0f; // Previous mouse X position for tracking movement
 
     float totalDuration = samples.size() * timeStep; // Total duration of data
     float displayDuration = 6.0f;                    // Duration of data displayed in the plot (6 seconds)
 
     // Set x-axis range for the plot to show last 6 seconds
     double xMin = max(0.0f, totalDuration - displayDuration - scrollOffset);
+
     double xMax = xMin + displayDuration;
 
     static double selectionStart = xMin + 1.0f; // Posição inicial da seleção
@@ -156,14 +158,28 @@ void PlotsTable::Sparkline(
     ImGui::Text("Selection Start: %.2f sec", selectionStart);
     ImGui::Text("Selection End: %.2f sec", selectionEnd);
 
-    // Scroll control
-    if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-        scrollOffset = min(scrollOffset + 0.5f, totalDuration - displayDuration);
-    if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-        scrollOffset = max(0.0f, scrollOffset - 0.5f);
+    // Get mouse position
+    ImVec2 mousePos = ImGui::GetMousePos();
+    if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
+    {
+        // If mouse is being dragged, calculate the difference from the previous position
+        if (previousMouseX != -1.0f)
+        {
+            // Calculate the mouse movement delta
+            float deltaX = mousePos.x - previousMouseX;
 
+            // Update the scroll offset based on the mouse movement
+            scrollOffset += deltaX / ImGui::GetIO().DisplaySize.x * totalDuration; // Adjust scaling
+            scrollOffset = std::clamp(scrollOffset, 0.0f, totalDuration - displayDuration);
+        }
+    }
+
+    // Store current mouse position for the next frame
+    previousMouseX = mousePos.x;
+
+    // Scroll control slider
     float maxScrollOffset = totalDuration - displayDuration; // Max scroll position
     ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::SliderFloat("##Scroll", &scrollOffset, maxScrollOffset, 0.0f, "%.2f sec", ImGuiSliderFlags_None);
+    ImGui::SliderFloat("##Scroll", &scrollOffset, maxScrollOffset, 0.0f, "", ImGuiSliderFlags_None);
     ImGui::PopItemWidth();
 }
