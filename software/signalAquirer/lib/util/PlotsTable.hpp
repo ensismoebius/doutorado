@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 #include "../lib/implot/implot.h"
 
@@ -87,8 +88,11 @@ void PlotsTable::Sparkline(
     float displayDuration = 6.0f;                    // Duration of data displayed in the plot (6 seconds)
 
     // Set x-axis range for the plot to show last 6 seconds
-    float xMin = max(0.0f, totalDuration - displayDuration - scrollOffset);
-    float xMax = xMin + displayDuration;
+    double xMin = max(0.0f, totalDuration - displayDuration - scrollOffset);
+    double xMax = xMin + displayDuration;
+
+    static double selectionStart = xMin + 1.0f; // Posição inicial da seleção
+    static double selectionEnd = xMin + 2.0f;   // Posição final da seleção
 
     static auto getter = [](int idx, void *data) -> ImPlotPoint
     {
@@ -110,9 +114,47 @@ void PlotsTable::Sparkline(
             (void *)samples.data(),
             samples.size());
 
+        // Adiciona linhas móveis para selecionar início e fim do intervalo
+        if (ImPlot::DragLineX(0, &selectionStart, ImVec4(1, 0, 0, 1), 1.5f))
+        {
+            selectionStart = std::clamp(selectionStart, xMin, xMax);
+            // Ensure selectionStart is smaller than selectionEnd and not equal
+            if (selectionStart >= selectionEnd)
+            {
+                selectionStart = selectionEnd - 0.001f; // Ensure a slight difference
+            }
+        }
+
+        if (ImPlot::DragLineX(1, &selectionEnd, ImVec4(0, 0, 1, 1), 1.5f))
+        {
+            selectionEnd = std::clamp(selectionEnd, xMin, xMax);
+            // Ensure selectionEnd is greater than selectionStart and not equal
+            if (selectionEnd <= selectionStart)
+            {
+                selectionEnd = selectionStart + 0.001f; // Ensure a slight difference
+            }
+        }
+
+        ////////////////////// Draws the rectangle
+        ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4(0.0f, 0.0f, 1.0f, 0.2f)); // Set shading color to semi-transparent blue
+
+        // Define the rectangle's position and size in plot coordinates
+        ImVec2 p1 = ImPlot::PlotToPixels(ImVec2(selectionStart, 0.0f));
+        ImVec2 p2 = ImPlot::PlotToPixels(ImVec2(selectionEnd, 0.0f));
+
+        // Draw the rectangle (outline)
+        ImPlot::GetPlotDrawList()->AddLine(p1, p2, IM_COL32(255, 0, 255, 125), 0.0f);
+
+        ImPlot::PopStyleColor(); // Reset fill color
+        ////////////////////// Draws the rectangle - end
+
         ImPlot::EndPlot();
     }
     ImPlot::PopStyleVar();
+
+    // Exibe valores da seleção
+    ImGui::Text("Selection Start: %.2f sec", selectionStart);
+    ImGui::Text("Selection End: %.2f sec", selectionEnd);
 
     // Scroll control
     if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
@@ -120,11 +162,8 @@ void PlotsTable::Sparkline(
     if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
         scrollOffset = max(0.0f, scrollOffset - 0.5f);
 
-    // --- Scrollbar Control ---
-    if (totalDuration > displayDuration) // Show scrollbar only if data exceeds 6s
-    {
-        ImGui::Text("Scroll Timeline:");
-        float maxScrollOffset = totalDuration - displayDuration; // Max scroll position
-        ImGui::SliderFloat("##Scroll", &scrollOffset, 0.0f, maxScrollOffset, "%.2f sec");
-    }
+    float maxScrollOffset = totalDuration - displayDuration; // Max scroll position
+    ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
+    ImGui::SliderFloat("##Scroll", &scrollOffset, maxScrollOffset, 0.0f, "%.2f sec", ImGuiSliderFlags_None);
+    ImGui::PopItemWidth();
 }
