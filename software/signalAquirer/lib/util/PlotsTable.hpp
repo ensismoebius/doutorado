@@ -11,6 +11,12 @@
 
 using namespace std;
 
+typedef struct
+{
+    vector<float> signal;
+    size_t sampleRate;
+} Signal;
+
 class PlotsTable
 {
 private:
@@ -25,7 +31,7 @@ public:
     ~PlotsTable();
 
     // Correção no parâmetro: Recebe um vetor de shared_ptr
-    void plotAll(const vector<vector<float>> &table, const unsigned int TIMELINE_SIZE, const unsigned int SAMPLE_RATE);
+    void plotAll(const map<string, Signal> &table, const unsigned int TIMELINE_SIZE);
 };
 
 #endif
@@ -35,9 +41,8 @@ PlotsTable::PlotsTable() {}
 PlotsTable::~PlotsTable() {}
 
 void PlotsTable::plotAll(
-    const vector<vector<float>> &table,
-    const unsigned int TIMELINE_SIZE,
-    const unsigned int SAMPLE_RATE)
+    const map<string, Signal> &table,
+    const unsigned int TIMELINE_SIZE)
 {
     if (ImGui::BeginTable("##table", 2, flags, ImVec2(-1, 0)))
     {
@@ -47,17 +52,20 @@ void PlotsTable::plotAll(
         ImGui::TableHeadersRow();
         ImPlot::PushColormap(ImPlotColormap_Cool);
 
-        for (int rowIndex = 0; rowIndex < table.size(); ++rowIndex)
+        bool showDetails = true;
+
+        for (auto it = table.begin(); it != table.end(); ++it)
         {
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("EMG %d", rowIndex);
+            ImGui::Text("%s", it->first.c_str()); // Access the key (e.g., "EMG 1")
 
             ImGui::TableSetColumnIndex(1);
-            ImGui::PushID(rowIndex);
+            ImGui::PushID(it->first.c_str()); // Use key as the ID
 
-            SparklinePlot::Render("##spark", table[rowIndex], SAMPLE_RATE);
+            SparklinePlot::Render("##spark", it->second.signal, it->second.sampleRate, showDetails); // Access the value (the vector)
+            showDetails = false;
 
             ImGui::PopID();
         }

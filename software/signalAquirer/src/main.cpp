@@ -23,9 +23,9 @@ CapturerManager capturerManager;
 PlotsTable plotsTable;
 
 // Global state for audio capture
-std::vector<float> audioSamples;
-std::vector<float> testSignalSamples00;
-std::vector<float> testSignalSamples01;
+Signal audioSamples;
+Signal testSignalSamples00;
+Signal testSignalSamples01;
 
 std::string errorMessage;
 
@@ -38,7 +38,7 @@ inline T RandomRange(T min, T max)
 
 inline void toggleAudioCapture(
     CapturerManager *captureManager,
-    std::vector<float> samples,
+    Signal samples,
     std::string &errorMessages)
 {
     // If capturing the audio then stop it
@@ -51,7 +51,7 @@ inline void toggleAudioCapture(
     // If NOT capturing then starts the audio capturing
     if (captureManager->startCapturing())
     {
-        samples.clear();
+        samples.signal.clear();
         return;
     }
 
@@ -60,20 +60,24 @@ inline void toggleAudioCapture(
     errorMessages = captureManager->getErrors();
 }
 
-float getSamples(vector<float> &audioSamplesConteiner)
+float getSamples(Signal &audioSamplesConteiner)
 {
+
+    audioSamplesConteiner.sampleRate = AudioCapture::SAMPLE_RATE;
+
     // Update audio buffer
     const auto new_samples = audioCapturer->getAvailableSamples();
     if (!new_samples.empty())
     {
-        audioSamplesConteiner.insert(audioSamplesConteiner.end(), new_samples.begin(), new_samples.end());
+        audioSamplesConteiner.signal.insert(audioSamplesConteiner.signal.end(), new_samples.begin(), new_samples.end());
+
         return new_samples.size();
     }
 
     return 0;
 }
 
-float getSamples2(vector<float> &signalSamplesContainer, size_t size)
+float getSamples2(Signal &signalSamplesContainer, size_t size)
 {
     vector<float> new_samples(size);
 
@@ -82,15 +86,17 @@ float getSamples2(vector<float> &signalSamplesContainer, size_t size)
         item = RandomRange(-0.5f, 0.5f);
     }
 
+    signalSamplesContainer.sampleRate = AudioCapture::SAMPLE_RATE;
+
     if (!new_samples.empty())
     {
-        signalSamplesContainer.insert(signalSamplesContainer.end(), new_samples.begin(), new_samples.end());
+        signalSamplesContainer.signal.insert(signalSamplesContainer.signal.end(), new_samples.begin(), new_samples.end());
         return new_samples.size();
     }
     return 0;
 }
 
-float getSamples3(vector<float> &signalSamplesContainer, size_t size)
+float getSamples3(Signal &signalSamplesContainer, size_t size)
 {
     vector<float> new_samples(size);
 
@@ -102,9 +108,11 @@ float getSamples3(vector<float> &signalSamplesContainer, size_t size)
         }
     }
 
+    signalSamplesContainer.sampleRate = AudioCapture::SAMPLE_RATE;
+
     if (!new_samples.empty())
     {
-        signalSamplesContainer.insert(signalSamplesContainer.end(), new_samples.begin(), new_samples.end());
+        signalSamplesContainer.signal.insert(signalSamplesContainer.signal.end(), new_samples.begin(), new_samples.end());
         return new_samples.size();
     }
     return 0;
@@ -119,9 +127,9 @@ void widgets()
 
     if (ImGui::Button("Clear Display"))
     {
-        audioSamples.clear();
-        testSignalSamples00.clear();
-        testSignalSamples01.clear();
+        audioSamples.signal.clear();
+        testSignalSamples00.signal.clear();
+        testSignalSamples01.signal.clear();
     }
 
     if (!errorMessage.empty())
@@ -150,7 +158,6 @@ vector<float> downsample(vector<float> samples, unsigned int factor)
 int main()
 {
     capturerManager.addCapturer(audioCapturer);
-    SignalPlotter signalPlotterl(400, AudioCapture::SAMPLE_RATE);
 
     ImGuiApp app("Audio Visualizer", 1280, 720);
     if (!app.initialize())
@@ -178,7 +185,11 @@ int main()
 
             if (ploting)
             {
-                plotsTable.plotAll({audioSamples, testSignalSamples00, testSignalSamples01}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
+                plotsTable.plotAll(
+                    {make_pair("audio", audioSamples),
+                     make_pair("rnd00", testSignalSamples00),
+                     make_pair("rnd01", testSignalSamples01)},
+                    TIMELINE_SIZE);
             }
         });
     ImPlot::DestroyContext();

@@ -11,26 +11,34 @@ class SparklinePlot
 {
 public:
     // Renders the sparkline plot with the given ID and sample data
-    static void Render(const char *id, const std::vector<float> &samples, unsigned int sampleRate);
+    static void Render(const char *id, const std::vector<float> &samples, unsigned int sampleRate, bool showDetails = false);
 
 private:
     static inline float scrollOffset = 0.0f;    // Horizontal scroll offset
     static inline float previousMouseX = -1.0f; // Previous X position of the mouse (for dragging)
     static inline double selectionStart = 1.0f; // Start position of the selection range
-    static inline double selectionEnd = 2.0f;   // End position of the selection range
+    static inline double selectionEnd = 6.0f;   // End position of the selection range
 };
 
 #endif // SPARKLINE_PLOT_HPP
 
-void SparklinePlot::Render(const char *id, const std::vector<float> &samples, unsigned int sampleRate)
+void SparklinePlot::Render(const char *id, const std::vector<float> &samples, unsigned int sampleRate, bool showDetails)
 {
-    static float timeStep = 1.0f / sampleRate;
+    static float timeStep = 0;
+    if (sampleRate != 0)
+    {
+        timeStep = 1.0f / sampleRate;
+    }
+    else
+    {
+        timeStep = 0;
+    }
+
     float totalDuration = samples.size() * timeStep;
     float displayDuration = 6.0f;
     double xMin = std::max(0.0f, totalDuration - displayDuration - scrollOffset);
     double xMax = xMin + displayDuration;
 
-    // Optimized getter function: Precompute X values instead of recalculating per call
     struct DataWrapper
     {
         const std::vector<float> &samples;
@@ -78,9 +86,6 @@ void SparklinePlot::Render(const char *id, const std::vector<float> &samples, un
     }
     ImPlot::PopStyleVar();
 
-    ImGui::Text("Selection Start: %.2f sec", selectionStart);
-    ImGui::Text("Selection End: %.2f sec", selectionEnd);
-
     // Optimize scrolling logic by resetting previousMouseX when mouse button is released
     ImVec2 mousePos = ImGui::GetMousePos();
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
@@ -98,9 +103,13 @@ void SparklinePlot::Render(const char *id, const std::vector<float> &samples, un
         previousMouseX = -1.0f; // Reset when mouse button is released
     }
 
-    // Fix ImGui::SliderFloat range order
     float maxScrollOffset = totalDuration - displayDuration;
     ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::SliderFloat("##Scroll", &scrollOffset, maxScrollOffset, 0.0f, "", ImGuiSliderFlags_None);
+    if (showDetails)
+    {
+        ImGui::Text("Selection Start: %.2f sec", selectionStart);
+        ImGui::Text("Selection End: %.2f sec", selectionEnd);
+        ImGui::SliderFloat("##Scroll", &scrollOffset, maxScrollOffset, 0.0f, "", ImGuiSliderFlags_None);
+    }
     ImGui::PopItemWidth();
 }
