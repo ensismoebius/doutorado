@@ -24,7 +24,17 @@ PlotsTable plotsTable;
 
 // Global state for audio capture
 std::vector<float> audioSamples;
+std::vector<float> testSignalSamples00;
+std::vector<float> testSignalSamples01;
+
 std::string errorMessage;
+
+template <typename T>
+inline T RandomRange(T min, T max)
+{
+    T scale = rand() / (T)RAND_MAX;
+    return min + scale * (max - min);
+}
 
 inline void toggleAudioCapture(
     CapturerManager *captureManager,
@@ -50,24 +60,54 @@ inline void toggleAudioCapture(
     errorMessages = captureManager->getErrors();
 }
 
-void getSamples(vector<float> &audioSamplesConteiner)
+float getSamples(vector<float> &audioSamplesConteiner)
 {
     // Update audio buffer
-    if (capturerManager.isCapturing())
+    const auto new_samples = audioCapturer->getAvailableSamples();
+    if (!new_samples.empty())
     {
-        const auto new_samples = audioCapturer->getAvailableSamples();
-        if (!new_samples.empty())
-        {
-            audioSamplesConteiner.insert(audioSamplesConteiner.end(), new_samples.begin(), new_samples.end());
-        }
+        audioSamplesConteiner.insert(audioSamplesConteiner.end(), new_samples.begin(), new_samples.end());
+        return new_samples.size();
     }
+
+    return 0;
 }
 
-template <typename T>
-inline T RandomRange(T min, T max)
+float getSamples2(vector<float> &signalSamplesContainer, size_t size)
 {
-    T scale = rand() / (T)RAND_MAX;
-    return min + scale * (max - min);
+    vector<float> new_samples(size);
+
+    for (auto &item : new_samples)
+    {
+        item = RandomRange(-0.5f, 0.5f);
+    }
+
+    if (!new_samples.empty())
+    {
+        signalSamplesContainer.insert(signalSamplesContainer.end(), new_samples.begin(), new_samples.end());
+        return new_samples.size();
+    }
+    return 0;
+}
+
+float getSamples3(vector<float> &signalSamplesContainer, size_t size)
+{
+    vector<float> new_samples(size);
+
+    for (size_t i = 0; i < new_samples.size(); i++)
+    {
+        if (i % 100 == 0)
+        {
+            new_samples[i] = RandomRange(-0.5f, 0.5f);
+        }
+    }
+
+    if (!new_samples.empty())
+    {
+        signalSamplesContainer.insert(signalSamplesContainer.end(), new_samples.begin(), new_samples.end());
+        return new_samples.size();
+    }
+    return 0;
 }
 
 void widgets()
@@ -80,6 +120,8 @@ void widgets()
     if (ImGui::Button("Clear Display"))
     {
         audioSamples.clear();
+        testSignalSamples00.clear();
+        testSignalSamples01.clear();
     }
 
     if (!errorMessage.empty())
@@ -124,12 +166,19 @@ int main()
             {
                 ploting = !ploting;
             }
+
             widgets();
-            getSamples(audioSamples);
+
+            if (capturerManager.isCapturing())
+            {
+                size_t size = getSamples(audioSamples);
+                getSamples2(testSignalSamples00, size);
+                getSamples3(testSignalSamples01, size);
+            }
 
             if (ploting)
             {
-                plotsTable.plotAll({audioSamples}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
+                plotsTable.plotAll({audioSamples, testSignalSamples00, testSignalSamples01}, TIMELINE_SIZE, AudioCapture::SAMPLE_RATE);
             }
         });
     ImPlot::DestroyContext();
