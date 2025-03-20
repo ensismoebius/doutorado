@@ -61,7 +61,7 @@ void SparklinePlot::Render(const char *id, const std::vector<float> &samples, un
         ImPlot::SetupAxisLimits(ImAxis_Y1, -1.2f, 1.2f);
         ImPlot::SetNextLineStyle(ImVec4(0, 1, 0, .5), 1.5f);
 
-        ImPlot::PlotLineG("Audio Signal", getter, &wrapper, samples.size());
+        ImPlot::PlotLineG("Signal", getter, &wrapper, samples.size());
 
         // Handle selection dragging with minimal redundant operations
         if (ImPlot::DragLineX(0, &selectionStart, ImVec4(1, 0, 0, 1), 1.5f))
@@ -78,9 +78,7 @@ void SparklinePlot::Render(const char *id, const std::vector<float> &samples, un
         // Optimize selection line rendering by computing pixel positions once
         ImVec2 p1 = ImPlot::PlotToPixels(ImVec2(selectionStart, 0.0f));
         ImVec2 p2 = ImPlot::PlotToPixels(ImVec2(selectionEnd, 0.0f));
-        ImPlot::PushStyleColor(ImPlotCol_Fill, ImVec4(0.0f, 0.0f, 1.0f, 0.2f));
-        ImPlot::GetPlotDrawList()->AddLine(p1, p2, IM_COL32(255, 0, 255, 125), 0.0f);
-        ImPlot::PopStyleColor();
+        ImPlot::GetPlotDrawList()->AddLine(p1, p2, IM_COL32(255, 0, 255, 20), ImPlot::GetPlotSize().y);
 
         ImPlot::EndPlot();
     }
@@ -90,6 +88,8 @@ void SparklinePlot::Render(const char *id, const std::vector<float> &samples, un
     ImVec2 mousePos = ImGui::GetMousePos();
     if (ImGui::IsMouseDown(ImGuiMouseButton_Right))
     {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+
         if (previousMouseX != -1.0f)
         {
             float deltaX = mousePos.x - previousMouseX;
