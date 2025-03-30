@@ -9,6 +9,7 @@ add_executable(SignalAcquirer
     ${LIB_DIR}/util/MockCapturer.cpp
     ${LIB_DIR}/util/SignalPlotter.hpp
     ${LIB_DIR}/util/SparklinePlot.hpp
+    ${LIB_DIR}/util/SerialCapturer.hpp
     ${LIB_DIR}/util/PlotsTable.hpp
     ${SRC_DIR}/main.cpp
 )
