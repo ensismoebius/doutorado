@@ -1,102 +1,70 @@
 #include <iostream>
-#include <Eigen/Dense>
-#include <vector>
-#include "Relu.cpp"
-#include "Model.cpp"
-#include "Linear.cpp"
+#include <cmath>
+#include "layers/ReLU.cpp"
+#include "layers/Linear.cpp"
+#include "util/vetorizationCheck.hpp"
 
-// MSE Loss (Mean Squared Error)
-class MSELoss {
-public:
-    // Forward pass to calculate the loss
-    double forward(const Eigen::MatrixXd& predictions, const Eigen::MatrixXd& targets) {
-        Eigen::MatrixXd diff = predictions - targets;
-        return diff.squaredNorm() / diff.rows();
-    }
-
-    // Backward pass to calculate gradient of the loss with respect to predictions
-    Eigen::MatrixXd backward(const Eigen::MatrixXd& predictions, const Eigen::MatrixXd& targets) {
-        Eigen::MatrixXd diff = predictions - targets;
-        return (2.0 / diff.rows()) * diff;
-    }
-};
-
-// Simple gradient descent optimizer
-class SGD {
-    double learning_rate;
-
-public:
-    explicit SGD(double lr) : learning_rate(lr) {}
-
-    void step(Model& model) {
-        auto params = model.parameters();
-        auto grads = model.gradients();
-
-        for (auto& [name, param] : params) {
-            // Update parameters with gradient descent
-            param.noalias() -= learning_rate * grads[name];
-        }
-    }
-};
-
-void train(Model& model, MSELoss& mse_loss, SGD& optimizer, 
-           const std::vector<Eigen::MatrixXd>& inputs, 
-           const std::vector<Eigen::MatrixXd>& targets, 
-           int epochs) {
-    for (int epoch = 1; epoch <= epochs; ++epoch) {
-        double total_loss = 0.0;
-
-        for (size_t i = 0; i < inputs.size(); ++i) {
-            // Forward pass
-            Eigen::MatrixXd output = model.forward(inputs[i]);
-
-            // Compute loss
-            double loss = mse_loss.forward(output, targets[i]);
-            total_loss += loss;
-
-            // Backward pass
-            Eigen::MatrixXd grad_loss = mse_loss.backward(output, targets[i]);
-            model.backward(grad_loss);
-
-            // Update parameters
-            optimizer.step(model);
-        }
-
-        // Display loss for this epoch
-        std::cout << "Epoch " << epoch << " - Loss: " << total_loss / inputs.size() << std::endl;
-    }
+float compute_mse_loss(const Tensor &prediction, const Tensor &target)
+{
+    Eigen::MatrixXf diff = prediction.data - target.data;
+    return diff.array().square().mean();
 }
 
-int main() {
-    // Instantiate the model
-    Model model({
-        new Linear(4, 5),
-        new ReLU(),
-        new Linear(5, 3),
-        new ReLU(),
-        new Linear(3, 1)
-    });
+Tensor compute_mse_grad(const Tensor &prediction, const Tensor &target)
+{
+    Eigen::MatrixXf grad = 2.0f * (prediction.data - target.data) / prediction.data.rows();
+    return Tensor(grad);
+}
 
-    // Instantiate MSE loss function
-    MSELoss mse_loss;
+int main()
+{
+    printVetorizationSupport();
 
-    // Instantiate optimizer
-    SGD optimizer(0.01);
+    // Entrada x: 4 amostras, 2 features
+    Tensor x(4, 2);
+    x.data << 1, 0,
+        0, 1,
+        1, 1,
+        0, 0;
 
-    // Training data (inputs and targets)
-    std::vector<Eigen::MatrixXd> inputs = {
-        Eigen::MatrixXd::Random(1, 4),
-        Eigen::MatrixXd::Random(1, 4),
-        Eigen::MatrixXd::Random(1, 4)
-    };
-    std::vector<Eigen::MatrixXd> targets = {
-        Eigen::MatrixXd::Random(1, 1),
-        Eigen::MatrixXd::Random(1, 1),
-        Eigen::MatrixXd::Random(1, 1)
-    };
+    // Alvo y: saída esperada (4 amostras, 1 saída)
+    Tensor y_target(4, 1);
+    y_target.data << 1,
+        1,
+        0,
+        0;
 
-    // Train the model for 100 epochs
-    train(model, mse_loss, optimizer, inputs, targets, 100);
+    // Camadas
+    Linear linear1(2, 4); // primeira camada: input 2 → hidden 4
+    ReLU relu;
+    Linear linear2(4, 1); // segunda camada: hidden 4 → output 1
+
+    float learning_rate = 0.1f;
+
+    for (int epoch = 0; epoch < 100; ++epoch)
+    {
+        // Forward
+        Tensor out1 = linear1.forward(x);
+        Tensor out2 = relu.forward(out1);
+        Tensor out3 = linear2.forward(out2);
+
+        // Loss
+        float loss = compute_mse_loss(out3, y_target);
+        std::cout << "Epoch " << epoch << ", Loss = " << loss << std::endl;
+
+        // Backward
+        Tensor grad_loss = compute_mse_grad(out3, y_target);
+        Tensor grad_linear2 = linear2.backward(grad_loss);
+        Tensor grad_relu = relu.backward(grad_linear2);
+        Tensor grad_linear1 = linear1.backward(grad_relu);
+
+        // Atualização dos pesos
+        linear2.weight -= learning_rate * linear2.grad_weight;
+        linear2.bias -= learning_rate * linear2.grad_bias;
+
+        linear1.weight -= learning_rate * linear1.grad_weight;
+        linear1.bias -= learning_rate * linear1.grad_bias;
+    }
 
     return 0;
 }

@@ -4,6 +4,7 @@
 #include <random>
 
 #include "../lib/util/CapturerManager.hpp"
+#include "../lib/util/SerialCapturer.hpp"
 #include "../lib/util/AudioCapture.hpp"
 #include "../lib/util/MockCapturer.hpp"
 #include "../lib/util/SignalPlotter.hpp"
@@ -19,13 +20,14 @@ using namespace std;
 
 // Signal capture manager and signal capturer
 shared_ptr<ICapturer> audioCapturer = make_shared<AudioCapture>();
+shared_ptr<ICapturer> serialCapturer = make_shared<SerialCapturer>("/dev/ttyACM0", B9600);
+
 CapturerManager capturerManager;
 PlotsTable plotsTable;
 
 // Global state for audio capture
 Signal audioSamples;
-Signal testSignalSamples00;
-Signal testSignalSamples01;
+Signal serialData;
 
 std::string errorMessage;
 
@@ -77,44 +79,20 @@ float getSamples(Signal &audioSamplesConteiner)
     return 0;
 }
 
-float getSamples2(Signal &signalSamplesContainer, size_t size)
+float getSamples2(Signal &serialSamplesConteiner)
 {
-    vector<float> new_samples(size);
 
-    for (auto &item : new_samples)
-    {
-        item = RandomRange(-0.5f, 0.5f);
-    }
+    serialSamplesConteiner.sampleRate = AudioCapture::SAMPLE_RATE / 40;
 
-    signalSamplesContainer.sampleRate = AudioCapture::SAMPLE_RATE;
-
+    // Update serial buffer
+    const auto new_samples = serialCapturer->getAvailableSamples();
     if (!new_samples.empty())
     {
-        signalSamplesContainer.signal.insert(signalSamplesContainer.signal.end(), new_samples.begin(), new_samples.end());
+        serialSamplesConteiner.signal.insert(serialSamplesConteiner.signal.end(), new_samples.begin(), new_samples.end());
+
         return new_samples.size();
     }
-    return 0;
-}
 
-float getSamples3(Signal &signalSamplesContainer, size_t size)
-{
-    vector<float> new_samples(size);
-
-    for (size_t i = 0; i < new_samples.size(); i++)
-    {
-        if (i % 100 == 0)
-        {
-            new_samples[i] = RandomRange(-0.5f, 0.5f);
-        }
-    }
-
-    signalSamplesContainer.sampleRate = AudioCapture::SAMPLE_RATE;
-
-    if (!new_samples.empty())
-    {
-        signalSamplesContainer.signal.insert(signalSamplesContainer.signal.end(), new_samples.begin(), new_samples.end());
-        return new_samples.size();
-    }
     return 0;
 }
 
@@ -128,8 +106,7 @@ void widgets()
     if (ImGui::Button("Clear Display"))
     {
         audioSamples.signal.clear();
-        testSignalSamples00.signal.clear();
-        testSignalSamples01.signal.clear();
+        serialData.signal.clear();
     }
 
     if (!errorMessage.empty())
@@ -158,6 +135,7 @@ vector<float> downsample(vector<float> samples, unsigned int factor)
 int main()
 {
     capturerManager.addCapturer(audioCapturer);
+    capturerManager.addCapturer(serialCapturer);
 
     ImGuiApp app("Audio Visualizer", 1280, 720);
     if (!app.initialize())
@@ -179,16 +157,14 @@ int main()
             if (capturerManager.isCapturing())
             {
                 size_t size = getSamples(audioSamples);
-                getSamples2(testSignalSamples00, size);
-                getSamples3(testSignalSamples01, size);
+                getSamples2(serialData);
             }
 
             if (ploting)
             {
                 plotsTable.plotAll(
                     {make_pair("audio", audioSamples),
-                     make_pair("rnd00", testSignalSamples00),
-                     make_pair("rnd01", testSignalSamples01)},
+                     make_pair("serial", serialData)},
                     TIMELINE_SIZE);
             }
         });
