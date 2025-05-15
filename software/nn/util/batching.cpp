@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <random>
 
-auto create_batches(const Tensor &inputSamples, const Tensor &targets, int batch_size)
-    -> std::vector<Batch> {
+auto create_batches(const Tensor &inputSamples, const Tensor &targets, int batch_size) -> std::vector<Batch> {
+
   int n_samples = static_cast<int>(inputSamples.data.rows());
   std::vector<int> indices(n_samples);
   std::iota(indices.begin(), indices.end(), 0);
