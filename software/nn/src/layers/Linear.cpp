@@ -24,7 +24,7 @@ struct Linear {
    * @param in_f Número de entradas
    * @param out_f Número de saídas
    */
-  Linear(int in_features, int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), grad_weight(out_features, in_features), bias(out_features), grad_bias(out_features) {
+  Linear(int in_features, int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features), grad_weight(out_features, in_features), grad_bias(out_features) {
 
     // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
     float limit = std::sqrt(6.0F / (in_features + out_features)); // limite segundo Xavier

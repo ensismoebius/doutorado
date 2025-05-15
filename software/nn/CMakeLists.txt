@@ -1,31 +1,43 @@
-cmake_minimum_required(VERSION 3.5.0)
+cmake_minimum_required(VERSION 3.10)
 project(nn VERSION 0.1.0 LANGUAGES CXX)
 
-# Specify C++ standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+# Sets up the flags for CMake and compiler
+include(Flags.cmake)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Do the required libraries check
+include(PackageChecking.cmake)
 
-# Set debug flags for the Debug build type
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb -O0 -fno-inline -fno-omit-frame-pointer")
+# Define paths needed for the step bellow
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 
-# Set optimization flags for the Release build type
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast-math")
+include(cnpy.cmake)
+
+add_subdirectory(${CNPY_DIR})
 
 # Add the executable
-add_executable(
-    nn
-    main.cpp
-    layers/ReLU.cpp
-    layers/Linear.cpp
-    util/vetorizationCheck.cpp
-    util/batching.cpp
+add_executable(nn
+    ${SRC_DIR}/main.cpp
+    ${SRC_DIR}/layers/ReLU.cpp
+    ${SRC_DIR}/layers/Linear.cpp
+    ${SRC_DIR}/util/batching.cpp
+    ${SRC_DIR}/util/vetorizationCheck.cpp
 )
 
-# Find Eigen (you may need to adjust the path to where Eigen is installed)
-find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-include_directories(${EIGEN3_INCLUDE_DIR})
+# Link libraries
+target_link_libraries(nn
+    PRIVATE
+        cnpy
+        Eigen3::Eigen
+        ${OpenMP_CXX_LIBRARIES}
+)
 
-# Include Eigen directories
-target_link_libraries(nn Eigen3::Eigen)
+# Include directories
+target_include_directories(nn
+    PRIVATE
+        ${SRC_DIR}
+        ${CNPY_DIR}
+        ${LIB_DIR}/util
+        ${EIGEN3_INCLUDE_DIR}
+        ${OpenMP_INCLUDE_DIRS}
+)
