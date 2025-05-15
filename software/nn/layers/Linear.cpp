@@ -35,7 +35,7 @@ struct Linear
     {
 
         // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
-        float limit = std::sqrt(6.0f / (in_features + out_features)); // limite segundo Xavier
+        float limit = std::sqrt(6.0F / (in_features + out_features)); // limite segundo Xavier
         std::uniform_real_distribution<float> dist(-limit, limit);    // distribuição uniforme
 
         // inicializa Mersenne Twister com a semente
@@ -63,12 +63,11 @@ struct Linear
      * @param input Tensor de saída [batch_size x out_features]
      * @return Tensor de saída [batch_size x out_features]
      */
-    Tensor forward(const Tensor &input)
-    {
-        input_cache = input.data; // salva para o backward
+    auto forward(const Tensor &input) -> Tensor {
+      input_cache = input.data; // salva para o backward
 
-        Eigen::MatrixXf output = (input.data * weight.transpose()).rowwise() + bias.transpose();
-        return Tensor(output);
+      Eigen::MatrixXf output = (input.data * weight.transpose()).rowwise() + bias.transpose();
+      return {output};
     }
 
     /**
@@ -79,19 +78,18 @@ struct Linear
      * @param grad_output gradiente da perda em relação à saída da camada [batch_size x out_features]
      * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
      */
-    Tensor backward(const Tensor &grad_output)
-    {
-        // grad_output: dL/dY, onde Y = Wx + b
-        // dL/dW = dL/dY * dY/dW = grad_output.T * input
-        grad_weight = grad_output.data.transpose() * input_cache;
+    auto backward(const Tensor &grad_output) -> Tensor {
+      // grad_output: dL/dY, onde Y = Wx + b
+      // dL/dW = dL/dY * dY/dW = grad_output.T * input
+      grad_weight = grad_output.data.transpose() * input_cache;
 
-        // dL/db = soma das derivadas por linha (batch)
-        grad_bias = grad_output.data.colwise().sum();
+      // dL/db = soma das derivadas por linha (batch)
+      grad_bias = grad_output.data.colwise().sum();
 
-        // dL/dX = dL/dY * dY/dX = grad_output * W
-        Eigen::MatrixXf grad_input = grad_output.data * weight;
+      // dL/dX = dL/dY * dY/dX = grad_output * W
+      Eigen::MatrixXf grad_input = grad_output.data * weight;
 
-        return Tensor(grad_input);
+      return {grad_input};
     }
 };
 

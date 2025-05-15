@@ -61,6 +61,16 @@
         "chrono": "cpp",
         "format": "cpp",
         "iomanip": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "any": "cpp",
+        "charconv": "cpp",
+        "condition_variable": "cpp",
+        "csignal": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "unordered_set": "cpp",
+        "mutex": "cpp",
+        "text_encoding": "cpp",
+        "variant": "cpp"
     }
 }

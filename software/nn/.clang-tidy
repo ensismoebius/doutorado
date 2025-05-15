@@ -1,0 +1,9 @@
+Checks: "clang-analyzer-*,modernize-*,performance-*,readability-*,-readability-magic-numbers,bugprone-*,cppcoreguidelines-*,-cppcoreguidelines-avoid-magic-numbers,misc-*,-misc-non-private-member-variables-in-classes,portability-*"
+
+WarningsAsErrors: "*"
+HeaderFilterRegex: ".*"
+FormatStyle: file
+
+CheckOptions:
+  - key: modernize-use-nullptr.NullMacros
+    value: "NULL"

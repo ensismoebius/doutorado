@@ -5,6 +5,8 @@ project(nn VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set debug flags for the Debug build type
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb -O0 -fno-inline -fno-omit-frame-pointer")
 
@@ -18,6 +20,7 @@ add_executable(
     layers/ReLU.cpp
     layers/Linear.cpp
     util/vetorizationCheck.cpp
+    util/batching.cpp
 )
 
 # Find Eigen (you may need to adjust the path to where Eigen is installed)
