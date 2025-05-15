@@ -1,11 +1,17 @@
 #include "layers/Linear.cpp"
 #include "layers/ReLU.cpp"
+#include "util/batching.hpp"
 #include "util/vetorizationCheck.hpp"
 #include <cmath>
 #include <iostream>
 
 #define learning_rate 0.1
 #define epochs 1000
+
+#define n_amostras 50
+#define input_dim 3
+#define output_dim 1
+#define batch_size 10
 
 namespace {
 auto compute_mse_loss(const Tensor &prediction, const Tensor &target) -> float {
@@ -22,41 +28,58 @@ auto compute_mse_grad(const Tensor &prediction, const Tensor &target) -> Tensor 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVetorizationSupport();
 
-  // Entrada x: 4 amostras, 2 features
-  Tensor input(4, 2);
-  input.data << 1, 0, 0, 1, 1, 1, 0, 0;
+  Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_amostras, input_dim);
+  Eigen::MatrixXf y_data = x_data.rowwise().sum();
 
-  // Alvo y: saída esperada (4 amostras, 1 saída)
-  Tensor y_target(4, 1);
-  y_target.data << 1, 1, 0, 0;
+  Tensor input(x_data);
+  Tensor y_target(y_data);
+
+  auto batches = create_batches(input, y_target, batch_size);
 
   // Camadas
-  Linear linear1(2, 4); // primeira camada: input 2 → hidden 4
-  ReLU relu;
-  Linear linear2(4, 1); // segunda camada: hidden 4 → output 1
+  Linear linear1(3, 4); // entrada 3 -> escondida 4
+  ReLU relu1;
+
+  Linear linear2(4, 2); // escondida 4 -> saída 2
+  ReLU relu2;
 
   for (int epoch = 0; epoch < epochs; ++epoch) {
-    // Forward
-    Tensor out1 = linear1.forward(input);
-    Tensor out2 = relu.forward(out1);
-    Tensor out3 = linear2.forward(out2);
 
     // Loss
-    float loss = compute_mse_loss(out3, y_target);
-    std::cout << "Epoch " << epoch << ", Loss = " << loss << '\n';
+    float epoch_loss = 0.0F;
 
-    // Backward
-    Tensor grad_loss = compute_mse_grad(out3, y_target);
-    Tensor grad_linear2 = linear2.backward(grad_loss);
-    Tensor grad_relu = relu.backward(grad_linear2);
-    Tensor grad_linear1 = linear1.backward(grad_relu);
+    for (auto &[x_batch, y_batch] : batches) {
 
-    // Atualização dos pesos
-    linear2.weight -= learning_rate * linear2.grad_weight;
-    linear2.bias -= learning_rate * linear2.grad_bias;
+      // forward
+      Tensor out1 = linear1.forward(x_batch);
+      Tensor act1 = relu1.forward(out1);
 
-    linear1.weight -= learning_rate * linear1.grad_weight;
-    linear1.bias -= learning_rate * linear1.grad_bias;
+      Tensor out2 = linear2.forward(act1);
+      Tensor y_pred = relu2.forward(out2);
+
+      // Loss
+      float epoch_loss = compute_mse_loss(y_pred, y_target);
+
+      // Print loss
+      std::cout << "Epoch " << epoch << ", Loss = " << epoch_loss << '\n';
+
+      // Backward
+      Tensor grad_loss = compute_mse_grad(y_pred, y_target);
+
+      Tensor grad_relu2 = relu2.backward(grad_loss);
+      Tensor grad_linear2 = linear2.backward(grad_relu2);
+
+      Tensor grad_relu1 = relu1.backward(grad_linear2);
+      Tensor grad_linear1 = linear1.backward(grad_relu1);
+
+      // // Atualização dos pesos
+      // linear2.weight -= learning_rate * linear2.grad_weight;
+      // linear2.bias -= learning_rate * linear2.grad_bias;
+
+      // linear1.weight -= learning_rate * linear1.grad_weight;
+      // linear1.bias -= learning_rate * linear1.grad_bias;
+    }
+    std::cout << "Epoch " << epoch << " - Loss: " << epoch_loss / batches.size() << "\n";
   }
 
   return 0;
