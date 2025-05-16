@@ -5,9 +5,10 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <ostream>
 
 #define learning_rate 0.01
-#define epochs 10000000
+#define epochs 10000
 
 #define n_amostras 40
 #define input_dim 3
@@ -31,11 +32,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_amostras, input_dim);
   Eigen::MatrixXf y_data = x_data.rowwise().sum();
-
-  std::cout << x_data;
-  std::cout << "\n\n";
-  std::cout << y_data;
-  std::cout << "\n\n";
 
   Tensor input(x_data);
   Tensor y_target(y_data);

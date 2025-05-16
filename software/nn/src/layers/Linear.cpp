@@ -3,8 +3,9 @@
 
 #include <Eigen/Dense>
 #include <cmath>
-#include <iostream>
+#include <cnpy.h>
 #include <random>
+#include <span>
 
 #include "../tensor/Tensor.hpp"
 
@@ -27,8 +28,10 @@ struct Linear {
   Linear(int in_features, int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features), grad_weight(out_features, in_features), grad_bias(out_features) {
 
     // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
-    float limit = std::sqrt(6.0F / (in_features + out_features)); // limite segundo Xavier
-    std::uniform_real_distribution<float> dist(-limit, limit);    // distribuição uniforme
+    // limite segundo Xavier
+    float limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
+    // distribuição uniforme
+    std::uniform_real_distribution<float> dist(-limit, limit);
 
     // inicializa Mersenne Twister com a semente
     std::mt19937 gen(std::random_device{}());
@@ -42,6 +45,39 @@ struct Linear {
     // Inicializa os gradientes como matrizes de zeros
     grad_weight.setZero();
     grad_bias.setZero();
+  }
+
+  auto save_weights(const std::string &prefix) const -> void {
+    cnpy::npy_save(prefix + "_weights.npy", weight.data(), {(size_t)weight.rows(), (size_t)weight.cols()}, "w");
+    cnpy::npy_save(prefix + "_bias.npy", bias.data(), {(size_t)bias.size()}, "w");
+  }
+
+  auto load_weights(const std::string &prefix) -> void {
+    auto loadedWeights = cnpy::npy_load(prefix + "_weights.npy");
+    auto loadedBias = cnpy::npy_load(prefix + "_bias.npy");
+
+    // Convert an array pointer to an iterable
+    std::span<const float> b_span(loadedBias.data<float>(), loadedBias.num_vals);
+    std::span<const float> w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
+
+    // std::cout << "\n\n\n\nBias before\n" << bias;
+    // std::cout << "\nWeight before\n" << weight;
+
+    // Reconstruct the bias and the weights
+    bias = Eigen::VectorXf(loadedBias.shape[0]);
+    weight = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
+
+    for (int i = 0; i < bias.size(); ++i) {
+      bias(i) = b_span[i];
+    }
+
+    for (int i = 0; i < weight.size(); ++i) {
+      weight(i) = w_span[i];
+    }
+
+    // std::cout << "\n\nBias after\n" << bias;
+    // std::cout << "\nWeight after\n" << weight;
+    // std::cout << "\n\n\n\n";
   }
 
   /**
