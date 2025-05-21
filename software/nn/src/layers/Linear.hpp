@@ -84,7 +84,7 @@ struct Linear {
     input_cache = input.data; // salva para o backward
 
     // Be x = input and y = output
-    // y = x.w + b 
+    // y = x.w + b
     Eigen::MatrixXf output = (input.data * weight.transpose()).rowwise() + bias.transpose();
     return {output};
   }
@@ -97,16 +97,53 @@ struct Linear {
    * @param grad_output gradiente da perda em relação à saída da camada [batch_size x out_features]
    * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
    */
-  auto backward(const Tensor &grad_output) -> Tensor {
-    // grad_output: dL/dY, onde Y = Wx + b
-    // dL/dW = dL/dY * dY/dW = grad_output.T * input
-    grad_weight = grad_output.data.transpose() * input_cache;
+  auto backward(const Tensor &grad_previous) -> Tensor {
 
-    // dL/db = soma das derivadas por linha (batch)
-    grad_bias = grad_output.data.colwise().sum();
+    // Considerando que B, X, Y, Z e W são tensores.
+    // Vamos representar a camada atual por um tensor Z = f(X) = WX + B.
+    // Vamos representar a camada anterior por Y = g(Z) = (pode ser qualquer coisa).
+    // Sendo assim sabemos que na fase do _forward_ as camadas f(X) e g(Z)
+    // interagem da seguinte forma: Y = g(f(X))
 
-    // dL/dX = dL/dY * dY/dX = grad_output * W
-    Eigen::MatrixXf grad_input = grad_output.data * weight;
+    // Portanto para sabermos a direção do crescimento de W
+    // quando há uma mudança em Y é necessário calcular
+    // a derivada de Y em relação a W: dY/dW
+
+    // Para que se obtenha isso precisamos recorrer à regra da cadeia:
+    // dY/dW = dY/dZ * dZ/dW
+
+    // Nessa camada dY/dZ = grad_previous então a expressão fica assim:
+    // dY/dW = grad_previous * dZ/dW
+
+    // dZ/dW = x * 1*W^0 + 0 = x
+
+    // Portanto o gradiente da camada atual é:
+    // dY/dW = grad_previous * x
+
+    // Lembrando que:
+    // x = input_cache, dY/dZ = grad_previous e dY/dW = grad_weight
+    // Então dY/dW = dY/dZ * dZ/dW é igual a:
+    // grad_weight = grad_previous.T * input_cache
+
+    grad_weight = grad_previous.data.transpose() * input_cache;
+
+    // Da mesma forma o gradiente em relação a B será expresso por
+    // dY/db = dY/dZ * dZ/dB
+    // dZ/dB = (WX + B)' = 0 + 1*B^0 = 1
+    // Portanto:
+    // dY/dB = grad_previous * 1 = grad_previous
+
+    // Considerando que estamos processando mais de um
+    // vetor de entrada (um batch), somamos as derivadas
+    // por linha:
+    grad_bias = grad_previous.data.colwise().sum();
+
+    // Por fim a derivada de X será
+    // dY/dX = dY/dZ * dZ/dX
+    // dY/dX = grad_output * (WX + B)'
+    // dY/dX = grad_output * W*1*X^0 + 0
+    // dY/dX = grad_output * W
+    Eigen::MatrixXf grad_input = grad_previous.data * weight;
 
     return {grad_input};
   }
