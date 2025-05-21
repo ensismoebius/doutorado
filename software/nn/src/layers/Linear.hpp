@@ -22,16 +22,16 @@ struct Linear {
   /**
    * @brief Inicializa pesos e bias com base no número de entradas e saídas
    *
-   * @param in_f Número de entradas
-   * @param out_f Número de saídas
+   * @param in_features Número de entradas
+   * @param out_features Número de saídas
    */
-  Linear(int in_features, int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features), grad_weight(out_features, in_features), grad_bias(out_features) {
+  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features), grad_weight(out_features, in_features), grad_bias(out_features) {
 
     // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
     // limite segundo Xavier
-    float limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
+    float const limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
     // distribuição uniforme
-    std::uniform_real_distribution<float> dist(-limit, limit);
+    std::uniform_real_distribution dist(-limit, limit);
 
     // inicializa Mersenne Twister com a semente
     std::mt19937 gen(std::random_device{}());
@@ -48,8 +48,8 @@ struct Linear {
   }
 
   auto save_weights(const std::string &prefix) const -> void {
-    cnpy::npy_save(prefix + "_weights.npy", weight.data(), {(size_t)weight.rows(), (size_t)weight.cols()}, "w");
-    cnpy::npy_save(prefix + "_bias.npy", bias.data(), {(size_t)bias.size()}, "w");
+    cnpy::npy_save(prefix + "_weights.npy", weight.data(), {static_cast<size_t>(weight.rows()), static_cast<size_t>(weight.cols())}, "w");
+    cnpy::npy_save(prefix + "_bias.npy", bias.data(), {static_cast<size_t>(bias.size())}, "w");
   }
 
   auto load_weights(const std::string &prefix) -> void {
@@ -57,8 +57,8 @@ struct Linear {
     auto loadedBias = cnpy::npy_load(prefix + "_bias.npy");
 
     // Convert an array pointer to an iterable
-    std::span<const float> b_span(loadedBias.data<float>(), loadedBias.num_vals);
-    std::span<const float> w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
+    std::span<const float> const b_span(loadedBias.data<float>(), loadedBias.num_vals);
+    std::span<const float> const w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
 
     // Reconstruct the bias and the weights
     bias = Eigen::VectorXf(loadedBias.shape[0]);
@@ -85,7 +85,7 @@ struct Linear {
 
     // Be x = input and y = output
     // y = x.w + b
-    Eigen::MatrixXf output = (input.data * weight.transpose()).rowwise() + bias.transpose();
+    Eigen::MatrixXf const output = (input.data * weight.transpose()).rowwise() + bias.transpose();
     return {output};
   }
 
@@ -94,7 +94,7 @@ struct Linear {
    * em relação à saída da camada.Calcula os gradientes da perda em relação aos
    * pesos, bias e à entrada da camada
    *
-   * @param grad_output gradiente da perda em relação à saída da camada [batch_size x out_features]
+   * @param grad_previous gradiente da perda em relação à saída da camada [batch_size x out_features]
    * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
    */
   auto backward(const Tensor &grad_previous) -> Tensor {
@@ -143,7 +143,7 @@ struct Linear {
     // dY/dX = grad_output * (WX + B)'
     // dY/dX = grad_output * W*1*X^0 + 0
     // dY/dX = grad_output * W
-    Eigen::MatrixXf grad_input = grad_previous.data * weight;
+    Eigen::MatrixXf const grad_input = grad_previous.data * weight;
 
     return {grad_input};
   }

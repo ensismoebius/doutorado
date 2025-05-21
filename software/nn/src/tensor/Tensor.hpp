@@ -7,7 +7,7 @@ struct Tensor {
   Eigen::MatrixXf data;
   Eigen::MatrixXf grad;
 
-  Tensor(int rows, int cols) : data(rows, cols), grad(rows, cols) {
+  Tensor(const int rows, const int cols) : data(rows, cols), grad(rows, cols) {
     data.setZero();
     grad.setZero();
   }

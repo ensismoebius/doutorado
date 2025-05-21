@@ -1,21 +1,21 @@
 #include "batching.hpp"
-#include <Eigen/src/Core/util/Meta.h>
+#include "tensor/Tensor.hpp"
 #include <algorithm>
 #include <random>
 
-auto create_batches(const Tensor &inputSamples, const Tensor &targets, int batch_size) -> std::vector<Batch> {
+auto create_batches(const Tensor &inputSamples, const Tensor &targets, const int batch_size) -> std::vector<Batch> {
 
-  int n_samples = static_cast<int>(inputSamples.data.rows());
+  int const n_samples = static_cast<int>(inputSamples.data.rows());
   std::vector<int> indices(n_samples);
   std::iota(indices.begin(), indices.end(), 0);
 
   std::random_device rdn;
   std::mt19937 gen(rdn());
-  std::shuffle(indices.begin(), indices.end(), gen);
+  std::ranges::shuffle(indices, gen);
 
   std::vector<Batch> batches;
   for (int i = 0; i < n_samples; i += batch_size) {
-    int actual_batch_size = std::min(batch_size, n_samples - i);
+    int const actual_batch_size = std::min(batch_size, n_samples - i);
     Eigen::MatrixXf x_batch(actual_batch_size, inputSamples.data.cols());
     Eigen::MatrixXf y_batch(actual_batch_size, targets.data.cols());
 

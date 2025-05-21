@@ -2,7 +2,6 @@
 #define BATCHING_HPP
 
 #include "../tensor/Tensor.hpp"
-#include <Eigen/Dense>
 #include <vector>
 
 struct Batch {
