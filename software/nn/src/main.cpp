@@ -1,7 +1,7 @@
-#include "layers/Linear.cpp"
-#include "layers/ReLU.cpp"
+#include "layers/Linear.hpp"
+#include "layers/ReLU.hpp"
 #include "util/batching.hpp"
-#include "util/vetorizationCheck.hpp"
+#include "util/vectorizationCheck.hpp"
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -28,7 +28,7 @@ auto compute_mse_grad(const Tensor &prediction, const Tensor &target) -> Tensor 
 } // namespace
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
-  printVetorizationSupport();
+  printVectorizationSupport();
 
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_amostras, input_dim);
   Eigen::MatrixXf y_data = x_data.rowwise().sum();
@@ -37,7 +37,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Tensor y_target(y_data);
 
   // Camadas
-  Linear linear1(3, 4); // entrada 3 -> escondida 4
+  Linear linear1(input_dim, 4); // entrada 3 -> escondida 4
   ReLU relu1;
 
   Linear linear2(4, 1); // escondida 4 -> saída 1
@@ -80,7 +80,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       linear1.bias -= learning_rate * linear1.grad_bias;
     }
 
-    if ((epoch % 10000) == 0) {
+    if ((epoch % 100) == 0) {
       std::cout << "Epoch: " << epoch << "-Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
     }
   }

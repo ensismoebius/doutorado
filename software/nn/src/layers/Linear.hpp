@@ -60,9 +60,6 @@ struct Linear {
     std::span<const float> b_span(loadedBias.data<float>(), loadedBias.num_vals);
     std::span<const float> w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
 
-    // std::cout << "\n\n\n\nBias before\n" << bias;
-    // std::cout << "\nWeight before\n" << weight;
-
     // Reconstruct the bias and the weights
     bias = Eigen::VectorXf(loadedBias.shape[0]);
     weight = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
@@ -74,10 +71,6 @@ struct Linear {
     for (int i = 0; i < weight.size(); ++i) {
       weight(i) = w_span[i];
     }
-
-    // std::cout << "\n\nBias after\n" << bias;
-    // std::cout << "\nWeight after\n" << weight;
-    // std::cout << "\n\n\n\n";
   }
 
   /**
@@ -90,6 +83,8 @@ struct Linear {
   auto forward(const Tensor &input) -> Tensor {
     input_cache = input.data; // salva para o backward
 
+    // Be x = input and y = output
+    // y = x.w + b 
     Eigen::MatrixXf output = (input.data * weight.transpose()).rowwise() + bias.transpose();
     return {output};
   }
