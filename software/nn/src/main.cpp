@@ -6,12 +6,14 @@
 #include "util/vectorizationCheck.hpp"
 #include <cmath>
 #include <cstddef>
+#include <iomanip>
+#include <ios>
 #include <iostream>
 #include <limits>
 #include <ostream>
 #include <vector>
 
-constexpr float learning_rate = 0.01;
+constexpr float learning_rate = 0.005;
 constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
 constexpr int input_dim = 1;
@@ -43,13 +45,17 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
   ReLU relu1;
 
-  SGDMinimal optmizer(0.01F);
+  SGDMinimal optimizer(learning_rate);
   std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
 
   // Loss
   float epoch_loss = std::numeric_limits<float>::max();
 
+  std::cout << std::fixed << std::setprecision(50);
+
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
+
+    optimizer.zero_grad(params); // Zera os gradientes
 
     auto batches = create_batches(input, y_target, batch_size);
 
@@ -70,10 +76,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       Tensor const grad_linear1 = linear1.backward(grad_relu1);
 
       // gradient descent
-      optmizer.step(params);
+      optimizer.step(params);
     }
 
-    if (epoch % 100 == 0) {
+    if (epoch % 500 == 0) {
       std::cout << "Epoch: " << epoch << "-Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
     }
   }
