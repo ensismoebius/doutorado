@@ -5,8 +5,8 @@
 #include <vector>
 
 struct Batch {
-  Tensor x;
-  Tensor y;
+  Tensor inputs;
+  Tensor targets;
 };
 
 /**

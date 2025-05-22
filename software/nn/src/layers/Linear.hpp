@@ -12,12 +12,9 @@
 struct Linear {
   int in_features;             // número de entradas (features de entrada do tensor)
   int out_features;            // número de saídas (neurônios ou unidades na camada)
-  Eigen::MatrixXf weight;      // matriz de pesos com dimensão [out_features x in_features]
-  Eigen::VectorXf bias;        // vetor de bias com dimensão [out_features]
+  Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]
+  Tensor bias;                 // vetor de bias com dimensão [out_features]
   Eigen::MatrixXf input_cache; // armazena a entrada da camada para uso no backpropagation
-
-  Eigen::MatrixXf grad_weight;
-  Eigen::VectorXf grad_bias;
 
   /**
    * @brief Inicializa pesos e bias com base no número de entradas e saídas
@@ -25,7 +22,7 @@ struct Linear {
    * @param in_features Número de entradas
    * @param out_features Número de saídas
    */
-  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features), grad_weight(out_features, in_features), grad_bias(out_features) {
+  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features, 1) {
 
     // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
     // limite segundo Xavier
@@ -37,19 +34,15 @@ struct Linear {
     std::mt19937 gen(std::random_device{}());
 
     // Inicializa pesos com valores aleatórios da distribuição
-    weight = Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); });
+    weight.data = Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); });
 
     // Inicializa bias também com valores aleatórios da mesma distribuição
-    bias = Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); });
-
-    // Inicializa os gradientes como matrizes de zeros
-    grad_weight.setZero();
-    grad_bias.setZero();
+    bias.data = Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); });
   }
 
   auto save_weights(const std::string &prefix) const -> void {
-    cnpy::npy_save(prefix + "_weights.npy", weight.data(), {static_cast<size_t>(weight.rows()), static_cast<size_t>(weight.cols())}, "w");
-    cnpy::npy_save(prefix + "_bias.npy", bias.data(), {static_cast<size_t>(bias.size())}, "w");
+    cnpy::npy_save(prefix + "_weights.npy", weight.data.data(), {static_cast<size_t>(weight.data.rows()), static_cast<size_t>(weight.data.cols())}, "w");
+    cnpy::npy_save(prefix + "_bias.npy", bias.data.data(), {static_cast<size_t>(bias.data.size())}, "w");
   }
 
   auto load_weights(const std::string &prefix) -> void {
@@ -61,15 +54,15 @@ struct Linear {
     std::span<const float> const w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
 
     // Reconstruct the bias and the weights
-    bias = Eigen::VectorXf(loadedBias.shape[0]);
-    weight = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
+    bias.data = Eigen::VectorXf(loadedBias.shape[0]);
+    weight.data = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
 
-    for (int i = 0; i < bias.size(); ++i) {
-      bias(i) = b_span[i];
+    for (int i = 0; i < bias.data.size(); ++i) {
+      bias.data(i) = b_span[i];
     }
 
-    for (int i = 0; i < weight.size(); ++i) {
-      weight(i) = w_span[i];
+    for (int i = 0; i < weight.data.size(); ++i) {
+      weight.data(i) = w_span[i];
     }
   }
 
@@ -85,7 +78,7 @@ struct Linear {
 
     // Be x = input and y = output
     // y = x.w + b
-    Eigen::MatrixXf const output = (input.data * weight.transpose()).rowwise() + bias.transpose();
+    Eigen::MatrixXf const output = (input.data * weight.data.transpose()).rowwise() + bias.data.transpose().row(0);
     return {output};
   }
 
@@ -125,7 +118,7 @@ struct Linear {
     // Então dY/dW = dY/dZ * dZ/dW é igual a:
     // grad_weight = grad_previous.T * input_cache
 
-    grad_weight = grad_previous.data.transpose() * input_cache;
+    weight.grad = grad_previous.data.transpose() * input_cache;
 
     // Da mesma forma o gradiente em relação a B será expresso por
     // dY/db = dY/dZ * dZ/dB
@@ -136,14 +129,14 @@ struct Linear {
     // Considerando que estamos processando mais de um
     // vetor de entrada (um batch), somamos as derivadas
     // por linha:
-    grad_bias = grad_previous.data.colwise().sum();
+    bias.grad = grad_previous.data.colwise().sum();
 
     // Por fim a derivada de X será
     // dY/dX = dY/dZ * dZ/dX
     // dY/dX = grad_output * (WX + B)'
     // dY/dX = grad_output * W*1*X^0 + 0
     // dY/dX = grad_output * W
-    Eigen::MatrixXf const grad_input = grad_previous.data * weight;
+    Eigen::MatrixXf const grad_input = grad_previous.data * weight.data;
 
     return {grad_input};
   }

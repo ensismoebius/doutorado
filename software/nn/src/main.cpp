@@ -1,14 +1,18 @@
 #include "layers/Linear.hpp"
 #include "layers/ReLU.hpp"
+#include "optimizers/SGDMinimal.hpp"
+#include "tensor/Tensor.hpp"
 #include "util/batching.hpp"
 #include "util/vectorizationCheck.hpp"
 #include <cmath>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <ostream>
+#include <vector>
 
 constexpr float learning_rate = 0.01;
-constexpr int epochs = 10000;
+constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
 constexpr int input_dim = 1;
 constexpr int output_dim = 1;
@@ -29,6 +33,8 @@ auto compute_mse_grad(const Tensor &prediction, const Tensor &target) -> Tensor 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVectorizationSupport();
 
+  SGDMinimal optmizer(0.01F);
+
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_samples, input_dim);
   Eigen::MatrixXf const y_data = x_data.rowwise().sum();
 
@@ -36,35 +42,37 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Tensor const y_target(y_data);
 
   // Layers
-  Linear linear1(input_dim, 1); // entrada 3 -> escondida 4
+  Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
   ReLU relu1;
+
+  std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
 
   // Loss
   float epoch_loss = std::numeric_limits<float>::max();
 
-  for (int epoch = 0; epoch < epochs; ++epoch) {
+  for (size_t epoch = 0; epoch < epochs; ++epoch) {
 
     auto batches = create_batches(input, y_target, batch_size);
 
-    for (auto &[input_batch, target_batch] : batches) {
+    for (const auto &batch : batches) {
 
       // forward
-      Tensor const out1 = linear1.forward(input_batch);
+      Tensor const out1 = linear1.forward(batch.inputs);
       Tensor const y_pred = relu1.forward(out1);
 
       // Loss
-      const auto tmp = compute_mse_loss(y_pred, target_batch);
+      const auto tmp = compute_mse_loss(y_pred, batch.targets);
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
       // Backward
-      Tensor const grad_loss = compute_mse_grad(y_pred, target_batch);
+      Tensor const grad_loss = compute_mse_grad(y_pred, batch.targets);
 
       Tensor const grad_relu1 = relu1.backward(grad_loss);
       Tensor const grad_linear1 = linear1.backward(grad_relu1);
 
       // gradient descent
-      linear1.weight -= learning_rate * linear1.grad_weight;
-      linear1.bias -= learning_rate * linear1.grad_bias;
+      linear1.weight.data -= learning_rate * linear1.weight.grad;
+      linear1.bias.data -= learning_rate * linear1.bias.grad;
     }
 
     if (epoch % 100 == 0) {
