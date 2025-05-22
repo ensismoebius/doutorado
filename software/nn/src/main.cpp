@@ -33,8 +33,6 @@ auto compute_mse_grad(const Tensor &prediction, const Tensor &target) -> Tensor 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVectorizationSupport();
 
-  SGDMinimal optmizer(0.01F);
-
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_samples, input_dim);
   Eigen::MatrixXf const y_data = x_data.rowwise().sum();
 
@@ -45,6 +43,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
   ReLU relu1;
 
+  SGDMinimal optmizer(0.01F);
   std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
 
   // Loss
@@ -71,8 +70,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       Tensor const grad_linear1 = linear1.backward(grad_relu1);
 
       // gradient descent
-      linear1.weight.data -= learning_rate * linear1.weight.grad;
-      linear1.bias.data -= learning_rate * linear1.bias.grad;
+      optmizer.step(params);
     }
 
     if (epoch % 100 == 0) {
