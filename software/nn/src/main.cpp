@@ -1,3 +1,4 @@
+#include "initializers/xavier.hpp"
 #include "layers/Linear.hpp"
 #include "layers/ReLU.hpp"
 #include "optimizers/SGDMinimal.hpp"
@@ -44,6 +45,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Layers
   Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
   ReLU relu1;
+
+  // Initialization
+  // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
+  xavierInitializer(input_dim, output_dim, linear1.weight, linear1.bias);
 
   SGDMinimal optimizer(learning_rate);
   std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};

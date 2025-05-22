@@ -4,8 +4,6 @@
 #include <Eigen/Dense>
 #include <cmath>
 #include <cnpy.h>
-#include <random>
-#include <span>
 
 #include "../tensor/Tensor.hpp"
 
@@ -22,49 +20,7 @@ struct Linear {
    * @param in_features Número de entradas
    * @param out_features Número de saídas
    */
-  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features, 1) {
-
-    // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
-    // limite segundo Xavier
-    float const limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
-    // distribuição uniforme
-    std::uniform_real_distribution dist(-limit, limit);
-
-    // inicializa Mersenne Twister com a semente
-    std::mt19937 gen(std::random_device{}());
-
-    // Inicializa pesos com valores aleatórios da distribuição
-    weight.data = Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); });
-
-    // Inicializa bias também com valores aleatórios da mesma distribuição
-    bias.data = Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); });
-  }
-
-  auto save_weights(const std::string &prefix) const -> void {
-    cnpy::npy_save(prefix + "_weights.npy", weight.data.data(), {static_cast<size_t>(weight.data.rows()), static_cast<size_t>(weight.data.cols())}, "w");
-    cnpy::npy_save(prefix + "_bias.npy", bias.data.data(), {static_cast<size_t>(bias.data.size())}, "w");
-  }
-
-  auto load_weights(const std::string &prefix) -> void {
-    auto loadedWeights = cnpy::npy_load(prefix + "_weights.npy");
-    auto loadedBias = cnpy::npy_load(prefix + "_bias.npy");
-
-    // Convert an array pointer to an iterable
-    std::span<const float> const b_span(loadedBias.data<float>(), loadedBias.num_vals);
-    std::span<const float> const w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
-
-    // Reconstruct the bias and the weights
-    bias.data = Eigen::VectorXf(loadedBias.shape[0]);
-    weight.data = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
-
-    for (int i = 0; i < bias.data.size(); ++i) {
-      bias.data(i) = b_span[i];
-    }
-
-    for (int i = 0; i < weight.data.size(); ++i) {
-      weight.data(i) = w_span[i];
-    }
-  }
+  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features, 1) {}
 
   /**
    * @brief Realiza a propagação direta (forward pass) da
