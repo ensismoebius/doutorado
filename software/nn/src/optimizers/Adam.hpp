@@ -13,7 +13,7 @@ struct Adam : public Optimizer {
   std::vector<Eigen::MatrixXf> m;
   std::vector<Eigen::MatrixXf> v;
 
-  explicit Adam(float lr = 0.001F, float beta1 = 0.9F, float beta2 = 0.999F, float eps = 1e-8F) : lr(lr), beta1(beta1), beta2(beta2), eps(eps), t(0) {}
+  explicit Adam(float learning_rate = 0.001F, float beta1 = 0.9F, float beta2 = 0.999F, float eps = 1e-8F) : lr(learning_rate), beta1(beta1), beta2(beta2), eps(eps), t(0) {}
 
   auto attach(std::vector<Tensor *> &paramsList) -> void {
     m.clear();
@@ -34,7 +34,7 @@ struct Adam : public Optimizer {
       Eigen::MatrixXf m_hat = m[i] / (1 - std::pow(beta1, t));
       Eigen::MatrixXf v_hat = v[i] / (1 - std::pow(beta2, t));
 
-      param.data -= lr * m_hat.array() / (v_hat.array().sqrt() + eps).array();
+      param.data -= lr * m_hat.array() / (v_hat.array().sqrt() + eps);
     }
   }
 

@@ -1,7 +1,7 @@
 #include "initializers/xavier.hpp"
 #include "layers/Linear.hpp"
 #include "layers/ReLU.hpp"
-#include "optimizers/SGDMinimal.hpp"
+#include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
 #include "util/batching.hpp"
 #include "util/vectorizationCheck.hpp"
@@ -14,7 +14,7 @@
 #include <ostream>
 #include <vector>
 
-constexpr float learning_rate = 0.005;
+constexpr float learning_rate = 0.01;
 constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
 constexpr int input_dim = 1;
@@ -50,8 +50,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
   xavierInitializer(input_dim, output_dim, linear1.weight, linear1.bias);
 
-  SGDMinimal optimizer(learning_rate);
   std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
+  Adam optimizer(learning_rate);
+  optimizer.attach(params);
 
   // Loss
   float epoch_loss = std::numeric_limits<float>::max();
@@ -60,9 +61,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
 
-    optimizer.zero_grad(params); // Zera os gradientes
-
     auto batches = create_batches(input, y_target, batch_size);
+
+    optimizer.zero_grad(params); // Zera os gradientes
 
     for (const auto &batch : batches) {
 

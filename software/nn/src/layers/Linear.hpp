@@ -6,8 +6,9 @@
 #include <cnpy.h>
 
 #include "../tensor/Tensor.hpp"
+#include "layers/Module.hpp"
 
-struct Linear {
+struct Linear : public Module {
   int in_features;             // número de entradas (features de entrada do tensor)
   int out_features;            // número de saídas (neurônios ou unidades na camada)
   Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]
@@ -29,7 +30,7 @@ struct Linear {
    * @param input Tensor de saída [batch_size x out_features]
    * @return Tensor de saída [batch_size x out_features]
    */
-  auto forward(const Tensor &input) -> Tensor {
+  auto forward(const Tensor &input) -> Tensor override {
     input_cache = input.data; // salva para o backward
 
     // Be x = input and y = output
@@ -46,7 +47,7 @@ struct Linear {
    * @param grad_previous gradiente da perda em relação à saída da camada [batch_size x out_features]
    * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
    */
-  auto backward(const Tensor &grad_previous) -> Tensor {
+  auto backward(const Tensor &grad_previous) -> Tensor override {
 
     // Considerando que B, X, Y, Z e W são tensores.
     // Vamos representar a camada atual por um tensor Z = f(X) = WX + B.

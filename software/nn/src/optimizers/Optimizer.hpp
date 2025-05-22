@@ -15,7 +15,7 @@ struct Optimizer {
   /**
    * @brief Copy contructor of an Optimizer object (enabled)
    * Used whe copying an object from an variable to another
-   * @param copy
+   * @param otherObjectReference
    */
   Optimizer(const Optimizer &otherObjectReference) = default;
 
@@ -30,7 +30,7 @@ struct Optimizer {
   /**
    * @brief Move constructor of an Optimizer object (disabled)
    * Used when moving an object from an variable to another
-   * @param move
+   * @param otherObjectReference
    */
   Optimizer(Optimizer &&otherObjectReference) = delete;
 
