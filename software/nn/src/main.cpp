@@ -2,6 +2,7 @@
 #include "layers/Linear.hpp"
 #include "layers/ReLU.hpp"
 #include "optimizers/Adam.hpp"
+#include "optimizers/SGD.hpp"
 #include "tensor/Tensor.hpp"
 #include "util/batching.hpp"
 #include "util/vectorizationCheck.hpp"
