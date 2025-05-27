@@ -8,6 +8,16 @@
 #include "../tensor/Tensor.hpp"
 #include "layers/Module.hpp"
 
+/**
+ * @brief Camada Linear (ou camada totalmente conectada)
+ * Implementa uma camada linear que aplica a transformação afim:
+ * saída = entrada * W^T + b
+ *
+ * Onde:
+ * - entrada é o tensor de entrada
+ * - weight é a matriz de pesos
+ * - bias é o vetor de bias
+ */
 struct Linear : public Module {
   int in_features;             // número de entradas (features de entrada do tensor)
   int out_features;            // número de saídas (neurônios ou unidades na camada)

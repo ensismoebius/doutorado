@@ -15,7 +15,7 @@
 #include <ostream>
 #include <vector>
 
-constexpr float learning_rate = 0.01;
+constexpr float learning_rate = 0.001;
 constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
 constexpr int input_dim = 1;

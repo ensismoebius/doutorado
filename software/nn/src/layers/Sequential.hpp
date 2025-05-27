@@ -1,8 +1,6 @@
-#include "layers/Module.hpp"
+#include "Module.hpp"
 #include "tensor/Tensor.hpp"
 #include <cstddef>
-#include <memory>
-#include <vector>
 
 struct Sequential : Module {
 

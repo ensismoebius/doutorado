@@ -1,13 +1,18 @@
-#include "optimizers/Optimizer.hpp"
+#include "Optimizer.hpp"
 #include "tensor/Tensor.hpp"
 #include <Eigen/src/Core/Matrix.h>
 
-// Adam (Adaptive Moment Estimation) combina as ideias do Momentum (acumular média móvel dos gradientes) e do RMSProp (acumular média móvel dos quadrados dos gradientes), ajustando dinamicamente a taxa de aprendizado para cada parâmetro.
-
-// Estrutura do otimizador Adam.
-// Para cada parâmetro, Adam mantém duas "memórias":
-//    - m: média móvel dos gradientes (primeiro momento, similar ao momentum)
-//    - v: média móvel dos quadrados dos gradientes (segundo momento, similar ao RMSProp)
+/**
+ * Adam (Adaptive Moment Estimation) combina as ideias do Momentum
+ * (acumular média móvel dos gradientes) e do RMSProp (acumular
+ * média móvel dos quadrados dos gradientes), ajustando dinamicamente
+ * a taxa de aprendizado para cada parâmetro.
+ *
+ * Estrutura do otimizador Adam.
+ * Para cada parâmetro, Adam mantém duas "memórias":
+ *   - m: média móvel dos gradientes (primeiro momento, similar ao momentum)
+ *   - v: média móvel dos quadrados dos gradientes (segundo momento, similar ao RMSProp)
+ */
 struct Adam : public Optimizer {
   float lr;    // Taxa de aprendizado (learning rate)
   float beta1; // Hiperparâmetro de decaimento do primeiro momento (tipicamente 0.9)

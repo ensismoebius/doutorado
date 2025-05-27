@@ -2,7 +2,6 @@
 #define MODULE_HPP
 
 #include "../tensor/Tensor.hpp"
-#include <memory>
 
 struct Module {
 
@@ -60,7 +59,5 @@ struct Module {
    */
   virtual ~Module() = default;
 };
-
-using ModulePtr = std::shared_ptr<Module>;
 
 #endif

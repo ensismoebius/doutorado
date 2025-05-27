@@ -18,7 +18,7 @@ struct SGD : public Optimizer {
     }
   }
 
-  void step(std::vector<Tensor *> &paramsList) override {
+  auto step(std::vector<Tensor *> &paramsList) -> void override {
     for (size_t i = 0; i < paramsList.size(); ++i) {
       auto &param = *paramsList[i];
       velocity[i] = momentum * velocity[i] - learning_rate * param.grad;
@@ -26,7 +26,7 @@ struct SGD : public Optimizer {
     }
   }
 
-  void zero_grad(std::vector<Tensor *> &paramsList) override {
+  auto zero_grad(std::vector<Tensor *> &paramsList) -> void override {
     for (auto *param : paramsList) {
       param->grad.setZero();
     }

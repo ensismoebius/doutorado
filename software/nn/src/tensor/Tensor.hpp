@@ -1,7 +1,7 @@
 #ifndef TENSOR
 #define TENSOR
 
-#include <Eigen/Dense> 
+#include <Eigen/Dense>
 #include <optional>
 
 struct Tensor {
