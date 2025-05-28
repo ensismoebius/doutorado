@@ -1,5 +1,8 @@
-add_executable(initializers_gtest initializers_gtest.cpp kaiming_snn.hpp xavier.hpp ../tensor/Tensor.hpp)
-target_link_libraries(initializers_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
-target_include_directories(initializers_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})
+add_executable(initializers_gtest initializers_gtest.cpp kaiming_snn.hpp
+                                  xavier.hpp ../tensor/Tensor.hpp)
+target_link_libraries(initializers_gtest PRIVATE GTest::gtest_main
+                                                 Eigen3::Eigen)
+target_include_directories(initializers_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src
+                                                      ${EIGEN3_INCLUDE_DIR})
 include(GoogleTest)
 gtest_discover_tests(initializers_gtest)
