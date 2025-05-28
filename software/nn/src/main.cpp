@@ -1,3 +1,4 @@
+#include "initializers/kaiming_snn.hpp"
 #include "initializers/xavier.hpp"
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
@@ -16,7 +17,7 @@
 constexpr float learning_rate = 0.001;
 constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
-constexpr int input_dim = 1;
+constexpr int input_dim = 2;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
 
@@ -46,8 +47,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Leaky leaky1;
 
   // Initialization
-  // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
-  xavierInitializer(input_dim, output_dim, linear1.weight, linear1.bias);
+  kaimingSNNInitializer(input_dim, output_dim, linear1.weight, linear1.bias);
 
   std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
   Adam optimizer(learning_rate);

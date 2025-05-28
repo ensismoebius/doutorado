@@ -1,5 +1,8 @@
 add_subdirectory(${CNPY_DIR})
 
+# Add GTest for layers
+add_subdirectory(${SRC_DIR}/layers)
+
 # Add executable target
 add_executable(nn 
     ${CNPY_SOURCES}
