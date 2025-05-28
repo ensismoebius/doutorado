@@ -45,7 +45,8 @@ struct Linear : public Module {
 
     // Be x = input and y = output
     // y = x.w + b
-    Eigen::MatrixXf const output = (input.data * weight.data.transpose()).rowwise() + bias.data.transpose().row(0);
+    // Ensure bias is broadcast as a row vector
+    Eigen::MatrixXf const output = (input.data * weight.data.transpose()).rowwise() + bias.data.col(0).transpose();
     return {output};
   }
 
@@ -96,7 +97,7 @@ struct Linear : public Module {
     // Considerando que estamos processando mais de um
     // vetor de entrada (um batch), somamos as derivadas
     // por linha:
-    bias.grad = grad_previous.data.colwise().sum();
+    bias.grad = grad_previous.data.colwise().sum().transpose();
 
     // Por fim a derivada de X será
     // dY/dX = dY/dZ * dZ/dX
