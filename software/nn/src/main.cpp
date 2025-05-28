@@ -12,8 +12,6 @@
 #include <ios>
 #include <iostream>
 #include <limits>
-#include <ostream>
-#include <vector>
 
 constexpr float learning_rate = 0.001;
 constexpr int epochs = 1000000;
