@@ -23,7 +23,7 @@ inline auto kaimingSNNInitializer(int in_features, int out_features, Tensor &wei
 
     // Uniform distribution in [-limit, +limit]
     std::uniform_real_distribution<float> dist(-limit, limit);
-    std::mt19937 const gen(static_cast<int>(std::random_device{}()));
+    std::mt19937 gen(static_cast<int>(std::random_device{}()));
 
     // Initialize weights
     weights.data = Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); });

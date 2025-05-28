@@ -2,6 +2,7 @@
 #include "initializers/xavier.hpp"
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
+#include "layers/MSELoss.hpp"
 #include "optimizers/Adam.hpp"
 #include "optimizers/SGD.hpp"
 #include "tensor/Tensor.hpp"
@@ -20,18 +21,6 @@ constexpr int n_samples = 4;
 constexpr int input_dim = 2;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
-
-namespace {
-auto compute_mse_loss(const Tensor &prediction, const Tensor &target) -> float {
-  Eigen::MatrixXf diff = prediction.data - target.data;
-  return diff.array().square().mean();
-}
-
-auto compute_mse_grad(const Tensor &prediction, const Tensor &target) -> Tensor {
-  Eigen::MatrixXf const grad = 2.0F * (prediction.data - target.data) / prediction.data.rows();
-  return {grad};
-}
-} // namespace
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVectorizationSupport();
@@ -55,27 +44,27 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Loss
   float epoch_loss = std::numeric_limits<float>::max();
-
   std::cout << std::fixed << std::setprecision(50);
 
+  MSELoss mse_loss;
+
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
-
     auto batches = create_batches(input, y_target, batch_size);
-
     optimizer.zero_grad(params); // Zera os gradientes
 
     for (const auto &batch : batches) {
-
       // forward
       Tensor const out1 = linear1.forward(batch.inputs);
       Tensor const y_pred = leaky1.forward(out1);
 
       // Loss
-      const auto tmp = compute_mse_loss(y_pred, batch.targets);
+      mse_loss.set_target(batch.targets);
+      Tensor loss_tensor = mse_loss.forward(y_pred);
+      float tmp = loss_tensor.data(0, 0);
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
       // Backward
-      Tensor const grad_loss = compute_mse_grad(y_pred, batch.targets);
+      Tensor const grad_loss = mse_loss.backward(y_pred);
       Tensor const grad_leaky1 = leaky1.backward(grad_loss);
       Tensor const grad_linear1 = linear1.backward(grad_leaky1);
 
