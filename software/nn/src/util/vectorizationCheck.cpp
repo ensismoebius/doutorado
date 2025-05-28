@@ -1,5 +1,6 @@
 #include "vectorizationCheck.hpp"
 
+#include <Eigen/Dense>
 #include <iostream>
 
 void printVectorizationSupport() {
