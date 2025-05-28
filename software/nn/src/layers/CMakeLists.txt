@@ -15,7 +15,10 @@ add_executable(layers_gtest
     ${SRC_DIR}/layers/Leaky.hpp
     ${SRC_DIR}/layers/Linear.hpp
     ${SRC_DIR}/layers/ReLU.hpp
+    ${SRC_DIR}/layers/Sequential.hpp
+    ${SRC_DIR}/layers/MSELoss.hpp
     ${SRC_DIR}/tensor/Tensor.hpp
+    ${SRC_DIR}/util/batching.hpp
 )
 
 target_link_libraries(layers_gtest

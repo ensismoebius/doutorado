@@ -1,7 +1,11 @@
-add_subdirectory(${CNPY_DIR})
 
-# Add GTest for layers
+# Add subdirectories for all testable modules
+add_subdirectory(${CNPY_DIR})
+add_subdirectory(${SRC_DIR}/util)
 add_subdirectory(${SRC_DIR}/layers)
+add_subdirectory(${SRC_DIR}/tensor)
+add_subdirectory(${SRC_DIR}/optimizers)
+add_subdirectory(${SRC_DIR}/initializers)
 
 # Add executable target
 add_executable(nn 

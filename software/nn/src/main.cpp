@@ -3,6 +3,8 @@
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
 #include "layers/MSELoss.hpp"
+#include "layers/ReLU.hpp"
+#include "layers/Sequential.hpp"
 #include "optimizers/Adam.hpp"
 #include "optimizers/SGD.hpp"
 #include "tensor/Tensor.hpp"
@@ -31,14 +33,17 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Tensor const input(x_data);
   Tensor const y_target(y_data);
 
-  // Layers
-  Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
-  Leaky leaky1;
+  // Layers using Sequential
+  auto linear1 = std::make_shared<Linear>(input_dim, output_dim);
+  auto relu1 = std::make_shared<ReLU>();
+
+  Sequential model({linear1, relu1});
 
   // Initialization
-  kaimingSNNInitializer(input_dim, output_dim, linear1.weight, linear1.bias);
+  kaimingSNNInitializer(input_dim, output_dim, linear1->weight, linear1->bias);
 
-  std::vector<Tensor *> params = {&linear1.weight, &linear1.bias};
+  std::vector<Tensor *> params = {&linear1->weight, &linear1->bias};
+
   Adam optimizer(learning_rate);
   optimizer.attach(params);
 
@@ -54,8 +59,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
     for (const auto &batch : batches) {
       // forward
-      Tensor const out1 = linear1.forward(batch.inputs);
-      Tensor const y_pred = leaky1.forward(out1);
+      Tensor const y_pred = model.forward(batch.inputs);
 
       // Loss
       mse_loss.set_target(batch.targets);
@@ -65,8 +69,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
       // Backward
       Tensor const grad_loss = mse_loss.backward(y_pred);
-      Tensor const grad_leaky1 = leaky1.backward(grad_loss);
-      Tensor const grad_linear1 = linear1.backward(grad_leaky1);
+      model.backward(grad_loss);
 
       // gradient descent
       optimizer.step(params);
