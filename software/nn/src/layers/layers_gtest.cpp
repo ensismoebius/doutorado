@@ -1,4 +1,4 @@
-#include "initializers/xavier.hpp"
+#include "../initializers/xavier.hpp"
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
 #include "layers/MSELoss.hpp"
@@ -56,7 +56,7 @@ TEST(LinearLayerTest, ForwardSimple) {
   Tensor in_tensor(input);
   Tensor out = linear.forward(in_tensor);
   // Esperado: (1*2 + 2*3) + 1 = 2 + 6 + 1 = 9
-  ASSERT_FLOAT_EQ(out.data(0, 0), 9.0f);
+  ASSERT_FLOAT_EQ(out.data(0, 0), 9.0F);
 }
 
 // Teste para Leaky (LIF)

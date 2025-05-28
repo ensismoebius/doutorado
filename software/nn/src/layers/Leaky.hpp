@@ -21,7 +21,16 @@ struct Leaky : public Module {
   Eigen::MatrixXf v_mem_cache;
   Eigen::MatrixXf v_mem;
 
-  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 2.0f, bool reset_zero_ = true) : dt(dt_), resistence(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
+  /**
+   * @brief Construct a new Leaky object
+   *
+   * @param dt_ Time step
+   * @param R_ Resistance
+   * @param C_ Capacitance
+   * @param V_thresh_ Voltage threshold
+   * @param reset_zero_ Whether to reset membrane potential to zero after spike
+   */
+  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 1.0f, bool reset_zero_ = true) : dt(dt_), resistence(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
 
   auto forward(const Tensor &input) -> Tensor override {
     // snnTorch-like: persistent v_mem, decay, and reset on spike
@@ -58,6 +67,13 @@ struct Leaky : public Module {
     return {output};
   }
 
+  /**
+   * @brief Backward pass for Leaky neuron.
+   * Implements surrogate gradient descent with Hard Tanh.
+   *
+   * @param grad_output Gradient from the next layer
+   * @return Tensor Gradient w.r.t. input
+   */
   auto backward(const Tensor &grad_output) -> Tensor override {
     // Surrogate Gradient Descent with Hard Tanh
     // d spike/d V_mem ≈ 1 if |V_mem - voltage_threshold| < 1, else 0

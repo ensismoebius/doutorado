@@ -17,10 +17,10 @@
 #include <iostream>
 #include <limits>
 
-constexpr float learning_rate = 0.001;
+constexpr float learning_rate = 0.00001;
 constexpr int epochs = 1000000;
 constexpr int n_samples = 4;
-constexpr int input_dim = 2;
+constexpr int input_dim = 4;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
 
@@ -34,15 +34,18 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Tensor const y_target(y_data);
 
   // Layers using Sequential
-  auto linear1 = std::make_shared<Linear>(input_dim, output_dim);
-  auto relu1 = std::make_shared<ReLU>();
+  auto linear1 = std::make_shared<Linear>(input_dim, 4);
+  auto leaky1 = std::make_shared<Leaky>();
+  auto linear2 = std::make_shared<Linear>(4, output_dim);
+  auto leaky2 = std::make_shared<Leaky>();
 
-  Sequential model({linear1, relu1});
+  Sequential model({linear1, leaky1, linear2, leaky2});
 
   // Initialization
-  kaimingSNNInitializer(input_dim, output_dim, linear1->weight, linear1->bias);
+  kaimingSNNInitializer(input_dim, 4, linear1->weight, linear1->bias);
+  kaimingSNNInitializer(4, output_dim, linear2->weight, linear2->bias);
 
-  std::vector<Tensor *> params = {&linear1->weight, &linear1->bias};
+  std::vector<Tensor *> params = {&linear1->weight, &linear1->bias, &linear2->weight, &linear2->bias};
 
   Adam optimizer(learning_rate);
   optimizer.attach(params);
@@ -57,18 +60,21 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     auto batches = create_batches(input, y_target, batch_size);
     optimizer.zero_grad(params); // Zera os gradientes
 
+// Parallelize batch processing with OpenMP
+#pragma omp parallel for schedule(static)
     for (const auto &batch : batches) {
       // forward
-      Tensor const y_pred = model.forward(batch.inputs);
+      Tensor y_pred = model.forward(batch.inputs);
 
       // Loss
       mse_loss.set_target(batch.targets);
       Tensor loss_tensor = mse_loss.forward(y_pred);
       float tmp = loss_tensor.data(0, 0);
+
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
       // Backward
-      Tensor const grad_loss = mse_loss.backward(y_pred);
+      Tensor grad_loss = mse_loss.backward(y_pred);
       model.backward(grad_loss);
 
       // gradient descent
