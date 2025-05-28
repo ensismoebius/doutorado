@@ -58,7 +58,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
     auto batches = create_batches(input, y_target, batch_size);
-    optimizer.zero_grad(params); // Zera os gradientes
+    optimizer.zero_grad(params); // Zeroing the gradients
 
 // Parallelize batch processing with OpenMP
 #pragma omp parallel for schedule(static)
@@ -69,9 +69,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       // Loss
       mse_loss.set_target(batch.targets);
       Tensor loss_tensor = mse_loss.forward(y_pred);
-      float tmp = loss_tensor.data(0, 0);
-
-      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
       // Backward
       Tensor grad_loss = mse_loss.backward(y_pred);
@@ -79,6 +76,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
       // gradient descent
       optimizer.step(params);
+
+      float tmp = loss_tensor.data(0, 0);
+      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
     }
 
     if (epoch % 500 == 0) {

@@ -12,7 +12,7 @@
 struct Leaky : public Module {
   // Parameters for LIF neuron
   float dt = 1.0F;
-  float resistence = 5.0F;
+  float resistance = 5.0F;
   float capacitance = 1.0F;
   float voltage_threshold = 2.0F;
   bool reset_zero = true;
@@ -30,7 +30,7 @@ struct Leaky : public Module {
    * @param V_thresh_ Voltage threshold
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    */
-  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 1.0f, bool reset_zero_ = true) : dt(dt_), resistence(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
+  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 1.0f, bool reset_zero_ = true) : dt(dt_), resistance(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
 
   auto forward(const Tensor &input) -> Tensor override {
     // snnTorch-like: persistent v_mem, decay, and reset on spike
@@ -41,7 +41,7 @@ struct Leaky : public Module {
 
     // Typical snnTorch decay: v_mem = v_mem * beta + input
     // Here, beta = exp(-dt/tau) for continuous LIF, but for simplicity, use beta = 1 - (dt/tau)
-    float const tau = resistence * capacitance;
+    float const tau = resistance * capacitance;
     float const beta = 1.0F - (dt / tau);
 
     // Update membrane potential with decay and input
