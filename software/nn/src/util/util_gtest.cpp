@@ -1,7 +1,13 @@
-#include "tensor/Tensor.hpp"
 #include "batching.hpp"
-#include <gtest/gtest.h>
+#include "tensor/Tensor.hpp"
+#include "vectorizationCheck.hpp"
 #include <Eigen/Dense>
+#include <gtest/gtest.h>
+
+// Util: vectorizationCheck
+TEST(UtilTest, VectorizationCheck) {
+  ASSERT_NO_THROW(printVectorizationSupport());
+}
 
 // Util: batching
 TEST(UtilTest, Batching) {

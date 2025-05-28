@@ -2,7 +2,7 @@ add_executable(
     util_gtest 
     util_gtest.cpp 
     batching.cpp 
-    vectorizationCheck.hpp 
+    vectorizationCheck.cpp 
     ../tensor/Tensor.hpp
 )
 target_link_libraries(util_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
