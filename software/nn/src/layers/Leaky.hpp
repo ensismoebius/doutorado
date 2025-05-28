@@ -17,30 +17,36 @@ struct Leaky : public Module {
   float voltage_threshold = 2.0F;
   bool reset_zero = true;
 
-  // State cache for backward (not used in this simple version)
+  // Persistent membrane potential (stateful, snnTorch-like)
   Eigen::MatrixXf v_mem_cache;
+  Eigen::MatrixXf v_mem;
 
-  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 2.0f, bool reset_zero_ = true) : dt(dt_), resistence(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_) {}
+  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 2.0f, bool reset_zero_ = true) : dt(dt_), resistence(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
 
   auto forward(const Tensor &input) -> Tensor override {
-    // input.data: [batch_size x features], interpreted as input current I_in
-    Eigen::MatrixXf V_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
-    Eigen::MatrixXf output = V_mem;
+    // snnTorch-like: persistent v_mem, decay, and reset on spike
+    if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() || v_mem.cols() != input.data.cols()) {
+      v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
+    }
+    Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
 
+    // Typical snnTorch decay: v_mem = v_mem * beta + input
+    // Here, beta = exp(-dt/tau) for continuous LIF, but for simplicity, use beta = 1 - (dt/tau)
     float const tau = resistence * capacitance;
+    float const beta = 1.0F - (dt / tau);
 
-    for (int i = 0; i < input.data.rows(); ++i) {
-      for (int j = 0; j < input.data.cols(); ++j) {
-        // Update membrane potential
-        V_mem(i, j) = V_mem(i, j) + (dt / tau) * (-V_mem(i, j) + input.data(i, j) * resistence);
+    // Update membrane potential with decay and input
+    v_mem = v_mem * beta + input.data;
 
-        // Spike condition
-        if (V_mem(i, j) > voltage_threshold) {
+    // Spike condition and reset
+    for (int i = 0; i < v_mem.rows(); ++i) {
+      for (int j = 0; j < v_mem.cols(); ++j) {
+        if (v_mem(i, j) > voltage_threshold) {
           output(i, j) = 1.0F; // spike
           if (reset_zero) {
-            V_mem(i, j) = 0.0F;
+            v_mem(i, j) = 0.0F;
           } else {
-            V_mem(i, j) = V_mem(i, j) - voltage_threshold;
+            v_mem(i, j) = v_mem(i, j) - voltage_threshold;
           }
         } else {
           output(i, j) = 0.0F; // no spike
@@ -48,7 +54,7 @@ struct Leaky : public Module {
       }
     }
 
-    v_mem_cache = V_mem; // Cache for backward if needed
+    v_mem_cache = v_mem; // Cache for backward if needed
     return {output};
   }
 

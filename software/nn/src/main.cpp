@@ -1,6 +1,6 @@
 #include "initializers/xavier.hpp"
+#include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
-#include "layers/ReLU.hpp"
 #include "optimizers/Adam.hpp"
 #include "optimizers/SGD.hpp"
 #include "tensor/Tensor.hpp"
@@ -43,7 +43,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Layers
   Linear linear1(input_dim, output_dim); // entrada 3 -> escondida 4
-  ReLU relu1;
+  Leaky leaky1;
 
   // Initialization
   // Inicialização Xavier uniforme (uniforme em [-limite, +limite])
@@ -68,7 +68,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
       // forward
       Tensor const out1 = linear1.forward(batch.inputs);
-      Tensor const y_pred = relu1.forward(out1);
+      Tensor const y_pred = leaky1.forward(out1);
 
       // Loss
       const auto tmp = compute_mse_loss(y_pred, batch.targets);
@@ -76,9 +76,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
       // Backward
       Tensor const grad_loss = compute_mse_grad(y_pred, batch.targets);
-
-      Tensor const grad_relu1 = relu1.backward(grad_loss);
-      Tensor const grad_linear1 = linear1.backward(grad_relu1);
+      Tensor const grad_leaky1 = leaky1.backward(grad_loss);
+      Tensor const grad_linear1 = linear1.backward(grad_leaky1);
 
       // gradient descent
       optimizer.step(params);
