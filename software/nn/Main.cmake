@@ -10,6 +10,7 @@ add_executable(nn
     ${SRC_DIR}/layers/Sequential.hpp
     ${SRC_DIR}/layers/Linear.hpp
     ${SRC_DIR}/layers/ReLU.hpp
+    ${SRC_DIR}/layers/LIF.hpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
