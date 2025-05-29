@@ -8,6 +8,7 @@
 
 // A PyTorch-like Sequential container for C++
 struct Sequential : Module {
+
   std::vector<std::shared_ptr<Module>> layers;
   std::vector<Tensor> outputs; // output cache
 

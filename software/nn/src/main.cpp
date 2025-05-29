@@ -20,9 +20,9 @@
 #include <iostream>
 #include <limits>
 
-constexpr float learning_rate = 0.00001;
+constexpr float learning_rate = 0.001;
 constexpr int epochs = 200;
-constexpr int n_samples = 10;
+constexpr int n_samples = 10000;
 constexpr int input_dim = 7;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
