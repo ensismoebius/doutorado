@@ -9,7 +9,7 @@ struct SGD : public Optimizer {
 
   std::vector<Eigen::MatrixXf> velocity;
 
-  explicit SGD(float lr = 0.01f, float momentum = 0.0f) : learning_rate(lr), momentum(momentum) {}
+  explicit SGD(float lr = 0.01F, float momentum = 0.0F) : learning_rate(lr), momentum(momentum) {}
 
   auto attach(std::vector<Tensor *> &paramsList) -> void {
     velocity.clear();

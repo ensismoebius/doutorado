@@ -30,13 +30,16 @@ struct Leaky : public Module {
    * @param V_thresh_ Voltage threshold
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    */
-  Leaky(float dt_ = 1.0f, float R_ = 5.0f, float C_ = 1.0f, float V_thresh_ = 1.0f, bool reset_zero_ = true) : dt(dt_), resistance(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_), v_mem() {}
+  Leaky(float dt_ = 1.0F, float R_ = 5.0F, float C_ = 1.0F, float V_thresh_ = 1.0F, bool reset_zero_ = true) : dt(dt_), resistance(R_), capacitance(C_), voltage_threshold(V_thresh_), reset_zero(reset_zero_) {}
 
   auto forward(const Tensor &input) -> Tensor override {
+
     // snnTorch-like: persistent v_mem, decay, and reset on spike
     if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() || v_mem.cols() != input.data.cols()) {
       v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
     }
+
+    // Initialize output tensor
     Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
 
     // Typical snnTorch decay: v_mem = v_mem * beta + input
@@ -75,6 +78,7 @@ struct Leaky : public Module {
    * @return Tensor Gradient w.r.t. input
    */
   auto backward(const Tensor &grad_output) -> Tensor override {
+    
     // Surrogate Gradient Descent with Hard Tanh
     // d spike/d V_mem ≈ 1 if |V_mem - voltage_threshold| < 1, else 0
     Eigen::MatrixXf grad_input = Eigen::MatrixXf::Zero(grad_output.data.rows(), grad_output.data.cols());

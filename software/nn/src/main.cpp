@@ -21,8 +21,9 @@
 #include <limits>
 
 constexpr float learning_rate = 0.001;
-constexpr int epochs = 200;
 constexpr int n_samples = 10000;
+constexpr int epochs = 200;
+
 constexpr int input_dim = 7;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
@@ -37,11 +38,16 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   float const max_rate = 1.0F; // maximum firing rate
   float const timeStep = 1.0F; // time step
 
+  // Real-valued input matrix for encoding
   Eigen::MatrixXf real_valued;
+
+  // Generate synthetic spike data
+  // This will generate spike trains for n_samples, each with input_dim features over n_steps time steps
   std::vector<Eigen::MatrixXf> spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep, &real_valued);
 
+  // Sum the spike trains across time steps to create the input data
+  // Each spike train is a matrix of shape (n_samples, input_dim)
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Zero(n_samples, input_dim);
-  // For simplicity, use the sum of spikes over time as input
   for (const auto &spikes : spike_trains) {
     x_data += spikes;
   }
@@ -96,12 +102,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       // gradient descent
       optimizer.step(params);
 
+      // Update epoch loss
       float tmp = loss_tensor.data(0, 0);
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
     }
 
     if (epoch % 100 == 0) {
-      std::cout << "Epoch: " << epoch << "-Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
+      std::cout << "Epoch: " << epoch << " - Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
     }
   }
 
