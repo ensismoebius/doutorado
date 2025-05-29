@@ -5,30 +5,49 @@
 #include "layers/MSELoss.hpp"
 #include "layers/ReLU.hpp"
 #include "layers/Sequential.hpp"
+#include "layers/SpikeCountLoss.hpp"
 #include "optimizers/Adam.hpp"
 #include "optimizers/SGD.hpp"
 #include "tensor/Tensor.hpp"
 #include "util/batching.hpp"
+#include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <iomanip>
 #include <ios>
 #include <iostream>
 #include <limits>
 
 constexpr float learning_rate = 0.00001;
-constexpr int epochs = 1000000;
-constexpr int n_samples = 4;
-constexpr int input_dim = 4;
+constexpr int epochs = 200;
+constexpr int n_samples = 10;
+constexpr int input_dim = 7;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVectorizationSupport();
 
-  Eigen::MatrixXf x_data = Eigen::MatrixXf::Random(n_samples, input_dim);
-  Eigen::MatrixXf const y_data = x_data.rowwise().sum();
+  std::cout << std::fixed << std::setprecision(50);
+
+  // Generate synthetic spike train data using the new utility function
+  int const n_steps = 10;      // number of time steps for spike train
+  float const max_rate = 1.0F; // maximum firing rate
+  float const timeStep = 1.0F; // time step
+
+  Eigen::MatrixXf real_valued;
+  std::vector<Eigen::MatrixXf> spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep, &real_valued);
+
+  Eigen::MatrixXf x_data = Eigen::MatrixXf::Zero(n_samples, input_dim);
+  // For simplicity, use the sum of spikes over time as input
+  for (const auto &spikes : spike_trains) {
+    x_data += spikes;
+  }
+
+  // Target: sum of input spikes per sample (regression on spike count)
+  Eigen::MatrixXf y_data = x_data.rowwise().sum();
 
   Tensor const input(x_data);
   Tensor const y_target(y_data);
@@ -52,9 +71,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Loss
   float epoch_loss = std::numeric_limits<float>::max();
-  std::cout << std::fixed << std::setprecision(50);
 
-  MSELoss mse_loss;
+  // Use SpikeCountLoss from layers
+  SpikeCountLoss spike_loss;
 
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
     auto batches = create_batches(input, y_target, batch_size);
@@ -67,11 +86,11 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       Tensor y_pred = model.forward(batch.inputs);
 
       // Loss
-      mse_loss.set_target(batch.targets);
-      Tensor loss_tensor = mse_loss.forward(y_pred);
+      spike_loss.set_target(batch.targets);
+      Tensor loss_tensor = spike_loss.forward(y_pred);
 
       // Backward
-      Tensor grad_loss = mse_loss.backward(y_pred);
+      Tensor grad_loss = spike_loss.backward(y_pred);
       model.backward(grad_loss);
 
       // gradient descent
@@ -81,7 +100,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
     }
 
-    if (epoch % 500 == 0) {
+    if (epoch % 100 == 0) {
       std::cout << "Epoch: " << epoch << "-Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
     }
   }
