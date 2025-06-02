@@ -22,8 +22,6 @@
 	
 		\par Although the focus of this work is the \textit{Leaky Integrate-and-Fire} (LIF) neuron—due to its simplicity, computational efficiency, and its strong generalization performance across many tasks \cite{dan_goodman_2022_7044500}—there exist more biologically accurate models, such as the \textbf{Hodgkin–Huxley neuron} \cite{gerstner2014neuronal}, and others like the one proposed in \cite{jones2020single}, which incorporate dendritic nonlinearities and additional biophysical properties to more closely replicate real neuronal behavior.
 	
-		\par LIF is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems SNNs can be used.
-
 		\par Unlike a standard neuron, LIF takes the sum of weighted inputs and apply some \textit{leakage}, which decreases in some degree the sum, before it passes to its activation function. 
 		
 		\par It behave much like Resistor-Capacitor circuit as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
