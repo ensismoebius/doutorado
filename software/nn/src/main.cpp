@@ -28,7 +28,8 @@ constexpr int input_dim = 7;
 constexpr int output_dim = 1;
 constexpr int batch_size = 1;
 
-auto main(int /*argc*/, char * /*argv*/[]) -> int {
+auto main(int /*argc*/, char * /*argv*/[]) -> int
+{
   printVectorizationSupport();
 
   std::cout << std::fixed << std::setprecision(50);
@@ -48,9 +49,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Sum the spike trains across time steps to create the input data
   // Each spike train is a matrix of shape (n_samples, input_dim)
   Eigen::MatrixXf x_data = Eigen::MatrixXf::Zero(n_samples, input_dim);
-  for (const auto &spikes : spike_trains) {
-    x_data += spikes;
-  }
+  for (const auto &spikes : spike_trains)
+    {
+      x_data += spikes;
+    }
 
   // Target: sum of input spikes per sample (regression on spike count)
   Eigen::MatrixXf y_data = x_data.rowwise().sum();
@@ -81,36 +83,39 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Use SpikeCountLoss from layers
   SpikeCountLoss spike_loss;
 
-  for (size_t epoch = 0; epoch < epochs; ++epoch) {
-    auto batches = create_batches(input, y_target, batch_size);
-    optimizer.zero_grad(params); // Zeroing the gradients
+  for (size_t epoch = 0; epoch < epochs; ++epoch)
+    {
+      auto batches = create_batches(input, y_target, batch_size);
+      optimizer.zero_grad(params); // Zeroing the gradients
 
 // Parallelize batch processing with OpenMP
 #pragma omp parallel for schedule(static)
-    for (const auto &batch : batches) {
-      // forward
-      Tensor y_pred = model.forward(batch.inputs);
+      for (const auto &batch : batches)
+        {
+          // forward
+          Tensor y_pred = model.forward(batch.inputs);
 
-      // Loss
-      spike_loss.set_target(batch.targets);
-      Tensor loss_tensor = spike_loss.forward(y_pred);
+          // Loss
+          spike_loss.set_target(batch.targets);
+          Tensor loss_tensor = spike_loss.forward(y_pred);
 
-      // Backward
-      Tensor grad_loss = spike_loss.backward(y_pred);
-      model.backward(grad_loss);
+          // Backward
+          Tensor grad_loss = spike_loss.backward(y_pred);
+          model.backward(grad_loss);
 
-      // gradient descent
-      optimizer.step(params);
+          // gradient descent
+          optimizer.step(params);
 
-      // Update epoch loss
-      float tmp = loss_tensor.data(0, 0);
-      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+          // Update epoch loss
+          float tmp = loss_tensor.data(0, 0);
+          epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+        }
+
+      if (epoch % 100 == 0)
+        {
+          std::cout << "Epoch: " << epoch << " - Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
+        }
     }
-
-    if (epoch % 100 == 0) {
-      std::cout << "Epoch: " << epoch << " - Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
-    }
-  }
 
   return 0;
 }

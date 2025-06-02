@@ -18,7 +18,6 @@
             "program": "${workspaceFolder}/build/nn",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "miDebuggerArgs": "-iex \"set print pretty on\""
         }
     ]
 }

@@ -1,0 +1,61 @@
+\onecolumn
+\section{Appendix}
+
+	\subsection{10-20 system and the brain's areas}
+		\begin{table}[H]
+			\begin{center}
+				\caption{Brain tasks and its corresponding regions. See Figure \ref{fig:1020standardandlobes} for more information.}
+				\begin{tabular}{|c|c|p{0.4\textwidth}|}
+					\hline
+					Region & Channels & Tasks\\
+					\hline
+					Frontal lobe & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memory, concentration, emotions.\\
+					\hline
+					Parietal lobe& P3, P4, Pz & Problem Solving, attention, grammar, sense of touch. \\
+					\hline
+					Temporal lobe& T3, T5, T4, T6 & Memory, recognition of faces, hearing, word and social clues. \\
+					\hline
+					Occipital lobe & O1, O2, Oz & Reading, vision.\\
+					\hline
+					Cerebellum && Motor control, balance. \\
+					\hline
+					Sensorimotor Cortex & C3, C4, Cz& Attention, mental processing, ﬁne motor control, sensory integration. \\
+					\hline
+				\end{tabular}
+				\label{tb:brainRegions}
+			\end{center}
+		\end{table}
+
+	\subsection{Another interpretation of LIF}
+		
+		\par Starting with the Equation \ref{eq:finalMem} and using Forward Euler Method to solve the LIF model:
+		
+		\begin{equation}
+			\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t)
+		\end{equation}
+		
+		\par Solving the derivative in Equation \ref{eq:membraneDerivative} results in the membrane potential for any time $t+\Delta t$ in future:
+		
+		\begin{equation}
+			\label{eq:membraneDerivative}
+			\begin{aligned}
+				\tau.\dfrac{V_{mem}(t+\Delta t) - V_{mem}(t)}{\Delta t} &= R.I_{in}(t) - V_{mem}(t) = \\
+				V_{mem}(t+\Delta t) - V_{mem}(t) &= \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t)) = \\
+				\Aboxed{V_{mem}(t+\Delta t) &= V_{mem}(t) + \frac{\Delta t}{\tau} . (R.I_{in}(t) - V_{mem}(t))}
+			\end{aligned}
+		\end{equation}
+
+	\subsection{Repositories and files}
+		\par All source codes are available at: \\ \href{https://github.com/ensismoebius/deepLearnning}{https://github.com/ensismoebius/deepLearnning}
+		\par The simulations and neural networks are available at: \\ \href{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/article/neuralNetworks}{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/article/neuralNetworks}
+		\par If you are interested in Jupyter notebooks visit: \\
+		\href{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/article/jupyterNotebooks}{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/article/jupyterNotebooks} 
+		\par There is a nice simulator with a graphical user interface at: \\
+		\href{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/presentation}{https://github.com/ensismoebius/deepLearnning/tree/main/simulations/presentation}
+		\par Browsing the location bellow you will have access to all latex codes used to make the documentation:\\
+		\href{https://github.com/ensismoebius/deepLearnning/tree/main/documentation}{https://github.com/ensismoebius/deepLearnning/tree/main/documentation}
+		\par Then if you want to see the log of the neural networks trainning access:\\
+		\href{https://github.com/ensismoebius/deepLearnning/tree/main/documentation/article/tables}{https://github.com/ensismoebius/deepLearnning/tree/main/documentation/article/tables} \newline
+		
+		\par That's all folks!!
+	
