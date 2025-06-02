@@ -1,10 +1,6 @@
 \section{Experiments}
 	\label{sec:experiments}
 	
-	\subsubsection{Database}
-		
-		\par Each channel captured 4096 samples and has the following ids: 'F3','F4', 'C3', 'C4', 'P3', 'P4' according to 10-20 system \cite{ScienceOpenVid:5960cfa8-7fde-441c-8592-35fdb9841499}.
-	
 	\subsubsection{Neural networks}
 	
 		\subsection{Full connected spiking neurons SNN}
@@ -14,19 +10,6 @@
 			\caption{Spiking neural network architecture}
 			\label{fig:architecturesnn}
 		\end{figure}
-	
-			\par The SNN were trained according to the following parameters:
-			\begin{itemize}
-				\item \textbf{random seed}: 42
-				\item \textbf{learning rate}: $2.10^{-4}$
-				\item \textbf{test batch size}: 40\%
-				\item \textbf{training batch size}: 60\%
-				\item \textbf{number of epochs}: 3000
-				\item \textbf{loss function}: Cross-entropy
-				\item \textbf{optimizer}: Adam ($0.00001 \leq \beta \leq 0.999$)
-				\item \textbf{insist}: 4 (amount of times the same data is presented to the network)
-				\item \textbf{neuron decay rate}: 0.9 (the rate LIF neuron loses its voltage)
-			\end{itemize}
 	
 			\input{listings/snnArchitecture.py}
 	
