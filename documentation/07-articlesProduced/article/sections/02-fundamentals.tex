@@ -24,9 +24,9 @@
 	
 		\par Unlike a standard artificial neuron, LIF integrates incoming weighted inputs over time with a \textit{leakage} mechanism that continuously reduces the membrane potential, simulating the passive decay observed in biological membranes. Only when the membrane potential crosses a threshold does the neuron emit a spike, after which the potential resets or decreases.
 		
-		\par It behave much like Resistor-Capacitor circuit as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
+		\par LIF behaves much like Resistor-Capacitor circuit as illustrated in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
 		
-		\par The behavior of the LIF neuron can be analogized to a resistor-capacitor (RC) circuit, as illustrated in Figure~\ref{fig:rcmodel}. In this analogy, RR represents the leakage resistance, CC the membrane capacitance, IinIin​ the input current, UmemUmem​ the membrane potential (i.e., the accumulated charge), and vv a switch that discharges the capacitor—emitting a spike—when a voltage threshold is reached.
+		
 
 		\begin{figure}[H]
 			\centering
