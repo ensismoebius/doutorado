@@ -20,13 +20,13 @@
 
 	\subsection{Leaky Integrate and Fire Neuron}
 	
-		\par Although the focus of this work is the \textit{Leaky Integrate and Fire Neuron} (LIF) because is simpler, more efficient and currently generalize better for most of the problems \cite{dan_goodman_2022_7044500}, there are more biological accurate model like \textbf{Hodgkin-Huxley neuron} \cite{gerstner2014neuronal} and ones like \cite{jones2020single} that created models closer to natural neurons exploring the nonlinearity of dendrites and other neuron features.
+		\par Although the focus of this work is the \textit{Leaky Integrate-and-Fire} (LIF) neuron—due to its simplicity, computational efficiency, and its strong generalization performance across many tasks \cite{dan_goodman_2022_7044500}—there exist more biologically accurate models, such as the \textbf{Hodgkin–Huxley neuron} \cite{gerstner2014neuronal}, and others like the one proposed in \cite{jones2020single}, which incorporate dendritic nonlinearities and additional biophysical properties to more closely replicate real neuronal behavior.
 	
 		\par LIF is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems SNNs can be used.
 
-		\par LIF, like a NN neuron takes the sum of weighted inputs but, rather than pass it directly to its activation function, some \textit{leakage} is applied, which decreases in some degree the sum. 
+		\par Unlike a standard neuron, LIF takes the sum of weighted inputs and apply some \textit{leakage}, which decreases in some degree the sum, before it passes to its activation function. 
 		
-		\par LIF behave much like Resistor-Capacitor circuits as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
+		\par It behave much like Resistor-Capacitor circuit as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
 
 		\begin{figure}[H]
 			\centering
