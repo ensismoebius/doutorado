@@ -18,166 +18,167 @@
 		\label{fig:neuronspike}
 	\end{figure} 
 
-	\subsection{Spiking Neuron}
+	\subsection{Leaky Integrate and Fire Neuron}
+	
 		\par Although the focus of this work is the \textit{Leaky Integrate and Fire Neurons} (LIF) because is simpler, more efficient and currently generalize better for most of the problems \cite{dan_goodman_2022_7044500}, there are more biological accurate model like \textbf{Hodgkin-Huxley neuron} \cite{gerstner2014neuronal} and ones like \cite{jones2020single} that created models closer to natural neurons exploring the nonlinearity of dendrites and other neuron features.
 	
-		\subsubsection{Leaky Integrate and Fire Neuron}
-			\par The Leaky Integrate and Fire Neuron (LIF) is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems in with SNNs can be used.
+		\par The Leaky Integrate and Fire Neuron (LIF) is one of the simplest neuron models in SNNs, still, it can be applied successfully to most of the problems SNNs can be used.
 
-			\par LIF, like a NN neuron takes the sum of weighted inputs but, rather than pass it directly to its activation function, some \textit{leakage} is applied, which decreases in some degree the sum. 
-			\par LIF behave much like Resistor-Capacitor circuits as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
-
-			\begin{figure}[H]
-				\centering
-				\includegraphics[width=0.4\linewidth]{images/rcmodel}
-				\caption[The RC model]{RC model: Source: \cite{10242251}}
-				\label{fig:rcmodel}
-			\end{figure}
-			
-			\par Unlike the Hodgkin-Huxley neuron, spikes are represented as \textbf{sparsely} distributed \textbf{ones} in a train of \textbf{zeros}, as illustrated in Figure \ref{fig:spikessparsitystaticsupress} and \ref{fig:sparsity}. This approach simplify the models and reduces the computational power and needed storage to run a SNN.\newline
-			
-			\begin{figure}[H]
-				\centering
-				\includegraphics[width=\linewidth]{images/spikesSparsityStaticSupress}
-				\caption{Sparsity on Spike Neuron Networks. Source: \cite{10242251}}
-				\label{fig:spikessparsitystaticsupress}
-			\end{figure}
-
-			\begin{figure}[H]
-				\centering
-				\includegraphics[width=.5\linewidth]{images/sparsity}
-				\caption[Sparse activity of a SNN]{Sparse activity of a SNN: The horizontal axis represents the time step of some data being processed the vertical are the SNN neuron number. Note that, most of the time, very few neurons gets activated. Source: The author.}
-				\label{fig:sparsity}
-			\end{figure}
-			
-			\par As result of the mentioned above, in SNN information is coded in format of \textit{timing} and/or \textit{rate} of spikes giving consequently great capabilities of processing streams of data but limiting the processing of static data.\newline
-			
-			\par LIF model is governed by the Equations bellow \cite{10242251}.
-			
-			
-			\par Considering that $Q$ is a measurement of electrical charge and $V_{mem}(t)$ is the potential difference at the membrane in a certain time $t$ than the neuron capacitance $C$ is given by the Equation \ref{eq:capacitance}.
-			
-			\begin{equation}
-				\label{eq:capacitance}
-				C = \frac{Q}{V_{mem}(t)}
-			\end{equation}
-			
-			\par Than the neuron charge can be expressed as Equation \ref{eq:charge}.
-			
-			\begin{equation}
-				\label{eq:charge}
-				Q = C.V_{mem}(t)
-			\end{equation}
+		\par LIF, like a NN neuron takes the sum of weighted inputs but, rather than pass it directly to its activation function, some \textit{leakage} is applied, which decreases in some degree the sum. 
 		
-			\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
-			
-			\begin{equation}
-				\label{eq:rateOfChargeChange}
-				I_C = \dfrac{dQ}{dt} = C. \dfrac{dV_{mem}(t)}{dt}
-			\end{equation}
+		\par LIF behave much like Resistor-Capacitor circuits as can be seen in Figure \ref{fig:rcmodel}. Here $R$ is resistance to the leakage, $I_{in}$ the input current, $C$ the capacitance, $U_{mem}$ means the accumulated action potential and $v$ is a switch that lets the capacitor discharge (i.e. emit a spike) when some potential threshold is reached.
+
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.4\linewidth]{images/rcmodel}
+			\caption[The RC model]{RC model: Source: \cite{10242251}}
+			\label{fig:rcmodel}
+		\end{figure}
+		
+		\par Unlike the Hodgkin-Huxley neuron, spikes are represented as \textbf{sparsely} distributed \textbf{ones} in a train of \textbf{zeros}, as illustrated in Figure \ref{fig:spikessparsitystaticsupress} and \ref{fig:sparsity}. This approach simplify the models and reduces the computational power and needed storage to run a SNN.\newline
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=\linewidth]{images/spikesSparsityStaticSupress}
+			\caption{Sparsity on Spike Neuron Networks. Source: \cite{10242251}}
+			\label{fig:spikessparsitystaticsupress}
+		\end{figure}
+
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=.5\linewidth]{images/sparsity}
+			\caption[Sparse activity of a SNN]{Sparse activity of a SNN: The horizontal axis represents the time step of some data being processed the vertical are the SNN neuron number. Note that, most of the time, very few neurons gets activated. Source: The author.}
+			\label{fig:sparsity}
+		\end{figure}
+		
+		\par As result of the mentioned above, in SNN information is coded in format of \textit{timing} and/or \textit{rate} of spikes giving consequently great capabilities of processing streams of data but limiting the processing of static data.\newline
+		
+		\par LIF model is governed by the Equations bellow \cite{10242251}.
 		
 		
-			\par To calculate the total current passing by the resistive part of the circuit we may use the Ohm's law:
-			
-			\begin{equation}
-				\label{eq:ohmlaw}
-				V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
-			\end{equation}
-			
-			\par Than considering that the total current do not change, as seen in Figure \ref{fig:rcmodel2}, we have the total input current $I_{in}$ of the neuron as in Equation \ref{eq:totalNeuronCurrent}.
-			
-			\begin{figure}[H]
-				\centering
-				\includegraphics[width=0.4\linewidth]{images/rcmodel2}
-				\caption[RC model for currents]{RC model for currents: $I_{in} = I_R + I_C$}
-				\label{fig:rcmodel2}
-			\end{figure}
+		\par Considering that $Q$ is a measurement of electrical charge and $V_{mem}(t)$ is the potential difference at the membrane in a certain time $t$ than the neuron capacitance $C$ is given by the Equation \ref{eq:capacitance}.
+		
+		\begin{equation}
+			\label{eq:capacitance}
+			C = \frac{Q}{V_{mem}(t)}
+		\end{equation}
+		
+		\par Than the neuron charge can be expressed as Equation \ref{eq:charge}.
+		
+		\begin{equation}
+			\label{eq:charge}
+			Q = C.V_{mem}(t)
+		\end{equation}
 	
+		\par To know how these charge changes according to the time (aka current) we can derivate $Q$ as in Equation \ref{eq:rateOfChargeChange}. This expression express the current in the capacitive part of the neuron $I_C$
+		
+		\begin{equation}
+			\label{eq:rateOfChargeChange}
+			I_C = \dfrac{dQ}{dt} = C. \dfrac{dV_{mem}(t)}{dt}
+		\end{equation}
+	
+	
+		\par To calculate the total current passing by the resistive part of the circuit we may use the Ohm's law:
+		
+		\begin{equation}
+			\label{eq:ohmlaw}
+			V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
+		\end{equation}
+		
+		\par Than considering that the total current do not change, as seen in Figure \ref{fig:rcmodel2}, we have the total input current $I_{in}$ of the neuron as in Equation \ref{eq:totalNeuronCurrent}.
+		
+		\begin{figure}[H]
+			\centering
+			\includegraphics[width=0.4\linewidth]{images/rcmodel2}
+			\caption[RC model for currents]{RC model for currents: $I_{in} = I_R + I_C$}
+			\label{fig:rcmodel2}
+		\end{figure}
+
+		\begin{equation}
+			\label{eq:totalNeuronCurrent}
+			I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
+		\end{equation}
+		\par Therefore, to describe the passive membrane we got a linear Equation \ref{eq:memLinear}.
+		\begin{equation}
+			\label{eq:memLinear}
+			\begin{aligned}
+				I_{in}(t) &= \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt} \implies \\ 
+				I_{in}(t) - \frac{V_{mem}(t)}{R} &=  C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+				\Aboxed{R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt}}
+			\end{aligned}
+		\end{equation}
+
+		\par Than, if we consider $\tau = R.C$ as the \textbf{membrane time constant} we get voltages on both sides of Equation \ref{eq:finalMem} which \textbf{describes the RC circuit}.
+	
+		\begin{equation}
+			\label{eq:finalMem}
+			\begin{aligned}
+			R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt} \implies \\
+			R.I_{in}(t) - V_{mem}(t) &=  \tau.\dfrac{dV_{mem}(t)}{dt} \implies \\
+			\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
+			\end{aligned}
+		\end{equation}
+	
+		\par From that, and setting $I_{in} = 0$ (i.e. no input) and considering $\tau = R.C$ is a constant and a starting voltage $V_{mem}(0)$ the neuron's voltage behavior can be modeled as an exponential curve as can be seen in Equation \ref{eq:expmembrane}.
+	
+	 	\begin{equation}
+	 		\label{eq:expmembrane}
+	 		\begin{aligned}
+	 		\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
+	 		\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
+	 		e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
+	 		\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
+	 		\end{aligned}
+	 	\end{equation}
+ 	
+ 		\par Then one can say that: In the absence of an input $I_{in}$, the membrane potential decays exponentially as illustrated in Figure \ref{fig:membranepotentialdecay} and implemented in Listing \ref{lst:membranepotentialdecay}.
+ 		
+ 			\input{listings/membranepotentialdecay.py}
+
+	 		\begin{figure}[H]
+	 			\centering
+	 			\includegraphics[width=\linewidth]{images/membranePotentialDecay}
+	 			\caption{Membrane potential decaying. Source: The author}
+	 			\label{fig:membranepotentialdecay}
+	 		\end{figure}
+			
+			\par With the results from Equation \ref{eq:finalMem} it is possible to calculate the action potential increasing as seen in Equation \ref{eq:actionpotincrease}.
+			
 			\begin{equation}
-				\label{eq:totalNeuronCurrent}
-				I_{in}(t) = I_R + I_C \implies I_{in}(t) = \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt}
-			\end{equation}
-			\par Therefore, to describe the passive membrane we got a linear Equation \ref{eq:memLinear}.
-			\begin{equation}
-				\label{eq:memLinear}
+				\label{eq:actionpotincrease}
 				\begin{aligned}
-					I_{in}(t) &= \frac{V_{mem}(t)}{R} + C.\dfrac{dV_{mem}(t)}{dt} \implies \\ 
-					I_{in}(t) - \frac{V_{mem}(t)}{R} &=  C.\dfrac{dV_{mem}(t)}{dt} \implies \\
-					\Aboxed{R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt}}
+					&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
+					&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
+					&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
+				&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
+				&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
+				&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
+				& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
+				\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
 				\end{aligned}
 			\end{equation}
-	
-			\par Than, if we consider $\tau = R.C$ as the \textbf{membrane time constant} we get voltages on both sides of Equation \ref{eq:finalMem} which \textbf{describes the RC circuit}.
 		
-			\begin{equation}
-				\label{eq:finalMem}
-				\begin{aligned}
-				R.I_{in}(t) - V_{mem}(t) &=  R.C.\dfrac{dV_{mem}(t)}{dt} \implies \\
-				R.I_{in}(t) - V_{mem}(t) &=  \tau.\dfrac{dV_{mem}(t)}{dt} \implies \\
-				\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
-				\end{aligned}
-			\end{equation}
-		
-			\par From that, and setting $I_{in} = 0$ (i.e. no input) and considering $\tau = R.C$ is a constant and a starting voltage $V_{mem}(0)$ the neuron's voltage behavior can be modeled as an exponential curve as can be seen in Equation \ref{eq:expmembrane}.
-		
-		 	\begin{equation}
-		 		\label{eq:expmembrane}
-		 		\begin{aligned}
-		 		\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t) \implies \\
-		 		\tau.\dfrac{dV_{mem}(t)}{dt} &= -V_{mem}(t) = \\
-		 		e^{\ln(V_{mem}(t))} &= e^{-\frac{t}{\tau}} = \\
-		 		\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
-		 		\end{aligned}
-		 	\end{equation}
-	 	
-	 		\par Then one can say that: In the absence of an input $I_{in}$, the membrane potential decays exponentially as illustrated in Figure \ref{fig:membranepotentialdecay} and implemented in Listing \ref{lst:membranepotentialdecay}.
-	 		
-	 			\input{listings/membranepotentialdecay.py}
+			\par Note that when action potentials increases there is still an exponential behavior as seen in Figure \ref{fig:membranepotentialincrease} and implemented in Listing \ref{lst:membranepotentialincrease}.
+			
+				\input{listings/membranepotentialincrease.py}
 
-		 		\begin{figure}[H]
-		 			\centering
-		 			\includegraphics[width=\linewidth]{images/membranePotentialDecay}
-		 			\caption{Membrane potential decaying. Source: The author}
-		 			\label{fig:membranepotentialdecay}
-		 		\end{figure}
- 			
- 			\par With the results from Equation \ref{eq:finalMem} it is possible to calculate the action potential increasing as seen in Equation \ref{eq:actionpotincrease}.
- 			
- 			\begin{equation}
- 				\label{eq:actionpotincrease}
- 				\begin{aligned}
- 					&\tau.\dfrac{dV_{mem}(t)}{dt} = R.I_{in}(t) - V_{mem}(t) = \\
- 					&\dfrac{dV_{mem}(t)}{dt} + \frac{V_{mem}(t)}{\tau} = \frac{R.I_{in}(t)}{\tau} \implies \\
- 					&\text{Integrating factor: } e^{\int \frac{1}{\tau} dt} = e^{\frac{1}{\tau}.t} \implies \\
-					&(e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} = \\
-					&\int (e^{\frac{1}{\tau}.t}.V_{mem}(t))' = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt = \\
-					&e^{\frac{1}{\tau}.t}.V_{mem}(t) = \int \frac{R.I_{in}(t)}{\tau}.e^{\frac{1}{\tau}.t} dt \therefore \\
-					& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
-					\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
- 				\end{aligned}
- 			\end{equation}
- 		
- 			\par Note that when action potentials increases there is still an exponential behavior as seen in Figure \ref{fig:membranepotentialincrease} and implemented in Listing \ref{lst:membranepotentialincrease}.
- 			
- 				\input{listings/membranepotentialincrease.py}
-
-	 			\begin{figure}[H]
-	 				\centering
-	 				\includegraphics[width=\linewidth]{images/membranePotentialIncrease}
-	 				\caption{Membrane potential increasing. Source: The author}
-	 				\label{fig:membranepotentialincrease}
-	 			\end{figure}
- 		
- 			\par Then taking into account some \textbf{threshold} which indicates a reset into the neuron potential and two type of resets (to zero and threshold subtraction) finally is possible to model the full LIF  behavior as depicted in Figure \ref{fig:membranepotentialfull} and implemented in Listing \ref{lst:membranepotentialfull}:
- 			
- 			\input{listings/membranepotentialfull.py}
- 			
  			\begin{figure}[H]
  				\centering
- 				\includegraphics[width=\linewidth]{images/membranePotentialFull}
- 				\caption{Plot of the full simulated LIF: A 0.5 mA was provided from time 51 to 70.}
- 				\label{fig:membranepotentialfull}
+ 				\includegraphics[width=\linewidth]{images/membranePotentialIncrease}
+ 				\caption{Membrane potential increasing. Source: The author}
+ 				\label{fig:membranepotentialincrease}
  			\end{figure}
+		
+			\par Then taking into account some \textbf{threshold} which indicates a reset into the neuron potential and two type of resets (to zero and threshold subtraction) finally is possible to model the full LIF  behavior as depicted in Figure \ref{fig:membranepotentialfull} and implemented in Listing \ref{lst:membranepotentialfull}:
+			
+			\input{listings/membranepotentialfull.py}
+			
+			\begin{figure}[H]
+				\centering
+				\includegraphics[width=\linewidth]{images/membranePotentialFull}
+				\caption{Plot of the full simulated LIF: A 0.5 mA was provided from time 51 to 70.}
+				\label{fig:membranepotentialfull}
+			\end{figure}
  			
  	\subsection{Training}
  	
