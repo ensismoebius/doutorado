@@ -1,0 +1,11 @@
+\section{Introduction}
+	\label{introduction}
+	\par Standard Neural Networks (NNs), as defined here —*multilayered, fully connected, with or without recurrent or convolutional layers*— require that all neurons be activated during both forward and backward passes. This means that every unit in the network must perform computations at every time step, leading to significant power consumption \cite{10242251}. In an era where responsible use of energy resources is essential, a critical question arises: how can we design NN models that are energy-efficient enough to be deployed on portable or resource-constrained devices?
+	
+	\par Spiking Neural Networks (SNNs) offer a compelling answer to this problem. As the third generation of neural networks, SNNs encode information using discrete spike events and update neuron states only when necessary. This event-driven paradigm mimics biological neuronal dynamics and allows for sparse computations, which are particularly advantageous when implemented on neuromorphic hardware. Such systems can achieve high energy efficiency by leveraging the inherent sparsity of spike-based communication.
+	
+	\par Although frameworks like SNNTorch provide accessible tools for simulating and training SNNs, understanding their theoretical underpinnings and low-level implementation is crucial—especially in scenarios where existing frameworks are incompatible with specialized hardware or minimal runtime environments.
+	
+	\par The objective of this paper is to guide the reader from the theoretical foundations of spiking neurons to the practical implementation of a simple SNN layer in C++, using surrogate gradient descent for supervised learning.
+	
+	\par The remaining of this document is organized as follows: Section \ref{sec:revBibli} presents a literature review, Section \ref{sec:experiments} details the tests and the results and lastly, Section \ref{sec:conclusions} is dedicated to the conclusions that are followed by Section \ref{sec:future} that presents the future works, then the references and an appendix. 
