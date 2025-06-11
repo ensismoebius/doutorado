@@ -55,7 +55,6 @@ struct Module {
 
   /**
    * @brief Destroy the Module object
-   * 
    */
   virtual ~Module() = default;
 };

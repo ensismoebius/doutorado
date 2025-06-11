@@ -82,6 +82,7 @@ struct Leaky : public Module {
     // Surrogate Gradient Descent with Hard Tanh
     // d spike/d V_mem ≈ 1 if |V_mem - voltage_threshold| < 1, else 0
     Eigen::MatrixXf grad_input = Eigen::MatrixXf::Zero(grad_output.data.rows(), grad_output.data.cols());
+
     for (int i = 0; i < grad_output.data.rows(); ++i) {
       for (int j = 0; j < grad_output.data.cols(); ++j) {
         float const prev_v_men = v_mem_cache(i, j);
