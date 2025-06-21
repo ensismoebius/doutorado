@@ -1,9 +1,11 @@
 \section{Introduction}
 	\label{introduction}
 	
+	\par If the reader is a impatient person and want go straight to implementation see subsection \ref{sec:finalImplementation}.\newline
+	
 	\par This guide assumes that you already have some knowledge about neural networks and its inner workings.
 	
-	\par Standard Neural Networks (NNs), as defined here — \textbf{multilayered, fully connected, with or without recurrent or convolutional layers using sigmoidal and or RElu like activations functions} — require that all neurons be activated during both forward and backward passes. This means that every unit in the network must perform computations at every time step, leading to significant power consumption \cite{10242251}. In an era where responsible use of energy resources is essential, a critical question arises: How can one design NN models that are energy-efficient enough to be deployed on portable or resource-constrained devices?
+	\par Standard Neural Networks (NNs), as defined here as — \textbf{non Spiking neural networks} — require that all neurons are activated during both forward and backward passes. This means that every unit in the network must perform computations at every time step, leading to significant power consumption \cite{10242251}. In an era where responsible use of energy resources is essential, a critical question arises: How can one design NN models that are energy-efficient enough to be deployed on portable or resource-constrained devices?
 	
 	\par Spiking Neural Networks (SNNs) offer a compelling answer to this problem. As the third generation of neural networks, SNNs encode information using discrete spike events and update neuron states only when necessary. This event-driven paradigm mimics biological neuronal dynamics and allows for sparse computations, which are particularly advantageous when implemented on neuromorphic hardware. Such systems can achieve high energy efficiency by leveraging the inherent sparsity of spike-based communication.
 	

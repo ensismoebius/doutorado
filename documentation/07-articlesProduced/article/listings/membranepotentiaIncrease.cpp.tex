@@ -1,20 +1,20 @@
 \begin{lstlisting}[language=Python, caption={
-		Python implementation of the deacreasing action potential behavior of a LIF:
+		Python implementation of the increasing action potential behavior of a LIF:
 		\textbf{V\_mem}: Membrane potential at the current time step;
 		\textbf{t=1}: simulation time step;
 		\textbf{R=5}: membrane resistance;
 		\textbf{C=1}: membrane capacitance;
 		\textbf{tau = R * C}: membrane time constant (i.e., the characteristic decay time of the membrane potential);
 		\textbf{decay\_rate=-t/tau}: The rate by which the membrane voltage decays for each time step.
-		}, label={lst:membranepotentialdecay}]
-def lifDecay(V_mem, t=1, R=5, C=1):
-	tau = R*C
+	}, label={lst:membranepotentialincrease}]
+def lifIncrease(V_mem, t=1, I_in=1, R=5, C=1):    
+	tau = R * C
 	
 	# e^(-dt/tau)
 	decay_rate = np.exp(-t/tau)
 	
-	# V_mem(t) = V_mem(0) * e^(-t/tau)
-	V_mem = V_mem * decay_rate
+	# V_mem(t)=I_in(t).R.(1 - e^(-t/tau))
+	V_mem = V_mem + I_in * R * (1 - decay_rate)
 	
 	return V_mem
 \end{lstlisting}

@@ -1,4 +1,4 @@
-\begin{lstlisting}[language=Python, caption={Python implementation of the action potential full simulation of a LIF:
+\begin{lstlisting}[language=Python, caption={Python implementation of the full action potential simulation of a LIF:
 	\textbf{V\_mem}: current membrane potential;
 	\textbf{dt=1}: simulation time step;
 	\textbf{I\_in=0.5}: input current (assumed constant during dt);
@@ -7,21 +7,26 @@
 	\textbf{V\_thresh=2}: firing threshold - when V\_mem > V\_thresh, the neuron "spikes";
 	\textbf{reset\_zero=True}: determines if the neuron resets to zero after spiking;
 	\textbf{tau = R * C}: membrane time constant (i.e., the characteristic decay time of the membrane potential);
-	\textbf{decay\_rate=-dt/tau}: The rate by which the membrane voltage decays for each time step.
 	}, label={lst:membranepotentialfull}]
 def lif(V_mem, dt=1, I_in=0.5, R=5, C=1, V_thresh = 2, reset_zero = True):
 	tau = R*C
-	
-	# e^(-dt/tau)
-	decay_rate = np.exp(-dt/tau)
-	
-	# V_mem(t) = V_mem(0) * e^(-dt/tau)
-	V_mem = V_mem + (V_mem + I_in*R) * decay_rate
-	
+
+	# Default: No spike 
+	spike = 0
+
+	# V_mem(t+dt)=V_mem(t)+(dt/tau)*(R*I_in-V_mem(t))
+	V_mem = V_mem + (dt / tau) * (I * R - V_mem)
+
+	# Threshold
 	if V_mem > V_thresh:
+	
+		# Emit a spike
+		spike = 1
+	
 		if reset_zero:
 			V_mem = 0
 		else:
 			V_mem = V_mem - V_thresh
-	return V_mem
+
+	return V_mem, spike
 \end{lstlisting}
