@@ -1,0 +1,16 @@
+\begin{lstlisting}[
+		language=Python, 
+		caption={Python implementation of hardTanh and the derivative of hardTanh}, 
+		label={lst:hardtanh}
+	]
+	# Define the HardTanh function
+	def hardtanh(x):
+		return ((x > 0) * x) * (x < 1) + (x >= 1)
+	
+	# Define the derivative of the HardTanh function
+	def d_hardtanh(x):
+		return (x > 0) * (x < 1)
+\end{lstlisting}
+
+
+

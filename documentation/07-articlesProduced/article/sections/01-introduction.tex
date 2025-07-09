@@ -1,14 +1,14 @@
 \section{Introduction}
 	\label{introduction}
 	
-	\par If the reader is a impatient person and want go straight to implementation see subsection \ref{sec:finalImplementation}.\newline
+	\par Readers primarily interested in implementation details may refer to subsection \ref{sec:finalImplementation}.\newline
 	
-	\par This guide assumes that you already have some knowledge about neural networks and its inner workings.
+	\par This tutorial assumes prior familiarity with neural networks and their underlying mechanisms.
 	
-	\par Standard Neural Networks (NNs), as defined here as — \textbf{non Spiking neural networks} — require that all neurons are activated during both forward and backward passes. This means that every unit in the network must perform computations at every time step, leading to significant power consumption \cite{10242251}. In an era where responsible use of energy resources is essential, a critical question arises: How can one design NN models that are energy-efficient enough to be deployed on portable or resource-constrained devices?
+	\par Standard neural networks (NNs), herein defined as non-spiking, require activation of all neurons during both forward and backward propagations. This means that every unit in the network must perform computations at every time step, leading to significant power consumption \cite{10242251}. In an era where responsible use of energy resources is essential, a critical question arises: How can one design NN models that are energy-efficient enough to be deployed on portable or resource-constrained devices?
 	
 	\par Spiking Neural Networks (SNNs) offer a compelling answer to this problem. As the third generation of neural networks, SNNs encode information using discrete spike events and update neuron states only when necessary. This event-driven paradigm mimics biological neuronal dynamics and allows for sparse computations, which are particularly advantageous when implemented on neuromorphic hardware. Such systems can achieve high energy efficiency by leveraging the inherent sparsity of spike-based communication.
 	
-	\par Although frameworks like SNNTorch provide accessible tools for simulating and training SNNs, understanding the theoretical underpinnings and low-level implementation is crucial—especially in scenarios where existing frameworks are incompatible with specialized hardware or minimal runtime environments.
+	\par Despite the availability of tools such as SNNTorch for SNN simulation and training, a comprehensive understanding of their theoretical foundations and low-level implementation remains essential — especially in scenarios where existing frameworks are incompatible with specialized hardware or minimal runtime environments.
 	
-	\par The objective of this paper is to guide the reader from the theoretical foundations of spiking neurons to the practical implementation of a simple spiking neuron.
+	\par This paper aims to provide a detailed exposition of the theoretical principles of spiking neurons, culminating in a practical implementation guide

@@ -1,0 +1,127 @@
+%---------------------------------------------------------------------------------
+% Template for IEEE Signal Processing Magazine Feature Articles
+% Starting point: IEEE journal template modified by Danilo Comminiello on June 10, 2024
+% To be used with: IEEEtran.bst - IEEE bibliography style file.
+%---------------------------------------------------------------------------------
+%
+\documentclass[11pt,draftcls,onecolumn,journal]{IEEEtran}
+%
+% --------------------------------------------------------------------------------
+% Packages definition.
+\usepackage{amsmath,amsfonts}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{array}
+\usepackage[caption=false,font=normalsize,labelfont=sf,textfont=sf]{subfig}
+\usepackage{textcomp}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\hyphenation{op-tical net-works semi-conduc-tor IEEE-Xplore}
+% --------------------------------------------------------------------------
+% Begin Document
+\begin{document}
+
+\title{Author Guidelines for Feature Articles of IEEE Signal Processing Magazine}
+
+\author{Jane Doe,~\IEEEmembership{Senior~Member,~IEEE}
+        % <-this % stops a space
+\thanks{Jane Doe is with the Department of Electrical and Computer Engineering...}% <-this % stops a space
+\thanks{Manuscript received ...}
+\thanks{Template prepared by T. Adal{\i} and A. Yeredor,  June 2024.}}
+
+
+% The paper headers
+\markboth{IEEE Signal Processing Magazine,~Vol.~XX, No.~XX, July~2024}%
+{\MakeLowercase{\textit{et al.}}: Author Guidelines for Special Issue Articles of IEEE SPM}
+%\IEEEpubid{0000--0000/00\$00.00~\copyright~2021 IEEE}
+% Remember, if you use this you must call \IEEEpubidadjcol in the second
+% column for its text to clear the IEEEpubid mark.
+
+\maketitle
+
+\section*{}
+\label{sec:abstract}
+    This is a template for SPM Feature Articles, and please note that these do not have an abstract and the sections are not numbered. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section*{Scope of SI Articles}
+\label{sec:scope}
+\IEEEPARstart{F}eature articles of the IEEE Signal Processing Magazine (SPM) \cite{ref1} are designed as tutorial-like papers aimed at a broad audience, in signal and image processing and beyond. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section*{Article Specifications}
+\label{sec:length}
+Feature Articles are up to 40 pages with a total number of references up to 60 and a total number of figures/tables up to 15.
+\noindent All limits above (at submission time) are for double-spaced and single column format using a minimum font size of 11pt, according to this SPM Paper Template. They also include all figures, tables and references. Please note that subfigures as in (a), (b), … count as separate figures. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\section*{Conclusion}
+This document provides prospective authors with essential guidelines for preparing and submitting feature articles to the IEEE Signal Processing Magazine. Authors are encouraged to follow the detailed instructions for manuscript preparation, formatting, and submission to streamline the review process and enhance the overall quality of their publications. By adhering to these guidelines, authors can effectively communicate their research and insights, thereby fostering a vibrant exchange of knowledge and perspectives with the signal processing community.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+---------------------------------------------------
+% Acknowledgments
+% ---------------------------------------------------
+%
+\section*{Acknowledgment}
+If desired, this is a simple paragraph before the references to thank those individuals and institutions who have supported your work on this article. 
+
+
+
+---------------------------------------------------
+% References
+% ---------------------------------------------------
+%
+\begin{thebibliography}{1}
+\bibliographystyle{IEEEtran}
+
+\bibitem{ref1}
+{\it{IEEE Signal Processing Magazine}}, ``Information for authors—SPM,'' [Online]. Available: \href{https://signalprocessingsociety.org/publications-resources/ieee-signal-processing-magazine/information-authors-spm}{IEEE Signal Processing Magazine}
+
+\bibitem{ref2}
+{\it{IEEE Author Center}}, ``IEEE Template Selector,'' [Online]. Available: \href{https://template-selector.ieee.org/secure/templateSelector/publicationType}{IEEE Template Selector}
+
+\bibitem{ref4}
+{\it{ScholarOne Manuscript}}, ``IEEE SPM ScholarOne Portal,'' [Online]. Available: \href{https://mc.manuscriptcentral.com/sps-ieee}{ScholarOne}
+
+\bibitem{ref5}
+{\em Please remember that the references should provide a sufficiently broad view beyond authors' own contributions.} 
+
+\end{thebibliography}
+%
+%
+%
+%
+% ---------------------------------------------------
+% Biography
+% ---------------------------------------------------
+%
+\section*{Biographies}
+\label{sec:bio}
+For Feature Articles you are asked to include a 100-word biography. Here is the required information:
+//Author Name// //(email address)// received his/her //highest degree// in //area// from //institution//. [Do not need to list the year but can use it if it is provided. OK to list location if provided but not required.] He/she is a //role// at //institution, city/state/postal code/country//. //Last name// serves as a //role// on //related publication or Society//. [List 2-3 major awards.] //His/her// research interests include //3-5//. //Last name// is a //IEEE membership level// (if applicable).
+%
+%
+
+\subsection*{Sample Bio}
+\begin{IEEEbiographynophoto}{First Author Name}
+(~\IEEEmembership{Member,~IEEE}) received his B.S. degree from the Insert College Name and his M.S. and Ph.D. degrees from University Name. He was a postdoctoral researcher at the Company Name and is now a job position at University/Company Name, University/Company City, State, Postal Code, Country. He is a recipient of the Insert Your Award Name Prize. His research focuses on the design, analysis, and implementation of algorithms for large-scale nonlinear optimization problems. He is a Member of IEEE.
+\end{IEEEbiographynophoto}
+%
+\vspace{11pt} % To separate multiple biographies
+
+\begin{IEEEbiographynophoto}{Second Author Name}
+(~\IEEEmembership{Fellow,~IEEE}) received his B.S. degree from the Insert College Name and his M.S. and Ph.D. degrees from University Name. He was a postdoctoral researcher at the Company Name and is now a job position at University/Company Name, University/Company City, State, Postal Code, Country. He is a recipient of the Insert Your Award Name Prize. His research focuses on the design, analysis, and implementation of algorithms for large-scale nonlinear optimization problems. He is a Member of IEEE.
+\end{IEEEbiographynophoto}
+
+\vfill
+
+\end{document}
+
+

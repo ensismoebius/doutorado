@@ -1,0 +1,16 @@
+\begin{lstlisting}[language=Python, caption={Python implementation of the simplified full action potential simulation of a LIF:
+		\textbf{V\_mem}: current membrane potential;
+		\textbf{X}: input current (assumed constant during dt);
+		\textbf{V\_thresh=2}: firing threshold, when V\_mem > V\_thresh, the neuron "spikes";
+	}, label={lst:membranepotentialfullsimplified}]
+def lif(V_mem, X, W, beta, V_thresh=2):
+
+	# if V_mem > V_thresh, spk=1, else, 0
+	spk = (V_mem > V_thresh)
+	
+	# V_mem(t + 1) = beta * V_mem(t) + W * X(t) 
+	# - threshold (if spiked)
+	V_mem = beta*V_mem + W*X - spk*V_thresh
+	
+	return spk, V_mem
+\end{lstlisting}

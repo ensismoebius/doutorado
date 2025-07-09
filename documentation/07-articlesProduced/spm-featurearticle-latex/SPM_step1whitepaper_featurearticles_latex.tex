@@ -1,0 +1,85 @@
+\documentclass[journal,onecolumn]{IEEEtran}
+
+\usepackage{graphics}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{fancybox}
+\usepackage{amsmath}
+\usepackage{subfigure}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{xcolor}
+
+\begin{document}
+	\title{Understanding a Spiking Neuron: A Tutorial on Leaky Integrate-and-Fire Dynamics and Implementation}
+
+	\author{André Furlan \\
+	UNESP - São Paulo State University, IBILCE, Brazil \\
+	ensismoebius@gmail.com}
+
+	% The paper headers
+	\markboth{WHITE PAPER Proposal for A Feature Article in IEEE SPM}%
+	{Odd-pages header}
+	% The Odd-pages header will only appear in the odd numbered pages (after the title page) when using the twoside option.
+	
+	\maketitle
+	
+	\section*{Scope}
+		\par This feature article proposes a tutorial on Spiking Neural Networks (SNNs), focusing on the Leaky Integrate-and-Fire (LIF) neuron model. The article presents both the theoretical background and practical Python implementations of LIF dynamics, including charging, discharging, threshold-triggered resets, and surrogate gradient training. It is aimed at readers seeking a rigorous but accessible introduction to spiking neuron models and their computational behavior.\\
+	
+	\section{History, Motivation, and Significance of the Topic}
+		\par SNNs represent the third generation of neural network models and are inspired by the event-driven communication of biological neurons. Their energy efficiency and temporal processing capabilities make them ideal for edge computing and neuromorphic hardware. Despite the emergence of frameworks like SNNTorch, a gap remains in accessible, mathematically grounded tutorials that elucidate how LIF neurons function and are implemented. This tutorial addresses that gap by combining physical modeling (RC circuits), numerical methods, and surrogate gradient techniques.
+		
+		\par While earlier literature focuses on biologically detailed models (e.g., Hodgkin-Huxley), these are often computationally prohibitive. The proposed article emphasizes the LIF model for its balance between biological plausibility and computational efficiency. We also distinguish the article from prior work by offering clean and modular Python implementations suitable for education and integration into larger SNN systems.
+		
+	\section{Outline of the Proposed Feature Article}
+		\begin{itemize}
+			\item \textbf{Introduction}
+			\begin{itemize}
+				\item Motivation: energy efficiency, relevance of SNNs.
+				\item Overview of tutorial structure.
+			\end{itemize}
+			\item \textbf{Biological and Computational Background}
+			\begin{itemize}
+				\item Biological spiking and event-driven computation.
+				\item LIF neuron as an abstraction of membrane dynamics.
+			\end{itemize}
+			\item \textbf{The LIF Model: Physical and Mathematical Foundations}
+			\begin{itemize}
+				\item Derivation from RC circuits.
+				\item Charging and discharging behavior.
+				\item Time constant, threshold, and reset mechanisms.
+			\end{itemize}
+			\item \textbf{Simplified Model for Implementation}
+			\begin{itemize}
+				\item Reducing parameter space.
+				\item Derivation of V\_mem update in discrete time.
+				\item Role of decay factor $\beta$.
+			\end{itemize}
+			\item \textbf{Python Implementation}
+			\begin{itemize}
+				\item Code listings for charging/discharging.
+				\item Full neuron implementation with thresholding.
+				\item Plotting and interpretation of simulation results.
+			\end{itemize}
+			\item \textbf{Training Spiking Neurons}
+			\begin{itemize}
+				\item Surrogate gradients and differentiable approximations.
+				\item Use of HardTanh and derivative.
+				\item End-to-end forward and backward pass in code.
+			\end{itemize}
+			\item \textbf{Conclusion and Further Directions}
+			\begin{itemize}
+				\item Summary of LIF benefits and limitations.
+				\item Extensions to full SNN architectures.
+				\item Open problems and next steps.
+			\end{itemize}
+		\end{itemize}
+		
+	\section{Projected Submission Date}
+		\par Within two months after acceptance of this proposal.
+			
+	\section*{Authors}
+		\par \textbf{André Furlan} holds a Master’s degree in Computer Science from UNESP (Universidade Estadual Paulista), where he also taught. He currently teaches at CEETEPS (Paula Souza Center) and conducts research in artificial intelligence, signal processing, and computational neuroscience. His experience includes systems development and applied research in brain–computer interfaces, EEG and voice signal analysis, and neuromorphic modeling using Spiking Neural Networks (SNNs). His academic background spans applied mathematics, programming, and bio-inspired computing. He is a reviewer for Springer journals and actively contributes to scientific dissemination and technical education in computing.
+
+\end{document}

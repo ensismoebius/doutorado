@@ -1,0 +1,71 @@
+\begin{lstlisting}[
+	language=Python, 
+	caption={LIF class with forward and backward methods}, 
+	label={lst:lifclass}
+	]
+import numpy as np
+
+class SpikeNeuron:
+	def __init__(self, beta, V_thresh=1.0):
+	
+		# beta: decay factor for membrane potential
+		self.beta = beta
+		# V_thresh: threshold for spike generation
+		self.V_thresh = V_thresh
+	
+		# Membrane potential, initialized to None
+		# It will be initialized to zeros in the first forward pass
+		# This allows the neuron to adapt to the input shape dynamically
+		# and avoids the need for a fixed input shape at initialization.
+		self.V_mem = None
+	
+		# Store the last membrane potential before spike generation
+		# This is used for surrogate gradient calculation in the backward pass       
+		self.last_Vmem_before_spike = None
+	
+	def d_hardtanh(x):
+		"""
+		Surrogate gradient for hardtanh activation function.
+		This is used for backpropagation through the spike neuron.
+		"""
+		return ((x > 0.0) & (x < 1.0)).astype(float)
+	
+	def forward(self, I_t):
+		"""
+		I_t: input current
+		This method computes the spike output based on the input current and the membrane potential.
+		It updates the membrane potential and generates spikes based on the threshold.
+		"""
+		
+		# Initialize membrane potential if it is None
+		if self.V_mem is None:
+		self.V_mem = np.zeros_like(I_t)
+		
+		# Update the membrane potential based on the input current and previous state
+		spk = (self.V_mem > self.V_thresh).astype(float)
+		
+		# Store the last membrane potential before spike generation
+		# This is used for surrogate gradient calculation in the backward pass
+		self.last_Vmem_before_spike = self.V_mem.copy()
+		
+		# Update the membrane potential using the decay factor and input current
+		self.V_mem = self.beta * self.V_mem + I_t - spk * self.V_thresh
+		
+		# Return the spike output
+		return spk
+	
+	def backward(self, grad_spike_out):
+		"""
+		grad_spike_out: gradient from the next layer (shape same as forward output)
+		Returns: gradient w.r.t. input (to propagate to previous layers)
+		"""
+		
+		# Surrogate gradient for the hardtanh activation function
+		surrogate_grad = self.d_hardtanh(self.last_Vmem_before_spike - self.V_thresh)
+		
+		# Compute the gradient w.r.t. input current
+		grad_input = grad_spike_out * surrogate_grad
+		
+		return grad_input
+
+\end{lstlisting}
