@@ -10,23 +10,17 @@
 	}, label={lst:membranepotentialfull}]
 def lif(V_mem, dt=1, I_in=0.5, R=5, C=1, V_thresh = 2, reset_zero = True):
 	tau = R*C
-
 	# Default: No spike 
 	spike = 0
-
 	# V_mem(t+dt)=V_mem(t)+(dt/tau)*(R*I_in-V_mem(t))
 	V_mem = V_mem + (dt / tau) * (I * R - V_mem)
-
 	# Threshold
 	if V_mem > V_thresh:
-	
 		# Emit a spike
 		spike = 1
-	
 		if reset_zero:
 			V_mem = 0
 		else:
 			V_mem = V_mem - V_thresh
-
 	return V_mem, spike
 \end{lstlisting}

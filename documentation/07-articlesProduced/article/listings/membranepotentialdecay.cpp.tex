@@ -9,12 +9,9 @@
 		}, label={lst:membranepotentialdecay}]
 def lifDecay(V_mem, t=1, R=5, C=1):
 	tau = R*C
-	
 	# e^(-dt/tau)
 	decay_rate = np.exp(-t/tau)
-	
 	# V_mem(t) = V_mem(0) * e^(-t/tau)
 	V_mem = V_mem * decay_rate
-	
 	return V_mem
 \end{lstlisting}

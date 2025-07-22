@@ -1,4 +1,4 @@
-\section{Biological and computational background}
+\section*{Biological and computational background}
 \label{sec:fundamentals}
 
 	\par Biological sensory systems convert external stimuli — such as light, odors, touch, and taste — into discrete electrical events known as \textbf{spikes}. A spike is a voltage pulse that conveys information through the nervous system \cite{kasabov2019time}. These signals are propagated along neural pathways to be processed, ultimately generating behavioral or physiological responses to the environment.
@@ -13,7 +13,7 @@
 
 	\begin{figure}[H]
 		\centering
-		\includegraphics[width=\linewidth]{images/neuronSpikes}
+		\includegraphics[width=.7\linewidth]{images/neuronSpikes}
 		\caption{Spikes from a noisy signal: The noisy signal in blue is filtered generating sparse spikes. Source \cite{dan_goodman_2022_7044500}}
 		\label{fig:neuronspike}
 	\end{figure} 
@@ -26,9 +26,9 @@
 		
 		\par LIF behaves much like Resistor-Capacitor circuit like as illustrated in \autoref{fig:rcmodel}. 
 		
-		\begin{figure}[h]
+		\begin{figure}[H]
 			\centering
-			\includegraphics[width=0.4\linewidth]{images/rcmodel}
+			\includegraphics[width=0.2\linewidth]{images/rcmodel}
 			\caption[The RC model with switch]{RC model with switch:
 				$R$ represents the leakage resistance, $I_{in}$ the input current, $C$ the membrane capacitance, $U_{mem}$ the membrane potential (i.e., the accumulated charge) and $\vartheta$ a switch that lets the capacitor discharge (i.e. emit a spike) when a voltage threshold is reached.
 				 Source: \cite{10242251}}
@@ -37,16 +37,16 @@
 		
 		\par Spikes are represented as \textbf{sparsely} distributed \textbf{ones} in a train of \textbf{zeros}, as illustrated in  \autoref{fig:spikessparsitystaticsupress} and \autoref{fig:sparsity}. This approach simplify the models and reduces the computational power and needed storage to run a SNN.\newline
 		
-		\begin{figure}[h]
+		\begin{figure}[H]
 			\centering
-			\includegraphics[width=\linewidth]{images/spikesSparsityStaticSupress}
+			\includegraphics[width=.6\linewidth]{images/spikesSparsityStaticSupress}
 			\caption{Sparsity on Spike Neuron Networks. Source: \cite{10242251}}
 			\label{fig:spikessparsitystaticsupress}
 		\end{figure}
 
-		\begin{figure}[h]
+		\begin{figure}[H]
 			\centering
-			\includegraphics[width=.7\linewidth]{images/sparsity}
+			\includegraphics[width=.6\linewidth]{images/sparsity}
 			\caption[Sparse activity of a SNN]{Sparse activity of a SNN: The horizontal axis represents the time step of some data being processed the vertical are the SNN neuron number. Note that, most of the time, very few neurons gets activated. Source: The author.}
 			\label{fig:sparsity}
 		\end{figure}
@@ -55,18 +55,18 @@
 		
 		\par These preprocessing steps may consist of repeated copies of the input data for temporal reinforcement, or of a progressive decomposition of the input information, enabling its presentation in temporally distributed segments. 
 		
-	\subsection{\textbf{Mathematical Model of the LIF Neuron inner workings}}
+	\subsection*{\textbf{Mathematical Model of the LIF Neuron inner workings}}
 	
 			
 		\par The first subsection presents an analytical study of the \textit{Resistor-Capacitor (RC) circuit model}, which governs the membrane potential dynamics of the LIF neuron, including both charging and discharging phases. Corresponding implementations and plots are provided. Building on this foundation, the second subsection focuses on implementing the complete LIF model, incorporating threshold mechanisms and potential resets.
 		
-		\subsubsection{\textbf{Membrane Charging and Discharging}}
+		\subsubsection*{\textbf{Membrane Charging and Discharging}}
 		
 			\par As shown in \autoref{fig:rcmodel}, a LIF neuron can be modeled as an RC circuit with a switch. By isolating the RC circuit, as illustrated in \autoref{fig:rcmodel2}, one can analyze the dynamics of membrane currents and potential governed by the equations described in \cite{10242251} and shown bellow:
 		
 			\begin{figure}[H]
 				\centering
-				\includegraphics[width=0.4\linewidth]{images/rcmodel2}
+				\includegraphics[width=0.2\linewidth]{images/rcmodel2}
 				\caption[RC model for currents]{RC model for currents: $I_{in}(t) = I_R(t) + I_C(t)$}
 				\label{fig:rcmodel2}
 			\end{figure}
@@ -152,7 +152,7 @@
 
 	 		\begin{figure}[H]
 	 			\centering
-	 			\includegraphics[width=\linewidth]{images/membranePotentialDecay}
+	 			\includegraphics[width=.8\linewidth]{images/membranePotentialDecay}
 	 			\caption{Membrane potential decaying when $I_{in} = 0$:
 	 				Time is represented by the horizontal axis.
 	 				Neuron charge in Volts is the vertical axis.
@@ -179,7 +179,7 @@
 			
  			\begin{figure}[h]
  				\centering
- 				\includegraphics[width=\linewidth]{images/membranePotentialIncrease}
+ 				\includegraphics[width=.8\linewidth]{images/membranePotentialIncrease}
  				\caption{Membrane potential increasing when setting I\_in = 1 in \autoref{lst:membranepotentialincrease}:
  					Time is represented by the horizontal axis.
  					Neuron charge in Volts is the vertical axis.
@@ -187,7 +187,7 @@
  				\label{fig:membranepotentialincrease}
  			\end{figure}
  			
-		\subsubsection{\textbf{Implementation with Resets and Thresholds}}
+		\subsubsection*{\textbf{Implementation with Resets and Thresholds}}
 			\label{sec:finalImplementation}
 		
 			\par Starting from \autoref{eq:finalMem}, we apply the forward Euler method to numerically solve for successive values of $V_{mem}$. This enables the construction of a fully functional LIF model.
@@ -208,7 +208,7 @@
 			
 			\begin{figure}[h]
 				\centering
-				\includegraphics[width=\linewidth]{images/membranePotentialFull}
+				\includegraphics[width=.8\linewidth]{images/membranePotentialFull}
 				\caption{Plot of the full simulated LIF: a 0.5 mA input current was applied from time step 51 to 70. Note that the neuron spikes twice, but it does not accumulate enough charge to generate a third spike. Afterward, the membrane potential decays back to zero.}
 				\label{fig:membranepotentialfull}
 			\end{figure}
@@ -305,7 +305,7 @@
 			
 			\par Note that \autoref{lst:membranepotentialfullsimplified} does not implement a reset-to-zero mechanism when the neuron spikes. This omission is intentional to avoid branching in the CPU or GPU execution pipeline. If a reset is required, it can be easily added without altering the core dynamics as seen in the \autoref{lst:membranepotentialfull}.
  			
- 	\subsection{\textbf{Training}}
+ 	\subsection*{\textbf{Training}}
  	
  		\par Until now just the \textit{forward} pass has been shown, it's time to describe the backwards.
  	
@@ -349,19 +349,15 @@
 		
 		\input{listings/hardTanh.cpp}
 		
-		\begin{figure}[H]
+		\begin{figure}[h]
 			\centering
-			\includegraphics[width=\linewidth]{images/hardtanh}
+			\includegraphics[width=.6\linewidth]{images/hardtanh}
 			\caption{The HardTanh function is shown in blue, and its derivative is represented by the green dashed line.}
 			\label{fig:hardtanh}
 		\end{figure}
 		
-		\onecolumn
-		
 		\par Now we have defined all needed concepts needed for a full LIF neuron it is possible to implement the \textit{forward} and \textit{backward} parts needed for the assembly of a full spiking neural network as shown in \autoref{lst:lifclass}.		
 
 		\input{listings/lifClass.cpp}
-		
-		\twocolumn
 		
 		

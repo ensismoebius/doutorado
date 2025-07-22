@@ -13,10 +13,6 @@ class SpikeNeuron:
 		# V_thresh: threshold for spike generation
 		self.V_thresh = V_thresh
 	
-		# Membrane potential, initialized to None
-		# It will be initialized to zeros in the first forward pass
-		# This allows the neuron to adapt to the input shape dynamically
-		# and avoids the need for a fixed input shape at initialization.
 		self.V_mem = None
 	
 		# Store the last membrane potential before spike generation
@@ -26,7 +22,6 @@ class SpikeNeuron:
 	def d_hardtanh(x):
 		"""
 		Surrogate gradient for hardtanh activation function.
-		This is used for backpropagation through the spike neuron.
 		"""
 		return ((x > 0.0) & (x < 1.0)).astype(float)
 	
@@ -37,9 +32,8 @@ class SpikeNeuron:
 		It updates the membrane potential and generates spikes based on the threshold.
 		"""
 		
-		# Initialize membrane potential if it is None
 		if self.V_mem is None:
-		self.V_mem = np.zeros_like(I_t)
+			self.V_mem = np.zeros_like(I_t)
 		
 		# Update the membrane potential based on the input current and previous state
 		spk = (self.V_mem > self.V_thresh).astype(float)

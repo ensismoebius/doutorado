@@ -15,7 +15,7 @@
 
 	\author{André Furlan \\
 	UNESP - São Paulo State University, IBILCE, Brazil \\
-	ensismoebius@gmail.com}
+	{ensismoebius@gmail.com}}
 
 	% The paper headers
 	\markboth{WHITE PAPER Proposal for A Feature Article in IEEE SPM}%
@@ -25,12 +25,12 @@
 	\maketitle
 	
 	\section*{Scope}
-		\par This feature article proposes a tutorial on Spiking Neural Networks (SNNs), focusing on the Leaky Integrate-and-Fire (LIF) neuron model. The article presents both the theoretical background and practical Python implementations of LIF dynamics, including charging, discharging, threshold-triggered resets, and surrogate gradient training. It is aimed at readers seeking a rigorous but accessible introduction to spiking neuron models and their computational behavior.\\
+		\par This feature article proposes a tutorial on Spiking Neural Networks (SNNs), focusing on the Leaky Integrate-and-Fire (LIF) neuron model. The article presents both the theoretical background and practical implementations of LIF dynamics, including charging, discharging, threshold-triggered resets, and surrogate gradient training. It is aimed at readers seeking a rigorous but accessible introduction to spiking neuron models and their computational behavior.\\
 	
 	\section{History, Motivation, and Significance of the Topic}
-		\par SNNs represent the third generation of neural network models and are inspired by the event-driven communication of biological neurons. Their energy efficiency and temporal processing capabilities make them ideal for edge computing and neuromorphic hardware. Despite the emergence of frameworks like SNNTorch, a gap remains in accessible, mathematically grounded tutorials that elucidate how LIF neurons function and are implemented. This tutorial addresses that gap by combining physical modeling (RC circuits), numerical methods, and surrogate gradient techniques.
+		\par SNNs represent the third generation of neural network models and are inspired by the event-driven communication of biological neurons. Their energy efficiency and temporal processing capabilities make them ideal for edge computing and neuromorphic hardware. Despite the emergence of frameworks like SNNTorch, a gap remains in accessible, mathematically grounded tutorials that elucidate how LIF neurons function and are implemented. This tutorial addresses that gap by combining the understanding of RC circuits, numerical methods and surrogate gradient techniques.
 		
-		\par While earlier literature focuses on biologically detailed models (e.g., Hodgkin-Huxley), these are often computationally prohibitive. The proposed article emphasizes the LIF model for its balance between biological plausibility and computational efficiency. We also distinguish the article from prior work by offering clean and modular Python implementations suitable for education and integration into larger SNN systems.
+		\par While some literature focuses on biologically detailed models (e.g., Hodgkin-Huxley), these are often computationally prohibitive. The proposed article emphasizes the LIF model for its balance between biological plausibility and computational efficiency. We also distinguish the article from prior work by offering clean and modular implementations suitable for education and integration into larger SNN systems.
 		
 	\section{Outline of the Proposed Feature Article}
 		\begin{itemize}
@@ -53,10 +53,10 @@
 			\item \textbf{Simplified Model for Implementation}
 			\begin{itemize}
 				\item Reducing parameter space.
-				\item Derivation of V\_mem update in discrete time.
+				\item Derivation of membrane potential update in discrete time.
 				\item Role of decay factor $\beta$.
 			\end{itemize}
-			\item \textbf{Python Implementation}
+			\item \textbf{Implementation}
 			\begin{itemize}
 				\item Code listings for charging/discharging.
 				\item Full neuron implementation with thresholding.
