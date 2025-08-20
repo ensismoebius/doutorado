@@ -76,8 +76,11 @@
     "[cpp]": {
         "editor.defaultFormatter": "xaver.clang-format"
     },
+    "C_Cpp.intelliSenseEngine": "disabled", // disable Microsoft IntelliSense
     "editor.formatOnSave": true,
+    "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
-        "--compile-commands-dir=/home/ensismoebius/Repos/doutorado/software/nn/build"
-    ]
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--header-insertion=never"
+    ],
 }

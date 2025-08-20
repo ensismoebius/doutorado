@@ -1,5 +1,8 @@
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Enable C++20 features
+cmake_policy(SET CMP0135 NEW)
+
 # Generate compile_commands.json for code completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
