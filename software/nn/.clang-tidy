@@ -1,4 +1,4 @@
-Checks: "clang-analyzer-*,modernize-*,performance-*,readability-*,bugprone-*,cppcoreguidelines-*,misc-*,portability-*,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,readability-avoid-const-params-in-decls,-misc-non-private-member-variables-in-classes,-bugprone-easily-swappable-parameters,-readability-identifier-length"
+Checks: "clang-analyzer-*,modernize-*,performance-*,readability-*,bugprone-*,cppcoreguidelines-*,misc-*,portability-*,-readability-magic-numbers,-cppcoreguidelines-avoid-magic-numbers,readability-avoid-const-params-in-decls,-misc-non-private-member-variables-in-classes,-bugprone-easily-swappable-parameters,-readability-identifier-length,-modernize-deprecated-headers"
 
 WarningsAsErrors: "*"
 HeaderFilterRegex: ".*"

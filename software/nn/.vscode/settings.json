@@ -76,5 +76,8 @@
     "[cpp]": {
         "editor.defaultFormatter": "xaver.clang-format"
     },
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "clangd.arguments": [
+        "--compile-commands-dir=/home/ensismoebius/Repos/doutorado/software/nn/build"
+    ]
 }

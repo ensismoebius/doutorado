@@ -5,7 +5,8 @@
 #include <Eigen/Dense>
 #include <gtest/gtest.h>
 // Util: synthetic_spike_data
-TEST(UtilTest, SyntheticSpikeData) {
+TEST(UtilTest, SyntheticSpikeData)
+{
 
   int n_samples = 5;
   int input_dim = 3;
@@ -16,29 +17,34 @@ TEST(UtilTest, SyntheticSpikeData) {
 
   Eigen::MatrixXf real_valued;
 
-  auto spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep, &real_valued);
+  auto spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
 
   ASSERT_EQ(spike_trains.size(), n_steps);
-  for (const auto &spikes : spike_trains) {
-    ASSERT_EQ(spikes.rows(), n_samples);
-    ASSERT_EQ(spikes.cols(), input_dim);
-    for (int i = 0; i < spikes.rows(); ++i) {
-      for (int j = 0; j < spikes.cols(); ++j) {
-        ASSERT_TRUE(spikes(i, j) == 0.0F || spikes(i, j) == 1.0F);
-      }
+  for (const auto &spikes : spike_trains)
+    {
+      ASSERT_EQ(spikes.rows(), n_samples);
+      ASSERT_EQ(spikes.cols(), input_dim);
+      for (int i = 0; i < spikes.rows(); ++i)
+        {
+          for (int j = 0; j < spikes.cols(); ++j)
+            {
+              ASSERT_TRUE(spikes(i, j) == 0.0F || spikes(i, j) == 1.0F);
+            }
+        }
     }
-  }
   ASSERT_EQ(real_valued.rows(), n_samples);
   ASSERT_EQ(real_valued.cols(), input_dim);
 }
 
 // Util: vectorizationCheck
-TEST(UtilTest, VectorizationCheck) {
+TEST(UtilTest, VectorizationCheck)
+{
   ASSERT_NO_THROW(printVectorizationSupport());
 }
 
 // Util: batching
-TEST(UtilTest, Batching) {
+TEST(UtilTest, Batching)
+{
   Eigen::MatrixXf input_matrix = Eigen::MatrixXf::Random(4, 2);
   Eigen::MatrixXf target_matrix = Eigen::MatrixXf::Random(4, 1);
   Tensor input(input_matrix);

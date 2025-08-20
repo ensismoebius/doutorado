@@ -14,6 +14,7 @@
 #include "util/vectorizationCheck.hpp"
 #include <cmath>
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <iomanip>
 #include <ios>
@@ -39,12 +40,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int
   float const max_rate = 1.0F; // maximum firing rate
   float const timeStep = 1.0F; // time step
 
-  // Real-valued input matrix for encoding
-  Eigen::MatrixXf real_valued;
-
   // Generate synthetic spike data
   // This will generate spike trains for n_samples, each with input_dim features over n_steps time steps
-  std::vector<Eigen::MatrixXf> spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep, &real_valued);
+  std::vector<Eigen::MatrixXf> spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
 
   // Sum the spike trains across time steps to create the input data
   // Each spike train is a matrix of shape (n_samples, input_dim)
