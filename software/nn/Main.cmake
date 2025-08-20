@@ -19,6 +19,7 @@ add_executable(nn
     ${SRC_DIR}/layers/Linear.hpp
     ${SRC_DIR}/layers/Leaky.hpp
     ${SRC_DIR}/layers/ReLU.hpp
+    ${SRC_DIR}/layers/LeakyReLU.hpp
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
