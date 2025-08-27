@@ -1,4 +1,3 @@
-
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -19,16 +18,16 @@
 
 // ==== Configuration ====
 constexpr float learning_rate = 0.001;
-constexpr int n_samples = 10000;
-constexpr int epochs = 200;
-constexpr int input_dim = 7;
-constexpr int bottleneck_dim = 3; // bottleneck layer size
+constexpr int n_samples = 100; // Number of samples for synthetic data the higher the better
+constexpr int epochs = 10000;  // Number of training epochs in which n_samples is presented
+constexpr int input_dim = 4;
+constexpr int bottleneck_dim = 4; // bottleneck layer size
 constexpr int batch_size = 1;
 
 // ==== Data Generation ====
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
   printVectorizationSupport();
-  std::cout << std::fixed << std::setprecision(8);
+  std::cout << std::fixed << std::setprecision(0);
 
   // Parameters for synthetic spike train
   const int n_steps = 10;
@@ -54,8 +53,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Model Definition ====
   auto encoder = std::make_shared<Linear>(input_dim, bottleneck_dim);
   auto encoder_act = std::make_shared<Leaky>();
+
   auto decoder = std::make_shared<Linear>(bottleneck_dim, input_dim);
   auto decoder_act = std::make_shared<Leaky>();
+
   Sequential model({encoder, encoder_act, decoder, decoder_act});
 
   // ==== Initialization ====
@@ -77,6 +78,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   };
 
   float epoch_loss = std::numeric_limits<float>::max();
+
+  std::cout << std::fixed << std::setprecision(8);
 
   // ==== Training Loop ====
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
