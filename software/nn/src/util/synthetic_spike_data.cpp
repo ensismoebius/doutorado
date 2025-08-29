@@ -1,14 +1,17 @@
 #include "synthetic_spike_data.hpp"
+#include "tensor/Tensor.hpp"
 #include <cmath>
 #include <cstdlib>
 
 // Generates synthetic spike train data using Poisson encoding
 // Optionally returns the real-valued input used for encoding
 
-auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
-                                   float timeStep) -> std::vector<Eigen::MatrixXf> {
+auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
+                                     float timeStep) -> tuple<vector<Tensor>, vector<Tensor>> {
 
-  std::vector<Eigen::MatrixXf> spike_trains;
+  vector<Tensor> spike_inputs;
+  vector<Tensor> spike_targets;
+
   Eigen::MatrixXf real;
 
   // Generate random real-valued input matrix
@@ -33,7 +36,8 @@ auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, fl
     }
 
     // Store the spike train for this time step
-    spike_trains.push_back(spikes);
+    spike_inputs.emplace_back(spikes);
+    spike_targets.emplace_back(spikes);
   }
-  return spike_trains;
+  return {spike_inputs, spike_targets};
 }

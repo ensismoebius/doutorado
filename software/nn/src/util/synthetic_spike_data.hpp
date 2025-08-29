@@ -1,8 +1,12 @@
 #ifndef SYNTHETIC_SPIKE_DATA_HPP
 #define SYNTHETIC_SPIKE_DATA_HPP
 
+#include "tensor/Tensor.hpp"
 #include <Eigen/Dense>
 #include <vector>
+
+using std::tuple;
+using std::vector;
 
 /**
  * @brief Generates synthetic spike train data using Poisson encoding.
@@ -16,7 +20,7 @@
  * encoding.
  * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
  */
-auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
-                                   float timeStep) -> std::vector<Eigen::MatrixXf>;
+auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
+                                     float timeStep) -> tuple<vector<Tensor>, vector<Tensor>>;
 
 #endif // SYNTHETIC_SPIKE_DATA_HPP

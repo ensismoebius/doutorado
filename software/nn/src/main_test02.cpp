@@ -4,10 +4,13 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <limits>
+#include <tuple>
 
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
+#include "layers/ReLU.hpp"
 #include "layers/Sequential.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
@@ -15,9 +18,16 @@
 #include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"
 
-// Define a nice format
+using Eigen::MatrixXf;
+using std::cout;
+using std::fixed;
+using std::make_shared;
+using std::setprecision;
+using std::string;
+using std::tie;
 using std::vector;
 
+// Define a nice format for debugging eigen matrices
 const Eigen::IOFormat CleanFmt(0,                // number of decimals
                                Eigen::Unaligned, // flags
                                ",",              // string between numbers
@@ -28,71 +38,81 @@ const Eigen::IOFormat CleanFmt(0,                // number of decimals
                                "\n"              // closing bracket for the matrix
 );
 
-// ==== Configuration ====
-constexpr float learning_rate = 0.001;
-constexpr int n_samples = 5;  // Number of samples for synthetic data the higher the better
-constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
-constexpr int input_dim = 4;
-constexpr int bottleneck_dim = 4; // bottleneck layer size
-constexpr int batch_size = 5;
+// If DEBUG is defined then show the debug information
+#ifdef DEBUG
+namespace {
+auto debug(const Batch &batch, const Tensor &y_pred, const Tensor &loss_tensor) -> void {
+  cout << "Input dimensions: " << batch.inputs.data.rows() << "x" << batch.inputs.data.cols()
+       << '\n';
+  cout << "Output dimensions: " << y_pred.data.rows() << "x" << y_pred.data.cols() << '\n';
+  cout << "Target values: " << batch.targets.data.format(CleanFmt) << '\n';
+  cout << "Output values: " << y_pred.data.format(CleanFmt) << '\n';
+  cout << "Loss values: " << loss_tensor.data.format(CleanFmt) << '\n';
+}
+} // namespace
+#endif
 
-// ==== Data Generation ====
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
+
+  cout << fixed << setprecision(10);
+
   printVectorizationSupport();
-  std::cout << std::fixed << std::setprecision(0);
+
+  // ==== Data Generation ====
+
+  // Network parameters
+  constexpr float learning_rate = 0.001; // Learning rate for the optimizer
+  constexpr int bottleneck_dim = 4;      // bottleneck layer size
+  constexpr int input_dim = 4;           // Input dimension for synthetic data
+  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
+
+  // Batch parameters
+  constexpr int batch_size = 5; // Batch size for training
 
   // Parameters for synthetic spike train
-  const int n_steps = 10;
-  const float max_rate = 1.0F;
-  const float timeStep = 1.0F;
-  float epoch_loss = 0.0F;
+  constexpr int n_samples = 5;      // Number of samples for synthetic data the higher the better
+  constexpr int n_steps = 10;       // Number of time steps in the spike train
+  constexpr float max_rate = 1.0F;  // Maximum firing rate
+  constexpr float time_step = 1.0F; // Time step duration
+
+  // Create input and target tensors
+  vector<Tensor> inputs;
+  vector<Tensor> targets;
 
   // Generate synthetic spike data
-  std::vector<Eigen::MatrixXf> spike_trains =
-      generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
-
-  // Create input tensors
-  // Target: input itself (auto-encoder reconstruction)
-  vector<Tensor> inputs(spike_trains.size());
-  vector<Tensor> targets(spike_trains.size());
-
-  for (int i = 0; i < spike_trains.size(); ++i) {
-    std::cout << "Matrix:" << spike_trains.at(i).format(CleanFmt);
-    // Take only the first timestep for now, as we need to figure out proper time handling
-    Eigen::MatrixXf firstTimeStep =
-        spike_trains.at(i).block(0, 0, spike_trains.at(i).rows(), input_dim);
-    inputs.at(i) = Tensor(firstTimeStep);
-    targets.at(i) = Tensor(firstTimeStep);
-  }
+  tie(inputs, targets) =
+      generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
 
   // ==== Model Definition ====
-  auto encoder = std::make_shared<Linear>(input_dim, bottleneck_dim);
-  auto encoder_act = std::make_shared<Leaky>();
+  auto encoder = make_shared<Linear>(input_dim, bottleneck_dim);
+  auto encoder_act = make_shared<Leaky>();
 
-  auto decoder = std::make_shared<Linear>(bottleneck_dim, input_dim);
-  auto decoder_act = std::make_shared<Leaky>();
+  auto decoder = make_shared<Linear>(bottleneck_dim, input_dim);
+  auto decoder_act = make_shared<Leaky>();
+  auto decoder_out = make_shared<ReLU>();
 
-  Sequential model({encoder, encoder_act, decoder, decoder_act});
+  Sequential model({encoder, encoder_act, decoder, decoder_act, decoder_out});
 
   // ==== Initialization ====
   kaimingSNNInitializer(input_dim, bottleneck_dim, encoder->weight, encoder->bias);
   kaimingSNNInitializer(bottleneck_dim, input_dim, decoder->weight, decoder->bias);
 
-  std::vector<Tensor *> params = {&encoder->weight, &encoder->bias, &decoder->weight,
-                                  &decoder->bias};
+  vector<Tensor *> params = {&encoder->weight, &encoder->bias, &decoder->weight, &decoder->bias};
   Adam optimizer(learning_rate);
   optimizer.attach(params);
 
   // ==== Loss Function ====
-  auto mse_loss = [](const Tensor &y_pred, const Tensor &y_true) -> Tensor {
-    Eigen::MatrixXf diff = y_pred.data - y_true.data;
+  auto mse_loss = [](const Tensor &y_pred, const Tensor &y_target) -> Tensor {
+    MatrixXf diff = y_pred.data - y_target.data;
     float mse = diff.array().square().mean();
-    Eigen::MatrixXf out(1, 1);
+    MatrixXf out(1, 1);
     out(0, 0) = mse;
     return {out};
   };
 
   // ==== Training Loop ====
+  float epoch_loss = std::numeric_limits<float>::max();
+
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
 
     // Create batches
@@ -100,17 +120,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
     for (const auto &batch : batches) {
       // Forward pass
-      std::cout << "Input dimensions: " << batch.inputs.data.rows() << "x"
-                << batch.inputs.data.cols() << std::endl;
       Tensor y_pred = model.forward(batch.inputs);
-      std::cout << "Output dimensions: " << y_pred.data.rows() << "x" << y_pred.data.cols()
-                << std::endl;
 
       // Compute loss
       Tensor loss_tensor = mse_loss(y_pred, batch.targets);
 
       // Backward pass (dL/dy_pred = 2*(y_pred - y_true)/N)
-      Eigen::MatrixXf grad = 2.0F * (y_pred.data - batch.targets.data) / y_pred.data.size();
+      MatrixXf grad = 2.0F * (y_pred.data - batch.targets.data) / y_pred.data.size();
       Tensor grad_loss(grad);
       model.backward(grad_loss);
 
@@ -120,17 +136,22 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       // Track best loss in epoch
       float tmp = loss_tensor.data(0, 0);
       epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+
+// If DEBUG is defined then show the debug information
+#ifdef DEBUG
+      debug(batch, y_pred, loss_tensor);
+#endif
     }
 
     // Print progress
     if (epoch % 10 == 0) {
-      std::cout << "Epoch: " << epoch
-                << " - Loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
+      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss / static_cast<float>(batches.size())
+           << "\n";
     }
   }
 
   // ==== End of Training ====
-  std::cout << "Training complete. Final loss: "
-            << epoch_loss / static_cast<float>(n_samples / batch_size) << "\n";
+  cout << "Training complete. Final loss: "
+       << epoch_loss / static_cast<float>(n_samples / batch_size) << "\n";
   return 0;
 }

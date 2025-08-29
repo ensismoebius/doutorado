@@ -35,6 +35,16 @@ struct Linear : public Module {
       : in_features(in_features), out_features(out_features), weight(out_features, in_features),
         bias(out_features, 1) {}
 
+#ifdef DEBUG
+  // If DEBUG is defined then show the debug information
+  auto debug(const Tensor &input) -> void {
+    std::cout << "Linear layer forward:" << "\n";
+    std::cout << "Input dims: " << input.data.rows() << "x" << input.data.cols() << "\n";
+    std::cout << "Weight dims: " << weight.data.rows() << "x" << weight.data.cols() << "\n";
+    std::cout << "Bias dims: " << bias.data.rows() << "x" << bias.data.cols() << "\n";
+  }
+#endif
+
   /**
    * @brief Realiza a propagação direta (forward pass) da
    * entrada pela camada linear.
@@ -45,11 +55,10 @@ struct Linear : public Module {
   auto forward(const Tensor &input) -> Tensor override {
     input_cache = input.data; // salva para o backward
 
-    // Print dimensions for debugging
-    std::cout << "Linear layer forward:" << "\n";
-    std::cout << "Input dims: " << input.data.rows() << "x" << input.data.cols() << "\n";
-    std::cout << "Weight dims: " << weight.data.rows() << "x" << weight.data.cols() << "\n";
-    std::cout << "Bias dims: " << bias.data.rows() << "x" << bias.data.cols() << "\n";
+#ifdef DEBUG
+    // If DEBUG is defined then show the debug information
+    debug(input);
+#endif
 
     // Be x = input and y = output
     // y = x.w + b

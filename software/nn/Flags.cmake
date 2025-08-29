@@ -1,7 +1,10 @@
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# Set the policy for timestamp handling in FetchContent
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
 
-# Enable C++20 features
-cmake_policy(SET CMP0135 NEW)
+# Verbose output
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # Generate compile_commands.json for code completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
