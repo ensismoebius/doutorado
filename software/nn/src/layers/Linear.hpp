@@ -1,8 +1,6 @@
 #ifndef LINEAR_CPP
 #define LINEAR_CPP
 
-#include <Eigen/Dense>
-#include <cmath>
 #include <cnpy.h>
 
 #include "../tensor/Tensor.hpp"
@@ -19,6 +17,7 @@
  * - bias é o vetor de bias
  */
 struct Linear : public Module {
+
   int in_features;             // número de entradas (features de entrada do tensor)
   int out_features;            // número de saídas (neurônios ou unidades na camada)
   Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]

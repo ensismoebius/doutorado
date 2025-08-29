@@ -3,6 +3,9 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+# Enable clang-tidy integration with CMake (without treating warnings as errors)
+# set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+
 # Verbose output
 set(CMAKE_VERBOSE_MAKEFILE ON)
 

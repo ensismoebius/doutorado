@@ -64,7 +64,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr float learning_rate = 0.001; // Learning rate for the optimizer
   constexpr int bottleneck_dim = 4;      // bottleneck layer size
   constexpr int input_dim = 4;           // Input dimension for synthetic data
-  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
+  constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
 
   // Batch parameters
   constexpr int batch_size = 5; // Batch size for training
@@ -89,9 +89,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   auto decoder = make_shared<Linear>(bottleneck_dim, input_dim);
   auto decoder_act = make_shared<Leaky>();
-  auto decoder_out = make_shared<ReLU>();
+  // auto decoder_out = make_shared<ReLU>();
 
-  Sequential model({encoder, encoder_act, decoder, decoder_act, decoder_out});
+  Sequential model({encoder, encoder_act, decoder, decoder_act /*, decoder_out*/});
 
   // ==== Initialization ====
   kaimingSNNInitializer(input_dim, bottleneck_dim, encoder->weight, encoder->bias);
@@ -144,14 +144,12 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     }
 
     // Print progress
-    if (epoch % 10 == 0) {
-      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss / static_cast<float>(batches.size())
-           << "\n";
+    if (epoch % 100 == 0) {
+      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\n";
     }
   }
 
   // ==== End of Training ====
-  cout << "Training complete. Final loss: "
-       << epoch_loss / static_cast<float>(n_samples / batch_size) << "\n";
+  cout << "Training complete. Final loss: " << epoch_loss << "\n";
   return 0;
 }
