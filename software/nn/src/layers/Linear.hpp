@@ -31,7 +31,9 @@ struct Linear : public Module {
    * @param in_features Número de entradas
    * @param out_features Número de saídas
    */
-  Linear(const int in_features, const int out_features) : in_features(in_features), out_features(out_features), weight(out_features, in_features), bias(out_features, 1) {}
+  Linear(const int in_features, const int out_features)
+      : in_features(in_features), out_features(out_features), weight(out_features, in_features),
+        bias(out_features, 1) {}
 
   /**
    * @brief Realiza a propagação direta (forward pass) da
@@ -43,10 +45,17 @@ struct Linear : public Module {
   auto forward(const Tensor &input) -> Tensor override {
     input_cache = input.data; // salva para o backward
 
+    // Print dimensions for debugging
+    std::cout << "Linear layer forward:" << "\n";
+    std::cout << "Input dims: " << input.data.rows() << "x" << input.data.cols() << "\n";
+    std::cout << "Weight dims: " << weight.data.rows() << "x" << weight.data.cols() << "\n";
+    std::cout << "Bias dims: " << bias.data.rows() << "x" << bias.data.cols() << "\n";
+
     // Be x = input and y = output
     // y = x.w + b
     // Ensure bias is broadcast as a row vector
-    Eigen::MatrixXf const output = (input.data * weight.data.transpose()).rowwise() + bias.data.col(0).transpose();
+    Eigen::MatrixXf const output =
+        (input.data * weight.data.transpose()).rowwise() + bias.data.col(0).transpose();
     return {output};
   }
 
@@ -55,7 +64,8 @@ struct Linear : public Module {
    * em relação à saída da camada.Calcula os gradientes da perda em relação aos
    * pesos, bias e à entrada da camada
    *
-   * @param grad_previous gradiente da perda em relação à saída da camada [batch_size x out_features]
+   * @param grad_previous gradiente da perda em relação à saída da camada [batch_size x
+   * out_features]
    * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
    */
   auto backward(const Tensor &grad_previous) -> Tensor override {

@@ -12,9 +12,11 @@
  * @param n_steps Number of time steps for spike train.
  * @param max_rate Maximum firing rate.
  * @param timeStep Time step size.
- * @param[out] real_valued (optional) Pointer to store the real-valued input matrix used for encoding.
+ * @param[out] real_valued (optional) Pointer to store the real-valued input matrix used for
+ * encoding.
  * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
  */
-auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, float max_rate, float timeStep) -> std::vector<Eigen::MatrixXf>;
+auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
+                                   float timeStep) -> std::vector<Eigen::MatrixXf>;
 
 #endif // SYNTHETIC_SPIKE_DATA_HPP

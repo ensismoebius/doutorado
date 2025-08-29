@@ -1,7 +1,6 @@
 #include "synthetic_spike_data.hpp"
 #include <cmath>
 #include <cstdlib>
-#include <iostream>
 
 // Generates synthetic spike train data using Poisson encoding
 // Optionally returns the real-valued input used for encoding
@@ -33,7 +32,6 @@ auto generate_synthetic_spike_data(int n_samples, int input_dim, int n_steps, fl
       }
     }
 
-    std::cout << "Spikes:" << spikes.rows() << "x" << spikes.cols() << "\n" << spikes << "\n";
     // Store the spike train for this time step
     spike_trains.push_back(spikes);
   }

@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
-#include <limits>
 
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Leaky.hpp"
@@ -16,13 +15,26 @@
 #include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"
 
+// Define a nice format
+using std::vector;
+
+const Eigen::IOFormat CleanFmt(0,                // number of decimals
+                               Eigen::Unaligned, // flags
+                               ",",              // string between numbers
+                               "\n",             // string between rows
+                               "|",              // opening bracket
+                               "|",              // closing bracket
+                               "\n",             // string between matrices
+                               "\n"              // closing bracket for the matrix
+);
+
 // ==== Configuration ====
 constexpr float learning_rate = 0.001;
-constexpr int n_samples = 100; // Number of samples for synthetic data the higher the better
-constexpr int epochs = 10000;  // Number of training epochs in which n_samples is presented
+constexpr int n_samples = 5;  // Number of samples for synthetic data the higher the better
+constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
 constexpr int input_dim = 4;
 constexpr int bottleneck_dim = 4; // bottleneck layer size
-constexpr int batch_size = 1;
+constexpr int batch_size = 5;
 
 // ==== Data Generation ====
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
@@ -33,22 +45,25 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   const int n_steps = 10;
   const float max_rate = 1.0F;
   const float timeStep = 1.0F;
+  float epoch_loss = 0.0F;
 
   // Generate synthetic spike data
   std::vector<Eigen::MatrixXf> spike_trains =
       generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
 
-  // Sum spike trains across time steps to create input data
-  Eigen::MatrixXf x_data = Eigen::MatrixXf::Zero(n_samples, input_dim);
-  for (const auto &spikes : spike_trains) {
-    x_data += spikes;
-  }
-
+  // Create input tensors
   // Target: input itself (auto-encoder reconstruction)
-  Eigen::MatrixXf y_data = x_data;
+  vector<Tensor> inputs(spike_trains.size());
+  vector<Tensor> targets(spike_trains.size());
 
-  Tensor const input(x_data);
-  Tensor const y_target(y_data);
+  for (int i = 0; i < spike_trains.size(); ++i) {
+    std::cout << "Matrix:" << spike_trains.at(i).format(CleanFmt);
+    // Take only the first timestep for now, as we need to figure out proper time handling
+    Eigen::MatrixXf firstTimeStep =
+        spike_trains.at(i).block(0, 0, spike_trains.at(i).rows(), input_dim);
+    inputs.at(i) = Tensor(firstTimeStep);
+    targets.at(i) = Tensor(firstTimeStep);
+  }
 
   // ==== Model Definition ====
   auto encoder = std::make_shared<Linear>(input_dim, bottleneck_dim);
@@ -77,19 +92,19 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     return {out};
   };
 
-  float epoch_loss = std::numeric_limits<float>::max();
-
-  std::cout << std::fixed << std::setprecision(8);
-
   // ==== Training Loop ====
   for (size_t epoch = 0; epoch < epochs; ++epoch) {
-    auto batches = create_batches(input, y_target, batch_size);
-    optimizer.zero_grad(params);
 
-#pragma omp parallel for schedule(static)
+    // Create batches
+    auto batches = create_batches(inputs, targets, batch_size);
+
     for (const auto &batch : batches) {
       // Forward pass
+      std::cout << "Input dimensions: " << batch.inputs.data.rows() << "x"
+                << batch.inputs.data.cols() << std::endl;
       Tensor y_pred = model.forward(batch.inputs);
+      std::cout << "Output dimensions: " << y_pred.data.rows() << "x" << y_pred.data.cols()
+                << std::endl;
 
       // Compute loss
       Tensor loss_tensor = mse_loss(y_pred, batch.targets);
