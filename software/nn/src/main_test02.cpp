@@ -9,6 +9,7 @@
 
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Leaky.hpp"
+#include "layers/LeakyReLU.hpp"
 #include "layers/Linear.hpp"
 #include "layers/ReLU.hpp"
 #include "layers/Sequential.hpp"
@@ -61,13 +62,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Data Generation ====
 
   // Network parameters
-  constexpr float learning_rate = 0.001; // Learning rate for the optimizer
-  constexpr int bottleneck_dim = 4;      // bottleneck layer size
-  constexpr int input_dim = 4;           // Input dimension for synthetic data
-  constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
+  constexpr float learning_rate = 0.01; // Learning rate for the optimizer
+  constexpr int bottleneck_dim = 2;     // bottleneck layer size
+  constexpr int input_dim = 4;          // Input dimension for synthetic data
+  constexpr int epochs = 100000;        // Number of training epochs in which n_samples is presented
 
   // Batch parameters
-  constexpr int batch_size = 5; // Batch size for training
+  constexpr int batch_size = 32; // Batch size for training
 
   // Parameters for synthetic spike train
   constexpr int n_samples = 5;      // Number of samples for synthetic data the higher the better
@@ -85,13 +86,11 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== Model Definition ====
   auto encoder = make_shared<Linear>(input_dim, bottleneck_dim);
-  auto encoder_act = make_shared<Leaky>();
-
+  auto encoder_act = make_shared<LeakyReLU>();
   auto decoder = make_shared<Linear>(bottleneck_dim, input_dim);
-  auto decoder_act = make_shared<Leaky>();
-  // auto decoder_out = make_shared<ReLU>();
 
-  Sequential model({encoder, encoder_act, decoder, decoder_act /*, decoder_out*/});
+  Sequential model(
+      {encoder, encoder_act, decoder}); // Removed decoder activation for better reconstruction
 
   // ==== Initialization ====
   kaimingSNNInitializer(input_dim, bottleneck_dim, encoder->weight, encoder->bias);
@@ -144,8 +143,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     }
 
     // Print progress
-    if (epoch % 100 == 0) {
-      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\n";
+    constexpr int progress_interval = 1; // Print progress every N epochs
+    if (epoch % progress_interval == 0) {
+      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r";
     }
   }
 
