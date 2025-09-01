@@ -48,9 +48,9 @@ target_include_directories(main_test01
 )
 
 # -------------------------------------
-# Add executable target for main_test02
+# Add executable target for auto-encoder test
 # -------------------------------------
-add_executable(main_test02
+add_executable(autoEncoderTest
     ${CNPY_SOURCES}
     ${SRC_DIR}/initializers/xavier.hpp
     ${SRC_DIR}/optimizers/SGDMinimal.hpp
@@ -65,11 +65,11 @@ add_executable(main_test02
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/main_test02.cpp
+    ${SRC_DIR}/autoEncoderTest.cpp
 )
 
 # Link libraries
-target_link_libraries(main_test02
+target_link_libraries(autoEncoderTest
     PRIVATE
         cnpy
         Eigen3::Eigen
@@ -77,7 +77,7 @@ target_link_libraries(main_test02
 )
 
 # Include directories
-target_include_directories(main_test02
+target_include_directories(autoEncoderTest
     PRIVATE
         ${SRC_DIR}
         ${CNPY_DIR}
