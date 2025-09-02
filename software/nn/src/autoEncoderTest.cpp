@@ -12,6 +12,7 @@
 #include "layers/Leaky.hpp"
 #include "layers/LeakyReLU.hpp"
 #include "layers/Linear.hpp"
+#include "layers/MSELoss.hpp"
 #include "layers/ReLU.hpp"
 #include "layers/Sequential.hpp"
 #include "optimizers/Adam.hpp"
@@ -68,13 +69,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Network parameters
   constexpr float learning_rate = 0.001; // Learning rate for the optimizer - reduced for stability
-  constexpr int input_dim = 2000;        // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 1600;      // First hidden layer dimension
-  constexpr int hidden_dim2 = 1200;      // Second hidden layer dimension
-  constexpr int hidden_dim3 = 800;       // Third hidden layer dimension
-  constexpr int hidden_dim4 = 400;       // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 200;       // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 20;     // bottleneck layer size
+  constexpr int input_dim = 500;         // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 300;       // First hidden layer dimension
+  constexpr int hidden_dim2 = 100;       // Second hidden layer dimension
+  constexpr int hidden_dim3 = 50;        // Third hidden layer dimension
+  constexpr int hidden_dim4 = 25;        // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 10;        // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 5;      // bottleneck layer size
   constexpr int epochs = 10000000; // Number of training epochs in which n_samples is presented
 
   // Batch parameters
@@ -163,39 +164,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   Adam optimizer(learning_rate);
   optimizer.attach(params);
 
-  // ==== Loss Function ====
-  auto mse_loss = [](const Tensor &y_pred, const Tensor &y_target) -> Tensor {
-    // Use Eigen's parallelized array operations with numerical stability checks
-    MatrixXf diff = y_pred.data - y_target.data;
-
-    // Check for invalid values in the predictions
-    if (!y_pred.data.allFinite()) {
-      std::cerr << "Warning: Non-finite values detected in predictions\n";
-      // Return a very large but finite loss
-      MatrixXf out(1, 1);
-      out(0, 0) = std::numeric_limits<float>::max() / 2.0f;
-      return {out};
-    }
-
-    // Compute MSE with careful reduction
-    float sum_squared = 0.0f;
-    long count = diff.size();
-
-#pragma omp parallel for reduction(+ : sum_squared)
-    for (long i = 0; i < count; ++i) {
-      float val = diff(i);
-      sum_squared += val * val;
-    }
-
-    float mse = sum_squared / static_cast<float>(count);
-
-    // Clip extremely large values to prevent overflow
-    mse = std::min(mse, std::numeric_limits<float>::max() / 2.0f);
-
-    MatrixXf out(1, 1);
-    out(0, 0) = mse;
-    return {out};
-  };
+  // ==== Loss Layer ====
+  auto mse_loss = std::make_shared<MSELoss>();
 
   // ==== Training Loop ====
   float epoch_loss = std::numeric_limits<float>::max();
@@ -208,27 +178,18 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 // Parallelize batch processing using OpenMP
 #pragma omp parallel for schedule(dynamic) reduction(min : epoch_loss)
     for (const auto &batch : batches) {
+      // Set target and compute loss
+      mse_loss->set_target(batch.targets);
+
       // Forward pass - Eigen will handle internal parallelization
       Tensor y_pred = model.forward(batch.inputs);
-
-      // Compute loss - Using Eigen's parallelized operations
-      Tensor loss_tensor = mse_loss(y_pred, batch.targets);
-
-      // Backward pass (dL/dy_pred = 2*(y_pred - y_true))
-      constexpr float mse_gradient_factor = 2.0F; // Factor for MSE gradient
-      // Use Eigen's array operations which are automatically parallelized
-      MatrixXf grad =
-          (mse_gradient_factor * (y_pred.data - batch.targets.data)).array() / y_pred.data.size();
-      Tensor grad_loss(grad);
-
-      // Normalize the gradient to prevent explosion
-      float grad_norm = grad.norm();
-      if (grad_norm > 1.0F) {
-        grad *= 1.0F / grad_norm;
-      }
+      Tensor loss_tensor = mse_loss->forward(y_pred);
 
 #pragma omp critical
       {
+        // Compute gradients using the improved MSELoss backward pass
+        Tensor grad_loss = mse_loss->backward(y_pred);
+
         model.backward(grad_loss);
 
         // Update parameters
