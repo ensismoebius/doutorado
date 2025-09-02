@@ -67,12 +67,15 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Data Generation ====
 
   // Network parameters
-  constexpr float learning_rate = 0.01; // Learning rate for the optimizer
-  constexpr int input_dim = 2000;       // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 1800;     // First hidden layer dimension
-  constexpr int hidden_dim2 = 900;      // Second hidden layer dimension
-  constexpr int bottleneck_dim = 20;    // bottleneck layer size
-  constexpr int epochs = 10000000;      // Number of training epochs in which n_samples is presented
+  constexpr float learning_rate = 0.001; // Learning rate for the optimizer - reduced for stability
+  constexpr int input_dim = 2000;        // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 1600;      // First hidden layer dimension
+  constexpr int hidden_dim2 = 1200;      // Second hidden layer dimension
+  constexpr int hidden_dim3 = 800;       // Third hidden layer dimension
+  constexpr int hidden_dim4 = 400;       // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 200;       // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 20;     // bottleneck layer size
+  constexpr int epochs = 10000000; // Number of training epochs in which n_samples is presented
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
@@ -97,46 +100,98 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   auto encoder_act1 = make_shared<LeakyReLU>();
   auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
   auto encoder_act2 = make_shared<LeakyReLU>();
-  auto encoder3 = make_shared<Linear>(hidden_dim2, bottleneck_dim);
+  auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
   auto encoder_act3 = make_shared<LeakyReLU>();
+  auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
+  auto encoder_act4 = make_shared<LeakyReLU>();
+  auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
+  auto encoder_act5 = make_shared<LeakyReLU>();
+  auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
+  auto encoder_act6 = make_shared<LeakyReLU>();
 
   // Decoder layers
-  auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim2);
+  auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
   auto decoder_act1 = make_shared<LeakyReLU>();
-  auto decoder2 = make_shared<Linear>(hidden_dim2, hidden_dim1);
+  auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
   auto decoder_act2 = make_shared<LeakyReLU>();
-  auto decoder3 = make_shared<Linear>(hidden_dim1, input_dim);
+  auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
+  auto decoder_act3 = make_shared<LeakyReLU>();
+  auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
+  auto decoder_act4 = make_shared<LeakyReLU>();
+  auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
+  auto decoder_act5 = make_shared<LeakyReLU>();
+  auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
 
   Sequential model({
       encoder1, encoder_act1, // First encoder block
       encoder2, encoder_act2, // Second encoder block
-      encoder3, encoder_act3, // Third encoder block (to bottleneck)
+      encoder3, encoder_act3, // Third encoder block
+      encoder4, encoder_act4, // Fourth encoder block
+      encoder5, encoder_act5, // Fifth encoder block
+      encoder6, encoder_act6, // Sixth encoder block (to bottleneck)
       decoder1, decoder_act1, // First decoder block
       decoder2, decoder_act2, // Second decoder block
-      decoder3                // Final decoder layer (no activation)
+      decoder3, decoder_act3, // Third decoder block
+      decoder4, decoder_act4, // Fourth decoder block
+      decoder5, decoder_act5, // Fifth decoder block
+      decoder6                // Final decoder layer (no activation)
   });
 
   // ==== Initialization ====
+  // Initialize encoder weights and biases
   kaimingSNNInitializer(input_dim, hidden_dim1, encoder1->weight, encoder1->bias);
   kaimingSNNInitializer(hidden_dim1, hidden_dim2, encoder2->weight, encoder2->bias);
-  kaimingSNNInitializer(hidden_dim2, bottleneck_dim, encoder3->weight, encoder3->bias);
-  kaimingSNNInitializer(bottleneck_dim, hidden_dim2, decoder1->weight, decoder1->bias);
-  kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder2->weight, decoder2->bias);
-  kaimingSNNInitializer(hidden_dim1, input_dim, decoder3->weight, decoder3->bias);
+  kaimingSNNInitializer(hidden_dim2, hidden_dim3, encoder3->weight, encoder3->bias);
+  kaimingSNNInitializer(hidden_dim3, hidden_dim4, encoder4->weight, encoder4->bias);
+  kaimingSNNInitializer(hidden_dim4, hidden_dim5, encoder5->weight, encoder5->bias);
+  kaimingSNNInitializer(hidden_dim5, bottleneck_dim, encoder6->weight, encoder6->bias);
 
-  vector<Tensor *> params = {&encoder1->weight, &encoder1->bias,   &encoder2->weight,
-                             &encoder2->bias,   &encoder3->weight, &encoder3->bias,
-                             &decoder1->weight, &decoder1->bias,   &decoder2->weight,
-                             &decoder2->bias,   &decoder3->weight, &decoder3->bias};
+  // Initialize decoder weights and biases
+  kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
+  kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
+  kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
+  kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
+  kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
+  kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
+
+  vector<Tensor *> params = {
+      &encoder1->weight, &encoder1->bias,   &encoder2->weight, &encoder2->bias,   &encoder3->weight,
+      &encoder3->bias,   &encoder4->weight, &encoder4->bias,   &encoder5->weight, &encoder5->bias,
+      &encoder6->weight, &encoder6->bias,   &decoder1->weight, &decoder1->bias,   &decoder2->weight,
+      &decoder2->bias,   &decoder3->weight, &decoder3->bias,   &decoder4->weight, &decoder4->bias,
+      &decoder5->weight, &decoder5->bias,   &decoder6->weight, &decoder6->bias};
   Adam optimizer(learning_rate);
   optimizer.attach(params);
 
   // ==== Loss Function ====
   auto mse_loss = [](const Tensor &y_pred, const Tensor &y_target) -> Tensor {
-    // Use Eigen's parallelized array operations
+    // Use Eigen's parallelized array operations with numerical stability checks
     MatrixXf diff = y_pred.data - y_target.data;
-    // The array operations will be automatically parallelized by Eigen
-    float mse = diff.array().square().mean();
+
+    // Check for invalid values in the predictions
+    if (!y_pred.data.allFinite()) {
+      std::cerr << "Warning: Non-finite values detected in predictions\n";
+      // Return a very large but finite loss
+      MatrixXf out(1, 1);
+      out(0, 0) = std::numeric_limits<float>::max() / 2.0f;
+      return {out};
+    }
+
+    // Compute MSE with careful reduction
+    float sum_squared = 0.0f;
+    long count = diff.size();
+
+#pragma omp parallel for reduction(+ : sum_squared)
+    for (long i = 0; i < count; ++i) {
+      float val = diff(i);
+      sum_squared += val * val;
+    }
+
+    float mse = sum_squared / static_cast<float>(count);
+
+    // Clip extremely large values to prevent overflow
+    mse = std::min(mse, std::numeric_limits<float>::max() / 2.0f);
+
     MatrixXf out(1, 1);
     out(0, 0) = mse;
     return {out};
@@ -165,6 +220,12 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       MatrixXf grad =
           (mse_gradient_factor * (y_pred.data - batch.targets.data)).array() / y_pred.data.size();
       Tensor grad_loss(grad);
+
+      // Normalize the gradient to prevent explosion
+      float grad_norm = grad.norm();
+      if (grad_norm > 1.0F) {
+        grad *= 1.0F / grad_norm;
+      }
 
 #pragma omp critical
       {
