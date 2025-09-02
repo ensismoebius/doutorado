@@ -5,6 +5,7 @@
 #include <ios>
 #include <iostream>
 #include <limits>
+#include <thread>
 #include <tuple>
 
 #include "initializers/kaiming_snn.hpp"
@@ -15,6 +16,7 @@
 #include "layers/Sequential.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
+#include "util/EigenParallel.hpp"
 #include "util/batching.hpp"
 #include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"
@@ -27,6 +29,8 @@ using std::setprecision;
 using std::string;
 using std::tie;
 using std::vector;
+
+// Initialize Eigen parallel execution is now called inside main
 
 // Define a nice format for debugging eigen matrices
 const Eigen::IOFormat CleanFmt(0,                // number of decimals
@@ -55,17 +59,18 @@ auto debug(const Batch &batch, const Tensor &y_pred, const Tensor &loss_tensor) 
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
+  util::initializeEigenParallel();
+
   cout << fixed << setprecision(20);
 
   printVectorizationSupport();
-
   // ==== Data Generation ====
 
   // Network parameters
   constexpr float learning_rate = 0.01; // Learning rate for the optimizer
-  constexpr int input_dim = 200;        // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 180;      // First hidden layer dimension
-  constexpr int hidden_dim2 = 90;       // Second hidden layer dimension
+  constexpr int input_dim = 2000;       // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 1800;     // First hidden layer dimension
+  constexpr int hidden_dim2 = 900;      // Second hidden layer dimension
   constexpr int bottleneck_dim = 20;    // bottleneck layer size
   constexpr int epochs = 10000000;      // Number of training epochs in which n_samples is presented
 
@@ -128,7 +133,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== Loss Function ====
   auto mse_loss = [](const Tensor &y_pred, const Tensor &y_target) -> Tensor {
+    // Use Eigen's parallelized array operations
     MatrixXf diff = y_pred.data - y_target.data;
+    // The array operations will be automatically parallelized by Eigen
     float mse = diff.array().square().mean();
     MatrixXf out(1, 1);
     out(0, 0) = mse;
@@ -143,25 +150,33 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     // Create batches
     auto batches = create_batches(inputs, targets, batch_size);
 
+// Parallelize batch processing using OpenMP
+#pragma omp parallel for schedule(dynamic) reduction(min : epoch_loss)
     for (const auto &batch : batches) {
-      // Forward pass
+      // Forward pass - Eigen will handle internal parallelization
       Tensor y_pred = model.forward(batch.inputs);
 
-      // Compute loss
+      // Compute loss - Using Eigen's parallelized operations
       Tensor loss_tensor = mse_loss(y_pred, batch.targets);
 
       // Backward pass (dL/dy_pred = 2*(y_pred - y_true))
       constexpr float mse_gradient_factor = 2.0F; // Factor for MSE gradient
-      MatrixXf grad = mse_gradient_factor * (y_pred.data - batch.targets.data) / y_pred.data.size();
+      // Use Eigen's array operations which are automatically parallelized
+      MatrixXf grad =
+          (mse_gradient_factor * (y_pred.data - batch.targets.data)).array() / y_pred.data.size();
       Tensor grad_loss(grad);
-      model.backward(grad_loss);
 
-      // Update parameters
-      optimizer.step(params);
+#pragma omp critical
+      {
+        model.backward(grad_loss);
 
-      // Track best loss in epoch
-      float tmp = loss_tensor.data(0, 0);
-      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+        // Update parameters
+        optimizer.step(params);
+
+        // Track best loss in epoch
+        float tmp = loss_tensor.data(0, 0);
+        epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+      } // End of critical section
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
