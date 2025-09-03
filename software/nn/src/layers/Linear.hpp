@@ -1,8 +1,6 @@
 #ifndef LINEAR_CPP
 #define LINEAR_CPP
 
-#include <cnpy.h>
-
 #include "../tensor/Tensor.hpp"
 #include "layers/Module.hpp"
 

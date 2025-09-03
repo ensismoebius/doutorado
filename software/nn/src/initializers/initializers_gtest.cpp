@@ -1,16 +1,16 @@
 #include "kaiming_snn.hpp"
-#include "xavier.hpp"
+#include "layers/Linear.hpp"
 #include "tensor/Tensor.hpp"
-#include <gtest/gtest.h>
+#include "xavier.hpp"
 #include <Eigen/Dense>
+#include <gtest/gtest.h>
 
 // Initializer: kaiming_snn
 TEST(InitializerTest, KaimingSNN) {
-  Tensor weights(Eigen::MatrixXf::Zero(4, 2));
-  Tensor bias(Eigen::MatrixXf::Zero(4, 1));
-  kaimingSNNInitializer(2, 4, weights, bias);
-  ASSERT_NE(weights.data.sum(), 0.0F);
-  ASSERT_EQ(bias.data.sum(), 0.0F);
+  auto layer = std::make_shared<Linear>(2, 4);
+  kaimingSNNInitializer(layer);
+  ASSERT_NE(layer->weight.data.sum(), 0.0F);
+  ASSERT_EQ(layer->bias.data.sum(), 0.0F);
 }
 
 // Initializer: Xavier

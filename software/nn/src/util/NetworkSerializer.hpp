@@ -75,16 +75,15 @@ public:
    * @param layerNames Vector of names for each Linear layer
    * @return true if save was successful, false otherwise
    */
-  static auto saveNetwork(const Sequential &model, const std::string &dirpath,
+  static auto saveNetwork(const Sequential &model, const std::string &safe_filepath,
                           const std::vector<std::string> &layerNames) -> bool {
     try {
 
       bool first_layer = true;     // Flag to indicate the first layer being saved
       size_t linearLayerCount = 0; // Counter for linear layers
-      const std::string safe_filepath = dirpath + "/model_weights.npz"; // Safe file path for saving
 
       // Create the directory if it doesn't exist
-      std::filesystem::create_directories(dirpath);
+      std::filesystem::create_directories(std::filesystem::path(safe_filepath).parent_path());
 
       // Save all layers to a single npz file
       for (const auto &layer : model.layers) {
@@ -145,11 +144,9 @@ public:
    * @param layerNames Vector of names for each Linear layer
    * @return true if load was successful, false otherwise
    */
-  static auto loadNetwork(Sequential &model, const std::string & /*filepath*/,
+  static auto loadNetwork(Sequential &model, const std::string &safe_filepath,
                           const std::vector<std::string> &layerNames) -> bool {
     try {
-      const std::string weights_dir = ".";
-      const std::string safe_filepath = weights_dir + "/model_weights.npz";
       if (!std::filesystem::exists(safe_filepath)) {
         throw std::runtime_error("Network file does not exist: " + safe_filepath);
       }

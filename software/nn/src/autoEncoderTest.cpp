@@ -55,11 +55,6 @@ auto debug(const Batch &batch, const Tensor &y_pred, const Tensor &loss_tensor) 
 } // namespace
 #endif
 
-// Constants for model saving/loading
-const std::vector<std::string> LAYER_NAMES = {"encoder1", "encoder2", "encoder3", "encoder4",
-                                              "encoder5", "encoder6", "decoder1", "decoder2",
-                                              "decoder3", "decoder4", "decoder5", "decoder6"};
-const std::string WEIGHTS_FILE = "model_weights.npz";
 constexpr int OUTPUT_PRECISION = 20; // Precision for floating-point output
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
@@ -74,7 +69,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Network parameters
   constexpr float learning_rate = 0.001; // Learning rate for the optimizer - reduced for stability
   constexpr float target_loss = 0.001F;  // Target loss value for early stopping
-  constexpr int save_interval = 1000;    // Save model every N epochs
   constexpr int input_dim = 500;         // Input dimension for synthetic data
   constexpr int hidden_dim1 = 250;       // First hidden layer dimension
   constexpr int hidden_dim2 = 125;       // Second hidden layer dimension
@@ -82,8 +76,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int hidden_dim4 = 31;        // Fourth hidden layer dimension
   constexpr int hidden_dim5 = 10;        // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 5;      // bottleneck layer size
-  constexpr int epochs = 10;            // Number of training epochs in which n_samples is presented
-  const string weights_dir = "weights"; // Directory to store model weights
+  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
+  const string weights_file_path = "weights/model_weights.npz"; // Model weights file
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
@@ -103,6 +97,12 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
 
   // ==== Model Definition ====
+
+  // Constants for model saving/loading
+  const vector<string> layer_names = {"encoder1", "encoder2", "encoder3", "encoder4",
+                                      "encoder5", "encoder6", "decoder1", "decoder2",
+                                      "decoder3", "decoder4", "decoder5", "decoder6"};
+
   // Encoder layers
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
   auto encoder_act1 = make_shared<LeakyReLU>();
@@ -130,6 +130,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   auto decoder_act5 = make_shared<LeakyReLU>();
   auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
 
+  // ==== Loss Layer ====
+  auto mse_loss = std::make_shared<MSELoss>();
+
   Sequential model({
       encoder1, encoder_act1, // First encoder block
       encoder2, encoder_act2, // Second encoder block
@@ -146,34 +149,29 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   });
 
   // ==== Initialization ====
-  // Initialize encoder weights and biases
-  kaimingSNNInitializer(input_dim, hidden_dim1, encoder1->weight, encoder1->bias);
-  kaimingSNNInitializer(hidden_dim1, hidden_dim2, encoder2->weight, encoder2->bias);
-  kaimingSNNInitializer(hidden_dim2, hidden_dim3, encoder3->weight, encoder3->bias);
-  kaimingSNNInitializer(hidden_dim3, hidden_dim4, encoder4->weight, encoder4->bias);
-  kaimingSNNInitializer(hidden_dim4, hidden_dim5, encoder5->weight, encoder5->bias);
-  kaimingSNNInitializer(hidden_dim5, bottleneck_dim, encoder6->weight, encoder6->bias);
 
   // Try to load existing weights, if they exist
-  if (!std::filesystem::exists(WEIGHTS_FILE)) {
+  // otherwise initialize encoder and decoder weights and biases
+  const bool loaded_weights = NetworkSerializer::loadNetwork(model, weights_file_path, layer_names);
+
+  if (!loaded_weights) {
+    std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
+
+    // Initialize encoder weights and biases
+    kaimingSNNInitializer(encoder1);
+    kaimingSNNInitializer(encoder2);
+    kaimingSNNInitializer(encoder3);
+    kaimingSNNInitializer(encoder4);
+    kaimingSNNInitializer(encoder5);
+    kaimingSNNInitializer(encoder6);
+
     // Initialize decoder weights and biases if no saved weights exist
-    kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
-    kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
-    kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
-    kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
-    kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
-    kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
-  } else {
-    // Load existing weights
-    if (!NetworkSerializer::loadNetwork(model, WEIGHTS_FILE, LAYER_NAMES)) {
-      std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
-      kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
-      kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
-      kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
-      kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
-      kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
-      kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
-    }
+    kaimingSNNInitializer(decoder1);
+    kaimingSNNInitializer(decoder2);
+    kaimingSNNInitializer(decoder3);
+    kaimingSNNInitializer(decoder4);
+    kaimingSNNInitializer(decoder5);
+    kaimingSNNInitializer(decoder6);
   }
 
   vector<Tensor *> params = {
@@ -184,9 +182,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       &decoder5->weight, &decoder5->bias,   &decoder6->weight, &decoder6->bias};
   Adam optimizer(learning_rate);
   optimizer.attach(params);
-
-  // ==== Loss Layer ====
-  auto mse_loss = std::make_shared<MSELoss>();
 
   // ==== Training Loop ====
   float epoch_loss = std::numeric_limits<float>::max();
@@ -219,11 +214,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
         // Track best loss in epoch
         float tmp = loss_tensor.data(0, 0);
         epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
-
-        // Save the model periodically or when target loss is achieved
-        if (epoch_loss < target_loss || (epoch % save_interval == 0 && epoch > 0)) {
-          NetworkSerializer::saveNetwork(model, WEIGHTS_FILE, LAYER_NAMES);
-        }
       } // End of critical section
 
 // If DEBUG is defined then show the debug information
@@ -237,17 +227,17 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     if (epoch % progress_interval == 0) {
       cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r";
     }
+
+    // Stop training when target loss is achieved
+    if (epoch_loss < target_loss) {
+      break;
+    }
   }
 
   // ==== End of Training ====
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
 
-  // Save the trained network
-  vector<string> layer_names = {"encoder1", "encoder2", "encoder3", "encoder4",
-                                "encoder5", "encoder6", "decoder1", "decoder2",
-                                "decoder3", "decoder4", "decoder5", "decoder6"};
-
-  if (NetworkSerializer::saveNetwork(model, weights_dir, layer_names)) {
+  if (NetworkSerializer::saveNetwork(model, weights_file_path, layer_names)) {
     cout << "Network weights saved successfully.\n";
   } else {
     cout << "Failed to save network weights.\n";
