@@ -1,31 +1,28 @@
-#include <cstddef>
-#include <cstdio>
-#include <cstdlib>
-#include <iomanip>
-#include <ios>
-#include <iostream>
-#include <limits>
-#include <thread>
-#include <tuple>
-
 #include "initializers/kaiming_snn.hpp"
-#include "layers/Leaky.hpp"
 #include "layers/LeakyReLU.hpp"
 #include "layers/Linear.hpp"
 #include "layers/MSELoss.hpp"
-#include "layers/ReLU.hpp"
 #include "layers/Sequential.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
 #include "util/EigenParallel.hpp"
+#include "util/NetworkSerializer.hpp"
 #include "util/batching.hpp"
 #include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <iomanip>
+#include <iostream>
+#include <limits>
+#include <tuple>
 
 using Eigen::MatrixXf;
 using std::cout;
 using std::fixed;
 using std::make_shared;
+using std::scientific;
 using std::setprecision;
 using std::string;
 using std::tie;
@@ -58,25 +55,35 @@ auto debug(const Batch &batch, const Tensor &y_pred, const Tensor &loss_tensor) 
 } // namespace
 #endif
 
+// Constants for model saving/loading
+const std::vector<std::string> LAYER_NAMES = {"encoder1", "encoder2", "encoder3", "encoder4",
+                                              "encoder5", "encoder6", "decoder1", "decoder2",
+                                              "decoder3", "decoder4", "decoder5", "decoder6"};
+const std::string WEIGHTS_FILE = "model_weights.npz";
+constexpr int OUTPUT_PRECISION = 20; // Precision for floating-point output
+
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   util::initializeEigenParallel();
 
-  cout << fixed << setprecision(20);
+  cout << fixed << scientific << setprecision(OUTPUT_PRECISION);
 
   printVectorizationSupport();
   // ==== Data Generation ====
 
   // Network parameters
   constexpr float learning_rate = 0.001; // Learning rate for the optimizer - reduced for stability
+  constexpr float target_loss = 0.001F;  // Target loss value for early stopping
+  constexpr int save_interval = 1000;    // Save model every N epochs
   constexpr int input_dim = 500;         // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 300;       // First hidden layer dimension
-  constexpr int hidden_dim2 = 100;       // Second hidden layer dimension
-  constexpr int hidden_dim3 = 50;        // Third hidden layer dimension
-  constexpr int hidden_dim4 = 25;        // Fourth hidden layer dimension
+  constexpr int hidden_dim1 = 250;       // First hidden layer dimension
+  constexpr int hidden_dim2 = 125;       // Second hidden layer dimension
+  constexpr int hidden_dim3 = 63;        // Third hidden layer dimension
+  constexpr int hidden_dim4 = 31;        // Fourth hidden layer dimension
   constexpr int hidden_dim5 = 10;        // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 5;      // bottleneck layer size
-  constexpr int epochs = 10000000; // Number of training epochs in which n_samples is presented
+  constexpr int epochs = 10;            // Number of training epochs in which n_samples is presented
+  const string weights_dir = "weights"; // Directory to store model weights
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
@@ -147,13 +154,27 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   kaimingSNNInitializer(hidden_dim4, hidden_dim5, encoder5->weight, encoder5->bias);
   kaimingSNNInitializer(hidden_dim5, bottleneck_dim, encoder6->weight, encoder6->bias);
 
-  // Initialize decoder weights and biases
-  kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
-  kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
-  kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
-  kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
-  kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
-  kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
+  // Try to load existing weights, if they exist
+  if (!std::filesystem::exists(WEIGHTS_FILE)) {
+    // Initialize decoder weights and biases if no saved weights exist
+    kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
+    kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
+    kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
+    kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
+    kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
+    kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
+  } else {
+    // Load existing weights
+    if (!NetworkSerializer::loadNetwork(model, WEIGHTS_FILE, LAYER_NAMES)) {
+      std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
+      kaimingSNNInitializer(bottleneck_dim, hidden_dim5, decoder1->weight, decoder1->bias);
+      kaimingSNNInitializer(hidden_dim5, hidden_dim4, decoder2->weight, decoder2->bias);
+      kaimingSNNInitializer(hidden_dim4, hidden_dim3, decoder3->weight, decoder3->bias);
+      kaimingSNNInitializer(hidden_dim3, hidden_dim2, decoder4->weight, decoder4->bias);
+      kaimingSNNInitializer(hidden_dim2, hidden_dim1, decoder5->weight, decoder5->bias);
+      kaimingSNNInitializer(hidden_dim1, input_dim, decoder6->weight, decoder6->bias);
+    }
+  }
 
   vector<Tensor *> params = {
       &encoder1->weight, &encoder1->bias,   &encoder2->weight, &encoder2->bias,   &encoder3->weight,
@@ -198,6 +219,11 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
         // Track best loss in epoch
         float tmp = loss_tensor.data(0, 0);
         epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
+
+        // Save the model periodically or when target loss is achieved
+        if (epoch_loss < target_loss || (epoch % save_interval == 0 && epoch > 0)) {
+          NetworkSerializer::saveNetwork(model, WEIGHTS_FILE, LAYER_NAMES);
+        }
       } // End of critical section
 
 // If DEBUG is defined then show the debug information
@@ -215,5 +241,17 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== End of Training ====
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
+
+  // Save the trained network
+  vector<string> layer_names = {"encoder1", "encoder2", "encoder3", "encoder4",
+                                "encoder5", "encoder6", "decoder1", "decoder2",
+                                "decoder3", "decoder4", "decoder5", "decoder6"};
+
+  if (NetworkSerializer::saveNetwork(model, weights_dir, layer_names)) {
+    cout << "Network weights saved successfully.\n";
+  } else {
+    cout << "Failed to save network weights.\n";
+  }
+
   return 0;
 }
