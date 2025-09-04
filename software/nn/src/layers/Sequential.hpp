@@ -1,4 +1,5 @@
 #pragma once
+#include "Linear.hpp"
 #include "Module.hpp"
 #include "tensor/Tensor.hpp"
 #include <cstddef>
@@ -53,5 +54,21 @@ struct Sequential : Module {
   // Number of layers (PyTorch: __len__)
   [[nodiscard]] auto size() const {
     return layers.size();
+  }
+
+  // Returns all trainable parameters (weights and biases) from all layers
+  [[nodiscard]] auto params() -> std::vector<Tensor *> {
+    std::vector<Tensor *> parameters;
+    parameters.reserve(layers.size() * 2); // Reserve space for weights and biases
+
+    for (auto &layer : layers) {
+      // Check if layer is a Linear layer
+      if (auto *linear = dynamic_cast<Linear *>(layer.get())) {
+        parameters.push_back(&linear->weight);
+        parameters.push_back(&linear->bias);
+      }
+      // Add other layer types with parameters here if needed
+    }
+    return parameters;
   }
 };

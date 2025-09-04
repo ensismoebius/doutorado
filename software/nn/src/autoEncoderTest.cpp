@@ -180,12 +180,14 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     kaimingSNNInitializer(decoder6);
   }
 
-  vector<Tensor *> params = {
-      &encoder1->weight, &encoder1->bias,   &encoder2->weight, &encoder2->bias,   &encoder3->weight,
-      &encoder3->bias,   &encoder4->weight, &encoder4->bias,   &encoder5->weight, &encoder5->bias,
-      &encoder6->weight, &encoder6->bias,   &decoder1->weight, &decoder1->bias,   &decoder2->weight,
-      &decoder2->bias,   &decoder3->weight, &decoder3->bias,   &decoder4->weight, &decoder4->bias,
-      &decoder5->weight, &decoder5->bias,   &decoder6->weight, &decoder6->bias};
+  // ==== Optimizer ====
+  vector<Tensor *> encoder_params = encoders.params();
+  vector<Tensor *> decoder_params = decoders.params();
+
+  vector<Tensor *> params;
+  params.insert(params.end(), encoder_params.begin(), encoder_params.end());
+  params.insert(params.end(), decoder_params.begin(), decoder_params.end());
+
   Adam optimizer(learning_rate);
   optimizer.attach(params);
 
