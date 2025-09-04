@@ -67,16 +67,16 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Data Generation ====
 
   // Network parameters
-  constexpr float learning_rate = 0.001; // Learning rate for the optimizer - reduced for stability
-  constexpr float target_loss = 0.001F;  // Target loss value for early stopping
-  constexpr int input_dim = 500;         // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 250;       // First hidden layer dimension
-  constexpr int hidden_dim2 = 125;       // Second hidden layer dimension
-  constexpr int hidden_dim3 = 63;        // Third hidden layer dimension
-  constexpr int hidden_dim4 = 31;        // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 10;        // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 5;      // bottleneck layer size
-  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
+  constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - reduced for stability
+  constexpr float target_loss = 1.0e-20F; // Target loss value for early stopping
+  constexpr int input_dim = 500;          // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 250;        // First hidden layer dimension
+  constexpr int hidden_dim2 = 125;        // Second hidden layer dimension
+  constexpr int hidden_dim3 = 63;         // Third hidden layer dimension
+  constexpr int hidden_dim4 = 31;         // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 5;       // bottleneck layer size
+  constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string weights_file_path = "weights/model_weights.npz"; // Model weights file
 
   // Batch parameters
@@ -133,13 +133,16 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Loss Layer ====
   auto mse_loss = std::make_shared<MSELoss>();
 
-  Sequential model({
+  Sequential encoders({
       encoder1, encoder_act1, // First encoder block
       encoder2, encoder_act2, // Second encoder block
       encoder3, encoder_act3, // Third encoder block
       encoder4, encoder_act4, // Fourth encoder block
       encoder5, encoder_act5, // Fifth encoder block
       encoder6, encoder_act6, // Sixth encoder block (to bottleneck)
+  });
+
+  Sequential decoders({
       decoder1, decoder_act1, // First decoder block
       decoder2, decoder_act2, // Second decoder block
       decoder3, decoder_act3, // Third decoder block
@@ -152,7 +155,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Try to load existing weights, if they exist
   // otherwise initialize encoder and decoder weights and biases
-  const bool loaded_weights = NetworkSerializer::loadNetwork(model, weights_file_path, layer_names);
+  // Try to load weights for both encoder and decoder networks
+  const bool loaded_weights =
+      NetworkSerializer::loadNetwork(encoders, weights_file_path, layer_names) &&
+      NetworkSerializer::loadNetwork(decoders, weights_file_path + ".decoder", layer_names);
 
   if (!loaded_weights) {
     std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
@@ -194,19 +200,22 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 // Parallelize batch processing using OpenMP
 #pragma omp parallel for schedule(dynamic) reduction(min : epoch_loss)
     for (const auto &batch : batches) {
-      // Set target and compute loss
-      mse_loss->set_target(batch.targets);
+      // For autoencoder, the target is the input itself
+      mse_loss->set_target(batch.inputs);
 
-      // Forward pass - Eigen will handle internal parallelization
-      Tensor y_pred = model.forward(batch.inputs);
-      Tensor loss_tensor = mse_loss->forward(y_pred);
+      // Forward pass through encoder and decoder - Eigen will handle internal parallelization
+      Tensor encoded = encoders.forward(batch.inputs);
+      Tensor decoded = decoders.forward(encoded);
+      Tensor loss_tensor = mse_loss->forward(decoded);
 
 #pragma omp critical
       {
         // Compute gradients using the improved MSELoss backward pass
-        Tensor grad_loss = mse_loss->backward(y_pred);
+        Tensor grad_loss = mse_loss->backward(decoded);
 
-        model.backward(grad_loss);
+        // Backward pass through decoder first, then encoder
+        Tensor decoder_grad = decoders.backward(grad_loss);
+        encoders.backward(decoder_grad);
 
         // Update parameters
         optimizer.step(params);
@@ -237,7 +246,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== End of Training ====
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
 
-  if (NetworkSerializer::saveNetwork(model, weights_file_path, layer_names)) {
+  // Save both encoder and decoder networks
+  if (NetworkSerializer::saveNetwork(encoders, weights_file_path, layer_names) &&
+      NetworkSerializer::saveNetwork(decoders, weights_file_path + ".decoder", layer_names)) {
     cout << "Network weights saved successfully.\n";
   } else {
     cout << "Failed to save network weights.\n";
