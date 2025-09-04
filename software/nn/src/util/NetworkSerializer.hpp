@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,11 +11,35 @@
 #include "../layers/Sequential.hpp"
 #include <cnpy.h>
 
-// NetworkSerializer class to save and load neural network weights and biases
+/**
+ * @brief NetworkSerializer class to save and load neural network weights and biases
+ *        in a PyTorch-compatible format
+ */
 class NetworkSerializer {
 private:
-  static constexpr const char *WEIGHTS_SUFFIX = "_w";
-  static constexpr const char *BIAS_SUFFIX = "_b";
+  static constexpr const char *WEIGHTS_SUFFIX = ".weight";
+  static constexpr const char *BIAS_SUFFIX = ".bias";
+
+  // Structure to hold parameter metadata (similar to PyTorch's state_dict)
+  struct ParameterInfo {
+    std::string name;          // Full parameter name (e.g., "layer.0.weight")
+    std::string type;          // Parameter type (e.g., "Linear")
+    std::vector<size_t> shape; // Parameter shape
+    const float *data;         // Pointer to parameter data
+  };
+
+  /**
+   * @brief Get the type name of a module
+   * @param module The module to get the type for
+   * @return The type name as a string
+   */
+  static auto getModuleType(const std::shared_ptr<Module> &module) -> std::string {
+    if (std::dynamic_pointer_cast<Linear>(module)) {
+      return "Linear";
+    }
+    // Add more module types here as needed
+    return "Unknown";
+  }
 
   /**
    * @brief Add a layer's weights and biases to the data map
@@ -22,16 +47,40 @@ private:
    * @param layer The layer to save
    * @param name Layer name for array naming
    */
-  static void addLayerToData(const std::shared_ptr<Linear> &layer, const std::string &name) {
-    // Add weights
-    std::string weight_name = name + WEIGHTS_SUFFIX;
-    std::vector<size_t> weight_shape = {static_cast<size_t>(layer->weight.data.rows()),
-                                        static_cast<size_t>(layer->weight.data.cols())};
+  static auto collectStateDict(const Sequential &model, const std::vector<std::string> &layerNames)
+      -> std::vector<ParameterInfo> {
 
-    // Add bias
-    std::string bias_name = name + BIAS_SUFFIX;
-    std::vector<size_t> bias_shape = {static_cast<size_t>(layer->bias.data.rows()),
-                                      static_cast<size_t>(layer->bias.data.cols())};
+    std::vector<ParameterInfo> state_dict;
+    size_t linearLayerCount = 0;
+
+    for (const auto &layer : model.layers) {
+
+      if (auto linearLayer = std::dynamic_pointer_cast<Linear>(layer)) {
+
+        if (linearLayerCount >= layerNames.size()) {
+          throw std::runtime_error("Not enough layer names provided");
+        }
+
+        const std::string &modulePath = layerNames[linearLayerCount];
+
+        // Add weights
+        state_dict.push_back({modulePath + WEIGHTS_SUFFIX,
+                              "Linear",
+                              {static_cast<size_t>(linearLayer->weight.data.rows()),
+                               static_cast<size_t>(linearLayer->weight.data.cols())},
+                              linearLayer->weight.data.data()});
+
+        // Add bias
+        state_dict.push_back({modulePath + BIAS_SUFFIX,
+                              "Linear",
+                              {static_cast<size_t>(linearLayer->bias.data.rows()),
+                               static_cast<size_t>(linearLayer->bias.data.cols())},
+                              linearLayer->bias.data.data()});
+
+        linearLayerCount++;
+      }
+    }
+    return state_dict;
   }
 
   /**
@@ -41,24 +90,25 @@ private:
    * @param name Layer name for array naming
    * @param data The loaded npz data
    */
-  static void loadLayer(const std::shared_ptr<Linear> &layer, const std::string &name,
+  static void loadLayer(const std::shared_ptr<Linear> &layer, const std::string &modulePath,
                         const cnpy::npz_t &data) {
-    // Load weights
-    std::string weight_name = name + WEIGHTS_SUFFIX;
+    // Load weights - PyTorch format: [out_features, in_features]
+    std::string weight_name = modulePath + WEIGHTS_SUFFIX;
     auto w_it = data.find(weight_name);
     if (w_it == data.end()) {
-      throw std::runtime_error("Weight array not found for layer: " + name);
+      throw std::runtime_error("Weight array not found for module: " + modulePath);
     }
     const cnpy::NpyArray &arr_w = w_it->second;
     const auto *weight_data = arr_w.data<float>();
+    // Map the data maintaining PyTorch's layout
     layer->weight.data = Eigen::Map<const Eigen::MatrixXf>(weight_data, layer->weight.data.rows(),
                                                            layer->weight.data.cols());
 
-    // Load bias
-    std::string bias_name = name + BIAS_SUFFIX;
+    // Load bias - PyTorch format: [out_features]
+    std::string bias_name = modulePath + BIAS_SUFFIX;
     auto b_it = data.find(bias_name);
     if (b_it == data.end()) {
-      throw std::runtime_error("Bias array not found for layer: " + name);
+      throw std::runtime_error("Bias array not found for module: " + modulePath);
     }
     const cnpy::NpyArray &arr_b = b_it->second;
     const auto *bias_data = arr_b.data<float>();
@@ -78,53 +128,26 @@ public:
   static auto saveNetwork(const Sequential &model, const std::string &safe_filepath,
                           const std::vector<std::string> &layerNames) -> bool {
     try {
-
-      bool first_layer = true;     // Flag to indicate the first layer being saved
-      size_t linearLayerCount = 0; // Counter for linear layers
-
       // Create the directory if it doesn't exist
       std::filesystem::create_directories(std::filesystem::path(safe_filepath).parent_path());
 
-      // Save all layers to a single npz file
-      for (const auto &layer : model.layers) {
+      // Collect state dictionary
+      auto state_dict = collectStateDict(model, layerNames);
 
-        // Cast the generic layer to a Linear layer
-        auto linearLayer = std::dynamic_pointer_cast<Linear>(layer);
+      bool first_save = true;
 
-        // Check if the layer is a Linear layer
-        if (linearLayer) {
+      // Save metadata first - this includes layer types and structure
+      std::vector<std::string> metadata;
+      metadata.reserve(state_dict.size()); // Pre-allocate capacity
+      for (const auto &param : state_dict) {
+        metadata.push_back(param.type + ":" + param.name);
+      }
 
-          // Check if we have enough layer names
-          if (linearLayerCount >= layerNames.size()) {
-            throw std::runtime_error("Not enough layer names provided");
-          }
-
-          // Create weight name
-          std::string weight_name = layerNames[linearLayerCount] + WEIGHTS_SUFFIX;
-
-          // Get weight data and shape
-          const float *weight_data = linearLayer->weight.data.data();
-          std::vector<size_t> weight_shape = {static_cast<size_t>(linearLayer->weight.data.rows()),
-                                              static_cast<size_t>(linearLayer->weight.data.cols())};
-
-          // First array creates the file, others append to it
-          cnpy::npz_save(safe_filepath, weight_name, weight_data, weight_shape,
-                         first_layer ? "w" : "a");
-
-          // Create bias name
-          std::string bias_name = layerNames[linearLayerCount] + BIAS_SUFFIX;
-
-          // Get weight data and shape
-          const float *bias_data = linearLayer->bias.data.data();
-          std::vector<size_t> bias_shape = {static_cast<size_t>(linearLayer->bias.data.rows()),
-                                            static_cast<size_t>(linearLayer->bias.data.cols())};
-
-          // Always append after the first array
-          cnpy::npz_save(safe_filepath, bias_name, bias_data, bias_shape, "a");
-
-          first_layer = false;
-          linearLayerCount++;
-        }
+      // Save parameters from state dictionary
+      for (const auto &param : state_dict) {
+        // Save parameter data
+        cnpy::npz_save(safe_filepath, param.name, param.data, param.shape, first_save ? "w" : "a");
+        first_save = false;
       }
 
       std::cout << "Successfully saved network to file: " << safe_filepath << "\n";
@@ -153,15 +176,48 @@ public:
 
       // Load the npz file
       cnpy::npz_t data = cnpy::npz_load(safe_filepath);
-      size_t linearLayerCount = 0;
 
+      // Create a mapping of parameter names to their data
+      std::map<std::string, std::pair<const float *, std::vector<size_t>>> param_map;
+
+      // First pass: collect all parameters
+      for (const auto &[name, array] : data) {
+        const auto *param_data = array.data<float>();
+        param_map[name] = {param_data, array.shape};
+      }
+
+      // Second pass: load parameters into layers
+      size_t linearLayerCount = 0;
       for (const auto &layer : model.layers) {
-        auto linearLayer = std::dynamic_pointer_cast<Linear>(layer);
-        if (linearLayer) {
+        if (auto linearLayer = std::dynamic_pointer_cast<Linear>(layer)) {
           if (linearLayerCount >= layerNames.size()) {
             throw std::runtime_error("Not enough layer names provided");
           }
-          loadLayer(linearLayer, layerNames[linearLayerCount], data);
+
+          const std::string &modulePath = layerNames[linearLayerCount];
+
+          // Load weights
+          std::string weight_name = modulePath + WEIGHTS_SUFFIX;
+          auto weight_it = param_map.find(weight_name);
+          if (weight_it == param_map.end()) {
+            throw std::runtime_error("Weight array not found for module: " + modulePath);
+          }
+          const auto &[weight_data, weight_shape] = weight_it->second;
+          linearLayer->weight.data = Eigen::Map<const Eigen::MatrixXf>(
+              weight_data, static_cast<Eigen::Index>(weight_shape[0]),
+              static_cast<Eigen::Index>(weight_shape[1]));
+
+          // Load bias
+          std::string bias_name = modulePath + BIAS_SUFFIX;
+          auto bias_it = param_map.find(bias_name);
+          if (bias_it == param_map.end()) {
+            throw std::runtime_error("Bias array not found for module: " + modulePath);
+          }
+          const auto &[bias_data, bias_shape] = bias_it->second;
+          linearLayer->bias.data =
+              Eigen::Map<const Eigen::MatrixXf>(bias_data, static_cast<Eigen::Index>(bias_shape[0]),
+                                                static_cast<Eigen::Index>(bias_shape[1]));
+
           linearLayerCount++;
         }
       }

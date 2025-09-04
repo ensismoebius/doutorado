@@ -67,8 +67,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Data Generation ====
 
   // Network parameters
-  constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - reduced for stability
-  constexpr float target_loss = 1.0e-20F; // Target loss value for early stopping
+  constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
+  constexpr float target_loss = 1.0e-10F; // Target loss value for early stopping
   constexpr int input_dim = 500;          // Input dimension for synthetic data
   constexpr int hidden_dim1 = 250;        // First hidden layer dimension
   constexpr int hidden_dim2 = 125;        // Second hidden layer dimension
