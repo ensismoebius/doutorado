@@ -47,21 +47,14 @@ private:
    * @param layer The layer to save
    * @param name Layer name for array naming
    */
-  static auto collectStateDict(const Sequential &model, const std::vector<std::string> &layerNames)
-      -> std::vector<ParameterInfo> {
-
+  static auto collectStateDict(const Sequential &model) -> std::vector<ParameterInfo> {
     std::vector<ParameterInfo> state_dict;
     size_t linearLayerCount = 0;
 
     for (const auto &layer : model.layers) {
-
       if (auto linearLayer = std::dynamic_pointer_cast<Linear>(layer)) {
-
-        if (linearLayerCount >= layerNames.size()) {
-          throw std::runtime_error("Not enough layer names provided");
-        }
-
-        const std::string &modulePath = layerNames[linearLayerCount];
+        // Use PyTorch standard sequential numbering
+        const std::string modulePath = std::to_string(linearLayerCount);
 
         // Add weights
         state_dict.push_back({modulePath + WEIGHTS_SUFFIX,
@@ -125,14 +118,13 @@ public:
    * @param layerNames Vector of names for each Linear layer
    * @return true if save was successful, false otherwise
    */
-  static auto saveNetwork(const Sequential &model, const std::string &safe_filepath,
-                          const std::vector<std::string> &layerNames) -> bool {
+  static auto saveNetwork(const Sequential &model, const std::string &safe_filepath) -> bool {
     try {
       // Create the directory if it doesn't exist
       std::filesystem::create_directories(std::filesystem::path(safe_filepath).parent_path());
 
       // Collect state dictionary
-      auto state_dict = collectStateDict(model, layerNames);
+      auto state_dict = collectStateDict(model);
 
       bool first_save = true;
 
@@ -167,8 +159,7 @@ public:
    * @param layerNames Vector of names for each Linear layer
    * @return true if load was successful, false otherwise
    */
-  static auto loadNetwork(Sequential &model, const std::string &safe_filepath,
-                          const std::vector<std::string> &layerNames) -> bool {
+  static auto loadNetwork(Sequential &model, const std::string &safe_filepath) -> bool {
     try {
       if (!std::filesystem::exists(safe_filepath)) {
         throw std::runtime_error("Network file does not exist: " + safe_filepath);
@@ -190,11 +181,8 @@ public:
       size_t linearLayerCount = 0;
       for (const auto &layer : model.layers) {
         if (auto linearLayer = std::dynamic_pointer_cast<Linear>(layer)) {
-          if (linearLayerCount >= layerNames.size()) {
-            throw std::runtime_error("Not enough layer names provided");
-          }
-
-          const std::string &modulePath = layerNames[linearLayerCount];
+          // Use PyTorch standard sequential numbering
+          const std::string modulePath = std::to_string(linearLayerCount);
 
           // Load weights
           std::string weight_name = modulePath + WEIGHTS_SUFFIX;

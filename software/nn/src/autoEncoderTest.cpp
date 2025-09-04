@@ -98,10 +98,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== Model Definition ====
 
-  // Constants for model saving/loading
-  const vector<string> layer_names = {"encoder1", "encoder2", "encoder3", "encoder4",
-                                      "encoder5", "encoder6", "decoder1", "decoder2",
-                                      "decoder3", "decoder4", "decoder5", "decoder6"};
+  // Note: Layer names are no longer needed as we now use PyTorch's standard sequential numbering
 
   // Encoder layers
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
@@ -157,8 +154,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // otherwise initialize encoder and decoder weights and biases
   // Try to load weights for both encoder and decoder networks
   const bool loaded_weights =
-      NetworkSerializer::loadNetwork(encoders, weights_file_path, layer_names) &&
-      NetworkSerializer::loadNetwork(decoders, weights_file_path + ".decoder", layer_names);
+      NetworkSerializer::loadNetwork(encoders, weights_file_path) &&
+      NetworkSerializer::loadNetwork(decoders, weights_file_path + ".decoder");
 
   if (!loaded_weights) {
     std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
@@ -249,8 +246,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
 
   // Save both encoder and decoder networks
-  if (NetworkSerializer::saveNetwork(encoders, weights_file_path, layer_names) &&
-      NetworkSerializer::saveNetwork(decoders, weights_file_path + ".decoder", layer_names)) {
+  if (NetworkSerializer::saveNetwork(encoders, weights_file_path) &&
+      NetworkSerializer::saveNetwork(decoders, weights_file_path + ".decoder")) {
     cout << "Network weights saved successfully.\n";
   } else {
     cout << "Failed to save network weights.\n";
