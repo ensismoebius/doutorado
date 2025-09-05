@@ -68,7 +68,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Network parameters
   constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
-  constexpr float target_loss = 1.0e-10F; // Target loss value for early stopping
+  constexpr float target_loss = 1.0e-14F; // Target loss value for early stopping
   constexpr int input_dim = 500;          // Input dimension for synthetic data
   constexpr int hidden_dim1 = 250;        // First hidden layer dimension
   constexpr int hidden_dim2 = 125;        // Second hidden layer dimension
@@ -77,7 +77,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 5;       // bottleneck layer size
   constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
-  const string weights_file_path = "weights/model_weights.npz"; // Model weights file
+  const string encoder_weights_file_path =
+      "weights/encoder_model_weights.npz"; // Model weights file
+  const string decoder_weights_file_path =
+      "weights/decoder_model_weights.npz"; // Model weights file
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
@@ -97,8 +100,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
 
   // ==== Model Definition ====
-
-  // Note: Layer names are no longer needed as we now use PyTorch's standard sequential numbering
 
   // Encoder layers
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
@@ -153,9 +154,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Try to load existing weights, if they exist
   // otherwise initialize encoder and decoder weights and biases
   // Try to load weights for both encoder and decoder networks
-  const bool loaded_weights =
-      NetworkSerializer::loadNetwork(encoders, weights_file_path) &&
-      NetworkSerializer::loadNetwork(decoders, weights_file_path + ".decoder");
+  const bool loaded_weights = NetworkSerializer::loadNetwork(encoders, encoder_weights_file_path) &&
+                              NetworkSerializer::loadNetwork(decoders, decoder_weights_file_path);
 
   if (!loaded_weights) {
     std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
@@ -178,10 +178,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   }
 
   // ==== Optimizer ====
+  vector<Tensor *> params;
   vector<Tensor *> encoder_params = encoders.params();
   vector<Tensor *> decoder_params = decoders.params();
 
-  vector<Tensor *> params;
   params.insert(params.end(), encoder_params.begin(), encoder_params.end());
   params.insert(params.end(), decoder_params.begin(), decoder_params.end());
 
@@ -246,8 +246,8 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
 
   // Save both encoder and decoder networks
-  if (NetworkSerializer::saveNetwork(encoders, weights_file_path) &&
-      NetworkSerializer::saveNetwork(decoders, weights_file_path + ".decoder")) {
+  if (NetworkSerializer::saveNetwork(encoders, encoder_weights_file_path) &&
+      NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path)) {
     cout << "Network weights saved successfully.\n";
   } else {
     cout << "Failed to save network weights.\n";
