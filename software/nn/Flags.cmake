@@ -25,3 +25,10 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb -O0 -fno-inline -f
 
 # Set optimization flags for the Release build type
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast-math")
+
+# Sets opengl provider to a more
+# modern option: GLVND (OpenGL 
+# Vendor-Neutral Dispatch).
+# If you are having compatibilities
+# issues set to "LEGACY"
+set(OpenGL_GL_PREFERENCE "GLVND")

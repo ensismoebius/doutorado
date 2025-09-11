@@ -1,0 +1,2 @@
+Checks: '-*,clang-analyzer-*,modernize-*,performance-*,readability-*,bugprone-*,-misc-*,-cppcoreguidelines-non-private-member-variables-in-classes'
+WarningsAsErrors: ''

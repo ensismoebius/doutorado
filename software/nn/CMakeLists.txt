@@ -18,4 +18,8 @@ include(PackageChecking.cmake)
 # Download (if needed) another libraries
 include(Cnpy.cmake)
 
+include(Imgui.cmake)
+
+include(Implot.cmake)
+
 include(Main.cmake)

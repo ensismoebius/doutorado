@@ -1,5 +1,8 @@
+// TODO: Implement the autoencoder with Leaky ReLU and spiking behavior, the loss is not being
+// minimized as expected
+
 #include "initializers/kaiming_snn.hpp"
-#include "layers/LeakyReLU.hpp"
+#include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
 #include "layers/MSELoss.hpp"
 #include "layers/Sequential.hpp"
@@ -76,11 +79,11 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int hidden_dim4 = 31;         // Fourth hidden layer dimension
   constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 5;       // bottleneck layer size
-  constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
+  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
-      "weights/encoder_model_weights.npz"; // Model weights file
+      "weights/encoder_spike_model_weights.npz"; // Model weights file
   const string decoder_weights_file_path =
-      "weights/decoder_model_weights.npz"; // Model weights file
+      "weights/decoder_spike_model_weights.npz"; // Model weights file
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
@@ -103,30 +106,31 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Encoder layers
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
-  auto encoder_act1 = make_shared<LeakyReLU>();
+  auto encoder_act1 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-  auto encoder_act2 = make_shared<LeakyReLU>();
+  auto encoder_act2 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-  auto encoder_act3 = make_shared<LeakyReLU>();
+  auto encoder_act3 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-  auto encoder_act4 = make_shared<LeakyReLU>();
+  auto encoder_act4 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-  auto encoder_act5 = make_shared<LeakyReLU>();
+  auto encoder_act5 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-  auto encoder_act6 = make_shared<LeakyReLU>();
+  auto encoder_act6 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
 
   // Decoder layers
   auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-  auto decoder_act1 = make_shared<LeakyReLU>();
+  auto decoder_act1 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-  auto decoder_act2 = make_shared<LeakyReLU>();
+  auto decoder_act2 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-  auto decoder_act3 = make_shared<LeakyReLU>();
+  auto decoder_act3 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-  auto decoder_act4 = make_shared<LeakyReLU>();
+  auto decoder_act4 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-  auto decoder_act5 = make_shared<LeakyReLU>();
+  auto decoder_act5 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
   auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
+  auto decoder_act6 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
 
   // ==== Loss Layer ====
   auto mse_loss = std::make_shared<MSELoss>();
@@ -146,7 +150,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       decoder3, decoder_act3, // Third decoder block
       decoder4, decoder_act4, // Fourth decoder block
       decoder5, decoder_act5, // Fifth decoder block
-      decoder6                // Final decoder layer (no activation)
+      decoder6, decoder_act6  // Final decoder layer (no activation)
   });
 
   // ==== Initialization ====

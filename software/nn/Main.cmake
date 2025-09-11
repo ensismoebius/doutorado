@@ -9,9 +9,9 @@ add_subdirectory(${SRC_DIR}/optimizers)
 add_subdirectory(${SRC_DIR}/initializers)
 
 # -------------------------------------
-# Add executable target for main_test01
+# Add executable target for auto-encoder with LeakyReLU and spike Test
 # -------------------------------------
-add_executable(main_test01 
+add_executable(autoEncoderLeakyReLUAndSpikeTest
     ${CNPY_SOURCES}
     ${SRC_DIR}/initializers/xavier.hpp
     ${SRC_DIR}/optimizers/SGDMinimal.hpp
@@ -26,11 +26,11 @@ add_executable(main_test01
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/main_test01.cpp
+    ${SRC_DIR}/autoEncoderLeakyReLUAndSpikeTest.cpp
 )
 
 # Link libraries
-target_link_libraries(main_test01
+target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
     PUBLIC
         cnpy
         Eigen3::Eigen
@@ -38,7 +38,7 @@ target_link_libraries(main_test01
 )
 
 # Include directories
-target_include_directories(main_test01
+target_include_directories(autoEncoderLeakyReLUAndSpikeTest
     PUBLIC
         ${SRC_DIR}
         ${CNPY_DIR}
@@ -48,9 +48,9 @@ target_include_directories(main_test01
 )
 
 # -------------------------------------
-# Add executable target for auto-encoder test
+# Add executable target for auto-encoder with LeakyReLU test
 # -------------------------------------
-add_executable(autoEncoderTest
+add_executable(autoEncoderLeakyReLUTest
     ${CNPY_SOURCES}
     ${SRC_DIR}/initializers/xavier.hpp
     ${SRC_DIR}/optimizers/SGDMinimal.hpp
@@ -65,11 +65,11 @@ add_executable(autoEncoderTest
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/autoEncoderTest.cpp
+    ${SRC_DIR}/autoEncoderLeakyReLUTest.cpp
 )
 
 # Link libraries
-target_link_libraries(autoEncoderTest
+target_link_libraries(autoEncoderLeakyReLUTest
     PRIVATE
         cnpy
         Eigen3::Eigen
@@ -77,7 +77,7 @@ target_link_libraries(autoEncoderTest
 )
 
 # Include directories
-target_include_directories(autoEncoderTest
+target_include_directories(autoEncoderLeakyReLUTest
     PRIVATE
         ${SRC_DIR}
         ${CNPY_DIR}
@@ -87,9 +87,26 @@ target_include_directories(autoEncoderTest
 )
 
 # -------------------------------------
-# Add executable target for main_test03
+# Add executable target for plotSpikingNetwork.cpp
 # -------------------------------------
-add_executable(main_test03
+
+# ImGui and ImPlot sources from Imgui.cmake and Implot.cmake
+set(IMGUI_DIR "${LIB_DIR}/imgui")
+set(IMPLOT_DIR "${LIB_DIR}/implot")
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+)
+set(IMPLOT_SOURCES
+    ${IMPLOT_DIR}/implot.cpp
+    ${IMPLOT_DIR}/implot_items.cpp
+)
+
+add_executable(plotSpikingNetwork
     ${CNPY_SOURCES}
     ${SRC_DIR}/initializers/xavier.hpp
     ${SRC_DIR}/optimizers/SGDMinimal.hpp
@@ -104,23 +121,36 @@ add_executable(main_test03
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/main_test03.cpp
+    ${IMGUI_SOURCES}
+    ${IMPLOT_SOURCES}
+    ${SRC_DIR}/util/imguiGlfw.cpp
+    ${SRC_DIR}/plotSpikingNetwork.cpp
 )
 
 # Link libraries
-target_link_libraries(main_test03
+find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLFW REQUIRED glfw3)
+
+target_link_libraries(plotSpikingNetwork
     PRIVATE
         cnpy
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
+        OpenGL::GL
+        ${GLFW_LIBRARIES}
 )
 
 # Include directories
-target_include_directories(main_test03
+target_include_directories(plotSpikingNetwork
     PRIVATE
         ${SRC_DIR}
         ${CNPY_DIR}
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
+        ${IMGUI_DIR}
+        ${IMGUI_DIR}/backends
+        ${IMPLOT_DIR}
+        ${GLFW_INCLUDE_DIRS}
 )
