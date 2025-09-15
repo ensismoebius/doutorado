@@ -5,6 +5,10 @@
 #include "layers/Module.hpp"
 #include <Eigen/Dense>
 
+#ifdef DEBUG
+#include "util/printTensor.hpp"
+#endif
+
 /**
  * @brief Leaky Integrate-and-Fire (LIF) neuron activation function.
  * Simulates the membrane potential update and spike generation.
@@ -36,11 +40,22 @@ public:
    * @param V_thresh_ Voltage threshold
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    */
-  Leaky(float dt_ = 1.0F, float R_ = 5.0F, float C_ = 1.0F, float V_thresh_ = 1.0F,
-        bool reset_zero_ = true, float reset_potential_ = 0.0F, float surrogate_window_ = 1.0F)
-      : dt(dt_), resistance(Eigen::MatrixXf::Constant(1, 1, R_)), capacitance(C_),
-        voltage_threshold(Eigen::MatrixXf::Constant(1, 1, V_thresh_)), reset_zero(reset_zero_),
-        reset_potential(reset_potential_), surrogate_window(surrogate_window_) {}
+  Leaky(float dt_ = 1.0F,              // time step
+        float R_ = 5.0F,               // resistance
+        float C_ = 1.0F,               // capacitance
+        float V_thresh_ = 1.0F,        // voltage threshold
+        bool reset_zero_ = true,       // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F, // reset potential value
+        float surrogate_window_ = 1.0F // surrogate gradient window
+        )
+      : dt(dt_),                                                       // time step
+        resistance(Eigen::MatrixXf::Constant(1, 1, R_)),               // resistance
+        capacitance(C_),                                               // capacitance
+        voltage_threshold(Eigen::MatrixXf::Constant(1, 1, V_thresh_)), // voltage threshold
+        reset_zero(reset_zero_),            // reset to zero or subtract threshold
+        reset_potential(reset_potential_),  // reset potential value
+        surrogate_window(surrogate_window_) // surrogate gradient window
+  {}
 
   auto forward(const Tensor &input) -> Tensor override {
 
@@ -59,6 +74,9 @@ public:
 
     // Update membrane potential with decay and scaled input
     v_mem = v_mem * beta + resistance.data(0, 0) * input.data * dt;
+#ifdef DEBUG
+    printTensor(Tensor(v_mem), "Updated V_mem");
+#endif
 
     // Spike condition and reset
     for (int i = 0; i < v_mem.rows(); ++i) {

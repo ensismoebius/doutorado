@@ -1,3 +1,5 @@
+#define DEBUG
+
 #include "imgui.h"
 #include "implot.h"
 #include "layers/Leaky.hpp"
@@ -8,83 +10,146 @@
 
 using ImGui::Begin;
 using ImGui::End;
+
 using ImPlot::BeginPlot;
+using ImPlot::DestroyContext;
 using ImPlot::EndPlot;
 using ImPlot::PlotLine;
 using ImPlot::PlotScatter;
+using ImPlot::SetupAxes;
+
+using ImPlot::CreateContext;
 using std::cerr;
+using std::to_string;
 using std::vector;
 
+constexpr int n_steps = 200;
+constexpr float max_rate = 0.5F;
+constexpr float time_step = 1.0F;
+constexpr float resistence = 5.0F;
+constexpr float capacitance = 1.0F;
+constexpr float v_threshold = 1.0F;
+
 auto main() -> int {
-  constexpr int n_neurons = 8;
-  constexpr int n_steps = 200;
-  constexpr float max_rate = 0.5F;
-  constexpr float delta_t = 1.0F;
 
-  // Generate synthetic spike input (Poisson)
-  auto [spike_inputs, _] =
-      generate_autoencoder_spike_data(1, n_neurons, n_steps, max_rate, delta_t);
+  // Generate single input spike train (Poisson)
+  auto [spike_inputs, _] = generate_autoencoder_spike_data(1, 1, n_steps, max_rate, time_step);
 
-  // Setup LIF neurons
-  std::vector<Leaky> neurons;
-  neurons.reserve(n_neurons);
-  for (int i = 0; i < n_neurons; ++i) {
-    neurons.emplace_back(delta_t, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
-  }
+  // Setup 1 hidden LIF neuron and 1 output neuron (LIF)
+  Leaky hidden_neuron(time_step,   // dt
+                      resistence,  // R
+                      capacitance, // C
+                      v_threshold, // V_th
+                      true,        // is_leaky
+                      0.0F,        // V_reset
+                      1.0F         // V_rest
+  );
+  Leaky output_neuron(time_step,   // dt
+                      resistence,  // R
+                      capacitance, // C
+                      v_threshold, // V_th
+                      true,        // is_leaky
+                      0.0F,        // V_reset
+                      1.0F         // V_rest
+  );
 
   // Data for plotting
-  vector<std::vector<float>> spikes(n_neurons);
-  vector<std::vector<float>> vmems(n_neurons);
+  vector<float> plot_input_spikes;
+
+  // Neuron outputs
+  vector<float> plot_hidden_spikes;
+  vector<float> plot_output_spikes;
+
+  // Membrane potentials
+  vector<float> plot_hidden_vmems;
+  vector<float> plot_output_vmems;
 
   // Simulate
   for (int t = 0; t < n_steps; ++t) {
-    const auto &input = spike_inputs[t].data;
-    for (int n_index = 0; n_index < n_neurons; ++n_index) {
-      // Each neuron gets its own input channel
-      Tensor single_input = Tensor(1, 1);
-      single_input.data(0, 0) = input(0, n_index);
-      auto out = neurons[n_index].forward(single_input);
-      spikes[n_index].push_back(out.data(0, 0));
-      vmems[n_index].push_back(neurons[n_index].v_mem(0, 0));
-    }
+    // Input spike at this timestep
+    Tensor in_tensor = spike_inputs[t];
+
+    // Forward through the network
+    auto hidden_out = hidden_neuron.forward(in_tensor);
+    auto output_out = output_neuron.forward(hidden_out);
+
+    // Store data for plotting
+    plot_input_spikes.push_back(in_tensor.data(0, 0));
+
+    // Neuron outputs
+    plot_hidden_spikes.push_back(hidden_out.data(0, 0));
+    plot_output_spikes.push_back(output_out.data(0, 0));
+
+    // Membrane potentials
+    plot_hidden_vmems.push_back(hidden_neuron.v_mem(0, 0));
+    plot_output_vmems.push_back(output_neuron.v_mem(0, 0));
   }
 
   // Visualization
-  ImGuiApp app("Spiking Neuron Output Visualization", 1200, 800);
+  ImGuiApp app("1-1-1 Spiking Network Visualization", 1200, 800);
   if (!app.initialize()) {
     cerr << "Failed to initialize ImGuiApp" << '\n';
     return 1;
   }
-  ImPlot::CreateContext();
+
+  CreateContext();
+
   app.run([&]() {
     Begin("Neuron Output");
-    if (ImPlot::BeginPlot("Spike Raster Plot", ImVec2(-1, 300))) {
-      ImPlot::SetupAxes("Time", "Neuron");
-      for (int n = 0; n < n_neurons; ++n) {
-        vector<float> spike_times;
-        for (int t = 0; t < n_steps; ++t) {
-          if (spikes[n][t] > 0.5F) {
-            spike_times.push_back((float)t);
-          }
-        }
-        if (!spike_times.empty()) {
-          vector<float> y(spike_times.size(), (float)n);
-          PlotScatter(("Neuron " + std::to_string(n)).c_str(), spike_times.data(), y.data(),
-                      (int)spike_times.size());
+
+    // Spike raster plot
+    if (BeginPlot("Spike Raster Plot", ImVec2(-1, 300))) {
+
+      SetupAxes("Time", "Neuron");
+
+      // Input neuron
+      vector<float> input_spike_times;
+      for (int t = 0; t < n_steps; ++t) {
+        if (plot_input_spikes[t] > 0.5F) {
+          input_spike_times.push_back((float)t);
         }
       }
+      if (!input_spike_times.empty()) {
+        vector<float> y(input_spike_times.size(), 0.0F);
+        PlotScatter("Input", input_spike_times.data(), y.data(), (int)input_spike_times.size());
+      }
+
+      // Hidden neuron
+      vector<float> hidden_spike_times;
+      for (int t = 0; t < n_steps; ++t) {
+        if (plot_hidden_spikes[t] > 0.5F) {
+          hidden_spike_times.push_back((float)t);
+        }
+      }
+      if (!hidden_spike_times.empty()) {
+        vector<float> y(hidden_spike_times.size(), 1.0F);
+        PlotScatter("Hidden", hidden_spike_times.data(), y.data(), (int)hidden_spike_times.size());
+      }
+
+      // Output neuron
+      vector<float> output_spike_times;
+      for (int t = 0; t < n_steps; ++t) {
+        if (plot_output_spikes[t] > 0.5F) {
+          output_spike_times.push_back((float)t);
+        }
+      }
+      if (!output_spike_times.empty()) {
+        vector<float> y(output_spike_times.size(), 2.0F);
+        PlotScatter("Output", output_spike_times.data(), y.data(), (int)output_spike_times.size());
+      }
+
       EndPlot();
     }
 
-    if (ImPlot::BeginPlot("Membrane Potential", ImVec2(-1, 300))) {
-      ImPlot::SetupAxes("Time", "V_mem");
-      for (int n_index = 0; n_index < n_neurons; ++n_index) {
-        PlotLine(("Neuron " + std::to_string(n_index)).c_str(), vmems[n_index].data(), n_steps);
-      }
+    // Membrane potential plot
+    if (BeginPlot("Membrane Potential", ImVec2(-1, 300))) {
+      SetupAxes("Time", "V_mem");
+      PlotLine("Hidden V_mem", plot_hidden_vmems.data(), n_steps);
+      PlotLine("Output V_mem", plot_output_vmems.data(), n_steps);
       EndPlot();
     }
     End();
   });
-  ImPlot::DestroyContext();
+  DestroyContext();
   return 0;
 }
