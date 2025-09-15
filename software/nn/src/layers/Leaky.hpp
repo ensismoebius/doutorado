@@ -55,6 +55,8 @@ public:
   Eigen::MatrixXf v_mem_pre_spike;
   /// @brief The core state of the neuron layer. Each element is one neuron's potential.
   Eigen::MatrixXf v_mem;
+  /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
+  Eigen::MatrixXf v_mem_t_minus_1;
 
   /**
    * @brief Construct a new Leaky object
@@ -91,6 +93,15 @@ public:
    * @param input The input current for this time step.
    */
   auto forward(const Tensor &input) -> Tensor override {
+
+    // snnTorch-like: persistent v_mem, decay, and reset on spike
+    if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
+        v_mem.cols() != input.data.cols()) {
+      v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
+    }
+
+    // Cache the membrane potential from the previous time step, v(t-1), for the backward pass.
+    v_mem_t_minus_1 = v_mem;
 
     // snnTorch-like: persistent v_mem, decay, and reset on spike
     if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
@@ -182,11 +193,45 @@ public:
                            voltage_threshold.data(0, 0); // This is already an array expression
     Eigen::MatrixXf surrogate_grad = (diff.array().abs() < (surrogate_window / 2.0F))
                                          .cast<float>(); // This is also an array expression
+    const Eigen::MatrixXf diff =
+        v_mem_pre_spike.array() - voltage_threshold.data(0, 0); // v_pre - V_th
+    const Eigen::MatrixXf surrogate_grad =
+        (diff.array().abs() < (surrogate_window / 2.0F)).cast<float>(); // ds/dv_pre
+
+    // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
+    // This is the starting point for calculating other gradients via the chain rule.
+    const Eigen::MatrixXf grad_v_pre = grad_output.data.array() * surrogate_grad.array();
+
+    // --- Gradient for voltage_threshold ---
+    // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) = -grad_v_pre
+    // Since V_th is a scalar, we sum the gradients from all neurons.
+    const float dL_dVth = -grad_v_pre.sum();
+    voltage_threshold.grad = Eigen::MatrixXf::Constant(1, 1, dL_dVth);
+
+    // --- Gradient for resistance ---
+    // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
+    const float R = resistance.data(0, 0);
+    const float C = capacitance;
+    const float tau = R * C;
+    if (tau > 1e-6) { // Avoid division by zero if R or C are zero
+      const float beta = std::exp(-dt / tau);
+      const float d_beta_dR = (beta * dt) / (C * R * R);
+
+      // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
+      const Eigen::MatrixXf dL_dbeta_matrix = grad_v_pre.array() * v_mem_t_minus_1.array();
+      const float dL_dbeta = dL_dbeta_matrix.sum();
+      const float dL_dR = dL_dbeta * d_beta_dR;
+      resistance.grad = Eigen::MatrixXf::Constant(1, 1, dL_dR);
+    } else {
+      resistance.grad = Eigen::MatrixXf::Zero(1, 1);
+    }
 
     // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
     // the gradient from the subsequent layer (`grad_output`) multiplied by this
     // local surrogate gradient.
     Eigen::MatrixXf grad_input = grad_output.data.array() * surrogate_grad.array();
+    // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
+    const Eigen::MatrixXf grad_input = grad_v_pre;
 
     return {grad_input};
   }
