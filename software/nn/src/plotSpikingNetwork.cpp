@@ -26,9 +26,9 @@ using std::vector;
 constexpr int n_steps = 200;
 constexpr float max_rate = 0.5F;
 constexpr float time_step = 1.0F;
-constexpr float resistence = 5.0F;
+constexpr float resistence = 1.0F;
 constexpr float capacitance = 1.0F;
-constexpr float v_threshold = 1.0F;
+constexpr float v_threshold = 2.0F;
 
 auto main() -> int {
 
@@ -39,18 +39,18 @@ auto main() -> int {
   Leaky hidden_neuron(time_step,   // dt
                       resistence,  // R
                       capacitance, // C
-                      v_threshold, // V_th
-                      true,        // is_leaky
-                      0.0F,        // V_reset
-                      1.0F         // V_rest
+                      v_threshold, // reset to zero or subtract threshold
+                      true,        // reset to zero
+                      0.0F,        // reset potential value
+                      0.5F         // surrogate gradient window
   );
   Leaky output_neuron(time_step,   // dt
                       resistence,  // R
                       capacitance, // C
-                      v_threshold, // V_th
-                      true,        // is_leaky
-                      0.0F,        // V_reset
-                      1.0F         // V_rest
+                      v_threshold, // reset to zero or subtract threshold
+                      true,        // reset to zero
+                      0.0F,        // reset potential value
+                      0.5F         // surrogate gradient window
   );
 
   // Data for plotting

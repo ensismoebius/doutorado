@@ -10,25 +10,50 @@
 #endif
 
 /**
- * @brief Leaky Integrate-and-Fire (LIF) neuron activation function.
- * Simulates the membrane potential update and spike generation.
+ * @brief A layer of Leaky Integrate-and-Fire (LIF) neurons, a fundamental component for Spiking
+ * Neural Networks (SNNs).
+ *
+ * This struct implements a layer of LIF neurons, which are a fundamental building
+ * block for Spiking Neural Networks (SNNs). The key characteristics of this
+ * implementation are:
+ *
+ * 1.  **Stateful**: The neuron's most important property, its membrane potential
+ *     (`v_mem`), is preserved across multiple calls to the `forward` function.
+ *     This allows it to integrate inputs over time.
+ *
+ * 2.  **Vectorized**: It uses the Eigen library to perform calculations on
+ *     entire matrices of neurons at once, which is much more efficient than
+ *     looping through each neuron individually.
+ *
+ * 3.  **Trainable**: It includes a `backward` pass that uses a surrogate
+ *     gradient, making it possible to train the network using backpropagation.
  */
 struct Leaky : public Module {
 public:
   auto params() -> std::vector<Tensor *> {
     return {&resistance, &voltage_threshold};
   }
-  // Parameters for LIF neuron
+  // --- Parameters for LIF neuron dynamics ---
+
+  /// @brief The simulation time step (dt).
   float dt = 1.0F;
-  Tensor resistance = Tensor(Eigen::MatrixXf::Constant(1, 1, 5.0F));
+  /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
+  Tensor resistance = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+  /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
   float capacitance = 1.0F;
-  Tensor voltage_threshold = Tensor(Eigen::MatrixXf::Constant(1, 1, 2.0F));
+  /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
+  Tensor voltage_threshold = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+  /// @brief Controls the reset mechanism after a spike.
   bool reset_zero = true;
-  float reset_potential = 0.0F;  // New: configurable reset value
-  float surrogate_window = 1.0F; // New: configurable surrogate window width
+  /// @brief The potential to reset to if `reset_zero` is true.
+  float reset_potential = 0.0F;
+  /// @brief Defines the region around the threshold where a surrogate gradient is non-zero.
+  float surrogate_window = 0.5F;
 
   // Persistent membrane potential (stateful, snnTorch-like)
-  Eigen::MatrixXf v_mem_cache;
+  /// @brief Caches the membrane potential *before* spike/reset for the backward pass.
+  Eigen::MatrixXf v_mem_pre_spike;
+  /// @brief The core state of the neuron layer. Each element is one neuron's potential.
   Eigen::MatrixXf v_mem;
 
   /**
@@ -41,12 +66,12 @@ public:
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    */
   Leaky(float dt_ = 1.0F,              // time step
-        float R_ = 5.0F,               // resistance
+        float R_ = 1.0F,               // resistance
         float C_ = 1.0F,               // capacitance
         float V_thresh_ = 1.0F,        // voltage threshold
         bool reset_zero_ = true,       // reset to zero or subtract threshold
         float reset_potential_ = 0.0F, // reset potential value
-        float surrogate_window_ = 1.0F // surrogate gradient window
+        float surrogate_window_ = 0.5F // surrogate gradient window
         )
       : dt(dt_),                                                       // time step
         resistance(Eigen::MatrixXf::Constant(1, 1, R_)),               // resistance
@@ -57,6 +82,14 @@ public:
         surrogate_window(surrogate_window_) // surrogate gradient window
   {}
 
+  /**
+   * @brief Simulates one time step of the neuron's dynamics.
+   *
+   * This function performs the "Leaky", "Integrate", "Fire", and "Reset"
+   * steps for an entire layer of neurons in a vectorized manner. It follows the
+   * discrete-time LIF neuron equation.
+   * @param input The input current for this time step.
+   */
   auto forward(const Tensor &input) -> Tensor override {
 
     // snnTorch-like: persistent v_mem, decay, and reset on spike
@@ -68,59 +101,93 @@ public:
     // Initialize output tensor
     Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
 
-    // Use exponential decay: beta = exp(-dt/tau)
+    // The membrane time constant (tau = R * C) determines how quickly potential leaks.
+    // Beta is the discrete-time decay factor derived from the continuous-time
+    // decay equation, representing the "leaky" nature of the neuron.
     float const tau = resistance.data(0, 0) * capacitance;
     float const beta = std::exp(-dt / tau);
 
-    // Update membrane potential with decay and scaled input
-    v_mem = v_mem * beta + resistance.data(0, 0) * input.data * dt;
-#ifdef DEBUG
-    printTensor(Tensor(v_mem), "Updated V_mem");
-#endif
+    // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
+    // is decayed by a factor of `beta`. If there were no input, the potential
+    // would exponentially decay toward its resting potential (0).
+    v_mem = v_mem * beta;
 
-    // Spike condition and reset
-    for (int i = 0; i < v_mem.rows(); ++i) {
-      for (int j = 0; j < v_mem.cols(); ++j) {
-        if (v_mem(i, j) > voltage_threshold.data(0, 0)) {
-          output(i, j) = 1.0F; // spike
-          if (reset_zero) {
-            v_mem(i, j) = reset_potential;
-          } else {
-            v_mem(i, j) = v_mem(i, j) - voltage_threshold.data(0, 0);
-          }
-        } else {
-          output(i, j) = 0.0F; // no spike
-        }
-      }
+    // 2. Integrate: The new input current (`input.data`) is added to the
+    // decayed membrane potential. This is the "integrate" part of the neuron's name.
+    v_mem = v_mem + input.data;
+
+    // 3. Cache: The potential is saved just before the spike check. This is for
+    // the `backward` pass, as the surrogate gradient is calculated based on this
+    // pre-spike potential.
+    v_mem_pre_spike = v_mem;
+#ifdef DEBUG
+    {
+      std::ostringstream oss;
+      oss << "Updated V_mem - " << static_cast<const void *>(this);
+      printTensor(Tensor(v_mem), oss.str());
+    }
+#endif
+    // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
+    // This is a non-differentiable step function, which is why we need surrogate
+    // gradients for training.
+    output = (v_mem.array() > voltage_threshold.data(0, 0)).cast<float>();
+
+    // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
+    if (reset_zero) {
+      // Hard Reset: The potential is reset to a fixed value, `reset_potential`
+      // (which is often 0).
+      v_mem = (output.array() == 1.0F)
+                  .select(                       //
+                      Eigen::MatrixXf::Constant( //
+                          v_mem.rows(),          //
+                          v_mem.cols(),          //
+                          reset_potential        //
+                          ),
+                      v_mem //
+                  );
+    } else {
+      // Soft Reset: The threshold voltage is subtracted from the membrane
+      // potential. This retains any "excess" potential that was accumulated
+      // above the threshold.
+      v_mem = v_mem.array() - output.array() * voltage_threshold.data(0, 0);
     }
 
-    v_mem_cache = v_mem; // Cache for backward if needed
     return {output};
   }
 
   /**
    * @brief Backward pass for Leaky neuron.
-   * Implements surrogate gradient descent with Hard Tanh.
+   *
+   * The Problem: The derivative of the spike function in the forward pass is a
+   * step function (zero almost everywhere, and infinite at the threshold). This
+   * prevents learning via backpropagation, a problem often called the "dead
+   * neuron problem".
+   *
+   * The Solution: We use a **surrogate gradient**. Instead of the true (and
+   * useless) derivative, we substitute a "fake" or "surrogate" derivative that
+   * has a non-zero value in a small region around the threshold. This allows a
+   * gradient to flow back through the neuron, enabling training.
    *
    * @param grad_output Gradient from the next layer
    * @return Tensor Gradient w.r.t. input
    */
   auto backward(const Tensor &grad_output) -> Tensor override {
 
-    // Surrogate Gradient Descent with Hard Tanh
-    // d spike/d V_mem ≈ 1 if |V_mem - voltage_threshold| < surrogate_window, else 0
-    Eigen::MatrixXf grad_input =
-        Eigen::MatrixXf::Zero(grad_output.data.rows(), grad_output.data.cols());
+    // --- Surrogate Gradient Calculation (Boxcar Function) ---
+    // This code uses a simple "boxcar" or rectangular function as the surrogate.
+    // The local gradient is treated as 1.0 if the pre-spike potential was
+    // within a small `surrogate_window` around the threshold, and 0.0 otherwise.
+    // This means that learning only occurs for neurons that were "close to spiking".
+    Eigen::MatrixXf diff = v_mem_pre_spike.array() -
+                           voltage_threshold.data(0, 0); // This is already an array expression
+    Eigen::MatrixXf surrogate_grad = (diff.array().abs() < (surrogate_window / 2.0F))
+                                         .cast<float>(); // This is also an array expression
 
-    for (int i = 0; i < grad_output.data.rows(); ++i) {
-      for (int j = 0; j < grad_output.data.cols(); ++j) {
-        float const prev_v_mem = v_mem_cache(i, j); // Typo fixed
-        float const diff = prev_v_mem - voltage_threshold.data(0, 0);
-        float const surrogate_grad =
-            (std::abs(diff) < surrogate_window) ? 1.0F : 0.0F; // Configurable window
-        grad_input(i, j) = grad_output.data(i, j) * surrogate_grad;
-      }
-    }
+    // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
+    // the gradient from the subsequent layer (`grad_output`) multiplied by this
+    // local surrogate gradient.
+    Eigen::MatrixXf grad_input = grad_output.data.array() * surrogate_grad.array();
+
     return {grad_input};
   }
 };
