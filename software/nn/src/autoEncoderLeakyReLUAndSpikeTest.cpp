@@ -79,7 +79,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int hidden_dim4 = 31;         // Fourth hidden layer dimension
   constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 5;       // bottleneck layer size
-  constexpr int epochs = 10000; // Number of training epochs in which n_samples is presented
+  constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
   const string decoder_weights_file_path =
@@ -90,9 +90,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // Parameters for synthetic spike train
   constexpr int n_samples = 5;      // Number of samples for synthetic data the higher the better
-  constexpr int n_steps = 10;       // Number of time steps in the spike train
-  constexpr float max_rate = 1.0F;  // Maximum firing rate
+  constexpr int n_steps = 200;      // Number of time steps in the spike train
+  constexpr float max_rate = 0.5F;  // Maximum firing rate
   constexpr float time_step = 1.0F; // Time step duration
+
+  constexpr float resistence = 3.0F;  // Resistance R
+  constexpr float capacitance = 2.0F; // Capacitance C
+  constexpr float v_threshold = 1.0F; // Membrane potential threshold
 
   // Create input and target tensors
   vector<Tensor> inputs;
@@ -104,35 +108,53 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== Model Definition ====
 
-  // Encoder layers
+  ///////////////////////////////
+  //////// Encoder layers ///////
+  ///////////////////////////////
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
-  auto encoder_act1 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act1 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-  auto encoder_act2 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act2 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-  auto encoder_act3 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act3 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-  auto encoder_act4 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act4 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-  auto encoder_act5 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act5 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-  auto encoder_act6 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto encoder_act6 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
 
-  // Decoder layers
+  ///////////////////////////////
+  //////// Decoder layers ///////
+  ///////////////////////////////
   auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-  auto decoder_act1 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act1 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-  auto decoder_act2 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act2 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-  auto decoder_act3 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act3 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-  auto decoder_act4 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act4 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-  auto decoder_act5 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act5 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
   auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
-  auto decoder_act6 = make_shared<Leaky>(1.0F, 5.0F, 1.0F, 1.0F, true, 0.0F, 1.0F);
+  auto decoder_act6 =
+      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
 
-  // ==== Loss Layer ====
+  //////////////////////////
+  // ==== Loss Layer ====///
+  //////////////////////////
   auto mse_loss = std::make_shared<MSELoss>();
 
   Sequential encoders({

@@ -26,9 +26,9 @@ using std::vector;
 constexpr int n_steps = 200;
 constexpr float max_rate = 0.5F;
 constexpr float time_step = 1.0F;
-constexpr float resistence = 1.0F;
-constexpr float capacitance = 1.0F;
-constexpr float v_threshold = 2.0F;
+constexpr float resistence = 3.0F;
+constexpr float capacitance = 2.0F;
+constexpr float v_threshold = 1.0F;
 
 auto main() -> int {
 

@@ -189,10 +189,6 @@ public:
     // The local gradient is treated as 1.0 if the pre-spike potential was
     // within a small `surrogate_window` around the threshold, and 0.0 otherwise.
     // This means that learning only occurs for neurons that were "close to spiking".
-    Eigen::MatrixXf diff = v_mem_pre_spike.array() -
-                           voltage_threshold.data(0, 0); // This is already an array expression
-    Eigen::MatrixXf surrogate_grad = (diff.array().abs() < (surrogate_window / 2.0F))
-                                         .cast<float>(); // This is also an array expression
     const Eigen::MatrixXf diff =
         v_mem_pre_spike.array() - voltage_threshold.data(0, 0); // v_pre - V_th
     const Eigen::MatrixXf surrogate_grad =
@@ -229,7 +225,6 @@ public:
     // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
     // the gradient from the subsequent layer (`grad_output`) multiplied by this
     // local surrogate gradient.
-    Eigen::MatrixXf grad_input = grad_output.data.array() * surrogate_grad.array();
     // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
     const Eigen::MatrixXf grad_input = grad_v_pre;
 
