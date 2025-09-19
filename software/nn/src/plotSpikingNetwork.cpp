@@ -86,15 +86,15 @@ auto main() -> int {
   }
 
   // Visualization
-  ImGuiApp app("1-1-1 Spiking Network Visualization", 1200, 800);
-  if (!app.initialize()) {
+  ImGuiApp window("1-1-1 Spiking Network Visualization", 1200, 800);
+  if (!window.initialize()) {
     cerr << "Failed to initialize ImGuiApp" << '\n';
     return 1;
   }
 
   CreateContext();
 
-  app.run([&]() {
+  window.run([&]() {
     Begin("Neuron Output");
 
     // Spike raster plot
