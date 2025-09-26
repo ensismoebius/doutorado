@@ -72,13 +72,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Network parameters
   constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
   constexpr float target_loss = 1.0e-14F; // Target loss value for early stopping
-  constexpr int input_dim = 500;          // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 250;        // First hidden layer dimension
-  constexpr int hidden_dim2 = 125;        // Second hidden layer dimension
-  constexpr int hidden_dim3 = 63;         // Third hidden layer dimension
-  constexpr int hidden_dim4 = 31;         // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 5;       // bottleneck layer size
+  constexpr int input_dim = 8;            // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 7;          // First hidden layer dimension
+  constexpr int hidden_dim2 = 6;          // Second hidden layer dimension
+  constexpr int hidden_dim3 = 5;          // Third hidden layer dimension
+  constexpr int hidden_dim4 = 4;          // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 4;          // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 4;       // bottleneck layer size
   constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
@@ -89,68 +89,67 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int batch_size = 32; // Batch size for training
 
   // Parameters for synthetic spike train
-  constexpr int n_samples = 5;      // Number of samples for synthetic data the higher the better
-  constexpr int n_steps = 200;      // Number of time steps in the spike train
-  constexpr float max_rate = 0.5F;  // Maximum firing rate
-  constexpr float time_step = 1.0F; // Time step duration
+  constexpr int n_samples = 10;       // Number of samples for synthetic data the higher the better
+  constexpr int n_steps = 100;        // Number of time steps in the spike train
+  constexpr float max_rate = 500.0F;  // Maximum firing rate
+  constexpr float time_step = 0.001F; // Time step duration
 
-  constexpr float resistence = 3.0F;  // Resistance R
-  constexpr float capacitance = 2.0F; // Capacitance C
-  constexpr float v_threshold = 1.0F; // Membrane potential threshold
+  constexpr float resist = 5.0F;      // Resistance R
+  constexpr float capct = 1.0F;       // Capacitance C
+  constexpr float v_thresh = 0.0001F; // Membrane potential threshold
 
   // Create input and target tensors
   vector<Tensor> inputs;
   vector<Tensor> targets;
 
   // Generate synthetic spike data
-  tie(inputs, targets) =
-      generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
+  // tie(inputs, targets) =
+  //     generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
+  tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
 
   // ==== Model Definition ====
 
   ///////////////////////////////
   //////// Encoder layers ///////
   ///////////////////////////////
-  auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
-  auto encoder_act1 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-  auto encoder_act2 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-  auto encoder_act3 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-  auto encoder_act4 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-  auto encoder_act5 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-  auto encoder_act6 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
+  auto enc1 = make_shared<Linear>(input_dim, hidden_dim1);
+  auto enc_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto enc2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
+  auto enc_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto enc3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
+  auto enc_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto enc4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
+  auto enc_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto enc5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
+  auto enc_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto enc6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
+  auto enc_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
 
   ///////////////////////////////
   //////// Decoder layers ///////
   ///////////////////////////////
-  auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-  auto decoder_act1 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-  auto decoder_act2 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-  auto decoder_act3 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-  auto decoder_act4 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-  auto decoder_act5 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
-  auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
-  auto decoder_act6 =
-      make_shared<Leaky>(time_step, resistence, capacitance, v_threshold, true, 0.0F, 0.5F);
+  auto dec1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
+  auto dec_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto dec2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
+  auto dec_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto dec3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
+  auto dec_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto dec4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
+  auto dec_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto dec5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
+  auto dec_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+
+  auto dec6 = make_shared<Linear>(hidden_dim1, input_dim);
+  auto dec_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
 
   //////////////////////////
   // ==== Loss Layer ====///
@@ -158,21 +157,21 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   auto mse_loss = std::make_shared<MSELoss>();
 
   Sequential encoders({
-      encoder1, encoder_act1, // First encoder block
-      encoder2, encoder_act2, // Second encoder block
-      encoder3, encoder_act3, // Third encoder block
-      encoder4, encoder_act4, // Fourth encoder block
-      encoder5, encoder_act5, // Fifth encoder block
-      encoder6, encoder_act6, // Sixth encoder block (to bottleneck)
+      enc1, enc_act1, // First encoder block
+      enc2, enc_act2, // Second encoder block
+      enc3, enc_act3, // Third encoder block
+      enc4, enc_act4, // Fourth encoder block
+      enc5, enc_act5, // Fifth encoder block
+      enc6, enc_act6, // Sixth encoder block (to bottleneck)
   });
 
   Sequential decoders({
-      decoder1, decoder_act1, // First decoder block
-      decoder2, decoder_act2, // Second decoder block
-      decoder3, decoder_act3, // Third decoder block
-      decoder4, decoder_act4, // Fourth decoder block
-      decoder5, decoder_act5, // Fifth decoder block
-      decoder6, decoder_act6  // Final decoder layer (no activation)
+      dec1, dec_act1, // First decoder block
+      dec2, dec_act2, // Second decoder block
+      dec3, dec_act3, // Third decoder block
+      dec4, dec_act4, // Fourth decoder block
+      dec5, dec_act5, // Fifth decoder block
+      dec6, dec_act6  // Final decoder layer (no activation)
   });
 
   // ==== Initialization ====
@@ -187,20 +186,20 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     std::cerr << "Failed to load weights, initializing with Kaiming initialization\n";
 
     // Initialize encoder weights and biases
-    kaimingSNNInitializer(encoder1);
-    kaimingSNNInitializer(encoder2);
-    kaimingSNNInitializer(encoder3);
-    kaimingSNNInitializer(encoder4);
-    kaimingSNNInitializer(encoder5);
-    kaimingSNNInitializer(encoder6);
+    kaimingSNNInitializer(enc1);
+    kaimingSNNInitializer(enc2);
+    kaimingSNNInitializer(enc3);
+    kaimingSNNInitializer(enc4);
+    kaimingSNNInitializer(enc5);
+    kaimingSNNInitializer(enc6);
 
     // Initialize decoder weights and biases if no saved weights exist
-    kaimingSNNInitializer(decoder1);
-    kaimingSNNInitializer(decoder2);
-    kaimingSNNInitializer(decoder3);
-    kaimingSNNInitializer(decoder4);
-    kaimingSNNInitializer(decoder5);
-    kaimingSNNInitializer(decoder6);
+    kaimingSNNInitializer(dec1);
+    kaimingSNNInitializer(dec2);
+    kaimingSNNInitializer(dec3);
+    kaimingSNNInitializer(dec4);
+    kaimingSNNInitializer(dec5);
+    kaimingSNNInitializer(dec6);
   }
 
   // ==== Optimizer ====
