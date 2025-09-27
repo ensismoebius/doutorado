@@ -258,7 +258,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     // Print progress
     constexpr int progress_interval = 1; // Print progress every N epochs
     if (epoch % progress_interval == 0) {
-      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r";
+      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << std::flush;
     }
 
     // Stop training when target loss is achieved
