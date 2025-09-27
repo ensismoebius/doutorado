@@ -72,13 +72,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Network parameters
   constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
   constexpr float target_loss = 1.0e-14F; // Target loss value for early stopping
-  constexpr int input_dim = 8;            // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 7;          // First hidden layer dimension
-  constexpr int hidden_dim2 = 6;          // Second hidden layer dimension
-  constexpr int hidden_dim3 = 5;          // Third hidden layer dimension
-  constexpr int hidden_dim4 = 4;          // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 4;          // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 4;       // bottleneck layer size
+  constexpr int input_dim = 100;          // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 80;         // First hidden layer dimension
+  constexpr int hidden_dim2 = 60;         // Second hidden layer dimension
+  constexpr int hidden_dim3 = 40;         // Third hidden layer dimension
+  constexpr int hidden_dim4 = 20;         // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 15;         // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 10;      // bottleneck layer size
   constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
