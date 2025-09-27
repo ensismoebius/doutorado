@@ -2,8 +2,11 @@
 #define LIF_HPP
 
 #include "../tensor/Tensor.hpp"
+#include "SurrogateGradients.hpp"
 #include "layers/Module.hpp"
 #include <Eigen/Dense>
+#include <functional>
+#include <utility>
 
 #ifdef DEBUG
 #include "util/printTensor.hpp"
@@ -58,6 +61,9 @@ public:
   /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
   Eigen::MatrixXf v_mem_t_minus_1;
 
+  /// @brief Function pointer for the surrogate gradient calculation.
+  std::function<Eigen::MatrixXf(const Eigen::MatrixXf &, float, float)> surrogate_gradient_function;
+
   /**
    * @brief Construct a new Leaky object
    *
@@ -67,22 +73,23 @@ public:
    * @param V_thresh_ Voltage threshold
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    */
-  Leaky(float dt_ = 1.0F,              // time step
-        float R_ = 1.0F,               // resistance
-        float C_ = 1.0F,               // capacitance
-        float V_thresh_ = 1.0F,        // voltage threshold
-        bool reset_zero_ = true,       // reset to zero or subtract threshold
-        float reset_potential_ = 0.0F, // reset potential value
-        float surrogate_window_ = 0.5F // surrogate gradient window
-        )
+  Leaky(float dt_ = 1.0F,               // time step
+        float R_ = 1.0F,                // resistance
+        float C_ = 1.0F,                // capacitance
+        float V_thresh_ = 1.0F,         // voltage threshold
+        bool reset_zero_ = true,        // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F,  // reset potential value
+        float surrogate_window_ = 0.5F, // surrogate gradient window
+        std::function<Eigen::MatrixXf(const Eigen::MatrixXf &, float, float)> surrogate_func =
+            SurrogateGradients::exponential)
       : dt(dt_),                                                       // time step
         resistance(Eigen::MatrixXf::Constant(1, 1, R_)),               // resistance
         capacitance(C_),                                               // capacitance
         voltage_threshold(Eigen::MatrixXf::Constant(1, 1, V_thresh_)), // voltage threshold
-        reset_zero(reset_zero_),            // reset to zero or subtract threshold
-        reset_potential(reset_potential_),  // reset potential value
-        surrogate_window(surrogate_window_) // surrogate gradient window
-  {}
+        reset_zero(reset_zero_),             // reset to zero or subtract threshold
+        reset_potential(reset_potential_),   // reset potential value
+        surrogate_window(surrogate_window_), // surrogate gradient window
+        surrogate_gradient_function(std::move(surrogate_func)) {}
 
   /**
    * @brief Simulates one time step of the neuron's dynamics.
@@ -184,15 +191,9 @@ public:
    */
   auto backward(const Tensor &grad_output) -> Tensor override {
 
-    // --- Surrogate Gradient Calculation (Exponential / SuperSpike) ---
-    // A smoother surrogate gradient that often performs better than the boxcar function.
-    // The gradient is an exponential decay of the distance from the threshold.
-    // The 'surrogate_window' parameter here acts as a sharpness parameter (alpha).
-    const float sharpness = surrogate_window;
-    const Eigen::MatrixXf diff_abs =
-        (v_mem_pre_spike.array() - voltage_threshold.data(0, 0)).abs();
-    const Eigen::MatrixXf surrogate_grad =
-        (1.0F / sharpness) * ((-diff_abs / sharpness).array().exp());
+    // --- Surrogate Gradient Calculation ---
+    const Eigen::MatrixXf surrogate_grad = surrogate_gradient_function(
+        v_mem_pre_spike, voltage_threshold.data(0, 0), surrogate_window);
 
     // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
     // This is the starting point for calculating other gradients via the chain rule.
