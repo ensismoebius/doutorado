@@ -184,15 +184,15 @@ public:
    */
   auto backward(const Tensor &grad_output) -> Tensor override {
 
-    // --- Surrogate Gradient Calculation (Boxcar Function) ---
-    // This code uses a simple "boxcar" or rectangular function as the surrogate.
-    // The local gradient is treated as 1.0 if the pre-spike potential was
-    // within a small `surrogate_window` around the threshold, and 0.0 otherwise.
-    // This means that learning only occurs for neurons that were "close to spiking".
-    const Eigen::MatrixXf diff =
-        v_mem_pre_spike.array() - voltage_threshold.data(0, 0); // v_pre - V_th
+    // --- Surrogate Gradient Calculation (Exponential / SuperSpike) ---
+    // A smoother surrogate gradient that often performs better than the boxcar function.
+    // The gradient is an exponential decay of the distance from the threshold.
+    // The 'surrogate_window' parameter here acts as a sharpness parameter (alpha).
+    const float sharpness = surrogate_window;
+    const Eigen::MatrixXf diff_abs =
+        (v_mem_pre_spike.array() - voltage_threshold.data(0, 0)).abs();
     const Eigen::MatrixXf surrogate_grad =
-        (diff.array().abs() < (surrogate_window / 2.0F)).cast<float>(); // ds/dv_pre
+        (1.0F / sharpness) * ((-diff_abs / sharpness).array().exp());
 
     // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
     // This is the starting point for calculating other gradients via the chain rule.
