@@ -7,6 +7,7 @@
 #include "util/synthetic_spike_data.hpp"
 #include <iostream>
 #include <vector>
+#include <memory>
 
 using ImGui::Begin;
 using ImGui::End;
@@ -42,7 +43,7 @@ auto main() -> int {
                       v_threshold, // reset to zero or subtract threshold
                       true,        // reset to zero
                       0.0F,        // reset potential value
-                      0.5F         // surrogate gradient window
+                      std::make_shared<ExponentialSurrogate>(0.5F)         // surrogate gradient
   );
   Leaky output_neuron(time_step,   // dt
                       resistence,  // R
@@ -50,7 +51,7 @@ auto main() -> int {
                       v_threshold, // reset to zero or subtract threshold
                       true,        // reset to zero
                       0.0F,        // reset potential value
-                      0.5F         // surrogate gradient window
+                      std::make_shared<ExponentialSurrogate>(0.5F)         // surrogate gradient
   );
 
   // Data for plotting

@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <tuple>
 
 using Eigen::MatrixXf;
@@ -72,13 +73,13 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Network parameters
   constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
   constexpr float target_loss = 1.0e-14F; // Target loss value for early stopping
-  constexpr int input_dim = 100;          // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 80;         // First hidden layer dimension
-  constexpr int hidden_dim2 = 60;         // Second hidden layer dimension
-  constexpr int hidden_dim3 = 40;         // Third hidden layer dimension
-  constexpr int hidden_dim4 = 20;         // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 15;         // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 10;      // bottleneck layer size
+  constexpr int input_dim = 10000;        // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 7000;       // First hidden layer dimension
+  constexpr int hidden_dim2 = 5000;       // Second hidden layer dimension
+  constexpr int hidden_dim3 = 2500;       // Third hidden layer dimension
+  constexpr int hidden_dim4 = 500;        // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 100;        // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 20;      // bottleneck layer size
   constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
@@ -113,43 +114,55 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   //////// Encoder layers ///////
   ///////////////////////////////
   auto enc1 = make_shared<Linear>(input_dim, hidden_dim1);
-  auto enc_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto enc2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-  auto enc_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto enc3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-  auto enc_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto enc4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-  auto enc_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto enc5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-  auto enc_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto enc6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-  auto enc_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto enc_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   ///////////////////////////////
   //////// Decoder layers ///////
   ///////////////////////////////
   auto dec1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-  auto dec_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act1 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto dec2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-  auto dec_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act2 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto dec3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-  auto dec_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act3 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto dec4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-  auto dec_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act4 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto dec5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-  auto dec_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act5 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   auto dec6 = make_shared<Linear>(hidden_dim1, input_dim);
-  auto dec_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F, 1.0F);
+  auto dec_act6 = make_shared<Leaky>(time_step, resist, capct, v_thresh, true, 0.0F,
+                                     std::make_shared<ExponentialSurrogate>(1.0F));
 
   //////////////////////////
   // ==== Loss Layer ====///

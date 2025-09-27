@@ -8,6 +8,7 @@
 #include "tensor/Tensor.hpp"
 #include <Eigen/Dense>
 #include <gtest/gtest.h>
+#include <memory>
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward) {
   MSELoss mse;
@@ -61,7 +62,7 @@ TEST(LinearLayerTest, ForwardSimple) {
 
 // Teste para Leaky (LIF)
 TEST(LeakyLayerTest, ForwardSpikeAndReset) {
-  Leaky leaky(/*dt=*/1.0F, /*R=*/5.0F, /*C=*/1.0F, /*V_thresh=*/2.0F, /*reset_zero=*/true);
+  Leaky leaky(/*dt=*/1.0F, /*R=*/5.0F, /*C=*/1.0F, /*V_thresh=*/2.0F, /*reset_zero=*/true, 0.0F, std::make_shared<ExponentialSurrogate>());
   Eigen::MatrixXf input(1, 1);
   input << 3.0F; // Acima do threshold
   Tensor in_tensor(input);
@@ -74,7 +75,7 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset) {
 
 // Teste para Leaky sem reset para zero
 TEST(LeakyLayerTest, ForwardSpikeNoResetZero) {
-  Leaky leaky(/*dt=*/1.0F, /*R=*/5.0F, /*C=*/1.0F, /*V_thresh=*/2.0F, /*reset_zero=*/false);
+  Leaky leaky(/*dt=*/1.0F, /*R=*/5.0F, /*C=*/1.0F, /*V_thresh=*/2.0F, /*reset_zero=*/false, 0.0F, std::make_shared<ExponentialSurrogate>());
   Eigen::MatrixXf input(1, 1);
   input << 3.0F; // Acima do threshold
   Tensor in_tensor(input);
