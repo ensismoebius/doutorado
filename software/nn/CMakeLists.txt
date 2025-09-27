@@ -22,4 +22,6 @@ include(Imgui.cmake)
 
 include(Implot.cmake)
 
+include(EigenParallel.cmake)
+
 include(Main.cmake)

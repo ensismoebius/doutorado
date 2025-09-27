@@ -30,3 +30,5 @@ target_include_directories(
 
 include(GoogleTest)
 gtest_discover_tests(layers_gtest)
+
+configure_eigen_parallel_target(layers_gtest)

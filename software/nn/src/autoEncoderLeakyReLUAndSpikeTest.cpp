@@ -234,8 +234,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     // Create batches
     auto batches = create_batches(inputs, targets, batch_size);
 
-// Parallelize batch processing using OpenMP
-#pragma omp parallel for schedule(dynamic) reduction(min : epoch_loss)
     for (const auto &batch : batches) {
       // For autoencoder, the target is the input itself
       mse_loss->set_target(batch.inputs);
@@ -245,22 +243,19 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       Tensor decoded = decoders.forward(encoded);
       Tensor loss_tensor = mse_loss->forward(decoded);
 
-#pragma omp critical
-      {
-        // Compute gradients using the improved MSELoss backward pass
-        Tensor grad_loss = mse_loss->backward(decoded);
+      // Compute gradients using the improved MSELoss backward pass
+      Tensor grad_loss = mse_loss->backward(decoded);
 
-        // Backward pass through decoder first, then encoder
-        Tensor decoder_grad = decoders.backward(grad_loss);
-        encoders.backward(decoder_grad);
+      // Backward pass through decoder first, then encoder
+      Tensor decoder_grad = decoders.backward(grad_loss);
+      encoders.backward(decoder_grad);
 
-        // Update parameters
-        optimizer.step(params);
+      // Update parameters
+      optimizer.step(params);
 
-        // Track best loss in epoch
-        float tmp = loss_tensor.data(0, 0);
-        epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
-      } // End of critical section
+      // Track best loss in epoch
+      float tmp = loss_tensor.data(0, 0);
+      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG

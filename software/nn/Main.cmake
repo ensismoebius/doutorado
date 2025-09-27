@@ -1,4 +1,3 @@
-
 add_subdirectory(${CNPY_DIR})
 
 # Add subdirectories for all testable modules
@@ -47,6 +46,9 @@ target_include_directories(autoEncoderLeakyReLUAndSpikeTest
         ${OpenMP_INCLUDE_DIRS}
 )
 
+# Configure Eigen parallelism for the target
+configure_eigen_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
+
 # -------------------------------------
 # Add executable target for auto-encoder with LeakyReLU test
 # -------------------------------------
@@ -85,6 +87,9 @@ target_include_directories(autoEncoderLeakyReLUTest
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
 )
+
+# Configure Eigen parallelism for the target
+configure_eigen_parallel_target(autoEncoderLeakyReLUTest)
 
 # -------------------------------------
 # Add executable target for plotSpikingNetwork.cpp
@@ -154,3 +159,6 @@ target_include_directories(plotSpikingNetwork
         ${IMPLOT_DIR}
         ${GLFW_INCLUDE_DIRS}
 )
+
+# Configure Eigen parallelism for the target
+configure_eigen_parallel_target(plotSpikingNetwork)
