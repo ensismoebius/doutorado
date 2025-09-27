@@ -104,9 +104,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   vector<Tensor> targets;
 
   // Generate synthetic spike data
-  // tie(inputs, targets) =
-  //     generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
-  tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
+  tie(inputs, targets) =
+      generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
+  // tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
 
   // ==== Model Definition ====
 
