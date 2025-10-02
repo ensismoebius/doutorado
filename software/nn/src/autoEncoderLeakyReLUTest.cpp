@@ -78,18 +78,18 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int bottleneck_dim = 5;       // bottleneck layer size
   constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
-      "weights/encoder_spike_model_weights.npz"; // Model weights file
+      "weights/encoder_model_weights.npz"; // Model weights file
   const string decoder_weights_file_path =
-      "weights/decoder_spike_model_weights.npz"; // Model weights file
+      "weights/decoder_model_weights.npz"; // Model weights file
 
   // Batch parameters
   constexpr int batch_size = 32; // Batch size for training
 
   // Parameters for synthetic spike train
-  constexpr int n_samples = 10;       // Number of samples for synthetic data the higher the better
-  constexpr int n_steps = 100;        // Number of time steps in the spike train
-  constexpr float max_rate = 500.0F;  // Maximum firing rate
-  constexpr float time_step = 0.001F; // Time step duration
+  constexpr int n_samples = 5;      // Number of samples for synthetic data the higher the better
+  constexpr int n_steps = 10;       // Number of time steps in the spike train
+  constexpr float max_rate = 1.0F;  // Maximum firing rate
+  constexpr float time_step = 1.0F; // Time step duration
 
   // Create input and target tensors
   vector<Tensor> inputs;
@@ -196,8 +196,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     // Create batches
     auto batches = create_batches(inputs, targets, batch_size);
 
-// Parallelize batch processing using OpenMP
-#pragma omp parallel for schedule(dynamic) reduction(min : epoch_loss)
+    // Parallelize batch processing using OpenMP
     for (const auto &batch : batches) {
       // For autoencoder, the target is the input itself
       mse_loss->set_target(batch.inputs);
@@ -207,22 +206,19 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
       Tensor decoded = decoders.forward(encoded);
       Tensor loss_tensor = mse_loss->forward(decoded);
 
-#pragma omp critical
-      {
-        // Compute gradients using the improved MSELoss backward pass
-        Tensor grad_loss = mse_loss->backward(decoded);
+      // Compute gradients using the improved MSELoss backward pass
+      Tensor grad_loss = mse_loss->backward(decoded);
 
-        // Backward pass through decoder first, then encoder
-        Tensor decoder_grad = decoders.backward(grad_loss);
-        encoders.backward(decoder_grad);
+      // Backward pass through decoder first, then encoder
+      Tensor decoder_grad = decoders.backward(grad_loss);
+      encoders.backward(decoder_grad);
 
-        // Update parameters
-        optimizer.step(params);
+      // Update parameters
+      optimizer.step(params);
 
-        // Track best loss in epoch
-        float tmp = loss_tensor.data(0, 0);
-        epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
-      } // End of critical section
+      // Track best loss in epoch
+      float tmp = loss_tensor.data(0, 0);
+      epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
