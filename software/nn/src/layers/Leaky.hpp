@@ -2,8 +2,8 @@
 #define LIF_HPP
 
 #include "../tensor/Tensor.hpp"
-#include "layers/Module.hpp"
 #include "SurrogateGradient.hpp"
+#include "layers/Module.hpp"
 #include <Eigen/Dense>
 #include <memory>
 #include <utility>
@@ -36,26 +36,35 @@ public:
   auto params() -> std::vector<Tensor *> {
     return {&resistance, &voltage_threshold};
   }
+
   // --- Parameters for LIF neuron dynamics ---
 
   /// @brief The simulation time step (dt).
   float dt = 1.0F;
+
   /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
   Tensor resistance = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+
   /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
   float capacitance = 1.0F;
+
   /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
   Tensor voltage_threshold = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+
   /// @brief Controls the reset mechanism after a spike.
   bool reset_zero = true;
+
   /// @brief The potential to reset to if `reset_zero` is true.
   float reset_potential = 0.0F;
 
   // Persistent membrane potential (stateful, snnTorch-like)
+
   /// @brief Caches the membrane potential *before* spike/reset for the backward pass.
   Eigen::MatrixXf v_mem_pre_spike;
+
   /// @brief The core state of the neuron layer. Each element is one neuron's potential.
   Eigen::MatrixXf v_mem;
+
   /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
   Eigen::MatrixXf v_mem_t_minus_1;
 
@@ -72,19 +81,20 @@ public:
    * @param reset_zero_ Whether to reset membrane potential to zero after spike
    * @param surrogate_grad The surrogate gradient implementation to use.
    */
-  Leaky(float dt_ = 1.0F,               // time step
-        float R_ = 1.0F,                // resistance
-        float C_ = 1.0F,                // capacitance
-        float V_thresh_ = 1.0F,         // voltage threshold
-        bool reset_zero_ = true,        // reset to zero or subtract threshold
-        float reset_potential_ = 0.0F,  // reset potential value
-        std::shared_ptr<ISurrogateGradient> surrogate_grad = std::make_shared<ExponentialSurrogate>())
+  Leaky(
+      float dt_ = 1.0F,              // time step
+      float R_ = 1.0F,               // resistance
+      float C_ = 1.0F,               // capacitance
+      float V_thresh_ = 1.0F,        // voltage threshold
+      bool reset_zero_ = true,       // reset to zero or subtract threshold
+      float reset_potential_ = 0.0F, // reset potential value
+      std::shared_ptr<ISurrogateGradient> surrogate_grad = std::make_shared<ExponentialSurrogate>())
       : dt(dt_),                                                       // time step
         resistance(Eigen::MatrixXf::Constant(1, 1, R_)),               // resistance
         capacitance(C_),                                               // capacitance
         voltage_threshold(Eigen::MatrixXf::Constant(1, 1, V_thresh_)), // voltage threshold
-        reset_zero(reset_zero_),             // reset to zero or subtract threshold
-        reset_potential(reset_potential_),   // reset potential value
+        reset_zero(reset_zero_),           // reset to zero or subtract threshold
+        reset_potential(reset_potential_), // reset potential value
         surrogate_gradient(std::move(surrogate_grad)) {}
 
   /**
@@ -97,21 +107,6 @@ public:
    */
   auto forward(const Tensor &input) -> Tensor override {
 
-    // snnTorch-like: persistent v_mem, decay, and reset on spike
-    if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
-        v_mem.cols() != input.data.cols()) {
-      v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
-    }
-
-    // Cache the membrane potential from the previous time step, v(t-1), for the backward pass.
-    v_mem_t_minus_1 = v_mem;
-
-    // snnTorch-like: persistent v_mem, decay, and reset on spike
-    if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
-        v_mem.cols() != input.data.cols()) {
-      v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
-    }
-
     // Initialize output tensor
     Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
 
@@ -120,6 +115,15 @@ public:
     // decay equation, representing the "leaky" nature of the neuron.
     float const tau = resistance.data(0, 0) * capacitance;
     float const beta = std::exp(-dt / tau);
+
+    // snnTorch-like: persistent v_mem, decay, and reset on spike
+    if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
+        v_mem.cols() != input.data.cols()) {
+      v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
+    }
+
+    // Cache the membrane potential from the previous time step, v(t-1), for the backward pass.
+    v_mem_t_minus_1 = v_mem;
 
     // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
     // is decayed by a factor of `beta`. If there were no input, the potential
@@ -188,8 +192,8 @@ public:
   auto backward(const Tensor &grad_output) -> Tensor override {
 
     // --- Surrogate Gradient Calculation ---
-    const Eigen::MatrixXf surrogate_grad = surrogate_gradient->calculate(
-        v_mem_pre_spike, voltage_threshold.data(0, 0));
+    const Eigen::MatrixXf surrogate_grad =
+        surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.data(0, 0));
 
     // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
     // This is the starting point for calculating other gradients via the chain rule.
@@ -223,7 +227,7 @@ public:
     // the gradient from the subsequent layer (`grad_output`) multiplied by this
     // local surrogate gradient.
     // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
-    const Eigen::MatrixXf grad_input = grad_v_pre;
+    const auto &grad_input = grad_v_pre;
 
     return {grad_input};
   }

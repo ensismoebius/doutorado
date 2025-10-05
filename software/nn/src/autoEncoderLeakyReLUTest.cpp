@@ -21,6 +21,7 @@
 using Eigen::MatrixXf;
 using std::cout;
 using std::fixed;
+using std::flush;
 using std::make_shared;
 using std::scientific;
 using std::setprecision;
@@ -55,7 +56,7 @@ auto debug(const Batch &batch, const Tensor &y_pred, const Tensor &loss_tensor) 
 } // namespace
 #endif
 
-constexpr int OUTPUT_PRECISION = 20; // Precision for floating-point output
+constexpr int OUTPUT_PRECISION = 40; // Precision for floating-point output
 
 auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
@@ -102,52 +103,42 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Model Definition ====
 
   // Encoder layers
+
   auto encoder1 = make_shared<Linear>(input_dim, hidden_dim1);
-  auto encoder_act1 = make_shared<LeakyReLU>();
+  auto encoder_act1 = make_shared<LeakyReLU>(0.01F);
   auto encoder2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-  auto encoder_act2 = make_shared<LeakyReLU>();
+  auto encoder_act2 = make_shared<LeakyReLU>(0.01F);
   auto encoder3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-  auto encoder_act3 = make_shared<LeakyReLU>();
+  auto encoder_act3 = make_shared<LeakyReLU>(0.01F);
   auto encoder4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-  auto encoder_act4 = make_shared<LeakyReLU>();
+  auto encoder_act4 = make_shared<LeakyReLU>(0.01F);
   auto encoder5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-  auto encoder_act5 = make_shared<LeakyReLU>();
+  auto encoder_act5 = make_shared<LeakyReLU>(0.01F);
   auto encoder6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-  auto encoder_act6 = make_shared<LeakyReLU>();
+  auto encoder_act6 = make_shared<LeakyReLU>(0.01F);
 
   // Decoder layers
+
   auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-  auto decoder_act1 = make_shared<LeakyReLU>();
+  auto decoder_act1 = make_shared<LeakyReLU>(0.01F);
   auto decoder2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-  auto decoder_act2 = make_shared<LeakyReLU>();
+  auto decoder_act2 = make_shared<LeakyReLU>(0.01F);
   auto decoder3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-  auto decoder_act3 = make_shared<LeakyReLU>();
+  auto decoder_act3 = make_shared<LeakyReLU>(0.01F);
   auto decoder4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-  auto decoder_act4 = make_shared<LeakyReLU>();
+  auto decoder_act4 = make_shared<LeakyReLU>(0.01F);
   auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-  auto decoder_act5 = make_shared<LeakyReLU>();
+  auto decoder_act5 = make_shared<LeakyReLU>(0.01F);
   auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
 
   // ==== Loss Layer ====
   auto mse_loss = std::make_shared<MSELoss>();
 
-  Sequential encoders({
-      encoder1, encoder_act1, // First encoder block
-      encoder2, encoder_act2, // Second encoder block
-      encoder3, encoder_act3, // Third encoder block
-      encoder4, encoder_act4, // Fourth encoder block
-      encoder5, encoder_act5, // Fifth encoder block
-      encoder6, encoder_act6, // Sixth encoder block (to bottleneck)
-  });
+  Sequential encoders({encoder1, encoder_act1, encoder2, encoder_act2, encoder3, encoder_act3,
+                       encoder4, encoder_act4, encoder5, encoder_act5, encoder6, encoder_act6});
 
-  Sequential decoders({
-      decoder1, decoder_act1, // First decoder block
-      decoder2, decoder_act2, // Second decoder block
-      decoder3, decoder_act3, // Third decoder block
-      decoder4, decoder_act4, // Fourth decoder block
-      decoder5, decoder_act5, // Fifth decoder block
-      decoder6                // Final decoder layer (no activation)
-  });
+  Sequential decoders({decoder1, decoder_act1, decoder2, decoder_act2, decoder3, decoder_act3,
+                       decoder4, decoder_act4, decoder5, decoder_act5, decoder6});
 
   // ==== Initialization ====
 
@@ -229,7 +220,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     // Print progress
     constexpr int progress_interval = 1; // Print progress every N epochs
     if (epoch % progress_interval == 0) {
-      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r";
+      cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << flush;
     }
 
     // Stop training when target loss is achieved
@@ -240,10 +231,9 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
 
   // ==== End of Training ====
   cout << "Training complete. Final loss: " << epoch_loss << "\n";
-
-  // Save both encoder and decoder networks
-  if (NetworkSerializer::saveNetwork(encoders, encoder_weights_file_path) &&
-      NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path)) {
+  bool enc_saved = NetworkSerializer::saveNetwork(encoders, encoder_weights_file_path);
+  bool dec_saved = NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path);
+  if (enc_saved && dec_saved) {
     cout << "Network weights saved successfully.\n";
   } else {
     cout << "Failed to save network weights.\n";

@@ -71,16 +71,16 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // ==== Data Generation ====
 
   // Network parameters
-  constexpr float learning_rate = 0.001;  // Learning rate for the optimizer - low for stability
-  constexpr float target_loss = 1.0e-14F; // Target loss value for early stopping
-  constexpr int input_dim = 10000;        // Input dimension for synthetic data
-  constexpr int hidden_dim1 = 7000;       // First hidden layer dimension
-  constexpr int hidden_dim2 = 5000;       // Second hidden layer dimension
-  constexpr int hidden_dim3 = 2500;       // Third hidden layer dimension
-  constexpr int hidden_dim4 = 500;        // Fourth hidden layer dimension
-  constexpr int hidden_dim5 = 100;        // Fifth hidden layer dimension
-  constexpr int bottleneck_dim = 20;      // bottleneck layer size
-  constexpr int epochs = 100; // Number of training epochs in which n_samples is presented
+  constexpr float learning_rate = 0.0001;  // Learning rate for the optimizer - low for stability
+  constexpr float target_loss = -1.0e-14F; // Target loss value for early stopping
+  constexpr int input_dim = 1000;          // Input dimension for synthetic data
+  constexpr int hidden_dim1 = 500;         // First hidden layer dimension
+  constexpr int hidden_dim2 = 250;         // Second hidden layer dimension
+  constexpr int hidden_dim3 = 125;         // Third hidden layer dimension
+  constexpr int hidden_dim4 = 63;          // Fourth hidden layer dimension
+  constexpr int hidden_dim5 = 32;          // Fifth hidden layer dimension
+  constexpr int bottleneck_dim = 15;       // bottleneck layer size
+  constexpr int epochs = 40; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
   const string decoder_weights_file_path =
@@ -104,9 +104,10 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   vector<Tensor> targets;
 
   // Generate synthetic spike data
-  tie(inputs, targets) =
-      generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
-  // tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
+  // float max_rate = 500.0F; // Maximum firing rate
+  // tie(inputs, targets) =
+  //     generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, time_step);
+  tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
 
   // ==== Model Definition ====
 
