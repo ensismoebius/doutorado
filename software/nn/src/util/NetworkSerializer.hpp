@@ -56,19 +56,6 @@ private:
   };
 
   /**
-   * @brief Get the type name of a module
-   * @param module The module to get the type for
-   * @return The type name as a string
-   */
-  static auto getModuleType(const shared_ptr<Module> &module) -> string {
-    if (dynamic_pointer_cast<Linear>(module)) {
-      return "Linear";
-    }
-    // Add more module types here as needed
-    return "Unknown";
-  }
-
-  /**
    * @brief Add a layer's weights and biases to the data map
    *
    * @param layer The layer to save
@@ -76,7 +63,6 @@ private:
    */
   static auto collectStateDict(const Sequential &model) -> vector<ParameterInfo> {
     vector<ParameterInfo> state_dict;
-    size_t linearLayerCount = 0;
 
     size_t layerCount = 0;
     for (const auto &layer : model.layers) {
@@ -259,7 +245,7 @@ public:
       // Reconstruct model.layers according to architecture
       model.layers.clear();
       for (const auto &line : arch_lines) {
-        if (line.rfind("Linear:", 0) == 0) {
+        if (line.starts_with("Linear:")) {
           size_t pos1 = line.find(":");
           size_t pos2 = line.find(":", pos1 + 1);
           int in_features = std::stoi(line.substr(pos1 + 1, pos2 - pos1 - 1));
@@ -268,7 +254,8 @@ public:
         } else if (line.rfind("Leaky:", 0) == 0) {
           // Format: Leaky:dt:R:C:Vth:reset_zero:reset_potential
           std::vector<std::string> tokens;
-          size_t prev = 0, pos = 0;
+          size_t prev = 0;
+          size_t pos = 0;
           while ((pos = line.find(":", prev)) != std::string::npos) {
             tokens.push_back(line.substr(prev, pos - prev));
             prev = pos + 1;
