@@ -218,7 +218,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
     }
 
     // Print progress
-    constexpr int progress_interval = 1; // Print progress every N epochs
+    constexpr int progress_interval = 10; // Print progress every N epochs
     if (epoch % progress_interval == 0) {
       cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << flush;
     }
