@@ -1,6 +1,3 @@
-// TODO: Implement the autoencoder with Leaky ReLU and spiking behavior, the loss is not being
-// minimized as expected
-
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Leaky.hpp"
 #include "layers/Linear.hpp"
@@ -92,7 +89,6 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   // Parameters for synthetic spike train
   constexpr int n_samples = 10;       // Number of samples for synthetic data the higher the better
   constexpr int n_steps = 100;        // Number of time steps in the spike train
-  constexpr float max_rate = 500.0F;  // Maximum firing rate
   constexpr float time_step = 0.001F; // Time step duration
 
   constexpr float resist = 5.0F;      // Resistance R

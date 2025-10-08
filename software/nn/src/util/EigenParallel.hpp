@@ -17,9 +17,6 @@ inline auto initializeEigenParallel(int numThreads = 0) -> void {
 
   // Set the number of threads Eigen will use
   Eigen::setNbThreads(numThreads);
-
-  // Enable nested parallelization for nested parallel loops
-  Eigen::initParallel();
 }
 } // namespace util
 
