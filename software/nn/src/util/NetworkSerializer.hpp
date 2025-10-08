@@ -7,7 +7,10 @@
 #include <string>
 #include <vector>
 
+#include "../layers/Leaky.hpp"
+#include "../layers/LeakyReLU.hpp"
 #include "../layers/Linear.hpp"
+#include "../layers/ReLU.hpp"
 #include "../layers/Sequential.hpp"
 #include <cnpy.h>
 
@@ -37,7 +40,7 @@ using std::filesystem::path;
 /**
  * @brief NetworkSerializer class to save and load neural network weights, biases, and architecture
  *        in a PyTorch-compatible format. Now supports full model serialization (structure +
- * parameters).
+ * parameters) for Linear, Leaky, LeakyReLU, and ReLU layers.
  */
 class NetworkSerializer {
 private:
@@ -75,27 +78,38 @@ private:
     vector<ParameterInfo> state_dict;
     size_t linearLayerCount = 0;
 
+    size_t layerCount = 0;
     for (const auto &layer : model.layers) {
       if (auto linearLayer = dynamic_pointer_cast<Linear>(layer)) {
-        // Use PyTorch standard sequential numbering
-        const string modulePath = to_string(linearLayerCount);
-
-        // Add weights
+        const string modulePath = to_string(layerCount);
         state_dict.push_back({modulePath + WEIGHTS_SUFFIX,
                               "Linear",
                               {static_cast<size_t>(linearLayer->weight.data.rows()),
                                static_cast<size_t>(linearLayer->weight.data.cols())},
                               linearLayer->weight.data.data()});
-
-        // Add bias
-        state_dict.push_back({modulePath + BIAS_SUFFIX,
-                              "Linear",
-                              {static_cast<size_t>(linearLayer->bias.data.rows()),
-                               static_cast<size_t>(linearLayer->bias.data.cols())},
-                              linearLayer->bias.data.data()});
-
-        linearLayerCount++;
+        size_t out_features = static_cast<size_t>(linearLayer->bias.data.rows());
+        std::vector<float> bias_1d(out_features);
+        for (size_t i = 0; i < out_features; ++i) {
+          bias_1d[i] = linearLayer->bias.data(static_cast<Eigen::Index>(i), 0);
+        }
+        state_dict.push_back({modulePath + BIAS_SUFFIX, "Linear", {out_features}, bias_1d.data()});
+      } else if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
+        const string modulePath = to_string(layerCount);
+        // Save resistance and voltage_threshold as parameters
+        state_dict.push_back({modulePath + ".resistance",
+                              "Leaky",
+                              {static_cast<size_t>(leakyLayer->resistance.data.rows()),
+                               static_cast<size_t>(leakyLayer->resistance.data.cols())},
+                              leakyLayer->resistance.data.data()});
+        state_dict.push_back({modulePath + ".voltage_threshold",
+                              "Leaky",
+                              {static_cast<size_t>(leakyLayer->voltage_threshold.data.rows()),
+                               static_cast<size_t>(leakyLayer->voltage_threshold.data.cols())},
+                              leakyLayer->voltage_threshold.data.data()});
+        // No trainable params for dt, capacitance, reset_zero, reset_potential, surrogate_gradient
       }
+      // LeakyReLU and ReLU have no trainable params
+      layerCount++;
     }
     return state_dict;
   }
@@ -140,7 +154,12 @@ public:
    * @brief Save the full architecture and parameters of a Sequential model to a single npz file
    *
    * The architecture (layer types, order, and configuration) is saved as metadata, allowing full
-   * reconstruction. Currently supports Linear layers. Extend as needed for other layer types.
+   * reconstruction. Currently supports:
+   *   - Linear: weights, bias
+   *   - Leaky: resistance, voltage_threshold, dt, capacitance, reset_zero, reset_potential
+   *   - LeakyReLU: alpha
+   *   - ReLU: stateless
+   * Extend as needed for other layer types.
    *
    * @param model The Sequential model to save
    * @param safe_filepath Path to the .npz file to save
@@ -160,8 +179,18 @@ public:
         if (auto linearLayer = dynamic_pointer_cast<Linear>(layer)) {
           arch_metadata_str += "Linear:" + std::to_string(linearLayer->weight.data.cols()) + ":" +
                                std::to_string(linearLayer->weight.data.rows()) + "\n";
+        } else if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
+          arch_metadata_str += "Leaky:" + std::to_string(leakyLayer->dt) + ":" +
+                               std::to_string(leakyLayer->resistance.data(0, 0)) + ":" +
+                               std::to_string(leakyLayer->capacitance) + ":" +
+                               std::to_string(leakyLayer->voltage_threshold.data(0, 0)) + ":" +
+                               (leakyLayer->reset_zero ? "1" : "0") + ":" +
+                               std::to_string(leakyLayer->reset_potential) + "\n";
+        } else if (auto leakyReLULayer = dynamic_pointer_cast<LeakyReLU>(layer)) {
+          arch_metadata_str += "LeakyReLU:" + std::to_string(leakyReLULayer->alpha) + "\n";
+        } else if (dynamic_pointer_cast<ReLU>(layer)) {
+          arch_metadata_str += "ReLU\n";
         }
-        // Add more layer types here as needed
       }
       // Convert to char array for npz_save
       std::vector<char> arch_metadata_vec(arch_metadata_str.begin(), arch_metadata_str.end());
@@ -169,8 +198,8 @@ public:
                {arch_metadata_vec.size()}, "w");
 
       // Save parameters from state dictionary
+      // Special handling for bias: if param.shape.size() == 1, treat as 1D
       for (const auto &param : state_dict) {
-        // Save parameter data
         npz_save(safe_filepath, param.name, param.data, param.shape, "a");
       }
 
@@ -187,7 +216,12 @@ public:
    * @brief Load the full architecture and parameters from a single npz file into a Sequential model
    *
    * The architecture (layer types, order, and configuration) is read from metadata and the model is
-   * reconstructed. Currently supports Linear layers. Extend as needed for other layer types.
+   * reconstructed. Currently supports:
+   *   - Linear: weights, bias
+   *   - Leaky: resistance, voltage_threshold, dt, capacitance, reset_zero, reset_potential
+   *   - LeakyReLU: alpha
+   *   - ReLU: stateless
+   * Extend as needed for other layer types.
    *
    * @param model The Sequential model to load into (will be cleared and rebuilt)
    * @param safe_filepath Path to the .npz file to load
@@ -225,15 +259,39 @@ public:
       // Reconstruct model.layers according to architecture
       model.layers.clear();
       for (const auto &line : arch_lines) {
-        // Format: "Linear:in_features:out_features"
         if (line.rfind("Linear:", 0) == 0) {
           size_t pos1 = line.find(":");
           size_t pos2 = line.find(":", pos1 + 1);
           int in_features = std::stoi(line.substr(pos1 + 1, pos2 - pos1 - 1));
           int out_features = std::stoi(line.substr(pos2 + 1));
           model.layers.push_back(std::make_shared<Linear>(in_features, out_features));
+        } else if (line.rfind("Leaky:", 0) == 0) {
+          // Format: Leaky:dt:R:C:Vth:reset_zero:reset_potential
+          std::vector<std::string> tokens;
+          size_t prev = 0, pos = 0;
+          while ((pos = line.find(":", prev)) != std::string::npos) {
+            tokens.push_back(line.substr(prev, pos - prev));
+            prev = pos + 1;
+          }
+          tokens.push_back(line.substr(prev));
+          if (tokens.size() == 7) {
+            float dt = std::stof(tokens[1]);
+            float R = std::stof(tokens[2]);
+            float C = std::stof(tokens[3]);
+            float Vth = std::stof(tokens[4]);
+            bool reset_zero = (tokens[5] == "1");
+            float reset_potential = std::stof(tokens[6]);
+            model.layers.push_back(
+                std::make_shared<Leaky>(dt, R, C, Vth, reset_zero, reset_potential));
+          }
+        } else if (line.rfind("LeakyReLU:", 0) == 0) {
+          // Format: LeakyReLU:alpha
+          size_t pos1 = line.find(":");
+          float alpha = std::stof(line.substr(pos1 + 1));
+          model.layers.push_back(std::make_shared<LeakyReLU>(alpha));
+        } else if (line == "ReLU") {
+          model.layers.push_back(std::make_shared<ReLU>());
         }
-        // Add more layer types here as needed
       }
 
       // Create a mapping of parameter names to their data
@@ -248,12 +306,10 @@ public:
       }
 
       // Load parameters into layers
-      size_t linearLayerCount = 0;
+      size_t layerCount = 0;
       for (const auto &layer : model.layers) {
+        const string modulePath = to_string(layerCount);
         if (auto linearLayer = dynamic_pointer_cast<Linear>(layer)) {
-          // Use PyTorch standard sequential numbering
-          const string modulePath = to_string(linearLayerCount);
-
           // Load weights
           string weight_name = modulePath + WEIGHTS_SUFFIX;
           auto weight_it = param_map.find(weight_name);
@@ -265,18 +321,43 @@ public:
               Map<const MatrixXf>(weight_data, static_cast<Index>(weight_shape[0]),
                                   static_cast<Index>(weight_shape[1]));
 
-          // Load bias
+          // Load bias (expect 1D [out_features])
           string bias_name = modulePath + BIAS_SUFFIX;
           auto bias_it = param_map.find(bias_name);
           if (bias_it == param_map.end()) {
             throw runtime_error("Bias array not found for module: " + modulePath);
           }
           const auto &[bias_data, bias_shape] = bias_it->second;
-          linearLayer->bias.data = Map<const MatrixXf>(bias_data, static_cast<Index>(bias_shape[0]),
-                                                       static_cast<Index>(bias_shape[1]));
-
-          linearLayerCount++;
+          if (bias_shape.size() == 1) {
+            for (Index i = 0; i < static_cast<Index>(bias_shape[0]); ++i) {
+              linearLayer->bias.data(i, 0) = bias_data[i];
+            }
+          } else {
+            linearLayer->bias.data = Map<const MatrixXf>(
+                bias_data, static_cast<Index>(bias_shape[0]), static_cast<Index>(bias_shape[1]));
+          }
+        } else if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
+          // Load resistance
+          string resistance_name = modulePath + ".resistance";
+          auto r_it = param_map.find(resistance_name);
+          if (r_it == param_map.end()) {
+            throw runtime_error("Resistance array not found for module: " + modulePath);
+          }
+          const auto &[r_data, r_shape] = r_it->second;
+          leakyLayer->resistance.data = Map<const MatrixXf>(r_data, static_cast<Index>(r_shape[0]),
+                                                            static_cast<Index>(r_shape[1]));
+          // Load voltage_threshold
+          string vth_name = modulePath + ".voltage_threshold";
+          auto vth_it = param_map.find(vth_name);
+          if (vth_it == param_map.end()) {
+            throw runtime_error("Voltage threshold array not found for module: " + modulePath);
+          }
+          const auto &[vth_data, vth_shape] = vth_it->second;
+          leakyLayer->voltage_threshold.data = Map<const MatrixXf>(
+              vth_data, static_cast<Index>(vth_shape[0]), static_cast<Index>(vth_shape[1]));
         }
+        // LeakyReLU and ReLU have no trainable params to restore
+        layerCount++;
       }
 
       cout << "Successfully loaded network from file: " << safe_filepath << "\n";
