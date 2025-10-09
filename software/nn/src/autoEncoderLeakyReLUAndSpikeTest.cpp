@@ -77,7 +77,7 @@ auto main(int /*argc*/, char * /*argv*/[]) -> int {
   constexpr int hidden_dim4 = 63;          // Fourth hidden layer dimension
   constexpr int hidden_dim5 = 32;          // Fifth hidden layer dimension
   constexpr int bottleneck_dim = 15;       // bottleneck layer size
-  constexpr int epochs = 40; // Number of training epochs in which n_samples is presented
+  constexpr int epochs = 200; // Number of training epochs in which n_samples is presented
   const string encoder_weights_file_path =
       "weights/encoder_spike_model_weights.npz"; // Model weights file
   const string decoder_weights_file_path =

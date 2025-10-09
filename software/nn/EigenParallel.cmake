@@ -41,7 +41,6 @@ function(configure_eigen_parallel_target target)
         EIGEN_USE_BLAS
         EIGEN_USE_LAPACKE
         EIGEN_USE_OPENMP
-        EIGEN_MAX_ALIGN_BYTES=0
         EIGEN_DONT_PARALLELIZE=0
     )
 endfunction()
