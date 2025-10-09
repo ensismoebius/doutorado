@@ -3,6 +3,7 @@
 add_executable(
     util_gtest 
     util_gtest.cpp 
+    NetworkSerializer_gtest.cpp
     batching.cpp 
     ../tensor/Tensor.hpp
     vectorizationCheck.cpp 
@@ -11,11 +12,16 @@ add_executable(
 target_link_libraries(
     util_gtest 
     PRIVATE GTest::gtest_main Eigen3::Eigen
+    ${CMAKE_BINARY_DIR}/lib/cnpy/libcnpy.a
+    z
+    ${BLAS_LIBRARIES}
+    ${LAPACK_LIBRARIES}
+    ${OPENBLAS_LIBRARIES}
 )
 
 target_include_directories(
     util_gtest 
-    PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR}
+    PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/lib/cnpy
 )
 
 include(GoogleTest)
