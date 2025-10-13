@@ -62,39 +62,84 @@ private:
    * @param name Layer name for array naming
    */
   static auto collectStateDict(const Sequential &model) -> vector<ParameterInfo> {
+
+    // Counter for layer indexing
+    size_t layerCount = 0;
+
+    // Vector to hold all parameters
     vector<ParameterInfo> state_dict;
 
-    size_t layerCount = 0;
+    // Iterate over layers and collect parameters
     for (const auto &layer : model.layers) {
+
+      // Handle different layer types
       if (auto linearLayer = dynamic_pointer_cast<Linear>(layer)) {
+
+        // Get the module path for the layer
         const string modulePath = to_string(layerCount);
-        state_dict.push_back({modulePath + WEIGHTS_SUFFIX,
-                              "Linear",
-                              {static_cast<size_t>(linearLayer->weight.data.rows()),
-                               static_cast<size_t>(linearLayer->weight.data.cols())},
-                              linearLayer->weight.data.data()});
-        size_t out_features = static_cast<size_t>(linearLayer->bias.data.rows());
+
+        // Save weights in PyTorch format: [out_features, in_features]
+        state_dict.push_back({
+            modulePath + WEIGHTS_SUFFIX, // e.g., "0.weight"
+            "Linear",                    // parameter type
+            {
+                static_cast<size_t>(linearLayer->weight.data.rows()), // out_features
+                static_cast<size_t>(linearLayer->weight.data.cols())  // in_features
+            },
+            linearLayer->weight.data.data() // pointer to weight data
+        });
+
+        // Save bias as 1D array for PyTorch compatibility
+        auto out_features = static_cast<size_t>(linearLayer->bias.data.rows());
+
+        // Create a 1D array for bias
         std::vector<float> bias_1d(out_features);
+
+        // Copy bias data to 1D array
         for (size_t i = 0; i < out_features; ++i) {
           bias_1d[i] = linearLayer->bias.data(static_cast<Eigen::Index>(i), 0);
         }
-        state_dict.push_back({modulePath + BIAS_SUFFIX, "Linear", {out_features}, bias_1d.data()});
-      } else if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
-        const string modulePath = to_string(layerCount);
-        // Save resistance and voltage_threshold as parameters
-        state_dict.push_back({modulePath + ".resistance",
-                              "Leaky",
-                              {static_cast<size_t>(leakyLayer->resistance.data.rows()),
-                               static_cast<size_t>(leakyLayer->resistance.data.cols())},
-                              leakyLayer->resistance.data.data()});
-        state_dict.push_back({modulePath + ".voltage_threshold",
-                              "Leaky",
-                              {static_cast<size_t>(leakyLayer->voltage_threshold.data.rows()),
-                               static_cast<size_t>(leakyLayer->voltage_threshold.data.cols())},
-                              leakyLayer->voltage_threshold.data.data()});
-        // No trainable params for dt, capacitance, reset_zero, reset_potential, surrogate_gradient
-      }
-      // LeakyReLU and ReLU have no trainable params
+
+        // Save bias in PyTorch format: [out_features]
+        state_dict.push_back({
+            modulePath + BIAS_SUFFIX, // e.g., "0.bias"
+            "Linear",                 // parameter type
+            {
+                out_features // 1D shape for bias
+            },
+            bias_1d.data() // pointer to bias data
+        });
+
+      } else
+        // Handle Leaky layer
+        if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
+
+          // Get the module path for the layer
+          const string modulePath = to_string(layerCount);
+
+          // Save resistance and voltage_threshold as parameters
+          state_dict.push_back({
+              modulePath + ".resistance", // e.g., "0.resistance"
+              "Leaky",                    // parameter type
+              {
+                  static_cast<size_t>(leakyLayer->resistance.data.rows()), // rows
+                  static_cast<size_t>(leakyLayer->resistance.data.cols())  // cols
+              },
+              leakyLayer->resistance.data.data() // pointer to resistance data
+          });
+
+          // Save voltage_threshold as a parameter
+          state_dict.push_back({
+              modulePath + ".voltage_threshold", // e.g., "0.voltage_threshold"
+              "Leaky",                           // parameter type
+              {
+                  static_cast<size_t>(leakyLayer->voltage_threshold.data.rows()), // rows
+                  static_cast<size_t>(leakyLayer->voltage_threshold.data.cols())  // cols
+              },
+              leakyLayer->voltage_threshold.data.data() // pointer to voltage_threshold data
+          });
+        }
+
       layerCount++;
     }
     return state_dict;
@@ -153,8 +198,11 @@ public:
    */
   static auto saveNetwork(const Sequential &model, const string &safe_filepath) -> bool {
     try {
+
+      auto file_path = path(safe_filepath);
+
       // Create the directory if it doesn't exist
-      create_directories(path(safe_filepath).parent_path());
+      create_directories(file_path.parent_path());
 
       // Collect state dictionary
       auto state_dict = collectStateDict(model);

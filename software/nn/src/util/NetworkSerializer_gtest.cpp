@@ -8,6 +8,8 @@
 #include <Eigen/Dense>
 #include <cstdio>
 
+using std::filesystem::temp_directory_path;
+
 TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard) {
   // Build a model with all supported layers
   Sequential model;
@@ -26,7 +28,7 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard) {
   leaky->voltage_threshold.data.setConstant(4.0F);
 
   // Save the model
-  std::string filename = "test_model_save_load.npz";
+  std::string filename = temp_directory_path().string() + "/test_model_save_load.npz";
   ASSERT_TRUE(NetworkSerializer::saveNetwork(model, filename));
 
   // Load into a new model
@@ -45,8 +47,12 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard) {
   ASSERT_TRUE(loaded_linear);
   EXPECT_EQ(loaded_linear->weight.data.rows(), 3);
   EXPECT_EQ(loaded_linear->weight.data.cols(), 4);
-  EXPECT_TRUE(loaded_linear->weight.data.isApprox(Eigen::MatrixXf::Constant(3, 4, 42.0F)));
-  EXPECT_TRUE(loaded_linear->bias.data.isApprox(Eigen::MatrixXf::Constant(3, 1, -7.0F)));
+
+  Eigen::MatrixXf weight_data = Eigen::MatrixXf::Constant(3, 4, 42.0F);
+  EXPECT_TRUE(loaded_linear->weight.data.isApprox(weight_data));
+
+  Eigen::MatrixXf bias_data = Eigen::MatrixXf::Constant(3, 1, -7.0F);
+  EXPECT_TRUE(loaded_linear->bias.data.isApprox(bias_data));
 
   // Check Leaky config and parameters
   auto loaded_leaky = std::dynamic_pointer_cast<Leaky>(loaded.layers[2]);
