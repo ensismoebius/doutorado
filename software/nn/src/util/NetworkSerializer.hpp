@@ -230,6 +230,7 @@ public:
           arch_metadata_str += "ReLU\n";
         }
       }
+
       // Convert to char array for npz_save
       std::vector<char> arch_metadata_vec(arch_metadata_str.begin(), arch_metadata_str.end());
       npz_save(safe_filepath, "__architecture__", arch_metadata_vec.data(),
