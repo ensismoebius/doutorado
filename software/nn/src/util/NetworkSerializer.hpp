@@ -1,5 +1,10 @@
 #pragma once
 
+// TODO Alter @NetworkSerializer.hpp so it can save Linear, LeakyReLU, Leaky, ReLU layers. It is
+// important to do so, because it needed to reconstruted when the same class load the resulting
+// file. When figuring out what type of layer, do not use chainning ifs, use switch instead. Split
+// every layer handler into its respective private method.
+
 #include <filesystem>
 #include <iostream>
 #include <map>
