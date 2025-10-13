@@ -47,7 +47,9 @@ private:
   static constexpr const char *WEIGHTS_SUFFIX = ".weight";
   static constexpr const char *BIAS_SUFFIX = ".bias";
 
-  // Structure to hold parameter metadata (similar to PyTorch's state_dict)
+  /**
+   * @brief Structure to hold parameter metadata (similar to PyTorch's state_dict)
+   */
   struct ParameterInfo {
     string name;          // Full parameter name (e.g., "layer.0.weight")
     string type;          // Parameter type (e.g., "Linear")
@@ -72,16 +74,18 @@ private:
     // Iterate over layers and collect parameters
     for (const auto &layer : model.layers) {
 
-      // Handle different layer types
+      /////////////////////////
+      // Handle Linear layer //
+      /////////////////////////
       if (auto linearLayer = dynamic_pointer_cast<Linear>(layer)) {
 
-        // Get the module path for the layer
-        const string modulePath = to_string(layerCount);
+        // Get the module number for the layer
+        const string moduleNumber = to_string(layerCount);
 
         // Save weights in PyTorch format: [out_features, in_features]
         state_dict.push_back({
-            modulePath + WEIGHTS_SUFFIX, // e.g., "0.weight"
-            "Linear",                    // parameter type
+            moduleNumber + WEIGHTS_SUFFIX, // e.g., "0.weight"
+            "Linear",                      // parameter type
             {
                 static_cast<size_t>(linearLayer->weight.data.rows()), // out_features
                 static_cast<size_t>(linearLayer->weight.data.cols())  // in_features
@@ -92,35 +96,30 @@ private:
         // Save bias as 1D array for PyTorch compatibility
         auto out_features = static_cast<size_t>(linearLayer->bias.data.rows());
 
-        // Create a 1D array for bias
-        std::vector<float> bias_1d(out_features);
-
-        // Copy bias data to 1D array
-        for (size_t i = 0; i < out_features; ++i) {
-          bias_1d[i] = linearLayer->bias.data(static_cast<Eigen::Index>(i), 0);
-        }
-
         // Save bias in PyTorch format: [out_features]
         state_dict.push_back({
-            modulePath + BIAS_SUFFIX, // e.g., "0.bias"
-            "Linear",                 // parameter type
+            moduleNumber + BIAS_SUFFIX, // e.g., "0.bias"
+            "Linear",                   // parameter type
             {
                 out_features // 1D shape for bias
             },
-            bias_1d.data() // pointer to bias data
+            linearLayer->bias.data.array().data() // pointer to bias data
         });
 
       } else
-        // Handle Leaky layer
+
+        ////////////////////////
+        // Handle Leaky layer //
+        ////////////////////////
         if (auto leakyLayer = dynamic_pointer_cast<Leaky>(layer)) {
 
-          // Get the module path for the layer
-          const string modulePath = to_string(layerCount);
+          // Get the module number for the layer
+          const string moduleNumber = to_string(layerCount);
 
           // Save resistance and voltage_threshold as parameters
           state_dict.push_back({
-              modulePath + ".resistance", // e.g., "0.resistance"
-              "Leaky",                    // parameter type
+              moduleNumber + ".resistance", // e.g., "0.resistance"
+              "Leaky",                      // parameter type
               {
                   static_cast<size_t>(leakyLayer->resistance.data.rows()), // rows
                   static_cast<size_t>(leakyLayer->resistance.data.cols())  // cols
@@ -130,8 +129,8 @@ private:
 
           // Save voltage_threshold as a parameter
           state_dict.push_back({
-              modulePath + ".voltage_threshold", // e.g., "0.voltage_threshold"
-              "Leaky",                           // parameter type
+              moduleNumber + ".voltage_threshold", // e.g., "0.voltage_threshold"
+              "Leaky",                             // parameter type
               {
                   static_cast<size_t>(leakyLayer->voltage_threshold.data.rows()), // rows
                   static_cast<size_t>(leakyLayer->voltage_threshold.data.cols())  // cols
