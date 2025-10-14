@@ -1,58 +1,55 @@
-// #include "batching.hpp"
-// #include "synthetic_spike_data.hpp"
-// #include "tensor/Tensor.hpp"
-// #include "vectorizationCheck.hpp"
-// #include <Eigen/Dense>
-// #include <gtest/gtest.h>
-// // Util: synthetic_spike_data
-// TEST(UtilTest, SyntheticSpikeData)
-// {
+#include "batching.hpp"
+#include "synthetic_spike_data.hpp"
+#include "../tensor/Tensor.hpp"
+#include "vectorizationCheck.hpp"
+#include <Eigen/Dense>
+#include <gtest/gtest.h>
 
-//   int n_samples = 5;
-//   int input_dim = 3;
-//   int n_steps = 4;
+// Util: synthetic_spike_data
+TEST(UtilTest, SyntheticSpikeData)
+{
+  int n_samples = 5;
+  int input_dim = 3;
+  int n_steps = 4;
+  float max_rate = 1.0F;
+  float timeStep = 1.0F;
 
-//   float const max_rate = 1.0F;
-//   float const timeStep = 1.0F;
+  auto [spike_trains, real_valued] = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
 
-//   Eigen::MatrixXf real_valued;
+  ASSERT_EQ(spike_trains.size(), n_steps);
+  for (const auto &spikes : spike_trains)
+  {
+    ASSERT_EQ(spikes.data.rows(), n_samples);
+    ASSERT_EQ(spikes.data.cols(), input_dim);
+    for (int i = 0; i < spikes.data.rows(); ++i)
+    {
+      for (int j = 0; j < spikes.data.cols(); ++j)
+      {
+        ASSERT_TRUE(spikes.data(i, j) == 0.0F || spikes.data(i, j) == 1.0F);
+      }
+    }
+  }
+  ASSERT_EQ(real_valued.size(), n_steps);
+}
 
-//   auto spike_trains = generate_synthetic_spike_data(n_samples, input_dim, n_steps, max_rate,
-//   timeStep);
+// Util: vectorizationCheck
+TEST(UtilTest, VectorizationCheck)
+{
+  ASSERT_NO_THROW(printVectorizationSupport());
+}
 
-//   ASSERT_EQ(spike_trains.size(), n_steps);
-//   for (const auto &spikes : spike_trains)
-//     {
-//       ASSERT_EQ(spikes.rows(), n_samples);
-//       ASSERT_EQ(spikes.cols(), input_dim);
-//       for (int i = 0; i < spikes.rows(); ++i)
-//         {
-//           for (int j = 0; j < spikes.cols(); ++j)
-//             {
-//               ASSERT_TRUE(spikes(i, j) == 0.0F || spikes(i, j) == 1.0F);
-//             }
-//         }
-//     }
-//   ASSERT_EQ(real_valued.rows(), n_samples);
-//   ASSERT_EQ(real_valued.cols(), input_dim);
-// }
+// Util: batching
+TEST(UtilTest, Batching)
+{
+  std::vector<Tensor> input_samples;
+  std::vector<Tensor> target_samples;
+  for (int i = 0; i < 4; ++i) {
+    input_samples.push_back(Tensor(Eigen::MatrixXf::Random(1, 2)));
+    target_samples.push_back(Tensor(Eigen::MatrixXf::Random(1, 1)));
+  }
 
-// // Util: vectorizationCheck
-// TEST(UtilTest, VectorizationCheck)
-// {
-//   ASSERT_NO_THROW(printVectorizationSupport());
-// }
+  auto batches = create_batches(input_samples, target_samples, 2);
 
-// // Util: batching
-// TEST(UtilTest, Batching)
-// {
-//   Eigen::MatrixXf input_matrix = Eigen::MatrixXf::Random(4, 2);
-//   Eigen::MatrixXf target_matrix = Eigen::MatrixXf::Random(4, 1);
-//   Tensor input(input_matrix);
-//   Tensor target(target_matrix);
-
-//   auto batches = create_batches(input, target, 2);
-
-//   ASSERT_EQ(batches.size(), 2U);
-//   ASSERT_EQ(batches[0].inputs.data.rows(), 2);
-// }
+  ASSERT_EQ(batches.size(), 2U);
+  ASSERT_EQ(batches[0].inputs.data.rows(), 2);
+}
