@@ -234,6 +234,11 @@ auto MatFile::read_array_flags() -> ArrayFlags {
 
 auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
     -> MatData {
+  if (data_type == DataType::MI_UTF8) {
+    return read_string(num_bytes);
+  }
+
+  MatData result;
   size_t num_elements;
   switch (data_type) {
     case DataType::MI_DOUBLE: {
@@ -242,7 +247,8 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<double>();
       }
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_SINGLE: {
       num_elements = num_bytes / sizeof(float);
@@ -250,21 +256,24 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<float>();
       }
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_INT8: {
       num_elements = num_bytes / sizeof(int8_t);
       std::vector<int8_t> data(num_elements);
       file_.read(reinterpret_cast<char*>(data.data()),
                  static_cast<long>(num_elements));
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_UINT8: {
       num_elements = num_bytes / sizeof(uint8_t);
       std::vector<uint8_t> data(num_elements);
       file_.read(reinterpret_cast<char*>(data.data()),
                  static_cast<long>(num_elements));
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_INT16: {
       num_elements = num_bytes / sizeof(int16_t);
@@ -272,7 +281,8 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<int16_t>();
       }
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_UINT16: {
       num_elements = num_bytes / sizeof(uint16_t);
@@ -280,7 +290,8 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<uint16_t>();
       }
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_INT32: {
       num_elements = num_bytes / sizeof(int32_t);
@@ -288,7 +299,8 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<int32_t>();
       }
-      return data;
+      result = data;
+      break;
     }
     case DataType::MI_UINT32: {
       num_elements = num_bytes / sizeof(uint32_t);
@@ -296,14 +308,20 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<uint32_t>();
       }
-      return data;
-    }
-    case DataType::MI_UTF8: {
-      return read_string(num_bytes);
+      result = data;
+      break;
     }
     default:
       throw std::runtime_error("Unsupported data type");
   }
+
+  // Skip padding
+  uint32_t padding = (8 - (num_bytes % 8)) % 8;
+  if (padding > 0) {
+    file_.seekg(padding, std::ios::cur);
+  }
+
+  return result;
 }
 
 void MatFile::write_tag(DataType data_type, uint32_t num_bytes) {

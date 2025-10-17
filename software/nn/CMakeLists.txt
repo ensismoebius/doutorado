@@ -8,6 +8,9 @@ project(
   VERSION 0.1.0
   LANGUAGES CXX)
 
+enable_testing()
+include(CTest)
+
 # Define paths needed for the step bellow
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
