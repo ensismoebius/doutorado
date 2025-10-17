@@ -101,7 +101,11 @@ struct MatVar {
 
   template <typename T>
   [[nodiscard]] auto holds_type() const -> bool {
-    return std::holds_alternative<std::vector<T>>(data);
+    if constexpr (std::is_same_v<T, std::string>) {
+      return std::holds_alternative<std::string>(data);
+    } else {
+      return std::holds_alternative<std::vector<T>>(data);
+    }
   }
 
   template <typename T>
@@ -143,7 +147,7 @@ class MatFile {
   auto read_variable_name() -> std::string;
   auto read_dimensions_array() -> Dimensions;
   auto read_array_flags() -> ArrayFlags;
-  auto read_numeric_data(DataType data_type, size_t num_elements) -> MatData;
+  auto read_numeric_data(DataType data_type, uint32_t num_bytes) -> MatData;
 
   // Writing components
   void write_tag(DataType data_type, uint32_t num_bytes);
@@ -170,8 +174,8 @@ class MatFile {
   auto write_variable(const std::string& name, const MatData& data,
                       const Dimensions& dims = {1, 1},
                       ArrayFlags flags = {
-                          .array_type = ArrayType::MX_DOUBLE_CLASS,
-                          .flags = 0}) -> bool;
+                          ArrayType::MX_DOUBLE_CLASS,
+                          0}) -> bool;
 
   // Convenience methods for common types
   auto write_double_matrix(const std::string& name,

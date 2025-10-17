@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <utility>
 
 namespace matio {
 
@@ -17,24 +18,28 @@ MatHeader::MatHeader() {
   endian[1] = 'M';
 }
 
-bool MatHeader::validate() const {
+auto MatHeader::validate() const -> bool {
   return std::string_view(description, text.length()) == text;
 }
 
 // DataTag implementation
-bool DataTag::is_small_data_element() const { return number_of_bytes <= 4; }
+auto DataTag::is_small_data_element() const -> bool {
+  return number_of_bytes <= 4;
+}
 
-uint32_t DataTag::padding() const { return (8 - (number_of_bytes % 8)) % 8; }
+auto DataTag::padding() const -> uint32_t {
+  return (8 - (number_of_bytes % 8)) % 8;
+}
 
 // ArrayFlags implementation
-bool ArrayFlags::is_complex() const { return flags & 0x08; }
+auto ArrayFlags::is_complex() const -> bool { return (flags & 0x08) != 0U; }
 
-bool ArrayFlags::is_global() const { return flags & 0x04; }
+auto ArrayFlags::is_global() const -> bool { return (flags & 0x04) != 0U; }
 
-bool ArrayFlags::is_logical() const { return flags & 0x02; }
+auto ArrayFlags::is_logical() const -> bool { return (flags & 0x02) != 0U; }
 
 // MatVar implementation
-size_t MatVar::num_elements() const {
+auto MatVar::num_elements() const -> size_t {
   size_t count = 1;
   for (auto dim : dimensions) {
     count *= dim;
@@ -42,34 +47,35 @@ size_t MatVar::num_elements() const {
   return count;
 }
 
-std::string MatVar::type_name() const {
+auto MatVar::type_name() const -> std::string {
   return std::visit(
       [](auto&& arg) -> std::string {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::vector<double>>)
+        if constexpr (std::is_same_v<T, std::vector<double>>) {
           return "double";
-        else if constexpr (std::is_same_v<T, std::vector<float>>)
+        } else if constexpr (std::is_same_v<T, std::vector<float>>) {
           return "single";
-        else if constexpr (std::is_same_v<T, std::vector<int8_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
           return "int8";
-        else if constexpr (std::is_same_v<T, std::vector<uint8_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
           return "uint8";
-        else if constexpr (std::is_same_v<T, std::vector<int16_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
           return "int16";
-        else if constexpr (std::is_same_v<T, std::vector<uint16_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
           return "uint16";
-        else if constexpr (std::is_same_v<T, std::vector<int32_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
           return "int32";
-        else if constexpr (std::is_same_v<T, std::vector<uint32_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
           return "uint32";
-        else if constexpr (std::is_same_v<T, std::vector<int64_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
           return "int64";
-        else if constexpr (std::is_same_v<T, std::vector<uint64_t>>)
+        } else if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
           return "uint64";
-        else if constexpr (std::is_same_v<T, std::string>)
+        } else if constexpr (std::is_same_v<T, std::string>) {
           return "char";
-        else
+        } else {
           return "unknown";
+        }
       },
       data);
 }
@@ -79,7 +85,9 @@ template <typename T>
 void MatFile::swap_bytes(T& value) const
   requires std::is_arithmetic_v<T>
 {
-  if (!is_little_endian_) return;
+  if (is_little_endian_ == utils::is_little_endian()) {
+    return;
+  }
 
   auto* bytes = reinterpret_cast<uint8_t*>(&value);
   for (size_t i = 0; i < sizeof(T) / 2; ++i) {
@@ -128,7 +136,7 @@ auto MatFile::get_data_type_for(const MatData& data) const -> DataType {
         } else if constexpr (std::is_same_v<T, std::string>) {
           return DataType::MI_UTF8;
         } else {
-          return DataType::MI_DOUBLE;
+          throw std::runtime_error("Unsupported data type");
         }
       },
       data);
@@ -161,7 +169,7 @@ auto MatFile::get_array_type_for(const MatData& data) const -> ArrayType {
         } else if constexpr (std::is_same_v<T, std::string>) {
           return ArrayType::MX_CHAR_CLASS;
         } else {
-          return ArrayType::MX_DOUBLE_CLASS;
+          throw std::runtime_error("Unsupported array type");
         }
       },
       data);
@@ -219,15 +227,17 @@ auto MatFile::read_array_flags() -> ArrayFlags {
   flags.flags = read_primitive<uint32_t>();
 
   // Skip padding
-  file_.seekg(8, std::ios::cur);  // Always 8 bytes for array flags
+  file_.seekg(tag.padding(), std::ios::cur);
 
   return flags;
 }
 
-auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
+auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
     -> MatData {
+  size_t num_elements;
   switch (data_type) {
     case DataType::MI_DOUBLE: {
+      num_elements = num_bytes / sizeof(double);
       std::vector<double> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<double>();
@@ -235,6 +245,7 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_SINGLE: {
+      num_elements = num_bytes / sizeof(float);
       std::vector<float> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<float>();
@@ -242,18 +253,21 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_INT8: {
+      num_elements = num_bytes / sizeof(int8_t);
       std::vector<int8_t> data(num_elements);
       file_.read(reinterpret_cast<char*>(data.data()),
                  static_cast<long>(num_elements));
       return data;
     }
     case DataType::MI_UINT8: {
+      num_elements = num_bytes / sizeof(uint8_t);
       std::vector<uint8_t> data(num_elements);
       file_.read(reinterpret_cast<char*>(data.data()),
                  static_cast<long>(num_elements));
       return data;
     }
     case DataType::MI_INT16: {
+      num_elements = num_bytes / sizeof(int16_t);
       std::vector<int16_t> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<int16_t>();
@@ -261,6 +275,7 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_UINT16: {
+      num_elements = num_bytes / sizeof(uint16_t);
       std::vector<uint16_t> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<uint16_t>();
@@ -268,6 +283,7 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_INT32: {
+      num_elements = num_bytes / sizeof(int32_t);
       std::vector<int32_t> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<int32_t>();
@@ -275,6 +291,7 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_UINT32: {
+      num_elements = num_bytes / sizeof(uint32_t);
       std::vector<uint32_t> data(num_elements);
       for (size_t i = 0; i < num_elements; ++i) {
         data[i] = read_primitive<uint32_t>();
@@ -282,8 +299,7 @@ auto MatFile::read_numeric_data(DataType data_type, size_t num_elements)
       return data;
     }
     case DataType::MI_UTF8: {
-      auto tag = read_tag();
-      return read_string(tag.number_of_bytes);
+      return read_string(num_bytes);
     }
     default:
       throw std::runtime_error("Unsupported data type");
@@ -301,7 +317,10 @@ void MatFile::write_variable_name(const std::string& name) {
 
   // Add padding
   uint32_t padding = (8 - (name.length() % 8)) % 8;
-  file_.write(std::string(padding, '\0').data(), padding);
+  if (padding > 0) {
+    const char padding_bytes[8] = {0};
+    file_.write(padding_bytes, padding);
+  }
 }
 
 void MatFile::write_dimensions_array(const Dimensions& dims) {
@@ -314,14 +333,16 @@ void MatFile::write_dimensions_array(const Dimensions& dims) {
   // Add padding
   uint32_t total_bytes = static_cast<uint32_t>(dims.size() * sizeof(int32_t));
   uint32_t padding = (8 - (total_bytes % 8)) % 8;
-  file_.write(std::string(padding, '\0').data(), padding);
+  if (padding > 0) {
+    const char padding_bytes[8] = {0};
+    file_.write(padding_bytes, padding);
+  }
 }
 
 void MatFile::write_array_flags(const ArrayFlags& flags) {
   write_tag(DataType::MI_UINT32, 8);  // Always 8 bytes for flags
   write_primitive<uint32_t>(static_cast<uint32_t>(flags.array_type));
   write_primitive<uint32_t>(flags.flags);
-  file_.write("\0\0\0\0", 4);  // Padding to make 8 bytes
 }
 
 void MatFile::write_numeric_data(const MatData& data) {
@@ -334,39 +355,25 @@ void MatFile::write_numeric_data(const MatData& data) {
           file_.write(arg.data(), arg.length());
 
           uint32_t padding = (8 - (arg.length() % 8)) % 8;
-          file_.write(std::string(padding, '\0').data(), padding);
+          if (padding > 0) {
+            const char padding_bytes[8] = {0};
+            file_.write(padding_bytes, padding);
+          }
         } else {
           DataType data_type = get_data_type_for(data);
-          uint32_t num_bytes = static_cast<uint32_t>(
+          auto num_bytes = static_cast<uint32_t>(
               arg.size() * sizeof(typename T::value_type));
           write_tag(data_type, num_bytes);
 
           for (const auto& value : arg) {
-            if constexpr (std::is_same_v<typename T::value_type, double>) {
-              write_primitive<double>(value);
-            } else if constexpr (std::is_same_v<typename T::value_type,
-                                                float>) {
-              write_primitive<float>(value);
-            } else if constexpr (std::is_same_v<typename T::value_type,
-                                                int16_t>) {
-              write_primitive<int16_t>(value);
-            } else if constexpr (std::is_same_v<typename T::value_type,
-                                                uint16_t>) {
-              write_primitive<uint16_t>(value);
-            } else if constexpr (std::is_same_v<typename T::value_type,
-                                                int32_t>) {
-              write_primitive<int32_t>(value);
-            } else if constexpr (std::is_same_v<typename T::value_type,
-                                                uint32_t>) {
-              write_primitive<uint32_t>(value);
-            } else {
-              // For types that don't need byte swapping
-              file_.write(reinterpret_cast<const char*>(&value), sizeof(value));
-            }
+            write_primitive(value);
           }
 
           uint32_t padding = (8 - (num_bytes % 8)) % 8;
-          file_.write(std::string(padding, '\0').data(), padding);
+          if (padding > 0) {
+            const char padding_bytes[8] = {0};
+            file_.write(padding_bytes, padding);
+          }
         }
       },
       data);
@@ -407,8 +414,7 @@ bool MatFile::create(const std::string& filename) {
 
   // Write header
   MatHeader header;
-  is_little_endian_ = utils::is_little_endian();
-  if (is_little_endian_) {
+  if (utils::is_little_endian()) {
     header.endian[0] = 'I';
     header.endian[1] = 'M';
   } else {
@@ -455,9 +461,9 @@ auto MatFile::read_all_variables() -> std::unordered_map<std::string, MatVar> {
       var.name = read_variable_name();
 
       // Read data
-      size_t num_elements = var.num_elements();
-      var.data = read_numeric_data(DataType::MI_DOUBLE,
-                                   num_elements);  // Default to double
+      auto data_tag = read_tag();
+      var.data =
+          read_numeric_data(data_tag.data_type, data_tag.number_of_bytes);
 
       variables[var.name] = std::move(var);
     }
@@ -468,6 +474,14 @@ auto MatFile::read_all_variables() -> std::unordered_map<std::string, MatVar> {
   }
 
   return variables;
+}
+
+auto MatFile::read_variable(const std::string& name) -> std::optional<MatVar> {
+  auto all_vars = read_all_variables();
+  if (auto it = all_vars.find(name); it != all_vars.end()) {
+    return it->second;
+  }
+  return std::nullopt;
 }
 
 auto MatFile::write_variable(const std::string& name, const MatData& data,
@@ -510,22 +524,20 @@ auto MatFile::write_double_matrix(const std::string& name,
 auto MatFile::write_single_matrix(const std::string& name,
                                   const std::vector<float>& data,
                                   const Dimensions& dims) -> bool {
-  return write_variable(
-      name, data, dims, {.array_type = ArrayType::MX_SINGLE_CLASS, .flags = 0});
+  return write_variable(name, data, dims, {ArrayType::MX_SINGLE_CLASS, 0});
 }
 
 auto MatFile::write_int32_matrix(const std::string& name,
                                  const std::vector<int32_t>& data,
                                  const Dimensions& dims) -> bool {
-  return write_variable(
-      name, data, dims, {.array_type = ArrayType::MX_INT32_CLASS, .flags = 0});
+  return write_variable(name, data, dims, {ArrayType::MX_INT32_CLASS, 0});
 }
 
 bool MatFile::write_string(const std::string& name, const std::string& str) {
   return write_variable(name,
                         str,
                         {1, static_cast<int32_t>(str.length())},
-                        {.array_type = ArrayType::MX_CHAR_CLASS, .flags = 0});
+                        {ArrayType::MX_CHAR_CLASS, 0});
 }
 
 // Utility functions

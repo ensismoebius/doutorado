@@ -6,6 +6,7 @@ add_subdirectory(${SRC_DIR}/layers)
 add_subdirectory(${SRC_DIR}/tensor)
 add_subdirectory(${SRC_DIR}/optimizers)
 add_subdirectory(${SRC_DIR}/initializers)
+add_subdirectory(${SRC_DIR}/dataLoaders)
 
 # -------------------------------------
 # Add executable target for auto-encoder with LeakyReLU and spike Test
@@ -162,3 +163,31 @@ target_include_directories(plotSpikingNetwork
 
 # Configure Eigen parallelism for the target
 configure_eigen_parallel_target(plotSpikingNetwork)
+
+
+#--------------------------------------
+# Add executable target for matio data loader test
+#--------------------------------------
+add_executable(matioDataLoaderTest
+    ${SRC_DIR}/dataLoaders/mat_file.cpp
+    ${SRC_DIR}/dataLoaders/mat_file.h
+    ${SRC_DIR}/loadingData.cpp
+)
+
+# Link libraries
+target_link_libraries(matioDataLoaderTest
+    PRIVATE
+        Eigen3::Eigen
+        ${OpenMP_CXX_LIBRARIES}
+)
+
+# Include directories
+target_include_directories(matioDataLoaderTest
+    PRIVATE
+        ${SRC_DIR}
+        ${EIGEN3_INCLUDE_DIR}
+        ${OpenMP_INCLUDE_DIRS}
+)
+
+# Configure Eigen parallelism for the target
+configure_eigen_parallel_target(matioDataLoaderTest)
