@@ -1,4 +1,4 @@
-add_executable(mat_file_gtest mat_file_gtest.cpp mat_file.cpp mat_file.h)
+add_executable(mat_file_gtest mat_file_gtest.cpp MatFile.cpp MatFile.h)
 
 target_link_libraries(mat_file_gtest PRIVATE GTest::gtest_main)
 

@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-// Include the mat_file implementation here, or include the header if separate
-#include "mat_file.h"  // Assuming your implementation is in this header
+// Include the MatFile implementation header
+#include "MatFile.h"
 
 using namespace matio;
 

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 
-#include "dataLoaders/mat_file.h"
+#include "dataLoaders/MatFile.h"
 
 using namespace matio;
 

@@ -1,4 +1,4 @@
-#include "mat_file.h"
+#include "MatFile.h"
 
 #include <algorithm>
 #include <cstring>
@@ -9,9 +9,9 @@ namespace matio {
 
 // MatHeader implementation
 MatHeader::MatHeader() {
-  std::memset(description, 0, sizeof(description));
-  std::memset(subsystem_offset, 0, sizeof(subsystem_offset));
-  std::memcpy(description, text.data(), text.length());
+  description.fill('\0');
+  subsystem_offset.fill('\0');
+  std::copy_n(text.data(), text.length(), description.begin());
   version[0] = 0x01;
   version[1] = 0x00;
   endian[0] = 'I';
@@ -19,7 +19,7 @@ MatHeader::MatHeader() {
 }
 
 auto MatHeader::validate() const -> bool {
-  return std::string_view(description, text.length()) == text;
+  return std::string_view(description.data(), text.length()) == text;
 }
 
 // DataTag implementation
@@ -400,8 +400,8 @@ void MatFile::write_variable_name(const std::string& name) {
   // Add padding
   uint32_t padding = (8 - (name.length() % 8)) % 8;
   if (padding > 0) {
-    const char padding_bytes[8] = {0};
-    file_.write(padding_bytes, padding);
+    std::array<char, 8> padding_bytes{};
+    file_.write(padding_bytes.data(), padding);
   }
 }
 
@@ -416,8 +416,8 @@ void MatFile::write_dimensions_array(const Dimensions& dims) {
   auto total_bytes = static_cast<uint32_t>(dims.size() * sizeof(int32_t));
   uint32_t padding = (8 - (total_bytes % 8)) % 8;
   if (padding > 0) {
-    const char padding_bytes[8] = {0};
-    file_.write(padding_bytes, padding);
+    std::array<char, 8> padding_bytes{};
+    file_.write(padding_bytes.data(), padding);
   }
 }
 
@@ -438,8 +438,8 @@ void MatFile::write_numeric_data(const MatData& data) {
 
           uint32_t padding = (8 - (arg.length() % 8)) % 8;
           if (padding > 0) {
-            const char padding_bytes[8] = {0};
-            file_.write(padding_bytes, padding);
+            std::array<char, 8> padding_bytes{};
+            file_.write(padding_bytes.data(), padding);
           }
         } else {
           DataType data_type = get_data_type_for(data);
@@ -453,8 +453,8 @@ void MatFile::write_numeric_data(const MatData& data) {
 
           uint32_t padding = (8 - (num_bytes % 8)) % 8;
           if (padding > 0) {
-            const char padding_bytes[8] = {0};
-            file_.write(padding_bytes, padding);
+            std::array<char, 8> padding_bytes{};
+            file_.write(padding_bytes.data(), padding);
           }
         }
       },

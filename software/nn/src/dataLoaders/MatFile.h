@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <optional>
@@ -51,10 +52,10 @@ enum class ArrayType : uint8_t {
 
 // MAT file header (128 bytes)
 struct MatHeader {
-  char description[116];
-  char subsystem_offset[8];
-  char version[2];
-  char endian[2];
+  std::array<char, 116> description;
+  std::array<char, 8> subsystem_offset;
+  std::array<char, 2> version;
+  std::array<char, 2> endian;
 
   static constexpr std::string_view text = "MATLAB 5.0 MAT-file";
 
