@@ -9,6 +9,8 @@
 #include <utility>
 
 namespace matio {
+using std::string;
+using std::unordered_map;
 
 // MatHeader implementation
 MatHeader::MatHeader() {
@@ -22,7 +24,7 @@ MatHeader::MatHeader() {
 }
 
 void MatFile::read_and_store_matrix_variable(
-    std::unordered_map<std::string, MatVar>& variables) {
+    unordered_map<string, MatVar>& variables) {
   MatVar var;
   // Read array flags
   var.flags = read_array_flags();
@@ -398,10 +400,10 @@ auto MatFile::read_tag() -> DataTag {
   // num_bytes uint32) where we need to read another 4 bytes, or a small data
   // element where the single 4-byte word packs the data type (lower 16 bits)
   // and the number of bytes (upper 16 bits). Detect and handle both forms.
-  uint32_t first = read_primitive<uint32_t>();
+  auto first = read_primitive<uint32_t>();
 
-  uint16_t maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
-  uint16_t maybe_num_bytes = static_cast<uint16_t>((first >> 16) & 0xFFFFU);
+  auto maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
+  auto maybe_num_bytes = static_cast<uint16_t>((first >> 16) & 0xFFFFU);
 
   if (maybe_num_bytes != 0) {
     // Small data element format
@@ -787,9 +789,9 @@ void MatFile::parse_decompressed_buffer(
 
   auto read_tag_buf = [&]() -> DataTag {
     DataTag t;
-    uint32_t first = read_u32();
-    uint16_t maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
-    uint16_t maybe_num_bytes = static_cast<uint16_t>((first >> 16) & 0xFFFFU);
+    auto first = read_u32();
+    auto maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
+    auto maybe_num_bytes = static_cast<uint16_t>((first >> 16) & 0xFFFFU);
     if (maybe_num_bytes != 0) {
       t.data_type = static_cast<DataType>(maybe_data_type);
       t.number_of_bytes = maybe_num_bytes;
@@ -918,26 +920,29 @@ auto MatFile::write_variable(const std::string& name, const MatData& data,
 auto MatFile::write_double_matrix(const std::string& name,
                                   const std::vector<double>& data,
                                   const Dimensions& dims) -> bool {
-  return write_variable(name, data, dims, {ArrayType::MX_DOUBLE_CLASS, 0});
+  return write_variable(
+      name, data, dims, {.array_type = ArrayType::MX_DOUBLE_CLASS, .flags = 0});
 }
 
 auto MatFile::write_single_matrix(const std::string& name,
                                   const std::vector<float>& data,
                                   const Dimensions& dims) -> bool {
-  return write_variable(name, data, dims, {ArrayType::MX_SINGLE_CLASS, 0});
+  return write_variable(
+      name, data, dims, {.array_type = ArrayType::MX_SINGLE_CLASS, .flags = 0});
 }
 
 auto MatFile::write_int32_matrix(const std::string& name,
                                  const std::vector<int32_t>& data,
                                  const Dimensions& dims) -> bool {
-  return write_variable(name, data, dims, {ArrayType::MX_INT32_CLASS, 0});
+  return write_variable(
+      name, data, dims, {.array_type = ArrayType::MX_INT32_CLASS, .flags = 0});
 }
 
 bool MatFile::write_string(const std::string& name, const std::string& str) {
   return write_variable(name,
                         str,
                         {1, static_cast<int32_t>(str.length())},
-                        {ArrayType::MX_CHAR_CLASS, 0});
+                        {.array_type = ArrayType::MX_CHAR_CLASS, .flags = 0});
 }
 
 // Utility functions
