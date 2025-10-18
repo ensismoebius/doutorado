@@ -168,21 +168,24 @@ configure_eigen_parallel_target(plotSpikingNetwork)
 #--------------------------------------
 # Add executable target for matio data loader test
 #--------------------------------------
-add_executable(matioDataLoaderTest
+add_executable(loadingData
     ${SRC_DIR}/dataLoaders/MatFile.cpp
     ${SRC_DIR}/dataLoaders/MatFile.h
     ${SRC_DIR}/loadingData.cpp
 )
 
+find_package(ZLIB REQUIRED)
+
 # Link libraries
-target_link_libraries(matioDataLoaderTest
+target_link_libraries(loadingData
     PRIVATE
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
+        ${ZLIB_LIBRARIES}
 )
 
 # Include directories
-target_include_directories(matioDataLoaderTest
+target_include_directories(loadingData
     PRIVATE
         ${SRC_DIR}
         ${EIGEN3_INCLUDE_DIR}
@@ -190,4 +193,4 @@ target_include_directories(matioDataLoaderTest
 )
 
 # Configure Eigen parallelism for the target
-configure_eigen_parallel_target(matioDataLoaderTest)
+configure_eigen_parallel_target(loadingData)
