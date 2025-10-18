@@ -12,7 +12,7 @@
 namespace matio {
 
 // Data types for MAT files
-enum class DataType : uint32_t {
+enum class DataType : uint8_t {
   MI_INT8 = 1,
   MI_UINT8 = 2,
   MI_INT16 = 3,
@@ -31,7 +31,7 @@ enum class DataType : uint32_t {
 };
 
 // Array types
-enum class ArrayType : uint32_t {
+enum class ArrayType : uint8_t {
   MX_CELL_CLASS = 1,
   MX_STRUCT_CLASS = 2,
   MX_OBJECT_CLASS = 3,
@@ -138,8 +138,8 @@ class MatFile {
   void write_primitive(T value);
 
   // Data type handling
-  auto get_data_type_for(const MatData& data) const -> DataType;
-  auto get_array_type_for(const MatData& data) const -> ArrayType;
+  static auto get_data_type_for(const MatData& data) -> DataType;
+  static auto get_array_type_for(const MatData& data) -> ArrayType;
 
   // Reading components
   auto read_tag() -> DataTag;
@@ -157,7 +157,7 @@ class MatFile {
   void write_numeric_data(const MatData& data);
 
  public:
-  MatFile() = default;
+  MatFile();
   ~MatFile();
 
   // File operations
@@ -173,9 +173,8 @@ class MatFile {
   // Writing
   auto write_variable(const std::string& name, const MatData& data,
                       const Dimensions& dims = {1, 1},
-                      ArrayFlags flags = {
-                          ArrayType::MX_DOUBLE_CLASS,
-                          0}) -> bool;
+                      ArrayFlags flags = {ArrayType::MX_DOUBLE_CLASS, 0})
+      -> bool;
 
   // Convenience methods for common types
   auto write_double_matrix(const std::string& name,

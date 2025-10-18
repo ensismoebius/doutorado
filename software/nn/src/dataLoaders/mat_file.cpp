@@ -53,29 +53,49 @@ auto MatVar::type_name() const -> std::string {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, std::vector<double>>) {
           return "double";
-        } else if constexpr (std::is_same_v<T, std::vector<float>>) {
-          return "single";
-        } else if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
-          return "int8";
-        } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-          return "uint8";
-        } else if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
-          return "int16";
-        } else if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
-          return "uint16";
-        } else if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
-          return "int32";
-        } else if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
-          return "uint32";
-        } else if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
-          return "int64";
-        } else if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
-          return "uint64";
-        } else if constexpr (std::is_same_v<T, std::string>) {
-          return "char";
-        } else {
-          return "unknown";
         }
+
+        if constexpr (std::is_same_v<T, std::vector<float>>) {
+          return "single";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
+          return "int8";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+          return "uint8";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
+          return "int16";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
+          return "uint16";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
+          return "int32";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
+          return "uint32";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
+          return "int64";
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
+          return "uint64";
+        }
+
+        if constexpr (std::is_same_v<T, std::string>) {
+          return "char";
+        }
+
+        return "unknown";
       },
       data);
 }
@@ -95,6 +115,9 @@ void MatFile::swap_bytes(T& value) const
   }
 }
 
+// Ensure default initialization of endianness
+MatFile::MatFile() : is_little_endian_(utils::is_little_endian()) {}
+
 template <typename T>
 T MatFile::read_primitive() {
   T value;
@@ -109,68 +132,108 @@ void MatFile::write_primitive(T value) {
   file_.write(reinterpret_cast<const char*>(&value), sizeof(T));
 }
 
-auto MatFile::get_data_type_for(const MatData& data) const -> DataType {
+auto MatFile::get_data_type_for(const MatData& data) -> DataType {
   return std::visit(
       [](auto&& arg) -> DataType {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, std::vector<double>>) {
           return DataType::MI_DOUBLE;
-        } else if constexpr (std::is_same_v<T, std::vector<float>>) {
-          return DataType::MI_SINGLE;
-        } else if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
-          return DataType::MI_INT8;
-        } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-          return DataType::MI_UINT8;
-        } else if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
-          return DataType::MI_INT16;
-        } else if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
-          return DataType::MI_UINT16;
-        } else if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
-          return DataType::MI_INT32;
-        } else if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
-          return DataType::MI_UINT32;
-        } else if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
-          return DataType::MI_INT64;
-        } else if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
-          return DataType::MI_UINT64;
-        } else if constexpr (std::is_same_v<T, std::string>) {
-          return DataType::MI_UTF8;
-        } else {
-          throw std::runtime_error("Unsupported data type");
         }
+
+        if constexpr (std::is_same_v<T, std::vector<float>>) {
+          return DataType::MI_SINGLE;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
+          return DataType::MI_INT8;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+          return DataType::MI_UINT8;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
+          return DataType::MI_INT16;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
+          return DataType::MI_UINT16;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
+          return DataType::MI_INT32;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
+          return DataType::MI_UINT32;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
+          return DataType::MI_INT64;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
+          return DataType::MI_UINT64;
+        }
+
+        if constexpr (std::is_same_v<T, std::string>) {
+          return DataType::MI_UTF8;
+        }
+
+        throw std::runtime_error("Unsupported data type");
       },
       data);
 }
 
-auto MatFile::get_array_type_for(const MatData& data) const -> ArrayType {
+auto MatFile::get_array_type_for(const MatData& data) -> ArrayType {
   return std::visit(
       [](auto&& arg) -> ArrayType {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, std::vector<double>>) {
           return ArrayType::MX_DOUBLE_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<float>>) {
-          return ArrayType::MX_SINGLE_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
-          return ArrayType::MX_INT8_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
-          return ArrayType::MX_UINT8_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
-          return ArrayType::MX_INT16_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
-          return ArrayType::MX_UINT16_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
-          return ArrayType::MX_INT32_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
-          return ArrayType::MX_UINT32_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
-          return ArrayType::MX_INT64_CLASS;
-        } else if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
-          return ArrayType::MX_UINT64_CLASS;
-        } else if constexpr (std::is_same_v<T, std::string>) {
-          return ArrayType::MX_CHAR_CLASS;
-        } else {
-          throw std::runtime_error("Unsupported array type");
         }
+
+        if constexpr (std::is_same_v<T, std::vector<float>>) {
+          return ArrayType::MX_SINGLE_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int8_t>>) {
+          return ArrayType::MX_INT8_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint8_t>>) {
+          return ArrayType::MX_UINT8_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int16_t>>) {
+          return ArrayType::MX_INT16_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint16_t>>) {
+          return ArrayType::MX_UINT16_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int32_t>>) {
+          return ArrayType::MX_INT32_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint32_t>>) {
+          return ArrayType::MX_UINT32_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<int64_t>>) {
+          return ArrayType::MX_INT64_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::vector<uint64_t>>) {
+          return ArrayType::MX_UINT64_CLASS;
+        }
+
+        if constexpr (std::is_same_v<T, std::string>) {
+          return ArrayType::MX_CHAR_CLASS;
+        }
+
+        throw std::runtime_error("Unsupported array type");
       },
       data);
 }
@@ -240,6 +303,7 @@ auto MatFile::read_numeric_data(DataType data_type, uint32_t num_bytes)
 
   MatData result;
   size_t num_elements;
+
   switch (data_type) {
     case DataType::MI_DOUBLE: {
       num_elements = num_bytes / sizeof(double);
@@ -349,7 +413,7 @@ void MatFile::write_dimensions_array(const Dimensions& dims) {
   }
 
   // Add padding
-  uint32_t total_bytes = static_cast<uint32_t>(dims.size() * sizeof(int32_t));
+  auto total_bytes = static_cast<uint32_t>(dims.size() * sizeof(int32_t));
   uint32_t padding = (8 - (total_bytes % 8)) % 8;
   if (padding > 0) {
     const char padding_bytes[8] = {0};
@@ -399,7 +463,7 @@ void MatFile::write_numeric_data(const MatData& data) {
 
 MatFile::~MatFile() { close(); }
 
-bool MatFile::open(const std::string& filename) {
+auto MatFile::open(const std::string& filename) -> bool {
   close();
   filename_ = filename;
   file_.open(filename, std::ios::binary | std::ios::in);
@@ -411,6 +475,8 @@ bool MatFile::open(const std::string& filename) {
   // Read and validate header
   MatHeader header;
   file_.read(reinterpret_cast<char*>(&header), sizeof(MatHeader));
+
+  (void)0;
 
   if (!header.validate()) {
     close();
@@ -463,6 +529,7 @@ auto MatFile::read_all_variables() -> std::unordered_map<std::string, MatVar> {
     while (file_.peek() != EOF) {
       // Read variable
       auto tag = read_tag();
+      (void)0;
       if (tag.data_type != DataType::MI_MATRIX) {
         break;  // Not a variable, probably end of file
       }
@@ -495,6 +562,10 @@ auto MatFile::read_all_variables() -> std::unordered_map<std::string, MatVar> {
 }
 
 auto MatFile::read_variable(const std::string& name) -> std::optional<MatVar> {
+  if (!file_.is_open()) {
+    return std::nullopt;
+  }
+
   auto all_vars = read_all_variables();
   if (auto it = all_vars.find(name); it != all_vars.end()) {
     return it->second;
