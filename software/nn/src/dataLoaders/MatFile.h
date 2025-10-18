@@ -149,6 +149,23 @@ class MatFile {
   auto read_dimensions_array() -> Dimensions;
   auto read_array_flags() -> ArrayFlags;
   auto read_numeric_data(DataType data_type, uint32_t num_bytes) -> MatData;
+  // Read a non-compressed MI_MATRIX variable from the stream and store it
+  // into the provided variables map. Throws on error.
+  void read_and_store_matrix_variable(
+      std::unordered_map<std::string, MatVar>& variables);
+  // Process a top-level data tag read from the file. Returns true if
+  // reading should continue, false to stop (e.g., end of variables).
+  auto process_top_level_element(
+      const DataTag& tag, std::unordered_map<std::string, MatVar>& variables)
+      -> bool;
+  // Helper to parse a decompressed MI_COMPRESSED buffer
+  void parse_decompressed_buffer(
+      const std::vector<uint8_t>& buf,
+      std::unordered_map<std::string, MatVar>& variables);
+  // Helper used when parsing decompressed MI_COMPRESSED buffers: reads numeric
+  // data from a raw buffer advancing pos.
+  auto read_numeric_from_buffer(const std::vector<uint8_t>& buf, size_t& pos,
+                                DataType dtype, uint32_t num_bytes) -> MatData;
 
   // Writing components
   void write_tag(DataType data_type, uint32_t num_bytes);

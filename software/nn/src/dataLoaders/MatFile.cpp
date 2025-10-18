@@ -21,6 +21,157 @@ MatHeader::MatHeader() {
   endian[1] = 'M';
 }
 
+void MatFile::read_and_store_matrix_variable(
+    std::unordered_map<std::string, MatVar>& variables) {
+  MatVar var;
+  // Read array flags
+  var.flags = read_array_flags();
+
+  // Read dimensions
+  var.dimensions = read_dimensions_array();
+
+  // Read variable name
+  var.name = read_variable_name();
+
+  // Read data
+  auto data_tag = read_tag();
+  var.data = read_numeric_data(data_tag.data_type, data_tag.number_of_bytes);
+
+  variables[var.name] = std::move(var);
+}
+
+auto MatFile::read_numeric_from_buffer(const std::vector<uint8_t>& buf,
+                                       size_t& pos, DataType dtype,
+                                       uint32_t num_bytes) -> MatData {
+  auto ensure = [&](size_t need) {
+    if (pos + need > buf.size()) {
+      throw std::runtime_error("Buffer underflow");
+    }
+  };
+
+  if (dtype == DataType::MI_UTF8) {
+    ensure(num_bytes);
+    std::string s(reinterpret_cast<const char*>(buf.data() + pos), num_bytes);
+    pos += num_bytes;
+    uint32_t padding = (8 - (num_bytes % 8)) % 8;
+    pos += padding;
+    return s;
+  }
+
+  MatData result;
+  switch (dtype) {
+    case DataType::MI_DOUBLE: {
+      size_t n = num_bytes / sizeof(double);
+      std::vector<double> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(sizeof(double));
+        double val;
+        std::memcpy(&val, buf.data() + pos, sizeof(double));
+        pos += sizeof(double);
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_SINGLE: {
+      size_t n = num_bytes / sizeof(float);
+      std::vector<float> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(sizeof(float));
+        float val;
+        std::memcpy(&val, buf.data() + pos, sizeof(float));
+        pos += sizeof(float);
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_INT8: {
+      size_t n = num_bytes / sizeof(int8_t);
+      ensure(n);
+      std::vector<int8_t> v(n);
+      std::memcpy(v.data(), buf.data() + pos, n);
+      pos += n;
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_UINT8: {
+      size_t n = num_bytes / sizeof(uint8_t);
+      ensure(n);
+      std::vector<uint8_t> v(n);
+      std::memcpy(v.data(), buf.data() + pos, n);
+      pos += n;
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_INT16: {
+      size_t n = num_bytes / sizeof(int16_t);
+      std::vector<int16_t> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(2);
+        int16_t val;
+        std::memcpy(&val, buf.data() + pos, 2);
+        pos += 2;
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_UINT16: {
+      size_t n = num_bytes / sizeof(uint16_t);
+      std::vector<uint16_t> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(2);
+        uint16_t val;
+        std::memcpy(&val, buf.data() + pos, 2);
+        pos += 2;
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_INT32: {
+      size_t n = num_bytes / sizeof(int32_t);
+      std::vector<int32_t> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(4);
+        int32_t val;
+        std::memcpy(&val, buf.data() + pos, 4);
+        pos += 4;
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    case DataType::MI_UINT32: {
+      size_t n = num_bytes / sizeof(uint32_t);
+      std::vector<uint32_t> v(n);
+      for (size_t i = 0; i < n; ++i) {
+        ensure(4);
+        uint32_t val;
+        std::memcpy(&val, buf.data() + pos, 4);
+        pos += 4;
+        swap_bytes(val);
+        v[i] = val;
+      }
+      result = std::move(v);
+      break;
+    }
+    default: {
+      throw std::runtime_error("Unsupported data type in compressed payload");
+    }
+  }
+
+  uint32_t padding = (8 - (num_bytes % 8)) % 8;
+  pos += padding;
+  return result;
+}
+
 auto MatHeader::validate() const -> bool {
   return std::string_view(description.data(), text.length()) == text;
 }
@@ -549,304 +700,176 @@ auto MatFile::read_all_variables() -> std::unordered_map<std::string, MatVar> {
 
   try {
     while (file_.peek() != EOF) {
-      // Read variable
+      // Read top-level element tag and handle it via helper
       auto tag = read_tag();
-
-      if (tag.data_type == DataType::MI_COMPRESSED) {
-        // Read compressed payload
-        std::vector<uint8_t> comp(tag.number_of_bytes);
-        file_.read(reinterpret_cast<char*>(comp.data()), tag.number_of_bytes);
-
-        // Decompress using zlib inflate
-        std::vector<uint8_t> out;
-        z_stream strm{};
-        strm.next_in = comp.data();
-        strm.avail_in = static_cast<uInt>(comp.size());
-        if (inflateInit(&strm) != Z_OK) {
-          throw std::runtime_error("Failed to initialize zlib inflater");
-        }
-
-        const size_t CHUNK = 16384;
-        std::vector<uint8_t> buffer(CHUNK);
-        int ret = Z_OK;
-        while (ret != Z_STREAM_END) {
-          strm.next_out = buffer.data();
-          strm.avail_out = static_cast<uInt>(buffer.size());
-          ret = inflate(&strm, Z_NO_FLUSH);
-          if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
-            inflateEnd(&strm);
-            throw std::runtime_error("zlib inflate failed");
-          }
-          size_t produced = buffer.size() - strm.avail_out;
-          if (produced > 0) {
-            out.insert(out.end(), buffer.data(), buffer.data() + produced);
-          }
-          if (ret == Z_BUF_ERROR && strm.avail_in == 0) break;
-        }
-        inflateEnd(&strm);
-
-        // Parse decompressed buffer for embedded variables
-        auto parse_from_buffer = [&](const std::vector<uint8_t>& buf) {
-          size_t pos = 0;
-          auto read_u32 = [&](uint32_t& dest) {
-            if (pos + 4 > buf.size())
-              throw std::runtime_error("Buffer underflow");
-            std::memcpy(&dest, buf.data() + pos, 4);
-            pos += 4;
-            swap_bytes(dest);
-          };
-
-          auto read_tag_buf = [&]() -> DataTag {
-            DataTag t;
-            uint32_t first;
-            read_u32(first);
-            uint16_t maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
-            uint16_t maybe_num_bytes =
-                static_cast<uint16_t>((first >> 16) & 0xFFFFU);
-            if (maybe_num_bytes != 0) {
-              t.data_type = static_cast<DataType>(maybe_data_type);
-              t.number_of_bytes = maybe_num_bytes;
-            } else {
-              t.data_type = static_cast<DataType>(first);
-              uint32_t nb;
-              read_u32(nb);
-              t.number_of_bytes = nb;
-            }
-            return t;
-          };
-
-          auto read_string_buf = [&](uint32_t length) {
-            if (pos + length > buf.size())
-              throw std::runtime_error("Buffer underflow");
-            std::string s(reinterpret_cast<const char*>(buf.data() + pos),
-                          length);
-            pos += length;
-            uint32_t padding = (8 - (length % 8)) % 8;
-            pos += padding;
-            return s;
-          };
-
-          auto read_dimensions_buf = [&]() {
-            auto tag2 = read_tag_buf();
-            if (tag2.data_type != DataType::MI_INT32)
-              throw std::runtime_error("Invalid dims type");
-            size_t num_dims = tag2.number_of_bytes / sizeof(int32_t);
-            Dimensions dims(num_dims);
-            for (size_t i = 0; i < num_dims; ++i) {
-              int32_t v;
-              if (pos + 4 > buf.size())
-                throw std::runtime_error("Buffer underflow");
-              std::memcpy(&v, buf.data() + pos, 4);
-              pos += 4;
-              swap_bytes(v);
-              dims[i] = v;
-            }
-            pos += tag2.padding();
-            return dims;
-          };
-
-          auto read_array_flags_buf = [&]() {
-            auto tag2 = read_tag_buf();
-            if (tag2.data_type != DataType::MI_UINT32)
-              throw std::runtime_error("Invalid flags type");
-            ArrayFlags flags;
-            uint32_t atype;
-            read_u32(atype);
-            flags.array_type = static_cast<ArrayType>(atype);
-            uint32_t f;
-            read_u32(f);
-            flags.flags = f;
-            pos += tag2.padding();
-            return flags;
-          };
-
-          auto read_numeric_buf = [&](DataType dtype,
-                                      uint32_t num_bytes) -> MatData {
-            if (dtype == DataType::MI_UTF8) {
-              return read_string_buf(num_bytes);
-            }
-            MatData result;
-            switch (dtype) {
-              case DataType::MI_DOUBLE: {
-                size_t n = num_bytes / sizeof(double);
-                std::vector<double> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  double val;
-                  if (pos + sizeof(double) > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, sizeof(double));
-                  pos += sizeof(double);
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_SINGLE: {
-                size_t n = num_bytes / sizeof(float);
-                std::vector<float> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  float val;
-                  if (pos + sizeof(float) > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, sizeof(float));
-                  pos += sizeof(float);
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_INT8: {
-                size_t n = num_bytes / sizeof(int8_t);
-                std::vector<int8_t> v(n);
-                if (pos + n > buf.size())
-                  throw std::runtime_error("Buffer underflow");
-                std::memcpy(v.data(), buf.data() + pos, n);
-                pos += n;
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_UINT8: {
-                size_t n = num_bytes / sizeof(uint8_t);
-                std::vector<uint8_t> v(n);
-                if (pos + n > buf.size())
-                  throw std::runtime_error("Buffer underflow");
-                std::memcpy(v.data(), buf.data() + pos, n);
-                pos += n;
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_INT16: {
-                size_t n = num_bytes / sizeof(int16_t);
-                std::vector<int16_t> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  int16_t val;
-                  if (pos + 2 > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, 2);
-                  pos += 2;
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_UINT16: {
-                size_t n = num_bytes / sizeof(uint16_t);
-                std::vector<uint16_t> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  uint16_t val;
-                  if (pos + 2 > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, 2);
-                  pos += 2;
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_INT32: {
-                size_t n = num_bytes / sizeof(int32_t);
-                std::vector<int32_t> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  int32_t val;
-                  if (pos + 4 > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, 4);
-                  pos += 4;
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              case DataType::MI_UINT32: {
-                size_t n = num_bytes / sizeof(uint32_t);
-                std::vector<uint32_t> v(n);
-                for (size_t i = 0; i < n; ++i) {
-                  uint32_t val;
-                  if (pos + 4 > buf.size())
-                    throw std::runtime_error("Buffer underflow");
-                  std::memcpy(&val, buf.data() + pos, 4);
-                  pos += 4;
-                  swap_bytes(val);
-                  v[i] = val;
-                }
-                result = std::move(v);
-                break;
-              }
-              default:
-                throw std::runtime_error(
-                    "Unsupported data type in compressed payload");
-            }
-
-            uint32_t padding = (8 - (num_bytes % 8)) % 8;
-            pos += padding;
-            return result;
-          };
-
-          while (pos < buf.size()) {
-            // Read a tag in the decompressed buffer
-            DataTag t = read_tag_buf();
-            if (t.data_type != DataType::MI_MATRIX) {
-              // Skip unknown element
-              pos += t.number_of_bytes + t.padding();
-              continue;
-            }
-
-            MatVar var;
-            var.flags = read_array_flags_buf();
-            var.dimensions = read_dimensions_buf();
-            var.name = [&]() {
-              auto name_tag = read_tag_buf();
-              if (name_tag.data_type != DataType::MI_INT8)
-                throw std::runtime_error(
-                    "Invalid name tag in compressed payload");
-              return read_string_buf(name_tag.number_of_bytes);
-            }();
-
-            auto data_tag = read_tag_buf();
-            var.data =
-                read_numeric_buf(data_tag.data_type, data_tag.number_of_bytes);
-            variables[var.name] = std::move(var);
-          }
-        };
-
-        parse_from_buffer(out);
-        continue;  // Continue reading next top-level element
+      if (!process_top_level_element(tag, variables)) {
+        break;
       }
-
-      if (tag.data_type != DataType::MI_MATRIX) {
-        break;  // Not a variable, probably end of file
-      }
-
-      MatVar var;
-
-      // Read array flags
-      var.flags = read_array_flags();
-
-      // Read dimensions
-      var.dimensions = read_dimensions_array();
-
-      // Read variable name
-      var.name = read_variable_name();
-
-      // Read data
-      auto data_tag = read_tag();
-      var.data =
-          read_numeric_data(data_tag.data_type, data_tag.number_of_bytes);
-
-      variables[var.name] = std::move(var);
     }
   } catch (const std::exception& e) {
-    // End of file or error
+    // Bubble up a clearer error
     throw std::runtime_error(std::string("Error reading variables: ") +
                              e.what());
   }
 
   return variables;
+}
+
+auto MatFile::process_top_level_element(
+    const DataTag& tag, std::unordered_map<std::string, MatVar>& variables)
+    -> bool {
+  if (tag.data_type == DataType::MI_COMPRESSED) {
+    // Read compressed payload
+    std::vector<uint8_t> comp(tag.number_of_bytes);
+    file_.read(reinterpret_cast<char*>(comp.data()), tag.number_of_bytes);
+
+    // Decompress using zlib inflate
+    std::vector<uint8_t> out;
+    z_stream strm{};
+    strm.next_in = comp.data();
+    strm.avail_in = static_cast<uInt>(comp.size());
+    if (inflateInit(&strm) != Z_OK) {
+      throw std::runtime_error("Failed to initialize zlib inflater");
+    }
+
+    const size_t CHUNK = 16384;
+    std::vector<uint8_t> buffer(CHUNK);
+    int ret = Z_OK;
+    while (ret != Z_STREAM_END) {
+      strm.next_out = buffer.data();
+      strm.avail_out = static_cast<uInt>(buffer.size());
+      ret = inflate(&strm, Z_NO_FLUSH);
+      if (ret != Z_OK && ret != Z_STREAM_END && ret != Z_BUF_ERROR) {
+        inflateEnd(&strm);
+        throw std::runtime_error("zlib inflate failed");
+      }
+      size_t produced = buffer.size() - strm.avail_out;
+      if (produced > 0) {
+        out.insert(out.end(), buffer.data(), buffer.data() + produced);
+      }
+      if (ret == Z_BUF_ERROR && strm.avail_in == 0) {
+        break;
+      }
+    }
+    inflateEnd(&strm);
+
+    parse_decompressed_buffer(out, variables);
+    return true;  // continue
+  }
+
+  if (tag.data_type != DataType::MI_MATRIX) {
+    return false;  // Not a variable, probably end of file
+  }
+
+  read_and_store_matrix_variable(variables);
+  return true;
+}
+
+void MatFile::parse_decompressed_buffer(
+    const std::vector<uint8_t>& buf,
+    std::unordered_map<std::string, MatVar>& variables) {
+  size_t pos = 0;
+
+  auto ensure = [&](size_t need) {
+    if (pos + need > buf.size()) {
+      throw std::runtime_error("Buffer underflow");
+    }
+  };
+
+  auto read_u32 = [&]() -> uint32_t {
+    ensure(4);
+    uint32_t v;
+    std::memcpy(&v, buf.data() + pos, 4);
+    pos += 4;
+    swap_bytes(v);
+    return v;
+  };
+
+  auto read_tag_buf = [&]() -> DataTag {
+    DataTag t;
+    uint32_t first = read_u32();
+    uint16_t maybe_data_type = static_cast<uint16_t>(first & 0xFFFFU);
+    uint16_t maybe_num_bytes = static_cast<uint16_t>((first >> 16) & 0xFFFFU);
+    if (maybe_num_bytes != 0) {
+      t.data_type = static_cast<DataType>(maybe_data_type);
+      t.number_of_bytes = maybe_num_bytes;
+    } else {
+      t.data_type = static_cast<DataType>(first);
+      uint32_t nb = read_u32();
+      t.number_of_bytes = nb;
+    }
+    return t;
+  };
+
+  auto read_string_buf = [&](uint32_t length) {
+    ensure(length);
+    std::string s(reinterpret_cast<const char*>(buf.data() + pos), length);
+    pos += length;
+    uint32_t padding = (8 - (length % 8)) % 8;
+    pos += padding;
+    return s;
+  };
+
+  auto read_dimensions_buf = [&]() {
+    auto tag2 = read_tag_buf();
+    if (tag2.data_type != DataType::MI_INT32) {
+      throw std::runtime_error("Invalid dims type");
+    }
+    size_t num_dims = tag2.number_of_bytes / sizeof(int32_t);
+    Dimensions dims(num_dims);
+    for (size_t i = 0; i < num_dims; ++i) {
+      ensure(4);
+      int32_t v;
+      std::memcpy(&v, buf.data() + pos, 4);
+      pos += 4;
+      swap_bytes(v);
+      dims[i] = v;
+    }
+    pos += tag2.padding();
+    return dims;
+  };
+
+  auto read_array_flags_buf = [&]() {
+    auto tag2 = read_tag_buf();
+    if (tag2.data_type != DataType::MI_UINT32) {
+      throw std::runtime_error("Invalid flags type");
+    }
+    ArrayFlags flags;
+    uint32_t atype = read_u32();
+    flags.array_type = static_cast<ArrayType>(atype);
+    uint32_t f = read_u32();
+    flags.flags = f;
+    pos += tag2.padding();
+    return flags;
+  };
+
+  // Delegate numeric reading to a helper that advances pos
+  auto read_numeric_buf = [&](DataType dtype, uint32_t num_bytes) -> MatData {
+    return read_numeric_from_buffer(buf, pos, dtype, num_bytes);
+  };
+
+  while (pos < buf.size()) {
+    DataTag t = read_tag_buf();
+    if (t.data_type != DataType::MI_MATRIX) {
+      // Skip unknown element
+      pos += t.number_of_bytes + t.padding();
+      continue;
+    }
+
+    MatVar var;
+    var.flags = read_array_flags_buf();
+    var.dimensions = read_dimensions_buf();
+
+    auto name_tag = read_tag_buf();
+    if (name_tag.data_type != DataType::MI_INT8) {
+      throw std::runtime_error("Invalid name tag in compressed payload");
+    }
+    var.name = read_string_buf(name_tag.number_of_bytes);
+
+    auto data_tag = read_tag_buf();
+    var.data = read_numeric_buf(data_tag.data_type, data_tag.number_of_bytes);
+    variables[var.name] = std::move(var);
+  }
 }
 
 auto MatFile::read_variable(const std::string& name) -> std::optional<MatVar> {
