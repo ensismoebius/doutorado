@@ -110,7 +110,7 @@ struct MatVar {
   }
 
   template <typename T>
-  const std::vector<T>& get_vector() const {
+  auto get_vector() const -> const std::vector<T>& {
     return std::get<std::vector<T>>(data);
   }
 
@@ -191,7 +191,7 @@ class MatFile {
   // Writing
   auto write_variable(const std::string& name, const MatData& data,
                       const Dimensions& dims = {1, 1},
-                      ArrayFlags flags = {ArrayType::MX_DOUBLE_CLASS, 0})
+                      ArrayFlags flags = {.array_type=ArrayType::MX_DOUBLE_CLASS, .flags=0})
       -> bool;
 
   // Convenience methods for common types
