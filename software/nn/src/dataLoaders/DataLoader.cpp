@@ -3,17 +3,21 @@
 #include <random>
 #include <utility>
 
-DataLoader::DataLoader(Dataset dataset,  //
-                       int batch_size,   //
-                       bool shuffle      //
-                       )
-    : dataset_(std::move(dataset)),  //
+DataLoader::DataLoader(  //
+    Dataset dataset,     //
+    int batch_size,      //
+    bool shuffle         //
+    )
+    :                                // Initialize members
+      dataset_(std::move(dataset)),  //
       batch_size_(batch_size),       //
       shuffle_(shuffle)              //
 {
   num_batches_ =
       (dataset_.inputs.get_shape()[0] + batch_size_ - 1) / batch_size_;
+
   indices_.resize(dataset_.inputs.get_shape()[0]);
+
   std::iota(indices_.begin(), indices_.end(), 0);
 
   if (shuffle_) {
