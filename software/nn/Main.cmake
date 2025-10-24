@@ -169,8 +169,8 @@ configure_eigen_parallel_target(plotSpikingNetwork)
 # Add executable target for matio data loader test
 #--------------------------------------
 add_executable(loadingData
+    ${SRC_DIR}/dataLoaders/DataLoader.cpp
     ${SRC_DIR}/dataLoaders/MatFile.cpp
-    ${SRC_DIR}/dataLoaders/MatFile.h
     ${SRC_DIR}/loadingData.cpp
 )
 

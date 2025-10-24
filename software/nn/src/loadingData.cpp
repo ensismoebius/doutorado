@@ -2,49 +2,57 @@
 
 #include "dataLoaders/MatFile.h"
 
+using std::cerr;
+using std::cout;
+using std::decay_t;
+using std::string;
+using std::visit;
+
 using namespace matio;
 
 auto main() -> int {
   // Load an existing MAT file (S02)
-  const std::string mat_path =
+  const string mat_path =
       "/home/ensismoebius/Documentos/UNESP/doutorado/databases/Base de "
       "Datos Habla Imaginada/S02/S02_Audio.mat";
 
   MatFile mat_file;
+  
   if (!mat_file.open(mat_path)) {
-    std::cerr << "Failed to open MAT file: " << mat_path << '\n';
+    cerr << "Failed to open MAT file: " << mat_path << '\n';
     return 1;
   }
 
   auto variables = mat_file.read_all_variables();
 
-  std::cout << "Variables in file:\n";
+  cout << "Variables in file:\n";
   for (const auto& [name, var] : variables) {
-    std::cout << "  " << name << ": " << var.type_name() << " [";
+    cout << "  " << name << ": " << var.type_name() << " [";
     for (size_t i = 0; i < var.dimensions.size(); ++i) {
       if (i != 0) {
-        std::cout << "x";
+        cout << "x";
       }
-      std::cout << var.dimensions[i];
+      cout << var.dimensions[i];
     }
-    std::cout << "]\n";
+    cout << "]\n";
 
     // Visit the variant to print all data for each supported type
-    std::visit(
+    visit(
         [&](auto&& data) {
-          using T = std::decay_t<decltype(data)>;
-          if constexpr (std::is_same_v<T, std::string>) {
-            std::cout << "    Data (string): " << data << "\n";
+          using VARIABLE_TYPE = decay_t<decltype(data)>;
+          if constexpr (std::is_same_v<VARIABLE_TYPE, string>) {
+            // It's a string; print it
+            cout << "Data (string): " << data << "\n";
           } else {
             // It's a numeric vector; print all elements
-            std::cout << "    Data (" << var.type_name() << "): ";
+            cout << "    Data (" << var.type_name() << "): ";
             for (size_t i = 0; i < data.size(); ++i) {
-              std::cout << +data[i];
+              cout << +data[i];
               if (i + 1 < data.size()) {
-                std::cout << " ";
+                cout << " ";
               }
             }
-            std::cout << "\n";
+            cout << "\n";
           }
         },
         var.data);

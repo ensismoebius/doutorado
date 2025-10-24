@@ -18,6 +18,9 @@ struct Tensor
   }
 
   Tensor(const Eigen::MatrixXf &data) : data(data), grad(Eigen::MatrixXf::Zero(data.rows(), data.cols())) {}
+
+  auto get_shape() const -> std::vector<long>;
+  auto slice(const std::vector<int>& indices) const -> Tensor;
 };
 
 #endif
