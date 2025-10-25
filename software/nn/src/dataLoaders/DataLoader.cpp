@@ -3,64 +3,67 @@
 #include <random>
 #include <utility>
 
-DataLoader::DataLoader(  //
-    Dataset dataset,     //
-    int batch_size,      //
-    bool shuffle         //
-    )
-    :                                // Initialize members
-      dataset_(std::move(dataset)),  //
-      batch_size_(batch_size),       //
-      shuffle_(shuffle)              //
-{
-  // get_shape() returns vector<long>, so do arithmetic in long to avoid
-  // implementation-defined narrowing when assigning to an int.
-  long n_samples = dataset_.inputs.get_shape()[0];
-  num_batches_ = (n_samples + static_cast<long>(batch_size_) - 1) /
-                 static_cast<long>(batch_size_);
+DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+                       bool shuffle, std::optional<unsigned int> seed)
+    : dataset_(std::move(dataset)),
+      batch_size_(batch_size),
+      shuffle_(shuffle),
+      seed_(seed) {
+  std::size_t n_samples = dataset_->size();
+  num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
 
-  indices_.resize(static_cast<size_t>(dataset_.inputs.get_shape()[0]));
-
+  indices_.resize(n_samples);
   std::iota(indices_.begin(), indices_.end(), 0);
-
-  if (shuffle_) {
+  if (shuffle_ && seed_) {
+    std::mt19937 g(*seed_);
+    std::shuffle(indices_.begin(), indices_.end(), g);
+  } else if (shuffle_) {
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(indices_.begin(), indices_.end(), g);
   }
 }
 
-auto DataLoader::begin() const -> DataLoader::Iterator { return {*this, 0}; }
-
-auto DataLoader::end() const -> DataLoader::Iterator {
-  return {*this, num_batches_};
+auto DataLoader::begin() -> DataLoader::Iterator {
+  // Re-shuffle at each epoch if requested
+  if (shuffle_) {
+    if (seed_) {
+      // use epoch to vary shuffle when seed is provided
+      std::mt19937 g(*seed_ + static_cast<unsigned int>(epoch_));
+      std::shuffle(indices_.begin(), indices_.end(), g);
+    } else {
+      std::random_device rd;
+      std::mt19937 g(rd());
+      std::shuffle(indices_.begin(), indices_.end(), g);
+    }
+  }
+  ++epoch_;
+  return {*this, 0};
 }
 
-DataLoader::Iterator::Iterator(const DataLoader& loader, long current_batch)
+auto DataLoader::end() -> DataLoader::Iterator { return {*this, num_batches_}; }
+
+DataLoader::Iterator::Iterator(DataLoader& loader, std::size_t current_batch)
     : loader_(loader), current_batch_(current_batch) {}
 
 auto DataLoader::Iterator::operator*() const -> Batch {
-  long start_index = current_batch_ * static_cast<long>(loader_.batch_size_);
-  long end_index =
-      std::min(start_index + static_cast<long>(loader_.batch_size_),
-               static_cast<long>(loader_.indices_.size()));
+  std::size_t start_index = current_batch_ * loader_.batch_size_;
+  std::size_t end_index =
+      std::min(start_index + loader_.batch_size_, loader_.indices_.size());
 
-  // Tensor::slice expects std::vector<int>, but indices_ is std::vector<int>
-  // and start/end are long. Copy the relevant range into a vector<int>.
-  std::vector<int> batch_indices;
-  batch_indices.reserve(static_cast<size_t>(end_index - start_index));
-  for (long i = start_index; i < end_index; ++i) {
-    batch_indices.push_back(loader_.indices_.at(static_cast<size_t>(i)));
+  // build indices (size_t -> int) for Dataset::collate
+  std::vector<std::size_t> idxs;
+  idxs.reserve(end_index - start_index);
+  for (std::size_t i = start_index; i < end_index; ++i) {
+    idxs.push_back(loader_.indices_.at(i));
   }
 
-  Tensor batch_inputs = loader_.dataset_.inputs.slice(batch_indices);
-  Tensor batch_targets = loader_.dataset_.targets.slice(batch_indices);
-
-  return {.inputs = batch_inputs, .targets = batch_targets};
+  // Delegate collation to dataset (allows custom collate behavior)
+  return loader_.dataset_->collate(idxs);
 }
 
 auto DataLoader::Iterator::operator++() -> DataLoader::Iterator& {
-  current_batch_++;
+  ++current_batch_;
   return *this;
 }
 

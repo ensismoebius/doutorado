@@ -1,12 +1,13 @@
 // DataLoader test file
 #include "dataLoaders/DataLoader.h"
-#include "dataLoaders/MatFile.h"
-
-using namespace matio;
+// #include "dataLoaders/MatFile.h"  // unused in this simple test
 
 auto main() -> int {
-  Dataset dataset;
-  DataLoader loader(dataset, 32L);  // Using long for batch size
+  // Create an empty TensorDataset for test purposes
+  Tensor inputs(0, 0);
+  Tensor targets(0, 0);
+  auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+  DataLoader loader(dataset, static_cast<std::size_t>(32), true);
   for (const auto& batch : loader) {
     // Process batch
   }
