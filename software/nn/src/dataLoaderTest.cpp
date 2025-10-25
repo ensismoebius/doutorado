@@ -73,12 +73,19 @@ static auto compute_capped_shape(const MatVar& var, const DemoConfig& cfg)
   }
 
   if (cfg.enable_caps && declared_elements > cfg.max_elements) {
-    size_t capped_cols = std::min<size_t>(
-        static_cast<size_t>(std::max(1, cols)), cfg.max_elements);
-    size_t capped_rows = std::min<size_t>(
-        static_cast<size_t>(std::max(1, rows)), cfg.max_elements / capped_cols);
+    size_t capped_cols = std::min<size_t>(       // Cap cols to at least 1
+        static_cast<size_t>(std::max(1, cols)),  // Cap cols to at least 1
+        cfg.max_elements  // Cap cols to at most max_elements
+    );
+
+    size_t capped_rows = std::min<size_t>(       // Cap rows to at least 1
+        static_cast<size_t>(std::max(1, rows)),  // Cap rows to at least 1
+        cfg.max_elements / capped_cols  // Ensure we don't exceed element cap
+    );
+
     capped_cols = std::max<size_t>(1, capped_cols);
     capped_rows = std::max<size_t>(1, capped_rows);
+
     rows = static_cast<int>(capped_rows);
     cols = static_cast<int>(capped_cols);
   }
@@ -117,138 +124,107 @@ static void fill_matrix_from_vector(Eigen::MatrixXf& data_mat, MatrixDims dims,
 // ---------------------
 // Convert a MatVar into an Eigen::MatrixXf using the configured caps. The
 // function returns a matrix of floats with shape (rows x used_cols).
-static auto build_matrix_from_var(const MatVar& var, const DemoConfig& cfg)
+static auto build_matrix_from_var(const MatVar& mat_var, const DemoConfig& cfg)
     -> Eigen::MatrixXf {
-  auto rc = compute_capped_shape(var, cfg);
-  int rows = rc.first;
-  int cols = rc.second;
+  auto capped_shape = compute_capped_shape(mat_var, cfg);
+  int num_rows = capped_shape.first;
+  int num_cols = capped_shape.second;
 
-  int used_cols = cols;
-  if (cfg.enable_caps && cols > cfg.max_features) {
-    used_cols = cfg.max_features;
+  int num_used_cols = num_cols;
+  if (cfg.enable_caps && num_cols > cfg.max_features) {
+    num_used_cols = cfg.max_features;
   }
 
-  Eigen::MatrixXf data_mat(rows, used_cols);
-  MatrixDims dims{.rows = static_cast<Eigen::Index>(rows),
-                  .cols = static_cast<Eigen::Index>(cols)};
-  if (var.holds_type<double>()) {
+  Eigen::MatrixXf data_matrix(num_rows, num_used_cols);
+  MatrixDims matrix_dims{.rows = static_cast<Eigen::Index>(num_rows),
+                         .cols = static_cast<Eigen::Index>(num_cols)};
+  if (mat_var.holds_type<double>()) {
     fill_matrix_from_vector(
-        data_mat, dims, used_cols, var.get_vector<double>());
-  } else if (var.holds_type<float>()) {
-    fill_matrix_from_vector(data_mat, dims, used_cols, var.get_vector<float>());
+        data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<double>());
+  } else if (mat_var.holds_type<float>()) {
+    fill_matrix_from_vector(
+        data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<float>());
   } else {
     fill_matrix_from_vector(
-        data_mat, dims, used_cols, var.get_vector<int32_t>());
+        data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<int32_t>());
   }
 
-  return data_mat;
+  return data_matrix;
 }
 
 static auto run_demo(const DemoConfig& cfg) -> int {
+  // The original demo implementation is intentionally commented out here.
+  // To re-enable it, replace this `#if 0` with `#if 1` or remove the
+  // preprocessor guards. The commented block below contains the full demo
+  // which performs: MAT loading, matrix construction, dataset creation,
+  // model construction, batch iteration, and saving the first reconstruction.
+
   MatFile mat_file;
+
   if (!mat_file.open(cfg.mat_path)) {
     cerr << "Failed to open MAT file: " << cfg.mat_path << '\n';
     return 1;
   }
 
-  auto var_opt = pick_numeric_var(mat_file);
-  if (!var_opt) {
+  auto mat_var_opt = pick_numeric_var(mat_file);
+  if (!mat_var_opt) {
     cerr << "No suitable numeric variable found in MAT file\n";
     return 1;
   }
-  const MatVar& var = *var_opt;
 
-  // ------------------------------------------------------------------
-  // Data loading walkthrough
-  // ------------------------------------------------------------------
-  // We have opened the requested MAT file and selected a numeric top-level
-  // variable. The MAT variable exposes a typed, flattened storage vector and
-  // a `dimensions` vector describing its shape (MAT files are column-major
-  // internally). To avoid attempting to allocate very large Eigen matrices
-  // for enormous MAT variables, we compute a capped shape via
-  // `compute_capped_shape` which respects cfg.max_elements and
-  // cfg.max_features. The resulting Eigen matrix will be of type `float` and is
-  // safe for use in the tiny model below.
+  const MatVar& mat_var = *mat_var_opt;
 
-  Eigen::MatrixXf data_mat;
+  // Data loading and shaping
+  Eigen::MatrixXf data_matrix;
   try {
-    data_mat = build_matrix_from_var(var, cfg);
+    data_matrix = build_matrix_from_var(mat_var, cfg);
   } catch (const std::bad_alloc& e) {
     cerr << "Allocation failed: " << e.what() << '\n';
     return 1;
   }
 
-  // ------------------------------------------------------------------
-  // Dataset & DataLoader construction walkthrough
-  // ------------------------------------------------------------------
-  // The demo wraps the numeric matrix into our `Tensor` type and constructs a
-  // `TensorDataset` that uses the same matrix for inputs and targets (auto-
-  // encoding). We then create a `DataLoader` with a modest batch size (16)
-  // and deterministic shuffling (seeded) so that runs are reproducible.
+  // Dataset and loader
+  Tensor tensor_data(data_matrix);
+  auto dataset = std::make_shared<TensorDataset>(tensor_data, tensor_data);
+  DataLoader data_loader(dataset, static_cast<std::size_t>(16), true, 123U);
 
-  Tensor used_data(data_mat);
-  auto dataset = std::make_shared<TensorDataset>(used_data, used_data);
-  DataLoader loader(dataset, static_cast<std::size_t>(16), true, 123U);
+  // Model
+  Eigen::Index input_dimension_index = data_matrix.cols();
+  int input_dimension = static_cast<int>(input_dimension_index);
+  int hidden_dimension = std::max(2, input_dimension / 2);
+  auto encoder = std::make_shared<Linear>(input_dimension, hidden_dimension);
+  auto leaky_layer = std::make_shared<Leaky>();
+  auto decoder = std::make_shared<Linear>(hidden_dimension, input_dimension);
+  Sequential model({encoder, leaky_layer, decoder});
 
-  // ------------------------------------------------------------------
-  // Model construction walkthrough
-  // ------------------------------------------------------------------
-  // Build a tiny encoder-decoder model. The encoder is a Linear layer that
-  // reduces dimensionality to `hidden_dim` (half of input_dim, at least 2).
-  // A `Leaky` (LIF-like) nonlinearity sits between encoder and decoder. The
-  // decoder projects back to the original input dimensionality. This simple
-  // wiring demonstrates forward propagation through the layer stack.
+  // Batch loop and save
+  int batch_index = 0;
+  for (const auto& batch_item : data_loader) {
+    Tensor batch_input = batch_item.inputs;
+    Tensor batch_reconstruction = model.forward(batch_input);
 
-  Eigen::Index input_dim_idx = data_mat.cols();
-  int input_dim = static_cast<int>(input_dim_idx);
-  int hidden_dim = std::max(2, input_dim / 2);
-  auto enc = std::make_shared<Linear>(input_dim, hidden_dim);
-  auto lif = std::make_shared<Leaky>();
-  auto dec = std::make_shared<Linear>(hidden_dim, input_dim);
-  Sequential model({enc, lif, dec});
-
-  cout << "Running forward passes on MAT data variable '" << var.name
-       << "' with shape " << data_mat.rows() << "x" << data_mat.cols() << "\n";
-
-  // ------------------------------------------------------------------
-  // Batch loop and save routine walkthrough
-  // ------------------------------------------------------------------
-  // Iterate the loader to obtain minibatches. For each batch we run a
-  // forward pass through the model to obtain a reconstruction. The demo
-  // prints shapes for visibility. For convenience we save the first batch's
-  // reconstruction to a MAT file named `reconstructed.mat`. We also cap the
-  // number of processed batches to avoid long runs when using large inputs.
-
-  int batch_idx = 0;
-  for (const auto& batch : loader) {
-    Tensor input = batch.inputs;
-    Tensor recon = model.forward(input);
-
-    cout << "Batch " << batch_idx << ": input shape = (" << input.data.rows()
-         << ", " << input.data.cols() << ") recon shape = ("
-         << recon.data.rows() << ", " << recon.data.cols() << ")\n";
-
-    if (batch_idx == 0) {
-      MatFile out;
-      if (out.create("reconstructed.mat")) {
-        std::vector<double> flat;
-        flat.reserve(recon.data.rows() * recon.data.cols());
-        for (int r = 0; r < recon.data.rows(); ++r) {
-          for (int c = 0; c < recon.data.cols(); ++c) {
-            flat.push_back(static_cast<double>(recon.data(r, c)));
+    if (batch_index == 0) {
+      MatFile out_file;
+      if (out_file.create("reconstructed.mat")) {
+        std::vector<double> flat_vector;
+        flat_vector.reserve(batch_reconstruction.data.rows() *
+                            batch_reconstruction.data.cols());
+        for (int r = 0; r < batch_reconstruction.data.rows(); ++r) {
+          for (int c = 0; c < batch_reconstruction.data.cols(); ++c) {
+            flat_vector.push_back(
+                static_cast<double>(batch_reconstruction.data(r, c)));
           }
         }
-        out.write_double_matrix(
-            "reconstruction",
-            flat,
-            {(int)recon.data.rows(), (int)recon.data.cols()});
-        out.close();
-        cout << "Saved reconstruction to reconstructed.mat\n";
+        out_file.write_double_matrix("reconstruction",
+                                     flat_vector,
+                                     {(int)batch_reconstruction.data.rows(),
+                                      (int)batch_reconstruction.data.cols()});
+        out_file.close();
       }
     }
 
-    ++batch_idx;
-    if (batch_idx >= 5) {
+    ++batch_index;
+    if (batch_index >= 5) {
       break;
     }
   }
