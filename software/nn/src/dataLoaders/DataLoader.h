@@ -16,7 +16,7 @@ class DataLoader {
 
   class Iterator {
    public:
-    Iterator(const DataLoader& loader, int current_batch);
+    Iterator(const DataLoader& loader, long current_batch);
 
     auto operator*() const -> Batch;
     auto operator++() -> Iterator&;
@@ -24,8 +24,7 @@ class DataLoader {
 
    private:
     const DataLoader& loader_;
-    int current_batch_;
-    std::vector<int> indices_;
+    long current_batch_;
   };
 
   [[nodiscard]] auto begin() const -> Iterator;
@@ -35,6 +34,6 @@ class DataLoader {
   Dataset dataset_;
   int batch_size_;
   bool shuffle_;
-  int num_batches_;
+  long num_batches_;
   std::vector<int> indices_;
 };
