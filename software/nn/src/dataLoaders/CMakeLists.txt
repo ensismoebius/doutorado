@@ -19,3 +19,14 @@ target_include_directories(dataLoader_demo PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(dataLoader_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})
 target_link_libraries(dataLoader_demo PRIVATE ${ZLIB_LIBRARIES} Eigen3::Eigen)
 configure_eigen_parallel_target(dataLoader_demo)
+
+# Additional DataLoader unit tests
+add_executable(dataLoader_more_gtest
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_gtest.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_more_gtest.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/DataLoader.cpp
+)
+target_include_directories(dataLoader_more_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_link_libraries(dataLoader_more_gtest PRIVATE GTest::gtest_main Eigen3::Eigen ${ZLIB_LIBRARIES})
+configure_eigen_parallel_target(dataLoader_more_gtest)
+gtest_discover_tests(dataLoader_more_gtest)

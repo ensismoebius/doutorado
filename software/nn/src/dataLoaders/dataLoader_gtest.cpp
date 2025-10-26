@@ -1,16 +1,17 @@
 #include "dataLoaders/DataLoader.h"
+#include "dataLoaders/TensorDataset.h"
 #include "gtest/gtest.h"
 
 // Helper to build a Tensor with sequential rows (N x D)
-static Tensor make_sequential_tensor(std::size_t N, std::size_t D) {
+static auto make_sequential_tensor(std::size_t N, std::size_t D) -> Tensor {
   Eigen::MatrixXf m(static_cast<int>(N), static_cast<int>(D));
   for (std::size_t i = 0; i < N; ++i) {
     for (std::size_t j = 0; j < D; ++j) {
       m(static_cast<int>(i), static_cast<int>(j)) =
-          static_cast<float>(i * D + j);
+          static_cast<float>((i * D) + j);
     }
   }
-  return Tensor(m);
+  return {m};
 }
 
 TEST(DataLoaderTest, DeterministicShuffle) {
@@ -18,8 +19,8 @@ TEST(DataLoaderTest, DeterministicShuffle) {
   auto targets = make_sequential_tensor(10, 1);
   auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
-  DataLoader loader1(dataset, 4, true, 42u);
-  DataLoader loader2(dataset, 4, true, 42u);
+  DataLoader loader1(dataset, 4, true, 42U);
+  DataLoader loader2(dataset, 4, true, 42U);
 
   std::vector<int> order1;
   for (const auto& batch : loader1) {
