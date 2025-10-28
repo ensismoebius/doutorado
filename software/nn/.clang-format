@@ -1,2 +1,13 @@
 BasedOnStyle: Google
 BinPackArguments: false
+ColumnLimit: 100
+IndentWidth: 4
+UseTab: Never
+DerivePointerAlignment: false
+PointerAlignment: Left
+# Force paranteses on new line for functions
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: Empty
+SpacesBeforeTrailingComments: 1
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true

@@ -1,14 +1,16 @@
 #include "imguiGlfw.hpp"
 
-ImGuiApp::ImGuiApp(const std::string &title, int width, int height)
-    : window(nullptr), title(title), width(width), height(height) {}
+ImGuiApp::ImGuiApp(const std::string& title, int width, int height)
+    : window(nullptr), title(title), width(width), height(height)
+{
+}
 
 ImGuiApp::~ImGuiApp()
 {
     shutdown();
 }
 
-void ImGuiApp::glfw_error_callback(int error, const char *description)
+void ImGuiApp::glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
@@ -46,8 +48,8 @@ bool ImGuiApp::initializeImGui()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
-    ImGuiIO &io = ImGui::GetIO();
-    (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void) io;
 
     if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init(glsl_version))
     {
@@ -72,9 +74,10 @@ void ImGuiApp::prepareFrame()
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImVec2(frameWidth, frameHeight));
 
-    ImGui::Begin("Fullscreen Window", nullptr,
-                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Fullscreen Window",
+                 nullptr,
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoCollapse);
 }
 
 void ImGuiApp::renderFrame()
@@ -103,7 +106,7 @@ bool ImGuiApp::initialize()
     return initializeGLFW() && initializeImGui();
 }
 
-void ImGuiApp::run(const std::function<void()> &uiCode)
+void ImGuiApp::run(const std::function<void()>& uiCode)
 {
     while (!glfwWindowShouldClose(window))
     {

@@ -7,11 +7,12 @@
 
 using std::cout;
 
-auto main() -> int {
-  cout << "Monografia C++ Project" << '\n';
-  cout << "Based on the dissertation: 'Autenticação Biométrica de Locutores "
-          "Drasticamente Disfônicos Aprimorada pela Imagined Speech'"
-       << '\n';
+auto main() -> int
+{
+    cout << "Monografia C++ Project" << '\n';
+    cout << "Based on the dissertation: 'Autenticação Biométrica de Locutores "
+            "Drasticamente Disfônicos Aprimorada pela Imagined Speech'"
+         << '\n';
 
-  return 0;
+    return 0;
 }

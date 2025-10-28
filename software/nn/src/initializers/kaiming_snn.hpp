@@ -1,9 +1,10 @@
 #pragma once
-#include "../tensor/Tensor.hpp"
-#include "layers/Linear.hpp"
 #include <cmath>
 #include <memory>
 #include <random>
+
+#include "../tensor/Tensor.hpp"
+#include "layers/Linear.hpp"
 
 /**
  * @brief Kaiming (He) uniform initializer, adapted for spiking neural networks.
@@ -14,21 +15,19 @@
  *
  * @param layer The linear layer to initialize.
  */
-inline auto kaimingSNNInitializer(const std::shared_ptr<Linear> &layer) -> void {
+inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer) -> void
+{
+    // Kaiming/He uniform limit: sqrt(6 / fan_in)
+    float const limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));
 
-  // Kaiming/He uniform limit: sqrt(6 / fan_in)
-  float const limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));
+    // Uniform distribution in [-limit, +limit]
+    std::uniform_real_distribution<float> dist(-limit, limit);
+    std::mt19937 gen(static_cast<int>(std::random_device{}()));
 
-  // Uniform distribution in [-limit, +limit]
-  std::uniform_real_distribution<float> dist(-limit, limit);
-  std::mt19937 gen(static_cast<int>(std::random_device{}()));
+    // Initialize weights
+    layer->weight.data = Eigen::MatrixXf(layer->out_features, layer->in_features)
+                             .unaryExpr([&](float) { return dist(gen); });
 
-  // Initialize weights
-  layer->weight.data =
-      Eigen::MatrixXf(layer->out_features, layer->in_features).unaryExpr([&](float) {
-        return dist(gen);
-      });
-
-  // Initialize biases to zero (common in SNNs)
-  layer->bias.data = Eigen::VectorXf::Zero(layer->out_features);
+    // Initialize biases to zero (common in SNNs)
+    layer->bias.data = Eigen::VectorXf::Zero(layer->out_features);
 }

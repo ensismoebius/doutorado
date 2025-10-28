@@ -3,22 +3,27 @@
 
 #include "Optimizer.hpp"
 
-struct SGDMinimal : public Optimizer {
-  float learning_rate;
+struct SGDMinimal : public Optimizer
+{
+    float learning_rate;
 
-  explicit SGDMinimal(float learnningRate = 0.01F) : learning_rate(learnningRate) {}
+    explicit SGDMinimal(float learnningRate = 0.01F) : learning_rate(learnningRate) {}
 
-  auto step(std::vector<Tensor *> &params) -> void override {
-    for (Tensor *param : params) {
-      param->data -= learning_rate * param->grad;
+    auto step(std::vector<Tensor*>& params) -> void override
+    {
+        for (Tensor* param : params)
+        {
+            param->data -= learning_rate * param->grad;
+        }
     }
-  }
 
-  void zero_grad(std::vector<Tensor *> &params) override {
-    for (Tensor *param : params) {
-      param->grad.setZero();
+    void zero_grad(std::vector<Tensor*>& params) override
+    {
+        for (Tensor* param : params)
+        {
+            param->grad.setZero();
+        }
     }
-  }
 };
 
 #endif // SGD_MINIMAL_HPP

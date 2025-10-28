@@ -1,9 +1,10 @@
 #ifndef SYNTHETIC_SPIKE_DATA_HPP
 #define SYNTHETIC_SPIKE_DATA_HPP
 
-#include "tensor/Tensor.hpp"
 #include <Eigen/Dense>
 #include <vector>
+
+#include "tensor/Tensor.hpp"
 
 using std::tuple;
 using std::vector;
