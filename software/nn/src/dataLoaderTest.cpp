@@ -22,6 +22,7 @@
 
 #include "dataLoaders/DataLoader.h"
 #include "dataLoaders/MatFile.h"
+#include "dataLoaders/MatFileUtils.h"
 #include "dataLoaders/TensorDataset.h"
 #include "layers/Leaky.hpp"
 #include "layers/MSELoss.hpp"
@@ -31,7 +32,8 @@
 using namespace std;
 using namespace matio;
 
-struct DemoConfig {
+struct DemoConfig
+{
     string mat_path;
     bool enable_trims = true;
     int max_features = 512;
@@ -43,11 +45,14 @@ struct DemoConfig {
 // Scan the opened MatFile and return the first top-level variable that
 // contains numeric data. Supported numeric element types are double, float,
 // and int32. Returns nullopt when no suitable variable is found.
-static auto pick_numeric_var(MatFile& mat_file) -> optional<MatVar> {
+static auto pick_numeric_var(MatFile& mat_file) -> optional<MatVar>
+{
     auto variables = mat_file.read_all_variables();
-    for (auto& p : variables) {
+    for (auto& p : variables)
+    {
         const MatVar& v = p.second;
-        if (v.holds_type<double>() || v.holds_type<float>() || v.holds_type<int32_t>()) {
+        if (v.holds_type<double>() || v.holds_type<float>() || v.holds_type<int32_t>())
+        {
             return v;
         }
     }
@@ -59,28 +64,32 @@ static auto pick_numeric_var(MatFile& mat_file) -> optional<MatVar> {
 // Determine an (rows, cols) shape for the MatVar that respects the demo's
 // element cap (cfg.max_elements). This avoids allocating huge Eigen matrices
 // when the MAT variable declares an excessive number of elements.
-static auto compute_trimmed_shape(const MatVar& var, const DemoConfig& cfg) -> std::pair<int, int> {
+static auto compute_trimmed_shape(const MatVar& var, const DemoConfig& cfg) -> std::pair<int, int>
+{
     int rows = 1;
     int cols = 1;
-    if (!var.dimensions.empty()) {
+    if (!var.dimensions.empty())
+    {
         rows = var.dimensions.size() >= 1 ? var.dimensions[0] : 1;
         cols = var.dimensions.size() >= 2 ? var.dimensions[1] : 1;
     }
 
     size_t declared_elements = 1;
-    for (auto d : var.dimensions) {
+    for (auto d : var.dimensions)
+    {
         declared_elements *= static_cast<size_t>(d);
     }
 
-    if (cfg.enable_trims && declared_elements > cfg.max_elements) {
-        size_t trimmed_cols = std::min<size_t>(      // Cap cols to at least 1
-            static_cast<size_t>(std::max(1, cols)),  // Cap cols to at least 1
-            cfg.max_elements                         // Cap cols to at most max_elements
+    if (cfg.enable_trims && declared_elements > cfg.max_elements)
+    {
+        size_t trimmed_cols = std::min<size_t>(     // Cap cols to at least 1
+            static_cast<size_t>(std::max(1, cols)), // Cap cols to at least 1
+            cfg.max_elements                        // Cap cols to at most max_elements
         );
 
-        size_t trimmed_rows = std::min<size_t>(      // Cap rows to at least 1
-            static_cast<size_t>(std::max(1, rows)),  // Cap rows to at least 1
-            cfg.max_elements / trimmed_cols          // Ensure we don't exceed element cap
+        size_t trimmed_rows = std::min<size_t>(     // Cap rows to at least 1
+            static_cast<size_t>(std::max(1, rows)), // Cap rows to at least 1
+            cfg.max_elements / trimmed_cols         // Ensure we don't exceed element cap
         );
 
         trimmed_cols = std::max<size_t>(1, trimmed_cols);
@@ -100,20 +109,27 @@ static auto compute_trimmed_shape(const MatVar& var, const DemoConfig& cfg) -> s
 // source is shorter than the destination area the remainder is zero-filled.
 // Small helper type to hold matrix dimensions so individual integer params
 // are not adjacent in function signatures (reduces parameter-swap errors).
-struct MatrixDims {
+struct MatrixDims
+{
     Eigen::Index rows;
     Eigen::Index cols;
 };
 
 template <typename T>
 static void fill_matrix_from_vector(Eigen::MatrixXf& data_mat, MatrixDims dims, int used_cols,
-                                    const std::vector<T>& vec) {
-    for (Eigen::Index r = 0; r < dims.rows; ++r) {
-        for (int c = 0; c < used_cols; ++c) {
+                                    const std::vector<T>& vec)
+{
+    for (Eigen::Index r = 0; r < dims.rows; ++r)
+    {
+        for (int c = 0; c < used_cols; ++c)
+        {
             int idx = static_cast<int>(r * dims.cols) + c;
-            if (idx < static_cast<int>(vec.size())) {
+            if (idx < static_cast<int>(vec.size()))
+            {
                 data_mat(static_cast<int>(r), c) = static_cast<float>(vec[idx]);
-            } else {
+            }
+            else
+            {
                 data_mat(static_cast<int>(r), c) = 0.0F;
             }
         }
@@ -124,7 +140,8 @@ static void fill_matrix_from_vector(Eigen::MatrixXf& data_mat, MatrixDims dims, 
 // ---------------------
 // Convert a MatVar into an Eigen::MatrixXf using the configured caps. The
 // function returns a matrix of floats with shape (rows x used_cols).
-static auto build_matrix_from_var(const MatVar& mat_var, const DemoConfig& cfg) -> Eigen::MatrixXf {
+static auto build_matrix_from_var(const MatVar& mat_var, const DemoConfig& cfg) -> Eigen::MatrixXf
+{
     // Determine trimmed shape based on config
     auto trimmed_shape = compute_trimmed_shape(mat_var, cfg);
     int num_rows = trimmed_shape.first;
@@ -139,18 +156,23 @@ static auto build_matrix_from_var(const MatVar& mat_var, const DemoConfig& cfg) 
 
     // Define the matrix dimensions struct
     MatrixDims matrix_dims{
-        .rows = static_cast<Eigen::Index>(num_rows),  //
-        .cols = static_cast<Eigen::Index>(num_cols)   //
+        .rows = static_cast<Eigen::Index>(num_rows), //
+        .cols = static_cast<Eigen::Index>(num_cols)  //
     };
 
     // Fill the matrix with data from the MatVar
-    if (mat_var.holds_type<double>()) {
+    if (mat_var.holds_type<double>())
+    {
         fill_matrix_from_vector(
             data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<double>());
-    } else if (mat_var.holds_type<float>()) {
+    }
+    else if (mat_var.holds_type<float>())
+    {
         fill_matrix_from_vector(
             data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<float>());
-    } else {
+    }
+    else
+    {
         fill_matrix_from_vector(
             data_matrix, matrix_dims, num_used_cols, mat_var.get_vector<int32_t>());
     }
@@ -158,7 +180,8 @@ static auto build_matrix_from_var(const MatVar& mat_var, const DemoConfig& cfg) 
     return data_matrix;
 }
 
-static auto run_demo(const DemoConfig& cfg) -> int {
+static auto run_demo(const DemoConfig& cfg) -> int
+{
     // The original demo implementation is intentionally commented out here.
     // To re-enable it, replace this `#if 0` with `#if 1` or remove the
     // preprocessor guards. The commented block below contains the full demo
@@ -167,27 +190,54 @@ static auto run_demo(const DemoConfig& cfg) -> int {
 
     MatFile mat_file;
 
-    if (!mat_file.open(cfg.mat_path)) {
+    if (!mat_file.open(cfg.mat_path))
+    {
         cerr << "Failed to open MAT file: " << cfg.mat_path << '\n';
         return 1;
     }
 
     auto mat_var_opt = pick_numeric_var(mat_file);
-    if (!mat_var_opt) {
+    if (!mat_var_opt)
+    {
         cerr << "No suitable numeric variable found in MAT file\n";
         return 1;
     }
     // Get the selected variable and convert from optional<MatVar> to MatVar
     const MatVar& mat_var = mat_var_opt.value();
 
-    // Data loading and shaping
-    Eigen::MatrixXf data_matrix;
-    try {
-        data_matrix = build_matrix_from_var(mat_var, cfg);
-    } catch (const std::bad_alloc& e) {
-        cerr << "Allocation failed: " << e.what() << '\n';
-        return 1;
+    // Data loading and shaping: use helper to load full variable then trim
+    Eigen::MatrixXf full_matrix;
+    auto opt_full = matio::utils::load_named_variable_as_matrix(cfg.mat_path, mat_var.name);
+    if (!opt_full)
+    {
+        // fallback to previous behavior if helper couldn't load (shouldn't happen)
+        try
+        {
+            full_matrix = build_matrix_from_var(mat_var, cfg);
+        }
+        catch (const std::bad_alloc& e)
+        {
+            cerr << "Allocation failed: " << e.what() << '\n';
+            return 1;
+        }
     }
+    else
+    {
+        full_matrix = *opt_full;
+    }
+
+    // Apply demo-specific trimming (cols/features and element caps)
+    auto trimmed_shape = compute_trimmed_shape(mat_var, cfg);
+    int num_rows = trimmed_shape.first;
+    int num_cols = trimmed_shape.second;
+    int num_used_cols =
+        (cfg.enable_trims && num_cols > cfg.max_features) ? cfg.max_features : num_cols;
+
+    // If loaded matrix is larger than desired trimmed shape, create a view/copy
+    Eigen::MatrixXf data_matrix = Eigen::MatrixXf::Zero(num_rows, num_used_cols);
+    int copy_rows = std::min<int>(static_cast<int>(full_matrix.rows()), num_rows);
+    int copy_cols = std::min<int>(static_cast<int>(full_matrix.cols()), num_used_cols);
+    data_matrix.block(0, 0, copy_rows, copy_cols) = full_matrix.block(0, 0, copy_rows, copy_cols);
 
     // Dataset and loader
     Tensor tensor_data(data_matrix);
@@ -220,11 +270,13 @@ static auto run_demo(const DemoConfig& cfg) -> int {
     int epoch = 0;
     bool converged = false;
 
-    while (epoch < max_epochs && !converged) {
+    while (epoch < max_epochs && !converged)
+    {
         float epoch_loss_sum = 0.0F;
         int batch_count = 0;
 
-        for (const auto& batch_item : data_loader) {
+        for (const auto& batch_item : data_loader)
+        {
             Tensor input = batch_item.inputs;
 
             // Zero gradients on parameters
@@ -248,10 +300,12 @@ static auto run_demo(const DemoConfig& cfg) -> int {
             optimizer.step(parameters);
         }
 
-        if (batch_count > 0) {
+        if (batch_count > 0)
+        {
             float epoch_loss_avg = epoch_loss_sum / static_cast<float>(batch_count);
             cout << "Epoch " << epoch << " avg loss = " << epoch_loss_avg << "\n";
-            if (epoch_loss_avg <= target_loss) {
+            if (epoch_loss_avg <= target_loss)
+            {
                 converged = true;
                 cout << "Converged (avg loss <= " << target_loss << ")\n";
                 break;
@@ -263,26 +317,31 @@ static auto run_demo(const DemoConfig& cfg) -> int {
 
     // After training, save reconstruction of first batch (if available)
     int saved = 0;
-    for (const auto& batch_item : data_loader) {
+    for (const auto& batch_item : data_loader)
+    {
         Tensor input = batch_item.inputs;
         Tensor recon = model.forward(input);
 
         MatFile out_file;
-        if (out_file.create("reconstructed.mat")) {
+        if (out_file.create("reconstructed.mat"))
+        {
             std::vector<double> flat_vector;
             flat_vector.reserve(recon.data.rows() * recon.data.cols());
-            for (int r = 0; r < recon.data.rows(); ++r) {
-                for (int c = 0; c < recon.data.cols(); ++c) {
+            for (int r = 0; r < recon.data.rows(); ++r)
+            {
+                for (int c = 0; c < recon.data.cols(); ++c)
+                {
                     flat_vector.push_back(static_cast<double>(recon.data(r, c)));
                 }
             }
             out_file.write_double_matrix(
-                "reconstruction", flat_vector, {(int)recon.data.rows(), (int)recon.data.cols()});
+                "reconstruction", flat_vector, {(int) recon.data.rows(), (int) recon.data.cols()});
             out_file.close();
             cout << "Saved reconstruction to reconstructed.mat\n";
         }
         ++saved;
-        if (saved >= 1) {
+        if (saved >= 1)
+        {
             break;
         }
     }
@@ -291,37 +350,48 @@ static auto run_demo(const DemoConfig& cfg) -> int {
     return 0;
 }
 
-auto main(int argc, char** argv) -> int {
+auto main(int argc, char** argv) -> int
+{
     DemoConfig cfg;
-    if (argc < 2) {
+    if (argc < 2)
+    {
         // No MAT file path provided. Create a small default MAT file in /tmp
         // so the demo can run without external parameters.
         const std::string default_mat = "/tmp/dataLoader_demo_default.mat";
         MatFile default_writer;
-        if (default_writer.create(default_mat)) {
+        if (default_writer.create(default_mat))
+        {
             std::vector<double> demo_data = {1, 2, 3, 4, 5, 6};
             // write as 2x3 to match earlier examples
             default_writer.write_double_matrix("sample", demo_data, {2, 3});
             default_writer.close();
             cout << "No MAT path provided; created default sample at: " << default_mat << "\n";
             cfg.mat_path = default_mat;
-        } else {
+        }
+        else
+        {
             cerr << "Failed to create default MAT file at " << default_mat << "\n";
             return 1;
         }
-    } else {
+    }
+    else
+    {
         cfg.mat_path = argv[1];
     }
-    for (int i = 2; i < argc; ++i) {
+    for (int i = 2; i < argc; ++i)
+    {
         string arg(argv[i]);
-        if (arg == "--no-caps") {
+        if (arg == "--no-caps")
+        {
             cfg.enable_trims = false;
         }
-        if (arg.starts_with("--max-features=")) {
+        if (arg.starts_with("--max-features="))
+        {
             string val = arg.substr(string("--max-features=").size());
             cfg.max_features = stoi(val);
         }
-        if (arg.starts_with("--max-elements=")) {
+        if (arg.starts_with("--max-elements="))
+        {
             string val = arg.substr(string("--max-elements=").size());
             cfg.max_elements = static_cast<size_t>(stoll(val));
         }

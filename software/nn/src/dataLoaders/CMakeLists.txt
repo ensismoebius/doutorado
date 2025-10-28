@@ -3,9 +3,11 @@ find_package(ZLIB REQUIRED)
 ## Consolidated GoogleTest target for dataLoaders
 add_executable(dataLoaders_gtest
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/mat_file_gtest.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/matfile_utils_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_more_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFile.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFileUtils_impl.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/DataLoader.cpp
 )
 target_include_directories(dataLoaders_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
