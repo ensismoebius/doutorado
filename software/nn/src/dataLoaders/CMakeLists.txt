@@ -7,7 +7,7 @@ add_executable(dataLoaders_gtest
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/dataLoader_more_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFile.cpp
-	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFileUtils_impl.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFileUtils.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/DataLoader.cpp
 )
 target_include_directories(dataLoaders_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -21,6 +21,7 @@ add_executable(dataLoader_demo
 	${CMAKE_SOURCE_DIR}/src/dataLoaderTest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/DataLoader.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFile.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/MatFileUtils.cpp
 )
 target_include_directories(dataLoader_demo PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_include_directories(dataLoader_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})
