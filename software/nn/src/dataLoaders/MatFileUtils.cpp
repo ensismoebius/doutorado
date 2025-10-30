@@ -133,4 +133,32 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
     return build_matrix_from_matvar(var_opt.value());
 }
 
+// Implementation of listing available variable names in a .mat file
+auto list_variable_names(const std::string& mat_path) -> std::vector<std::string>
+{
+    matio::MatFile mf;
+    if (!mf.open(mat_path))
+    {
+        std::cerr << "Failed to open MAT file: " << mat_path << '\n';
+        return {};
+    }
+
+    try
+    {
+        auto vars = mf.read_all_variables();
+        std::vector<std::string> names;
+        names.reserve(vars.size());
+        for (const auto& kv : vars)
+        {
+            names.push_back(kv.first);
+        }
+        return names;
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error reading variables from MAT file: " << e.what() << '\n';
+        return {};
+    }
+}
+
 } // namespace matio::utils

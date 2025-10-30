@@ -5,6 +5,10 @@
  */
 #include <iostream>
 
+#include "dataLoaders/MatFileUtils.h"
+
+using matio::utils::list_variable_names;
+using matio::utils::load_named_variable_as_matrix;
 using std::cout;
 
 auto main() -> int
@@ -13,6 +17,28 @@ auto main() -> int
     cout << "Based on the dissertation: 'Autenticação Biométrica de Locutores "
             "Drasticamente Disfônicos Aprimorada pela Imagined Speech'"
          << '\n';
+
+    auto var_names = list_variable_names(
+        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/"
+        "S02_EEG.mat");
+    for (const auto& name : var_names)
+    {
+        cout << "Found variable: " << name << '\n';
+    }
+
+    auto mat = load_named_variable_as_matrix(
+        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/"
+        "S02_EEG.mat",
+        "variable_name");
+
+    if (mat)
+    {
+        cout << "Loaded matrix with shape: " << mat->rows() << " x " << mat->cols() << '\n';
+    }
+    else
+    {
+        cout << "Failed to load matrix from MAT file.\n";
+    }
 
     return 0;
 }

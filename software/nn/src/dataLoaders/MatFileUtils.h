@@ -13,6 +13,10 @@ namespace matio::utils
                                                  const std::string& var_name)
     -> std::optional<Eigen::MatrixXf>;
 
+// Return a list of top-level variable names available in the .mat file.
+// Returns an empty vector on error (file can't be opened or parsing failed).
+[[nodiscard]] auto list_variable_names(const std::string& mat_path) -> std::vector<std::string>;
+
 // Example:
 // auto mat = matio::utils::load_named_variable_as_matrix("/tmp/file.mat", "data");
 // if (mat) { std::cout << "Loaded matrix: " << mat->rows() << "x" << mat->cols() << '\n'; }

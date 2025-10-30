@@ -121,6 +121,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     auto encoder_act6 = make_shared<LeakyReLU>(0.01F);
 
     // Decoder layers
+    // Decoder layers
 
     auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
     auto decoder_act1 = make_shared<LeakyReLU>(0.01F);
@@ -133,7 +134,6 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     auto decoder5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
     auto decoder_act5 = make_shared<LeakyReLU>(0.01F);
     auto decoder6 = make_shared<Linear>(hidden_dim1, input_dim);
-
     // ==== Loss Layer ====
     auto mse_loss = std::make_shared<MSELoss>();
 
