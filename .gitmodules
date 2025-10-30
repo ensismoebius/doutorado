@@ -19,3 +19,9 @@
 [submodule "software/nn/lib/cnpy"]
 	path = software/nn/lib/cnpy
 	url = https://github.com/rogersce/cnpy.git
+[submodule "software/nn/lib/matio-cpp"]
+	path = software/nn/lib/matio-cpp
+	url = https://github.com/ami-iit/matio-cpp.git
+[submodule "software/nn/lib/matio"]
+	path = software/nn/lib/matio
+	url = https://github.com/tbeu/matio.git
