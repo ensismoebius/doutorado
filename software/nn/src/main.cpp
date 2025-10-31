@@ -29,7 +29,7 @@ auto main() -> int
     auto mat = load_named_variable_as_matrix(
         "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/"
         "S02_EEG.mat",
-        "variable_name");
+        "EEG");
 
     if (mat)
     {
