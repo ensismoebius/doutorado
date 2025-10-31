@@ -9,7 +9,6 @@ add_subdirectory(${SRC_DIR}/initializers)
 add_subdirectory(${SRC_DIR}/dataLoaders)
 
 # Include modular CMake target files
-include(${CMAKE_SOURCE_DIR}/cmake/AutoEncoderTargets.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/PlotTarget.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/LoadingDataTarget.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/mainProject.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/exec_AutoEncoderTargets.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/exec_plotSpikingNetwork.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/exec_mainProject.cmake)
