@@ -1,4 +1,3 @@
-```cmake
 # Package finder
 find_package(PkgConfig REQUIRED)
 
@@ -15,4 +14,3 @@ find_package(SDL2 REQUIRED)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 pkg_check_modules(OPENBLAS REQUIRED openblas)
-```

@@ -1,4 +1,3 @@
-```cmake
 # IMPlot configuration
 set(IMPLOT_DIR "${LIB_DIR}/implot")
 
@@ -34,4 +33,3 @@ set(IMPLOT_SOURCES
     ${IMPLOT_DIR}/implot_items.cpp
     ${IMPLOT_DIR}/implot.cpp
 )
-```

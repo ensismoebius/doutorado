@@ -1,4 +1,3 @@
-```cmake
 # IMGui configuration
 set(IMGUI_DIR "${LIB_DIR}/imgui")
 
@@ -42,4 +41,3 @@ set(IMGUI_BACKEND_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
-```

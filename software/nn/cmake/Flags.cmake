@@ -1,4 +1,3 @@
-```cmake
 # Set the policy for timestamp handling in FetchContent
 if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
@@ -33,4 +32,3 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast
 # If you are having compatibilities
 # issues set to "LEGACY"
 set(OpenGL_GL_PREFERENCE "GLVND")
-```

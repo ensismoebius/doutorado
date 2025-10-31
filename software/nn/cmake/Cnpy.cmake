@@ -1,4 +1,3 @@
-```cmake
 # Cnpy configuration
 # Cnpy lets you read and write to .npy and .npz formats in C++.
 set(CNPY_DIR "${LIB_DIR}/cnpy")
@@ -29,4 +28,3 @@ if(NOT EXISTS "${CNPY_DIR}/cnpy.h")
 else()
     message(STATUS "Cnpy already exists, skipping download and compilation...")
 endif()
-```

@@ -2,7 +2,7 @@
 # Sets up the flags for CMake and compiler (top-level defines project())
 
 # Sets up the flags for CMake and compiler
-include(Flags.cmake)
+include(cmake/Flags.cmake)
 
 # Ensure our custom modules are visible to find_package() so we can provide
 # a lightweight FindMATIO that prefers the vendored copy or an existing

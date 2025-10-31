@@ -10,7 +10,7 @@ project(
 include(cmake/ProjectSetup.cmake)
 
 # Do the required libraries check (package checks remain small and local)
-include(PackageChecking.cmake)
+include(cmake/PackageChecking.cmake)
 
 # Vendor includes and helpers (cnpy, imgui, implot, eigen parallel settings)
 include(cmake/VendorIncludes.cmake)
@@ -22,4 +22,4 @@ include(cmake/VendorMatio.cmake)
 include(cmake/VendorMatioCppShim.cmake)
 
 # Main wiring
-include(cmake/MainInclude.cmake)
+include(cmake/Main.cmake)

@@ -1,4 +1,3 @@
-```cmake
 # Find OpenMP
 find_package(OpenMP REQUIRED)
 
@@ -45,5 +44,3 @@ function(configure_eigen_parallel_target target)
         EIGEN_DONT_PARALLELIZE=0
     )
 endfunction()
-
-```
