@@ -7,8 +7,8 @@
 
 #include "dataLoaders/MatFileUtils.h"
 
-using matio::utils::list_variable_names;
-using matio::utils::load_named_variable_as_matrix;
+using matioCpp::utils::list_variable_names;
+using matioCpp::utils::load_named_variable_as_matrix;
 using std::cout;
 
 auto main() -> int

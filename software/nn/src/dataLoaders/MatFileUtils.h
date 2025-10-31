@@ -3,8 +3,9 @@
 #include <Eigen/Dense>
 #include <optional>
 #include <string>
+#include <vector>
 
-namespace matio::utils
+namespace matioCpp::utils
 {
 // Load a named variable from a .mat file and return it as an Eigen::MatrixXf.
 // Returns std::nullopt on any error (file can't be opened, variable not
@@ -21,4 +22,4 @@ namespace matio::utils
 // auto mat = matio::utils::load_named_variable_as_matrix("/tmp/file.mat", "data");
 // if (mat) { std::cout << "Loaded matrix: " << mat->rows() << "x" << mat->cols() << '\n'; }
 
-} // namespace matio::utils
+} // namespace matioCpp::utils

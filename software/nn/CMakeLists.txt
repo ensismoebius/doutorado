@@ -21,6 +21,9 @@ include(PackageChecking.cmake)
 # Download (if needed) another libraries
 include(Cnpy.cmake)
 
+
+include(lib/matio-cpp.cmake)
+
 include(Imgui.cmake)
 
 include(Implot.cmake)
