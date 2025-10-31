@@ -31,6 +31,11 @@ include(PackageChecking.cmake)
 include(Cnpy.cmake)
 
 # Add vendored matio library so matio-cpp can find MATIO::MATIO
+## Disable vendored matio's own tests (they cause many failures in our
+## environment and are not required for building the project). This only
+## affects the in-tree vendor build and keeps third-party sources untouched.
+set(MATIO_BUILD_TESTING OFF CACHE BOOL "Disable building tests in vendored matio" FORCE)
+
 include(lib/matio.cmake)
 
 # Hint FindMATIO to look into the vendored matio sources if system matio is not installed
