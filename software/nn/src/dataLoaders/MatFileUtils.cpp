@@ -15,8 +15,15 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
         auto variable = file.read(var_name);
         if (!variable.isValid()) return std::nullopt;
 
-        if (variable.variableType() != matioCpp::VariableType::MultiDimensionalArray)
+        // Accept both 2-D arrays and vectors (column vectors) from matio-cpp
+        if (variable.variableType() != matioCpp::VariableType::MultiDimensionalArray &&
+            variable.variableType() != matioCpp::VariableType::Vector)
+        {
+            // diagnostic
+            std::cerr << "MatFileUtils: variable '" << var_name
+                      << "' is not a MultiDimensionalArray or Vector\n";
             return std::nullopt;
+        }
 
         // Handle the actual stored ValueType safely. matio-cpp will assert if
         // you try to cast a non-convertible stored type to the requested template
@@ -28,6 +35,7 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
         if (variable.isComplex())
         {
             // Complex arrays are not supported by this utility yet.
+            std::cerr << "MatFileUtils: variable '" << var_name << "' is complex and unsupported\n";
             return std::nullopt;
         }
 
@@ -35,53 +43,133 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
         {
             case ValueType::DOUBLE:
             {
-                auto mat = variable.asMultiDimensionalArray<double>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<double>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<double>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::SINGLE:
             {
-                auto mat = variable.asMultiDimensionalArray<float>();
-                return matioCpp::to_eigen(mat);
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<float>();
+                    return matioCpp::to_eigen(mat);
+                }
+                else
+                {
+                    auto vec = variable.asVector<float>();
+                    return matioCpp::to_eigen(vec);
+                }
             }
             case ValueType::INT8:
             {
-                auto mat = variable.asMultiDimensionalArray<int8_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<int8_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<int8_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::UINT8:
             {
-                auto mat = variable.asMultiDimensionalArray<uint8_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<uint8_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<uint8_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::INT16:
             {
-                auto mat = variable.asMultiDimensionalArray<int16_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<int16_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<int16_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::UINT16:
             {
-                auto mat = variable.asMultiDimensionalArray<uint16_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<uint16_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<uint16_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::INT32:
             {
-                auto mat = variable.asMultiDimensionalArray<int32_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<int32_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<int32_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::UINT32:
             {
-                auto mat = variable.asMultiDimensionalArray<uint32_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<uint32_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<uint32_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::INT64:
             {
-                auto mat = variable.asMultiDimensionalArray<int64_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<int64_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<int64_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             case ValueType::UINT64:
             {
-                auto mat = variable.asMultiDimensionalArray<uint64_t>();
-                return matioCpp::to_eigen(mat).cast<float>();
+                if (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
+                {
+                    auto mat = variable.asMultiDimensionalArray<uint64_t>();
+                    return matioCpp::to_eigen(mat).cast<float>();
+                }
+                else
+                {
+                    auto vec = variable.asVector<uint64_t>();
+                    return matioCpp::to_eigen(vec).template cast<float>();
+                }
             }
             default:
                 // Unsupported or non-numeric types (strings, logical, etc.)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <vector>
 
 struct Tensor
 {
@@ -15,25 +16,30 @@ struct Tensor
         grad.setZero();
     }
 
-    Tensor(const Eigen::MatrixXf& data)
-        : data(data), grad(Eigen::MatrixXf::Zero(data.rows(), data.cols()))
+    Tensor(const Eigen::MatrixXf& m) : data(m), grad(Eigen::MatrixXf::Zero(m.rows(), m.cols())) {}
+
+    // Convenience constructor for scalar
+    Tensor(const float v)
+        : data(Eigen::MatrixXf::Constant(1, 1, v)), grad(Eigen::MatrixXf::Zero(1, 1))
     {
     }
 
-    // Returns the shape of the tensor as a vector of longs
     [[nodiscard]] auto get_shape() const -> std::vector<long>
     {
-        return {data.rows(), data.cols()};
+        return {static_cast<long>(data.rows()), static_cast<long>(data.cols())};
     }
 
-    // Slices the tensor based on the provided indices
+    // Slice by row indices (used by Dataset/TensorDataset)
     [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor
     {
-        Eigen::MatrixXf sliced_data(indices.size(), data.cols());
-        for (long i = 0; i < indices.size(); ++i)
+        if (indices.empty()) return Tensor();
+        const int rows = static_cast<int>(indices.size());
+        const int cols = static_cast<int>(data.cols());
+        Eigen::MatrixXf out(rows, cols);
+        for (int i = 0; i < rows; ++i)
         {
-            sliced_data.row(i) = data.row(indices[i]);
+            out.row(i) = data.row(indices[i]);
         }
-        return {sliced_data};
+        return Tensor(out);
     }
 };

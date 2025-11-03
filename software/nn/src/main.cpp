@@ -1,6 +1,6 @@
-/**
- *  Main entry point for the monografia C++ project
- *  This project implements various neural network architectures and training
+/*
+ * Main entry point for the monografia C++ project
+ * This project implements various neural network architectures and training
  * pipelines.
  */
 #include <iostream>
@@ -19,17 +19,19 @@ auto main() -> int
          << '\n';
 
     auto var_names = list_variable_names(
-        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/"
-        "S02_EEG.mat");
+        "/home/ensismoebius/Documentos/UNESP/"
+        "doutorado/databases/BasedeDatosHablaImaginada/S02/"
+        "S02_Audio.mat");
     for (const auto& name : var_names)
     {
         cout << "Found variable: " << name << '\n';
     }
 
     auto mat = load_named_variable_as_matrix(
-        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BasedeDatosHablaImaginada/S02/"
-        "S02_EEG.mat",
-        "EEG");
+        "/home/ensismoebius/Documentos/UNESP/"
+        "doutorado/databases/BasedeDatosHablaImaginada/S02/"
+        "S02_Audio.mat",
+        "Audio");
 
     if (mat)
     {
