@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -14,25 +15,50 @@
 
 using namespace std;
 
-int main()
+auto main() -> int
 {
-    cout << "ResNet demo: load .mat, train small ResNet-like MLP" << endl;
+    cout << "ResNet demo: load .mat, train small ResNet-like MLP" << '\n';
 
     const string mat_path = "utils_test.mat"; // example mat in repo root
     const string var_name =
-        "data"; // user should ensure this variable exists and is (N x D+1) where last col is label
+        "dmat"; // use test variable from utils_test.mat (N x D) or adjust as needed
+
+    // Diagnostic: print current working directory and available variables in the .mat
+    try
+    {
+        std::cout << "cwd=" << std::filesystem::current_path() << "\n";
+    }
+    catch (...)
+    {
+        std::cout << "cwd: (unable to query)\n";
+    }
+
+    auto var_names = matioCpp::utils::list_variable_names(mat_path);
+    std::cout << "Variables in '" << mat_path << "': ";
+    if (var_names.empty())
+    {
+        std::cout << "(none or file could not be opened)\n";
+    }
+    else
+    {
+        for (const auto& n : var_names)
+        {
+            std::cout << n << " ";
+        }
+        std::cout << "\n";
+    }
 
     auto mat_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, var_name);
     if (!mat_opt)
     {
-        cerr << "Failed to load variable '" << var_name << "' from " << mat_path << endl;
+        cerr << "Failed to load variable '" << var_name << "' from " << mat_path << '\n';
         return 1;
     }
 
     Eigen::MatrixXf mat = *mat_opt;
     if (mat.cols() < 2)
     {
-        cerr << "Matrix must have at least 2 columns (features + label)" << endl;
+        cerr << "Matrix must have at least 2 columns (features + label)" << '\n';
         return 1;
     }
 
@@ -59,7 +85,10 @@ int main()
         Eigen::MatrixXf x = mat.row(i).leftCols(n_features);
         Eigen::MatrixXf y = Eigen::MatrixXf::Zero(1, n_classes);
         int lbl = static_cast<int>(mat(i, mat.cols() - 1));
-        if (lbl >= 0 && lbl < n_classes) y(0, lbl) = 1.0F;
+        if (lbl >= 0 && lbl < n_classes)
+        {
+            y(0, lbl) = 1.0F;
+        }
 
         inputs.emplace_back(x);
         targets.emplace_back(y);
@@ -89,7 +118,7 @@ int main()
     optimizer.attach(params);
 
     const int batch_size = 16;
-    const int epochs = 10;
+    const int epochs = 1; // single-epoch demo run
 
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
@@ -113,6 +142,6 @@ int main()
              << "\n";
     }
 
-    cout << "Training finished." << endl;
+    cout << "Training finished." << '\n';
     return 0;
 }

@@ -104,3 +104,21 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
 }
 
 } // namespace matioCpp::utils
+
+namespace matioCpp::utils
+{
+[[nodiscard]] auto list_variable_names(const std::string& mat_path) -> std::vector<std::string>
+{
+    try
+    {
+        matioCpp::File file(mat_path);
+        // matioCpp::File::variableNames() returns a std::vector<std::string>
+        return file.variableNames();
+    }
+    catch (const std::exception&)
+    {
+        return {};
+    }
+}
+
+} // namespace matioCpp::utils
