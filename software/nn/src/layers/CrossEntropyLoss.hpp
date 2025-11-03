@@ -1,8 +1,6 @@
 #pragma once
 
 #include <Eigen/Dense>
-#include <cmath>
-#include <iostream>
 
 #include "../tensor/Tensor.hpp"
 #include "layers/Module.hpp"
@@ -35,13 +33,13 @@ class CrossEntropyLoss : public Module
         // compute mean cross-entropy
         Eigen::ArrayXf logp = last_probs.array().log();
         float loss = -(last_targets.array() * logp).sum() / static_cast<float>(x.rows());
-        return Tensor(Eigen::MatrixXf::Constant(1, 1, loss));
+        return {Eigen::MatrixXf::Constant(1, 1, loss)};
     }
 
     auto backward(const Tensor& /*unused*/) -> Tensor override
     {
         // gradient of loss wrt logits: (probs - targets)/N
         Eigen::MatrixXf grad = (last_probs - last_targets) / static_cast<float>(last_probs.rows());
-        return Tensor(grad);
+        return {grad};
     }
 };

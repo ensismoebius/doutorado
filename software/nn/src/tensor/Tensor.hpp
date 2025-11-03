@@ -32,7 +32,10 @@ struct Tensor
     // Slice by row indices (used by Dataset/TensorDataset)
     [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor
     {
-        if (indices.empty()) return Tensor();
+        if (indices.empty())
+        {
+            return {};
+        }
         const int rows = static_cast<int>(indices.size());
         const int cols = static_cast<int>(data.cols());
         Eigen::MatrixXf out(rows, cols);
@@ -40,6 +43,6 @@ struct Tensor
         {
             out.row(i) = data.row(indices[i]);
         }
-        return Tensor(out);
+        return {out};
     }
 };
