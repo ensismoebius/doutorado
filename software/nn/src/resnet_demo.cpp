@@ -1,6 +1,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "dataLoaders/MatFileUtils.h"
@@ -19,19 +20,13 @@ auto main() -> int
 {
     cout << "ResNet demo: load .mat, train small ResNet-like MLP" << '\n';
 
-    const string mat_path = "utils_test.mat"; // example mat in repo root
-    const string var_name =
-        "dmat"; // use test variable from utils_test.mat (N x D) or adjust as needed
+    const string mat_path =
+        "/home/ensismoebius/Documentos/UNESP/"
+        "doutorado/databases/BasedeDatosHablaImaginada/S02/"
+        "S02_Audio.mat";
 
-    // Diagnostic: print current working directory and available variables in the .mat
-    try
-    {
-        std::cout << "cwd=" << std::filesystem::current_path() << "\n";
-    }
-    catch (...)
-    {
-        std::cout << "cwd: (unable to query)\n";
-    }
+    const string var_name =
+        "Audio"; // use test variable from utils_test.mat (N x D) or adjust as needed
 
     auto var_names = matioCpp::utils::list_variable_names(mat_path);
     std::cout << "Variables in '" << mat_path << "': ";
@@ -55,7 +50,7 @@ auto main() -> int
         return 1;
     }
 
-    Eigen::MatrixXf mat = *mat_opt;
+    Eigen::MatrixXf mat = std::move(*mat_opt);
     if (mat.cols() < 2)
     {
         cerr << "Matrix must have at least 2 columns (features + label)" << '\n';
