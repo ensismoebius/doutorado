@@ -1,7 +1,0 @@
-- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese)
-- Implementar denoising auto-encoder? (é citada na tese)
-- Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features
-- Definir o número de features a serem extraídas pelo auto-encoder
-- Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
-- Implementar a etapa de pré-processamento dos dados (normalização, etc.)
-- Definir os parâmetros de treinamento do auto-encoder (número de épocas, taxa de aprendizado, tamanho do batch, etc.)

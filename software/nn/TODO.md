@@ -1,5 +1,15 @@
 # Speaker Identification Pipeline: EEG + Audio with Spiking Neural Networks
 
+## TODO
+
+- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese)
+- Implementar denoising auto-encoder? (é citada na tese)
+- Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features
+- Definir o número de features a serem extraídas pelo auto-encoder
+- Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
+- Implementar a etapa de pré-processamento dos dados (normalização, etc.)
+- Definir os parâmetros de treinamento do auto-encoder (número de épocas, taxa de aprendizado, tamanho do batch, etc.)
+
 ## Executive Summary
 
 For the task of speaker identification using synchronized EEG and audio data, the recommended starting point is a **1.5-second window with a 50% overlap**. This duration is long enough to capture prosodic and intonational cues fundamental to speaker identity, which are often more discriminative than short-term phonetic features (Snyder et al., 2018). The 50% overlap ensures a good trade-off between temporal resolution and computational efficiency, generating a sufficient number of samples for training deep learning models without excessive redundancy.
@@ -8,21 +18,21 @@ For the task of speaker identification using synchronized EEG and audio data, th
 
 ## 1. Executive Recommendation
 
-* **Optimal Window Length:** 1.5 seconds.
-* **Optimal Overlap:** 50% (or 0.75 seconds).
-* **Rationale:** Speaker identification relies heavily on suprasegmental features like pitch, rhythm, and intonation, which unfold over longer time scales than phonemes. While phonetic information can be captured in windows as short as 100-200 ms, these are often insufficient for robust, text-independent speaker recognition. A 1.5s window provides a strong balance, capturing these critical prosodic contours. The 50% overlap ensures that features at the edges of windows are not lost and doubles the number of training examples from the same data, which is beneficial for data-hungry deep learning models.
+- **Optimal Window Length:** 1.5 seconds.
+- **Optimal Overlap:** 50% (or 0.75 seconds).
+- **Rationale:** Speaker identification relies heavily on suprasegmental features like pitch, rhythm, and intonation, which unfold over longer time scales than phonemes. While phonetic information can be captured in windows as short as 100-200 ms, these are often insufficient for robust, text-independent speaker recognition. A 1.5s window provides a strong balance, capturing these critical prosodic contours. The 50% overlap ensures that features at the edges of windows are not lost and doubles the number of training examples from the same data, which is beneficial for data-hungry deep learning models.
 
 ## 2. Candidate Grid to Evaluate
 
 The following grid should be evaluated to empirically determine the best configuration.
 
-* **Window Lengths (seconds):** `[0.2, 0.5, 1.0, 1.5, 2.0, 3.0]`
-* **Overlaps (percentage):** `[0.25, 0.5, 0.75]`
-* **Justification:**
-  * **Short Windows (0.2s, 0.5s):** These will primarily capture phonetic and formant information. They are computationally cheaper but may be less robust for text-independent tasks as they don't capture the broader speaking style. They are worth testing to establish a baseline and understand the contribution of fine-grained acoustic features.
-    * **Medium Windows (1.0s, 1.5s, 2.0s):** This range is the most promising. It's long enough to capture prosodic information, intonation patterns, and co-articulation effects that are highly speaker-specific (García-Perera et al., 2021).
-    * **Long Windows (3.0s):** These windows capture significant contextual and rhythmic information. However, they may smear short-term temporal details, increase computational load, and reduce the number of available training samples. They are included to test the upper bound of performance.
-    * **Overlaps:** Testing 25%, 50%, and 75% overlap allows for a systematic evaluation of the trade-off between data augmentation, computational cost, and model performance. Higher overlap can lead to better performance at the cost of longer training times.
+- **Window Lengths (seconds):** `[0.2, 0.5, 1.0, 1.5, 2.0, 3.0]`
+- **Overlaps (percentage):** `[0.25, 0.5, 0.75]`
+- **Justification:**
+  - **Short Windows (0.2s, 0.5s):** These will primarily capture phonetic and formant information. They are computationally cheaper but may be less robust for text-independent tasks as they don't capture the broader speaking style. They are worth testing to establish a baseline and understand the contribution of fine-grained acoustic features.
+    - **Medium Windows (1.0s, 1.5s, 2.0s):** This range is the most promising. It's long enough to capture prosodic information, intonation patterns, and co-articulation effects that are highly speaker-specific (García-Perera et al., 2021).
+    - **Long Windows (3.0s):** These windows capture significant contextual and rhythmic information. However, they may smear short-term temporal details, increase computational load, and reduce the number of available training samples. They are included to test the upper bound of performance.
+    - **Overlaps:** Testing 25%, 50%, and 75% overlap allows for a systematic evaluation of the trade-off between data augmentation, computational cost, and model performance. Higher overlap can lead to better performance at the cost of longer training times.
 
 ## 3. Detailed Preprocessing Pipeline
 
@@ -88,9 +98,9 @@ After windowing and preprocessing, the analog signals in each window must be con
 
 Encodes signal amplitude as the firing rate of a Poisson process. Higher amplitude means more spikes.
 
-* **Pseudo-math:** `P(spike at t) = λ * amplitude(t) * Δt` where `λ` is a scaling factor.
-* **Hyperparameters:** `scaling_factor` (λ): controls the overall spike rate. Sweep `[0.1, 0.5, 1.0, 2.0]`.
-* **Trade-offs:** Simple and robust but can be inefficient as it requires many spikes to represent a signal. It loses precise timing information.
+- **Pseudo-math:** `P(spike at t) = λ * amplitude(t) * Δt` where `λ` is a scaling factor.
+- **Hyperparameters:** `scaling_factor` (λ): controls the overall spike rate. Sweep `[0.1, 0.5, 1.0, 2.0]`.
+- **Trade-offs:** Simple and robust but can be inefficient as it requires many spikes to represent a signal. It loses precise timing information.
 
 ```python
 def rate_encode(window, scaling_factor=1.0, duration_ms=100):
@@ -103,9 +113,9 @@ def rate_encode(window, scaling_factor=1.0, duration_ms=100):
 
 Encodes amplitude as the latency of a single spike. Higher amplitude means an earlier spike.
 
-* **Pseudo-math:** `t_spike = T_max - (amplitude * T_max)` where `T_max` is the maximum simulation time (e.g., the window duration in ms).
-* **Hyperparameters:** `T_max`: The simulation time window. This is usually fixed to the segment length.
-* **Trade-offs:** Very efficient (one spike per neuron). Captures timing information precisely. Sensitive to noise and requires a reset mechanism. We can handle bipolar signals by using two channels per input neuron: one for positive and one for negative values.
+- **Pseudo-math:** `t_spike = T_max - (amplitude * T_max)` where `T_max` is the maximum simulation time (e.g., the window duration in ms).
+- **Hyperparameters:** `T_max`: The simulation time window. This is usually fixed to the segment length.
+- **Trade-offs:** Very efficient (one spike per neuron). Captures timing information precisely. Sensitive to noise and requires a reset mechanism. We can handle bipolar signals by using two channels per input neuron: one for positive and one for negative values.
 
 ```python
 def ttfs_encode(window, T_max):
@@ -119,11 +129,11 @@ def ttfs_encode(window, T_max):
 
 Fires a spike when the signal's value crosses a threshold. The signal is then modulated to prevent immediate re-firing.
 
-* **Pseudo-math:**
+- **Pseudo-math:**
     1. `v(t) = input(t)`
     2. If `v(t) > threshold`: fire spike, `v(t) = v(t) - reset_value`.
-* **Hyperparameters:** `threshold`, `reset_value`. Sweep `threshold` in `[0.5, 1.0, 1.5]` (assuming z-scored data). `reset_value` can be fixed to `threshold`.
-* **Trade-offs:** More biologically plausible than rate coding. Efficient and captures temporal features. Performance is highly dependent on the `threshold`.
+- **Hyperparameters:** `threshold`, `reset_value`. Sweep `threshold` in `[0.5, 1.0, 1.5]` (assuming z-scored data). `reset_value` can be fixed to `threshold`.
+- **Trade-offs:** More biologically plausible than rate coding. Efficient and captures temporal features. Performance is highly dependent on the `threshold`.
 
 ```python
 def bsa_encode(window, threshold=1.0, reset_value=1.0):
@@ -198,44 +208,44 @@ def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, o
 
 ## 6. Spiking Autoencoder Training Plan
 
-* **Architecture:** A fully-connected feed-forward SNN.
-  * **Input Layer:** Size matches the concatenated, flattened, and spike-encoded EEG and audio window data.
-  * **Encoder:** 2-3 spiking layers (e.g., 1024 -> 512 neurons) with Leaky Integrate-and-Fire (LIF) neurons.
-  * **Embedding Layer:** A bottleneck spiking layer of size `D` (e.g., `D=128` or `256`). This layer's spike output (or integrated membrane potential) will be the embedding.
-  * **Decoder:** Symmetrical to the encoder (e.g., 512 -> 1024 -> Input Size).
-* **Loss Function:** A combination of:
+- **Architecture:** A fully-connected feed-forward SNN.
+  - **Input Layer:** Size matches the concatenated, flattened, and spike-encoded EEG and audio window data.
+  - **Encoder:** 2-3 spiking layers (e.g., 1024 -> 512 neurons) with Leaky Integrate-and-Fire (LIF) neurons.
+  - **Embedding Layer:** A bottleneck spiking layer of size `D` (e.g., `D=128` or `256`). This layer's spike output (or integrated membrane potential) will be the embedding.
+  - **Decoder:** Symmetrical to the encoder (e.g., 512 -> 1024 -> Input Size).
+- **Loss Function:** A combination of:
     1. **Reconstruction Loss:** Van Rossum distance or MSE between the original and reconstructed spike trains (after low-pass filtering).
     2. **Sparsity Loss:** L1/L2 regularization on the firing rates of the embedding layer to encourage sparse representations.
-* **Training:**
-  * **Batch Size:** 32 or 64.
-    * **Optimizer:** Adam with a learning rate sweep `[1e-4, 5e-4, 1e-3]`.
-    * **Surrogate Gradient:** Use a surrogate gradient function (e.g., `atan` or a fast sigmoid) to enable backpropagation through the spiking non-linearity.
-    * **Early Stopping:** Monitor the validation reconstruction loss and stop if it doesn't improve for 10-15 epochs.
-* **Outputting Embeddings:** After training, pass a window through the encoder and use the spike train, average firing rate, or mean membrane potential of the embedding layer as the fixed-length embedding vector.
+- **Training:**
+  - **Batch Size:** 32 or 64.
+    - **Optimizer:** Adam with a learning rate sweep `[1e-4, 5e-4, 1e-3]`.
+    - **Surrogate Gradient:** Use a surrogate gradient function (e.g., `atan` or a fast sigmoid) to enable backpropagation through the spiking non-linearity.
+    - **Early Stopping:** Monitor the validation reconstruction loss and stop if it doesn't improve for 10-15 epochs.
+- **Outputting Embeddings:** After training, pass a window through the encoder and use the spike train, average firing rate, or mean membrane potential of the embedding layer as the fixed-length embedding vector.
 
 ## 7. Downstream ResNet-SNN Usage
 
-* **Input Formatting:** The `D`-dimensional embedding vector from the SAE is treated as a static feature vector.
-* **Architecture:** A Spiking ResNet (e.g., Spiking ResNet-18). The first layer of the ResNet will take the `D`-dimensional vector as input. The rest of the architecture follows the standard ResNet structure, but with all ReLU activations replaced by LIF neurons.
-* **Training Protocol:**
-  * This is a standard supervised classification task.
-  * **Loss Function:** Cross-entropy loss on the output of the final layer (summed membrane potentials over time).
-  * **Optimizer:** Adam or SGD with momentum.
-  * **Evaluation:** Use a held-out test set of speakers (not seen during SAE or ResNet training).
+- **Input Formatting:** The `D`-dimensional embedding vector from the SAE is treated as a static feature vector.
+- **Architecture:** A Spiking ResNet (e.g., Spiking ResNet-18). The first layer of the ResNet will take the `D`-dimensional vector as input. The rest of the architecture follows the standard ResNet structure, but with all ReLU activations replaced by LIF neurons.
+- **Training Protocol:**
+  - This is a standard supervised classification task.
+  - **Loss Function:** Cross-entropy loss on the output of the final layer (summed membrane potentials over time).
+  - **Optimizer:** Adam or SGD with momentum.
+  - **Evaluation:** Use a held-out test set of speakers (not seen during SAE or ResNet training).
 
 ## 8. Evaluation Metrics and Statistical Tests
 
-* **Primary Metrics:**
-  * **Speaker-ID Accuracy:** Top-1 classification accuracy.
-  * **AUC/mAP:** Area Under the ROC Curve / mean Average Precision, especially for one-vs-rest evaluations.
-* **Secondary (Ablation) Metrics:**
-  * **SAE Reconstruction Loss:** To ensure the autoencoder is learning meaningful representations.
-  * **Embedding Separability:** Use t-SNE to visualize embeddings and calculate the silhouette score to quantify cluster separation.
-  * **Spike Budget:** Measure the average number of spikes per inference to evaluate computational efficiency.
-* **Statistical Tests:**
-  * Use **nested cross-validation**. The outer loop splits speakers into training/testing sets. The inner loop tunes hyperparameters (window size, overlap, etc.) on the training set.
-  * Report `mean ± std` of the primary metrics across the outer folds.
-  * Use the **Wilcoxon signed-rank test** to compare the performance of the top 2-3 pipeline configurations (e.g., 1.5s window vs 2.0s window) to see if the difference is statistically significant.
+- **Primary Metrics:**
+  - **Speaker-ID Accuracy:** Top-1 classification accuracy.
+  - **AUC/mAP:** Area Under the ROC Curve / mean Average Precision, especially for one-vs-rest evaluations.
+- **Secondary (Ablation) Metrics:**
+  - **SAE Reconstruction Loss:** To ensure the autoencoder is learning meaningful representations.
+  - **Embedding Separability:** Use t-SNE to visualize embeddings and calculate the silhouette score to quantify cluster separation.
+  - **Spike Budget:** Measure the average number of spikes per inference to evaluate computational efficiency.
+- **Statistical Tests:**
+  - Use **nested cross-validation**. The outer loop splits speakers into training/testing sets. The inner loop tunes hyperparameters (window size, overlap, etc.) on the training set.
+  - Report `mean ± std` of the primary metrics across the outer folds.
+  - Use the **Wilcoxon signed-rank test** to compare the performance of the top 2-3 pipeline configurations (e.g., 1.5s window vs 2.0s window) to see if the difference is statistically significant.
 
 ## 9. Final Recommended Pipeline (Conceptual)
 
@@ -280,13 +290,13 @@ python analyze_results.py --results_file /results/results.csv
 
 ## 10. Concise Summary of Assumptions and Budget
 
-* **Assumptions / Required Information:**
+- **Assumptions / Required Information:**
     1. **Number of Speakers & Data Balance:** The experimental design (especially cross-validation folds) depends on the number of speakers and the amount of recording time per speaker.
     2. **Signal Quality:** The preprocessing pipeline assumes moderately clean signals. If signals are extremely noisy (e.g., high motion artifacts in EEG), more advanced artifact removal (e.g., ICA) may be needed.
     3. **Synchronization Accuracy:** The pipeline assumes the EEG and audio streams are accurately synchronized with minimal, constant drift.
-* **Recommended Computational Budget:**
-  * **Hardware:** A modern GPU with at least 16 GB of VRAM is recommended to accommodate the SNN simulations and hyperparameter sweep. Neuromorphic hardware (e.g., Loihi) would be ideal but is not assumed.
-  * **Expected Runtimes:** The full hyperparameter sweep will be computationally expensive. Training a single SAE model could take several hours to a day, depending on the dataset size. The entire grid search could take several days to weeks. It is advisable to start with a smaller subset of the data and a reduced grid to get initial estimates.
+- **Recommended Computational Budget:**
+  - **Hardware:** A modern GPU with at least 16 GB of VRAM is recommended to accommodate the SNN simulations and hyperparameter sweep. Neuromorphic hardware (e.g., Loihi) would be ideal but is not assumed.
+  - **Expected Runtimes:** The full hyperparameter sweep will be computationally expensive. Training a single SAE model could take several hours to a day, depending on the dataset size. The entire grid search could take several days to weeks. It is advisable to start with a smaller subset of the data and a reduced grid to get initial estimates.
 
 ---
 
@@ -344,5 +354,5 @@ python analyze_results.py --results_file /results/results.csv
 
 ### References
 
-* García-Perera, L. P., et al. (2021). *A review on deep learning for speaker recognition*. Expert Systems with Applications.
-* Snyder, D., et al. (2018). *X-vectors: Robust d-vector embeddings for speaker recognition*. IEEE ICASSP.
+- García-Perera, L. P., et al. (2021). *A review on deep learning for speaker recognition*. Expert Systems with Applications.
+- Snyder, D., et al. (2018). *X-vectors: Robust d-vector embeddings for speaker recognition*. IEEE ICASSP.
