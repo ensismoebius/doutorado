@@ -24,14 +24,13 @@ auto main() -> int
         "doutorado/databases/BasedeDatosHablaImaginada/S02/"
         "S02_Audio.mat";
 
-    const string var_name =
-        "Audio"; // use test variable from utils_test.mat (N x D) or adjust as needed
+    const string var_name = "Audio";
 
     auto var_names = matioCpp::utils::list_variable_names(mat_path);
     std::cout << "Variables in '" << mat_path << "': ";
     if (var_names.empty())
     {
-        std::cout << "(none or file could not be opened)\n";
+        std::cout << "(file could not be opened)\n";
     }
     else
     {

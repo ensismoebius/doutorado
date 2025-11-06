@@ -1,5 +1,5 @@
 {
     "makefile.extensionOutputFolder": "./.vscode",
-    "cmake.sourceDirectory": "${workspaceFolder}/src",
+    "cmake.sourceDirectory": "/home/ensismoebius/Repos/doutorado/software/nn",
     "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
 }
