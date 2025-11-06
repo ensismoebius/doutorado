@@ -1,6 +1,5 @@
 #include <iostream>
 #include <memory>
-#include <utility>
 #include <vector>
 
 #include "dataLoaders/MatFileUtils.h"
