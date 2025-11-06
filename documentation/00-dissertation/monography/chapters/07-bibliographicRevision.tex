@@ -460,7 +460,7 @@
 			
 			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas, tal estrutura, assim como um neurônio de RN, recebe a soma das entradas ponderadas, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau o valor soma com o passar do tempo.
 			
-			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa é o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
 			\begin{figure}[h]
 				\centering
@@ -470,7 +470,7 @@
 				\legend{Fonte: \cite{10242251}}
 			\end{figure}
 			
-			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado na \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional e o armazenamento necessário para executar uma RNP.
+			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado na \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional (em hardware neuromórfico) e o armazenamento necessário para executar uma RNP.
 			
 			\begin{figure}[h]
 				\centering
@@ -484,7 +484,7 @@
 				\centering
 				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número do neurônio (índice) na RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
 				\includegraphics[width=.4\linewidth]{images/sparsity}
-				\legend{Fonte:Elaborado pelo autor, 2023.}
+				\legend{Fonte: Elaborado pelo autor, 2023.}
 				\label{fig:sparsity}
 			\end{figure}
 						
@@ -506,7 +506,7 @@
 				Q = C.V_{mem}(t)
 			\end{equation}
 			
-			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente na parte capacitiva do neurônio $I_C$.
+			\par Para saber como essa carga muda ao longo do tempo (ou seja, medir a corrente), podemos derivar $Q$ como na \autoref{eq:rateOfChargeChange}. Essa expressão representa a corrente $I_C$ na parte capacitiva do neurônio.
 			
 			\begin{equation}
 				\label{eq:rateOfChargeChange}
@@ -520,7 +520,7 @@
 				V_{mem}(t) = R.I_R \implies I_R = \frac{V_{mem}(t)}{R}
 			\end{equation}
 			
-			\par Então, considerando que a corrente total não muda, como visto na  \autoref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na \autoref{eq:totalNeuronCurrent}.
+			\par Então, considerando que a corrente total não muda, como pode ser visto na  \autoref{fig:rcmodel2}, temos a corrente total de entrada $I_{in}$ do neurônio como na \autoref{eq:totalNeuronCurrent}.
 			
 			\begin{figure}[H]
 				\centering
@@ -546,7 +546,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Já que o no lado direito da equação $\left(\dfrac{dV_{mem}(t)}{dt}\right)$ expressa uma  grandeza em $voltagem/s$ e o esquerdo $\left(R.I_{in}(t) - V_{mem}(t)\right)$ em $voltagem$ apenas, conclui-se pela igualdade, que $R.C$ é uma unidade de tempo. Definindo $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados na \autoref{eq:finalMem}, que \textbf{descreve o circuito RC}.
+			\par Já que o lado direito da equação $\left(\dfrac{dV_{mem}(t)}{dt}\right)$ expressa uma  grandeza em $voltagem/s$ e o esquerdo $\left(R.I_{in}(t) - V_{mem}(t)\right)$ em $voltagem$ apenas, conclui-se pela igualdade, que $R.C$ é uma unidade de tempo. Definindo $\tau = R.C$ como a \textbf{constante de tempo da membrana}, obtemos tensões em ambos os lados chegando na \autoref{eq:finalMem} que \textbf{descreve o circuito RC}.
 			
 			\begin{equation}
 				\label{eq:finalMem}
@@ -557,7 +557,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Então o comportamento do decaimento da voltagem no neurônio quando não há entrada $I_{in} = 0$ pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
+			\par Agora o comportamento do decaimento da voltagem no neurônio quando não há entrada $I_{in} = 0$ pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
 			
 			\begin{equation}
 				\label{eq:expmembrane}
@@ -576,16 +576,6 @@
 				\end{aligned}
 			\end{equation}
 			
-			%TODO PARA CHEGAR NISSO
-%			\par \textbf{PARA CHEGAR NISSO: } ${V_{mem}(t) = V_{mem}(0).e^{-\frac{t}{\tau}}}$ refazer considerando a constante c que a integral gera.
-%			\begin{figure}[H]
-%				\centering
-%				\includegraphics[width=0.7\linewidth]{apagar/screenshot001}
-%				\caption{}
-%				\label{fig:screenshot001}
-%			\end{figure}
-			
-			
 			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na  \autoref{fig:membranepotentialdecay} e implementado no \autoref{lst:membranepotentialdecay}.
 			
 			\input{listings/membranepotentialdecay.py}
@@ -594,11 +584,11 @@
 				\centering
 				\caption{Decaimento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialDecay}
-				\legend{Fonte:Elaborado pelo autor, 2023.}
+				\legend{Fonte: Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialdecay}
 			\end{figure}
 			
-			\par Com os resultados da \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, na presença de uma corrente de entrada, conforme visto na \autoref{eq:actionpotincrease0}.
+			\par Com os resultados da \autoref{eq:finalMem}, é possível calcular o aumento da voltagem, na presença de uma corrente de entrada, conforme mostrado na \autoref{eq:actionpotincrease0}.
 			
 			\begin{equation}
 				\label{eq:actionpotincrease0}
@@ -649,7 +639,7 @@
 			\end{equation}
 			
 			
-			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como visto na  \autoref{fig:membranepotentialincrease} e implementado no  \autoref{lst:membranepotentialincrease}.
+			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como se pode notar na   \autoref{fig:membranepotentialincrease} e no  \autoref{lst:membranepotentialincrease}.
 			
 			\input{listings/membranepotentialincrease.py}
 			
@@ -657,7 +647,7 @@
 				\centering
 				\caption{Aumento do potencial da membrana.}
 				\includegraphics[width=.7\linewidth]{images/membranePotentialIncrease}
-				\legend{Fonte:Elaborado pelo autor, 2023.}
+				\legend{Fonte: Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialincrease}
 			\end{figure}
 			
@@ -669,7 +659,7 @@
 				\centering
 				\caption[Gráfico do LIF]{Gráfico do LIF simulado completo: Foram fornecidos 0.5 mA de corrente no intervalo de tempo de 51 a 70.}
 				\includegraphics[width=.8\linewidth]{images/membranePotentialFull}
-				\legend{Fonte:Elaborado pelo autor, 2023.}
+				\legend{Fonte: Elaborado pelo autor, 2023.}
 				\label{fig:membranepotentialfull}
 			\end{figure}
 
@@ -695,42 +685,42 @@
 
 		\subsubsection{Treinamento}
 		
-			\par \textbf{Como as RNPs são treinadas?} Esta ainda é uma questão em aberto. Um neurônio RNP tem o comportamento de sua função de ativação mais parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
+			\par \textbf{Como as RNPs são treinadas?} Esta ainda é uma questão com múltiplas respostas. Um neurônio RNP tem o comportamento de sua função de ativação parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.
 			
-			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses, criando novos neurônios ou até mesmo outros métodos como pacotes de RNA. \cite{kasabov2019time} cita algumas outras formas:
+			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: Enquanto algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses, criando novos neurônios ou até mesmo outros métodos como pacotes de RNA. Segundo \cite{kasabov2019time} há outras formas:
 			
 			\begin{itemize}
 				\item \textbf{Plasticidade Dependente do Tempo de Pulsos (STDP)}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
-				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm a função de passo na fase do \textit{feed-forward}.
+				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
 				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
 				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
 			\end{itemize}
 		
 		\subsection{\textit{Autoencoders}}
 		
-			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem em uma função codificadora, denotada como $h = f(x)$, e uma função decodificadora que produz uma reconstrução, denotada como $r = g(h)$. A camada oculta $h$ representa um \textbf{código} ou representação da entrada que pode ser ou não ser comprimida \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder} ou $x$ e $r$ podem ser redes profundas.
+			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem respectivamente em: Uma função codificadora $f(x)$ que gera um estado $h$, denotada como $h = f(x)$ e uma função decodificadora $g(x)$ que produz uma reconstrução $r$, denotada como $r = g(h)$. O estado $h$ representa um \textbf{código}, uma representação da entrada que pode ser comprimida ou não  \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder}.
 			
 			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de \textbf{código} e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador. Geralmente, os \textit{autoencoders} são projetados para serem incapazes de copiar perfeitamente os dados de entrada pois isso os tornaria demasiadamente complexos e, em alguns casos, inúteis como será explicado adiante.
 
 			\begin{figure}[h]
 				\centering
-				\caption[Representação funcional de um autoencoder]{Representação funcional de um \textit{autoencoder}: Sendo o vetor $x$ uma entrada, então o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, portanto $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. Tal processo pode ou não implicar em uma perda de informação.}
+				\caption[Representação funcional de um autoencoder]{Representação funcional de um \textit{autoencoder}: Sendo o vetor $x$ uma entrada, então o vetor $h$ é estado resultante da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, portanto $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. Tal processo pode ou não implicar em uma perda de informação.}
 				\input{images/autoencoder.tex}
-				\legend{Fonte:Elaborado pelo autor, 2024.}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:autoencoder}
 			\end{figure}
 		
-			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que a região $h$  contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \cite{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
+			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que o estado $h$ contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja a camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \cite{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
 
 			\begin{figure}[h]
 				\centering
-				\caption[Exemplo esquemático de um autoencoder]{Exemplo esquemático de um \textit{autoencoder}: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.}
+				\caption[Exemplo esquemático de um autoencoder sub-completo]{Exemplo esquemático de um \textit{autoencoder} sub-completo ou clássico: Os nós de entrada estão em cinza, a camada de código em amarelo contêm as características codificadas e finalmente a camada de reconstrução em vermelho contêm um cópia aproximada da entrada.}
 				\input{images/autoencoder2.tex}
-				\legend{Fonte:Elaborado pelo autor, 2024.}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:autoencoder2}
 			\end{figure}
 
-			\par Em se tratando de treinamento as técnicas já conhecidas e testadas para redes neurais em geral (como, por exemplo, \textit{gradient descent} com \textit{minibatch} ou estocástico) podem ser usadas  \cite{Goodfellow-et-al-2016} incluindo as formas de regularização com será exposto mais adiante.
+			\par Em se tratando de treinamento, as técnicas já conhecidas e testadas para redes neurais em geral (como, por exemplo, \textit{gradient descent} com \textit{minibatch} ou estocástico) podem ser usadas \cite{Goodfellow-et-al-2016} incluindo as formas de regularização como será exposto mais adiante.
 			
 			\subsubsection{Autoencoders sub-completos ou clássicos}
 				\par Esse tipo de rede neural, como ilustrado na  \autoref{fig:autoencoder2}, tem sua camada de código limitada em dimensionalidade para apenas aproximar a entrada e priorizar certos aspectos dos dados extraindo dessa forma os componentes mais cruciais e significativos de um conjunto de dados \cite{Goodfellow-et-al-2016}. Um autoencoder clássico age de forma muito semelhante ao algoritmo
@@ -746,7 +736,7 @@
 					\label{fig:autoencoder3}
 				\end{figure}
 			
-				\par Como mostrado na  \autoref{fig:autoencoder3}, ao contrário dos autoencoders sub-completos, os supra-completos tem sua camada de código com uma \textbf{dimensão maior} do que os dados de entrada. Dessa forma as características dos dados de entrada podem ser codificadas mais de uma vez e uma reconstrução perfeita é atingida. Estruturas assim são inúteis já que não conseguem extrair características significativas a não ser que sejam aplicadas técnicas de regularização \cite{bengio2014representation}.
+				\par Como mostrado na  \autoref{fig:autoencoder3}, ao contrário dos autoencoders sub-completos, os supra-completos tem sua camada de código com uma \textbf{dimensão maior} do que os dados de entrada. Dessa forma as características dos dados de entrada podem ser codificadas mais de uma vez e uma reconstrução perfeita é atingida. Até o momento estruturas assim são consideradas inúteis já que não conseguem extrair características significativas ha não ser que sejam aplicadas técnicas de regularização \cite{bengio2014representation}.
 				
 			\subsubsection{\textit{Autoencoders} regularizados}
 				
@@ -768,13 +758,13 @@
 
 				
 			\subsubsection{\textit{Denoising autoencoders}}
-				\par Tais redes também podem ser caracterizadas como \textit{autoencoders} regularizados. Porém há diferenças: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalidade de preencher falhas de informação nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
+				\par Tais redes também podem ser caracterizadas como \textit{autoencoders} regularizados. Porém há diferenças: Aqui o foco não é criar funções de regularização e sim adicionar ruídos \textbf{apenas} na informação de entrada mas mantendo a intactos os dados que serão comparados na função de erro como mostra a  \autoref{fig:denoisingAutoencoder}. Um \textit{autoencoder} treinado dessa forma, além de ser mais resiliente a ruídos, também adquirire uma funcionalidade de preencher falhas nos dados de entrada quando o componente adicionador de ruído é removido e os dados são diretamente apresentados a rede.
 				
 				\begin{figure}[H]
 					\centering
 					\caption[Representação funcional de um \textit{denoising autoencoder}]{Representação funcional de um \textit{denoising autoencoder}: Sendo o vetor $x$ uma entrada e $n$ um função que adiciona um ruído aleatório então a informação com ruído $\hat{x}$ é definida como $\hat{x} = n(x)$, portanto o vetor $h$ é resultado da aplicação de uma função codificadora $f$ sobre $x$: $h = f(x)$, finalmente $r$ é a reconstrução de $x$ a partir $h$ através de uma função decodificadora $g$: $r = g(h)$. É importante notar que $r$ é comparada com $x$ e não com $\hat{x}$.}
 					\input{images/denoisingAutoencoder.tex}
-					\legend{Fonte:Elaborado pelo autor, 2024.}
+					\legend{Fonte: Elaborado pelo autor, 2024.}
 					\label{fig:denoisingAutoencoder}
 				\end{figure}
 							
@@ -783,14 +773,14 @@
 			
 			\begin{figure}[H]
 				\centering
-				\caption[Bloco residual]{Bloco Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a $F(x)$ ao final do bloco.}
+				\caption[Bloco residual]{Bloco Residual: $x$ contorna as camada intermediárias $F(x)$ via uma função identidade somando-se a própria $F(x)$ ao final do bloco.}
 				\includegraphics[width=0.7\linewidth]{images/residualBlock}
 				\legend{Fonte: \cite{DBLP:journals/corr/HeZRS15}}
 				\label{fig:residualblock}
 			\end{figure}
 			
 			
-			\par Quando uma rede chega a um certo limite de acurácia, intuitivamente se pode pensar que adicionando mais camadas o desempenho da mesma melhore, no entanto, na prática isso não se verifica. O que se observa em redes mais profundas pode ser exatamente o contrário como mostrado na \autoref{fig:teaser}.
+			\par Quando uma rede chega a um certo limite de acurácia, se pode pensar que adicionando mais camadas o desempenho da mesma melhore, no entanto, na prática isso não se verifica. O que se observa em redes mais profundas pode ser exatamente o contrário como mostrado na \autoref{fig:teaser}.
 			
 			\begin{figure}[H]
 				\centering
@@ -800,17 +790,17 @@
 				\label{fig:teaser}
 			\end{figure}
 			
-			\par Redes neurais muito profundas podem sofrer de problemas como o desaparecimento ou explosão do gradiente, onde os gradientes (ou seja, as direções para ajustar os pesos da rede) se tornam muito pequenos ou grandes à medida que são retro-propagados durante o treinamento. Isso pode dificultar o treinamento eficaz das camadas mais profundas.
+			\par Redes neurais muito profundas podem sofrer de problemas como o desaparecimento ou explosão do gradiente, onde os gradientes (ou seja, as direções para ajustar os pesos da rede) se tornam muito pequenos ou grandes à medida que são retro-propagados. Isso pode dificultar o treinamento eficaz das camadas mais profundas.
 
-			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, se pode juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização diminui a ocorrência do desaparecimento ou explosão de gradientes, um problema comum em redes com muitas camadas que pode piorar, impossibilitar ou diminuir a níveis impraticáveis o aprendizado da rede \cite{DBLP:journals/corr/HeZRS15}. 
+			\par Então já que, empiricamente, as redes com menos camadas estão expostas a menos problemas de otimização, é possivel juntar várias dessas formando assim uma rede mais profunda e com mais hiperparâmetros que podem ser ajustados. Isso, aliado as técnicas de regularização, diminui a ocorrência do desaparecimento ou explosão de gradientes. \cite{DBLP:journals/corr/HeZRS15}. 
 			
 			\par Em vez de aprender a mapear diretamente de $x$ para $y$, as camadas da rede aprendem a mapear de $x$ para a diferença entre $x$ e $y$, ou seja, para o \textbf{resíduo}. Isso simplifica o treinamento, pois a rede precisa apenas ajustar os resíduos, em vez de aprender a mapear completamente as entradas para as saídas.
 			
-			\par Além das características já expostas as redes residuais não adicionam complexidade computacional além da negligenciável adição elemento-a-elemento. Isso facilita a comparação com redes não residuais com o mesmo número de hiperparâmetros.
+			\par Além das características já expostas as redes residuais não adicionam complexidade computacional além da adição elemento-a-elemento. Isso facilita a comparação com redes não residuais com o mesmo número de hiperparâmetros.
 			
 			\subsubsection{Aprendizado residual}
 			
-				\par Considerando então $x$ como a entrada de uma rede, $f(\cdot)$ como uma série de camadas cujas sucessivas aproximações, via treinamento, resultam em um desejado  estado intermediário na camada escondida $h$, então o que se convenciona chamar de resíduo $r$ é dado na \autoref{eq:residuo} considerando que $h$ e $x$ tenha a mesma dimensão.
+				\par Considerando então $x$ como a entrada de uma rede, $f(\cdot)$ como uma série de camadas cujas sucessivas aproximações, via treinamento, resultam em um desejado  estado intermediário na camada escondida $h$, então o que se convenciona chamar de resíduo $r$ é dado na \autoref{eq:residuo} considerando que $h$ e $x$ tenham a mesma dimensão.
 				
 				
 				\begin{equation}
@@ -818,25 +808,25 @@
 					r = h - x
 				\end{equation}
 			
-				\par Considerando o resíduo, então se pode reformular o estado $h$ como mostrado na \autoref{eq:residuoH} demonstrando que, para se mapear $x$ em $h$ basta que $f(\cdot)$ atue sobre $r$, ou seja, que as aproximações sucessivas sejam feitas sobre o resíduo $r$.
+				\par Considerando o resíduo, então se  reformula o estado $h$ como mostrado na \autoref{eq:residuoH} demonstrando que, para se mapear $x$ em $h$ basta que $f(\cdot)$ atue sobre $r$, ou seja, que as aproximações sucessivas sejam feitas sobre o resíduo $r$.
 				
 				\begin{equation}
 					\label{eq:residuoH}
 					h = r + x
 				\end{equation}
 			
-				\par Se em uma rede não profunda forem adicionadas camadas cuja a única função é receber uma entrada e devolvê-la sem modificações (função identidade) então é trivial que uma rede possa atingir grandes profundidades. No entanto segundo \cite{DBLP:journals/corr/HeZRS15} em redes profundas os otimizadores tem dificuldade em aprender tais funções identidade levando a degradação do desempenho como mostrado na \autoref{fig:teaser}. Nas redes residuais se os mapeamentos identidade (também chamados de conexões de atalho) forem ótimos os otimizadores podem simplesmente zerar todos os pesos das camadas intermediárias de um bloco residual.
+				\par Se a rede não profunda forem adicionadas camadas cuja a única função é receber uma entrada e devolvê-la sem modificações (função identidade) então é trivial que uma rede possa atingir grandes profundidades. No entanto segundo \cite{DBLP:journals/corr/HeZRS15} em redes profundas os otimizadores tem dificuldade em aprender tais funções identidade levando a degradação do desempenho como mostrado na \autoref{fig:teaser}. Nas redes residuais se os mapeamentos identidade (também chamados de conexões de atalho) forem ótimos os otimizadores podem simplesmente zerar todos os pesos das camadas intermediárias de um bloco residual.
 				
 
 				\begin{figure}[h]
 					\centering
-					\caption[Obtenção do resíduo]{Obtenção do resíduo: $x$ um vetor de entrada na rede, $I(\cdot)$ é uma função identidade cujo valor é diretamente somado $\oplus$ com o resultado produzido pelas várias camadas representadas por $f(\cdot)$, $h$ é um vetor representando um estado intermediário de uma rede neural.}
+					\caption[Obtenção do resíduo]{Obtenção do resíduo: Se $x$ é um vetor de entrada na rede e  $I(\cdot)$ é uma função identidade cujo valor é diretamente somado $\oplus$ com o resultado produzido pelas várias camadas representadas por $f(\cdot)$, $h$ é um vetor representando um estado intermediário de uma rede neural.}
 					\input{images/residuo.tex}
-					\legend{Fonte:Elaborado pelo autor, 2024.}
+					\legend{Fonte: Elaborado pelo autor, 2024.}
 					\label{fig:residuo}
 				\end{figure}
 			
-				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. Note que $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes e que essa estrutura pode ser usada multiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
+				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes, essa estrutura pode ser usada multiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
 
 	\section{Trabalhos mais recentes}
 		\label{sec:trabalhosMaisRecentes}

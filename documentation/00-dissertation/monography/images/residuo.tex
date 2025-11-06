@@ -1,9 +1,9 @@
 \begin{tikzpicture}[node distance=3cm, every edge/.style={draw=black,->}]
 	% Nodes
-	\node[draw, rectangle, fill=blue] (x) {$x$};
+	\node[draw, rectangle, fill=green] (x) {$x$};
 	\node[draw, rectangle, above right=-.6cm and 1cm of x] (function) {$r = f(x)$};
 	\node[draw, rectangle, above right=1cm and -1.1cm of function] (identi) {$I(x)$};
-	\node[draw, circle, above right=-.5cm and 4cm of x] (plus) {$+$};
+	\node[draw=none, above right=-.5cm and 4cm of x] (plus) {$\oplus$};
 	\node[draw, rectangle, above right=-.6cm and 1.5cm of plus, fill=gray] (hidden) {$h$};
 	
 	% Arrows
