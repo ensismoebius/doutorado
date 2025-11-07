@@ -11,6 +11,7 @@ add_subdirectory(${SRC_DIR}/utility)
 add_subdirectory(${SRC_DIR}/linearAlgebra)
 add_subdirectory(${SRC_DIR}/wavelet)
 add_subdirectory(${SRC_DIR}/paraconsistent)
+add_subdirectory(${SRC_DIR}/statistics)
 
 
 # Include modular CMake target files

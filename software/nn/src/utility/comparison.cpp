@@ -10,7 +10,6 @@
  */
 #include <stdexcept>
 
-
 /**
  * Checks if an value is between another two
  * @param val
@@ -18,9 +17,9 @@
  * @param upperLimit
  * @return
  */
-bool inRange(const double &val, const double &lowerLimit, const double &upperLimit)
+bool inRange(const long double& val, const long double& lowerLimit, const long double& upperLimit)
 {
-	if (lowerLimit > upperLimit) throw std::invalid_argument("lower lowerLimit be lower than upperLimit");
-	return val >= lowerLimit && val <= upperLimit;
+    if (lowerLimit > upperLimit)
+        throw std::invalid_argument("lower lowerLimit be lower than upperLimit");
+    return val >= lowerLimit && val <= upperLimit;
 }
-

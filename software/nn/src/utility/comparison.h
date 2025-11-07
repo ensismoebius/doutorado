@@ -19,6 +19,6 @@
  * @param upperLimit
  * @return
  */
-bool inRange(const double &val, const double &lowerLimit, const double &upperLimit);
+bool inRange(const long double& val, const long double& lowerLimit, const long double& upperLimit);
 
 #endif /* SRC_LIB_UTILITY_COMPARISON_H_ */

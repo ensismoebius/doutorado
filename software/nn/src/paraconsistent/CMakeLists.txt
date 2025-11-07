@@ -1,3 +1,5 @@
+include(GoogleTest)
+
 add_library(paraconsistent
     paraconsistent.cpp
 )
@@ -9,8 +11,8 @@ target_include_directories(paraconsistent
 
 target_link_libraries(paraconsistent
     PUBLIC
-    linearAlgebra
-    utility
+        linearAlgebra
+        utility
 )
 
 add_executable(paraconsistent_gtest
@@ -19,8 +21,8 @@ add_executable(paraconsistent_gtest
 
 target_link_libraries(paraconsistent_gtest
     PRIVATE
-    paraconsistent
-    GTest::gtest_main
+        paraconsistent
+        GTest::gtest_main
 )
 
 gtest_discover_tests(paraconsistent_gtest)
