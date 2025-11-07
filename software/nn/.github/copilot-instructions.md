@@ -1,49 +1,90 @@
-# Neural Network Framework Guidelines (updated)
+# Neural Network Framework Guidelines
 
-This C++ neural network framework focuses on spiking neural networks (SNNs) and small autoencoder examples. The project uses Eigen for linear algebra, GoogleTest for unit tests, and CMake for builds. This document outlines up-to-date patterns, conventions and where to find common components in the repository.
+This C++ framework specializes in spiking neural networks (SNNs) and autoencoder implementations, with particular emphasis on synchronized EEG and audio analysis for speaker identification. Built on Eigen for linear algebra computations, the project uses modern C++20 features and follows strict coding standards.
+
+## Quick Reference
+- **Language:** C++20
+- **Core Dependencies:** Eigen, GoogleTest, CMake
+- **Build System:** CMake with modular configuration
+- **Key Features:** 
+  - Spiking Neural Networks (SNNs)
+  - Autoencoder architectures
+  - EEG/Audio synchronization
+  - MATLAB file format support
 
 ## Project layout (high level)
 
 ```
 nn/
 ├── src/
-│   ├── dataLoaders/      # Dataset, DataLoader, MatFile, tests
+│   ├── dataLoaders/      # Dataset, DataLoader, MatFile implementations
+│   ├── experiments/      # Experiment implementations and configurations
 │   ├── initializers/     # Weight initialization strategies
-│   ├── layers/           # Neural network layers (Linear, Leaky, ...)
-│   ├── optimizers/       # Optimization algorithms (Adam, SGD, ...)
-│   ├── tensor/           # Tensor wrapper around Eigen
-│   └── util/             # Utility functions and helpers
-├── lib/                  # Third-party libs (cnpy, imgui, implot, ...)
-├── .github/              # repo guidelines & Copilot instructions
-├── build/                # CMake build artifacts (created at configure-time)
-├── Flags.cmake           # Compiler/flag policy used by top-level CMake
-├── Main.cmake            # High-level project wiring (includes modular .cmake files)
-└── README_ACTION_HISTORY.md (generated)  # optional auto-generated action history
+│   ├── layers/           # Neural network layers (Linear, Leaky, etc.)
+│   ├── linearAlgebra/    # Linear algebra utilities and operations
+│   ├── optimizers/       # Optimization algorithms (Adam, SGD, etc.)
+│   ├── paraconsistent/   # Paraconsistent logic implementations
+│   ├── statistics/       # Statistical analysis utilities
+│   ├── tensor/          # Tensor wrapper around Eigen
+│   ├── util/            # Core utility functions
+│   ├── utility/         # Additional utility helpers
+│   ├── wave/            # Wave processing utilities
+│   └── wavelet/         # Wavelet transform implementations
+├── lib/                 # Third-party dependencies
+│   ├── cnpy/           # NumPy file format support
+│   ├── imgui/          # Dear ImGui UI library
+│   ├── implot/         # Plotting for ImGui
+│   ├── matio/          # MATLAB file format support
+│   └── matio-cpp/      # C++ wrapper for matio
+├── cmake/              # CMake modules and configuration
+│   ├── exec_*.cmake    # Target-specific CMake files
+│   └── *.cmake         # Shared CMake utilities and vendor configs
+├── debug/              # Debugging configurations
+├── build/             # Build artifacts (generated)
+├── .github/           # Repository documentation & automation
+└── .vscode/          # VS Code specific settings
 ```
 
-## Key components and current conventions
+## Core Components
 
-### Tensor system
+### 1. Tensor System (`src/tensor/`)
+```cpp
+class Tensor {
+    Eigen::MatrixXf data;  // Main data storage
+    Eigen::MatrixXf grad;  // Gradient information
+    // ... methods for automatic differentiation
+};
+```
 
-- `Tensor` is implemented in `src/tensor/Tensor.hpp` and wraps Eigen matrices.
-- A Tensor contains `data` (Eigen::MatrixXf) and `grad` where applicable.
+### 2. Neural Network Layers (`src/layers/`)
+- **Base Class:** `Module` with virtual `forward()` and `backward()`
+- **Key Implementations:**
+  - `Linear`: Dense layer
+  - `Leaky`: LIF-like spiking neurons
+  - `ReLU` & `LeakyReLU`: Activation functions
+  - `Sequential`: Layer composition container
 
-### Layers and Modules
+### 3. Data Pipeline (`src/dataLoaders/`)
+- **Core Classes:**
+  ```cpp
+  class Dataset {
+      virtual auto get_item(size_t index) -> std::tuple<Tensor, Tensor> = 0;
+      virtual auto size() const -> size_t = 0;
+      virtual auto collate(const std::vector<std::tuple<Tensor, Tensor>>&) -> std::tuple<Tensor, Tensor>;
+  };
 
-- Layers inherit from a `Module` base and implement `forward()` and `backward()`.
-- Common layers: `Linear`, `Leaky` (LIF-like), `ReLU`, `LeakyReLU` etc.
-- Composition: use `Sequential` (`src/layers/Sequential.hpp`) to chain layers.
+  class DataLoader {
+      // PyTorch-style iteration with shuffling & batching
+      auto begin() -> iterator;
+      auto end() -> iterator;
+  };
 
-### Data loading
-
-- Dataset API: abstract `Dataset` in `src/dataLoaders/Dataset.h` with `get_item`, `collate`, `size()`.
-- `TensorDataset` in `src/dataLoaders/TensorDataset.h` is a concrete dataset that wraps `Tensor` inputs/targets and implements `get_item` and `collate`.
-- `DataLoader` lives in `src/dataLoaders/DataLoader.h/.cpp` and provides iteration, optional shuffling, deterministic seeding, and batching. Use `for (const auto &batch : loader)` to iterate.
-- `MatFile` utilities: `src/dataLoaders/MatFile.cpp/h` read/write MATLAB `.mat` v5 files and are used by the demo.
-
-Notes on DataLoader/Dataset
-- The code was refactored to be PyTorch-like: `Dataset` + `DataLoader` + `collate` semantics.
-- `TensorDataset` uses `Tensor::slice()` to build per-sample batches. `Dataset::collate` provides a default implementation that allocates and fills matrices.
+  class MatFile {
+      // MATLAB v5 file format support
+      auto read() -> std::vector<float>;
+      auto write(const std::vector<float>&) -> void;
+  };
+  ```
 
 ### Demo: `dataLoader_demo`
 
@@ -56,90 +97,198 @@ Notes on DataLoader/Dataset
 - Initializers: `xavierInitializer`, `kaimingSNNInitializer` in `src/initializers/`.
 - Optimizers: `Adam`, `SGD`, `SGDMinimal` implementing `attach(params)`, `step()`, `zero_grad()`.
 
-## Build & CMake layout
+## Build System & Testing
 
-- Top-level CMakeLists includes `Flags.cmake` to set compiler flags and then includes `Main.cmake`.
-- I reorganized `Main.cmake` to include modular files so each logical group lives in its own `.cmake` file at the repository root, e.g.:
-   - `AutoEncoderTargets.cmake` — auto-encoder related targets
-   - `PlotTarget.cmake` — plotSpikingNetwork and ImGui/ImPlot wiring
-   - `LoadingDataTarget.cmake` — `loadingData` target
-- `Flags.cmake` contains compiler flags and policy settings (C++20, diagnostics, debug/release flags) and is included by the top-level `CMakeLists.txt`.
+### CMake Structure
+```
+cmake/
+├── exec_*.cmake        # Target-specific configurations
+├── Flags.cmake         # Compiler & language settings
+├── Main.cmake          # Core build configuration
+├── PackageChecking.cmake
+└── Vendor*.cmake       # Third-party dependency configs
+```
 
-Quick configure & build
-
+### Building the Project
 ```bash
+# Configure with all features
 cmake -S . -B build
-cmake --build build -- -j <cpus>
+# Build in parallel
+cmake --build build -- -j$(nproc)
 ```
 
-## Tests
+### Test Framework
+1. **Test Organization:**
+   - Each component has its own test suite under `src/*/`
+   - Unified discovery via `gtest_discover_tests()`
+   - Test binaries link against implementation targets
 
-- Unit tests: GoogleTest (gtest). Tests are grouped and discovered via `gtest_discover_tests`.
-- Consolidated test target: `dataLoaders_gtest` (covers MatFile tests and data loader tests). Other component gtest targets (layers_gtest, optimizers_gtest, tensor_gtest, etc.) are found under `src/*/CMakeLists.txt`.
-- Run tests (from repo root):
+2. **Key Test Targets:**
+   ```bash
+   # Build and run data loader tests
+   cmake --build build --target dataLoaders_gtest
+   ctest --test-dir build --output-on-failure -j4
+   ```
 
-```bash
-cmake --build build --target dataLoaders_gtest
-ctest --test-dir build --output-on-failure -j 4
-```
+3. **Recent Test Coverage:**
+   - DataLoader: Deterministic shuffling, batch formation
+   - MatFile: MATLAB v5 format compatibility
+   - Tensor: Gradient computation, view semantics
+   - Layers: Forward/backward pass correctness
 
-## Tests added recently (high level)
-- `src/dataLoaders/dataLoader_gtest.cpp` — deterministic shuffle, small/empty dataset behavior.
-- `src/dataLoaders/dataLoader_more_gtest.cpp` — collate correctness, mismatched input/target columns, deterministic seed checks, and a lightweight concurrency smoke test.
-- CMake updated to create a single `dataLoaders_gtest` target that links the loader implementation so tests link cleanly.
+## Development Guidelines
 
-## Conventions & coding guidelines (current)
+### Code Style & Conventions
 
-1. Code style
+1. **Naming Conventions:**
+   ```cpp
+   class TensorDataset;      // Classes: PascalCase
+   void processData();       // Functions: camelCase
+   int item_count;          // Variables: snake_case
+   ```
 
-    - Use `auto` with trailing-return type when helpful for clarity.
-    - Member variables use snake_case; functions use camelCase.
-    - Prefer descriptive local variable names in demos and tests.
+2. **Type System:**
+   ```cpp
+   // Prefer auto with trailing return types
+   auto computeGradient(const Tensor& input) -> Tensor;
+   
+   // Use explicit types for clarity when helpful
+   std::vector<float> values;
+   ```
 
-2. Memory & ownership
+3. **Memory Management:**
+   ```cpp
+   // Layer ownership
+   std::shared_ptr<Module> layer = std::make_shared<Linear>(in_features, out_features);
+   
+   // Safe tensor operations
+   Tensor view = tensor.slice(0, 100);  // Creates a view, not a raw pointer
+   ```
 
-    - Use `std::shared_ptr` for layer ownership and dataset sharing.
-    - Tensor slices/copied views are used for safety; avoid exposing raw pointers for internal tensors.
+### Error Handling & Safety
 
-3. Error handling
+1. **Assertions & Validation:**
+   ```cpp
+   // Internal invariants
+   assert(tensor.dims() == 2 && "Expected 2D tensor");
+   
+   // External input validation
+   if (file_size > max_safe_size) {
+       throw std::runtime_error("File too large");
+   }
+   ```
 
-    - Use `assert` for internal invariants.
-    - For I/O and external input (MAT files) use explicit checks and guarded allocations.
+2. **Resource Management:**
+   ```cpp
+   // RAII for file handles
+   MatFile file(path);  // Automatically closes
+   
+   // Protected allocations
+   try {
+       matrix.resize(huge_size);
+   } catch (const std::bad_alloc&) {
+       // Handle gracefully
+   }
+   ```
 
-4. Performance
+### Performance Considerations
 
-    - Use Eigen efficiently (avoid unnecessary copies where possible).
-    - Configure `Eigen` parallel behavior via `EigenParallel.cmake` and `configure_eigen_parallel_target()`.
-    - Batch-level parallelism uses OpenMP; targets are linked with `${OpenMP_CXX_LIBRARIES}`.
+1. **Eigen Usage:**
+   ```cpp
+   // Efficient matrix operations
+   matrix.noalias() = a * b;  // Avoid temporary
+   
+   // Parallel computation
+   #pragma omp parallel for
+   for (int i = 0; i < batch_size; ++i) {
+       process_sample(batch[i]);
+   }
+   ```
 
-## Common tasks (examples)
+2. **Memory Efficiency:**
+   ```cpp
+   // Pre-allocate containers
+   std::vector<float> data;
+   data.reserve(expected_size);
+   
+   // Use views when possible
+   auto view = tensor.block(0, 0, rows, cols);
+   ```
 
-1) Add a new layer
+## Common Implementation Tasks
 
-```cpp
-struct NewLayer : public Module {
-   auto forward(const Tensor &input) -> Tensor override;
-   auto backward(const Tensor &grad_output) -> Tensor override;
-};
-```
+### 1. Adding New Components
 
-2) Small training loop sketch
+1. **New Layer Implementation:**
+   ```cpp
+   class NewLayer : public Module {
+   public:
+       auto forward(const Tensor& input) -> Tensor override {
+           // Implementation
+       }
+       
+       auto backward(const Tensor& grad_output) -> Tensor override {
+           // Gradient computation
+       }
+   private:
+       Tensor weights;
+       Tensor bias;
+   };
+   ```
 
-```cpp
-optimizer.zero_grad(params);
-Tensor out = model.forward(input);
-Tensor loss = loss_fn.forward(out);
-Tensor grad = loss_fn.backward(out);
-model.backward(grad);
-optimizer.step(params);
-```
+2. **New Dataset Implementation:**
+   ```cpp
+   class CustomDataset : public Dataset {
+   public:
+       auto get_item(size_t index) -> std::tuple<Tensor, Tensor> override;
+       auto size() const -> size_t override;
+       // Optional: custom collate function
+   };
+   ```
 
-## Helpful pointers
+### 2. Training Workflows
 
-- `src/dataLoaders/TensorDataset.h` — example of a minimal concrete Dataset.
-- `src/dataLoaders/DataLoader.{h,cpp}` — iteration/shuffle/batching behavior (iterator-based API).
-- `src/dataLoaderTest.cpp` — a runnable demo that trains an autoencoder on a MATLAB variable and writes `reconstructed.mat`.
-- `Flags.cmake` — common compiler flags and standard settings used across the project.
+1. **Basic Training Loop:**
+   ```cpp
+   for (const auto& batch : dataloader) {
+       optimizer.zero_grad(params);
+       
+       // Forward pass
+       Tensor output = model.forward(batch.first);
+       Tensor loss = criterion.forward(output, batch.second);
+       
+       // Backward pass
+       Tensor grad = criterion.backward(output, batch.second);
+       model.backward(grad);
+       
+       // Update
+       optimizer.step();
+   }
+   ```
+
+2. **Evaluation Loop:**
+   ```cpp
+   model.eval();  // Switch to evaluation mode
+   for (const auto& batch : val_loader) {
+       Tensor output = model.forward(batch.first);
+       // Compute metrics
+   }
+   model.train();  // Switch back to training
+   ```
+
+### 3. File Organization
+
+1. **New Feature Checklist:**
+   - Header file with clear documentation
+   - Implementation file
+   - Unit test file
+   - CMake target update
+   - Example usage in docs
+
+2. **Important Locations:**
+   - Core implementations: `src/<component>/`
+   - Tests: `src/<component>/*_test.cpp`
+   - Build config: `cmake/exec_<component>.cmake`
 
 ## Next steps and optional improvements
 
@@ -156,52 +305,117 @@ If you want, I can:
 
 Small note: this file is intended as a living, developer-facing guide. When you change build wiring (CMake modularization, new targets, or DataLoader API) please update this document so it reflects the current project conventions.
 
-## Copilot & linter guidance (how to generate edits safely)
+## Copilot & Code Generation Guidelines
 
-This section tells autocomplete/code-generation tools (and contributors using them) how to produce edits that play nicely with the project's linters, CMake, and build flags. Follow these concrete rules when generating or editing code in this repository.
+### Language & Compilation Standards
 
-- Language & standard
-    - Target C++20. The project sets `CMAKE_CXX_STANDARD 20` in `Flags.cmake`.
+1. **C++20 Compliance:**
+   ```cpp
+   // Required features
+   #include <concepts>
+   #include <ranges>
+   #include <span>
+   
+   // Encouraged
+   auto [x, y] = getValue();  // Structured bindings
+   ```
 
-- Compiler flags and checks
-    - Respect the compiler flags in `Flags.cmake` (e.g., `-Wall -Wpedantic -Wshadow`). Avoid constructs that intentionally silence those warnings.
-    - Prefer explicit casts where needed to avoid narrowing or signed/unsigned comparison warnings.
+2. **Warning Prevention:**
+   ```cpp
+   // Use explicit types for numeric conversions
+   size_t index = static_cast<size_t>(value);
+   
+   // Prevent sign comparison warnings
+   for (size_t i = 0; i < vector.size(); ++i) {
+       // ...
+   }
+   ```
 
-- Formatting & static checks
-    - Run `clang-format` on edits when adding or changing multiple lines of C++ code. Keep the existing style (four-space indentation, no mixed tabs).
-    - Run `clang-tidy` fixes where appropriate (do not enable new `clang-tidy` checks that will fail CI unless the code is updated to satisfy them).
+### Code Style Requirements
 
-- Small patterns that cause linter warnings (avoid these)
-    - Do not declare multiple variables in one statement. Instead prefer one declaration per line:
+1. **Variable Declarations:**
+   ```cpp
+   // CORRECT:
+   std::vector<int> vec1;
+   std::vector<int> vec2;
+   
+   // INCORRECT:
+   std::vector<int> vec1, vec2;  // Avoid multiple declarations
+   ```
 
-        // avoid
-        std::vector<int> a, b;
+2. **Bracing & Control Flow:**
+   ```cpp
+   // CORRECT:
+   if (condition) {
+       doSomething();
+   }
+   
+   // INCORRECT:
+   if (condition)
+       doSomething();  // Missing braces
+   ```
 
-        // prefer
-        std::vector<int> a;
-        std::vector<int> b;
+3. **Memory Management:**
+   ```cpp
+   // CORRECT:
+   std::vector<int> data;
+   data.reserve(expected_size);
+   for (int i = 0; i < expected_size; ++i) {
+       data.emplace_back(i);
+   }
+   
+   // INCORRECT:
+   std::vector<int> data;  // No reserve before loop
+   for (int i = 0; i < size; ++i) {
+       data.emplace_back(i);
+   }
+   ```
 
-    - Use uppercase unsigned suffixes for integer literals when needed (e.g., `42U` not `42u`) to match the style used in this project.
-    - Always use braces for single-line control statements (loops/ifs) to avoid clang-tidy/clang-format complaints and accidental mistakes:
+### CMake Integration
 
-        // prefer
-        for (auto &x : xs) {
-            do_something(x);
-        }
+1. **Target Definition:**
+   ```cmake
+   # CORRECT:
+   add_library(mylib
+       src/file1.cpp
+       src/file2.cpp
+   )
+   target_link_libraries(mylib PUBLIC Eigen3::Eigen)
+   
+   # INCORRECT:
+   add_library(mylib src/file1.cpp src/file2.cpp)  # Hard to maintain
+   target_link_libraries(mylib Eigen3::Eigen)  # Missing PUBLIC/PRIVATE
+   ```
 
-    - Avoid calling `emplace_back` in a loop without reserving capacity first. Either call `reserve()` or populate a pre-sized container.
+2. **Test Integration:**
+   ```cmake
+   include(GoogleTest)
+   add_executable(mylib_test test/mylib_test.cpp)
+   target_link_libraries(mylib_test PRIVATE
+       mylib
+       GTest::gtest_main
+   )
+   gtest_discover_tests(mylib_test)
+   ```
 
-- CMake editing rules
-    - When editing CMake files: don't leave stray text fragments or unmatched parentheses — CMake errors can be introduced by accidental copy/paste.
-    - Prefer extracting logical blocks into separate `.cmake` files and `include()` them from `Main.cmake` (the repository already uses this pattern).
-    - When adding new top-level targets, ensure any source files needed by tests are linked into the test target so link-time errors do not occur.
+### Error Checking Process
 
-- Tests and CI
-    - Add or update tests using GoogleTest where relevant. Use `gtest_discover_tests()` to register test binaries with CTest.
-    - After edits that touch CMake, run a local configure step (`cmake -S . -B build`) and run `ctest --test-dir build --output-on-failure -j 4` to validate behavior.
+1. **Compilation Check:**
+   ```bash
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+   cmake --build build -- -j$(nproc)
+   ```
 
-- Commit and PR hygiene
-    - Keep generated changes minimal and targeted. When a copilot suggestion spans multiple files, re-run formatting and the test suite before committing.
+2. **Test Validation:**
+   ```bash
+   ctest --test-dir build --output-on-failure
+   ```
+
+3. **Style Verification:**
+   ```bash
+   clang-format -i src/**/*.{cpp,h}
+   clang-tidy src/**/*.cpp
+   ```
 
 
 
