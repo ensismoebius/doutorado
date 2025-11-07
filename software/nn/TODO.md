@@ -2,12 +2,17 @@
 
 ## TODO
 
-- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese)
-- Implementar denoising auto-encoder? (é citada na tese)
+- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese, acho que vou tirar)
+  - Acho que não precisa pois os neurônios de pulso aparentemente não requerem (eu acho).
+- Implementar denoising auto-encoder? (é citada na tese, acho que vou tirar tb)
+  - Se tudo der certo será um auto-encoder de pulso.
 - Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features
 - Definir o número de features a serem extraídas pelo auto-encoder
 - Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
-- Implementar a etapa de pré-processamento dos dados (normalização, etc.)
+
+- Implementar a etapa de pré-processamento dos dados:
+  - Seguindo o padrão do mestrado nomealizar os sinais entre -1 e 1.
+  - Redimensionar o tamanho do sinal janelado para uma potência de 2 para que a transformada wavelet seja feita sem maiores problemas.
 - Definir os parâmetros de treinamento do auto-encoder (número de épocas, taxa de aprendizado, tamanho do batch, etc.)
 
 ## Executive Summary
