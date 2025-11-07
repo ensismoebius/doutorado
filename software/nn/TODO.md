@@ -7,6 +7,7 @@
 - Implementar denoising auto-encoder? (é citada na tese, acho que vou tirar tb)
   - Se tudo der certo será um auto-encoder de pulso.
 - Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features
+  - Verificar se a biblioteca de wavelets já não implementa as janelas de alguma forma.
 - Definir o número de features a serem extraídas pelo auto-encoder
 - Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
 

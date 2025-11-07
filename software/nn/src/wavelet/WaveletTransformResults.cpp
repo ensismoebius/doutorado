@@ -21,7 +21,7 @@ WaveletTransformResults::WaveletTransformResults(unsigned int maxItems)
     this->maxItems = maxItems;
     if (maxItems > 0)
     {
-        this->transformedSignal.reserve(maxItems);
+        this->transformedSignal.resize(maxItems);
     }
 }
 

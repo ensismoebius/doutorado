@@ -5,57 +5,66 @@
  *      Author: ensis
  */
 
-#include <map>
 #include <limits>
-#include <vector>
+#include <map>
 #include <string>
+#include <vector>
 
-#include "../utility/comparison.h"
 #include "../linearAlgebra/linearAlgebra.h"
+#include "utility/comparison.h"
 
 long double calcCertaintyDegree_G1(long double alpha, long double betha)
 {
-	return alpha - betha;
+    return alpha - betha;
 }
 long double calcContradictionDegree_G2(long double alpha, long double betha)
 {
-	return alpha + betha - 1;
+    return alpha + betha - 1;
 }
 
-static void normalizeFeatureVectors(long double **&featureVectors, unsigned int vectorSize, unsigned int subVectorsSize)
+static void normalizeFeatureVectors(long double**& featureVectors, unsigned int vectorSize,
+                                    unsigned int subVectorsSize)
 {
-	for (unsigned int vi = 0; vi < vectorSize; vi++)
-	{
-		linearAlgebra::normalizeVectorToSum1(featureVectors[vi], subVectorsSize);
-	}
+    for (unsigned int vi = 0; vi < vectorSize; vi++)
+    {
+        linearAlgebra::normalizeVectorToSum1(featureVectors[vi], subVectorsSize);
+    }
 }
-static void normalizeFeatureVectors(std::vector<std::vector<long double>> &featureVectors, unsigned int vectorSize)
+static void normalizeFeatureVectors(std::vector<std::vector<long double>>& featureVectors,
+                                    unsigned int vectorSize)
 {
-	for (unsigned int i = 0; i < vectorSize; i++)
-	{
-		linearAlgebra::normalizeVectorToSum1(featureVectors[i]);
-	}
-}
-
-void normalizeClassesFeatureVectors(unsigned int amountOfClasses, unsigned int featureVectorsPerClass, unsigned int featureVectorSize, long double ***arrClasses)
-{
-	for (unsigned int i = 0; i < amountOfClasses; i++)
-	{
-		normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass, featureVectorSize);
-	}
+    for (unsigned int i = 0; i < vectorSize; i++)
+    {
+        linearAlgebra::normalizeVectorToSum1(featureVectors[i]);
+    }
 }
 
-void normalizeClassesFeatureVectors(unsigned int amountOfClasses, unsigned int featureVectorsPerClass, unsigned int featureVectorSize, std::vector<std::vector<std::vector<long double>>> &arrClasses)
+void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
+                                    unsigned int featureVectorsPerClass,
+                                    unsigned int featureVectorSize, long double*** arrClasses)
 {
-	for (unsigned int i = 0; i < amountOfClasses; i++)
-	{
-		normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass);
-	}
+    for (unsigned int i = 0; i < amountOfClasses; i++)
+    {
+        normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass, featureVectorSize);
+    }
 }
 
-long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass, unsigned int featureVectorSize, std::map<std::string, std::vector<std::vector<long double>>> &arrClasses)
+void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
+                                    unsigned int featureVectorsPerClass,
+                                    unsigned int featureVectorSize,
+                                    std::vector<std::vector<std::vector<long double>>>& arrClasses)
 {
-	std::map<std::string, std::vector<long double>> arrLargestItems;
+    for (unsigned int i = 0; i < amountOfClasses; i++)
+    {
+        normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass);
+    }
+}
+
+long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                           unsigned int featureVectorSize,
+                           std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
+{
+    std::map<std::string, std::vector<long double>> arrLargestItems;
     std::map<std::string, std::vector<long double>> arrSmallestItems;
 
     long double alpha = std::numeric_limits<long double>::max();
@@ -63,7 +72,8 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
     long double item;
 
     // initializes the vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz : arrClasses) {
+    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    {
         // creates sub vector
         arrLargestItems[clazz.first].resize(featureVectorSize,
                                             -std::numeric_limits<long double>::max());
@@ -72,10 +82,13 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
     }
 
     // Calculating the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz : arrClasses) {
-        for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++) {
+    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    {
+        for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
+        {
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
-                 featureVectorIndex++) {
+                 featureVectorIndex++)
+            {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
                 if (item > arrLargestItems[clazz.first][itemIndex])
@@ -86,7 +99,8 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
         }
 
         // Finding alpha
-        for (unsigned int si = 0; si < featureVectorSize; ++si) {
+        for (unsigned int si = 0; si < featureVectorSize; ++si)
+        {
             temp += 1 - (arrLargestItems[clazz.first][si] - arrSmallestItems[clazz.first][si]);
         }
 
@@ -98,14 +112,17 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
     return alpha;
 }
 
-long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass, unsigned int featureVectorSize, std::map<std::string, std::vector<std::vector<long double>>> &arrClasses)
+long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                          unsigned int featureVectorSize,
+                          std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
 {
-	long double item;
+    long double item;
     std::map<std::string, std::vector<long double>> arrLargestItems;
     std::map<std::string, std::vector<long double>> arrSmallestItems;
 
     // initializes the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz : arrClasses) {
+    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    {
         // creates sub vector
         arrLargestItems[clazz.first].resize(featureVectorSize,
                                             -std::numeric_limits<long double>::max());
@@ -114,14 +131,19 @@ long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVect
     }
 
     // Calculating the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz : arrClasses) {
-        for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++) {
+    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    {
+        for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
+        {
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
-                 featureVectorIndex++) {
+                 featureVectorIndex++)
+            {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
-				if (item > arrLargestItems[clazz.first][itemIndex]) arrLargestItems[clazz.first][itemIndex] = item;
-				if (item < arrSmallestItems[clazz.first][itemIndex]) arrSmallestItems[clazz.first][itemIndex] = item;
+                if (item > arrLargestItems[clazz.first][itemIndex])
+                    arrLargestItems[clazz.first][itemIndex] = item;
+                if (item < arrSmallestItems[clazz.first][itemIndex])
+                    arrSmallestItems[clazz.first][itemIndex] = item;
             }
         }
     }
@@ -132,28 +154,31 @@ long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVect
 
     // comparing all featureVector elements from a class
     // with all range vectors from another classes
-    for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz : arrClasses) {
-        for (unsigned int fvi = 0; fvi < featureVectorsPerClass; fvi++) {
-            for (const std::pair<std::string, std::vector<std::vector<long double>>> &clazz2 :
-                 arrClasses) {
+    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    {
+        for (unsigned int fvi = 0; fvi < featureVectorsPerClass; fvi++)
+        {
+            for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz2 :
+                 arrClasses)
+            {
                 // do not compare with the range vector from the same class
-				if (clazz2.first.compare(clazz.first) == 0) continue;
+                if (clazz2.first.compare(clazz.first) == 0) continue;
 
-				for (unsigned int ii = 0; ii < featureVectorSize; ii++)
-				{
-
-					if (inRange(arrClasses[clazz.first][fvi][ii], // value
-					        arrSmallestItems[clazz2.first][ii], // lowerLimit
-					        arrLargestItems[clazz2.first][ii]) // upperLimit
-					        )
-					{
-						R++;
-					}
-				}
+                for (unsigned int ii = 0; ii < featureVectorSize; ii++)
+                {
+                    if (inRange(arrClasses[clazz.first][fvi][ii],   // value
+                                arrSmallestItems[clazz2.first][ii], // lowerLimit
+                                arrLargestItems[clazz2.first][ii])  // upperLimit
+                    )
+                    {
+                        R++;
+                    }
+                }
             }
         }
     }
 
     // Return betha
-    return R / (long double) (amountOfClasses * (amountOfClasses - 1.0) * featureVectorsPerClass * featureVectorSize);
+    return R / (long double) (amountOfClasses * (amountOfClasses - 1.0) * featureVectorsPerClass *
+                              featureVectorSize);
 }

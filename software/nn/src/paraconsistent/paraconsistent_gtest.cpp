@@ -91,10 +91,3 @@ TEST(paraconsistentTest, contradictionDegree_G2)
 
 	ASSERT_NEAR(contradictionDegree_G2, -0.025, 0.0001);
 }
-
-int main(int argc, char **argv)
-{
-	initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
-	testing::InitGoogleTest(&argc, argv);
-	return RUN_ALL_TESTS();
-}
