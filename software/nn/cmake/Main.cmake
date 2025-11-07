@@ -7,6 +7,8 @@ add_subdirectory(${SRC_DIR}/tensor)
 add_subdirectory(${SRC_DIR}/optimizers)
 add_subdirectory(${SRC_DIR}/initializers)
 add_subdirectory(${SRC_DIR}/dataLoaders)
+add_subdirectory(${SRC_DIR}/linearAlgebra)
+add_subdirectory(${SRC_DIR}/wavelet)
 
 
 # Include modular CMake target files
