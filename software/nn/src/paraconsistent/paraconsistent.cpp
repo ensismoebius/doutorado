@@ -5,6 +5,7 @@
  *      Author: ensis
  */
 
+#include <algorithm>
 #include <limits>
 #include <map>
 #include <string>
@@ -13,11 +14,11 @@
 #include "../linearAlgebra/linearAlgebra.h"
 #include "utility/comparison.h"
 
-long double calcCertaintyDegree_G1(long double alpha, long double betha)
+auto calcCertaintyDegree_G1(long double alpha, long double betha) -> long double
 {
     return alpha - betha;
 }
-long double calcContradictionDegree_G2(long double alpha, long double betha)
+auto calcContradictionDegree_G2(long double alpha, long double betha) -> long double
 {
     return alpha + betha - 1;
 }
@@ -60,9 +61,10 @@ void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
     }
 }
 
-long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                           unsigned int featureVectorSize,
-                           std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
+auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                    unsigned int featureVectorSize,
+                    std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
+    -> long double
 {
     std::map<std::string, std::vector<long double>> arrLargestItems;
     std::map<std::string, std::vector<long double>> arrSmallestItems;
@@ -91,10 +93,10 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
             {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
-                if (item > arrLargestItems[clazz.first][itemIndex])
-                    arrLargestItems[clazz.first][itemIndex] = item;
-                if (item < arrSmallestItems[clazz.first][itemIndex])
-                    arrSmallestItems[clazz.first][itemIndex] = item;
+                arrLargestItems[clazz.first][itemIndex] =
+                    std::max(item, arrLargestItems[clazz.first][itemIndex]);
+                arrSmallestItems[clazz.first][itemIndex] =
+                    std::min(item, arrSmallestItems[clazz.first][itemIndex]);
             }
         }
 
@@ -112,9 +114,10 @@ long double calculateAlpha(unsigned int amountOfClasses, unsigned int featureVec
     return alpha;
 }
 
-long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                          unsigned int featureVectorSize,
-                          std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
+auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                   unsigned int featureVectorSize,
+                   std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
+    -> long double
 {
     long double item;
     std::map<std::string, std::vector<long double>> arrLargestItems;
@@ -140,10 +143,10 @@ long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVect
             {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
-                if (item > arrLargestItems[clazz.first][itemIndex])
-                    arrLargestItems[clazz.first][itemIndex] = item;
-                if (item < arrSmallestItems[clazz.first][itemIndex])
-                    arrSmallestItems[clazz.first][itemIndex] = item;
+                arrLargestItems[clazz.first][itemIndex] =
+                    std::max(item, arrLargestItems[clazz.first][itemIndex]);
+                arrSmallestItems[clazz.first][itemIndex] =
+                    std::min(item, arrSmallestItems[clazz.first][itemIndex]);
             }
         }
     }
@@ -162,7 +165,10 @@ long double calculateBeta(unsigned int amountOfClasses, unsigned int featureVect
                  arrClasses)
             {
                 // do not compare with the range vector from the same class
-                if (clazz2.first.compare(clazz.first) == 0) continue;
+                if (clazz2.first == clazz.first)
+                {
+                    continue;
+                }
 
                 for (unsigned int ii = 0; ii < featureVectorSize; ii++)
                 {
