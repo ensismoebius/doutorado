@@ -14,10 +14,10 @@
 
 namespace statistics
 {
-	double variance(std::vector<double> data);
-	double variance(double *data, unsigned int length);
+auto variance(const std::vector<double>& data) -> double;
+auto variance(const double* data, unsigned int length) -> double;
 
-	double standardDeviation(std::vector<double> data);
-	double standardDeviation(double *data, unsigned int length);
-}
+auto standardDeviation(const std::vector<double>& data) -> double;
+auto standardDeviation(const double* data, unsigned int length) -> double;
+} // namespace statistics
 #endif /* SRC_LIB_STATISTICS_STATISTICS_H_ */

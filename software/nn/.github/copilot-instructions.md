@@ -431,7 +431,6 @@ Small note: this file is intended as a living, developer-facing guide. When you 
   - Verificar se a biblioteca de wavelets já não implementa as janelas de alguma forma.
 - Definir o número de features a serem extraídas pelo auto-encoder
 - Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
-
 - Implementar a etapa de pré-processamento dos dados:
   - Seguindo o padrão do mestrado nomealizar os sinais entre -1 e 1.
   - Redimensionar o tamanho do sinal janelado para uma potência de 2 para que a transformada wavelet seja feita sem maiores problemas.

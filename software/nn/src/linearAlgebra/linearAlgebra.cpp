@@ -52,7 +52,7 @@ auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long 
     return product;
 }
 
-auto calcOrthogonalVector(long double* originalVector, size_t vectorSize) -> long double*
+auto calcOrthogonalVector(const long double* originalVector, size_t vectorSize) -> long double*
 {
     auto* finalResult = new long double[vectorSize];
 

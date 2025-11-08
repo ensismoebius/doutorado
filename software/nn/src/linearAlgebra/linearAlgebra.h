@@ -38,7 +38,7 @@ auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long 
  * @param vectorSize
  * @return
  */
-auto calcOrthogonalVector(long double* originalVector, int vectorSize) -> long double*;
+auto calcOrthogonalVector(const long double* originalVector, int vectorSize) -> long double*;
 
 /**
  * Given a vector calculates the corresponding orthogonal vector

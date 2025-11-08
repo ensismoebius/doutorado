@@ -13,7 +13,7 @@
 
 namespace statistics
 {
-auto variance(std::vector<double> data) -> double
+auto variance(const std::vector<double>& data) -> double
 {
     double mean = 0;
     double variance = 0;
@@ -35,7 +35,7 @@ auto variance(std::vector<double> data) -> double
     return variance;
 }
 
-auto variance(double* data, unsigned int length) -> double
+auto variance(const double* data, unsigned int length) -> double
 {
     double mean = 0;
     double variance = 0;
@@ -57,12 +57,12 @@ auto variance(double* data, unsigned int length) -> double
     return variance;
 }
 
-auto standardDeviation(std::vector<double> data) -> double
+auto standardDeviation(const std::vector<double>& data) -> double
 {
-    return std::sqrt(variance(std::move(data)));
+    return std::sqrt(variance(data));
 }
 
-auto standardDeviation(double* data, unsigned int length) -> double
+auto standardDeviation(const double* data, unsigned int length) -> double
 {
     return std::sqrt(variance(data, length));
 }

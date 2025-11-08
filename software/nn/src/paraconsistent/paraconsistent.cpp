@@ -74,7 +74,7 @@ auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPer
     long double item;
 
     // initializes the vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    for (const auto& clazz : arrClasses)
     {
         // creates sub vector
         arrLargestItems[clazz.first].resize(featureVectorSize,
@@ -84,7 +84,7 @@ auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPer
     }
 
     // Calculating the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    for (const auto& clazz : arrClasses)
     {
         for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
         {
@@ -124,7 +124,7 @@ auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerC
     std::map<std::string, std::vector<long double>> arrSmallestItems;
 
     // initializes the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    for (const auto& clazz : arrClasses)
     {
         // creates sub vector
         arrLargestItems[clazz.first].resize(featureVectorSize,
@@ -134,7 +134,7 @@ auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerC
     }
 
     // Calculating the range vectors
-    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    for (const auto& clazz : arrClasses)
     {
         for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
         {
@@ -157,12 +157,11 @@ auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerC
 
     // comparing all featureVector elements from a class
     // with all range vectors from another classes
-    for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz : arrClasses)
+    for (const auto& clazz : arrClasses)
     {
         for (unsigned int fvi = 0; fvi < featureVectorsPerClass; fvi++)
         {
-            for (const std::pair<std::string, std::vector<std::vector<long double>>>& clazz2 :
-                 arrClasses)
+            for (const auto& clazz2 : arrClasses)
             {
                 // do not compare with the range vector from the same class
                 if (clazz2.first == clazz.first)
