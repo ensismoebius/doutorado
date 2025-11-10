@@ -17,12 +17,12 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }
 
-    // Read first variable (assumed to be the audio data matrix)
-    matvar_t* matvar = Mat_VarRead(matfp, nullptr); // Read first variable
+    // Read the audio_data variable specifically
+    matvar_t* matvar = Mat_VarRead(matfp, "audio_data");
     if (matvar == nullptr)
     {
         Mat_Close(matfp);
-        throw std::runtime_error("Failed to read variable from MAT file");
+        throw std::runtime_error("Failed to read audio_data variable from MAT file");
     }
 
     // Verify dimensions (M_rows x 176402)
