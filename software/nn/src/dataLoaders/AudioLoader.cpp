@@ -18,7 +18,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Read the audio_data variable specifically
-    matvar_t* matvar = Mat_VarRead(matfp, "audio_data");
+    matvar_t* matvar = Mat_VarRead(matfp, "Audio");
     if (matvar == nullptr)
     {
         Mat_Close(matfp);
