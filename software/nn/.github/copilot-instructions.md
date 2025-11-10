@@ -1,788 +1,609 @@
-# Neural Network Framework Guidelines
+# copilot-instructions.md — Comprehensive and Extensive Version (Master Guide for Copilot)
 
-This C++ framework specializes in spiking neural networks (SNNs) and autoencoder implementations, with particular emphasis on synchronized EEG and audio analysis for speaker identification. Built on Eigen for linear algebra computations, the project uses modern C++20 features and follows strict coding standards.
+**Purpose**
+Canonical document guiding automatic code generation (Copilot, scripts, PRs) for the C++ SNN + Autoencoder + EEG+Audio framework. Must be the first reference when generating code, changing APIs, CMake, or experimental pipelines. Update it whenever there are API/ABI changes.
 
-## Quick Reference
-- **Language:** C++20
-- **Core Dependencies:** Eigen, GoogleTest, CMake
-- **Build System:** CMake with modular configuration
-- **Key Features:** 
-  - Spiking Neural Networks (SNNs)
-  - Autoencoder architectures
-  - EEG/Audio synchronization
-  - MATLAB file format support
+---
 
-## Project layout (high level)
+## Table of Contents (Quick Navigation)
+
+1. Overview and Objectives
+2. Repository Structure
+3. Public Contracts (APIs) — Signatures & Invariants
+4. Detailed Component Specifications
+5. Equations and Implementation: LIF, Surrogate Gradients, Van Rossum, TTFS, BSA
+6. Spike-Encoders: Pseudo-Code + C++ Snippets
+7. Data Pipeline & Formats (.mat, .npy) + Dataset Schema
+8. Preprocessing (Audio + EEG) — Recipes and Recommended Parameters
+9. Windowing & Synchronization — Specifications and Reference Code
+10. SAE Architecture, Loss, Training Loop, Surrogate Gradient Choices
+11. ResNet-SNN Downstream — Usage Patterns
+12. Statistical Evaluation & Experimental Tests (Nested CV, Wilcoxon, etc.)
+13. Metrics and Analysis Scripts (Python/C++ Snippets)
+14. CMake, Build, Targets, Vendoring, and Module Templates
+15. Tests (GTest), Coverage, Sanitizers, CI (GitHub Actions) — YAML Example
+16. Performance & Profiling — Tips, Microbenchmarks, OpenMP Best Practices
+17. Security, Dependencies, Packaging, and License
+18. Code Style, Linting, Formatting, PR Reviews, Changelog & Versioning
+19. Useful Templates: Layer, Optimizer, DataLoader, MatFile Reader, DataLoader Iterator, Adam Implementation
+20. Experiment Orchestration: Configs, Run Scripts, Logs, Reproducibility
+21. Benchmarking & Reproducibility Plan (Seed Policy, Deterministic Ops)
+22. Automatic PR Checklists and Generated Templates
+23. Roadmap and Immediate Tasks (Prioritized)
+24. Actions I Can Execute Now (Create Files, PR Skeleton, CI, etc.)
+
+---
+
+# 1 Overview and Objectives
+
+- Primary Language: **C++20**.
+- Main Dependencies: **Eigen**, **GoogleTest**, **CMake**. Optional Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`.
+- Domain: Spiking Neural Networks (SNN), Sparse Autoencoders, EEG+Audio Synchronization, support for .mat (MATLAB) and experimental pipelines.
+- Non-Functional Requirements: Compilable on Linux; Testable; Safe (RAII); Efficient (Eigen/noalias/OpenMP); Auditable (Logs, Metrics); Reproducible.
+
+---
+
+# 2 Repository Structure (Detailed)
 
 ```
 nn/
 ├── src/
-│   ├── dataLoaders/      # Dataset, DataLoader, MatFile implementations
-│   ├── experiments/      # Experiment implementations and configurations
-│   ├── initializers/     # Weight initialization strategies
-│   ├── layers/           # Neural network layers (Linear, Leaky, etc.)
-│   ├── linearAlgebra/    # Linear algebra utilities and operations
-│   ├── optimizers/       # Optimization algorithms (Adam, SGD, etc.)
-│   ├── paraconsistent/   # Paraconsistent logic implementations
-│   ├── statistics/       # Statistical analysis utilities
-│   ├── tensor/          # Tensor wrapper around Eigen
-│   ├── util/            # Core utility functions
-│   ├── utility/         # Additional utility helpers
-│   ├── wave/            # Wave processing utilities
-│   └── wavelet/         # Wavelet transform implementations
-├── lib/                 # Third-party dependencies
-│   ├── cnpy/           # NumPy file format support
-│   ├── imgui/          # Dear ImGui UI library
-│   ├── implot/         # Plotting for ImGui
-│   ├── matio/          # MATLAB file format support
-│   └── matio-cpp/      # C++ wrapper for matio
-├── cmake/              # CMake modules and configuration
-│   ├── exec_*.cmake    # Target-specific CMake files
-│   └── *.cmake         # Shared CMake utilities and vendor configs
-├── debug/              # Debugging configurations
-├── build/             # Build artifacts (generated)
-├── .github/           # Repository documentation & automation
-└── .vscode/          # VS Code specific settings
+│   ├── tensor/            # Tensor wrapper (Eigen)
+│   ├── layers/            # Module, Linear, LIF, Sequential, activations
+│   ├── optimizers/        # Adam, SGD, interfaces
+│   ├── dataLoaders/       # Dataset, DataLoader, MatFile
+│   ├── experiments/       # train_sae, train_resnet_snn, extract_embeddings
+│   ├── initializers/      # xavier, kaimingSNN
+│   ├── encoders/          # rate, ttfs, bsa implementations
+│   ├── wave/              # processing, resample
+│   ├── wavelet/           # wavelet transforms
+│   ├── util/              # logging, time, checks
+│   └── stats/             # metrics, statistical tests
+├── tests/
+│   ├── data/              # small .mat test files, synthetic datasets
+│   └── unit/              # gtest suites
+├── cmake/
+│   ├── exec_layers.cmake
+│   ├── exec_tensor.cmake
+│   ├── Flags.cmake
+│   └── Main.cmake
+├── configs/               # defaults.yaml, grids
+├── scripts/               # preprocessing, run_experiment, analyze_results
+├── tools/                 # Octave scripts (inspect_pronounced_pair.m)
+├── .github/
+│   └── workflows/         # CI workflows YAML
+└── docs/                  # design docs, math, equations
 ```
 
-## Core Components
+---
 
-### 1. Tensor System (`src/tensor/`)
+# 3 Public Contracts (APIs) — Signatures & Invariants
+
+> **Rule:** Any public change requires updating this document + CHANGELOG + semantic versioning.
+
+## 3.1 Tensor (src/tensor/Tensor.h)
+
 ```cpp
 class Tensor {
-    Eigen::MatrixXf data;  // Main data storage
-    Eigen::MatrixXf grad;  // Gradient information
-    // ... methods for automatic differentiation
+public:
+    Eigen::MatrixXf data;
+    Eigen::MatrixXf grad;
+    Tensor() = default;
+    explicit Tensor(int rows, int cols);
+    auto rows() const -> int { return data.rows(); }
+    auto cols() const -> int { return data.cols(); }
+    auto reshape(int rows, int cols) -> void; // throws runtime_error if incompatible
+    auto clone() const -> Tensor;
+    auto zero_grad() -> void;
+    static auto from_vector(const std::vector<float>& v, int rows, int cols) -> Tensor;
 };
 ```
 
-### 2. Neural Network Layers (`src/layers/`)
-- **Base Class:** `Module` with virtual `forward()` and `backward()`
-- **Key Implementations:**
-  - `Linear`: Dense layer
-  - `Leaky`: LIF-like spiking neurons
-  - `ReLU` & `LeakyReLU`: Activation functions
-  - `Sequential`: Layer composition container
+- **Invariant:** `data.size()` consistent; `grad` compatible; public operations validate shapes and throw `std::runtime_error` on invalid inputs.
 
-### 3. Data Pipeline (`src/dataLoaders/`)
-- **Core Classes:**
-  ```cpp
-  class Dataset {
-      virtual auto get_item(size_t index) -> std::tuple<Tensor, Tensor> = 0;
-      virtual auto size() const -> size_t = 0;
-      virtual auto collate(const std::vector<std::tuple<Tensor, Tensor>>&) -> std::tuple<Tensor, Tensor>;
-  };
+## 3.2 Module (src/layers/Module.h)
 
-  class DataLoader {
-      // PyTorch-style iteration with shuffling & batching
-      auto begin() -> iterator;
-      auto end() -> iterator;
-  };
-
-  class MatFile {
-      // MATLAB v5 file format support
-      auto read() -> std::vector<float>;
-      auto write(const std::vector<float>&) -> void;
-  };
-  ```
-
-### Demo: `dataLoader_demo`
-
-- Demo source: `src/dataLoaderTest.cpp`.
-- Behavior: reads the first numeric variable from a `.mat` file (via `MatFile`), trims to safe dimensions, wraps data into `TensorDataset`, constructs a tiny autoencoder (Linear -> Leaky -> Linear), trains with `MSELoss` + `Adam`, and writes `reconstructed.mat`.
-- Defensive features: sample-size caps (`max_features`, `max_elements`) and try/catch around large Eigen allocations to avoid OOMs when users point to large MAT files.
-
-### Initializers & optimizers
-
-- Initializers: `xavierInitializer`, `kaimingSNNInitializer` in `src/initializers/`.
-- Optimizers: `Adam`, `SGD`, `SGDMinimal` implementing `attach(params)`, `step()`, `zero_grad()`.
-
-## Build System & Testing
-
-### CMake Structure
-```
-cmake/
-├── exec_*.cmake        # Target-specific configurations
-├── Flags.cmake         # Compiler & language settings
-├── Main.cmake          # Core build configuration
-├── PackageChecking.cmake
-└── Vendor*.cmake       # Third-party dependency configs
+```cpp
+struct Module {
+    virtual ~Module() = default;
+    virtual Tensor forward(const Tensor& input) = 0;
+    virtual Tensor backward(const Tensor& grad_output) = 0;
+    virtual void train(bool on) { training_ = on; }
+protected:
+    bool training_ = true;
+};
 ```
 
-### Building the Project
-```bash
-# Configure with all features
-cmake -S . -B build
-# Build in parallel
-cmake --build build -- -j$(nproc)
+- `Sequential` manages `std::vector<std::shared_ptr<Module>>`.
+
+## 3.3 Dataset / DataLoader (src/dataLoaders/)
+
+- `class Dataset { virtual auto get_item(size_t idx) -> std::tuple<Tensor, Tensor> = 0; virtual auto size() const -> size_t = 0; virtual auto collate(const std::vector<std::tuple<Tensor, Tensor>>& batch) -> std::tuple<Tensor, Tensor>; };`
+- `DataLoader` provides C++ iterators: `.begin()`, `.end()`; parameters: `batch_size`, `shuffle`, `seed`.
+
+## 3.4 Optimizer (src/optimizers/Optimizer.h)
+
+```cpp
+struct Optimizer {
+    virtual ~Optimizer() = default;
+    virtual void attach(const std::vector<Tensor*>& params) = 0;
+    virtual void zero_grad() = 0;
+    virtual void step() = 0;
+};
 ```
 
-### Test Framework
-1. **Test Organization:**
-   - Each component has its own test suite under `src/*/`
-   - Unified discovery via `gtest_discover_tests()`
-   - Test binaries link against implementation targets
-
-2. **Key Test Targets:**
-   ```bash
-   # Build and run data loader tests
-   cmake --build build --target dataLoaders_gtest
-   ctest --test-dir build --output-on-failure -j4
-   ```
-
-3. **Recent Test Coverage:**
-   - DataLoader: Deterministic shuffling, batch formation
-   - MatFile: MATLAB v5 format compatibility
-   - Tensor: Gradient computation, view semantics
-   - Layers: Forward/backward pass correctness
-
-## Development Guidelines
-
-### Code Style & Conventions
-
-1. **Naming Conventions:**
-   ```cpp
-   class TensorDataset;      // Classes: PascalCase
-   void processData();       // Functions: camelCase
-   int item_count;          // Variables: snake_case
-   ```
-
-2. **Type System:**
-   ```cpp
-   // Prefer auto with trailing return types
-   auto computeGradient(const Tensor& input) -> Tensor;
-   
-   // Use explicit types for clarity when helpful
-   std::vector<float> values;
-   ```
-
-3. **Memory Management:**
-   ```cpp
-   // Layer ownership
-   std::shared_ptr<Module> layer = std::make_shared<Linear>(in_features, out_features);
-   
-   // Safe tensor operations
-   Tensor view = tensor.slice(0, 100);  // Creates a view, not a raw pointer
-   ```
-
-### Error Handling & Safety
-
-1. **Assertions & Validation:**
-   ```cpp
-   // Internal invariants
-   assert(tensor.dims() == 2 && "Expected 2D tensor");
-   
-   // External input validation
-   if (file_size > max_safe_size) {
-       throw std::runtime_error("File too large");
-   }
-   ```
-
-2. **Resource Management:**
-   ```cpp
-   // RAII for file handles
-   MatFile file(path);  // Automatically closes
-   
-   // Protected allocations
-   try {
-       matrix.resize(huge_size);
-   } catch (const std::bad_alloc&) {
-       // Handle gracefully
-   }
-   ```
-
-### Performance Considerations
-
-1. **Eigen Usage:**
-   ```cpp
-   // Efficient matrix operations
-   matrix.noalias() = a * b;  // Avoid temporary
-   
-   // Parallel computation
-   #pragma omp parallel for
-   for (int i = 0; i < batch_size; ++i) {
-       process_sample(batch[i]);
-   }
-   ```
-
-2. **Memory Efficiency:**
-   ```cpp
-   // Pre-allocate containers
-   std::vector<float> data;
-   data.reserve(expected_size);
-   
-   // Use views when possible
-   auto view = tensor.block(0, 0, rows, cols);
-   ```
-
-## Common Implementation Tasks
-
-### 1. Adding New Components
-
-1. **New Layer Implementation:**
-   ```cpp
-   class NewLayer : public Module {
-   public:
-       auto forward(const Tensor& input) -> Tensor override {
-           // Implementation
-       }
-       
-       auto backward(const Tensor& grad_output) -> Tensor override {
-           // Gradient computation
-       }
-   private:
-       Tensor weights;
-       Tensor bias;
-   };
-   ```
-
-2. **New Dataset Implementation:**
-   ```cpp
-   class CustomDataset : public Dataset {
-   public:
-       auto get_item(size_t index) -> std::tuple<Tensor, Tensor> override;
-       auto size() const -> size_t override;
-       // Optional: custom collate function
-   };
-   ```
-
-### 2. Training Workflows
-
-1. **Basic Training Loop:**
-   ```cpp
-   for (const auto& batch : dataloader) {
-       optimizer.zero_grad(params);
-       
-       // Forward pass
-       Tensor output = model.forward(batch.first);
-       Tensor loss = criterion.forward(output, batch.second);
-       
-       // Backward pass
-       Tensor grad = criterion.backward(output, batch.second);
-       model.backward(grad);
-       
-       // Update
-       optimizer.step();
-   }
-   ```
-
-2. **Evaluation Loop:**
-   ```cpp
-   model.eval();  // Switch to evaluation mode
-   for (const auto& batch : val_loader) {
-       Tensor output = model.forward(batch.first);
-       // Compute metrics
-   }
-   model.train();  // Switch back to training
-   ```
-
-### 3. File Organization
-
-1. **New Feature Checklist:**
-   - Header file with clear documentation
-   - Implementation file
-   - Unit test file
-   - CMake target update
-   - Example usage in docs
-
-2. **Important Locations:**
-   - Core implementations: `src/<component>/`
-   - Tests: `src/<component>/*_test.cpp`
-   - Build config: `cmake/exec_<component>.cmake`
-
-## Next steps and optional improvements
-
-- Add a committed small `.mat` test file for CI reproducibility (currently demo creates `/tmp/dataLoader_demo_default.mat` at runtime).
-- Add sanitizer-enabled CMake configurations (`ASAN`, `TSAN`) and a CI job to run concurrency-related tests under ThreadSanitizer.
-- Split `cmake/` helpers into a small helper directory (`cmake/utils.cmake`) and document available helper functions.
-
-If you want, I can:
-- generate a `README_ACTION_HISTORY.md` from the git log (I can create that now),
-- add sanitizer targets, or
-- commit a small deterministic `.mat` file into `tests/data/` and add a CTest that runs the demo on it.
+- Implement `Adam`, `SGD`. `attach` must store pointers to parameters (Tensor\*).
 
 ---
 
-Small note: this file is intended as a living, developer-facing guide. When you change build wiring (CMake modularization, new targets, or DataLoader API) please update this document so it reflects the current project conventions.
+# 4 Detailed Component Specifications
 
-## Copilot & Code Generation Guidelines
+(Includes extended contracts, invariants, expected complexity, required tests.)
 
-### Language & Compilation Standards
+## 4.1 Linear Layer
 
-1. **C++20 Compliance:**
-   ```cpp
-   // Required features
-   #include <concepts>
-   #include <ranges>
-   #include <span>
-   
-   // Encouraged
-   auto [x, y] = getValue();  // Structured bindings
-   ```
+- Signature: `Linear(int in_features, int out_features, bool bias=true)`.
+- Forward: `output = input * weight.t() + bias` (batch x features). Use `noalias()` for optimization. Validate shapes.
+- Backward: Compute grads for weights and inputs; accumulate gradients in `weights.grad` and `bias.grad`.
+- Tests: Forward shape, backward grad numeric check (finite differences) and edge cases (batch=0, in_features mismatch).
 
-2. **Warning Prevention:**
-   ```cpp
-   // Use explicit types for numeric conversions
-   size_t index = static_cast<size_t>(value);
-   
-   // Prevent sign comparison warnings
-   for (size_t i = 0; i < vector.size(); ++i) {
-       // ...
-   }
-   ```
+## 4.2 LIF / Leaky Layer (SNN)
 
-### Code Style Requirements
+- Provide discrete-time LIF update:
 
-1. **Variable Declarations:**
-   ```cpp
-   // CORRECT:
-   std::vector<int> vec1;
-   std::vector<int> vec2;
-   
-   // INCORRECT:
-   std::vector<int> vec1, vec2;  // Avoid multiple declarations
-   ```
+  - Membrane: `V[t+1] = alpha * V[t] + W*x[t] - S[t]*V_reset`
+  - Spike: `S[t] = H(V[t] - V_threshold)` (Heaviside)
+  - Surrogate gradient g'(V) used in backprop.
 
-2. **Bracing & Control Flow:**
-   ```cpp
-   // CORRECT:
-   if (condition) {
-       doSomething();
-   }
-   
-   // INCORRECT:
-   if (condition)
-       doSomething();  // Missing braces
-   ```
+- Parameters: `tau_m`, `V_thr`, `V_reset`, `alpha = exp(-dt / tau_m)`.
+- Stateful per timestep. Provide `reset()` method.
+- Tests: Single neuron response to step input (expected firing pattern), surrogate gradient sanity check.
 
-3. **Memory Management:**
-   ```cpp
-   // CORRECT:
-   std::vector<int> data;
-   data.reserve(expected_size);
-   for (int i = 0; i < expected_size; ++i) {
-       data.emplace_back(i);
-   }
-   
-   // INCORRECT:
-   std::vector<int> data;  // No reserve before loop
-   for (int i = 0; i < size; ++i) {
-       data.emplace_back(i);
-   }
-   ```
+## 4.3 MatFile Wrapper
 
-### CMake Integration
+- Methods: `read_first_numeric_variable()`, `read_variable(name)`, `write_variable(name, data)`.
+- Validate MAT v5 header, var type (double/float), dims; map to `Eigen::Map` if possible.
+- Tests: Read synthetic `tests/data/test_small.mat`.
 
-1. **Target Definition:**
-   ```cmake
-   # CORRECT:
-   add_library(mylib
-       src/file1.cpp
-       src/file2.cpp
-   )
-   target_link_libraries(mylib PUBLIC Eigen3::Eigen)
-   
-   # INCORRECT:
-   add_library(mylib src/file1.cpp src/file2.cpp)  # Hard to maintain
-   target_link_libraries(mylib Eigen3::Eigen)  # Missing PUBLIC/PRIVATE
-   ```
+## 4.4 Encoders (Rate, TTFS, BSA)
 
-2. **Test Integration:**
-   ```cmake
-   include(GoogleTest)
-   add_executable(mylib_test test/mylib_test.cpp)
-   target_link_libraries(mylib_test PRIVATE
-       mylib
-       GTest::gtest_main
-   )
-   gtest_discover_tests(mylib_test)
-   ```
+- Each encoder implements interface:
 
-### Error Checking Process
+```cpp
+struct SpikeEncoder {
+    virtual ~SpikeEncoder() = default;
+    virtual Tensor encode(const Tensor& analog_window) = 0; // returns spikes (time x features) or spike times depending on impl
+};
+```
 
-1. **Compilation Check:**
-   ```bash
-   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-   cmake --build build -- -j$(nproc)
-   ```
-
-2. **Test Validation:**
-   ```bash
-   ctest --test-dir build --output-on-failure
-   ```
-
-3. **Style Verification:**
-   ```bash
-   clang-format -i src/**/*.{cpp,h}
-   clang-tidy src/**/*.cpp
-   ```
-
-
-
-# Speaker Identification Pipeline: EEG + Audio with Spiking Neural Networks
-
-## TODO
-
-- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese, acho que vou tirar)
-  - Acho que não precisa pois os neurônios de pulso aparentemente não requerem (eu acho).
-- Implementar denoising auto-encoder? (é citada na tese, acho que vou tirar tb)
-  - Se tudo der certo será um auto-encoder de pulso.
-- Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features
-  - Verificar se a biblioteca de wavelets já não implementa as janelas de alguma forma.
-- Definir o número de features a serem extraídas pelo auto-encoder
-- Definir a arquitetura do auto-encoder (número de camadas, número de neurônios por camada, tipo de camadas, etc.)
-- Implementar a etapa de pré-processamento dos dados:
-  - Seguindo o padrão do mestrado nomealizar os sinais entre -1 e 1.
-  - Redimensionar o tamanho do sinal janelado para uma potência de 2 para que a transformada wavelet seja feita sem maiores problemas.
-- Definir os parâmetros de treinamento do auto-encoder (número de épocas, taxa de aprendizado, tamanho do batch, etc.)
-
-## Executive Summary
-
-For the task of speaker identification using synchronized EEG and audio data, the recommended starting point is a **1.5-second window with a 50% overlap**. This duration is long enough to capture prosodic and intonational cues fundamental to speaker identity, which are often more discriminative than short-term phonetic features (Snyder et al., 2018). The 50% overlap ensures a good trade-off between temporal resolution and computational efficiency, generating a sufficient number of samples for training deep learning models without excessive redundancy.
+- Provide both Python pseudo-implementations and C++ optimized versions in `src/encoders/`.
 
 ---
 
-## 1. Executive Recommendation
+# 5 Equations and Implementation — LIF, Surrogate Gradients, Van Rossum, TTFS, BSA
 
-- **Optimal Window Length:** 1.5 seconds.
-- **Optimal Overlap:** 50% (or 0.75 seconds).
-- **Rationale:** Speaker identification relies heavily on suprasegmental features like pitch, rhythm, and intonation, which unfold over longer time scales than phonemes. While phonetic information can be captured in windows as short as 100-200 ms, these are often insufficient for robust, text-independent speaker recognition. A 1.5s window provides a strong balance, capturing these critical prosodic contours. The 50% overlap ensures that features at the edges of windows are not lost and doubles the number of training examples from the same data, which is beneficial for data-hungry deep learning models.
+## 5.1 LIF (Discretized)
 
-## 2. Candidate Grid to Evaluate
+- Membrane update discrete:
 
-The following grid should be evaluated to empirically determine the best configuration.
+  - `V[t+1] = decay * V[t] + I[t]` where `decay = exp(-dt / tau_m)` and `I[t] = W * x[t] + b`.
 
-- **Window Lengths (seconds):** `[0.2, 0.5, 1.0, 1.5, 2.0, 3.0]`
-- **Overlaps (percentage):** `[0.25, 0.5, 0.75]`
-- **Justification:**
-  - **Short Windows (0.2s, 0.5s):** These will primarily capture phonetic and formant information. They are computationally cheaper but may be less robust for text-independent tasks as they don't capture the broader speaking style. They are worth testing to establish a baseline and understand the contribution of fine-grained acoustic features.
-    - **Medium Windows (1.0s, 1.5s, 2.0s):** This range is the most promising. It's long enough to capture prosodic information, intonation patterns, and co-articulation effects that are highly speaker-specific (García-Perera et al., 2021).
-    - **Long Windows (3.0s):** These windows capture significant contextual and rhythmic information. However, they may smear short-term temporal details, increase computational load, and reduce the number of available training samples. They are included to test the upper bound of performance.
-    - **Overlaps:** Testing 25%, 50%, and 75% overlap allows for a systematic evaluation of the trade-off between data augmentation, computational cost, and model performance. Higher overlap can lead to better performance at the cost of longer training times.
+- Spike emission:
 
-## 3. Detailed Preprocessing Pipeline
+  - `S[t] = Theta(V[t] - V_thr)` where `Theta` is the Heaviside function.
 
-### Audio Preprocessing
+- Reset:
 
-1. **Downsampling:** Resample the audio from 44.1 kHz to 16 kHz. This is standard for speech processing, as most speaker-relevant information is below 8 kHz.
-2. **Band-Pass Filtering:** Apply a Butterworth band-pass filter between 80 Hz and 7600 Hz to remove DC offset, low-frequency noise, and high-frequency hiss.
-3. **Normalization:** Apply Z-score normalization (subtract mean, divide by standard deviation) to the entire audio recording before windowing.
+  - After spike, `V[t] = V[t] - V_reset` (or `V[t] = V_reset_value` depending on the model).
 
-```python
-import numpy as np
-from scipy.signal import butter, sosfiltfilt
+## 5.2 Surrogate Gradient
 
-def preprocess_audio(audio_data, original_sr=44100, target_sr=16000, lowcut=80, highcut=7600):
-    # Downsample (assuming you have a resampling function)
-    # For simplicity, we'll use scipy's resample, but for long signals, polyphase is better.
-    from scipy.signal import resample
-    num_samples = int(len(audio_data) * target_sr / original_sr)
-    resampled_audio = resample(audio_data, num_samples)
+- Use surrogate `sigma(x)` approximating derivative of Heaviside.
+- Examples:
 
-    # Band-pass filter
-    sos = butter(5, [lowcut, highcut], btype='band', fs=target_sr, output='sos')
-    filtered_audio = sosfiltfilt(sos, resampled_audio)
+  - Fast sigmoid surrogate derivative: `sigma'(x) = 1 / (1 + abs(pi * x))^2` (or another form).
+  - Arctan surrogate: derivative of `atan(k*x)` approximates spike derivative.
 
-    # Z-score normalization
-    mean = np.mean(filtered_audio)
-    std = np.std(filtered_audio)
-    normalized_audio = (filtered_audio - mean) / std
-    
-    return normalized_audio, target_sr
-```
+- Implementation tip: Compute surrogate derivative as function of `V - V_thr`, scale by `scale_factor`.
 
-### EEG Preprocessing
+## 5.3 Van Rossum Distance (Reconstruction Loss for Spike Trains)
 
-1. **Band-Pass Filtering:** Apply a Butterworth band-pass filter between 1 Hz and 40 Hz. This range captures the most relevant EEG rhythms (delta, theta, alpha, beta, low gamma) while removing DC drift and muscle artifacts (EMG).
-2. **Notch Filtering:** Apply a notch filter at the power-line frequency (60 Hz or 50 Hz) and its harmonics to remove electrical interference.
-3. **Normalization:** Apply Z-score normalization per channel to the entire EEG recording before windowing.
+- For spike trains `s(t)` and `r(t)`, convolve with exponential kernel `h(t) = exp(-t/τ)/τ`. Then `d^2 = ∫ (s*h - r*h)^2 dt`.
+- Discrete approximation: Convolve spike trains and compute MSE.
+- Use efficient FFT-based convolution or incremental IIR filter `y[t] = y[t-1] * exp(-dt/τ) + s[t]/τ`.
+
+## 5.4 TTFS (Time-to-First-Spike)
+
+- For amplitude `a∈[0,1]`, `t_spike = T_max * (1 - a)`. No spike if `a <= 0` (or set t_spike = T_max).
+- Implement representation as `spike_time` array or as one-hot temporal spike train.
+
+## 5.5 BSA / Threshold-Based Encoding
+
+- Maintain potential `p[t] += window[t]`. If `p[t] > threshold`: fire spike, `p[t] -= reset_value`.
+
+---
+
+# 6 Spike-Encoders: Pseudo-Code + C++ Snippets
+
+## 6.1 Poisson Rate (Python Pseudo)
 
 ```python
-def preprocess_eeg(eeg_data, sr=1024, lowcut=1.0, highcut=40.0, notch_freq=60.0):
-    # Band-pass filter
-    sos_band = butter(5, [lowcut, highcut], btype='band', fs=sr, output='sos')
-    filtered_eeg = sosfiltfilt(sos_band, eeg_data, axis=0)
-
-    # Notch filter
-    from scipy.signal import iirnotch
-    b_notch, a_notch = iirnotch(notch_freq, 30.0, sr)
-    notched_eeg = sosfiltfilt(np.array([b_notch, a_notch]), filtered_eeg, axis=0)
-
-    # Z-score normalization (per channel)
-    mean = np.mean(notched_eeg, axis=0)
-    std = np.std(notched_eeg, axis=0)
-    normalized_eeg = (notched_eeg - mean) / std
-    
-    return normalized_eeg, sr
-```
-
-## 4. Spike-Encoding Methods
-
-After windowing and preprocessing, the analog signals in each window must be converted to spikes.
-
-### A. Poisson Rate Coding
-
-Encodes signal amplitude as the firing rate of a Poisson process. Higher amplitude means more spikes.
-
-- **Pseudo-math:** `P(spike at t) = λ * amplitude(t) * Δt` where `λ` is a scaling factor.
-- **Hyperparameters:** `scaling_factor` (λ): controls the overall spike rate. Sweep `[0.1, 0.5, 1.0, 2.0]`.
-- **Trade-offs:** Simple and robust but can be inefficient as it requires many spikes to represent a signal. It loses precise timing information.
-
-```python
-def rate_encode(window, scaling_factor=1.0, duration_ms=100):
-    # Assuming window values are normalized and non-negative (e.g., after abs())
-    spike_probs = window * scaling_factor / len(window)
-    return (np.random.rand(*window.shape) < spike_probs).astype(np.float32)
-```
-
-### B. Time-to-First-Spike (TTFS) Coding
-
-Encodes amplitude as the latency of a single spike. Higher amplitude means an earlier spike.
-
-- **Pseudo-math:** `t_spike = T_max - (amplitude * T_max)` where `T_max` is the maximum simulation time (e.g., the window duration in ms).
-- **Hyperparameters:** `T_max`: The simulation time window. This is usually fixed to the segment length.
-- **Trade-offs:** Very efficient (one spike per neuron). Captures timing information precisely. Sensitive to noise and requires a reset mechanism. We can handle bipolar signals by using two channels per input neuron: one for positive and one for negative values.
-
-```python
-def ttfs_encode(window, T_max):
-    # Assumes window values are in [0, 1]
-    spike_times = T_max - (window * T_max)
-    spike_times[window <= 0] = T_max # No spike for non-positive values
-    return spike_times
-```
-
-### C. Ben's Spiking Algorithm (BSA) / Threshold-Based Encoding
-
-Fires a spike when the signal's value crosses a threshold. The signal is then modulated to prevent immediate re-firing.
-
-- **Pseudo-math:**
-    1. `v(t) = input(t)`
-    2. If `v(t) > threshold`: fire spike, `v(t) = v(t) - reset_value`.
-- **Hyperparameters:** `threshold`, `reset_value`. Sweep `threshold` in `[0.5, 1.0, 1.5]` (assuming z-scored data). `reset_value` can be fixed to `threshold`.
-- **Trade-offs:** More biologically plausible than rate coding. Efficient and captures temporal features. Performance is highly dependent on the `threshold`.
-
-```python
-def bsa_encode(window, threshold=1.0, reset_value=1.0):
-    spikes = np.zeros_like(window)
-    potential = 0
-    for t in range(len(window)):
-        potential += window[t]
-        if potential > threshold:
-            spikes[t] = 1
-            potential -= reset_value
+def rate_encode(window, scaling_factor=1.0):
+    # window: (time, features) normalized to [0,1]
+    spike_prob = window * scaling_factor
+    spikes = (np.random.rand(*window.shape) < spike_prob).astype(np.float32)
     return spikes
 ```
 
-## 5. Sliding-Window Implementation
+## 6.2 TTFS (C++ Sketch)
 
-This function synchronizes the audio and EEG data streams and extracts windows.
-
-```python
-import numpy as np
-
-def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, overlap_perc):
-    """
-    Extracts synchronized windows from EEG and audio data.
-    
-    Args:
-        eeg_data (np.ndarray): Preprocessed EEG data (samples, channels).
-        audio_data (np.ndarray): Preprocessed audio data (samples,).
-        eeg_sr (int): Sampling rate of EEG.
-        audio_sr (int): Sampling rate of audio.
-        window_sec (float): Window length in seconds.
-        overlap_perc (float): Overlap percentage (0.0 to 1.0).
-        
-    Returns:
-        list of tuples: Each tuple contains (eeg_window, audio_window).
-    """
-    
-    window_samples_eeg = int(window_sec * eeg_sr)
-    window_samples_audio = int(window_sec * audio_sr)
-    
-    step_sec = window_sec * (1 - overlap_perc)
-    step_samples_eeg = int(step_sec * eeg_sr)
-    step_samples_audio = int(step_sec * audio_sr)
-    
-    windows = []
-    
-    num_samples_eeg = eeg_data.shape[0]
-    num_samples_audio = len(audio_data)
-    
-    start_eeg, start_audio = 0, 0
-    
-    while (start_eeg + window_samples_eeg < num_samples_eeg) and \
-          (start_audio + window_samples_audio < num_samples_audio):
-        
-        end_eeg = start_eeg + window_samples_eeg
-        end_audio = start_audio + window_samples_audio
-        
-        eeg_window = eeg_data[start_eeg:end_eeg, :]
-        audio_window = audio_data[start_audio:end_audio]
-        
-        windows.append((eeg_window, audio_window))
-        
-        start_eeg += step_samples_eeg
-        start_audio += step_samples_audio
-        
-    return windows
-
-# Example usage:
-# eeg_data, eeg_sr = preprocess_eeg(...)
-# audio_data, audio_sr = preprocess_audio(...)
-# windows = synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, 1.5, 0.5)
+```cpp
+// input: Eigen::MatrixXf window (features x 1) values in [0,1]
+// output: std::vector<int> spike_times (size = features) in [0, T_max) or T_max for no spike.
+std::vector<int> ttfs_encode(const Eigen::VectorXf& window, int T_max) {
+    std::vector<int> spike_times(window.size(), T_max);
+    for (int i=0;i<window.size();++i) {
+        float a = window[i];
+        if (a > 0.0f) spike_times[i] = static_cast<int>((1.0f - a) * (T_max - 1));
+    }
+    return spike_times;
+}
 ```
 
-## 6. Spiking Autoencoder Training Plan
+## 6.3 BSA (C++ Sketch)
 
-- **Architecture:** A fully-connected feed-forward SNN.
-  - **Input Layer:** Size matches the concatenated, flattened, and spike-encoded EEG and audio window data.
-  - **Encoder:** 2-3 spiking layers (e.g., 1024 -> 512 neurons) with Leaky Integrate-and-Fire (LIF) neurons.
-  - **Embedding Layer:** A bottleneck spiking layer of size `D` (e.g., `D=128` or `256`). This layer's spike output (or integrated membrane potential) will be the embedding.
-  - **Decoder:** Symmetrical to the encoder (e.g., 512 -> 1024 -> Input Size).
-- **Loss Function:** A combination of:
-    1. **Reconstruction Loss:** Van Rossum distance or MSE between the original and reconstructed spike trains (after low-pass filtering).
-    2. **Sparsity Loss:** L1/L2 regularization on the firing rates of the embedding layer to encourage sparse representations.
-- **Training:**
-  - **Batch Size:** 32 or 64.
-    - **Optimizer:** Adam with a learning rate sweep `[1e-4, 5e-4, 1e-3]`.
-    - **Surrogate Gradient:** Use a surrogate gradient function (e.g., `atan` or a fast sigmoid) to enable backpropagation through the spiking non-linearity.
-    - **Early Stopping:** Monitor the validation reconstruction loss and stop if it doesn't improve for 10-15 epochs.
-- **Outputting Embeddings:** After training, pass a window through the encoder and use the spike train, average firing rate, or mean membrane potential of the embedding layer as the fixed-length embedding vector.
-
-## 7. Downstream ResNet-SNN Usage
-
-- **Input Formatting:** The `D`-dimensional embedding vector from the SAE is treated as a static feature vector.
-- **Architecture:** A Spiking ResNet (e.g., Spiking ResNet-18). The first layer of the ResNet will take the `D`-dimensional vector as input. The rest of the architecture follows the standard ResNet structure, but with all ReLU activations replaced by LIF neurons.
-- **Training Protocol:**
-  - This is a standard supervised classification task.
-  - **Loss Function:** Cross-entropy loss on the output of the final layer (summed membrane potentials over time).
-  - **Optimizer:** Adam or SGD with momentum.
-  - **Evaluation:** Use a held-out test set of speakers (not seen during SAE or ResNet training).
-
-## 8. Evaluation Metrics and Statistical Tests
-
-- **Primary Metrics:**
-  - **Speaker-ID Accuracy:** Top-1 classification accuracy.
-  - **AUC/mAP:** Area Under the ROC Curve / mean Average Precision, especially for one-vs-rest evaluations.
-- **Secondary (Ablation) Metrics:**
-  - **SAE Reconstruction Loss:** To ensure the autoencoder is learning meaningful representations.
-  - **Embedding Separability:** Use t-SNE to visualize embeddings and calculate the silhouette score to quantify cluster separation.
-  - **Spike Budget:** Measure the average number of spikes per inference to evaluate computational efficiency.
-- **Statistical Tests:**
-  - Use **nested cross-validation**. The outer loop splits speakers into training/testing sets. The inner loop tunes hyperparameters (window size, overlap, etc.) on the training set.
-  - Report `mean ± std` of the primary metrics across the outer folds.
-  - Use the **Wilcoxon signed-rank test** to compare the performance of the top 2-3 pipeline configurations (e.g., 1.5s window vs 2.0s window) to see if the difference is statistically significant.
-
-## 9. Final Recommended Pipeline (Conceptual)
-
-```bash
-# 1. Preprocess all data
-python preprocess.py --audio_dir /path/to/audio --eeg_dir /path/to/eeg --output_dir /path/to/processed
-
-# 2. Run hyperparameter sweep for windowing and encoding
-for window in 1.0 1.5 2.0; do
-  for overlap in 0.5 0.75; do
-    for encoder in "rate" "bsa"; do
-      
-      # 3. Train Spiking Autoencoder
-      python train_sae.py \
-        --data_dir /path/to/processed \
-        --window_sec $window \
-        --overlap_perc $overlap \
-        --spike_encoder $encoder \
-        --embedding_dim 128 \
-        --learning_rate 1e-4 \
-        --output_model_path "/models/sae_w${window}_o${overlap}_e${encoder}.pt"
-
-      # 4. Extract Embeddings
-      python extract_embeddings.py \
-        --sae_model "/models/sae_w${window}_o${overlap}_e${encoder}.pt" \
-        --data_dir /path/to/processed \
-        --output_embedding_path "/embeddings/w${window}_o${overlap}_e${encoder}/"
-
-      # 5. Train and Evaluate Downstream Classifier
-      python train_resnet_snn.py \
-        --embedding_path "/embeddings/w${window}_o${overlap}_e${encoder}/" \
-        --num_speakers N \
-        --log_file "/results/results.csv"
-        
-    done
-  done
-done
-
-# 6. Analyze results and run statistical tests
-python analyze_results.py --results_file /results/results.csv
-```
-
-## 10. Concise Summary of Assumptions and Budget
-
-- **Assumptions / Required Information:**
-    1. **Number of Speakers & Data Balance:** The experimental design (especially cross-validation folds) depends on the number of speakers and the amount of recording time per speaker.
-    2. **Signal Quality:** The preprocessing pipeline assumes moderately clean signals. If signals are extremely noisy (e.g., high motion artifacts in EEG), more advanced artifact removal (e.g., ICA) may be needed.
-    3. **Synchronization Accuracy:** The pipeline assumes the EEG and audio streams are accurately synchronized with minimal, constant drift.
-- **Recommended Computational Budget:**
-  - **Hardware:** A modern GPU with at least 16 GB of VRAM is recommended to accommodate the SNN simulations and hyperparameter sweep. Neuromorphic hardware (e.g., Loihi) would be ideal but is not assumed.
-  - **Expected Runtimes:** The full hyperparameter sweep will be computationally expensive. Training a single SAE model could take several hours to a day, depending on the dataset size. The entire grid search could take several days to weeks. It is advisable to start with a smaller subset of the data and a reduced grid to get initial estimates.
-
----
-
-## JSON Output
-
-```json
-{
-  "best_window": 1.5,
-  "overlap": 0.5,
-  "grid": {
-    "window_lengths_sec": [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
-    "overlaps_perc": [0.25, 0.5, 0.75]
-  },
-  "preprocessing": {
-    "audio": "Downsample to 16kHz, band-pass 80-7600Hz, Z-score normalization.",
-    "eeg": "Band-pass 1-40Hz, notch filter at 60/50Hz, Z-score normalization per channel."
-  },
-  "spike_encoders": {
-    "poisson": "Rate coding, hyperparameter: scaling_factor.",
-    "ttfs": "Time-to-first-spike, hyperparameter: T_max (fixed to window).",
-    "bsa": "Threshold-based, hyperparameters: threshold, reset_value."
-  },
-  "windowing_code": "def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, overlap_perc): ...",
-  "autoencoder_plan": {
-    "architecture": "Feed-forward SNN with LIF neurons and bottleneck embedding layer.",
-    "loss": "Reconstruction loss (Van Rossum or MSE) + Sparsity regularization.",
-    "training": "Surrogate gradients (atan), Adam optimizer, early stopping."
-  },
-  "downstream_plan": {
-    "model": "Spiking ResNet-18.",
-    "input": "Static D-dimensional embedding vector from SAE.",
-    "training": "Supervised classification with cross-entropy loss."
-  },
-  "evaluation": {
-    "metrics": ["Speaker-ID Accuracy", "AUC", "SAE Reconstruction Loss", "Silhouette Score"],
-    "protocol": "Nested cross-validation with outer loop for speakers.",
-    "statistical_test": "Wilcoxon signed-rank test for comparing top pipelines."
-  },
-  "assumptions": {
-    "required_info": ["Number of speakers", "Data balance per speaker", "Signal quality/SNR"],
-    "compute_budget": "GPU with >16GB VRAM recommended. Full grid search may take several days."
-  }
+```cpp
+Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float reset) {
+    Eigen::MatrixXi spikes(window.size(), 1);
+    float potential = 0.0f;
+    for (int t=0; t<window.size(); ++t) {
+        potential += window[t];
+        if (potential > threshold) {
+            spikes(t,0) = 1;
+            potential -= reset;
+        }
+    }
+    return spikes;
 }
 ```
 
 ---
 
-## Experiment Checklist
+# 7 Data Pipeline & Formats (.mat, .npy) + Dataset Schema
 
-1. `run_experiment --window 1.5 --overlap 0.5 --encoder bsa --lr 1e-4`
-2. `run_experiment --window 2.0 --overlap 0.75 --encoder bsa --lr 1e-4`
-3. `run_experiment --window 1.5 --overlap 0.5 --encoder rate --lambda 0.5 --lr 5e-4`
+## 7.1 Expected Schema for `EEG` and `Audio` (According to Your Original Dataset)
+
+- `EEG`: `N_rows x 24579`
+
+  - 24576 samples (6 channels × 4096 samples = 4 s @ 1024 Hz) + 3 labels (modality, stimulus, artifact).
+  - `EEG(row, 1:24576)` → raw EEG samples; `EEG(row, 24577)` = modality; `24578` = stimulus; `24579` = artifact.
+
+- `Audio`: `M_rows x 176402`
+
+  - 176400 samples (4 s @ 44100 Hz) + 2 labels (stimulus, EEG_index).
+  - `Audio(row, 1:176400)` → mono audio; `Audio(row, 176401)` = stimulus; `176402` = EEG_index (synchronized EEG row).
+
+## 7.2 MatFile Reader Expectations
+
+- `MatFile::read_first_numeric_variable()` returns `Eigen::MatrixXf` with warning if too large. Provide safety caps: `max_features`, `max_elements`.
+
+## 7.3 DataLoader Contract
+
+- `DataLoader` returns batches `(inputs, targets)` where `inputs` shape = `(batch, features...)`.
+- Provide deterministic shuffle via seed, and an optional `sampler` that can stratify by speaker or stimulus.
 
 ---
 
-### References
+# 8 Preprocessing (Audio + EEG) — Recipes and Recommended Parameters
 
-- García-Perera, L. P., et al. (2021). *A review on deep learning for speaker recognition*. Expert Systems with Applications.
-- Snyder, D., et al. (2018). *X-vectors: Robust d-vector embeddings for speaker recognition*. IEEE ICASSP.
+## 8.1 Audio (Recommendations)
 
+- Resample 44.1kHz → 16kHz for speech features (unless high-frequency content needed). Use polyphase resampling for quality.
+- Band-pass 80–7600 Hz (5th-order Butterworth) to remove DC and high-frequency noise.
+- Z-score normalization per recording: `(x - mean) / std`.
+- Compute envelope: `abs(hilbert(x))` → resample to EEG rate for alignment.
 
-Following these rules will keep Copilot (or any code-generation assistant) from producing code that triggers the project's compiler warnings or CMake parse errors. If you have an automated flow that edits many files, run the full build and tests locally after generation and fix any linter or build failures before pushing.
+## 8.2 EEG
 
+- Band-pass 1–40 Hz (5th-order Butterworth), linear-phase filters preferred (FIR) or zero-phase via filtfilt.
+- Notch at 50/60 Hz + harmonics (IIR notch filter with Q=30).
+- Z-score per channel.
+- Artifact removal: Simple blink removal by thresholding or advanced ICA. If using ICA, save mixing matrix for reproducibility.
+- IMPORTANT: If dataset pre-filtered (documented), avoid reintroducing filter delay; use zero-phase or compensate delays.
+
+---
+
+# 9 Windowing & Synchronization — Specifications and Reference Code
+
+## 9.1 Defaults
+
+- window_sec = 1.5 (recommended), overlap = 0.5 (50%).
+- Provide grid search settings as earlier.
+
+## 9.2 Synchronized Window Extraction (C++ Sketch)
+
+- Implement in `src/util/windowing.cpp` using sample counts computed from rates.
+- Must check alignment via `Audio(:, end)` index to map EEG row.
+
+---
+
+# 10 SAE Architecture, Loss, Training Loop, Surrogate Gradients
+
+## 10.1 Architecture (Default)
+
+- Input → Linear (1024) → LIF (1024 → 512) → LIF (512 → D embedding) → Decoder symmetric.
+- Embedding D = 128 default (configurable).
+
+## 10.2 Loss
+
+- `L_total = L_recon + lambda_sparsity * L_sparsity + lambda_reg * ||weights||^2`
+- `L_recon`: Van Rossum distance between original and reconstructed spike trains (preferred) or MSE on low-passed signals.
+- `L_sparsity`: Mean firing rate penalty (L1 on firing rates).
+
+## 10.3 Training Loop (C++ Pseudocode)
+
+```cpp
+for epoch in range(max_epochs):
+    for batch in dataloader:
+        optimizer.zero_grad();
+        auto spikes = model.forward(batch.inputs);
+        auto recon = decoder.forward(spikes);
+        float loss = van_rossum_loss(recon, batch.targets) + sparsity_loss(spikes);
+        // backward with surrogate gradients
+        auto grad = loss.backward();
+        model.backward(grad);
+        optimizer.step();
+    validate();
+    if early_stopping_condition: break;
+```
+
+## 10.4 Surrogate Gradients (Recommendations)
+
+- Implement multiple choices: `atan`, `fast_sigmoid`, `piecewise_linear`. Use `config` to select.
+- Ensure numerical stability; clip gradients where needed.
+
+---
+
+# 11 ResNet-SNN Downstream — Usage Patterns
+
+- Treat embedding vector (D-dim) as static input; replicate across time if SNN temporal layers expect temporal input.
+- Replace ReLU with LIF in residual blocks; keep batchnorm optional — for SNN, batchnorm across time can be problematic; use LayerNorm on embeddings.
+
+---
+
+# 12 Statistical Evaluation & Experimental Tests
+
+## 12.1 Protocol
+
+- **Nested Cross-Validation**: Outer splits speakers (e.g., leave-out K speakers), inner loop tune hyperparams.
+- Report `mean ± std` for primary metrics across outer folds.
+- For pairwise comparisons between pipelines, use **Wilcoxon signed-rank** with corrected p-values (Bonferroni) for multiple comparisons.
+
+## 12.2 Implementation Snippets (Python)
+
+- Provide `analyze_results.py` that loads `results.csv`, computes aggregate stats, runs Wilcoxon, outputs JSON summary and plots (matplotlib).
+
+---
+
+# 13 Metrics and Analysis Scripts (Snippets)
+
+## 13.1 Metric Calc (C++ or Python)
+
+- Top1 accuracy, confusion matrix, per-class precision/recall, AUC (sklearn for Python), silhouette score (sklearn), spike budget average.
+
+## 13.2 Example Python CLI `analyze_results.py`
+
+- Read results, compute mean/std, run Wilcoxon between top configurations, output JSON.
+
+---
+
+# 14 CMake, Build, Vendoring & Templates
+
+## 14.1 Naming
+
+- Library target: `nn_<component>` (e.g., `nn_tensor`, `nn_layers`).
+- Test targets: `nn_<component>_gtest`.
+
+## 14.2 Example Module CMake
+
+```cmake
+add_library(nn_tensor src/tensor/Tensor.cpp)
+target_include_directories(nn_tensor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(nn_tensor PUBLIC Eigen3::Eigen)
+add_executable(nn_tensor_test tests/unit/tensor_test.cpp)
+target_link_libraries(nn_tensor_test PRIVATE nn_tensor GTest::gtest_main)
+gtest_discover_tests(nn_tensor_test)
+```
+
+## 14.3 Vendoring
+
+- Put 3rd-party in `lib/` and create `cmake/Vendor*.cmake` that defines imported targets (Eigen3::Eigen, etc.).
+
+---
+
+# 15 Tests (GTest), Coverage, Sanitizers, CI (GitHub Actions) — YAML Example
+
+## 15.1 CI: `build-and-test.yml` (Skeleton)
+
+```yaml
+name: build-and-test
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: sudo apt-get update && sudo apt-get install -y libeigen3-dev ...
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Build
+        run: cmake --build build -- -j$(nproc)
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure -j4
+      - name: clang-format check
+        run: clang-format --version && git diff --exit-code
+```
+
+## 15.2 Sanitizers Job (ASAN/TSAN) — Nightly or on-demand to save time.
+
+---
+
+# 16 Performance & Profiling — Tips
+
+- Use `matrix.noalias()` and `block` for views.
+- Profile with `perf`, `valgrind --tool=callgrind` or `google-perftools`.
+- Microbenchmark: Measure `spikes/sec`, `embeddings/sec`, memory use.
+- For OpenMP: Use environment var `OMP_NUM_THREADS`, avoid nested parallelism.
+- Prefer `Eigen::Map` for memory mapping data without copy.
+
+---
+
+# 17 Security, Dependencies, Packaging, and License
+
+- Explicit dependency list in `cmake/PackageChecking.cmake`.
+- License file: Choose (e.g., MIT) — include `LICENSE`.
+- Do not allow dynamic download of remote code during builds in CI (security).
+- For binary releases, provide SHA256 checksums.
+
+---
+
+# 18 Code Style, Linting, Formatting, PR Reviews, Changelog & Versioning
+
+## 18.1 Style
+
+- `clang-format` standard (add `.clang-format` in the repository).
+- `clang-tidy` with checks: modernize, performance, cppcoreguidelines.
+
+## 18.2 PR Template (docs/.github/PULL_REQUEST_TEMPLATE.md)
+
+- Checklist (build, tests, format, docs), description, breaking changes, migration steps.
+
+## 18.3 CHANGELOG.md (Keep a changelog based on semantic versioning)
+
+- Format: `## [Unreleased]` then `### Added/Changed/Fixed/Removed`.
+
+## 18.4 Versioning
+
+- Semantic Versioning (MAJOR.MINOR.PATCH). Breaking changes bump major.
+
+---
+
+# 19 Templates & Snippets (For Copilot to Generate Safely)
+
+## 19.1 New Layer Template (Header + Impl + Test) — As shown earlier.
+
+## 19.2 Adam Optimizer (Sketch)
+
+- Maintains `m`, `v` per-parameter; bias-correction; supported `attach(params)` where `params` are `Tensor*` (weights only); `step()` updates `param->data`.
+
+## 19.3 DataLoader Iterator Sketch
+
+- Internal buffer of indices, shuffle with `std::shuffle(indices.begin(), indices.end(), rng)`, yield batches by slicing indices.
+
+## 19.4 MatFile Read-First-Numeric Var (Sketch)
+
+- Use `matio` to iterate vars, select first numeric, check dims, map to Eigen::MatrixXf.
+
+---
+
+# 20 Experiment Orchestration: Configs, Run Scripts, Logs, Reproducibility
+
+## 20.1 configs/defaults.yaml
+
+```yaml
+window_sec: 1.5
+overlap: 0.5
+encoder: bsa
+embedding_dim: 128
+optimizer:
+  name: adam
+  lr: 1e-4
+train:
+  batch_size: 32
+  epochs: 200
+seed: 42
+```
+
+## 20.2 run_experiment.sh / Python
+
+- Read config, create copy with overrides, set `RANDOM_SEED`, create logdir with timestamp, save hyperparams JSON, checkpoint model every N epochs.
+
+## 20.3 Logging & Artifacts
+
+- Save: `model.pt` (or custom format), `training.log` (loss per epoch), `results.csv` (metrics), `embeddings/*.npy`, `config_used.yaml`, `git_commit.txt`.
+
+---
+
+# 21 Benchmarking & Reproducibility Plan
+
+## 21.1 Seed Policy
+
+- Single `SEED` used to seed: C++ RNGs (`std::mt19937`), Eigen random initializers seeded via `srand`, Python np.random and torch (if used).
+- Save `SEED` in `config` and `git_commit` for traceability.
+
+## 21.2 Deterministic Ops
+
+- Avoid non-deterministic multi-threaded ops for experiments requiring exact reproducibility. Use single-threaded or set `OMP_NUM_THREADS=1` and document the environment.
+
+---
+
+# 22 Automatic PR Checklists and Templates
+
+## 22.1 PR Auto-Checklist (Copilot Must Produce and Verify)
+
+- Build passes.
+- Tests pass.
+- Clang-format applied.
+- Clang-tidy no critical error.
+- Docs/CHANGELOG updated if public API changed.
+- cmake/exec\_\* updated.
+
+## 22.2 PR Description Template (Generate Automatically)
+
+- Summary, files changed, build steps, tests run, CI status, breaking changes, migration notes.
+
+---
+
+# 23 Roadmap & Immediate Tasks (Priority)
+
+1. Create synthetic `.mat` for CI in `tests/data/` and CTest that runs `dataLoader_demo` (High).
+2. Add `configs/defaults.yaml` and adapt `run_experiment` to use configs (High).
+3. Implement `Adam` and `Linear` with tests and CMake targets (High).
+4. Add GitHub Actions `build-and-test` + `clang-format` (High).
+5. Add sanitizers job (Medium).
+6. Add benchmark script for spikes/second (Medium).
+7. Document LIF equations and surrogate gradients in `docs/` (Medium).
+
+---
+
+# 24 Actions I Can Execute Now (Choose One or More)
+
+Respond with the numbers separated by commas (e.g., `1,3`), or say `all` (I will start in prioritized order: 1 → 2 → 3 → 4 → 5 ...):
+
+1. Create `tests/data/test_small.mat` (synthetic) and add CTest + update `cmake/exec_tests.cmake`.
+2. Generate `configs/defaults.yaml` and `scripts/run_experiment.py` (skeleton CLI).
+3. Implement `src/layers/Linear.{h,cpp}` + `tests/unit/linear_test.cpp` + CMake target.
+4. Create GitHub Actions workflow `build-and-test.yml` with build+tests+clang-format.
+5. Generate template `src/encoders/PoissonRate.{h,cpp}` and unit test.
+6. Create PR skeleton with the above files and ready commit message.
+7. Generate document `docs/math_lif.md` with complete equations and discretization (LaTeX).
+8. Create `configs/ci_sanitizers.yaml` and CI job skeleton (ASAN/TSAN).
+9. Generate `README_ACTION_HISTORY.md` from git log (skeleton script).
+10. All (execute 1→9 in order).
+
+---
+
+# 25 Useful Attachments (Model Snippets / Ready Examples)
+
+(Includes small snippets already presented, CMake lines, CI YAML snippet, config sample — all consolidatable into real files if you request.)
+
+---
+
+# 26 Operational Policies and Final Guardrails (Summary)
+
+- Copilot/generator **does not** modify public APIs without version bump and CHANGELOG.
+- All automatic generation creates minimal tests.
+- Seeds and checkpoints are always saved.
+- For compilation changes (CMake), add `exec_*.cmake` and document.
+- Do not download dependencies at runtime CI without approval.
