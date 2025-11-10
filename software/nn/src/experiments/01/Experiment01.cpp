@@ -11,7 +11,8 @@ static void perform()
 {
     // Experiment 01 perform code goes here
     auto [audioSamples, eegIndex] = nn::dataLoaders::loadAudioFromMat(
-        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/S01/"
+        "/home/ensismoebius/Documentos/UNESP/doutorado/"
+        "databases/BaseDeDatosHablaImaginada/S01/"
         "S01_Audio.mat",
         0);
 

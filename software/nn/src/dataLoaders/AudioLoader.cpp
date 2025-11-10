@@ -17,16 +17,16 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }
 
-    // Read the audio_data variable specifically
-    matvar_t* matvar = Mat_VarRead(matfp, "Audio");
+    // Read the audio variable specifically
+    matvar_t* matvar = Mat_VarRead(matfp, AUDIO_VARIABLE_NAME);
     if (matvar == nullptr)
     {
         Mat_Close(matfp);
-        throw std::runtime_error("Failed to read audio_data variable from MAT file");
+        throw std::runtime_error("Failed to read audio variable from MAT file");
     }
 
-    // Verify dimensions (M_rows x 176402)
-    if (matvar->rank != 2 || matvar->dims[1] != 176402)
+    // Verify dimensions (M_rows x MATRIX_COLUMNS)
+    if (matvar->rank != 2 || matvar->dims[1] != MATRIX_COLUMNS)
     {
         Mat_VarFree(matvar);
         Mat_Close(matfp);
@@ -50,18 +50,18 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to access data");
     }
 
-    // Create Eigen vector for the audio samples (176400 samples)
-    Eigen::VectorXf audioSamples(176400);
+    // Create Eigen vector for the audio samples
+    Eigen::VectorXf audioSamples(AUDIO_SAMPLES_COUNT);
 
-    // Copy audio samples (first 176400 columns)
+    // Copy audio samples
     size_t offset = rowIndex * matvar->dims[1]; // Offset to the correct row
-    for (int i = 0; i < 176400; ++i)
+    for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
     {
         audioSamples(i) = static_cast<float>(data[offset + i]);
     }
 
-    // Get the EEG index (last column, 176402)
-    int eegIndex = static_cast<int>(data[offset + 176401]);
+    // Get the EEG index
+    int eegIndex = static_cast<int>(data[offset + EEG_INDEX_COLUMN]);
 
     // Cleanup
     Mat_VarFree(matvar);

@@ -41,7 +41,8 @@ class AudioLoaderTest : public ::testing::Test
         matioCpp::File file = matioCpp::File::Create(testFile);
 
         // Create the variable and write it to the file
-        matioCpp::MultiDimensionalArray<double> audio_data("audio_data", {2, 176402}, data.data());
+        matioCpp::MultiDimensionalArray<double> audio_data(
+            nn::dataLoaders::AUDIO_VARIABLE_NAME, {2, 176402}, data.data());
         file.write(audio_data);
         file.close();
     }
