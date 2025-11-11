@@ -18,24 +18,26 @@ class AudioLoaderTest : public ::testing::Test
         // Remove any leftover file from previous runs
         std::filesystem::remove(testFile);
 
-        // Create test data
+        // Create test data in column-major order
         std::vector<double> data(2 * 176402, 0.0);
+        size_t num_rows = 2;
+        size_t num_cols = 176402;
 
-        // Fill first row with test audio data
+        // Fill data for row 0
         for (size_t i = 0; i < 176400; ++i)
         {
-            data[i] = static_cast<double>(i % 1000) / 1000.0;
+            data[i * num_rows + 0] = static_cast<double>(i % 1000) / 1000.0;
         }
-        data[176400] = 1.0;  // stimulus ID
-        data[176401] = 42.0; // EEG index
+        data[176400 * num_rows + 0] = 1.0;  // stimulus ID
+        data[176401 * num_rows + 0] = 42.0; // EEG index
 
-        // Fill second row
-        for (size_t i = 176402; i < 176402 + 176400; ++i)
+        // Fill data for row 1
+        for (size_t i = 0; i < 176400; ++i)
         {
-            data[i] = static_cast<double>((i - 176402) % 1000) / 500.0;
+            data[i * num_rows + 1] = static_cast<double>(i % 1000) / 500.0;
         }
-        data[176402 + 176400] = 2.0;  // stimulus ID
-        data[176402 + 176401] = 43.0; // EEG index
+        data[176400 * num_rows + 1] = 2.0;  // stimulus ID
+        data[176401 * num_rows + 1] = 43.0; // EEG index
 
         // Create the MAT file and write the data
         matioCpp::File file = matioCpp::File::Create(testFile);

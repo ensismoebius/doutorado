@@ -64,11 +64,11 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     // Copy audio samples
     for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
     {
-        audioSamples(i) = static_cast<float>(data[i * matvar->dims[0] + rowIndex]);
+        audioSamples(i) = static_cast<float>(data[(i * matvar->dims[0]) + rowIndex]);
     }
 
     // Get the EEG index
-    int eegIndex = static_cast<int>(data[EEG_INDEX_COLUMN * matvar->dims[0] + rowIndex]);
+    int eegIndex = static_cast<int>(data[(EEG_INDEX_COLUMN * matvar->dims[0]) + rowIndex]);
 
     // Cleanup
     Mat_VarFree(matvar);
