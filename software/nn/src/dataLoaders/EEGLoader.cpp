@@ -6,8 +6,26 @@
 #include <memory>
 #include <stdexcept>
 
+/*
+ * EEGLoader implementation notes
+ * ----------------------------
+ * This loader expects a MATLAB v5 double matrix with shape (N_rows x 24579). The
+ * first 24576 columns are raw EEG samples and are interpreted as 6 channels × 4096
+ * samples (contiguous blocks per channel). The last 3 columns are labels:
+ *   - column index 24576 -> modality
+ *   - column index 24577 -> stimulus
+ *   - column index 24578 -> artifact
+ *
+ * The code reads the matrix as MatIO stores it (column-major with columns = features).
+ * If your data stores samples interleaved across channels (time-major interleaving),
+ * change the mapping logic near the "split into channels" comment: instead of
+ * taking contiguous blocks per channel, distribute samples alternately into each
+ * channel.
+ */
+
 namespace nn::dataLoaders
 {
+
 // Constants matching dataset schema
 static constexpr int EEG_TOTAL_COLUMNS = 24579; // M columns including labels
 static constexpr int EEG_SAMPLE_COUNT = 24576;  // samples portion
