@@ -38,7 +38,7 @@ auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long 
  * @param vectorSize
  * @return
  */
-auto calcOrthogonalVector(const long double* originalVector, int vectorSize) -> long double*;
+auto calcOrthogonalVector(const long double* originalVector, size_t vectorSize) -> long double*;
 
 /**
  * Given a vector calculates the corresponding orthogonal vector
@@ -54,7 +54,7 @@ auto calcOrthogonalVector(std::vector<long double>& vector) -> std::vector<long 
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(long double* signal, int signalLength, long double lowerLimit,
+void normalizeVectorToRange(long double* signal, size_t signalLength, long double lowerLimit,
                             long double upperLimit);
 
 /**

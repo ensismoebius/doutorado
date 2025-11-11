@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include "../linearAlgebra/linearAlgebra.h"
 
-double createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false)
+auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> double
 {
 
 	double alpha = M_PI * filterMaxFrequency / (samplingRate / 2);
@@ -25,7 +25,7 @@ double createAlpha(double samplingRate, double filterMaxFrequency, bool highPass
 	return alpha;
 }
 
-long double* createLowPassFilter(int order, double samplingRate, double filterMaxFrequency)
+auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> long double*
 {
 
 	// Order MUST be odd
@@ -40,7 +40,7 @@ long double* createLowPassFilter(int order, double samplingRate, double filterMa
 	//Calculating the alpha
 	double alpha = createAlpha(samplingRate, filterMaxFrequency);
 
-	double halfOrderSize = (double) (order / 2.0);
+	auto halfOrderSize = (double) (order / 2.0);
 
 	for (int n = 0; n <= order; ++n)
 	{
@@ -53,7 +53,7 @@ long double* createLowPassFilter(int order, double samplingRate, double filterMa
 	return filter;
 }
 
-long double* createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
+auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency) -> long double*
 {
 
 	// Order MUST be odd
@@ -64,7 +64,7 @@ long double* createHighPassFilter(int order, double samplingRate, double filterS
 	}
 
 	// Filter holder
-	long double *filter = new long double[order + 1];
+	auto *filter = new long double[order + 1];
 
 	//Calculating the alpha for high pass filter
 	double alpha = createAlpha(samplingRate, filterStartFrequency, true);
@@ -85,7 +85,7 @@ long double* createHighPassFilter(int order, double samplingRate, double filterS
 	return linearAlgebra::calcOrthogonalVector(filter, order + 1);
 }
 
-long double* createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
+auto createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> long double*
 {
 
 	// Order MUST be odd
