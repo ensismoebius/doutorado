@@ -1,7 +1,6 @@
-if (EXISTS ${CMAKE_SOURCE_DIR}/src/resnet_demo.cpp)
-  add_executable(resnet_demo
-    ${CMAKE_SOURCE_DIR}/src/resnet_demo.cpp
-    ${SRC_DIR}/util/batching.cpp
+if (EXISTS ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp)
+    add_executable(resnet_demo
+        ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp    ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/dataLoaders/MatFileUtils.cpp
   )
 

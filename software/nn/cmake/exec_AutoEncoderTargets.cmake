@@ -16,7 +16,7 @@ add_executable(autoEncoderLeakyReLUAndSpikeTest
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/autoEncoderLeakyReLUAndSpikeTest.cpp
+    ${SRC_DIR}/experiments/autoEncoderLeakyReLUAndSpikeTest.cpp
 )
 
 # Link libraries
@@ -56,7 +56,7 @@ add_executable(autoEncoderLeakyReLUTest
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
-    ${SRC_DIR}/autoEncoderLeakyReLUTest.cpp
+    ${SRC_DIR}/experiments/autoEncoderLeakyReLUTest.cpp
 )
 
 # Link libraries

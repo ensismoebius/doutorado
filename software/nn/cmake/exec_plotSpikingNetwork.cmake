@@ -35,7 +35,7 @@ add_executable(plotSpikingNetwork
     ${IMGUI_SOURCES}
     ${IMPLOT_SOURCES}
     ${SRC_DIR}/util/imguiGlfw.cpp
-    ${SRC_DIR}/plotSpikingNetwork.cpp
+    ${SRC_DIR}/experiments/plotSpikingNetwork.cpp
 )
 
 # Link libraries

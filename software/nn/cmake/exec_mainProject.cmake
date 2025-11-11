@@ -16,7 +16,7 @@ add_executable(mainProject
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
     ${SRC_DIR}/dataLoaders/MatFileUtils.cpp
-    ${SRC_DIR}/main.cpp
+    ${SRC_DIR}/main_app/main.cpp
 )
 
 # Link libraries
