@@ -3,37 +3,89 @@
 #include <matio.h>
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
+
+#include "IMatLoader.h"
 
 namespace nn::dataLoaders
 {
 
+class AudioLoader : public IMatLoader
+{
+   public:
+    AudioLoader() = default;
+    ~AudioLoader() override
+    {
+        close();
+    }
+
+    bool open(const std::string& filePath) noexcept override
+    {
+        filePath_ = filePath;
+        matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
+        return matFile_ != nullptr;
+    }
+
+    void close() noexcept override
+    {
+        if (matFile_)
+        {
+            Mat_Close(matFile_);
+            matFile_ = nullptr;
+        }
+    }
+
+    std::unique_ptr<matvar_t, void (*)(matvar_t*)> readVariable(const std::string& name) override
+    {
+        if (!matFile_) return {nullptr, &Mat_VarFree};
+
+        matvar_t* var = Mat_VarRead(matFile_, name.c_str());
+        return {var, &Mat_VarFree};
+    }
+
+    std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>> readFirstNumericVariable()
+        override
+    {
+        if (!matFile_) return std::nullopt;
+
+        for (matvar_t* var = Mat_VarReadNext(matFile_); var != nullptr;
+             var = Mat_VarReadNext(matFile_))
+        {
+            if (var->class_type == MAT_C_DOUBLE && var->rank == 2)
+            {
+                return std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>>{
+                    std::unique_ptr<matvar_t, void (*)(matvar_t*)>(var, &Mat_VarFree)};
+            }
+            Mat_VarFree(var);
+        }
+
+        return std::nullopt;
+    }
+
+    std::string filePath() const noexcept override
+    {
+        return filePath_;
+    }
+
+   private:
+    std::string filePath_;
+    mat_t* matFile_ = nullptr;
+};
+
 auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<Eigen::VectorXf, int>
 {
-    // Define a lambda for closing the MAT file
-    auto matFileDeleter = [](mat_t* mat) { Mat_Close(mat); };
+    AudioLoader loader;
+    if (!loader.open(filePath)) throw std::runtime_error("Failed to open MAT file: " + filePath);
 
-    // Open the MAT file using a smart pointer with the lambda deleter
-    std::unique_ptr<mat_t, decltype(matFileDeleter)> matFile(
-        Mat_Open(filePath.c_str(), MAT_ACC_RDONLY), // Open the MAT file
-        matFileDeleter                              // Use the lambda as the deleter
-    );
-
-    if (!matFile)
-    {
-        throw std::runtime_error("Failed to open MAT file: " + filePath);
-    }
-
-    // Read the audio variable, using Mat_VarFree directly as the deleter.
-    std::unique_ptr<matvar_t, decltype(&Mat_VarFree)> audioVariable(
-        Mat_VarRead(matFile.get(), AUDIO_VARIABLE_NAME), // Read the audio variable
-        &Mat_VarFree                                     // Use Mat_VarFree as the deleter
-    );
-
+    auto audioVariable = loader.readVariable(AUDIO_VARIABLE_NAME);
     if (!audioVariable)
     {
-        throw std::runtime_error("Failed to read audio variable from MAT file");
+        // try first numeric
+        auto maybe = loader.readFirstNumericVariable();
+        if (!maybe) throw std::runtime_error("Failed to read audio variable from MAT file");
+        audioVariable = std::move(*maybe);
     }
 
     // Verify dimensions (M_rows x MATRIX_COLUMNS)
@@ -73,8 +125,6 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     // Get the EEG index
     int eegIndex =
         static_cast<int>(rawDataPtr[(EEG_INDEX_COLUMN * audioVariable->dims[0]) + rowIndex]);
-
-    // Cleanup is handled automatically by unique_ptr destructors
 
     return {std::move(audioSamples), eegIndex};
 }

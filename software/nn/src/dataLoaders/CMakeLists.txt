@@ -10,6 +10,9 @@ add_executable(dataLoaders_gtest
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/mat_file_dataset_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/audio_loader_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/dataLoaders/AudioLoader.cpp
+    ${CMAKE_SOURCE_DIR}/src/dataLoaders/EEGLoader.cpp
+    ${CMAKE_SOURCE_DIR}/src/dataLoaders/eeg_loader_gtest.cpp
+	${CMAKE_SOURCE_DIR}/src/dataLoaders/eeg_loader_edge_gtest.cpp
 )
 
 target_include_directories(dataLoaders_gtest 
