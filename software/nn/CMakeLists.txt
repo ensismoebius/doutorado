@@ -11,7 +11,7 @@ project(
 # Sets the CMake policies for this project
 include(cmake/Policies.cmake)
 
-# Project setup (includes versioning, language standards, etc.)
+# Project setup (language standards, etc.)
 include(cmake/ProjectSetup.cmake)
 
 # Do the required libraries check (package checks remain small and local)
