@@ -17,7 +17,7 @@
  * @param highPass
  * @return alpha
  */
-long double createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false);
+auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> long double;
 
 /**
  * Create lowpass filter
@@ -26,7 +26,7 @@ long double createAlpha(double samplingRate, double filterMaxFrequency, bool hig
  * @param filterMaxFrequency
  * @return lowpass filter
  */
-long double* createLowPassFilter(int order, double samplingRate, double filterMaxFrequency);
+auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> long double*;
 
 /**
  * Create highpass filter
@@ -35,7 +35,7 @@ long double* createLowPassFilter(int order, double samplingRate, double filterMa
  * @param filterStartFrequency
  * @return highpass filter
  */
-long double* createHighPassFilter(int order, double samplingRate, double filterStartFrequency);
+auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency) -> long double*;
 
 /**
  * Create bandpass filter
@@ -45,7 +45,7 @@ long double* createHighPassFilter(int order, double samplingRate, double filterS
  * @param finalFrequency
  * @return bandpass filter
  */
-long double* createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency);
+auto createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> long double*;
 
 /**
  * Create bandstop filter
@@ -55,14 +55,14 @@ long double* createStopBandFilter(int order, double samplingRate, double startFr
  * @param finalFrequency
  * @return bandstop filter
  */
-long double* bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency);
+auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> long double*;
 
 /**
  * Create a window for signals
  * @param order
  * @return window
  */
-long double* createTriangularWindow(int order);
+auto createTriangularWindow(int order) -> long double*;
 
 /**
  * Apply window

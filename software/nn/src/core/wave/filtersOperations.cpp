@@ -10,151 +10,148 @@
 
 #include <cmath>
 #include <stdexcept>
+
 #include "../linearAlgebra/linearAlgebra.h"
 
 auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> double
 {
+    double alpha = M_PI * filterMaxFrequency / (samplingRate / 2);
 
-	double alpha = M_PI * filterMaxFrequency / (samplingRate / 2);
+    if (highPass)
+    {
+        return M_PI - alpha;
+    }
 
-	if (highPass)
-	{
-		return M_PI - alpha;
-	}
-
-	return alpha;
+    return alpha;
 }
 
 auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> long double*
 {
+    // Order MUST be odd
+    if (order % 2 == 0)
+    {
+        throw std::runtime_error("Order MUST be an odd number!");
+        return 0;
+    }
 
-	// Order MUST be odd
-	if (order % 2 == 0)
-	{
-		throw std::runtime_error("Order MUST be an odd number!");
-		return 0;
-	}
+    auto* filter = new long double[order + 1];
 
-	long double *filter = new long double[order + 1];
+    // Calculating the alpha
+    double alpha = createAlpha(samplingRate, filterMaxFrequency);
 
-	//Calculating the alpha
-	double alpha = createAlpha(samplingRate, filterMaxFrequency);
+    auto halfOrderSize = (double) (order / 2.0);
 
-	auto halfOrderSize = (double) (order / 2.0);
+    for (int n = 0; n <= order; ++n)
+    {
+        filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
+    }
 
-	for (int n = 0; n <= order; ++n)
-	{
+    linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
 
-		filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
-	}
-
-	linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
-
-	return filter;
+    return filter;
 }
 
-auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency) -> long double*
+auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
+    -> long double*
 {
+    // Order MUST be odd
+    if (order % 2 == 0)
+    {
+        throw std::runtime_error("Order MUST be an odd number!");
+        return 0;
+    }
 
-	// Order MUST be odd
-	if (order % 2 == 0)
-	{
-		throw std::runtime_error("Order MUST be an odd number!");
-		return 0;
-	}
+    // Filter holder
+    auto* filter = new long double[order + 1];
 
-	// Filter holder
-	auto *filter = new long double[order + 1];
+    // Calculating the alpha for high pass filter
+    double alpha = createAlpha(samplingRate, filterStartFrequency, true);
 
-	//Calculating the alpha for high pass filter
-	double alpha = createAlpha(samplingRate, filterStartFrequency, true);
+    auto halfOrderSize = (double) (order / 2.0);
 
-	double halfOrderSize = (double) (order / 2.0);
+    // Calculate low pass filter
+    for (int n = 0; n <= order; ++n)
+    {
+        filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
+    }
 
-	// Calculate low pass filter
-	for (int n = 0; n <= order; ++n)
-	{
-		filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
-	}
+    // normalizing data
+    linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
 
-	// normalizing data
-	linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
-
-	// Builds the orthogonal vector
-	// and return the final result (high pass filter)
-	return linearAlgebra::calcOrthogonalVector(filter, order + 1);
+    // Builds the orthogonal vector
+    // and return the final result (high pass filter)
+    return linearAlgebra::calcOrthogonalVector(filter, order + 1);
 }
 
-auto createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> long double*
+auto createStopBandFilter(int order, double samplingRate, double startFrequency,
+                          double finalFrequency) -> long double*
 {
+    // Order MUST be odd
+    if (order % 2 == 0)
+    {
+        throw std::runtime_error("Order MUST be an odd number!");
+        return 0;
+    }
 
-	// Order MUST be odd
-	if (order % 2 == 0)
-	{
-		throw std::runtime_error("Order MUST be an odd number!");
-		return 0;
-	}
+    long double* lowPassMax = createLowPassFilter(order, samplingRate, finalFrequency);
+    long double* lowPassMin = createLowPassFilter(order, samplingRate, startFrequency);
 
-	long double *lowPassMax = createLowPassFilter(order, samplingRate, finalFrequency);
-	long double *lowPassMin = createLowPassFilter(order, samplingRate, startFrequency);
+    for (int i = 0; i < order + 1; i++)
+    {
+        lowPassMax[i] = lowPassMax[i] - lowPassMin[i];
+    }
 
-	for (int i = 0; i < order + 1; i++)
-	{
-		lowPassMax[i] = lowPassMax[i] - lowPassMin[i];
-	}
+    delete[] lowPassMin;
 
-	delete[] lowPassMin;
-
-	return lowPassMax;
+    return lowPassMax;
 }
 
-long double* bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
+auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
+    -> long double*
 {
+    // Order MUST be odd
+    if (order % 2 == 0)
+    {
+        throw std::runtime_error("Order MUST be an odd number!");
+        return 0;
+    }
 
-	// Order MUST be odd
-	if (order % 2 == 0)
-	{
-		throw std::runtime_error("Order MUST be an odd number!");
-		return 0;
-	}
+    long double* highPass = createHighPassFilter(order, samplingRate, startFrequency);
+    long double* lowPass = createLowPassFilter(order, samplingRate, finalFrequency);
 
-	long double *highPass = createHighPassFilter(order, samplingRate, startFrequency);
-	long double *lowPass = createLowPassFilter(order, samplingRate, finalFrequency);
+    for (int i = 0; i < order + 1; i++)
+    {
+        lowPass[i] = lowPass[i] + highPass[i];
+    }
 
-	for (int i = 0; i < order + 1; i++)
-	{
-		lowPass[i] = lowPass[i] + highPass[i];
-	}
-
-	return lowPass;
+    return lowPass;
 }
 
-long double* createTriangularWindow(int order)
+auto createTriangularWindow(int order) -> long double*
 {
+    // order plus 1 is the amount of items
+    auto* w = new long double[order + 1];
 
-	// order plus 1 is the amount of items
-	long double *w = new long double[order + 1];
+    // The reference point is amount of items divided by 2
+    long double referencePoint = order / 2.0;
 
-	// The reference point is amount of items divided by 2
-	long double referencePoint = order / 2.0;
+    int n = 0;
+    for (; n <= referencePoint; n++)
+    {
+        w[n] = 2.0 * n / order;
+    }
 
-	int n = 0;
-	for (; n <= referencePoint; n++)
-	{
-		w[n] = 2.0 * n / order;
-	}
-
-	for (; n <= order; n++)
-	{
-		w[n] = 2.0 - 2.0 * n / order;
-	}
-	return w;
+    for (; n <= order; n++)
+    {
+        w[n] = 2.0 - 2.0 * n / order;
+    }
+    return w;
 }
 
-void applyWindow(long double *filter, long double *window, int order)
+void applyWindow(long double* filter, long double* window, int order)
 {
-	do
-	{
-		filter[order] *= window[order];
-	} while (order--);
+    do
+    {
+        filter[order] *= window[order];
+    } while ((order--) != 0);
 }
