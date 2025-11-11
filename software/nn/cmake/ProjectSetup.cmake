@@ -10,7 +10,9 @@ include(cmake/Flags.cmake)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 enable_testing()
-include(CTest)
+
+# Uncomment to enable CTest integration
+# include(CTest)
 
 # Prevent vendored subprojects from enabling their own tests during configure
 # so we don't require test frameworks for third-party code while configuring.
