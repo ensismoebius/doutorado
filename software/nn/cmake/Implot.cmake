@@ -1,35 +1,25 @@
+include(FetchContent)
+
 # IMPlot configuration
-set(IMPLOT_DIR "${LIB_DIR}/implot")
+FetchContent_Declare(
+    implot
+    GIT_REPOSITORY https://github.com/epezent/implot.git
+    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
 
-# Check if ImPlot is already downloaded and compiled
-if(NOT EXISTS "${IMPLOT_DIR}/implot.h")
-    message(STATUS "ImPlot not found, downloading and compiling...")
-
-    if(NOT EXISTS "${IMPLOT_DIR}/.git")
-        # Clone ImPlot repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 --recursive https://github.com/epezent/implot.git ${IMPLOT_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone ImPlot repository")
-        endif()
-    else()
-        # Update ImPlot repository if already cloned
-        execute_process(
-            COMMAND git -C ${IMPLOT_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update ImPlot repository")
-        endif()
-    endif()
-else()
-    message(STATUS "ImPlot already exists, skipping download and compilation...")
-endif()
+FetchContent_MakeAvailable(implot)
 
 # Add ImPlot source files
 set(IMPLOT_SOURCES
-    ${IMPLOT_DIR}/implot_items.cpp
-    ${IMPLOT_DIR}/implot.cpp
+    ${implot_SOURCE_DIR}/implot_items.cpp
+    ${implot_SOURCE_DIR}/implot.cpp
 )
+
+# Create ImPlot library target
+add_library(implot STATIC ${IMPLOT_SOURCES})
+target_include_directories(implot PUBLIC
+    ${implot_SOURCE_DIR}
+    ${imgui_SOURCE_DIR} # ImPlot depends on ImGui headers
+)
+target_link_libraries(implot PRIVATE imgui)

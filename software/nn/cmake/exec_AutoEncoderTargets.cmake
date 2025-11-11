@@ -31,7 +31,7 @@ target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
 target_include_directories(autoEncoderLeakyReLUAndSpikeTest
     PUBLIC
         ${SRC_DIR}
-        ${CNPY_DIR}
+        "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
@@ -71,7 +71,7 @@ target_link_libraries(autoEncoderLeakyReLUTest
 target_include_directories(autoEncoderLeakyReLUTest
     PRIVATE
         ${SRC_DIR}
-        ${CNPY_DIR}
+        "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}

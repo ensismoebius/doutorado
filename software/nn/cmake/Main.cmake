@@ -1,4 +1,4 @@
-add_subdirectory(${CNPY_DIR})
+
 
 # Add subdirectories for all testable modules
 add_subdirectory(${SRC_DIR}/util)

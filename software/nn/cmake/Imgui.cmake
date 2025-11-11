@@ -1,43 +1,32 @@
+include(FetchContent)
+
 # IMGui configuration
-set(IMGUI_DIR "${LIB_DIR}/imgui")
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
 
-# Check if imgui is already downloaded and compiled
-if(NOT EXISTS "${IMGUI_DIR}/imgui.h")
-    message(STATUS "ImGui not found, downloading and compiling...")
-
-    if(NOT EXISTS "${IMGUI_DIR}/.git")
-        # Clone imgui repository if not already cloned
-        execute_process(
-            COMMAND git clone --depth 1 https://github.com/ocornut/imgui.git ${IMGUI_DIR}
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to clone ImGui repository")
-        endif()
-    else()
-        # Update imgui repository if already cloned
-        execute_process(
-            COMMAND git -C ${IMGUI_DIR} pull
-            RESULT_VARIABLE result
-        )
-        if(result)
-            message(FATAL_ERROR "Failed to update ImGui repository")
-        endif()
-    endif()
-else()
-    message(STATUS "ImGui already exists, skipping download and compilation...")
-endif()
+FetchContent_MakeAvailable(imgui)
 
 # Add ImGui source files
 set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
 )
 
 # Add ImGui backend source files
 set(IMGUI_BACKEND_SOURCES
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
+# Create ImGui library target
+add_library(imgui STATIC ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
+target_include_directories(imgui PUBLIC
+    ${imgui_SOURCE_DIR}
+    ${imgui_SOURCE_DIR}/backends
 )

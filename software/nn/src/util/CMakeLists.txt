@@ -12,7 +12,7 @@ add_executable(
 target_link_libraries(
     util_gtest 
     PRIVATE GTest::gtest_main Eigen3::Eigen
-    ${CMAKE_BINARY_DIR}/lib/cnpy/libcnpy.a
+    cnpy-static
     z
     ${BLAS_LIBRARIES}
     ${LAPACK_LIBRARIES}
