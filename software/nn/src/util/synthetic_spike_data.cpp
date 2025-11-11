@@ -2,7 +2,7 @@
 
 #include <random>
 
-#include "tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
                                      float timeStep) -> tuple<vector<Tensor>, vector<Tensor>>

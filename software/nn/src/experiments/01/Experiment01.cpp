@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "dataLoaders/AudioLoader.h"
-#include "dataLoaders/EEGLoader.h"
-#include "dataLoaders/MatFileFlags.h" // Include the new header
+#include "core/dataLoaders/AudioLoader.h"
+#include "core/dataLoaders/EEGLoader.h"
+#include "core/dataLoaders/MatFileFlags.h" // Include the new header
 
 static void init()
 {

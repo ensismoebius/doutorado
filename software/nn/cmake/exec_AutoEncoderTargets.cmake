@@ -3,15 +3,6 @@
 
 add_executable(autoEncoderLeakyReLUAndSpikeTest
     ${CNPY_SOURCES}
-    ${SRC_DIR}/initializers/xavier.hpp
-    ${SRC_DIR}/optimizers/SGDMinimal.hpp
-    ${SRC_DIR}/optimizers/Adam.hpp
-    ${SRC_DIR}/optimizers/SGD.hpp
-    ${SRC_DIR}/layers/Sequential.hpp
-    ${SRC_DIR}/layers/Linear.hpp
-    ${SRC_DIR}/layers/Leaky.hpp
-    ${SRC_DIR}/layers/ReLU.hpp
-    ${SRC_DIR}/layers/LeakyReLU.hpp
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
@@ -31,6 +22,9 @@ target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
 target_include_directories(autoEncoderLeakyReLUAndSpikeTest
     PUBLIC
         ${SRC_DIR}
+        ${SRC_DIR}/core/initializers
+        ${SRC_DIR}/core/optimizers
+        ${SRC_DIR}/core/layers
         "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
@@ -43,15 +37,6 @@ configure_eigen_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
 
 add_executable(autoEncoderLeakyReLUTest
     ${CNPY_SOURCES}
-    ${SRC_DIR}/initializers/xavier.hpp
-    ${SRC_DIR}/optimizers/SGDMinimal.hpp
-    ${SRC_DIR}/optimizers/Adam.hpp
-    ${SRC_DIR}/optimizers/SGD.hpp
-    ${SRC_DIR}/layers/Sequential.hpp
-    ${SRC_DIR}/layers/Linear.hpp
-    ${SRC_DIR}/layers/Leaky.hpp
-    ${SRC_DIR}/layers/ReLU.hpp
-    ${SRC_DIR}/layers/LeakyReLU.hpp
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
@@ -71,6 +56,9 @@ target_link_libraries(autoEncoderLeakyReLUTest
 target_include_directories(autoEncoderLeakyReLUTest
     PRIVATE
         ${SRC_DIR}
+        ${SRC_DIR}/core/initializers
+        ${SRC_DIR}/core/optimizers
+        ${SRC_DIR}/core/layers
         "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}

@@ -6,13 +6,13 @@
 #include <limits>
 #include <tuple>
 
-#include "initializers/kaiming_snn.hpp"
-#include "layers/LeakyReLU.hpp"
-#include "layers/Linear.hpp"
-#include "layers/MSELoss.hpp"
-#include "layers/Sequential.hpp"
-#include "optimizers/Adam.hpp"
-#include "tensor/Tensor.hpp"
+#include "core/initializers/kaiming_snn.hpp"
+#include "core/layers/LeakyReLU.hpp"
+#include "core/layers/Linear.hpp"
+#include "core/layers/MSELoss.hpp"
+#include "core/layers/Sequential.hpp"
+#include "core/optimizers/Adam.hpp"
+#include "core/tensor/Tensor.hpp"
 #include "util/EigenParallel.hpp"
 #include "util/NetworkSerializer.hpp"
 #include "util/batching.hpp"

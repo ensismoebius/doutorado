@@ -2,14 +2,14 @@
 #include <memory>
 #include <vector>
 
-#include "dataLoaders/MatFileUtils.h"
-#include "initializers/kaiming_snn.hpp"
-#include "layers/CrossEntropyLoss.hpp"
-#include "layers/Linear.hpp"
-#include "layers/ReLU.hpp"
-#include "layers/ResidualBlock.hpp"
-#include "layers/Sequential.hpp"
-#include "optimizers/Adam.hpp"
+#include "core/dataLoaders/MatFileUtils.h"
+#include "core/initializers/kaiming_snn.hpp"
+#include "core/layers/CrossEntropyLoss.hpp"
+#include "core/layers/Linear.hpp"
+#include "core/layers/ReLU.hpp"
+#include "core/layers/ResidualBlock.hpp"
+#include "core/layers/Sequential.hpp"
+#include "core/optimizers/Adam.hpp"
 #include "util/batching.hpp"
 
 using namespace std;

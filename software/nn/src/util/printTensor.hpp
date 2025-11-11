@@ -2,7 +2,7 @@
 #include <iomanip>
 #include <iostream>
 
-#include "../tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 inline void printTensor(const Tensor& t, const std::string& name = "Tensor")
 {

@@ -1,7 +1,7 @@
 if (EXISTS ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp)
     add_executable(resnet_demo
         ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/dataLoaders/MatFileUtils.cpp
+    ${SRC_DIR}/core/dataLoaders/MatFileUtils.cpp
   )
 
   target_link_libraries(resnet_demo PRIVATE

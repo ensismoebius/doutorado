@@ -6,7 +6,7 @@
 
 #include "imgui.h"
 #include "implot.h"
-#include "layers/Leaky.hpp"
+#include "core/layers/Leaky.hpp"
 #include "util/imguiGlfw.hpp"
 #include "util/synthetic_spike_data.hpp"
 

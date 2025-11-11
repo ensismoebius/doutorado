@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "../tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 struct Batch
 {

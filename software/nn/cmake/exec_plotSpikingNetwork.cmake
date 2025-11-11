@@ -19,15 +19,15 @@ set(IMPLOT_SOURCES
 
 add_executable(plotSpikingNetwork
     ${CNPY_SOURCES}
-    ${SRC_DIR}/initializers/xavier.hpp
-    ${SRC_DIR}/optimizers/SGDMinimal.hpp
-    ${SRC_DIR}/optimizers/Adam.hpp
-    ${SRC_DIR}/optimizers/SGD.hpp
-    ${SRC_DIR}/layers/Sequential.hpp
-    ${SRC_DIR}/layers/Linear.hpp
-    ${SRC_DIR}/layers/Leaky.hpp
-    ${SRC_DIR}/layers/ReLU.hpp
-    ${SRC_DIR}/layers/LeakyReLU.hpp
+    ${SRC_DIR}/core/initializers/xavier.hpp
+    ${SRC_DIR}/core/optimizers/SGDMinimal.hpp
+    ${SRC_DIR}/core/optimizers/Adam.hpp
+    ${SRC_DIR}/core/optimizers/SGD.hpp
+    ${SRC_DIR}/core/layers/Sequential.hpp
+    ${SRC_DIR}/core/layers/Linear.hpp
+    ${SRC_DIR}/core/layers/Leaky.hpp
+    ${SRC_DIR}/core/layers/ReLU.hpp
+    ${SRC_DIR}/core/layers/LeakyReLU.hpp
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp

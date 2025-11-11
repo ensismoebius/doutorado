@@ -5,7 +5,7 @@
  */
 #include <iostream>
 
-#include "dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/MatFileUtils.h"
 
 using matioCpp::utils::list_variable_names;
 using matioCpp::utils::load_named_variable_as_matrix;

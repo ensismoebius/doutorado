@@ -1,0 +1,11 @@
+add_library(filtersOperationsLibStatic
+    STATIC
+        filtersOperations.cpp
+        simpleSignalOperations.cpp
+        Wav.cpp
+)
+
+target_include_directories(filtersOperationsLibStatic
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+    PUBLIC ${CMAKE_SOURCE_DIR}/src
+)

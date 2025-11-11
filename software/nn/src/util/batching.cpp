@@ -5,7 +5,7 @@
 #include <random>
 #include <vector>
 
-#include "tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<Tensor>& targets,
                     const int batch_size) -> std::vector<Batch>

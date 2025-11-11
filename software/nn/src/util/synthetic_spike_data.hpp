@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <vector>
 
-#include "tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 using std::tuple;
 using std::vector;

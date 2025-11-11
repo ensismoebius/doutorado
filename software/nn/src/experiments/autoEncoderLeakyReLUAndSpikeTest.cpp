@@ -7,13 +7,13 @@
 #include <memory>
 #include <tuple>
 
-#include "initializers/kaiming_snn.hpp"
-#include "layers/Leaky.hpp"
-#include "layers/Linear.hpp"
-#include "layers/MSELoss.hpp"
-#include "layers/Sequential.hpp"
-#include "optimizers/Adam.hpp"
-#include "tensor/Tensor.hpp"
+#include "core/initializers/kaiming_snn.hpp"
+#include "core/layers/Leaky.hpp"
+#include "core/layers/Linear.hpp"
+#include "core/layers/MSELoss.hpp"
+#include "core/layers/Sequential.hpp"
+#include "core/optimizers/Adam.hpp"
+#include "core/tensor/Tensor.hpp"
 #include "util/EigenParallel.hpp"
 #include "util/NetworkSerializer.hpp"
 #include "util/batching.hpp"
@@ -35,18 +35,20 @@ using std::vector;
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
 // Define a nice format for debugging eigen matrices
-const Eigen::IOFormat CleanFmt(0,                 // number of decimals
-                               Eigen::Unaligned,  // flags
-                               ",",               // string between numbers
-                               "\n",              // string between rows
-                               "|",               // opening bracket
-                               "|",               // closing bracket
-                               "\n",              // string between matrices
-                               "\n"               // closing bracket for the matrix
+const Eigen::IOFormat CleanFmt(0,                // number of decimals
+                               Eigen::Unaligned, // flags
+                               ",",              // string between numbers
+                               "\n",             // string between rows
+                               "|",              // opening bracket
+                               "|",              // closing bracket
+                               "\n",             // string between matrices
+                               "\n"              // closing bracket for the matrix
 );
 
-namespace {
-auto debug(const Batch& batch, const Tensor& y_pred, const Tensor& loss_tensor) -> void {
+namespace
+{
+auto debug(const Batch& batch, const Tensor& y_pred, const Tensor& loss_tensor) -> void
+{
     cout << "Input dimensions: " << batch.inputs.data.rows() << "x" << batch.inputs.data.cols()
          << '\n';
     cout << "Output dimensions: " << y_pred.data.rows() << "x" << y_pred.data.cols() << '\n';
@@ -54,12 +56,13 @@ auto debug(const Batch& batch, const Tensor& y_pred, const Tensor& loss_tensor) 
     cout << "Output values: " << y_pred.data.format(CleanFmt) << '\n';
     cout << "Loss values: " << loss_tensor.data.format(CleanFmt) << '\n';
 }
-}  // namespace
+} // namespace
 #endif
 
-constexpr int OUTPUT_PRECISION = 20;  // Precision for floating-point output
+constexpr int OUTPUT_PRECISION = 20; // Precision for floating-point output
 
-auto main(int /*argc*/, char* /*argv*/[]) -> int {
+auto main(int /*argc*/, char* /*argv*/[]) -> int
+{
     util::initializeEigenParallel();
 
     cout << fixed << scientific << setprecision(OUTPUT_PRECISION);
@@ -68,32 +71,32 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
     // ==== Data Generation ====
 
     // Network parameters
-    constexpr float learning_rate = 0.0001;   // Learning rate for the optimizer - low for stability
-    constexpr float target_loss = -1.0e-14F;  // Target loss value for early stopping
-    constexpr int input_dim = 1000;           // Input dimension for synthetic data
-    constexpr int hidden_dim1 = 500;          // First hidden layer dimension
-    constexpr int hidden_dim2 = 250;          // Second hidden layer dimension
-    constexpr int hidden_dim3 = 125;          // Third hidden layer dimension
-    constexpr int hidden_dim4 = 63;           // Fourth hidden layer dimension
-    constexpr int hidden_dim5 = 32;           // Fifth hidden layer dimension
-    constexpr int bottleneck_dim = 15;        // bottleneck layer size
-    constexpr int epochs = 200;  // Number of training epochs in which n_samples is presented
+    constexpr float learning_rate = 0.0001;  // Learning rate for the optimizer - low for stability
+    constexpr float target_loss = -1.0e-14F; // Target loss value for early stopping
+    constexpr int input_dim = 1000;          // Input dimension for synthetic data
+    constexpr int hidden_dim1 = 500;         // First hidden layer dimension
+    constexpr int hidden_dim2 = 250;         // Second hidden layer dimension
+    constexpr int hidden_dim3 = 125;         // Third hidden layer dimension
+    constexpr int hidden_dim4 = 63;          // Fourth hidden layer dimension
+    constexpr int hidden_dim5 = 32;          // Fifth hidden layer dimension
+    constexpr int bottleneck_dim = 15;       // bottleneck layer size
+    constexpr int epochs = 200; // Number of training epochs in which n_samples is presented
     const string encoder_weights_file_path =
-        "weights/encoder_spike_model_weights.npz";  // Model weights file
+        "weights/encoder_spike_model_weights.npz"; // Model weights file
     const string decoder_weights_file_path =
-        "weights/decoder_spike_model_weights.npz";  // Model weights file
+        "weights/decoder_spike_model_weights.npz"; // Model weights file
 
     // Batch parameters
-    constexpr int batch_size = 32;  // Batch size for training
+    constexpr int batch_size = 32; // Batch size for training
 
     // Parameters for synthetic spike train
-    constexpr int n_samples = 10;  // Number of samples for synthetic data the higher the better
-    constexpr int n_steps = 100;   // Number of time steps in the spike train
-    constexpr float time_step = 0.001F;  // Time step duration
+    constexpr int n_samples = 10; // Number of samples for synthetic data the higher the better
+    constexpr int n_steps = 100;  // Number of time steps in the spike train
+    constexpr float time_step = 0.001F; // Time step duration
 
-    constexpr float resist = 5.0F;       // Resistance R
-    constexpr float capct = 1.0F;        // Capacitance C
-    constexpr float v_thresh = 0.0001F;  // Membrane potential threshold
+    constexpr float resist = 5.0F;      // Resistance R
+    constexpr float capct = 1.0F;       // Capacitance C
+    constexpr float v_thresh = 0.0001F; // Membrane potential threshold
 
     // Create input and target tensors
     vector<Tensor> inputs;
@@ -229,32 +232,32 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
 
     Sequential encoders({
         enc1,
-        enc_act1,  // First encoder block
+        enc_act1, // First encoder block
         enc2,
-        enc_act2,  // Second encoder block
+        enc_act2, // Second encoder block
         enc3,
-        enc_act3,  // Third encoder block
+        enc_act3, // Third encoder block
         enc4,
-        enc_act4,  // Fourth encoder block
+        enc_act4, // Fourth encoder block
         enc5,
-        enc_act5,  // Fifth encoder block
+        enc_act5, // Fifth encoder block
         enc6,
-        enc_act6,  // Sixth encoder block (to bottleneck)
+        enc_act6, // Sixth encoder block (to bottleneck)
     });
 
     Sequential decoders({
         dec1,
-        dec_act1,  // First decoder block
+        dec_act1, // First decoder block
         dec2,
-        dec_act2,  // Second decoder block
+        dec_act2, // Second decoder block
         dec3,
-        dec_act3,  // Third decoder block
+        dec_act3, // Third decoder block
         dec4,
-        dec_act4,  // Fourth decoder block
+        dec_act4, // Fourth decoder block
         dec5,
-        dec_act5,  // Fifth decoder block
+        dec_act5, // Fifth decoder block
         dec6,
-        dec_act6  // Final decoder layer (no activation)
+        dec_act6 // Final decoder layer (no activation)
     });
 
     // ==== Initialization ====
@@ -266,7 +269,8 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
         NetworkSerializer::loadNetwork(encoders, encoder_weights_file_path) &&
         NetworkSerializer::loadNetwork(decoders, decoder_weights_file_path);
 
-    if (!loaded_weights) {
+    if (!loaded_weights)
+    {
         std::cerr << "Failed to load weights, initializing with Kaiming "
                      "initialization\n";
 
@@ -301,11 +305,13 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
     // ==== Training Loop ====
     float epoch_loss = std::numeric_limits<float>::max();
 
-    for (size_t epoch = 0; epoch < epochs; ++epoch) {
+    for (size_t epoch = 0; epoch < epochs; ++epoch)
+    {
         // Create batches
         auto batches = create_batches(inputs, targets, batch_size);
 
-        for (const auto& batch : batches) {
+        for (const auto& batch : batches)
+        {
             // For autoencoder, the target is the input itself
             mse_loss->set_target(batch.inputs);
 
@@ -336,13 +342,15 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
         }
 
         // Print progress
-        constexpr int progress_interval = 1;  // Print progress every N epochs
-        if (epoch % progress_interval == 0) {
+        constexpr int progress_interval = 1; // Print progress every N epochs
+        if (epoch % progress_interval == 0)
+        {
             cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << std::flush;
         }
 
         // Stop training when target loss is achieved
-        if (epoch_loss < target_loss) {
+        if (epoch_loss < target_loss)
+        {
             break;
         }
     }
@@ -352,9 +360,12 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int {
 
     // Save both encoder and decoder networks
     if (NetworkSerializer::saveNetwork(encoders, encoder_weights_file_path) &&
-        NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path)) {
+        NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path))
+    {
         cout << "Network weights saved successfully.\n";
-    } else {
+    }
+    else
+    {
         cout << "Failed to save network weights.\n";
     }
 
