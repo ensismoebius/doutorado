@@ -23,10 +23,11 @@ constexpr const char* AUDIO_VARIABLE_NAME = "Audio"; // Name of the variable in 
  * @param rowIndex The row index to load (defaults to 0)
  * @return std::tuple containing:
  *         - Eigen::VectorXf: Audio samples (176400 samples @ 44100 Hz)
+ *         - int: Stimulus (e.g., word spoken)
  *         - int: EEG index (corresponding EEG row where this audio was recorded)
  * @throws std::runtime_error if file cannot be opened or has invalid format
  */
 auto loadAudioFromMat(const std::string& filePath, size_t rowIndex = 0)
-    -> std::tuple<Eigen::VectorXf, int>;
+    -> std::tuple<Eigen::VectorXf, int, int>;
 
 } // namespace nn::dataLoaders

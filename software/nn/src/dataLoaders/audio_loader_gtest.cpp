@@ -74,7 +74,7 @@ class AudioLoaderTest : public ::testing::Test
 TEST_F(AudioLoaderTest, LoadsAudioDataCorrectly)
 {
     // Load the first row of audio data
-    auto [audioSamples, eegIndex] = nn::dataLoaders::loadAudioFromMat(testFile, 0);
+    auto [audioSamples, audioStimulus, eegIndex] = nn::dataLoaders::loadAudioFromMat(testFile, 0);
 
     // Check dimensions
     EXPECT_EQ(audioSamples.size(), 176400);

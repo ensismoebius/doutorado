@@ -74,7 +74,7 @@ class AudioLoader : public IMatLoader
 };
 
 auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
-    -> std::tuple<Eigen::VectorXf, int>
+    -> std::tuple<Eigen::VectorXf, int, int>
 {
     AudioLoader loader;
     if (!loader.open(filePath)) throw std::runtime_error("Failed to open MAT file: " + filePath);
@@ -122,11 +122,15 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         audioSamples(i) = static_cast<float>(rawDataPtr[(i * audioVariable->dims[0]) + rowIndex]);
     }
 
+    // Get the stimulus
+    int stimulus =
+        static_cast<int>(rawDataPtr[(STIMULUS_COLUMN * audioVariable->dims[0]) + rowIndex]);
+
     // Get the EEG index
     int eegIndex =
         static_cast<int>(rawDataPtr[(EEG_INDEX_COLUMN * audioVariable->dims[0]) + rowIndex]);
 
-    return {std::move(audioSamples), eegIndex};
+    return {std::move(audioSamples), stimulus, eegIndex};
 }
 
 } // namespace nn::dataLoaders

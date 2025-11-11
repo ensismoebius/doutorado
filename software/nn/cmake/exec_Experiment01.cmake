@@ -16,6 +16,7 @@ add_executable(exec_Experiment01
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/util/NnSaver.hpp
     ${SRC_DIR}/dataLoaders/AudioLoader.cpp
+    ${SRC_DIR}/dataLoaders/EEGLoader.cpp
     ${SRC_DIR}/experiments/01/Experiment01.cpp
 )
 
