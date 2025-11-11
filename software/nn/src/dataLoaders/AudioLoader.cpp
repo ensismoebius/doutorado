@@ -33,6 +33,14 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Invalid matrix dimensions. Expected Mx176402");
     }
 
+    // Verify data type is double
+    if (matvar->class_type != MAT_C_DOUBLE)
+    {
+        Mat_VarFree(matvar);
+        Mat_Close(matfp);
+        throw std::runtime_error("Invalid matrix data type. Expected double.");
+    }
+
     // Verify rowIndex is valid
     if (rowIndex >= matvar->dims[0])
     {
@@ -54,14 +62,13 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     Eigen::VectorXf audioSamples(AUDIO_SAMPLES_COUNT);
 
     // Copy audio samples
-    size_t offset = rowIndex * matvar->dims[1]; // Offset to the correct row
     for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
     {
-        audioSamples(i) = static_cast<float>(data[offset + i]);
+        audioSamples(i) = static_cast<float>(data[i * matvar->dims[0] + rowIndex]);
     }
 
     // Get the EEG index
-    int eegIndex = static_cast<int>(data[offset + EEG_INDEX_COLUMN]);
+    int eegIndex = static_cast<int>(data[EEG_INDEX_COLUMN * matvar->dims[0] + rowIndex]);
 
     // Cleanup
     Mat_VarFree(matvar);
