@@ -6,6 +6,22 @@
 
 #include "dataLoaders/AudioLoader.h"
 
+namespace
+{
+// Constants for test data dimensions and indices
+constexpr size_t kNumRows = 2;
+constexpr size_t kNumCols = 176402;         // total columns in MAT variable (samples + 2 labels)
+constexpr size_t kNumAudioSamples = 176400; // number of audio samples per row
+constexpr size_t kStimulusCol =
+    176400; // column index in MAT for stimulus ID (0-based column index)
+constexpr size_t kEEGIndexCol = 176401;     // column index in MAT for EEG index
+constexpr size_t kModBase = 1000;           // modulus used to generate sample values
+constexpr double kRow0Div = 1000.0;         // divisor for row 0 sample normalization
+constexpr double kRow1Div = 500.0;          // divisor for row 1 sample normalization
+constexpr size_t kInvalidRowIndex = 999999; // large invalid row index used in tests
+constexpr auto kTestFileName = "audio_test.mat";
+} // namespace
+
 class AudioLoaderTest : public ::testing::Test
 {
    protected:
@@ -13,31 +29,30 @@ class AudioLoaderTest : public ::testing::Test
 
     void SetUp() override
     {
-        testFile = "audio_test.mat";
+        testFile = kTestFileName;
 
         // Remove any leftover file from previous runs
         std::filesystem::remove(testFile);
 
         // Create test data in column-major order
-        std::vector<double> data(2 * 176402, 0.0);
-        size_t num_rows = 2;
-        size_t num_cols = 176402;
+        std::vector<double> data(kNumRows * kNumCols, 0.0);
+        size_t num_rows = kNumRows;
 
         // Fill data for row 0
-        for (size_t i = 0; i < 176400; ++i)
+        for (size_t i = 0; i < kNumAudioSamples; ++i)
         {
-            data[i * num_rows + 0] = static_cast<double>(i % 1000) / 1000.0;
+            data[(i * num_rows) + 0] = static_cast<double>(i % kModBase) / kRow0Div;
         }
-        data[176400 * num_rows + 0] = 1.0;  // stimulus ID
-        data[176401 * num_rows + 0] = 42.0; // EEG index
+        data[(kStimulusCol * num_rows) + 0] = 1.0;  // stimulus ID
+        data[(kEEGIndexCol * num_rows) + 0] = 42.0; // EEG index
 
         // Fill data for row 1
-        for (size_t i = 0; i < 176400; ++i)
+        for (size_t i = 0; i < kNumAudioSamples; ++i)
         {
-            data[i * num_rows + 1] = static_cast<double>(i % 1000) / 500.0;
+            data[(i * num_rows) + 1] = static_cast<double>(i % kModBase) / kRow1Div;
         }
-        data[176400 * num_rows + 1] = 2.0;  // stimulus ID
-        data[176401 * num_rows + 1] = 43.0; // EEG index
+        data[(kStimulusCol * num_rows) + 1] = 2.0;  // stimulus ID
+        data[(kEEGIndexCol * num_rows) + 1] = 43.0; // EEG index
 
         // Create the MAT file and write the data
         matioCpp::File file = matioCpp::File::Create(testFile);
@@ -76,6 +91,6 @@ TEST_F(AudioLoaderTest, ThrowsOnInvalidFile)
 
 TEST_F(AudioLoaderTest, ThrowsOnInvalidRowIndex)
 {
-    EXPECT_THROW(nn::dataLoaders::loadAudioFromMat(testFile, 999999), // Very large index
+    EXPECT_THROW(nn::dataLoaders::loadAudioFromMat(testFile, kInvalidRowIndex), // Very large index
                  std::runtime_error);
 }
