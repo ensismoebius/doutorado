@@ -12,122 +12,122 @@
 #include <cmath>
 #include <vector>
 
-auto amdf(std::vector<long double> vector) -> std::vector<long double>
+std::vector<long double> amdf(std::vector<long double> vector)
 {
-    unsigned int resultIndex = -1;
-    unsigned int N = vector.size();
-    std::vector<long double> result(N);
+	unsigned int resultIndex = -1;
+	unsigned int N = vector.size();
+	std::vector<long double> result(N);
 
-    for (unsigned int k = 0; k < N; k++)
-    {
-        resultIndex++;
-        for (unsigned int n = 0; n < N - k; n++)
-        {
-            result[resultIndex] += std::abs(vector[n] - vector[n + k]);
-        }
-    }
-    return result;
+	for (unsigned int k = 0; k < N; k++)
+	{
+		resultIndex++;
+		for (unsigned int n = 0; n < N - k; n++)
+			result[resultIndex] += std::abs(vector[n] - vector[n + k]);
+	}
+	return result;
 }
 
-auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int
+unsigned int findFZeroPeriodSamples(std::vector<long double> vector)
 {
-    long double m = vector[0];
-    unsigned int period = 0;
-    unsigned int index = 0;
 
-    for (unsigned int i = 1; i < vector.size(); i++)
-    {
-        m = std::min(m, vector[i]);
-    }
+	long double m = vector[0];
+	unsigned int period = 0;
+	unsigned int index = 0;
 
-    while (vector[index] != m)
-    {
-        index++;
-    }
+	for (unsigned int i = 1; i < vector.size(); i++)
+		if (m > vector[i]) m = vector[i];
 
-    do
-    {
-        period++;
-        index++;
-    } while (vector[index] != m);
+	while (vector[index] != m)
+		index++;
 
-    return period;
+	do
+	{
+		period++;
+		index++;
+	} while (vector[index] != m);
+
+	return period;
 }
 
-auto doAFineAmplification(double* signal, int signalLength) -> void
+void doAFineAmplification(double *signal, int signalLength)
 {
-    double highestSignal = 0;
+	double highestSignal = 0;
 
-    // find the highest signal
-    for (int i = 0; i < signalLength; ++i)
-    {
-        double value = std::abs(signal[i]);
+	// find the highest signal
+	for (int i = 0; i < signalLength; ++i)
+	{
+		double value = std::abs(signal[i]);
 
-        highestSignal = std::max(value, highestSignal);
-    }
+		if (value > highestSignal) highestSignal = value;
 
-    double multiplicationRatio = 32767 / highestSignal;
+	}
 
-    for (int i = 0; i < signalLength; ++i)
-    {
-        signal[i] *= multiplicationRatio;
-    }
+	double multiplicationRatio = 32767 / highestSignal;
+
+	for (int i = 0; i < signalLength; ++i)
+	{
+		signal[i] *= multiplicationRatio;
+	}
 }
 
-auto silentHalfOfTheSoundTrack(double* signal, int signalLength) -> void
+void silentHalfOfTheSoundTrack(double *signal, int signalLength)
 {
-    int middleSignalIndex = signalLength / 2;
+	int middleSignalIndex = signalLength / 2;
 
-    for (int i = middleSignalIndex; i < signalLength; ++i)
-    {
-        signal[i] = 0;
-    }
+	for (int i = middleSignalIndex; i < signalLength; ++i)
+	{
+		signal[i] = 0;
+	}
 }
 
-auto xuxasDevilInvocation(double* signal, int signalLength) -> void
+void xuxasDevilInvocation(double *signal, int signalLength)
 {
-    int middleSignalIndex = signalLength / 2;
-    double tempVar;
+	int middleSignalIndex = signalLength / 2;
+	int tempVar;
 
-    for (int i = middleSignalIndex; i < signalLength; ++i)
-    {
-        tempVar = signal[i];
-        signal[i] = signal[signalLength - i - 1];
-        signal[signalLength - i - 1] = tempVar;
-    }
+	for (int i = middleSignalIndex; i < signalLength; ++i)
+	{
+		tempVar = signal[i];
+		signal[i] = signal[signalLength - i - 1];
+		signal[signalLength - i - 1] = tempVar;
+	}
 }
 
-auto halfVolume(double* signal, int signalLength) -> void
+void halfVolume(double *signal, int signalLength)
 {
-    for (int i = 0; i < signalLength; ++i)
-    {
-        signal[i] *= .5;
-    }
+
+	for (int i = 0; i < signalLength; ++i)
+	{
+		signal[i] *= .5;
+	}
 }
 
-auto addEchoes(double* signal, int signalLength) -> void
+void addEchoes(double *signal, int signalLength)
 {
-    // the "time" sound get to bounce and back
-    int bouncingTime = 100000;
 
-    // Iterate over all values
-    for (int i = 0; i < signalLength; ++i)
-    {
-        // while the data starts to end we decrease
-        // the bouncing time to avoid access data
-        // outside the array
-        if (i + bouncingTime - 1 == signalLength)
-        {
-            bouncingTime--;
-        }
+	// the "time" sound get to bounce and back
+	int bouncingTime = 100000;
 
-        // we have to wait the bouncingTime before start echoing
-        if (i > bouncingTime - 1)
-        {
-            // the resulting signal are going to be
-            // the average of the current signal
-            // plus 80% of the previous signal
-            signal[i] = (signal[i - bouncingTime] * .8 + signal[i]) / 2;
-        }
-    }
+	// Iterate over all values
+	for (int i = 0; i < signalLength; ++i)
+	{
+
+		// while the data starts to end we decrease
+		// the bouncing time to avoid access data
+		// outside the array
+		if (i + bouncingTime - 1 == signalLength)
+		{
+			bouncingTime--;
+		}
+
+		// we have to wait the bouncingTime before start echoing
+		if (i > bouncingTime - 1)
+		{
+
+			// the resulting signal are going to be
+			// the average of the current signal
+			// plus 80% of the previous signal
+			signal[i] = (signal[i - bouncingTime] * .8 + signal[i]) / 2;
+		}
+	}
 }

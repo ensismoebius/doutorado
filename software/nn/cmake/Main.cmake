@@ -25,6 +25,8 @@ add_subdirectory(${SRC_DIR}/core/paraconsistent/tests)
 add_subdirectory(${SRC_DIR}/core/statistics)
 add_subdirectory(${SRC_DIR}/core/statistics/tests)
 
+# Include all demo subdirectories
+add_subdirectory(${SRC_DIR}/core/wave/demo)
 
 # Include modular CMake target files
 include(${CMAKE_SOURCE_DIR}/cmake/exec_AutoEncoderTargets.cmake)

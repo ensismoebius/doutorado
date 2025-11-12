@@ -2,8 +2,8 @@ add_executable(wave_gtest
     wave_gtest.cpp
     ../filtersOperations.cpp
     ../simpleSignalOperations.cpp
-    ../Wav.cpp
     ../../linearAlgebra/linearAlgebra.cpp
+    ../Wav.cpp
 )
 
 target_link_libraries(wave_gtest 

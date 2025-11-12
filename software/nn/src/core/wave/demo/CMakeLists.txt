@@ -3,6 +3,7 @@ add_library(waveLibstatic
     ../Wav.cpp
     ../filtersOperations.cpp
     ../simpleSignalOperations.cpp
+    ../../linearAlgebra/linearAlgebra.cpp
 )
 
 target_include_directories(waveLibstatic

@@ -1,8 +1,9 @@
 #include <cmath>
 
-#include "Wav.h"
+#include "../Wav.h"
+#include "../filtersOperations.h"
 
-int main()
+auto main() -> int
 {
     Wav wavFile;
     std::vector<long double> data;
@@ -17,6 +18,9 @@ int main()
         double t = i / sampleRate;
         data.push_back(std::sin(2.0 * M_PI * frequency * t));
     }
+
+    // This is used for nothing but to test the createAlpha function
+    double alpha = createAlpha(sampleRate, 2000.0);
 
     wavFile.write("test.wav");
     return 0;

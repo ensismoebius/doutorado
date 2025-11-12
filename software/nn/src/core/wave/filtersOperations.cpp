@@ -13,7 +13,7 @@
 
 #include "../linearAlgebra/linearAlgebra.h"
 
-auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> double
+long double createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false)
 {
     double alpha = M_PI * filterMaxFrequency / (samplingRate / 2);
 
@@ -25,7 +25,7 @@ auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass =
     return alpha;
 }
 
-auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> long double*
+long double* createLowPassFilter(int order, double samplingRate, double filterMaxFrequency)
 {
     // Order MUST be odd
     if (order % 2 == 0)
@@ -34,12 +34,12 @@ auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequen
         return 0;
     }
 
-    auto* filter = new long double[order + 1];
+    long double* filter = new long double[order + 1];
 
     // Calculating the alpha
     double alpha = createAlpha(samplingRate, filterMaxFrequency);
 
-    auto halfOrderSize = (double) (order / 2.0);
+    double halfOrderSize = (double) (order / 2.0);
 
     for (int n = 0; n <= order; ++n)
     {
@@ -51,8 +51,7 @@ auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequen
     return filter;
 }
 
-auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
-    -> long double*
+long double* createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
 {
     // Order MUST be odd
     if (order % 2 == 0)
@@ -62,12 +61,12 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     }
 
     // Filter holder
-    auto* filter = new long double[order + 1];
+    long double* filter = new long double[order + 1];
 
     // Calculating the alpha for high pass filter
     double alpha = createAlpha(samplingRate, filterStartFrequency, true);
 
-    auto halfOrderSize = (double) (order / 2.0);
+    double halfOrderSize = (double) (order / 2.0);
 
     // Calculate low pass filter
     for (int n = 0; n <= order; ++n)
@@ -83,8 +82,8 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     return linearAlgebra::calcOrthogonalVector(filter, order + 1);
 }
 
-auto createStopBandFilter(int order, double samplingRate, double startFrequency,
-                          double finalFrequency) -> long double*
+long double* createStopBandFilter(int order, double samplingRate, double startFrequency,
+                                  double finalFrequency)
 {
     // Order MUST be odd
     if (order % 2 == 0)
@@ -106,8 +105,8 @@ auto createStopBandFilter(int order, double samplingRate, double startFrequency,
     return lowPassMax;
 }
 
-auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
-    -> long double*
+long double* bandStopFilter(int order, double samplingRate, double startFrequency,
+                            double finalFrequency)
 {
     // Order MUST be odd
     if (order % 2 == 0)
@@ -127,10 +126,10 @@ auto bandStopFilter(int order, double samplingRate, double startFrequency, doubl
     return lowPass;
 }
 
-auto createTriangularWindow(int order) -> long double*
+long double* createTriangularWindow(int order)
 {
     // order plus 1 is the amount of items
-    auto* w = new long double[order + 1];
+    long double* w = new long double[order + 1];
 
     // The reference point is amount of items divided by 2
     long double referencePoint = order / 2.0;
@@ -153,5 +152,5 @@ void applyWindow(long double* filter, long double* window, int order)
     do
     {
         filter[order] *= window[order];
-    } while ((order--) != 0);
+    } while (order--);
 }

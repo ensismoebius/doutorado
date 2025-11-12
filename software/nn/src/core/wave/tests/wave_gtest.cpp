@@ -1,4 +1,3 @@
-
 #include "../Wav.h"
 #include "../filtersOperations.h"
 #include "../simpleSignalOperations.h"
