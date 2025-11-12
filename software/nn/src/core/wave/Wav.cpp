@@ -105,6 +105,135 @@ void Wav::write(const std::string& _path)
     ofs.close();
 }
 
+void Wav::write(const std::string& _path, const std::vector<float>& inputData, int samplingRate)
+{
+    std::ofstream ofs;
+    ofs.open(_path, std::ios::out | std::ios::binary);
+
+    if (!ofs.is_open())
+    {
+        std::cout << "Cannot open file: " << _path;
+        throw std::runtime_error("Impossible to open the file!");
+    }
+
+    // Set WAV headers for 1 channel, 16-bit PCM
+    this->headers.RIFF[0] = 'R';
+    this->headers.RIFF[1] = 'I';
+    this->headers.RIFF[2] = 'F';
+    this->headers.RIFF[3] = 'F';
+    this->headers.WAVE[0] = 'W';
+    this->headers.WAVE[1] = 'A';
+    this->headers.WAVE[2] = 'V';
+    this->headers.WAVE[3] = 'E';
+    this->headers.fmt[0] = 'f';
+    this->headers.fmt[1] = 'm';
+    this->headers.fmt[2] = 't';
+    this->headers.fmt[3] = ' ';
+    this->headers.subchunk1Size = 16; // PCM
+    this->headers.audioFormat = 1;    // PCM
+    this->headers.numOfChan = 1;      // Mono
+    this->headers.samplingrate = samplingRate;
+    this->headers.bitsPerSample = 16;
+    this->headers.bytesPerSec = this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.blockAlign = this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.subchunk2ID[0] = 'd';
+    this->headers.subchunk2ID[1] = 'a';
+    this->headers.subchunk2ID[2] = 't';
+    this->headers.subchunk2ID[3] = 'a';
+    this->headers.subchunk2Size = inputData.size() * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
+
+    this->amountOfData = inputData.size();
+    this->waveResolution = 16; // Fixed to 16-bit for this method
+
+    // Convert float data to long double and store in this->data
+    this->data.resize(inputData.size());
+    for (size_t i = 0; i < inputData.size(); ++i)
+    {
+        // Scale float (-1.0 to 1.0) to short (-32768 to 32767)
+        this->data[i] = static_cast<long double>(inputData[i] * 32767.0f);
+    }
+
+    ofs.close();
+}
+
+void Wav::write(const std::string& _path, const std::vector<std::vector<float>>& inputData, int samplingRate)
+{
+    std::ofstream ofs;
+    ofs.open(_path, std::ios::out | std::ios::binary);
+
+    if (!ofs.is_open())
+    {
+        std::cout << "Cannot open file: " << _path;
+        throw std::runtime_error("Impossible to open the file!");
+    }
+
+    int numOfChannels = inputData.size();
+    if (numOfChannels == 0)
+    {
+        throw std::runtime_error("Input data vector is empty.");
+    }
+    int numSamples = inputData[0].size();
+
+    if (numOfChannels != 1 && numOfChannels != 2)
+    {
+        throw std::runtime_error("Only mono (1 channel) or stereo (2 channels) are supported for std::vector<std::vector<float>> input.");
+    }
+
+    // Set WAV headers for 16-bit PCM
+    this->headers.RIFF[0] = 'R';
+    this->headers.RIFF[1] = 'I';
+    this->headers.RIFF[2] = 'F';
+    this->headers.RIFF[3] = 'F';
+    this->headers.WAVE[0] = 'W';
+    this->headers.WAVE[1] = 'A';
+    this->headers.WAVE[2] = 'V';
+    this->headers.WAVE[3] = 'E';
+    this->headers.fmt[0] = 'f';
+    this->headers.fmt[1] = 'm';
+    this->headers.fmt[2] = 't';
+    this->headers.fmt[3] = ' ';
+    this->headers.subchunk1Size = 16; // PCM
+    this->headers.audioFormat = 1;    // PCM
+    this->headers.numOfChan = numOfChannels;
+    this->headers.samplingrate = samplingRate;
+    this->headers.bitsPerSample = 16;
+    this->headers.bytesPerSec = this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.blockAlign = this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.subchunk2ID[0] = 'd';
+    this->headers.subchunk2ID[1] = 'a';
+    this->headers.subchunk2ID[2] = 't';
+    this->headers.subchunk2ID[3] = 'a';
+    this->headers.subchunk2Size = numSamples * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
+
+    this->amountOfData = numSamples;
+    this->waveResolution = 16; // Fixed to 16-bit for this method
+
+    if (numOfChannels == 1)
+    {
+        this->data.resize(numSamples);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            this->data[i] = static_cast<long double>(inputData[0][i] * 32767.0f);
+        }
+        write16Res1Channel(ofs);
+    }
+    else // numOfChannels == 2
+    {
+        this->dataLeft.resize(numSamples);
+        this->dataRight.resize(numSamples);
+        for (int i = 0; i < numSamples; ++i)
+        {
+            this->dataLeft[i] = static_cast<long double>(inputData[0][i] * 32767.0f);
+            this->dataRight[i] = static_cast<long double>(inputData[1][i] * 32767.0f);
+        }
+        write16Res2Channel(ofs);
+    }
+
+    ofs.close();
+}
+
 auto Wav::getData() const -> std::vector<long double>
 {
     return data;

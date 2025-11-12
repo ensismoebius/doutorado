@@ -79,6 +79,22 @@ class Wav
     void write(const std::string& _path);
 
     /**
+     * Write a wav file from a vector (mono)
+     * @param path
+     * @param data
+     * @param samplingRate
+     */
+    void write(const std::string& _path, const std::vector<float>& data, int samplingRate);
+
+    /**
+     * Write a wav file from a bi-dimensional vector (multi-channel)
+     * @param path
+     * @param data
+     * @param samplingRate
+     */
+    void write(const std::string& _path, const std::vector<std::vector<float>>& data, int samplingRate);
+
+    /**
      * Returns the path of file containing the signal
      * @return path
      */
