@@ -167,7 +167,7 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     for (size_t i = 0; i < inputData.size(); ++i)
     {
         short sample = static_cast<short>(inputData[i] * maxAmplitude);
-        ofs.write((char*)(&sample), sizeof(sample));
+        ofs.write((char*) (&sample), sizeof(sample));
     }
 
     ofs.close();
@@ -244,7 +244,7 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
         for (size_t i = 0; i < numSamples; ++i)
         {
             short sample = static_cast<short>(inputData[0][i] * maxAmplitude);
-            ofs.write((char*)(&sample), sizeof(sample));
+            ofs.write((char*) (&sample), sizeof(sample));
         }
     }
     else // numOfChannels == 2
@@ -253,8 +253,8 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
         {
             short left_sample = static_cast<short>(inputData[0][i] * maxAmplitude);
             short right_sample = static_cast<short>(inputData[1][i] * maxAmplitude);
-            ofs.write((char*)(&left_sample), sizeof(left_sample));
-            ofs.write((char*)(&right_sample), sizeof(right_sample));
+            ofs.write((char*) (&left_sample), sizeof(left_sample));
+            ofs.write((char*) (&right_sample), sizeof(right_sample));
         }
     }
 
@@ -291,29 +291,6 @@ void Wav::setCallbackFunction(       //
 )
 {
     this->callbackFunction = _callbackFunction;
-}
-
-auto Wav::convert2of8to1of16(unsigned char lsb, unsigned char msb) -> short
-{
-    return (((msb & 0x80) >> 7) * (32768) + ((msb & 0x40) >> 6) * (16384) +
-            ((msb & 0x20) >> 5) * (8192) + ((msb & 0x10) >> 4) * (4096) +
-            ((msb & 0x08) >> 3) * (2048) + ((msb & 0x04) >> 2) * (1024) +
-            ((msb & 0x02) >> 1) * (512) + ((msb & 0x01)) * (256) + ((lsb & 0x80) >> 7) * (128) +
-            ((lsb & 0x40) >> 6) * (64) + ((lsb & 0x20) >> 5) * (32) + ((lsb & 0x10) >> 4) * (16) +
-            ((lsb & 0x08) >> 3) * (8) + ((lsb & 0x04) >> 2) * (4) + ((lsb & 0x02) >> 1) * (2) +
-            (lsb & 0x01));
-}
-
-void Wav::convert1of16to2of8(short result, unsigned char* lsb, unsigned char* msb)
-{
-    *lsb = (((result & 0x0080) >> 7) * (128) + ((result & 0x0040) >> 6) * (64) +
-            ((result & 0x0020) >> 5) * (32) + ((result & 0x0010) >> 4) * (16) +
-            ((result & 0x0008) >> 3) * (8) + ((result & 0x0004) >> 2) * (4) +
-            ((result & 0x0002) >> 1) * (2) + (result & 0x0001));
-    *msb = (((result & 0x8000) >> 15) * (128) + ((result & 0x4000) >> 14) * (64) +
-            ((result & 0x2000) >> 13) * (32) + ((result & 0x1000) >> 12) * (16) +
-            ((result & 0x0800) >> 11) * (8) + ((result & 0x0400) >> 10) * (4) +
-            ((result & 0x0200) >> 9) * (2) + ((result & 0x0100) >> 8));
 }
 
 void Wav::readWaveData(std::ifstream& ifs)
