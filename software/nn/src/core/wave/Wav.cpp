@@ -157,15 +157,17 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     this->amountOfData = inputData.size();
     this->waveResolution = 16; // Fixed to 16-bit for this method
 
+    // Write header
+    ofs.write((char*) (&this->headers), sizeof(this->headers));
+
     // Calculate maximum amplitude for the audio format
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
-    // Convert float data to double and store in this->data
-    this->data.resize(inputData.size());
+    // Convert float data to short and write to file
     for (size_t i = 0; i < inputData.size(); ++i)
     {
-        // Scale float (-1.0 to 1.0) to short (-32768 to 32767)
-        this->data[i] = static_cast<double>(inputData[i] * maxAmplitude);
+        short sample = static_cast<short>(inputData[i] * maxAmplitude);
+        ofs.write((char*)(&sample), sizeof(sample));
     }
 
     ofs.close();
@@ -192,7 +194,7 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     }
     size_t numSamples = inputData[0].size();
 
-    if (numOfChannels != 1 && numOfChannels != 2)
+    if (numOfChannels < 1 || numOfChannels > 2)
     {
         throw std::runtime_error(
             "Only mono (1 channel) or stereo (2 channels) are supported for "
@@ -231,28 +233,29 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     this->amountOfData = numSamples;
     this->waveResolution = 16; // Fixed to 16-bit for this method
 
+    // Write header
+    ofs.write((char*) (&this->headers), sizeof(this->headers));
+
     // Calculate maximum amplitude for the audio format
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
     if (numOfChannels == 1)
     {
-        this->data.resize(numSamples);
-        for (int i = 0; i < numSamples; ++i)
+        for (size_t i = 0; i < numSamples; ++i)
         {
-            this->data[i] = static_cast<double>(inputData[0][i] * maxAmplitude);
+            short sample = static_cast<short>(inputData[0][i] * maxAmplitude);
+            ofs.write((char*)(&sample), sizeof(sample));
         }
-        write16Res1Channel(ofs);
     }
     else // numOfChannels == 2
     {
-        this->dataLeft.resize(numSamples);
-        this->dataRight.resize(numSamples);
-        for (int i = 0; i < numSamples; ++i)
+        for (size_t i = 0; i < numSamples; ++i)
         {
-            this->dataLeft[i] = static_cast<double>(inputData[0][i] * maxAmplitude);
-            this->dataRight[i] = static_cast<double>(inputData[1][i] * maxAmplitude);
+            short left_sample = static_cast<short>(inputData[0][i] * maxAmplitude);
+            short right_sample = static_cast<short>(inputData[1][i] * maxAmplitude);
+            ofs.write((char*)(&left_sample), sizeof(left_sample));
+            ofs.write((char*)(&right_sample), sizeof(right_sample));
         }
-        write16Res2Channel(ofs);
     }
 
     ofs.close();

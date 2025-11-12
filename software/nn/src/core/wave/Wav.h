@@ -21,6 +21,7 @@ class Wav
 {
    private:
     // signal properties
+#pragma pack(push, 1)
     struct
     {
         /* RIFF Chunk Descriptor */
@@ -43,6 +44,7 @@ class Wav
         std::uint8_t subchunk2ID[4]; // "data"  string
         std::uint32_t subchunk2Size; // Sampled data length
     } headers;
+#pragma pack(pop)
 
     // another signal properties
     size_t amountOfData;
