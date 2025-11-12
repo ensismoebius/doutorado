@@ -1,5 +1,7 @@
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
+#include <string>
 
 #include "../Wav.h"
 #include "../filtersOperations.h"
@@ -14,7 +16,8 @@ auto main() -> int
     // Generate a simple sine wave
     const float frequency = 440.0; // Hz
     const float sampleRate = 44100.0;
-    const float duration = 0.1; // seconds
+    const float duration = 5.0F; // seconds
+    const std::string filePath = std::filesystem::temp_directory_path().string() + "/sine_wave.wav";
 
     for (float i = 0; i < sampleRate * duration; i++)
     {
@@ -27,8 +30,8 @@ auto main() -> int
 
     std::printf("Alpha value for 2000 Hz cutoff at 44100 Hz sample rate: %f\n", alpha);
 
-    wavFile.write("test.wav", data, static_cast<int>(sampleRate));
-    wavFile.read("test.wav");
+    wavFile.write(filePath, data, static_cast<int>(sampleRate));
+    wavFile.read(filePath);
 
     auto readData = wavFile.getData();
 
@@ -40,3 +43,8 @@ auto main() -> int
     }
     return 0;
 }
+
+// -exec print readData.size()
+// $1 = 220518
+// -exec print data.size()
+// $2 = 220500

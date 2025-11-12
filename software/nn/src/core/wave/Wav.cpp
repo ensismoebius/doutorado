@@ -460,6 +460,30 @@ inline void Wav::read16Res2Channel(std::ifstream& ifs)
     }
 }
 
+auto Wav::convert2of8to1of16(unsigned char lsb, unsigned char msb) -> short
+{
+    // Combine the most significant byte (msb) and the least significant byte (lsb)
+    // into a single 16-bit signed short. This is achieved by shifting the msb
+    // 8 bits to the left (to occupy the upper 8 bits of the short) and then
+    // performing a bitwise OR with the lsb (which occupies the lower 8 bits).
+    // This assumes a little-endian system where the lsb comes first.
+    return (static_cast<short>(msb) << 8) | lsb;
+}
+
+void Wav::convert1of16to2of8(short sample, unsigned char* lsb, unsigned char* msb)
+{
+    // Extract the least significant byte (lsb) from the 16-bit sample.
+    // This is done by applying a bitwise AND with a mask of 0xFF, which
+    // isolates the lower 8 bits of the sample.
+    *lsb = sample & 0xFF;
+
+    // Extract the most significant byte (msb) from the 16-bit sample.
+    // This is done by shifting the sample 8 bits to the right, which moves
+    // the upper 8 bits into the lower 8 bits position, and then applying a
+    // bitwise AND with a mask of 0xFF to isolate them.
+    *msb = (sample >> 8) & 0xFF;
+}
+
 void Wav::clearVectors()
 {
     this->data.clear();
@@ -500,3 +524,5 @@ void Wav::resetMetaData()
     this->headers.subchunk2ID[3] = '\0';
     this->headers.subchunk2Size = 0;
 }
+
+
