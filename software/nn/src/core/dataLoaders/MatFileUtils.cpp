@@ -11,8 +11,8 @@ namespace
 template <typename T>
 auto to_eigen_from_multi(const matioCpp::Variable& variable) -> std::optional<Eigen::MatrixXf>
 {
-    auto mat = variable.template asMultiDimensionalArray<T>();
-    return matioCpp::to_eigen(mat).template cast<float>();
+    auto multi_array = variable.template asMultiDimensionalArray<T>();
+    return matioCpp::to_eigen(multi_array).template cast<float>();
 }
 
 template <typename T>

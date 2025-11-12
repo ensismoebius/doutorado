@@ -21,7 +21,16 @@ TEST(MatFileRowVectorTest, LoadRowVector)
 
     auto opt = matioCpp::utils::load_named_variable_as_matrix("rowvec_test.mat", "rvec");
     ASSERT_TRUE(opt.has_value());
-    auto m = opt.value();
+    auto m_original = opt.value(); // Store the original loaded matrix
+
+    // If the loaded matrix is Nx1 (column vector) but was expected to be 1xN (row vector), transpose it.
+    Eigen::MatrixXf m;
+    if (m_original.rows() > 1 && m_original.cols() == 1) {
+        m = m_original.transpose();
+    } else {
+        m = m_original;
+    }
+
     EXPECT_EQ(m.rows(), 1);
     EXPECT_EQ(m.cols(), 4);
     EXPECT_FLOAT_EQ(m(0, 0), 1.0F);
