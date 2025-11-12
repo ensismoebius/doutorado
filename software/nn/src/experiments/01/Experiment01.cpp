@@ -4,6 +4,9 @@
 #include "core/dataLoaders/EEGLoader.h"
 #include "core/dataLoaders/MatFileFlags.h" // Include the new header
 
+using namespace MatFileFlags;
+using namespace nn::dataLoaders;
+
 static void init()
 {
     // Initialization code goes here
@@ -12,7 +15,7 @@ static void init()
 static void perform()
 {
     // Experiment 01 perform code goes here
-    auto [audioSamples, audioStimulus, eegIndex] = nn::dataLoaders::loadAudioFromMat(
+    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
         "databases/BaseDeDatosHablaImaginada/S01/"
         "S01_Audio.mat",
@@ -23,10 +26,10 @@ static void perform()
     (void) audioStimulus;
     (void) eegIndex;
     // For example, print the audio stimulus and EEG index
-    std::cout << MatFileFlags::getAudioFlagName(MatFileFlags::AudioFlag::Stimulus) << ": " << audioStimulus << '\n';
-    std::cout << MatFileFlags::getAudioFlagName(MatFileFlags::AudioFlag::EEG_Index) << ": " << eegIndex << '\n';
+    std::cout << getAudioFlagName(AudioFlag::Stimulus) << ": " << audioStimulus << '\n';
+    std::cout << getAudioFlagName(AudioFlag::EEG_Index) << ": " << eegIndex << '\n';
 
-    auto [eegSamples, eegInfo] = nn::dataLoaders::loadEEGFromMat(
+    auto [eegSamples, eegInfo] = loadEEGFromMat(
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
         "databases/BaseDeDatosHablaImaginada/S01/"
         "S01_EEG.mat",
@@ -35,10 +38,12 @@ static void perform()
     (void) eegSamples;
     (void) eegInfo;
     // For example, print the EEG info from the EEG file
-    std::cout << "EEG Info from EEG file: "
-              << MatFileFlags::getEEGFlagName(MatFileFlags::EEGFlag::Modality) << "=" << eegInfo[static_cast<int>(MatFileFlags::EEGFlag::Modality)] << ", "
-              << MatFileFlags::getEEGFlagName(MatFileFlags::EEGFlag::Stimulus) << "=" << eegInfo[static_cast<int>(MatFileFlags::EEGFlag::Stimulus)] << ", "
-              << MatFileFlags::getEEGFlagName(MatFileFlags::EEGFlag::Artifact) << "=" << eegInfo[static_cast<int>(MatFileFlags::EEGFlag::Artifact)] << '\n';
+    std::cout << "EEG Info from EEG file: " << getEEGFlagName(EEGFlag::Modality) << "="
+              << eegInfo[static_cast<int>(EEGFlag::Modality)] << ", "
+              << getEEGFlagName(EEGFlag::Stimulus) << "="
+              << eegInfo[static_cast<int>(EEGFlag::Stimulus)] << ", "
+              << getEEGFlagName(EEGFlag::Artifact) << "="
+              << eegInfo[static_cast<int>(EEGFlag::Artifact)] << '\n';
 }
 
 auto main(int argc, char** argv) -> int
