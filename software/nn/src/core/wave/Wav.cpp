@@ -331,7 +331,7 @@ void Wav::readWaveHeaders(std::ifstream& ifs)
 
     waveResolution =
         (this->headers.bytesPerSec * 8) / (this->headers.numOfChan * this->headers.samplingrate);
-    amountOfData = this->headers.chunkSize / this->headers.blockAlign;
+    amountOfData = this->headers.subchunk2Size / this->headers.blockAlign;
 }
 
 inline void Wav::write8Res1Channel(std::ofstream& ofs)

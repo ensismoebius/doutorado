@@ -43,8 +43,3 @@ auto main() -> int
     }
     return 0;
 }
-
-// -exec print readData.size()
-// $1 = 220518
-// -exec print data.size()
-// $2 = 220500
