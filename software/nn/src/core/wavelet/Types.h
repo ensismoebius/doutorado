@@ -14,15 +14,15 @@
 #define SRC_LIB_WAVELET_TYPES_H_
 
 #include <map>
-#include <vector>
 #include <string>
+#include <vector>
 namespace wavelets
 {
 
-	void init(std::vector<std::string> chosenWavelets = { });
-	void resetInitialization();
-	std::vector<long double> get(std::string waveletName);
-	std::map<std::string, std::vector<long double>> all();
-}
+void init(const std::vector<std::string>& chosenWavelets = {});
+void resetInitialization();
+auto get(const std::string& waveletName) -> std::vector<double>;
+auto all() -> std::map<std::string, std::vector<double>>;
+} // namespace wavelets
 
 #endif /* SRC_LIB_WAVELET_TYPES_H_ */

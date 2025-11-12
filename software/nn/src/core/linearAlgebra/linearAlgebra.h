@@ -21,8 +21,7 @@ namespace linearAlgebra
  * @param level - Amount of derivatives over the same vector
  * @return resulting vector (optional)
  */
-auto derivative(std::vector<long double>& vector, unsigned int level = 1)
-    -> std::vector<long double>;
+auto derivative(std::vector<double>& vector, long level = 1) -> std::vector<double>;
 
 /**
  * Function that return dot product of two vectors.
@@ -30,7 +29,7 @@ auto derivative(std::vector<long double>& vector, unsigned int level = 1)
  * @param b
  * @return
  */
-auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long double;
+auto dotProduct(std::vector<double> a, std::vector<double> b) -> double;
 
 /**
  * Create an orthogonal vector given another one
@@ -38,14 +37,14 @@ auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long 
  * @param vectorSize
  * @return
  */
-auto calcOrthogonalVector(const long double* originalVector, size_t vectorSize) -> long double*;
+auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> double*;
 
 /**
  * Given a vector calculates the corresponding orthogonal vector
  * @param vector - source vector
  * @return orthogonal vector
  */
-auto calcOrthogonalVector(std::vector<long double>& vector) -> std::vector<long double>;
+auto calcOrthogonalVector(std::vector<double>& vector) -> std::vector<double>;
 
 /**
  * Normalize the vector
@@ -54,8 +53,7 @@ auto calcOrthogonalVector(std::vector<long double>& vector) -> std::vector<long 
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(long double* signal, size_t signalLength, long double lowerLimit,
-                            long double upperLimit);
+void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit, double upperLimit);
 
 /**
  * Normalize the vector
@@ -63,21 +61,20 @@ void normalizeVectorToRange(long double* signal, size_t signalLength, long doubl
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(std::vector<long double>& signal, long double lowerLimit,
-                            long double upperLimit);
+void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, double upperLimit);
 
 /**
  * Normalize the vector to sum 1
  * @param signal
  * @param signalLength
  */
-void normalizeVectorToSum1(long double* signal, int signalLength);
+void normalizeVectorToSum1(double* signal, long signalLength);
 
 /**
  * Normalize the vector to sum 1
  * @param signal
  */
-void normalizeVectorToSum1(std::vector<long double>& signal);
+void normalizeVectorToSum1(std::vector<double>& signal);
 
 /**
  * Convolute a signal with a filter (kernel)
@@ -87,26 +84,26 @@ void normalizeVectorToSum1(std::vector<long double>& signal);
  * @param kernelSize
  * @return
  */
-auto convolution(long double* data, int dataLength, long double* kernel, int kernelSize) -> bool;
+auto convolution(double* data, int dataLength, double* kernel, long kernelSize) -> bool;
 
 /**
  * Performs a DCT on vector
  * @param vector
  * @param vectorLength
  */
-void discreteCosineTransform(long double* vector, long vectorLength);
+void discreteCosineTransform(double* vector, long vectorLength);
 
 /**
  * Performs a DCT on vector
  * @param vector
  */
-void discreteCosineTransform(std::vector<long double>& vector);
+void discreteCosineTransform(std::vector<double>& vector);
 
 /**
  * Scales a given matrix
  * @param matrix
  */
-void scaleMatrix(std::vector<std::vector<long double>>& matrix);
+void scaleMatrix(std::vector<std::vector<double>>& matrix);
 
 /**
  * Solves the linear system represented by
@@ -116,14 +113,14 @@ void scaleMatrix(std::vector<std::vector<long double>>& matrix);
  * @param matrix - A scaled matrix
  * @return a vetor with results
  */
-std::vector<long double> solveMatrix(std::vector<std::vector<long double>>& matrix);
+auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double>;
 
 /**
  * Normalize the vector to sum 1 and guarantees
  * that all values are positives
  * @param signal
  */
-void normalizeVectorToSum1AllPositive(std::vector<long double>& signal);
+void normalizeVectorToSum1AllPositive(std::vector<double>& signal);
 
 /**
  * Normalize the vector to sum 1 and guarantees
@@ -131,11 +128,11 @@ void normalizeVectorToSum1AllPositive(std::vector<long double>& signal);
  * @param signal
  * @param signalLength
  */
-void normalizeVectorToSum1AllPositive(long double* signal, int signalLength);
+void normalizeVectorToSum1AllPositive(double* signal, long signalLength);
 
 /**
  * Resizes a vector in a centered way
- * @example std::vector<long double> vec{ 1, 2, 3, 4, 5 };
+ * @example std::vector<double> vec{ 1, 2, 3, 4, 5 };
  * resizeCentered(vec, 9);
  * we get: { 0, 0, 1, 2, 3, 4, 5, 0, 0 }
  * resizeCentered(vec, 3);
@@ -143,7 +140,6 @@ void normalizeVectorToSum1AllPositive(long double* signal, int signalLength);
  * @param vector
  * @param newSize
  */
-void resizeCentered(std::vector<long double>& vector, unsigned int newSize,
-                    long double defaultValue = 0);
+void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue = 0);
 } // namespace linearAlgebra
 #endif /* SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_ */

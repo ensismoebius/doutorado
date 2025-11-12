@@ -17,11 +17,11 @@
 namespace linearAlgebra
 {
 
-auto derivative(std::vector<long double>& vector, unsigned int level) -> std::vector<long double>
+auto derivative(std::vector<double>& vector, long level) -> std::vector<double>
 {
     if (vector.size() < 2)
     {
-        return std::vector<long double>({vector.at(0)});
+        return std::vector<double>({vector.at(0)});
     }
 
     for (unsigned int i = 0; i < vector.size() - 1; ++i)
@@ -40,9 +40,9 @@ auto derivative(std::vector<long double>& vector, unsigned int level) -> std::ve
     return vector;
 }
 
-auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long double
+auto dotProduct(std::vector<double> a, std::vector<double> b) -> double
 {
-    long double product = 0;
+    double product = 0;
 
     // Loop for calculate cot product
     for (unsigned int i = 0; i < a.size(); i++)
@@ -52,15 +52,15 @@ auto dotProduct(std::vector<long double> a, std::vector<long double> b) -> long 
     return product;
 }
 
-auto calcOrthogonalVector(const long double* originalVector, size_t vectorSize) -> long double*
+auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> double*
 {
-    auto* finalResult = new long double[vectorSize];
+    auto* finalResult = new double[vectorSize];
 
-    size_t middleSignalIndex = vectorSize / 2;
-    long double tempVar;
-    long double inverter = 1.0;
+    long middleSignalIndex = vectorSize / 2;
+    double tempVar;
+    double inverter = 1.0;
 
-    for (size_t i = middleSignalIndex; i < vectorSize; ++i)
+    for (long i = middleSignalIndex; i < vectorSize; ++i)
     {
         tempVar = originalVector[i];
 
@@ -72,10 +72,10 @@ auto calcOrthogonalVector(const long double* originalVector, size_t vectorSize) 
     return finalResult;
 }
 
-auto calcOrthogonalVector(std::vector<long double>& vector) -> std::vector<long double>
+auto calcOrthogonalVector(std::vector<double>& vector) -> std::vector<double>
 {
-    std::vector<long double> result(vector.size());
-    long double multiplier = 1;
+    std::vector<double> result(vector.size());
+    double multiplier = 1;
 
     for (int index = static_cast<int>(vector.size()) - 1; index >= 0; index--)
     {
@@ -85,42 +85,42 @@ auto calcOrthogonalVector(std::vector<long double>& vector) -> std::vector<long 
     return result;
 }
 
-void normalizeVectorToSum1(long double* signal, int signalLength)
+void normalizeVectorToSum1(double* signal, long signalLength)
 {
-    long double sum = 0;
+    double sum = 0;
 
-    for (int i = 0; i < signalLength; ++i)
+    for (long i = 0; i < signalLength; ++i)
     {
         sum += signal[i];
     }
 
-    for (int i = 0; i < signalLength; ++i)
+    for (long i = 0; i < signalLength; ++i)
     {
         signal[i] /= sum;
     }
 }
 
-void normalizeVectorToSum1(std::vector<long double>& signal)
+void normalizeVectorToSum1(std::vector<double>& signal)
 {
-    long double sum = 0;
+    double sum = 0;
 
-    for (long double& v : signal)
+    for (double& v : signal)
     {
         sum += v;
     }
 
-    for (long double& v : signal)
+    for (double& v : signal)
     {
         v /= sum;
     }
 }
 
-void normalizeVectorToSum1AllPositive(std::vector<long double>& signal)
+void normalizeVectorToSum1AllPositive(std::vector<double>& signal)
 {
-    long double min = signal[0];
-    long double sum = 0;
+    double min = signal[0];
+    double sum = 0;
 
-    for (long double& v : signal)
+    for (double& v : signal)
     {
         min = std::min(v, min);
         sum += v;
@@ -129,24 +129,24 @@ void normalizeVectorToSum1AllPositive(std::vector<long double>& signal)
     if (min < 0)
     {
         sum = 0;
-        for (long double& v : signal)
+        for (double& v : signal)
         {
-            sum += v += std::abs(min) + (long double) 1; // @suppress("Ambiguous problem")
+            sum += v += std::abs(min) + (double) 1; // @suppress("Ambiguous problem")
         }
     }
 
-    for (long double& v : signal)
+    for (double& v : signal)
     {
         v /= sum;
     }
 }
 
-void normalizeVectorToSum1AllPositive(long double* signal, int signalLength)
+void normalizeVectorToSum1AllPositive(double* signal, long signalLength)
 {
-    long double min = signal[0];
-    long double sum = 0;
+    double min = signal[0];
+    double sum = 0;
 
-    for (int i = 0; i < signalLength; ++i)
+    for (long i = 0; i < signalLength; ++i)
     {
         min = std::min(signal[i], min);
         sum += signal[i];
@@ -155,20 +155,19 @@ void normalizeVectorToSum1AllPositive(long double* signal, int signalLength)
     if (min < 0)
     {
         sum = 0;
-        for (int i = 0; i < signalLength; ++i)
+        for (long i = 0; i < signalLength; ++i)
         {
-            sum += signal[i] += std::abs(min) + (long double) 1; // @suppress("Ambiguous problem")
+            sum += signal[i] += std::abs(min) + (double) 1; // @suppress("Ambiguous problem")
         }
     }
 
-    for (int i = 0; i < signalLength; ++i)
+    for (long i = 0; i < signalLength; ++i)
     {
         signal[i] /= sum;
     }
 }
 
-void normalizeVectorToRange(long double* signal, size_t signalLength, long double lowerLimit,
-                            long double upperLimit)
+void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit, double upperLimit)
 {
     if (lowerLimit >= upperLimit)
     {
@@ -178,7 +177,7 @@ void normalizeVectorToRange(long double* signal, size_t signalLength, long doubl
     /*
      * Keep this comment!
      *
-     *	long double min, max;
+     *	double min, max;
      *	min = max = signal[0];
      *
      *	for (auto &v : signal)
@@ -190,22 +189,22 @@ void normalizeVectorToRange(long double* signal, size_t signalLength, long doubl
      *	}
      *
      *	// Normalize between 0 and 1
-     *	long double rangeVal = max - min;
+     *	double rangeVal = max - min;
      *	for (auto &v : signal)
      *		v = (v - min) / rangeVal;
      *
      *	// Then scale to [lowerLimit,upperLimit]:
-     *	long double rangeLim = upperLimit - lowerLimit;
+     *	double rangeLim = upperLimit - lowerLimit;
      *	for (auto &v : signal)
      *		v = (v * rangeLim) + lowerLimit;
      */
 
     // The code bellow do the same as the commented code above
-    long double min;
-    long double max;
+    double min;
+    double max;
     min = max = signal[0];
 
-    for (int i = 0; i < signalLength; ++i)
+    for (long i = 0; i < signalLength; ++i)
     {
         // Minimum
         min = std::min(signal[i], min);
@@ -213,16 +212,15 @@ void normalizeVectorToRange(long double* signal, size_t signalLength, long doubl
         max = std::max(signal[i], max);
     }
 
-    long double rangeVal = max - min;
-    long double rangeLim = upperLimit - lowerLimit;
-    for (int i = 0; i < signalLength; ++i)
+    double rangeVal = max - min;
+    double rangeLim = upperLimit - lowerLimit;
+    for (long i = 0; i < signalLength; ++i)
     {
         signal[i] = (((signal[i] - min) / rangeVal) * rangeLim) + lowerLimit;
     }
 }
 
-void normalizeVectorToRange(std::vector<long double>& signal, long double lowerLimit,
-                            long double upperLimit)
+void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, double upperLimit)
 {
     if (lowerLimit >= upperLimit)
     {
@@ -231,7 +229,7 @@ void normalizeVectorToRange(std::vector<long double>& signal, long double lowerL
     /*
      * Keep this comment!
      *
-     *	long double min, max;
+     *	double min, max;
      *	min = max = signal[0];
      *
      *	for (auto &v : signal)
@@ -243,19 +241,19 @@ void normalizeVectorToRange(std::vector<long double>& signal, long double lowerL
      *	}
      *
      *	// Normalize between 0 and 1
-     *	long double rangeVal = max == min ? 1 : max - min;
+     *	double rangeVal = max == min ? 1 : max - min;
      *	for (auto &v : signal)
      *		v = (v - min) / rangeVal;
      *
      *	// Then scale to [lowerLimit,upperLimit]:
-     *	long double rangeLim = upperLimit - lowerLimit;
+     *	double rangeLim = upperLimit - lowerLimit;
      *	for (auto &v : signal)
      *		v = (v * rangeLim) + lowerLimit;
      */
 
     // The code bellow do the same as the commented code above
-    long double min;
-    long double max;
+    double min;
+    double max;
     min = max = signal[0];
 
     for (auto& v : signal)
@@ -266,21 +264,21 @@ void normalizeVectorToRange(std::vector<long double>& signal, long double lowerL
         max = std::max(v, max);
     }
 
-    long double rangeVal = max == min ? 1 : max - min;
-    long double rangeLim = upperLimit - lowerLimit;
+    double rangeVal = max == min ? 1 : max - min;
+    double rangeLim = upperLimit - lowerLimit;
     for (auto& v : signal)
     {
         v = (((v - min) / rangeVal) * rangeLim) + lowerLimit;
     }
 }
 
-auto convolution(long double* data, int dataLength, long double* kernel, int kernelSize) -> bool
+auto convolution(double* data, long dataLength, double* kernel, long kernelSize) -> bool
 {
-    int i;
-    int j;
-    int k;
+    long i;
+    long j;
+    long k;
 
-    auto* convolutedSignal = new long double[dataLength];
+    auto* convolutedSignal = new double[dataLength];
 
     // check validity of params
     if ((data == nullptr) || (convolutedSignal == nullptr) || (kernel == nullptr))
@@ -324,16 +322,16 @@ auto convolution(long double* data, int dataLength, long double* kernel, int ker
     return true;
 }
 
-inline auto getAlphaK(unsigned int k, unsigned int N) -> long double
+inline auto getAlphaK(unsigned int k, unsigned int N) -> double
 {
     return k == 0 ? std::sqrt(1.0 / N) : std::sqrt(2.0 / N);
 }
 
-auto discreteCosineTransform(std::vector<long double>& vector) -> void
+auto discreteCosineTransform(std::vector<double>& vector) -> void
 {
-    std::vector<long double> res(vector.size());
+    std::vector<double> res(vector.size());
     unsigned int N = vector.size();
-    long double sum = 0;
+    double sum = 0;
 
     for (unsigned int k = 0; k < N; ++k)
     {
@@ -349,11 +347,11 @@ auto discreteCosineTransform(std::vector<long double>& vector) -> void
     vector = res;
 }
 
-void discreteCosineTransform(long double* vector, size_t vectorLength)
+void discreteCosineTransform(double* vector, long vectorLength)
 {
-    auto* res = new long double[vectorLength];
+    auto* res = new double[vectorLength];
     unsigned int N = vectorLength;
-    long double sum = 0;
+    double sum = 0;
 
     for (unsigned int k = 0; k < N; ++k)
     {
@@ -374,7 +372,7 @@ void discreteCosineTransform(long double* vector, size_t vectorLength)
     delete[] res;
 }
 
-auto scaleMatrix(std::vector<std::vector<long double>>& matrix) -> void
+auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
 {
     // Points to the best line that can nullify our values
     unsigned int bestLineForSubtration = 0;
@@ -423,7 +421,7 @@ auto scaleMatrix(std::vector<std::vector<long double>>& matrix) -> void
             }
 
             // Ready to calculate the coefficient
-            long double coef =
+            double coef =
                 matrix[lineIndex][columnIndex] / matrix[bestLineForSubtration][columnIndex];
 
             unsigned int ci = columnIndex;
@@ -438,13 +436,13 @@ auto scaleMatrix(std::vector<std::vector<long double>>& matrix) -> void
     }
 }
 
-auto solveMatrix(std::vector<std::vector<long double>>& matrix) -> std::vector<long double>
+auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double>
 {
     // Used to make the substitutions
-    long double temp;
+    double temp;
 
     // final result
-    std::vector<long double> result(matrix.size());
+    std::vector<double> result(matrix.size());
 
     // The amount of the matrix columns
     unsigned int colums = matrix[0].size();
@@ -472,7 +470,7 @@ auto solveMatrix(std::vector<std::vector<long double>>& matrix) -> std::vector<l
     return result;
 }
 
-void resizeCentered(std::vector<long double>& vector, size_t newSize, long double defaultValue)
+void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue)
 {
     if (newSize == vector.size())
     {
@@ -490,8 +488,8 @@ void resizeCentered(std::vector<long double>& vector, size_t newSize, long doubl
         return;
     }
 
-    std::vector<long double> left(leftPadding, defaultValue);
-    std::vector<long double> right(rightPadding, defaultValue);
+    std::vector<double> left(leftPadding, defaultValue);
+    std::vector<double> right(rightPadding, defaultValue);
 
     vector.insert(vector.begin(), left.begin(), left.end());
     vector.insert(vector.end(), right.begin(), right.end());

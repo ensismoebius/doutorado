@@ -18,7 +18,7 @@
  * @param vector
  * @return amdf vector
  */
-std::vector<long double> amdf(std::vector<long double> vector);
+auto amdf(std::vector<long double> vector) -> std::vector<long double>;
 
 /**
  * Returns the amount of samples in order to
@@ -26,16 +26,16 @@ std::vector<long double> amdf(std::vector<long double> vector);
  * @param vector
  * @return integer
  */
-unsigned int findFZeroPeriodSamples(std::vector<long double> vector);
+auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int;
 
-void doAFineAmplification(double *signal, int signalLength);
+void doAFineAmplification(double* signal, int signalLength);
 
-void silentHalfOfTheSoundTrack(double *signal, int signalLength);
+void silentHalfOfTheSoundTrack(double* signal, int signalLength);
 
-void xuxasDevilInvocation(double *signal, int signalLength);
+void xuxasDevilInvocation(double* signal, int signalLength);
 
-void halfVolume(double *signal, int signalLength);
+void halfVolume(double* signal, int signalLength);
 
-void addEchoes(double *signal, int signalLength);
+void addEchoes(double* signal, int signalLength);
 
-#endif SRC_LIB_SIMPLESIGNALOPERATIONS_H_
+#endif /* SRC_LIB_SIMPLESIGNALOPERATIONS_H_ */

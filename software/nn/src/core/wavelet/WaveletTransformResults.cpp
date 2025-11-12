@@ -16,7 +16,7 @@
 namespace wavelets
 {
 
-WaveletTransformResults::WaveletTransformResults(unsigned int maxItems)
+WaveletTransformResults::WaveletTransformResults(long maxItems)
 {
     this->maxItems = maxItems;
     if (maxItems > 0)
@@ -32,7 +32,7 @@ WaveletTransformResults::WaveletTransformResults(unsigned int maxItems)
  * @param detailIndex 1 or more: Extracts the corresponding detail
  * @return Whole transformed signal, approximation or details
  */
-std::vector<long double> WaveletTransformResults::getWaveletTransforms(int detailIndex)
+auto WaveletTransformResults::getWaveletTransforms(int detailIndex) -> std::vector<double>
 {
     // User is requesting more details then we had produced
     if (detailIndex > (int) this->levelsOfTransformation)
@@ -58,7 +58,7 @@ std::vector<long double> WaveletTransformResults::getWaveletTransforms(int detai
     unsigned sstart = 0;
 
     // The container of our response
-    std::vector<long double> levelTransformedSignal;
+    std::vector<double> levelTransformedSignal;
 
     // This value is used in the calculations of indexers
     int log = (int) std::log2(this->transformedSignal.size());
@@ -70,17 +70,18 @@ std::vector<long double> WaveletTransformResults::getWaveletTransforms(int detai
         sstart = 0;
         // The size of approximation depends on size of original
         // signal and the levels of transformations made
-        send = std::pow(2, log - this->levelsOfTransformation);
+        send = (int) std::pow(2, log - this->levelsOfTransformation);
     }
     else
     {
-        // If the executions reaches this part the user are interested in details
-        sstart = std::pow(2, log - detailIndex);
-        send = std::pow(2, log - detailIndex + 1);
+        // If the executions reaches this part the user are interested in
+        // details
+        sstart = (int) std::pow(2, log - detailIndex);
+        send = (int) std::pow(2, log - detailIndex + 1);
     }
 
     // Assembling the response
-    for (unsigned int indexRange = sstart; indexRange < send; indexRange++)
+    for (long indexRange = sstart; indexRange < send; indexRange++)
     {
         levelTransformedSignal.push_back(this->transformedSignal.at(indexRange));
     }
@@ -97,8 +98,8 @@ std::vector<long double> WaveletTransformResults::getWaveletTransforms(int detai
  * @param maxFrequecy
  * @return the requested chunk
  */
-std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
-    unsigned int startIndex, unsigned int endIndex, unsigned int maxFrequecy)
+auto WaveletTransformResults::getWaveletPacketTransforms(long startIndex, long endIndex,
+                                                         long maxFrequecy) -> std::vector<double>
 {
     // Checks if endIndex < startIndex
     if (endIndex < startIndex)
@@ -113,15 +114,14 @@ std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
     }
 
     // Calculate the size of the chunks
-    double chunkSize = this->getWaveletPacketAmountOfParts() / (double) maxFrequecy;
+    auto chunkSize = this->getWaveletPacketAmountOfParts() / maxFrequecy;
 
     // Get the ranges that must be returned
-    int sstart = startIndex * chunkSize;
-    int send = endIndex * chunkSize;
+    long sstart = startIndex * chunkSize;
+    long send = endIndex * chunkSize;
 
     // Returns the data
-    return std::vector<long double>(this->transformedSignal.begin() + sstart,
-                                    this->transformedSignal.begin() + send);
+    return {this->transformedSignal.begin() + sstart, this->transformedSignal.begin() + send};
 }
 
 /**
@@ -129,7 +129,7 @@ std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
  * parts in a packet wavelet transform
  * @return maximum number of generated parts
  */
-unsigned int WaveletTransformResults::getWaveletPacketAmountOfParts()
+auto WaveletTransformResults::getWaveletPacketAmountOfParts() -> long
 {
     // Checks if this is a wavelet transform
     if (!this->packet)
@@ -137,11 +137,11 @@ unsigned int WaveletTransformResults::getWaveletPacketAmountOfParts()
         throw std::runtime_error("This is not a wavelet packet transformed signal");
     }
 
-    return std::pow(2, this->levelsOfTransformation);
+    return (long) std::pow(2, this->levelsOfTransformation);
 }
 
 /**
- * Static version of @getWaveletPacketTransforms(unsigned int partIndex)
+ * Static version of @getWaveletPacketTransforms(long partIndex)
  * Extracts the values of a wavelet packet transformation
  * differently from @getWaveletTransforms it DO NOT returns
  * the details of transformation, otherwise, returns the
@@ -152,9 +152,10 @@ unsigned int WaveletTransformResults::getWaveletPacketAmountOfParts()
  * @param levelsOfTransformation : levels of transformation of the signal
  * @return the requested chunk
  */
-std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
-    std::vector<long double> transformedSignal, unsigned int partIndex,
-    unsigned int levelsOfTransformation)
+auto WaveletTransformResults::getWaveletPacketTransforms(std::vector<double> transformedSignal,
+                                                         long partIndex,
+                                                         long levelsOfTransformation)
+    -> std::vector<double>
 {
     // The partIndex must not access non existent parts of the transformation
     if (WaveletTransformResults::getWaveletPacketAmountOfParts(levelsOfTransformation) - 1 <
@@ -172,8 +173,8 @@ std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
     int send = sstart + chunkSize;
 
     // Returns the data
-    return std::vector<long double>(transformedSignal.begin() + sstart,
-                                    transformedSignal.begin() + send);
+    return std::vector<double>(transformedSignal.begin() + sstart,
+                               transformedSignal.begin() + send);
 }
 
 /**
@@ -185,9 +186,8 @@ std::vector<long double> WaveletTransformResults::getWaveletPacketTransforms(
  * @param levelsOfTransformation
  * @return maximum number of generated parts
  */
-unsigned int WaveletTransformResults::getWaveletPacketAmountOfParts(
-    unsigned int levelsOfTransformation)
+auto WaveletTransformResults::getWaveletPacketAmountOfParts(long _levelsOfTransformation) -> long
 {
-    return std::pow(2, levelsOfTransformation);
+    return (long) std::pow(2, _levelsOfTransformation);
 }
 } // namespace wavelets

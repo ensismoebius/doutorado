@@ -10,8 +10,6 @@
 #ifndef SRC_LIB_WAVELET_WAVELETTRANSFORMRESULTS_H_
 #define SRC_LIB_WAVELET_WAVELETTRANSFORMRESULTS_H_
 
-#include <cmath>
-#include <stdexcept>
 #include <vector>
 
 namespace wavelets
@@ -22,7 +20,7 @@ class WaveletTransformResults
     /**
      * Maximum number of items allowed in the transformed signal
      */
-    unsigned int maxItems = 0;
+    long maxItems = 0;
 
    public:
     /**
@@ -35,14 +33,14 @@ class WaveletTransformResults
      * The levels of transformations
      * we have done to the signal
      */
-    unsigned int levelsOfTransformation = 0;
+    long levelsOfTransformation = 0;
 
     /**
      * The transformed signal
      */
-    std::vector<long double> transformedSignal;
+    std::vector<double> transformedSignal;
 
-    WaveletTransformResults(unsigned int maxItens = 0);
+    WaveletTransformResults(long maxItems = 0);
 
     /**
      * Extracts the approximation and details from the wavelet transformation
@@ -51,7 +49,7 @@ class WaveletTransformResults
      * @param detailIndex 1 or more: Extracts the corresponding detail
      * @return Whole transformed signal, approximation or details
      */
-    std::vector<long double> getWaveletTransforms(int detailIndex = -1);
+    auto getWaveletTransforms(int detailIndex = -1) -> std::vector<double>;
 
     /**
      * Extracts the values of a wavelet packet transformation
@@ -62,32 +60,32 @@ class WaveletTransformResults
      * @param maxFrequecy
      * @return the requested chunk
      */
-    std::vector<long double> getWaveletPacketTransforms(unsigned int startIndex,
-                                                        unsigned int endIndex,
-                                                        unsigned int maxFrequecy);
+    auto getWaveletPacketTransforms(long startIndex, long endIndex, long maxFrequecy)
+        -> std::vector<double>;
 
     /**
      * Calculate the maximum number of generated
      * parts in a packet wavelet transform
      * @return maximum number of generated parts
      */
-    unsigned int getWaveletPacketAmountOfParts();
+    auto getWaveletPacketAmountOfParts() -> long;
 
     /**
-     * Static version of @getWaveletPacketTransforms(unsigned int partIndex)
+     * Static version of @getWaveletPacketTransforms(long partIndex)
      * Extracts the values of a wavelet packet transformation
      * differently from @getWaveletTransforms it DO NOT returns
      * the details of transformation, otherwise, returns the
      * generated chunks of the transformed signal
      * USE ONLY WITH PACKET WAVELETS!!
      * @param transformedSignal : vector with transformed signal
-     * @param partIndex : A value from 0 up to @getWaveletPacketAmountOfParts
-     * @param levelsOfTransformation : levels of transformation of the signal
+     * @param partIndex : A value from 0 up to
+     * @getWaveletPacketAmountOfParts
+     * @param levelsOfTransformation : levels of transformation of the
+     * signal
      * @return the requested chunk
      */
-    static std::vector<long double> getWaveletPacketTransforms(
-        std::vector<long double> transformedSignal, unsigned int partIndex,
-        unsigned int levelsOfTransformation);
+    static auto getWaveletPacketTransforms(std::vector<double> transformedSignal, long partIndex,
+                                           long levelsOfTransformation) -> std::vector<double>;
 
     /**
      * Static version of @getWaveletPacketAmountOfParts()
@@ -98,7 +96,7 @@ class WaveletTransformResults
      * @param levelsOfTransformation
      * @return maximum number of generated parts
      */
-    static unsigned int getWaveletPacketAmountOfParts(unsigned int levelsOfTransformation);
+    static auto getWaveletPacketAmountOfParts(long _levelsOfTransformation) -> long;
 };
 } // namespace wavelets
 

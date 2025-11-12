@@ -10,9 +10,10 @@
 
 namespace wavelets
 {
-WaveletTransformResults malat(std::vector<long double>& signal,
-                              std::vector<long double>& lowpassfilter, TransformMode mode,
-                              unsigned int level, unsigned int maxItens, bool highPassBranch)
+
+auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter, TransformMode mode,
+           unsigned int level, unsigned int maxItens, bool highPassBranch)
+    -> WaveletTransformResults
 {
     // If maxitems is not informed then get the full signal size
     if (maxItens == 0)
@@ -54,13 +55,13 @@ WaveletTransformResults malat(std::vector<long double>& signal,
     }
 
     // Get the highpass filter based on lowpass filter
-    std::vector<long double> highpassfilter = linearAlgebra::calcOrthogonalVector(lowpassfilter);
+    std::vector<double> highpassfilter = linearAlgebra::calcOrthogonalVector(lowpassfilter);
 
     // Create the storage for the final results with the correct size
     WaveletTransformResults results(maxItens);
 
-    long double lowPassSum = 0;
-    long double highPassSum = 0;
+    double lowPassSum = 0;
+    double highPassSum = 0;
     unsigned int signalIndex = 0;
 
     /*
@@ -181,7 +182,7 @@ WaveletTransformResults malat(std::vector<long double>& signal,
     return results;
 }
 
-int getNextPowerOfTwo(double number)
+auto getNextPowerOfTwo(double number) -> int
 {
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }

@@ -1,4 +1,3 @@
-#include <cmath>
 
 #include "../Types.h"
 #include "../WaveletTransformResults.h"
@@ -40,7 +39,7 @@ TEST(WaveletOperationsTest, TestGetNextPowerOfTwo)
 
 TEST(WaveletOperationsTest, TestMalatRegularTransform)
 {
-    std::vector<long double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    std::vector<double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
     wavelets::init();
     auto haarFilter = wavelets::get("haar");
 
@@ -52,7 +51,7 @@ TEST(WaveletOperationsTest, TestMalatRegularTransform)
 
 TEST(WaveletOperationsTest, TestMalatPacketTransform)
 {
-    std::vector<long double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    std::vector<double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
     wavelets::init();
     auto haarFilter = wavelets::get("haar");
 

@@ -45,20 +45,24 @@ class Wav
     } headers;
 
     // another signal properties
-    int amountOfData;
+    size_t amountOfData;
     int waveResolution;
 
     // signal data
-    std::vector<long double> data;
-    std::vector<long double> dataLeft;
-    std::vector<long double> dataRight;
+    std::vector<double> data;
+    std::vector<double> dataLeft;
+    std::vector<double> dataRight;
 
     // path of file containing the signal
     std::string path;
 
     // callback function (applied on data)
-    void (*callbackFunction)(std::vector<long double>& signal, int& signalLength,
-                             unsigned int samplingRate, std::string path);
+    void (*callbackFunction)(        //
+        std::vector<double>& signal, //
+        size_t& signalLength,        //
+        uint32_t samplingRate,       //
+        std::string path             //
+    );
 
    public:
     /**
@@ -92,7 +96,8 @@ class Wav
      * @param data
      * @param samplingRate
      */
-    void write(const std::string& _path, const std::vector<std::vector<float>>& data, int samplingRate);
+    void write(const std::string& _path, const std::vector<std::vector<float>>& data,
+               int samplingRate);
 
     /**
      * Returns the path of file containing the signal
@@ -104,27 +109,32 @@ class Wav
      * Returns the raw wav data (monolitic wav)
      * @return data
      */
-    [[nodiscard]] auto getData() const -> std::vector<long double>;
+    [[nodiscard]] auto getData() const -> std::vector<double>;
 
     /**
      * Returns the raw wav data (left channel wav)
      * @return data
      */
-    [[nodiscard]] auto getDataLeft() const -> std::vector<long double>;
+    [[nodiscard]] auto getDataLeft() const -> std::vector<double>;
 
     /**
      * Returns the raw wav data (right channel wav)
      * @return data
      */
-    [[nodiscard]] auto getDataRight() const -> std::vector<long double>;
+    [[nodiscard]] auto getDataRight() const -> std::vector<double>;
 
     /**
      * The function witch will manipulate the wav data
      * @param callbackFunction
      */
-    void setCallbackFunction(void (*_callbackFunction)(std::vector<long double>& signal,
-                                                       int& signalLength, unsigned int samplingRate,
-                                                       std::string path));
+    void setCallbackFunction(            //
+        void (*_callbackFunction)(       //
+            std::vector<double>& signal, //
+            size_t& signalLength,        //
+            uint32_t samplingRate,       //
+            std::string path             //
+            )                            // callback function
+    );
 
    private:
     auto convert2of8to1of16(unsigned char lsb, unsigned char msb) -> short;

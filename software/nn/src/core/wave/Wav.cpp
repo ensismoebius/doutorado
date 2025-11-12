@@ -11,11 +11,16 @@
  */
 #include "Wav.h"
 
+#include <cmath>
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
+
+using std::floor;
+using std::pow;
 
 void Wav::process()
 {
@@ -53,11 +58,11 @@ void Wav::read(const std::string& _path)
     this->path = _path;
 
     std::ifstream ifs;
-    ifs.open(_path, std::ios::in | std::ios::binary);
+    ifs.open(path, std::ios::in | std::ios::binary);
 
     if (ifs.rdstate() != 0)
     {
-        throw std::runtime_error("Reading the file " + _path + " failed");
+        throw std::runtime_error("Reading the file " + path + " failed");
     }
 
     // Reads the file headers
@@ -70,12 +75,14 @@ void Wav::read(const std::string& _path)
 
 void Wav::write(const std::string& _path)
 {
+    path = _path;
+
     std::ofstream ofs;
-    ofs.open(_path, std::ios::out | std::ios::binary);
+    ofs.open(path, std::ios::out | std::ios::binary);
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << _path;
+        std::cout << "Cannot open file: " << path;
         throw std::runtime_error("Impossible to open the file!");
         return;
     }
@@ -107,12 +114,14 @@ void Wav::write(const std::string& _path)
 
 void Wav::write(const std::string& _path, const std::vector<float>& inputData, int samplingRate)
 {
+    path = _path;
+
     std::ofstream ofs;
-    ofs.open(_path, std::ios::out | std::ios::binary);
+    ofs.open(path, std::ios::out | std::ios::binary);
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << _path;
+        std::cout << "Cannot open file: " << path;
         throw std::runtime_error("Impossible to open the file!");
     }
 
@@ -134,50 +143,60 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     this->headers.numOfChan = 1;      // Mono
     this->headers.samplingrate = samplingRate;
     this->headers.bitsPerSample = 16;
-    this->headers.bytesPerSec = this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.bytesPerSec =
+        this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.blockAlign = this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.subchunk2ID[0] = 'd';
     this->headers.subchunk2ID[1] = 'a';
     this->headers.subchunk2ID[2] = 't';
     this->headers.subchunk2ID[3] = 'a';
-    this->headers.subchunk2Size = inputData.size() * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.subchunk2Size =
+        inputData.size() * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.chunkSize = 36 + this->headers.subchunk2Size;
 
     this->amountOfData = inputData.size();
     this->waveResolution = 16; // Fixed to 16-bit for this method
 
-    // Convert float data to long double and store in this->data
+    // Calculate maximum amplitude for the audio format
+    const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+
+    // Convert float data to double and store in this->data
     this->data.resize(inputData.size());
     for (size_t i = 0; i < inputData.size(); ++i)
     {
         // Scale float (-1.0 to 1.0) to short (-32768 to 32767)
-        this->data[i] = static_cast<long double>(inputData[i] * 32767.0f);
+        this->data[i] = static_cast<double>(inputData[i] * maxAmplitude);
     }
 
     ofs.close();
 }
 
-void Wav::write(const std::string& _path, const std::vector<std::vector<float>>& inputData, int samplingRate)
+void Wav::write(const std::string& _path, const std::vector<std::vector<float>>& inputData,
+                int samplingRate)
 {
+    path = _path;
+
     std::ofstream ofs;
-    ofs.open(_path, std::ios::out | std::ios::binary);
+    ofs.open(path, std::ios::out | std::ios::binary);
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << _path;
+        std::cout << "Cannot open file: " << path;
         throw std::runtime_error("Impossible to open the file!");
     }
 
-    int numOfChannels = inputData.size();
+    size_t numOfChannels = inputData.size();
     if (numOfChannels == 0)
     {
         throw std::runtime_error("Input data vector is empty.");
     }
-    int numSamples = inputData[0].size();
+    size_t numSamples = inputData[0].size();
 
     if (numOfChannels != 1 && numOfChannels != 2)
     {
-        throw std::runtime_error("Only mono (1 channel) or stereo (2 channels) are supported for std::vector<std::vector<float>> input.");
+        throw std::runtime_error(
+            "Only mono (1 channel) or stereo (2 channels) are supported for "
+            "std::vector<std::vector<float>> input.");
     }
 
     // Set WAV headers for 16-bit PCM
@@ -198,24 +217,29 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     this->headers.numOfChan = numOfChannels;
     this->headers.samplingrate = samplingRate;
     this->headers.bitsPerSample = 16;
-    this->headers.bytesPerSec = this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.bytesPerSec =
+        this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.blockAlign = this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.subchunk2ID[0] = 'd';
     this->headers.subchunk2ID[1] = 'a';
     this->headers.subchunk2ID[2] = 't';
     this->headers.subchunk2ID[3] = 'a';
-    this->headers.subchunk2Size = numSamples * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.subchunk2Size =
+        numSamples * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
     this->headers.chunkSize = 36 + this->headers.subchunk2Size;
 
     this->amountOfData = numSamples;
     this->waveResolution = 16; // Fixed to 16-bit for this method
+
+    // Calculate maximum amplitude for the audio format
+    const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
     if (numOfChannels == 1)
     {
         this->data.resize(numSamples);
         for (int i = 0; i < numSamples; ++i)
         {
-            this->data[i] = static_cast<long double>(inputData[0][i] * 32767.0f);
+            this->data[i] = static_cast<double>(inputData[0][i] * maxAmplitude);
         }
         write16Res1Channel(ofs);
     }
@@ -225,8 +249,8 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
         this->dataRight.resize(numSamples);
         for (int i = 0; i < numSamples; ++i)
         {
-            this->dataLeft[i] = static_cast<long double>(inputData[0][i] * 32767.0f);
-            this->dataRight[i] = static_cast<long double>(inputData[1][i] * 32767.0f);
+            this->dataLeft[i] = static_cast<double>(inputData[0][i] * maxAmplitude);
+            this->dataRight[i] = static_cast<double>(inputData[1][i] * maxAmplitude);
         }
         write16Res2Channel(ofs);
     }
@@ -234,30 +258,34 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     ofs.close();
 }
 
-auto Wav::getData() const -> std::vector<long double>
+auto Wav::getData() const -> std::vector<double>
 {
     return data;
 }
 
-auto Wav::getDataLeft() const -> std::vector<long double>
+auto Wav::getDataLeft() const -> std::vector<double>
 {
     return dataLeft;
 }
 
-auto Wav::getDataRight() const -> std::vector<long double>
+auto Wav::getDataRight() const -> std::vector<double>
 {
     return dataRight;
 }
 
 auto Wav::getPath() const -> std::string
 {
-    return path;
+    return this->path;
 }
 
-void Wav::setCallbackFunction(void (*_callbackFunction)(std::vector<long double>& signal,
-                                                        int& signalLength,
-                                                        unsigned int samplingRate,
-                                                        std::string path))
+void Wav::setCallbackFunction(       //
+    void (*_callbackFunction)(       //
+        std::vector<double>& signal, //
+        size_t& signalLength,        //
+        uint32_t samplingRate,       //
+        std::string path             //
+        )                            // callback function
+)
 {
     this->callbackFunction = _callbackFunction;
 }

@@ -17,18 +17,18 @@
  *
  * @param alpha
  * @param betha
- * @return long double
+ * @return double
  */
-auto calcCertaintyDegree_G1(long double alpha, long double betha) -> long double;
+auto calcCertaintyDegree_G1(double alpha, double betha) -> double;
 
 /**
  * @brief Given the alfa and the betha calculates the contradiction degree
  *
  * @param alpha
  * @param betha
- * @return long double
+ * @return double
  */
-auto calcContradictionDegree_G2(long double alpha, long double betha) -> long double;
+auto calcContradictionDegree_G2(double alpha, double betha) -> double;
 
 /**
  * @brief Calculates the alpha value
@@ -37,12 +37,11 @@ auto calcContradictionDegree_G2(long double alpha, long double betha) -> long do
  * @param featureVectorsPerClass Amount of feature vectors per class
  * @param featureVectorSize Size of the feature vectors
  * @param arrClasses Holds all classes
- * @return long double Value of alpha
+ * @return double Value of alpha
  */
 auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
                     unsigned int featureVectorSize,
-                    std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
-    -> long double;
+                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double;
 
 /**
  * @brief Calculates the beta value
@@ -51,12 +50,11 @@ auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPer
  * @param featureVectorsPerClass Amount of feature vectors per class
  * @param featureVectorSize Size of the feature vectors
  * @param arrClasses Holds all classes
- * @return long double Value of beta
+ * @return double Value of beta
  */
 auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
                    unsigned int featureVectorSize,
-                   std::map<std::string, std::vector<std::vector<long double>>>& arrClasses)
-    -> long double;
+                   std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double;
 
 /**
  * @brief Normalize all feature vectors from all classes
@@ -69,6 +67,6 @@ auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerC
 void normalizeClassesFeatureVectors(
     unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
-    std::map<std::string, std::vector<std::vector<long double>>>& arrClasses);
+    std::map<std::string, std::vector<std::vector<double>>>& arrClasses);
 
 #endif /* LIB_PARACONSISTENT_H_ */

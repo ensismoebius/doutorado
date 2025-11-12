@@ -1,3 +1,5 @@
+#include <filesystem>
+
 #include "../Wav.h"
 #include "../filtersOperations.h"
 #include "../simpleSignalOperations.h"
@@ -20,26 +22,20 @@ TEST(FiltersOperationsTest, TestCreateAlpha)
     EXPECT_LT(alpha, 1.0);
 }
 
-TEST(WavFileTest, TestReadWavFile)
+TEST(WavFileTest, WriteThenRead)
 {
-    // Create a sample WAV file for testing
-    std::string filepath = "test.wav";
-    Wav testWav;
-    std::vector<long double> testData = {0.0, 0.1, 0.2, 0.3};
-    testWav.write(filepath);
+    const std::string filepath = std::filesystem::temp_directory_path().string() + "/output.wav";
+    std::vector<float> data = {0.0F, 0.1F, 0.2F, 0.3F};
 
-    // Test reading the file
-    Wav wavFile;
-    EXPECT_NO_THROW(wavFile.read(filepath));
-    auto data = wavFile.getData();
-    EXPECT_FALSE(data.empty());
-}
+    // write
+    Wav writer;
+    ASSERT_NO_THROW(writer.write(filepath, data, 44100));
+    ASSERT_EQ(writer.getPath(), filepath);
 
-TEST(WavFileTest, TestWriteWavFile)
-{
-    std::string filepath = "output.wav";
-    Wav wavFile;
-    std::vector<long double> data = {0.0, 0.1, 0.2, 0.3};
-    EXPECT_NO_THROW(wavFile.write(filepath));
-    EXPECT_EQ(wavFile.getPath(), filepath);
+    // read
+    Wav reader;
+    ASSERT_NO_THROW(reader.read(filepath));
+    auto readData = reader.getData();
+    ASSERT_FALSE(readData.empty());
+    // optional: compare contents (convert types if needed)
 }

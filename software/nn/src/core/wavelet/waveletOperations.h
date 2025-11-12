@@ -9,6 +9,9 @@
 #ifndef SRC_LIB_WAVELET_WAVELETOPERATIONS_H_
 #define SRC_LIB_WAVELET_WAVELETOPERATIONS_H_
 
+#include <sys/types.h>
+
+#include <cstdint>
 #include <vector>
 
 #include "WaveletTransformResults.h"
@@ -16,34 +19,37 @@
 namespace wavelets
 {
 
-	/**
-	 * Indicates what a kind of wavelet
-	 * transformation that must be done
-	 */
-	enum TransformMode
-	{
-		PACKET_WAVELET, REGULAR_WAVELET
-	};
+/**
+ * Indicates what a kind of wavelet
+ * transformation that must be done
+ */
+enum TransformMode : uint8_t
+{
+    PACKET_WAVELET,
+    REGULAR_WAVELET
+};
 
-	/**
-	 * Applies a wavelets transform over a signal using the Mallat's algorithm
-	 * @param signal - signal to be transformed
-	 * @param lowpassfilter - the wavelet lowpass filter
-	 * @param level - levels of the signal decomposition
-	 * @param maxItens - the signal upper limit to be processed
-	 * @param highPassBranch - true: Do the decomposition in the highpass portion of the signal
-	 * (wavelet packet transform). false: Do a regular wavelet transform
-	 * @param mode - PACKET_WAVELET: wavelet packet, REGULAR_WAVELET: regular wavelet
-	 * @return transformed signal
-	 */
-	WaveletTransformResults malat(std::vector<long double> &signal, std::vector<long double> &lowpassfilter, TransformMode mode = REGULAR_WAVELET, unsigned int level = 1, unsigned int maxItens = 0, bool highPassBranch = false);
+/**
+ * Applies a wavelets transform over a signal using the Mallat's algorithm
+ * @param signal - signal to be transformed
+ * @param lowpassfilter - the wavelet lowpass filter
+ * @param level - levels of the signal decomposition
+ * @param maxItens - the signal upper limit to be processed
+ * @param highPassBranch - true: Do the decomposition in the highpass portion of the signal
+ * (wavelet packet transform). false: Do a regular wavelet transform
+ * @param mode - PACKET_WAVELET: wavelet packet, REGULAR_WAVELET: regular wavelet
+ * @return transformed signal
+ */
+auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter,
+           TransformMode mode = REGULAR_WAVELET, unsigned int level = 1, unsigned int maxItens = 0,
+           bool highPassBranch = false) -> WaveletTransformResults;
 
-	/**
-	 * Return the next power of two based number
-	 * @param number - The reference number
-	 * @return - Next power of two
-	 */
-	int getNextPowerOfTwo(double number);
-}
+/**
+ * Return the next power of two based number
+ * @param number - The reference number
+ * @return - Next power of two
+ */
+auto getNextPowerOfTwo(double number) -> int;
+} // namespace wavelets
 
 #endif /* SRC_LIB_WAVELET_WAVELETOPERATIONS_H_ */
