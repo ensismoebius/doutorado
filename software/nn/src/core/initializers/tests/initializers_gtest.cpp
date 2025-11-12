@@ -2,10 +2,10 @@
 
 #include <Eigen/Dense>
 
-#include "kaiming_snn.hpp"
-#include "../layers/Linear.hpp"
-#include "../tensor/Tensor.hpp"
-#include "xavier.hpp"
+#include "core/initializers/kaiming_snn.hpp"
+#include "core/layers/Linear.hpp"
+#include "core/tensor/Tensor.hpp"
+#include "core/initializers/xavier.hpp"
 
 // Initializer: kaiming_snn
 TEST(InitializerTest, KaimingSNN)

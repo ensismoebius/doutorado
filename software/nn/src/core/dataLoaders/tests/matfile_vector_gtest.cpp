@@ -2,7 +2,9 @@
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>
 
-#include "dataLoaders/MatFileUtils.h"
+#include <filesystem>
+
+#include "core/dataLoaders/MatFileUtils.h"
 
 using namespace matioCpp;
 

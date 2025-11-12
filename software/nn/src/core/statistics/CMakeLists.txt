@@ -11,7 +11,7 @@ target_include_directories(statistics
 )
 
 add_executable(statistics_gtest 
-    statistics_gtest.cpp
+    tests/statistics_gtest.cpp
 )
 
 target_link_libraries(statistics_gtest
@@ -22,7 +22,7 @@ target_link_libraries(statistics_gtest
 )
 
 add_executable(confusionMatrix_gtest 
-    confusionMatrix_gtest.cpp
+    tests/confusionMatrix_gtest.cpp
 )
 
 target_link_libraries(confusionMatrix_gtest

@@ -1,4 +1,4 @@
-add_executable(optimizers_gtest optimizers_gtest.cpp Adam.hpp SGD.hpp
+add_executable(optimizers_gtest tests/optimizers_gtest.cpp Adam.hpp SGD.hpp
                                 ../tensor/Tensor.hpp)
 target_link_libraries(optimizers_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
 target_include_directories(optimizers_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src

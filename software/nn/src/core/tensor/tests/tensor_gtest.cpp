@@ -2,7 +2,7 @@
 
 #include <Eigen/Dense>
 
-#include "Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 
 TEST(TensorTest, ConstructionAndAssignment)
 {

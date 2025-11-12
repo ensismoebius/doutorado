@@ -2,8 +2,8 @@
 # Add util_gtest
 add_executable(
     util_gtest 
-    util_gtest.cpp 
-    NetworkSerializer_gtest.cpp
+    tests/util_gtest.cpp 
+    tests/NetworkSerializer_gtest.cpp
     batching.cpp 
     vectorizationCheck.cpp 
     synthetic_spike_data.cpp

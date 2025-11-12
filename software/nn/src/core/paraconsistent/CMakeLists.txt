@@ -16,7 +16,7 @@ target_link_libraries(paraconsistent
 )
 
 add_executable(paraconsistent_gtest
-    paraconsistent_gtest.cpp
+    tests/paraconsistent_gtest.cpp
 )
 
 target_link_libraries(paraconsistent_gtest

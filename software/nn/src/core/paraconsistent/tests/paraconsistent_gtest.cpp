@@ -5,7 +5,7 @@
 #include <map>
 #include <vector>
 
-#include "paraconsistent.h"
+#include "core/paraconsistent/paraconsistent.h"
 
 unsigned int amountOfClasses;
 unsigned int featureVectorSize;

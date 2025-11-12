@@ -2,10 +2,10 @@
 
 #include <Eigen/Dense>
 
-#include "../tensor/Tensor.hpp"
-#include "batching.hpp"
-#include "synthetic_spike_data.hpp"
-#include "vectorizationCheck.hpp"
+#include "core/tensor/Tensor.hpp"
+#include "util/batching.hpp"
+#include "util/synthetic_spike_data.hpp"
+#include "util/vectorizationCheck.hpp"
 
 // Util: synthetic_spike_data
 TEST(UtilTest, SyntheticSpikeData)

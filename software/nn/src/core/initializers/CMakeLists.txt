@@ -1,4 +1,4 @@
-add_executable(initializers_gtest initializers_gtest.cpp kaiming_snn.hpp
+add_executable(initializers_gtest tests/initializers_gtest.cpp kaiming_snn.hpp
                                   xavier.hpp ../tensor/Tensor.hpp)
 target_link_libraries(initializers_gtest PRIVATE GTest::gtest_main
                                                  Eigen3::Eigen)

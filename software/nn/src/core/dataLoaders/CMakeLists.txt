@@ -9,6 +9,9 @@ add_executable(dataLoaders_gtest
 	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/DataLoader.cpp
 	tests/mat_file_dataset_gtest.cpp
 	tests/audio_loader_gtest.cpp
+	tests/matfile_vector_gtest.cpp
+	tests/matfile_row_vector_gtest.cpp
+	tests/mat_file_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/AudioLoader.cpp
     ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/EEGLoader.cpp
     tests/eeg_loader_gtest.cpp

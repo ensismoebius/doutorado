@@ -2,10 +2,10 @@
 
 #include <Eigen/Dense>
 
-#include "../tensor/Tensor.hpp"
-#include "Adam.hpp"
-#include "SGD.hpp"
-#include "SGDMinimal.hpp"
+#include "core/tensor/Tensor.hpp"
+#include "core/optimizers/Adam.hpp"
+#include "core/optimizers/SGD.hpp"
+#include "core/optimizers/SGDMinimal.hpp"
 
 TEST(SGDMinimalOptimizerTest, StepAndZeroGrad)
 {
