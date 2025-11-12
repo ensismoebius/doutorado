@@ -1,9 +1,0 @@
-Checks: >
-  clang-analyzer-*,modernize-*,performance-*,readability-*,cppcoreguidelines-*,misc-*,portability-*
-WarningsAsErrors: '*'
-HeaderFilterRegex: '.*'
-FormatStyle: file
-CheckOptions:
-  - key:             modernize-use-nullptr.NullMacros
-    value:           'NULL'
-
