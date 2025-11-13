@@ -112,6 +112,13 @@ struct Leaky : public Module
      */
     auto forward(const Tensor& input) -> Tensor override
     {
+        // Ensure v_mem is correctly sized, initializing if necessary
+        if (v_mem.rows() != input.data.rows() || v_mem.cols() != input.data.cols())
+        {
+            v_mem.resize(input.data.rows(), input.data.cols());
+            v_mem.setZero();
+        }
+
         // Initialize output tensor
         Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
 

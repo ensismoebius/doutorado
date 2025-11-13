@@ -15,11 +15,29 @@ struct LeakyReLU : public Module
 
     auto forward(const Tensor& input) -> Tensor override
     {
-        // Guarda o gradiente da entrada atual para usar na fase de backward
-        leaky_grad = (input.data.array() > 0).cast<float>() +
-                     (input.data.array() <= 0).cast<float>() * alpha;
-        // Calcula a ativação
-        Eigen::MatrixXf activated = input.data.array().max(0) + (input.data.array().min(0) * alpha);
+        // Cache the gradient for the backward pass
+        leaky_grad =
+            (input.data.array() > 0)       // For each element, check if it's greater than 0
+                .select(                   // Select values based on the condition
+                    Eigen::MatrixXf::Ones( // If the element is greater than 0, the gradient is 1
+                        input.data.rows(), //
+                        input.data.cols()  //
+                        ),                 //
+                    Eigen::MatrixXf::Constant( // Otherwise, the gradient is alpha
+                        input.data.rows(),     //
+                        input.data.cols(),     //
+                        alpha                  //
+                        )                      //
+                );
+
+        // Apply the LeakyReLU activation function
+        Eigen::MatrixXf activated =
+            (input.data.array() > 0) // For each element, check if it's greater than 0
+                .select(             // Select values based on the condition
+                    input.data,      // If the element is greater than 0, it remains unchanged
+                    input.data.array() * alpha // Otherwise, it's scaled by alpha
+                );
+
         return {activated};
     }
 

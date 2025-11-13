@@ -21,3 +21,4 @@
 src/.vscode/c_cpp_properties.json
 *build*
 CMakeLists.txt.user
+programs.txt

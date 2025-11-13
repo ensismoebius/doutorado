@@ -25,6 +25,9 @@ class MSELoss : public Module
     // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
     auto forward(const Tensor& prediction) -> Tensor override
     {
+        // Cache the prediction for the backward pass
+        last_input = prediction;
+
         // Use last_target set by set_target
         Eigen::MatrixXf diff = prediction.data - last_target.data;
 
@@ -63,10 +66,10 @@ class MSELoss : public Module
     }
 
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
-    auto backward(const Tensor& prediction) -> Tensor override
+    auto backward(const Tensor& /* prediction */) -> Tensor override
     {
         Eigen::MatrixXf grad =
-            MSE_GRADIENT_FACTOR * (prediction.data - last_target.data) / prediction.data.size();
+            MSE_GRADIENT_FACTOR * (last_input.data - last_target.data) / last_input.data.size();
 
         // Check for invalid gradients
         if (!grad.allFinite())

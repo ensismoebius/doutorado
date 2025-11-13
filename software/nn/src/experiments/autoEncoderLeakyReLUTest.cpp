@@ -121,7 +121,6 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     auto encoder_act6 = make_shared<LeakyReLU>(0.01F);
 
     // Decoder layers
-    // Decoder layers
 
     auto decoder1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
     auto decoder_act1 = make_shared<LeakyReLU>(0.01F);
