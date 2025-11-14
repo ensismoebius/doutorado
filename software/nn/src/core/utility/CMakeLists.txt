@@ -1,9 +1,8 @@
-add_library(utility STATIC
-    comparison.cpp
+add_library(
+    utility INTERFACE
 )
 
-set_property(TARGET utility PROPERTY POSITION_INDEPENDENT_CODE ON)
-
-target_include_directories(utility
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+target_include_directories(
+    utility
+    INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 )

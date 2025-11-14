@@ -14,7 +14,7 @@ add_executable(mainProject
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/util/NnSaver.hpp
+    ${SRC_DIR}/core/NnSaver.hpp
     ${SRC_DIR}/core/dataLoaders/MatFileUtils.cpp
     ${SRC_DIR}/main_app/main.cpp
 )

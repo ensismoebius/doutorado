@@ -31,7 +31,7 @@ add_executable(plotSpikingNetwork
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/util/NnSaver.hpp
+    ${SRC_DIR}/core/NnSaver.hpp
     ${IMGUI_SOURCES}
     ${IMPLOT_SOURCES}
     ${SRC_DIR}/util/imguiGlfw.cpp

@@ -10,7 +10,7 @@
 #include "core/layers/Module.hpp"
 
 #ifdef DEBUG
-#include "util/printTensor.hpp"
+#include "core/utility/printTensor.hpp"
 #endif
 
 /**

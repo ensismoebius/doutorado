@@ -22,6 +22,7 @@ add_executable(paraconsistent_gtest
 target_link_libraries(paraconsistent_gtest
     PRIVATE
         paraconsistent
+        utility
         GTest::gtest_main
 )
 

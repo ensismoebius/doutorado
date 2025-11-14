@@ -1,14 +1,10 @@
-
-# Add util_gtest
 add_executable(
-    util_gtest 
-    tests/util_gtest.cpp 
-    batching.cpp 
-    vectorizationCheck.cpp 
-    synthetic_spike_data.cpp
+    core_gtest
+    tests/NetworkSerializer_gtest.cpp
 )
+
 target_link_libraries(
-    util_gtest 
+    core_gtest
     PRIVATE GTest::gtest_main Eigen3::Eigen
     cnpy-static
     z
@@ -18,9 +14,9 @@ target_link_libraries(
 )
 
 target_include_directories(
-    util_gtest 
+    core_gtest
     PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/core/tensor ${EIGEN3_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/lib/cnpy
 )
 
 include(GoogleTest)
-gtest_discover_tests(util_gtest)
+gtest_discover_tests(core_gtest)

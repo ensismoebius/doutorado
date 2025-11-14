@@ -6,7 +6,7 @@ add_executable(autoEncoderLeakyReLUAndSpikeTest
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/util/NnSaver.hpp
+    ${SRC_DIR}/core/NnSaver.hpp
     ${SRC_DIR}/experiments/autoEncoderLeakyReLUAndSpikeTest.cpp
 )
 
@@ -40,7 +40,7 @@ add_executable(autoEncoderLeakyReLUTest
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/util/NnSaver.hpp
+    ${SRC_DIR}/core/NnSaver.hpp
     ${SRC_DIR}/experiments/autoEncoderLeakyReLUTest.cpp
 )
 
