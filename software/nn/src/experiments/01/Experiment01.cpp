@@ -1,5 +1,5 @@
-#include <iostream>
 #include <filesystem> // Include for path manipulation
+#include <iostream>
 
 #include "core/dataLoaders/AudioLoader.h"
 #include "core/dataLoaders/EEGLoader.h"
@@ -28,12 +28,12 @@ static void perform(const std::string& inputAudioFilePath)
     std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(), audioSamplesVec.end());
 
     Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
-    
+
     std::filesystem::path inputPath(inputAudioFilePath);
     std::string outputFilename = inputPath.stem().string() + "_Output.wav";
     std::string outputWavPath = (inputPath.parent_path() / outputFilename).string();
-    
-    w.write(outputWavPath);
+
+    w.write(outputWavPath, audioSamplesVec, 44100);
 
     // Use audioSamples, audioStimulus, and eegIndex as needed
     (void) audioSamples;
@@ -65,8 +65,8 @@ auto main(int argc, char** argv) -> int
     // Experiment 01 code goes here
     std::string audioFilePath =
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
-        "databases/BaseDeDatosHablaImaginada/S01/"
-        "S01_Audio.mat";
+        "databases/BaseDeDatosHablaImaginada/S02/"
+        "S02_Audio.mat";
     perform(audioFilePath);
     return 0;
 }
