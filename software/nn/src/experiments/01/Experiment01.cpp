@@ -33,6 +33,12 @@ static void perform(const std::string& inputAudioFilePath)
     std::string outputFilename = inputPath.stem().string() + "_Output.wav";
     std::string outputWavPath = (inputPath.parent_path() / outputFilename).string();
 
+    // TODO: There is a BUG in Wav::write because, when I instantiate like this: Wav w(44100, 16, 1,
+    // audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size()); and then call
+    // w.write(outputWavPath); it generates a corrupted wav file. But if I instantiate Wav w; and
+    // then call w.write(outputWavPath, audioSamplesVec, 44100); it works fine. Need to investigate
+    // this later.
+
     w.write(outputWavPath, audioSamplesVec, 44100);
 
     // Use audioSamples, audioStimulus, and eegIndex as needed

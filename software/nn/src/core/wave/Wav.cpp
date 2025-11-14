@@ -207,9 +207,9 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
     // Convert float data to short and write to file
-    for (size_t i = 0; i < inputData.size(); ++i)
+    for (float i : inputData)
     {
-        short sample = static_cast<short>(inputData[i] * maxAmplitude);
+        auto sample = static_cast<short>(i * maxAmplitude);
         ofs.write((char*) (&sample), sizeof(sample));
     }
 
@@ -286,7 +286,7 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
-            short sample = static_cast<short>(inputData[0][i] * maxAmplitude);
+            auto sample = static_cast<short>(inputData[0][i] * maxAmplitude);
             ofs.write((char*) (&sample), sizeof(sample));
         }
     }
@@ -567,5 +567,3 @@ void Wav::resetMetaData()
     this->headers.subchunk2ID[3] = '\0';
     this->headers.subchunk2Size = 0;
 }
-
-
