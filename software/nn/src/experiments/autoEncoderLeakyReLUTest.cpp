@@ -6,6 +6,7 @@
 #include <limits>
 #include <tuple>
 
+#include "core/NetworkSerializer.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/LeakyReLU.hpp"
 #include "core/layers/Linear.hpp"
@@ -14,7 +15,6 @@
 #include "core/optimizers/Adam.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
-#include "core/NetworkSerializer.hpp"
 #include "util/batching.hpp"
 #include "util/synthetic_spike_data.hpp"
 #include "util/vectorizationCheck.hpp"

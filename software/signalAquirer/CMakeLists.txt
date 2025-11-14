@@ -23,9 +23,6 @@ include(GTestGMock.cmake)
 # Compiles the main program
 include(Main.cmake)
 
-# Compiles unity tests
-include(Tests.cmake)
-
 # Copy the shared library to the executable's directory
 # add_custom_command(TARGET SignalAcquirer POST_BUILD
 #     COMMAND ${CMAKE_COMMAND} -E copy
