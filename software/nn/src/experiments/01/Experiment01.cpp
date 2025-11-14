@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem> // Include for path manipulation
 
 #include "core/dataLoaders/AudioLoader.h"
 #include "core/dataLoaders/EEGLoader.h"
@@ -14,14 +15,10 @@ static void init()
     // Initialization code goes here
 }
 
-static void perform()
+static void perform(const std::string& inputAudioFilePath)
 {
     // Experiment 01 perform code goes here
-    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(
-        "/home/ensismoebius/Documentos/UNESP/doutorado/"
-        "databases/BaseDeDatosHablaImaginada/S01/"
-        "S01_Audio.mat",
-        0);
+    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(inputAudioFilePath, 0);
 
     // Convert eigen matrix to vector
     std::vector<float> audioSamplesVec(audioSamples.data(),
@@ -31,6 +28,12 @@ static void perform()
     std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(), audioSamplesVec.end());
 
     Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
+    
+    std::filesystem::path inputPath(inputAudioFilePath);
+    std::string outputFilename = inputPath.stem().string() + "_Output.wav";
+    std::string outputWavPath = (inputPath.parent_path() / outputFilename).string();
+    
+    w.write(outputWavPath);
 
     // Use audioSamples, audioStimulus, and eegIndex as needed
     (void) audioSamples;
@@ -60,6 +63,10 @@ auto main(int argc, char** argv) -> int
 {
     init();
     // Experiment 01 code goes here
-    perform();
+    std::string audioFilePath =
+        "/home/ensismoebius/Documentos/UNESP/doutorado/"
+        "databases/BaseDeDatosHablaImaginada/S01/"
+        "S01_Audio.mat";
+    perform(audioFilePath);
     return 0;
 }
