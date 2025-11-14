@@ -1,5 +1,6 @@
 add_library(
-    utility INTERFACE
+    utility STATIC
+    comparison.cpp
 )
 
 target_include_directories(
