@@ -3,6 +3,7 @@
 #include "core/dataLoaders/AudioLoader.h"
 #include "core/dataLoaders/EEGLoader.h"
 #include "core/dataLoaders/MatFileFlags.h" // Include the new header
+#include "core/wave/Wav.h"
 
 using std::cout;
 using namespace MatFileFlags;
@@ -21,6 +22,15 @@ static void perform()
         "databases/BaseDeDatosHablaImaginada/S01/"
         "S01_Audio.mat",
         0);
+
+    // Convert eigen matrix to vector
+    std::vector<float> audioSamplesVec(audioSamples.data(),
+                                       audioSamples.data() + audioSamples.size());
+
+    // Convert float vector to double vector
+    std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(), audioSamplesVec.end());
+
+    Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
 
     // Use audioSamples, audioStimulus, and eegIndex as needed
     (void) audioSamples;

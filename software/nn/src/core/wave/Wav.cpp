@@ -22,6 +22,49 @@
 using std::floor;
 using std::pow;
 
+Wav::Wav()
+{
+    resetMetaData();
+}
+
+Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
+         size_t audioDataSize)
+{
+    // Initialize headers
+    this->headers.RIFF[0] = 'R';
+    this->headers.RIFF[1] = 'I';
+    this->headers.RIFF[2] = 'F';
+    this->headers.RIFF[3] = 'F';
+    this->headers.WAVE[0] = 'W';
+    this->headers.WAVE[1] = 'A';
+    this->headers.WAVE[2] = 'V';
+    this->headers.WAVE[3] = 'E';
+    this->headers.fmt[0] = 'f';
+    this->headers.fmt[1] = 'm';
+    this->headers.fmt[2] = 't';
+    this->headers.fmt[3] = ' ';
+    this->headers.subchunk1Size = 16; // PCM
+    this->headers.audioFormat = 1;    // PCM
+    this->headers.numOfChan = numOfChan;
+    this->headers.samplingrate = samplingRate;
+    this->headers.bitsPerSample = bitsPerSample;
+    this->headers.bytesPerSec =
+        this->headers.samplingrate * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.blockAlign = this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.subchunk2ID[0] = 'd';
+    this->headers.subchunk2ID[1] = 'a';
+    this->headers.subchunk2ID[2] = 't';
+    this->headers.subchunk2ID[3] = 'a';
+    this->headers.subchunk2Size =
+        audioDataSize * this->headers.numOfChan * (this->headers.bitsPerSample / 8);
+    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
+
+    // Copy audio data
+    this->data.assign(audioData, audioData + audioDataSize);
+    this->amountOfData = audioDataSize;
+    this->waveResolution = bitsPerSample;
+}
+
 void Wav::process()
 {
     if (callbackFunction == nullptr)

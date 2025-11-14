@@ -67,6 +67,9 @@ class Wav
     );
 
    public:
+    Wav(); // Default constructor
+    Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
+        size_t audioDataSize);
     /**
      * Process the data
      */

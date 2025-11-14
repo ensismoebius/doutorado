@@ -17,6 +17,7 @@ add_executable(exec_Experiment01
     ${SRC_DIR}/core/NnSaver.hpp
     ${SRC_DIR}/core/dataLoaders/AudioLoader.cpp
     ${SRC_DIR}/core/dataLoaders/EEGLoader.cpp
+    ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/experiments/01/Experiment01.cpp
 )
 
