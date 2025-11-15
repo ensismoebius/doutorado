@@ -46,6 +46,14 @@ class Wav
     } headers;
 #pragma pack(pop)
 
+    enum WaveFormatKey
+    {
+        Format8BitMono = 81,
+        Format8BitStereo = 82,
+        Format16BitMono = 161,
+        Format16BitStereo = 162
+    };
+
     // another signal properties
     size_t amountOfData;
     int waveResolution;

@@ -45,19 +45,19 @@ void Wav::process()
         return;
     }
 
-    int resPlusCha = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
-    switch (resPlusCha)
+    switch (formatKey)
     {
-        case 82:
-        case 162:
+        case Format8BitStereo:
+        case Format16BitStereo:
             (*callbackFunction)(
                 this->dataLeft, amountOfData, this->headers.samplingrate, this->path);
             (*callbackFunction)(
                 this->dataRight, amountOfData, this->headers.samplingrate, this->path);
             break;
-        case 81:
-        case 161:
+        case Format8BitMono:
+        case Format16BitMono:
             (*callbackFunction)(this->data, amountOfData, this->headers.samplingrate, this->path);
             break;
         default:
@@ -103,20 +103,20 @@ void Wav::write(const std::string& _path)
         return;
     }
 
-    int resPlusCha = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
-    switch (resPlusCha)
+    switch (formatKey)
     {
-        case 81:
+        case Format8BitMono:
             write8BitMono(ofs);
             break;
-        case 82:
+        case Format8BitStereo:
             write8BitStereo(ofs);
             break;
-        case 161:
+        case Format16BitMono:
             write16BitMono(ofs);
             break;
-        case 162:
+        case Format16BitStereo:
             write16BitStereo(ofs);
             break;
         default:
@@ -260,20 +260,20 @@ void Wav::setCallbackFunction(       //
 
 void Wav::readWaveData(std::ifstream& ifs)
 {
-    int resPlusCha = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
-    switch (resPlusCha)
+    switch (formatKey)
     {
-        case 81:
+        case Format8BitMono:
             read8BitMono(ifs);
             break;
-        case 82:
+        case Format8BitStereo:
             read8BitStereo(ifs);
             break;
-        case 161:
+        case Format16BitMono:
             read16BitMono(ifs);
             break;
-        case 162:
+        case Format16BitStereo:
             read16BitStereo(ifs);
             break;
         default:
