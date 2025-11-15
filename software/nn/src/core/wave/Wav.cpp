@@ -40,11 +40,11 @@ Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, cons
 
 void Wav::process()
 {
-    if (callbackFunction == nullptr)
-    {
-        return;
-    }
-
+    // The format key is a unique identifier created by combining the wave
+    // resolution (e.g., 8 or 16 bits) and the number of channels. Multiplying
+    // the resolution by 10 ensures that a unique value is generated for each
+    // combination, allowing a simple switch statement to handle different audio
+    // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
     int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
     switch (formatKey)
@@ -103,6 +103,11 @@ void Wav::write(const std::string& _path)
         return;
     }
 
+    // The format key is a unique identifier created by combining the wave
+    // resolution (e.g., 8 or 16 bits) and the number of channels. Multiplying
+    // the resolution by 10 ensures that a unique value is generated for each
+    // combination, allowing a simple switch statement to handle different audio
+    // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
     int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
     switch (formatKey)
@@ -260,6 +265,11 @@ void Wav::setCallbackFunction(       //
 
 void Wav::readWaveData(std::ifstream& ifs)
 {
+    // The format key is a unique identifier created by combining the wave
+    // resolution (e.g., 8 or 16 bits) and the number of channels. Multiplying
+    // the resolution by 10 ensures that a unique value is generated for each
+    // combination, allowing a simple switch statement to handle different audio
+    // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
     int formatKey = (waveResolution * 10) + this->headers.numOfChan;
 
     switch (formatKey)

@@ -46,7 +46,7 @@ class Wav
     } headers;
 #pragma pack(pop)
 
-    enum WaveFormatKey
+    enum WaveFormatKey : std::uint8_t
     {
         Format8BitMono = 81,
         Format8BitStereo = 82,
