@@ -273,15 +273,27 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
 ## 7.1 Expected Schema for `EEG` and `Audio` (According to Your Original Dataset)
 
-- `EEG`: `N_rows x 24579`
+- **`Sxx_EEG.mat`**: `N_rows x 24579`
 
-  - 24576 samples (6 channels × 4096 samples = 4 s @ 1024 Hz) + 3 labels (modality, stimulus, artifact).
-  - `EEG(row, 1:24576)` → raw EEG samples; `EEG(row, 24577)` = modality; `24578` = stimulus; `24579` = artifact.
+  - Each row contains 6 concatenated EEG channels plus 3 labels.
+  - **EEG Data**: 24,576 samples (6 channels × 4096 samples = 4s @ 1024 Hz).
+    - `F3`: Samples 1-4096
+    - `F4`: Samples 4097-8192
+    - `C3`: Samples 8193-12288
+    - `C4`: Samples 12289-16384
+    - `P3`: Samples 16385-20480
+    - `P4`: Samples 20481-24576
+  - **Labels**:
+    - **Modality** (column 24577): `1` (Imagined), `2` (Pronounced).
+    - **Stimulus** (column 24578): `1-5` (A, E, I, O, U), `6` (Arriba), `7` (Abajo), `8` (Adelante), `9` (Atrás), `10` (Derecha), `11` (Izquierda).
+    - **Artifacts** (column 24579): `1` (No artifacts), `2` (Blink present).
 
-- `Audio`: `M_rows x 176402`
-
-  - 176400 samples (4 s @ 44100 Hz) + 2 labels (stimulus, EEG_index).
-  - `Audio(row, 1:176400)` → mono audio; `Audio(row, 176401)` = stimulus; `176402` = EEG_index (synchronized EEG row).
+- **`Sxx_Audio.mat`**: `M_rows x 176402`
+  - Each row contains a mono audio signal plus 2 labels.
+  - **Audio Data**: 176,400 samples (4s @ 44.1 kHz).
+  - **Labels**:
+    - **Stimulus** (column 176401): Uses the same encoding as the EEG stimulus label.
+    - **EEG Index** (column 176402): The corresponding row index in the `Sxx_EEG.mat` file for synchronization.
 
 ## 7.2 MatFile Reader Expectations
 

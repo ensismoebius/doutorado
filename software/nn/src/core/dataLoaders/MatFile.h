@@ -1,18 +1,23 @@
 #pragma once
 
-#include <string>
-#include <vector>
-#include <memory>
 #include <matio.h>
 
-class MatFile {
-public:
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+class MatFile
+{
+   public:
     MatFile(const std::string& filename);
     ~MatFile();
 
-    std::vector<std::string> getVariableNames();
-    matvar_t* readVariable(const std::string& varName);
+    auto getVariableNames() -> std::vector<std::string>;
+    auto readVariable(const std::string& varName) -> matvar_t*;
+    auto readFirstNumericVariable()
+        -> std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>>;
 
-private:
+   private:
     mat_t* matfp_ = nullptr;
 };

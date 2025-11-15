@@ -1,13 +1,14 @@
 #include <filesystem> // Include for path manipulation
 #include <iostream>
+#include <string>
 
 #include "core/dataLoaders/AudioLoader.h"
 #include "core/dataLoaders/EEGLoader.h"
-#include "core/dataLoaders/MatFileFlags.h" // Include the new header
+#include "core/dataLoaders/MatFile.h"
 #include "core/wave/Wav.h"
 
 using std::cout;
-using namespace MatFileFlags;
+
 using namespace nn::dataLoaders;
 
 static void init()
@@ -15,59 +16,84 @@ static void init()
     // Initialization code goes here
 }
 
-static void perform(const std::string& inputAudioFilePath)
+static void perform(const std::string& basePath)
 {
-    // Experiment 01 perform code goes here
-    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(inputAudioFilePath, 0);
+    for (const auto& entry : std::filesystem::directory_iterator(basePath))
+    {
+        if (entry.is_directory())
+        {
+            std::string subjectPath = entry.path().string();
+            std::string subjectName = entry.path().filename().string();
+            std::string audioFilePath = subjectPath + "/" + subjectName + "_Audio.mat";
+            std::string eegFilePath = subjectPath + "/" + subjectName + "_EEG.mat";
 
-    // Convert eigen matrix to vector
-    std::vector<float> audioSamplesVec(audioSamples.data(),
-                                       audioSamples.data() + audioSamples.size());
+            if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
+            {
+                cout << "Processing subject: " << subjectName << '\n';
 
-    // Convert float vector to double vector
-    std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(), audioSamplesVec.end());
+                auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
 
-    Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
+                // The eegIndex from the audio file is 1-based, so we subtract 1 for 0-based
+                // indexing
+                long eegRowIndex = static_cast<long>(eegIndex) - 1;
 
-    std::filesystem::path inputPath(inputAudioFilePath);
-    std::string outputFilename = inputPath.stem().string() + "_Output.wav";
-    std::string outputWavPath = (inputPath.parent_path() / outputFilename).string();
+                auto [eegSamplesMatrix, eegInfo] = loadEEGFromMat(eegFilePath, eegRowIndex);
 
-    // w.write(outputWavPath, audioSamplesVec, 44100);
-    w.write(outputWavPath);
+                // Split EEG data into channels
+                constexpr int numChannels = 6;
+                std::vector<Eigen::VectorXf> eegChannels(numChannels);
 
-    // Use audioSamples, audioStimulus, and eegIndex as needed
-    (void) audioSamples;
-    (void) audioStimulus;
-    (void) eegIndex;
-    // For example, print the audio stimulus and EEG index
-    cout << getAudioFlagName(AudioFlag::Stimulus) << ": " << audioStimulus << '\n';
-    cout << getAudioFlagName(AudioFlag::EEG_Index) << ": " << eegIndex << '\n';
+                for (int j = 0; j < numChannels; ++j)
+                {
+                    eegChannels[j] = eegSamplesMatrix.row(j);
+                }
 
-    auto [eegSamples, eegInfo] = loadEEGFromMat(
-        "/home/ensismoebius/Documentos/UNESP/doutorado/"
-        "databases/BaseDeDatosHablaImaginada/S01/"
-        "S01_EEG.mat",
-        0);
-    // Use eegSamples and eegInfo as needed
-    (void) eegSamples;
-    (void) eegInfo;
-    // For example, print the EEG info from the EEG file
-    cout << "EEG Info from EEG file: " << getEEGFlagName(EEGFlag::Modality) << "="
-         << eegInfo[static_cast<int>(EEGFlag::Modality)] << ", "
-         << getEEGFlagName(EEGFlag::Stimulus) << "=" << eegInfo[static_cast<int>(EEGFlag::Stimulus)]
-         << ", " << getEEGFlagName(EEGFlag::Artifact) << "="
-         << eegInfo[static_cast<int>(EEGFlag::Artifact)] << '\n';
+                // Now you have:
+                // - audioSamples (Eigen::VectorXf)
+                // - eegChannels (std::vector of 6 Eigen::VectorXf)
+                // You can proceed with further processing...
+
+                cout << "  - Loaded Audio Sample linked to EEG Sample " << eegRowIndex << '\n';
+
+                // Example: Write audio to a WAV file
+                std::vector<float> audioSamplesVec(audioSamples.data(),
+                                                   audioSamples.data() + audioSamples.size());
+                std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(),
+                                                          audioSamplesVec.end());
+
+                Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
+                std::filesystem::path subjectDirPath(subjectPath);
+                std::string outputFilename = subjectName + "_AudioSample.wav";
+                std::string outputWavPath = (subjectDirPath / outputFilename).string();
+                w.write(outputWavPath);
+
+                for (int j = 0; j < numChannels; ++j)
+                {
+                    std::vector<double> eegChannelDoubleVec(
+                        eegChannels[j].data(), eegChannels[j].data() + eegChannels[j].size());
+                    Wav eegWav(1024, 16, 1, eegChannelDoubleVec.data(), eegChannelDoubleVec.size());
+                    std::string eegOutputFilename =
+                        subjectName + "_EEG_Channel" + std::to_string(j + 1) + ".wav";
+                    std::string eegOutputWavPath =
+                        (std::filesystem::path(subjectPath) / eegOutputFilename).string();
+                    eegWav.write(eegOutputWavPath);
+                    cout << "  - Wrote EEG Channel " << (j + 1) << " to " << eegOutputWavPath
+                         << '\n';
+                }
+            }
+        }
+    }
 }
 
 auto main(int argc, char** argv) -> int
 {
     init();
-    // Experiment 01 code goes here
-    std::string audioFilePath =
+
+    std::string basePath =
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
-        "databases/BaseDeDatosHablaImaginada/S02/"
-        "S02_Audio.mat";
-    perform(audioFilePath);
+        "databases/BaseDeDatosHablaImaginada/";
+
+    perform(basePath);
+
     return 0;
 }
