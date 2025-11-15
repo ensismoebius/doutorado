@@ -38,36 +38,6 @@ Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, cons
     this->waveResolution = bitsPerSample;
 }
 
-void Wav::initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
-                            size_t numSamples)
-{
-    this->headers.RIFF[0] = 'R';
-    this->headers.RIFF[1] = 'I';
-    this->headers.RIFF[2] = 'F';
-    this->headers.RIFF[3] = 'F';
-    this->headers.WAVE[0] = 'W';
-    this->headers.WAVE[1] = 'A';
-    this->headers.WAVE[2] = 'V';
-    this->headers.WAVE[3] = 'E';
-    this->headers.fmt[0] = 'f';
-    this->headers.fmt[1] = 'm';
-    this->headers.fmt[2] = 't';
-    this->headers.fmt[3] = ' ';
-    this->headers.subchunk1Size = 16; // PCM
-    this->headers.audioFormat = 1;    // PCM
-    this->headers.numOfChan = numOfChan;
-    this->headers.samplingrate = samplingRate;
-    this->headers.bitsPerSample = bitsPerSample;
-    this->headers.bytesPerSec = samplingRate * numOfChan * (bitsPerSample / 8);
-    this->headers.blockAlign = numOfChan * (bitsPerSample / 8);
-    this->headers.subchunk2ID[0] = 'd';
-    this->headers.subchunk2ID[1] = 'a';
-    this->headers.subchunk2ID[2] = 't';
-    this->headers.subchunk2ID[3] = 'a';
-    this->headers.subchunk2Size = numSamples * numOfChan * (bitsPerSample / 8);
-    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
-}
-
 void Wav::process()
 {
     if (callbackFunction == nullptr)
@@ -523,4 +493,34 @@ void Wav::resetMetaData()
     this->headers.subchunk2ID[2] = '\0';
     this->headers.subchunk2ID[3] = '\0';
     this->headers.subchunk2Size = 0;
+}
+
+void Wav::initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
+                            size_t numSamples)
+{
+    this->headers.RIFF[0] = 'R';
+    this->headers.RIFF[1] = 'I';
+    this->headers.RIFF[2] = 'F';
+    this->headers.RIFF[3] = 'F';
+    this->headers.WAVE[0] = 'W';
+    this->headers.WAVE[1] = 'A';
+    this->headers.WAVE[2] = 'V';
+    this->headers.WAVE[3] = 'E';
+    this->headers.fmt[0] = 'f';
+    this->headers.fmt[1] = 'm';
+    this->headers.fmt[2] = 't';
+    this->headers.fmt[3] = ' ';
+    this->headers.subchunk1Size = 16; // PCM
+    this->headers.audioFormat = 1;    // PCM
+    this->headers.numOfChan = numOfChan;
+    this->headers.samplingrate = samplingRate;
+    this->headers.bitsPerSample = bitsPerSample;
+    this->headers.bytesPerSec = samplingRate * numOfChan * (bitsPerSample / 8);
+    this->headers.blockAlign = numOfChan * (bitsPerSample / 8);
+    this->headers.subchunk2ID[0] = 'd';
+    this->headers.subchunk2ID[1] = 'a';
+    this->headers.subchunk2ID[2] = 't';
+    this->headers.subchunk2ID[3] = 'a';
+    this->headers.subchunk2Size = numSamples * numOfChan * (bitsPerSample / 8);
+    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
 }
