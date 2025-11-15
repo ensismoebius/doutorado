@@ -18,6 +18,13 @@
 #include <string>
 #include <vector>
 
+/**
+ * @brief WAV file class for reading, writing, and processing audio data.
+ *  This class provides functionality to read and write WAV files,
+ *  manipulate audio data through callback functions, and manage
+ *  audio metadata such as sample rate, bit depth, and number of channels.
+ *  For now it just supports PCM format.
+ */
 class Wav
 {
    private:
@@ -66,90 +73,128 @@ class Wav
     };
 
     // another signal properties
+    /**
+     * @brief The number of audio samples in the data vectors.
+     */
     size_t amountOfData;
+
+    /**
+     * @brief The resolution of the wave file in bits per sample (e.g., 8 or 16).
+     */
     int waveResolution;
 
     // signal data
+    /**
+     * @brief Vector to store mono audio data as doubles.
+     */
     std::vector<double> data;
+
+    /**
+     * @brief Vector to store the left channel of stereo audio data as doubles.
+     */
     std::vector<double> dataLeft;
+
+    /**
+     * @brief Vector to store the right channel of stereo audio data as doubles.
+     */
     std::vector<double> dataRight;
 
-    // path of file containing the signal
+    /**
+     * @brief The file path for the WAV file being read or written.
+     */
     std::string path;
 
-    // callback function (applied on data)
-    void (*callbackFunction)(        //
-        std::vector<double>& signal, //
-        size_t& signalLength,        //
-        uint32_t samplingRate,       //
-        std::string path             //
-    );
+    /**
+     * @brief Pointer to the callback function for processing audio data.
+     *
+     * This function pointer allows users to set a custom function that will
+     * manipulate the audio data stored in the Wav object. The callback function
+     * should match the specified signature, taking a vector of doubles (the audio
+     * signal), a reference to the signal length, the sampling rate, and the file path.
+     */
+    void (*callbackFunction)(std::vector<double>& signal, size_t& signalLength,
+                             uint32_t samplingRate, std::string path);
 
    public:
-    Wav(); // Default constructor
+    /**
+     * @brief Construct a new Wav object
+     *
+     */
+    Wav();
+
+    /**
+     * @brief Construct a new Wav object
+     *
+     * @param samplingRate
+     * @param bitsPerSample
+     * @param numOfChan
+     * @param audioData
+     * @param audioDataSize
+     */
     Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
         size_t audioDataSize);
+
     /**
-     * Process the data
+     * @brief Process the audio data using the set callback function.
      */
     void process();
 
     /**
-     * Read the wav file
-     * @param path
+     * @brief Read a wav file, extracting its audio data and metadata.
+     * @param path The file path of the wav file to read.
      */
     void read(const std::string& _path);
 
     /**
-     * Write a wav file
-     * @param path
+     * @brief Write a wav file, including its audio data and metadata.
+     * @param path The file path to write the wav file to.
      */
     void write(const std::string& _path);
 
     /**
      * Write a wav file from a vector (mono)
-     * @param path
-     * @param data
-     * @param samplingRate
+     * @param path The file path to write the wav file to.
+     * @param data The audio data to write.
+     * @param samplingRate The sampling rate of the audio data.
      */
     void write(const std::string& _path, const std::vector<float>& data, int samplingRate);
 
     /**
      * Write a wav file from a bi-dimensional vector (multi-channel)
-     * @param path
-     * @param data
-     * @param samplingRate
+     * @param path The file path to write the wav file to.
+     * @param data The audio data to write.
+     * @param samplingRate The sampling rate of the audio data.
      */
     void write(const std::string& _path, const std::vector<std::vector<float>>& data,
                int samplingRate);
 
     /**
-     * Returns the path of file containing the signal
-     * @return path
+     * @brief Returns the path of file containing the signal
+     * @return path The file path of the wav file.
      */
     [[nodiscard]] auto getPath() const -> std::string;
 
     /**
-     * Returns the raw wav data (monolitic wav)
-     * @return data
+     * @brief Returns the raw wav data (monolithic wav)
+     * @return data The raw wav data as a vector of doubles.
      */
     [[nodiscard]] auto getData() const -> std::vector<double>;
 
     /**
-     * Returns the raw wav data (left channel wav)
-     * @return data
+     * @brief Returns the raw wav data (left channel wav)
+     * @return data The raw wav data for the left channel as a vector of doubles.
      */
     [[nodiscard]] auto getDataLeft() const -> std::vector<double>;
 
     /**
-     * Returns the raw wav data (right channel wav)
-     * @return data
+     * @brief Returns the raw wav data (right channel wav)
+     * @return data The raw wav data for the right channel as a vector of doubles.
      */
     [[nodiscard]] auto getDataRight() const -> std::vector<double>;
 
     /**
-     * The function witch will manipulate the wav data
-     * @param callbackFunction
+     * The function which will manipulate the wav data
+     * @param callbackFunction The callback function to set
      */
     void setCallbackFunction(            //
         void (*_callbackFunction)(       //
@@ -186,19 +231,83 @@ class Wav
      */
     static void split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb);
 
+    /**
+     * @brief Initializes the WAV file header with the specified audio properties.
+     * @param samplingRate The sample rate in Hz.
+     * @param bitsPerSample The number of bits per sample.
+     * @param numberOfChannels The number of audio channels (1 for mono, 2 for stereo).
+     * @param numSamples The total number of samples.
+     */
     void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels,
                            size_t numSamples);
+    /**
+     * @brief Reads the audio data from the WAV file based on the format.
+     * @param ifs The input file stream to read from.
+     */
     void readWaveData(std::ifstream& ifs);
+
+    /**
+     * @brief Reads the WAV file headers from the input stream.
+     * @param ifs The input file stream to read from.
+     */
     void readWaveHeaders(std::ifstream& ifs);
+
+    /**
+     * @brief Writes 8-bit mono audio data to the output stream.
+     * @param ofs The output file stream to write to.
+     */
     inline void write8BitMono(std::ofstream& ofs);
+
+    /**
+     * @brief Writes 8-bit stereo audio data to the output stream.
+     * @param ofs The output file stream to write to.
+     */
     inline void write8BitStereo(std::ofstream& ofs);
+
+    /**
+     * @brief Writes 16-bit mono audio data to the output stream.
+     * @param ofs The output file stream to write to.
+     */
     inline void write16BitMono(std::ofstream& ofs);
+
+    /**
+     * @brief Writes 16-bit stereo audio data to the output stream.
+     * @param ofs The output file stream to write to.
+     */
     inline void write16BitStereo(std::ofstream& ofs);
+
+    /**
+     * @brief Reads 8-bit mono audio data from the input stream.
+     * @param ifs The input file stream to read from.
+     */
     inline void read8BitMono(std::ifstream& ifs);
+
+    /**
+     * @brief Reads 8-bit stereo audio data from the input stream.
+     * @param ifs The input file stream to read from.
+     */
     inline void read8BitStereo(std::ifstream& ifs);
+
+    /**
+     * @brief Reads 16-bit mono audio data from the input stream.
+     * @param ifs The input file stream to read from.
+     */
     inline void read16BitMono(std::ifstream& ifs);
+
+    /**
+     * @brief Reads 16-bit stereo audio data from the input stream.
+     * @param ifs The input file stream to read from.
+     */
     inline void read16BitStereo(std::ifstream& ifs);
+
+    /**
+     * @brief Clears all audio data vectors (mono, left, and right channels).
+     */
     void clearVectors();
+
+    /**
+     * @brief Resets all metadata of the Wav object to their default states.
+     */
     void resetMetaData();
 };
 #endif /* SRC_LIB_WAV_H_ */
