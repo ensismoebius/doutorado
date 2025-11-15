@@ -51,10 +51,8 @@ void Wav::process()
     {
         case Format8BitStereo:
         case Format16BitStereo:
-            (*callbackFunction)(
-                this->dataLeft, amountOfData, this->header.sampleRate, this->path);
-            (*callbackFunction)(
-                this->dataRight, amountOfData, this->header.sampleRate, this->path);
+            (*callbackFunction)(this->dataLeft, amountOfData, this->header.sampleRate, this->path);
+            (*callbackFunction)(this->dataRight, amountOfData, this->header.sampleRate, this->path);
             break;
         case Format8BitMono:
         case Format16BitMono:
@@ -198,8 +196,8 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     }
 
     const uint16_t bitsPerSample = 16;
-    initializeHeaders(samplingRate, bitsPerSample, static_cast<uint16_t>(numberOfChannels),
-                      numSamples);
+    initializeHeaders(
+        samplingRate, bitsPerSample, static_cast<uint16_t>(numberOfChannels), numSamples);
 
     this->amountOfData = numSamples;
     this->waveResolution = bitsPerSample;

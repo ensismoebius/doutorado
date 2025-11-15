@@ -175,7 +175,7 @@ class Wav
      */
     static void split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb);
 
-    void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
+    void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels,
                            size_t numSamples);
     void readWaveData(std::ifstream& ifs);
     void readWaveHeaders(std::ifstream& ifs);
