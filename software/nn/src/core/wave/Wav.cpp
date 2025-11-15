@@ -413,9 +413,12 @@ inline void Wav::write16Res1Channel(std::ofstream& ofs)
     unsigned char waveformdata_lsb;
     unsigned char waveformdata_msb;
 
+    const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+
     for (int i = 0; i < amountOfData; i++)
     {
-        convert1of16to2of8((short) ((this->data.at(i))), &waveformdata_lsb, &waveformdata_msb);
+        short sample = static_cast<short>(this->data.at(i) * maxAmplitude);
+        convert1of16to2of8(sample, &waveformdata_lsb, &waveformdata_msb);
         ofs.write((char*) (&waveformdata_lsb), sizeof(waveformdata_lsb));
         ofs.write((char*) (&waveformdata_msb), sizeof(waveformdata_msb));
     }
@@ -430,12 +433,16 @@ inline void Wav::write16Res2Channel(std::ofstream& ofs)
     unsigned char waveformdata_msb_left;
     unsigned char waveformdata_msb_right;
 
+    const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+
     for (int i = 0; i < amountOfData; i++)
     {
+        short left_sample = static_cast<short>(this->dataLeft.at(i) * maxAmplitude);
         convert1of16to2of8(
-            (short) (this->dataLeft.at(i)), &waveformdata_lsb_left, &waveformdata_msb_left);
+            left_sample, &waveformdata_lsb_left, &waveformdata_msb_left);
+        short right_sample = static_cast<short>(this->dataRight.at(i) * maxAmplitude);
         convert1of16to2of8(
-            (short) (this->dataRight.at(i)), &waveformdata_lsb_right, &waveformdata_msb_right);
+            right_sample, &waveformdata_lsb_right, &waveformdata_msb_right);
         ofs.write((char*) (&waveformdata_lsb_left), sizeof(waveformdata_lsb_left));
         ofs.write((char*) (&waveformdata_msb_left), sizeof(waveformdata_msb_left));
         ofs.write((char*) (&waveformdata_lsb_right), sizeof(waveformdata_lsb_right));
