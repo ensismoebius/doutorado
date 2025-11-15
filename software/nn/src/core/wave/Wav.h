@@ -167,6 +167,8 @@ class Wav
      */
     static void convert1of16to2of8(short sample, unsigned char* lsb, unsigned char* msb);
 
+    void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
+                           size_t numSamples);
     void readWaveData(std::ifstream& ifs);
     void readWaveHeaders(std::ifstream& ifs);
     inline void write8Res1Channel(std::ofstream& ofs);
