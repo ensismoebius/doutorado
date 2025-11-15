@@ -153,7 +153,7 @@ class Wav
      * @param msb The most significant byte of the 16-bit sample.
      * @return The reconstructed 16-bit signed sample as a short.
      */
-    static auto convert2of8to1of16(unsigned char lsb, unsigned char msb) -> short;
+    static auto combine8BitTo16Bit(unsigned char lsb, unsigned char msb) -> short;
 
     /**
      * @brief Converts a 16-bit signed short into two 8-bit unsigned chars (LSB and MSB).
@@ -165,20 +165,20 @@ class Wav
      * @param lsb Pointer to an unsigned char to store the least significant byte.
      * @param msb Pointer to an unsigned char to store the most significant byte.
      */
-    static void convert1of16to2of8(short sample, unsigned char* lsb, unsigned char* msb);
+    static void split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb);
 
     void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
                            size_t numSamples);
     void readWaveData(std::ifstream& ifs);
     void readWaveHeaders(std::ifstream& ifs);
-    inline void write8Res1Channel(std::ofstream& ofs);
-    inline void write8Res2Channel(std::ofstream& ofs);
-    inline void write16Res1Channel(std::ofstream& ofs);
-    inline void write16Res2Channel(std::ofstream& ofs);
-    inline void read8Res1Channel(std::ifstream& ifs);
-    inline void read8Res2Channel(std::ifstream& ifs);
-    inline void read16Res1Channel(std::ifstream& ifs);
-    inline void read16Res2Channel(std::ifstream& ifs);
+    inline void write8BitMono(std::ofstream& ofs);
+    inline void write8BitStereo(std::ofstream& ofs);
+    inline void write16BitMono(std::ofstream& ofs);
+    inline void write16BitStereo(std::ofstream& ofs);
+    inline void read8BitMono(std::ifstream& ifs);
+    inline void read8BitStereo(std::ifstream& ifs);
+    inline void read16BitMono(std::ifstream& ifs);
+    inline void read16BitStereo(std::ifstream& ifs);
     void clearVectors();
     void resetMetaData();
 };
