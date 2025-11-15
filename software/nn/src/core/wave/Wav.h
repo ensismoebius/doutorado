@@ -23,29 +23,40 @@ class Wav
    private:
     // signal properties
 #pragma pack(push, 1)
+
+    /**
+     * @brief WAV file header structure
+     *  This structure defines the layout of the WAV file header, which contains metadata
+     *  about the audio file, such as format, number of channels, sample rate, and bit depth.
+     */
     struct WaveHeader
     {
         /* RIFF Chunk Descriptor */
-        std::array<std::uint8_t, 4> riffChunkId;
-        std::uint32_t riffChunkSize;
-        std::array<std::uint8_t, 4> waveFormat;
+        std::array<std::uint8_t, 4> riffChunkId; // "RIFF" Header, contains the letters "RIFF"
+        std::uint32_t riffChunkSize;             // Size of the overall file - 8 bytes
+        std::array<std::uint8_t, 4> waveFormat;  // "WAVE" Format, contains the letters "WAVE"
 
         /* "fmt" sub-chunk */
-        std::array<std::uint8_t, 4> fmtSubchunkId;
-        std::uint32_t fmtSubchunkSize;
-        std::uint16_t audioFormat;
-        std::uint16_t numberOfChannels;
-        std::uint32_t sampleRate;
-        std::uint32_t byteRate;
-        std::uint16_t blockAlign;
-        std::uint16_t bitsPerSample;
+        std::array<std::uint8_t, 4> fmtSubchunkId; // "fmt" header, contains the letters "fmt "
+        std::uint32_t fmtSubchunkSize;             // Size of the fmt chunk (16 for PCM)
+        std::uint16_t audioFormat;      // Audio format 1=PCM,6=mulaw,7=alaw,257=IBM Mu-Law, 258=IBM
+                                        // A-Law, 259=ADPCM
+        std::uint16_t numberOfChannels; // Number of channels 1=Mono 2=Stereo
+        std::uint32_t sampleRate;       // Sampling Frequency in Hz
+        std::uint32_t byteRate;         // bytes per second
+        std::uint16_t blockAlign;       // 2=16-bit mono, 4=16-bit stereo
+        std::uint16_t bitsPerSample;    // Number of bits per sample
 
         /* "data" sub-chunk */
-        std::array<std::uint8_t, 4> dataSubchunkId;
-        std::uint32_t dataSubchunkSize;
+        std::array<std::uint8_t, 4> dataSubchunkId; // "data" header, contains the letters "data"
+        std::uint32_t dataSubchunkSize;             // Size of the data section in bytes
     } header;
 #pragma pack(pop)
 
+    // Wave format keys, used to identify audio format based on resolution and channels
+    // 8-bit mono, 8-bit stereo, 16-bit mono, 16-bit stereo
+    // The format key is created by multiplying the wave resolution by 10 and adding
+    // the number of channels.
     enum WaveFormatKey : std::uint8_t
     {
         Format8BitMono = 81,

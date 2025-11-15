@@ -1,5 +1,5 @@
 # Add Armadillo and OpenMP dependencies
-find_package(Armadillo REQUIRED)
+# find_package(Armadillo REQUIRED)
 find_package(OpenMP REQUIRED)
 
 # Add OpenGL dependencies

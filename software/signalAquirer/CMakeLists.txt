@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SignalAcquirer VERSION 1.0 LANGUAGES CXX)
 
 # Enable testing
-enable_testing()
+# enable_testing()
 
 # Sets up the flags for CMake and compiler
 include(Flags.cmake)
@@ -18,7 +18,7 @@ set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 include(Imgui.cmake)
 include(Implot.cmake)
 include(Raylib.cmake)
-include(GTestGMock.cmake)
+# include(GTestGMock.cmake)
 
 # Compiles the main program
 include(Main.cmake)
