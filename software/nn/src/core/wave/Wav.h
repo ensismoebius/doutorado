@@ -12,6 +12,7 @@
 #ifndef SRC_LIB_WAV_H_
 #define SRC_LIB_WAV_H_
 
+#include <array>
 #include <cstdint>
 #include <fstream>
 #include <string>
@@ -22,28 +23,27 @@ class Wav
    private:
     // signal properties
 #pragma pack(push, 1)
-    struct
+    struct WaveHeader
     {
         /* RIFF Chunk Descriptor */
-        std::uint8_t RIFF[4];    // RIFF Header Magic header
-        std::uint32_t chunkSize; // RIFF Chunk Size
-        std::uint8_t WAVE[4];    // WAVE Header
+        std::array<std::uint8_t, 4> riffChunkId;
+        std::uint32_t riffChunkSize;
+        std::array<std::uint8_t, 4> waveFormat;
 
         /* "fmt" sub-chunk */
-        std::uint8_t fmt[4];         // FMT header
-        std::uint32_t subchunk1Size; // Size of the fmt chunk
-        std::uint16_t audioFormat;   // Audio format 1=PCM,6=mulaw,7=alaw, 257=IBM Mu-Law, 258=IBM
-                                     // A-Law, 259=ADPCM
-        std::uint16_t numOfChan;     // Number of channels 1=Mono 2=Sterio
-        std::uint32_t samplingrate;  // Sampling Frequency in Hz
-        std::uint32_t bytesPerSec;   // bytes per second
-        std::uint16_t blockAlign;    // 2=16-bit mono, 4=16-bit stereo
-        std::uint16_t bitsPerSample; // Number of bits per sample
+        std::array<std::uint8_t, 4> fmtSubchunkId;
+        std::uint32_t fmtSubchunkSize;
+        std::uint16_t audioFormat;
+        std::uint16_t numberOfChannels;
+        std::uint32_t sampleRate;
+        std::uint32_t byteRate;
+        std::uint16_t blockAlign;
+        std::uint16_t bitsPerSample;
 
         /* "data" sub-chunk */
-        std::uint8_t subchunk2ID[4]; // "data"  string
-        std::uint32_t subchunk2Size; // Sampled data length
-    } headers;
+        std::array<std::uint8_t, 4> dataSubchunkId;
+        std::uint32_t dataSubchunkSize;
+    } header;
 #pragma pack(pop)
 
     enum WaveFormatKey : std::uint8_t

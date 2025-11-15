@@ -45,20 +45,20 @@ void Wav::process()
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
         case Format8BitStereo:
         case Format16BitStereo:
             (*callbackFunction)(
-                this->dataLeft, amountOfData, this->headers.samplingrate, this->path);
+                this->dataLeft, amountOfData, this->header.sampleRate, this->path);
             (*callbackFunction)(
-                this->dataRight, amountOfData, this->headers.samplingrate, this->path);
+                this->dataRight, amountOfData, this->header.sampleRate, this->path);
             break;
         case Format8BitMono:
         case Format16BitMono:
-            (*callbackFunction)(this->data, amountOfData, this->headers.samplingrate, this->path);
+            (*callbackFunction)(this->data, amountOfData, this->header.sampleRate, this->path);
             break;
         default:
             throw std::runtime_error("Invalid number of channels and/or resolution");
@@ -108,7 +108,7 @@ void Wav::write(const std::string& _path)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
@@ -147,14 +147,14 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     }
 
     const uint16_t bitsPerSample = 16;
-    const uint16_t numChannels = 1;
-    initializeHeaders(samplingRate, bitsPerSample, numChannels, inputData.size());
+    const uint16_t numberOfChannels = 1;
+    initializeHeaders(samplingRate, bitsPerSample, numberOfChannels, inputData.size());
 
     this->amountOfData = inputData.size();
     this->waveResolution = bitsPerSample;
 
     // Write header
-    ofs.write((char*) (&this->headers), sizeof(this->headers));
+    ofs.write((char*) (&this->header), sizeof(this->header));
 
     // Calculate maximum amplitude for the audio format
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
@@ -183,14 +183,14 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
         throw std::runtime_error("Impossible to open the file!");
     }
 
-    size_t numOfChannels = inputData.size();
-    if (numOfChannels == 0)
+    size_t numberOfChannels = inputData.size();
+    if (numberOfChannels == 0)
     {
         throw std::runtime_error("Input data vector is empty.");
     }
     size_t numSamples = inputData[0].size();
 
-    if (numOfChannels < 1 || numOfChannels > 2)
+    if (numberOfChannels < 1 || numberOfChannels > 2)
     {
         throw std::runtime_error(
             "Only mono (1 channel) or stereo (2 channels) are supported for "
@@ -198,18 +198,19 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     }
 
     const uint16_t bitsPerSample = 16;
-    initializeHeaders(samplingRate, bitsPerSample, numOfChannels, numSamples);
+    initializeHeaders(samplingRate, bitsPerSample, static_cast<uint16_t>(numberOfChannels),
+                      numSamples);
 
     this->amountOfData = numSamples;
     this->waveResolution = bitsPerSample;
 
     // Write header
-    ofs.write((char*) (&this->headers), sizeof(this->headers));
+    ofs.write((char*) (&this->header), sizeof(this->header));
 
     // Calculate maximum amplitude for the audio format
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
-    if (numOfChannels == 1)
+    if (numberOfChannels == 1)
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
@@ -217,7 +218,7 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
             ofs.write((char*) (&sample), sizeof(sample));
         }
     }
-    else // numOfChannels == 2
+    else // numberOfChannels == 2
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
@@ -270,7 +271,7 @@ void Wav::readWaveData(std::ifstream& ifs)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->headers.numOfChan;
+    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
@@ -296,22 +297,22 @@ void Wav::readWaveData(std::ifstream& ifs)
 void Wav::readWaveHeaders(std::ifstream& ifs)
 {
     ifs.seekg(0, std::ios::beg);
-    ifs.read((char*) &this->headers, sizeof(this->headers));
+    ifs.read((char*) &this->header, sizeof(this->header));
 
-    if (this->headers.audioFormat != 1)
+    if (this->header.audioFormat != 1)
     {
         throw std::runtime_error(this->path + " not in PCM format!");
         return;
     }
 
     waveResolution =
-        (this->headers.bytesPerSec * 8) / (this->headers.numOfChan * this->headers.samplingrate);
-    amountOfData = this->headers.subchunk2Size / this->headers.blockAlign;
+        (this->header.byteRate * 8) / (this->header.numberOfChannels * this->header.sampleRate);
+    amountOfData = this->header.dataSubchunkSize / this->header.blockAlign;
 }
 
 inline void Wav::write8BitMono(std::ofstream& ofs)
 {
-    ofs.write((char*) (&this->headers), sizeof(this->headers));
+    ofs.write((char*) (&this->header), sizeof(this->header));
 
     unsigned char waveformdata;
 
@@ -324,7 +325,7 @@ inline void Wav::write8BitMono(std::ofstream& ofs)
 
 inline void Wav::write8BitStereo(std::ofstream& ofs)
 {
-    ofs.write((char*) (&this->headers), sizeof(this->headers));
+    ofs.write((char*) (&this->header), sizeof(this->header));
 
     unsigned char waveformdata_right;
     unsigned char waveformdata_left;
@@ -340,7 +341,7 @@ inline void Wav::write8BitStereo(std::ofstream& ofs)
 
 inline void Wav::write16BitMono(std::ofstream& ofs)
 {
-    ofs.write((char*) (&this->headers), sizeof(this->headers));
+    ofs.write((char*) (&this->header), sizeof(this->header));
 
     unsigned char waveformdata_lsb;
     unsigned char waveformdata_msb;
@@ -358,7 +359,7 @@ inline void Wav::write16BitMono(std::ofstream& ofs)
 
 inline void Wav::write16BitStereo(std::ofstream& ofs)
 {
-    ofs.write((char*) &this->headers, sizeof(this->headers));
+    ofs.write((char*) &this->header, sizeof(this->header));
 
     unsigned char waveformdata_lsb_left;
     unsigned char waveformdata_lsb_right;
@@ -475,62 +476,23 @@ void Wav::resetMetaData()
 {
     this->amountOfData = 0;
     this->waveResolution = 0;
-    /* RIFF Chunk Descriptor */
-    this->headers.RIFF[0] = '\0';
-    this->headers.RIFF[1] = '\0';
-    this->headers.RIFF[2] = '\0';
-    this->headers.RIFF[3] = '\0';
-    this->headers.chunkSize = 0;
-    this->headers.WAVE[0] = '\0';
-    this->headers.WAVE[1] = '\0';
-    this->headers.WAVE[2] = '\0';
-    this->headers.WAVE[3] = '\0';
-    /* "fmt" sub-chunk */
-    this->headers.fmt[0] = '\0';
-    this->headers.fmt[1] = '\0';
-    this->headers.fmt[2] = '\0';
-    this->headers.fmt[3] = '\0';
-    this->headers.subchunk1Size = 0;
-    this->headers.audioFormat = 0;
-    this->headers.numOfChan = 0;
-    this->headers.samplingrate = 0;
-    this->headers.bytesPerSec = 0;
-    this->headers.blockAlign = 0;
-    this->headers.bitsPerSample = 0;
-    /* "data" sub-chunk */
-    this->headers.subchunk2ID[0] = '\0';
-    this->headers.subchunk2ID[1] = '\0';
-    this->headers.subchunk2ID[2] = '\0';
-    this->headers.subchunk2ID[3] = '\0';
-    this->headers.subchunk2Size = 0;
+    this->header = {};
 }
 
-void Wav::initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan,
-                            size_t numSamples)
+void Wav::initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample,
+                            uint16_t numberOfChannels, size_t numSamples)
 {
-    this->headers.RIFF[0] = 'R';
-    this->headers.RIFF[1] = 'I';
-    this->headers.RIFF[2] = 'F';
-    this->headers.RIFF[3] = 'F';
-    this->headers.WAVE[0] = 'W';
-    this->headers.WAVE[1] = 'A';
-    this->headers.WAVE[2] = 'V';
-    this->headers.WAVE[3] = 'E';
-    this->headers.fmt[0] = 'f';
-    this->headers.fmt[1] = 'm';
-    this->headers.fmt[2] = 't';
-    this->headers.fmt[3] = ' ';
-    this->headers.subchunk1Size = 16; // PCM
-    this->headers.audioFormat = 1;    // PCM
-    this->headers.numOfChan = numOfChan;
-    this->headers.samplingrate = samplingRate;
-    this->headers.bitsPerSample = bitsPerSample;
-    this->headers.bytesPerSec = samplingRate * numOfChan * (bitsPerSample / 8);
-    this->headers.blockAlign = numOfChan * (bitsPerSample / 8);
-    this->headers.subchunk2ID[0] = 'd';
-    this->headers.subchunk2ID[1] = 'a';
-    this->headers.subchunk2ID[2] = 't';
-    this->headers.subchunk2ID[3] = 'a';
-    this->headers.subchunk2Size = numSamples * numOfChan * (bitsPerSample / 8);
-    this->headers.chunkSize = 36 + this->headers.subchunk2Size;
+    this->header.riffChunkId = {'R', 'I', 'F', 'F'};
+    this->header.waveFormat = {'W', 'A', 'V', 'E'};
+    this->header.fmtSubchunkId = {'f', 'm', 't', ' '};
+    this->header.fmtSubchunkSize = 16; // PCM
+    this->header.audioFormat = 1;      // PCM
+    this->header.numberOfChannels = numberOfChannels;
+    this->header.sampleRate = samplingRate;
+    this->header.bitsPerSample = bitsPerSample;
+    this->header.byteRate = samplingRate * numberOfChannels * (bitsPerSample / 8);
+    this->header.blockAlign = numberOfChannels * (bitsPerSample / 8);
+    this->header.dataSubchunkId = {'d', 'a', 't', 'a'};
+    this->header.dataSubchunkSize = numSamples * numberOfChannels * (bitsPerSample / 8);
+    this->header.riffChunkSize = 36 + this->header.dataSubchunkSize;
 }
