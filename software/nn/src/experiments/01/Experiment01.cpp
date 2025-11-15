@@ -39,7 +39,8 @@ static void perform(const std::string& inputAudioFilePath)
     // then call w.write(outputWavPath, audioSamplesVec, 44100); it works fine. Need to investigate
     // this later.
 
-    w.write(outputWavPath, audioSamplesVec, 44100);
+    // w.write(outputWavPath, audioSamplesVec, 44100);
+    w.write(outputWavPath);
 
     // Use audioSamples, audioStimulus, and eegIndex as needed
     (void) audioSamples;
