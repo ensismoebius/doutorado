@@ -6,6 +6,7 @@ add_library(wavelet
 )
 
 target_include_directories(wavelet
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-    PUBLIC ${CMAKE_SOURCE_DIR}/src
+    PUBLIC 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )

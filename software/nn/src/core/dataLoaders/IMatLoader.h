@@ -1,4 +1,3 @@
-// IMatLoader.h - interface for MAT file loaders
 #pragma once
 
 #include <matio.h>

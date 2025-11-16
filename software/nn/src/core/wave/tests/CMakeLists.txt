@@ -3,13 +3,15 @@ add_executable(wave_gtest
 )
 
 target_link_libraries(wave_gtest 
-    PRIVATE GTest::gtest_main
-    PRIVATE filtersOperationsLibStatic
-    PRIVATE linearAlgebra
+    PRIVATE 
+       GTest::gtest_main
+       filtersOperationsLibStatic
+       linearAlgebra
 )
 
 target_include_directories(wave_gtest 
-    PRIVATE ${CMAKE_SOURCE_DIR}/src
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 include(GoogleTest)

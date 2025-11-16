@@ -8,6 +8,7 @@ target_link_libraries(create_wav_demo
 )
 
 target_include_directories(create_wav_demo
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 

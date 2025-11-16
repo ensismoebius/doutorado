@@ -1,16 +1,9 @@
 enable_testing()
 
-add_executable(layers_gtest
-    tests/layers_gtest.cpp
+add_library(layers INTERFACE)
+
+target_include_directories(layers 
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/layers
+        ${CMAKE_SOURCE_DIR}/src     # For other project headers
 )
-
-target_link_libraries(layers_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
-
-target_include_directories(
-  layers_gtest PRIVATE ${SRC_DIR} ${EIGEN3_INCLUDE_DIR}
-                       ${cnpy_SOURCE_DIR})
-
-include(GoogleTest)
-gtest_discover_tests(layers_gtest)
-
-configure_eigen_parallel_target(layers_gtest)

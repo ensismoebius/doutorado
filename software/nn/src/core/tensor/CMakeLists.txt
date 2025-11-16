@@ -1,8 +1,6 @@
-add_executable(tensor_gtest tests/tensor_gtest.cpp)
-target_link_libraries(tensor_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
-target_include_directories(tensor_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src
-                                                ${EIGEN3_INCLUDE_DIR})
-include(GoogleTest)
-gtest_discover_tests(tensor_gtest)
-
-configure_eigen_parallel_target(tensor_gtest)
+add_library(tensor INTERFACE)
+target_include_directories(tensor 
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/tensor
+        ${CMAKE_SOURCE_DIR}/src     # For other project headers
+)

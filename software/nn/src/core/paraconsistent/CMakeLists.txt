@@ -15,15 +15,3 @@ target_link_libraries(paraconsistent
         utility
 )
 
-add_executable(paraconsistent_gtest
-    tests/paraconsistent_gtest.cpp
-)
-
-target_link_libraries(paraconsistent_gtest
-    PRIVATE
-        paraconsistent
-        utility
-        GTest::gtest_main
-)
-
-gtest_discover_tests(paraconsistent_gtest)

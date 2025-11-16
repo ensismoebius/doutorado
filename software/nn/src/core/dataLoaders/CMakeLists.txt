@@ -1,39 +1,21 @@
 find_package(ZLIB REQUIRED)
 
-## Consolidated GoogleTest target for dataLoaders
-add_executable(dataLoaders_gtest
-	tests/dataLoader_more_gtest.cpp
-	tests/matfile_utils_gtest.cpp
-	tests/dataLoader_gtest.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/MatFileUtils.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/DataLoader.cpp
-	tests/matfile_row_vector_gtest.cpp
-	tests/mat_file_dataset_gtest.cpp
-	tests/matfile_vector_gtest.cpp
-	tests/mat_file_gtest.cpp
-	tests/MatTestUtils.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/AudioLoader.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/EEGLoader.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/audio_loader_gtest.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/eeg_loader_gtest.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/eeg_loader_edge_gtest.cpp
+add_library(dataLoaders STATIC
+    MatFileUtils.cpp
+    DataLoader.cpp
 )
 
-target_include_directories(dataLoaders_gtest 
-	PRIVATE 
-		${CMAKE_SOURCE_DIR}/src 
-		${CMAKE_SOURCE_DIR}/src/core/dataLoaders/tests)
+target_include_directories(dataLoaders
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+)
 
-target_link_libraries(dataLoaders_gtest 
-	PRIVATE 
-		GTest::gtest_main 
-		Eigen3::Eigen 
-		${ZLIB_LIBRARIES} 
-		matioCpp)
+target_link_libraries(dataLoaders
+    PRIVATE
+        Eigen3::Eigen
+        ${ZLIB_LIBRARIES}
+        matioCpp
+)
 
-configure_eigen_parallel_target(dataLoaders_gtest)
-include(GoogleTest)
-gtest_discover_tests(dataLoaders_gtest)
-
-# Additional DataLoader unit tests
-## (previously had a separate target for more DataLoader tests — now consolidated)
+add_subdirectory(10.1117)

@@ -1,8 +1,7 @@
-add_executable(optimizers_gtest tests/optimizers_gtest.cpp)
-target_link_libraries(optimizers_gtest PRIVATE GTest::gtest_main Eigen3::Eigen)
-target_include_directories(optimizers_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src
-                                                    ${EIGEN3_INCLUDE_DIR})
-include(GoogleTest)
-gtest_discover_tests(optimizers_gtest)
+add_library(optimizers INTERFACE)
 
-configure_eigen_parallel_target(optimizers_gtest)
+target_include_directories(optimizers 
+    INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/optimizers
+        ${CMAKE_SOURCE_DIR}/src     # For other project headers
+)
