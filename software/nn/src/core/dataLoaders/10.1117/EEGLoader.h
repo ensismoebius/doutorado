@@ -10,6 +10,9 @@
 namespace nn::dataLoaders
 {
 
+// EEG channel names corresponding to the 6 channels in the dataset
+constexpr std::array<std::string, 6> EEG_CHANNELS_NAMES = {"F3", "F4", "C3", "C4", "P3", "P4"};
+
 class EEGLoader : public IMatLoader
 {
    public:

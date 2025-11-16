@@ -1,11 +1,27 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <map>
 #include <string>
 #include <tuple>
 
 namespace nn::dataLoaders
 {
+
+// Map stimulus IDs to their string representations
+const std::map<int, std::string> ESTIMULUS_NAMES = {
+    {1, "A"},
+    {2, "E"},         // Vowel "E"
+    {3, "I"},         // Vowel "I"
+    {4, "O"},         // Vowel "O"
+    {5, "U"},         // Vowel "U"
+    {6, "Arriba"},    // "Up" in Spanish
+    {7, "Abajo"},     //  "Down" in Spanish
+    {8, "Adelante"},  // "Forward" in Spanish
+    {9, "Atras"},     // "Backward" in Spanish
+    {10, "Derecha"},  // "Right" in Spanish
+    {11, "Izquierda"} // "Left" in Spanish
+};
 
 // Audio data format constants
 constexpr size_t AUDIO_SAMPLES_COUNT = 176400; // Number of audio samples per row

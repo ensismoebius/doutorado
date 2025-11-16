@@ -11,19 +11,6 @@ using std::cout;
 
 using namespace nn::dataLoaders;
 
-// Map stimulus IDs to their string representations
-const std::map<int, std::string> stimulusNames = {{1, "A"},
-                                                  {2, "E"},
-                                                  {3, "I"},
-                                                  {4, "O"},
-                                                  {5, "U"},
-                                                  {6, "Arriba"},
-                                                  {7, "Abajo"},
-                                                  {8, "Adelante"},
-                                                  {9, "Atras"},
-                                                  {10, "Derecha"},
-                                                  {11, "Izquierda"}};
-
 static void init()
 {
     // Initialization code goes here
@@ -70,9 +57,9 @@ static void perform(const std::string& basePath)
 
                 // Get stimulus name for audio
                 std::string audioStimulusName = "Unknown";
-                if (stimulusNames.contains(audioStimulus))
+                if (ESTIMULUS_NAMES.contains(audioStimulus))
                 {
-                    audioStimulusName = stimulusNames.at(audioStimulus);
+                    audioStimulusName = ESTIMULUS_NAMES.at(audioStimulus);
                 }
 
                 // Example: Write audio to a WAV file
@@ -94,14 +81,13 @@ static void perform(const std::string& basePath)
 
                 // Get stimulus name for EEG
                 std::string eegStimulusName = "Unknown";
-                if (stimulusNames.contains(eegStimulus))
+                if (ESTIMULUS_NAMES.contains(eegStimulus))
                 {
-                    eegStimulusName = stimulusNames.at(eegStimulus);
+                    eegStimulusName = ESTIMULUS_NAMES.at(eegStimulus);
                 }
 
                 // Write EEG channels to WAV files
-                std::array<std::string, numChannels> eegChannelNames = {
-                    "F3", "F4", "C3", "C4", "P3", "P4"};
+
                 for (int j = 0; j < numChannels; ++j)
                 {
                     std::vector<double> eegChannelDoubleVec(
@@ -109,13 +95,13 @@ static void perform(const std::string& basePath)
                     // Assuming EEG sample rate is 1024 Hz, 16-bit, 1 channel
                     Wav eegWav(1024, 16, 1, eegChannelDoubleVec.data(), eegChannelDoubleVec.size());
                     std::string eegOutputFilename = subjectName + "_EEG_Channel_" +
-                                                    eegChannelNames[j] + "_" + eegStimulusName +
+                                                    EEG_CHANNELS_NAMES[j] + "_" + eegStimulusName +
                                                     ".wav";
                     std::string eegOutputWavPath =
                         (std::filesystem::path(subjectPath) / eegOutputFilename).string();
                     eegWav.write(eegOutputWavPath);
                     cout << "  - Wrote EEG Channel "
-                         << eegChannelNames[j] + " to " + eegOutputWavPath << '\n';
+                         << EEG_CHANNELS_NAMES[j] + " to " + eegOutputWavPath << '\n';
                 }
             }
         }
