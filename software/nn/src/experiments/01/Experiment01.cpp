@@ -3,7 +3,8 @@
 // as well as a spiking auto-encoder model on the audio and EEG data respectively.
 // Then compare, using paraconsistent features enginering techniques, to assesss the
 // performance of both models in terms of the quality of the generated features vectors.
-// The EEG and Audio input data must be normalized to stay between -1 and 1 before training.
+// The EEG and Audio input data must be normalized to stay between 0 and 1 before training.
+// For audio and EEG the window size must be 1.5 seconds with 50% overlap.
 
 #include <filesystem> // Include for path manipulation
 #include <iostream>
