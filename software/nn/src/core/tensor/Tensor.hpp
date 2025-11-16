@@ -2,7 +2,6 @@
 
 #include <Eigen/Dense>
 #include <vector>
-
 struct Tensor
 {
     Eigen::MatrixXf data;
@@ -44,5 +43,42 @@ struct Tensor
             out.row(i) = data.row(indices[i]);
         }
         return {out};
+    }
+
+    // Operator overloads for Tensor operations
+    auto operator-(const Tensor& other) const -> Tensor
+    {
+        Tensor result(data.rows(), data.cols());
+        result.data = data - other.data;
+        return result;
+    }
+
+    auto operator*(float scalar) const -> Tensor
+    {
+        Tensor result(data.rows(), data.cols());
+        result.data = data * scalar;
+        return result;
+    }
+
+    [[nodiscard]] auto square() const -> Tensor
+    {
+        Tensor result(data.rows(), data.cols());
+        result.data = data.array().square();
+        return result;
+    }
+
+    [[nodiscard]] auto mean() const -> Tensor
+    {
+        return {data.mean()};
+    }
+
+    [[nodiscard]] auto get_data() const -> const Eigen::MatrixXf&
+    {
+        return data;
+    }
+
+    [[nodiscard]] auto size() const -> long
+    {
+        return data.size();
     }
 };
