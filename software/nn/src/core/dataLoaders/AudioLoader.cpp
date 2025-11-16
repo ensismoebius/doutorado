@@ -2,7 +2,6 @@
 
 #include <matio.h>
 
-#include <memory>
 #include <optional>
 #include <stdexcept>
 

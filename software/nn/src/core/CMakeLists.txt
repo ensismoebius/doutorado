@@ -15,7 +15,7 @@ target_link_libraries(
 
 target_include_directories(
     core_gtest
-    PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/core/tensor ${EIGEN3_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/lib/cnpy
+    PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/core/tensor ${EIGEN3_INCLUDE_DIR} ${cnpy_SOURCE_DIR}
 )
 
 include(GoogleTest)

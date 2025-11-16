@@ -16,4 +16,13 @@ if(NOT COMMAND install_basic_package_files)
 endif()
 
 # Include vendored matio-cpp
-include(lib/matio-cpp.cmake)
+include(FetchContent)
+
+FetchContent_Declare(
+    matio-cpp
+    GIT_REPOSITORY https://github.com/ami-iit/matio-cpp.git
+    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
+FetchContent_MakeAvailable(matio-cpp)

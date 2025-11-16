@@ -1,22 +1,6 @@
 ## PlotTarget.cmake
 # Target for plotSpikingNetwork
 
-# ImGui and ImPlot sources from Imgui.cmake and Implot.cmake
-set(IMGUI_DIR "${LIB_DIR}/imgui")
-set(IMPLOT_DIR "${LIB_DIR}/implot")
-set(IMGUI_SOURCES
-    ${IMGUI_DIR}/imgui.cpp
-    ${IMGUI_DIR}/imgui_draw.cpp
-    ${IMGUI_DIR}/imgui_tables.cpp
-    ${IMGUI_DIR}/imgui_widgets.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
-    ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
-)
-set(IMPLOT_SOURCES
-    ${IMPLOT_DIR}/implot.cpp
-    ${IMPLOT_DIR}/implot_items.cpp
-)
-
 add_executable(plotSpikingNetwork
     ${CNPY_SOURCES}
     ${SRC_DIR}/core/initializers/xavier.hpp
@@ -32,8 +16,6 @@ add_executable(plotSpikingNetwork
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/core/NnSaver.hpp
-    ${IMGUI_SOURCES}
-    ${IMPLOT_SOURCES}
     ${SRC_DIR}/util/imguiGlfw.cpp
     ${SRC_DIR}/experiments/plotSpikingNetwork.cpp
 )
@@ -50,6 +32,8 @@ target_link_libraries(plotSpikingNetwork
         ${OpenMP_CXX_LIBRARIES}
         OpenGL::GL
         ${GLFW_LIBRARIES}
+        imgui
+        implot
 )
 
 # Include directories
@@ -60,9 +44,6 @@ target_include_directories(plotSpikingNetwork
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
-        ${IMGUI_DIR}
-        ${IMGUI_DIR}/backends
-        ${IMPLOT_DIR}
         ${GLFW_INCLUDE_DIRS}
 )
 
