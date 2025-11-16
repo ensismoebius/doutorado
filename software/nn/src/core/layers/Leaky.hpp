@@ -35,7 +35,7 @@
 struct Leaky : public Module
 {
    public:
-    auto params() -> std::vector<Tensor*>
+    auto params() -> std::vector<Tensor*> override
     {
         return {&resistance, &voltage_threshold};
     }
@@ -155,7 +155,7 @@ struct Leaky : public Module
         {
             std::ostringstream oss;
             oss << "Updated V_mem - " << static_cast<const void*>(this);
-            printTensor(Tensor(v_mem), oss.str());
+            printTensor(v_mem, oss.str().c_str());
         }
 #endif
         // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.

@@ -12,11 +12,11 @@
 #include <string>
 #include <vector>
 
-#include "../layers/Leaky.hpp"
-#include "../layers/LeakyReLU.hpp"
-#include "../layers/Linear.hpp"
-#include "../layers/ReLU.hpp"
-#include "../layers/Sequential.hpp"
+#include "layers/Leaky.hpp"
+#include "layers/LeakyReLU.hpp"
+#include "layers/Linear.hpp"
+#include "layers/ReLU.hpp"
+#include "layers/Sequential.hpp"
 
 using cnpy::NpyArray;
 using cnpy::npz_load;
