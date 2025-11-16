@@ -3,7 +3,7 @@
 // as well as a spiking auto-encoder model on the audio and EEG data respectively.
 // Then compare, using paraconsistent features enginering techniques, to assesss the
 // performance of both models in terms of the quality of the generated features vectors.
-// The input data must be downsampled to 
+// The EEG and Audio input data must be normalized to stay between -1 and 1 before training.
 
 #include <filesystem> // Include for path manipulation
 #include <iostream>

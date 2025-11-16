@@ -37,9 +37,14 @@ Canonical document guiding automatic code generation (Copilot, scripts, PRs) for
 # 1 Overview and Objectives
 
 - Primary Language: **C++20**.
+
 - Main Dependencies: **Eigen**, **GoogleTest**, **CMake**. Optional Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`.
+
 - Domain: Spiking Neural Networks (SNN), Sparse Autoencoders, EEG+Audio Synchronization, support for .mat (MATLAB) and experimental pipelines.
+
 - Non-Functional Requirements: Compilable on Linux; Testable; Safe (RAII); Efficient (Eigen/noalias/OpenMP); Auditable (Logs, Metrics); Reproducible.
+
+- Use the acquisition/protocol defaults documented in project reference materials when experiments refer to human-collected data; include metadata fields in stored records for full traceability.
 
 ---
 
@@ -47,32 +52,95 @@ Canonical document guiding automatic code generation (Copilot, scripts, PRs) for
 
 ```
 nn/
-├── src/
-│   ├── tensor/            # Tensor wrapper (Eigen)
-│   ├── layers/            # Module, Linear, LIF, Sequential, activations
-│   ├── optimizers/        # Adam, SGD, interfaces
-│   ├── dataLoaders/       # Dataset, DataLoader, MatFile
-│   ├── experiments/       # train_sae, train_resnet_snn, extract_embeddings
-│   ├── initializers/      # xavier, kaimingSNN
-│   ├── encoders/          # rate, ttfs, bsa implementations
-│   ├── wave/              # processing, resample
-│   ├── wavelet/           # wavelet transforms
-│   ├── util/              # logging, time, checks
-│   └── stats/             # metrics, statistical tests
-├── tests/
-│   ├── data/              # small .mat test files, synthetic datasets
-│   └── unit/              # gtest suites
-├── cmake/
-│   ├── exec_layers.cmake
-│   ├── exec_tensor.cmake
-│   ├── Flags.cmake
-│   └── Main.cmake
-├── configs/               # defaults.yaml, grids
-├── scripts/               # preprocessing, run_experiment, analyze_results
-├── tools/                 # Octave scripts (inspect_pronounced_pair.m)
-├── .github/
-│   └── workflows/         # CI workflows YAML
-└── docs/                  # design docs, math, equations
+├── .clang-format              # Configuration for clang-format, ensuring consistent code style.
+├── .clang-tidy                # Configuration for clang-tidy, a C++ static analysis tool.
+├── .clangd                    # Configuration for clangd, a language server for C++.
+├── CMakeLists.txt             # Main CMake build script for the project.
+├── test.mat                   # Example MATLAB data file for testing.
+├── TODO.md                    # Markdown file for tracking project tasks and to-dos.
+├── utils_test.mat             # Utility test MATLAB data file.
+├── utils_test2.mat            # Another utility test MATLAB data file.
+├── utils_test3.mat            # Third utility test MATLAB data file.
+├── .github/                   # GitHub specific configurations.
+│   └── copilot-instructions.md  # Instructions and guidelines for Copilot.
+├── .vscode/                   # VSCode editor configurations.
+│   ├── c_cpp_properties.json    # C/C++ extension settings for VSCode.
+│   ├── launch.json              # Debugging configurations for VSCode.
+│   ├── settings.json            # Workspace settings for VSCode.
+│   └── tasks.json               # Task configurations for VSCode.
+├── build/                     # CMake build directory (ignored by git)
+│   ├── _deps/                   # External dependencies built by CMake.
+│   ├── bin/                     # Compiled executable binaries.
+│   ├── lib/                     # Compiled libraries.
+│   └── src/                     # Build artifacts for source files.
+├── cmake/                     # CMake modules and scripts for project configuration.
+│   ├── Cnpy.cmake               # CMake module for the cnpy library.
+│   ├── EigenParallel.cmake      # CMake module for Eigen parallelization settings.
+│   ├── exec_AutoEncoderTargets.cmake # CMake script for autoencoder executable targets.
+│   ├── exec_Experiment01.cmake  # CMake script for Experiment 01 executable.
+│   ├── exec_loadingData.cmake   # CMake script for data loading executable.
+│   ├── exec_mainProject.cmake   # CMake script for the main project executable.
+│   ├── exec_plotSpikingNetwork.cmake # CMake script for spiking network plotting executable.
+│   ├── exec_resnet_demo.cmake   # CMake script for ResNet demo executable.
+│   ├── Flags.cmake              # CMake module for compiler flags.
+│   ├── Imgui.cmake              # CMake module for the Dear ImGui library.
+│   ├── Implot.cmake             # CMake module for the ImPlot library.
+│   ├── Main.cmake               # Main CMake configuration module.
+│   ├── PackageChecking.cmake    # CMake module for checking package dependencies.
+│   ├── Policies.cmake           # CMake module for setting CMake policies.
+│   ├── ProjectSetup.cmake       # CMake module for general project setup.
+│   ├── VendorGTest.cmake        # CMake module for vendored Google Test.
+│   ├── VendorIncludes.cmake     # CMake module for vendored includes.
+│   ├── VendorMatio.cmake        # CMake module for vendored Matio library.
+│   └── VendorMatioCppShim.cmake # CMake module for vendored Matio C++ shim.
+├── debug/                     # Debugging related files.
+│   └── gdb/                     # GDB debugger configurations.
+│       ├── printers.py          # Python scripts for GDB pretty printers.
+│       └── __pycache__/         # Python cache directory.
+├── lib/                       # Vendored external libraries (source code).
+│   ├── cnpy/                    # Source for cnpy library (Numpy file format I/O).
+│   ├── imgui/                   # Source for Dear ImGui (immediate mode GUI).
+│   ├── implot/                  # Source for ImPlot (plotting extension for Dear ImGui).
+│   ├── matio/                   # Source for Matio library (MATLAB .mat file I/O).
+│   └── matio-cpp/               # Source for Matio C++ wrapper.
+└── src/                       # Source code for the main project.
+    ├── core/                    # Core components of the framework.
+    │   ├── CMakeLists.txt         # CMake build script for the core library.
+    │   ├── NetworkSerializer.hpp  # Header for network serialization utilities.
+    │   ├── NnSaver.hpp            # Header for neural network saving functionalities.
+    │   ├── dataLoaders/           # Implementations for Dataset, DataLoader, MatFile readers.
+    │   ├── initializers/          # Weight initialization strategies (e.g., xavier, kaimingSNN).
+    │   ├── layers/                # Neural network layer implementations (e.g., Module, Linear, LIF, Sequential, activations).
+    │   ├── linearAlgebra/         # Custom linear algebra utilities and helpers.
+    │   ├── optimizers/            # Optimization algorithms (e.g., Adam, SGD, interfaces).
+    │   ├── paraconsistent/        # Components related to paraconsistent logic.
+    │   ├── statistics/            # Statistical metrics and test implementations.
+    │   ├── tensor/                # Custom Tensor wrapper built on Eigen.
+    │   ├── tests/                 # Unit tests for core components.
+    │   ├── utility/               # General utility functions (e.g., logging, time, checks).
+    │   ├── wave/                  # Wave processing and resampling utilities.
+    │   └── wavelet/               # Wavelet transform implementations.
+    ├── experiments/               # Executables for specific research experiments.
+    │   ├── autoEncoderLeakyReLUAndSpikeTest.cpp # Experiment for autoencoder with LeakyReLU and spiking.
+    │   ├── autoEncoderLeakyReLUTest.cpp # Experiment for autoencoder with LeakyReLU.
+    │   ├── plotSpikingNetwork.cpp # Experiment for plotting spiking network activity.
+    │   ├── resnet_demo.cpp        # Demonstration of ResNet integration.
+    │   └── 01/                    # Directory for Experiment 01 related files.
+    ├── main_app/                  # Main application entry point.
+    │   └── main.cpp               # Main source file for the application.
+    └── util/                      # General utilities not specific to core components.
+        ├── batching.cpp           # Implementation for data batching.
+        ├── batching.hpp           # Header for data batching utilities.
+        ├── CMakeLists.txt         # CMake build script for the utility library.
+        ├── imguiGlfw.cpp          # ImGui and GLFW integration implementation.
+        ├── imguiGlfw.hpp          # Header for ImGui and GLFW integration.
+        ├── loadingData.cpp        # Implementation for general data loading.
+        ├── parallel_batching.hpp  # Header for parallel data batching.
+        ├── synthetic_spike_data.cpp # Implementation for generating synthetic spike data.
+        ├── synthetic_spike_data.hpp # Header for synthetic spike data generation.
+        ├── vectorizationCheck.cpp # Implementation for checking vectorization capabilities.
+        ├── vectorizationCheck.hpp # Header for vectorization checks.
+        └── tests/                 # Unit tests for utility functions.
 ```
 
 ---
@@ -138,8 +206,6 @@ struct Optimizer {
 
 # 4 Detailed Component Specifications
 
-(Includes extended contracts, invariants, expected complexity, required tests.)
-
 ## 4.1 Linear Layer
 
 - Signature: `Linear(int in_features, int out_features, bool bias=true)`.
@@ -156,8 +222,12 @@ struct Optimizer {
   - Surrogate gradient g'(V) used in backprop.
 
 - Parameters: `tau_m`, `V_thr`, `V_reset`, `alpha = exp(-dt / tau_m)`.
+
 - Stateful per timestep. Provide `reset()` method.
+
 - Tests: Single neuron response to step input (expected firing pattern), surrogate gradient sanity check.
+
+- The Exponential / SuperSpike surrogate must be implemented and available as a selectable surrogate alongside `atan`, `fast_sigmoid`, and `piecewise_linear`. Provide `src/layers/surrogate.h` with unit tests validating gradient shapes and numerical stability.
 
 ## 4.3 MatFile Wrapper
 
@@ -196,13 +266,17 @@ struct SpikeEncoder {
 
   - After spike, `V[t] = V[t] - V_reset` (or `V[t] = V_reset_value` depending on the model).
 
+- Include derivation and Euler discretization in `docs/math_lif.md`. Implement forward Euler time-stepping as baseline and document stability constraints (dt relative to tau).
+
 ## 5.2 Surrogate Gradient
 
 - Use surrogate `sigma(x)` approximating derivative of Heaviside.
+
 - Examples:
 
   - Fast sigmoid surrogate derivative: `sigma'(x) = 1 / (1 + abs(pi * x))^2` (or another form).
   - Arctan surrogate: derivative of `atan(k*x)` approximates spike derivative.
+  - Exponential / SuperSpike: provide implementation and config switch.
 
 - Implementation tip: Compute surrogate derivative as function of `V - V_thr`, scale by `scale_factor`.
 
@@ -277,23 +351,30 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
   - Each row contains 6 concatenated EEG channels plus 3 labels.
   - **EEG Data**: 24,576 samples (6 channels × 4096 samples = 4s @ 1024 Hz).
+
     - `F3`: Samples 1-4096
     - `F4`: Samples 4097-8192
     - `C3`: Samples 8193-12288
     - `C4`: Samples 12289-16384
     - `P3`: Samples 16385-20480
     - `P4`: Samples 20481-24576
+
   - **Labels**:
+
     - **Modality** (column 24577): `1` (Imagined), `2` (Pronounced).
     - **Stimulus** (column 24578): `1-5` (A, E, I, O, U), `6` (Arriba), `7` (Abajo), `8` (Adelante), `9` (Atrás), `10` (Derecha), `11` (Izquierda).
     - **Artifacts** (column 24579): `1` (No artifacts), `2` (Blink present).
 
 - **`Sxx_Audio.mat`**: `M_rows x 176402`
+
   - Each row contains a mono audio signal plus 2 labels.
   - **Audio Data**: 176,400 samples (4s @ 44.1 kHz).
   - **Labels**:
+
     - **Stimulus** (column 176401): Uses the same encoding as the EEG stimulus label.
     - **EEG Index** (column 176402): The corresponding row index in the `Sxx_EEG.mat` file for synchronization.
+
+- When using acquisition data following the project's protocol, store EEG recorded at **1000 Hz**, 16-bit quantization, and include sampling metadata. For capture blocks of 5 seconds, store 5000 samples per channel (5 s × 1000 Hz). When mat files contain signals recorded at other sampling rates, include `sampling_rate` and explicit audio↔EEG mapping fields (audio_row_index or timestamp) to guarantee deterministic alignment.
 
 ## 7.2 MatFile Reader Expectations
 
@@ -303,6 +384,7 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
 - `DataLoader` returns batches `(inputs, targets)` where `inputs` shape = `(batch, features...)`.
 - Provide deterministic shuffle via seed, and an optional `sampler` that can stratify by speaker or stimulus.
+- Persist metadata per-record: subject id, start/stop timestamps, sentence id, modality, noise condition. This metadata must travel with batches for analysis and reproducibility.
 
 ---
 
@@ -310,18 +392,18 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
 ## 8.1 Audio (Recommendations)
 
-- Resample 44.1kHz → 16kHz for speech features (unless high-frequency content needed). Use polyphase resampling for quality.
 - Band-pass 80–7600 Hz (5th-order Butterworth) to remove DC and high-frequency noise.
 - Z-score normalization per recording: `(x - mean) / std`.
 - Compute envelope: `abs(hilbert(x))` → resample to EEG rate for alignment.
+- Support MFCC and wavelet-packet transforms as optional feature branches; provide parameters in config.
 
 ## 8.2 EEG
 
-- Band-pass 1–40 Hz (5th-order Butterworth), linear-phase filters preferred (FIR) or zero-phase via filtfilt.
-- Notch at 50/60 Hz + harmonics (IIR notch filter with Q=30).
+- Acquisition prefilter (applied at recording) should be wide enough to capture neural energy while respecting Nyquist; for the default acquisition rate **1000 Hz**, use a sensible prefilter (e.g., 1–450 Hz) to avoid aliasing while preserving relevant band content.
+- Notch at 50/60 Hz + harmonics (IIR notch filter with Q=30); default mains notch set to 60 Hz (Brazil).
 - Z-score per channel.
-- Artifact removal: Simple blink removal by thresholding or advanced ICA. If using ICA, save mixing matrix for reproducibility.
-- IMPORTANT: If dataset pre-filtered (documented), avoid reintroducing filter delay; use zero-phase or compensate delays.
+- Artifact removal: simple threshold-based blink detection as baseline; optional ICA pipeline for advanced removal — when ICA is used, persist mixing matrices for reproducibility.
+- When re-filtering previously pre-filtered data, use zero-phase filtering (filtfilt) or compensate for filter delay to avoid timing misalignment.
 
 ---
 
@@ -329,13 +411,14 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
 ## 9.1 Defaults
 
-- window_sec = 1.5 (recommended), overlap = 0.5 (50%).
-- Provide grid search settings as earlier.
+- `window_sec` = 1.5 (recommended), `overlap` = 0.5 (50%). Provide grid-search options for different windows and overlaps.
+- Compute sample counts from configured sampling rates (avoid hard-coded values).
 
 ## 9.2 Synchronized Window Extraction (C++ Sketch)
 
 - Implement in `src/util/windowing.cpp` using sample counts computed from rates.
-- Must check alignment via `Audio(:, end)` index to map EEG row.
+- Use protocol timings to compute offsets: `display_sec = 5`, `cue_sec = 1`, `capture_sec = 5`. With EEG at **1000 Hz**, capture block = `capture_sec * sampling_rate = 5 * 1000 = 5000` samples. Window extraction code must compute indices via `sampling_rate` and durations.
+- Validate audio↔EEG mapping using the explicit mapping fields stored in files.
 
 ---
 
@@ -371,8 +454,8 @@ for epoch in range(max_epochs):
 
 ## 10.4 Surrogate Gradients (Recommendations)
 
-- Implement multiple choices: `atan`, `fast_sigmoid`, `piecewise_linear`. Use `config` to select.
-- Ensure numerical stability; clip gradients where needed.
+- Implement multiple choices: `exponential_super_spike`, `atan`, `fast_sigmoid`, `piecewise_linear`. Select via config.
+- Ensure numerical stability; clip gradients where needed; provide unit tests for surrogate gradient behavior.
 
 ---
 
@@ -394,6 +477,7 @@ for epoch in range(max_epochs):
 ## 12.2 Implementation Snippets (Python)
 
 - Provide `analyze_results.py` that loads `results.csv`, computes aggregate stats, runs Wilcoxon, outputs JSON summary and plots (matplotlib).
+- Ensure result rows include modality and noise-condition metadata for stratified analysis.
 
 ---
 
@@ -458,6 +542,8 @@ jobs:
 ```
 
 ## 15.2 Sanitizers Job (ASAN/TSAN) — Nightly or on-demand to save time.
+
+- Add unit test that verifies `capture_samples == sampling_rate * capture_sec`. For default acquisition values (`sampling_rate = 1000`, `capture_sec = 5`), the test asserts `capture_samples == 5000`. This prevents regressions when protocol defaults change.
 
 ---
 
@@ -535,7 +621,23 @@ train:
   batch_size: 32
   epochs: 200
 seed: 42
+
+acquisition:
+  eeg:
+    sampling_rate: 1000 # Hz (default acquisition rate)
+    bit_depth: 16 # bits
+    prefilter: [1, 450] # Hz bandpass applied at acquisition (<= Nyquist)
+    mains_notch: 60 # Hz (Brazil)
+protocol:
+  display_sec: 5
+  cue_sec: 1
+  capture_sec: 5
+dataset:
+  categories: [fonadas, imaginadas, mista]
+  noise_conditions: [with_noise, without_noise]
 ```
+
+- `run_experiment` and downstream code must compute sample counts from `acquisition.eeg.sampling_rate` and durations; for default values above, capture block = `5 * 1000 = 5000` samples.
 
 ## 20.2 run_experiment.sh / Python
 
@@ -557,6 +659,7 @@ seed: 42
 ## 21.2 Deterministic Ops
 
 - Avoid non-deterministic multi-threaded ops for experiments requiring exact reproducibility. Use single-threaded or set `OMP_NUM_THREADS=1` and document the environment.
+- When ICA artifact removal is used, persist mixing matrices and metadata necessary to reproduce artifact-removal offline.
 
 ---
 
@@ -577,45 +680,27 @@ seed: 42
 
 ---
 
-# 23 Roadmap & Immediate Tasks (Priority)
-
-1. Create synthetic `.mat` for CI in `tests/data/` and CTest that runs `dataLoader_demo` (High).
-2. Add `configs/defaults.yaml` and adapt `run_experiment` to use configs (High).
-3. Implement `Adam` and `Linear` with tests and CMake targets (High).
-4. Add GitHub Actions `build-and-test` + `clang-format` (High).
-5. Add sanitizers job (Medium).
-6. Add benchmark script for spikes/second (Medium).
-7. Document LIF equations and surrogate gradients in `docs/` (Medium).
-
----
-
-# 24 Actions I Can Execute Now (Choose One or More)
-
-Respond with the numbers separated by commas (e.g., `1,3`), or say `all` (I will start in prioritized order: 1 → 2 → 3 → 4 → 5 ...):
-
-1. Create `tests/data/test_small.mat` (synthetic) and add CTest + update `cmake/exec_tests.cmake`.
-2. Generate `configs/defaults.yaml` and `scripts/run_experiment.py` (skeleton CLI).
-3. Implement `src/layers/Linear.{h,cpp}` + `tests/unit/linear_test.cpp` + CMake target.
-4. Create GitHub Actions workflow `build-and-test.yml` with build+tests+clang-format.
-5. Generate template `src/encoders/PoissonRate.{h,cpp}` and unit test.
-6. Create PR skeleton with the above files and ready commit message.
-7. Generate document `docs/math_lif.md` with complete equations and discretization (LaTeX).
-8. Create `configs/ci_sanitizers.yaml` and CI job skeleton (ASAN/TSAN).
-9. Generate `README_ACTION_HISTORY.md` from git log (skeleton script).
-10. All (execute 1→9 in order).
-
----
-
-# 25 Useful Attachments (Model Snippets / Ready Examples)
+# 23 Useful Attachments (Model Snippets / Ready Examples)
 
 (Includes small snippets already presented, CMake lines, CI YAML snippet, config sample — all consolidatable into real files if you request.)
 
 ---
 
-# 26 Operational Policies and Final Guardrails (Summary)
+# 24 Operational Policies and Final Guardrails (Summary)
 
 - Copilot/generator **does not** modify public APIs without version bump and CHANGELOG.
 - All automatic generation creates minimal tests.
 - Seeds and checkpoints are always saved.
 - For compilation changes (CMake), add `exec_*.cmake` and document.
 - Do not download dependencies at runtime CI without approval.
+- Do not introduce non-determinism in experiments without explicit config options.
+- Always document the experimental protocol and data handling steps for traceability.
+- Always follow the following protocol when change the code:
+  1. Identify the component to change.
+  2. Split the change into smaller, manageable parts.
+  3. For each part, check for compilation breaks and run the tests.
+  4. If any tests and compilation fails, debug and fix the issues before proceeding.
+  5. Update documentation and comments.
+  6. Review the entire change for consistency and correctness.
+  7. Update `copilot-instructions.md` if public API changes.
+  8. Update `CHANGELOG.md` with semantic versioning.
