@@ -1,5 +1,3 @@
-
-
 # Add subdirectories for all testable modules
 add_subdirectory(${SRC_DIR}/util)
 add_subdirectory(${SRC_DIR}/core)
@@ -7,14 +5,12 @@ add_subdirectory(${SRC_DIR}/core/layers)
 add_subdirectory(${SRC_DIR}/core/layers/tests)
 add_subdirectory(${SRC_DIR}/core/tensor)
 add_subdirectory(${SRC_DIR}/core/tensor/tests)
-
 add_subdirectory(${SRC_DIR}/core/optimizers)
 add_subdirectory(${SRC_DIR}/core/optimizers/tests)
 add_subdirectory(${SRC_DIR}/core/initializers)
 add_subdirectory(${SRC_DIR}/core/initializers/tests)
 add_subdirectory(${SRC_DIR}/core/dataLoaders)
 add_subdirectory(${SRC_DIR}/core/dataLoaders/tests)
-
 add_subdirectory(${SRC_DIR}/core/linearAlgebra)
 add_subdirectory(${SRC_DIR}/core/wave)
 add_subdirectory(${SRC_DIR}/core/wave/tests)
