@@ -15,8 +15,8 @@ add_executable(exec_Experiment01
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/core/NnSaver.hpp
-    ${SRC_DIR}/core/dataLoaders/AudioLoader.cpp
-    ${SRC_DIR}/core/dataLoaders/EEGLoader.cpp
+    ${SRC_DIR}/core/dataLoaders/10.1117/AudioLoader.cpp
+    ${SRC_DIR}/core/dataLoaders/10.1117/EEGLoader.cpp
     ${SRC_DIR}/core/dataLoaders/MatFile.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/experiments/01/Experiment01.cpp

@@ -3,8 +3,8 @@
 #include <map> // Added for std::map
 #include <string>
 
-#include "core/dataLoaders/AudioLoader.h"
-#include "core/dataLoaders/EEGLoader.h"
+#include "core/dataLoaders/10.1117/AudioLoader.h"
+#include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/wave/Wav.h"
 
 using std::cout;

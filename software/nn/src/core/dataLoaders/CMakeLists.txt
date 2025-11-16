@@ -2,21 +2,21 @@ find_package(ZLIB REQUIRED)
 
 ## Consolidated GoogleTest target for dataLoaders
 add_executable(dataLoaders_gtest
-	tests/matfile_utils_gtest.cpp
 	tests/dataLoader_more_gtest.cpp
+	tests/matfile_utils_gtest.cpp
 	tests/dataLoader_gtest.cpp
 	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/MatFileUtils.cpp
 	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/DataLoader.cpp
-	tests/mat_file_dataset_gtest.cpp
-	tests/audio_loader_gtest.cpp
-	tests/matfile_vector_gtest.cpp
 	tests/matfile_row_vector_gtest.cpp
+	tests/mat_file_dataset_gtest.cpp
+	tests/matfile_vector_gtest.cpp
 	tests/mat_file_gtest.cpp
-	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/AudioLoader.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/EEGLoader.cpp
-    tests/eeg_loader_gtest.cpp
-	tests/eeg_loader_edge_gtest.cpp
 	tests/MatTestUtils.cpp
+	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/AudioLoader.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/EEGLoader.cpp
+	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/audio_loader_gtest.cpp
+    ${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/eeg_loader_gtest.cpp
+	${CMAKE_SOURCE_DIR}/src/core/dataLoaders/10.1117/tests/eeg_loader_edge_gtest.cpp
 )
 
 target_include_directories(dataLoaders_gtest 
