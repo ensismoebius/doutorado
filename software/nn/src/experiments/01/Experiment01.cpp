@@ -2,18 +2,138 @@
 #include <iostream>
 #include <map> // Added for std::map
 #include <string>
+#include <vector> // Added for std::vector
 
 #include "core/dataLoaders/10.1117/AudioLoader.h"
 #include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/wave/Wav.h"
 
 using std::cout;
+using std::string;
 
 using namespace nn::dataLoaders;
+struct AudioData
+{
+    Eigen::VectorXf audioSamples;
+    int audioStimulus;
+    long eegIndex;
+};
+
+struct EEGData
+{
+    Eigen::MatrixXf eegSamplesMatrix;
+    std::array<int, 3> eegInfo;
+    std::vector<Eigen::VectorXf> eegChannels;
+};
 
 static void init()
 {
     // Initialization code goes here
+}
+
+static auto loadAndProcessAudio(const std::string& audioFilePath) -> AudioData
+{
+    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
+    return {
+        .audioSamples = audioSamples,               // Eigen::VectorXf
+        .audioStimulus = audioStimulus,             // int
+        .eegIndex = static_cast<long>(eegIndex) - 1 // Convert to 0-based index
+    };
+}
+
+static auto loadAndProcessEEG(const std::string& eegFilePath, long eegRowIndex) -> EEGData
+{
+    // The number of channels is fixed at 6 for this dataset
+    constexpr int numChannels = 6;
+
+    auto [eegSamplesMatrix, eegInfo] = loadEEGFromMat(eegFilePath, eegRowIndex);
+
+    // Split eegSamplesMatrix into individual channel vectors
+    std::vector<Eigen::VectorXf> eegChannels(numChannels);
+    for (int j = 0; j < numChannels; ++j)
+    {
+        eegChannels[j] = eegSamplesMatrix.row(j);
+    }
+
+    return {
+        .eegSamplesMatrix = eegSamplesMatrix, // Eigen::MatrixXf
+        .eegInfo = eegInfo,                   // std::array<int, 3>
+        .eegChannels = eegChannels            // std::vector<Eigen::VectorXf>
+    };
+}
+
+static void writeAudioToWav(const Eigen::VectorXf& audioSamples, int audioStimulus,
+                            const std::string& subjectPath, const std::string& subjectName)
+{
+    // Get stimulus name for audio
+    std::string audioStimulusName = "Unknown";
+    if (ESTIMULUS_NAMES.contains(audioStimulus))
+    {
+        audioStimulusName = ESTIMULUS_NAMES.at(audioStimulus);
+    }
+
+    // Cast Eigen::VectorXf to std::vector<double>
+    std::vector<double> audioSamplesVec(audioSamples.data(),
+                                        audioSamples.data() + audioSamples.size());
+
+    // Construct output WAV file path
+    std::filesystem::path subjectDirPath(subjectPath);
+    std::string outputFilename = subjectName + "_AudioSample_" + audioStimulusName + ".wav";
+    std::string outputWavPath = (subjectDirPath / outputFilename).string();
+
+    // Assuming audio sample rate is 44100 Hz, 16-bit, 1 channel for this dataset
+    Wav w(44100, 16, 1, audioSamplesVec.data(), audioSamplesVec.size());
+    w.write(outputWavPath);
+
+    cout << "  - Wrote Audio Sample to " << outputWavPath << '\n';
+}
+
+static void writeEEGToWav(const std::vector<Eigen::VectorXf>& eegChannels, int eegStimulus,
+                          const std::string& subjectPath, const std::string& subjectName)
+{
+    // Get stimulus name for EEG
+    std::string eegStimulusName = "Unknown";
+    if (ESTIMULUS_NAMES.contains(eegStimulus))
+    {
+        eegStimulusName = ESTIMULUS_NAMES.at(eegStimulus);
+    }
+
+    // Write each EEG channel to a separate WAV file
+    for (int j = 0; j < eegChannels.size(); ++j)
+    {
+        // Convert Eigen::VectorXf to std::vector<double>
+        std::vector<double> eegChannelDoubleVec(eegChannels[j].data(),
+                                                eegChannels[j].data() + eegChannels[j].size());
+
+        // Construct output WAV file path
+        std::string eegOutputFilename =
+            subjectName + "_EEG_Channel_" + EEG_CHANNELS_NAMES[j] + "_" + eegStimulusName + ".wav";
+        std::string eegOutputWavPath =
+            (std::filesystem::path(subjectPath) / eegOutputFilename).string();
+
+        // Assuming EEG sample rate is 1024 Hz, 16-bit, 1 channel
+        Wav eegWav(1024, 16, 1, eegChannelDoubleVec.data(), eegChannelDoubleVec.size());
+        eegWav.write(eegOutputWavPath);
+
+        cout << "  - Wrote EEG Channel " << EEG_CHANNELS_NAMES[j] + " to " + eegOutputWavPath
+             << '\n';
+    }
+}
+
+static void processSubject(const std::string& subjectPath, const std::string& subjectName,
+                           const std::string& audioFilePath, const std::string& eegFilePath)
+{
+    cout << "Processing subject: " << subjectName << '\n';
+
+    AudioData audioData = loadAndProcessAudio(audioFilePath);
+    EEGData eegData = loadAndProcessEEG(eegFilePath, audioData.eegIndex);
+
+    writeAudioToWav(audioData.audioSamples, audioData.audioStimulus, subjectPath, subjectName);
+
+    // Get EEG stimulus from eegInfo, for this dataset index 1 corresponds to stimulus
+    int eegStimulus = eegData.eegInfo[1];
+
+    writeEEGToWav(eegData.eegChannels, eegStimulus, subjectPath, subjectName);
 }
 
 static void perform(const std::string& basePath)
@@ -22,87 +142,14 @@ static void perform(const std::string& basePath)
     {
         if (entry.is_directory())
         {
-            std::string subjectPath = entry.path().string();
-            std::string subjectName = entry.path().filename().string();
-            std::string audioFilePath = subjectPath + "/" + subjectName + "_Audio.mat";
-            std::string eegFilePath = subjectPath + "/" + subjectName + "_EEG.mat";
+            string subjectPath = entry.path().string();
+            string subjectName = entry.path().filename().string();
+            string audioFilePath = subjectPath + "/" + subjectName + "_Audio.mat";
+            string eegFilePath = subjectPath + "/" + subjectName + "_EEG.mat";
 
             if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
             {
-                cout << "Processing subject: " << subjectName << '\n';
-
-                auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
-
-                // The eegIndex from the audio file is 1-based, so we subtract 1 for 0-based
-                // indexing
-                long eegRowIndex = static_cast<long>(eegIndex) - 1;
-
-                auto [eegSamplesMatrix, eegInfo] = loadEEGFromMat(eegFilePath, eegRowIndex);
-
-                // Split EEG data into channels
-                constexpr int numChannels = 6;
-                std::vector<Eigen::VectorXf> eegChannels(numChannels);
-
-                for (int j = 0; j < numChannels; ++j)
-                {
-                    eegChannels[j] = eegSamplesMatrix.row(j);
-                }
-
-                // Now you have:
-                // - audioSamples (Eigen::VectorXf)
-                // - eegChannels (std::vector of 6 Eigen::VectorXf)
-                // You can proceed with further processing...
-
-                cout << "  - Loaded Audio Sample linked to EEG Sample " << eegRowIndex << '\n';
-
-                // Get stimulus name for audio
-                std::string audioStimulusName = "Unknown";
-                if (ESTIMULUS_NAMES.contains(audioStimulus))
-                {
-                    audioStimulusName = ESTIMULUS_NAMES.at(audioStimulus);
-                }
-
-                // Example: Write audio to a WAV file
-                std::vector<float> audioSamplesVec(audioSamples.data(),
-                                                   audioSamples.data() + audioSamples.size());
-                std::vector<double> audioSamplesDoubleVec(audioSamplesVec.begin(),
-                                                          audioSamplesVec.end());
-
-                Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
-                std::filesystem::path subjectDirPath(subjectPath);
-                std::string outputFilename =
-                    subjectName + "_AudioSample_" + audioStimulusName + ".wav";
-                std::string outputWavPath = (subjectDirPath / outputFilename).string();
-                w.write(outputWavPath);
-                cout << "  - Wrote Audio Sample to " << outputWavPath << '\n';
-
-                // Get EEG stimulus from eegInfo
-                int eegStimulus = eegInfo[1]; // Assuming index 1 is stimulus
-
-                // Get stimulus name for EEG
-                std::string eegStimulusName = "Unknown";
-                if (ESTIMULUS_NAMES.contains(eegStimulus))
-                {
-                    eegStimulusName = ESTIMULUS_NAMES.at(eegStimulus);
-                }
-
-                // Write EEG channels to WAV files
-
-                for (int j = 0; j < numChannels; ++j)
-                {
-                    std::vector<double> eegChannelDoubleVec(
-                        eegChannels[j].data(), eegChannels[j].data() + eegChannels[j].size());
-                    // Assuming EEG sample rate is 1024 Hz, 16-bit, 1 channel
-                    Wav eegWav(1024, 16, 1, eegChannelDoubleVec.data(), eegChannelDoubleVec.size());
-                    std::string eegOutputFilename = subjectName + "_EEG_Channel_" +
-                                                    EEG_CHANNELS_NAMES[j] + "_" + eegStimulusName +
-                                                    ".wav";
-                    std::string eegOutputWavPath =
-                        (std::filesystem::path(subjectPath) / eegOutputFilename).string();
-                    eegWav.write(eegOutputWavPath);
-                    cout << "  - Wrote EEG Channel "
-                         << EEG_CHANNELS_NAMES[j] + " to " + eegOutputWavPath << '\n';
-                }
+                processSubject(subjectPath, subjectName, audioFilePath, eegFilePath);
             }
         }
     }

@@ -8,9 +8,14 @@
 namespace nn::dataLoaders
 {
 
-// Map stimulus IDs to their string representations
+/**
+ * @brief Map stimulus IDs to their string representations.
+ * For this dataset, the stimulus are A, E, I, O, U vowels
+ * and directions in Spanish and the words "Up", "Down", "Forward",
+ * "Backward", "Right", "Left" in Spanish.
+ */
 const std::map<int, std::string> ESTIMULUS_NAMES = {
-    {1, "A"},
+    {1, "A"},         // Vowel "A"
     {2, "E"},         // Vowel "E"
     {3, "I"},         // Vowel "I"
     {4, "O"},         // Vowel "O"

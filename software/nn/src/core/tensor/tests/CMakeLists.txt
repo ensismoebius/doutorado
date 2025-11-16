@@ -1,6 +1,4 @@
-add_executable(tensor_gtest 
-    tensor_gtest.cpp
-)
+add_executable(tensor_gtest tensor_gtest.cpp)
 
 target_link_libraries(tensor_gtest 
     PRIVATE 
