@@ -70,7 +70,7 @@ static void perform(const std::string& basePath)
 
                 // Get stimulus name for audio
                 std::string audioStimulusName = "Unknown";
-                if (stimulusNames.count(audioStimulus))
+                if (stimulusNames.contains(audioStimulus))
                 {
                     audioStimulusName = stimulusNames.at(audioStimulus);
                 }
@@ -94,7 +94,7 @@ static void perform(const std::string& basePath)
 
                 // Get stimulus name for EEG
                 std::string eegStimulusName = "Unknown";
-                if (stimulusNames.count(eegStimulus))
+                if (stimulusNames.contains(eegStimulus))
                 {
                     eegStimulusName = stimulusNames.at(eegStimulus);
                 }
