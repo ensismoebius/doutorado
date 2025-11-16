@@ -1,10 +1,19 @@
+// TODO: Refactor this experiment into an auto-encoder training experiment which uses
+// the AudioLoader and EEGLoader to load data, and trains an traditional auto-encoder model
+// as well as a spiking auto-encoder model on the audio and EEG data respectively.
+// Then compare, using paraconsistent features enginering techniques, to assesss the
+// performance of both models in terms of the quality of the generated features vectors.
+// The input data must be downsampled to 
+
 #include <filesystem> // Include for path manipulation
 #include <iostream>
 #include <map> // Added for std::map
 #include <string>
 #include <vector> // Added for std::vector
 
+#include "core/dataLoaders/10.1117/AudioData.h"
 #include "core/dataLoaders/10.1117/AudioLoader.h"
+#include "core/dataLoaders/10.1117/EEGData.h"
 #include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/wave/Wav.h"
 
@@ -12,19 +21,6 @@ using std::cout;
 using std::string;
 
 using namespace nn::dataLoaders;
-struct AudioData
-{
-    Eigen::VectorXf audioSamples;
-    int audioStimulus;
-    long eegIndex;
-};
-
-struct EEGData
-{
-    Eigen::MatrixXf eegSamplesMatrix;
-    std::array<int, 3> eegInfo;
-    std::vector<Eigen::VectorXf> eegChannels;
-};
 
 static void init()
 {
