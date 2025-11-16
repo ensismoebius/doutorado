@@ -1,15 +1,28 @@
 #include <filesystem> // Include for path manipulation
 #include <iostream>
+#include <map> // Added for std::map
 #include <string>
 
 #include "core/dataLoaders/AudioLoader.h"
 #include "core/dataLoaders/EEGLoader.h"
-#include "core/dataLoaders/MatFile.h"
 #include "core/wave/Wav.h"
 
 using std::cout;
 
 using namespace nn::dataLoaders;
+
+// Map stimulus IDs to their string representations
+const std::map<int, std::string> stimulusNames = {{1, "A"},
+                                                  {2, "E"},
+                                                  {3, "I"},
+                                                  {4, "O"},
+                                                  {5, "U"},
+                                                  {6, "Arriba"},
+                                                  {7, "Abajo"},
+                                                  {8, "Adelante"},
+                                                  {9, "Atras"},
+                                                  {10, "Derecha"},
+                                                  {11, "Izquierda"}};
 
 static void init()
 {
@@ -55,6 +68,13 @@ static void perform(const std::string& basePath)
 
                 cout << "  - Loaded Audio Sample linked to EEG Sample " << eegRowIndex << '\n';
 
+                // Get stimulus name for audio
+                std::string audioStimulusName = "Unknown";
+                if (stimulusNames.count(audioStimulus))
+                {
+                    audioStimulusName = stimulusNames.at(audioStimulus);
+                }
+
                 // Example: Write audio to a WAV file
                 std::vector<float> audioSamplesVec(audioSamples.data(),
                                                    audioSamples.data() + audioSamples.size());
@@ -63,22 +83,39 @@ static void perform(const std::string& basePath)
 
                 Wav w(44100, 16, 1, audioSamplesDoubleVec.data(), audioSamplesDoubleVec.size());
                 std::filesystem::path subjectDirPath(subjectPath);
-                std::string outputFilename = subjectName + "_AudioSample.wav";
+                std::string outputFilename =
+                    subjectName + "_AudioSample_" + audioStimulusName + ".wav";
                 std::string outputWavPath = (subjectDirPath / outputFilename).string();
                 w.write(outputWavPath);
+                cout << "  - Wrote Audio Sample to " << outputWavPath << '\n';
 
+                // Get EEG stimulus from eegInfo
+                int eegStimulus = eegInfo[1]; // Assuming index 1 is stimulus
+
+                // Get stimulus name for EEG
+                std::string eegStimulusName = "Unknown";
+                if (stimulusNames.count(eegStimulus))
+                {
+                    eegStimulusName = stimulusNames.at(eegStimulus);
+                }
+
+                // Write EEG channels to WAV files
+                std::array<std::string, numChannels> eegChannelNames = {
+                    "F3", "F4", "C3", "C4", "P3", "P4"};
                 for (int j = 0; j < numChannels; ++j)
                 {
                     std::vector<double> eegChannelDoubleVec(
                         eegChannels[j].data(), eegChannels[j].data() + eegChannels[j].size());
+                    // Assuming EEG sample rate is 1024 Hz, 16-bit, 1 channel
                     Wav eegWav(1024, 16, 1, eegChannelDoubleVec.data(), eegChannelDoubleVec.size());
-                    std::string eegOutputFilename =
-                        subjectName + "_EEG_Channel" + std::to_string(j + 1) + ".wav";
+                    std::string eegOutputFilename = subjectName + "_EEG_Channel_" +
+                                                    eegChannelNames[j] + "_" + eegStimulusName +
+                                                    ".wav";
                     std::string eegOutputWavPath =
                         (std::filesystem::path(subjectPath) / eegOutputFilename).string();
                     eegWav.write(eegOutputWavPath);
-                    cout << "  - Wrote EEG Channel " << (j + 1) << " to " << eegOutputWavPath
-                         << '\n';
+                    cout << "  - Wrote EEG Channel "
+                         << eegChannelNames[j] + " to " + eegOutputWavPath << '\n';
                 }
             }
         }
