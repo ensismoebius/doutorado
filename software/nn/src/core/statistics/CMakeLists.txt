@@ -17,8 +17,7 @@ add_executable(statistics_gtest
 target_link_libraries(statistics_gtest
     PRIVATE
     statistics
-    gtest
-    gtest_main
+    GTest::gtest_main
 )
 
 add_executable(confusionMatrix_gtest 
@@ -28,19 +27,8 @@ add_executable(confusionMatrix_gtest
 target_link_libraries(confusionMatrix_gtest
     PRIVATE
     statistics
-    gtest
-    gtest_main
+    GTest::gtest_main
 )
 
-target_link_libraries(confusionMatrix_gtest 
-    PRIVATE 
-        statistics
-        GTest::gtest_main
-)
-
-gtest_discover_tests(statistics_gtest)
-gtest_discover_tests(confusionMatrix_gtest)
-
-# Add tests to CTest
 gtest_discover_tests(statistics_gtest)
 gtest_discover_tests(confusionMatrix_gtest)

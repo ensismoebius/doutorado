@@ -2,7 +2,6 @@
 # Targets for auto-encoder tests
 
 add_executable(autoEncoderLeakyReLUAndSpikeTest
-    ${CNPY_SOURCES}
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
@@ -12,7 +11,7 @@ add_executable(autoEncoderLeakyReLUAndSpikeTest
 
 # Link libraries
 target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
-    PUBLIC
+    PRIVATE
         cnpy
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
@@ -20,15 +19,15 @@ target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
 
 # Include directories
 target_include_directories(autoEncoderLeakyReLUAndSpikeTest
-    PUBLIC
+    PRIVATE
         ${SRC_DIR}
         ${SRC_DIR}/core/initializers
         ${SRC_DIR}/core/optimizers
         ${SRC_DIR}/core/layers
-        "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
+        ${cnpy_SOURCE_DIR}
 )
 
 # Configure Eigen parallelism for the target
@@ -36,7 +35,6 @@ configure_eigen_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
 
 
 add_executable(autoEncoderLeakyReLUTest
-    ${CNPY_SOURCES}
     ${SRC_DIR}/util/synthetic_spike_data.cpp
     ${SRC_DIR}/util/vectorizationCheck.cpp
     ${SRC_DIR}/util/batching.cpp
@@ -59,10 +57,10 @@ target_include_directories(autoEncoderLeakyReLUTest
         ${SRC_DIR}/core/initializers
         ${SRC_DIR}/core/optimizers
         ${SRC_DIR}/core/layers
-        "${cnpy_SOURCE_DIR}"
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
+        ${cnpy_SOURCE_DIR}
 )
 
 # Configure Eigen parallelism for the target

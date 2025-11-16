@@ -1,5 +1,4 @@
-add_executable(initializers_gtest tests/initializers_gtest.cpp kaiming_snn.hpp
-                                  xavier.hpp ../tensor/Tensor.hpp)
+add_executable(initializers_gtest tests/initializers_gtest.cpp)
 target_link_libraries(initializers_gtest PRIVATE GTest::gtest_main
                                                  Eigen3::Eigen)
 target_include_directories(initializers_gtest PRIVATE ${CMAKE_SOURCE_DIR}/src

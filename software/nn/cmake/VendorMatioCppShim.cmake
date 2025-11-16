@@ -25,4 +25,18 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
+# Provide matio information to matio-cpp's build system
+set(MATIO_ROOT_DIR "${matio_BINARY_DIR}")
+set(MATIO_INCLUDE_DIR "${matio_SOURCE_DIR}/src") # matio.h is in matio-src/src
+set(MATIO_LIBRARY "${matio_BINARY_DIR}/libmatio.so") # Or .a, depending on build type
+
+set(MATIO_FOUND TRUE) # Explicitly set to TRUE
+
+FetchContent_Declare(
+    matio-cpp
+    GIT_REPOSITORY https://github.com/ami-iit/matio-cpp.git
+    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
 FetchContent_MakeAvailable(matio-cpp)

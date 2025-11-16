@@ -1,5 +1,4 @@
-if (EXISTS ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp)
-    add_executable(resnet_demo
+add_executable(resnet_demo
         ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp    ${SRC_DIR}/util/batching.cpp
     ${SRC_DIR}/core/dataLoaders/MatFileUtils.cpp
   )
@@ -10,6 +9,5 @@ if (EXISTS ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp)
     matioCpp
   )
 
-  target_include_directories(resnet_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR} ${LIB_DIR}/matio-cpp/include ${LIB_DIR}/matio/include)
+  target_include_directories(resnet_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})
   configure_eigen_parallel_target(resnet_demo)
-endif()

@@ -7,7 +7,7 @@ add_executable(loadingData
 
 # Link libraries
 target_link_libraries(loadingData
-    PUBLIC
+    PRIVATE
         matioCpp
 )
 
