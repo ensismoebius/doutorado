@@ -22,26 +22,17 @@ using std::min;
 using std::size_t;
 using std::vector;
 
-const int TARGET_SAMPLING_RATE = 44100;
-const double FRAME_DURATION_MS = 25.0;
-const double FRAME_SHIFT_DURATION_MS = 10.0;
-const int NUMBER_OF_FILTERS = 24;
-const int NUMBER_OF_CEPSTRALS = 19;
-const double PREEMPHASIS_COEFFICIENT = 0.97;
-const int DELTA_WINDOW_SPAN = 2;
-
 /**
  * @brief Etapa 1: Pré-ênfase.
  *
  * Aplica um filtro de pré-ênfase para amplificar os componentes de alta frequência do sinal.
- * A fórmula é: y[n] = x[n] - α * x[n-1], onde α (PREEMPHASIS_COEFFICIENT) é tipicamente 0.97.
+ * A fórmula é: y[n] = x[n] - α * x[n-1].
  * Isso compensa o decaimento natural do espectro da voz humana.
  *
  * @param signal Sinal de áudio (modificado in-place).
  * @param coefficient Coeficiente de pré-ênfase.
  */
-static inline void pre_emphasis_inplace(vector<double>& signal,
-                                        double coefficient = PREEMPHASIS_COEFFICIENT)
+static inline void pre_emphasis_inplace(vector<double>& signal, double coefficient)
 {
     for (size_t i = signal.size() - 1; i >= 1; --i)
     {
@@ -55,19 +46,21 @@ static inline void pre_emphasis_inplace(vector<double>& signal,
  *
  * Divide o sinal em frames curtos e aplica uma janela (Hamming) para reduzir o vazamento espectral.
  * O sinal é considerado estacionário dentro de cada frame.
- * Parâmetros recomendados: frames de 25ms com passo de 10ms.
  *
  * @param signal Sinal de entrada.
  * @param sampling_rate Frequência de amostragem.
+ * @param frame_duration_ms Duração do frame em milissegundos.
+ * @param frame_shift_ms Passo do frame em milissegundos.
  * @param frame_length Comprimento do frame em amostras (saída).
  * @param frame_step Passo do frame em amostras (saída).
  * @return Vector de frames janelados.
  */
-auto framing_and_window(const vector<double>& signal, int sampling_rate, int& frame_length,
-                        int& frame_step) -> vector<vector<double>>
+auto framing_and_window(const vector<double>& signal, int sampling_rate, double frame_duration_ms,
+                        double frame_shift_ms, int& frame_length, int& frame_step)
+    -> vector<vector<double>>
 {
-    frame_length = (int) round(FRAME_DURATION_MS * sampling_rate / 1000.0);
-    frame_step = (int) round(FRAME_SHIFT_DURATION_MS * sampling_rate / 1000.0);
+    frame_length = (int) round(frame_duration_ms * sampling_rate / 1000.0);
+    frame_step = (int) round(frame_shift_ms * sampling_rate / 1000.0);
     int signal_length = (int) signal.size();
     int number_of_frames = 1 + std::max(0, (signal_length - frame_length) / frame_step);
     int padded_length = (number_of_frames * frame_step) + frame_length;
@@ -167,7 +160,8 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
  * @param center_frequencies Frequências centrais dos filtros (saída).
  */
 void build_linear_filterbank(int fft_points, int sampling_rate, int number_of_filters,
-                             vector<vector<double>>& filterbank, vector<double>& center_frequencies)
+                             vector<vector<double>>& filterbank,
+                             vector<double>& center_frequencies)
 {
     int number_of_bins = (fft_points / 2) + 1;
     filterbank.assign(number_of_filters, vector<double>(number_of_bins, 0.0));
@@ -294,7 +288,7 @@ auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
  * @param window_span Extensão da janela para o cálculo do delta.
  * @return Matriz com os coeficientes delta.
  */
-auto compute_deltas(const vector<vector<double>>& features, int window_span = DELTA_WINDOW_SPAN)
+auto compute_deltas(const vector<vector<double>>& features, int window_span)
     -> vector<vector<double>>
 {
     size_t number_of_frames = features.size();
@@ -337,8 +331,8 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span = DE
             double numerator = 0.0;
             for (int n = 1; n <= window_span; ++n)
             {
-                numerator += n * (padded_features[t + window_span + n][d] -
-                                  padded_features[t + window_span - n][d]);
+                numerator +=
+                    n * (padded_features[t + window_span + n][d] - padded_features[t + window_span - n][d]);
             }
             delta_features[t][d] = numerator / denominator;
         }
@@ -359,16 +353,18 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span = DE
  * 7. DCT para obter os coeficientes cepstrais
  * 8. Cálculo dos deltas e delta-deltas
  */
-static auto loadAndProcessAudio(const std::string& audioFilePath, float window_size_sec,
-                                float overlap_ratio, int sampling_rate)
+static auto loadAndProcessAudio(const std::string& audioFilePath, int target_sampling_rate,
+                                double preemphasis_coefficient, double frame_duration_ms,
+                                double frame_shift_ms, int number_of_filters,
+                                int number_of_cepstrals, int delta_window_span)
     -> std::vector<Eigen::MatrixXf>
 {
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
 
-    if (sampling_rate != TARGET_SAMPLING_RATE)
+    if (audio_sampling_rate != target_sampling_rate)
     {
-        std::cerr << "Amostragem diferente de " << TARGET_SAMPLING_RATE
+        std::cerr << "Amostragem diferente de " << target_sampling_rate
                   << " Hz. Reamostrar externamente.\n";
         return {};
     }
@@ -378,12 +374,13 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, float window_s
     audioMatrix.resize(0, 0);
 
     // Etapa 1: Pré-ênfase
-    pre_emphasis_inplace(input_data);
+    pre_emphasis_inplace(input_data, preemphasis_coefficient);
 
     // Etapa 2: Framing e Janelamento (Hamming)
     int frame_length;
     int frame_step;
-    auto frames = framing_and_window(input_data, TARGET_SAMPLING_RATE, frame_length, frame_step);
+    auto frames = framing_and_window(input_data, target_sampling_rate, frame_duration_ms,
+                                     frame_shift_ms, frame_length, frame_step);
 
     // Etapas 3 & 4: STFT (via FFT) e cálculo do Espectro de Potência
     auto power_spectrum = rfft_power(frames, frame_length);
@@ -391,32 +388,32 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, float window_s
     // Etapa 5: Construção do banco de filtros lineares
     vector<vector<double>> filterbank;
     vector<double> center_frequencies;
-    build_linear_filterbank(
-        frame_length, TARGET_SAMPLING_RATE, NUMBER_OF_FILTERS, filterbank, center_frequencies);
+    build_linear_filterbank(frame_length, target_sampling_rate, number_of_filters, filterbank,
+                            center_frequencies);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
     auto log_energies = dot_power_filterbank(power_spectrum, filterbank);
 
     // Etapa 7: DCT para obter os coeficientes cepstrais (LFCC)
-    auto cepstral_coefficients = dct2(log_energies, NUMBER_OF_CEPSTRALS);
+    auto cepstral_coefficients = dct2(log_energies, number_of_cepstrals);
 
     // (Extra) Etapa 8: Cálculo dos deltas (derivadas temporais)
-    auto delta_coefficients = compute_deltas(cepstral_coefficients);
-    auto delta_delta_coefficients = compute_deltas(delta_coefficients);
+    auto delta_coefficients = compute_deltas(cepstral_coefficients, delta_window_span);
+    auto delta_delta_coefficients = compute_deltas(delta_coefficients, delta_window_span);
 
     // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
     size_t number_of_frames = cepstral_coefficients.size();
     for (size_t t = 0; t < min(number_of_frames, static_cast<size_t>(5)); ++t)
     {
-        for (int i = 0; i < NUMBER_OF_CEPSTRALS; ++i)
+        for (int i = 0; i < number_of_cepstrals; ++i)
         {
             cout << cepstral_coefficients[t][i] << " ";
         }
-        for (int i = 0; i < NUMBER_OF_CEPSTRALS; ++i)
+        for (int i = 0; i < number_of_cepstrals; ++i)
         {
             cout << delta_coefficients[t][i] << " ";
         }
-        for (int i = 0; i < NUMBER_OF_CEPSTRALS; ++i)
+        for (int i = 0; i < number_of_cepstrals; ++i)
         {
             cout << delta_delta_coefficients[t][i] << " ";
         }
@@ -431,14 +428,20 @@ void processSubject(const std::string& subjectPath, const std::string& subjectNa
 {
     cout << "Processing subject: " << subjectName << '\n';
 
-    // Define experiment parameters
-    const float window_size_sec = 1.5F;
-    const float overlap_ratio = 0.5F;
-    const int audio_sampling_rate = 44100; // Assuming 44.1 kHz for audio
-    const int eeg_sampling_rate = 1024;    // Assuming 1024 Hz for EEG
+    // Parâmetros de extração de features de áudio
+    const int target_sampling_rate = 44100;
+    const double preemphasis_coefficient = 0.97;
+    const double frame_duration_ms = 25.0;
+    const double frame_shift_ms = 10.0;
+    const int number_of_filters = 24;
+    const int number_of_cepstrals = 19;
+    const int delta_window_span = 2;
 
     // Load, normalize, and window audio data
     std::vector<Eigen::MatrixXf> audioWindows =
-        loadAndProcessAudio(audioFilePath, window_size_sec, overlap_ratio, audio_sampling_rate);
+        loadAndProcessAudio(audioFilePath, target_sampling_rate, preemphasis_coefficient,
+                            frame_duration_ms, frame_shift_ms, number_of_filters,
+                            number_of_cepstrals, delta_window_span);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }
+
