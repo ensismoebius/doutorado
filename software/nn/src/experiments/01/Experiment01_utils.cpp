@@ -58,18 +58,25 @@ auto framing_and_window(const vector<double>& signal, const AudioProcessingParam
 {
     /// @brief Comprimento de cada frame em amostras. (Parâmetro de saída)
     frame_length = (int) round(params.frame_duration_ms * params.target_sampling_rate / 1000.0);
+
     /// @brief Deslocamento entre frames consecutivos em amostras. (Parâmetro de saída)
     frame_step = (int) round(params.frame_shift_ms * params.target_sampling_rate / 1000.0);
+
     /// @brief Comprimento total do sinal de entrada.
     const int signal_length = (int) signal.size();
+
     /// @brief Número total de frames que serão extraídos do sinal.
     const int number_of_frames = 1 + std::max(0, (signal_length - frame_length) / frame_step);
+
     /// @brief Comprimento do sinal após o padding para conter todos os frames.
     const int padded_length = (number_of_frames * frame_step) + frame_length;
+
     /// @brief Cópia do sinal com padding de zeros no final.
     vector<double> padded_signal = signal;
+
     /// @brief Vetor para armazenar a função de janelamento (Hamming).
     vector<double> window_function(frame_length);
+
     /// @brief Matriz para armazenar os frames resultantes após o janelamento.
     vector<vector<double>> frames(number_of_frames, vector<double>(frame_length));
 
@@ -116,14 +123,19 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
 
     /// @brief Número de frames de entrada.
     const size_t number_of_frames = frames.size();
+
     /// @brief Número de bins de frequência resultantes da FFT (N/2 + 1).
     const size_t number_of_bins = (fft_points / 2) + 1;
+
     /// @brief Matriz para armazenar o espectro de potência de cada frame.
     vector<vector<double>> power_spectrum(number_of_frames, vector<double>(number_of_bins, 0.0));
+
     /// @brief Buffer de entrada para a FFTW (real).
     auto* fftw_input = (double*) fftw_malloc(sizeof(double) * fft_points);
+
     /// @brief Buffer de saída para a FFTW (complexo).
     auto* fftw_output = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (fft_points / 2 + 1));
+
     /// @brief Plano da FFTW para a transformada de real para complexo.
     fftw_plan fftw_plan = fftw_plan_dft_r2c_1d(fft_points, fftw_input, fftw_output, FFTW_ESTIMATE);
 
@@ -131,8 +143,10 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
     {
         /// @brief Comprimento do frame atual.
         const size_t frame_length = frames[frame_index].size();
+
         /// @brief Tamanho da FFT em `size_t` para comparações.
         const auto fft_points_size_t = static_cast<size_t>(fft_points);
+
         /// @brief Comprimento a ser copiado para o buffer da FFT, o mínimo entre o comprimento do
         /// frame e o tamanho da FFT.
         const size_t copy_length = std::min(frame_length, fft_points_size_t);
@@ -154,8 +168,10 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
         {
             /// @brief Parte real do resultado da FFT para o bin atual.
             const double real_part = fftw_output[bin_index][0];
+
             /// @brief Parte imaginária do resultado da FFT para o bin atual.
             const double imaginary_part = fftw_output[bin_index][1];
+
             power_spectrum[frame_index][bin_index] =
                 (real_part * real_part + imaginary_part * imaginary_part) / (double) fft_points;
         }
@@ -184,8 +200,10 @@ void build_linear_filterbank(int fft_points, const AudioProcessingParameters& pa
 {
     /// @brief Número de bins de frequência resultantes da FFT (N/2 + 1).
     const int number_of_bins = (fft_points / 2) + 1;
+
     /// @brief Frequência máxima representada (Metade da frequência de amostragem).
     const double max_frequency = params.target_sampling_rate / 2.0;
+
     /// @brief Vetor de índices dos bins correspondentes às frequências centrais.
     vector<int> bin_indices(params.number_of_filters + 2);
 
@@ -209,8 +227,10 @@ void build_linear_filterbank(int fft_points, const AudioProcessingParameters& pa
     {
         /// @brief Índice do bin anterior ao filtro atual.
         const int previous_bin_index = bin_indices[filter_index - 1];
+
         /// @brief Índice do bin central do filtro atual.
         const int current_bin_index = bin_indices[filter_index];
+
         /// @brief Índice do bin posterior ao filtro atual.
         const int next_bin_index = bin_indices[filter_index + 1];
 
@@ -296,8 +316,10 @@ auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
 {
     /// @brief Número de frames (vetores de energia) de entrada.
     const size_t number_of_frames = log_energies.size();
+
     /// @brief Número de filtros, que corresponde ao número de energias por frame.
     const size_t number_of_filters = log_energies[0].size();
+
     /// @brief Matriz para armazenar os coeficientes cepstrais resultantes.
     vector<vector<double>> cepstral_coefficients(number_of_frames,
                                                  vector<double>(number_of_cepstra, 0.0));
@@ -346,14 +368,18 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span)
     {
         return {};
     }
+
     /// @brief Dimensionalidade do vetor de features.
     const size_t number_of_features = features[0].size();
+
     /// @brief Matriz de features com padding nas bordas para o cálculo dos deltas.
     vector<vector<double>> padded_features(
         number_of_frames + (static_cast<size_t>(2 * window_span)),
         vector<double>(number_of_features));
+
     /// @brief Denominador da fórmula de cálculo dos deltas, pré-calculado.
     double denominator = 0.0;
+
     /// @brief Matriz para armazenar os coeficientes delta resultantes.
     vector<vector<double>> delta_features(number_of_frames,
                                           vector<double>(number_of_features, 0.0));
@@ -421,30 +447,43 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
 {
     /// @brief Amostras de áudio carregadas do arquivo .mat.
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
+
     /// @brief Matriz Eigen para manipulação inicial dos dados de áudio.
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
+
     /// @brief Vetor de double para conter os dados de áudio para processamento.
     vector<double> input_data(audioMatrix.size());
+
     /// @brief Comprimento do frame em amostras, calculado pelo janelamento.
     int frame_length;
+
     /// @brief Passo do frame em amostras, calculado pelo janelamento.
     int frame_step;
+
     /// @brief Frames do sinal após janelamento.
     auto frames = framing_and_window(input_data, params, frame_length, frame_step);
+
     /// @brief Espectro de potência de cada frame.
     auto power_spectrum = rfft_power(frames, frame_length);
+
     /// @brief Matriz do banco de filtros lineares.
     vector<vector<double>> filterbank;
+
     /// @brief Frequências centrais de cada filtro do banco.
     vector<double> center_frequencies;
+
     /// @brief Energias logarítmicas após aplicação do banco de filtros.
     auto log_energies = dot_power_filterbank(power_spectrum, filterbank);
+
     /// @brief Coeficientes cepstrais (LFCC) calculados.
     auto cepstral_coefficients = dct2(log_energies, params.number_of_cepstrals);
+
     /// @brief Coeficientes delta (primeira derivada).
     auto delta_coefficients = compute_deltas(cepstral_coefficients, params.delta_window_span);
+
     /// @brief Coeficientes delta-delta (segunda derivada).
     auto delta_delta_coefficients = compute_deltas(delta_coefficients, params.delta_window_span);
+
     /// @brief Número total de frames processados.
     size_t number_of_frames = cepstral_coefficients.size();
 
