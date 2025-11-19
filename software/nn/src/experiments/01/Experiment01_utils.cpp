@@ -19,11 +19,12 @@ using std::cout;
 using std::make_shared;
 using std::string;
 
+using std::min;
 using std::size_t;
 using std::vector;
 
 // ------------------ Parâmetros (igual ao Python) ------------------
-const int FS_TARGET = 16000;
+const int FS_TARGET = 44100;
 const double FRAME_MS = 25.0;
 const double FRAME_SHIFT_MS = 10.0;
 const int NFFT = 512;
@@ -310,21 +311,21 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, float window_s
 
     // 9) concatenar e imprimir (simples: print primeiros 5 frames)
     size_t T = ceps.size();
-    for (size_t t = 0; t < std::min(T, 5); ++t)
+    for (size_t t = 0; t < min(T, static_cast<size_t>(5)); ++t)
     {
         for (int i = 0; i < N_CEPS; ++i)
         {
-            std::cout << ceps[t][i] << " ";
+            cout << ceps[t][i] << " ";
         }
         for (int i = 0; i < N_CEPS; ++i)
         {
-            std::cout << delta[t][i] << " ";
+            cout << delta[t][i] << " ";
         }
         for (int i = 0; i < N_CEPS; ++i)
         {
-            std::cout << delta2[t][i] << " ";
+            cout << delta2[t][i] << " ";
         }
-        std::cout << "\n";
+        cout << "\n";
     }
 
     return {}; // Retornar vetor vazio por enquanto

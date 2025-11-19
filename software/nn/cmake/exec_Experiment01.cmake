@@ -40,6 +40,8 @@ target_link_libraries(exec_Experiment01
 		${ZLIB_LIBRARIES}
         ${OpenMP_CXX_LIBRARIES}
         matioCpp
+        fftw3f
+        sndfile
 )
 
 # Configure Eigen parallelism for the target
