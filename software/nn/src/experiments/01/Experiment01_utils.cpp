@@ -22,6 +22,17 @@ using std::min;
 using std::size_t;
 using std::vector;
 
+struct AudioProcessingParameters
+{
+    int target_sampling_rate;
+    double preemphasis_coefficient;
+    double frame_duration_ms;
+    double frame_shift_ms;
+    int number_of_filters;
+    int number_of_cepstrals;
+    int delta_window_span;
+};
+
 /**
  * @brief Etapa 1: Pré-ênfase.
  *
@@ -353,18 +364,16 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span)
  * 7. DCT para obter os coeficientes cepstrais
  * 8. Cálculo dos deltas e delta-deltas
  */
-static auto loadAndProcessAudio(const std::string& audioFilePath, int target_sampling_rate,
-                                double preemphasis_coefficient, double frame_duration_ms,
-                                double frame_shift_ms, int number_of_filters,
-                                int number_of_cepstrals, int delta_window_span)
+static auto loadAndProcessAudio(const std::string& audioFilePath,
+                                const AudioProcessingParameters& params)
     -> std::vector<Eigen::MatrixXf>
 {
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
 
-    if (audio_sampling_rate != target_sampling_rate)
+    if (44100 != params.target_sampling_rate)
     {
-        std::cerr << "Amostragem diferente de " << target_sampling_rate
+        std::cerr << "Amostragem diferente de " << params.target_sampling_rate
                   << " Hz. Reamostrar externamente.\n";
         return {};
     }
@@ -374,13 +383,14 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, int target_sam
     audioMatrix.resize(0, 0);
 
     // Etapa 1: Pré-ênfase
-    pre_emphasis_inplace(input_data, preemphasis_coefficient);
+    pre_emphasis_inplace(input_data, params.preemphasis_coefficient);
 
     // Etapa 2: Framing e Janelamento (Hamming)
     int frame_length;
     int frame_step;
-    auto frames = framing_and_window(input_data, target_sampling_rate, frame_duration_ms,
-                                     frame_shift_ms, frame_length, frame_step);
+    auto frames =
+        framing_and_window(input_data, params.target_sampling_rate, params.frame_duration_ms,
+                           params.frame_shift_ms, frame_length, frame_step);
 
     // Etapas 3 & 4: STFT (via FFT) e cálculo do Espectro de Potência
     auto power_spectrum = rfft_power(frames, frame_length);
@@ -388,32 +398,32 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, int target_sam
     // Etapa 5: Construção do banco de filtros lineares
     vector<vector<double>> filterbank;
     vector<double> center_frequencies;
-    build_linear_filterbank(frame_length, target_sampling_rate, number_of_filters, filterbank,
-                            center_frequencies);
+    build_linear_filterbank(frame_length, params.target_sampling_rate, params.number_of_filters,
+                            filterbank, center_frequencies);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
     auto log_energies = dot_power_filterbank(power_spectrum, filterbank);
 
     // Etapa 7: DCT para obter os coeficientes cepstrais (LFCC)
-    auto cepstral_coefficients = dct2(log_energies, number_of_cepstrals);
+    auto cepstral_coefficients = dct2(log_energies, params.number_of_cepstrals);
 
     // (Extra) Etapa 8: Cálculo dos deltas (derivadas temporais)
-    auto delta_coefficients = compute_deltas(cepstral_coefficients, delta_window_span);
-    auto delta_delta_coefficients = compute_deltas(delta_coefficients, delta_window_span);
+    auto delta_coefficients = compute_deltas(cepstral_coefficients, params.delta_window_span);
+    auto delta_delta_coefficients = compute_deltas(delta_coefficients, params.delta_window_span);
 
     // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
     size_t number_of_frames = cepstral_coefficients.size();
     for (size_t t = 0; t < min(number_of_frames, static_cast<size_t>(5)); ++t)
     {
-        for (int i = 0; i < number_of_cepstrals; ++i)
+        for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             cout << cepstral_coefficients[t][i] << " ";
         }
-        for (int i = 0; i < number_of_cepstrals; ++i)
+        for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             cout << delta_coefficients[t][i] << " ";
         }
-        for (int i = 0; i < number_of_cepstrals; ++i)
+        for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             cout << delta_delta_coefficients[t][i] << " ";
         }
@@ -429,19 +439,16 @@ void processSubject(const std::string& subjectPath, const std::string& subjectNa
     cout << "Processing subject: " << subjectName << '\n';
 
     // Parâmetros de extração de features de áudio
-    const int target_sampling_rate = 44100;
-    const double preemphasis_coefficient = 0.97;
-    const double frame_duration_ms = 25.0;
-    const double frame_shift_ms = 10.0;
-    const int number_of_filters = 24;
-    const int number_of_cepstrals = 19;
-    const int delta_window_span = 2;
+    const AudioProcessingParameters params = {.target_sampling_rate = 44100,
+                                              .preemphasis_coefficient = 0.97,
+                                              .frame_duration_ms = 25.0,
+                                              .frame_shift_ms = 10.0,
+                                              .number_of_filters = 24,
+                                              .number_of_cepstrals = 19,
+                                              .delta_window_span = 2};
 
     // Load, normalize, and window audio data
-    std::vector<Eigen::MatrixXf> audioWindows =
-        loadAndProcessAudio(audioFilePath, target_sampling_rate, preemphasis_coefficient,
-                            frame_duration_ms, frame_shift_ms, number_of_filters,
-                            number_of_cepstrals, delta_window_span);
+    std::vector<Eigen::MatrixXf> audioWindows = loadAndProcessAudio(audioFilePath, params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }
 
