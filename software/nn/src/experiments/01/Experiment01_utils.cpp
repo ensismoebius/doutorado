@@ -22,16 +22,7 @@ using std::min;
 using std::size_t;
 using std::vector;
 
-struct AudioProcessingParameters
-{
-    int target_sampling_rate;
-    double preemphasis_coefficient;
-    double frame_duration_ms;
-    double frame_shift_ms;
-    int number_of_filters;
-    int number_of_cepstrals;
-    int delta_window_span;
-};
+
 
 /**
  * @brief Etapa 1: Pré-ênfase.
@@ -47,7 +38,7 @@ static inline void pre_emphasis_inplace(vector<double>& signal, double coefficie
 {
     for (size_t i = signal.size() - 1; i >= 1; --i)
     {
-        signal[i] = signal[i] - coefficient * signal[i - 1];
+        signal[i] = signal[i] - (coefficient * signal[i - 1]);
     }
     // signal[0] permanece
 }
@@ -59,19 +50,16 @@ static inline void pre_emphasis_inplace(vector<double>& signal, double coefficie
  * O sinal é considerado estacionário dentro de cada frame.
  *
  * @param signal Sinal de entrada.
- * @param sampling_rate Frequência de amostragem.
- * @param frame_duration_ms Duração do frame em milissegundos.
- * @param frame_shift_ms Passo do frame em milissegundos.
+ * @param params Parâmetros de processamento de áudio.
  * @param frame_length Comprimento do frame em amostras (saída).
  * @param frame_step Passo do frame em amostras (saída).
  * @return Vector de frames janelados.
  */
-auto framing_and_window(const vector<double>& signal, int sampling_rate, double frame_duration_ms,
-                        double frame_shift_ms, int& frame_length, int& frame_step)
-    -> vector<vector<double>>
+auto framing_and_window(const vector<double>& signal, const AudioProcessingParameters& params,
+                        int& frame_length, int& frame_step) -> vector<vector<double>>
 {
-    frame_length = (int) round(frame_duration_ms * sampling_rate / 1000.0);
-    frame_step = (int) round(frame_shift_ms * sampling_rate / 1000.0);
+    frame_length = (int) round(params.frame_duration_ms * params.target_sampling_rate / 1000.0);
+    frame_step = (int) round(params.frame_shift_ms * params.target_sampling_rate / 1000.0);
     int signal_length = (int) signal.size();
     int number_of_frames = 1 + std::max(0, (signal_length - frame_length) / frame_step);
     int padded_length = (number_of_frames * frame_step) + frame_length;
@@ -82,7 +70,7 @@ auto framing_and_window(const vector<double>& signal, int sampling_rate, double 
     // Janela de Hamming: w[n] = 0.54 - 0.46 * cos(2πn / (N-1))
     for (int i = 0; i < frame_length; ++i)
     {
-        window_function[i] = 0.54 - 0.46 * cos(2 * M_PI * i / (frame_length - 1)); // Hamming
+        window_function[i] = 0.54 - (0.46 * cos(2 * M_PI * i / (frame_length - 1))); // Hamming
     }
 
     vector<vector<double>> frames(number_of_frames, vector<double>(frame_length));
@@ -165,32 +153,32 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
  * em frequência.
  *
  * @param fft_points Número de pontos da FFT.
- * @param sampling_rate Frequência de amostragem.
- * @param number_of_filters Número de filtros no banco.
+ * @param params Parâmetros de processamento de áudio.
  * @param filterbank Matriz do banco de filtros (saída).
  * @param center_frequencies Frequências centrais dos filtros (saída).
  */
-void build_linear_filterbank(int fft_points, int sampling_rate, int number_of_filters,
+void build_linear_filterbank(int fft_points, const AudioProcessingParameters& params,
                              vector<vector<double>>& filterbank,
                              vector<double>& center_frequencies)
 {
     int number_of_bins = (fft_points / 2) + 1;
-    filterbank.assign(number_of_filters, vector<double>(number_of_bins, 0.0));
-    double max_frequency = sampling_rate / 2.0;
-    center_frequencies.resize(number_of_filters + 2);
+    filterbank.assign(params.number_of_filters, vector<double>(number_of_bins, 0.0));
+    double max_frequency = params.target_sampling_rate / 2.0;
+    center_frequencies.resize(params.number_of_filters + 2);
 
-    for (int i = 0; i < number_of_filters + 2; ++i)
+    for (int i = 0; i < params.number_of_filters + 2; ++i)
     {
-        center_frequencies[i] = (max_frequency) * (double) i / (number_of_filters + 1);
+        center_frequencies[i] = (max_frequency) * (double) i / (params.number_of_filters + 1);
     }
 
-    vector<int> bin_indices(number_of_filters + 2);
-    for (int i = 0; i < (int) center_frequencies.size(); ++i)
+    vector<int> bin_indices(params.number_of_filters + 2);
+    for (size_t i = 0; i < center_frequencies.size(); ++i)
     {
-        bin_indices[i] = (int) floor((fft_points + 1) * center_frequencies[i] / sampling_rate);
+        bin_indices[i] =
+            (int) floor((fft_points + 1) * center_frequencies[i] / params.target_sampling_rate);
     }
 
-    for (int filter_index = 1; filter_index <= number_of_filters; ++filter_index)
+    for (int filter_index = 1; filter_index <= params.number_of_filters; ++filter_index)
     {
         int previous_bin_index = bin_indices[filter_index - 1];
         int current_bin_index = bin_indices[filter_index];
@@ -278,7 +266,8 @@ auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
             for (size_t filter_index = 0; filter_index < number_of_filters; ++filter_index)
             {
                 sum += log_energies[frame_index][filter_index] *
-                       cos(M_PI * cepstrum_index * (filter_index + 0.5) / number_of_filters);
+                       cos(M_PI * cepstrum_index *
+                           (static_cast<double>(filter_index) + 0.5) / number_of_filters);
             }
             // normalização ortho
             cepstral_coefficients[frame_index][cepstrum_index] =
@@ -388,9 +377,7 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
     // Etapa 2: Framing e Janelamento (Hamming)
     int frame_length;
     int frame_step;
-    auto frames =
-        framing_and_window(input_data, params.target_sampling_rate, params.frame_duration_ms,
-                           params.frame_shift_ms, frame_length, frame_step);
+    auto frames = framing_and_window(input_data, params, frame_length, frame_step);
 
     // Etapas 3 & 4: STFT (via FFT) e cálculo do Espectro de Potência
     auto power_spectrum = rfft_power(frames, frame_length);
@@ -398,8 +385,7 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
     // Etapa 5: Construção do banco de filtros lineares
     vector<vector<double>> filterbank;
     vector<double> center_frequencies;
-    build_linear_filterbank(frame_length, params.target_sampling_rate, params.number_of_filters,
-                            filterbank, center_frequencies);
+    build_linear_filterbank(frame_length, params, filterbank, center_frequencies);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
     auto log_energies = dot_power_filterbank(power_spectrum, filterbank);
@@ -433,10 +419,9 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
     return {}; // Retornar vetor vazio por enquanto
 }
 
-void processSubject(const std::string& subjectPath, const std::string& subjectName,
-                    const std::string& audioFilePath, const std::string& eegFilePath)
+void processSubject(const SubjectInfo& subject)
 {
-    cout << "Processing subject: " << subjectName << '\n';
+    cout << "Processing subject: " << subject.name << '\n';
 
     // Parâmetros de extração de features de áudio
     const AudioProcessingParameters params = {.target_sampling_rate = 44100,
@@ -448,7 +433,7 @@ void processSubject(const std::string& subjectPath, const std::string& subjectNa
                                               .delta_window_span = 2};
 
     // Load, normalize, and window audio data
-    std::vector<Eigen::MatrixXf> audioWindows = loadAndProcessAudio(audioFilePath, params);
+    std::vector<Eigen::MatrixXf> audioWindows = loadAndProcessAudio(subject.audio_file_path, params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }
 
