@@ -26,7 +26,6 @@ using std::vector;
 const int FS_TARGET = 44100;
 const double FRAME_MS = 25.0;
 const double FRAME_SHIFT_MS = 10.0;
-const int NFFT = 512;
 const int N_FILTERS = 24;
 const int N_CEPS = 19;
 const double PREEMPH = 0.97;
@@ -72,6 +71,18 @@ auto framing_and_window(const vector<double>& x, int fs, int& frame_len, int& fr
 
 auto rfft_power(const vector<vector<double>>& frames, int nfft) -> vector<vector<double>>
 {
+    // Throws error if input size equals nfft
+    if (frames.size() == nfft)
+    {
+        throw std::invalid_argument("Input frame size cannot be equal to nfft.");
+    }
+
+    // Throws error if input frames are empty
+    if (frames.empty())
+    {
+        throw std::invalid_argument("Input frames cannot be empty.");
+    }
+
     size_t num_frames = frames.size();
     size_t nbin = (nfft / 2) + 1;
 
@@ -88,11 +99,13 @@ auto rfft_power(const vector<vector<double>>& frames, int nfft) -> vector<vector
     {
         // copiar frame e zerar o resto
         size_t L = frames[f].size();
-        for (size_t i = 0; i < L; ++i)
+        auto nfft_s = static_cast<size_t>(nfft);
+        size_t copy_len = std::min(L, nfft_s);
+        for (size_t i = 0; i < copy_len; ++i)
         {
             in[i] = frames[f][i];
         }
-        for (size_t i = L; i < nfft; ++i)
+        for (size_t i = copy_len; i < nfft_s; ++i)
         {
             in[i] = 0.0;
         }
@@ -265,12 +278,12 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, float window_s
     auto frames = framing_and_window(input_data, FS_TARGET, frame_len, frame_step);
 
     // 3-4) FFT + potência
-    auto P = rfft_power(frames, NFFT);
+    auto P = rfft_power(frames, frame_len);
 
     // 5) banco linear
     vector<vector<double>> fb;
     vector<double> centers;
-    build_linear_filterbank(NFFT, FS_TARGET, N_FILTERS, fb, centers);
+    build_linear_filterbank(frame_len, FS_TARGET, N_FILTERS, fb, centers);
 
     // 6) energy por banda + log
     auto logE = dot_power_filterbank(P, fb);
