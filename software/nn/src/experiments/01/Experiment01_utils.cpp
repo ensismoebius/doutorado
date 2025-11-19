@@ -1,16 +1,18 @@
 #include "Experiment01_utils.hpp"
-
+#define _USE_MATH_DEFINES
 #include <fftw3.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <numbers> // Added for std::numbers::sqrt2_v
 #include <vector>
 
 #include "core/dataLoaders/10.1117/AudioLoader.h"
 #include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/optimizers/Adam.hpp"
+#include "core/tensor/Tensor.hpp"
 
 using nn::dataLoaders::loadAudioFromMat;
 using nn::dataLoaders::loadEEGFromMat;
@@ -32,8 +34,9 @@ using std::vector;
  * @param signal Sinal de áudio (modificado in-place).
  * @param coefficient Coeficiente de pré-ênfase.
  */
-static inline void pre_emphasis_inplace(vector<double>& signal, double coefficient)
+static inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
 {
+    // Aplica o filtro de pré-ênfase ao sinal.
     for (size_t i = signal.size() - 1; i >= 1; --i)
     {
         signal[i] = signal[i] - (coefficient * signal[i - 1]);
@@ -53,43 +56,45 @@ static inline void pre_emphasis_inplace(vector<double>& signal, double coefficie
  * @param frame_step Passo do frame em amostras (saída).
  * @return Vector de frames janelados.
  */
-auto framing_and_window(const vector<double>& signal, const AudioProcessingParameters& params,
-                        int& frame_length, int& frame_step) -> vector<vector<double>>
+auto framing_and_window(const vector<float>& signal, const AudioProcessingParameters& params,
+                        int& frame_length, int& frame_step) -> vector<vector<float>>
 {
-    frame_length = (int) round(params.frame_duration_ms * params.target_sampling_rate / 1000.0);
+    // Comprimento de cada frame em amostras. (Parâmetro de saída)
+    frame_length = (int) round(params.frame_duration_ms * params.target_sampling_rate / 1000.0F);
 
-    frame_step = (int) round(params.frame_shift_ms * params.target_sampling_rate / 1000.0);
+    // Deslocamento entre frames consecutivos em amostras. (Parâmetro de saída)
+    frame_step = (int) round(params.frame_shift_ms * params.target_sampling_rate / 1000.0F);
 
     // Comprimento total do sinal de entrada.
     const int signal_length = (int) signal.size();
-
     // Número total de frames que serão extraídos do sinal.
     const int number_of_frames = 1 + std::max(0, (signal_length - frame_length) / frame_step);
-
     // Comprimento do sinal após o padding para conter todos os frames.
     const int padded_length = (number_of_frames * frame_step) + frame_length;
-
     // Cópia do sinal com padding de zeros no final.
-    vector<double> padded_signal = signal;
-
+    vector<float> padded_signal = signal;
     // Vetor para armazenar a função de janelamento (Hamming).
-    vector<double> window_function(frame_length);
-
+    vector<float> window_function(frame_length);
     // Matriz para armazenar os frames resultantes após o janelamento.
-    vector<vector<double>> frames(number_of_frames, vector<double>(frame_length));
+    vector<vector<float>> frames(number_of_frames, vector<float>(frame_length));
 
-    padded_signal.resize(padded_length, 0.0);
+    padded_signal.resize(padded_length, 0.0F);
 
     // Janela de Hamming: w[n] = 0.54 - 0.46 * cos(2πn / (N-1))
-    for (int i = 0; i < frame_length; ++i)
+    for (float i = 0; i < frame_length; ++i)
     {
-        // Índice atual para a função de janela.
-        window_function[i] = 0.54 - (0.46 * cos(2 * M_PI * i / (frame_length - 1))); // Hamming
+        window_function[i] =
+            0.54F - (0.46F * cosf(2 * std::numbers::pi_v<float> * i /
+                                  (static_cast<float>(frame_length) - 1))); // Hamming
     }
 
+    // Aplicação do janelamento em cada frame.
     for (int i = 0; i < number_of_frames; ++i)
     {
+        // Índice do frame atual.
         const int start_index = i * frame_step;
+
+        // Preenchimento do frame atual com a janela aplicada.
         for (int j = 0; j < frame_length; ++j)
         {
             frames[i][j] = padded_signal[start_index + j] * window_function[j];
@@ -110,7 +115,7 @@ auto framing_and_window(const vector<double>& signal, const AudioProcessingParam
  * @param fft_points Número de pontos da FFT.
  * @return Espectro de potência para cada frame.
  */
-auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<vector<double>>
+auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
 {
     if (frames.empty())
     {
@@ -119,71 +124,62 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
 
     // Número de frames de entrada.
     const size_t number_of_frames = frames.size();
-
     // Número de bins de frequência resultantes da FFT (N/2 + 1).
     const size_t number_of_bins = (fft_points / 2) + 1;
-
     // Matriz para armazenar o espectro de potência de cada frame.
-    vector<vector<double>> power_spectrum(number_of_frames, vector<double>(number_of_bins, 0.0));
-
+    Tensor power_spectrum(static_cast<int>(number_of_frames), static_cast<int>(number_of_bins));
     // Buffer de entrada para a FFTW (real).
-    auto* fftw_input = (double*) fftw_malloc(sizeof(double) * fft_points);
-
+    auto* fftw_input = (float*) fftwf_malloc(sizeof(float) * fft_points);
     // Buffer de saída para a FFTW (complexo).
-    auto* fftw_output = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * (fft_points / 2 + 1));
-
+    auto* fftw_output = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * (fft_points / 2 + 1));
     // Plano da FFTW para a transformada de real para complexo.
-    fftw_plan fftw_plan = fftw_plan_dft_r2c_1d(fft_points, fftw_input, fftw_output, FFTW_ESTIMATE);
+    fftwf_plan fftw_plan =
+        fftwf_plan_dft_r2c_1d(fft_points, fftw_input, fftw_output, FFTW_ESTIMATE);
 
+    // Processamento de cada frame.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Comprimento do frame atual.
         const size_t frame_length = frames[frame_index].size();
-
         // Tamanho da FFT em `size_t` para comparações.
         const auto fft_points_size_t = static_cast<size_t>(fft_points);
-
-        // Comprimento a ser copiado para o buffer da FFT, o mínimo entre o comprimento do frame e o
-        // tamanho da FFT.
+        // Comprimento a ser copiado para o buffer da FFT, o mínimo entre o comprimento do
+        /// frame e o tamanho da FFT.
         const size_t copy_length = std::min(frame_length, fft_points_size_t);
 
-        // Preenche o buffer de entrada da FFTW com os dados do frame atual, zerando o restante se
-        // necessário.
+        // Cópia do frame atual para o buffer de entrada da FFT, com zero-padding se necessário.
         for (size_t i = 0; i < copy_length; ++i)
         {
             fftw_input[i] = frames[frame_index][i];
         }
-
-        // Zera o restante do buffer se o frame for menor que o tamanho da FFT.
+        // Preenchimento com zeros se o frame for menor que o tamanho da FFT.
         for (size_t i = copy_length; i < fft_points_size_t; ++i)
         {
-            fftw_input[i] = 0.0;
+            fftw_input[i] = 0.0F;
         }
 
-        // Executa a FFT.
-        fftw_execute(fftw_plan);
+        // Execução da FFT.
+        fftwf_execute(fftw_plan);
 
-        // Calcula o espectro de potência para o frame atual.
+        // Cálculo do espectro de potência para o frame atual.
         for (size_t bin_index = 0; bin_index < number_of_bins; ++bin_index)
         {
             // Parte real do resultado da FFT para o bin atual.
-            const double real_part = fftw_output[bin_index][0];
-
+            const float real_part = fftw_output[bin_index][0];
             // Parte imaginária do resultado da FFT para o bin atual.
-            const double imaginary_part = fftw_output[bin_index][1];
-
+            const float imaginary_part = fftw_output[bin_index][1];
             // Cálculo do espectro de potência normalizado.
-            power_spectrum[frame_index][bin_index] =
-                (real_part * real_part + imaginary_part * imaginary_part) / (double) fft_points;
+            power_spectrum.data(frame_index, bin_index) =
+                (real_part * real_part + imaginary_part * imaginary_part) / (float) fft_points;
         }
     }
 
-    // Libera os recursos da FFTW.
-    fftw_destroy_plan(fftw_plan);
-    fftw_free(fftw_input);
-    fftw_free(fftw_output);
+    // Liberação dos recursos da FFTW.
+    fftwf_destroy_plan(fftw_plan);
+    fftwf_free(fftw_input);
+    fftwf_free(fftw_output);
 
-    // Retorna o espectro de potência calculado.
+    // Retorno do espectro de potência calculado.
     return power_spectrum;
 }
 
@@ -199,67 +195,65 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
  * @param center_frequencies Frequências centrais dos filtros (saída).
  */
 void build_linear_filterbank(int fft_points, const AudioProcessingParameters& params,
-                             vector<vector<double>>& filterbank, vector<double>& center_frequencies)
+                             Tensor& filterbank, vector<float>& center_frequencies)
 {
     // Número de bins de frequência resultantes da FFT (N/2 + 1).
     const int number_of_bins = (fft_points / 2) + 1;
-
     // Frequência máxima representada (Metade da frequência de amostragem).
-    const double max_frequency = params.target_sampling_rate / 2.0;
-
+    const float max_frequency = params.target_sampling_rate / 2.0F;
     // Vetor de índices dos bins correspondentes às frequências centrais.
     vector<int> bin_indices(params.number_of_filters + 2);
 
-    // Inicializa o banco de filtros e as frequências centrais.
-    filterbank.assign(params.number_of_filters, vector<double>(number_of_bins, 0.0));
+    // Inicialização do banco de filtros e das frequências centrais.
+    filterbank = Tensor(params.number_of_filters, number_of_bins);
+
+    // Inicialização das frequências centrais.
     center_frequencies.resize(params.number_of_filters + 2);
 
-    // Calcula as frequências centrais dos filtros.
+    // Cálculo das frequências centrais dos filtros.
     for (int i = 0; i < params.number_of_filters + 2; ++i)
     {
-        center_frequencies[i] = (max_frequency) * (double) i / (params.number_of_filters + 1);
+        center_frequencies[i] = (max_frequency) * (float) i / (params.number_of_filters + 1);
     }
 
-    // Calcula os índices dos bins para as frequências centrais.
+    // Cálculo dos índices dos bins para as frequências centrais.
     for (size_t i = 0; i < center_frequencies.size(); ++i)
     {
+        // Índice para mapear frequências centrais para bins da FFT.
         bin_indices[i] =
             (int) floor((fft_points + 1) * center_frequencies[i] / params.target_sampling_rate);
     }
 
-    // Constrói os filtros triangulares.
+    // Construção dos filtros triangulares.
     for (int filter_index = 1; filter_index <= params.number_of_filters; ++filter_index)
     {
         // Índice do bin anterior ao filtro atual.
         const int previous_bin_index = bin_indices[filter_index - 1];
-
         // Índice do bin central do filtro atual.
         const int current_bin_index = bin_indices[filter_index];
-
         // Índice do bin posterior ao filtro atual.
         const int next_bin_index = bin_indices[filter_index + 1];
 
-        // Constrói o filtro triangular.
+        // Construção da parte ascendente e descendente do filtro triangular.
         if (current_bin_index > previous_bin_index)
         {
             // Parte ascendente do filtro triangular.
             for (int bin_index = previous_bin_index; bin_index < current_bin_index; ++bin_index)
             {
-                filterbank[filter_index - 1][bin_index] =
-                    (double) (bin_index - previous_bin_index) /
-                    (double) (current_bin_index - previous_bin_index);
+                filterbank.data(filter_index - 1, bin_index) =
+                    (float) (bin_index - previous_bin_index) /
+                    (float) (current_bin_index - previous_bin_index);
             }
         }
-
         // Parte descendente do filtro triangular.
         if (next_bin_index > current_bin_index)
         {
             // Parte descendente do filtro triangular.
             for (int bin_index = current_bin_index; bin_index < next_bin_index; ++bin_index)
             {
-                filterbank[filter_index - 1][bin_index] =
-                    (double) (next_bin_index - bin_index) /
-                    (double) (next_bin_index - current_bin_index);
+                filterbank.data(filter_index - 1, bin_index) =
+                    (float) (next_bin_index - bin_index) /
+                    (float) (next_bin_index - current_bin_index);
             }
         }
     }
@@ -276,21 +270,18 @@ void build_linear_filterbank(int fft_points, const AudioProcessingParameters& pa
  * @param filterbank Banco de filtros lineares.
  * @return Energias logarítmicas das bandas.
  */
-auto dot_power_filterbank(const vector<vector<double>>& power_spectrum,
-                          const vector<vector<double>>& filterbank) -> vector<vector<double>>
+auto dot_power_filterbank(const Tensor& power_spectrum, const Tensor& filterbank) -> Tensor
 {
     // Número de frames no espectro de potência.
-    const size_t number_of_frames = power_spectrum.size();
-
+    const size_t number_of_frames = power_spectrum.data.rows();
     // Número de filtros no banco de filtros.
-    const size_t number_of_filters = filterbank.size();
-
+    const size_t number_of_filters = filterbank.data.rows();
     // Número de bins de frequência por frame.
-    const size_t number_of_bins = power_spectrum[0].size();
-
+    const size_t number_of_bins = power_spectrum.data.cols();
     // Matriz para armazenar as energias logarítmicas resultantes.
-    vector<vector<double>> log_energies(number_of_frames, vector<double>(number_of_filters, 0.0));
+    Tensor log_energies(number_of_frames, number_of_filters);
 
+    // Cálculo das energias logarítmicas para cada frame e filtro.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Índice do frame atual.
@@ -298,14 +289,15 @@ auto dot_power_filterbank(const vector<vector<double>>& power_spectrum,
         {
             // Índice do filtro atual.
             // Variável temporária para acumular a soma ponderada do espectro de potência.
-            double sum = 0.0;
+            float sum = 0.0F;
             for (size_t bin_index = 0; bin_index < number_of_bins; ++bin_index)
             {
                 // Índice do bin de frequência atual.
-                sum += power_spectrum[frame_index][bin_index] * filterbank[filter_index][bin_index];
+                sum += power_spectrum.data(frame_index, bin_index) *
+                       filterbank.data(filter_index, bin_index);
             }
-            sum = std::max(sum, 1e-12); // Evita log(0)
-            log_energies[frame_index][filter_index] = log(sum);
+            sum = std::max(sum, 1e-12F); // Evita log(0)
+            log_energies.data(frame_index, filter_index) = log(sum);
         }
     }
     return log_energies;
@@ -321,41 +313,42 @@ auto dot_power_filterbank(const vector<vector<double>>& power_spectrum,
  * @param number_of_cepstra Número de coeficientes cepstrais a serem mantidos.
  * @return Coeficientes LFCC.
  */
-auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
-    -> vector<vector<double>>
+auto dct2(const Tensor& log_energies, int number_of_cepstra) -> Tensor
 {
     // Número de frames (vetores de energia) de entrada.
-    const size_t number_of_frames = log_energies.size();
-
+    const size_t number_of_frames = log_energies.data.rows();
     // Número de filtros, que corresponde ao número de energias por frame.
-    const size_t number_of_filters = log_energies[0].size();
-
+    const size_t number_of_filters = log_energies.data.cols();
     // Matriz para armazenar os coeficientes cepstrais resultantes.
-    vector<vector<double>> cepstral_coefficients(number_of_frames,
-                                                 vector<double>(number_of_cepstra, 0.0));
-
+    Tensor cepstral_coefficients(number_of_frames, number_of_cepstra);
+    // Cálculo dos coeficientes cepstrais para cada frame.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
-        // Índice do frame atual.
+        // Cria os coeficientes cepstrais para o frame atual.
         for (int cepstrum_index = 0; cepstrum_index < number_of_cepstra; ++cepstrum_index)
         {
-            // Índice do coeficiente cepstral atual.
             // Variável temporária para acumular a soma ponderada para o cálculo do
-            /// coeficiente cepstral.
-            double sum = 0.0;
+            float sum = 0.0F;
+
+            // Cálculo do coeficiente cepstral atual.
             for (size_t filter_index = 0; filter_index < number_of_filters; ++filter_index)
             {
                 // Índice do filtro atual.
-                sum += log_energies[frame_index][filter_index] *
-                       cos(M_PI * cepstrum_index * (static_cast<double>(filter_index) + 0.5) /
-                           static_cast<double>(number_of_filters));
+                sum += log_energies.data(frame_index, filter_index) *
+                       cosf(std::numbers::pi_v<float> * cepstrum_index *
+                            (static_cast<float>(filter_index) + 0.5F) /
+                            static_cast<float>(number_of_filters));
             }
+
             // normalização ortho
-            cepstral_coefficients[frame_index][cepstrum_index] =
-                sum * sqrt(2.0 / static_cast<double>(number_of_filters));
+            cepstral_coefficients.data(frame_index, cepstrum_index) =
+                sum * sqrt(2.0F / static_cast<float>(number_of_filters));
+
+            // Ajuste do primeiro coeficiente cepstral.
             if (cepstrum_index == 0)
             {
-                cepstral_coefficients[frame_index][cepstrum_index] *= 1.0 / std::numbers::sqrt2;
+                cepstral_coefficients.data(frame_index, cepstrum_index) *=
+                    1.0F / std::numbers::sqrt2_v<float>;
             }
         }
     }
@@ -369,70 +362,67 @@ auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
  * @param window_span Extensão da janela para o cálculo do delta.
  * @return Matriz com os coeficientes delta.
  */
-auto compute_deltas(const vector<vector<double>>& features, int window_span)
-    -> vector<vector<double>>
+auto compute_deltas(const Tensor& features, int window_span) -> Tensor
 {
     // Número de frames (vetores de features) de entrada.
-    const size_t number_of_frames = features.size();
+    const size_t number_of_frames = features.data.rows();
     if (number_of_frames == 0)
     {
         return {};
     }
-
     // Dimensionalidade do vetor de features.
-    const size_t number_of_features = features[0].size();
-
+    const size_t number_of_features = features.data.cols();
     // Matriz de features com padding nas bordas para o cálculo dos deltas.
-    vector<vector<double>> padded_features(
-        number_of_frames + (static_cast<size_t>(2 * window_span)),
-        vector<double>(number_of_features));
-
+    Tensor padded_features(number_of_frames + (static_cast<size_t>(2 * window_span)),
+                           number_of_features);
     // Denominador da fórmula de cálculo dos deltas, pré-calculado.
-    double denominator = 0.0;
-
+    float denominator = 0.0F;
     // Matriz para armazenar os coeficientes delta resultantes.
-    vector<vector<double>> delta_features(number_of_frames,
-                                          vector<double>(number_of_features, 0.0));
+    Tensor delta_features(number_of_frames, number_of_features);
 
-    // pad edges
+    // Preenchimento do tensor de features com padding.
     for (int i = 0; i < window_span; ++i)
     {
-        // Índice para preencher o padding inicial.
-        padded_features[i] = features[0];
+        padded_features.data.row(i) = features.data.row(0);
     }
+
+    // Cópia dos features originais para o centro do tensor com padding.
     for (size_t i = 0; i < number_of_frames; ++i)
     {
-        // Índice para copiar as features originais para o centro do vetor com padding.
-        padded_features[i + window_span] = features[i];
+        padded_features.data.row(i + window_span) = features.data.row(i);
     }
+
+    // Preenchimento do padding final.
     for (int i = 0; i < window_span; ++i)
     {
-        // Índice para preencher o padding final.
-        padded_features[number_of_frames + window_span + i] = features[number_of_frames - 1];
+        padded_features.data.row(number_of_frames + window_span + i) =
+            features.data.row(number_of_frames - 1);
     }
 
+    // Cálculo do denominador da fórmula de deltas.
     for (int i = 1; i <= window_span; ++i)
     {
-        // Índice para calcular o denominador da fórmula de deltas.
-        denominator += i * i;
+        denominator += (float) i * i;
     }
-    denominator *= 2.0;
+    denominator *= 2.0F;
 
+    // Cálculo dos coeficientes delta para cada frame e feature.
     for (size_t t = 0; t < number_of_frames; ++t)
     {
-        // Índice do frame atual.
+        // Itera sobre cada dimensão do feature vector.
         for (size_t d = 0; d < number_of_features; ++d)
         {
-            // Índice da feature atual.
             // Variável temporária para acumular o numerador da fórmula de deltas.
-            double numerator = 0.0;
+            float numerator = 0.0F;
+
+            // Cálculo do numerador para o delta da feature atual.
             for (int n = 1; n <= window_span; ++n)
             {
                 // Deslocamento para calcular a diferença entre frames.
-                numerator += n * (padded_features[t + window_span + n][d] -
-                                  padded_features[t + window_span - n][d]);
+                numerator += (float) n * (padded_features.data(t + window_span + n, d) -
+                                          padded_features.data(t + window_span - n, d));
             }
-            delta_features[t][d] = numerator / denominator;
+            delta_features.data(t, d) = numerator / denominator;
         }
     }
     return delta_features;
@@ -452,50 +442,36 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span)
  * 8. Cálculo dos deltas e delta-deltas
  */
 static auto loadAndProcessAudio(const std::string& audioFilePath,
-                                const AudioProcessingParameters& params)
-    -> std::vector<Eigen::MatrixXf>
+                                const AudioProcessingParameters& params) -> std::vector<Tensor>
 {
     // Amostras de áudio carregadas do arquivo .mat.
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
-
     // Matriz Eigen para manipulação inicial dos dados de áudio.
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
-
-    // Vetor de double para conter os dados de áudio para processamento.
-    vector<double> input_data(audioMatrix.size());
-
+    // Vetor de float para conter os dados de áudio para processamento.
+    vector<float> input_data(audioMatrix.size());
     // Comprimento do frame em amostras, calculado pelo janelamento.
     int frame_length;
-
     // Passo do frame em amostras, calculado pelo janelamento.
     int frame_step;
-
     // Frames do sinal após janelamento.
-    auto frames = framing_and_window(input_data, params, frame_length, frame_step);
-
+    vector<vector<float>> frames;
     // Espectro de potência de cada frame.
-    auto power_spectrum = rfft_power(frames, frame_length);
-
+    Tensor power_spectrum;
     // Matriz do banco de filtros lineares.
-    vector<vector<double>> filterbank;
-
+    Tensor filterbank;
     // Frequências centrais de cada filtro do banco.
-    vector<double> center_frequencies;
-
+    vector<float> center_frequencies;
     // Energias logarítmicas após aplicação do banco de filtros.
-    auto log_energies = dot_power_filterbank(power_spectrum, filterbank);
-
+    Tensor log_energies;
     // Coeficientes cepstrais (LFCC) calculados.
-    auto cepstral_coefficients = dct2(log_energies, params.number_of_cepstrals);
-
+    Tensor cepstral_coefficients;
     // Coeficientes delta (primeira derivada).
-    auto delta_coefficients = compute_deltas(cepstral_coefficients, params.delta_window_span);
-
+    Tensor delta_coefficients;
     // Coeficientes delta-delta (segunda derivada).
-    auto delta_delta_coefficients = compute_deltas(delta_coefficients, params.delta_window_span);
-
+    Tensor delta_delta_coefficients;
     // Número total de frames processados.
-    size_t number_of_frames = cepstral_coefficients.size();
+    size_t number_of_frames;
 
     if (44100 != params.target_sampling_rate)
     {
@@ -504,7 +480,7 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
         return {};
     }
 
-    Eigen::Map<Eigen::VectorXd>(input_data.data(), audioMatrix.size()) = audioMatrix.cast<double>();
+    Eigen::Map<Eigen::VectorXf>(input_data.data(), audioMatrix.size()) = audioMatrix;
     audioMatrix.resize(0, 0);
 
     // Etapa 1: Pré-ênfase
@@ -530,24 +506,24 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
     delta_delta_coefficients = compute_deltas(delta_coefficients, params.delta_window_span);
 
     // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
-    number_of_frames = cepstral_coefficients.size();
+    number_of_frames = cepstral_coefficients.data.rows();
     for (size_t t = 0; t < min(number_of_frames, static_cast<size_t>(5)); ++t)
     {
         // Índice do frame atual para depuração.
         for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             // Índice do coeficiente cepstral para depuração.
-            cout << cepstral_coefficients[t][i] << " ";
+            cout << cepstral_coefficients.data(t, i) << " ";
         }
         for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             // Índice do coeficiente delta para depuração.
-            cout << delta_coefficients[t][i] << " ";
+            cout << delta_coefficients.data(t, i) << " ";
         }
         for (int i = 0; i < params.number_of_cepstrals; ++i)
         {
             // Índice do coeficiente delta-delta para depuração.
-            cout << delta_delta_coefficients[t][i] << " ";
+            cout << delta_delta_coefficients.data(t, i) << " ";
         }
         cout << "\n";
     }
@@ -569,7 +545,6 @@ void processSubject(const SubjectInfo& subject)
                                               .delta_window_span = 2};
 
     // Janelas de áudio processadas (atualmente não utilizado).
-    std::vector<Eigen::MatrixXf> audioWindows =
-        loadAndProcessAudio(subject.audio_file_path, params);
+    std::vector<Tensor> audioWindows = loadAndProcessAudio(subject.audio_file_path, params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }

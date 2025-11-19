@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Dense>
+#include <cstddef>
 #include <vector>
 struct Tensor
 {
@@ -9,7 +10,7 @@ struct Tensor
 
     Tensor() = default;
 
-    Tensor(const int rows, const int cols) : data(rows, cols), grad(rows, cols)
+    Tensor(const size_t rows, const size_t cols) : data(rows, cols), grad(rows, cols)
     {
         data.setZero();
         grad.setZero();
