@@ -827,6 +827,15 @@
 				\end{figure}
 			
 				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes, essa estrutura pode ser usada multiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
+				
+		\subsection{por que LFCC e MGDF para biometria}
+			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovem o máximo de separabilidade entre indivíduos neste trablho é utilizado o LFCC en detrimento às escalas auditivas como MEL com a BARK pois estas excluem frequências que, embora não sejam perceptíveis para a maioria dos humanos, podem ser úteis para a autenticação com biometria. \textbf{<<Mais detalhes aqui e citar a referência>>}
+			
+			\par LFCC (Linear Frequency Cepstral Coefficients) são coeficientes cepstrais obtidos a partir de um banco de filtros com espaçamento linear em frequência. Mantêm resolução uniforme em todas as bandas e, portanto, preservam componentes de alta e baixa frequência relevantes para identificação do locutor. \textbf{<<fonte>>}.
+			
+			\par A escolha do LFCC também se dá pelo seus baixo custo computacional.
+			
+			
 
 	\section{Trabalhos mais recentes}
 		\label{sec:trabalhosMaisRecentes}

@@ -19,6 +19,7 @@ add_executable(exec_Experiment01
     ${SRC_DIR}/core/dataLoaders/MatFile.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/experiments/01/Experiment01.cpp
+    ${SRC_DIR}/experiments/01/Experiment01_utils.cpp
 )
 
 # Include directories

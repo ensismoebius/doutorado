@@ -35,7 +35,10 @@ auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int
     unsigned int period = 0;
     unsigned int index = 0;
 
-    for (unsigned int i = 1; i < vector.size(); i++) m = std::min(m, vector[i]);
+    for (unsigned int i = 1; i < vector.size(); i++)
+    {
+        m = std::min(m, vector[i]);
+    }
 
     while (vector[index] != m)
     {

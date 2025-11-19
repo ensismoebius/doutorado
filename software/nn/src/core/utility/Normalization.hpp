@@ -6,13 +6,21 @@
 class Normalization
 {
    public:
-    static auto minMax(const Eigen::MatrixXf& data) -> Eigen::MatrixXf
+    /**
+     * @brief Normalize data to [0, 1] range
+     *
+     * @param data Input matrix
+     * @return Eigen::MatrixXf
+     */
+    static auto normalize_0_1(const Eigen::MatrixXf& data) -> Eigen::MatrixXf
     {
         if (data.size() == 0)
         {
             return data;
         }
+
         Eigen::MatrixXf normalized_data = data;
+
         float min_val = data.minCoeff();
         float max_val = data.maxCoeff();
 
@@ -22,6 +30,7 @@ class Normalization
         }
 
         normalized_data = (data.array() - min_val) / (max_val - min_val);
+
         return normalized_data;
     }
 };
