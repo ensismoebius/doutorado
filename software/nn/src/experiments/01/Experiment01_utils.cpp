@@ -1,7 +1,6 @@
 #include "Experiment01_utils.hpp"
 
 #include <fftw3.h>
-#include <sndfile.h>
 
 #include <algorithm>
 #include <cmath>
@@ -247,41 +246,15 @@ static auto loadAndProcessAudio(const std::string& audioFilePath, float window_s
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
 
-    SF_INFO sfinfo;
-    SNDFILE* snd = sf_open(audioFilePath.c_str(), SFM_READ, &sfinfo);
-
-    if (snd == nullptr)
-    {
-        std::cerr << "Erro abrindo " << audioFilePath << "\n";
-        return {};
-    }
-
-    if (sfinfo.samplerate != FS_TARGET)
+    if (sampling_rate != FS_TARGET)
     {
         std::cerr << "Amostragem diferente de " << FS_TARGET << " Hz. Reamostrar externamente.\n";
-        sf_close(snd);
         return {};
     }
 
-    vector<double> input_data(sfinfo.frames * sfinfo.channels);
-    sf_readf_double(snd, input_data.data(), sfinfo.frames);
-
-    // se estéreo -> média
-    if (sfinfo.channels > 1)
-    {
-        vector<double> mono(sfinfo.frames);
-        for (int i = 0; i < sfinfo.frames; ++i)
-        {
-            double s = 0.0;
-            for (int c = 0; c < sfinfo.channels; ++c)
-            {
-                s += input_data[(i * sfinfo.channels) + c];
-            }
-            mono[i] = s / sfinfo.channels;
-        }
-        input_data.swap(mono);
-    }
-    sf_close(snd);
+    vector<double> input_data(audioMatrix.size());
+    Eigen::Map<Eigen::VectorXd>(input_data.data(), audioMatrix.size()) = audioMatrix.cast<double>();
+    audioMatrix.resize(0, 0);
 
     // 1) pré-ênfase
     pre_emphasis_inplace(input_data);
