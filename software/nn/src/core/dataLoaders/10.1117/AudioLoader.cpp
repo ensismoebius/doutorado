@@ -19,7 +19,7 @@ class AudioLoader : public IMatLoader
         close();
     }
 
-    bool open(const std::string& filePath) noexcept override
+    auto open(const std::string& filePath) noexcept -> bool override
     {
         filePath_ = filePath;
         matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
@@ -28,25 +28,32 @@ class AudioLoader : public IMatLoader
 
     void close() noexcept override
     {
-        if (matFile_)
+        if (matFile_ != nullptr)
         {
             Mat_Close(matFile_);
             matFile_ = nullptr;
         }
     }
 
-    std::unique_ptr<matvar_t, void (*)(matvar_t*)> readVariable(const std::string& name) override
+    auto readVariable(const std::string& name)
+        -> std::unique_ptr<matvar_t, void (*)(matvar_t*)> override
     {
-        if (!matFile_) return {nullptr, &Mat_VarFree};
+        if (matFile_ == nullptr)
+        {
+            return {nullptr, &Mat_VarFree};
+        }
 
         matvar_t* var = Mat_VarRead(matFile_, name.c_str());
         return {var, &Mat_VarFree};
     }
 
-    std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>> readFirstNumericVariable()
-        override
+    auto readFirstNumericVariable()
+        -> std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>> override
     {
-        if (!matFile_) return std::nullopt;
+        if (matFile_ == nullptr)
+        {
+            return std::nullopt;
+        }
 
         for (matvar_t* var = Mat_VarReadNext(matFile_); var != nullptr;
              var = Mat_VarReadNext(matFile_))
@@ -62,7 +69,7 @@ class AudioLoader : public IMatLoader
         return std::nullopt;
     }
 
-    std::string filePath() const noexcept override
+    [[nodiscard]] auto filePath() const noexcept -> std::string override
     {
         return filePath_;
     }
@@ -76,14 +83,20 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<Eigen::VectorXf, int, int>
 {
     AudioLoader loader;
-    if (!loader.open(filePath)) throw std::runtime_error("Failed to open MAT file: " + filePath);
+    if (!loader.open(filePath))
+    {
+        throw std::runtime_error("Failed to open MAT file: " + filePath);
+    }
 
     auto audioVariable = loader.readVariable(AUDIO_VARIABLE_NAME);
     if (!audioVariable)
     {
         // try first numeric
         auto maybe = loader.readFirstNumericVariable();
-        if (!maybe) throw std::runtime_error("Failed to read audio variable from MAT file");
+        if (!maybe)
+        {
+            throw std::runtime_error("Failed to read audio variable from MAT file");
+        }
         audioVariable = std::move(*maybe);
     }
 

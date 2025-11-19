@@ -22,8 +22,6 @@ using std::min;
 using std::size_t;
 using std::vector;
 
-
-
 /**
  * @brief Etapa 1: Pré-ênfase.
  *
@@ -158,8 +156,7 @@ auto rfft_power(const vector<vector<double>>& frames, int fft_points) -> vector<
  * @param center_frequencies Frequências centrais dos filtros (saída).
  */
 void build_linear_filterbank(int fft_points, const AudioProcessingParameters& params,
-                             vector<vector<double>>& filterbank,
-                             vector<double>& center_frequencies)
+                             vector<vector<double>>& filterbank, vector<double>& center_frequencies)
 {
     int number_of_bins = (fft_points / 2) + 1;
     filterbank.assign(params.number_of_filters, vector<double>(number_of_bins, 0.0));
@@ -266,8 +263,8 @@ auto dct2(const vector<vector<double>>& log_energies, int number_of_cepstra)
             for (size_t filter_index = 0; filter_index < number_of_filters; ++filter_index)
             {
                 sum += log_energies[frame_index][filter_index] *
-                       cos(M_PI * cepstrum_index *
-                           (static_cast<double>(filter_index) + 0.5) / number_of_filters);
+                       cos(M_PI * cepstrum_index * (static_cast<double>(filter_index) + 0.5) /
+                           static_cast<double>(number_of_filters));
             }
             // normalização ortho
             cepstral_coefficients[frame_index][cepstrum_index] =
@@ -331,8 +328,8 @@ auto compute_deltas(const vector<vector<double>>& features, int window_span)
             double numerator = 0.0;
             for (int n = 1; n <= window_span; ++n)
             {
-                numerator +=
-                    n * (padded_features[t + window_span + n][d] - padded_features[t + window_span - n][d]);
+                numerator += n * (padded_features[t + window_span + n][d] -
+                                  padded_features[t + window_span - n][d]);
             }
             delta_features[t][d] = numerator / denominator;
         }
@@ -359,13 +356,6 @@ static auto loadAndProcessAudio(const std::string& audioFilePath,
 {
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
     Eigen::MatrixXf audioMatrix = audioSamples.transpose(); // Convert to 1xN matrix for windowing
-
-    if (44100 != params.target_sampling_rate)
-    {
-        std::cerr << "Amostragem diferente de " << params.target_sampling_rate
-                  << " Hz. Reamostrar externamente.\n";
-        return {};
-    }
 
     vector<double> input_data(audioMatrix.size());
     Eigen::Map<Eigen::VectorXd>(input_data.data(), audioMatrix.size()) = audioMatrix.cast<double>();
@@ -433,7 +423,7 @@ void processSubject(const SubjectInfo& subject)
                                               .delta_window_span = 2};
 
     // Load, normalize, and window audio data
-    std::vector<Eigen::MatrixXf> audioWindows = loadAndProcessAudio(subject.audio_file_path, params);
+    std::vector<Eigen::MatrixXf> audioWindows =
+        loadAndProcessAudio(subject.audio_file_path, params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }
-
