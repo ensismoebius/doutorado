@@ -1,6 +1,6 @@
 #define USE_MATH_DEFINES
 
-#include "Experiment01_utils.hpp"
+#include "Experiment01_utils.h"
 
 #include <fftw3.h>
 
