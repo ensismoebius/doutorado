@@ -7,23 +7,36 @@
 
 #include "core/tensor/Tensor.hpp" // For Tensor
 
+/**
+ * @brief Configurações da janela de Hamming.
+ */
 struct HammingWindowConfig
 {
     float alpha;
     float beta;
 };
 
+/**
+ * @brief Configurações da Transformada Discreta de Cosseno (DCT).
+ *
+ */
 struct DctConfig
 {
     float normalization_factor_sqrt;
     float filter_index_offset;
 };
 
+/**
+ * @brief Configurações para o cálculo dos deltas.
+ */
 struct DeltaConfig
 {
     float denominator_factor;
 };
 
+/**
+ * @brief Constantes gerais usadas no processamento.
+ */
 struct GeneralConstants
 {
     float ms_to_seconds_factor;
@@ -32,6 +45,10 @@ struct GeneralConstants
     size_t debug_frame_limit;
 };
 
+/**
+ * @brief Parâmetros para o processamento de áudio.
+ *
+ */
 struct AudioProcessingParams
 {
     int target_sampling_rate;
@@ -43,6 +60,9 @@ struct AudioProcessingParams
     long delta_window_span;
 };
 
+/**
+ * @brief Parâmetros de carregamento e processamento.
+ */
 struct LoadingAndProcessingParameters
 {
     const AudioProcessingParams& audio_params;
@@ -52,6 +72,9 @@ struct LoadingAndProcessingParameters
     GeneralConstants constants;
 };
 
+/**
+ * @brief Informações sobre o sujeito a ser processado.
+ */
 struct SubjectInfo
 {
     std::string path;
@@ -60,21 +83,33 @@ struct SubjectInfo
     std::string eeg_file_path;
 };
 
-struct FramingContext
+/**
+ * @brief Configurações para o janelamento do sinal.
+ *
+ */
+struct FramingConfig
 {
     int& frame_length;
     int& frame_step;
     const LoadingAndProcessingParameters& loading_params;
 };
 
-struct FilterbankContext
+/**
+ * @brief Configurações para o filtro de banco de dados.
+ *
+ */
+struct FilterbankConfig
 {
     Tensor& filterbank;
     std::vector<float>& center_frequencies;
     const LoadingAndProcessingParameters& loading_params;
 };
 
-struct PowerFilterbankContext
+/**
+ * @brief Configurações para o cálculo do espectro de potência após o filtro.
+ *
+ */
+struct PowerFilterbankConfig
 {
     const Tensor& filterbank;
     const LoadingAndProcessingParameters& loading_params;

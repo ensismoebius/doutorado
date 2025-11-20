@@ -51,13 +51,11 @@ inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
  * Divide o sinal em frames curtos e aplica uma janela (Hamming) para reduzir o vazamento espectral.
  * O sinal é considerado estacionário dentro de cada frame.
  *
- * @param signal Sinal de entrada.
- * @param params Parâmetros de processamento de áudio.
- * @param frame_length Comprimento do frame em amostras (saída).
- * @param frame_step Passo do frame em amostras (saída).
- * @return Vector de frames janelados.
+ * @param signal Sinal de áudio.
+ * @param context Contexto contendo parâmetros e saídas.
+ * @return Frames do sinal após janelamento.
  */
-auto framing_and_window(const vector<float>& signal, FramingContext& context)
+auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     -> vector<vector<float>>
 {
     // Comprimento de cada frame em amostras. (Parâmetro de saída)
@@ -125,9 +123,9 @@ auto framing_and_window(const vector<float>& signal, FramingContext& context)
  * A STFT é calculada usando a biblioteca FFTW.
  * O espectro de potência é |X[k]|^2, onde X[k] é a STFT.
  *
- * @param frames Frames janelados do sinal.
- * @param fft_points Número de pontos da FFT.
- * @return Espectro de potência para cada frame.
+ * @param frames Frames do sinal após janelamento.
+ * @param fft_points Número de pontos da FFT (igual ao comprimento do frame).
+ * @return Espectro de potência de cada frame.
  */
 auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
 {
@@ -216,11 +214,9 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
  * em frequência.
  *
  * @param fft_points Número de pontos da FFT.
- * @param params Parâmetros de processamento de áudio.
- * @param filterbank Matriz do banco de filtros (saída).
- * @param center_frequencies Frequências centrais dos filtros (saída).
+ * @param context Contexto contendo parâmetros e saídas.
  */
-void build_linear_filterbank(int fft_points, FilterbankContext& context)
+void build_linear_filterbank(int fft_points, FilterbankConfig& context)
 {
     // Número de bins de frequência resultantes da FFT (N/2 + 1).
     // Um "bin" representa uma pequena faixa de frequência na saída da FFT.
@@ -303,11 +299,11 @@ void build_linear_filterbank(int fft_points, FilterbankContext& context)
  * a energia em cada banda. Em seguida, aplica o logaritmo natural.
  * Fórmula: E = log(Σ |X[k]|^2 * H_m[k])
  *
- * @param power_spectrum Espectro de potência.
- * @param filterbank Banco de filtros lineares.
- * @return Energias logarítmicas das bandas.
+ * @param power_spectrum Espectro de potência de cada frame.
+ * @param context Contexto contendo parâmetros e o banco de filtros.
+ * @return Energias logarítmicas das bandas de filtro.
  */
-auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankContext& context)
+auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankConfig& context)
     -> Tensor
 {
     // Número de frames no espectro de potência.
@@ -353,9 +349,9 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
  * A DCT é aplicada para decorrelacionar as energias das bandas de filtro,
  * resultando nos coeficientes cepstrais (LFCC).
  *
- * @param log_energies Energias logarítmicas das bandas.
- * @param number_of_cepstra Número de coeficientes cepstrais a serem mantidos.
- * @return Coeficientes LFCC.
+ * @param log_energies Energias logarítmicas das bandas de filtro.
+ * @param loading_params Parâmetros de carregamento e processamento.
+ * @return Coeficientes cepstrais (LFCC).
  */
 auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
     -> Tensor
@@ -416,9 +412,10 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
 
 /**
  * @brief Calcula os deltas (derivada temporal) dos features.
+ * Os deltas capturam a dinâmica temporal dos coeficientes cepstrais.
  *
- * @param features Matriz de features (e.g., LFCCs).
- * @param window_span Extensão da janela para o cálculo do delta.
+ * @param features Matriz de features (LFCCs).
+ * @param loading_params Parâmetros de carregamento e processamento.
  * @return Matriz com os coeficientes delta.
  */
 auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters& loading_params)
@@ -528,6 +525,9 @@ namespace
  * 6. Compressão logarítmica
  * 7. DCT para obter os coeficientes cepstrais
  * 8. Cálculo dos deltas e delta-deltas
+ * @param audioFilePath Caminho do arquivo de áudio.
+ * @param loading_params Parâmetros de carregamento e processamento.
+ * @return Vetor de tensores contendo os LFCCs e seus deltas.
  */
 auto loadAndProcessAudio(const std::string& audioFilePath,
                          const LoadingAndProcessingParameters& loading_params)
@@ -583,7 +583,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     pre_emphasis_inplace(input_data, loading_params.audio_params.preemphasis_coefficient);
 
     // Etapa 2: Framing e Janelamento (Hamming)
-    FramingContext framing_context = {
+    FramingConfig framing_context = {
         .frame_length = frame_length,    // Tamanho do frame (saída)
         .frame_step = frame_step,        // Passo do frame (saída)
         .loading_params = loading_params // Parâmetros de carregamento e processamento
@@ -594,7 +594,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     power_spectrum = rfft_power(frames, frame_length);
 
     // Etapa 5: Construção do banco de filtros lineares
-    FilterbankContext filterbank_context = {
+    FilterbankConfig filterbank_context = {
         .filterbank = filterbank,                 // Matriz do banco de filtros (saída)
         .center_frequencies = center_frequencies, // Frequências centrais (saída)
         .loading_params = loading_params          // Parâmetros de carregamento e processamento
@@ -602,7 +602,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     build_linear_filterbank(frame_length, filterbank_context);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
-    PowerFilterbankContext power_filterbank_context = {
+    PowerFilterbankConfig power_filterbank_context = {
         .filterbank = filterbank,        // Banco de filtros
         .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
@@ -645,6 +645,11 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
 }
 } // namespace
 
+/**
+ * @brief Processa um sujeito específico, carregando e processando seu áudio.
+ *
+ * @param subject Informações do sujeito a ser processado.
+ */
 void processSubject(const SubjectInfo& subject)
 {
     cout << "Processing subject: " << subject.name << '\n';
