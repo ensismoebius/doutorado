@@ -43,6 +43,8 @@ target_link_libraries(exec_Experiment01
         fftw3f
 )
 
+add_subdirectory(${SRC_DIR}/tests)
+
 # Configure Eigen parallelism for the target
 configure_eigen_parallel_target(exec_Experiment01)
 # End of Experiment 01 CMake configuration
