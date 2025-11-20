@@ -25,9 +25,9 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer) -> void
     std::mt19937 gen(static_cast<int>(std::random_device{}()));
 
     // Initialize weights
-    layer->weight.data = Eigen::MatrixXf(layer->out_features, layer->in_features)
-                             .unaryExpr([&](float) { return dist(gen); });
+    layer->weight.set_data(Eigen::MatrixXf(layer->out_features, layer->in_features)
+                             .unaryExpr([&](float) { return dist(gen); }));
 
     // Initialize biases to zero (common in SNNs)
-    layer->bias.data = Eigen::VectorXf::Zero(layer->out_features);
+    layer->bias.set_data(Eigen::VectorXf::Zero(layer->out_features));
 }

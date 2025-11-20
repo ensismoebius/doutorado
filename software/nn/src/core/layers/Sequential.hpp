@@ -66,7 +66,7 @@ struct Sequential : Module
     }
 
     // Returns all trainable parameters (weights and biases) from all layers
-    [[nodiscard]] auto params() -> std::vector<Tensor*>
+    [[nodiscard]] auto params() -> std::vector<Tensor*> override
     {
         std::vector<Tensor*> parameters;
         parameters.reserve(layers.size() * 2); // Reserve space for weights and biases

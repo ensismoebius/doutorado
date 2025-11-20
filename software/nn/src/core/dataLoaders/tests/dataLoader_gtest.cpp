@@ -13,7 +13,7 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> Tensor
             m(static_cast<int>(i), static_cast<int>(j)) = static_cast<float>((i * D) + j);
         }
     }
-    return {m};
+    return Tensor{m};
 }
 
 TEST(DataLoaderTest, DeterministicShuffle)
@@ -28,18 +28,18 @@ TEST(DataLoaderTest, DeterministicShuffle)
     std::vector<int> order1;
     for (const auto& batch : loader1)
     {
-        for (int i = 0; i < batch.inputs.data.rows(); ++i)
+        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
         {
-            order1.push_back(static_cast<int>(batch.inputs.data(i, 0) / 2));
+            order1.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
         }
     }
 
     std::vector<int> order2;
     for (const auto& batch : loader2)
     {
-        for (int i = 0; i < batch.inputs.data.rows(); ++i)
+        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
         {
-            order2.push_back(static_cast<int>(batch.inputs.data(i, 0) / 2));
+            order2.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
         }
     }
 
@@ -58,18 +58,18 @@ TEST(DataLoaderTest, ShuffleVsNoShuffle)
     std::vector<int> sorder;
     for (const auto& batch : shuffled)
     {
-        for (int i = 0; i < batch.inputs.data.rows(); ++i)
+        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
         {
-            sorder.push_back(static_cast<int>(batch.inputs.data(i, 0) / 2));
+            sorder.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
         }
     }
 
     std::vector<int> norder;
     for (const auto& batch : not_shuffled)
     {
-        for (int i = 0; i < batch.inputs.data.rows(); ++i)
+        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
         {
-            norder.push_back(static_cast<int>(batch.inputs.data(i, 0) / 2));
+            norder.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
         }
     }
 
@@ -92,7 +92,7 @@ TEST(DataLoaderTest, SmallDataset)
     for (const auto& batch : loader)
     {
         ++batches;
-        total_rows += static_cast<int>(batch.inputs.data.rows());
+        total_rows += static_cast<int>(batch.inputs.get_data_ref().rows());
     }
     EXPECT_EQ(batches, 1);
     EXPECT_EQ(total_rows, 3);

@@ -77,11 +77,9 @@ auto main() -> int
         auto output_out = output_neuron.forward(hidden_out);
 
         // Store data for plotting
-        plot_input_spikes.push_back(in_tensor.data(0, 0));
-
-        // Neuron outputs
-        plot_hidden_spikes.push_back(hidden_out.data(0, 0));
-        plot_output_spikes.push_back(output_out.data(0, 0));
+        plot_input_spikes.push_back(in_tensor.get_data_ref()(0, 0));
+        plot_hidden_spikes.push_back(hidden_out.get_data_ref()(0, 0));
+        plot_output_spikes.push_back(output_out.get_data_ref()(0, 0));
 
         // Membrane potentials
         plot_hidden_vmems.push_back(hidden_neuron.v_mem(0, 0));

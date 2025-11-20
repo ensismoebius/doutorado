@@ -5,7 +5,9 @@ add_executable(layers_gtest
 target_link_libraries(layers_gtest 
     PRIVATE 
         GTest::gtest_main 
-        Eigen3::Eigen layers
+        Eigen3::Eigen 
+        layers
+        tensor
 )
 
 target_include_directories(

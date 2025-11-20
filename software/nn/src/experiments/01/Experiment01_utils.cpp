@@ -192,7 +192,7 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
             const float imaginary_part = fftw_output[bin_index][1];
 
             // Cálculo do espectro de potência normalizado.
-            power_spectrum.data(static_cast<long>(frame_index), static_cast<long>(bin_index)) =
+            power_spectrum.get_data_ref()(static_cast<long>(frame_index), static_cast<long>(bin_index)) =
                 (real_part * real_part + imaginary_part * imaginary_part) /
                 static_cast<float>(fft_points);
         }
@@ -273,7 +273,7 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
             // Parte ascendente do filtro triangular.
             for (int bin_index = previous_bin_index; bin_index < current_bin_index; ++bin_index)
             {
-                context.filterbank.data(filter_index - 1, bin_index) =
+                context.filterbank.get_data_ref()(filter_index - 1, bin_index) =
                     static_cast<float>(bin_index - previous_bin_index) /
                     static_cast<float>(current_bin_index - previous_bin_index);
             }
@@ -284,7 +284,7 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
             // Parte descendente do filtro triangular.
             for (int bin_index = current_bin_index; bin_index < next_bin_index; ++bin_index)
             {
-                context.filterbank.data(filter_index - 1, bin_index) =
+                context.filterbank.get_data_ref()(filter_index - 1, bin_index) =
                     static_cast<float>(next_bin_index - bin_index) /
                     static_cast<float>(next_bin_index - current_bin_index);
             }
@@ -307,13 +307,13 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
     -> Tensor
 {
     // Número de frames no espectro de potência.
-    const size_t number_of_frames = power_spectrum.data.rows();
+    const size_t number_of_frames = power_spectrum.get_data_ref().rows();
 
     // Número de filtros no banco de filtros.
-    const size_t number_of_filters = context.filterbank.data.rows();
+    const size_t number_of_filters = context.filterbank.get_data_ref().rows();
 
     // Número de bins de frequência por frame.
-    const size_t number_of_bins = power_spectrum.data.cols();
+    const size_t number_of_bins = power_spectrum.get_data_ref().cols();
 
     // Matriz para armazenar as energias logarítmicas resultantes.
     Tensor log_energies(number_of_frames, number_of_filters);
@@ -329,14 +329,14 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
             for (size_t bin_index = 0; bin_index < number_of_bins; ++bin_index)
             {
                 // Índice do bin de frequência atual.
-                sum += power_spectrum.data(static_cast<long>(frame_index),
+                sum += power_spectrum.get_data_ref()(static_cast<long>(frame_index),
                                            static_cast<long>(bin_index)) *
-                       context.filterbank.data(static_cast<long>(filter_index),
+                       context.filterbank.get_data_ref()(static_cast<long>(filter_index),
                                                static_cast<long>(bin_index));
             }
             sum = std::max(sum,
                            context.loading_params.constants.min_log_energy); // Evita log(0)
-            log_energies.data(static_cast<long>(frame_index), static_cast<long>(filter_index)) =
+            log_energies.get_data_ref()(static_cast<long>(frame_index), static_cast<long>(filter_index)) =
                 logf(sum);
         }
     }
@@ -357,10 +357,10 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
     -> Tensor
 {
     // Número de frames (vetores de energia) de entrada.
-    const size_t number_of_frames = log_energies.data.rows();
+    const size_t number_of_frames = log_energies.get_data_ref().rows();
 
     // Número de filtros, que corresponde ao número de energias por frame.
-    const size_t number_of_filters = log_energies.data.cols();
+    const size_t number_of_filters = log_energies.get_data_ref().cols();
 
     // Matriz para armazenar os coeficientes cepstrais resultantes.
     Tensor cepstral_coefficients(number_of_frames, loading_params.audio_params.number_of_cepstrals);
@@ -380,7 +380,7 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
             for (long filter_index = 0; filter_index < number_of_filters; ++filter_index)
             {
                 // Acumula a soma ponderada usando a fórmula da DCT-II.
-                sum += log_energies.data( // Energia logarítmica
+                sum += log_energies.get_data_ref()( // Energia logarítmica
                            frame_index,   // Índice do frame
                            filter_index   // Índice do filtro
                            )              //
@@ -395,14 +395,14 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
             }
 
             // Normalização ortogonal, armazenando o coeficiente cepstral calculado.
-            cepstral_coefficients.data(frame_index, cepstrum_index) =
+            cepstral_coefficients.get_data_ref()(frame_index, cepstrum_index) =
                 sum * sqrtf(loading_params.dct_config.normalization_factor_sqrt /
                             static_cast<float>(number_of_filters));
 
             // Ajuste do primeiro coeficiente cepstral.
             if (cepstrum_index == 0)
             {
-                cepstral_coefficients.data(frame_index, cepstrum_index) *=
+                cepstral_coefficients.get_data_ref()(frame_index, cepstrum_index) *=
                     1.0F / std::numbers::sqrt2_v<float>;
             }
         }
@@ -422,14 +422,14 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     -> Tensor
 {
     // Número de frames (vetores de features) de entrada.
-    const long number_of_frames = features.data.rows();
+    const long number_of_frames = features.get_data_ref().rows();
     if (number_of_frames == 0)
     {
         return {};
     }
 
     // Dimensionalidade do vetor de features.
-    const size_t number_of_features = features.data.cols();
+    const size_t number_of_features = features.get_data_ref().cols();
 
     // Matriz de features com padding nas bordas para o cálculo dos deltas.
     Tensor padded_features(
@@ -446,21 +446,21 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     // Preenchimento do tensor de features com padding.
     for (int i = 0; i < loading_params.audio_params.delta_window_span; ++i)
     {
-        padded_features.data.row(static_cast<long>(i)) = features.data.row(0);
+        padded_features.get_data_ref().row(static_cast<long>(i)) = features.get_data_ref().row(0);
     }
 
     // Cópia dos features originais para o centro do tensor com padding.
     for (long i = 0; i < number_of_frames; ++i)
     {
-        padded_features.data.row(i + loading_params.audio_params.delta_window_span) =
-            features.data.row(i);
+        padded_features.get_data_ref().row(i + loading_params.audio_params.delta_window_span) =
+            features.get_data_ref().row(i);
     }
 
     // Preenchimento do padding final.
     for (long i = 0; i < loading_params.audio_params.delta_window_span; ++i)
     {
-        padded_features.data.row(number_of_frames + loading_params.audio_params.delta_window_span +
-                                 i) = features.data.row(static_cast<long>(number_of_frames) - 1);
+        padded_features.get_data_ref().row(number_of_frames + loading_params.audio_params.delta_window_span +
+                                 i) = features.get_data_ref().row(static_cast<long>(number_of_frames) - 1);
     }
 
     // Cálculo do denominador da fórmula de deltas.
@@ -488,13 +488,13 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
                 // Deslocamento para calcular a diferença entre frames.
                 numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
                              (                                // Cálculo da diferença ponderada
-                                 padded_features.data(        // Frame futuro
+                                 padded_features.get_data_ref()(        // Frame futuro
                                      frame_index +            // Frame atual
                                          loading_params.audio_params.delta_window_span + // offset
                                          delta_span,   // n passos à frente
                                      feature_index     // Feature atual
                                      ) -               //
-                                 padded_features.data( // Frame passado
+                                 padded_features.get_data_ref()( // Frame passado
                                      frame_index +     // Frame atual
                                          loading_params.audio_params.delta_window_span - // offset
                                          delta_span, // n passos atrás
@@ -504,7 +504,7 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
             }
 
             // Cálculo do coeficiente delta para o frame e feature atuais.
-            delta_features.data(frame_index, feature_index) = numerator / denominator;
+            delta_features.get_data_ref()(frame_index, feature_index) = numerator / denominator;
         }
     }
 
@@ -616,27 +616,27 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     delta_delta_coeff = compute_deltas(delta_coeff, loading_params);
 
     // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
-    number_of_frames = cepstral_coeff.data.rows();
+    number_of_frames = cepstral_coeff.get_data_ref().rows();
     for (size_t t = 0; t < min(number_of_frames, loading_params.constants.debug_frame_limit); ++t)
     {
         cout << "Frame " << t << ":\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << cepstral_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << cepstral_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
         cout << "\n\n" << flush;
 
         cout << "Delta Coefficients:\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << delta_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
         cout << "\n\n" << flush;
 
         cout << "Delta-Delta Coefficients:\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << delta_delta_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << delta_delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
         cout << "\n\n" << flush;
     }

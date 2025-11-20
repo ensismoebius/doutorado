@@ -22,12 +22,12 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
 
     // Fill weights and biases with known values for deterministic test
     auto linear = std::dynamic_pointer_cast<Linear>(model.layers[0]);
-    linear->weight.data.setConstant(42.0F);
-    linear->bias.data.setConstant(-7.0F);
+    linear->weight.set_data(Eigen::MatrixXf::Constant(3, 4, 42.0F));
+    linear->bias.set_data(Eigen::MatrixXf::Constant(3, 1, -7.0F));
 
     auto leaky = std::dynamic_pointer_cast<Leaky>(model.layers[2]);
-    leaky->resistance.data.setConstant(2.0F);
-    leaky->voltage_threshold.data.setConstant(4.0F);
+    leaky->resistance.set_data(Eigen::MatrixXf::Constant(1, 1, 2.0F));
+    leaky->voltage_threshold.set_data(Eigen::MatrixXf::Constant(1, 1, 4.0F));
 
     // Save the model
     std::string filename = temp_directory_path().string() + "/test_model_save_load.npz";
@@ -47,14 +47,14 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     // Check Linear weights and bias match
     auto loaded_linear = std::dynamic_pointer_cast<Linear>(loaded.layers[0]);
     ASSERT_TRUE(loaded_linear);
-    EXPECT_EQ(loaded_linear->weight.data.rows(), 3);
-    EXPECT_EQ(loaded_linear->weight.data.cols(), 4);
+    EXPECT_EQ(loaded_linear->weight.get_data_ref().rows(), 3);
+    EXPECT_EQ(loaded_linear->weight.get_data_ref().cols(), 4);
 
     Eigen::MatrixXf weight_data = Eigen::MatrixXf::Constant(3, 4, 42.0F);
-    EXPECT_TRUE(loaded_linear->weight.data.isApprox(weight_data));
+    EXPECT_TRUE(loaded_linear->weight.get_data_ref().isApprox(weight_data));
 
     Eigen::MatrixXf bias_data = Eigen::MatrixXf::Constant(3, 1, -7.0F);
-    EXPECT_TRUE(loaded_linear->bias.data.isApprox(bias_data));
+    EXPECT_TRUE(loaded_linear->bias.get_data_ref().isApprox(bias_data));
 
     // Check Leaky config and parameters
     auto loaded_leaky = std::dynamic_pointer_cast<Leaky>(loaded.layers[2]);
@@ -63,9 +63,9 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     EXPECT_FLOAT_EQ(loaded_leaky->capacitance, 3.0F);
     EXPECT_FLOAT_EQ(loaded_leaky->reset_potential, 0.5F);
     EXPECT_TRUE(loaded_leaky->reset_zero);
-    EXPECT_TRUE(loaded_leaky->resistance.data.isApprox(Eigen::MatrixXf::Constant(1, 1, 2.0F)));
+    EXPECT_TRUE(loaded_leaky->resistance.get_data_ref().isApprox(Eigen::MatrixXf::Constant(1, 1, 2.0F)));
     EXPECT_TRUE(
-        loaded_leaky->voltage_threshold.data.isApprox(Eigen::MatrixXf::Constant(1, 1, 4.0F)));
+        loaded_leaky->voltage_threshold.get_data_ref().isApprox(Eigen::MatrixXf::Constant(1, 1, 4.0F)));
 
     // Clean up
     std::remove(filename.c_str());

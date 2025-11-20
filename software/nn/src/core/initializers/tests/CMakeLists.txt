@@ -7,6 +7,7 @@ target_link_libraries(initializers_gtest
         GTest::gtest_main 
         Eigen3::Eigen 
         initializers
+        tensor
 )
 
 target_include_directories(initializers_gtest 

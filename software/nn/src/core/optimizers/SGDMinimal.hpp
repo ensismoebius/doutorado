@@ -13,7 +13,7 @@ struct SGDMinimal : public Optimizer
     {
         for (Tensor* param : params)
         {
-            param->data -= learning_rate * param->grad;
+            param->get_data_ref() -= learning_rate * param->get_grad_ref();
         }
     }
 
@@ -21,7 +21,7 @@ struct SGDMinimal : public Optimizer
     {
         for (Tensor* param : params)
         {
-            param->grad.setZero();
+            param->zero_grad();
         }
     }
 };

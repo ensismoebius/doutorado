@@ -113,26 +113,26 @@ struct Leaky : public Module
     auto forward(const Tensor& input) -> Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
-        if (v_mem.rows() != input.data.rows() || v_mem.cols() != input.data.cols())
+        if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols())
         {
-            v_mem.resize(input.data.rows(), input.data.cols());
+            v_mem.resize(input.get_data_ref().rows(), input.get_data_ref().cols());
             v_mem.setZero();
         }
 
         // Initialize output tensor
-        Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
+        Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
 
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
         // Beta is the discrete-time decay factor derived from the continuous-time
         // decay equation, representing the "leaky" nature of the neuron.
-        float const tau = resistance.data(0, 0) * capacitance;
+        float const tau = resistance.get_data_ref()(0, 0) * capacitance;
         float const beta = std::exp(-dt / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
-        if (v_mem.size() == 0 || v_mem.rows() != input.data.rows() ||
-            v_mem.cols() != input.data.cols())
+        if (v_mem.size() == 0 || v_mem.rows() != input.get_data_ref().rows() ||
+            v_mem.cols() != input.get_data_ref().cols())
         {
-            v_mem = Eigen::MatrixXf::Zero(input.data.rows(), input.data.cols());
+            v_mem = Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
         }
 
         // Cache the membrane potential from the previous time step, v(t-1), for the backward pass.
@@ -145,7 +145,7 @@ struct Leaky : public Module
 
         // 2. Integrate: The new input current (`input.data`) is added to the
         // decayed membrane potential. This is the "integrate" part of the neuron's name.
-        v_mem = v_mem + input.data;
+        v_mem = v_mem + input.get_data_ref();
 
         // 3. Cache: The potential is saved just before the spike check. This is for
         // the `backward` pass, as the surrogate gradient is calculated based on this
@@ -161,7 +161,7 @@ struct Leaky : public Module
         // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
         // This is a non-differentiable step function, which is why we need surrogate
         // gradients for training.
-        output = (v_mem.array() > voltage_threshold.data(0, 0)).cast<float>();
+        output = (v_mem.array() > voltage_threshold.get_data_ref()(0, 0)).cast<float>();
 
         // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
         if (reset_zero)
@@ -183,10 +183,10 @@ struct Leaky : public Module
             // Soft Reset: The threshold voltage is subtracted from the membrane
             // potential. This retains any "excess" potential that was accumulated
             // above the threshold.
-            v_mem = v_mem.array() - output.array() * voltage_threshold.data(0, 0);
+            v_mem = v_mem.array() - output.array() * voltage_threshold.get_data_ref()(0, 0);
         }
 
-        return {output};
+        return Tensor{output};
     }
 
     /**
@@ -209,21 +209,21 @@ struct Leaky : public Module
     {
         // --- Surrogate Gradient Calculation ---
         const Eigen::MatrixXf surrogate_grad =
-            surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.data(0, 0));
+            surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.get_data_ref()(0, 0));
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.
-        const Eigen::MatrixXf grad_v_pre = grad_output.data.array() * surrogate_grad.array();
+        const Eigen::MatrixXf grad_v_pre = grad_output.get_data_ref().array() * surrogate_grad.array();
 
         // --- Gradient for voltage_threshold ---
         // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) = -grad_v_pre
         // Since V_th is a scalar, we sum the gradients from all neurons.
         const float dL_dVth = -grad_v_pre.sum();
-        voltage_threshold.grad = Eigen::MatrixXf::Constant(1, 1, dL_dVth);
+        voltage_threshold.set_grad(Eigen::MatrixXf::Constant(1, 1, dL_dVth));
 
         // --- Gradient for resistance ---
         // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
-        const float R = resistance.data(0, 0);
+        const float R = resistance.get_data_ref()(0, 0);
         const float C = capacitance;
         const float tau = R * C;
         if (tau > 1e-6)
@@ -235,11 +235,11 @@ struct Leaky : public Module
             const Eigen::MatrixXf dL_dbeta_matrix = grad_v_pre.array() * v_mem_t_minus_1.array();
             const float dL_dbeta = dL_dbeta_matrix.sum();
             const float dL_dR = dL_dbeta * d_beta_dR;
-            resistance.grad = Eigen::MatrixXf::Constant(1, 1, dL_dR);
+            resistance.set_grad(Eigen::MatrixXf::Constant(1, 1, dL_dR));
         }
         else
         {
-            resistance.grad = Eigen::MatrixXf::Zero(1, 1);
+            resistance.set_grad(Eigen::MatrixXf::Zero(1, 1));
         }
 
         // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
@@ -248,7 +248,7 @@ struct Leaky : public Module
         // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
         const auto& grad_input = grad_v_pre;
 
-        return {grad_input};
+        return Tensor{grad_input};
     }
 };
 

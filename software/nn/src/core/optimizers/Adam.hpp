@@ -42,8 +42,8 @@ struct Adam : public Optimizer
         v.clear();
         for (auto* param : paramsList)
         {
-            m.emplace_back(Eigen::MatrixXf::Zero(param->grad.rows(), param->grad.cols()));
-            v.emplace_back(Eigen::MatrixXf::Zero(param->grad.rows(), param->grad.cols()));
+            m.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
+            v.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
         }
     }
 
@@ -61,16 +61,15 @@ struct Adam : public Optimizer
         {
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
-            m[i] = (beta1 * m[i].array() + (1 - beta1) * param.grad.array()).matrix();
-            v[i] = (beta2 * v[i].array() + (1 - beta2) * param.grad.array().square()).matrix();
+            m[i] = (beta1 * m[i].array() + (1 - beta1) * param.get_grad_ref().array()).matrix();
+            v[i] = (beta2 * v[i].array() + (1 - beta2) * param.get_grad_ref().array().square()).matrix();
 
             // Corrige o viés das médias móveis
             Eigen::MatrixXf m_hat = m[i] / (1 - std::pow(beta1, t));
             Eigen::MatrixXf v_hat = v[i] / (1 - std::pow(beta2, t));
 
             // Atualiza o parâmetro usando as médias móveis corrigidas
-            param.data =
-                (param.data.array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps)).matrix();
+            param.set_data((param.get_data_ref().array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps)).matrix());
         }
     }
 
@@ -79,7 +78,7 @@ struct Adam : public Optimizer
     {
         for (auto* param : paramsList)
         {
-            param->grad.setZero();
+            param->zero_grad();
         }
     }
 

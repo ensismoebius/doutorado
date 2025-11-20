@@ -30,9 +30,9 @@ inline auto xavierInitializer(int in_features, int out_features, Tensor& weights
     std::mt19937 gen(std::random_device{}());
 
     // Initialize weights with random values from the uniform distribution
-    weights.data =
-        Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); });
+    weights.set_data(
+        Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); }));
 
     // Initialize biases with random values from the same distribution
-    bias.data = Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); });
+    bias.set_data(Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); }));
 }

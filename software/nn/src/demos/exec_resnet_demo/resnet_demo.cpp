@@ -127,7 +127,7 @@ auto main() -> int
             model.backward(grad_loss);
             optimizer.step(params);
 
-            epoch_loss += loss_tensor.data(0, 0);
+            epoch_loss += loss_tensor.get_data_ref()(0, 0);
         }
 
         cout << "Epoch " << epoch << " loss: " << epoch_loss / static_cast<float>(batches.size())

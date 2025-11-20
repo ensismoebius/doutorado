@@ -11,6 +11,7 @@ target_link_libraries(core_gtest
         ${BLAS_LIBRARIES}
         ${LAPACK_LIBRARIES}
         ${OPENBLAS_LIBRARIES}
+        tensor
 )
 
 target_include_directories(core_gtest

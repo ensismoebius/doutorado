@@ -38,6 +38,7 @@ target_link_libraries(exec_Experiment01
         matioCpp
         fftw3f
         util
+        tensor
 )
 
 # Configure Eigen parallelism for the target

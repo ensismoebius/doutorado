@@ -29,14 +29,14 @@ class MSELoss : public Module
         last_input = prediction;
 
         // Use last_target set by set_target
-        Eigen::MatrixXf diff = prediction.data - last_target.data;
+        Eigen::MatrixXf diff = prediction.get_data_ref() - last_target.get_data_ref();
 
         // Check for invalid values in the predictions
-        if (!prediction.data.allFinite())
+        if (!prediction.get_data_ref().allFinite())
         {
             std::cerr << "Warning: Non-finite values detected in predictions\n";
             // Return a very large but finite loss
-            return {Eigen::MatrixXf::Constant(
+            return Tensor{Eigen::MatrixXf::Constant(
                 1, 1, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR)};
         }
 
@@ -56,7 +56,7 @@ class MSELoss : public Module
         // Clip extremely large values to prevent overflow
         mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
 
-        return {Eigen::MatrixXf::Constant(1, 1, mse)};
+        return Tensor{Eigen::MatrixXf::Constant(1, 1, mse)};
     }
 
     // Set the target tensor for the loss
@@ -69,14 +69,14 @@ class MSELoss : public Module
     auto backward(const Tensor& /* prediction */) -> Tensor override
     {
         Eigen::MatrixXf grad =
-            MSE_GRADIENT_FACTOR * (last_input.data - last_target.data) / last_input.data.size();
+            MSE_GRADIENT_FACTOR * (last_input.get_data_ref() - last_target.get_data_ref()) / last_input.get_data_ref().size();
 
         // Check for invalid gradients
         if (!grad.allFinite())
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             grad.setZero(); // Return zero gradient to prevent further issues
-            return {grad};
+            return Tensor{grad};
         }
 
         // Gradient clipping to prevent explosion
@@ -87,7 +87,7 @@ class MSELoss : public Module
             grad *= max_grad_norm / grad_norm;
         }
 
-        return {grad};
+        return Tensor{grad};
     }
 };
 

@@ -21,8 +21,8 @@ class Dataset
 
         // Use the first item to determine column sizes
         Batch first = get_item(indices[0]);
-        const Eigen::Index cols_in = first.inputs.data.cols();
-        const Eigen::Index cols_tg = first.targets.data.cols();
+        const Eigen::Index cols_in = first.inputs.get_data_ref().cols();
+        const Eigen::Index cols_tg = first.targets.get_data_ref().cols();
 
         Eigen::MatrixXf inputs_mat(static_cast<int>(indices.size()), static_cast<int>(cols_in));
         Eigen::MatrixXf targets_mat(static_cast<int>(indices.size()), static_cast<int>(cols_tg));
@@ -30,8 +30,8 @@ class Dataset
         for (std::size_t i = 0; i < indices.size(); ++i)
         {
             Batch b = get_item(indices[i]);
-            inputs_mat.row(static_cast<int>(i)) = b.inputs.data.row(0);
-            targets_mat.row(static_cast<int>(i)) = b.targets.data.row(0);
+            inputs_mat.row(static_cast<int>(i)) = b.inputs.get_data_ref().row(0);
+            targets_mat.row(static_cast<int>(i)) = b.targets.get_data_ref().row(0);
         }
 
         return {.inputs = Tensor(inputs_mat), .targets = Tensor(targets_mat)};

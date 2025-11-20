@@ -12,6 +12,7 @@ target_link_libraries(util_gtest
         ${LAPACK_LIBRARIES}
         ${OPENBLAS_LIBRARIES}
         util
+        tensor
 )
 
 target_include_directories(util_gtest 

@@ -17,7 +17,7 @@ struct SGD : public Optimizer
         velocity.clear();
         for (auto* param : paramsList)
         {
-            velocity.emplace_back(Eigen::MatrixXf::Zero(param->grad.rows(), param->grad.cols()));
+            velocity.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
         }
     }
 
@@ -26,8 +26,8 @@ struct SGD : public Optimizer
         for (size_t i = 0; i < paramsList.size(); ++i)
         {
             auto& param = *paramsList[i];
-            velocity[i] = momentum * velocity[i] - learning_rate * param.grad;
-            param.data += velocity[i];
+            velocity[i] = momentum * velocity[i] - learning_rate * param.get_grad_ref();
+            param.get_data_ref() += velocity[i];
         }
     }
 
@@ -35,7 +35,7 @@ struct SGD : public Optimizer
     {
         for (auto* param : paramsList)
         {
-            param->grad.setZero();
+            param->zero_grad();
         }
     }
 };

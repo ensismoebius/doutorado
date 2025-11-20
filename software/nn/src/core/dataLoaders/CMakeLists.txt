@@ -1,8 +1,9 @@
 find_package(ZLIB REQUIRED)
 
-add_library(dataLoaders STATIC
-    MatFileUtils.cpp
-    DataLoader.cpp
+add_library(dataLoaders
+    STATIC
+        MatFileUtils.cpp
+        DataLoader.cpp
 )
 
 target_include_directories(dataLoaders

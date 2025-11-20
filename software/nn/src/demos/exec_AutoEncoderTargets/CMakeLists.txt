@@ -12,6 +12,7 @@ target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
         util
+        tensor
 )
 
 # Include directories
@@ -42,6 +43,7 @@ target_link_libraries(autoEncoderLeakyReLUTest
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
         util
+        tensor
 )
 
 # Include directories

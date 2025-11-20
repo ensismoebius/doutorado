@@ -26,31 +26,31 @@ TEST(MSELossTest, ForwardAndBackward)
     Tensor target_tensor(target);
     mse.set_target(target_tensor);
     Tensor loss = mse.forward(pred_tensor);
-    ASSERT_NEAR(loss.data(0, 0), 0.5F, 1e-5F);
+    ASSERT_NEAR(loss.get_data_ref()(0, 0), 0.5F, 1e-5F);
     Tensor grad = mse.backward(pred_tensor);
-    ASSERT_NEAR(grad.data(0, 0), 1.0F, 1e-5F);
-    ASSERT_NEAR(grad.data(1, 0), 0.0F, 1e-5F);
+    ASSERT_NEAR(grad.get_data_ref()(0, 0), 1.0F, 1e-5F);
+    ASSERT_NEAR(grad.get_data_ref()(1, 0), 0.0F, 1e-5F);
 }
 
 // Teste para Sequential
 TEST(SequentialTest, ForwardAndBackward)
 {
     auto linear = std::make_shared<Linear>(2, 1);
-    linear->weight.data << 1.0F, 2.0F;
-    linear->bias.data << 0.0F;
+    linear->weight.set_data( (Eigen::MatrixXf(1,2) << 1.0F, 2.0F).finished() );
+    linear->bias.set_data( (Eigen::MatrixXf(1,1) << 0.0F).finished() );
     auto relu = std::make_shared<ReLU>();
     Sequential seq({linear, relu});
     Eigen::MatrixXf input(1, 2);
     input << -1.0F, 2.0F;
     Tensor in_tensor(input);
     Tensor out = seq.forward(in_tensor);
-    ASSERT_NEAR(out.data(0, 0), 3.0F, 1e-5F);
+    ASSERT_NEAR(out.get_data_ref()(0, 0), 3.0F, 1e-5F);
     Eigen::MatrixXf grad_out(1, 1);
     grad_out << 1.0F;
     Tensor grad_tensor(grad_out);
     Tensor grad_in = seq.backward(grad_tensor);
-    ASSERT_NEAR(grad_in.data(0, 0), 1.0F, 1e-5F);
-    ASSERT_NEAR(grad_in.data(0, 1), 2.0F, 1e-5F);
+    ASSERT_NEAR(grad_in.get_data_ref()(0, 0), 1.0F, 1e-5F);
+    ASSERT_NEAR(grad_in.get_data_ref()(0, 1), 2.0F, 1e-5F);
 }
 
 // Teste para Linear
@@ -58,14 +58,14 @@ TEST(LinearLayerTest, ForwardSimple)
 {
     Linear linear(2, 1);
     // Define pesos e bias manualmente para teste determinístico
-    linear.weight.data << 2.0F, 3.0F;
-    linear.bias.data << 1.0F;
+    linear.weight.set_data( (Eigen::MatrixXf(1,2) << 2.0F, 3.0F).finished() );
+    linear.bias.set_data( (Eigen::MatrixXf(1,1) << 1.0F).finished() );
     Eigen::MatrixXf input(1, 2);
     input << 1.0F, 2.0F;
     Tensor in_tensor(input);
     Tensor out = linear.forward(in_tensor);
     // Esperado: (1*2 + 2*3) + 1 = 2 + 6 + 1 = 9
-    ASSERT_FLOAT_EQ(out.data(0, 0), 9.0F);
+    ASSERT_FLOAT_EQ(out.get_data_ref()(0, 0), 9.0F);
 }
 
 // Teste para Leaky (LIF)
@@ -83,7 +83,7 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
     Tensor in_tensor(input);
     Tensor out = leaky.forward(in_tensor);
     // Como input > threshold, deve gerar spike (1.0)
-    ASSERT_FLOAT_EQ(out.data(0, 0), 1.0F);
+    ASSERT_FLOAT_EQ(out.get_data_ref()(0, 0), 1.0F);
     // Após spike, v_mem deve ser resetado para zero
     ASSERT_FLOAT_EQ(leaky.v_mem(0, 0), 0.0F);
 }
@@ -103,7 +103,7 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
     Tensor in_tensor(input);
     Tensor out = leaky.forward(in_tensor);
     // Deve gerar spike
-    ASSERT_FLOAT_EQ(out.data(0, 0), 1.0F);
+    ASSERT_FLOAT_EQ(out.get_data_ref()(0, 0), 1.0F);
     // v_mem deve ser reduzido pelo threshold
     ASSERT_FLOAT_EQ(leaky.v_mem(0, 0), 1.0F); // 3.0 - 2.0
 }
@@ -116,14 +116,14 @@ TEST(LeakyReLUTest, ForwardAndBackward)
     input << 1.0F, -2.0F;
     Tensor in_tensor(input);
     Tensor out = leaky_relu.forward(in_tensor);
-    ASSERT_NEAR(out.data(0, 0), 1.0F, 1e-5F);
-    ASSERT_NEAR(out.data(1, 0), -0.2F, 1e-5F);
+    ASSERT_NEAR(out.get_data_ref()(0, 0), 1.0F, 1e-5F);
+    ASSERT_NEAR(out.get_data_ref()(1, 0), -0.2F, 1e-5F);
     Eigen::MatrixXf grad_out(2, 1);
     grad_out << 1.0F, 1.0F;
     Tensor grad_tensor(grad_out);
     Tensor grad_in = leaky_relu.backward(grad_tensor);
-    ASSERT_NEAR(grad_in.data(0, 0), 1.0F, 1e-5F);
-    ASSERT_NEAR(grad_in.data(1, 0), 0.1F, 1e-5F);
+    ASSERT_NEAR(grad_in.get_data_ref()(0, 0), 1.0F, 1e-5F);
+    ASSERT_NEAR(grad_in.get_data_ref()(1, 0), 0.1F, 1e-5F);
 }
 
 // Teste para SpikeCountLoss
@@ -138,10 +138,10 @@ TEST(SpikeCountLossTest, ForwardAndBackward)
     Tensor target_tensor(target);
     spike_loss.set_target(target_tensor);
     Tensor loss = spike_loss.forward(pred_tensor);
-    ASSERT_NEAR(loss.data(0, 0), 4.0F, 1e-5F);
+    ASSERT_NEAR(loss.get_data_ref()(0, 0), 4.0F, 1e-5F);
     Tensor grad = spike_loss.backward(pred_tensor);
-    ASSERT_NEAR(grad.data(0, 0), 2.0F, 1e-5F);
-    ASSERT_NEAR(grad.data(1, 0), -2.0F, 1e-5F);
+    ASSERT_NEAR(grad.get_data_ref()(0, 0), 2.0F, 1e-5F);
+    ASSERT_NEAR(grad.get_data_ref()(1, 0), -2.0F, 1e-5F);
 }
 
 // Teste para SurrogateGradient

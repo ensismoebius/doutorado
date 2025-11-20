@@ -7,6 +7,7 @@ target_link_libraries(optimizers_gtest
         GTest::gtest_main 
         Eigen3::Eigen 
         optimizers
+        tensor
 )
 
 target_include_directories(optimizers_gtest 

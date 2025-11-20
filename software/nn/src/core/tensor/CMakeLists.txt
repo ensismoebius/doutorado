@@ -1,8 +1,13 @@
-add_library(tensor INTERFACE)
+add_library(tensor STATIC
+    Tensor.cpp
+)
+
 target_include_directories(tensor 
-    INTERFACE
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/tensor
         ${CMAKE_SOURCE_DIR}/src     # For other project headers
 )
+
+target_link_libraries(tensor PRIVATE Eigen3::Eigen)
 
 add_subdirectory(tests)

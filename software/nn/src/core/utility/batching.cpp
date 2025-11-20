@@ -36,10 +36,10 @@ auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<T
         }
 
         // Get input and target dimensions from first sample
-        Eigen::Index input_rows = inputSamples[0].data.rows();
-        Eigen::Index input_cols = inputSamples[0].data.cols();
-        Eigen::Index target_rows = targets[0].data.rows();
-        Eigen::Index target_cols = targets[0].data.cols();
+        Eigen::Index input_rows = inputSamples[0].get_data_ref().rows();
+        Eigen::Index input_cols = inputSamples[0].get_data_ref().cols();
+        Eigen::Index target_rows = targets[0].get_data_ref().rows();
+        Eigen::Index target_cols = targets[0].get_data_ref().cols();
 
         // Create concatenated matrices with proper dimensions
         Eigen::MatrixXf x_concat(input_rows * actual_batch_size, input_cols);
@@ -47,8 +47,8 @@ auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<T
 
         for (int j = 0; j < actual_batch_size; ++j)
         {
-            x_concat.block(j * input_rows, 0, input_rows, input_cols) = x_batch_vec[j].data;
-            y_concat.block(j * target_rows, 0, target_rows, target_cols) = y_batch_vec[j].data;
+            x_concat.block(j * input_rows, 0, input_rows, input_cols) = x_batch_vec[j].get_data_ref();
+            y_concat.block(j * target_rows, 0, target_rows, target_cols) = y_batch_vec[j].get_data_ref();
         }
 
         batches.push_back({Tensor(x_concat), Tensor(y_concat)});

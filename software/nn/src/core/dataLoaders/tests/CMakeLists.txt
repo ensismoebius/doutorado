@@ -23,6 +23,7 @@ target_link_libraries(dataLoaders_gtest
 		matioCpp
         dataLoaders # Link to the new library
         MatTestUtilsLib
+        tensor
 )
 
 configure_eigen_parallel_target(dataLoaders_gtest)

@@ -31,6 +31,7 @@ target_link_libraries(plotSpikingNetwork
         imgui
         implot
         util
+        tensor
 )
 
 # Include directories

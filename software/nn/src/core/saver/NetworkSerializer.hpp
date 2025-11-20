@@ -152,10 +152,10 @@ inline void NetworkSerializer::_saveLinear(const shared_ptr<Linear>& layer, size
     arch_str +=
         "Linear:" + to_string(layer->in_features) + ":" + to_string(layer->out_features) + "\n";
     params[to_string(index) + WEIGHTS_SUFFIX] = {
-        {(size_t) layer->weight.data.rows(), (size_t) layer->weight.data.cols()},
-        layer->weight.data.data()};
-    params[to_string(index) + BIAS_SUFFIX] = {{(size_t) layer->bias.data.rows()},
-                                              layer->bias.data.data()};
+        {(size_t) layer->weight.get_data_ref().rows(), (size_t) layer->weight.get_data_ref().cols()},
+        layer->weight.get_data_ref().data()};
+    params[to_string(index) + BIAS_SUFFIX] = {{(size_t) layer->bias.get_data_ref().rows()},
+                                              layer->bias.get_data_ref().data()};
 }
 
 inline void NetworkSerializer::_saveLeakyReLU(const shared_ptr<LeakyReLU>& layer, string& arch_str)
@@ -172,17 +172,17 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer, size_t
                                           string& arch_str,
                                           map<string, pair<vector<size_t>, const float*>>& params)
 {
-    arch_str += "Leaky:" + to_string(layer->dt) + ":" + to_string(layer->resistance.data(0, 0)) +
+    arch_str += "Leaky:" + to_string(layer->dt) + ":" + to_string(layer->resistance.get_data_ref()(0, 0)) +
                 ":" + to_string(layer->capacitance) + ":" +
-                to_string(layer->voltage_threshold.data(0, 0)) + ":" +
+                to_string(layer->voltage_threshold.get_data_ref()(0, 0)) + ":" +
                 (layer->reset_zero ? "1" : "0") + ":" + to_string(layer->reset_potential) + "\n";
     params[to_string(index) + ".resistance"] = {
-        {(size_t) layer->resistance.data.rows(), (size_t) layer->resistance.data.cols()},
-        layer->resistance.data.data()};
+        {(size_t) layer->resistance.get_data_ref().rows(), (size_t) layer->resistance.get_data_ref().cols()},
+        layer->resistance.get_data_ref().data()};
     params[to_string(index) + ".voltage_threshold"] = {
-        {(size_t) layer->voltage_threshold.data.rows(),
-         (size_t) layer->voltage_threshold.data.cols()},
-        layer->voltage_threshold.data.data()};
+        {(size_t) layer->voltage_threshold.get_data_ref().rows(),
+         (size_t) layer->voltage_threshold.get_data_ref().cols()},
+        layer->voltage_threshold.get_data_ref().data()};
 }
 
 // --- Load Implementations ---
@@ -286,8 +286,8 @@ inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer
         throw runtime_error("Weight array not found for module: " + to_string(index));
     }
     const NpyArray& arr_w = w_it->second;
-    layer->weight.data = Map<const MatrixXf>(
-        arr_w.data<float>(), layer->weight.data.rows(), layer->weight.data.cols());
+    layer->weight.get_data_ref() = Map<const MatrixXf>(
+        arr_w.data<float>(), layer->weight.get_data_ref().rows(), layer->weight.get_data_ref().cols());
 
     string bias_name = to_string(index) + BIAS_SUFFIX;
     auto b_it = data.find(bias_name);
@@ -302,13 +302,13 @@ inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer
     { // Handle 1D bias array
         for (Index i = 0; i < static_cast<Index>(arr_b.shape[0]); ++i)
         {
-            layer->bias.data(i, 0) = bias_data[i];
+            layer->bias.get_data_ref()(i, 0) = bias_data[i];
         }
     }
     else
     { // Handle 2D bias array
-        layer->bias.data =
-            Map<const MatrixXf>(bias_data, layer->bias.data.rows(), layer->bias.data.cols());
+        layer->bias.get_data_ref() =
+            Map<const MatrixXf>(bias_data, layer->bias.get_data_ref().rows(), layer->bias.get_data_ref().cols());
     }
 }
 
@@ -322,7 +322,7 @@ inline void NetworkSerializer::_loadLeakyParams(const shared_ptr<Leaky>& layer, 
         throw runtime_error("Resistance array not found for module: " + to_string(index));
     }
     const NpyArray& arr_r = r_it->second;
-    layer->resistance.data = Map<const MatrixXf>(arr_r.data<float>(),
+    layer->resistance.get_data_ref() = Map<const MatrixXf>(arr_r.data<float>(),
                                                  static_cast<Index>(arr_r.shape[0]),
                                                  static_cast<Index>(arr_r.shape[1]));
 
@@ -333,7 +333,7 @@ inline void NetworkSerializer::_loadLeakyParams(const shared_ptr<Leaky>& layer, 
         throw runtime_error("Voltage threshold array not found for module: " + to_string(index));
     }
     const NpyArray& arr_vth = vth_it->second;
-    layer->voltage_threshold.data = Map<const MatrixXf>(arr_vth.data<float>(),
+    layer->voltage_threshold.get_data_ref() = Map<const MatrixXf>(arr_vth.data<float>(),
                                                         static_cast<Index>(arr_vth.shape[0]),
                                                         static_cast<Index>(arr_vth.shape[1]));
 }

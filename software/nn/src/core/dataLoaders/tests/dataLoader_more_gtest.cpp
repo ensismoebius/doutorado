@@ -26,20 +26,20 @@ TEST(DataLoaderMoreTest, CollateProducesCorrectShapesAndValues)
     std::vector<std::size_t> indices = {1, 4};
     Batch b = dataset->collate(indices);
 
-    EXPECT_EQ(b.inputs.data.rows(), 2);
-    EXPECT_EQ(b.inputs.data.cols(), 3);
-    EXPECT_EQ(b.targets.data.rows(), 2);
-    EXPECT_EQ(b.targets.data.cols(), 2);
+    EXPECT_EQ(b.inputs.get_data_ref().rows(), 2);
+    EXPECT_EQ(b.inputs.get_data_ref().cols(), 3);
+    EXPECT_EQ(b.targets.get_data_ref().rows(), 2);
+    EXPECT_EQ(b.targets.get_data_ref().cols(), 2);
 
     // Check values: row 0 should equal original row 1
-    for (int c = 0; c < b.inputs.data.cols(); ++c)
+    for (int c = 0; c < b.inputs.get_data_ref().cols(); ++c)
     {
-        EXPECT_FLOAT_EQ(b.inputs.data(0, c), inputs.data(1, c));
+        EXPECT_FLOAT_EQ(b.inputs.get_data_ref()(0, c), inputs.get_data_ref()(1, c));
     }
     // row 1 equals original row 4
-    for (int c = 0; c < b.inputs.data.cols(); ++c)
+    for (int c = 0; c < b.inputs.get_data_ref().cols(); ++c)
     {
-        EXPECT_FLOAT_EQ(b.inputs.data(1, c), inputs.data(4, c));
+        EXPECT_FLOAT_EQ(b.inputs.get_data_ref()(1, c), inputs.get_data_ref()(4, c));
     }
 }
 
@@ -53,10 +53,10 @@ TEST(DataLoaderMoreTest, MismatchedInputTargetColumnsDetected)
 
     std::vector<std::size_t> indices = {0, 2};
     Batch b = dataset->collate(indices);
-    EXPECT_EQ(b.inputs.data.cols(), 5);
-    EXPECT_EQ(b.targets.data.cols(), 1);
-    EXPECT_EQ(b.inputs.data.rows(), 2);
-    EXPECT_EQ(b.targets.data.rows(), 2);
+    EXPECT_EQ(b.inputs.get_data_ref().cols(), 5);
+    EXPECT_EQ(b.targets.get_data_ref().cols(), 1);
+    EXPECT_EQ(b.inputs.get_data_ref().rows(), 2);
+    EXPECT_EQ(b.targets.get_data_ref().rows(), 2);
 }
 
 TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
@@ -71,16 +71,16 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     std::vector<int> orderA1, orderA2;
     for (const auto& b : dl_seedA_1)
     {
-        for (int r = 0; r < b.inputs.data.rows(); ++r)
+        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
         {
-            orderA1.push_back(static_cast<int>(b.inputs.data(r, 0) / 2));
+            orderA1.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
         }
     }
     for (const auto& b : dl_seedA_2)
     {
-        for (int r = 0; r < b.inputs.data.rows(); ++r)
+        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
         {
-            orderA2.push_back(static_cast<int>(b.inputs.data(r, 0) / 2));
+            orderA2.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
         }
     }
     EXPECT_EQ(orderA1, orderA2);
@@ -91,9 +91,9 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     std::vector<int> orderB;
     for (const auto& b : dl_seedB)
     {
-        for (int r = 0; r < b.inputs.data.rows(); ++r)
+        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
         {
-            orderB.push_back(static_cast<int>(b.inputs.data(r, 0) / 2));
+            orderB.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
         }
     }
     // Expect different ordering for different seeds. If orders are identical
@@ -126,7 +126,7 @@ TEST(DataLoaderMoreTest, ConcurrencySmokeTest)
                 int local = 0;
                 for (const auto& b : loader)
                 {
-                    local += static_cast<int>(b.inputs.data.rows());
+                    local += static_cast<int>(b.inputs.get_data_ref().rows());
                 }
                 total_batches.fetch_add(local, std::memory_order_relaxed);
             });

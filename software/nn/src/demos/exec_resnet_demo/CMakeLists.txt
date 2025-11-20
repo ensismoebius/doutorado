@@ -8,6 +8,7 @@ add_executable(resnet_demo
     matioCpp
     dataLoaders
     util
+    tensor
   )
 
   target_include_directories(resnet_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})

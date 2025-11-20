@@ -12,8 +12,8 @@ TEST(InitializerTest, KaimingSNN)
 {
     auto layer = std::make_shared<Linear>(2, 4);
     kaimingSNNInitializer(layer);
-    ASSERT_NE(layer->weight.data.sum(), 0.0F);
-    ASSERT_EQ(layer->bias.data.sum(), 0.0F);
+    ASSERT_NE(layer->weight.get_data_ref().sum(), 0.0F);
+    ASSERT_EQ(layer->bias.get_data_ref().sum(), 0.0F);
 }
 
 // Initializer: Xavier
@@ -22,6 +22,6 @@ TEST(InitializerTest, Xavier)
     Tensor weights(Eigen::MatrixXf::Zero(4, 2));
     Tensor bias(Eigen::MatrixXf::Zero(4, 1));
     xavierInitializer(2, 4, weights, bias);
-    ASSERT_NE(weights.data.sum(), 0.0F);
-    ASSERT_NE(bias.data.sum(), 0.0F);
+    ASSERT_NE(weights.get_data_ref().sum(), 0.0F);
+    ASSERT_NE(bias.get_data_ref().sum(), 0.0F);
 }

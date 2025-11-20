@@ -1,11 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project declaration
-project(
-		nn
-		VERSION 0.1.0
-		LANGUAGES CXX)
-
+project(nn VERSION 0.1.0 LANGUAGES CXX)
     
 ## Top-level CMake: delegate to modular includes in cmake/
 

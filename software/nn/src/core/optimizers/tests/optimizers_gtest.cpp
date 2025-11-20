@@ -9,44 +9,56 @@
 
 TEST(SGDMinimalOptimizerTest, StepAndZeroGrad)
 {
-    Tensor w(Eigen::MatrixXf::Ones(2, 2));
-    Tensor b(Eigen::MatrixXf::Zero(2, 1));
+    Eigen::MatrixXf w_data = Eigen::MatrixXf::Ones(2, 2);
+    Tensor w(w_data);
+    Eigen::MatrixXf b_data = Eigen::MatrixXf::Zero(2, 1);
+    Tensor b(b_data);
     std::vector<Tensor*> params = {&w, &b};
     SGDMinimal sgd_minimal(0.01F);
-    w.grad = Eigen::MatrixXf::Ones(2, 2);
-    b.grad = Eigen::MatrixXf::Ones(2, 1);
+    Eigen::MatrixXf w_grad = Eigen::MatrixXf::Ones(2, 2);
+    w.set_grad(w_grad);
+    Eigen::MatrixXf b_grad = Eigen::MatrixXf::Ones(2, 1);
+    b.set_grad(b_grad);
     sgd_minimal.step(params);
-    ASSERT_NE(w.data(0, 0), 1.0F);
+    ASSERT_NE(w.get_data_ref()(0, 0), 1.0F);
     sgd_minimal.zero_grad(params);
-    ASSERT_EQ(w.grad(0, 0), 0.0F);
+    ASSERT_EQ(w.get_grad_ref()(0, 0), 0.0F);
 }
 
 TEST(AdamOptimizerTest, StepAndZeroGrad)
 {
-    Tensor weights(Eigen::MatrixXf::Ones(2, 2));
-    Tensor bias(Eigen::MatrixXf::Zero(2, 1));
+    Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
+    Tensor weights(weights_data);
+    Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
+    Tensor bias(bias_data);
     std::vector<Tensor*> params = {&weights, &bias};
     Adam adam(0.01F);
     adam.attach(params);
-    weights.grad = Eigen::MatrixXf::Ones(2, 2);
-    bias.grad = Eigen::MatrixXf::Ones(2, 1);
+    Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);
+    weights.set_grad(weights_grad);
+    Eigen::MatrixXf bias_grad = Eigen::MatrixXf::Ones(2, 1);
+    bias.set_grad(bias_grad);
     adam.step(params);
-    ASSERT_NE(weights.data(0, 0), 1.0F);
+    ASSERT_NE(weights.get_data_ref()(0, 0), 1.0F);
     adam.zero_grad(params);
-    ASSERT_EQ(weights.grad(0, 0), 0.0F);
+    ASSERT_EQ(weights.get_grad_ref()(0, 0), 0.0F);
 }
 
 TEST(SGDOptimizerTest, StepAndZeroGrad)
 {
-    Tensor weights(Eigen::MatrixXf::Ones(2, 2));
-    Tensor bias(Eigen::MatrixXf::Zero(2, 1));
+    Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
+    Tensor weights(weights_data);
+    Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
+    Tensor bias(bias_data);
     std::vector<Tensor*> params = {&weights, &bias};
     SGD sgd(0.01F);
     sgd.attach(params);
-    weights.grad = Eigen::MatrixXf::Ones(2, 2);
-    bias.grad = Eigen::MatrixXf::Ones(2, 1);
+    Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);
+    weights.set_grad(weights_grad);
+    Eigen::MatrixXf bias_grad = Eigen::MatrixXf::Ones(2, 1);
+    bias.set_grad(bias_grad);
     sgd.step(params);
-    ASSERT_NE(weights.data(0, 0), 1.0F);
+    ASSERT_NE(weights.get_data_ref()(0, 0), 1.0F);
     sgd.zero_grad(params);
-    ASSERT_EQ(weights.grad(0, 0), 0.0F);
+    ASSERT_EQ(weights.get_grad_ref()(0, 0), 0.0F);
 }
