@@ -17,6 +17,7 @@
 
 using nn::dataLoaders::loadAudioFromMat;
 using std::cout;
+using std::flush;
 using std::min;
 using std::size_t;
 using std::vector;
@@ -63,13 +64,13 @@ auto framing_and_window(const vector<float>& signal, FramingContext& context)
     context.frame_length = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_duration_ms *
                static_cast<float>(context.loading_params.audio_params.target_sampling_rate) /
-               context.loading_params.general_constants.ms_to_seconds_factor));
+               context.loading_params.constants.ms_to_seconds_factor));
 
     // Deslocamento entre frames consecutivos em amostras. (Parâmetro de saída)
     context.frame_step = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_shift_ms *
                static_cast<float>(context.loading_params.audio_params.target_sampling_rate) /
-               context.loading_params.general_constants.ms_to_seconds_factor));
+               context.loading_params.constants.ms_to_seconds_factor));
 
     // Comprimento total do sinal de entrada.
     const int signal_length = static_cast<int>(signal.size());
@@ -230,7 +231,7 @@ void build_linear_filterbank(int fft_points, FilterbankContext& context)
 
     // Frequência máxima representada (Metade da frequência de amostragem).
     const float max_frequency =
-        static_cast<float>(context.loading_params.general_constants.default_sampling_rate) / 2.0F;
+        static_cast<float>(context.loading_params.constants.default_sampling_rate) / 2.0F;
 
     // Inicialização do banco de filtros e das frequências centrais.
     context.filterbank =
@@ -338,7 +339,7 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
                                                static_cast<long>(bin_index));
             }
             sum = std::max(sum,
-                           context.loading_params.general_constants.min_log_energy); // Evita log(0)
+                           context.loading_params.constants.min_log_energy); // Evita log(0)
             log_energies.data(static_cast<long>(frame_index), static_cast<long>(filter_index)) =
                 logf(sum);
         }
@@ -369,10 +370,10 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
     Tensor cepstral_coefficients(number_of_frames, loading_params.audio_params.number_of_cepstrals);
 
     // Cálculo dos coeficientes cepstrais para cada frame.
-    for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
+    for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Cria os coeficientes cepstrais para o frame atual.
-        for (int cepstrum_index = 0;
+        for (long cepstrum_index = 0;
              cepstrum_index < loading_params.audio_params.number_of_cepstrals;
              ++cepstrum_index)
         {
@@ -380,28 +381,32 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
             float sum = 0.0F;
 
             // Cálculo do coeficiente cepstral atual.
-            for (size_t filter_index = 0; filter_index < number_of_filters; ++filter_index)
+            for (long filter_index = 0; filter_index < number_of_filters; ++filter_index)
             {
                 // Acumula a soma ponderada usando a fórmula da DCT-II.
-                sum += log_energies.data(static_cast<long>(frame_index),
-                                         static_cast<long>(filter_index)) *
-                       cosf(std::numbers::pi_v<float> * static_cast<float>(cepstrum_index) *
-                            (static_cast<float>(filter_index) +
-                             loading_params.dct_config.filter_index_offset) /
-                            static_cast<float>(number_of_filters));
+                sum += log_energies.data( // Energia logarítmica
+                           frame_index,   // Índice do frame
+                           filter_index   // Índice do filtro
+                           )              //
+                       *                  //
+                       cosf(              // Fator cosseno
+                           std::numbers::pi_v<float> *
+                           static_cast<float>(cepstrum_index) * // Índice do cepstrum
+                           (static_cast<float>(filter_index) +
+                            loading_params.dct_config.filter_index_offset) /
+                           static_cast<float>(number_of_filters) // Índice do filtro normalizado
+                       );
             }
 
             // Normalização ortogonal, armazenando o coeficiente cepstral calculado.
-            cepstral_coefficients.data(static_cast<long>(frame_index),
-                                       static_cast<long>(cepstrum_index)) =
+            cepstral_coefficients.data(frame_index, cepstrum_index) =
                 sum * sqrtf(loading_params.dct_config.normalization_factor_sqrt /
                             static_cast<float>(number_of_filters));
 
             // Ajuste do primeiro coeficiente cepstral.
             if (cepstrum_index == 0)
             {
-                cepstral_coefficients.data(static_cast<long>(frame_index),
-                                           static_cast<long>(cepstrum_index)) *=
+                cepstral_coefficients.data(frame_index, cepstrum_index) *=
                     1.0F / std::numbers::sqrt2_v<float>;
             }
         }
@@ -420,7 +425,7 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     -> Tensor
 {
     // Número de frames (vetores de features) de entrada.
-    const size_t number_of_frames = features.data.rows();
+    const long number_of_frames = features.data.rows();
     if (number_of_frames == 0)
     {
         return {};
@@ -431,8 +436,9 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
 
     // Matriz de features com padding nas bordas para o cálculo dos deltas.
     Tensor padded_features(
-        number_of_frames + (static_cast<size_t>(2 * loading_params.audio_params.delta_window_span)),
-        number_of_features);
+        number_of_frames + (2 * loading_params.audio_params.delta_window_span), // linhas
+        number_of_features                                                      // colunas
+    );
 
     // Denominador da fórmula de cálculo dos deltas, pré-calculado.
     float denominator = 0.0F;
@@ -447,20 +453,17 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     }
 
     // Cópia dos features originais para o centro do tensor com padding.
-    for (size_t i = 0; i < number_of_frames; ++i)
+    for (long i = 0; i < number_of_frames; ++i)
     {
-        padded_features.data.row(static_cast<long>(i) +
-                                 static_cast<long>(loading_params.audio_params.delta_window_span)) =
-            features.data.row(static_cast<long>(i));
+        padded_features.data.row(i + loading_params.audio_params.delta_window_span) =
+            features.data.row(i);
     }
 
     // Preenchimento do padding final.
-    for (int i = 0; i < loading_params.audio_params.delta_window_span; ++i)
+    for (long i = 0; i < loading_params.audio_params.delta_window_span; ++i)
     {
-        padded_features.data.row(static_cast<long>(number_of_frames) +
-                                 static_cast<long>(loading_params.audio_params.delta_window_span) +
-                                 static_cast<long>(i)) =
-            features.data.row(static_cast<long>(number_of_frames) - 1);
+        padded_features.data.row(number_of_frames + loading_params.audio_params.delta_window_span +
+                                 i) = features.data.row(static_cast<long>(number_of_frames) - 1);
     }
 
     // Cálculo do denominador da fórmula de deltas.
@@ -473,55 +476,44 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     denominator *= loading_params.delta_config.denominator_factor;
 
     // Cálculo dos coeficientes delta para cada frame e feature.
-    for (size_t t = 0; t < number_of_frames; ++t)
+    for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Itera sobre cada dimensão do feature vector.
-        for (size_t d = 0; d < number_of_features; ++d)
+        for (long feature_index = 0; feature_index < number_of_features; ++feature_index)
         {
             // Variável temporária para acumular o numerador da fórmula de deltas.
             float numerator = 0.0F;
 
             // Cálculo do numerador para o delta da feature atual.
-            for (int n = 1; n <= loading_params.audio_params.delta_window_span; ++n)
+            for (long delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
+                 ++delta_span)
             {
                 // Deslocamento para calcular a diferença entre frames.
-                numerator +=
-                    static_cast<float>(n) *
-                    (padded_features.data(
-                         static_cast<long>(t) +
-                             static_cast<long>(loading_params.audio_params.delta_window_span) +
-                             static_cast<long>(n),
-                         static_cast<long>(d)) -
-                     padded_features.data(
-                         static_cast<long>(t) +
-                             static_cast<long>(loading_params.audio_params.delta_window_span) -
-                             static_cast<long>(n),
-                         static_cast<long>(d)));
+                numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
+                             (                                // Cálculo da diferença ponderada
+                                 padded_features.data(        // Frame futuro
+                                     frame_index +            // Frame atual
+                                         loading_params.audio_params.delta_window_span + // offset
+                                         delta_span,   // n passos à frente
+                                     feature_index     // Feature atual
+                                     ) -               //
+                                 padded_features.data( // Frame passado
+                                     frame_index +     // Frame atual
+                                         loading_params.audio_params.delta_window_span - // offset
+                                         delta_span, // n passos atrás
+                                     feature_index   // Feature atual
+                                     )               //
+                             );
             }
 
             // Cálculo do coeficiente delta para o frame e feature atuais.
-            delta_features.data(static_cast<long>(t), static_cast<long>(d)) =
-                numerator / denominator;
+            delta_features.data(frame_index, feature_index) = numerator / denominator;
         }
     }
 
     // Retorno dos coeficientes delta calculados.
     return delta_features;
 }
-
-/**
- * @brief Função principal que carrega e processa o áudio para extrair LFCCs.
- *
- * Orquestra todas as etapas de pré-processamento:
- * 1. Pré-ênfase
- * 2. Janelamento
- * 3. STFT (FFT)
- * 4. Espectro de Potência
- * 5. Aplicação do banco de filtros lineares
- * 6. Compressão logarítmica
- * 7. DCT para obter os coeficientes cepstrais
- * 8. Cálculo dos deltas e delta-deltas
- */
 namespace
 {
 /**
@@ -569,13 +561,13 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     Tensor log_energies;
 
     // Coeficientes cepstrais (LFCC) calculados.
-    Tensor cepstral_coefficients;
+    Tensor cepstral_coeff;
 
     // Coeficientes delta (primeira derivada).
-    Tensor delta_coefficients;
+    Tensor delta_coeff;
 
     // Coeficientes delta-delta (segunda derivada).
-    Tensor delta_delta_coefficients;
+    Tensor delta_delta_coeff;
 
     // Número total de frames processados.
     size_t number_of_frames;
@@ -617,32 +609,36 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
 
     // Etapa 7: DCT para obter os coeficientes cepstrais (LFCC)
-    cepstral_coefficients = dct2(log_energies, loading_params);
+    cepstral_coeff = dct2(log_energies, loading_params);
 
     // (Extra) Etapa 8: Cálculo dos deltas (derivadas temporais)
-    delta_coefficients = compute_deltas(cepstral_coefficients, loading_params);
-    delta_delta_coefficients = compute_deltas(delta_coefficients, loading_params);
+    delta_coeff = compute_deltas(cepstral_coeff, loading_params);
+    delta_delta_coeff = compute_deltas(delta_coeff, loading_params);
 
     // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
-    number_of_frames = cepstral_coefficients.data.rows();
-    for (size_t t = 0;
-         t < min(number_of_frames, loading_params.general_constants.debug_frame_limit);
-         ++t)
+    number_of_frames = cepstral_coeff.data.rows();
+    for (size_t t = 0; t < min(number_of_frames, loading_params.constants.debug_frame_limit); ++t)
     {
+        cout << "Frame " << t << ":\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << cepstral_coefficients.data(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << cepstral_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
+        cout << "\n\n" << flush;
+
+        cout << "Delta Coefficients:\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << delta_coefficients.data(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << delta_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
+        cout << "\n\n" << flush;
+
+        cout << "Delta-Delta Coefficients:\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << delta_delta_coefficients.data(static_cast<long>(t), static_cast<long>(i))
-                 << " ";
+            cout << delta_delta_coeff.data(static_cast<long>(t), static_cast<long>(i)) << " ";
         }
-        cout << "\n";
+        cout << "\n\n" << flush;
     }
 
     return {}; // Retornar vetor vazio por enquanto
@@ -653,33 +649,33 @@ void processSubject(const SubjectInfo& subject)
 {
     cout << "Processing subject: " << subject.name << '\n';
 
-    // Parâmetros para a extração de features LFCC do áudio.
-    const AudioProcessingParameters audioProcessingParameters = {.target_sampling_rate = 44100,
-                                                                 .preemphasis_coefficient = 0.97,
-                                                                 .frame_duration_ms = 25.0,
-                                                                 .frame_shift_ms = 10.0,
-                                                                 .number_of_filters = 24,
-                                                                 .number_of_cepstrals = 19,
-                                                                 .delta_window_span = 2};
+    const AudioProcessingParams audioProcessingParams = {.target_sampling_rate = 44100,
+                                                         .preemphasis_coefficient = 0.97,
+                                                         .frame_duration_ms = 25.0,
+                                                         .frame_shift_ms = 10.0,
+                                                         .number_of_filters = 24,
+                                                         .number_of_cepstrals = 19,
+                                                         .delta_window_span = 2};
 
     constexpr HammingWindowConfig hamming_window_config = {.alpha = 0.54F, .beta = 0.46F};
+
     constexpr DctConfig dct_config = {.normalization_factor_sqrt = 2.0F,
                                       .filter_index_offset = 0.5F};
 
     constexpr DeltaConfig delta_config = {.denominator_factor = 2.0F};
+
     constexpr GeneralConstants general_constants = {.ms_to_seconds_factor = 1000.0F,
                                                     .min_log_energy = 1e-12F,
                                                     .default_sampling_rate = 44100,
                                                     .debug_frame_limit = 5};
 
     const LoadingAndProcessingParameters loading_params = {
-        .audio_params = audioProcessingParameters,
+        .audio_params = audioProcessingParams,
         .hamming_window_config = hamming_window_config,
         .dct_config = dct_config,
         .delta_config = delta_config,
-        .general_constants = general_constants};
+        .constants = general_constants};
 
-    // Janelas de áudio processadas (atualmente não utilizado).
     std::vector<Tensor> audioWindows = loadAndProcessAudio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }

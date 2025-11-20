@@ -32,7 +32,7 @@ struct GeneralConstants
     size_t debug_frame_limit;
 };
 
-struct AudioProcessingParameters
+struct AudioProcessingParams
 {
     int target_sampling_rate;
     float preemphasis_coefficient;
@@ -40,16 +40,16 @@ struct AudioProcessingParameters
     float frame_shift_ms;
     int number_of_filters;
     int number_of_cepstrals;
-    int delta_window_span;
+    long delta_window_span;
 };
 
 struct LoadingAndProcessingParameters
 {
-    const AudioProcessingParameters& audio_params;
+    const AudioProcessingParams& audio_params;
     HammingWindowConfig hamming_window_config;
     DctConfig dct_config;
     DeltaConfig delta_config;
-    GeneralConstants general_constants;
+    GeneralConstants constants;
 };
 
 struct SubjectInfo
