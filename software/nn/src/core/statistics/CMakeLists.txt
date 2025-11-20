@@ -10,4 +10,4 @@ target_include_directories(statistics
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_subdirectory(${SRC_DIR}/tests)
+add_subdirectory(tests)

@@ -30,5 +30,6 @@ include(cmake/VendorMatio.cmake)
 # Workarounds / shims for matio-cpp configure/export behavior
 include(cmake/VendorMatioCppShim.cmake)
 
-# Main wiring
-include(cmake/Main.cmake)
+add_subdirectory(${SRC_DIR}/core)
+add_subdirectory(${SRC_DIR}/demos)
+add_subdirectory(${SRC_DIR}/experiments)

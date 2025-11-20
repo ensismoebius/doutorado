@@ -1,8 +1,8 @@
-# Add util_gtest
-add_executable(util_gtest 
-    tests/util_gtest.cpp 
+add_executable(core_gtest
+    NetworkSerializer_gtest.cpp
 )
-target_link_libraries(util_gtest 
+
+target_link_libraries(core_gtest
     PRIVATE 
         GTest::gtest_main 
         Eigen3::Eigen
@@ -11,13 +11,15 @@ target_link_libraries(util_gtest
         ${BLAS_LIBRARIES}
         ${LAPACK_LIBRARIES}
         ${OPENBLAS_LIBRARIES}
-        util
 )
 
-target_include_directories(util_gtest 
+target_include_directories(core_gtest
     PRIVATE 
         ${CMAKE_SOURCE_DIR}/src 
         ${CMAKE_SOURCE_DIR}/src/core/tensor 
         ${EIGEN3_INCLUDE_DIR} 
         ${cnpy_SOURCE_DIR}
 )
+
+include(GoogleTest)
+gtest_discover_tests(core_gtest)

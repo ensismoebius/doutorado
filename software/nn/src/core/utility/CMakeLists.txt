@@ -1,11 +1,21 @@
-add_library(utility 
+
+add_library(util
     STATIC
-        comparison.cpp
+        batching.cpp
+        vectorizationCheck.cpp
+        synthetic_spike_data.cpp
 )
 
-target_include_directories(utility
-    PRIVATE 
+target_include_directories(util
+    PUBLIC 
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )
 
-add_subdirectory(${SRC_DIR}/tests)
+target_link_libraries(util
+    PRIVATE 
+        Eigen3::Eigen
+)
+
+add_subdirectory(tests)
+

@@ -18,6 +18,6 @@ target_link_libraries(dataLoaders
         matioCpp
 )
 
-add_subdirectory(${SRC_DIR}/tests)
+add_subdirectory(tests)
 
 add_subdirectory(10.1117)

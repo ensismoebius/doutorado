@@ -8,4 +8,4 @@ target_include_directories(layers
         ${CMAKE_SOURCE_DIR}/src     # For other project headers
 )
 
-add_subdirectory(${SRC_DIR}/tests)
+add_subdirectory(tests)
