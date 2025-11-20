@@ -1,9 +1,9 @@
 #include "Tensor.hpp"
 
 // Constructors
-Tensor::Tensor(const Eigen::MatrixXf& data) : m_data(data) {}
-Tensor::Tensor(Eigen::MatrixXf&& data) : m_data(std::move(data)) {}
-Tensor::Tensor(Eigen::Index rows, Eigen::Index cols) : m_data(Eigen::MatrixXf::Zero(rows, cols)) {}
+Tensor::Tensor(const Eigen::MatrixXf& data) : m_data(data), m_grad(Eigen::MatrixXf::Zero(data.rows(), data.cols())) {}
+Tensor::Tensor(Eigen::MatrixXf&& data) : m_data(std::move(data)), m_grad(Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols())) {}
+Tensor::Tensor(Eigen::Index rows, Eigen::Index cols) : m_data(Eigen::MatrixXf::Zero(rows, cols)), m_grad(Eigen::MatrixXf::Zero(rows, cols)) {}
 
 // Getters for data and gradient
 auto Tensor::get_data_ref() -> Eigen::MatrixXf& { return m_data; }

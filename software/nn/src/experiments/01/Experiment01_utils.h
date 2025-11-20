@@ -65,7 +65,7 @@ struct AudioProcessingParams
  */
 struct LoadingAndProcessingParameters
 {
-    const AudioProcessingParams& audio_params;
+    AudioProcessingParams audio_params; // Changed to by value
     HammingWindowConfig hamming_window_config;
     DctConfig dct_config;
     DeltaConfig delta_config;
@@ -89,8 +89,8 @@ struct SubjectInfo
  */
 struct FramingConfig
 {
-    int& frame_length;
-    int& frame_step;
+    int frame_length; // Changed to by value
+    int frame_step;   // Changed to by value
     const LoadingAndProcessingParameters& loading_params;
 };
 
@@ -114,6 +114,19 @@ struct PowerFilterbankConfig
     const Tensor& filterbank;
     const LoadingAndProcessingParameters& loading_params;
 };
+
+// Declared here to be visible for testing
+void pre_emphasis_inplace(std::vector<float>& signal, float coefficient);
+auto framing_and_window(const std::vector<float>& signal, FramingConfig& context)
+    -> std::vector<std::vector<float>>;
+auto rfft_power(const std::vector<std::vector<float>>& frames, int fft_points) -> Tensor;
+void build_linear_filterbank(int fft_points, FilterbankConfig& context);
+auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankConfig& context)
+    -> Tensor;
+auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
+    -> Tensor;
+auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters& loading_params)
+    -> Tensor;
 
 void processSubject(const SubjectInfo& subject);
 

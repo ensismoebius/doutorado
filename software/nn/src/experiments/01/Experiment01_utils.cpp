@@ -22,8 +22,6 @@ using std::min;
 using std::size_t;
 using std::vector;
 
-namespace
-{
 /**
  * @brief Etapa 1: Pré-ênfase.
  *
@@ -36,6 +34,10 @@ namespace
  */
 inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
 {
+    if (signal.empty())
+    {
+        return; // Nothing to do for an empty signal
+    }
     // Aplica o filtro de pré-ênfase ao sinal.
     for (size_t i = signal.size() - 1; i >= 1; --i)
     {
@@ -43,7 +45,6 @@ inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
     }
     // signal[0] permanece
 }
-} // namespace
 
 /**
  * @brief Etapa 2: Janelamento.
@@ -58,6 +59,10 @@ inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
 auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     -> vector<vector<float>>
 {
+    if (signal.empty())
+    {
+        return {}; // Return empty frames for an empty signal
+    }
     // Comprimento de cada frame em amostras. (Parâmetro de saída)
     context.frame_length = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_duration_ms *
@@ -192,7 +197,8 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
             const float imaginary_part = fftw_output[bin_index][1];
 
             // Cálculo do espectro de potência normalizado.
-            power_spectrum.get_data_ref()(static_cast<long>(frame_index), static_cast<long>(bin_index)) =
+            power_spectrum.get_data_ref()(static_cast<long>(frame_index),
+                                          static_cast<long>(bin_index)) =
                 (real_part * real_part + imaginary_part * imaginary_part) /
                 static_cast<float>(fft_points);
         }
@@ -316,7 +322,7 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
     const size_t number_of_bins = power_spectrum.get_data_ref().cols();
 
     // Matriz para armazenar as energias logarítmicas resultantes.
-    Tensor log_energies(number_of_frames, number_of_filters);
+    Tensor log_energies((long) number_of_frames, (long) number_of_filters);
 
     // Cálculo das energias logarítmicas para cada frame e filtro.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
@@ -330,14 +336,14 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
             {
                 // Índice do bin de frequência atual.
                 sum += power_spectrum.get_data_ref()(static_cast<long>(frame_index),
-                                           static_cast<long>(bin_index)) *
+                                                     static_cast<long>(bin_index)) *
                        context.filterbank.get_data_ref()(static_cast<long>(filter_index),
-                                               static_cast<long>(bin_index));
+                                                         static_cast<long>(bin_index));
             }
             sum = std::max(sum,
                            context.loading_params.constants.min_log_energy); // Evita log(0)
-            log_energies.get_data_ref()(static_cast<long>(frame_index), static_cast<long>(filter_index)) =
-                logf(sum);
+            log_energies.get_data_ref()(static_cast<long>(frame_index),
+                                        static_cast<long>(filter_index)) = logf(sum);
         }
     }
     return log_energies;
@@ -363,7 +369,8 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
     const size_t number_of_filters = log_energies.get_data_ref().cols();
 
     // Matriz para armazenar os coeficientes cepstrais resultantes.
-    Tensor cepstral_coefficients(number_of_frames, loading_params.audio_params.number_of_cepstrals);
+    Tensor cepstral_coefficients((long) number_of_frames,
+                                 loading_params.audio_params.number_of_cepstrals);
 
     // Cálculo dos coeficientes cepstrais para cada frame.
     for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
@@ -381,11 +388,11 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
             {
                 // Acumula a soma ponderada usando a fórmula da DCT-II.
                 sum += log_energies.get_data_ref()( // Energia logarítmica
-                           frame_index,   // Índice do frame
-                           filter_index   // Índice do filtro
-                           )              //
-                       *                  //
-                       cosf(              // Fator cosseno
+                           frame_index,             // Índice do frame
+                           filter_index             // Índice do filtro
+                           )                        //
+                       *                            //
+                       cosf(                        // Fator cosseno
                            std::numbers::pi_v<float> *
                            static_cast<float>(cepstrum_index) * // Índice do cepstrum
                            (static_cast<float>(filter_index) +
@@ -434,14 +441,14 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     // Matriz de features com padding nas bordas para o cálculo dos deltas.
     Tensor padded_features(
         number_of_frames + (2 * loading_params.audio_params.delta_window_span), // linhas
-        number_of_features                                                      // colunas
+        (long) number_of_features                                               // colunas
     );
 
     // Denominador da fórmula de cálculo dos deltas, pré-calculado.
     float denominator = 0.0F;
 
     // Matriz para armazenar os coeficientes delta resultantes.
-    Tensor delta_features(number_of_frames, number_of_features);
+    Tensor delta_features(number_of_frames, (long) number_of_features);
 
     // Preenchimento do tensor de features com padding.
     for (int i = 0; i < loading_params.audio_params.delta_window_span; ++i)
@@ -459,8 +466,9 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     // Preenchimento do padding final.
     for (long i = 0; i < loading_params.audio_params.delta_window_span; ++i)
     {
-        padded_features.get_data_ref().row(number_of_frames + loading_params.audio_params.delta_window_span +
-                                 i) = features.get_data_ref().row(static_cast<long>(number_of_frames) - 1);
+        padded_features.get_data_ref().row(number_of_frames +
+                                           loading_params.audio_params.delta_window_span + i) =
+            features.get_data_ref().row(static_cast<long>(number_of_frames) - 1);
     }
 
     // Cálculo do denominador da fórmula de deltas.
@@ -488,14 +496,14 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
                 // Deslocamento para calcular a diferença entre frames.
                 numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
                              (                                // Cálculo da diferença ponderada
-                                 padded_features.get_data_ref()(        // Frame futuro
-                                     frame_index +            // Frame atual
+                                 padded_features.get_data_ref()( // Frame futuro
+                                     frame_index +               // Frame atual
                                          loading_params.audio_params.delta_window_span + // offset
-                                         delta_span,   // n passos à frente
-                                     feature_index     // Feature atual
-                                     ) -               //
+                                         delta_span,             // n passos à frente
+                                     feature_index               // Feature atual
+                                     ) -                         //
                                  padded_features.get_data_ref()( // Frame passado
-                                     frame_index +     // Frame atual
+                                     frame_index +               // Frame atual
                                          loading_params.audio_params.delta_window_span - // offset
                                          delta_span, // n passos atrás
                                      feature_index   // Feature atual
@@ -539,12 +547,6 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     // Vetor de float para conter os dados de áudio para processamento.
     vector<float> input_data(audioSamples.size());
 
-    // Comprimento do frame em amostras, calculado pelo janelamento.
-    int frame_length;
-
-    // Passo do frame em amostras, calculado pelo janelamento.
-    int frame_step;
-
     // Frames do sinal após janelamento.
     vector<vector<float>> frames;
 
@@ -552,10 +554,8 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     Tensor power_spectrum;
 
     // Matriz do banco de filtros lineares.
-    Tensor filterbank;
-
-    // Frequências centrais de cada filtro do banco.
-    vector<float> center_frequencies;
+    Tensor filterbank_local; // Local variable for filterbank
+    vector<float> center_frequencies_local; // Local variable for center_frequencies
 
     // Energias logarítmicas após aplicação do banco de filtros.
     Tensor log_energies;
@@ -584,26 +584,26 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
 
     // Etapa 2: Framing e Janelamento (Hamming)
     FramingConfig framing_context = {
-        .frame_length = frame_length,    // Tamanho do frame (saída)
-        .frame_step = frame_step,        // Passo do frame (saída)
+        .frame_length = 0, // Initialized to 0, will be set by framing_and_window
+        .frame_step = 0,   // Initialized to 0, will be set by framing_and_window
         .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
     frames = framing_and_window(input_data, framing_context);
 
     // Etapas 3 & 4: STFT (via FFT) e cálculo do Espectro de Potência
-    power_spectrum = rfft_power(frames, frame_length);
+    power_spectrum = rfft_power(frames, framing_context.frame_length);
 
     // Etapa 5: Construção do banco de filtros lineares
     FilterbankConfig filterbank_context = {
-        .filterbank = filterbank,                 // Matriz do banco de filtros (saída)
-        .center_frequencies = center_frequencies, // Frequências centrais (saída)
+        .filterbank = filterbank_local,                 // Matriz do banco de filtros (saída)
+        .center_frequencies = center_frequencies_local, // Frequências centrais (saída)
         .loading_params = loading_params          // Parâmetros de carregamento e processamento
     };
-    build_linear_filterbank(frame_length, filterbank_context);
+    build_linear_filterbank(framing_context.frame_length, filterbank_context);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
     PowerFilterbankConfig power_filterbank_context = {
-        .filterbank = filterbank,        // Banco de filtros
+        .filterbank = filterbank_local,        // Banco de filtros
         .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
     log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
@@ -622,7 +622,8 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
         cout << "Frame " << t << ":\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << cepstral_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << cepstral_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i))
+                 << " ";
         }
         cout << "\n\n" << flush;
 
@@ -636,12 +637,13 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
         cout << "Delta-Delta Coefficients:\n";
         for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
         {
-            cout << delta_delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
+            cout << delta_delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i))
+                 << " ";
         }
         cout << "\n\n" << flush;
     }
 
-    return {}; // Retornar vetor vazio por enquanto
+    return {cepstral_coeff, delta_coeff, delta_delta_coeff}; // Return calculated tensors
 }
 } // namespace
 
