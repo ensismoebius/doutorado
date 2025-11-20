@@ -10,10 +10,6 @@ add_executable(exec_Experiment01
     ${SRC_DIR}/core/layers/Linear.hpp
     ${SRC_DIR}/core/layers/ReLU.hpp
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
-    ${SRC_DIR}/util/synthetic_spike_data.cpp
-    ${SRC_DIR}/util/vectorizationCheck.cpp
-    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/core/NnSaver.hpp
     ${SRC_DIR}/core/dataLoaders/10.1117/AudioLoader.cpp
     ${SRC_DIR}/core/dataLoaders/10.1117/EEGLoader.cpp
     ${SRC_DIR}/core/dataLoaders/MatFile.cpp
@@ -41,9 +37,8 @@ target_link_libraries(exec_Experiment01
         ${OpenMP_CXX_LIBRARIES}
         matioCpp
         fftw3f
+        util
 )
-
-add_subdirectory(${SRC_DIR}/tests)
 
 # Configure Eigen parallelism for the target
 configure_eigen_parallel_target(exec_Experiment01)

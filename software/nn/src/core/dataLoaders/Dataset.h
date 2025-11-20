@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "../tensor/Tensor.hpp"
-#include "util/batching.hpp"
+#include "../utility/batching.hpp"
 
 // Abstract dataset interface similar to PyTorch's Dataset
 class Dataset

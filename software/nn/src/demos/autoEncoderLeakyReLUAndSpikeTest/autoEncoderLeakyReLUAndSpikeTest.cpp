@@ -15,10 +15,10 @@
 #include "core/optimizers/Adam.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
-#include "core/NetworkSerializer.hpp"
-#include "util/batching.hpp"
-#include "util/synthetic_spike_data.hpp"
-#include "util/vectorizationCheck.hpp"
+#include "../../core/saver/NetworkSerializer.hpp"
+#include "../../core/utility/batching.hpp"
+#include "../../core/utility/synthetic_spike_data.hpp"
+#include "../../core/utility/vectorizationCheck.hpp"
 
 using Eigen::MatrixXf;
 using std::cout;

@@ -1,3 +1,5 @@
+include(GoogleTest)
+
 add_executable(statistics_gtest 
     statistics_gtest.cpp
 )

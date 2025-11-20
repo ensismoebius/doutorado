@@ -1,12 +1,13 @@
 add_executable(resnet_demo
-        ${CMAKE_SOURCE_DIR}/src/experiments/resnet_demo.cpp    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/core/dataLoaders/MatFileUtils.cpp
+        resnet_demo.cpp
   )
 
   target_link_libraries(resnet_demo PRIVATE
     Eigen3::Eigen
     ${OpenMP_CXX_LIBRARIES}
     matioCpp
+    dataLoaders
+    util
   )
 
   target_include_directories(resnet_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})

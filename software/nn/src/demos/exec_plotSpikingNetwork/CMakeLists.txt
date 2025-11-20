@@ -12,12 +12,8 @@ add_executable(plotSpikingNetwork
     ${SRC_DIR}/core/layers/Leaky.hpp
     ${SRC_DIR}/core/layers/ReLU.hpp
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
-    ${SRC_DIR}/util/synthetic_spike_data.cpp
-    ${SRC_DIR}/util/vectorizationCheck.cpp
-    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/core/NnSaver.hpp
-    ${SRC_DIR}/util/imguiGlfw.cpp
-    ${SRC_DIR}/experiments/plotSpikingNetwork.cpp
+    ${SRC_DIR}/core/utility/imguiGlfw.cpp
+    ${SRC_DIR}/demos/plotSpikingNetwork/plotSpikingNetwork.cpp
 )
 
 # Link libraries
@@ -34,6 +30,7 @@ target_link_libraries(plotSpikingNetwork
         ${GLFW_LIBRARIES}
         imgui
         implot
+        util
 )
 
 # Include directories

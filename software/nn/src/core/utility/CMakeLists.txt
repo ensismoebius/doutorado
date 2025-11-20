@@ -4,7 +4,10 @@ add_library(util
         batching.cpp
         vectorizationCheck.cpp
         synthetic_spike_data.cpp
+        comparison.cpp
 )
+
+set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(util
     PUBLIC 

@@ -3,9 +3,9 @@
 #include <Eigen/Dense>
 
 #include "core/tensor/Tensor.hpp"
-#include "util/batching.hpp"
-#include "util/synthetic_spike_data.hpp"
-#include "util/vectorizationCheck.hpp"
+#include "../batching.hpp"
+#include "../synthetic_spike_data.hpp"
+#include "../vectorizationCheck.hpp"
 
 // Util: synthetic_spike_data
 TEST(UtilTest, SyntheticSpikeData)

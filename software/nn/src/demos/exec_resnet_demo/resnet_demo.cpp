@@ -10,7 +10,7 @@
 #include "core/layers/ResidualBlock.hpp"
 #include "core/layers/Sequential.hpp"
 #include "core/optimizers/Adam.hpp"
-#include "util/batching.hpp"
+#include "../../core/utility/batching.hpp"
 
 using namespace std;
 

@@ -1,3 +1,5 @@
+include(GoogleTest)
+
 add_executable(paraconsistent_gtest
     paraconsistent_gtest.cpp
 )
@@ -5,7 +7,7 @@ add_executable(paraconsistent_gtest
 target_link_libraries(paraconsistent_gtest
     PRIVATE
         paraconsistent
-        utility
+        util
         GTest::gtest_main
 )
 

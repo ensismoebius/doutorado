@@ -1,6 +1,6 @@
 # Add util_gtest
 add_executable(util_gtest 
-    tests/util_gtest.cpp 
+    util_gtest.cpp 
 )
 target_link_libraries(util_gtest 
     PRIVATE 
@@ -21,3 +21,6 @@ target_include_directories(util_gtest
         ${EIGEN3_INCLUDE_DIR} 
         ${cnpy_SOURCE_DIR}
 )
+
+include(GoogleTest)
+gtest_discover_tests(util_gtest)

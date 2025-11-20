@@ -7,7 +7,7 @@
 #include "core/layers/Linear.hpp"
 #include "core/layers/ReLU.hpp"
 #include "core/layers/Sequential.hpp"
-#include "core/NetworkSerializer.hpp"
+#include "../NetworkSerializer.hpp"
 
 using std::filesystem::temp_directory_path;
 

@@ -2,11 +2,7 @@
 # Targets for auto-encoder tests
 
 add_executable(autoEncoderLeakyReLUAndSpikeTest
-    ${SRC_DIR}/util/synthetic_spike_data.cpp
-    ${SRC_DIR}/util/vectorizationCheck.cpp
-    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/core/NnSaver.hpp
-    ${SRC_DIR}/experiments/autoEncoderLeakyReLUAndSpikeTest.cpp
+    ../autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp
 )
 
 # Link libraries
@@ -15,6 +11,7 @@ target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
         cnpy
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
+        util
 )
 
 # Include directories
@@ -35,11 +32,7 @@ configure_eigen_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
 
 
 add_executable(autoEncoderLeakyReLUTest
-    ${SRC_DIR}/util/synthetic_spike_data.cpp
-    ${SRC_DIR}/util/vectorizationCheck.cpp
-    ${SRC_DIR}/util/batching.cpp
-    ${SRC_DIR}/core/NnSaver.hpp
-    ${SRC_DIR}/experiments/autoEncoderLeakyReLUTest.cpp
+    ../autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp
 )
 
 # Link libraries
@@ -48,6 +41,7 @@ target_link_libraries(autoEncoderLeakyReLUTest
         cnpy
         Eigen3::Eigen
         ${OpenMP_CXX_LIBRARIES}
+        util
 )
 
 # Include directories

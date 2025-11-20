@@ -7,8 +7,8 @@
 #include "imgui.h"
 #include "implot.h"
 #include "core/layers/Leaky.hpp"
-#include "util/imguiGlfw.hpp"
-#include "util/synthetic_spike_data.hpp"
+#include "../../core/utility/imguiGlfw.hpp"
+#include "../../core/utility/synthetic_spike_data.hpp"
 
 using ImGui::Begin;
 using ImGui::End;

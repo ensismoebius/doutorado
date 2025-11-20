@@ -10,9 +10,9 @@ target_include_directories(paraconsistent
 )
 
 target_link_libraries(paraconsistent
-    PUBLIC
+    PRIVATE
         linearAlgebra
-        utility
+        util
 )
 
 add_subdirectory(tests)
