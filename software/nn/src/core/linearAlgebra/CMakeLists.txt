@@ -8,3 +8,5 @@ target_include_directories(linearAlgebra
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
     PUBLIC ${CMAKE_SOURCE_DIR}/src
 )
+
+add_subdirectory(${SRC_DIR}/tests)

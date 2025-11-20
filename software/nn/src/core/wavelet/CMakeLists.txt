@@ -10,3 +10,5 @@ target_include_directories(wavelet
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
 )
+
+add_subdirectory(${SRC_DIR}/tests)

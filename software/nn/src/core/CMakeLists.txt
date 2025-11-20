@@ -1,25 +1,13 @@
-add_executable(core_gtest
-    tests/NetworkSerializer_gtest.cpp
-)
-
-target_link_libraries(core_gtest
-    PRIVATE 
-        GTest::gtest_main 
-        Eigen3::Eigen
-        cnpy-static
-        z
-        ${BLAS_LIBRARIES}
-        ${LAPACK_LIBRARIES}
-        ${OPENBLAS_LIBRARIES}
-)
-
-target_include_directories(core_gtest
-    PRIVATE 
-        ${CMAKE_SOURCE_DIR}/src 
-        ${CMAKE_SOURCE_DIR}/src/core/tensor 
-        ${EIGEN3_INCLUDE_DIR} 
-        ${cnpy_SOURCE_DIR}
-)
-
-include(GoogleTest)
-gtest_discover_tests(core_gtest)
+# Add subdirectories for all modules
+add_subdirectory(${SRC_DIR}/wave)
+add_subdirectory(${SRC_DIR}/saver)
+add_subdirectory(${SRC_DIR}/layers)
+add_subdirectory(${SRC_DIR}/tensor)
+add_subdirectory(${SRC_DIR}/wavelet)
+add_subdirectory(${SRC_DIR}/utility)
+add_subdirectory(${SRC_DIR}/statistics)
+add_subdirectory(${SRC_DIR}/optimizers)
+add_subdirectory(${SRC_DIR}/dataLoaders)
+add_subdirectory(${SRC_DIR}/initializers)
+add_subdirectory(${SRC_DIR}/linearAlgebra)
+add_subdirectory(${SRC_DIR}/paraconsistent)

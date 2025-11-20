@@ -15,3 +15,4 @@ target_link_libraries(paraconsistent
         utility
 )
 
+add_subdirectory(${SRC_DIR}/tests)
