@@ -39,7 +39,7 @@ inline void pre_emphasis_inplace(vector<float>& signal, float coefficient)
         return; // Nothing to do for an empty signal
     }
     // Aplica o filtro de pré-ênfase ao sinal.
-    for (size_t i = signal.size() - 1; i >= 1; --i)
+    for (size_t i = signal.size() - 1; i > 0; --i)
     {
         signal[i] = signal[i] - (coefficient * signal[i - 1]);
     }
@@ -569,15 +569,14 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     // Coeficientes delta-delta (segunda derivada).
     Tensor delta_delta_coeff;
 
-    // Número total de frames processados.
-    size_t number_of_frames;
+
 
     // Transpõe a matriz de amostras para facilitar o processamento.
-    audioSamples.transposeInPlace();
+    audioSamples = audioSamples.transpose();
 
     // Copia os dados do áudio para o vetor de processamento.
     Eigen::Map<Eigen::VectorXf>(input_data.data(), audioSamples.size()) = audioSamples;
-    audioSamples.resize(0, 0); // Libera a memória da matriz Eigen.
+
 
     // Etapa 1: Pré-ênfase
     pre_emphasis_inplace(input_data, loading_params.audio_params.preemphasis_coefficient);
@@ -615,33 +614,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     delta_coeff = compute_deltas(cepstral_coeff, loading_params);
     delta_delta_coeff = compute_deltas(delta_coeff, loading_params);
 
-    // Etapa 9: Concatenação e normalização (aqui apenas imprime para depuração)
-    number_of_frames = cepstral_coeff.get_data_ref().rows();
-    for (size_t t = 0; t < min(number_of_frames, loading_params.constants.debug_frame_limit); ++t)
-    {
-        cout << "Frame " << t << ":\n";
-        for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
-        {
-            cout << cepstral_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i))
-                 << " ";
-        }
-        cout << "\n\n" << flush;
 
-        cout << "Delta Coefficients:\n";
-        for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
-        {
-            cout << delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i)) << " ";
-        }
-        cout << "\n\n" << flush;
-
-        cout << "Delta-Delta Coefficients:\n";
-        for (int i = 0; i < loading_params.audio_params.number_of_cepstrals; ++i)
-        {
-            cout << delta_delta_coeff.get_data_ref()(static_cast<long>(t), static_cast<long>(i))
-                 << " ";
-        }
-        cout << "\n\n" << flush;
-    }
 
     return {cepstral_coeff, delta_coeff, delta_delta_coeff}; // Return calculated tensors
 }
