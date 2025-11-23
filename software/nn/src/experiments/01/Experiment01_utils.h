@@ -1,7 +1,6 @@
 #ifndef EXPERIMENT01_UTILS_HPP
 #define EXPERIMENT01_UTILS_HPP
 
-#include <cstddef> // For size_t
 #include <string>
 #include <vector> // For std::vector
 

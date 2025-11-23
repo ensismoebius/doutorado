@@ -48,7 +48,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
 
     // Vetor de float para conter os dados de áudio para processamento.
-    vector<float> input_data(audioSamples.size());
+    vector<float> input_data(static_cast<size_t>(audioSamples.size()));
 
     // Frames do sinal após janelamento.
     vector<vector<float>> frames;
@@ -129,13 +129,13 @@ void processSubject(const SubjectInfo& subject)
 {
     cout << "Processing subject: " << subject.name << '\n';
 
-    const AudioProcessingParams audioProcessingParams = {.target_sampling_rate = 44100,
-                                                         .preemphasis_coefficient = 0.97,
-                                                         .frame_duration_ms = 25.0,
-                                                         .frame_shift_ms = 10.0,
-                                                         .number_of_filters = 24,
-                                                         .number_of_cepstrals = 19,
-                                                         .delta_window_span = 2};
+    const AudioProcessingParams audio_processing_params = {.target_sampling_rate = 44100,
+                                                           .preemphasis_coefficient = 0.97F,
+                                                           .frame_duration_ms = 25.0,
+                                                           .frame_shift_ms = 10.0,
+                                                           .number_of_filters = 24,
+                                                           .number_of_cepstrals = 19,
+                                                           .delta_window_span = 2};
 
     constexpr HammingWindowConfig hamming_window_config = {.alpha = 0.54F, .beta = 0.46F};
 
@@ -150,12 +150,13 @@ void processSubject(const SubjectInfo& subject)
                                                     .debug_frame_limit = 5};
 
     const LoadingAndProcessingParameters loading_params = {
-        .audio_params = audioProcessingParams,
+        .audio_params = audio_processing_params,
         .hamming_window_config = hamming_window_config,
         .dct_config = dct_config,
         .delta_config = delta_config,
         .constants = general_constants};
 
-    std::vector<Tensor> audioWindows = loadAndProcessAudio(subject.audio_file_path, loading_params);
-    cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
+    std::vector<Tensor> audio_windows =
+        loadAndProcessAudio(subject.audio_file_path, loading_params);
+    cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
 }
