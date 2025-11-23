@@ -21,6 +21,7 @@ using std::flush;
 using std::min;
 using std::size_t;
 using std::vector;
+using std::ranges::copy;
 
 /**
  * @brief Etapa 1: Pré-ênfase.
@@ -86,15 +87,14 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     const int padded_length = (number_of_frames * context.frame_step) + context.frame_length;
 
     // Cópia do sinal com padding de zeros no final.
-    vector<float> padded_signal = signal;
+    vector<float> padded_signal(padded_length, 0.0F);
+    copy(signal, padded_signal.begin());
 
     // Vetor para armazenar a função de janelamento (Hamming).
     vector<float> window_function(context.frame_length);
 
     // Matriz para armazenar os frames resultantes após o janelamento.
     vector<vector<float>> frames(number_of_frames, vector<float>(context.frame_length));
-
-    padded_signal.resize(padded_length, 0.0F);
 
     // Janela de Hamming: w[n] = 0.54 - 0.46 * cos(2πn / (N-1))
     for (int i = 0; i < context.frame_length; ++i)
@@ -438,38 +438,11 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     // Dimensionalidade do vetor de features.
     const size_t number_of_features = features.get_data_ref().cols();
 
-    // Matriz de features com padding nas bordas para o cálculo dos deltas.
-    Tensor padded_features(
-        number_of_frames + (2 * loading_params.audio_params.delta_window_span), // linhas
-        (long) number_of_features                                               // colunas
-    );
-
     // Denominador da fórmula de cálculo dos deltas, pré-calculado.
     float denominator = 0.0F;
 
     // Matriz para armazenar os coeficientes delta resultantes.
     Tensor delta_features(number_of_frames, (long) number_of_features);
-
-    // Preenchimento do tensor de features com padding.
-    for (int i = 0; i < loading_params.audio_params.delta_window_span; ++i)
-    {
-        padded_features.get_data_ref().row(static_cast<long>(i)) = features.get_data_ref().row(0);
-    }
-
-    // Cópia dos features originais para o centro do tensor com padding.
-    for (long i = 0; i < number_of_frames; ++i)
-    {
-        padded_features.get_data_ref().row(i + loading_params.audio_params.delta_window_span) =
-            features.get_data_ref().row(i);
-    }
-
-    // Preenchimento do padding final.
-    for (long i = 0; i < loading_params.audio_params.delta_window_span; ++i)
-    {
-        padded_features.get_data_ref().row(number_of_frames +
-                                           loading_params.audio_params.delta_window_span + i) =
-            features.get_data_ref().row(static_cast<long>(number_of_frames) - 1);
-    }
 
     // Cálculo do denominador da fórmula de deltas.
     for (int i = 1; i <= loading_params.audio_params.delta_window_span; ++i)
@@ -493,21 +466,31 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
             for (long delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
                  ++delta_span)
             {
+                // Determine indices for c_{t+n} and c_{t-n} with boundary handling
+                long index_plus_n = frame_index + delta_span;
+                long index_minus_n = frame_index - delta_span;
+
+                // Clamp indices to valid range
+                if (index_plus_n >= number_of_frames)
+                {
+                    index_plus_n = number_of_frames - 1;
+                }
+                if (index_minus_n < 0)
+                {
+                    index_minus_n = 0;
+                }
+
                 // Deslocamento para calcular a diferença entre frames.
                 numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
                              (                                // Cálculo da diferença ponderada
-                                 padded_features.get_data_ref()( // Frame futuro
-                                     frame_index +               // Frame atual
-                                         loading_params.audio_params.delta_window_span + // offset
-                                         delta_span,             // n passos à frente
-                                     feature_index               // Feature atual
-                                     ) -                         //
-                                 padded_features.get_data_ref()( // Frame passado
-                                     frame_index +               // Frame atual
-                                         loading_params.audio_params.delta_window_span - // offset
-                                         delta_span, // n passos atrás
-                                     feature_index   // Feature atual
-                                     )               //
+                                 features.get_data_ref()( // c_{t+n}
+                                     index_plus_n,        // n passos à frente
+                                     feature_index        // Feature atual
+                                     ) -                  //
+                                 features.get_data_ref()( // c_{t-n}
+                                     index_minus_n,       // n passos atrás
+                                     feature_index        // Feature atual
+                                     )                    //
                              );
             }
 
