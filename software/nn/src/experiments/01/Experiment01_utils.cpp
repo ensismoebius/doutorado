@@ -380,7 +380,7 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
              cepstrum_index < loading_params.audio_params.number_of_cepstrals;
              ++cepstrum_index)
         {
-            // Variável temporária para acumular a soma ponderada para o cálculo do
+            // Variável temporária para acumular a soma ponderada para o cálculo do coeficiente cepstral.
             float sum = 0.0F;
 
             // Cálculo do coeficiente cepstral atual.
