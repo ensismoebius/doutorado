@@ -1,20 +1,18 @@
 #define USE_MATH_DEFINES
 
 #include "Experiment01_utils.h"
-#include "core/wave/audioFeatureExtraction.h" // Include the new header
 
 #include <fftw3.h> // For FFTW library functions
 
 #include <algorithm> // For std::min, std::max
-#include <cmath>     // For cosf, roundf, floorf, logf, sqrtf
 #include <cstddef>   // For size_t
 #include <iostream>  // For std::cout (if debugging)
-#include <numbers>   // For std::numbers::pi_v, std::numbers::sqrt2_v
 #include <vector>    // For std::vector
 
 #include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
 #include "core/optimizers/Adam.hpp" // Placeholder, maybe remove if not used by these funcs
 #include "core/tensor/Tensor.hpp"   // For Tensor
+#include "core/wave/audioFeatureExtraction.h" // Include the new header
 
 // Include Eigen for Eigen::Map and Eigen::VectorXf
 #include <Eigen/Dense>
@@ -24,7 +22,7 @@ using std::min;
 using std::size_t;
 using std::vector;
 using std::ranges::copy; // Added for std::ranges::copy
-using namespace std; // Use standard namespace
+using namespace std;     // Use standard namespace
 
 /**
  * @brief Função principal que carrega e processa o áudio para extrair LFCCs.
@@ -59,7 +57,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     Tensor power_spectrum;
 
     // Matriz do banco de filtros lineares.
-    Tensor filterbank_local;       // Local variable for filterbank
+    Tensor filterbank_local;                // Local variable for filterbank
     vector<float> center_frequencies_local; // Local variable for center_frequencies
 
     // Energias logarítmicas após aplicação do banco de filtros.
@@ -74,22 +72,22 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     // Coeficientes delta-delta (segunda derivada).
     Tensor delta_delta_coeff;
 
-
-
     // Transpõe a matriz de amostras para facilitar o processamento.
     audioSamples = audioSamples.transpose();
 
     // Copia os dados do áudio para o vetor de processamento.
     Eigen::Map<Eigen::VectorXf>(input_data.data(), audioSamples.size()) = audioSamples;
 
-
     // Etapa 1: Pré-ênfase (now nn::core::wave::pre_emphasis_inplace)
-    nn::core::wave::pre_emphasis_inplace(input_data, loading_params.audio_params.preemphasis_coefficient);
+    nn::core::wave::pre_emphasis_inplace(
+        input_data,                                         // Input audio data
+        loading_params.audio_params.preemphasis_coefficient // Pre-emphasis coefficient
+    );
 
     // Etapa 2: Framing e Janelamento (Hamming)
     FramingConfig framing_context = {
-        .frame_length = 0, // Initialized to 0, will be set by framing_and_window
-        .frame_step = 0,   // Initialized to 0, will be set by framing_and_window
+        .frame_length = 0,               // Initialized to 0, will be set by framing_and_window
+        .frame_step = 0,                 // Initialized to 0, will be set by framing_and_window
         .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
     frames = nn::core::wave::framing_and_window(input_data, framing_context);
@@ -101,13 +99,13 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     FilterbankConfig filterbank_context = {
         .filterbank = filterbank_local,                 // Matriz do banco de filtros (saída)
         .center_frequencies = center_frequencies_local, // Frequências centrais (saída)
-        .loading_params = loading_params          // Parâmetros de carregamento e processamento
+        .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
     nn::core::wave::build_linear_filterbank(framing_context.frame_length, filterbank_context);
 
     // Etapa 6: Aplicação do banco de filtros e compressão logarítmica
     PowerFilterbankConfig power_filterbank_context = {
-        .filterbank = filterbank_local,        // Banco de filtros
+        .filterbank = filterbank_local,  // Banco de filtros
         .loading_params = loading_params // Parâmetros de carregamento e processamento
     };
     log_energies = nn::core::wave::dot_power_filterbank(power_spectrum, power_filterbank_context);
@@ -119,11 +117,8 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     delta_coeff = nn::core::wave::compute_deltas(cepstral_coeff, loading_params);
     delta_delta_coeff = nn::core::wave::compute_deltas(delta_coeff, loading_params);
 
-
-
     return {cepstral_coeff, delta_coeff, delta_delta_coeff}; // Return calculated tensors
 }
-
 
 /**
  * @brief Processa um sujeito específico, carregando e processando seu áudio.
@@ -161,7 +156,6 @@ void processSubject(const SubjectInfo& subject)
         .delta_config = delta_config,
         .constants = general_constants};
 
-    std::vector<Tensor> audioWindows = 
-        loadAndProcessAudio(subject.audio_file_path, loading_params);
+    std::vector<Tensor> audioWindows = loadAndProcessAudio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audioWindows.size() << " audio windows.\n";
 }
