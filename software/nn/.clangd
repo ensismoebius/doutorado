@@ -1,1 +1,54 @@
-CompileFlags: {CompilationDatabase: build/cmake.run.linux.x86_64.Local}
+CompileFlags:
+  Add:
+    [
+      -Wall,
+      -Wextra,
+      -Wpedantic,
+      -Wshadow,
+      -Wnon-virtual-dtor,
+      -Wold-style-cast,
+      -Wcast-align,
+      -Wunused,
+      -Woverloaded-virtual,
+      -Wpedantic,
+      -Wconversion,
+      -Wsign-conversion,
+      -Wnull-dereference,
+      -Wdouble-promotion,
+      -Wformat=2,
+      -Wimplicit-fallthrough,
+    ]
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      [
+        bugprone-*,
+        clang-analyzer-*,
+        cppcoreguidelines-*,
+        performance-*,
+        portability-*,
+        readability-*,
+        modernize-use-trailing-return-type,
+        modernize-*,
+        modernize-use-auto,
+        cppcoreguidelines-pro-bounds-pointer-arithmetic,
+        readability-identifier-naming,
+        readability-magic-numbers,
+      ]
+    Remove: []
+    CheckOptions:
+      readability-identifier-naming.VariableCase: lower_case
+      readability-identifier-naming.FunctionCase: camelBack
+      readability-identifier-naming.GlobalConstantCase: UPPER_CASE
+      readability-identifier-naming.PrivateMemberCase: lower_case_with_underscores
+      readability-identifier-naming.ProtectedMemberCase: lower_case_with_underscores
+      readability-identifier-naming.PublicMemberCase: lower_case
+      readability-identifier-naming.EnumConstantCase: UPPER_CASE
+      readability-identifier-naming.StructCase: camelBack
+      readability-identifier-naming.ClassCase: PascalCase
+      readability-identifier-naming.NamespaceCase: lower_case
+
+Index:
+  Background: Skip
+  StandardLibrary: true
