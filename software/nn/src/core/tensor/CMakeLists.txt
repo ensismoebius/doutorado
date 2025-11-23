@@ -6,6 +6,7 @@ target_include_directories(tensor
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/tensor
         ${CMAKE_SOURCE_DIR}/src     # For other project headers
+        ${EIGEN3_INCLUDE_DIR}       # For Eigen headers
 )
 
 target_link_libraries(tensor PRIVATE Eigen3::Eigen)

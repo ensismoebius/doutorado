@@ -1,9 +1,12 @@
 #include "gtest/gtest.h"
-#include "Experiment01_utils.h"
+#include "core/wave/audioTypes.h" // Include the new audio types header
+#include "core/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
 #include "core/tensor/Tensor.hpp" // For Tensor
 #include <vector>
 #include <cmath>
 #include <numeric> // For std::iota
+
+using namespace nn::core::wave; // Use the namespace for moved functions
 
 // Helper function to create dummy LoadingAndProcessingParameters
 LoadingAndProcessingParameters createDummyLoadingParams() {

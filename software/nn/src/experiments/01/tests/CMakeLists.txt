@@ -8,6 +8,7 @@ target_link_libraries(Experiment01_utils_gtest
         dataLoaders
         util
         experiment01_utils_lib # Link against the new library
+        waveCoreLib # Link against the new waveCoreLib
 )
 
 target_include_directories(Experiment01_utils_gtest

@@ -5,7 +5,7 @@ add_executable(wave_gtest
 target_link_libraries(wave_gtest 
     PRIVATE 
        GTest::gtest_main
-       filtersOperationsLibStatic
+       waveCoreLib
        linearAlgebra
 )
 

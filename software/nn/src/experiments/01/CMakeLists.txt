@@ -63,7 +63,8 @@ target_link_libraries(exec_Experiment01
         util
         tensor
         experiment01_utils_lib
-        dataLoaders_10_1117 # Add this line
+        dataLoaders_10_1117
+        waveCoreLib
 )
 
 # Configure Eigen parallelism for the target

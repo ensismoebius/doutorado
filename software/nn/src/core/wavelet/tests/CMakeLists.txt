@@ -6,7 +6,7 @@ target_link_libraries(wavelet_gtest
     PRIVATE 
        GTest::gtest_main
        wavelet
-       filtersOperationsLibStatic
+       waveCoreLib
        linearAlgebra
 )
 
