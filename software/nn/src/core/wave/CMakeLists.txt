@@ -14,7 +14,6 @@ target_include_directories(waveCoreLib
 
 target_link_libraries(waveCoreLib
     PRIVATE
-        dataLoaders_10_1117
 )
 
 add_subdirectory(tests)

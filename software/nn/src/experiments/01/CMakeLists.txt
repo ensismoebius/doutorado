@@ -25,6 +25,7 @@ target_link_libraries(experiment01_utils_lib
         util
         tensor
         dataLoaders_10_1117
+        waveCoreLib
 )
 
 add_executable(exec_Experiment01

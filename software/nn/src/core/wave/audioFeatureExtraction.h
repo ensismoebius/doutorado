@@ -22,10 +22,6 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
     -> Tensor;
 auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters& loading_params)
     -> Tensor;
-auto loadAndProcessAudio(const std::string& audioFilePath,
-                         const LoadingAndProcessingParameters& loading_params)
-    -> std::vector<Tensor>;
-
 } // namespace nn::core::wave
 
 #endif // NN_CORE_WAVE_AUDIOFEATUREEXTRACTION_H
