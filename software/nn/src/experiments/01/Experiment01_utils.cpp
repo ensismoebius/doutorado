@@ -4,25 +4,22 @@
 
 #include <fftw3.h> // For FFTW library functions
 
-#include <algorithm> // For std::min, std::max
-#include <cstddef>   // For size_t
-#include <iostream>  // For std::cout (if debugging)
-#include <vector>    // For std::vector
+#include <cstddef>  // For size_t
+#include <iostream> // For std::cout (if debugging)
+#include <vector>   // For std::vector
 
 #include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
-#include "core/optimizers/Adam.hpp" // Placeholder, maybe remove if not used by these funcs
-#include "core/tensor/Tensor.hpp"   // For Tensor
+#include "core/optimizers/Adam.hpp"
+#include "core/tensor/Tensor.hpp"             // For Tensor
 #include "core/wave/audioFeatureExtraction.h" // Include the new header
 
 // Include Eigen for Eigen::Map and Eigen::VectorXf
 #include <Eigen/Dense>
 
 using nn::dataLoaders::loadAudioFromMat;
-using std::min;
 using std::size_t;
 using std::vector;
-using std::ranges::copy; // Added for std::ranges::copy
-using namespace std;     // Use standard namespace
+using namespace std; // Use standard namespace
 
 /**
  * @brief Função principal que carrega e processa o áudio para extrair LFCCs.

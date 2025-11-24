@@ -1,10 +1,8 @@
 #include <filesystem>
-#include <iostream>
 #include <string>
 
 #include "Experiment01_utils.h"
 
-using std::cout;
 using std::string;
 
 static void init()

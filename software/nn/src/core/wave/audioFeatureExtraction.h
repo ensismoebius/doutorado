@@ -2,7 +2,6 @@
 #define NN_CORE_WAVE_AUDIOFEATUREEXTRACTION_H
 
 #include <vector>
-#include <string>
 
 #include "core/tensor/Tensor.hpp"
 #include "core/wave/audioTypes.h" // Include the new audio types header

@@ -2,7 +2,6 @@
 #define TENSOR_HPP
 
 #include <Eigen/Dense>
-#include <memory>
 
 class Tensor
 {

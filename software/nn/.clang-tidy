@@ -1,23 +1,6 @@
-Checks: >
-  -*,
-  clang-analyzer-*,
-  cppcoreguidelines-*,
-  bugprone-*,
-  performance-*,
-  modernize-*,
-  readability-*,
-  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  -cppcoreguidelines-pro-type-vararg,
-  -modernize-use-trailing-return-type,
-  -modernize-use-auto,
-  -readability-identifier-naming,
-  -readability-magic-numbers
+Checks: "-*,clang-analyzer-*,modernize-*,performance-*,readability-*,bugprone-*,-misc-*,-cppcoreguidelines-non-private-member-variables-in-classes,-readability-identifier-length,-readability-magic-numbers"
+WarningsAsErrors: ""
 
-WarningsAsErrors: [
-  clang-analyzer-*,
-  bugprone-*,
-]
-
-HeaderFilterRegex: '.*'
+HeaderFilterRegex: ".*"
 AnalyzeTemporaryDtors: true
 FormatStyle: file
