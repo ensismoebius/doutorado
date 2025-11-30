@@ -49,7 +49,7 @@ target_include_directories(exec_Experiment01
         ${LIB_DIR}/util
         ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
-        ${cnpy_SOURCE_DIR} # Added back for NetworkSerializer.hpp
+        ${cnpy_SOURCE_DIR}
 )
 
 # Link libraries

@@ -159,10 +159,11 @@ void processSubject(const SubjectInfo& subject)
 }
 
 // Extract MGDF cepstral from frames
-inline Eigen::VectorXd extract_mgdf_from_frame(const Eigen::VectorXf& frame,
-                                               const LoadingAndProcessingParameters& lfc_p,
-                                               const AudioProcessingParams& mg_p,
-                                               const Eigen::MatrixXd& H)
+inline Eigen::VectorXd extract_mgdf_from_frame(
+    const Eigen::VectorXf& frame,
+    const LoadingAndProcessingParameters& lfc_p,
+    const AudioProcessingParams& mg_p,
+    const Eigen::MatrixXd& H)
 {
     Eigen::VectorXd mgdf_cepstral;
     // TODO: Implement the actual logic for extracting MGDF cepstral.
