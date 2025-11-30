@@ -159,8 +159,8 @@ void processSubject(const SubjectInfo& subject)
 
     // Extract MGDF cepstral from frames
     inline Eigen::VectorXd extract_mgdf_from_frame(
-        const Vec& frame, 
-        const LFCCParams& lfc_p, 
+        const Eigen::VectorXf& frame, 
+        const LFCCConfig& lfc_p, 
         const MGDFParams& mg_p, 
         const Eigen::MatrixXd& H)
     {

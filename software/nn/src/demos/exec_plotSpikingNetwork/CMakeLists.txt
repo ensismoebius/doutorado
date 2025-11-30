@@ -13,7 +13,7 @@ add_executable(plotSpikingNetwork
     ${SRC_DIR}/core/layers/ReLU.hpp
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
     ${SRC_DIR}/core/utility/imguiGlfw.cpp
-    ${SRC_DIR}/demos/plotSpikingNetwork/plotSpikingNetwork.cpp
+    ${SRC_DIR}/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp
 )
 
 # Link libraries

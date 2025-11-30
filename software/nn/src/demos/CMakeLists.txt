@@ -1,4 +1,5 @@
 add_subdirectory(exec_resnet_demo)
 add_subdirectory(exec_loadingData)
-add_subdirectory(exec_AutoEncoderTargets)
 add_subdirectory(exec_plotSpikingNetwork)
+add_subdirectory(autoEncoderLeakyReLUTest)
+add_subdirectory(autoEncoderLeakyReLUAndSpikeTest)
