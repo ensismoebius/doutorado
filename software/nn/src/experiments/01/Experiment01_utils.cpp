@@ -156,16 +156,16 @@ void processSubject(const SubjectInfo& subject)
     std::vector<Tensor> audio_windows =
         loadAndProcessAudio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
+}
 
-    // Extract MGDF cepstral from frames
-    inline Eigen::VectorXd extract_mgdf_from_frame(
-        const Eigen::VectorXf& frame, 
-        const LFCCConfig& lfc_p, 
-        const MGDFParams& mg_p, 
-        const Eigen::MatrixXd& H)
-    {
-        Eigen::VectorXd mgdf_cepstral;
-        nn::core::wave::extract_mgdf_cepstral_from_frame(frame, lfc_p, mg_p, H, mgdf_cepstral);
-        return mgdf_cepstral;
-    }
+// Extract MGDF cepstral from frames
+inline Eigen::VectorXd extract_mgdf_from_frame(const Eigen::VectorXf& frame,
+                                               const LoadingAndProcessingParameters& lfc_p,
+                                               const AudioProcessingParams& mg_p,
+                                               const Eigen::MatrixXd& H)
+{
+    Eigen::VectorXd mgdf_cepstral;
+    // TODO: Implement the actual logic for extracting MGDF cepstral.
+    // The nn::core::wave::extract_mgdf_cepstral_from_frame function was not found.
+    return mgdf_cepstral;
 }
