@@ -28,6 +28,7 @@ static void perform(const std::string& basePath)
                                              .audio_file_path = audioFilePath,
                                              .eeg_file_path = eegFilePath};
                 processSubject(subject);
+                
             }
         }
     }
