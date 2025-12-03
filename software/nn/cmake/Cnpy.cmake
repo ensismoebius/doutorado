@@ -12,3 +12,7 @@ FetchContent_Declare(
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.10)
 FetchContent_MakeAvailable(cnpy)
+
+target_include_directories(cnpy INTERFACE SYSTEM "$<BUILD_INTERFACE:${cnpy_SOURCE_DIR}>")
+target_compile_options(cnpy PRIVATE -w)
+target_compile_options(cnpy-static PRIVATE -w)

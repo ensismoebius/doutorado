@@ -25,8 +25,14 @@ set(IMGUI_BACKEND_SOURCES
 )
 
 # Create ImGui library target
-add_library(imgui STATIC ${IMGUI_SOURCES} ${IMGUI_BACKEND_SOURCES})
-target_include_directories(imgui PUBLIC
-    ${imgui_SOURCE_DIR}
-    ${imgui_SOURCE_DIR}/backends
+add_library(imgui 
+    STATIC 
+        ${IMGUI_SOURCES} 
+        ${IMGUI_BACKEND_SOURCES}
+)
+target_compile_options(imgui PRIVATE -w)
+target_include_directories(imgui 
+    SYSTEM PUBLIC
+        ${imgui_SOURCE_DIR}
+        ${imgui_SOURCE_DIR}/backends
 )

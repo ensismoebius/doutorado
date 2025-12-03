@@ -18,7 +18,9 @@ set(IMPLOT_SOURCES
 
 # Create ImPlot library target
 add_library(implot STATIC ${IMPLOT_SOURCES})
-target_include_directories(implot PUBLIC
+target_compile_options(implot PRIVATE -w)
+target_include_directories(implot 
+    SYSTEM PUBLIC
     ${implot_SOURCE_DIR}
     ${imgui_SOURCE_DIR} # ImPlot depends on ImGui headers
 )
