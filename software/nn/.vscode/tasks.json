@@ -32,16 +32,6 @@
 			],
 			"group": "build"
 		},
-		{
-			"label": "Lint current file (use build)",
-			"type": "shell",
-			"command": "clang-tidy \"${file}\" -p \"${workspaceFolder}/build\"",
-			"problemMatcher": [],
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			}
-		}
 	],
 	"version": "2.0.0"
 }

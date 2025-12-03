@@ -3,8 +3,21 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
-# Enable clang-tidy integration with CMake (without treating warnings as errors)
-# set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
+find_program(CLANG_CXX_COMPILER_PATH NAMES clang++)
+find_program(CLANG_C_COMPILER_PATH NAMES clang)
+
+if(NOT CLANG_CXX_COMPILER_PATH)
+    message(FATAL_ERROR "clang++ compiler not found. Please ensure clang is installed and in your system's PATH, or specify its location via CMAKE_CXX_COMPILER.")
+endif()
+if(NOT CLANG_C_COMPILER_PATH)
+    message(FATAL_ERROR "clang C compiler not found. Please ensure clang is installed and in your system's PATH, or specify its location via CMAKE_C_COMPILER.")
+endif()
+
+set(CMAKE_CXX_COMPILER "${CLANG_CXX_COMPILER_PATH}")
+set(CMAKE_C_COMPILER "${CLANG_C_COMPILER_PATH}")
+set(CMAKE_LINKER lld)
+
+add_compile_options(-g -gdwarf-5)
 
 # Verbose output
 set(CMAKE_VERBOSE_MAKEFILE ON)

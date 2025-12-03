@@ -1,29 +1,24 @@
-# -*- coding: utf-8 -*-
-# This file is part of Eigen, a lightweight C++ template library
-# for linear algebra.
+# Pretty-printers for Eigen and C++ STL types.
+#
+# To use it:
+#
+# * Create a directory and put this file as well as an empty __init__.py in 
+#   that directory.
+# * Create a ~/.gdbinit file that contains the following:
+#      python
+#      import sys
+#      sys.path.insert(0, '/path/to/printer/directory')
+#      from printers import register_printers
+#      register_printers(None)
+#      end
+#
+# The Eigen printers were originally based on the work of Benjamin Schindler.
 #
 # Copyright (C) 2009 Benjamin Schindler <bschindler@inf.ethz.ch>
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
-# Pretty printers for Eigen::Matrix
-# This is still pretty basic as the python extension to gdb is still pretty basic. 
-# It cannot handle complex eigen types and it doesn't support many of the other eigen types
-# This code supports fixed size as well as dynamic size matrices
-
-# To use it:
-#
-# * Create a directory and put the file as well as an empty __init__.py in 
-#   that directory.
-# * Create a ~/.gdbinit file, that contains the following:
-#      python
-#      import sys
-#      sys.path.insert(0, '/path/to/eigen/printer/directory')
-#      from printers import register_eigen_printers
-#      register_eigen_printers(None)
-#      end
 
 import gdb
 import re
@@ -293,7 +288,75 @@ def cast_eigen_block_to_matrix(val):
 	return val.cast(gdb.lookup_type(val_type[begin:end]))
 
 
-def build_eigen_dictionary():
+class StdOptionalPrinter:
+    "Print a std::optional"
+
+    def __init__(self, val):
+        self.val = val
+        try:
+            # libstdc++
+            self.engaged = val['_M_payload']['_M_engaged']
+            if self.engaged:
+                self.value = val['_M_payload']['_M_payload']['_M_value']
+        except gdb.error:
+            try:
+                # libc++
+                self.val_field = val['__val_']
+                self.engaged = val['__has_val_']
+                if self.engaged:
+                    self.value = self.val_field
+            except gdb.error:
+                self.engaged = False
+
+    def to_string(self):
+        if self.engaged:
+            return "std::optional containing %s" % self.value.type.name
+        else:
+            return "std::nullopt"
+
+    def children(self):
+        if self.engaged:
+            yield 'value', self.value
+
+class StdVariantPrinter:
+    "Print a std::variant"
+
+    def __init__(self, val):
+        self.val = val
+        self.index = val['_M_index']
+
+    def to_string(self):
+        if self.index < 0: # -1 is valueless_by_exception
+             return "std::variant (valueless_by_exception)"
+        return "std::variant"
+
+    def children(self):
+        if self.index < 0:
+            return
+        
+        variant_type = self.val.type.strip_typedefs()
+        
+        template_arg_types = [variant_type.template_argument(i) for i in range(variant_type.template_argument_count())]
+
+        if self.index < len(template_arg_types):
+            active_type = template_arg_types[self.index]
+            
+            try:
+                # libstdc++ internals
+                if self.index == 0:
+                    data = self.val['_M_storage']['_M_first']
+                else:
+                    data = self.val['_M_storage']['_M_rest']
+                    for _ in range(self.index - 1):
+                        data = data['_M_rest']
+                    data = data['_M_first']
+                
+                yield 'value', data.cast(active_type)
+            except gdb.error:
+                yield 'value', '<unable to read value of type %s>' % active_type.name
+
+
+def build_printers_dictionary():
 	pretty_printers_dict[re.compile('^Eigen::Quaternion<.*>$')] = lambda val: EigenQuaternionPrinter(val)
 	pretty_printers_dict[re.compile('^Eigen::Matrix<.*>$')] = lambda val: EigenMatrixPrinter("Matrix", val)
 	pretty_printers_dict[re.compile('^Eigen::Block<.*>$')] =\
@@ -302,10 +365,13 @@ def build_eigen_dictionary():
 		lambda val: EigenMatrixPrinter("Matrix", cast_eigen_block_to_matrix(val))
 	pretty_printers_dict[re.compile('^Eigen::SparseMatrix<.*>$')] = lambda val: EigenSparseMatrixPrinter(val)
 	pretty_printers_dict[re.compile('^Eigen::Array<.*>$')] = lambda val: EigenMatrixPrinter("Array",  val)
+	# Add STL printers
+	pretty_printers_dict[re.compile(r'^std::optional<.*>$')] = lambda val: StdOptionalPrinter(val)
+	pretty_printers_dict[re.compile(r'^std::variant<.*>$')] = lambda val: StdVariantPrinter(val)
 
 
-def register_eigen_printers(obj):
-	"""Register eigen pretty-printers with objfile Obj"""
+def register_printers(obj):
+	"""Register eigen and stl pretty-printers with objfile Obj"""
 
 	if obj is None:
 		obj = gdb
@@ -335,4 +401,4 @@ def lookup_function(val):
 
 pretty_printers_dict = {}
 
-build_eigen_dictionary()
+build_printers_dictionary()

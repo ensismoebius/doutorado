@@ -1,25 +1,41 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CMake Debug",
+            "name": "CMake Debug (LLDB)",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main_test02",
+            "args": [],
+            "cwd": "${workspaceFolder}/build",
+            "stopOnEntry": false,
+            "initCommands": [
+                "breakpoint set -E CXX",
+                "command script import ${workspaceFolder}/debug/lldb/printers.py"
+            ]
+        },
+        {
+            "name": "CMake Debug (GDB)",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/main_test02",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build",
-            "environment": [],
-            "externalConsole": true,
             "MIMode": "gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
                     "text": "-enable-pretty-printing",
                     "ignoreFailures": true
+                },
+                {
+                    "description": "Catch C++ exceptions",
+                    "text": "catch throw"
+                },
+                {
+                    "description": "Load custom pretty printers",
+                    "text": "source ${workspaceFolder}/debug/gdb/printers.py"
                 }
             ]
         }

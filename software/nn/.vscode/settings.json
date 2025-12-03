@@ -100,5 +100,11 @@
     "editor.semanticHighlighting.enabled": true,
     // performance / limits
     "clangd.semanticHighlighting.enabled": true,
-    "files.maxMemoryForLargeFilesMB": 16000
+    "files.maxMemoryForLargeFilesMB": 16000,
+    "cmake.debugConfig": {
+        "type": "lldb-dap",
+        "request": "launch",
+        "program": "${command:cmake.launchTargetPath}",
+        "cwd": "${workspaceFolder}/build"
+    }
 }
