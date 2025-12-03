@@ -1,1 +1,42 @@
-CompileFlags: {CompilationDatabase: build/cmake.run.linux.x86_64.Local}
+# .clangd - compile database + compile flags + clang-tidy checks
+CompileFlags:
+  # use o compile_commands.json dentro de build/
+  CompilationDatabase: build
+
+  # flags adicionadas SOMENTE quando não existirem no compile_commands.json
+  Add:
+    - -std=gnu++20
+
+    # includes do seu projeto
+    - -I${workspaceFolder}/src
+    - -I${workspaceFolder}/src/core
+
+    # Eigen (include root correto no Arch)
+    - -isystem
+    - /usr/include/eigen3
+
+    # alinhar toolchain
+    - --gcc-toolchain=/usr
+
+Index:
+  Background: Build
+
+ClangTidy:
+  Checks: >
+    -*,
+    clang-analyzer-*,
+    modernize-*,
+    performance-*,
+    readability-*,
+    bugprone-*,
+    -misc-*,
+    -cppcoreguidelines-non-private-member-variables-in-classes,
+    -readability-identifier-length,
+    -readability-magic-numbers
+  WarningsAsErrors: ""
+  HeaderFilterRegex: ".*"
+  FormatStyle: file
+  SystemHeaders: false
+  CheckOptions:
+    - key: clang-diagnostic-error.Ignore
+      value: "true"

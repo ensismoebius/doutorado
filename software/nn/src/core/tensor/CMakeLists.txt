@@ -2,6 +2,9 @@ add_library(tensor STATIC
     Tensor.cpp
 )
 
+
+
+
 target_include_directories(tensor 
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/tensor
@@ -9,6 +12,8 @@ target_include_directories(tensor
         ${EIGEN3_INCLUDE_DIR}       # For Eigen headers
 )
 
-target_link_libraries(tensor PRIVATE Eigen3::Eigen)
+target_link_libraries(tensor 
+    PRIVATE Eigen3::Eigen
+)
 
 add_subdirectory(tests)

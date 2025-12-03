@@ -5,7 +5,7 @@
 
 class Tensor
 {
-  public:
+   public:
     // Constructors
     Tensor() = default;
     explicit Tensor(const Eigen::MatrixXf& data);
@@ -13,10 +13,10 @@ class Tensor
     Tensor(Eigen::Index rows, Eigen::Index cols);
 
     // Getters for data and gradient
+    [[nodiscard]] auto get_data_ref() const -> const Eigen::MatrixXf&;
+    [[nodiscard]] auto get_grad_ref() const -> const Eigen::MatrixXf&;
     auto get_data_ref() -> Eigen::MatrixXf&;
-    auto get_data_ref() const -> const Eigen::MatrixXf&;
     auto get_grad_ref() -> Eigen::MatrixXf&;
-    auto get_grad_ref() const -> const Eigen::MatrixXf&;
 
     // Setter for gradient
     void set_grad(const Eigen::MatrixXf& grad);
@@ -26,18 +26,18 @@ class Tensor
     void set_data(const Eigen::MatrixXf& data);
 
     // Shape and size information
-    auto get_shape() const -> std::vector<Eigen::Index>;
-    auto rows() const -> Eigen::Index;
-    auto cols() const -> Eigen::Index;
-    auto size() const -> Eigen::Index;
+    [[nodiscard]] auto get_shape() const -> std::vector<Eigen::Index>;
+    [[nodiscard]] auto rows() const -> Eigen::Index;
+    [[nodiscard]] auto cols() const -> Eigen::Index;
+    [[nodiscard]] auto size() const -> Eigen::Index;
 
     // Slice operation
-    auto slice(const std::vector<int>& indices) const -> Tensor;
+    [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor;
 
     // Zero out the gradient
     void zero_grad();
 
-  private:
+   private:
     Eigen::MatrixXf m_data;
     Eigen::MatrixXf m_grad;
 };

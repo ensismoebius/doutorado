@@ -1,9 +1,6 @@
 #ifndef EXPERIMENT01_UTILS_HPP
 #define EXPERIMENT01_UTILS_HPP
 
-#include <string>
-#include <vector> // For std::vector
-
 #include "core/tensor/Tensor.hpp" // For Tensor
 #include "core/wave/audioTypes.h" // Include the new audio types header
 

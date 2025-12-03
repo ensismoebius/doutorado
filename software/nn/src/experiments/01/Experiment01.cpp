@@ -1,7 +1,8 @@
 #include <filesystem>
 #include <string>
 
-#include "Experiment01_utils.h"
+#include "audioTypes.h"
+#include "experiments/01/Experiment01_utils.h"
 
 using std::string;
 
@@ -28,7 +29,6 @@ static void perform(const std::string& basePath)
                                              .audio_file_path = audioFilePath,
                                              .eeg_file_path = eegFilePath};
                 processSubject(subject);
-                
             }
         }
     }
