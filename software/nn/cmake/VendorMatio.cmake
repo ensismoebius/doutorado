@@ -9,7 +9,7 @@ include(FetchContent)
 FetchContent_Declare(
     matio
     GIT_REPOSITORY https://github.com/tbeu/matio.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    GIT_TAG        v1.5.23 # Pinned to a specific tag for reproducibility
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 

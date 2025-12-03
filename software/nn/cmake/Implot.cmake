@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
     implot
     GIT_REPOSITORY https://github.com/epezent/implot.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    GIT_TAG        v0.14 # Pinned to a specific tag for reproducibility
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 

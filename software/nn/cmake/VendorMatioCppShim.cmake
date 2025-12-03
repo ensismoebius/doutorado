@@ -21,22 +21,21 @@ include(FetchContent)
 FetchContent_Declare(
     matio-cpp
     GIT_REPOSITORY https://github.com/ami-iit/matio-cpp.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    GIT_TAG        v0.3.0 # Pinned to a specific tag for reproducibility
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-# Provide matio information to matio-cpp's build system
-set(MATIO_ROOT_DIR "${matio_BINARY_DIR}")
-set(MATIO_INCLUDE_DIR "${matio_SOURCE_DIR}/src") # matio.h is in matio-src/src
-set(MATIO_LIBRARY "${matio_BINARY_DIR}/libmatio.so") # Or .a, depending on build type
+# The matio-cpp find script is not modern and requires old-style hint variables.
+# We set them here based on the 'matio' target created by the previous FetchContent call.
+# This is fragile but necessary to bridge the modern and legacy CMake scripts.
+if(TARGET matio)
+    # Manually construct the path to the library. We assume it's a static library
+    # located in the 'src' subdirectory of the matio build directory.
+    set(MATIO_LIB_PATH "${matio_BINARY_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}matio${CMAKE_STATIC_LIBRARY_SUFFIX}")
 
-set(MATIO_FOUND TRUE) # Explicitly set to TRUE
-
-FetchContent_Declare(
-    matio-cpp
-    GIT_REPOSITORY https://github.com/ami-iit/matio-cpp.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
+    set(MATIO_INCLUDE_DIR "${matio_SOURCE_DIR}/src" CACHE INTERNAL "Path to matio headers")
+    set(MATIO_LIBRARY "${MATIO_LIB_PATH}" CACHE INTERNAL "Path to matio library")
+    set(MATIO_FOUND TRUE CACHE INTERNAL "Indicate that matio is found")
+endif()
 
 FetchContent_MakeAvailable(matio-cpp)

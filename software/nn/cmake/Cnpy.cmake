@@ -6,7 +6,7 @@ include(FetchContent)
 FetchContent_Declare(
     cnpy
     GIT_REPOSITORY https://github.com/rogersce/cnpy.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    GIT_TAG        4e8810b # Pinned to a specific commit for reproducibility
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 

@@ -4,12 +4,10 @@ add_executable(resnet_demo
 
   target_link_libraries(resnet_demo PRIVATE
     Eigen3::Eigen
-    ${OpenMP_CXX_LIBRARIES}
     matioCpp
     dataLoaders
     util
     tensor
   )
 
-  target_include_directories(resnet_demo PRIVATE ${CMAKE_SOURCE_DIR}/src ${EIGEN3_INCLUDE_DIR})
   configure_eigen_parallel_target(resnet_demo)

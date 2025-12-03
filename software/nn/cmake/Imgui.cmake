@@ -4,7 +4,7 @@ include(FetchContent)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        HEAD # Consider using a specific commit hash or tag for reproducibility
+    GIT_TAG        v1.88 # Pinned to a specific tag for reproducibility
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 

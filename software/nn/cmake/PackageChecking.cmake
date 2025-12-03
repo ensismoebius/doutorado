@@ -2,9 +2,7 @@
 find_package(PkgConfig REQUIRED)
 
 # Find Eigen
-set(EIGEN3_INCLUDE_DIR "/usr/include/eigen3/")
 find_package(Eigen3 REQUIRED NO_MODULE)
-message(STATUS "EIGEN3_INCLUDE_DIR: ${EIGEN3_INCLUDE_DIR}")
 
 # Find OpenMP
 find_package(OpenMP REQUIRED)
