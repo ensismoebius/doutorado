@@ -77,13 +77,28 @@
         "editor.defaultFormatter": "xaver.clang-format"
     },
     "C_Cpp.intelliSenseEngine": "disabled",
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
-    "editor.formatOnSave": true,
+    "C_Cpp.autocomplete": "Disabled",
+    "C_Cpp.errorSquiggles": "Disabled",
+    "C_Cpp.formatting": "Disabled",
+    "C_Cpp.codeAnalysis.runAutomatically": "Never",
     "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build",
-        "--log=verbose",
-        "--clang-tidy",
-        "--header-insertion=never"
-    ]
+        "--compile-commands-dir=${workspaceFolder}/build", // usa compile_commands.json
+        "--background-index", // indexação global em background
+        "--clang-tidy", // ativa clang-tidy via clangd
+        "--completion-style=detailed", // melhor completions (tipo/assinatura)
+        "--header-insertion=never", // não modifique includes automaticamente
+        "--pch-storage=memory", // acelera parsing (use memory ou disk)
+        "--all-scopes-completion", // completions de todos os escopos
+        "--fallback-style=Google"
+    ],
+    // UX
+    "editor.formatOnSave": true, // aplicar correções do clangd/clang-tidy ao salvar
+    "editor.codeActionsOnSave": {
+        "source.fixAll.clangd": "always"
+    },
+    "editor.semanticHighlighting.enabled": true,
+    // performance / limits
+    "clangd.semanticHighlighting.enabled": true,
+    "files.maxMemoryForLargeFilesMB": 16000
 }

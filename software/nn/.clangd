@@ -9,7 +9,6 @@ CompileFlags:
 
     # includes do seu projeto
     - -I${workspaceFolder}/src
-    - -I${workspaceFolder}/src/core
 
     # Eigen (include root correto no Arch)
     - -isystem
@@ -19,7 +18,9 @@ CompileFlags:
     - --gcc-toolchain=/usr
 
 Index:
-  Background: Build
+  Background: Build # indexação em background
+  Threads: 0 # 0 = auto (use CPU disponível)
+  StorePreamble: true
 
 ClangTidy:
   Checks: >
@@ -32,9 +33,10 @@ ClangTidy:
     -misc-*,
     -cppcoreguidelines-non-private-member-variables-in-classes,
     -readability-identifier-length,
-    -readability-magic-numbers
+    -readability-magic-numbers,
+    -bugprone-easily-swappable-parameters
   WarningsAsErrors: ""
-  HeaderFilterRegex: ".*"
+  HeaderFilterRegex: ".*src/.*" # limitar relatórios a código do projeto
   FormatStyle: file
   SystemHeaders: false
   CheckOptions:
