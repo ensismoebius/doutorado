@@ -3,41 +3,55 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
-find_program(CLANG_CXX_COMPILER_PATH NAMES clang++)
-find_program(CLANG_C_COMPILER_PATH NAMES clang)
-
-if(NOT CLANG_CXX_COMPILER_PATH)
-    message(FATAL_ERROR "clang++ compiler not found. Please ensure clang is installed and in your system's PATH, or specify its location via CMAKE_CXX_COMPILER.")
-endif()
-if(NOT CLANG_C_COMPILER_PATH)
-    message(FATAL_ERROR "clang C compiler not found. Please ensure clang is installed and in your system's PATH, or specify its location via CMAKE_C_COMPILER.")
-endif()
-
-set(CMAKE_CXX_COMPILER "${CLANG_CXX_COMPILER_PATH}")
-set(CMAKE_C_COMPILER "${CLANG_C_COMPILER_PATH}")
-set(CMAKE_LINKER lld)
-
-add_compile_options(-g -gdwarf-5)
-
-# Verbose output
-set(CMAKE_VERBOSE_MAKEFILE ON)
-
-# Generate compile_commands.json for code completion
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# To use the LLVM/Clang toolchain, set the CC and CXX environment variables
+# before configuring CMake, for example:
+#
+#   $ env CC=clang CXX=clang++ cmake -S . -B build
+#
+# To use the lld linker, you can pass it via a CMake variable:
+#
+#   $ cmake -S . -B build -DCMAKE_LINKER=lld
+#
+message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set more readable and friendly error messages
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wpedantic -Wshadow")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fdiagnostics-color=always -fdiagnostics-show-option -g -Wall -Wpedantic -Wshadow")
+# Verbose output during builds
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# Set debug flags for the Debug build type
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -ggdb -O0 -fno-inline -fno-omit-frame-pointer -march=native")
+# Generate compile_commands.json for clangd, etc.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Set optimization flags for the Release build type
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast-math")
+# --- Common flags for all build types ---
+add_compile_options(
+    -Wall
+    -Wpedantic
+    -Wshadow
+    -fdiagnostics-color=always
+    -fdiagnostics-show-option
+)
+
+# --- Debug-specific flags ---
+add_compile_options(
+    $<$<CONFIG:Debug>:-g>
+    $<$<CONFIG:Debug>:-gdwarf-5>
+    $<$<CONFIG:Debug>:-g3>
+    $<$<CONFIG:Debug>:-ggdb>
+    $<$<CONFIG:Debug>:-O0>
+    $<$<CONFIG:Debug>:-fno-inline>
+    $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    $<$<CONFIG:Debug>:-march=native>
+)
+
+# --- Release-specific flags ---
+add_compile_options(
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:Release>:-ffast-math>
+)
 
 # Sets opengl provider to a more
 # modern option: GLVND (OpenGL 
