@@ -14,30 +14,31 @@
                 "command script import ${workspaceFolder}/debug/lldb/printers.py"
             ]
         },
-        {
-            "name": "CMake Debug (GDB)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/build/main_test02",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}/build",
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Catch C++ exceptions",
-                    "text": "catch throw"
-                },
-                {
-                    "description": "Load custom pretty printers",
-                    "text": "source ${workspaceFolder}/debug/gdb/printers.py"
-                }
-            ]
-        }
+        // Uncomment the following configuration to use GDB instead of LLDB
+        // {
+        //     "name": "CMake Debug (GDB)",
+        //     "type": "cppdbg",
+        //     "request": "launch",
+        //     "program": "${workspaceFolder}/build/main_test02",
+        //     "args": [],
+        //     "stopAtEntry": false,
+        //     "cwd": "${workspaceFolder}/build",
+        //     "MIMode": "gdb",
+        //     "setupCommands": [
+        //         {
+        //             "description": "Enable pretty-printing for gdb",
+        //             "text": "-enable-pretty-printing",
+        //             "ignoreFailures": true
+        //         },
+        //         {
+        //             "description": "Catch C++ exceptions",
+        //             "text": "catch throw"
+        //         },
+        //         {
+        //             "description": "Load custom pretty printers",
+        //             "text": "source ${workspaceFolder}/debug/gdb/printers.py"
+        //         }
+        //     ]
+        // }
     ]
 }
