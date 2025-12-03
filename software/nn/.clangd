@@ -39,6 +39,3 @@ ClangTidy:
   HeaderFilterRegex: ".*src/.*" # limitar relatórios a código do projeto
   FormatStyle: file
   SystemHeaders: false
-  CheckOptions:
-    - key: clang-diagnostic-error.Ignore
-      value: "true"
