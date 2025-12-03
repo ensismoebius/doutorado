@@ -29,9 +29,9 @@ FetchContent_Declare(
 # We set them here based on the 'matio' target created by the previous FetchContent call.
 # This is fragile but necessary to bridge the modern and legacy CMake scripts.
 if(TARGET matio)
-    # Manually construct the path to the library. We assume it's a static library
-    # located in the 'src' subdirectory of the matio build directory.
-    set(MATIO_LIB_PATH "${matio_BINARY_DIR}/src/${CMAKE_STATIC_LIBRARY_PREFIX}matio${CMAKE_STATIC_LIBRARY_SUFFIX}")
+    # Manually construct the path to the library. Based on the build output,
+    # matio produces a shared library `libmatio.so` directly in its binary directory.
+    set(MATIO_LIB_PATH "${matio_BINARY_DIR}/libmatio.so")
 
     set(MATIO_INCLUDE_DIR "${matio_SOURCE_DIR}/src" CACHE INTERNAL "Path to matio headers")
     set(MATIO_LIBRARY "${MATIO_LIB_PATH}" CACHE INTERNAL "Path to matio library")
