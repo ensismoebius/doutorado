@@ -2,17 +2,28 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CMake Debug (LLDB)",
+            "name": "CMake Debug (LLDB DAP)",
             "type": "lldb-dap",
             "request": "launch",
-            "program": "${workspaceFolder}/build/main_test02",
+            // Executável configurado pelo CMake Tools
+            "program": "${command:cmake.launchTargetPath}",
+            "cwd": "${command:cmake.launchTargetDirectory}",
+            // Argumentos (opcional)
             "args": [],
-            "cwd": "${workspaceFolder}/build",
-            "stopOnEntry": false,
+            // Terminal real → exibe stdout/stderr
+            "console": "internalConsole",
+            // Task automática do CMake Tools
+            "preLaunchTask": "CMake: build",
+            // Pretty-printers Eigen
             "initCommands": [
-                "breakpoint set -E CXX",
-                "command script import ${workspaceFolder}/debug/lldb/printers.py"
-            ]
+                "script import sys, os, importlib",
+                "script sys.path.insert(0, '${workspaceFolder}/debug/lldb')",
+                "script import eigenlldb",
+                "script importlib.reload(eigenlldb)",
+                "script eigenlldb.__lldb_init_module(lldb.debugger, None)"
+            ],
+            // Para debugging mais preciso (opcional)
+            "stopOnEntry": false
         },
         // Uncomment the following configuration to use GDB instead of LLDB
         // {
