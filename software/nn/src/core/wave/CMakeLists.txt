@@ -13,7 +13,7 @@ target_include_directories(waveCoreLib
 )
 
 target_link_libraries(waveCoreLib
-    PRIVATE Eigen3::Eigen
+    PRIVATE Eigen3::Eigen FFTW::FFTW
 )
 
 add_subdirectory(tests)
