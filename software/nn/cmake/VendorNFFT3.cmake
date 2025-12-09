@@ -27,7 +27,7 @@ ExternalProject_Add(nfft3
     DEPENDS fftw_build
     
     CONFIGURE_COMMAND
-        <SOURCE>/configure --prefix=${NFFT3_INSTALL_DIR} --disable-examples --disable-applications --enable-openmp --enable-shared --with-fftw3=${FFTW_INSTALL_DIR}
+        ./configure --prefix=${NFFT3_INSTALL_DIR} --disable-examples --disable-applications --enable-openmp --enable-shared --with-fftw3=${FFTW_INSTALL_DIR}
 
     BUILD_COMMAND
         make -j4
@@ -35,10 +35,10 @@ ExternalProject_Add(nfft3
     INSTALL_COMMAND
         make install
 
-    LOG_DOWNLOAD 1
-    LOG_CONFIGURE 1
-    LOG_BUILD 1
-    LOG_INSTALL 1
+    # LOG_DOWNLOAD 1
+    # LOG_CONFIGURE 1
+    # LOG_BUILD 1
+    # LOG_INSTALL 1
 )
 
 add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
