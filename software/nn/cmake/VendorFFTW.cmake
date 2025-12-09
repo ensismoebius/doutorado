@@ -27,9 +27,13 @@ ExternalProject_Add(fftw_build
 )
 
 # Create an imported target for FFTW
-add_library(FFTW::FFTW SHARED IMPORTED)
+add_library(FFTW::FFTW SHARED IMPORTED GLOBAL)
 set_target_properties(FFTW::FFTW PROPERTIES
     IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/fftw-install/lib/libfftw3.so"
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/fftw-install/include"
 )
 add_dependencies(FFTW::FFTW fftw_build)
+
+# Make sure the build directories exist before CMake configuration
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps/fftw-install/include")
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps/fftw-install/lib")
