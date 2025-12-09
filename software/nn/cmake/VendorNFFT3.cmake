@@ -33,7 +33,7 @@ ExternalProject_Add(nfft3
         "bash" "-c" "cd <SOURCE_DIR> && make install"
 )
 
-add_library(NFFT::NFFT SHARED IMPORTED)
+add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
 
 set_target_properties(NFFT::NFFT
     PROPERTIES

@@ -43,9 +43,11 @@ ExternalProject_Add(fftw_build
 
 # Create an imported target for FFTW
 add_library(FFTW::FFTW SHARED IMPORTED GLOBAL)
+
 set_target_properties(FFTW::FFTW PROPERTIES
     IMPORTED_LOCATION "${FFTW_INSTALL_DIR}/lib/libfftw3.so"
     IMPORTED_NO_SONAME TRUE
     INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include"
 )
+
 add_dependencies(FFTW::FFTW fftw_build)
