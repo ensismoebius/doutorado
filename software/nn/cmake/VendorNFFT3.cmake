@@ -19,16 +19,24 @@ ExternalProject_Add(nfft3
 
     PATCH_COMMAND
         "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh && autoreconf --install --force"
-#&& export WARNINGS=ignore
-    CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared --with-fftw3=${FFTW_INSTALL_DIR}"
-    BUILD_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make -j4"
-    INSTALL_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make install"
+    
+    CONFIGURE_COMMAND
+        "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared --with-fftw3=${FFTW_INSTALL_DIR}"
+
+    BUILD_COMMAND
+        "bash" "-c" "cd <SOURCE_DIR> && make -j4"
+
+    INSTALL_COMMAND
+        "bash" "-c" "cd <SOURCE_DIR> && make install"
 )
 
 add_library(NFFT::NFFT SHARED IMPORTED)
-set_target_properties(NFFT::NFFT PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/nfft3-install/include"
-    INTERFACE_LINK_LIBRARIES "OpenMP::OpenMP_C"
+
+set_target_properties(NFFT::NFFT
+    PROPERTIES
+        IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/nfft3-install/include"
+        INTERFACE_LINK_LIBRARIES "OpenMP::OpenMP_C"
 )
+
 add_dependencies(NFFT::NFFT nfft3 fftw_build)
