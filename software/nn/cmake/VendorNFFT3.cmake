@@ -17,6 +17,9 @@ ExternalProject_Add(nfft3
     INSTALL_DIR    "${CMAKE_BINARY_DIR}/_deps/nfft3-install"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 
+    # Ensure FFTW is built and installed before configuring NFFT3
+    DEPENDS fftw_build
+
     PATCH_COMMAND
         "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh && autoreconf --install --force"
     
