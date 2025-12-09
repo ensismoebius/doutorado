@@ -1,23 +1,31 @@
 # VendorFFTW.cmake
 # Configure vendored lib/fftw presence and make FFTW::FFTW available
 
-include(FetchContent)
 include(ExternalProject)
 
 # Find OpenMP before FFTW so FFTW can use it
 find_package(OpenMP REQUIRED)
 
+set(FFTW_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-install")
+set(FFTW_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-src")
+
+# Create directories
+file(MAKE_DIRECTORY "${FFTW_INSTALL_DIR}")
+file(MAKE_DIRECTORY "${FFTW_INSTALL_DIR}/include")
+file(MAKE_DIRECTORY "${FFTW_INSTALL_DIR}/lib")
+
 # Use ExternalProject to compile and install FFTW with configure
 ExternalProject_Add(fftw_build
     URL            https://fftw.org/fftw-3.3.10.tar.gz
     URL_HASH       SHA256=56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467
-    DOWNLOAD_DIR   "${CMAKE_BINARY_DIR}/_deps/fftw-src"
-    SOURCE_DIR     "${CMAKE_BINARY_DIR}/_deps/fftw-src"
-    INSTALL_DIR    "${CMAKE_BINARY_DIR}/_deps/fftw-install"
+    DOWNLOAD_DIR   "${CMAKE_BINARY_DIR}/_deps"
+    SOURCE_DIR     "${FFTW_SRC_DIR}"
+    INSTALL_DIR    "${FFTW_INSTALL_DIR}"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    BUILD_IN_SOURCE TRUE
 
-    CONFIGURE_COMMAND "${CMAKE_BINARY_DIR}/_deps/fftw-src/configure" 
-        --prefix=<INSTALL_DIR>
+    CONFIGURE_COMMAND "${FFTW_SRC_DIR}/configure" 
+        --prefix=${FFTW_INSTALL_DIR}
         --enable-shared
         --disable-static
         --enable-openmp
@@ -29,11 +37,8 @@ ExternalProject_Add(fftw_build
 # Create an imported target for FFTW
 add_library(FFTW::FFTW SHARED IMPORTED GLOBAL)
 set_target_properties(FFTW::FFTW PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/fftw-install/lib/libfftw3.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/fftw-install/include"
+    IMPORTED_LOCATION "${FFTW_INSTALL_DIR}/lib/libfftw3.so"
+    IMPORTED_NO_SONAME TRUE
+    INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include"
 )
 add_dependencies(FFTW::FFTW fftw_build)
-
-# Make sure the build directories exist before CMake configuration
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps/fftw-install/include")
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/_deps/fftw-install/lib")
