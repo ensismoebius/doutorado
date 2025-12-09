@@ -1,14 +1,17 @@
+# Sets up GoogleTest (downloads, configures, exposes GTest::GTest and GTest::Main)
+include(cmake/VendorGTest.cmake)
+
 # Cnpy integration
-include(cmake/Cnpy.cmake)
+include(cmake/VendorCnpy.cmake)
 
 # ImGui integration
-include(cmake/Imgui.cmake)
+include(cmake/VendorImgui.cmake)
 
 # Implot integration
-include(cmake/Implot.cmake)
+include(cmake/VendorImplot.cmake)
 
 # Eigen parallelization settings
-include(cmake/EigenParallel.cmake)
+include(cmake/VendorEigenParallel.cmake)
 
 # Vendored matio handling (sets MATIO_ROOT_DIR, MATIO_INCLUDE_DIR, MATIO_LIBRARY, exposes MATIO::MATIO)
 include(cmake/VendorMatio.cmake)

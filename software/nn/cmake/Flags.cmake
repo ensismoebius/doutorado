@@ -19,6 +19,10 @@ message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Prevent vendored subprojects from enabling their own tests during configure
+# so we don't require test frameworks for third-party code while configuring.
+set(BUILD_TESTING OFF CACHE BOOL "Disable building tests in subprojects" FORCE)
+
 # Verbose output during builds
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
