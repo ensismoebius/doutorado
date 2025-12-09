@@ -4,6 +4,9 @@
 # Disable vendored matio's own tests by default (safe for most builds)
 set(MATIO_BUILD_TESTS OFF CACHE BOOL "Disable building tests in vendored matio" FORCE)
 
+# Disable MAT73 support (requires external FFTW/HDF5 configuration)
+set(MATIO_WITH_HDF5 OFF CACHE BOOL "Disable HDF5/MAT73 support in matio" FORCE)
+
 # Create empty test CMakeLists
 file(WRITE "${CMAKE_BINARY_DIR}/matio_disable_tests.cmake" "## tests disabled\n")
 
