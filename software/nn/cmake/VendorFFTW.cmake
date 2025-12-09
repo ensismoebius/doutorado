@@ -22,6 +22,10 @@ ExternalProject_Add(fftw_build
     INSTALL_DIR    "${FFTW_INSTALL_DIR}"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
+    # Make Ninja/CMake aware of which files this ExternalProject will produce
+    BUILD_BYPRODUCTS
+        "${FFTW_INSTALL_DIR}/lib/libfftw3.so"
+        "${FFTW_INSTALL_DIR}/lib/libfftw3f.so"
 
     CONFIGURE_COMMAND "<SOURCE_DIR>/configure"
         --prefix=<INSTALL_DIR>
@@ -31,6 +35,10 @@ ExternalProject_Add(fftw_build
         --disable-fortran
     BUILD_COMMAND "make" "-j4"
     INSTALL_COMMAND "make" "install"
+    LOG_DOWNLOAD 1
+    LOG_CONFIGURE 1
+    LOG_BUILD 1
+    LOG_INSTALL 1
 )
 
 # Create an imported target for FFTW
