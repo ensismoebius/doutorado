@@ -19,13 +19,12 @@ ExternalProject_Add(fftw_build
     URL            https://fftw.org/fftw-3.3.10.tar.gz
     URL_HASH       SHA256=56c932549852cddcfafdab3820b0200c7742675be92179e59e6215b340e26467
     DOWNLOAD_DIR   "${CMAKE_BINARY_DIR}/_deps"
-    SOURCE_DIR     "${FFTW_SRC_DIR}"
     INSTALL_DIR    "${FFTW_INSTALL_DIR}"
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     BUILD_IN_SOURCE TRUE
 
-    CONFIGURE_COMMAND "${FFTW_SRC_DIR}/configure" 
-        --prefix=${FFTW_INSTALL_DIR}
+    CONFIGURE_COMMAND "<SOURCE_DIR>/configure"
+        --prefix=<INSTALL_DIR>
         --enable-shared
         --disable-static
         --enable-openmp
