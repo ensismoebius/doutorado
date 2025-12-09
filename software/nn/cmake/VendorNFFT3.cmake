@@ -18,7 +18,7 @@ ExternalProject_Add(nfft3
     PATCH_COMMAND
         "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh && autoreconf --install --force"
 #&& export WARNINGS=ignore
-    CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared"
+    CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared --with-fftw3=${CMAKE_BINARY_DIR}/_deps/fftw-install"
     BUILD_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make -j4"
     INSTALL_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make install"
 )
@@ -29,4 +29,4 @@ set_target_properties(NFFT::NFFT PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/nfft3-install/include"
     INTERFACE_LINK_LIBRARIES "OpenMP::OpenMP_C"
 )
-add_dependencies(NFFT::NFFT nfft3)
+add_dependencies(NFFT::NFFT nfft3 fftw_build)
