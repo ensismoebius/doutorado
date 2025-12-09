@@ -36,13 +36,15 @@ Canonical document guiding automatic code generation (Copilot, scripts, PRs) for
 
 # 1 Overview and Objectives
 
-- Primary Language: **C++20**.
+- Primary Language: **C++20** (with **C** support for vendored libraries).
 
-- Main Dependencies: **Eigen**, **GoogleTest**, **CMake**. Optional Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`.
+- Main Dependencies: **Eigen**, **GoogleTest**, **CMake**, **OpenMP**. Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`, **FFTW3** (with OpenMP + threading), **NFFT3** (via autotools/ExternalProject).
 
 - Domain: Spiking Neural Networks (SNN), Sparse Autoencoders, EEG+Audio Synchronization, support for .mat (MATLAB) and experimental pipelines.
 
-- Non-Functional Requirements: Compilable on Linux; Testable; Safe (RAII); Efficient (Eigen/noalias/OpenMP); Auditable (Logs, Metrics); Reproducible.
+- Non-Functional Requirements: Compilable on Linux (Arch Linux primary target); Testable (GTest); Safe (RAII); Efficient (Eigen/noalias/OpenMP with explicit parallelization); Auditable (Logs, Metrics); Reproducible (deterministic seeding).
+
+- Build Status: **v0.2.0** — Successfully compiles with OpenMP enabled; FFTW3 with threading and NFFT3 fully integrated; all executables and tests building.
 
 - Use the acquisition/protocol defaults documented in project reference materials when experiments refer to human-collected data; include metadata fields in stored records for full traceability.
 
@@ -74,25 +76,17 @@ nn/
 │   ├── lib/                     # Compiled libraries.
 │   └── src/                     # Build artifacts for source files.
 ├── cmake/                     # CMake modules and scripts for project configuration.
-│   ├── Cnpy.cmake               # CMake module for the cnpy library.
-│   ├── EigenParallel.cmake      # CMake module for Eigen parallelization settings.
-│   ├── exec_AutoEncoderTargets.cmake # CMake script for autoencoder executable targets.
-│   ├── exec_Experiment01.cmake  # CMake script for Experiment 01 executable.
-│   ├── exec_loadingData.cmake   # CMake script for data loading executable.
-│   ├── exec_mainProject.cmake   # CMake script for the main project executable.
-│   ├── exec_plotSpikingNetwork.cmake # CMake script for spiking network plotting executable.
-│   ├── exec_resnet_demo.cmake   # CMake script for ResNet demo executable.
-│   ├── Flags.cmake              # CMake module for compiler flags.
-│   ├── Imgui.cmake              # CMake module for the Dear ImGui library.
-│   ├── Implot.cmake             # CMake module for the ImPlot library.
-│   ├── Main.cmake               # Main CMake configuration module.
-│   ├── PackageChecking.cmake    # CMake module for checking package dependencies.
-│   ├── Policies.cmake           # CMake module for setting CMake policies.
-│   ├── ProjectSetup.cmake       # CMake module for general project setup.
-│   ├── VendorGTest.cmake        # CMake module for vendored Google Test.
-│   ├── VendorIncludes.cmake     # CMake module for vendored includes.
-│   ├── VendorMatio.cmake        # CMake module for vendored Matio library.
-│   └── VendorMatioCppShim.cmake # CMake module for vendored Matio C++ shim.
+│   ├── Flags.cmake              # Compiler flags (C++20, OpenMP, optimizations, warnings).
+│   ├── Policies.cmake           # CMake policies for project consistency.
+│   ├── PackageChecking.cmake    # System dependency checks (BLAS, LAPACK, HDF5, OpenGL, etc.).
+│   ├── ProjectSetup.cmake       # General project setup (C++ standard, visibility).
+│   ├── VendorIncludes.cmake     # Main vendor aggregator (cnpy, imgui, implot, matio, eigen parallel).
+│   ├── VendorGTest.cmake        # Google Test (FetchContent).
+│   ├── VendorFFTW.cmake         # FFTW3 with `ENABLE_OPENMP=ON` and `ENABLE_THREADS=ON`; finds OpenMP::OpenMP_CXX.
+│   ├── VendorNFFT3.cmake        # NFFT3 via ExternalProject; runs `./bootstrap.sh && autoreconf`; configures with `--enable-openmp --enable-shared`; imports as SHARED library with OpenMP::OpenMP_C.
+│   ├── VendorMatio.cmake        # Matio (MATLAB .mat I/O) via FetchContent.
+│   ├── VendorMatioCppShim.cmake # Matio C++ wrapper shim.
+│   └── VendorEigenParallel.cmake # Eigen parallelization (OpenMP flags, BLAS/LAPACK).
 ├── debug/                     # Debugging related files.
 │   └── gdb/                     # GDB debugger configurations.
 │       ├── printers.py          # Python scripts for GDB pretty printers.
@@ -216,7 +210,6 @@ struct Optimizer {
 ## 4.2 LIF / Leaky Layer (SNN)
 
 - Provide discrete-time LIF update:
-
   - Membrane: `V[t+1] = alpha * V[t] + W*x[t] - S[t]*V_reset`
   - Spike: `S[t] = H(V[t] - V_threshold)` (Heaviside)
   - Surrogate gradient g'(V) used in backprop.
@@ -255,15 +248,12 @@ struct SpikeEncoder {
 ## 5.1 LIF (Discretized)
 
 - Membrane update discrete:
-
   - `V[t+1] = decay * V[t] + I[t]` where `decay = exp(-dt / tau_m)` and `I[t] = W * x[t] + b`.
 
 - Spike emission:
-
   - `S[t] = Theta(V[t] - V_thr)` where `Theta` is the Heaviside function.
 
 - Reset:
-
   - After spike, `V[t] = V[t] - V_reset` (or `V[t] = V_reset_value` depending on the model).
 
 - Include derivation and Euler discretization in `docs/math_lif.md`. Implement forward Euler time-stepping as baseline and document stability constraints (dt relative to tau).
@@ -273,7 +263,6 @@ struct SpikeEncoder {
 - Use surrogate `sigma(x)` approximating derivative of Heaviside.
 
 - Examples:
-
   - Fast sigmoid surrogate derivative: `sigma'(x) = 1 / (1 + abs(pi * x))^2` (or another form).
   - Arctan surrogate: derivative of `atan(k*x)` approximates spike derivative.
   - Exponential / SuperSpike: provide implementation and config switch.
@@ -348,10 +337,8 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 ## 7.1 Expected Schema for `EEG` and `Audio` (According to Your Original Dataset)
 
 - **`Sxx_EEG.mat`**: `N_rows x 24579`
-
   - Each row contains 6 concatenated EEG channels plus 3 labels.
   - **EEG Data**: 24,576 samples (6 channels × 4096 samples = 4s @ 1024 Hz).
-
     - `F3`: Samples 1-4096
     - `F4`: Samples 4097-8192
     - `C3`: Samples 8193-12288
@@ -360,17 +347,14 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
     - `P4`: Samples 20481-24576
 
   - **Labels**:
-
     - **Modality** (column 24577): `1` (Imagined), `2` (Pronounced).
     - **Stimulus** (column 24578): `1-5` (A, E, I, O, U), `6` (Arriba), `7` (Abajo), `8` (Adelante), `9` (Atrás), `10` (Derecha), `11` (Izquierda).
     - **Artifacts** (column 24579): `1` (No artifacts), `2` (Blink present).
 
 - **`Sxx_Audio.mat`**: `M_rows x 176402`
-
   - Each row contains a mono audio signal plus 2 labels.
   - **Audio Data**: 176,400 samples (4s @ 44.1 kHz).
   - **Labels**:
-
     - **Stimulus** (column 176401): Uses the same encoding as the EEG stimulus label.
     - **EEG Index** (column 176402): The corresponding row index in the `Sxx_EEG.mat` file for synchronization.
 
@@ -511,9 +495,13 @@ target_link_libraries(nn_tensor_test PRIVATE nn_tensor GTest::gtest_main)
 gtest_discover_tests(nn_tensor_test)
 ```
 
-## 14.3 Vendoring
+## 14.3 Vendoring & External Projects
 
-- Put 3rd-party in `lib/` and create `cmake/Vendor*.cmake` that defines imported targets (Eigen3::Eigen, etc.).
+- **FetchContent libraries** (Eigen, FFTW, Matio, ImGui, ImPlot, cnpy, GoogleTest): Downloaded and built as part of CMake configuration. Source placed in `build/_deps/<lib>-src/`, built in `build/_deps/<lib>-build/`, artifacts in `build/lib/` or similar.
+- **AutoTools libraries** (NFFT3): Use `ExternalProject_Add()` to download, run `./bootstrap.sh && autoreconf --install --force`, then `./configure --enable-openmp --enable-shared`, `make -j4`, `make install` into `build/_deps/nfft3-install/`.
+- **OpenMP integration**: Explicitly call `find_package(OpenMP REQUIRED)` in vendor modules. Both FFTW and NFFT3 configure with `--enable-openmp` and link against `OpenMP::OpenMP_C` / `OpenMP::OpenMP_CXX`.
+- **Shared vs. Static**: NFFT3 imports as `SHARED IMPORTED` (`.so` library); FFTW3 primary target is the main library (library type determined by CMake config).
+- **Dependency consistency**: NFFT3 depends on FFTW3 and OpenMP; ensure FFTW is configured before NFFT3 in CMake include order.
 
 ---
 
@@ -568,12 +556,19 @@ jobs:
 
 # 18 Code Style, Linting, Formatting, PR Reviews, Changelog & Versioning
 
-## 18.1 Style
+## 18.1 Style & Static Analysis
 
-- `clang-format` standard (add `.clang-format` in the repository).
-- `clang-tidy` with checks: modernize, performance, cppcoreguidelines.
+- **clang-format**: `.clang-format` at repository root; applied on all `.cpp` / `.hpp` files.
+- **clang-tidy**: Configured in `.clang-tidy` (canonical location, separate from `.clangd`). Includes checks: `clang-analyzer-*`, `modernize-*`, `performance-*`, `readability-*`, `bugprone-*`. Excludes: `misc-*`, `cppcoreguidelines-non-private-member-variables-in-classes`, `readability-identifier-length`, `readability-magic-numbers`, `bugprone-easily-swappable-parameters`.
+- **clangd config** (v0.2.0+): Simplified `.clangd` with only `CompileFlags` (compilation database + include paths) and `Index.Background: true`. Schema warnings for `Threads`, `StorePreamble`, and inline `ClangTidy` removed (moved to `.clang-tidy`); compatible with Arch Linux clangd extension.
 
-## 18.2 PR Template (docs/.github/PULL_REQUEST_TEMPLATE.md)
+## 18.2 Editor Configuration (Arch Linux)
+
+- **clangd binary**: Install via `sudo pacman -S clang clang-tools-extra`.
+- **VS Code clangd extension**: Ensure latest version (marketplace: llvm-vs-code-extensions.vscode-clangd); uses `.clangd` + `.clang-tidy` + `compile_commands.json` from `build/`.
+- **Build system**: CMake generates `compile_commands.json` in `build/` directory (used by clangd for accurate code intelligence).
+
+## 18.3 PR Template (docs/.github/PULL_REQUEST_TEMPLATE.md)
 
 - Checklist (build, tests, format, docs), description, breaking changes, migration steps.
 
