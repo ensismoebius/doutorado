@@ -12,7 +12,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake ninja-build clang clang-tidy cppcheck libeigen3-dev libblas-dev liblapack-dev libopenblas-dev libsdl2-dev libomp-dev pkg-config libhdf5-dev
+        sudo apt-get install -y cmake ninja-build clang clang-tidy cppcheck libeigen3-dev libblas-dev liblapack-dev libopenblas-dev libsdl2-dev libomp-dev pkg-config libhdf5-dev libglfw3-dev
 
     - name: Configure
       run: |
