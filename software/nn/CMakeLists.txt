@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project declaration
-project(nn VERSION 0.1.0 LANGUAGES CXX C)
+project(nn VERSION 0.2.0 LANGUAGES CXX C)
 
 enable_testing()
 

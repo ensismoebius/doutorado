@@ -16,8 +16,8 @@ ExternalProject_Add(nfft3
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 
     PATCH_COMMAND
-        "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh"
-
+        "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh && autoreconf --install --force"
+#&& export WARNINGS=ignore
     CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared"
     BUILD_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make -j4"
     INSTALL_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make install"
