@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project declaration
-project(nn VERSION 0.1.0 LANGUAGES CXX)
+project(nn VERSION 0.1.0 LANGUAGES CXX C)
     
 ## Top-level CMake: delegate to modular includes in cmake/
 
@@ -24,7 +24,7 @@ include(cmake/VendorIncludes.cmake)
 include(cmake/VendorMatio.cmake)
 # Vendored FFTW handling
 include(cmake/VendorFFTW.cmake)
-# Vendored NFFT3 handling
+# Vendored NFFT3 handling - DISABLED due to autoconf issues
 include(cmake/VendorNFFT3.cmake)
 
 # Workarounds / shims for matio-cpp configure/export behavior

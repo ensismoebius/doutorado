@@ -3,6 +3,9 @@
 
 include(FetchContent)
 
+# Find OpenMP before FFTW so FFTW can use it
+find_package(OpenMP REQUIRED)
+
 FetchContent_Declare(
     fftw
     URL            https://fftw.org/fftw-3.3.10.tar.gz
@@ -10,9 +13,9 @@ FetchContent_Declare(
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
-# Disable OpenMP in FFTW to avoid clang OpenMP detection issues
-set(ENABLE_OPENMP OFF CACHE BOOL "Disable OpenMP in FFTW" FORCE)
-set(ENABLE_THREADS OFF CACHE BOOL "Disable THREADS in FFTW" FORCE)
+# Enable OpenMP in FFTW
+set(ENABLE_OPENMP ON CACHE BOOL "Enable OpenMP in FFTW" FORCE)
+set(ENABLE_THREADS ON CACHE BOOL "Enable THREADS in FFTW" FORCE)
 set(BUILD_TESTS OFF CACHE BOOL "Disable FFTW tests" FORCE)
 
 FetchContent_MakeAvailable(fftw)

@@ -16,13 +16,13 @@ ExternalProject_Add(nfft3
     PATCH_COMMAND
         "bash" "-c" "cd <SOURCE_DIR> && ./bootstrap.sh"
 
-    CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --disable-openmp"
-    BUILD_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make"
+    CONFIGURE_COMMAND "bash" "-c" "cd <SOURCE_DIR> && ./configure --prefix=<INSTALL_DIR> --disable-examples --disable-applications --enable-openmp --enable-shared"
+    BUILD_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make -j4"
     INSTALL_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make install"
 )
 
 add_library(NFFT::NFFT UNKNOWN IMPORTED)
 set_target_properties(NFFT::NFFT PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.a" # Assuming static library
+    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.a"
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/nfft3-install/include"
 )
