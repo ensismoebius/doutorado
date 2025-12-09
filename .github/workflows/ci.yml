@@ -16,24 +16,27 @@ jobs:
 
     - name: Configure
       run: |
+        cd software/nn
         mkdir build
         cd build
         cmake .. -G Ninja
 
     - name: Build
       run: |
-        cd build
+        cd software/nn/build
         ninja
 
     - name: Run clang-tidy
       run: |
+        cd software/nn
         run-clang-tidy
 
     - name: Run cppcheck
       run: |
+        cd software/nn
         cppcheck --project=build/compile_commands.json --output-file=cppcheck.xml --enable=all --suppress=missingIncludeSystem
 
     - name: Run tests
       run: |
-        cd build
+        cd software/nn/build
         ctest
