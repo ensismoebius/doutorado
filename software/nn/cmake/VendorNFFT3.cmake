@@ -2,8 +2,10 @@
 # Configure vendored lib/nfft3 presence and make NFFT::NFFT available
 
 include(FetchContent)
-
 include(ExternalProject)
+
+# Find OpenMP for NFFT3 (consistency with VendorFFTW.cmake)
+find_package(OpenMP REQUIRED)
 
 ExternalProject_Add(nfft3
     URL            https://github.com/NFFT/nfft/releases/download/3.5.3/nfft-3.5.3.tar.gz
@@ -21,8 +23,10 @@ ExternalProject_Add(nfft3
     INSTALL_COMMAND "bash" "-c" "cd <SOURCE_DIR> && make install"
 )
 
-add_library(NFFT::NFFT UNKNOWN IMPORTED)
+add_library(NFFT::NFFT SHARED IMPORTED)
 set_target_properties(NFFT::NFFT PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.a"
+    IMPORTED_LOCATION "${CMAKE_BINARY_DIR}/_deps/nfft3-install/lib/libnfft3.so"
     INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/_deps/nfft3-install/include"
+    INTERFACE_LINK_LIBRARIES "OpenMP::OpenMP_C"
 )
+add_dependencies(NFFT::NFFT nfft3)
