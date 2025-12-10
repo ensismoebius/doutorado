@@ -1,8 +1,3 @@
-# Set the policy for timestamp handling in FetchContent
-if(POLICY CMP0135)
-  cmake_policy(SET CMP0135 NEW)
-endif()
-
 # To use the LLVM/Clang toolchain, set the CC and CXX environment variables
 # before configuring CMake, for example:
 #
@@ -31,9 +26,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # --- Common flags for all build types ---
 add_compile_options(
-    -Wall
-    -Wpedantic
-    -Wshadow
+    # -Wall
+    # -Wpedantic
+    # -Wshadow
     -fdiagnostics-color=always
     -fdiagnostics-show-option
 )

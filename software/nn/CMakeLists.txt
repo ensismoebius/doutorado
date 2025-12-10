@@ -11,11 +11,11 @@ set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
     
 ## Top-level CMake: delegate to modular includes in cmake/
 
-# Sets up the flags for CMake and compiler
-include(cmake/Flags.cmake)
-
 # Sets the CMake policies for this project
 include(cmake/Policies.cmake)
+
+# Sets up the flags for CMake and compiler
+include(cmake/Flags.cmake)
 
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)

@@ -2,6 +2,12 @@
 # Prefer modern behavior for these policies. Use guarded checks so the file
 # remains compatible with older CMake versions that don't know about these
 # policy names.
+
+if(POLICY CMP0135)
+	# Set the policy for timestamp handling in FetchContent
+	cmake_policy(SET CMP0135 NEW)
+endif()
+
 if(POLICY CMP0156)
 	# De-duplicate libraries on link lines based on linker capabilities
 	# Explanation: https://cmake.org/cmake/help/latest/policy/CMP0156.html

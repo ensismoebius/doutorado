@@ -9,6 +9,7 @@ add_executable(fftw3_demo
     util
     tensor
     FFTW::FFTW
+    MatplotlibCpp::MatplotlibCpp
   )
 
   configure_eigen_parallel_target(fftw3_demo)

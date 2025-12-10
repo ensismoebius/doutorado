@@ -27,5 +27,8 @@ include(cmake/VendorImplot.cmake)
 # configure/export behavior
 include(cmake/VendorMatioCppShim.cmake)
 
+# Matplotlib-cpp integration
+include(cmake/VendorMatplotlibCpp.cmake)
+
 # Eigen parallelization settings
 include(cmake/VendorEigenParallel.cmake)
