@@ -13,14 +13,14 @@ namespace nn::core::wave
 void pre_emphasis_inplace(std::vector<float>& signal, float coefficient);
 auto framing_and_window(const std::vector<float>& signal, FramingConfig& context)
     -> std::vector<std::vector<float>>;
-auto rfft_power(const std::vector<std::vector<float>>& frames, int fft_points) -> Tensor;
+auto rfft_power(const std::vector<std::vector<float>>& frames, int fft_points) -> nn::Tensor;
 void build_linear_filterbank(int fft_points, FilterbankConfig& context);
-auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankConfig& context)
-    -> Tensor;
-auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
-    -> Tensor;
-auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters& loading_params)
-    -> Tensor;
+auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterbankConfig& context)
+    -> nn::Tensor;
+auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
+    -> nn::Tensor;
+auto compute_deltas(const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params)
+    -> nn::Tensor;
 } // namespace nn::core::wave
 
 #endif // NN_CORE_WAVE_AUDIOFEATUREEXTRACTION_H

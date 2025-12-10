@@ -2,12 +2,18 @@
 
 #include <cmath>
 #include <cstddef>
-
+#include <vector> // Add this back for std::vector
 
 #include "core/tensor/Tensor.hpp"
 #include "matplotlibcpp.h"
 
 namespace plt = matplotlibcpp;
+
+// Helper function to convert Eigen::MatrixXf to std::vector<float>
+std::vector<float> eigenMatrixToVector(const Eigen::MatrixXf& matrix) {
+    std::vector<float> vec(matrix.data(), matrix.data() + matrix.size());
+    return vec;
+}
 
 auto main() -> int
 {
@@ -71,7 +77,7 @@ auto main() -> int
         fft_magnitude_plot.get_data_ref()(0, k) = fft_magnitude.get_data_ref()(0, k);
     }
 
-    plt::plot(fft_magnitude_plot.get_data_ref());
+    plt::plot(eigenMatrixToVector(fft_magnitude_plot.get_data_ref()));
     plt::title("FFT Magnitude");
     plt::show(true); // Block until closed
 

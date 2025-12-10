@@ -6,18 +6,18 @@
 
 struct NnSaver
 {
-    static auto save_weights(const std::string& prefix, Tensor& weights, Tensor& bias) -> void
+    static auto save_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias) -> void
     {
         cnpy::npy_save(
             prefix + "_weights.npy",
-            weights.data.data(),
+            weights.get_data_ref().data(),
             {static_cast<size_t>(weights.data.rows()), static_cast<size_t>(weights.data.cols())},
             "w");
         cnpy::npy_save(
-            prefix + "_bias.npy", bias.data.data(), {static_cast<size_t>(bias.data.size())}, "w");
+            prefix + "_bias.npy", bias.get_data_ref().data(), {static_cast<size_t>(bias.data.size())}, "w");
     }
 
-    static auto load_weights(const std::string& prefix, Tensor& weights, Tensor& bias) -> void
+    static auto load_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias) -> void
     {
         auto loadedWeights = cnpy::npy_load(prefix + "_weights.npy");
         auto loadedBias = cnpy::npy_load(prefix + "_bias.npy");
@@ -27,17 +27,17 @@ struct NnSaver
         std::span<const float> const w_span(loadedWeights.data<float>(), loadedWeights.num_vals);
 
         // Reconstruct the bias and the weights
-        bias.data = Eigen::VectorXf(loadedBias.shape[0]);
-        weights.data = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
+        bias.get_data_ref() = Eigen::VectorXf(loadedBias.shape[0]);
+        weights.get_data_ref() = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
 
-        for (int i = 0; i < bias.data.size(); ++i)
+        for (int i = 0; i < bias.get_data_ref().size(); ++i)
         {
-            bias.data(i) = b_span[i];
+            bias.get_data_ref()(i) = b_span[i];
         }
 
-        for (int i = 0; i < weights.data.size(); ++i)
+        for (int i = 0; i < weights.get_data_ref().size(); ++i)
         {
-            weights.data(i) = w_span[i];
+            weights.get_data_ref()(i) = w_span[i];
         }
     }
 };

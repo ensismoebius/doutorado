@@ -22,12 +22,12 @@ TEST(MSELossTest, ForwardAndBackward)
     pred << 1.0F, 2.0F;
     Eigen::MatrixXf target(2, 1);
     target << 0.0F, 2.0F;
-    nn::Tensor pred_tensor(pred);
-    nn::Tensor target_tensor(target);
+    nn::Tensor pred_tensor{pred};
+    nn::Tensor target_tensor{target};
     mse.set_target(target_tensor);
-    nn::Tensor loss = mse.forward(pred_tensor);
+    nn::Tensor loss{mse.forward(pred_tensor)};
     ASSERT_NEAR(loss.get_data_ref()(0, 0), 0.5F, 1e-5F);
-    nn::Tensor grad = mse.backward(pred_tensor);
+    nn::Tensor grad{mse.backward(pred_tensor)};
     ASSERT_NEAR(grad.get_data_ref()(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad.get_data_ref()(1, 0), 0.0F, 1e-5F);
 }
@@ -42,13 +42,12 @@ TEST(SequentialTest, ForwardAndBackward)
     Sequential seq({linear, relu});
     Eigen::MatrixXf input(1, 2);
     input << -1.0F, 2.0F;
-    nn::Tensor in_tensor(input);
-    nn::Tensor out = seq.forward(in_tensor);
+    nn::Tensor in_tensor{input};
+    nn::Tensor out{seq.forward(in_tensor)};
     ASSERT_NEAR(out.get_data_ref()(0, 0), 3.0F, 1e-5F);
     Eigen::MatrixXf grad_out(1, 1);
-    grad_out << 1.0F;
-    nn::Tensor grad_tensor(grad_out);
-    nn::Tensor grad_in = seq.backward(grad_tensor);
+            grad_out << 1.0F;
+            nn::Tensor grad_tensor{grad_out};    nn::Tensor grad_in{seq.backward(grad_tensor)};
     ASSERT_NEAR(grad_in.get_data_ref()(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad_in.get_data_ref()(0, 1), 2.0F, 1e-5F);
 }
@@ -62,8 +61,8 @@ TEST(LinearLayerTest, ForwardSimple)
     linear.bias.set_data( (Eigen::MatrixXf(1,1) << 1.0F).finished() );
     Eigen::MatrixXf input(1, 2);
     input << 1.0F, 2.0F;
-    nn::Tensor in_tensor(input);
-    nn::Tensor out = linear.forward(in_tensor);
+    nn::Tensor in_tensor{input};
+    nn::Tensor out{linear.forward(in_tensor)};
     // Esperado: (1*2 + 2*3) + 1 = 2 + 6 + 1 = 9
     ASSERT_FLOAT_EQ(out.get_data_ref()(0, 0), 9.0F);
 }
@@ -75,6 +74,11 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
                 /*R=*/5.0F,
                 /*C=*/1.0F,
                 /*V_thresh=*/2.0F,
+                /*reset_zero=*/true,
+                0.0F,
+                std::make_shared<ExponentialSurrogate>());
+    Eigen::MatrixXf input(1, 1);
+    input << 3.0F; // Acima do threshold
     nn::Tensor in_tensor{input};
     nn::Tensor out{leaky.forward(in_tensor)};
     // Como input > threshold, deve gerar spike (1.0)
@@ -115,8 +119,8 @@ TEST(LeakyReLUTest, ForwardAndBackward)
     ASSERT_NEAR(out.get_data_ref()(1, 0), -0.2F, 1e-5F);
     Eigen::MatrixXf grad_out(2, 1);
     grad_out << 1.0F, 1.0F;
-    nn::Tensor grad_tensor(grad_out);
-    nn::Tensor grad_in = leaky_relu.backward(grad_tensor);
+    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_in{leaky_relu.backward(grad_tensor)};
     ASSERT_NEAR(grad_in.get_data_ref()(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad_in.get_data_ref()(1, 0), 0.1F, 1e-5F);
 }
@@ -129,12 +133,12 @@ TEST(SpikeCountLossTest, ForwardAndBackward)
     pred << 10.0F, 20.0F;
     Eigen::MatrixXf target(2, 1);
     target << 8.0F, 22.0F;
-    nn::Tensor pred_tensor(pred);
-    nn::Tensor target_tensor(target);
+    nn::Tensor pred_tensor{pred};
+    nn::Tensor target_tensor{target};
     spike_loss.set_target(target_tensor);
-    nn::Tensor loss = spike_loss.forward(pred_tensor);
+    nn::Tensor loss{spike_loss.forward(pred_tensor)};
     ASSERT_NEAR(loss.get_data_ref()(0, 0), 4.0F, 1e-5F);
-    nn::Tensor grad = spike_loss.backward(pred_tensor);
+    nn::Tensor grad{spike_loss.backward(pred_tensor)};
     ASSERT_NEAR(grad.get_data_ref()(0, 0), 2.0F, 1e-5F);
     ASSERT_NEAR(grad.get_data_ref()(1, 0), -2.0F, 1e-5F);
 }

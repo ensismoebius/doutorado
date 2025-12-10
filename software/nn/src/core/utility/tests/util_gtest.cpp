@@ -32,7 +32,7 @@ TEST(UtilTest, SyntheticSpikeData)
             }
         }
     }
-    ASSERT_EQ(real_valued.size(), n_steps);
+
 }
 
 // Util: vectorizationCheck

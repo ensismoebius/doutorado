@@ -316,7 +316,7 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic) {
 // Test for compute_deltas
 TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic) {
     // Create a simple feature matrix
-    Tensor features(5, 3); // 5 frames, 3 features
+    nn::Tensor features(5, 3); // 5 frames, 3 features
     features.get_data_ref() << 1.0F, 2.0F, 3.0F,
                                4.0F, 5.0F, 6.0F,
                                7.0F, 8.0F, 9.0F,
