@@ -22,6 +22,14 @@ endif()
 find_library(NFFT3_LIBRARY nfft3 HINTS "${NFFT3_INSTALL_DIR}/lib")
 find_path(NFFT3_INCLUDE_DIR nfft3.h HINTS "${NFFT3_INSTALL_DIR}/include")
 
+# Determine the correct FFTW path for NFFT3's configure script
+if(FFTW_LIBRARY)
+    get_filename_component(NFFT3_FFTW_CONFIG_PATH "${FFTW_LIBRARY}" DIRECTORY)
+    get_filename_component(NFFT3_FFTW_CONFIG_PATH "${NFFT3_FFTW_CONFIG_PATH}" DIRECTORY) # Get parent directory (e.g., /usr from /usr/lib)
+else()
+    set(NFFT3_FFTW_CONFIG_PATH "${CMAKE_BINARY_DIR}/_deps/fftw-install")
+endif()
+
 # If NFFT3 is not found, build it from source
 if(NOT NFFT3_LIBRARY OR NOT NFFT3_INCLUDE_DIR)
     message(STATUS "NFFT3 library not found, building from source.")
@@ -45,7 +53,7 @@ ExternalProject_Add(nfft3
         --disable-applications
         --enable-openmp
         --enable-shared
-        --with-fftw3=${FFTW_INSTALL_DIR}
+        --with-fftw3=${NFFT3_FFTW_CONFIG_PATH}
 
     BUILD_COMMAND make -j4
     INSTALL_COMMAND make install

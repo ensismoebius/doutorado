@@ -65,4 +65,5 @@ else()
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}"
     )
+    add_custom_target(fftw_build)
 endif()

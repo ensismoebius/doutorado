@@ -8,6 +8,7 @@ add_executable(fftw3_demo
     dataLoaders
     util
     tensor
+    FFTW::FFTW
   )
 
   configure_eigen_parallel_target(fftw3_demo)
