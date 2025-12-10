@@ -21,21 +21,3 @@ Index:
   Background: Build # indexação em background
   Threads: 0 # 0 = auto (use CPU disponível)
   StorePreamble: true
-
-ClangTidy:
-  Checks: >
-    -*,
-    clang-analyzer-*,
-    modernize-*,
-    performance-*,
-    readability-*,
-    bugprone-*,
-    -misc-*,
-    -cppcoreguidelines-non-private-member-variables-in-classes,
-    -readability-identifier-length,
-    -readability-magic-numbers,
-    -bugprone-easily-swappable-parameters
-  WarningsAsErrors: ""
-  HeaderFilterRegex: ".*src/.*" # limitar relatórios a código do projeto
-  FormatStyle: file
-  SystemHeaders: false

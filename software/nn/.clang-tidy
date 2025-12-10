@@ -1,0 +1,15 @@
+Checks: >
+  -*,
+  clang-analyzer-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  bugprone-*,
+  -misc-*,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -bugprone-easily-swappable-parameters
+WarningsAsErrors: ""
+HeaderFilterRegex: ".*src/.*"
+FormatStyle: file

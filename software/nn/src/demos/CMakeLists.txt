@@ -1,3 +1,4 @@
+add_subdirectory(fftw3_demo)
 add_subdirectory(exec_resnet_demo)
 add_subdirectory(exec_loadingData)
 add_subdirectory(exec_plotSpikingNetwork)
