@@ -12,16 +12,16 @@ struct SGD : public Optimizer
 
     explicit SGD(float lr = 0.01F, float momentum = 0.0F) : learning_rate(lr), momentum(momentum) {}
 
-    auto attach(std::vector<Tensor*>& paramsList) -> void
+    auto attach(std::vector<nn::Tensor*>& paramsList) -> void
     {
         velocity.clear();
-        for (auto* param : paramsList)
+        for (nn::Tensor* param : paramsList)
         {
             velocity.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
         }
     }
 
-    auto step(std::vector<Tensor*>& paramsList) -> void override
+    auto step(std::vector<nn::Tensor*>& paramsList) -> void override
     {
         for (size_t i = 0; i < paramsList.size(); ++i)
         {
@@ -31,9 +31,9 @@ struct SGD : public Optimizer
         }
     }
 
-    auto zero_grad(std::vector<Tensor*>& paramsList) -> void override
+    auto zero_grad(std::vector<nn::Tensor*>& paramsList) -> void override
     {
-        for (auto* param : paramsList)
+        for (nn::Tensor* param : paramsList)
         {
             param->zero_grad();
         }

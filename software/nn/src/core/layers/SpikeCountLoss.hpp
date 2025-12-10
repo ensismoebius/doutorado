@@ -9,26 +9,26 @@ class SpikeCountLoss : public Module
 {
    public:
     SpikeCountLoss() = default;
-    void set_target(const Tensor& t)
+    void set_target(const nn::Tensor& t)
     {
         target = t;
     }
-    auto forward(const Tensor& pred) -> Tensor override
+    auto forward(const nn::Tensor& pred) -> nn::Tensor override
     {
         // pred and target: (n_samples, 1)
         Eigen::MatrixXf diff = pred.get_data_ref() - target.get_data_ref();
         float loss = diff.array().square().mean();
         Eigen::MatrixXf loss_mat(1, 1);
         loss_mat(0, 0) = loss;
-        return Tensor(loss_mat);
+        return nn::Tensor(loss_mat);
     }
-    auto backward(const Tensor& pred) -> Tensor override
+    auto backward(const nn::Tensor& pred) -> nn::Tensor override
     {
         Eigen::MatrixXf grad = 2.0F * (pred.get_data_ref() - target.get_data_ref()) / pred.get_data_ref().size();
-        return Tensor(grad);
+        return nn::Tensor(grad);
     }
     void reset_parameters() {}
 
    private:
-    Tensor target;
+    nn::Tensor target;
 };

@@ -3,6 +3,8 @@
 
 #include <Eigen/Dense>
 
+namespace nn
+{
 class Tensor
 {
    public:
@@ -41,5 +43,6 @@ class Tensor
     Eigen::MatrixXf m_data;
     Eigen::MatrixXf m_grad;
 };
+} // namespace nn
 
 #endif // TENSOR_HPP

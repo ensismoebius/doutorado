@@ -34,7 +34,7 @@ class Dataset
             targets_mat.row(static_cast<int>(i)) = b.targets.get_data_ref().row(0);
         }
 
-        return {.inputs = Tensor(inputs_mat), .targets = Tensor(targets_mat)};
+        return {.inputs = nn::Tensor(inputs_mat), .targets = nn::Tensor(targets_mat)};
     }
 
     [[nodiscard]] virtual auto size() const -> std::size_t = 0;

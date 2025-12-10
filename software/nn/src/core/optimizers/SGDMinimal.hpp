@@ -9,17 +9,17 @@ struct SGDMinimal : public Optimizer
 
     explicit SGDMinimal(float learnningRate = 0.01F) : learning_rate(learnningRate) {}
 
-    auto step(std::vector<Tensor*>& params) -> void override
+    auto step(std::vector<nn::Tensor*>& params) -> void override
     {
-        for (Tensor* param : params)
+        for (nn::Tensor* param : params)
         {
             param->get_data_ref() -= learning_rate * param->get_grad_ref();
         }
     }
 
-    void zero_grad(std::vector<Tensor*>& params) override
+    void zero_grad(std::vector<nn::Tensor*>& params) override
     {
-        for (Tensor* param : params)
+        for (nn::Tensor* param : params)
         {
             param->zero_grad();
         }

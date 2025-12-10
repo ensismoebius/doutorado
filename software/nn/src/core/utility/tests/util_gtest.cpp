@@ -16,7 +16,7 @@ TEST(UtilTest, SyntheticSpikeData)
     float max_rate = 1.0F;
     float timeStep = 1.0F;
 
-    auto [spike_trains, real_valued] =
+    auto [spike_trains, _] =
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
 
     ASSERT_EQ(spike_trains.size(), n_steps);
@@ -44,12 +44,12 @@ TEST(UtilTest, VectorizationCheck)
 // Util: batching
 TEST(UtilTest, Batching)
 {
-    std::vector<Tensor> input_samples;
-    std::vector<Tensor> target_samples;
+    std::vector<nn::Tensor> input_samples;
+    std::vector<nn::Tensor> target_samples;
     for (int i = 0; i < 4; ++i)
     {
-        input_samples.push_back(Tensor(Eigen::MatrixXf::Random(1, 2)));
-        target_samples.push_back(Tensor(Eigen::MatrixXf::Random(1, 1)));
+        input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
+        target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 1)));
     }
 
     auto batches = create_batches(input_samples, target_samples, 2);

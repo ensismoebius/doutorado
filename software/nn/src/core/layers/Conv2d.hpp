@@ -9,13 +9,13 @@ public:
         in_channels_(in_channels),
         out_channels_(out_channels),
         kernel_size_(kernel_size),
-        weights_(kernel_size * kernel_size * in_channels, out_channels),
-        bias_(1, out_channels)
+        weights_(nn::Tensor(kernel_size * kernel_size * in_channels, out_channels)),
+        bias_(nn::Tensor(1, out_channels))
     {
         // Initialize weights and bias
     }
 
-    Tensor forward(const Tensor& input) override {
+    nn::Tensor forward(const nn::Tensor& input) override {
         // Naive implementation of 2D convolution
         // Input shape: (batch_size, in_channels, input_height, input_width)
         // Output shape: (batch_size, out_channels, output_height, output_width)
@@ -25,7 +25,7 @@ public:
         const int output_height = input_height - kernel_size_ + 1;
         const int output_width = input_width - kernel_size_ + 1;
 
-        Tensor output(batch_size, out_channels_, output_height, output_width);
+        nn::Tensor output(batch_size, out_channels_, output_height, output_width);
 
         for (int b = 0; b < batch_size; ++b) {
             for (int oc = 0; oc < out_channels_; ++oc) {
@@ -35,11 +35,11 @@ public:
                         for (int ic = 0; ic < in_channels_; ++ic) {
                             for (int ky = 0; ky < kernel_size_; ++ky) {
                                 for (int kx = 0; kx < kernel_size_; ++kx) {
-                                    sum += input.data(b, ic, oy + ky, ox + kx) * weights_.data(ky * kernel_size_ + kx + ic * kernel_size_ * kernel_size_, oc);
+                                    sum += input.get_data_ref()(b, ic, oy + ky, ox + kx) * weights_.get_data_ref()(ky * kernel_size_ + kx + ic * kernel_size_ * kernel_size_, oc);
                                 }
                             }
                         }
-                        output.data(b, oc, oy, ox) = sum + bias_.data(0, oc);
+                        output.get_data_ref()(b, oc, oy, ox) = sum + bias_.get_data_ref()(0, oc);
                     }
                 }
             }
@@ -54,6 +54,6 @@ private:
     int in_channels_;
     int out_channels_;
     int kernel_size_;
-    Tensor weights_;
-    Tensor bias_;
+    nn::Tensor weights_;
+    nn::Tensor bias_;
 };

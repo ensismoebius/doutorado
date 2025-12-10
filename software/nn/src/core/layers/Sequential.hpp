@@ -12,7 +12,7 @@
 struct Sequential : Module
 {
     std::vector<std::shared_ptr<Module>> layers;
-    std::vector<Tensor> outputs; // output cache
+    std::vector<nn::Tensor> outputs; // output cache
 
     Sequential() = default;
 
@@ -36,10 +36,10 @@ struct Sequential : Module
     }
 
     // Forward pass
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         outputs.clear();
-        Tensor temp_input = input;
+        nn::Tensor temp_input = input;
         for (auto& layer : layers)
         {
             temp_input = layer->forward(temp_input);
@@ -49,9 +49,9 @@ struct Sequential : Module
     }
 
     // Backward pass
-    auto backward(const Tensor& grad_output) -> Tensor override
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
-        Tensor grad = grad_output;
+        nn::Tensor grad = grad_output;
         for (size_t i = layers.size(); i-- > 0;)
         {
             grad = layers[i]->backward(grad);
@@ -66,9 +66,9 @@ struct Sequential : Module
     }
 
     // Returns all trainable parameters (weights and biases) from all layers
-    [[nodiscard]] auto params() -> std::vector<Tensor*> override
+    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
     {
-        std::vector<Tensor*> parameters;
+        std::vector<nn::Tensor*> parameters;
         parameters.reserve(layers.size() * 2); // Reserve space for weights and biases
 
         for (auto& layer : layers)

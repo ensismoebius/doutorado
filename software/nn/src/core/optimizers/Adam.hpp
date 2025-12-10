@@ -36,11 +36,11 @@ struct Adam : public Optimizer
 
     // Inicializa os vetores m e v para cada parâmetro, com zeros do mesmo shape dos gradientes.
     // Deve ser chamado sempre que os parâmetros mudarem.
-    auto attach(std::vector<Tensor*>& paramsList) -> void
+    auto attach(std::vector<nn::Tensor*>& paramsList) -> void
     {
         m.clear();
         v.clear();
-        for (auto* param : paramsList)
+        for (nn::Tensor* param : paramsList)
         {
             m.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
             v.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
@@ -54,7 +54,7 @@ struct Adam : public Optimizer
     //   m̂_t = m_t / (1 - β1^t)
     //   v̂_t = v_t / (1 - β2^t)
     //   θ = θ - lr * m̂_t / (sqrt(v̂_t) + ε)
-    auto step(std::vector<Tensor*>& paramsList) -> void override
+    auto step(std::vector<nn::Tensor*>& paramsList) -> void override
     {
         t += 1;
         for (size_t i = 0; i < paramsList.size(); ++i)
@@ -74,9 +74,9 @@ struct Adam : public Optimizer
     }
 
     // Zera os gradientes de todos os parâmetros.
-    auto zero_grad(std::vector<Tensor*>& paramsList) -> void override
+    auto zero_grad(std::vector<nn::Tensor*>& paramsList) -> void override
     {
-        for (auto* param : paramsList)
+        for (nn::Tensor* param : paramsList)
         {
             param->zero_grad();
         }

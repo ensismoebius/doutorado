@@ -70,7 +70,7 @@ auto main() -> int
     for (int t = 0; t < n_steps; ++t)
     {
         // Input spike at this timestep
-        Tensor in_tensor = spike_inputs[t];
+        nn::Tensor in_tensor = spike_inputs[t];
 
         // Forward through the network
         auto hidden_out = hidden_neuron.forward(in_tensor);

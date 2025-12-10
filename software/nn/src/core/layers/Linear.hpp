@@ -18,8 +18,8 @@ struct Linear : public Module
 {
     int in_features;             // número de entradas (features de entrada do tensor)
     int out_features;            // número de saídas (neurônios ou unidades na camada)
-    Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]
-    Tensor bias;                 // vetor de bias com dimensão [out_features]
+    nn::Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]
+    nn::Tensor bias;                 // vetor de bias com dimensão [out_features]
     Eigen::MatrixXf input_cache; // armazena a entrada da camada para uso no backpropagation
 
     /**
@@ -31,14 +31,14 @@ struct Linear : public Module
     Linear(const int in_features, const int out_features)
         : in_features(in_features),
           out_features(out_features),
-          weight(out_features, in_features),
-          bias(out_features, 1)
+          weight(nn::Tensor(out_features, in_features)),
+          bias(nn::Tensor(out_features, 1))
     {
     }
 
 #ifdef DEBUG
     // If DEBUG is defined then show the debug information
-    auto debug(const Tensor& input) -> void
+    auto debug(const nn::Tensor& input) -> void
     {
         std::cout << "Linear layer forward:" << "\n";
         std::cout << "Input dims: " << input.get_data_ref().rows() << "x" << input.get_data_ref().cols() << "\n";
@@ -54,7 +54,7 @@ struct Linear : public Module
      * @param input Tensor de saída [batch_size x out_features]
      * @return Tensor de saída [batch_size x out_features]
      */
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         input_cache = input.get_data_ref(); // salva para o backward
 
@@ -68,7 +68,7 @@ struct Linear : public Module
         // Ensure bias is broadcast as a row vector
         Eigen::MatrixXf const output =
             (input.get_data_ref() * weight.get_data_ref().transpose()).rowwise() + bias.get_data_ref().col(0).transpose();
-        return Tensor{output};
+        return nn::Tensor{output};
     }
 
     /**
@@ -80,7 +80,7 @@ struct Linear : public Module
      * out_features]
      * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
      */
-    auto backward(const Tensor& grad_previous) -> Tensor override
+    auto backward(const nn::Tensor& grad_previous) -> nn::Tensor override
     {
         // Considerando que B, X, Y, Z e W são tensores.
         // Vamos representar a camada atual por um tensor Z = f(X) = WX + B.
@@ -128,7 +128,7 @@ struct Linear : public Module
         // dY/dX = grad_output * W
         Eigen::MatrixXf const grad_input = grad_previous.get_data_ref() * weight.get_data_ref();
 
-        return Tensor{grad_input};
+        return nn::Tensor{grad_input};
     }
 };
 

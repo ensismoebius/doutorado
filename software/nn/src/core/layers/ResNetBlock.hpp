@@ -13,14 +13,14 @@ public:
     {
     }
 
-    Tensor forward(const Tensor& input) override {
-        Tensor output = conv1_.forward(input);
+    nn::Tensor forward(const nn::Tensor& input) override {
+        nn::Tensor output = conv1_.forward(input);
         output = relu_.forward(output);
         output = conv2_.forward(output);
 
         // Add skip connection
         // TODO: Handle the case where the input and output shapes are different
-        output.data = output.data + input.data;
+        output.get_data_ref() = output.get_data_ref() + input.get_data_ref();
 
         return relu_.forward(output);
     }

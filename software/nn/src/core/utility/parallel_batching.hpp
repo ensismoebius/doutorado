@@ -15,8 +15,8 @@
  * @brief Creates batches in parallel using OpenMP.
  * Optimizes batch creation through parallel shuffling and concatenation.
  */
-inline auto create_batches_parallel(const std::vector<Tensor>& inputSamples,
-                                    const std::vector<Tensor>& targets, const int batch_size,
+inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
+                                    const std::vector<nn::Tensor>& targets, const int batch_size,
                                     const int num_threads = 8) -> std::vector<Batch>
 {
     const int n_samples = static_cast<int>(inputSamples.size());
@@ -48,10 +48,10 @@ inline auto create_batches_parallel(const std::vector<Tensor>& inputSamples,
     }
 
     // Calculate dimensions
-    const Eigen::Index input_rows = inputSamples[0].data.rows();
-    const Eigen::Index input_cols = inputSamples[0].data.cols();
-    const Eigen::Index target_rows = targets[0].data.rows();
-    const Eigen::Index target_cols = targets[0].data.cols();
+    const Eigen::Index input_rows = inputSamples[0].get_data_ref().rows();
+    const Eigen::Index input_cols = inputSamples[0].get_data_ref().cols();
+    const Eigen::Index target_rows = targets[0].get_data_ref().rows();
+    const Eigen::Index target_cols = targets[0].get_data_ref().cols();
 
     // Calculate number of batches
     const int n_batches = (n_samples + batch_size - 1) / batch_size;
@@ -77,7 +77,7 @@ inline auto create_batches_parallel(const std::vector<Tensor>& inputSamples,
             y_concat.block(j * target_rows, 0, target_rows, target_cols) = targets[idx].data;
         }
 
-        batches[batch_idx] = {Tensor(x_concat), Tensor(y_concat)};
+        batches[batch_idx] = {nn::Tensor(x_concat), nn::Tensor(y_concat)};
     }
 
     return batches;
@@ -96,13 +96,13 @@ struct BatchBufferPool
     const Eigen::Index target_rows;
     const Eigen::Index target_cols;
 
-    BatchBufferPool(const std::vector<Tensor>& inputSamples, const std::vector<Tensor>& targets,
+    BatchBufferPool(const std::vector<nn::Tensor>& inputSamples, const std::vector<nn::Tensor>& targets,
                     int batch_size, int num_buffers)
         : batch_size(batch_size),
-          input_rows(inputSamples[0].data.rows()),
-          input_cols(inputSamples[0].data.cols()),
-          target_rows(targets[0].data.rows()),
-          target_cols(targets[0].data.cols())
+          input_rows(inputSamples[0].get_data_ref().rows()),
+          input_cols(inputSamples[0].get_data_ref().cols()),
+          target_rows(targets[0].get_data_ref().rows()),
+          target_cols(targets[0].get_data_ref().cols())
     {
         // Pre-allocate buffers
         input_buffers.resize(num_buffers, Eigen::MatrixXf(input_rows * batch_size, input_cols));
@@ -111,7 +111,7 @@ struct BatchBufferPool
 
     auto get_buffer(int buffer_idx) -> Batch
     {
-        return {Tensor(input_buffers[buffer_idx]), Tensor(target_buffers[buffer_idx])};
+        return {nn::Tensor(input_buffers[buffer_idx]), nn::Tensor(target_buffers[buffer_idx])};
     }
 };
 

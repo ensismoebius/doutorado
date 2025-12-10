@@ -35,7 +35,7 @@
 struct Leaky : public Module
 {
    public:
-    auto params() -> std::vector<Tensor*> override
+    auto params() -> std::vector<nn::Tensor*> override
     {
         return {&resistance, &voltage_threshold};
     }
@@ -46,13 +46,13 @@ struct Leaky : public Module
     float dt = 1.0F;
 
     /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
-    Tensor resistance = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+    nn::Tensor resistance = nn::Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
 
     /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
     float capacitance = 1.0F;
 
     /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
-    Tensor voltage_threshold = Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
+    nn::Tensor voltage_threshold = nn::Tensor(Eigen::MatrixXf::Constant(1, 1, 1.0F));
 
     /// @brief Controls the reset mechanism after a spike.
     bool reset_zero = true;
@@ -93,9 +93,9 @@ struct Leaky : public Module
           std::shared_ptr<ISurrogateGradient> surrogate_grad =
               std::make_shared<ExponentialSurrogate>())
         : dt(dt_),                                                       // time step
-          resistance(Eigen::MatrixXf::Constant(1, 1, R_)),               // resistance
+          resistance(nn::Tensor(Eigen::MatrixXf::Constant(1, 1, R_))), // resistance
           capacitance(C_),                                               // capacitance
-          voltage_threshold(Eigen::MatrixXf::Constant(1, 1, V_thresh_)), // voltage threshold
+          voltage_threshold(nn::Tensor(Eigen::MatrixXf::Constant(1, 1, V_thresh_))), // voltage threshold
           reset_zero(reset_zero_),           // reset to zero or subtract threshold
           reset_potential(reset_potential_), // reset potential value
           surrogate_gradient(std::move(surrogate_grad))
@@ -110,7 +110,7 @@ struct Leaky : public Module
      * discrete-time LIF neuron equation.
      * @param input The input current for this time step.
      */
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
         if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols())
@@ -186,7 +186,7 @@ struct Leaky : public Module
             v_mem = v_mem.array() - output.array() * voltage_threshold.get_data_ref()(0, 0);
         }
 
-        return Tensor{output};
+        return nn::Tensor{output};
     }
 
     /**
@@ -205,7 +205,7 @@ struct Leaky : public Module
      * @param grad_output Gradient from the next layer
      * @return Tensor Gradient w.r.t. input
      */
-    auto backward(const Tensor& grad_output) -> Tensor override
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
         // --- Surrogate Gradient Calculation ---
         const Eigen::MatrixXf surrogate_grad =
@@ -248,7 +248,7 @@ struct Leaky : public Module
         // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
         const auto& grad_input = grad_v_pre;
 
-        return Tensor{grad_input};
+        return nn::Tensor{grad_input};
     }
 };
 

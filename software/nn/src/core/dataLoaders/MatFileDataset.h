@@ -18,10 +18,10 @@ class MatFileDataset : public TensorDataset
             throw std::runtime_error("Error loading data from MAT file");
         }
 
-        Tensor inputs(inputs_mat.value());
-        Tensor targets(targets_mat.value());
+        nn::Tensor inputs(inputs_mat.value());
+        nn::Tensor targets(targets_mat.value());
 
         // This is a hack to call the base class constructor
-        new (this) TensorDataset(inputs, targets);
+        new (this) TensorDataset(std::move(inputs), std::move(targets));
     }
 };

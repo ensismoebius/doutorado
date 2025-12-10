@@ -19,8 +19,8 @@ TEST(InitializerTest, KaimingSNN)
 // Initializer: Xavier
 TEST(InitializerTest, Xavier)
 {
-    Tensor weights(Eigen::MatrixXf::Zero(4, 2));
-    Tensor bias(Eigen::MatrixXf::Zero(4, 1));
+    nn::Tensor weights(Eigen::MatrixXf::Zero(4, 2));
+    nn::Tensor bias(Eigen::MatrixXf::Zero(4, 1));
     xavierInitializer(2, 4, weights, bias);
     ASSERT_NE(weights.get_data_ref().sum(), 0.0F);
     ASSERT_NE(bias.get_data_ref().sum(), 0.0F);

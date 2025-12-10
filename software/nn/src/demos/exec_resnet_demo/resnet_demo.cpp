@@ -58,8 +58,8 @@ auto main() -> int
     const int n_features = static_cast<int>(mat.cols() - 1);
 
     // Build inputs/targets vectors compatible with create_batches
-    vector<Tensor> inputs;
-    vector<Tensor> targets;
+    vector<nn::Tensor> inputs;
+    vector<nn::Tensor> targets;
     inputs.reserve(n_samples);
     targets.reserve(n_samples);
 
@@ -82,8 +82,8 @@ auto main() -> int
             y(0, lbl) = 1.0F;
         }
 
-        inputs.emplace_back(x);
-        targets.emplace_back(y);
+        inputs.emplace_back(std::move(x));
+        targets.emplace_back(std::move(y));
     }
 
     // Model: input -> Linear -> ReLU -> ResidualBlock x2 -> Linear(output)
@@ -105,7 +105,7 @@ auto main() -> int
 
     // Loss and optimizer
     CrossEntropyLoss loss;
-    vector<Tensor*> params = model.params();
+    vector<nn::Tensor*> params = model.params();
     Adam optimizer(0.001F);
     optimizer.attach(params);
 
@@ -120,9 +120,9 @@ auto main() -> int
         for (const auto& b : batches)
         {
             loss.set_target(b.targets);
-            Tensor logits = model.forward(b.inputs);
-            Tensor loss_tensor = loss.forward(logits);
-            Tensor grad_loss = loss.backward(logits);
+            nn::Tensor logits = model.forward(b.inputs);
+            nn::Tensor loss_tensor = loss.forward(logits);
+            nn::Tensor grad_loss = loss.backward(logits);
 
             model.backward(grad_loss);
             optimizer.step(params);

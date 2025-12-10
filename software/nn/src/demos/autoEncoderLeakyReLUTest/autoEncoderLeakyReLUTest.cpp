@@ -47,7 +47,7 @@ const Eigen::IOFormat CleanFmt(0,                // number of decimals
 #ifdef DEBUG
 namespace
 {
-auto debug(const Batch& batch, const Tensor& y_pred, const Tensor& loss_tensor) -> void
+auto debug(const Batch& batch, const nn::Tensor& y_pred, const nn::Tensor& loss_tensor) -> void
 {
     cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x" << batch.inputs.get_data_ref().cols()
          << '\n';
@@ -96,8 +96,8 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     constexpr float time_step = 1.0F; // Time step duration
 
     // Create input and target tensors
-    vector<Tensor> inputs;
-    vector<Tensor> targets;
+    vector<nn::Tensor> inputs;
+    vector<nn::Tensor> targets;
 
     // Generate synthetic spike data
     tie(inputs, targets) =
@@ -193,9 +193,9 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     }
 
     // ==== Optimizer ====
-    vector<Tensor*> params;
-    vector<Tensor*> encoder_params = encoders.params();
-    vector<Tensor*> decoder_params = decoders.params();
+    vector<nn::Tensor*> params;
+    vector<nn::Tensor*> encoder_params = encoders.params();
+    vector<nn::Tensor*> decoder_params = decoders.params();
 
     params.insert(params.end(), encoder_params.begin(), encoder_params.end());
     params.insert(params.end(), decoder_params.begin(), decoder_params.end());
@@ -219,15 +219,15 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
             // Forward pass through encoder and decoder - Eigen will handle
             // internal parallelization
-            Tensor encoded = encoders.forward(batch.inputs);
-            Tensor decoded = decoders.forward(encoded);
-            Tensor loss_tensor = mse_loss->forward(decoded);
+            nn::Tensor encoded = encoders.forward(batch.inputs);
+            nn::Tensor decoded = decoders.forward(encoded);
+            nn::Tensor loss_tensor = mse_loss->forward(decoded);
 
             // Compute gradients using the improved MSELoss backward pass
-            Tensor grad_loss = mse_loss->backward(decoded);
+            nn::Tensor grad_loss = mse_loss->backward(decoded);
 
             // Backward pass through decoder first, then encoder
-            Tensor decoder_grad = decoders.backward(grad_loss);
+            nn::Tensor decoder_grad = decoders.backward(grad_loss);
             encoders.backward(decoder_grad);
 
             // Update parameters
@@ -239,7 +239,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
-            debug(batch, y_pred, loss_tensor);
+            debug(batch, decoded, loss_tensor);
 #endif
         }
 

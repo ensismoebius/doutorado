@@ -7,8 +7,8 @@
 TEST(TensorTest, ConstructionAndAssignment)
 {
     Eigen::MatrixXf mat = Eigen::MatrixXf::Random(2, 2);
-    Tensor t1(mat);
-    Tensor t2 = t1;
+    nn::Tensor t1(mat);
+    nn::Tensor t2 = t1;
     ASSERT_EQ(t1.get_data_ref().rows(), 2);
     ASSERT_EQ(t1.get_data_ref().cols(), 2);
     ASSERT_EQ(t1.get_grad_ref().rows(), 2);
@@ -21,7 +21,7 @@ TEST(TensorTest, ConstructionAndAssignment)
 
 TEST(TensorTest, ConstructionWithDimensions)
 {
-    Tensor t(2, 3);
+    nn::Tensor t(2, 3);
     ASSERT_EQ(t.get_data_ref().rows(), 2);
     ASSERT_EQ(t.get_data_ref().cols(), 3);
     ASSERT_EQ(t.get_grad_ref().rows(), 2);

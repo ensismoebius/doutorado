@@ -1,5 +1,7 @@
 #include "Tensor.hpp"
 
+namespace nn
+{
 // Constructors
 Tensor::Tensor(const Eigen::MatrixXf& data) : m_data(data), m_grad(Eigen::MatrixXf::Zero(data.rows(), data.cols())) {}
 Tensor::Tensor(Eigen::MatrixXf&& data) : m_data(std::move(data)), m_grad(Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols())) {}
@@ -44,3 +46,4 @@ void Tensor::zero_grad()
     }
     m_grad.setZero();
 }
+} // namespace nn

@@ -11,7 +11,7 @@ class ParaconsistentFeatureExtractor
 {
    public:
     // Placeholder method to analyze features and return some metrics
-    static auto analyze(const std::vector<Tensor>& features) -> std::map<std::string, float>
+    static auto analyze(const std::vector<nn::Tensor>& features) -> std::map<std::string, float>
     {
         std::map<std::string, float> metrics;
         // In a real implementation, this would apply paraconsistent logic

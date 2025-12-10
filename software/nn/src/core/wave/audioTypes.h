@@ -102,7 +102,7 @@ struct FramingConfig
  */
 struct FilterbankConfig
 {
-    Tensor& filterbank;
+    nn::Tensor& filterbank;
     std::vector<float>& center_frequencies;
     const LoadingAndProcessingParameters& loading_params;
 };
@@ -113,7 +113,7 @@ struct FilterbankConfig
  */
 struct PowerFilterbankConfig
 {
-    const Tensor& filterbank;
+    const nn::Tensor& filterbank;
     const LoadingAndProcessingParameters& loading_params;
 };
 

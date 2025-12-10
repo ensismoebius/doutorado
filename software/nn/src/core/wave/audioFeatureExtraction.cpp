@@ -130,7 +130,7 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
  * @param fft_points Número de pontos da FFT (igual ao comprimento do frame).
  * @return Espectro de potência de cada frame.
  */
-auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
+auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> nn::Tensor
 {
     if (frames.empty())
     {
@@ -144,7 +144,7 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> Tensor
     const size_t number_of_bins = (fft_points / 2) + 1;
 
     // Matriz para armazenar o espectro de potência de cada frame.
-    Tensor power_spectrum(static_cast<int>(number_of_frames), static_cast<int>(number_of_bins));
+    nn::Tensor power_spectrum(static_cast<int>(number_of_frames), static_cast<int>(number_of_bins));
 
     // Buffer de entrada para a FFTW (real).
     auto* fftw_input = static_cast<float*>(fftwf_malloc(sizeof(float) * fft_points));
@@ -234,8 +234,7 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
         static_cast<float>(context.loading_params.constants.default_sampling_rate) / 2.0F;
 
     // Inicialização do banco de filtros e das frequências centrais.
-    context.filterbank =
-        Tensor(context.loading_params.audio_params.number_of_filters, number_of_bins);
+        context.filterbank = nn::Tensor(context.loading_params.audio_params.number_of_filters, number_of_bins);
 
     // Inicialização das frequências centrais.
     context.center_frequencies.resize(context.loading_params.audio_params.number_of_filters + 2);
@@ -307,8 +306,8 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
  * @param context Contexto contendo parâmetros e o banco de filtros.
  * @return Energias logarítmicas das bandas de filtro.
  */
-auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankConfig& context)
-    -> Tensor
+auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterbankConfig& context)
+    -> nn::Tensor
 {
     // Número de frames no espectro de potência.
     const size_t number_of_frames = power_spectrum.get_data_ref().rows();
@@ -320,7 +319,7 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
     const size_t number_of_bins = power_spectrum.get_data_ref().cols();
 
     // Matriz para armazenar as energias logarítmicas resultantes.
-    Tensor log_energies((long) number_of_frames, (long) number_of_filters);
+    nn::Tensor log_energies((long) number_of_frames, (long) number_of_filters);
 
     // Cálculo das energias logarítmicas para cada frame e filtro.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
@@ -357,8 +356,8 @@ auto dot_power_filterbank(const Tensor& power_spectrum, const PowerFilterbankCon
  * @param loading_params Parâmetros de carregamento e processamento.
  * @return Coeficientes cepstrais (LFCC).
  */
-auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
-    -> Tensor
+auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
+    -> nn::Tensor
 {
     // Número de frames (vetores de energia) de entrada.
     const size_t number_of_frames = log_energies.get_data_ref().rows();
@@ -367,7 +366,7 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
     const size_t number_of_filters = log_energies.get_data_ref().cols();
 
     // Matriz para armazenar os coeficientes cepstrais resultantes.
-    Tensor cepstral_coefficients((long) number_of_frames,
+    nn::Tensor cepstral_coefficients((long) number_of_frames,
                                  loading_params.audio_params.number_of_cepstrals);
 
     // Cálculo dos coeficientes cepstrais para cada frame.
@@ -421,8 +420,8 @@ auto dct2(const Tensor& log_energies, const LoadingAndProcessingParameters& load
  * @param loading_params Parâmetros de carregamento e processamento.
  * @return Matriz com os coeficientes delta.
  */
-auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters& loading_params)
-    -> Tensor
+auto compute_deltas(const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params)
+    -> nn::Tensor
 {
     // Número de frames (vetores de features) de entrada.
     const long number_of_frames = features.get_data_ref().rows();
@@ -438,7 +437,7 @@ auto compute_deltas(const Tensor& features, const LoadingAndProcessingParameters
     float denominator = 0.0F;
 
     // Matriz para armazenar os coeficientes delta resultantes.
-    Tensor delta_features(number_of_frames, (long) number_of_features);
+    nn::Tensor delta_features(number_of_frames, (long) number_of_features);
 
     // Cálculo do denominador da fórmula de deltas.
     for (int i = 1; i <= loading_params.audio_params.delta_window_span; ++i)

@@ -7,7 +7,7 @@
 
 #include "core/tensor/Tensor.hpp"
 
-auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<Tensor>& targets,
+auto create_batches(const std::vector<nn::Tensor>& inputSamples, const std::vector<nn::Tensor>& targets,
                     const int batch_size) -> std::vector<Batch>
 {
     const int n_samples = static_cast<int>(inputSamples.size());
@@ -25,8 +25,8 @@ auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<T
     {
         int actual_batch_size = std::min(batch_size, n_samples - i);
 
-        std::vector<Tensor> x_batch_vec;
-        std::vector<Tensor> y_batch_vec;
+        std::vector<nn::Tensor> x_batch_vec;
+        std::vector<nn::Tensor> y_batch_vec;
 
         for (int j = 0; j < actual_batch_size; ++j)
         {
@@ -51,7 +51,7 @@ auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<T
             y_concat.block(j * target_rows, 0, target_rows, target_cols) = y_batch_vec[j].get_data_ref();
         }
 
-        batches.push_back({Tensor(x_concat), Tensor(y_concat)});
+        batches.push_back({nn::Tensor(x_concat), nn::Tensor(y_concat)});
     }
 
     return batches;

@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 
 // Helper to build a Tensor with sequential rows (N x D)
-static auto make_sequential_tensor(std::size_t N, std::size_t D) -> Tensor
+static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
     Eigen::MatrixXf m(static_cast<int>(N), static_cast<int>(D));
     for (std::size_t i = 0; i < N; ++i)
@@ -13,7 +13,7 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> Tensor
             m(static_cast<int>(i), static_cast<int>(j)) = static_cast<float>((i * D) + j);
         }
     }
-    return Tensor{m};
+    return nn::Tensor{m};
 }
 
 TEST(DataLoaderTest, DeterministicShuffle)

@@ -7,8 +7,8 @@
 
 struct Batch
 {
-    Tensor inputs;
-    Tensor targets;
+    nn::Tensor inputs;
+    nn::Tensor targets;
 };
 
 /**
@@ -22,7 +22,7 @@ struct Batch
  * @param batch_size Tamanho de cada batch.
  * @return std::vector<Batch> Vetor de Batch, cada um contendo um par {x_batch, y_batch}.
  */
-auto create_batches(const std::vector<Tensor>& inputSamples, const std::vector<Tensor>& targets,
+auto create_batches(const std::vector<nn::Tensor>& inputSamples, const std::vector<nn::Tensor>& targets,
                     int batch_size) -> std::vector<Batch>;
 
 #endif // BATCHING_HPP

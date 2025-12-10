@@ -17,7 +17,7 @@
  * @param bias         Reference to the tensor where the bias vector will be stored.
  *                     Must be pre-allocated as a 1D tensor of shape (out_features).
  */
-inline auto xavierInitializer(int in_features, int out_features, Tensor& weights, Tensor& bias)
+inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& weights, nn::Tensor& bias)
     -> void
 {
     // Xavier limit: sqrt(6 / (in_features + out_features))

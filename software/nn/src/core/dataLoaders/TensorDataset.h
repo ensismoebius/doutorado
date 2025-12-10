@@ -8,7 +8,7 @@ class TensorDataset : public Dataset
 {
    public:
     TensorDataset() = default;
-    TensorDataset(Tensor inputs, Tensor targets)
+    TensorDataset(nn::Tensor inputs, nn::Tensor targets)
         : inputs_(std::move(inputs)), targets_(std::move(targets))
     {
     }
@@ -16,8 +16,8 @@ class TensorDataset : public Dataset
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override
     {
         std::vector<int> indices{static_cast<int>(idx)};
-        Tensor in = inputs_.slice(indices);
-        Tensor tg = targets_.slice(indices);
+        nn::Tensor in = inputs_.slice(indices);
+        nn::Tensor tg = targets_.slice(indices);
         return {.inputs = in, .targets = tg};
     }
 
@@ -38,6 +38,6 @@ class TensorDataset : public Dataset
     }
 
    private:
-    Tensor inputs_;
-    Tensor targets_;
+    nn::Tensor inputs_;
+    nn::Tensor targets_;
 };

@@ -22,7 +22,7 @@ using std::vector;
  * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
  */
 auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
-                                     float timeStep) -> tuple<vector<Tensor>, vector<Tensor>>;
+                                     float timeStep) -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>;
 
 /**
  * @brief Generates synthetic spike train data of ones.
@@ -32,6 +32,6 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
  * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
  */
 auto generate_autoencoder_spike_data_of_ones(int n_samples, int input_dim, int n_steps)
-    -> tuple<vector<Tensor>, vector<Tensor>>;
+    -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>;
 
 #endif // SYNTHETIC_SPIKE_DATA_HPP

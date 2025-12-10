@@ -186,7 +186,7 @@ TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave) {
     }
 
     std::vector<std::vector<float>> frames = {sine_wave};
-    Tensor power_spectrum = rfft_power(frames, fft_points);
+    nn::Tensor power_spectrum = rfft_power(frames, fft_points);
 
     ASSERT_EQ(power_spectrum.get_data_ref().rows(), 1);
     ASSERT_EQ(power_spectrum.get_data_ref().cols(), (fft_points / 2) + 1);
@@ -214,7 +214,7 @@ TEST_F(Experiment01UtilsTest, RFFTPower_EmptyFrames) {
 // Test for build_linear_filterbank
 TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic) {
     int fft_points = 512;
-    Tensor filterbank_test; // Declare local Tensor
+    nn::Tensor filterbank_test; // Declare local Tensor
     std::vector<float> center_frequencies_test; // Declare local vector
 
     LoadingAndProcessingParameters custom_loading_params = dummy_loading_params;
@@ -252,11 +252,11 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic) {
 // Test for dot_power_filterbank
 TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
     // Create a dummy power spectrum (e.g., all 1.0)
-    Tensor power_spectrum(2, 257); // 2 frames, 257 bins (for fft_points = 512)
+    nn::Tensor power_spectrum(2, 257); // 2 frames, 257 bins (for fft_points = 512)
     power_spectrum.get_data_ref().setConstant(1.0F);
 
     // Create a dummy filterbank (e.g., a simple triangular filter)
-    Tensor filterbank_test; // Declare local Tensor
+    nn::Tensor filterbank_test; // Declare local Tensor
     std::vector<float> center_frequencies_test; // Declare local vector
 
     LoadingAndProcessingParameters custom_loading_params = dummy_loading_params;
@@ -276,7 +276,7 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
         .loading_params = custom_loading_params
     };
 
-    Tensor log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
+    nn::Tensor log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
 
     ASSERT_EQ(log_energies.get_data_ref().rows(), 2);
     ASSERT_EQ(log_energies.get_data_ref().cols(), 2);
@@ -293,13 +293,13 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
 // Test for dct2
 TEST_F(Experiment01UtilsTest, DCT2_Basic) {
     // Create dummy log energies
-    Tensor log_energies(2, 10); // 2 frames, 10 filter energies
+    nn::Tensor log_energies(2, 10); // 2 frames, 10 filter energies
     log_energies.get_data_ref().setConstant(1.0F);
 
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.number_of_cepstrals = 5; // Request 5 cepstral coefficients
 
-    Tensor cepstral_coeff = dct2(log_energies, loading_params);
+    nn::Tensor cepstral_coeff = dct2(log_energies, loading_params);
 
     ASSERT_EQ(cepstral_coeff.get_data_ref().rows(), 2);
     ASSERT_EQ(cepstral_coeff.get_data_ref().cols(), 5);
@@ -326,7 +326,7 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic) {
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1; // Simple delta calculation
 
-    Tensor delta_features = compute_deltas(features, loading_params);
+    nn::Tensor delta_features = compute_deltas(features, loading_params);
 
     ASSERT_EQ(delta_features.get_data_ref().rows(), 5);
     ASSERT_EQ(delta_features.get_data_ref().cols(), 3);
@@ -349,10 +349,10 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic) {
 }
 
 TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures) {
-    Tensor features(0, 3);
+    nn::Tensor features(0, 3);
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1;
-    Tensor delta_features = compute_deltas(features, loading_params);
+    nn::Tensor delta_features = compute_deltas(features, loading_params);
     ASSERT_TRUE(delta_features.get_data_ref().rows() == 0);
     ASSERT_TRUE(delta_features.get_data_ref().cols() == 0);
 }

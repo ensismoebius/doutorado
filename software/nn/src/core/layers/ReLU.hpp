@@ -10,20 +10,20 @@ struct ReLU : public Module
 {
     Eigen::MatrixXf relu_grad; // usado para backward
 
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Guarda o gradiente da entrada atual para usar na fase de backward
         relu_grad = (input.get_data_ref().array() > 0).cast<float>();
 
         // Calcula a ativação
         Eigen::MatrixXf const activated = input.get_data_ref().array().max(0);
-        return Tensor{activated};
+        return nn::Tensor{activated};
     }
 
-    auto backward(const Tensor& grad_output) -> Tensor override
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
         Eigen::MatrixXf const grad_input = grad_output.get_data_ref().array() * relu_grad.array();
-        return Tensor{grad_input};
+        return nn::Tensor{grad_input};
     }
 };
 

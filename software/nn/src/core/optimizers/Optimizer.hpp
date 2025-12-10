@@ -43,8 +43,8 @@ struct Optimizer
      */
     auto operator=(Optimizer&& otherObjectReference) -> Optimizer& = delete;
 
-    virtual auto step(std::vector<Tensor*>& params) -> void = 0;
-    virtual auto zero_grad(std::vector<Tensor*>& params) -> void = 0;
+    virtual auto step(std::vector<nn::Tensor*>& params) -> void = 0;
+    virtual auto zero_grad(std::vector<nn::Tensor*>& params) -> void = 0;
     virtual ~Optimizer() = default;
 };
 

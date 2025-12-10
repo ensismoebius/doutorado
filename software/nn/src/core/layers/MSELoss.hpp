@@ -16,14 +16,14 @@ class MSELoss : public Module
     static constexpr float MSE_GRADIENT_FACTOR = 2.0F;
     static constexpr float MAX_GRADIENT_NORM = 1.0F;
 
-    Tensor last_input;
-    Tensor last_target;
+    nn::Tensor last_input;
+    nn::Tensor last_target;
 
    public:
     MSELoss() = default;
 
     // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
-    auto forward(const Tensor& prediction) -> Tensor override
+    auto forward(const nn::Tensor& prediction) -> nn::Tensor override
     {
         // Cache the prediction for the backward pass
         last_input = prediction;
@@ -36,7 +36,7 @@ class MSELoss : public Module
         {
             std::cerr << "Warning: Non-finite values detected in predictions\n";
             // Return a very large but finite loss
-            return Tensor{Eigen::MatrixXf::Constant(
+            return nn::Tensor{Eigen::MatrixXf::Constant(
                 1, 1, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR)};
         }
 
@@ -56,17 +56,17 @@ class MSELoss : public Module
         // Clip extremely large values to prevent overflow
         mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
 
-        return Tensor{Eigen::MatrixXf::Constant(1, 1, mse)};
+        return nn::Tensor{Eigen::MatrixXf::Constant(1, 1, mse)};
     }
 
     // Set the target tensor for the loss
-    void set_target(const Tensor& target)
+    void set_target(const nn::Tensor& target)
     {
         last_target = target;
     }
 
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
-    auto backward(const Tensor& /* prediction */) -> Tensor override
+    auto backward(const nn::Tensor& /* prediction */) -> nn::Tensor override
     {
         Eigen::MatrixXf grad =
             MSE_GRADIENT_FACTOR * (last_input.get_data_ref() - last_target.get_data_ref()) / last_input.get_data_ref().size();
@@ -76,7 +76,7 @@ class MSELoss : public Module
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             grad.setZero(); // Return zero gradient to prevent further issues
-            return Tensor{grad};
+            return nn::Tensor{grad};
         }
 
         // Gradient clipping to prevent explosion
@@ -87,7 +87,7 @@ class MSELoss : public Module
             grad *= max_grad_norm / grad_norm;
         }
 
-        return Tensor{grad};
+        return nn::Tensor{grad};
     }
 };
 

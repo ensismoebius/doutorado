@@ -13,7 +13,7 @@ struct LeakyReLU : public Module
 
     LeakyReLU(float alpha_ = 0.01F) : alpha(alpha_) {}
 
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Cache the gradient for the backward pass
         leaky_grad =
@@ -38,13 +38,13 @@ struct LeakyReLU : public Module
                     input.get_data_ref().array() * alpha // Otherwise, it's scaled by alpha
                 );
 
-        return Tensor{activated};
+        return nn::Tensor{activated};
     }
 
-    auto backward(const Tensor& grad_output) -> Tensor override
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
         Eigen::MatrixXf grad_input = grad_output.get_data_ref().array() * leaky_grad.array();
-        return Tensor{grad_input};
+        return nn::Tensor{grad_input};
     }
 };
 

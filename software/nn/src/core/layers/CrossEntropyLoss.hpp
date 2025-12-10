@@ -15,12 +15,12 @@ class CrossEntropyLoss : public Module
     Eigen::MatrixXf last_targets; // one-hot targets
 
     // targets should be passed via set_target as Tensor (N x C) one-hot matrix
-    void set_target(const Tensor& target)
+    void set_target(const nn::Tensor& target)
     {
         last_targets = target.get_data_ref();
     }
 
-    auto forward(const Tensor& logits) -> Tensor override
+    auto forward(const nn::Tensor& logits) -> nn::Tensor override
     {
         // numeric-stable softmax
         Eigen::MatrixXf x = logits.get_data_ref();
@@ -33,13 +33,13 @@ class CrossEntropyLoss : public Module
         // compute mean cross-entropy
         Eigen::ArrayXf logp = last_probs.array().log();
         float loss = -(last_targets.array() * logp).sum() / static_cast<float>(x.rows());
-        return Tensor{Eigen::MatrixXf::Constant(1, 1, loss)};
+        return nn::Tensor{Eigen::MatrixXf::Constant(1, 1, loss)};
     }
 
-    auto backward(const Tensor& /*unused*/) -> Tensor override
+    auto backward(const nn::Tensor& /*unused*/) -> nn::Tensor override
     {
         // gradient of loss wrt logits: (probs - targets)/N
         Eigen::MatrixXf grad = (last_probs - last_targets) / static_cast<float>(last_probs.rows());
-        return Tensor{grad};
+        return nn::Tensor{grad};
     }
 };

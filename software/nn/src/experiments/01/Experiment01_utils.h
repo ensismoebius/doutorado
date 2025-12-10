@@ -7,7 +7,7 @@
 // Declaration for loadAndProcessAudio, now defined in Experiment01_utils.cpp
 auto loadAndProcessAudio(const std::string& audioFilePath,
                          const LoadingAndProcessingParameters& loading_params)
-    -> std::vector<Tensor>;
+    -> std::vector<nn::Tensor>;
 
 void processSubject(const SubjectInfo& subject);
 

@@ -10,10 +10,10 @@
 TEST(SGDMinimalOptimizerTest, StepAndZeroGrad)
 {
     Eigen::MatrixXf w_data = Eigen::MatrixXf::Ones(2, 2);
-    Tensor w(w_data);
+    nn::Tensor w(w_data);
     Eigen::MatrixXf b_data = Eigen::MatrixXf::Zero(2, 1);
-    Tensor b(b_data);
-    std::vector<Tensor*> params = {&w, &b};
+    nn::Tensor b(b_data);
+    std::vector<nn::Tensor*> params = {&w, &b};
     SGDMinimal sgd_minimal(0.01F);
     Eigen::MatrixXf w_grad = Eigen::MatrixXf::Ones(2, 2);
     w.set_grad(w_grad);
@@ -28,10 +28,10 @@ TEST(SGDMinimalOptimizerTest, StepAndZeroGrad)
 TEST(AdamOptimizerTest, StepAndZeroGrad)
 {
     Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
-    Tensor weights(weights_data);
+    nn::Tensor weights(weights_data);
     Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
-    Tensor bias(bias_data);
-    std::vector<Tensor*> params = {&weights, &bias};
+    nn::Tensor bias(bias_data);
+    std::vector<nn::Tensor*> params = {&weights, &bias};
     Adam adam(0.01F);
     adam.attach(params);
     Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);
@@ -47,10 +47,10 @@ TEST(AdamOptimizerTest, StepAndZeroGrad)
 TEST(SGDOptimizerTest, StepAndZeroGrad)
 {
     Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
-    Tensor weights(weights_data);
+    nn::Tensor weights(weights_data);
     Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
-    Tensor bias(bias_data);
-    std::vector<Tensor*> params = {&weights, &bias};
+    nn::Tensor bias(bias_data);
+    std::vector<nn::Tensor*> params = {&weights, &bias};
     SGD sgd(0.01F);
     sgd.attach(params);
     Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);

@@ -11,7 +11,7 @@ class MaxPool2d : public Module
    public:
     MaxPool2d(int kernel, int stride_val) : kernel_size_(kernel), stride_(stride_val) {}
 
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         const auto shape = input.get_shape();
 

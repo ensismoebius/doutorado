@@ -2,8 +2,9 @@
 
 #include <cmath>
 #include <cstddef>
-#include <vector>
 
+
+#include "core/tensor/Tensor.hpp"
 #include "matplotlibcpp.h"
 
 namespace plt = matplotlibcpp;
@@ -31,13 +32,13 @@ auto main() -> int
 
     fftw_execute(p);
 
-    std::vector<double> in_vec(signal_length);
+    nn::Tensor in_vec(1, static_cast<Eigen::Index>(signal_length));
     for (int i = 0; i < signal_length; i++)
     {
-        in_vec[i] = in[i];
+        in_vec.get_data_ref()(0, i) = static_cast<float>(in[i]);
     }
 
-    std::vector<double> fft_magnitude((signal_length / 2) + 1);
+    nn::Tensor fft_magnitude(1, static_cast<Eigen::Index>((signal_length / 2) + 1));
     for (int k = 0; k < (signal_length / 2) + 1; k++)
     {
         // Compute magnitude in dB
@@ -51,14 +52,26 @@ auto main() -> int
         // dB calculation:
         // dB = 20 * log10(magnitude)
         const double magnitude = sqrt((real * real) + (imag * imag)) + epsilon;
-        fft_magnitude[k] = 20 * log10(magnitude);
+        fft_magnitude.get_data_ref()(0, k) = static_cast<float>(20 * log10(magnitude));
     }
 
-    // plt::plot(in_vec);
+    nn::Tensor in_vec_plot(1, static_cast<Eigen::Index>(signal_length));
+    for (int i = 0; i < signal_length; ++i)
+    {
+        in_vec_plot.get_data_ref()(0, i) = in_vec.get_data_ref()(0, i);
+    }
+
+    // plt::plot(in_vec_plot);
     // plt::title("Input Signal");
     // plt::show(false);
 
-    plt::plot(fft_magnitude);
+    nn::Tensor fft_magnitude_plot(1, static_cast<Eigen::Index>((signal_length / 2) + 1));
+    for (int k = 0; k < (signal_length / 2) + 1; ++k)
+    {
+        fft_magnitude_plot.get_data_ref()(0, k) = fft_magnitude.get_data_ref()(0, k);
+    }
+
+    plt::plot(fft_magnitude_plot.get_data_ref());
     plt::title("FFT Magnitude");
     plt::show(true); // Block until closed
 

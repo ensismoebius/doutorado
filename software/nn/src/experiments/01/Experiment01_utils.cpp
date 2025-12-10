@@ -39,7 +39,7 @@ using namespace std; // Use standard namespace
  */
 auto loadAndProcessAudio(const std::string& audioFilePath,
                          const LoadingAndProcessingParameters& loading_params)
-    -> std::vector<Tensor>
+    -> std::vector<nn::Tensor>
 {
     // Amostras de áudio carregadas do arquivo .mat.
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
@@ -51,23 +51,23 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     vector<vector<float>> frames;
 
     // Espectro de potência de cada frame.
-    Tensor power_spectrum;
+    nn::Tensor power_spectrum;
 
     // Matriz do banco de filtros lineares.
-    Tensor filterbank_local;                // Local variable for filterbank
+    nn::Tensor filterbank_local;                // Local variable for filterbank
     vector<float> center_frequencies_local; // Local variable for center_frequencies
 
     // Energias logarítmicas após aplicação do banco de filtros.
-    Tensor log_energies;
+    nn::Tensor log_energies;
 
     // Coeficientes cepstrais (LFCC) calculados.
-    Tensor cepstral_coeff;
+    nn::Tensor cepstral_coeff;
 
     // Coeficientes delta (primeira derivada).
-    Tensor delta_coeff;
+    nn::Tensor delta_coeff;
 
     // Coeficientes delta-delta (segunda derivada).
-    Tensor delta_delta_coeff;
+    nn::Tensor delta_delta_coeff;
 
     // Transpõe a matriz de amostras para facilitar o processamento.
     audioSamples = audioSamples.transpose();
@@ -153,7 +153,7 @@ void processSubject(const SubjectInfo& subject)
         .delta_config = delta_config,
         .constants = general_constants};
 
-    std::vector<Tensor> audio_windows =
+    std::vector<nn::Tensor> audio_windows =
         loadAndProcessAudio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
 }
