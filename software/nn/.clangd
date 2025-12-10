@@ -1,23 +1,15 @@
-# .clangd - compile database + compile flags + clang-tidy checks
+# .clangd - compile database + compile flags
 CompileFlags:
-  # use o compile_commands.json dentro de build/
+  # Use compile_commands.json from build/
   CompilationDatabase: build
 
-  # flags adicionadas SOMENTE quando não existirem no compile_commands.json
+  # Flags added only if not in compile_commands.json
   Add:
     - -std=gnu++20
-
-    # includes do seu projeto
     - -I${workspaceFolder}/src
-
-    # Eigen (include root correto no Arch)
     - -isystem
     - /usr/include/eigen3
-
-    # alinhar toolchain
     - --gcc-toolchain=/usr
 
 Index:
-  Background: Build # indexação em background
-  Threads: 0 # 0 = auto (use CPU disponível)
-  StorePreamble: true
+  Background: true
