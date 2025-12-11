@@ -6,18 +6,22 @@
 
 struct NnSaver
 {
-    static auto save_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias) -> void
+    static auto save_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias)
+        -> void
     {
         cnpy::npy_save(
             prefix + "_weights.npy",
             weights.get_data_ref().data(),
             {static_cast<size_t>(weights.data.rows()), static_cast<size_t>(weights.data.cols())},
             "w");
-        cnpy::npy_save(
-            prefix + "_bias.npy", bias.get_data_ref().data(), {static_cast<size_t>(bias.data.size())}, "w");
+        cnpy::npy_save(prefix + "_bias.npy",
+                       bias.get_data_ref().data(),
+                       {static_cast<size_t>(bias.data.size())},
+                       "w");
     }
 
-    static auto load_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias) -> void
+    static auto load_weights(const std::string& prefix, nn::Tensor& weights, nn::Tensor& bias)
+        -> void
     {
         auto loadedWeights = cnpy::npy_load(prefix + "_weights.npy");
         auto loadedBias = cnpy::npy_load(prefix + "_bias.npy");
@@ -30,12 +34,12 @@ struct NnSaver
         bias.get_data_ref() = Eigen::VectorXf(loadedBias.shape[0]);
         weights.get_data_ref() = Eigen::MatrixXf(loadedWeights.shape[0], loadedWeights.shape[1]);
 
-        for (int i = 0; i < bias.get_data_ref().size(); ++i)
+        for (auto i = 0; i < bias.get_data_ref().size(); ++i) [[likely]]
         {
             bias.get_data_ref()(i) = b_span[i];
         }
 
-        for (int i = 0; i < weights.get_data_ref().size(); ++i)
+        for (auto i = 0; i < weights.get_data_ref().size(); ++i) [[likely]]
         {
             weights.get_data_ref()(i) = w_span[i];
         }

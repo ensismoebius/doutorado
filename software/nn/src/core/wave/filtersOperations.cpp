@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <stdexcept>
+#include <vector>
 
 #include "../linearAlgebra/linearAlgebra.h"
 
@@ -25,16 +26,16 @@ auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass =
     return alpha;
 }
 
-auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> double*
+auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency)
+    -> std::vector<double>
 {
     // Order MUST be odd
     if (order % 2 == 0)
     {
         throw std::runtime_error("Order MUST be an odd number!");
-        return 0;
     }
 
-    auto* filter = new double[order + 1];
+    std::vector<double> filter(order + 1);
 
     // Calculating the alpha
     auto alpha = createAlpha(samplingRate, filterMaxFrequency);
@@ -46,23 +47,22 @@ auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequen
         filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
     }
 
-    linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
+    linearAlgebra::normalizeVectorToRange(filter.data(), order + 1, 0, 1);
 
-    // The caller is responsible for deleting this memory
     return filter;
 }
 
-auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency) -> double*
+auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
+    -> std::vector<double>
 {
     // Order MUST be odd
     if (order % 2 == 0)
     {
         throw std::runtime_error("Order MUST be an odd number!");
-        return 0;
     }
 
     // Filter holder
-    auto* filter = new double[order + 1];
+    std::vector<double> filter(order + 1);
 
     // Calculating the alpha for high pass filter
     double alpha = createAlpha(samplingRate, filterStartFrequency, true);
@@ -76,48 +76,46 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     }
 
     // normalizing data
-    linearAlgebra::normalizeVectorToRange(filter, order + 1, 0, 1);
+    linearAlgebra::normalizeVectorToRange(filter.data(), order + 1, 0, 1);
 
     // Builds the orthogonal vector
     // and return the final result (high pass filter)
-    return linearAlgebra::calcOrthogonalVector(filter, order + 1);
+    return linearAlgebra::calcOrthogonalVector(filter);
 }
 
-auto createStopBandFi1lter(int order, double samplingRate, double startFrequency, double finalFrequency) -> double*
+auto createStopBandFi1lter(int order, double samplingRate, double startFrequency,
+                           double finalFrequency) -> std::vector<double>
 {
     // Order MUST be odd
     if (order % 2 == 0)
     {
         throw std::runtime_error("Order MUST be an odd number!");
-        return 0;
     }
 
-    double* lowPassMax = createLowPassFilter(order, samplingRate, finalFrequency);
-    double* lowPassMin = createLowPassFilter(order, samplingRate, startFrequency);
+    auto lowPassMax = createLowPassFilter(order, samplingRate, finalFrequency);
+    auto lowPassMin = createLowPassFilter(order, samplingRate, startFrequency);
 
-    for (int i = 0; i < order + 1; i++)
+    for (auto i = 0; i < order + 1; ++i)
     {
         lowPassMax[i] = lowPassMax[i] - lowPassMin[i];
     }
 
-    delete[] lowPassMin;
-
     return lowPassMax;
 }
 
-auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> double*
+auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
+    -> std::vector<double>
 {
     // Order MUST be odd
     if (order % 2 == 0)
     {
         throw std::runtime_error("Order MUST be an odd number!");
-        return 0;
     }
 
-    double* highPass = createHighPassFilter(order, samplingRate, startFrequency);
-    double* lowPass = createLowPassFilter(order, samplingRate, finalFrequency);
+    auto highPass = createHighPassFilter(order, samplingRate, startFrequency);
+    auto lowPass = createLowPassFilter(order, samplingRate, finalFrequency);
 
-    for (int i = 0; i < order + 1; i++)
+    for (auto i = 0; i < order + 1; ++i)
     {
         lowPass[i] = lowPass[i] + highPass[i];
     }
@@ -125,31 +123,36 @@ auto bandStopFilter(int order, double samplingRate, double startFrequency, doubl
     return lowPass;
 }
 
-auto createTriangularWindow(int order) -> double*
+auto createTriangularWindow(int order) -> std::vector<double>
 {
     // order plus 1 is the amount of items
-    auto* w = new double[order + 1];
+    std::vector<double> w(order + 1);
 
     // The reference point is amount of items divided by 2
     double referencePoint = order / 2.0;
 
-    int n = 0;
-    for (; n <= referencePoint; n++)
+    auto n = 0;
+    for (; n <= referencePoint; ++n)
     {
         w[n] = 2.0 * n / order;
     }
 
-    for (; n <= order; n++)
+    for (; n <= order; ++n)
     {
-        w[n] = 2.0 - 2.0 * n / order;
+        w[n] = 2.0 - (2.0 * n / order);
     }
     return w;
 }
 
-void applyWindow(double* filter, double* window, int order)
+void applyWindow(std::vector<double>& filter, const std::vector<double>& window)
 {
-    do
+    if (filter.size() != window.size())
     {
-        filter[order] *= window[order];
-    } while ((order--) != 0);
+        throw std::runtime_error("Filter and window must have the same size!");
+    }
+
+    for (auto i = 0; i < static_cast<int>(filter.size()); ++i)
+    {
+        filter[i] *= window[i];
+    }
 }

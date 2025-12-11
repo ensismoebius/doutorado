@@ -10,6 +10,8 @@
 #ifndef SRC_LIB_FILTEROPERATIONS_H_
 #define SRC_LIB_FILTEROPERATIONS_H_
 
+#include <vector>
+
 /**
  * Create alpha value
  * @param samplingRate
@@ -24,18 +26,20 @@ auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass =
  * @param order
  * @param samplingRate
  * @param filterMaxFrequency
- * @return lowpass filter
+ * @return lowpass filter coefficients
  */
-auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency) -> double*;
+auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency)
+    -> std::vector<double>;
 
 /**
  * Create highpass filter
  * @param order
  * @param samplingRate
  * @param filterStartFrequency
- * @return highpass filter
+ * @return highpass filter coefficients
  */
-auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency) -> double*;
+auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
+    -> std::vector<double>;
 
 /**
  * Create bandpass filter
@@ -43,9 +47,10 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
  * @param samplingRate
  * @param startFrequency
  * @param finalFrequency
- * @return bandpass filter
+ * @return bandpass filter coefficients
  */
-auto createStopBandFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> double*;
+auto createStopBandFilter(int order, double samplingRate, double startFrequency,
+                          double finalFrequency) -> std::vector<double>;
 
 /**
  * Create bandstop filter
@@ -53,23 +58,23 @@ auto createStopBandFilter(int order, double samplingRate, double startFrequency,
  * @param samplingRate
  * @param startFrequency
  * @param finalFrequency
- * @return bandstop filter
+ * @return bandstop filter coefficients
  */
-auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency) -> double*;
+auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
+    -> std::vector<double>;
 
 /**
  * Create a window for signals
  * @param order
- * @return window
+ * @return window coefficients
  */
-auto createTriangularWindow(int order) -> double*;
+auto createTriangularWindow(int order) -> std::vector<double>;
 
 /**
- * Apply window
- * @param filter
- * @param window
- * @param order
+ * Apply window to filter
+ * @param filter filter coefficients (modified in-place)
+ * @param window window coefficients
  */
-void applyWindow(double* filter, double* window, int order);
+void applyWindow(std::vector<double>& filter, const std::vector<double>& window);
 
 #endif

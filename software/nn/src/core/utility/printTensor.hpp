@@ -6,10 +6,10 @@
 inline void printTensor(const Eigen::MatrixXf& t, const std::string& name = "Tensor")
 {
     std::cout << name << " (" << t.rows() << "x" << t.cols() << ")\n";
-    for (int i = 0; i < t.rows(); ++i)
+    for (auto i = 0; i < t.rows(); ++i) [[likely]]
     {
         std::cout << "[ ";
-        for (int j = 0; j < t.cols(); ++j)
+        for (auto j = 0; j < t.cols(); ++j) [[likely]]
         {
             std::cout << std::setw(4) << std::setprecision(4) << t(i, j);
             if (j < t.cols() - 1)

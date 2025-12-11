@@ -35,7 +35,7 @@
 struct Leaky : public Module
 {
    public:
-    auto params() -> std::vector<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
     {
         return {&resistance, &voltage_threshold};
     }
@@ -92,10 +92,11 @@ struct Leaky : public Module
           float reset_potential_ = 0.0F, // reset potential value
           std::shared_ptr<ISurrogateGradient> surrogate_grad =
               std::make_shared<ExponentialSurrogate>())
-        : dt(dt_),                                                       // time step
+        : dt(dt_),                                                     // time step
           resistance(nn::Tensor(Eigen::MatrixXf::Constant(1, 1, R_))), // resistance
-          capacitance(C_),                                               // capacitance
-          voltage_threshold(nn::Tensor(Eigen::MatrixXf::Constant(1, 1, V_thresh_))), // voltage threshold
+          capacitance(C_),                                             // capacitance
+          voltage_threshold(
+              nn::Tensor(Eigen::MatrixXf::Constant(1, 1, V_thresh_))), // voltage threshold
           reset_zero(reset_zero_),           // reset to zero or subtract threshold
           reset_potential(reset_potential_), // reset potential value
           surrogate_gradient(std::move(surrogate_grad))
@@ -120,7 +121,8 @@ struct Leaky : public Module
         }
 
         // Initialize output tensor
-        Eigen::MatrixXf output = Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
+        Eigen::MatrixXf output =
+            Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
 
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
         // Beta is the discrete-time decay factor derived from the continuous-time
@@ -213,7 +215,8 @@ struct Leaky : public Module
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.
-        const Eigen::MatrixXf grad_v_pre = grad_output.get_data_ref().array() * surrogate_grad.array();
+        const Eigen::MatrixXf grad_v_pre =
+            grad_output.get_data_ref().array() * surrogate_grad.array();
 
         // --- Gradient for voltage_threshold ---
         // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) = -grad_v_pre

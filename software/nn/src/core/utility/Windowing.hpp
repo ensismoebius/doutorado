@@ -28,7 +28,7 @@ class Windowing
             return windows;
         }
 
-        for (int i = 0; i + window_size_samples <= data.cols(); i += step_size_samples)
+        for (auto i = 0; i + window_size_samples <= data.cols(); i += step_size_samples) [[likely]]
         {
             windows.emplace_back(data.block(0, i, data.rows(), window_size_samples));
         }
