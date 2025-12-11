@@ -37,6 +37,13 @@ auto Tensor::slice(const std::vector<int>& indices) const -> Tensor
     return Tensor{sliced_data};
 }
 
+// Conversion to std::vector<float>
+auto Tensor::toVector() const -> std::vector<float>
+{
+    std::vector<float> vec(m_data.data(), m_data.data() + m_data.size());
+    return vec;
+}
+
 // Zero out the gradient
 void Tensor::zero_grad()
 {

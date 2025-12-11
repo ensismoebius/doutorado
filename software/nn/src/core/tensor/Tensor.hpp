@@ -33,6 +33,9 @@ class Tensor
     [[nodiscard]] auto cols() const -> Eigen::Index;
     [[nodiscard]] auto size() const -> Eigen::Index;
 
+    // Conversion to std::vector<float>
+    [[nodiscard]] auto toVector() const -> std::vector<float>;
+
     // Slice operation
     [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor;
 
