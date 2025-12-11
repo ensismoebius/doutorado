@@ -2,6 +2,7 @@
 #define TENSOR_HPP
 
 #include <Eigen/Dense>
+#include <vector>
 
 namespace nn
 {
@@ -33,8 +34,9 @@ class Tensor
     [[nodiscard]] auto cols() const -> Eigen::Index;
     [[nodiscard]] auto size() const -> Eigen::Index;
 
-    // Conversion to std::vector<float>
-    [[nodiscard]] auto toVector() const -> std::vector<float>;
+    // Conversion to std::vector
+    template <typename vector_type>
+    [[nodiscard]] auto toVector() const -> std::vector<vector_type>;
 
     // Slice operation
     [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor;
@@ -46,6 +48,23 @@ class Tensor
     Eigen::MatrixXf m_data;
     Eigen::MatrixXf m_grad;
 };
+} // namespace nn
+
+// Template implementations must be available in the header.
+namespace nn
+{
+template <typename vector_type>
+auto Tensor::toVector() const -> std::vector<vector_type>
+{
+    std::vector<vector_type> vec;
+    vec.reserve(static_cast<size_t>(m_data.size()));
+    const auto* data_ptr = m_data.data();
+    for (Eigen::Index i = 0; i < m_data.size(); ++i)
+    {
+        vec.push_back(static_cast<vector_type>(data_ptr[i]));
+    }
+    return vec;
+}
 } // namespace nn
 
 #endif // TENSOR_HPP

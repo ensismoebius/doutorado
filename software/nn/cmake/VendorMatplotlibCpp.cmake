@@ -3,6 +3,11 @@
 
 include(ExternalProject)
 
+# Option to control whether CMake should create a Python virtualenv and
+# install matplotlib/numpy at configure time. Some environments prefer to
+# manage Python deps externally or avoid long network installs during CMake.
+option(MATPLOTLIBCPP_CREATE_VENV "Create venv and install matplotlib/numpy during CMake configure" ON)
+
 # Set install directory
 set(MATPLOTLIBCPP_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/matplotlib-cpp-install")
 

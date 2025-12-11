@@ -12,75 +12,108 @@ using std::vector;
 
 namespace plt = matplotlibcpp;
 
-// Custom deleter for unique_ptr to manage FFTW allocated memory
+/**
+ * Custom deleter for unique_ptr to manage FFTW allocated memory
+ */
 struct FFTWFreeDeleter
 {
     void operator()(void* ptr) const
     {
-        fftwf_free(ptr);
+        fftw_free(ptr);
     }
 };
 
-
-
-// Function to generate the sample signal
-auto generateSignal(float freq1, float freq2, size_t sample_rate, size_t duration_seconds,
-                    int& signal_length_out) -> std::unique_ptr<float, FFTWFreeDeleter>
+/**
+ * @brief Generate a composite signal with two sine waves
+ *
+ * @param freq1
+ * @param freq2
+ * @param sample_rate
+ * @param duration_seconds
+ * @param signal_length_out
+ * @return std::unique_ptr<float, FFTWFreeDeleter>
+ */
+auto generateSignal(double freq1, double freq2, size_t sample_rate, size_t duration_seconds,
+                    int& signal_length_out) -> std::unique_ptr<double, FFTWFreeDeleter>
 {
     signal_length_out = static_cast<int>(duration_seconds * sample_rate);
-
-    auto* in_raw = static_cast<float*>(fftwf_malloc(sizeof(float) * signal_length_out));
+    auto* in_raw = static_cast<double*>(fftw_malloc(sizeof(double) * signal_length_out));
 
     for (int n = 0; n < signal_length_out; n++)
     {
-        in_raw[n] = (0.7F * sinf((2.0F * M_PIf * freq1 * static_cast<float>(n)) /
-                                static_cast<float>(sample_rate))) +
-                    (0.3F * sinf((2.0F * M_PIf * freq2 * static_cast<float>(n)) /
-                                static_cast<float>(sample_rate)));
+        in_raw[n] = (0.7 * sin((2.0 * M_PI * freq1 * static_cast<double>(n)) /
+                               static_cast<double>(sample_rate))) +
+                    (0.3 * sin((2.0 * M_PI * freq2 * static_cast<double>(n)) /
+                               static_cast<double>(sample_rate)));
     }
-    return std::unique_ptr<float, FFTWFreeDeleter>(in_raw);
+    return std::unique_ptr<double, FFTWFreeDeleter>(in_raw);
 }
 
-// Function to execute FFT
-auto executeFFT(int signal_length, float* in_raw, // Changed double* to float*
-                std::unique_ptr<fftwf_complex, FFTWFreeDeleter>& out_fftw_ptr) -> fftwf_plan // Changed fftw_complex to fftwf_complex, fftw_plan to fftwf_plan
+/**
+ * @brief Execute FFT using FFTW3
+ *
+ * @param signal_length
+ * @param in_raw
+ * @param out_fftw_ptr
+ * @return fftwf_plan
+ */
+auto executeFFT(                                                 //
+    int signal_length,                                           //
+    double* in_raw,                                              //
+    std::unique_ptr<fftw_complex, FFTWFreeDeleter>& out_fftw_ptr //
+    ) -> fftw_plan
 {
-    auto* out_raw = static_cast<fftwf_complex*>(                     // Changed fftw_complex to fftwf_complex
-        fftwf_malloc(sizeof(fftwf_complex) * (signal_length / 2 + 1)) // Changed fftw_malloc to fftwf_malloc
-    );
+    auto* out_raw =
+        static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * (signal_length / 2 + 1)));
 
     out_fftw_ptr.reset(out_raw);
 
-    fftwf_plan p = fftwf_plan_dft_r2c_1d(signal_length, in_raw, out_raw, FFTW_ESTIMATE); // Changed fftw_plan_dft_r2c_1d to fftwf_plan_dft_r2c_1d
+    fftw_plan p = fftw_plan_dft_r2c_1d(signal_length, in_raw, out_raw, FFTW_ESTIMATE);
 
-    fftwf_execute(p); // Changed fftw_execute to fftwf_execute
+    fftw_execute(p);
 
     return p;
 }
 
-// Function to calculate FFT magnitude
-auto calculateFFTMagnitude(int signal_length, const fftwf_complex* out_fftw_raw) -> nn::Tensor // Changed fftw_complex to fftwf_complex
+/**
+ * @brief Calculate the magnitude of the FFT output
+ *
+ * @param signal_length
+ * @param out_fftw_raw
+ * @return nn::Tensor
+ */
+auto calculateFFTMagnitude(int signal_length, const fftw_complex* out_fftw_raw) -> nn::Tensor
 {
+    // Tensor to hold magnitude values
     nn::Tensor fft_magnitude(1, static_cast<Eigen::Index>((signal_length / 2) + 1));
-    
+
     // Small epsilon to avoid log(0)
-    const float epsilon = 1e-100F;
+    const double epsilon = 1e-300;
 
     for (int k = 0; k < (signal_length / 2) + 1; k++)
     {
-        const float real = out_fftw_raw[k][0]; // Changed double to float
-        const float imag = out_fftw_raw[k][1]; // Changed double to float
-        const float magnitude = sqrtf((real * real) + (imag * imag)) + epsilon; // Changed sqrt to sqrtf
-        
-        fft_magnitude.get_data_ref()(0, k) = static_cast<float>(20 * log10f(magnitude)); // Changed log10 to log10f
+        const double real = out_fftw_raw[k][0];
+        const double imag = out_fftw_raw[k][1];
+
+        // Calculate magnitude and convert to dB scale
+        const double magnitude = sqrt((real * real) + (imag * imag)) + epsilon;
+
+        // fft_magnitude stores floats; cast from double
+        fft_magnitude.get_data_ref()(0, k) = static_cast<float>(20.0 * log10(magnitude));
     }
     return fft_magnitude;
 }
 
-// Function to plot the signal
+/**
+ * @brief Plot the signal using matplotlibcpp
+ *
+ * @param signal_tensor
+ * @param title
+ * @param show_blocking
+ */
 void plotSignal(const nn::Tensor& signal_tensor, const std::string& title, bool show_blocking)
 {
-    plt::plot(signal_tensor.toVector());
+    plt::plot(signal_tensor.toVector<float>());
     plt::title(title);
     plt::show(show_blocking);
 }
@@ -94,21 +127,33 @@ auto main() -> int
     const float freq2 = 40.0F;
     int signal_length;
 
-    std::unique_ptr<float, FFTWFreeDeleter> in_ptr = // Changed double to float
-        generateSignal(freq1, freq2, sample_rate, duration_seconds, signal_length);
+    auto in_ptr = generateSignal( //
+        freq1,                    //
+        freq2,                    //
+        sample_rate,              //
+        duration_seconds,         //
+        signal_length             //
+    );
 
     // FFT Execution
-    std::unique_ptr<fftwf_complex, FFTWFreeDeleter> out_fftw_ptr; // Changed fftw_complex to fftwf_complex
-    fftwf_plan p = executeFFT(signal_length, in_ptr.get(), out_fftw_ptr); // Changed fftw_plan to fftwf_plan
+    std::unique_ptr<fftw_complex, FFTWFreeDeleter> out_fftw_ptr;
+
+    auto* p = executeFFT( //
+        signal_length,    //
+        in_ptr.get(),     //
+        out_fftw_ptr      //
+    );
 
     // Magnitude Calculation
-    nn::Tensor fft_magnitude = calculateFFTMagnitude(signal_length, out_fftw_ptr.get());
+    auto fft_magnitude = calculateFFTMagnitude( //
+        signal_length,                          //
+        out_fftw_ptr.get()                      //
+    );
 
-    // Prepare input signal for plotting (copy from float* to nn::Tensor)
     nn::Tensor in_vec(1, static_cast<Eigen::Index>(signal_length));
     for (int i = 0; i < signal_length; i++)
     {
-        in_vec.get_data_ref()(0, i) = in_ptr.get()[i]; // Removed static_cast<float> as in_ptr.get() returns float*
+        in_vec.get_data_ref()(0, i) = static_cast<float>(in_ptr.get()[i]);
     }
 
     // Plotting
@@ -116,6 +161,6 @@ auto main() -> int
     plotSignal(fft_magnitude, "FFT Magnitude", true);
 
     // Cleanup
-    fftwf_destroy_plan(p); // Changed fftw_destroy_plan to fftwf_destroy_plan
+    fftw_destroy_plan(p);
     return 0;
 }
