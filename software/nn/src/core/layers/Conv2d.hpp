@@ -100,50 +100,53 @@ class Conv2d : public Module
         const int output_height = input_height - kernel_size_ + 1;
         const int output_width = input_width - kernel_size_ + 1;
 
-        // Prepare gradients
+        const int patch_rows = in_channels_ * kernel_size_ * kernel_size_; // C_in * K_H * K_W
+        const int patch_cols_per_batch = output_height * output_width; // H_out * W_out
+        const int total_patch_cols = batch_size * patch_cols_per_batch; // B * H_out * W_out
+
         // Zero grads for weights and bias
         weights_.get_grad_ref().setZero();
         bias_.get_grad_ref().setZero();
 
-        nn::Tensor grad_input(batch_size, in_channels_, input_height, input_width);
-        grad_input.get_data_ref().setZero();
+        // 1. Reshape grad_output to (out_channels_, total_patch_cols)
+        // grad_output's m_data is (total_elements, 1)
+        Eigen::Map<const Eigen::MatrixXf> grad_output_reshaped_mapped(
+            grad_output.get_data_ref().data(),
+            out_channels_,
+            total_patch_cols
+        );
+        
+        // 2. Compute d_bias
+        // bias_.get_grad_ref() is (out_channels_, 1)
+        bias_.get_grad_ref().col(0) += grad_output_reshaped_mapped.rowwise().sum().transpose();
 
-        for (int b = 0; b < batch_size; ++b) [[likely]]
-        {
-            for (int oc = 0; oc < out_channels_; ++oc) [[likely]]
-            {
-                for (int oy = 0; oy < output_height; ++oy) [[likely]]
-                {
-                    for (int ox = 0; ox < output_width; ++ox) [[likely]]
-                    {
-                        float go = grad_output.at(b, oc, oy, ox);
-                        // bias grad
-                        bias_.get_grad_ref()(0, oc) += go;
+        // 3. Create im2col from input_cache_
+        nn::Tensor im2col_input_cache_tensor = im2col(input_cache_, kernel_size_, input_height, input_width, output_height, output_width);
+        Eigen::Map<const Eigen::MatrixXf> im2col_input_cache_mapped(
+            im2col_input_cache_tensor.get_data_ref().data(),
+            patch_rows,
+            total_patch_cols
+        );
 
-                        for (int ic = 0; ic < in_channels_; ++ic) [[likely]]
-                        {
-                            for (int ky = 0; ky < kernel_size_; ++ky) [[likely]]
-                            {
-                                for (int kx = 0; kx < kernel_size_; ++kx) [[likely]]
-                                {
-                                    int in_y = oy + ky;
-                                    int in_x = ox + kx;
-                                    float inp = input_cache_.at(b, ic, in_y, in_x);
-                                    // weight grad index
-                                    int wrow = (ky * kernel_size_) + kx +
-                                               (ic * kernel_size_ * kernel_size_);
-                                    weights_.get_grad_ref()(wrow, oc) += inp * go;
+        // 4. Map weights_ for d_input calculation
+        Eigen::Map<const Eigen::MatrixXf> weights_mapped(
+            weights_.get_data_ref().data(),
+            patch_rows,
+            out_channels_
+        );
 
-                                    // input grad
-                                    grad_input.at(b, ic, in_y, in_x) += weights_.at(wrow, oc) * go;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        // 5. Compute d_weights
+        // weights_.get_grad_ref() is (patch_rows, out_channels_)
+        weights_.get_grad_ref() += im2col_input_cache_mapped * grad_output_reshaped_mapped.transpose();
 
+        // 6. Compute d_input
+        // d_input_col_raw = weights_mapped * grad_output_reshaped
+        Eigen::MatrixXf d_input_col_raw = weights_mapped * grad_output_reshaped_mapped;
+        
+        // Transform d_input_col_raw back to 4D grad_input using col2im
+        nn::Tensor grad_input = col2im(nn::Tensor(d_input_col_raw), kernel_size_,
+                                       input_height, input_width, output_height, output_width);
+        
         return grad_input;
     }
 
@@ -218,6 +221,55 @@ class Conv2d : public Module
             }
         }
         return cols_tensor;
+    }
+
+    // Helper function to transform columns back into image patches (col2im)
+    nn::Tensor col2im(const nn::Tensor& cols_tensor, int kernel_size,
+                      int input_height, int input_width, int output_height, int output_width) const
+    {
+        const int batch_size = static_cast<int>(input_cache_.get_shape()[0]);
+        const int in_channels = static_cast<int>(input_cache_.get_shape()[1]);
+
+        nn::Tensor img_tensor(batch_size, in_channels, input_height, input_width);
+        img_tensor.get_data_ref().setZero(); // Initialize with zeros
+
+        const int patch_cols_per_batch = output_height * output_width;  // H_out * W_out
+        const int total_patch_cols = batch_size * patch_cols_per_batch; // B * H_out * W_out
+
+        // Map cols_tensor's flattened data to its intended 2D shape for Eigen operations
+        const int patch_rows = in_channels * kernel_size * kernel_size; // C_in * K_H * K_W
+        Eigen::Map<const Eigen::MatrixXf> cols_mapped(
+            cols_tensor.get_data_ref().data(), // Pointer to the raw data
+            patch_rows,                         // Number of rows in the 2D view
+            total_patch_cols                    // Number of columns in the 2D view
+        );
+
+        for (int b = 0; b < batch_size; ++b)
+        {
+            for (int oy = 0; oy < output_height; ++oy)
+            {
+                for (int ox = 0; ox < output_width; ++ox)
+                {
+                    for (int ic = 0; ic < in_channels; ++ic)
+                    {
+                        for (int ky = 0; ky < kernel_size; ++ky)
+                        {
+                            for (int kx = 0; kx < kernel_size; ++kx)
+                            {
+                                int input_y = oy + ky;
+                                int input_x = ox + kx;
+
+                                int col_idx = b * patch_cols_per_batch + oy * output_width + ox;
+                                int row_idx = ic * kernel_size * kernel_size + ky * kernel_size + kx;
+
+                                img_tensor.at(b, ic, input_y, input_x) += cols_mapped(row_idx, col_idx);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return img_tensor;
     }
 
    private:
