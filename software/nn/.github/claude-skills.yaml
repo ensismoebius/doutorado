@@ -1,0 +1,171 @@
+name: doutorado-repo-skill
+version: 1.0
+description: |
+  Claude skill describing the doutorado C++ research repository.
+  Provides build/test commands, important paths, constraints, coding and
+  modification policies tailored to the project.
+
+owner: ensismoebius
+root: .
+os: linux
+primary_language: cpp
+cpp_standard: c++20
+build_system: cmake
+
+environment:
+  - CMAKE_GENERATOR: Ninja (build/ uses Ninja by default in this workspace)
+  - OMP_NUM_THREADS: recommended to control OpenMP for reproducibility
+
+important_paths:
+  - CMakeLists.txt
+  - src/
+  - cmake/
+  - build/
+  - lib/
+  - .github/copilot-instructions.md
+
+common_commands:
+  configure: "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release"
+  build: "cmake --build build -- -j$(nproc)"
+  test: "ctest --test-dir build --output-on-failure -j4"
+  format_check: "clang-format --version && git diff --exit-code"
+  unit_tests: "ctest -j4 --test-dir build --output-on-failure"
+
+allowed_actions:
+  edit_files: true
+  add_files: true
+  run_local_build_and_tests: true
+  run_linters: true
+  run_unit_tests: true
+  commit_changes: false # require user confirmation for commits
+
+constraints_and_policies:
+  - "Do not change public APIs without updating .github/copilot-instructions.md and CHANGELOG.md"
+  - "Avoid network downloads or modifying CI to fetch new remote artifacts during runs"
+  - "Do not introduce secrets or credentials in repository files"
+  - "Keep changes minimal and focused; prefer small diffs that build and test"
+
+coding_guidelines:
+  - "Follow .clang-format and .clang-tidy conventions present in repo"
+  - "Prefer Eigen::Map, noalias(), and explicit OpenMP controls for performance"
+  - "Use C++20 idioms consistent with existing codebase"
+
+testing_and_ci:
+  - "Run `configure`, `build`, then `test` commands after changes"
+  - "If adding public API changes, include/update unit tests under src/.../tests"
+
+references:
+  copilot_instructions: .github/copilot-instructions.md
+  readme: README.md
+  dev_setup_guide: docs/dev-setup.md
+
+tools_manifest: .github/tools_manifest.json
+available_tools:
+  - git
+  - curl
+  - wget
+  - jq
+  - sqlite3
+  - mysql
+  - ffmpeg
+  - ffprobe
+  - sox
+  - identify
+  - convert
+  - tesseract
+  - python3
+  - node
+  - npm
+  - java
+  - javac
+  - go
+  - rustc
+  - gcc
+  - clang
+  - cmake
+  - make
+  - ninja
+  - ssh
+  - scp
+  - rsync
+  - sftp
+  - socat
+  - ncat
+  - nmap
+  - shellcheck
+  - valgrind
+  - ccache
+  - git-lfs
+
+tool_details_note: "See .github/tools_manifest.json for full descriptions, sample invocations, and installed versions."
+
+recommendations:
+  system:
+    - "Use pacman with an AUR helper (yay) for reproducible package management"
+    - "Tune CPU governor and swappiness for long-running experiments; disable aggressive sleep"
+    - "Enable core dumps and increase ulimits for debugging: ulimit -c unlimited"
+
+  development_toolchain:
+    - "Install gcc, clang, cmake, ninja, make; use ccache and distcc for faster incremental builds"
+    - "Add linters: clang-tidy, cppcheck, shfmt; integrate with pre-commit hooks"
+    - "Set up debugging: gdb, lldb, valgrind, perf for profiling and memory analysis"
+    - "Enable ASAN/UBSAN in Debug builds to catch memory and undefined behavior bugs"
+
+  research_and_reproducibility:
+    - "Use venv for isolated Python environments; pin exact versions"
+    - "Adopt docker or apptainer (Singularity) for portable, reproducible compute environments"
+    - "Track experiments with MLflow, sacred, or wandb; always save random seeds and hyperparameters"
+    - "Version large datasets with git-lfs or dvc; store checksums and acquisition metadata"
+
+  libraries_and_performance:
+    - "Compile Eigen with OpenMP support (already vendored); use Eigen::Map and noalias() throughout"
+    - "Build FFTW3 with --enable-threads and --enable-openmp (already configured)"
+    - "Consider MPI (mpich/openmpi) for distributed-memory parallelism"
+    - "If using GPU: install CUDA, cuDNN, and test with nvidia-smi"
+
+  testing_and_ci:
+    - "Write unit tests in GoogleTest; verify with ctest; enforce 100% pass rate in CI"
+    - "Use GitHub Actions with dependency caching; pin compiler/toolchain versions"
+    - "Build release binaries in Docker to ensure reproducibility across systems"
+    - "Maintain compile_commands.json for static analysis and IDE integration"
+
+  productivity:
+    - "Editor: VS Code (clangd + CMake Tools) or Neovim + LSP; always use compile_commands.json"
+    - "Remote work: ssh, tmux/screen, mosh for robust long-running session management"
+    - "Notebook analysis: JupyterLab with C++ kernel (xeus-cling) for exploratory work"
+    - "Docs: Sphinx/Doxygen for API; Pandoc for LaTeX/Markdown conversion"
+
+  data_and_visualization:
+    - "Python stack: numpy, scipy, matplotlib, seaborn, pandas, scikit-learn in isolated venv"
+    - "For C++ rendering: use matplotlib-cpp (already vendored) or export data for Python plotting"
+    - "Always version figure-generation scripts; never edit plots manually"
+
+  security_and_backup:
+    - "Use ed25519 SSH keys; enable ssh-agent only when necessary"
+    - "Store secrets in OS keyring (pass/gpg); never commit credentials"
+    - "Automated backups via borg or restic; snapshot important datasets weekly"
+    - "Enable 2FA on GitHub, cloud services, and critical accounts"
+
+  paper_writing:
+    - "LaTeX with TeX Live; manage citations via Zotero (exportable to BibTeX)"
+    - "Generate figures programmatically; include source scripts in repo/supplement"
+    - "Use Pandoc for format conversion; version papers and supplementary materials"
+
+examples:
+  - task: "Build and run tests"
+    commands:
+      - "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug"
+      - "cmake --build build -- -j$(nproc)"
+      - "ctest --test-dir build --output-on-failure -j4"
+
+  - task: "Run single demo (example)"
+    note: "Replace fftw3_demo with the desired target if present in build/bin"
+    commands:
+      - "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release"
+      - "cmake --build build -- -j$(nproc)"
+      - "./build/bin/fftw3_demo || ./build/bin/fftw3_demo.exe"
+
+notes:
+  - "This skills file is a guidance layer for Claude-style assistants interacting with the repository. For
+    any actions that modify the repo (commits, API changes) ask the user for explicit confirmation before
+    performing them."

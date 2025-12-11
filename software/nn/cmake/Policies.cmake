@@ -63,3 +63,11 @@ if(POLICY CMP0169)
 	# Explanation: https://cmake.org/cmake/help/latest/policy/CMP0169.html
     cmake_policy(SET CMP0169 NEW)
 endif()
+
+if(POLICY CMP0069)
+	# Prefer the new behavior for handling link options and the
+	# availability of add_link_options(). Centralized here so other
+	# cmake modules can assume consistent policy configuration.
+	# Explanation: https://cmake.org/cmake/help/latest/policy/CMP0069.html
+	cmake_policy(SET CMP0069 NEW)
+endif()
