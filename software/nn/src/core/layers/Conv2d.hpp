@@ -47,15 +47,15 @@ class Conv2d : public Module
                             {
                                 for (int kx = 0; kx < kernel_size_; ++kx) [[likely]]
                                 {
-                                    sum += input.get_data_ref()(b, ic, oy + ky, ox + kx) *
-                                           weights_.get_data_ref()(
+                                    sum += input.at(b, ic, oy + ky, ox + kx) *
+                                           weights_.at(
                                                ky * kernel_size_ + kx +
                                                    ic * kernel_size_ * kernel_size_,
                                                oc);
                                 }
                             }
                         }
-                        output.get_data_ref()(b, oc, oy, ox) = sum + bias_.get_data_ref()(0, oc);
+                        output.at(b, oc, oy, ox) = sum + bias_.get_data_ref()(0, oc);
                     }
                 }
             }
@@ -80,7 +80,7 @@ class Conv2d : public Module
         weights_.get_grad_ref().setZero();
         bias_.get_grad_ref().setZero();
 
-        nn::Tensor grad_input = nn::Tensor(batch_size, in_channels_, input_height, input_width);
+        nn::Tensor grad_input(batch_size, in_channels_, input_height, input_width);
         grad_input.get_data_ref().setZero();
 
         for (int b = 0; b < batch_size; ++b) [[likely]]
@@ -91,7 +91,7 @@ class Conv2d : public Module
                 {
                     for (int ox = 0; ox < output_width; ++ox) [[likely]]
                     {
-                        float go = grad_output.get_data_ref()(b, oc, oy, ox);
+                        float go = grad_output.at(b, oc, oy, ox);
                         // bias grad
                         bias_.get_grad_ref()(0, oc) += go;
 
@@ -103,15 +103,15 @@ class Conv2d : public Module
                                 {
                                     int in_y = oy + ky;
                                     int in_x = ox + kx;
-                                    float inp = input_cache_.get_data_ref()(b, ic, in_y, in_x);
+                                    float inp = input_cache_.at(b, ic, in_y, in_x);
                                     // weight grad index
                                     int wrow =
                                         ky * kernel_size_ + kx + ic * kernel_size_ * kernel_size_;
                                     weights_.get_grad_ref()(wrow, oc) += inp * go;
 
                                     // input grad
-                                    grad_input.get_data_ref()(b, ic, in_y, in_x) +=
-                                        weights_.get_data_ref()(wrow, oc) * go;
+                                    grad_input.at(b, ic, in_y, in_x) +=
+                                        weights_.at(wrow, oc) * go;
                                 }
                             }
                         }
@@ -122,6 +122,16 @@ class Conv2d : public Module
 
         return grad_input;
     }
+
+    // Public getters for weights and bias
+    const nn::Tensor& get_weights() const { return weights_; }
+    nn::Tensor& get_weights() { return weights_; }
+    const nn::Tensor& get_bias() const { return bias_; }
+    nn::Tensor& get_bias() { return bias_; }
+
+    // Public setters for weights and bias
+    void set_weights(const nn::Tensor& weights) { weights_ = weights; }
+    void set_bias(const nn::Tensor& bias) { bias_ = bias; }
 
    private:
     int in_channels_;

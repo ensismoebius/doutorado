@@ -15,6 +15,8 @@ class Tensor
     explicit Tensor(const Eigen::MatrixXf& data);
     explicit Tensor(Eigen::MatrixXf&& data);
     Tensor(Eigen::Index rows, Eigen::Index cols);
+    Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4); // New 4D constructor
+    explicit Tensor(const std::vector<Eigen::Index>& shape); // New general N-D constructor
 
     // Getters for data and gradient
     [[nodiscard]] auto get_data_ref() const -> const Eigen::MatrixXf&;
@@ -35,6 +37,13 @@ class Tensor
     [[nodiscard]] auto cols() const -> Eigen::Index;
     [[nodiscard]] auto size() const -> Eigen::Index;
 
+    // Element access for 2D and 4D tensors (new)
+    float& at(Eigen::Index row, Eigen::Index col);
+    const float& at(Eigen::Index row, Eigen::Index col) const;
+    float& at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4);
+    const float& at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const;
+
+
     // Conversion to std::vector
     template <typename vector_type>
     [[nodiscard]] auto toVector() const -> std::vector<vector_type>;
@@ -48,6 +57,7 @@ class Tensor
    private:
     Eigen::MatrixXf m_data;
     Eigen::MatrixXf m_grad;
+    std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape
 };
 } // namespace nn
 
