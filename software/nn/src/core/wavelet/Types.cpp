@@ -607,7 +607,7 @@ void init(const std::vector<std::string>& chosenWavelets = {})
     // If some specific wavelets are specified
     // get then and store in the accessible
     // variable "types"
-    if (chosenWavelets.size() > 0)
+    if (!chosenWavelets.empty())
     {
         // Clear previously selected wavelets
         types.clear();

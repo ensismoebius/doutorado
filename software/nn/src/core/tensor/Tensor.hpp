@@ -15,7 +15,8 @@ class Tensor
     explicit Tensor(const Eigen::MatrixXf& data);
     explicit Tensor(Eigen::MatrixXf&& data);
     Tensor(Eigen::Index rows, Eigen::Index cols);
-    Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4); // New 4D constructor
+    Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3,
+           Eigen::Index dim4);                               // New 4D constructor
     explicit Tensor(const std::vector<Eigen::Index>& shape); // New general N-D constructor
 
     // Getters for data and gradient
@@ -38,11 +39,11 @@ class Tensor
     [[nodiscard]] auto size() const -> Eigen::Index;
 
     // Element access for 2D and 4D tensors (new)
-    float& at(Eigen::Index row, Eigen::Index col);
-    const float& at(Eigen::Index row, Eigen::Index col) const;
-    float& at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4);
-    const float& at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const;
-
+    auto at(Eigen::Index row, Eigen::Index col) -> float&;
+    [[nodiscard]] auto at(Eigen::Index row, Eigen::Index col) const -> const float&;
+    auto at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) -> float&;
+    [[nodiscard]] auto at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const
+        -> const float&;
 
     // Conversion to std::vector
     template <typename vector_type>

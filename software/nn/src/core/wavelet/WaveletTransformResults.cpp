@@ -129,7 +129,7 @@ auto WaveletTransformResults::getWaveletPacketTransforms(long startIndex, long e
  * parts in a packet wavelet transform
  * @return maximum number of generated parts
  */
-auto WaveletTransformResults::getWaveletPacketAmountOfParts() -> long
+auto WaveletTransformResults::getWaveletPacketAmountOfParts() const -> long
 {
     // Checks if this is a wavelet transform
     if (!this->packet)
@@ -165,12 +165,12 @@ auto WaveletTransformResults::getWaveletPacketTransforms(std::vector<double> tra
     }
 
     // Calculate de size of the chuncks
-    int chunkSize = transformedSignal.size() /
-                    WaveletTransformResults::getWaveletPacketAmountOfParts(levelsOfTransformation);
+    long chunkSize = static_cast<long>(transformedSignal.size()) /
+                     WaveletTransformResults::getWaveletPacketAmountOfParts(levelsOfTransformation);
 
     // Get the ranges that must be returned
-    int sstart = partIndex * chunkSize;
-    int send = sstart + chunkSize;
+    long sstart = partIndex * chunkSize;
+    long send = sstart + chunkSize;
 
     // Returns the data
     return std::vector<double>(transformedSignal.begin() + sstart,

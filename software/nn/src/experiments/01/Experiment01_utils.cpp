@@ -54,7 +54,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     nn::Tensor power_spectrum;
 
     // Matriz do banco de filtros lineares.
-    nn::Tensor filterbank_local;                // Local variable for filterbank
+    nn::Tensor filterbank_local;            // Local variable for filterbank
     vector<float> center_frequencies_local; // Local variable for center_frequencies
 
     // Energias logarítmicas após aplicação do banco de filtros.
@@ -159,11 +159,10 @@ void processSubject(const SubjectInfo& subject)
 }
 
 // Extract MGDF cepstral from frames
-inline Eigen::VectorXd extract_mgdf_from_frame(
-    const Eigen::VectorXf& frame,
-    const LoadingAndProcessingParameters& lfc_p,
-    const AudioProcessingParams& mg_p,
-    const Eigen::MatrixXd& H)
+inline auto extract_mgdf_from_frame(const Eigen::VectorXf& frame,
+                                    const LoadingAndProcessingParameters& lfc_p,
+                                    const AudioProcessingParams& mg_p, const Eigen::MatrixXd& H)
+    -> Eigen::VectorXd
 {
     Eigen::VectorXd mgdf_cepstral;
     // TODO: Implement the actual logic for extracting MGDF cepstral.

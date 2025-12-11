@@ -68,7 +68,7 @@ class WaveletTransformResults
      * parts in a packet wavelet transform
      * @return maximum number of generated parts
      */
-    auto getWaveletPacketAmountOfParts() -> long;
+    auto getWaveletPacketAmountOfParts() const -> long;
 
     /**
      * Static version of @getWaveletPacketTransforms(long partIndex)

@@ -19,8 +19,14 @@ static void perform(const std::string& basePath)
         {
             string subjectPath = entry.path().string();
             string subjectName = entry.path().filename().string();
-            string audioFilePath = subjectPath + "/" + subjectName + "_Audio.mat";
-            string eegFilePath = subjectPath + "/" + subjectName + "_EEG.mat";
+            string audioFilePath = subjectPath;
+            audioFilePath += "/";
+            audioFilePath += subjectName;
+            audioFilePath += "_Audio.mat";
+            string eegFilePath = subjectPath;
+            eegFilePath += "/";
+            eegFilePath += subjectName;
+            eegFilePath += "_EEG.mat";
 
             if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
             {

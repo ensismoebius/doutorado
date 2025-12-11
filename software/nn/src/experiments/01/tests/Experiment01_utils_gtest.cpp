@@ -9,7 +9,7 @@
 using namespace nn::core::wave; // Use the namespace for moved functions
 
 // Helper function to create dummy LoadingAndProcessingParameters
-LoadingAndProcessingParameters createDummyLoadingParams()
+auto createDummyLoadingParams() -> LoadingAndProcessingParameters
 {
     AudioProcessingParams audio_params = {.target_sampling_rate = 16000,
                                           .preemphasis_coefficient = 0.97,
@@ -306,14 +306,19 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic)
     ASSERT_EQ(cepstral_coeff.get_data_ref().cols(), 5);
 
     // Check that values are not NaN or Inf
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
     for (int i = 0; i < cepstral_coeff.get_data_ref().rows(); ++i)
     {
         for (int j = 0; j < cepstral_coeff.get_data_ref().cols(); ++j)
         {
+            // NOLINTNEXTLINE(bugprone-use-of-uninitialized-value)
             ASSERT_FALSE(std::isnan(cepstral_coeff.get_data_ref()(i, j)));
+            // NOLINTNEXTLINE(bugprone-use-of-uninitialized-value)
             ASSERT_FALSE(std::isinf(cepstral_coeff.get_data_ref()(i, j)));
         }
     }
+#pragma GCC diagnostic pop
 }
 
 // Test for compute_deltas

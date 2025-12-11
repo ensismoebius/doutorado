@@ -14,7 +14,7 @@ class ImGuiApp
    public:
     ImGuiApp(const std::string& title, int width, int height);
     ~ImGuiApp();
-    bool initialize();
+    auto initialize() -> bool;
     void run(const std::function<void()>& uiCode);
 
    private:
@@ -25,8 +25,8 @@ class ImGuiApp
     const char* glsl_version = "#version 330";
 
     static void glfw_error_callback(int error, const char* description);
-    bool initializeGLFW();
-    bool initializeImGui();
+    auto initializeGLFW() -> bool;
+    auto initializeImGui() -> bool;
     void prepareFrame();
     void renderFrame();
     void shutdown();
