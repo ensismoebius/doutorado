@@ -5,27 +5,16 @@
 namespace nn
 {
 // Constructors
-Tensor::Tensor(const Eigen::MatrixXf& data) : m_data(data), m_shape({data.rows(), data.cols()}) {
-    m_grad.resize(m_data.rows(), m_data.cols());
-    m_grad.setZero();
-}
-Tensor::Tensor(Eigen::MatrixXf&& data) : m_data(std::move(data)), m_shape({m_data.rows(), m_data.cols()}) {
-    m_grad.resize(m_data.rows(), m_data.cols());
-    m_grad.setZero();
-}
-Tensor::Tensor(Eigen::Index rows, Eigen::Index cols) : m_data(rows, cols), m_shape({rows, cols}) {
-    m_grad.resize(m_data.rows(), m_data.cols());
-    m_grad.setZero();
-}
+Tensor::Tensor(const Eigen::MatrixXf& data) : m_data(data), m_grad(Eigen::MatrixXf::Zero(data.rows(), data.cols())), m_shape({data.rows(), data.cols()}) {}
+Tensor::Tensor(Eigen::MatrixXf&& data) : m_data(std::move(data)), m_grad(Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols())), m_shape({m_data.rows(), m_data.cols()}) {}
+Tensor::Tensor(Eigen::Index rows, Eigen::Index cols) : m_data(Eigen::MatrixXf::Zero(rows, cols)), m_grad(Eigen::MatrixXf::Zero(rows, cols)), m_shape({rows, cols}) {}
 
 Tensor::Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4)
     : m_shape({dim1, dim2, dim3, dim4})
 {
     Eigen::Index total_size = dim1 * dim2 * dim3 * dim4;
-    m_data.resize(total_size, 1); // Store as a flattened column vector
-    m_data.setZero();
-    m_grad.resize(m_data.rows(), m_data.cols());
-    m_grad.setZero();
+    m_data = Eigen::MatrixXf::Zero(total_size, 1);
+    m_grad = Eigen::MatrixXf::Zero(total_size, 1);
 }
 
 Tensor::Tensor(const std::vector<Eigen::Index>& shape) : m_shape(shape)
@@ -35,10 +24,8 @@ Tensor::Tensor(const std::vector<Eigen::Index>& shape) : m_shape(shape)
     {
         total_size *= dim;
     }
-    m_data.resize(total_size, 1);
-    m_data.setZero();
-    m_grad.resize(m_data.rows(), m_data.cols());
-    m_grad.setZero();
+    m_data = Eigen::MatrixXf::Zero(total_size, 1);
+    m_grad = Eigen::MatrixXf::Zero(total_size, 1);
 }
 
 // Getters for data and gradient
