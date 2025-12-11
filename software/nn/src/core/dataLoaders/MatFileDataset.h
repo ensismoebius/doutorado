@@ -21,7 +21,7 @@ class MatFileDataset : public TensorDataset
         nn::Tensor inputs(inputs_mat.value());
         nn::Tensor targets(targets_mat.value());
 
-        // This is a hack to call the base class constructor
-        new (this) TensorDataset(std::move(inputs), std::move(targets));
+        // Initialize base storage via the protected setter to avoid UB
+        set_tensors(std::move(inputs), std::move(targets));
     }
 };

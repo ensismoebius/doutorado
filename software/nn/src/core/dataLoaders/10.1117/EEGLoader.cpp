@@ -55,6 +55,34 @@ auto EEGLoader::readFirstNumericVariable() -> std::optional<MatVarUniquePtr>
     return std::nullopt;
 }
 
+auto EEGLoader::open(const std::string& filePath) noexcept -> bool
+{
+    filePath_ = filePath;
+    matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
+    return matFile_ != nullptr;
+}
+
+void EEGLoader::close() noexcept
+{
+    if (matFile_ != nullptr)
+    {
+        Mat_Close(matFile_);
+        matFile_ = nullptr;
+    }
+}
+
+auto EEGLoader::readVariable(const std::string& name)
+    -> std::unique_ptr<matvar_t, void (*)(matvar_t*)>
+{
+    if (matFile_ == nullptr)
+    {
+        return {nullptr, &Mat_VarFree};
+    }
+
+    matvar_t* var = Mat_VarRead(matFile_, name.c_str());
+    return {var, &Mat_VarFree};
+}
+
 auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<Eigen::MatrixXf, std::array<int, 3>>
 {
@@ -160,3 +188,7 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
 }
 
 } // namespace nn::dataLoaders
+
+// Provide out-of-line destructor definition so the vtable/typeinfo is emitted
+// (declared `~EEGLoader()` in the header with `override`).
+nn::dataLoaders::EEGLoader::~EEGLoader() = default;

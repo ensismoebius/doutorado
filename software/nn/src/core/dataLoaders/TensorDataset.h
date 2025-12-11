@@ -40,4 +40,11 @@ class TensorDataset : public Dataset
    private:
     nn::Tensor inputs_;
     nn::Tensor targets_;
+
+   protected:
+    void set_tensors(nn::Tensor inputs, nn::Tensor targets)
+    {
+        inputs_ = std::move(inputs);
+        targets_ = std::move(targets);
+    }
 };
