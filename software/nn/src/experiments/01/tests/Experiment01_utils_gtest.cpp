@@ -1,67 +1,58 @@
-#include "gtest/gtest.h"
-#include "core/wave/audioTypes.h" // Include the new audio types header
-#include "core/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
-#include "core/tensor/Tensor.hpp" // For Tensor
-#include <vector>
 #include <cmath>
-#include <numeric> // For std::iota
+#include <vector>
+
+#include "core/tensor/Tensor.hpp"             // For Tensor
+#include "core/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
+#include "core/wave/audioTypes.h"             // Include the new audio types header
+#include "gtest/gtest.h"
 
 using namespace nn::core::wave; // Use the namespace for moved functions
 
 // Helper function to create dummy LoadingAndProcessingParameters
-LoadingAndProcessingParameters createDummyLoadingParams() {
-    AudioProcessingParams audio_params = {
-        .target_sampling_rate = 16000,
-        .preemphasis_coefficient = 0.97,
-        .frame_duration_ms = 25.0,
-        .frame_shift_ms = 10.0,
-        .number_of_filters = 24,
-        .number_of_cepstrals = 19,
-        .delta_window_span = 2
-    };
+LoadingAndProcessingParameters createDummyLoadingParams()
+{
+    AudioProcessingParams audio_params = {.target_sampling_rate = 16000,
+                                          .preemphasis_coefficient = 0.97,
+                                          .frame_duration_ms = 25.0,
+                                          .frame_shift_ms = 10.0,
+                                          .number_of_filters = 24,
+                                          .number_of_cepstrals = 19,
+                                          .delta_window_span = 2};
 
-    HammingWindowConfig hamming_window_config = {
-        .alpha = 0.54F,
-        .beta = 0.46F
-    };
+    HammingWindowConfig hamming_window_config = {.alpha = 0.54F, .beta = 0.46F};
 
-    DctConfig dct_config = {
-        .normalization_factor_sqrt = 2.0F,
-        .filter_index_offset = 0.5F
-    };
+    DctConfig dct_config = {.normalization_factor_sqrt = 2.0F, .filter_index_offset = 0.5F};
 
-    DeltaConfig delta_config = {
-        .denominator_factor = 2.0F
-    };
+    DeltaConfig delta_config = {.denominator_factor = 2.0F};
 
     GeneralConstants constants = {
         .ms_to_seconds_factor = 1000.0F,
         .min_log_energy = 1e-12F,
         .default_sampling_rate = 16000, // Should match target_sampling_rate for consistency
-        .debug_frame_limit = 5
-    };
+        .debug_frame_limit = 5};
 
-    return {
-        .audio_params = audio_params,
-        .hamming_window_config = hamming_window_config,
-        .dct_config = dct_config,
-        .delta_config = delta_config,
-        .constants = constants
-    };
+    return {.audio_params = audio_params,
+            .hamming_window_config = hamming_window_config,
+            .dct_config = dct_config,
+            .delta_config = delta_config,
+            .constants = constants};
 }
 
 // Test fixture for common setup if needed
-class Experiment01UtilsTest : public ::testing::Test {
-protected:
+class Experiment01UtilsTest : public ::testing::Test
+{
+   protected:
     LoadingAndProcessingParameters dummy_loading_params;
 
-    void SetUp() override {
+    void SetUp() override
+    {
         dummy_loading_params = createDummyLoadingParams();
     }
 };
 
 // Test for pre_emphasis_inplace
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace) {
+TEST_F(Experiment01UtilsTest, PreEmphasisInplace)
+{
     std::vector<float> signal = {1.0F, 2.0F, 3.0F, 4.0F};
     float coefficient = 0.97F;
     pre_emphasis_inplace(signal, coefficient);
@@ -76,7 +67,8 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace) {
     ASSERT_NEAR(signal[3], 1.09F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient) {
+TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient)
+{
     std::vector<float> signal = {1.0F, 2.0F, 3.0F};
     float coefficient = 0.0F;
     pre_emphasis_inplace(signal, coefficient);
@@ -85,39 +77,39 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient) {
     ASSERT_EQ(signal[2], 3.0F);
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_EmptySignal) {
+TEST_F(Experiment01UtilsTest, PreEmphasisInplace_EmptySignal)
+{
     std::vector<float> signal = {};
     float coefficient = 0.97F;
     pre_emphasis_inplace(signal, coefficient);
     ASSERT_TRUE(signal.empty());
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_SingleElementSignal) {
+TEST_F(Experiment01UtilsTest, PreEmphasisInplace_SingleElementSignal)
+{
     std::vector<float> signal = {5.0F};
     float coefficient = 0.97F;
     pre_emphasis_inplace(signal, coefficient);
     ASSERT_EQ(signal[0], 5.0F); // First element should remain unchanged
 }
 
-
 // Test for framing_and_window
-TEST_F(Experiment01UtilsTest, FramingAndWindow_Basic) {
+TEST_F(Experiment01UtilsTest, FramingAndWindow_Basic)
+{
     std::vector<float> signal(100, 1.0F); // 100 samples, all 1.0
-    
+
     // Let's adjust dummy_loading_params for a smaller signal
     dummy_loading_params.audio_params.frame_duration_ms = 10.0; // 10ms -> 160 samples
-    dummy_loading_params.audio_params.frame_shift_ms = 5.0;    // 5ms -> 80 samples
+    dummy_loading_params.audio_params.frame_shift_ms = 5.0;     // 5ms -> 80 samples
 
-    FramingConfig framing_context = {
-        .frame_length = 0, // Will be calculated
-        .frame_step = 0,   // Will be calculated
-        .loading_params = dummy_loading_params
-    };
-    
+    FramingConfig framing_context = {.frame_length = 0, // Will be calculated
+                                     .frame_step = 0,   // Will be calculated
+                                     .loading_params = dummy_loading_params};
+
     auto frames = framing_and_window(signal, framing_context);
 
     int expected_frame_length = static_cast<int>(roundf(10.0 * 16000.0 / 1000.0)); // 160
-    int expected_frame_step = static_cast<int>(roundf(5.0 * 16000.0 / 1000.0));   // 80
+    int expected_frame_step = static_cast<int>(roundf(5.0 * 16000.0 / 1000.0));    // 80
 
     ASSERT_EQ(framing_context.frame_length, expected_frame_length);
     ASSERT_EQ(framing_context.frame_step, expected_frame_step);
@@ -137,27 +129,23 @@ TEST_F(Experiment01UtilsTest, FramingAndWindow_Basic) {
     ASSERT_NEAR(frames[0][expected_frame_length - 1], 0.0F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, FramingAndWindow_EmptySignal) {
+TEST_F(Experiment01UtilsTest, FramingAndWindow_EmptySignal)
+{
     std::vector<float> signal = {};
     FramingConfig framing_context = {
-        .frame_length = 0,
-        .frame_step = 0,
-        .loading_params = dummy_loading_params
-    };
+        .frame_length = 0, .frame_step = 0, .loading_params = dummy_loading_params};
     auto frames = framing_and_window(signal, framing_context);
     ASSERT_TRUE(frames.empty());
 }
 
-TEST_F(Experiment01UtilsTest, FramingAndWindow_MultipleFrames) {
-    std::vector<float> signal(500, 1.0F); // 500 samples, all 1.0
+TEST_F(Experiment01UtilsTest, FramingAndWindow_MultipleFrames)
+{
+    std::vector<float> signal(500, 1.0F);                       // 500 samples, all 1.0
     dummy_loading_params.audio_params.frame_duration_ms = 25.0; // 400 samples
     dummy_loading_params.audio_params.frame_shift_ms = 10.0;    // 160 samples
 
     FramingConfig framing_context = {
-        .frame_length = 0,
-        .frame_step = 0,
-        .loading_params = dummy_loading_params
-    };
+        .frame_length = 0, .frame_step = 0, .loading_params = dummy_loading_params};
 
     auto frames = framing_and_window(signal, framing_context);
 
@@ -175,14 +163,17 @@ TEST_F(Experiment01UtilsTest, FramingAndWindow_MultipleFrames) {
 }
 
 // Test for rfft_power
-TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave) {
+TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave)
+{
     // Test with a simple sine wave to verify FFT and power spectrum
     int sample_rate = 16000;
     float frequency = 1000.0F; // 1 kHz sine wave
     int fft_points = 512;
     std::vector<float> sine_wave(fft_points);
-    for (int i = 0; i < fft_points; ++i) {
-        sine_wave[i] = sinf(2 * std::numbers::pi_v<float> * frequency * i / sample_rate);
+    for (int i = 0; i < fft_points; ++i)
+    {
+        sine_wave[i] = sinf(2 * std::numbers::pi_v<float> * frequency * static_cast<float>(i) /
+                            static_cast<float>(sample_rate));
     }
 
     std::vector<std::vector<float>> frames = {sine_wave};
@@ -193,28 +184,35 @@ TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave) {
 
     // Expect a peak at the corresponding frequency bin
     // Frequency bin = frequency * fft_points / sample_rate
-    int expected_bin = static_cast<int>(roundf(frequency * fft_points / sample_rate));
+    int expected_bin = static_cast<int>(
+        roundf(frequency * static_cast<float>(fft_points) / static_cast<float>(sample_rate)));
     // Check that the expected bin has a high value, and others are low
-    for (int i = 0; i < power_spectrum.get_data_ref().cols(); ++i) {
-        if (i == expected_bin) {
+    for (int i = 0; i < power_spectrum.get_data_ref().cols(); ++i)
+    {
+        if (i == expected_bin)
+        {
             ASSERT_GT(power_spectrum.get_data_ref()(0, i), 0.1F); // Should be a significant peak
-        } else {
+        }
+        else
+        {
             // Allow some leakage, but generally much lower
             ASSERT_LT(power_spectrum.get_data_ref()(0, i), 0.01F);
         }
     }
 }
 
-TEST_F(Experiment01UtilsTest, RFFTPower_EmptyFrames) {
+TEST_F(Experiment01UtilsTest, RFFTPower_EmptyFrames)
+{
     std::vector<std::vector<float>> frames = {};
     int fft_points = 512;
     ASSERT_THROW(rfft_power(frames, fft_points), std::invalid_argument);
 }
 
 // Test for build_linear_filterbank
-TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic) {
+TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic)
+{
     int fft_points = 512;
-    nn::Tensor filterbank_test; // Declare local Tensor
+    nn::Tensor filterbank_test;                 // Declare local Tensor
     std::vector<float> center_frequencies_test; // Declare local vector
 
     LoadingAndProcessingParameters custom_loading_params = dummy_loading_params;
@@ -222,11 +220,9 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic) {
     custom_loading_params.audio_params.target_sampling_rate = 16000;
     custom_loading_params.constants.default_sampling_rate = 16000;
 
-    FilterbankConfig filterbank_context = {
-        .filterbank = filterbank_test,
-        .center_frequencies = center_frequencies_test,
-        .loading_params = custom_loading_params
-    };
+    FilterbankConfig filterbank_context = {.filterbank = filterbank_test,
+                                           .center_frequencies = center_frequencies_test,
+                                           .loading_params = custom_loading_params};
 
     build_linear_filterbank(fft_points, filterbank_context);
 
@@ -235,28 +231,32 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic) {
 
     // Check some properties of the filterbank
     // The sum of values in each filter should be positive
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i)
+    {
         float sum = 0.0F;
-        for (int j = 0; j < (fft_points / 2) + 1; ++j) {
+        for (int j = 0; j < (fft_points / 2) + 1; ++j)
+        {
             sum += filterbank_test.get_data_ref()(i, j);
         }
         ASSERT_GT(sum, 0.0F);
     }
 
     // Check that center frequencies are increasing
-    for (size_t i = 0; i < center_frequencies_test.size() - 1; ++i) {
-        ASSERT_LT(center_frequencies_test[i], center_frequencies_test[i+1]);
+    for (size_t i = 0; i < center_frequencies_test.size() - 1; ++i)
+    {
+        ASSERT_LT(center_frequencies_test[i], center_frequencies_test[i + 1]);
     }
 }
 
 // Test for dot_power_filterbank
-TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
+TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic)
+{
     // Create a dummy power spectrum (e.g., all 1.0)
     nn::Tensor power_spectrum(2, 257); // 2 frames, 257 bins (for fft_points = 512)
     power_spectrum.get_data_ref().setConstant(1.0F);
 
     // Create a dummy filterbank (e.g., a simple triangular filter)
-    nn::Tensor filterbank_test; // Declare local Tensor
+    nn::Tensor filterbank_test;                 // Declare local Tensor
     std::vector<float> center_frequencies_test; // Declare local vector
 
     LoadingAndProcessingParameters custom_loading_params = dummy_loading_params;
@@ -264,17 +264,13 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
     custom_loading_params.audio_params.target_sampling_rate = 16000;
     custom_loading_params.constants.default_sampling_rate = 16000;
 
-    FilterbankConfig filterbank_context = {
-        .filterbank = filterbank_test,
-        .center_frequencies = center_frequencies_test,
-        .loading_params = custom_loading_params
-    };
+    FilterbankConfig filterbank_context = {.filterbank = filterbank_test,
+                                           .center_frequencies = center_frequencies_test,
+                                           .loading_params = custom_loading_params};
     build_linear_filterbank(512, filterbank_context); // Build a real filterbank
 
-    PowerFilterbankConfig power_filterbank_context = {
-        .filterbank = filterbank_test,
-        .loading_params = custom_loading_params
-    };
+    PowerFilterbankConfig power_filterbank_context = {.filterbank = filterbank_test,
+                                                      .loading_params = custom_loading_params};
 
     nn::Tensor log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
 
@@ -283,15 +279,20 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic) {
 
     // Since power_spectrum is all 1.0, log_energies should be log(sum of filterbank values)
     // The sum of filterbank values will be positive, so log_energies should be positive
-    for (int i = 0; i < log_energies.get_data_ref().rows(); ++i) {
-        for (int j = 0; j < log_energies.get_data_ref().cols(); ++j) {
-            ASSERT_GT(log_energies.get_data_ref()(i, j), logf(dummy_loading_params.constants.min_log_energy) - 1.0); // Should be greater than min_log_energy after log
+    for (int i = 0; i < log_energies.get_data_ref().rows(); ++i)
+    {
+        for (int j = 0; j < log_energies.get_data_ref().cols(); ++j)
+        {
+            ASSERT_GT(log_energies.get_data_ref()(i, j),
+                      logf(dummy_loading_params.constants.min_log_energy) -
+                          1.0); // Should be greater than min_log_energy after log
         }
     }
 }
 
 // Test for dct2
-TEST_F(Experiment01UtilsTest, DCT2_Basic) {
+TEST_F(Experiment01UtilsTest, DCT2_Basic)
+{
     // Create dummy log energies
     nn::Tensor log_energies(2, 10); // 2 frames, 10 filter energies
     log_energies.get_data_ref().setConstant(1.0F);
@@ -305,8 +306,10 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic) {
     ASSERT_EQ(cepstral_coeff.get_data_ref().cols(), 5);
 
     // Check that values are not NaN or Inf
-    for (int i = 0; i < cepstral_coeff.get_data_ref().rows(); ++i) {
-        for (int j = 0; j < cepstral_coeff.get_data_ref().cols(); ++j) {
+    for (int i = 0; i < cepstral_coeff.get_data_ref().rows(); ++i)
+    {
+        for (int j = 0; j < cepstral_coeff.get_data_ref().cols(); ++j)
+        {
             ASSERT_FALSE(std::isnan(cepstral_coeff.get_data_ref()(i, j)));
             ASSERT_FALSE(std::isinf(cepstral_coeff.get_data_ref()(i, j)));
         }
@@ -314,14 +317,12 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic) {
 }
 
 // Test for compute_deltas
-TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic) {
+TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
+{
     // Create a simple feature matrix
     nn::Tensor features(5, 3); // 5 frames, 3 features
-    features.get_data_ref() << 1.0F, 2.0F, 3.0F,
-                               4.0F, 5.0F, 6.0F,
-                               7.0F, 8.0F, 9.0F,
-                               10.0F, 11.0F, 12.0F,
-                               13.0F, 14.0F, 15.0F;
+    features.get_data_ref() << 1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F, 10.0F, 11.0F,
+        12.0F, 13.0F, 14.0F, 15.0F;
 
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1; // Simple delta calculation
@@ -348,7 +349,8 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic) {
     ASSERT_NEAR(delta_features.get_data_ref()(1, 2), 3.0F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures) {
+TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures)
+{
     nn::Tensor features(0, 3);
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1;

@@ -12,4 +12,4 @@ CompileFlags:
     - --gcc-toolchain=/usr
 
 Index:
-  Background: true
+  Background: Build

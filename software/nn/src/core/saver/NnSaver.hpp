@@ -1,8 +1,9 @@
+#include <Eigen/Core>
 #include <span>
 #include <string>
 
+#include "../tensor/Tensor.hpp"
 #include "cnpy.h"
-#include "tensor/Tensor.hpp"
 
 struct NnSaver
 {

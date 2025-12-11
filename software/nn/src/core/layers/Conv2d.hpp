@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Module.hpp"
 #include "../tensor/Tensor.hpp"
+#include "Module.hpp"
 
 class Conv2d : public Module
 {
@@ -10,7 +10,8 @@ class Conv2d : public Module
         : in_channels_(in_channels),
           out_channels_(out_channels),
           kernel_size_(kernel_size),
-          weights_(nn::Tensor(kernel_size * kernel_size * in_channels, out_channels)),
+          weights_(nn::Tensor(static_cast<Eigen::Index>(kernel_size) * kernel_size * in_channels,
+                              out_channels)),
           bias_(nn::Tensor(1, out_channels))
     {
         // Initialize weights and bias
@@ -21,9 +22,9 @@ class Conv2d : public Module
         // Naive implementation of 2D convolution
         // Input shape: (batch_size, in_channels, input_height, input_width)
         // Output shape: (batch_size, out_channels, output_height, output_width)
-        const int batch_size = input.get_shape()[0];
-        const int input_height = input.get_shape()[2];
-        const int input_width = input.get_shape()[3];
+        const auto batch_size = static_cast<int>(input.get_shape()[0]);
+        const auto input_height = static_cast<int>(input.get_shape()[2]);
+        const auto input_width = static_cast<int>(input.get_shape()[3]);
         const int output_height = input_height - kernel_size_ + 1;
         const int output_width = input_width - kernel_size_ + 1;
 
@@ -48,10 +49,9 @@ class Conv2d : public Module
                                 for (int kx = 0; kx < kernel_size_; ++kx) [[likely]]
                                 {
                                     sum += input.at(b, ic, oy + ky, ox + kx) *
-                                           weights_.at(
-                                               ky * kernel_size_ + kx +
-                                                   ic * kernel_size_ * kernel_size_,
-                                               oc);
+                                           weights_.at((ky * kernel_size_) + kx +
+                                                           (ic * kernel_size_ * kernel_size_),
+                                                       oc);
                                 }
                             }
                         }
@@ -69,9 +69,9 @@ class Conv2d : public Module
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
         // shapes
-        const int batch_size = input_cache_.get_shape()[0];
-        const int input_height = input_cache_.get_shape()[2];
-        const int input_width = input_cache_.get_shape()[3];
+        const auto batch_size = static_cast<int>(input_cache_.get_shape()[0]);
+        const auto input_height = static_cast<int>(input_cache_.get_shape()[2]);
+        const auto input_width = static_cast<int>(input_cache_.get_shape()[3]);
         const int output_height = input_height - kernel_size_ + 1;
         const int output_width = input_width - kernel_size_ + 1;
 
@@ -105,13 +105,12 @@ class Conv2d : public Module
                                     int in_x = ox + kx;
                                     float inp = input_cache_.at(b, ic, in_y, in_x);
                                     // weight grad index
-                                    int wrow =
-                                        ky * kernel_size_ + kx + ic * kernel_size_ * kernel_size_;
+                                    int wrow = (ky * kernel_size_) + kx +
+                                               (ic * kernel_size_ * kernel_size_);
                                     weights_.get_grad_ref()(wrow, oc) += inp * go;
 
                                     // input grad
-                                    grad_input.at(b, ic, in_y, in_x) +=
-                                        weights_.at(wrow, oc) * go;
+                                    grad_input.at(b, ic, in_y, in_x) += weights_.at(wrow, oc) * go;
                                 }
                             }
                         }
@@ -124,14 +123,32 @@ class Conv2d : public Module
     }
 
     // Public getters for weights and bias
-    const nn::Tensor& get_weights() const { return weights_; }
-    nn::Tensor& get_weights() { return weights_; }
-    const nn::Tensor& get_bias() const { return bias_; }
-    nn::Tensor& get_bias() { return bias_; }
+    const nn::Tensor& get_weights() const
+    {
+        return weights_;
+    }
+    nn::Tensor& get_weights()
+    {
+        return weights_;
+    }
+    const nn::Tensor& get_bias() const
+    {
+        return bias_;
+    }
+    nn::Tensor& get_bias()
+    {
+        return bias_;
+    }
 
     // Public setters for weights and bias
-    void set_weights(const nn::Tensor& weights) { weights_ = weights; }
-    void set_bias(const nn::Tensor& bias) { bias_ = bias; }
+    void set_weights(const nn::Tensor& weights)
+    {
+        weights_ = weights;
+    }
+    void set_bias(const nn::Tensor& bias)
+    {
+        bias_ = bias;
+    }
 
    private:
     int in_channels_;

@@ -18,8 +18,10 @@ class Windowing
             return windows;
         }
 
-        int window_size_samples = static_cast<int>(window_size_sec * sampling_rate);
-        int overlap_samples = static_cast<int>(window_size_samples * overlap_ratio);
+        int window_size_samples =
+            static_cast<int>(window_size_sec * static_cast<double>(sampling_rate));
+        int overlap_samples =
+            static_cast<int>(static_cast<double>(window_size_samples) * overlap_ratio);
         int step_size_samples = window_size_samples - overlap_samples;
 
         if (window_size_samples <= 0 || step_size_samples <= 0)

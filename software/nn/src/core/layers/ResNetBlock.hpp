@@ -35,8 +35,8 @@ class ResNetBlock : public Module
             const auto& in_mat = input.get_data_ref();
             const auto& out_mat = output.get_data_ref();
 
-            const int rows_copy = std::min<int>(in_mat.rows(), aligned.rows());
-            const int cols_copy = std::min<int>(in_mat.cols(), aligned.cols());
+            const auto rows_copy = static_cast<int>(std::min(in_mat.rows(), aligned.rows()));
+            const auto cols_copy = static_cast<int>(std::min(in_mat.cols(), aligned.cols()));
 
             aligned.block(0, 0, rows_copy, cols_copy) = in_mat.block(0, 0, rows_copy, cols_copy);
             output.get_data_ref() = out_mat + aligned;

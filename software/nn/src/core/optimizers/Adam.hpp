@@ -1,5 +1,4 @@
-#include <Eigen/src/Core/Matrix.h>
-
+#include <Eigen/Core>
 #include <span>
 
 #include "../tensor/Tensor.hpp"
