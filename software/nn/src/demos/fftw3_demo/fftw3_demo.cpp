@@ -7,24 +7,30 @@
 #include "core/tensor/Tensor.hpp"
 #include "matplotlibcpp.h"
 
+using std::vector;
+
 namespace plt = matplotlibcpp;
 
 // Helper function to convert Eigen::MatrixXf to std::vector<float>
 auto eigenMatrixToVector(const Eigen::MatrixXf& matrix) -> std::vector<float>
 {
-    std::vector<float> vec(matrix.data(), matrix.data() + matrix.size());
-    return vec;
+    return vector<float>{matrix.data(), matrix.data() + matrix.size()};
 }
 
 // Function to generate the sample signal
-auto generateSignal(double freq1, double freq2, double sample_rate, size_t duration_seconds, int& signal_length_out) -> double*
+auto generateSignal(float freq1, float freq2, size_t sample_rate, size_t duration_seconds,
+                    int& signal_length_out) -> double*
 {
     signal_length_out = static_cast<int>(duration_seconds * sample_rate);
-    double* in = static_cast<double*>(fftw_malloc(sizeof(double) * signal_length_out));
+
+    auto* in = static_cast<double*>(fftw_malloc(sizeof(double) * signal_length_out));
+
     for (int n = 0; n < signal_length_out; n++)
     {
-        in[n] = (0.7 * sin((2.0 * M_PI * freq1 * n) / sample_rate)) +
-                (0.3 * sin((2.0 * M_PI * freq2 * n) / sample_rate));
+        in[n] = (0.7 * sinf((2.0F * M_PIf * freq1 * static_cast<float>(n)) /
+                            static_cast<float>(sample_rate))) +
+                (0.3 * sinf((2.0F * M_PIf * freq2 * static_cast<float>(n)) /
+                            static_cast<float>(sample_rate)));
     }
     return in;
 }
@@ -32,7 +38,8 @@ auto generateSignal(double freq1, double freq2, double sample_rate, size_t durat
 // Function to execute FFT
 auto executeFFT(int signal_length, double* in, fftw_complex*& out_fftw) -> fftw_plan
 {
-    out_fftw = static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * (signal_length / 2 + 1)));
+    out_fftw =
+        static_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex) * (signal_length / 2 + 1)));
     fftw_plan p = fftw_plan_dft_r2c_1d(signal_length, in, out_fftw, FFTW_ESTIMATE);
     fftw_execute(p);
     return p;
@@ -65,9 +72,9 @@ auto main() -> int
 {
     // Signal Generation
     const size_t duration_seconds = 4;
-    const double sample_rate = 1024.0;
-    const double freq1 = 10.0;
-    const double freq2 = 40.0;
+    const size_t sample_rate = 1024;
+    const float freq1 = 10.0;
+    const float freq2 = 40.0;
     int signal_length;
 
     double* in = generateSignal(freq1, freq2, sample_rate, duration_seconds, signal_length);
