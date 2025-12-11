@@ -1,6 +1,8 @@
 # VendorFFTW.cmake
 # Configure vendored lib/fftw presence and make FFTW::FFTW available
 
+option(USE_FFTWF "Use single-precision FFTW (fftw3f) instead of double-precision (fftw3)" OFF)
+
 include(ExternalProject)
 
 # Find OpenMP before FFTW so FFTW can use it
@@ -52,7 +54,7 @@ if(NOT FFTW_LIBRARY OR NOT FFTW_INCLUDE_DIR)
     )
 
     set_target_properties(FFTW::FFTW PROPERTIES
-        IMPORTED_LOCATION "${FFTW_INSTALL_DIR}/lib/libfftw3.so"
+        IMPORTED_LOCATION "$<IF:$<BOOL:${USE_FFTWF}>,${FFTW_INSTALL_DIR}/lib/libfftw3f.so,${FFTW_INSTALL_DIR}/lib/libfftw3.so>"
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include"
     )
@@ -60,8 +62,20 @@ if(NOT FFTW_LIBRARY OR NOT FFTW_INCLUDE_DIR)
     add_dependencies(FFTW::FFTW fftw_build)
 else()
     message(STATUS "Found pre-built FFTW at: ${FFTW_LIBRARY}")
+    # Determine the correct library to link based on USE_FFTWF
+    if(USE_FFTWF)
+        set(FFTW_SPECIFIC_LIBRARY_NAME "fftw3f")
+    else()
+        set(FFTW_SPECIFIC_LIBRARY_NAME "fftw3")
+    endif()
+
+    find_library(FFTW_LIBRARY_ACTUAL "${FFTW_SPECIFIC_LIBRARY_NAME}" HINTS "${FFTW_INSTALL_DIR}/lib" "${FFTW_INSTALL_DIR}/lib64")
+    if(NOT FFTW_LIBRARY_ACTUAL)
+        message(FATAL_ERROR "Could not find FFTW library for ${FFTW_SPECIFIC_LIBRARY_NAME}")
+    endif()
+
     set_target_properties(FFTW::FFTW PROPERTIES
-        IMPORTED_LOCATION "${FFTW_LIBRARY}"
+        IMPORTED_LOCATION "${FFTW_LIBRARY_ACTUAL}"
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}"
     )

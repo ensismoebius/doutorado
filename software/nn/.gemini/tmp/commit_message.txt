@@ -1,0 +1,10 @@
+Refactor: Embed eigenMatrixToVector into nn::Tensor class
+
+This commit embeds the previously standalone `eigenMatrixToVector` helper function directly into the `nn::Tensor` class as a member function named `toVector()`. This improves encapsulation and makes the conversion more intuitive and accessible for `nn::Tensor` objects.
+
+Key changes include:
+- Removed the `eigenMatrixToVector` standalone function definition from `fftw3_demo.cpp`.
+- Declared a new public member function `toVector() const -> std::vector<float>` in `src/core/tensor/Tensor.hpp`.
+- Implemented the `toVector()` member function in `src/core/tensor/Tensor.cpp`, which converts the internal `Eigen::MatrixXf` data to a `std::vector<float>`.
+- Updated `fftw3_demo.cpp` to call `tensor_object.toVector()` instead of the global `eigenMatrixToVector` function.
+- Confirmed that all changes did not introduce any regressions, and the project remains functional and passes all tests.
