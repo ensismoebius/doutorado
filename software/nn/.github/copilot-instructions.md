@@ -699,3 +699,19 @@ dataset:
   6. Review the entire change for consistency and correctness.
   7. Update `copilot-instructions.md` if public API changes.
   8. Update `CHANGELOG.md` with semantic versioning.
+
+---
+
+# 25 Configuration and Manifest Files
+
+This section provides references to key configuration files that define the tools and skills available in the development environment.
+
+## 25.1 Tools Manifest
+
+- **File:** `.github/tools_manifest.json`
+- **Purpose:** Lists all available command-line tools, their versions, and usage notes. This file is the canonical reference for what tools can be executed in the environment.
+
+## 25.2 Claude Skills
+
+- **File:** `.github/claude-skills.yaml`
+- **Purpose:** Defines a set of higher-level "skills" or "recipes" that can be invoked. These skills are composed of one or more command-line tools and are designed to automate common development tasks.

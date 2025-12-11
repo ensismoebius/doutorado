@@ -1,171 +1,521 @@
-name: doutorado-repo-skill
-version: 1.0
-description: |
-  Claude skill describing the doutorado C++ research repository.
-  Provides build/test commands, important paths, constraints, coding and
-  modification policies tailored to the project.
+# claude-skills.yaml
+# Integrated skills: General CLI tools + Doutorado Repository Project
+# Skills are grouped by functionality and priority
 
-owner: ensismoebius
-root: .
-os: linux
-primary_language: cpp
-cpp_standard: c++20
-build_system: cmake
+skills:
+  # ============ PROJECT-SPECIFIC SKILLS (Doutorado Repo) - Highest Priority ============
+  - name: get_project_info
+    description: Provides essential metadata and configuration for the doutorado C++ research repository.
+    tags: [project, info, doutorado]
+    input_schema:
+      type: object
+      properties:
+        detail_level:
+          type: string
+          enum: [basic, full]
+          default: basic
+      required: []
+    output_schema:
+      type: object
+      properties:
+        name: { type: string, const: "doutorado" }
+        description: { type: string }
+        owner: { type: string, const: "ensismoebius" }
+        primary_language: { type: string, const: "cpp" }
+        cpp_standard: { type: string, const: "c++20" }
+        build_system: { type: string, const: "cmake" }
+        environment:
+          type: object
+          properties:
+            CMAKE_GENERATOR: { type: string }
+            OMP_NUM_THREADS: { type: string }
+        constraints: { type: array, items: { type: string } }
 
-environment:
-  - CMAKE_GENERATOR: Ninja (build/ uses Ninja by default in this workspace)
-  - OMP_NUM_THREADS: recommended to control OpenMP for reproducibility
+  - name: configure_doutorado_project
+    description: Configures the doutorado CMake project for the specified build type.
+    tags: [project, build, doutorado, cmake]
+    input_schema:
+      type: object
+      properties:
+        build_type:
+          type: string
+          enum: [Debug, Release, RelWithDebInfo, MinSizeRel]
+          default: "Debug"
+        build_dir: { type: string, default: "build" }
+        extra_args: { type: array, items: { type: string } }
+      required: []
+    examples:
+      - user_query: "Configure the doutorado project for debugging"
+        skill_call:
+          name: configure_doutorado_project
+          parameters: { build_type: "Debug" }
 
-important_paths:
-  - CMakeLists.txt
-  - src/
-  - cmake/
-  - build/
-  - lib/
-  - .github/copilot-instructions.md
+  - name: build_doutorado_project
+    description: Builds the doutorado project using Ninja.
+    tags: [project, build, doutorado, ninja]
+    input_schema:
+      type: object
+      properties:
+        build_dir: { type: string, default: "build" }
+        target: { type: string }
+        jobs: { type: integer }
+      required: []
 
-common_commands:
-  configure: "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release"
-  build: "cmake --build build -- -j$(nproc)"
-  test: "ctest --test-dir build --output-on-failure -j4"
-  format_check: "clang-format --version && git diff --exit-code"
-  unit_tests: "ctest -j4 --test-dir build --output-on-failure"
+  - name: test_doutorado_project
+    description: Executes the doutorado project's test suite using CTest.
+    tags: [project, test, doutorado, ctest]
+    input_schema:
+      type: object
+      properties:
+        build_dir: { type: string, default: "build" }
+        test_filter: { type: string }
+        output_on_failure: { type: boolean, default: true }
+        parallel_jobs: { type: integer, default: 4 }
+      required: []
 
-allowed_actions:
-  edit_files: true
-  add_files: true
-  run_local_build_and_tests: true
-  run_linters: true
-  run_unit_tests: true
-  commit_changes: false # require user confirmation for commits
+  - name: get_doutorado_guidelines
+    description: Retrieves C++ coding guidelines and constraints for the doutorado repository.
+    tags: [project, guidelines, doutorado]
+    input_schema: { type: object, properties: {} }
+    output_schema:
+      type: object
+      properties:
+        guidelines: { type: array, items: { type: string } }
+        constraints: { type: array, items: { type: string } }
 
-constraints_and_policies:
-  - "Do not change public APIs without updating .github/copilot-instructions.md and CHANGELOG.md"
-  - "Avoid network downloads or modifying CI to fetch new remote artifacts during runs"
-  - "Do not introduce secrets or credentials in repository files"
-  - "Keep changes minimal and focused; prefer small diffs that build and test"
+  # ============ CORE FILE OPERATIONS ============
+  - name: read_file
+    description: Reads and returns the entire content of a text file.
+    tags: [file, system, core]
+    input_schema:
+      type: object
+      properties:
+        file_path: { type: string }
+      required: [file_path]
+    output_schema:
+      type: object
+      properties:
+        content: { type: string }
+        error: { type: string }
 
-coding_guidelines:
-  - "Follow .clang-format and .clang-tidy conventions present in repo"
-  - "Prefer Eigen::Map, noalias(), and explicit OpenMP controls for performance"
-  - "Use C++20 idioms consistent with existing codebase"
+  - name: write_file
+    description: Writes content to a file, creating or overwriting it.
+    tags: [file, system, core]
+    input_schema:
+      type: object
+      properties:
+        file_path: { type: string }
+        content: { type: string }
+        append: { type: boolean, default: false }
+      required: [file_path, content]
 
-testing_and_ci:
-  - "Run `configure`, `build`, then `test` commands after changes"
-  - "If adding public API changes, include/update unit tests under src/.../tests"
+  - name: execute_shell
+    description: Executes a shell command and returns output.
+    tags: [system, core, command]
+    input_schema:
+      type: object
+      properties:
+        command: { type: string }
+        args: { type: array, items: { type: string } }
+        timeout: { type: integer, default: 30 }
+      required: [command]
 
-references:
-  copilot_instructions: .github/copilot-instructions.md
-  readme: README.md
-  dev_setup_guide: docs/dev-setup.md
+  # ============ VERSION CONTROL ============
+  - name: execute_git
+    description: Executes Git commands in a repository.
+    tags: [vcs, git, development]
+    input_schema:
+      type: object
+      properties:
+        repo_path: { type: string, default: "." }
+        command: { type: array, items: { type: string } }
+      required: [command]
 
-tools_manifest: .github/tools_manifest.json
-available_tools:
-  - git
-  - curl
-  - wget
-  - jq
-  - sqlite3
-  - mysql
-  - ffmpeg
-  - ffprobe
-  - sox
-  - identify
-  - convert
-  - tesseract
-  - python3
-  - node
-  - npm
-  - java
-  - javac
-  - go
-  - rustc
-  - gcc
-  - clang
-  - cmake
-  - make
-  - ninja
-  - ssh
-  - scp
-  - rsync
-  - sftp
-  - socat
-  - ncat
-  - nmap
-  - shellcheck
-  - valgrind
-  - ccache
-  - git-lfs
+  # ============ CODE ANALYSIS & QUALITY ============
+  - name: analyze_cppcheck
+    description: Static analysis for C/C++ code. Finds bugs, undefined behavior, and style issues.
+    tags: [analysis, c++, security]
+    input_schema:
+      type: object
+      properties:
+        path: { type: string }
+        enable:
+          {
+            type: string,
+            default: "warning",
+            enum:
+              [
+                "warning",
+                "style",
+                "performance",
+                "portability",
+                "information",
+                "all",
+              ],
+          }
+        output_file: { type: string }
+      required: [path]
 
-tool_details_note: "See .github/tools_manifest.json for full descriptions, sample invocations, and installed versions."
+  - name: analyze_flawfinder
+    description: Scans C/C++ source code for security flaws.
+    tags: [analysis, c++, security]
+    input_schema:
+      type: object
+      properties:
+        source_path: { type: string }
+        minlevel: { type: integer, default: 1, minimum: 0, maximum: 5 }
+        html: { type: boolean, default: false }
+      required: [source_path]
 
-recommendations:
-  system:
-    - "Use pacman with an AUR helper (yay) for reproducible package management"
-    - "Tune CPU governor and swappiness for long-running experiments; disable aggressive sleep"
-    - "Enable core dumps and increase ulimits for debugging: ulimit -c unlimited"
+  - name: run_clang_tidy
+    description: Runs clang-tidy static analysis on codebase.
+    tags: [analysis, c++, linting]
+    input_schema:
+      type: object
+      properties:
+        build_dir: { type: string, default: "build" }
+        files: { type: array, items: { type: string } }
+        checks: { type: string, default: "" }
+      required: []
 
-  development_toolchain:
-    - "Install gcc, clang, cmake, ninja, make; use ccache and distcc for faster incremental builds"
-    - "Add linters: clang-tidy, cppcheck, shfmt; integrate with pre-commit hooks"
-    - "Set up debugging: gdb, lldb, valgrind, perf for profiling and memory analysis"
-    - "Enable ASAN/UBSAN in Debug builds to catch memory and undefined behavior bugs"
+  # ============ COMPILERS & BUILD SYSTEMS ============
+  - name: compile_cpp_gcc
+    description: Compiles C/C++ source code using GCC.
+    tags: [compiler, c++, build]
+    input_schema:
+      type: object
+      properties:
+        source_files: { type: array, items: { type: string } }
+        output_name: { type: string }
+        options:
+          {
+            type: array,
+            items: { type: string },
+            default: ["-Wall", "-std=c++20"],
+          }
+      required: [source_files]
 
-  research_and_reproducibility:
-    - "Use venv for isolated Python environments; pin exact versions"
-    - "Adopt docker or apptainer (Singularity) for portable, reproducible compute environments"
-    - "Track experiments with MLflow, sacred, or wandb; always save random seeds and hyperparameters"
-    - "Version large datasets with git-lfs or dvc; store checksums and acquisition metadata"
+  - name: compile_cpp_clang
+    description: Compiles code using Clang/LLVM.
+    tags: [compiler, c++, build]
+    input_schema:
+      type: object
+      properties:
+        source_files: { type: array, items: { type: string } }
+        output_name: { type: string }
+        options:
+          {
+            type: array,
+            items: { type: string },
+            default: ["-Wall", "-std=c++20"],
+          }
+      required: [source_files]
 
-  libraries_and_performance:
-    - "Compile Eigen with OpenMP support (already vendored); use Eigen::Map and noalias() throughout"
-    - "Build FFTW3 with --enable-threads and --enable-openmp (already configured)"
-    - "Consider MPI (mpich/openmpi) for distributed-memory parallelism"
-    - "If using GPU: install CUDA, cuDNN, and test with nvidia-smi"
+  - name: run_cmake
+    description: Runs CMake build system commands.
+    tags: [build, cmake, cross-platform]
+    input_schema:
+      type: object
+      properties:
+        command:
+          {
+            type: string,
+            enum: ["configure", "build", "install", "test"],
+            default: "build",
+          }
+        build_dir: { type: string, default: "build" }
+        source_dir: { type: string, default: "." }
+        options: { type: array, items: { type: string } }
+      required: []
 
-  testing_and_ci:
-    - "Write unit tests in GoogleTest; verify with ctest; enforce 100% pass rate in CI"
-    - "Use GitHub Actions with dependency caching; pin compiler/toolchain versions"
-    - "Build release binaries in Docker to ensure reproducibility across systems"
-    - "Maintain compile_commands.json for static analysis and IDE integration"
+  - name: run_make
+    description: Runs Make build commands.
+    tags: [build, make]
+    input_schema:
+      type: object
+      properties:
+        target: { type: string, default: "all" }
+        directory: { type: string, default: "." }
+        jobs: { type: integer }
+      required: []
 
-  productivity:
-    - "Editor: VS Code (clangd + CMake Tools) or Neovim + LSP; always use compile_commands.json"
-    - "Remote work: ssh, tmux/screen, mosh for robust long-running session management"
-    - "Notebook analysis: JupyterLab with C++ kernel (xeus-cling) for exploratory work"
-    - "Docs: Sphinx/Doxygen for API; Pandoc for LaTeX/Markdown conversion"
+  - name: run_ninja
+    description: Runs Ninja build commands.
+    tags: [build, ninja, fast]
+    input_schema:
+      type: object
+      properties:
+        target: { type: string, default: "all" }
+        directory: { type: string, default: "." }
+      required: []
 
-  data_and_visualization:
-    - "Python stack: numpy, scipy, matplotlib, seaborn, pandas, scikit-learn in isolated venv"
-    - "For C++ rendering: use matplotlib-cpp (already vendored) or export data for Python plotting"
-    - "Always version figure-generation scripts; never edit plots manually"
+  # ============ HTTP & DATA TRANSFER ============
+  - name: fetch_curl
+    description: Transfers data with URL syntax (HTTP, HTTPS, FTP, etc.).
+    tags: [web, http, data]
+    input_schema:
+      type: object
+      properties:
+        url: { type: string }
+        method: { type: string, default: "GET" }
+        headers: { type: object }
+        data: { type: string }
+        output_file: { type: string }
+      required: [url]
 
-  security_and_backup:
-    - "Use ed25519 SSH keys; enable ssh-agent only when necessary"
-    - "Store secrets in OS keyring (pass/gpg); never commit credentials"
-    - "Automated backups via borg or restic; snapshot important datasets weekly"
-    - "Enable 2FA on GitHub, cloud services, and critical accounts"
+  - name: fetch_wget
+    description: Non-interactive network downloader.
+    tags: [web, http, download]
+    input_schema:
+      type: object
+      properties:
+        url: { type: string }
+        output_file: { type: string }
+        quiet: { type: boolean, default: true }
+      required: [url]
 
-  paper_writing:
-    - "LaTeX with TeX Live; manage citations via Zotero (exportable to BibTeX)"
-    - "Generate figures programmatically; include source scripts in repo/supplement"
-    - "Use Pandoc for format conversion; version papers and supplementary materials"
+  - name: process_json
+    description: Processes and transforms JSON data using jq.
+    tags: [data, json, transformation]
+    input_schema:
+      type: object
+      properties:
+        json_input: { type: string }
+        filter: { type: string }
+      required: [json_input, filter]
 
-examples:
-  - task: "Build and run tests"
-    commands:
-      - "cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug"
-      - "cmake --build build -- -j$(nproc)"
-      - "ctest --test-dir build --output-on-failure -j4"
+  # ============ DATABASES ============
+  - name: query_sqlite
+    description: Executes SQL queries on SQLite database.
+    tags: [database, sql, embedded]
+    input_schema:
+      type: object
+      properties:
+        database_file: { type: string }
+        query: { type: string }
+        output_mode:
+          { type: string, default: "json", enum: ["json", "csv", "list"] }
+      required: [database_file, query]
 
-  - task: "Run single demo (example)"
-    note: "Replace fftw3_demo with the desired target if present in build/bin"
-    commands:
-      - "cmake -S . -B build -DCMAKE_BUILD_TYPE=Release"
-      - "cmake --build build -- -j$(nproc)"
-      - "./build/bin/fftw3_demo || ./build/bin/fftw3_demo.exe"
+  - name: query_mysql
+    description: Executes SQL queries on MySQL/MariaDB.
+    tags: [database, sql, server]
+    input_schema:
+      type: object
+      properties:
+        database: { type: string }
+        query: { type: string }
+        host: { type: string, default: "localhost" }
+        user: { type: string }
+        password: { type: string }
+      required: [database, query, user]
 
-notes:
-  - "This skills file is a guidance layer for Claude-style assistants interacting with the repository. For
-    any actions that modify the repo (commits, API changes) ask the user for explicit confirmation before
-    performing them."
+  # ============ MEDIA PROCESSING ============
+  - name: process_ffmpeg
+    description: Audio/video conversion, streaming, and processing.
+    tags: [media, audio, video, conversion]
+    input_schema:
+      type: object
+      properties:
+        input_file: { type: string }
+        output_file: { type: string }
+        options: { type: array, items: { type: string } }
+      required: [input_file, output_file]
+
+  - name: inspect_media
+    description: Analyzes multimedia files and returns metadata using ffprobe.
+    tags: [media, analysis, metadata]
+    input_schema:
+      type: object
+      properties:
+        input_file: { type: string }
+        format: { type: string, default: "json", enum: ["json", "xml", "csv"] }
+      required: [input_file]
+
+  - name: process_audio_sox
+    description: Audio processing with SoX (Sound eXchange).
+    tags: [media, audio, processing]
+    input_schema:
+      type: object
+      properties:
+        input_file: { type: string }
+        output_file: { type: string }
+        effects: { type: array, items: { type: string } }
+      required: [input_file, output_file]
+
+  # ============ PROGRAMMING RUNTIMES ============
+  - name: execute_python
+    description: Executes Python code or script.
+    tags: [runtime, scripting, python]
+    input_schema:
+      type: object
+      properties:
+        script: { type: string }
+        file: { type: string }
+        args: { type: array, items: { type: string } }
+      one_of:
+        - required: [script]
+        - required: [file]
+
+  - name: execute_node
+    description: Executes JavaScript code with Node.js.
+    tags: [runtime, javascript, node]
+    input_schema:
+      type: object
+      properties:
+        script: { type: string }
+        file: { type: string }
+      one_of:
+        - required: [script]
+        - required: [file]
+
+  - name: run_java
+    description: Runs Java applications.
+    tags: [runtime, java, jvm]
+    input_schema:
+      type: object
+      properties:
+        class_name: { type: string }
+        jar_file: { type: string }
+        args: { type: array, items: { type: string } }
+      one_of:
+        - required: [class_name]
+        - required: [jar_file]
+
+  - name: compile_java
+    description: Compiles Java source files using javac.
+    tags: [compiler, java]
+    input_schema:
+      type: object
+      properties:
+        source_files: { type: array, items: { type: string } }
+        output_dir: { type: string, default: "." }
+        classpath: { type: string }
+      required: [source_files]
+
+  # ============ NETWORKING & REMOTE ============
+  - name: execute_ssh
+    description: Executes command on remote host via SSH.
+    tags: [network, remote, security]
+    input_schema:
+      type: object
+      properties:
+        host: { type: string }
+        command: { type: string }
+        user: { type: string }
+        port: { type: integer, default: 22 }
+        timeout: { type: integer, default: 10 }
+      required: [host, command]
+
+  - name: sync_rsync
+    description: Efficient file synchronization between locations.
+    tags: [file, sync, network]
+    input_schema:
+      type: object
+      properties:
+        source: { type: string }
+        destination: { type: string }
+        options: { type: array, items: { type: string }, default: ["-avz"] }
+      required: [source, destination]
+
+  - name: scan_network
+    description: "Network discovery and security auditing (use only with authorization)."
+    tags: [network, security, scan]
+    input_schema:
+      type: object
+      properties:
+        target: { type: string }
+        scan_type: { type: string, default: "-sT", enum: ["-sS", "-sT", "-sU"] }
+        ports: { type: string, default: "22,80,443" }
+      required: [target]
+
+  # ============ IMAGE & TEXT PROCESSING ============
+  - name: inspect_image
+    description: Gets image information using ImageMagick identify.
+    tags: [image, media, analysis]
+    input_schema:
+      type: object
+      properties:
+        image_path: { type: string }
+        format: { type: string, default: "%m %w %h %b" }
+      required: [image_path]
+
+  - name: convert_image
+    description: Converts and manipulates images with ImageMagick.
+    tags: [image, media, conversion]
+    input_schema:
+      type: object
+      properties:
+        input_file: { type: string }
+        output_file: { type: string }
+        operations: { type: array, items: { type: string } }
+      required: [input_file, output_file]
+
+  - name: extract_text_ocr
+    description: Extracts text from images using Tesseract OCR.
+    tags: [text, ocr, image]
+    input_schema:
+      type: object
+      properties:
+        image_path: { type: string }
+        language: { type: string, default: "eng" }
+        psm: { type: integer, default: 3 }
+      required: [image_path]
+
+  # ============ OTHER DEVELOPMENT TOOLS ============
+  - name: execute_go
+    description: Runs Go toolchain commands.
+    tags: [runtime, go, compilation]
+    input_schema:
+      type: object
+      properties:
+        command: { type: string, enum: ["run", "build", "test", "mod"] }
+        args: { type: array, items: { type: string } }
+      required: [command]
+
+  - name: execute_rust
+    description: Runs Rust compiler and tools.
+    tags: [runtime, rust, compilation]
+    input_schema:
+      type: object
+      properties:
+        command: { type: string, enum: ["run", "build", "check", "test"] }
+        args: { type: array, items: { type: string } }
+      required: [command]
+
+  - name: run_npm
+    description: Runs npm package manager commands.
+    tags: [package, javascript, node]
+    input_schema:
+      type: object
+      properties:
+        command: { type: string, enum: ["install", "run", "test", "pack"] }
+        package: { type: string }
+        args: { type: array, items: { type: string } }
+      required: [command]
+
+metadata:
+  schema_version: "1.2"
+  project_name: "doutorado"
+  version: "2.0.0"
+  description: "Integrated skills for doutorado C++ research repository and general CLI tools"
+  author: "ensismoebius"
+  includes:
+    - "Project-specific skills for doutorado repository"
+    - "General CLI tool skills for development and administration"
+    - "Code analysis and quality tools"
+    - "Media processing and data transformation"
+  skill_count: 35
+  categories:
+    - "Project Operations"
+    - "File & System"
+    - "Build & Compilation"
+    - "Code Analysis"
+    - "Data & Web"
+    - "Media Processing"
+    - "Networking"
+    - "Runtimes"
+  notes:
+    - "Project-specific skills are prefixed with 'doutorado_' for clarity"
+    - "All skills follow Claude Skills YAML specification"
+    - "Skills are prioritized with project-specific first, then general tools"
