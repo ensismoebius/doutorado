@@ -1,3 +1,5 @@
+include(../../cmake/SanitizerFlags.cmake)
+
 # Add subdirectories for all modules
 add_subdirectory(wave)
 add_subdirectory(saver)
