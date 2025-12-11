@@ -40,7 +40,7 @@ struct Sequential : Module
     {
         outputs.clear();
         nn::Tensor temp_input = input;
-        for (auto& layer : layers)
+        for (auto& layer : layers) [[likely]]
         {
             temp_input = layer->forward(temp_input);
             outputs.emplace_back(temp_input);
@@ -52,7 +52,7 @@ struct Sequential : Module
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
         nn::Tensor grad = grad_output;
-        for (size_t i = layers.size(); i-- > 0;)
+        for (size_t i = layers.size(); i-- > 0;) [[likely]]
         {
             grad = layers[i]->backward(grad);
         }
@@ -71,7 +71,7 @@ struct Sequential : Module
         std::vector<nn::Tensor*> parameters;
         parameters.reserve(layers.size() * 2); // Reserve space for weights and biases
 
-        for (auto& layer : layers)
+        for (auto& layer : layers) [[likely]]
         {
             // Check if layer is a Linear layer
             if (auto* linear = dynamic_cast<Linear*>(layer.get()))

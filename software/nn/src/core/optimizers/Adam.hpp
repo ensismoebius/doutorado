@@ -1,7 +1,9 @@
 #include <Eigen/src/Core/Matrix.h>
 
-#include "Optimizer.hpp"
+#include <span>
+
 #include "../tensor/Tensor.hpp"
+#include "Optimizer.hpp"
 
 /**
  * Adam (Adaptive Moment Estimation) combina as ideias do Momentum
@@ -36,14 +38,16 @@ struct Adam : public Optimizer
 
     // Inicializa os vetores m e v para cada parâmetro, com zeros do mesmo shape dos gradientes.
     // Deve ser chamado sempre que os parâmetros mudarem.
-    auto attach(std::vector<nn::Tensor*>& paramsList) -> void
+    auto attach(std::span<nn::Tensor*> paramsList) -> void
     {
         m.clear();
         v.clear();
-        for (nn::Tensor* param : paramsList)
+        for (auto* param : paramsList)
         {
-            m.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
-            v.emplace_back(Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
+            m.emplace_back(
+                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
+            v.emplace_back(
+                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
         }
     }
 
@@ -54,29 +58,32 @@ struct Adam : public Optimizer
     //   m̂_t = m_t / (1 - β1^t)
     //   v̂_t = v_t / (1 - β2^t)
     //   θ = θ - lr * m̂_t / (sqrt(v̂_t) + ε)
-    auto step(std::vector<nn::Tensor*>& paramsList) -> void override
+    auto step(std::span<nn::Tensor*> paramsList) -> void override
     {
         t += 1;
-        for (size_t i = 0; i < paramsList.size(); ++i)
+        for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             m[i] = (beta1 * m[i].array() + (1 - beta1) * param.get_grad_ref().array()).matrix();
-            v[i] = (beta2 * v[i].array() + (1 - beta2) * param.get_grad_ref().array().square()).matrix();
+            v[i] = (beta2 * v[i].array() + (1 - beta2) * param.get_grad_ref().array().square())
+                       .matrix();
 
             // Corrige o viés das médias móveis
             Eigen::MatrixXf m_hat = m[i] / (1 - std::pow(beta1, t));
             Eigen::MatrixXf v_hat = v[i] / (1 - std::pow(beta2, t));
 
             // Atualiza o parâmetro usando as médias móveis corrigidas
-            param.set_data((param.get_data_ref().array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps)).matrix());
+            param.set_data(
+                (param.get_data_ref().array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps))
+                    .matrix());
         }
     }
 
     // Zera os gradientes de todos os parâmetros.
-    auto zero_grad(std::vector<nn::Tensor*>& paramsList) -> void override
+    auto zero_grad(std::span<nn::Tensor*> paramsList) -> void override
     {
-        for (nn::Tensor* param : paramsList)
+        for (auto* param : paramsList) [[likely]]
         {
             param->zero_grad();
         }

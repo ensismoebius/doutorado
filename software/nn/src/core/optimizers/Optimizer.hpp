@@ -1,7 +1,7 @@
 #ifndef OPTIMIZER_HPP
 #define OPTIMIZER_HPP
 
-#include <vector>
+#include <span>
 
 #include "../tensor/Tensor.hpp"
 
@@ -43,8 +43,8 @@ struct Optimizer
      */
     auto operator=(Optimizer&& otherObjectReference) -> Optimizer& = delete;
 
-    virtual auto step(std::vector<nn::Tensor*>& params) -> void = 0;
-    virtual auto zero_grad(std::vector<nn::Tensor*>& params) -> void = 0;
+    virtual auto step(std::span<nn::Tensor*> params) -> void = 0;
+    virtual auto zero_grad(std::span<nn::Tensor*> params) -> void = 0;
     virtual ~Optimizer() = default;
 };
 

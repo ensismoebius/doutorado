@@ -1,5 +1,7 @@
 #include "Tensor.hpp"
 
+#include <span>
+
 namespace nn
 {
 // Constructors
@@ -69,14 +71,13 @@ auto Tensor::size() const -> Eigen::Index
 }
 
 // Slice operation
-auto Tensor::slice(const std::vector<int>& indices) const -> Tensor
+auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {
     auto n = static_cast<Eigen::Index>(indices.size());
     Eigen::MatrixXf sliced_data(n, m_data.cols());
-    for (size_t i = 0; i < indices.size(); ++i)
+    for (Eigen::Index i = 0; i < n; ++i)
     {
-        sliced_data.row(static_cast<Eigen::Index>(i)) =
-            m_data.row(static_cast<Eigen::Index>(indices[i]));
+        sliced_data.row(i) = m_data.row(static_cast<Eigen::Index>(indices[static_cast<size_t>(i)]));
     }
     return Tensor{sliced_data};
 }

@@ -2,6 +2,7 @@
 #define TENSOR_HPP
 
 #include <Eigen/Dense>
+#include <span>
 #include <vector>
 
 namespace nn
@@ -38,8 +39,8 @@ class Tensor
     template <typename vector_type>
     [[nodiscard]] auto toVector() const -> std::vector<vector_type>;
 
-    // Slice operation
-    [[nodiscard]] auto slice(const std::vector<int>& indices) const -> Tensor;
+    // Slice operation (non-owning view over indices)
+    [[nodiscard]] auto slice(std::span<const int> indices) const -> Tensor;
 
     // Zero out the gradient
     void zero_grad();

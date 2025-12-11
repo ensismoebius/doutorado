@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <vector>
 
 #include "Dataset.h"
@@ -16,8 +17,8 @@ class TensorDataset : public Dataset
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override
     {
         std::vector<int> indices{static_cast<int>(idx)};
-        nn::Tensor in = inputs_.slice(indices);
-        nn::Tensor tg = targets_.slice(indices);
+        nn::Tensor in = inputs_.slice(std::span<const int>(indices));
+        nn::Tensor tg = targets_.slice(std::span<const int>(indices));
         return {.inputs = in, .targets = tg};
     }
 
@@ -29,7 +30,8 @@ class TensorDataset : public Dataset
         {
             idxs.push_back(static_cast<int>(i));
         }
-        return {.inputs = inputs_.slice(idxs), .targets = targets_.slice(idxs)};
+        return {.inputs = inputs_.slice(std::span<const int>(idxs)),
+                .targets = targets_.slice(std::span<const int>(idxs))};
     }
 
     [[nodiscard]] auto size() const -> std::size_t override
