@@ -1,0 +1,10 @@
+# .cppcheck
+--enable=warning,style,performance,portability,information
+--library=std.cfg
+--library=posix.cfg
+--suppress=missingIncludeSystem
+--suppress=unmatchedSuppression
+--std=c++20
+--platform=unix64
+--inline-suppr
+-j4

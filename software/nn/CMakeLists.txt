@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+## Top-level CMake: delegate to modular includes in cmake/
+
+
 # Project declaration
 project(nn VERSION 0.2.0 LANGUAGES CXX C)
 
@@ -8,11 +11,12 @@ enable_testing()
 # Define paths for convenience
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
-    
-## Top-level CMake: delegate to modular includes in cmake/
 
 # Sets the CMake policies for this project
 include(cmake/Policies.cmake)
+
+# Tooling setup (ccache, analysis tool detection, compile_commands.json export)
+include(cmake/Tooling.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
@@ -26,3 +30,6 @@ include(cmake/VendorIncludes.cmake)
 add_subdirectory(${SRC_DIR}/core)
 add_subdirectory(${SRC_DIR}/demos)
 add_subdirectory(${SRC_DIR}/experiments)
+
+# Development and analysis custom targets
+include(cmake/DevAndAnalysisTargets.cmake)
