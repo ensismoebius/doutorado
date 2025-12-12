@@ -18,7 +18,7 @@
  * @param vector
  * @return amdf vector
  */
-auto amdf(std::vector<long double> vector) -> std::vector<long double>;
+auto amdf(const std::vector<long double>& vector) -> std::vector<long double>;
 
 /**
  * Returns the amount of samples in order to
