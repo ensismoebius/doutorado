@@ -60,7 +60,7 @@ def preprocess_audio(audio_data, original_sr=44100, target_sr=16000, lowcut=80, 
     resampled_audio = resample(audio_data, num_samples)
 
     # Band-pass filter
-    sos = butter(5, [lowcut, highcut], btype='band', fs=target_sr, output='sos')
+    sos = butter(5, [lowcut, highcut], btype=\'band\', fs=target_sr, output=\'sos\')
     filtered_audio = sosfiltfilt(sos, resampled_audio)
 
     # Z-score normalization
@@ -80,7 +80,7 @@ def preprocess_audio(audio_data, original_sr=44100, target_sr=16000, lowcut=80, 
 ```python
 def preprocess_eeg(eeg_data, sr=1024, lowcut=1.0, highcut=40.0, notch_freq=60.0):
     # Band-pass filter
-    sos_band = butter(5, [lowcut, highcut], btype='band', fs=sr, output='sos')
+    sos_band = butter(5, [lowcut, highcut], btype=\'band\', fs=sr, output=\'sos\')
     filtered_eeg = sosfiltfilt(sos_band, eeg_data, axis=0)
 
     # Notch filter
@@ -131,9 +131,9 @@ def ttfs_encode(window, T_max):
     return spike_times
 ```
 
-### C. Ben's Spiking Algorithm (BSA) / Threshold-Based Encoding
+### C. Ben\'s Spiking Algorithm (BSA) / Threshold-Based Encoding
 
-Fires a spike when the signal's value crosses a threshold. The signal is then modulated to prevent immediate re-firing.
+Fires a spike when the signal\'s value crosses a threshold. The signal is then modulated to prevent immediate re-firing.
 
 - **Pseudo-math:**
     1. `v(t) = input(t)`
@@ -217,7 +217,7 @@ def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, o
 - **Architecture:** A fully-connected feed-forward SNN.
   - **Input Layer:** Size matches the concatenated, flattened, and spike-encoded EEG and audio window data.
   - **Encoder:** 2-3 spiking layers (e.g., 1024 -> 512 neurons) with Leaky Integrate-and-Fire (LIF) neurons.
-  - **Embedding Layer:** A bottleneck spiking layer of size `D` (e.g., `D=128` or `256`). This layer's spike output (or integrated membrane potential) will be the embedding.
+  - **Embedding Layer:** A bottleneck spiking layer of size `D` (e.g., `D=128` or `256`). This layer\'s spike output (or integrated membrane potential) will be the embedding.
   - **Decoder:** Symmetrical to the encoder (e.g., 512 -> 1024 -> Input Size).
 - **Loss Function:** A combination of:
     1. **Reconstruction Loss:** Van Rossum distance or MSE between the original and reconstructed spike trains (after low-pass filtering).
@@ -226,7 +226,7 @@ def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, o
   - **Batch Size:** 32 or 64.
     - **Optimizer:** Adam with a learning rate sweep `[1e-4, 5e-4, 1e-3]`.
     - **Surrogate Gradient:** Use a surrogate gradient function (e.g., `atan` or a fast sigmoid) to enable backpropagation through the spiking non-linearity.
-    - **Early Stopping:** Monitor the validation reconstruction loss and stop if it doesn't improve for 10-15 epochs.
+    - **Early Stopping:** Monitor the validation reconstruction loss and stop if it doesn\'t improve for 10-15 epochs.
 - **Outputting Embeddings:** After training, pass a window through the encoder and use the spike train, average firing rate, or mean membrane potential of the embedding layer as the fixed-length embedding vector.
 
 ## 7. Downstream ResNet-SNN Usage
@@ -306,50 +306,6 @@ python analyze_results.py --results_file /results/results.csv
 
 ---
 
-## JSON Output
-
-```json
-{
-  "best_window": 1.5,
-  "overlap": 0.5,
-  "grid": {
-    "window_lengths_sec": [0.2, 0.5, 1.0, 1.5, 2.0, 3.0],
-    "overlaps_perc": [0.25, 0.5, 0.75]
-  },
-  "preprocessing": {
-    "audio": "Downsample to 16kHz, band-pass 80-7600Hz, Z-score normalization.",
-    "eeg": "Band-pass 1-40Hz, notch filter at 60/50Hz, Z-score normalization per channel."
-  },
-  "spike_encoders": {
-    "poisson": "Rate coding, hyperparameter: scaling_factor.",
-    "ttfs": "Time-to-first-spike, hyperparameter: T_max (fixed to window).",
-    "bsa": "Threshold-based, hyperparameters: threshold, reset_value."
-  },
-  "windowing_code": "def synchronized_windowing(eeg_data, audio_data, eeg_sr, audio_sr, window_sec, overlap_perc): ...",
-  "autoencoder_plan": {
-    "architecture": "Feed-forward SNN with LIF neurons and bottleneck embedding layer.",
-    "loss": "Reconstruction loss (Van Rossum or MSE) + Sparsity regularization.",
-    "training": "Surrogate gradients (atan), Adam optimizer, early stopping."
-  },
-  "downstream_plan": {
-    "model": "Spiking ResNet-18.",
-    "input": "Static D-dimensional embedding vector from SAE.",
-    "training": "Supervised classification with cross-entropy loss."
-  },
-  "evaluation": {
-    "metrics": ["Speaker-ID Accuracy", "AUC", "SAE Reconstruction Loss", "Silhouette Score"],
-    "protocol": "Nested cross-validation with outer loop for speakers.",
-    "statistical_test": "Wilcoxon signed-rank test for comparing top pipelines."
-  },
-  "assumptions": {
-    "required_info": ["Number of speakers", "Data balance per speaker", "Signal quality/SNR"],
-    "compute_budget": "GPU with >16GB VRAM recommended. Full grid search may take several days."
-  }
-}
-```
-
----
-
 ## Experiment Checklist
 
 1. `run_experiment --window 1.5 --overlap 0.5 --encoder bsa --lr 1e-4`
@@ -362,3 +318,8 @@ python analyze_results.py --results_file /results/results.csv
 
 - García-Perera, L. P., et al. (2021). *A review on deep learning for speaker recognition*. Expert Systems with Applications.
 - Snyder, D., et al. (2018). *X-vectors: Robust d-vector embeddings for speaker recognition*. IEEE ICASSP.
+
+---
+
+## cppcheck Findings (Need Investigation)
+- **Potential Out-of-Bounds Access:** `src/core/linearAlgebra/linearAlgebra.cpp`:425 - `containerOutOfBounds` error in expression 'matrix[bestLineForSubtration]'. This needs to be investigated and fixed.
