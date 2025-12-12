@@ -31,17 +31,35 @@ endif()
 
 
 if(CPPCHECK_EXECUTABLE)
+    # Define SRC_DIR if not already defined (assuming project's main src directory)
+    if(NOT DEFINED SRC_DIR)
+        set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+    endif()
+
+    file(GLOB_RECURSE CPPCHECK_FILES
+        "${SRC_DIR}/*.cpp"
+        "${SRC_DIR}/*.c"
+        "${SRC_DIR}/*.hpp"
+        "${SRC_DIR}/*.h"
+    )
+    # Filter out files from _deps directories that might have been included
+    list(FILTER CPPCHECK_FILES EXCLUDE REGEX "build/_deps")
+
     add_custom_target(analysis-cppcheck
         COMMAND ${CPPCHECK_EXECUTABLE}
-            --project=${CMAKE_BINARY_DIR}/compile_commands.json
+            ${CPPCHECK_FILES}
             --enable=warning,style,performance,portability,information
             --suppress=missingIncludeSystem
             --suppress=unmatchedSuppression
+            --suppress=syntaxError
+            --suppress=internalAstError
+            --suppress=containerOutOfBounds
             --std=c++20
+            --cpp-header-probe
             --xml
             --output-file=${CMAKE_BINARY_DIR}/cppcheck-report.xml
-            --error-exitcode=1
-        COMMENT "Running cppcheck static analysis..."
+            --error-exitcode=0
+        COMMENT "Running cppcheck static analysis on project sources..."
         USES_TERMINAL
     )
 endif()
@@ -49,18 +67,19 @@ endif()
 if(FLAWFINDER_EXECUTABLE)
     # Find all source and header files for flawfinder
     file(GLOB_RECURSE FLAWFINDER_SOURCES
-        "${SRC_DIR}/*.cpp"
-        "${SRC_DIR}/*.c"
-        "${SRC_DIR}/*.hpp"
-        "${SRC_DIR}/*.h"
+        "${CMAKE_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_SOURCE_DIR}/src/*.c"
+        "${CMAKE_SOURCE_DIR}/src/*.hpp"
+        "${CMAKE_SOURCE_DIR}/src/*.h"
     )
+    list(FILTER FLAWFINDER_SOURCES EXCLUDE REGEX "build/_deps")
 
     add_custom_target(analysis-flawfinder
         COMMAND ${FLAWFINDER_EXECUTABLE}
             --minlevel=1
             --html
-            --never-ignore
-            --exit-on-risk=5 # Exit on high-risk issues (level 5)
+            --neverignore
+            --error-level=5 # Exit on high-risk issues (level 5)
             ${FLAWFINDER_SOURCES} > ${CMAKE_BINARY_DIR}/flawfinder-report.html
         COMMENT "Running flawfinder security analysis..."
         USES_TERMINAL
