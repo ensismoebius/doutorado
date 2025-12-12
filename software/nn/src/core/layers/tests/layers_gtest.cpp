@@ -677,3 +677,46 @@ TEST(Conv2dTest, LargeBatchSize)
     ASSERT_EQ(grad_shape[2], input_height);
     ASSERT_EQ(grad_shape[3], input_width);
 }
+
+// Ensure bias tensors shaped as (out_channels,1) and (1,out_channels) are both accepted
+TEST(Conv2dTest, BiasShapeVariants)
+{
+    const int in_channels = 1;
+    const int out_channels = 2;
+    const int kernel_size = 1;
+    const int batch_size = 1;
+    const int input_height = 2;
+    const int input_width = 2;
+
+    Conv2d conv_col(in_channels, out_channels, kernel_size);
+    Conv2d conv_row(in_channels, out_channels, kernel_size);
+
+    // Weights: simple ones
+    nn::Tensor weights(1, out_channels);
+    weights.get_data_ref().setOnes();
+    conv_col.set_weights(weights);
+    conv_row.set_weights(weights);
+
+    // Bias as column (out_channels, 1)
+    nn::Tensor bias_col(out_channels, 1);
+    bias_col.at(0, 0) = 0.5F;
+    bias_col.at(1, 0) = 1.0F;
+    conv_col.set_bias(bias_col);
+
+    // Bias as row (1, out_channels)
+    nn::Tensor bias_row(1, out_channels);
+    bias_row.at(0, 0) = 0.5F;
+    bias_row.at(0, 1) = 1.0F;
+    conv_row.set_bias(bias_row);
+
+    // Input: all ones
+    nn::Tensor input(batch_size, in_channels, input_height, input_width);
+    input.get_data_ref().setOnes();
+
+    nn::Tensor out_col = conv_col.forward(input);
+    nn::Tensor out_row = conv_row.forward(input);
+
+    // Shapes should match and data should be identical
+    ASSERT_EQ(out_col.get_shape(), out_row.get_shape());
+    ASSERT_TRUE(out_col.get_data_ref().isApprox(out_row.get_data_ref()));
+}

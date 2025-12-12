@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include "Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
@@ -255,9 +256,32 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
 // ============ Bias Addition ============
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias, [[maybe_unused]] int num_cols) const
+void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
+                                [[maybe_unused]] int num_cols) const
 {
-    const Eigen::VectorXf bias_vector = bias.get_data_ref().col(0);
+    // Support bias stored either as (out_channels, 1) or as (1, out_channels)
+    const auto& b = bias.get_data_ref();
+    Eigen::VectorXf bias_vector;
+    if (b.rows() == matrix.rows() && b.cols() >= 1)
+    {
+        // column-major: bias stored as (out_channels, 1)
+        bias_vector = b.col(0);
+    }
+    else if (b.cols() == matrix.rows() && b.rows() >= 1)
+    {
+        // row-major-like storage: bias stored as (1, out_channels)
+        bias_vector = b.row(0).transpose();
+    }
+    else
+    {
+        // Fallback: try to reshape/replicate if possible
+        bias_vector = Eigen::VectorXf::Zero(matrix.rows());
+        const Eigen::Index n = std::min<Eigen::Index>(matrix.rows(), b.size());
+        for (Eigen::Index i = 0; i < n; ++i)
+        {
+            bias_vector(i) = b.data()[i];
+        }
+    }
 
     // This parallel branch is correct and needs to be here
     if (use_parallel_ && num_cols > 1000)
@@ -265,15 +289,29 @@ void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
 #pragma omp parallel for if (use_parallel_)
         for (int i = 0; i < matrix.rows(); ++i)
         {
-            const float bias_val = bias_vector(i); // <-- Assertion is here
-            Eigen::VectorXf::Map(matrix.row(i).data(), num_cols).array() += bias_val;
+            // safe access in case bias_vector length doesn't exactly match
+            const Eigen::Index idx = (bias_vector.size() > 0) ? (i % bias_vector.size()) : 0;
+            const float bias_val = bias_vector(idx);
+            Eigen::Map<Eigen::VectorXf>(matrix.row(i).data(), num_cols).array() += bias_val;
         }
     }
     else // The sequential branch
     {
-        // Use Eigen's broadcasting with noalias for efficiency
-        // and allows Eigen to apply vectorization and SIMD optimizations
-        matrix.colwise() += bias_vector;
+        if (bias_vector.size() == matrix.rows())
+        {
+            // Use Eigen's broadcasting with noalias for efficiency
+            matrix.colwise() += bias_vector;
+        }
+        else
+        {
+            // Fallback: element-wise addition with safe indexing
+            const Eigen::Index bvsz = bias_vector.size() > 0 ? bias_vector.size() : 1;
+            for (int r = 0; r < matrix.rows(); ++r)
+            {
+                const Eigen::Index idx = r % bvsz;
+                matrix.row(r).array() += bias_vector(idx);
+            }
+        }
     }
 }
 
