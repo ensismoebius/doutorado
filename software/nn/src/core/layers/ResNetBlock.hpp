@@ -22,7 +22,7 @@ class ResNetBlock : public Module
         // Handles dimension mismatches by zero-padding/cropping overlapping regions
         const auto out_shape = output.get_shape();
         const auto in_shape = input.get_shape();
-        if (out_shape == in_shape)
+        if (out_shape == in_shape) [[likely]]
         {
             output.get_data_ref() = output.get_data_ref() + input.get_data_ref();
         }

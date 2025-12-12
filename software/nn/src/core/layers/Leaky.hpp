@@ -114,7 +114,7 @@ struct Leaky : public Module
     auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
-        if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols())
+        if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols()) [[unlikely]]
         {
             v_mem.resize(input.get_data_ref().rows(), input.get_data_ref().cols());
             v_mem.setZero();
@@ -132,7 +132,7 @@ struct Leaky : public Module
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
         if (v_mem.size() == 0 || v_mem.rows() != input.get_data_ref().rows() ||
-            v_mem.cols() != input.get_data_ref().cols())
+            v_mem.cols() != input.get_data_ref().cols()) [[unlikely]]
         {
             v_mem = Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
         }
@@ -229,7 +229,7 @@ struct Leaky : public Module
         const float R = resistance.get_data_ref()(0, 0);
         const float C = capacitance;
         const float tau = R * C;
-        if (tau > 1e-6)
+        if (tau > 1e-6) [[likely]]
         { // Avoid division by zero if R or C are zero
             const float beta = std::exp(-dt / tau);
             const float d_beta_dR = (beta * dt) / (C * R * R);

@@ -60,7 +60,7 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     // Resize buffer if needed (rare after initial preallocation)
     const bool need_resize =
         (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols);
-    if (UNLIKELY(need_resize))
+    if (need_resize) [[unlikely]]
     {
         im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
     }
@@ -136,11 +136,7 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     Eigen::MatrixXf& weights_grad = weights_.get_grad_ref();
 
     const bool large_mm = (total_patch_cols > 1000);
-#if defined(LIKELY)
-    if (LIKELY(use_parallel_ && large_mm))
-#else
-    if (use_parallel_ && large_mm)
-#endif
+    if (use_parallel_ && large_mm) [[likely]]
     {
 // Parallel matrix multiplication for large problems
 #pragma omp parallel for if (use_parallel_)

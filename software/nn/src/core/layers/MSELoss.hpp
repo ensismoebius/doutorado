@@ -32,7 +32,7 @@ class MSELoss : public Module
         Eigen::MatrixXf diff = prediction.get_data_ref() - last_target.get_data_ref();
 
         // Check for invalid values in the predictions
-        if (!prediction.get_data_ref().allFinite())
+        if (!prediction.get_data_ref().allFinite()) [[unlikely]]
         {
             std::cerr << "Warning: Non-finite values detected in predictions\n";
             // Return a very large but finite loss
@@ -72,7 +72,7 @@ class MSELoss : public Module
             MSE_GRADIENT_FACTOR * (last_input.get_data_ref() - last_target.get_data_ref()) / last_input.get_data_ref().size();
 
         // Check for invalid gradients
-        if (!grad.allFinite())
+        if (!grad.allFinite()) [[unlikely]]
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             grad.setZero(); // Return zero gradient to prevent further issues
@@ -82,7 +82,7 @@ class MSELoss : public Module
         // Gradient clipping to prevent explosion
         float grad_norm = grad.norm();
         constexpr float max_grad_norm = 1.0F;
-        if (grad_norm > max_grad_norm)
+        if (grad_norm > max_grad_norm) [[unlikely]]
         {
             grad *= max_grad_norm / grad_norm;
         }

@@ -69,7 +69,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
         const int total_patch_cols = batch_size * patch_cols_per_batch;
 
         // Resize buffer if needed (rare after initial preallocation)
-        if (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols)
+        if (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols) [[unlikely]]
         {
             im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
         }
@@ -131,7 +131,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
 
         // 3. Get im2col of cached input
         auto& im2col_buffer = *im2col_buffer_;
-        if (im2col_buffer.rows() < patch_rows || im2col_buffer.cols() < total_patch_cols)
+        if (im2col_buffer.rows() < patch_rows || im2col_buffer.cols() < total_patch_cols) [[unlikely]]
         {
             im2col_buffer = nn::Tensor(patch_rows, total_patch_cols);
         }
@@ -434,7 +434,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
         // Use pre-allocated buffer
         auto& result = *col2im_buffer_;
         if (result.get_shape()[0] != batch_size || result.get_shape()[2] != input_height ||
-            result.get_shape()[3] != input_width)
+            result.get_shape()[3] != input_width) [[unlikely]]
         {
             result = nn::Tensor(batch_size, in_channels_, input_height, input_width);
             result.get_data_ref().setZero();

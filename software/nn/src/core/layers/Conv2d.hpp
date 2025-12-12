@@ -8,15 +8,7 @@
 #include <vector>
 
 // Branch prediction hints: use compiler built-ins when available
-#ifndef LIKELY
-#if defined(__GNUC__) || defined(__clang__)
-#define LIKELY(x) (__builtin_expect(!!(x), 1))
-#define UNLIKELY(x) (__builtin_expect(!!(x), 0))
-#else
-#define LIKELY(x) (x)
-#define UNLIKELY(x) (x)
-#endif
-#endif
+
 
 #include "../tensor/Tensor.hpp"
 #include "Conv2d_utils.hpp"

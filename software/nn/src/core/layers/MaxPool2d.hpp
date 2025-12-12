@@ -21,7 +21,7 @@ class MaxPool2d : public Module
         // that expects MaxPool2d to exist still compiles and runs. If you want true
         // 2D pooling support, we should extend the `Tensor` type to hold 4-D data or
         // provide a separate data structure.
-        if (shape.size() != 4)
+        if (shape.size() != 4) [[unlikely]]
         {
             std::cerr << "MaxPool2d: input is not 4-D (no-op).\n";
             return input;

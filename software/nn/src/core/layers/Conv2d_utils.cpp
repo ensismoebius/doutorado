@@ -10,7 +10,7 @@ auto Conv2d::get_or_compute_indices(int input_height, int input_width) const
     {
         std::lock_guard<std::mutex> lock(cache_mutex_);
         auto it = index_cache_.find(key);
-        if (LIKELY(it != index_cache_.end()))
+        if (it != index_cache_.end()) [[likely]]
         {
             return it->second;
         }
@@ -78,7 +78,7 @@ auto Conv2d::compute_indices(int input_height, int input_width) const
 
 void Conv2d::compute_indices_once(int input_height, int input_width) const
 {
-    if (UNLIKELY(!indices_computed_))
+    if (!indices_computed_) [[unlikely]]
     {
         get_or_compute_indices(input_height, input_width);
         indices_computed_ = true;
@@ -102,11 +102,7 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
         static_cast<Eigen::Index>(batch_size) * static_cast<Eigen::Index>(patch_cols_per_batch));
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
-#if defined(LIKELY)
-    if (LIKELY(use_parallel_ && parallel_heavy))
-#else
-    if (use_parallel_ && parallel_heavy)
-#endif
+    if (use_parallel_ && parallel_heavy) [[likely]]
     {
 // Parallel version for large problems
 #pragma omp parallel for collapse(2) if (use_parallel_)
@@ -187,11 +183,7 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
     }
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
-#if defined(LIKELY)
-    if (LIKELY(use_parallel_ && parallel_heavy))
-#else
-    if (use_parallel_ && parallel_heavy)
-#endif
+    if (use_parallel_ && parallel_heavy) [[likely]]
     {
 // Parallel accumulation with improved loop structure for cache efficiency
 #pragma omp parallel for collapse(2) if (use_parallel_)
