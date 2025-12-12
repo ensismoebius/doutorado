@@ -38,7 +38,7 @@ double falsePositiveRate(double fp, double tn)
  * @param matrix
  * @return
  */
-double falsePositiveRate(ConfusionMatrix& matrix)
+double falsePositiveRate(const ConfusionMatrix& matrix)
 {
     return falsePositiveRate(matrix.falsePositive, matrix.trueNegative);
 }
@@ -59,7 +59,7 @@ double falseNegativeRate(double tp, double fn)
  * @param matrix
  * @return
  */
-double falseNegativeRate(ConfusionMatrix& matrix)
+double falseNegativeRate(const ConfusionMatrix& matrix)
 {
     return falseNegativeRate(matrix.truePositive, matrix.falseNegative);
 }
@@ -171,7 +171,7 @@ void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
     for (unsigned int i = 0; i < falsePositiveRates.size(); i++)
     {
         // Calculate the distance between the coordinates and the x=y line in the graph
-        tempDistance = std::abs((falsePositiveRates[i] - falseNegativeRates[i]) / std::sqrt(2));
+        double tempDistance = std::abs((falsePositiveRates[i] - falseNegativeRates[i]) / std::sqrt(2));
 
         // Store the first nearest point ABOVE x=y line
         if (tempDistance <= minorDistance && falseNegativeRates[i] >= falsePositiveRates[i])

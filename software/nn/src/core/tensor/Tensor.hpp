@@ -55,25 +55,23 @@ class Tensor
     // Zero out the gradient
     void zero_grad();
 
-       private:
-       static Eigen::Index calculate_total_size(const std::vector<Eigen::Index>& shape)
-       {
-           Eigen::Index total_size = 1;
-           for (Eigen::Index dim : shape)
-           {
-               total_size *= dim;
-           }
-           return total_size;
-       }
-   
-       Eigen::MatrixXf m_data;
-       Eigen::MatrixXf m_grad;
-       std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape};
-} // namespace nn
+   private:
+    static Eigen::Index calculate_total_size(const std::vector<Eigen::Index>& shape)
+    {
+        Eigen::Index total_size = 1;
+        for (Eigen::Index dim : shape)
+        {
+            total_size *= dim;
+        }
+        return total_size;
+    }
 
-// Template implementations must be available in the header.
-namespace nn
-{
+    Eigen::MatrixXf m_data;
+    Eigen::MatrixXf m_grad;
+    std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape
+}; // End of class Tensor
+
+// Template implementations must be available in the header, outside the class but inside the namespace.
 template <typename vector_type>
 auto Tensor::toVector() const -> std::vector<vector_type>
 {
@@ -86,6 +84,7 @@ auto Tensor::toVector() const -> std::vector<vector_type>
     }
     return vec;
 }
-} // namespace nn
+
+} // namespace nn (End of namespace nn)
 
 #endif // TENSOR_HPP

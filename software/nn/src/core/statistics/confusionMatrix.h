@@ -45,7 +45,7 @@ namespace statistics
 	 * @param matrix
 	 * @return
 	 */
-	double falsePositiveRate(ConfusionMatrix &matrix);
+	double falsePositiveRate(const ConfusionMatrix &matrix);
 
 	/**
 	 * False negative rate
@@ -60,7 +60,7 @@ namespace statistics
 	 * @param matrix
 	 * @return
 	 */
-	double falseNegativeRate(ConfusionMatrix &matrix);
+	double falseNegativeRate(const ConfusionMatrix &matrix);
 
 	/**
 	 * True positive rate
