@@ -9,6 +9,7 @@ add_executable(wavelet_demo
     util
     tensor
     wavelet
+    saver
     MatplotlibCpp::MatplotlibCpp
   )
 
