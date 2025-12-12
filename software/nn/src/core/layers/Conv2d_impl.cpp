@@ -58,8 +58,8 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     const int total_patch_cols = batch_size * patch_cols_per_batch;
 
     // Resize buffer if needed (rare after initial preallocation)
-    const bool need_resize = (im2col_buffer_->rows() < patch_rows ||
-                              im2col_buffer_->cols() < total_patch_cols);
+    const bool need_resize =
+        (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols);
     if (UNLIKELY(need_resize))
     {
         im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
