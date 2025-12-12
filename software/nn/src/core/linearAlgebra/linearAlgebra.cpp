@@ -420,6 +420,14 @@ auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
                 break;
             }
 
+            // Check if a suitable line was actually found
+            if (bestLineForSubtration == matrix.size() || matrix[bestLineForSubtration][columnIndex] == 0)
+            {
+                throw std::runtime_error(
+                    "Matrix is singular or ill-conditioned: no suitable pivot found for column " +
+                    std::to_string(columnIndex));
+            }
+
             // Ready to calculate the coefficient
             double coef =
                 matrix[lineIndex][columnIndex] / matrix[bestLineForSubtration][columnIndex];
