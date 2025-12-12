@@ -11,4 +11,6 @@ target_include_directories(wavelet
         ${CMAKE_SOURCE_DIR}/src
 )
 
+target_link_libraries(wavelet PRIVATE linearAlgebra)
+
 add_subdirectory(tests)
