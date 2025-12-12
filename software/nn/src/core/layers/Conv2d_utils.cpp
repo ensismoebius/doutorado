@@ -1,3 +1,4 @@
+#include <iostream>
 #include "Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
@@ -254,14 +255,26 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
 // ============ Bias Addition ============
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias) const
+void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias, [[maybe_unused]] int num_cols) const
 {
     const Eigen::VectorXf bias_vector = bias.get_data_ref().col(0);
 
-    // Use colwise() broadcasting for optimal Eigen performance
-    // This is more efficient than manual loops or replicate patterns
-    // and allows Eigen to apply vectorization and SIMD optimizations
-    matrix.colwise() += bias_vector;
+    // This parallel branch is correct and needs to be here
+    if (use_parallel_ && num_cols > 1000)
+    {
+#pragma omp parallel for if (use_parallel_)
+        for (int i = 0; i < matrix.rows(); ++i)
+        {
+            const float bias_val = bias_vector(i); // <-- Assertion is here
+            Eigen::VectorXf::Map(matrix.row(i).data(), num_cols).array() += bias_val;
+        }
+    }
+    else // The sequential branch
+    {
+        // Use Eigen's broadcasting with noalias for efficiency
+        // and allows Eigen to apply vectorization and SIMD optimizations
+        matrix.colwise() += bias_vector;
+    }
 }
 
 // ============ Output Reshaping ============
