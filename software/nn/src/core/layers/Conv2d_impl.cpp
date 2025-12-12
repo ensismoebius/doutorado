@@ -1,6 +1,3 @@
-#include <chrono>
-#include <cstring>
-
 #include "Conv2d.hpp"
 
 // ============ Constructor ============
@@ -61,7 +58,9 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     const int total_patch_cols = batch_size * patch_cols_per_batch;
 
     // Resize buffer if needed (rare after initial preallocation)
-    if (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols)
+    const bool need_resize = (im2col_buffer_->rows() < patch_rows ||
+                              im2col_buffer_->cols() < total_patch_cols);
+    if (UNLIKELY(need_resize))
     {
         im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
     }
@@ -85,7 +84,7 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     output_2d.noalias() = weights_mapped.transpose() * im2col_mapped;
 
     // 4. Add bias using optimized broadcasting
-    add_bias_optimized(output_2d, bias_, total_patch_cols);
+    add_bias_optimized(output_2d, bias_);
 
     // 5. Reshape output efficiently
     nn::Tensor output =
@@ -136,7 +135,12 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     // Use parallelization if enabled
     Eigen::MatrixXf& weights_grad = weights_.get_grad_ref();
 
-    if (use_parallel_ && total_patch_cols > 1000)
+    const bool large_mm = (total_patch_cols > 1000);
+#if defined(LIKELY)
+    if (LIKELY(use_parallel_ && large_mm))
+#else
+    if (use_parallel_ && large_mm)
+#endif
     {
 // Parallel matrix multiplication for large problems
 #pragma omp parallel for if (use_parallel_)
@@ -176,22 +180,22 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
 
 // ============ Getters ============
 
-const nn::Tensor& Conv2d::get_weights() const
+auto Conv2d::get_weights() const -> const nn::Tensor&
 {
     return weights_;
 }
 
-nn::Tensor& Conv2d::get_weights()
+auto Conv2d::get_weights() -> nn::Tensor&
 {
     return weights_;
 }
 
-const nn::Tensor& Conv2d::get_bias() const
+auto Conv2d::get_bias() const -> const nn::Tensor&
 {
     return bias_;
 }
 
-nn::Tensor& Conv2d::get_bias()
+auto Conv2d::get_bias() -> nn::Tensor&
 {
     return bias_;
 }

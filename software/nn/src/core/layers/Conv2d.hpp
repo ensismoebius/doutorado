@@ -7,6 +7,17 @@
 #include <mutex>
 #include <vector>
 
+// Branch prediction hints: use compiler built-ins when available
+#ifndef LIKELY
+#if defined(__GNUC__) || defined(__clang__)
+#define LIKELY(x) (__builtin_expect(!!(x), 1))
+#define UNLIKELY(x) (__builtin_expect(!!(x), 0))
+#else
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#endif
+#endif
+
 #include "../tensor/Tensor.hpp"
 #include "Conv2d_utils.hpp"
 #include "Module.hpp"
@@ -61,14 +72,15 @@ class EIGEN_ALIGN16 Conv2d : public Module
     // ============ Getters ============
 
     /**
-     * @brief Get const reference to weight parameters
+     * @brief
+     *
      */
-    [[nodiscard]] const nn::Tensor& get_weights() const;
+    [[nodiscard]] auto get_weights() const -> const nn::Tensor&;
 
     /**
      * @brief Get mutable reference to weight parameters
      */
-    nn::Tensor& get_weights();
+    auto get_weights() -> nn::Tensor&;
 
     /**
      * @brief Get const reference to bias parameters
@@ -78,7 +90,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Get mutable reference to bias parameters
      */
-    nn::Tensor& get_bias();
+    auto get_bias() -> nn::Tensor&;
 
     // ============ Setters ============
 
@@ -95,7 +107,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Query if parallelization is enabled
      */
-    [[nodiscard]] bool is_parallel_enabled() const;
+    [[nodiscard]] auto is_parallel_enabled() const -> bool;
 
     /**
      * @brief Enable or disable OpenMP parallelization
@@ -129,13 +141,14 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Get or compute precomputed indices for given input dimensions
      */
-    const std::vector<Conv2dImpl::PatchIndices>& get_or_compute_indices(int input_height,
-                                                                        int input_width) const;
+    auto get_or_compute_indices(int input_height, int input_width) const
+        -> const std::vector<Conv2dImpl::PatchIndices>&;
 
     /**
      * @brief Precompute all im2col/col2im indices for efficient reuse
      */
-    std::vector<Conv2dImpl::PatchIndices> compute_indices(int input_height, int input_width) const;
+    auto compute_indices(int input_height, int input_width) const
+        -> std::vector<Conv2dImpl::PatchIndices>;
 
     /**
      * @brief Ensure indices are computed for given dimensions (one-time initialization)
@@ -156,19 +169,19 @@ class EIGEN_ALIGN16 Conv2d : public Module
      *
      * Reconstructs spatial dimensions from column format, accumulating overlapping patches.
      */
-    nn::Tensor col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
-                                int input_width, int output_height, int output_width) const;
+    auto col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
+                          int input_width, int output_height, int output_width) const -> nn::Tensor;
 
     /**
      * @brief Add bias to output matrix with optimized broadcasting
      */
-    void add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias, int num_cols) const;
+    void add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias) const;
 
     /**
      * @brief Reshape output matrix to 4D tensor without data copy
      */
-    nn::Tensor reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size,
-                                        int output_height, int output_width) const;
+    auto reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size, int output_height,
+                                  int output_width) const -> nn::Tensor;
 
     /**
      * @brief Initialize weights using He initialization for ReLU networks

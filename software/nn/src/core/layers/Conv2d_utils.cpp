@@ -1,18 +1,16 @@
-#include <cstring>
-
 #include "Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
 
-const std::vector<Conv2dImpl::PatchIndices>& Conv2d::get_or_compute_indices(int input_height,
-                                                                            int input_width) const
+auto Conv2d::get_or_compute_indices(int input_height, int input_width) const
+    -> const std::vector<Conv2dImpl::PatchIndices>&
 {
     auto key = std::make_pair(input_height, input_width);
 
     {
         std::lock_guard<std::mutex> lock(cache_mutex_);
         auto it = index_cache_.find(key);
-        if (it != index_cache_.end())
+        if (LIKELY(it != index_cache_.end()))
         {
             return it->second;
         }
@@ -25,8 +23,8 @@ const std::vector<Conv2dImpl::PatchIndices>& Conv2d::get_or_compute_indices(int 
     return index_cache_[key] = std::move(indices);
 }
 
-std::vector<Conv2dImpl::PatchIndices> Conv2d::compute_indices(int input_height,
-                                                              int input_width) const
+auto Conv2d::compute_indices(int input_height, int input_width) const
+    -> std::vector<Conv2dImpl::PatchIndices>
 {
     const int output_height = input_height - kernel_size_ + 1;
     const int output_width = input_width - kernel_size_ + 1;
@@ -80,7 +78,7 @@ std::vector<Conv2dImpl::PatchIndices> Conv2d::compute_indices(int input_height,
 
 void Conv2d::compute_indices_once(int input_height, int input_width) const
 {
-    if (!indices_computed_)
+    if (UNLIKELY(!indices_computed_))
     {
         get_or_compute_indices(input_height, input_width);
         indices_computed_ = true;
@@ -97,13 +95,18 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
 
-    // Map output for direct write access
+    // Map output for direct write access with Eigen::Ref-compatible signature
     Eigen::Map<Eigen::MatrixXf> output_map(
         output.get_data_ref().data(),
         patch_rows,
         static_cast<Eigen::Index>(batch_size) * static_cast<Eigen::Index>(patch_cols_per_batch));
 
-    if (use_parallel_ && batch_size * patch_cols_per_batch > 1000)
+    const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
+#if defined(LIKELY)
+    if (LIKELY(use_parallel_ && parallel_heavy))
+#else
+    if (use_parallel_ && parallel_heavy)
+#endif
     {
 // Parallel version for large problems
 #pragma omp parallel for collapse(2) if (use_parallel_)
@@ -112,8 +115,8 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
             for (int p = 0; p < patch_cols_per_batch; ++p)
             {
                 const int col_idx = (b * patch_cols_per_batch) + p;
-                const int oy = p / output_width; // Current output y
-                const int ox = p % output_width; // Current output x
+                const int oy = p / output_width;
+                const int ox = p % output_width;
 
                 int elem_idx = 0;
                 for (int ic = 0; ic < in_channels_; ++ic)
@@ -139,8 +142,8 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
             for (int p = 0; p < patch_cols_per_batch; ++p)
             {
                 const int col_idx = (b * patch_cols_per_batch) + p;
-                const int oy = p / output_width; // Current output y
-                const int ox = p % output_width; // Current output x
+                const int oy = p / output_width;
+                const int ox = p % output_width;
 
                 int elem_idx = 0;
                 for (int ic = 0; ic < in_channels_; ++ic)
@@ -163,8 +166,9 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
 // ============ Column-to-Image (col2im) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-nn::Tensor Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
-                                    int input_width, int output_height, int output_width) const
+auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
+                              int input_width, int output_height, int output_width) const
+    -> nn::Tensor
 {
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
@@ -182,72 +186,71 @@ nn::Tensor Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size,
         result.get_data_ref().setZero();
     }
 
-    // Get precomputed indices
-    const auto& indices_vec = get_or_compute_indices(input_height, input_width);
-
-    if (use_parallel_ && batch_size * patch_cols_per_batch > 1000)
+    const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
+#if defined(LIKELY)
+    if (LIKELY(use_parallel_ && parallel_heavy))
+#else
+    if (use_parallel_ && parallel_heavy)
+#endif
     {
-// Parallel accumulation
+// Parallel accumulation with improved loop structure for cache efficiency
 #pragma omp parallel for collapse(2) if (use_parallel_)
         for (int b = 0; b < batch_size; ++b)
         {
-            for (int p = 0; p < patch_cols_per_batch; ++p)
+            for (int ic = 0; ic < in_channels_; ++ic)
             {
-                const int col_idx = (b * patch_cols_per_batch) + p;
-                const auto& patch_positions = indices_vec[(b * patch_cols_per_batch) + p].positions;
+                // Process each input channel block separately to improve cache locality
+                const int channel_row_offset = ic * kernel_size_ * kernel_size_;
 
-                for (int r = 0; r < patch_rows; ++r)
+                for (int oy = 0; oy < output_height; ++oy)
                 {
-                    const float value = cols(r, col_idx);
-                    // Add to appropriate position using precomputed mapping
-                    const auto& pos = patch_positions[r];
+                    for (int ox = 0; ox < output_width; ++ox)
+                    {
+                        const int p = (oy * output_width) + ox;
+                        const int col_idx = (b * patch_cols_per_batch) + p;
 
-                    // We need to map pos.first (linearized index) back to 4D coordinates
-                    // The original compute_indices creates a linearized index result_row and
-                    // result_col result_row = (b * in_channels_ + ic) * input_height + input_y;
-                    // result_col = input_x;
-                    // This means pos.first is a combination of b, ic, input_y.
-                    // We need to reverse this to get b_orig, ic_orig, input_y_orig
-                    // input_x_orig is pos.second
-
-                    const int linearized_b_ic_y = pos.first;
-                    const int x_orig = pos.second; // input_x
-
-                    const int y_orig = linearized_b_ic_y % input_height;
-                    const int b_ic = linearized_b_ic_y / input_height;
-                    const int ic_orig = b_ic % in_channels_;
-                    const int b_orig = b_ic / in_channels_;
-
-#pragma omp atomic
-                    result.at(b_orig, ic_orig, y_orig, x_orig) += value;
+                        for (int ky = 0; ky < kernel_size_; ++ky)
+                        {
+                            for (int kx = 0; kx < kernel_size_; ++kx)
+                            {
+                                const int input_y = oy + ky;
+                                const int input_x = ox + kx;
+                                const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
+                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                            }
+                        }
+                    }
                 }
             }
         }
     }
     else
     {
-        // Sequential accumulation
+        // Sequential accumulation with improved loop structure
         for (int b = 0; b < batch_size; ++b)
         {
-            for (int p = 0; p < patch_cols_per_batch; ++p)
+            for (int ic = 0; ic < in_channels_; ++ic)
             {
-                const int col_idx = (b * patch_cols_per_batch) + p;
-                const auto& patch_positions = indices_vec[(b * patch_cols_per_batch) + p].positions;
+                const int channel_row_offset = ic * kernel_size_ * kernel_size_;
 
-                for (int r = 0; r < patch_rows; ++r)
+                for (int oy = 0; oy < output_height; ++oy)
                 {
-                    const float value = cols(r, col_idx);
-                    const auto& pos = patch_positions[r];
+                    for (int ox = 0; ox < output_width; ++ox)
+                    {
+                        const int p = (oy * output_width) + ox;
+                        const int col_idx = (b * patch_cols_per_batch) + p;
 
-                    const int linearized_b_ic_y = pos.first;
-                    const int x_orig = pos.second; // input_x
-
-                    const int y_orig = linearized_b_ic_y % input_height;
-                    const int b_ic = linearized_b_ic_y / input_height;
-                    const int ic_orig = b_ic % in_channels_;
-                    const int b_orig = b_ic / in_channels_;
-
-                    result.at(b_orig, ic_orig, y_orig, x_orig) += value;
+                        for (int ky = 0; ky < kernel_size_; ++ky)
+                        {
+                            for (int kx = 0; kx < kernel_size_; ++kx)
+                            {
+                                const int input_y = oy + ky;
+                                const int input_x = ox + kx;
+                                const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
+                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -258,46 +261,36 @@ nn::Tensor Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size,
 
 // ============ Bias Addition ============
 
-void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias, int num_cols) const
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias) const
 {
     const Eigen::VectorXf bias_vector = bias.get_data_ref().col(0);
 
-    if (use_parallel_ && num_cols > 1000)
-    {
-#pragma omp parallel for if (use_parallel_)
-        for (int i = 0; i < matrix.rows(); ++i)
-        {
-            const float bias_val = bias_vector(i);
-            Eigen::VectorXf::Map(matrix.row(i).data(), num_cols).array() += bias_val;
-        }
-    }
-    else
-    {
-        // Use Eigen's broadcasting with noalias for efficiency
-        matrix.noalias() += bias_vector * Eigen::RowVectorXf::Ones(num_cols);
-    }
+    // Use colwise() broadcasting for optimal Eigen performance
+    // This is more efficient than manual loops or replicate patterns
+    // and allows Eigen to apply vectorization and SIMD optimizations
+    matrix.colwise() += bias_vector;
 }
 
 // ============ Output Reshaping ============
 
-nn::Tensor Conv2d::reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size,
-                                            int output_height, int output_width) const
+auto Conv2d::reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size,
+                                      int output_height, int output_width) const -> nn::Tensor
 {
-    const int total_elements = batch_size * out_channels_ * output_height * output_width;
-
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);
 
-    // Direct memory mapping for efficient copy
-    Eigen::Map<Eigen::VectorXf> output_map(output.get_data_ref().data(), total_elements);
+    // Use Eigen assignment for better integration with expression templates
+    // If layouts are compatible, Eigen avoids temporary allocation
+    Eigen::Map<Eigen::MatrixXf> output_map(output.get_data_ref().data(),
+                                           out_channels_,
+                                           static_cast<Eigen::Index>(batch_size) *
+                                               static_cast<Eigen::Index>(output_height) *
+                                               static_cast<Eigen::Index>(output_width));
 
-    Eigen::Map<const Eigen::VectorXf> input_map(matrix.data(), total_elements);
-
-    // Single memcpy for all data (fastest possible)
-    if (total_elements > 0)
-    {
-        std::memcpy(output_map.data(), input_map.data(), total_elements * sizeof(float));
-    }
+    // Direct assignment using noalias - Eigen evaluates most efficiently
+    // compared to manual memcpy, as it leverages vectorization
+    output_map.noalias() = matrix;
 
     return output;
 }
