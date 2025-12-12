@@ -40,7 +40,7 @@ enum TransformMode : uint8_t
  * @param mode - PACKET_WAVELET: wavelet packet, REGULAR_WAVELET: regular wavelet
  * @return transformed signal
  */
-auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter,
+auto malat(const std::vector<double>& signal, const std::vector<double>& lowpassfilter,
            TransformMode mode = REGULAR_WAVELET, unsigned int level = 1, unsigned int maxItens = 0,
            bool highPassBranch = false) -> WaveletTransformResults;
 

@@ -11,7 +11,7 @@
 namespace wavelets
 {
 
-auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter, TransformMode mode,
+auto malat(const std::vector<double>& signal, const std::vector<double>& lowpassfilter, TransformMode mode,
            unsigned int level, unsigned int maxItens, bool highPassBranch)
     -> WaveletTransformResults
 {

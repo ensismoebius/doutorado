@@ -73,7 +73,7 @@ auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> doub
     return finalResult;
 }
 
-auto calcOrthogonalVector(std::vector<double>& vector) -> std::vector<double>
+auto calcOrthogonalVector(const std::vector<double>& vector) -> std::vector<double>
 {
     std::vector<double> result(vector.size());
     double multiplier = 1;
