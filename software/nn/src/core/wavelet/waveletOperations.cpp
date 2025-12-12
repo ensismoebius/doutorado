@@ -77,6 +77,7 @@ auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter, Tran
             highPassSum = 0;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
+            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make std::accumulate less readable here.
             for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
             {
                 // This part corresponds to the "wrap around" part of Mallat's algorithm
@@ -111,6 +112,7 @@ auto malat(std::vector<double>& signal, std::vector<double>& lowpassfilter, Tran
             highPassSum = 0;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
+            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make std::accumulate less readable here.
             for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
             {
                 // This part corresponds to the "wrap around" part of Mallat's algorithm

@@ -25,22 +25,17 @@ Tensor::Tensor(Eigen::Index rows, Eigen::Index cols)
 }
 
 Tensor::Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4)
-    : m_shape({dim1, dim2, dim3, dim4})
+    : m_shape({dim1, dim2, dim3, dim4}),
+      m_data(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
+      m_grad(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1))
 {
-    Eigen::Index total_size = dim1 * dim2 * dim3 * dim4;
-    m_data = Eigen::MatrixXf::Zero(total_size, 1);
-    m_grad = Eigen::MatrixXf::Zero(total_size, 1);
 }
 
-Tensor::Tensor(const std::vector<Eigen::Index>& shape) : m_shape(shape)
+Tensor::Tensor(const std::vector<Eigen::Index>& shape)
+    : m_shape(shape),
+      m_data(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
+      m_grad(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1))
 {
-    Eigen::Index total_size = 1;
-    for (Eigen::Index dim : shape)
-    {
-        total_size *= dim;
-    }
-    m_data = Eigen::MatrixXf::Zero(total_size, 1);
-    m_grad = Eigen::MatrixXf::Zero(total_size, 1);
 }
 
 // Getters for data and gradient
@@ -78,7 +73,7 @@ void Tensor::set_data(const Eigen::MatrixXf& data)
 }
 
 // Shape and size information
-auto Tensor::get_shape() const -> std::vector<Eigen::Index>
+auto Tensor::get_shape() const -> const std::vector<Eigen::Index>&
 {
     return m_shape;
 }

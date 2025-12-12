@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <numeric>
 
 namespace linearAlgebra
 {
@@ -40,7 +41,7 @@ auto derivative(std::vector<double>& vector, long level) -> std::vector<double>
     return vector;
 }
 
-auto dotProduct(std::vector<double> a, std::vector<double> b) -> double
+auto dotProduct(const std::vector<double>& a, const std::vector<double>& b) -> double
 {
     double product = 0;
 
@@ -331,15 +332,17 @@ auto discreteCosineTransform(std::vector<double>& vector) -> void
 {
     std::vector<double> res(vector.size());
     unsigned int N = vector.size();
-    double sum = 0;
+
+    // Create a vector of indices [0, 1, ..., N-1] for std::accumulate
+    std::vector<unsigned int> indices(N);
+    std::iota(indices.begin(), indices.end(), 0);
 
     for (unsigned int k = 0; k < N; ++k)
     {
-        sum = 0;
-        for (unsigned int n = 0; n < N; ++n)
-        {
-            sum += vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
-        }
+        double sum = std::accumulate(indices.begin(), indices.end(), 0.0,
+                                     [&](double acc, unsigned int n) {
+                                         return acc + vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
+                                     });
 
         res[k] = getAlphaK(k, N) * sum;
     }

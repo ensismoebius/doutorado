@@ -12,7 +12,7 @@
 #include <cmath>
 #include <vector>
 
-auto amdf(std::vector<long double> vector) -> std::vector<long double>
+auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
 {
     unsigned int resultIndex = -1;
     unsigned int N = vector.size();

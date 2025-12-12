@@ -178,19 +178,19 @@ class Wav
      * @brief Returns the raw wav data (monolithic wav)
      * @return data The raw wav data as a vector of doubles.
      */
-    [[nodiscard]] auto getData() const -> std::vector<double>;
+    [[nodiscard]] auto getData() const -> const std::vector<double>&;
 
     /**
      * @brief Returns the raw wav data (left channel wav)
      * @return data The raw wav data for the left channel as a vector of doubles.
      */
-    [[nodiscard]] auto getDataLeft() const -> std::vector<double>;
+    [[nodiscard]] auto getDataLeft() const -> const std::vector<double>&;
 
     /**
      * @brief Returns the raw wav data (right channel wav)
      * @return data The raw wav data for the right channel as a vector of doubles.
      */
-    [[nodiscard]] auto getDataRight() const -> std::vector<double>;
+    [[nodiscard]] auto getDataRight() const -> const std::vector<double>&;
 
     /**
      * The function which will manipulate the wav data

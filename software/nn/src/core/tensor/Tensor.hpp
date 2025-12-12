@@ -33,7 +33,7 @@ class Tensor
     void set_data(const Eigen::MatrixXf& data);
 
     // Shape and size information
-    [[nodiscard]] auto get_shape() const -> std::vector<Eigen::Index>;
+    [[nodiscard]] auto get_shape() const -> const std::vector<Eigen::Index>&;
     [[nodiscard]] auto rows() const -> Eigen::Index;
     [[nodiscard]] auto cols() const -> Eigen::Index;
     [[nodiscard]] auto size() const -> Eigen::Index;
@@ -55,11 +55,20 @@ class Tensor
     // Zero out the gradient
     void zero_grad();
 
-   private:
-    Eigen::MatrixXf m_data;
-    Eigen::MatrixXf m_grad;
-    std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape
-};
+       private:
+       static Eigen::Index calculate_total_size(const std::vector<Eigen::Index>& shape)
+       {
+           Eigen::Index total_size = 1;
+           for (Eigen::Index dim : shape)
+           {
+               total_size *= dim;
+           }
+           return total_size;
+       }
+   
+       Eigen::MatrixXf m_data;
+       Eigen::MatrixXf m_grad;
+       std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape};
 } // namespace nn
 
 // Template implementations must be available in the header.

@@ -161,7 +161,6 @@ void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
                   std::vector<double>& falseNegativeRates)
 {
     double minorDistance = std::numeric_limits<double>::max();
-    double tempDistance = -std::numeric_limits<double>::max();
 
     double pointAbove[2] = {0, 0};
     double pointBellow[2] = {0, 0};
@@ -210,11 +209,18 @@ void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices, double& eer,
                   std::vector<double>& falsePositiveRates, std::vector<double>& falseNegativeRates)
 {
     // Calculate all false positive and false negative rates
-    for (auto confusionMatrix : confusionMatrices)
-    {
-        falsePositiveRates.push_back(falsePositiveRate(confusionMatrix));
-        falseNegativeRates.push_back(falseNegativeRate(confusionMatrix));
-    }
+    falsePositiveRates.clear();
+    falsePositiveRates.reserve(confusionMatrices.size());
+    falseNegativeRates.clear();
+    falseNegativeRates.reserve(confusionMatrices.size());
+
+    std::transform(confusionMatrices.begin(), confusionMatrices.end(),
+                   std::back_inserter(falsePositiveRates),
+                   [](const ConfusionMatrix& cm) { return falsePositiveRate(cm); });
+
+    std::transform(confusionMatrices.begin(), confusionMatrices.end(),
+                   std::back_inserter(falseNegativeRates),
+                   [](const ConfusionMatrix& cm) { return falseNegativeRate(cm); });
 
     calculateEER(eer, falsePositiveRates, falseNegativeRates);
 }

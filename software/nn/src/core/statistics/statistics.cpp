@@ -10,51 +10,36 @@
 #include <cmath>
 #include <utility>
 #include <vector>
+#include <numeric>
 
 namespace statistics
 {
 auto variance(const std::vector<double>& data) -> double
 {
-    double mean = 0;
-    double variance = 0;
+    // Calculate the mean using std::accumulate
+    double mean = std::accumulate(data.begin(), data.end(), 0.0) / static_cast<double>(data.size());
 
-    // Calculate the mean
-    for (auto accuracy : data)
-    {
-        mean += accuracy;
-    }
-    mean /= static_cast<double>(data.size());
+    // Calculate the variance using std::accumulate
+    double variance_val = std::accumulate(data.begin(), data.end(), 0.0,
+                                        [&](double acc, double val) {
+                                            return acc + std::pow(val - mean, 2);
+                                        }) / static_cast<double>(data.size());
 
-    // Calculate the variance
-    for (auto accuracy : data)
-    {
-        variance += std::pow(accuracy - mean, 2);
-    }
-    variance /= data.size();
-
-    return variance;
+    return variance_val;
 }
 
 auto variance(const double* data, unsigned int length) -> double
 {
-    double mean = 0;
-    double variance = 0;
+    // Calculate the mean using std::accumulate
+    double mean = std::accumulate(data, data + length, 0.0) / static_cast<double>(length);
 
-    // Calculate the mean
-    for (unsigned int i = 0; i < length; i++)
-    {
-        mean += data[i];
-    }
-    mean /= length;
+    // Calculate the variance using std::accumulate
+    double variance_val = std::accumulate(data, data + length, 0.0,
+                                        [&](double acc, double val) {
+                                            return acc + std::pow(val - mean, 2);
+                                        }) / static_cast<double>(length);
 
-    // Calculate the variance
-    for (unsigned int i = 0; i < length; i++)
-    {
-        variance += std::pow(data[i] - mean, 2);
-    }
-    variance /= length;
-
-    return variance;
+    return variance_val;
 }
 
 auto standardDeviation(const std::vector<double>& data) -> double

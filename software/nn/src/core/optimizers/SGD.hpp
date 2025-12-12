@@ -17,11 +17,12 @@ struct SGD : public Optimizer
     auto attach(std::span<nn::Tensor*> paramsList) -> void
     {
         velocity.clear();
-        for (auto* param : paramsList)
-        {
-            velocity.emplace_back(
-                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
-        }
+        velocity.reserve(paramsList.size()); // Pre-allocate memory
+        std::transform(paramsList.begin(), paramsList.end(), std::back_inserter(velocity),
+                       [](nn::Tensor* param) {
+                           return Eigen::MatrixXf::Zero(param->get_grad_ref().rows(),
+                                                         param->get_grad_ref().cols());
+                       });
     }
 
     auto step(std::span<nn::Tensor*> paramsList) -> void override

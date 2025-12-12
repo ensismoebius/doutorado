@@ -14,10 +14,10 @@ struct ResidualBlock : public Module
     std::shared_ptr<Linear> fc2;
 
     ResidualBlock(int features)
+        : fc1(std::make_shared<Linear>(features, features)),
+          act1(std::make_shared<ReLU>()),
+          fc2(std::make_shared<Linear>(features, features))
     {
-        fc1 = std::make_shared<Linear>(features, features);
-        act1 = std::make_shared<ReLU>();
-        fc2 = std::make_shared<Linear>(features, features);
     }
 
     auto forward(const nn::Tensor& input) -> nn::Tensor override

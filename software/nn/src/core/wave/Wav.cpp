@@ -230,17 +230,17 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     ofs.close();
 }
 
-auto Wav::getData() const -> std::vector<double>
+auto Wav::getData() const -> const std::vector<double>&
 {
     return data;
 }
 
-auto Wav::getDataLeft() const -> std::vector<double>
+auto Wav::getDataLeft() const -> const std::vector<double>&
 {
     return dataLeft;
 }
 
-auto Wav::getDataRight() const -> std::vector<double>
+auto Wav::getDataRight() const -> const std::vector<double>&
 {
     return dataRight;
 }
