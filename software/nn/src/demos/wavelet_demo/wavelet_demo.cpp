@@ -41,10 +41,7 @@ void plot_signal(const std::vector<double>& signal) {
 
 void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
                                         const std::vector<double>& filter,
-                                        int level_to_plot,
-                                        int num_rows,
-                                        int num_cols,
-                                        int plot_idx) {
+                                        int level_to_plot) {
     try {
         auto dwt_results = wavelets::malat(signal, const_cast<std::vector<double>&>(filter), wavelets::REGULAR_WAVELET, level_to_plot);
         
@@ -70,13 +67,12 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
                 for(double val : details) {
                     combined_coefficients.push_back(val + offset);
                 }
-                if(details.size() > 1) { // Only calculate range if more than one element
+                if(details.size() > 1) {
                     offset += (*std::max_element(details.begin(), details.end()) - *std::min_element(details.begin(), details.end())) + 0.1; // dynamic offset
                 }
             }
         }
 
-        plt::subplot(num_rows, num_cols, plot_idx);
         plt::plot(combined_coefficients);
         plt::title("DWT Decomposition (Level " + std::to_string(level_to_plot) + ")");
 
@@ -87,10 +83,7 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
 
 void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
                                          const std::vector<double>& filter,
-                                         int level_to_plot,
-                                         int num_rows,
-                                         int num_cols,
-                                         int plot_idx) {
+                                         int level_to_plot) {
     try {
         auto dwpt_results = wavelets::malat(signal, const_cast<std::vector<double>&>(filter), wavelets::PACKET_WAVELET, level_to_plot);
         long n_parts = dwpt_results.getWaveletPacketAmountOfParts();
@@ -110,7 +103,6 @@ void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
             }
         }
 
-        plt::subplot(num_rows, num_cols, plot_idx);
         plt::plot(combined_packets);
         plt::title("DWPT Decomposition (Level " + std::to_string(level_to_plot) + ")");
 
@@ -134,35 +126,33 @@ auto main() -> int {
     wavelets::init({"db8"});
     auto db8_filter = wavelets::get("db8");
 
+    // Plot original signal
+    plt::figure();
+    plot_signal(signal);
+
     // Plotting loop for each level
     for (int level = 1; level <= max_level; ++level) {
         try {
+            // DWT
             plt::figure();
-            plt::suptitle("Wavelet Decomposition - Level " + std::to_string(level));
+            plot_dwt_decomposition_single_plot(signal, db8_filter, level);
 
-            // Plot 1: Original Signal
-            plt::subplot(3, 1, 1);
-            plot_signal(signal);
-
-            // Plot 2: DWT Decomposition
-            plot_dwt_decomposition_single_plot(signal, db8_filter, level, 3, 1, 2);
-
-            // Plot 3: DWPT Decomposition
-            plot_dwpt_decomposition_single_plot(signal, db8_filter, level, 3, 1, 3);
+            // DWPT
+            plt::figure();
+            plot_dwpt_decomposition_single_plot(signal, db8_filter, level);
 
         } catch (const std::runtime_error& e) {
-            std::cerr << "matplotlib-cpp error in main loop (level " << level << "): " << e.what() << std::endl;
+            std::cerr << "matplotlib-cpp error in main loop (level " << level << "): " << e.what()
+                      << '\n';
         }
     }
 
     try {
-        std::cout << "Showing plots..." << std::endl;
+        std::cout << "Showing plots..." << '\n';
         plt::show(true);
     } catch (const std::runtime_error& e) {
-        std::cerr << "matplotlib-cpp error on show: " << e.what() << std::endl;
+        std::cerr << "matplotlib-cpp error on show: " << e.what() << '\n';
     }
-    
-    wavelets::resetInitialization();
 
     return 0;
 }
