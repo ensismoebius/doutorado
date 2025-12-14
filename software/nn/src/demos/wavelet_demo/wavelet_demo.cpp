@@ -157,8 +157,8 @@ auto main() -> int
     auto signal = generateSignal(freq1, freq2, sample_rate, duration_seconds);
 
     // Wavelet initialization
-    wavelets::init({"db8"});
-    auto db8_filter = wavelets::get("db8");
+    wavelets::init({"daub38"});
+    auto db8_filter = wavelets::get("daub38");
 
     // Plot original signal
     plt::figure();
