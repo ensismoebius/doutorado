@@ -9,31 +9,34 @@
  */
 struct Config
 {
-    /// @brief Duration of the window in seconds, from `window.duration_sec`.
+    /// Duration of the window in seconds, from `window.duration_sec`.
     double duration_sec;
-    /// @brief Overlap percentage for windowing, from `window.overlap_percent`.
+    /// Overlap percentage for windowing, from `window.overlap_percent`.
     int overlap_percent;
-    /// @brief Normalization range (min, max) for data, from `normalization.range`.
+    /// Normalization range (min, max) for data, from `normalization.range`.
     std::vector<double> range;
-    /// @brief Normalization method to be applied, from `normalization.method`.
+    /// Normalization method to be applied, from `normalization.method`.
     std::string method;
-    /// @brief Flag indicating if paraconsistent prerequisite normalization is enabled, from `normalization.paraconsistent_prerequisite`.
+    /// Flag indicating if paraconsistent prerequisite normalization is enabled, from
+    /// `normalization.paraconsistent_prerequisite`.
     bool paraconsistent_prerequisite;
-    /// @brief Type of classifier used, from `classifier.type`.
+    /// Type of classifier used, from `classifier.type`.
     std::string type;
-    /// @brief Implementation details or specific model for the classifier, from `classifier.implementation`.
+    /// Implementation details or specific model for the classifier, from
+    /// `classifier.implementation`.
     std::string implementation;
-    /// @brief Sampling rate of the dataset, from `dataset.sampling_rate`.
+    /// Sampling rate of the dataset, from `dataset.sampling_rate`.
     int sampling_rate;
-    /// @brief EEG specific sampling rate of the dataset, from `dataset.eeg_sampling_rate`.
+    /// EEG specific sampling rate of the dataset, from `dataset.eeg_sampling_rate`.
     int eeg_sampling_rate;
-    /// @brief Flag indicating if paraconsistent analysis is enabled, from `paraconsistent.enabled`.
+    /// Flag indicating if paraconsistent analysis is enabled, from `paraconsistent.enabled`.
     bool enabled;
-    /// @brief Optimal point for paraconsistent analysis (e.g., [1.0, 0.0]), from `paraconsistent.optimal_point`.
+    /// Optimal point for paraconsistent analysis (e.g., [1.0, 0.0]), from
+    /// `paraconsistent.optimal_point`.
     std::vector<double> optimal_point;
 
     /**
-     * @brief Constructs a Config object by loading parameters from a YAML file.
+     * Constructs a Config object by loading parameters from a YAML file.
      * @param path The file path to the YAML configuration file.
      *
      * This constructor parses the YAML file at the given path and populates
