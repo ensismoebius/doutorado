@@ -2,7 +2,7 @@
 #include <string>
 
 #include "audioTypes.h"
-#include "demos/lfcc_pipeline/Experiment01_utils.h"
+#include "demos/lfcc_pipeline/lfcc_pipeline_utils.h"
 
 using std::string;
 

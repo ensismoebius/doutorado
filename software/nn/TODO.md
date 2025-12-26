@@ -9,12 +9,12 @@
 ---
 
 ## 🔒 PHASE 0 — Freezing (DO ONCE)
-* [ ] Fix window **1.5 s / 50%**
-* [ ] Fix normalization **[0,1] before α/β**
-* [ ] Mandatory normalization to **[0,1]** (paraconsistent prerequisite) in /src/experiments/.
-* [ ] Fix classifier (**ResNet**)
-* [ ] Classification with **Residual Neural Networks** in /src/experiments/.
-* [ ] Create unique `config.yaml`
+* [x] Fix window **1.5 s / 50%**
+* [x] Fix normalization **[0,1] before α/β**
+* [x] Mandatory normalization to **[0,1]** (paraconsistent prerequisite) in /src/experiments/.
+* [x] Fix classifier (**ResNet**)
+* [x] Classification with **Residual Neural Networks** in /src/experiments/.
+* [x] Create unique `config.yaml`
 
 ---
 

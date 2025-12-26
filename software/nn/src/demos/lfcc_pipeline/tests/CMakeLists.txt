@@ -1,4 +1,4 @@
-add_executable(lfcc_pipeline_utils_gtest Experiment01_utils_gtest.cpp)
+add_executable(lfcc_pipeline_utils_gtest lfcc_pipeline_utils_gtest.cpp)
 
 target_link_libraries(lfcc_pipeline_utils_gtest
     PRIVATE

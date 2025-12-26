@@ -2,7 +2,7 @@ find_package(ZLIB REQUIRED)
 
 # Experiment 01 CMake configuration
 add_library(lfcc_pipeline_utils_lib STATIC
-    ${SRC_DIR}/demos/lfcc_pipeline/Experiment01_utils.cpp
+    ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline_utils.cpp
 )
 
 target_include_directories(lfcc_pipeline_utils_lib
@@ -39,7 +39,7 @@ add_executable(exec_lfcc_pipeline
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
     ${SRC_DIR}/core/dataLoaders/MatFile.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
-    ${SRC_DIR}/demos/lfcc_pipeline/Experiment01.cpp
+    ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline.cpp
 )
 
 # Include directories
