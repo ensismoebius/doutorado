@@ -61,6 +61,17 @@ void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
     }
 }
 
+void normalizeClassesFeatureVectors(
+    unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+    unsigned int featureVectorSize,
+    std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
+{
+    for (auto& entry : arrClasses)
+    {
+        normalizeFeatureVectors(entry.second, featureVectorsPerClass);
+    }
+}
+
 auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
                     unsigned int featureVectorSize,
                     std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double

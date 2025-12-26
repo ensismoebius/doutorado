@@ -19,4 +19,5 @@ target_link_libraries(experiments_config
         yaml-cpp
 )
 
+add_subdirectory(00)
 add_subdirectory(01)
