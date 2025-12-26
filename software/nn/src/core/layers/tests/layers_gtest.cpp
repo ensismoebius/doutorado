@@ -184,8 +184,8 @@ TEST(Conv2dTest, ForwardAndBackward)
                        out_channels);
     weights.at(0, 0) = 1.0F;
     weights.at(1, 0) = 2.0F;
-    weights.at(2, 0) = 3.0f;
-    weights.at(3, 0) = 4.0f;
+    weights.at(2, 0) = 3.0F;
+    weights.at(3, 0) = 4.0F;
     conv.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
@@ -408,11 +408,11 @@ TEST(Conv2dTest, DifferentKernelSizes)
         nn::Tensor output = conv.forward(input);
 
         // 1x1 kernel should preserve spatial dimensions
-        auto out_shape = output.get_shape();
+        const auto& out_shape = output.get_shape();
         ASSERT_EQ(out_shape[2], input_height);
         ASSERT_EQ(out_shape[3], input_width);
         // Output should be 1 * 2 = 2
-        ASSERT_NEAR(output.at(0, 0, 0, 0), 2.0f, 1e-5);
+        ASSERT_NEAR(output.at(0, 0, 0, 0), 2.0F, 1e-5);
     }
 
     // Test 3x3 kernel
@@ -432,7 +432,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
         nn::Tensor output = conv.forward(input);
 
         // 3x3 kernel on all-ones produces 9 (sum of 9 ones)
-        auto out_shape = output.get_shape();
+        const auto& out_shape = output.get_shape();
         ASSERT_EQ(out_shape[2], 6); // 8 - 3 + 1
         ASSERT_EQ(out_shape[3], 6);
         ASSERT_NEAR(output.at(0, 0, 0, 0), 9.0F, 1e-5);
@@ -455,7 +455,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
         nn::Tensor output = conv.forward(input);
 
         // 5x5 kernel on all-ones produces 25
-        auto out_shape = output.get_shape();
+        const auto& out_shape = output.get_shape();
         ASSERT_EQ(out_shape[2], 4); // 8 - 5 + 1
         ASSERT_EQ(out_shape[3], 4);
         ASSERT_NEAR(output.at(0, 0, 0, 0), 25.0F, 1e-5);
@@ -503,8 +503,8 @@ TEST(Conv2dTest, ParallelExecution)
     nn::Tensor output_sequential = conv_sequential.forward(input);
 
     // Verify shapes are correct
-    auto shape_p = output_parallel.get_shape();
-    auto shape_s = output_sequential.get_shape();
+    const auto& shape_p = output_parallel.get_shape();
+    const auto& shape_s = output_sequential.get_shape();
     ASSERT_EQ(shape_p[0], batch_size);
     ASSERT_EQ(shape_s[0], batch_size);
     ASSERT_EQ(shape_p[1], out_channels);
@@ -520,8 +520,8 @@ TEST(Conv2dTest, ParallelExecution)
     nn::Tensor grad_input_s = conv_sequential.backward(grad_output);
 
     // Verify gradient shapes
-    auto grad_shape_p = grad_input_p.get_shape();
-    auto grad_shape_s = grad_input_s.get_shape();
+    const auto& grad_shape_p = grad_input_p.get_shape();
+    const auto& grad_shape_s = grad_input_s.get_shape();
     ASSERT_EQ(grad_shape_p[0], batch_size);
     ASSERT_EQ(grad_shape_s[0], batch_size);
 }
@@ -609,7 +609,7 @@ TEST(Conv2dTest, SmallInputSize)
     nn::Tensor output = conv.forward(input);
 
     // 3x3 input with 3x3 kernel = 1x1 output
-    auto out_shape = output.get_shape();
+    const auto& out_shape = output.get_shape();
     ASSERT_EQ(out_shape[2], 1);
     ASSERT_EQ(out_shape[3], 1);
     ASSERT_NEAR(output.at(0, 0, 0, 0), 9.0F, 1e-5);
@@ -659,7 +659,7 @@ TEST(Conv2dTest, LargeBatchSize)
     nn::Tensor output = conv.forward(input);
 
     // Verify shape
-    auto out_shape = output.get_shape();
+    const auto& out_shape = output.get_shape();
     ASSERT_EQ(out_shape[0], batch_size);
     ASSERT_EQ(out_shape[1], out_channels);
     ASSERT_EQ(out_shape[2], 6); // 8 - 3 + 1
@@ -672,7 +672,7 @@ TEST(Conv2dTest, LargeBatchSize)
     nn::Tensor grad_input = conv.backward(grad_output);
 
     // Verify gradient shape
-    auto grad_shape = grad_input.get_shape();
+    const auto& grad_shape = grad_input.get_shape();
     ASSERT_EQ(grad_shape[0], batch_size);
     ASSERT_EQ(grad_shape[1], in_channels);
     ASSERT_EQ(grad_shape[2], input_height);
@@ -725,57 +725,57 @@ TEST(Conv2dTest, BiasShapeVariants)
 // Test for L1Regularization
 TEST(L1RegularizationTest, Forward)
 {
-    L1Regularization reg(0.1f);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0f)};
+    L1Regularization reg(0.1F);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0F)};
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     nn::Tensor loss = reg.forward(params);
     // |1|*4 + |-2|*3 = 4 + 6 = 10, times 0.1 = 1.0
-    ASSERT_NEAR(loss.at(0, 0), 1.0f, 1e-5f);
+    ASSERT_NEAR(loss.at(0, 0), 1.0F, 1e-5F);
 }
 
 TEST(L1RegularizationTest, Backward)
 {
-    L1Regularization reg(0.5f);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0f)};
+    L1Regularization reg(0.5F);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0F)};
     param1.zero_grad();
     param2.zero_grad();
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     reg.backward(params);
     // grad for param1: sign(1)*0.5 = 0.5
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 0.5f)));
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 0.5F)));
     // grad for param2: sign(-2)*0.5 = -0.5
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, -0.5f)));
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, -0.5F)));
 }
 
 // Test for L2Regularization
 TEST(L2RegularizationTest, Forward)
 {
-    L2Regularization reg(0.1f);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0f)};
+    L2Regularization reg(0.1F);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0F)};
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     nn::Tensor loss = reg.forward(params);
     // 1^2*4 + 2^2*3 = 4 + 12 = 16, times 0.1 = 1.6
-    ASSERT_NEAR(loss.at(0, 0), 1.6f, 1e-5f);
+    ASSERT_NEAR(loss.at(0, 0), 1.6F, 1e-5F);
 }
 
 TEST(L2RegularizationTest, Backward)
 {
-    L2Regularization reg(0.5f);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0f)};
+    L2Regularization reg(0.5F);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0F)};
     param1.zero_grad();
     param2.zero_grad();
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     reg.backward(params);
     // grad for param1: 2*1*0.5 = 1.0
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 1.0f)));
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 1.0F)));
     // grad for param2: 2*2*0.5 = 2.0
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, 2.0f)));
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, 2.0F)));
 }
