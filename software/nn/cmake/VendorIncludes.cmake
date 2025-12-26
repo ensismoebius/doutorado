@@ -30,5 +30,8 @@ include(cmake/VendorMatioCppShim.cmake)
 # Matplotlib-cpp integration
 include(cmake/VendorMatplotlibCpp.cmake)
 
+# YAML-cpp integration
+include(cmake/VendorYaml.cmake)
+
 # Eigen parallelization settings
 include(cmake/VendorEigenParallel.cmake)

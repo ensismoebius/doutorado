@@ -1,0 +1,43 @@
+# Configuration for Speaker Identification Pipeline: EEG + Audio with Spiking Neural Networks
+# PHASE 0 - Frozen Parameters (Do Once)
+
+# Windowing parameters
+window:
+  duration_sec: 1.5 # Fixed window duration
+  overlap_percent: 50 # 50% overlap
+
+# Normalization
+normalization:
+  range: [0, 1] # Normalize to [0,1] before α/β calculation
+  method: "min-max" # Normalization method
+  paraconsistent_prerequisite: true # Mandatory for paraconsistent analysis
+
+# Classifier
+classifier:
+  type: "ResNet" # Fixed classifier
+  implementation: "Residual Neural Networks"
+
+# Dataset parameters (based on project requirements)
+dataset:
+  modalities: ["voice", "eeg", "voice+eeg"]
+  features: ["lfcc", "mel", "bark"]
+  sampling_rate: 44100 # Audio sampling rate
+  eeg_sampling_rate: 1000 # EEG sampling rate
+
+# Paraconsistent analysis
+paraconsistent:
+  enabled: true
+  metrics: ["alpha", "beta", "G1", "G2"]
+  optimal_point: [1.0, 0.0]
+
+# Experiment settings
+experiment:
+  seed: 42 # For reproducibility
+  cross_validation: true
+  folds: 5
+
+# Output
+output:
+  results_dir: "results/"
+  metrics_file: "metrics.csv"
+  plots_dir: "plots/"
