@@ -2,7 +2,7 @@
 
 ## Project Status and Tasks
 
-### Daily TODO — Ultra-Concise Version
+### Daily TODO
 
 **Speaker Identification (EEG + Audio)**
 
@@ -27,6 +27,20 @@
 * [ ] Classify (ResNet)
 * [ ] Save results (CSV)
 
+### 🧪 **Experiment M1 — Wavelet Baseline (Mandatory)**
+
+* [ ] Implement the **Wavelet-Packet** experiment in `/src/experiments/`
+* [ ] Extract feature vectors (sub-band energies)
+* [ ] Apply **[0,1] normalization**
+* [ ] Compute paraconsistent metrics:
+  * [ ] α (intra-class)
+  * [ ] β (inter-class)
+  * [ ] G1, G2
+* [ ] Perform classification using **ResNet** (fixed configuration)
+* [ ] Save results (CSV)
+
+🎯 **Objective:** establish a deterministic theoretical baseline.
+
 ---
 
 ## 🔬 PHASE 2 — LFCC × MEL × BARK (CENTRAL)
@@ -50,6 +64,21 @@
   * [ ] Accuracy
 * [ ] Consolidate comparative table
 
+### 🧪 **Experiment M2 — LFCC × MEL × BARK Comparison (Central)**
+
+* [ ] Run the **LFCC** pipeline
+* [ ] Run the **MEL / MFCC** pipeline
+* [ ] Run the **BARK** pipeline
+* [ ] Keep:
+  * the same window
+  * the same classifier
+* [ ] Evaluate, for each feature set:
+  * [ ] α, β, G1, G2
+  * [ ] Accuracy
+* [ ] Consolidate results into a single comparative table
+
+🎯 **Objective:** validate the superiority/adequacy of LFCC (Chap. 2.1.12).
+
 ---
 
 ## 🧠 PHASE 3 — Autoencoders
@@ -63,6 +92,25 @@
   * wavelet-packet features × autoencoder features;
   * classical autoencoder × regularized × denoising.
 * [ ] Evaluate (α/β + accuracy)
+
+### 🧪 **Experiment M4 — Autoencoders (Feature Learning)**
+
+* [ ] Implement **sub-complete autoencoder** (experiments)
+* [ ] Implement **supra-complete autoencoder** (experiments)
+* [ ] Implement **denoising autoencoder** (mandatory)
+* [ ] Fix and document:
+  * architecture
+  * bottleneck size
+  * stopping criterion
+* [ ] Extract learned features
+* [ ] Compare:
+  * [ ] classical AE × regularized × denoising
+  * [ ] AE × Wavelet-Packet
+* [ ] Evaluate:
+  * [ ] α, β, G1, G2
+  * [ ] Accuracy
+
+🎯 **Objective:** validate feature learning versus classical feature engineering.
 
 ---
 
@@ -84,6 +132,34 @@
   * imagined speech;
   * EEG + voice fusion in /src/experiments/.
 
+### 🧪 **Experiment M3 — Multimodality (EEG × Voice)**
+
+* [ ] Select the base feature (LFCC or best from M2)
+* [ ] Run experiments with:
+  * [ ] Voice only
+  * [ ] EEG only
+  * [ ] Voice + EEG (fusion)
+* [ ] Compute:
+  * [ ] α, β, G1, G2
+  * [ ] Accuracy
+* [ ] Compare unimodal × multimodal performance
+
+🎯 **Objective:** demonstrate gains from EEG + voice fusion.
+
+### 🧪 **Experiment M5 — Imagined Speech (Thesis Differential)**
+
+* [ ] Select the best-performing feature (from previous experiments)
+* [ ] Run scenarios:
+  * [ ] Phonated speech
+  * [ ] Imagined speech
+  * [ ] Mixed speech
+* [ ] Compute:
+  * [ ] α, β, G1, G2
+  * [ ] Accuracy
+* [ ] Compare the impact of imagined speech
+
+🎯 **Objective:** fulfill the central objective of the thesis.
+
 ---
 
 ## 🛡️ PHASE 5 — Robustness (OPTIONAL)
@@ -91,6 +167,16 @@
 * [ ] Measure drop in **G1** and accuracy
 * [ ] Validate SNN tolerance
 * [ ] Validate SNN noise tolerance as discussed in Chap. 2.1.9.
+
+### 🧪 **Experiment M6 — Noise Robustness (Supportive, Optional)**
+
+* [ ] Introduce controlled noise into the signals
+* [ ] Evaluate progressive degradation of:
+  * [ ] G1
+  * [ ] Accuracy
+* [ ] Analyze SNN noise tolerance
+
+🎯 **Objective:** support claims regarding SNN robustness (Chap. 2.1.9).
 
 ---
 
@@ -103,6 +189,18 @@
   * classical metrics (accuracy, etc.);
   * paraconsistent metrics in /src/experiments/.
 * [ ] Ensure that all experiments are linked to the objectives listed in Section 1.1.1.
+
+### 📊 **Final Consolidation (Mandatory)**
+
+* [ ] Final table:
+  * **LFCC × MEL × BARK**
+* [ ] Final table:
+  * **Wavelet × AE × Denoising**
+* [ ] Plot in the **paraconsistent plane**
+* [ ] Verify traceability:
+  * experiment → objective from Section 1.1.1
+
+
 
 ### ✅ Implemented Components (/src/core/ and /src/demos/)
 
