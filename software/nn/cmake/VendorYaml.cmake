@@ -18,5 +18,7 @@ if(TARGET yaml-cpp)
     add_library(YAML::YAML ALIAS yaml-cpp)
 endif()
 
-target_include_directories(yaml-cpp INTERFACE SYSTEM "$<BUILD_INTERFACE:${yaml-cpp_SOURCE_DIR}>")
-target_compile_options(yaml-cpp PRIVATE -w)
+target_include_directories(yaml-cpp 
+    INTERFACE SYSTEM 
+        "$<BUILD_INTERFACE:${yaml-cpp_SOURCE_DIR}>"
+)
