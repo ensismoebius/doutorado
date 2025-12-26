@@ -73,14 +73,14 @@ auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> doub
     return finalResult;
 }
 
-auto calcOrthogonalVector(const std::vector<double>& vector) -> std::vector<double>
+auto calcOrthogonalVector(const std::span<const double>& vector) -> std::vector<double>
 {
     std::vector<double> result(vector.size());
     double multiplier = 1;
 
     for (int index = static_cast<int>(vector.size()) - 1; index >= 0; index--)
     {
-        result.at(vector.size() - (index + 1)) = vector.at(index) * multiplier;
+        result.at(vector.size() - (index + 1)) = vector[index] * multiplier;
         multiplier *= -1;
     }
     return result;

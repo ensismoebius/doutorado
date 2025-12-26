@@ -90,8 +90,8 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                  * second half of the signal (signalIndex + maxItens). This
                  * is used only with wavelet packet transformations
                  */
-                lowPassSum += signal.at(signalIndex + maxItens) * lowpassfilter.at(filterIndex);
-                highPassSum += signal.at(signalIndex + maxItens) * highpassfilter.at(filterIndex);
+                lowPassSum += signal[signalIndex + maxItens] * lowpassfilter[filterIndex];
+                highPassSum += signal[signalIndex + maxItens] * highpassfilter[filterIndex];
             }
 
             // Stores the values according to Malat's algorithm
@@ -124,8 +124,8 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                 /* When in lowpass branch of the signal we just want the
                  * first half of the signal (signalIndex)
                  */
-                lowPassSum += signal.at(signalIndex) * lowpassfilter.at(filterIndex);
-                highPassSum += signal.at(signalIndex) * highpassfilter.at(filterIndex);
+                lowPassSum += signal[signalIndex] * lowpassfilter[filterIndex];
+                highPassSum += signal[signalIndex] * highpassfilter[filterIndex];
             }
 
             // Stores the values according to Malat's algorithm

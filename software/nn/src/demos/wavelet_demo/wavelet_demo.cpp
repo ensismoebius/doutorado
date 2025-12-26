@@ -45,14 +45,12 @@ void plot_signal(const std::vector<double>& signal)
 }
 
 void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
-                                        const std::vector<double>& filter, int level_to_plot)
+                                        std::span<const double> filter, int level_to_plot)
 {
     try
     {
-        auto dwt_results = wavelets::malat(signal,
-                                           const_cast<std::vector<double>&>(filter),
-                                           wavelets::REGULAR_WAVELET,
-                                           level_to_plot);
+        auto dwt_results =
+            wavelets::malat(signal, filter, wavelets::REGULAR_WAVELET, level_to_plot);
 
         std::vector<double> combined_coefficients;
         double offset = 0.0; // Initial offset for visual separation
@@ -103,14 +101,12 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
 }
 
 void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
-                                         const std::vector<double>& filter, int level_to_plot)
+                                         std::span<const double> filter, int level_to_plot)
 {
     try
     {
-        auto dwpt_results = wavelets::malat(signal,
-                                            const_cast<std::vector<double>&>(filter),
-                                            wavelets::PACKET_WAVELET,
-                                            level_to_plot);
+        auto dwpt_results =
+            wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, level_to_plot);
         long n_parts = dwpt_results.getWaveletPacketAmountOfParts();
 
         std::vector<double> combined_packets;
@@ -162,8 +158,7 @@ auto main() -> int
     auto signal = generateSignal(freq1, freq2, sample_rate, duration_seconds);
 
     // Wavelet initialization
-    wavelets::init({"daub38"});
-    auto db8_filter = wavelets::get("daub38");
+    auto db8_filter = wavelets::get_wavelet<wavelets::Daub8>();
 
     // Debug mode: save plots to files
     // Plot original signal

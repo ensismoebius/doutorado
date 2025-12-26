@@ -45,7 +45,7 @@ auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> doub
  * @param vector - source vector
  * @return orthogonal vector
  */
-auto calcOrthogonalVector(const std::span<double>& vector) -> std::vector<double>;
+auto calcOrthogonalVector(const std::span<const double>& vector) -> std::vector<double>;
 
 /**
  * Normalize the vector
