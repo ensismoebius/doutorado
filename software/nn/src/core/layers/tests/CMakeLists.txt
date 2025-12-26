@@ -4,7 +4,7 @@ add_executable(layers_gtest
 
 target_link_libraries(layers_gtest 
     PRIVATE 
-        GTest::gtest_main 
+        google_test 
         Eigen3::Eigen 
         layers
         tensor

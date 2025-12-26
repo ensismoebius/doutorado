@@ -4,7 +4,7 @@ add_executable(linearAlgebra_gtest
 
 target_link_libraries(linearAlgebra_gtest
     PRIVATE
-        GTest::gtest_main
+        google_test
         linearAlgebra
 )
 

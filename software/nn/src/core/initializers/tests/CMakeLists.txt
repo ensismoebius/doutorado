@@ -4,7 +4,7 @@ add_executable(
 )
 target_link_libraries(initializers_gtest 
     PRIVATE 
-        GTest::gtest_main 
+        google_test 
         Eigen3::Eigen 
         initializers
         tensor

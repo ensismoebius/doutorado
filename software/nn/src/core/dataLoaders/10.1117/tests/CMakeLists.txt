@@ -13,7 +13,7 @@ target_include_directories(dataLoaders_10_1117_gtest
 
 target_link_libraries(dataLoaders_10_1117_gtest 
 	PRIVATE 
-		GTest::gtest_main 
+		google_test 
 		Eigen3::Eigen 
 		${ZLIB_LIBRARIES} 
 		matioCpp

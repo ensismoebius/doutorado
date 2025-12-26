@@ -4,7 +4,7 @@ add_executable(optimizers_gtest
 
 target_link_libraries(optimizers_gtest 
     PRIVATE 
-        GTest::gtest_main 
+        google_test 
         Eigen3::Eigen 
         optimizers
         tensor

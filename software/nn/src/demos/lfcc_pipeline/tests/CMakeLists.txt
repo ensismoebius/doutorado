@@ -2,7 +2,7 @@ add_executable(lfcc_pipeline_utils_gtest lfcc_pipeline_utils_gtest.cpp)
 
 target_link_libraries(lfcc_pipeline_utils_gtest
     PRIVATE
-        GTest::gtest_main
+        google_test
         Eigen3::Eigen
         tensor
         dataLoaders

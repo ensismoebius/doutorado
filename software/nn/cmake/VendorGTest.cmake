@@ -1,14 +1,42 @@
 # Fetch and make available googletest
 include(FetchContent)
+
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.13.0.zip
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+
 # For Windows: Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt
     ON
-    CACHE BOOL "" FORCE)
-# Ensure GoogleTest uses the same C++ standard as the project
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    CACHE BOOL "" FORCE
+)
+
 FetchContent_MakeAvailable(googletest)
+
+# ---------------------------------------------
+# Create a modular wrapper target
+# ---------------------------------------------
+add_library(google_test INTERFACE)
+
+# Link to GoogleTest
+target_link_libraries(google_test
+    INTERFACE
+        GTest::gtest
+        GTest::gtest_main
+)
+
+# Extract GoogleTest include dirs
+get_target_property(
+    GTEST_INCLUDES
+    GTest::gtest
+    INTERFACE_INCLUDE_DIRECTORIES
+)
+
+# Re-expose them as SYSTEM
+target_include_directories(google_test
+    SYSTEM INTERFACE
+        ${GTEST_INCLUDES}
+)
+

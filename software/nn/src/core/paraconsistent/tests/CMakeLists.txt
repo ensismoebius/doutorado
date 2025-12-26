@@ -8,7 +8,7 @@ target_link_libraries(paraconsistent_gtest
     PRIVATE
         paraconsistent
         util
-        GTest::gtest_main
+        google_test
 )
 
 gtest_discover_tests(paraconsistent_gtest)

@@ -4,7 +4,7 @@ add_executable(util_gtest
 )
 target_link_libraries(util_gtest 
     PRIVATE 
-        GTest::gtest_main 
+        google_test 
         Eigen3::Eigen
         cnpy-static
         z

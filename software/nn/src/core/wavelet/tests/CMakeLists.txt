@@ -4,7 +4,7 @@ add_executable(wavelet_gtest
 
 target_link_libraries(wavelet_gtest
     PRIVATE 
-       GTest::gtest_main
+       google_test
        wavelet
        waveCoreLib
        linearAlgebra

@@ -1,7 +1,7 @@
-include(FetchContent)
-
 # Cnpy configuration
 # Cnpy lets you read and write to .npy and .npz formats in C++.
+
+include(FetchContent)
 
 FetchContent_Declare(
     cnpy

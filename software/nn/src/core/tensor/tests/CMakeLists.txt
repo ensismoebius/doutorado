@@ -2,7 +2,7 @@ add_executable(tensor_gtest tensor_gtest.cpp)
 
 target_link_libraries(tensor_gtest 
     PRIVATE 
-        GTest::gtest_main 
+        google_test 
         Eigen3::Eigen 
         tensor
 )
