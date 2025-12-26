@@ -44,7 +44,7 @@
 ---
 
 ## 🔬 PHASE 2 — LFCC × MEL × BARK (CENTRAL)
-* [x] LFCC / MEL / BARK Pipeline - Implemented in `src/experiments/01/`
+* [x] LFCC / MEL / BARK Pipeline - Implemented in `src/demos/lfcc_pipeline/`
   * Complete LFCC extraction with preprocessing, framing, FFT, filterbank, DCT
   * Calculation of delta and delta-delta coefficients
   * Audio loading from .mat files

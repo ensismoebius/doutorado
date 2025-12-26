@@ -1,8 +1,8 @@
 find_package(ZLIB REQUIRED)
 
 # Experiment 01 CMake configuration
-add_library(experiment01_utils_lib STATIC
-    ${SRC_DIR}/experiments/01/Experiment01_utils.cpp
+add_library(lfcc_pipeline_utils_lib STATIC
+    ${SRC_DIR}/demos/lfcc_pipeline/Experiment01_utils.cpp
 )
 
 target_include_directories(experiment01_utils_lib
