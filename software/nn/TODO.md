@@ -2,8 +2,8 @@
 
 ## TODO
 
-- Implementar regularização L1 e L2 no auto-encoder? (é citada na tese, acho que vou tirar)
-  - Acho que não precisa pois os neurônios de pulso aparentemente não requerem (eu acho).
+- ~~Implementar regularização L1 e L2 no auto-encoder? (é citada na tese, acho que vou tirar)~~
+  - Implementado em `src/core/layers/Regularization.hpp` com classes `L1Regularization` e `L2Regularization`, e testes em `layers_gtest.cpp`.
 - Implementar denoising auto-encoder? (é citada na tese, acho que vou tirar tb)
   - Se tudo der certo será um auto-encoder de pulso.
 - Definir o tamanho da janela de tempo (time window) a ser utilizada na extração de features

@@ -1,7 +1,7 @@
 # .clangd - compile database + compile flags
 CompileFlags:
   # Use compile_commands.json from build/
-  CompilationDatabase: build
+  CompilationDatabase: build/cmake.run.linux.x86_64.Local
 
   # Flags added only if not in compile_commands.json
   Add:

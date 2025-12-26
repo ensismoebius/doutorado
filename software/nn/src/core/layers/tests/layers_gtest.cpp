@@ -9,6 +9,7 @@
 #include "../Linear.hpp"
 #include "../MSELoss.hpp"
 #include "../ReLU.hpp"
+#include "../Regularization.hpp"
 #include "../Sequential.hpp"
 #include "../SpikeCountLoss.hpp"
 #include "../SurrogateGradient.hpp"
@@ -719,4 +720,62 @@ TEST(Conv2dTest, BiasShapeVariants)
     // Shapes should match and data should be identical
     ASSERT_EQ(out_col.get_shape(), out_row.get_shape());
     ASSERT_TRUE(out_col.get_data_ref().isApprox(out_row.get_data_ref()));
+}
+
+// Test for L1Regularization
+TEST(L1RegularizationTest, Forward)
+{
+    L1Regularization reg(0.1f);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0f)};
+    std::vector<nn::Tensor*> params = {&param1, &param2};
+
+    nn::Tensor loss = reg.forward(params);
+    // |1|*4 + |-2|*3 = 4 + 6 = 10, times 0.1 = 1.0
+    ASSERT_NEAR(loss.at(0, 0), 1.0f, 1e-5f);
+}
+
+TEST(L1RegularizationTest, Backward)
+{
+    L1Regularization reg(0.5f);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0f)};
+    param1.zero_grad();
+    param2.zero_grad();
+    std::vector<nn::Tensor*> params = {&param1, &param2};
+
+    reg.backward(params);
+    // grad for param1: sign(1)*0.5 = 0.5
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 0.5f)));
+    // grad for param2: sign(-2)*0.5 = -0.5
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, -0.5f)));
+}
+
+// Test for L2Regularization
+TEST(L2RegularizationTest, Forward)
+{
+    L2Regularization reg(0.1f);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0f)};
+    std::vector<nn::Tensor*> params = {&param1, &param2};
+
+    nn::Tensor loss = reg.forward(params);
+    // 1^2*4 + 2^2*3 = 4 + 12 = 16, times 0.1 = 1.6
+    ASSERT_NEAR(loss.at(0, 0), 1.6f, 1e-5f);
+}
+
+TEST(L2RegularizationTest, Backward)
+{
+    L2Regularization reg(0.5f);
+    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0f)};
+    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0f)};
+    param1.zero_grad();
+    param2.zero_grad();
+    std::vector<nn::Tensor*> params = {&param1, &param2};
+
+    reg.backward(params);
+    // grad for param1: 2*1*0.5 = 1.0
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 1.0f)));
+    // grad for param2: 2*2*0.5 = 2.0
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, 2.0f)));
 }

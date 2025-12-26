@@ -196,6 +196,37 @@ struct Optimizer {
 
 - Implement `Adam`, `SGD`. `attach` must store pointers to parameters (Tensor\*).
 
+## 3.5 Regularization (src/layers/Regularization.hpp)
+
+```cpp
+class Regularization {
+protected:
+    float lambda_;
+public:
+    explicit Regularization(float lambda);
+    virtual ~Regularization() = default;
+    virtual nn::Tensor forward(const std::vector<nn::Tensor*>& params) = 0;
+    virtual void backward(const std::vector<nn::Tensor*>& params) = 0;
+};
+
+class L1Regularization : public Regularization {
+public:
+    explicit L1Regularization(float lambda);
+    nn::Tensor forward(const std::vector<nn::Tensor*>& params) override;
+    void backward(const std::vector<nn::Tensor*>& params) override;
+};
+
+class L2Regularization : public Regularization {
+public:
+    explicit L2Regularization(float lambda);
+    nn::Tensor forward(const std::vector<nn::Tensor*>& params) override;
+    void backward(const std::vector<nn::Tensor*>& params) override;
+};
+```
+
+- L1: penalty = lambda _ sum(|param|); grad = lambda _ sign(param)
+- L2: penalty = lambda _ sum(param^2); grad = 2 _ lambda \* param
+
 ---
 
 # 4 Detailed Component Specifications

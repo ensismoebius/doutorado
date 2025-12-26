@@ -147,6 +147,11 @@ void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
 
 auto main() -> int
 {
+#ifndef NDEBWUG
+    // Use the Agg backend for non-interactive plotting when debugging
+    // plt::backend("Agg");
+#endif
+
     // Signal Generation
     const size_t duration_seconds = 1;
     const size_t sample_rate = 1024;
@@ -160,6 +165,42 @@ auto main() -> int
     wavelets::init({"daub38"});
     auto db8_filter = wavelets::get("daub38");
 
+    // Debug mode: save plots to files
+    // Plot original signal
+    plt::figure();
+    plot_signal(signal);
+    std::cout << "Saving signal plot to wavelet_demo_signal.png" << '\n';
+    plt::save("wavelet_demo_signal.png");
+    plt::close();
+
+    // Plotting loop for each level
+    for (int level = 1; level <= max_level; ++level)
+    {
+        try
+        {
+            // DWT
+            plt::figure();
+            plot_dwt_decomposition_single_plot(signal, db8_filter, level);
+            std::string dwt_filename = "wavelet_demo_dwt_" + std::to_string(level) + ".png";
+            std::cout << "Saving DWT plot to " << dwt_filename << '\n';
+            plt::save(dwt_filename);
+            plt::close();
+
+            // DWPT
+            plt::figure();
+            plot_dwpt_decomposition_single_plot(signal, db8_filter, level);
+            std::string dwpt_filename = "wavelet_demo_dwpt_" + std::to_string(level) + ".png";
+            std::cout << "Saving DWPT plot to " << dwpt_filename << '\n';
+            plt::save(dwpt_filename);
+            plt::close();
+        }
+        catch (const std::runtime_error& e)
+        {
+            std::cerr << "matplotlib-cpp error in main loop (level " << level << "): " << e.what()
+                      << '\n';
+        }
+    }
+    // Release mode: show plots interactively
     // Plot original signal
     plt::figure();
     plot_signal(signal);
