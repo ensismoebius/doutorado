@@ -11,6 +11,7 @@
 #include "core/dataLoaders/MatFileUtils.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
+#include "core/wavelet/Types.h"
 #include "core/wavelet/waveletOperations.h"
 
 struct WindowedFeatures
@@ -25,7 +26,7 @@ auto extract_wavelet_features(const Eigen::MatrixXf& signal, int data_cols, doub
     WindowedFeatures result;
 
     // Daubechies 4 lowpass filter (example)
-    std::vector<double> lowpass = {0.6830127, 1.1830127, 0.3169873, -0.1830127};
+    std::vector<double> lowpass = wavelets::get("daub4");
 
     for (int row = 0; row < signal.rows(); ++row)
     {
