@@ -1,6 +1,7 @@
 #include "waveletOperations.h"
 
 #include <cmath>
+#include <span>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -11,8 +12,8 @@
 namespace wavelets
 {
 
-auto malat(const std::vector<double>& signal, const std::vector<double>& lowpassfilter, TransformMode mode,
-           unsigned int level, unsigned int maxItens, bool highPassBranch)
+auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
+           TransformMode mode, unsigned int level, unsigned int maxItens, bool highPassBranch)
     -> WaveletTransformResults
 {
     // If maxitems is not informed then get the full signal size
@@ -77,7 +78,8 @@ auto malat(const std::vector<double>& signal, const std::vector<double>& lowpass
             highPassSum = 0;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
-            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make std::accumulate less readable here.
+            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make
+            // std::accumulate less readable here.
             for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
             {
                 // This part corresponds to the "wrap around" part of Mallat's algorithm
@@ -112,7 +114,8 @@ auto malat(const std::vector<double>& signal, const std::vector<double>& lowpass
             highPassSum = 0;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
-            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make std::accumulate less readable here.
+            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make
+            // std::accumulate less readable here.
             for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
             {
                 // This part corresponds to the "wrap around" part of Mallat's algorithm

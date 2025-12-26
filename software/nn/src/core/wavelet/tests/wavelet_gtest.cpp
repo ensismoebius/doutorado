@@ -7,23 +7,9 @@
 namespace wavelets::test
 {
 
-TEST(WaveletTypesTest, TestInit)
-{
-    wavelets::init();
-    auto allWavelets = wavelets::all();
-    EXPECT_FALSE(allWavelets.empty());
-
-    // Test with specific wavelets
-    std::vector<std::string> chosenWavelets = {"haar", "db1"};
-    wavelets::init(chosenWavelets);
-    auto specificWavelets = wavelets::all();
-    EXPECT_LE(specificWavelets.size(), chosenWavelets.size());
-}
-
 TEST(WaveletTypesTest, TestGetWavelet)
 {
-    wavelets::init();
-    auto haarWavelet = wavelets::get("haar");
+    auto haarWavelet = wavelets::get_wavelet<wavelets::Haar>();
     EXPECT_FALSE(haarWavelet.empty());
 }
 
@@ -40,10 +26,9 @@ TEST(WaveletOperationsTest, TestGetNextPowerOfTwo)
 TEST(WaveletOperationsTest, TestMalatRegularTransform)
 {
     std::vector<double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-    wavelets::init();
-    auto haarFilter = wavelets::get("haar");
+    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
-    auto result = wavelets::malat(signal, haarFilter, REGULAR_WAVELET, 1);
+    auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 1);
     EXPECT_FALSE(result.transformedSignal.empty());
     EXPECT_EQ(result.levelsOfTransformation, 1U);
     EXPECT_FALSE(result.packet);
@@ -52,10 +37,9 @@ TEST(WaveletOperationsTest, TestMalatRegularTransform)
 TEST(WaveletOperationsTest, TestMalatPacketTransform)
 {
     std::vector<double> signal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
-    wavelets::init();
-    auto haarFilter = wavelets::get("haar");
+    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
-    auto result = wavelets::malat(signal, haarFilter, PACKET_WAVELET, 1);
+    auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
     EXPECT_FALSE(result.transformedSignal.empty());
     EXPECT_EQ(result.levelsOfTransformation, 1U);
     EXPECT_TRUE(result.packet);

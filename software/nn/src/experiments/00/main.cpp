@@ -11,7 +11,6 @@
 #include "core/dataLoaders/MatFileUtils.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
-#include "core/wavelet/Types.h"
 #include "core/wavelet/waveletOperations.h"
 
 struct WindowedFeatures
@@ -37,7 +36,7 @@ auto extract_wavelet_features(const Eigen::MatrixXf& signal, int data_cols, doub
         std::vector<double> sig(row_data.data(), row_data.data() + row_data.size());
 
         // Apply wavelet packet transform
-        auto wtr = wavelets::malat(sig, lowpass, wavelets::PACKET_WAVELET, 4); // level 4
+        auto wtr = wavelets::malat(sig, std::span<const double>(lowpass), wavelets::PACKET_WAVELET, 4); // level 4
 
         // Extract sub-band energies
         std::vector<double> energies;
@@ -89,8 +88,8 @@ auto normalize_features(std::vector<std::vector<double>>& features,
         {
             if (max_vals[i] != min_vals[i])
             {
-                feat[i] = range[0] + ((feat[i] - min_vals[i]) / (max_vals[i] - min_vals[i])) *
-                                         (range[1] - range[0]);
+                feat[i] = range[0] + (((feat[i] - min_vals[i]) / (max_vals[i] - min_vals[i])) *
+                                         (range[1] - range[0]));
             }
             else
             {
@@ -115,7 +114,8 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
     }
 
     unsigned int amountOfClasses = arrClasses.size();
-    if (amountOfClasses == 0) return {0.0, 0.0, 0.0, 0.0};
+    if (amountOfClasses == 0) { return {0.0, 0.0, 0.0, 0.0};
+}
 
     // Assume all classes have the same number of vectors (simplification)
     unsigned int featureVectorsPerClass = arrClasses.begin()->second.size();
@@ -186,7 +186,7 @@ auto main(int argc, char* argv[]) -> int
         std::cerr << "Failed to load EEG\n";
         return 1;
     }
-    Eigen::MatrixXf eeg = *eeg_opt;
+    const Eigen::MatrixXf& eeg = *eeg_opt;
 
     // Load Audio
     auto audio_opt = matioCpp::utils::load_named_variable_as_matrix(audio_path, "Audio");
@@ -195,7 +195,7 @@ auto main(int argc, char* argv[]) -> int
         std::cerr << "Failed to load Audio\n";
         return 1;
     }
-    Eigen::MatrixXf audio = *audio_opt;
+    const Eigen::MatrixXf& audio = *audio_opt;
 
     // Extract features from EEG (24576 data + 3 labels)
     auto eeg_features = extract_wavelet_features(

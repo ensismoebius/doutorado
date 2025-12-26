@@ -12,6 +12,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <span>
 #include <vector>
 
 #include "WaveletTransformResults.h"
@@ -40,7 +41,7 @@ enum TransformMode : uint8_t
  * @param mode - PACKET_WAVELET: wavelet packet, REGULAR_WAVELET: regular wavelet
  * @return transformed signal
  */
-auto malat(const std::vector<double>& signal, const std::vector<double>& lowpassfilter,
+auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
            TransformMode mode = REGULAR_WAVELET, unsigned int level = 1, unsigned int maxItens = 0,
            bool highPassBranch = false) -> WaveletTransformResults;
 

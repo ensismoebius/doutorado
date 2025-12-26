@@ -12,8 +12,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 #include <numeric>
+#include <stdexcept>
 
 namespace linearAlgebra
 {
@@ -48,7 +48,7 @@ auto dotProduct(const std::vector<double>& a, const std::vector<double>& b) -> d
     // Loop for calculate cot product
     for (unsigned int i = 0; i < a.size(); i++)
     {
-        product = product + a.at(i) * b.at(i);
+        product = product + (a.at(i) * b.at(i));
     }
     return product;
 }
@@ -273,7 +273,7 @@ void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, doub
     }
 }
 
-auto convolution(double* data, long dataLength, double* kernel, long kernelSize) -> bool
+auto convolution(double* data, long dataLength, const double* kernel, long kernelSize) -> bool
 {
     long i;
     long j;
@@ -339,10 +339,12 @@ auto discreteCosineTransform(std::vector<double>& vector) -> void
 
     for (unsigned int k = 0; k < N; ++k)
     {
-        double sum = std::accumulate(indices.begin(), indices.end(), 0.0,
-                                     [&](double acc, unsigned int n) {
-                                         return acc + vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
-                                     });
+        double sum = std::accumulate(
+            indices.begin(),
+            indices.end(),
+            0.0,
+            [&](double acc, unsigned int n)
+            { return acc + (vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N))); });
 
         res[k] = getAlphaK(k, N) * sum;
     }
@@ -424,7 +426,8 @@ auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
             }
 
             // Check if a suitable line was actually found
-            if (bestLineForSubtration == matrix.size() || matrix[bestLineForSubtration][columnIndex] == 0)
+            if (bestLineForSubtration == matrix.size() ||
+                matrix[bestLineForSubtration][columnIndex] == 0)
             {
                 throw std::runtime_error(
                     "Matrix is singular or ill-conditioned: no suitable pivot found for column " +

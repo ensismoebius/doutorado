@@ -1,6 +1,5 @@
 add_library(wavelet
     STATIC
-        Types.cpp
         waveletOperations.cpp
         WaveletTransformResults.cpp
 )

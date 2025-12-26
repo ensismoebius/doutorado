@@ -9,6 +9,7 @@
  */
 #ifndef SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_
 #define SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_
+#include <span>
 #include <vector>
 
 namespace linearAlgebra
@@ -44,7 +45,7 @@ auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> doub
  * @param vector - source vector
  * @return orthogonal vector
  */
-auto calcOrthogonalVector(const std::vector<double>& vector) -> std::vector<double>;
+auto calcOrthogonalVector(const std::span<double>& vector) -> std::vector<double>;
 
 /**
  * Normalize the vector
@@ -53,7 +54,8 @@ auto calcOrthogonalVector(const std::vector<double>& vector) -> std::vector<doub
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit, double upperLimit);
+void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit,
+                            double upperLimit);
 
 /**
  * Normalize the vector
