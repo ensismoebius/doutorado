@@ -1,12 +1,14 @@
 Checks: >
+  # =====================================================
+  # REMOVE ALL CONFIGURATIONS
+  # =====================================================
   -*,
 
   # =====================================================
   # CORE SAFETY (ALTO VALOR, BAIXO RUÍDO)
   # =====================================================
-  clang-analyzer-*,
   bugprone-*,
-  performance-*,
+  clang-analyzer-*,
 
   # =====================================================
   # MODERN C++ (SEGURO PARA HPC)
@@ -18,28 +20,15 @@ Checks: >
   # =====================================================
   readability-*,
 
+  # =====================================================
+  # PERFORMANCE NUMÉRICA (ALTO IMPACTO)
+  # =====================================================
+  performance-*,
 
   # =====================================================
   # CPP CORE GUIDELINES — SEGUROS EM PESQUISA
   # =====================================================
-  cppcoreguidelines-pro-bounds-*,
-  cppcoreguidelines-pro-type-*,
-  cppcoreguidelines-init-variables,
-
-  # =====================================================
-  # PERFORMANCE NUMÉRICA (ALTO IMPACTO)
-  # =====================================================
-  performance-inefficient-vector-operation,
-  performance-for-range-copy,
-  performance-unnecessary-value-param,
-
-  # =====================================================
-  # MODERNIZE — ESTILO OPCIONAL (SEM IMPACTO NUMÉRICO)
-  # =====================================================
-  modernize-use-trailing-return-type,
-  modernize-use-auto,
-  modernize-use-using,
-  modernize-avoid-c-arrays
+  cppcoreguidelines-*,
 
 WarningsAsErrors: ""
 HeaderFilterRegex: "^(?!.*\\/build\\/).*/(src|include)/.*"
