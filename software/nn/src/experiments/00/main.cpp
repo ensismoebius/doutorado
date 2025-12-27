@@ -10,57 +10,49 @@
 
 #include "Config.hpp"
 #include "core/dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/10.1117/EEGLoader.h"
+#include "core/dataLoaders/10.1117/AudioLoader.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
 #include "core/wavelet/Types.h"
 #include "core/wavelet/waveletOperations.h"
 
-struct WindowedFeatures
+// Processes a single trial (either EEG or Audio) and returns its features.
+// For EEG, signal_data will be (channels x samples_per_channel)
+// For Audio, signal_data will be (1 x samples_per_channel)
+auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, double duration_sec,
+                                           int overlap_percent, int sampling_rate) -> std::vector<double>
 {
-    std::vector<std::vector<double>> features; // each inner vector is a feature vector for a window
-    std::vector<int> labels;
-};
-
-auto extract_wavelet_features(const Eigen::MatrixXf& signal, int data_cols, double duration_sec,
-                              int overlap_percent, int sampling_rate) -> WindowedFeatures
-{
-    WindowedFeatures result;
-
     // Daubechies 4 lowpass filter (example)
     auto lowpass = wavelets::get_wavelet<wavelets::Daub4>();
 
-    for (int row = 0; row < signal.rows(); ++row)
-    {
-        Eigen::VectorXf row_data = signal.row(row).head(data_cols); // data part
-        int label = static_cast<int>(signal(row, data_cols)); // assume first label is stimulus
+    std::vector<double> all_channel_energies;
 
-        // For simplicity, take one window from the row
-        std::vector<double> sig(row_data.data(), row_data.data() + row_data.size());
+    for (int channel_row_idx = 0; channel_row_idx < signal_data.rows(); ++channel_row_idx)
+    {
+        Eigen::VectorXf channel_data = signal_data.row(channel_row_idx);
+        std::vector<double> sig(channel_data.data(), channel_data.data() + channel_data.size());
 
         // Apply wavelet packet transform
         auto wtr = wavelets::malat(sig, lowpass, wavelets::PACKET_WAVELET, 4); // level 4
 
-        // Extract sub-band energies
-        std::vector<double> energies;
+        // Extract sub-band energies for this channel
         // Approximation
         auto approx = wtr.getWaveletTransforms(0);
         double energy_approx =
             std::inner_product(approx.begin(), approx.end(), approx.begin(), 0.0);
-        energies.push_back(energy_approx);
+        all_channel_energies.push_back(energy_approx);
 
         for (int d = 1; d <= wtr.levelsOfTransformation; ++d)
         {
             auto detail = wtr.getWaveletTransforms(d);
             double energy_detail =
                 std::inner_product(detail.begin(), detail.end(), detail.begin(), 0.0);
-            energies.push_back(energy_detail);
+            all_channel_energies.push_back(energy_detail);
         }
-
-        result.features.push_back(energies);
-        result.labels.push_back(label);
     }
 
-    return result;
+    return all_channel_energies;
 }
 
 auto normalize_features(std::vector<std::vector<double>>& features,
@@ -176,7 +168,7 @@ auto main(int argc, char* argv[]) -> int
     }
     const Config& cfg = *cfg_opt;
 
-    std::cout << "PHASE 1: Wavelet Baseline Experiment\n";
+    std::cout << "PHASE 0: Wavelet Baseline Experiment\n";
     std::cout << "Config loaded successfully\n";
 
     // Load data from all subjects like in lfcc_pipeline
@@ -199,52 +191,62 @@ auto main(int argc, char* argv[]) -> int
 
             if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
             {
-                // Load EEG for current subject
-                auto eeg_opt = matioCpp::utils::load_named_variable_as_matrix(eegFilePath, "EEG");
-                if (!eeg_opt)
+                // Get dimensions to determine number of trials
+                auto eeg_dims_opt = matioCpp::utils::get_variable_dimensions(eegFilePath, "EEG");
+                auto audio_dims_opt = matioCpp::utils::get_variable_dimensions(audioFilePath, "Audio");
+
+                if (!eeg_dims_opt || eeg_dims_opt->empty() || !audio_dims_opt || audio_dims_opt->empty())
                 {
-                    std::cerr << "Failed to load EEG for subject " << subjectName << std::endl;
-                    continue; // Skip to next subject
-                }
-                Eigen::MatrixXf eeg_data = *eeg_opt;
-
-                // Load Audio for current subject
-                auto audio_opt =
-                    matioCpp::utils::load_named_variable_as_matrix(audioFilePath, "Audio");
-                if (!audio_opt)
-                {
-                    std::cerr << "Failed to load Audio for subject " << subjectName << std::endl;
-                    continue; // Skip to next subject
-                }
-                Eigen::MatrixXf audio_data = *audio_opt;
-
-                // --- Process single subject data here ---
-                // Extract features from EEG
-                auto eeg_features = extract_wavelet_features(
-                    eeg_data, 24576, cfg.duration_sec, cfg.overlap_percent, cfg.eeg_sampling_rate);
-
-                // Extract features from Audio
-                auto audio_features = extract_wavelet_features(
-                    audio_data, 176400, cfg.duration_sec, cfg.overlap_percent, cfg.sampling_rate);
-
-                // Combine features (simple concatenation)
-                std::vector<std::vector<double>> combined_features_subject;
-                for (size_t i = 0; i < eeg_features.features.size(); ++i)
-                {
-                    std::vector<double> combined = eeg_features.features[i];
-                    combined.insert(
-                        combined.end(), audio_features.features[i].begin(), audio_features.features[i].end());
-                    combined_features_subject.push_back(combined);
+                    std::cerr << "Failed to get dimensions for " << subjectName << ". Skipping.\n";
+                    continue;
                 }
 
-                // Accumulate combined features and labels
-                all_combined_features.insert(all_combined_features.end(),
-                                             combined_features_subject.begin(),
-                                             combined_features_subject.end());
-                all_combined_labels.insert(all_combined_labels.end(),
-                                           eeg_features.labels.begin(),
-                                           eeg_features.labels.end());
+                // Assuming number of rows (trials) is the first dimension
+                size_t num_eeg_trials = eeg_dims_opt->at(0);
+                size_t num_audio_trials = audio_dims_opt->at(0);
 
+                if (num_eeg_trials == 0 || num_audio_trials == 0) {
+                    std::cerr << "No trials found for " << subjectName << ". Skipping.\n";
+                    continue;
+                }
+
+                if (num_eeg_trials != num_audio_trials)
+                {
+                    std::cerr << "Mismatch in number of trials for " << subjectName << ". EEG: " << num_eeg_trials << ", Audio: " << num_audio_trials << ". Skipping.\n";
+                    continue;
+                }
+
+                std::cout << "Processing subject " << subjectName << " with " << num_eeg_trials << " trials...\n";
+
+                for (size_t trial_idx = 0; trial_idx < num_eeg_trials; ++trial_idx)
+                {
+                    // Load single EEG trial
+                    auto [eeg_trial_data, eeg_labels_array] = nn::dataLoaders::loadEEGFromMat(eegFilePath, trial_idx);
+                    int eeg_label = eeg_labels_array[1]; // Assuming stimulus is at index 1
+
+                    // Load single Audio trial
+                    auto [audio_trial_data, audio_stimulus_label, audio_eeg_index] = nn::dataLoaders::loadAudioFromMat(audioFilePath, trial_idx);
+                    // For now, we'll use EEG label for combined features.
+                    // If audio_stimulus_label is needed, it can be added to all_combined_labels or used for cross-validation.
+
+                    // Extract features from EEG trial
+                    std::vector<double> eeg_features_single_trial = extract_wavelet_features_single_trial(
+                        eeg_trial_data, cfg.duration_sec, cfg.overlap_percent, cfg.eeg_sampling_rate);
+
+                    // Extract features from Audio trial
+                    std::vector<double> audio_features_single_trial = extract_wavelet_features_single_trial(
+                        audio_trial_data, cfg.duration_sec, cfg.overlap_percent, cfg.sampling_rate);
+
+                    // Combine features
+                    std::vector<double> combined_features_current_trial = eeg_features_single_trial;
+                    combined_features_current_trial.insert(combined_features_current_trial.end(),
+                                                           audio_features_single_trial.begin(),
+                                                           audio_features_single_trial.end());
+
+                    // Accumulate combined features and labels
+                    all_combined_features.push_back(combined_features_current_trial);
+                    all_combined_labels.push_back(eeg_label);
+                }
             }
         }
     }

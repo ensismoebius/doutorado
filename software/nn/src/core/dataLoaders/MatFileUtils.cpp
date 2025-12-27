@@ -107,6 +107,27 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
 
 namespace matioCpp::utils
 {
+auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)
+    -> std::optional<std::vector<size_t>>
+{
+    try
+    {
+        matioCpp::File file(mat_path);
+        auto variable = file.read(var_name);
+        if (!variable.isValid())
+        {
+            return std::nullopt;
+        }
+
+        auto dims_span = variable.dimensions();
+        return std::optional<std::vector<size_t>>(dims_span.begin(), dims_span.end());
+    }
+    catch (const std::exception&)
+    {
+        return std::nullopt;
+    }
+}
+
 [[nodiscard]] auto list_variable_names(const std::string& mat_path) -> std::vector<std::string>
 {
     try
