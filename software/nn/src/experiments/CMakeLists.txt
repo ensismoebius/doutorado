@@ -1,3 +1,4 @@
+# Add sanitizer flags
 include(../../cmake/SanitizerFlags.cmake)
 
 add_library(experiments_config
@@ -19,5 +20,6 @@ target_link_libraries(experiments_config
         yaml-cpp
 )
 
+# Add subdirectories for all experiments
 add_subdirectory(00)
 add_subdirectory(01)

@@ -4,7 +4,7 @@
 
 CompileFlags:
   # Use compile_commands.json from your custom build dir
-  CompilationDatabase: build/cmake.run.linux.x86_64.Local
+  CompilationDatabase: build
 
   # Added only if not present in compile_commands.json
   Add:

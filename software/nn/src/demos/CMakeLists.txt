@@ -1,5 +1,7 @@
+# Add sanitizer flags
 include(../../cmake/SanitizerFlags.cmake)
 
+# Add subdirectories for all modules
 add_subdirectory(fftw3_demo)
 add_subdirectory(wavelet_demo)
 add_subdirectory(lfcc_pipeline)
