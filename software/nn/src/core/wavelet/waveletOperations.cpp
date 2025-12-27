@@ -4,7 +4,6 @@
 #include <span>
 #include <sstream>
 #include <stdexcept>
-#include <tuple>
 #include <vector>
 
 #ifdef _OPENMP
@@ -18,11 +17,11 @@ namespace wavelets
 {
 
 auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
-           TransformMode mode, unsigned int level)
-    -> WaveletTransformResults
+           TransformMode mode, unsigned int level) -> WaveletTransformResults
 {
     // The total number of items to process is the size of the input signal.
-    // This variable will represent the effective size of the signal at the current processing level.
+    // This variable will represent the effective size of the signal at the current processing
+    // level.
     size_t current_signal_size = signal.size();
 
     // The signal size must be a power of two for Mallat's algorithm.
@@ -37,8 +36,9 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
      * one number. The transformation levels shall not pass this limit
      * (log2(current_signal_size))
      */
-    if (level == 0) { // If level is 0, no transformation is done, just return the signal
-        WaveletTransformResults results(current_signal_size);
+    if (level == 0)
+    { // If level is 0, no transformation is done, just return the signal
+        WaveletTransformResults results((long) current_signal_size);
         results.transformedSignal = signal; // Direct copy
         results.levelsOfTransformation = 0;
         results.packet = (mode == PACKET_WAVELET);
@@ -60,13 +60,14 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
     // Main working buffers.
     // `results.transformedSignal` will hold the current state of the transformed signal.
     // `temp_buffer` will hold intermediate results during convolution before swapping.
-    WaveletTransformResults results(current_signal_size);
+    WaveletTransformResults results((long) current_signal_size);
     results.transformedSignal = signal; // Initialize with the input signal
     std::vector<double> temp_buffer(current_signal_size);
 
     // Define task structure: (start_index, segment_size, is_high_pass_branch)
     // The current_level is implicitly handled by the outer loop iteration.
-    struct Task {
+    struct Task
+    {
         size_t start_idx;
         size_t size;
         bool is_high_pass;
@@ -97,17 +98,18 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
             // If the segment size is too small for the filter, it cannot be decomposed further.
             // This segment will be carried over to the next level's tasks if it's part of
             // a wavelet packet transform or if it's the approximation in a DWT.
-            if (current_sz < filter_len - 1) { // -1 because filter_len-1 is the minimum useful size
-                // This segment cannot be transformed, but it still contributes to the overall signal.
-                // We just pass it through to the next level's tasks if it's relevant.
+            if (current_sz < filter_len - 1)
+            { // -1 because filter_len-1 is the minimum useful size
+                // This segment cannot be transformed, but it still contributes to the overall
+                // signal. We just pass it through to the next level's tasks if it's relevant.
                 tasks_for_next_level.emplace_back(current_start, current_sz, current_is_high_pass);
                 continue;
             }
 
-
             // Create padded segment for circular convolution, avoiding modulo in inner loop.
             // Optimization: Small, temporary buffer for padding, localized to segment processing.
-            // This buffer is crucial for maintaining numerical correctness with circular convolution.
+            // This buffer is crucial for maintaining numerical correctness with circular
+            // convolution.
             std::vector<double> padded_segment(current_sz + filter_len - 1);
             for (size_t i = 0; i < padded_segment.size(); ++i)
             {
@@ -160,12 +162,14 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
             {
                 // Both low-pass and high-pass branches become new tasks for the next level
                 tasks_for_next_level.emplace_back(current_start, half_sz, false); // Low-pass child
-                tasks_for_next_level.emplace_back(current_start + half_sz, half_sz, true); // High-pass child
+                tasks_for_next_level.emplace_back(
+                    current_start + half_sz, half_sz, true); // High-pass child
             }
             else
             {
                 // For regular DWT, only the low-pass branch is decomposed further
-                tasks_for_next_level.emplace_back(current_start, half_sz, false); // Only low-pass child
+                tasks_for_next_level.emplace_back(
+                    current_start, half_sz, false); // Only low-pass child
             }
         }
         // After all segments of the current level are processed, update `results.transformedSignal`
@@ -175,13 +179,17 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
         // Also, for segments that could not be processed due to size, their values
         // from results.transformedSignal were copied to temp_buffer (see lines 105-108).
         // So, copying the whole temp_buffer to results.transformedSignal is fine.
-        for(size_t i = 0; i < current_signal_size; ++i) {
+        for (size_t i = 0; i < current_signal_size; ++i)
+        {
             results.transformedSignal[i] = temp_buffer[i];
         }
 
         // Prepare tasks for the next level
         tasks = std::move(tasks_for_next_level);
-        if (tasks.empty()) break; // No more tasks to process (e.g., all segments are too small)
+        if (tasks.empty())
+        {
+            break; // No more tasks to process (e.g., all segments are too small)
+        }
     }
 
     // Set transformation metadata
