@@ -1,6 +1,5 @@
 #include <matio.h>
 
-#include <Eigen/Dense>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
