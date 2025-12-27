@@ -1,5 +1,6 @@
 #include "waveletOperations.h"
 
+#include <bit> // For std::bit_width (C++20)
 #include <cmath>
 #include <span>
 #include <sstream>
@@ -44,11 +45,12 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
         results.packet = (mode == PACKET_WAVELET);
         return results;
     }
-    if (level > std::log2(current_signal_size))
+    // Calculate max levels using std::bit_width for power-of-two sizes
+    const unsigned int max_levels = std::bit_width(current_signal_size) - 1;
+    if (level > max_levels)
     {
         std::stringstream s;
-        s << "This signal only supports a maximum of "
-          << static_cast<int>(std::log2(current_signal_size)) << " levels.";
+        s << "This signal only supports a maximum of " << max_levels << " levels.";
         throw std::invalid_argument(s.str());
     }
 
@@ -106,17 +108,6 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                 continue;
             }
 
-            // Create padded segment for circular convolution, avoiding modulo in inner loop.
-            // Optimization: Small, temporary buffer for padding, localized to segment processing.
-            // This buffer is crucial for maintaining numerical correctness with circular
-            // convolution.
-            std::vector<double> padded_segment(current_sz + filter_len - 1);
-            for (size_t i = 0; i < padded_segment.size(); ++i)
-            {
-                // Accessing `results.transformedSignal` for the current segment
-                padded_segment[i] = results.transformedSignal[current_start + (i % current_sz)];
-            }
-
             // Perform convolution on the current segment
             // Optimization: Parallel processing, contiguous memory access.
             // Using `temp_buffer` for intermediate results to avoid in-place modification issues
@@ -132,10 +123,14 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
 
                 for (size_t f = 0; f < filter_len; ++f)
                 {
-                    size_t idx = t + f;
-                    // Optimization: Using padded_segment to avoid modulo operations.
-                    lp_sum += padded_segment[idx] * lowpassfilter[f];
-                    hp_sum += padded_segment[idx] * highpassfilter[f];
+                    size_t idx_in_segment = t + f;
+                    // Calculate circular index without modulo
+                    size_t signal_idx = current_start +
+                                        ((idx_in_segment >= current_sz) ?
+                                             (idx_in_segment - current_sz) :
+                                             idx_in_segment);
+                    lp_sum += results.transformedSignal[signal_idx] * lowpassfilter[f];
+                    hp_sum += results.transformedSignal[signal_idx] * highpassfilter[f];
                 }
 
                 // Store results in `temp_buffer` based on whether it's a high-pass branch
@@ -144,12 +139,12 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                 // which represents the parent branch. For wavelet packet, if the parent
                 // was a high-pass branch, we swap the low-pass and high-pass outputs
                 // to maintain frequency order.
-                if (mode == PACKET_WAVELET && current_is_high_pass)
+                if [[unlikely]](mode == PACKET_WAVELET && current_is_high_pass)
                 {
                     temp_buffer[current_start + (t / 2)] = hp_sum;
                     temp_buffer[current_start + (t / 2) + half_sz] = lp_sum;
                 }
-                else
+                else [[likely]]
                 {
                     temp_buffer[current_start + (t / 2)] = lp_sum;
                     temp_buffer[current_start + (t / 2) + half_sz] = hp_sum;
@@ -172,17 +167,11 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                     current_start, half_sz, false); // Only low-pass child
             }
         }
-        // After all segments of the current level are processed, update `results.transformedSignal`
-        // with the results from `temp_buffer`.
-        // Optimization: Avoid full vector copy; only copy the processed portion.
-        // This effectively "commits" the changes of the current level to the main buffer.
-        // Also, for segments that could not be processed due to size, their values
-        // from results.transformedSignal were copied to temp_buffer (see lines 105-108).
-        // So, copying the whole temp_buffer to results.transformedSignal is fine.
-        for (size_t i = 0; i < current_signal_size; ++i)
-        {
-            results.transformedSignal[i] = temp_buffer[i];
-        }
+        // After all segments of the current level are processed, swap `results.transformedSignal`
+        // with `temp_buffer`. This effectively "commits" the changes of the current level
+        // to `results.transformedSignal` and prepares `temp_buffer` to be filled in the
+        // next iteration with new intermediate results.
+        std::swap(results.transformedSignal, temp_buffer);
 
         // Prepare tasks for the next level
         tasks = std::move(tasks_for_next_level);
@@ -205,3 +194,4 @@ auto getNextPowerOfTwo(double number) -> int
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }
 } // namespace wavelets
+
