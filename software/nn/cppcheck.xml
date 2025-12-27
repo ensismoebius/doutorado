@@ -125,6 +125,18 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="5" column="0"/>
         </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;waveformdata&apos; can be reduced." verbose="The scope of the variable &apos;waveformdata&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="317" column="19"/>
+            <symbol>waveformdata</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;waveformdata_right&apos; can be reduced." verbose="The scope of the variable &apos;waveformdata_right&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="330" column="19"/>
+            <symbol>waveformdata_right</symbol>
+        </error>
+        <error id="variableScope" severity="style" msg="The scope of the variable &apos;waveformdata_left&apos; can be reduced." verbose="The scope of the variable &apos;waveformdata_left&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="331" column="19"/>
+            <symbol>waveformdata_left</symbol>
+        </error>
         <error id="unreadVariable" severity="style" msg="Variable &apos;waveformdata&apos; is assigned a value that is never used." verbose="Variable &apos;waveformdata&apos; is assigned a value that is never used." cwe="563" file0="src/core/wave/Wav.cpp">
             <location file="src/core/wave/Wav.cpp" line="317" column="32"/>
             <symbol>waveformdata</symbol>

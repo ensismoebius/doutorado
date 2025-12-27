@@ -270,6 +270,7 @@ auto main(int argc, const char* argv[]) -> int
     if (all_combined_features.empty())
     {
         std::cerr << "No data processed for any subject. Exiting.\n";
+
         return 1;
     }
 

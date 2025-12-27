@@ -40,19 +40,10 @@
             }
         },
         {
-            "label": "clang-tidy",
-            "type": "shell",
-            "command": "find src -name '*.cpp' -o -name '*.c' | xargs clang-tidy --config-file=.clang-tidy -p build",
-            "options": {
-                "cwd": "${workspaceFolder}"
-            }
-        },
-        {
             "label": "analise_codebase",
             "dependsOn": [
                 "cppcheck (aggressive)",
                 "flawfinder (security)",
-                "clang-tidy",
                 "CMake: build"
             ],
             "dependsOrder": "sequence",

@@ -1,4 +1,16 @@
-add_executable(loadingData ${CMAKE_SOURCE_DIR}/src/core/utility/loadingData.cpp)
+## exec_loadingData.cmake
+# Target for loadingData utility
+
+add_executable(loadingData
+    ${SRC_DIR}/demos/exec_loadingData/loadingData.cpp
+)
+
+# Link libraries
+target_link_libraries(loadingData
+    PRIVATE
+        matioCpp
+)
+
 target_link_libraries(loadingData PRIVATE
     dataLoaders
     Eigen3::Eigen
