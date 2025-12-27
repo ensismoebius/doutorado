@@ -131,7 +131,10 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     // Copy audio samples
     for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
     {
-        audioSamples(i) = static_cast<float>(rawDataPtr[(i * audioVariable->dims[0]) + rowIndex]);
+        double doubleValue = rawDataPtr[(i * audioVariable->dims[0]) + rowIndex];
+        float floatValue = static_cast<float>(doubleValue);
+
+        audioSamples(i) = floatValue;
     }
 
     // Get the stimulus

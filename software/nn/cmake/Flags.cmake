@@ -48,7 +48,6 @@ add_compile_options(
 add_compile_options(
     $<$<CONFIG:Release>:-O3>
     $<$<CONFIG:Release>:-march=native>
-    $<$<CONFIG:Release>:-ffast-math>
 )
 
 # Sets opengl provider to a more
