@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "CMake Debug (LLDB DAP)",
-            "type": "lldb",
+            "type": "lldb-dap",
             "request": "launch",
             "program": "${command:cmake.launchTargetPath}",
             "cwd": "${command:cmake.launchTargetDirectory}",
@@ -11,7 +11,7 @@
                 "${workspaceFolder}/src/experiments/config.yaml"
             ],
             "console": "internalConsole",
-            "preLaunchTask": "CMake: build",
+            "preLaunchTask": "analise_codebase",
             "initCommands": [
                 "script import sys, os, importlib",
                 "script sys.path.insert(0, '${workspaceFolder}/debug/lldb')",
@@ -20,32 +20,6 @@
                 "script eigenlldb.__lldb_init_module(lldb.debugger, None)"
             ],
             "stopOnEntry": false
-        },
-        // Uncomment the following configuration to use GDB instead of LLDB
-        // {
-        //     "name": "CMake Debug (GDB)",
-        //     "type": "cppdbg",
-        //     "request": "launch",
-        //     "program": "${workspaceFolder}/build/main_test02",
-        //     "args": [],
-        //     "stopAtEntry": false,
-        //     "cwd": "${workspaceFolder}/build",
-        //     "MIMode": "gdb",
-        //     "setupCommands": [
-        //         {
-        //             "description": "Enable pretty-printing for gdb",
-        //             "text": "-enable-pretty-printing",
-        //             "ignoreFailures": true
-        //         },
-        //         {
-        //             "description": "Catch C++ exceptions",
-        //             "text": "catch throw"
-        //         },
-        //         {
-        //             "description": "Load custom pretty printers",
-        //             "text": "source ${workspaceFolder}/debug/gdb/printers.py"
-        //         }
-        //     ]
-        // }
+        }
     ]
 }

@@ -1,4 +1,7 @@
 {
+    // --------------------------------------------------
+    // File associations (kept exactly as provided)
+    // --------------------------------------------------
     "files.associations": {
         "*.embeddedhtml": "html",
         "dense": "cpp",
@@ -73,34 +76,50 @@
         "text_encoding": "cpp",
         "variant": "cpp"
     },
+    // --------------------------------------------------
+    // Formatter
+    // --------------------------------------------------
     "[cpp]": {
         "editor.defaultFormatter": "xaver.clang-format"
     },
+    // --------------------------------------------------
+    // Disable cpptools (clangd only)
+    // --------------------------------------------------
     "C_Cpp.intelliSenseEngine": "disabled",
     "C_Cpp.autocomplete": "Disabled",
     "C_Cpp.errorSquiggles": "Disabled",
     "C_Cpp.formatting": "Disabled",
     "C_Cpp.codeAnalysis.runAutomatically": "Never",
+    // --------------------------------------------------
+    // clangd (authoritative)
+    // --------------------------------------------------
     "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build", // usa compile_commands.json
-        "--background-index", // indexação global em background
-        "--clang-tidy", // ativa clang-tidy via clangd
-        "--completion-style=detailed", // melhor completions (tipo/assinatura)
-        "--header-insertion=never", // não modifique includes automaticamente
-        "--pch-storage=memory", // acelera parsing (use memory ou disk)
-        "--all-scopes-completion", // completions de todos os escopos
-        "--fallback-style=Google"
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--background-index",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--header-insertion=never",
+        "--pch-storage=memory",
+        "--all-scopes-completion",
+        "--function-arg-placeholders=false"
     ],
-    // UX
-    "editor.formatOnSave": true, // aplicar correções do clangd/clang-tidy ao salvar
+    // --------------------------------------------------
+    // UX / workflow
+    // --------------------------------------------------
+    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.clangd": "always"
     },
     "editor.semanticHighlighting.enabled": true,
-    // performance / limits
     "clangd.semanticHighlighting.enabled": true,
+    // --------------------------------------------------
+    // Performance (large HPC codebases)
+    // --------------------------------------------------
     "files.maxMemoryForLargeFilesMB": 16000,
+    // --------------------------------------------------
+    // Debugging (kept as provided)
+    // --------------------------------------------------
     "lldb.displayFormat": "auto",
     "lldb.showDisassembly": "auto",
     "lldb.dereferencePointers": true,

@@ -34,10 +34,15 @@ auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned 
     long double m = vector[0];
     unsigned int period = 0;
     unsigned int index = 0;
-
-    for (unsigned int i = 1; i < vector.size(); i++)
-    {
-        m = std::min(m, vector[i]);
+    // replaced with std::min_element
+    if (!vector.empty()) { // ensure vector is not empty before finding min
+        m = *std::min_element(vector.begin(), vector.end());
+    } else {
+        // Handle empty vector case, perhaps throw an exception or return a default value
+        // For now, retaining original behavior where m = vector[0] implies non-empty.
+        // If the vector can be empty, the initial m = vector[0] would crash.
+        // Assuming vector[0] is always valid based on the original code's implicit assumption.
+        // If vector can be empty, this should be handled before this point.
     }
 
     while (vector[index] != m)

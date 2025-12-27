@@ -1,15 +1,56 @@
-# .clangd - compile database + compile flags
+# --------------------------------------------------
+# .clangd — merged & tuned for HPC / embedded / research
+# --------------------------------------------------
+
 CompileFlags:
-  # Use compile_commands.json from build/
+  # Use compile_commands.json from your custom build dir
   CompilationDatabase: build/cmake.run.linux.x86_64.Local
 
-  # Flags added only if not in compile_commands.json
+  # Added only if not present in compile_commands.json
   Add:
     - -std=gnu++20
     - -I${workspaceFolder}/src
     - -isystem
     - /usr/include/eigen3
     - --gcc-toolchain=/usr
+    - -Wall
+    - -Wextra
+    - -Wno-unused-parameter
+    - -Wno-unused-variable
 
 Index:
   Background: Build
+
+Diagnostics:
+  ClangTidy:
+    Add:
+      # ---- CORE SAFETY ----
+      - clang-analyzer-*
+      - bugprone-*
+      - performance-*
+
+      # ---- RESEARCH / HPC SAFE ----
+      - cppcoreguidelines-pro-bounds-*
+      - cppcoreguidelines-pro-type-*
+      - cppcoreguidelines-init-variables
+
+      # ---- NUMERICS / PERFORMANCE ----
+      - performance-inefficient-vector-operation
+      - performance-for-range-copy
+
+      # ---- PURE STYLE (NOISE) ----
+      - readability-*
+      - modernize-use-trailing-return-type
+      - modernize-use-auto
+      - modernize-use-using
+      - modernize-avoid-c-arrays
+
+      # ---- EMBEDDED / HPC FALSE POSITIVES ----
+
+    Remove:
+      # ---- EMBEDDED / HPC FALSE POSITIVES ----
+      - cppcoreguidelines-pro-type-reinterpret-cast
+      - cppcoreguidelines-pro-bounds-pointer-arithmetic
+      - cppcoreguidelines-owning-memory
+      - cppcoreguidelines-no-malloc
+      - cppcoreguidelines-avoid-magic-numbers

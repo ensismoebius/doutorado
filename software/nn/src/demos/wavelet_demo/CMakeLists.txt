@@ -9,6 +9,7 @@ add_executable(wavelet_demo
     util
     tensor
     wavelet
+    linearAlgebra # Added missing dependency
     saver
     MatplotlibCpp::MatplotlibCpp
   )

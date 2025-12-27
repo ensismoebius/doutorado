@@ -2,9 +2,6 @@
 <results version="2">
     <cppcheck version="2.18.3"/>
     <errors>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/dataLoaders/10.1117/EEGLoader.cpp">
-            <location file="src/core/dataLoaders/10.1117/EEGLoader.cpp" line="0" column="0"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;MatTestUtils.h&quot; not found." verbose="Include file: &quot;MatTestUtils.h&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/tests/eeg_loader_edge_gtest.cpp" line="7" column="0"/>
         </error>
@@ -19,9 +16,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp" line="5" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp" line="0" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found.">
             <location file="src/core/dataLoaders/tests/matfile_row_vector_gtest.cpp" line="7" column="0"/>
@@ -40,12 +34,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/initializers/xavier.hpp&quot; not found." verbose="Include file: &quot;core/initializers/xavier.hpp&quot; not found.">
             <location file="src/core/initializers/tests/initializers_gtest.cpp" line="8" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/layers/Conv2d_impl.cpp">
-            <location file="src/core/layers/Conv2d_impl.cpp" line="0" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/layers/Conv2d_utils.cpp">
-            <location file="src/core/layers/Conv2d_utils.cpp" line="0" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/layers/Module.hpp&quot; not found." verbose="Include file: &quot;core/layers/Module.hpp&quot; not found.">
             <location file="src/core/layers/Leaky.hpp" line="10" column="0"/>
@@ -70,9 +58,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/printTensor.hpp&quot; not found." verbose="Include file: &quot;core/utility/printTensor.hpp&quot; not found.">
             <location file="src/core/layers/Leaky.hpp" line="13" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/linearAlgebra/linearAlgebra.cpp">
-            <location file="src/core/linearAlgebra/linearAlgebra.cpp" line="0" column="0"/>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/linearAlgebra/linearAlgebra.cpp">
             <location file="src/core/linearAlgebra/linearAlgebra.cpp" line="133" column="11"/>
@@ -152,11 +137,15 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/wave/audioFeatureExtraction.cpp" line="12" column="0"/>
         </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/wave/audioFeatureExtraction.cpp">
-            <location file="src/core/wave/audioFeatureExtraction.cpp" line="0" column="0"/>
+        <error id="containerOutOfBounds" severity="warning" msg="Either the condition &apos;vector.empty()&apos; is redundant or expression &apos;vector[0]&apos; causes access out of bounds." verbose="Either the condition &apos;vector.empty()&apos; is redundant or expression &apos;vector[0]&apos; causes access out of bounds." cwe="398" file0="src/core/wave/simpleSignalOperations.cpp">
+            <location file="src/core/wave/simpleSignalOperations.cpp" line="34" column="27" info="Access out of bounds"/>
+            <location file="src/core/wave/simpleSignalOperations.cpp" line="38" column="22" info="Assuming that condition &apos;vector.empty()&apos; is not redundant"/>
+            <symbol>vector</symbol>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/wave/simpleSignalOperations.cpp">
-            <location file="src/core/wave/simpleSignalOperations.cpp" line="40" column="11"/>
+        <error id="containerOutOfBounds" severity="warning" msg="Either the condition &apos;vector.empty()&apos; is redundant or expression &apos;vector[index]&apos; causes access out of bounds." verbose="Either the condition &apos;vector.empty()&apos; is redundant or expression &apos;vector[index]&apos; causes access out of bounds." cwe="398" file0="src/core/wave/simpleSignalOperations.cpp">
+            <location file="src/core/wave/simpleSignalOperations.cpp" line="48" column="18" info="Access out of bounds"/>
+            <location file="src/core/wave/simpleSignalOperations.cpp" line="38" column="22" info="Assuming that condition &apos;vector.empty()&apos; is not redundant"/>
+            <symbol>vector</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
             <location file="src/core/wave/tests/wave_gtest.cpp" line="6" column="0"/>
@@ -166,9 +155,6 @@
         </error>
         <error id="syntaxError" severity="error" msg="syntax error" verbose="syntax error" file0="src/core/wavelet/tests/wavelet_gtest.cpp">
             <location file="src/core/wavelet/tests/wavelet_gtest.cpp" line="16" column="1"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/core/wavelet/waveletOperations.cpp">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="0" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;core/initializers/kaiming_snn.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="14" column="0"/>
@@ -194,9 +180,6 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/EigenParallel.hpp&quot; not found." verbose="Include file: &quot;core/utility/EigenParallel.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="21" column="0"/>
         </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="0" column="0"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;core/initializers/kaiming_snn.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="10" column="0"/>
         </error>
@@ -221,9 +204,6 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/EigenParallel.hpp&quot; not found." verbose="Include file: &quot;core/utility/EigenParallel.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="17" column="0"/>
         </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="0" column="0"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;imgui.h&quot; not found." verbose="Include file: &quot;imgui.h&quot; not found.">
             <location file="src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp" line="7" column="0"/>
         </error>
@@ -232,9 +212,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/layers/Leaky.hpp&quot; not found." verbose="Include file: &quot;core/layers/Leaky.hpp&quot; not found.">
             <location file="src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp" line="9" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp">
-            <location file="src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp" line="0" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found.">
             <location file="src/demos/exec_resnet_demo/resnet_demo.cpp" line="5" column="0"/>
@@ -337,9 +314,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;core/wavelet/waveletOperations.h&quot; not found.">
             <location file="src/experiments/00/main.cpp" line="18" column="0"/>
-        </error>
-        <error id="normalCheckLevelMaxBranches" severity="information" msg="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." verbose="Limiting analysis of branches. Use --check-level=exhaustive to analyze all branches." file0="src/experiments/00/main.cpp">
-            <location file="src/experiments/00/main.cpp" line="0" column="0"/>
         </error>
         <error id="checkersReport" severity="information" msg="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)" verbose="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)"/>
     </errors>
