@@ -21,20 +21,20 @@ Checks: >
   # =====================================================
   # DESABILITADOS — RUÍDO / FALSOS POSITIVOS
   # =====================================================
-  -misc-*,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -bugprone-easily-swappable-parameters,
+  - misc-*,
+  - readability-identifier-length,
+  - readability-magic-numbers,
+  - bugprone-easily-swappable-parameters,
 
   # =====================================================
   # CPP CORE GUIDELINES — HPC / EIGEN / CUDA
   # =====================================================
-  -cppcoreguidelines-non-private-member-variables-in-classes,
-  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
-  -cppcoreguidelines-pro-type-reinterpret-cast,
-  -cppcoreguidelines-owning-memory,
-  -cppcoreguidelines-no-malloc,
-  -cppcoreguidelines-avoid-magic-numbers,
+  - cppcoreguidelines-non-private-member-variables-in-classes,
+  - cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  - cppcoreguidelines-pro-type-reinterpret-cast,
+  - cppcoreguidelines-owning-memory,
+  - cppcoreguidelines-no-malloc,
+  - cppcoreguidelines-avoid-magic-numbers,
 
   # =====================================================
   # CPP CORE GUIDELINES — SEGUROS EM PESQUISA
