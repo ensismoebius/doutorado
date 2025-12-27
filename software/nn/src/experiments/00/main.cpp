@@ -184,8 +184,9 @@ auto main(int argc, char* argv[]) -> int
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
         "databases/BaseDeDatosHablaImaginada/";
 
-    std::vector<Eigen::MatrixXf> eeg_matrices;
-    std::vector<Eigen::MatrixXf> audio_matrices;
+    // Vectors to accumulate features and labels from all subjects
+    std::vector<std::vector<double>> all_combined_features;
+    std::vector<int> all_combined_labels;
 
     for (const auto& entry : std::filesystem::directory_iterator(basePath))
     {
@@ -198,97 +199,72 @@ auto main(int argc, char* argv[]) -> int
 
             if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
             {
-                // Load EEG
+                // Load EEG for current subject
                 auto eeg_opt = matioCpp::utils::load_named_variable_as_matrix(eegFilePath, "EEG");
-                if (eeg_opt)
+                if (!eeg_opt)
                 {
-                    eeg_matrices.push_back(*eeg_opt);
+                    std::cerr << "Failed to load EEG for subject " << subjectName << std::endl;
+                    continue; // Skip to next subject
                 }
+                Eigen::MatrixXf eeg_data = *eeg_opt;
 
-                // Load Audio
+                // Load Audio for current subject
                 auto audio_opt =
                     matioCpp::utils::load_named_variable_as_matrix(audioFilePath, "Audio");
-                if (audio_opt)
+                if (!audio_opt)
                 {
-                    audio_matrices.push_back(*audio_opt);
+                    std::cerr << "Failed to load Audio for subject " << subjectName << std::endl;
+                    continue; // Skip to next subject
                 }
+                Eigen::MatrixXf audio_data = *audio_opt;
+
+                // --- Process single subject data here ---
+                // Extract features from EEG
+                auto eeg_features = extract_wavelet_features(
+                    eeg_data, 24576, cfg.duration_sec, cfg.overlap_percent, cfg.eeg_sampling_rate);
+
+                // Extract features from Audio
+                auto audio_features = extract_wavelet_features(
+                    audio_data, 176400, cfg.duration_sec, cfg.overlap_percent, cfg.sampling_rate);
+
+                // Combine features (simple concatenation)
+                std::vector<std::vector<double>> combined_features_subject;
+                for (size_t i = 0; i < eeg_features.features.size(); ++i)
+                {
+                    std::vector<double> combined = eeg_features.features[i];
+                    combined.insert(
+                        combined.end(), audio_features.features[i].begin(), audio_features.features[i].end());
+                    combined_features_subject.push_back(combined);
+                }
+
+                // Accumulate combined features and labels
+                all_combined_features.insert(all_combined_features.end(),
+                                             combined_features_subject.begin(),
+                                             combined_features_subject.end());
+                all_combined_labels.insert(all_combined_labels.end(),
+                                           eeg_features.labels.begin(),
+                                           eeg_features.labels.end());
+
             }
         }
     }
 
-    // Concatenate all EEG data
-    Eigen::MatrixXf eeg;
-    if (!eeg_matrices.empty())
+    // --- Global processing after all subjects are processed ---
+    if (all_combined_features.empty())
     {
-        Eigen::Index total_rows = 0;
-        for (const auto& mat : eeg_matrices)
-        {
-            total_rows += mat.rows();
-        }
-        eeg.resize(total_rows, eeg_matrices[0].cols());
-        Eigen::Index row_offset = 0;
-        for (const auto& mat : eeg_matrices)
-        {
-            eeg.block(row_offset, 0, mat.rows(), mat.cols()) = mat;
-            row_offset += mat.rows();
-        }
-    }
-    else
-    {
-        std::cerr << "No EEG data loaded\n";
+        std::cerr << "No data processed for any subject. Exiting.\n";
         return 1;
     }
 
-    // Concatenate all Audio data
-    Eigen::MatrixXf audio;
-    if (!audio_matrices.empty())
-    {
-        Eigen::Index total_rows = 0;
-        for (const auto& mat : audio_matrices)
-        {
-            total_rows += mat.rows();
-        }
-        audio.resize(total_rows, audio_matrices[0].cols());
-        Eigen::Index row_offset = 0;
-        for (const auto& mat : audio_matrices)
-        {
-            audio.block(row_offset, 0, mat.rows(), mat.cols()) = mat;
-            row_offset += mat.rows();
-        }
-    }
-    else
-    {
-        std::cerr << "No Audio data loaded\n";
-        return 1;
-    }
+    // Normalize all combined features
+    normalize_features(all_combined_features, cfg.range);
 
-    // Extract features from EEG (24576 data + 3 labels)
-    auto eeg_features = extract_wavelet_features(
-        eeg, 24576, cfg.duration_sec, cfg.overlap_percent, cfg.eeg_sampling_rate);
-
-    // Extract features from Audio (176400 data + 2 labels)
-    auto audio_features = extract_wavelet_features(
-        audio, 176400, cfg.duration_sec, cfg.overlap_percent, cfg.sampling_rate);
-
-    // Combine features (simple concatenation)
-    std::vector<std::vector<double>> combined_features;
-    for (size_t i = 0; i < eeg_features.features.size(); ++i)
-    {
-        std::vector<double> combined = eeg_features.features[i];
-        combined.insert(
-            combined.end(), audio_features.features[i].begin(), audio_features.features[i].end());
-        combined_features.push_back(combined);
-    }
-
-    // Normalize
-    normalize_features(combined_features, cfg.range);
-
-    // Compute paraconsistent metrics (placeholder)
+    // Compute paraconsistent metrics
     auto [alpha, beta, g1, g2] =
-        compute_paraconsistent_metrics(combined_features, eeg_features.labels);
+        compute_paraconsistent_metrics(all_combined_features, all_combined_labels);
 
-    // Train classifier (placeholder)
-    double accuracy = train_resnet(combined_features, eeg_features.labels);
+    // Train classifier
+    double accuracy = train_resnet(all_combined_features, all_combined_labels);
 
     // Save results
     save_results("results_wavelet_baseline.csv", alpha, beta, g1, g2, accuracy);
