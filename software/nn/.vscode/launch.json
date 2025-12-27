@@ -9,7 +9,7 @@
             "program": "${command:cmake.launchTargetPath}",
             "cwd": "${command:cmake.launchTargetDirectory}",
             // Argumentos (opcional)
-            "args": [],
+            "args": ["${workspaceFolder}/src/experiments/config.yaml"],
             // Terminal real → exibe stdout/stderr
             "console": "internalConsole",
             // Task automática do CMake Tools
