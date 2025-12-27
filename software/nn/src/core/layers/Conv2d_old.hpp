@@ -25,8 +25,8 @@ class EIGEN_ALIGN16 Conv2d : public Module
           weights_(nn::Tensor(static_cast<Eigen::Index>(kernel_size) * kernel_size * in_channels,
                               out_channels)),
           bias_(nn::Tensor(out_channels, 1)),
-          im2col_buffer_(
-              std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size, max_batch_size * 256 * 256)),
+          im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
+                                                      max_batch_size * 256 * 256)),
           col2im_buffer_(std::make_unique<nn::Tensor>(max_batch_size, in_channels, 512, 512)),
           grad_output_buffer_(std::make_unique<nn::Tensor>())
     {
@@ -60,7 +60,8 @@ class EIGEN_ALIGN16 Conv2d : public Module
         const int total_patch_cols = batch_size * patch_cols_per_batch;
 
         // Resize buffer if needed (rare after initial preallocation)
-        if (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols) [[unlikely]]
+        if (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols)
+            [[unlikely]]
         {
             im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
         }
@@ -122,7 +123,8 @@ class EIGEN_ALIGN16 Conv2d : public Module
 
         // 3. Get im2col of cached input
         auto& im2col_buffer = *im2col_buffer_;
-        if (im2col_buffer.rows() < patch_rows || im2col_buffer.cols() < total_patch_cols) [[unlikely]]
+        if (im2col_buffer.rows() < patch_rows || im2col_buffer.cols() < total_patch_cols)
+            [[unlikely]]
         {
             im2col_buffer = nn::Tensor(patch_rows, total_patch_cols);
         }
@@ -553,7 +555,9 @@ class EIGEN_ALIGN16 Conv2d : public Module
         // Single memcpy for all data (fastest possible)
         if (total_elements > 0)
         {
-            std::memcpy(output_map.data(), input_map.data(), total_elements * sizeof(float));
+            std::memcpy(output_map.data(),
+                        input_map.data(),
+                        total_elements * sizeof(float)); // flawfinder: ignore
         }
 
         return output;

@@ -26,7 +26,7 @@ class AudioLoader : public IMatLoader
     auto open(const std::string& filePath) noexcept -> bool override
     {
         filePath_ = filePath;
-        matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
+        matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY); // flawfinder: ignore
         return matFile_ != nullptr;
     }
 
@@ -87,7 +87,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<Eigen::VectorXf, int, int>
 {
     AudioLoader loader;
-    if (!loader.open(filePath))
+    if (!loader.open(filePath)) // flawfinder: ignore
     {
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }

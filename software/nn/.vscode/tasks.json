@@ -41,13 +41,11 @@
         },
         {
             "label": "clang-tidy",
-            "type": "process",
-            "command": "clang-tidy",
-            "args": [
-                "--config-file=.clang-tidy",
-                "src/**/*.cpp",
-                "src/**/*.c"
-            ]
+            "type": "shell",
+            "command": "find src -name '*.cpp' -o -name '*.c' | xargs clang-tidy --config-file=.clang-tidy -p build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         },
         {
             "label": "analise_codebase",

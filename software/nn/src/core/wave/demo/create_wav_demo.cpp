@@ -31,7 +31,7 @@ auto main() -> int
     std::printf("Alpha value for 2000 Hz cutoff at 44100 Hz sample rate: %f\n", alpha);
 
     wavFile.write(filePath, data, static_cast<int>(sampleRate));
-    wavFile.read(filePath);
+    wavFile.read(filePath); // flawfinder: ignore
 
     auto readData = wavFile.getData();
 

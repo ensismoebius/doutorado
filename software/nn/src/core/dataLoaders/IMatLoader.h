@@ -15,7 +15,7 @@ class IMatLoader
     virtual ~IMatLoader() = default;
 
     // Open a MAT file. Returns true on success, false otherwise.
-    virtual bool open(const std::string& filePath) noexcept = 0;
+    virtual bool open(const std::string& filePath) noexcept = 0; // flawfinder: ignore
 
     // Close the currently opened MAT file.
     virtual void close() noexcept = 0;

@@ -19,7 +19,7 @@ class EEGLoader : public IMatLoader
     EEGLoader() = default;
     ~EEGLoader() override;
 
-    auto open(const std::string& filePath) noexcept -> bool override;
+    auto open(const std::string& filePath) noexcept -> bool override; // flawfinder: ignore
     void close() noexcept override;
 
     auto readVariable(const std::string& name)

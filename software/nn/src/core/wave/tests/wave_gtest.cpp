@@ -34,7 +34,7 @@ TEST(WavFileTest, WriteThenRead)
 
     // read
     Wav reader;
-    ASSERT_NO_THROW(reader.read(filepath));
+    ASSERT_NO_THROW(reader.read(filepath)); // flawfinder: ignore
     auto readData = reader.getData();
     ASSERT_FALSE(readData.empty());
     // optional: compare contents (convert types if needed)

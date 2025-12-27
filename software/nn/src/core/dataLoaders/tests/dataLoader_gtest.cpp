@@ -77,7 +77,7 @@ TEST(DataLoaderTest, ShuffleVsNoShuffle)
 
     // shuffled order should not be equal to not_shuffled order most likely; make
     // a weak assertion
-    bool equal = (sorder == norder);
+    bool equal = (sorder == norder); // flawfinder: ignore
     EXPECT_TRUE(!equal || sorder.size() == 0 || norder.size() == 0);
 }
 

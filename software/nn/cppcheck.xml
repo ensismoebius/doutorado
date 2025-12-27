@@ -125,6 +125,18 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="5" column="0"/>
         </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;waveformdata&apos; is assigned a value that is never used." verbose="Variable &apos;waveformdata&apos; is assigned a value that is never used." cwe="563" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="317" column="32"/>
+            <symbol>waveformdata</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;waveformdata_right&apos; is assigned a value that is never used." verbose="Variable &apos;waveformdata_right&apos; is assigned a value that is never used." cwe="563" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="330" column="38"/>
+            <symbol>waveformdata_right</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;waveformdata_left&apos; is assigned a value that is never used." verbose="Variable &apos;waveformdata_left&apos; is assigned a value that is never used." cwe="563" file0="src/core/wave/Wav.cpp">
+            <location file="src/core/wave/Wav.cpp" line="331" column="37"/>
+            <symbol>waveformdata_left</symbol>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/wave/audioFeatureExtraction.h" line="6" column="0"/>
         </error>
@@ -292,28 +304,28 @@
             <location file="src/demos/wavelet_demo/wavelet_demo.cpp" line="11" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;Config.hpp&quot; not found." verbose="Include file: &quot;Config.hpp&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="11" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="10" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/10.1117/AudioLoader.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/10.1117/AudioLoader.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="12" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="11" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/10.1117/EEGLoader.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/10.1117/EEGLoader.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="13" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="12" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="14" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="13" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/Adam.hpp&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="15" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="14" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/paraconsistent/paraconsistent.h&quot; not found." verbose="Include file: &quot;core/paraconsistent/paraconsistent.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="16" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="15" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/wavelet/Types.h&quot; not found." verbose="Include file: &quot;core/wavelet/Types.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="17" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="16" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;core/wavelet/waveletOperations.h&quot; not found.">
-            <location file="src/experiments/00/main.cpp" line="18" column="0"/>
+            <location file="src/experiments/00/main.cpp" line="17" column="0"/>
         </error>
         <error id="checkersReport" severity="information" msg="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)" verbose="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)"/>
     </errors>

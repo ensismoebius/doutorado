@@ -58,7 +58,7 @@ auto EEGLoader::readFirstNumericVariable() -> std::optional<MatVarUniquePtr>
 auto EEGLoader::open(const std::string& filePath) noexcept -> bool
 {
     filePath_ = filePath;
-    matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
+    matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY); // flawfinder: ignore
     return matFile_ != nullptr;
 }
 

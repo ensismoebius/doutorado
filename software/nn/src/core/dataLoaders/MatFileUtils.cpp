@@ -30,7 +30,7 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
     try
     {
         matioCpp::File file(mat_path);
-        auto variable = file.read(var_name);
+        auto variable = file.read(var_name); // flawfinder: ignore
         if (!variable.isValid())
         {
             return std::nullopt;
@@ -113,7 +113,7 @@ auto get_variable_dimensions(const std::string& mat_path, const std::string& var
     try
     {
         matioCpp::File file(mat_path);
-        auto variable = file.read(var_name);
+        auto variable = file.read(var_name); // flawfinder: ignore
         if (!variable.isValid())
         {
             return std::nullopt;

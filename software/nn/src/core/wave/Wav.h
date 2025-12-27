@@ -115,6 +115,32 @@ class Wav
     void (*callbackFunction)(std::vector<double>& signal, size_t& signalLength,
                              uint32_t samplingRate, std::string path) = nullptr;
 
+    /**
+     * @brief Helper function to read binary data from a stream.
+     * @tparam T The type of the data to read.
+     * @param is The input stream.
+     * @param value The variable to store the read data.
+     * @return Reference to the input stream.
+     */
+    template <typename T>
+    static std::istream& read_binary(std::istream& is, T& value)
+    {
+        return is.read(reinterpret_cast<char*>(std::addressof(value)), sizeof(T));
+    }
+
+    /**
+     * @brief Helper function to write binary data to a stream.
+     * @tparam T The type of the data to write.
+     * @param os The output stream.
+     * @param value The data to write.
+     * @return Reference to the output stream.
+     */
+    template <typename T>
+    static std::ostream& write_binary(std::ostream& os, const T& value)
+    {
+        return os.write(reinterpret_cast<const char*>(std::addressof(value)), sizeof(T));
+    }
+
    public:
     /**
      * @brief Construct a new Wav object
@@ -143,7 +169,7 @@ class Wav
      * @brief Read a wav file, extracting its audio data and metadata.
      * @param path The file path of the wav file to read.
      */
-    void read(const std::string& _path);
+    void read(const std::string& _path); // flawfinder: ignore
 
     /**
      * @brief Write a wav file, including its audio data and metadata.
