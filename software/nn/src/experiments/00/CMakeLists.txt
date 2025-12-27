@@ -1,7 +1,7 @@
 include(../../../cmake/SanitizerFlags.cmake)
 
 add_executable(M0_wavelet_baseline
-    main.cpp
+    phase00.cpp
 )
 
 target_include_directories(M0_wavelet_baseline

@@ -6,8 +6,8 @@ project(nn VERSION 0.2.0 LANGUAGES CXX C)
 enable_testing()
 
 # Define paths for convenience
-set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
+set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 
 ## Top-level CMake: delegate to modular includes in cmake/
 
