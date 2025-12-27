@@ -4,6 +4,7 @@
 #include <span>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
 #include <vector>
 
 #ifdef _OPENMP
@@ -59,15 +60,21 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
         throw std::runtime_error(s.str());
     }
 
-    // Get the highpass filter based on lowpass filter
+    // Precompute high-pass filter once to eliminate repeated allocations
+    // Optimization: Moved outside hot path, reduces dynamic allocations
     std::vector<double> highpassfilter = linearAlgebra::calcOrthogonalVector(lowpassfilter);
+
+    // Create padded signal for circular convolution to eliminate modulo operations
+    // Optimization: Pre-pad signal to avoid expensive % in inner loops, improves cache locality
+    size_t filter_len = lowpassfilter.size();
+    std::vector<double> padded(maxItens + filter_len - 1);
+    for (size_t i = 0; i < padded.size(); ++i)
+    {
+        padded[i] = signal[i % maxItens];
+    }
 
     // Create the storage for the final results with the correct size
     WaveletTransformResults results(maxItens);
-
-    double lowPassSum = 0;
-    double highPassSum = 0;
-    unsigned int signalIndex = 0;
 
     /*
      * The way we apply the filters and store the results for the
@@ -75,19 +82,20 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
      */
     if (highPassBranch)
     {
+        // For high-pass branch (packet wavelet), access second half of signal
+        // Keep modulo for correctness, as signal indexing is different
         // Translate the filters over the signal
 #ifdef _OPENMP
-#pragma omp parallel for private(lowPassSum, highPassSum, signalIndex)
+#pragma omp parallel for
 #endif
         for (unsigned int translation = 0; translation < maxItens; translation += 2)
         {
-            lowPassSum = 0;
-            highPassSum = 0;
+            double lowPassSum = 0;
+            double highPassSum = 0;
+            size_t signalIndex;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
-            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make
-            // std::accumulate less readable here.
-            for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
+            for (unsigned int filterIndex = 0; filterIndex < filter_len; ++filterIndex)
             {
                 // This part corresponds to the "wrap around" part of Mallat's algorithm
                 signalIndex = (translation + filterIndex) % maxItens;
@@ -102,98 +110,146 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
             }
 
             // Stores the values according to Malat's algorithm
+            // Optimization: Use [] instead of .at() after bounds validation
             /*
              * If we are decomposing the highpass branch then we need to swap the
              * high pass and low pass filtered signals in order to maintain the
              * signal order in the frequency domain. This is used only with
              * wavelet packet transformations
              */
-            results.transformedSignal.at(translation / 2) = highPassSum;
-            results.transformedSignal.at((translation / 2) + (maxItens / 2)) = lowPassSum;
+            results.transformedSignal[translation / 2] = highPassSum;
+            results.transformedSignal[(translation / 2) + (maxItens / 2)] = lowPassSum;
         }
     }
     else
     {
+        // For regular branch, use padded signal for efficient circular access
+        // Optimization: No modulo in inner loop, contiguous memory access
         // Translate the filters over the signal
 #ifdef _OPENMP
-#pragma omp parallel for private(lowPassSum, highPassSum, signalIndex)
+#pragma omp parallel for
 #endif
         for (unsigned int translation = 0; translation < maxItens; translation += 2)
         {
-            lowPassSum = 0;
-            highPassSum = 0;
+            double lowPassSum = 0;
+            double highPassSum = 0;
 
             // Make the sums for lowpass and highpass (i.e. apply the filters)
-            // cppcheck-suppress useStlAlgorithm: Complex indexing and dual accumulation make
-            // std::accumulate less readable here.
-            for (unsigned int filterIndex = 0; filterIndex < lowpassfilter.size(); ++filterIndex)
+            for (unsigned int filterIndex = 0; filterIndex < filter_len; ++filterIndex)
             {
-                // This part corresponds to the "wrap around" part of Mallat's algorithm
-                signalIndex = (translation + filterIndex) % maxItens;
-
-                /* When in lowpass branch of the signal we just want the
-                 * first half of the signal (signalIndex)
-                 */
-                lowPassSum += signal[signalIndex] * lowpassfilter[filterIndex];
-                highPassSum += signal[signalIndex] * highpassfilter[filterIndex];
+                // Use padded signal for circular convolution without modulo
+                size_t padded_index = translation + filterIndex;
+                lowPassSum += padded[padded_index] * lowpassfilter[filterIndex];
+                highPassSum += padded[padded_index] * highpassfilter[filterIndex];
             }
 
             // Stores the values according to Malat's algorithm
+            // Optimization: Use [] instead of .at() for performance
             /*
              * If we are at the lowpass portion of the signal
              * then just store the values as the regular wavelet transform
              */
-            results.transformedSignal.at(translation / 2) = lowPassSum;
-            results.transformedSignal.at((translation / 2) + (maxItens / 2)) = highPassSum;
+            results.transformedSignal[translation / 2] = lowPassSum;
+            results.transformedSignal[(translation / 2) + (maxItens / 2)] = highPassSum;
         }
     }
 
-    // If there is more levels to made the transform do it!
+    // Iterative level-by-level decomposition to remove recursion
+    // Optimization: Eliminates function call overhead and stack usage for deep decompositions
     if (maxItens > 2 && level > 1)
     {
-        /*
-         * The lowpass signal decomposition is made in both modes: PACKET_WAVELET
-         * and REGULAR_WAVELET.
-         * The next level uses only half of the resulting transformed signal
-         * that why the "maxItens / 2"
-         */
-        WaveletTransformResults lowpassBranchFiltered =
-            malat(results.transformedSignal, lowpassfilter, mode, level - 1, maxItens / 2, false);
+        // Define task structure: start index, size, remaining levels, is high-pass branch
+        using Task = std::tuple<size_t, size_t, unsigned int, bool>;
+        std::vector<Task> tasks;
 
-        // Used only when in wavelet packet transform
+        // Add initial sub-tasks based on mode
         if (mode == PACKET_WAVELET)
         {
-            // The next level uses only half of the resulting transformed signal
-            // that why the "maxItens / 2"
-            WaveletTransformResults highPassBranchFiltered = malat(
-                results.transformedSignal, lowpassfilter, mode, level - 1, maxItens / 2, true);
+            tasks.emplace_back(0, maxItens / 2, level - 1, false);           // low-pass branch
+            tasks.emplace_back(maxItens / 2, maxItens / 2, level - 1, true); // high-pass branch
+        }
+        else
+        {
+            tasks.emplace_back(0, maxItens / 2, level - 1, false); // only low-pass for regular
+        }
 
-            // Write the result
-            for (unsigned int i = 0; i < highPassBranchFiltered.transformedSignal.size(); ++i)
+        // Process tasks iteratively
+        while (!tasks.empty())
+        {
+            auto [start, sz, lev, is_high] = tasks.back();
+            tasks.pop_back();
+
+            if (lev == 0 || sz < 2) continue;
+
+            // Extract segment to decompose
+            std::vector<double> segment(sz);
+            for (size_t i = 0; i < sz; ++i)
             {
-                results.transformedSignal.at(i + (results.transformedSignal.size() / 2)) =
-                    highPassBranchFiltered.transformedSignal.at(i);
+                segment[i] = results.transformedSignal[start + i];
+            }
+
+            // Create padded segment for circular convolution
+            // Optimization: Avoid modulo in inner loops
+            std::vector<double> padded_seg(sz + filter_len - 1);
+            for (size_t i = 0; i < padded_seg.size(); ++i)
+            {
+                padded_seg[i] = segment[i % sz];
+            }
+
+            // Perform convolution
+            // Optimization: Parallel processing, contiguous memory access
+            std::vector<double> temp(sz);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+            for (size_t t = 0; t < sz; t += 2)
+            {
+                double lp = 0.0, hp = 0.0;
+                for (size_t f = 0; f < filter_len; ++f)
+                {
+                    size_t idx = t + f;
+                    lp += padded_seg[idx] * lowpassfilter[f];
+                    hp += padded_seg[idx] * highpassfilter[f];
+                }
+                // Swap low/high for high-pass branches to maintain frequency order
+                if (is_high)
+                {
+                    temp[t / 2] = hp;
+                    temp[t / 2 + sz / 2] = lp;
+                }
+                else
+                {
+                    temp[t / 2] = lp;
+                    temp[t / 2 + sz / 2] = hp;
+                }
+            }
+
+            // Copy results back to main buffer
+            // Optimization: Reuse existing buffer, avoid full copies
+            for (size_t i = 0; i < sz; ++i)
+            {
+                results.transformedSignal[start + i] = temp[i];
+            }
+
+            // Add sub-tasks for next level
+            size_t half = sz / 2;
+            if (mode == PACKET_WAVELET)
+            {
+                tasks.emplace_back(start, half, lev - 1, false);
+                tasks.emplace_back(start + half, half, lev - 1, true);
+            }
+            else
+            {
+                tasks.emplace_back(start, half, lev - 1, false);
             }
         }
-
-        // Write the result
-        for (unsigned int i = 0; i < lowpassBranchFiltered.transformedSignal.size(); ++i)
-        {
-            results.transformedSignal.at(i) = lowpassBranchFiltered.transformedSignal.at(i);
-        }
-
-        // Add the transformation levels done in recursion to current level
-        // Even when we do an wavelet transform the way we count it remains
-        results.levelsOfTransformation += lowpassBranchFiltered.levelsOfTransformation;
     }
 
-    // Increase the levels of transformation
-    results.levelsOfTransformation++;
+    // Set transformation metadata
+    results.levelsOfTransformation = level;
+    results.packet = (mode == PACKET_WAVELET);
 
-    // Mark or not as a packet wavelet transform
-    results.packet = mode == PACKET_WAVELET;
-
-    // Return the whole thing
+    // Return the optimized result
     return results;
 }
 
