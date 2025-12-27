@@ -1,6 +1,7 @@
 #include <matio.h>
 
 #include <Eigen/Dense>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <numeric>
@@ -11,8 +12,8 @@
 #include "core/dataLoaders/MatFileUtils.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
-#include "core/wavelet/waveletOperations.h"
 #include "core/wavelet/Types.h"
+#include "core/wavelet/waveletOperations.h"
 
 struct WindowedFeatures
 {
@@ -178,27 +179,88 @@ auto main(int argc, char* argv[]) -> int
     std::cout << "PHASE 1: Wavelet Baseline Experiment\n";
     std::cout << "Config loaded successfully\n";
 
-    // Load data (placeholder paths)
-    std::string eeg_path = "/path/to/eeg.mat";     // TODO: use actual path
-    std::string audio_path = "/path/to/audio.mat"; // TODO: use actual path
+    // Load data from all subjects like in lfcc_pipeline
+    std::string basePath =
+        "/home/ensismoebius/Documentos/UNESP/doutorado/"
+        "databases/BaseDeDatosHablaImaginada/";
 
-    // Load EEG
-    auto eeg_opt = matioCpp::utils::load_named_variable_as_matrix(eeg_path, "EEG");
-    if (!eeg_opt)
+    std::vector<Eigen::MatrixXf> eeg_matrices;
+    std::vector<Eigen::MatrixXf> audio_matrices;
+
+    for (const auto& entry : std::filesystem::directory_iterator(basePath))
     {
-        std::cerr << "Failed to load EEG\n";
+        if (entry.is_directory())
+        {
+            std::string subjectPath = entry.path().string();
+            std::string subjectName = entry.path().filename().string();
+            std::string audioFilePath = subjectPath + "/" + subjectName + "_Audio.mat";
+            std::string eegFilePath = subjectPath + "/" + subjectName + "_EEG.mat";
+
+            if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
+            {
+                // Load EEG
+                auto eeg_opt = matioCpp::utils::load_named_variable_as_matrix(eegFilePath, "EEG");
+                if (eeg_opt)
+                {
+                    eeg_matrices.push_back(*eeg_opt);
+                }
+
+                // Load Audio
+                auto audio_opt =
+                    matioCpp::utils::load_named_variable_as_matrix(audioFilePath, "Audio");
+                if (audio_opt)
+                {
+                    audio_matrices.push_back(*audio_opt);
+                }
+            }
+        }
+    }
+
+    // Concatenate all EEG data
+    Eigen::MatrixXf eeg;
+    if (!eeg_matrices.empty())
+    {
+        Eigen::Index total_rows = 0;
+        for (const auto& mat : eeg_matrices)
+        {
+            total_rows += mat.rows();
+        }
+        eeg.resize(total_rows, eeg_matrices[0].cols());
+        Eigen::Index row_offset = 0;
+        for (const auto& mat : eeg_matrices)
+        {
+            eeg.block(row_offset, 0, mat.rows(), mat.cols()) = mat;
+            row_offset += mat.rows();
+        }
+    }
+    else
+    {
+        std::cerr << "No EEG data loaded\n";
         return 1;
     }
-    const Eigen::MatrixXf& eeg = *eeg_opt;
 
-    // Load Audio
-    auto audio_opt = matioCpp::utils::load_named_variable_as_matrix(audio_path, "Audio");
-    if (!audio_opt)
+    // Concatenate all Audio data
+    Eigen::MatrixXf audio;
+    if (!audio_matrices.empty())
     {
-        std::cerr << "Failed to load Audio\n";
+        Eigen::Index total_rows = 0;
+        for (const auto& mat : audio_matrices)
+        {
+            total_rows += mat.rows();
+        }
+        audio.resize(total_rows, audio_matrices[0].cols());
+        Eigen::Index row_offset = 0;
+        for (const auto& mat : audio_matrices)
+        {
+            audio.block(row_offset, 0, mat.rows(), mat.cols()) = mat;
+            row_offset += mat.rows();
+        }
+    }
+    else
+    {
+        std::cerr << "No Audio data loaded\n";
         return 1;
     }
-    const Eigen::MatrixXf& audio = *audio_opt;
 
     // Extract features from EEG (24576 data + 3 labels)
     auto eeg_features = extract_wavelet_features(

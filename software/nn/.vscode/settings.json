@@ -101,6 +101,11 @@
     // performance / limits
     "clangd.semanticHighlighting.enabled": true,
     "files.maxMemoryForLargeFilesMB": 16000,
+
+    "lldb.displayFormat": "auto",
+    "lldb.showDisassembly": "auto",
+    "lldb.dereferencePointers": true,
+    "lldb.consoleMode": "evaluate",
     "cmake.debugConfig": {
         "type": "lldb-dap",
         "request": "launch",

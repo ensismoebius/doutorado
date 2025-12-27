@@ -125,10 +125,9 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                 {
                     size_t idx_in_segment = t + f;
                     // Calculate circular index without modulo
-                    size_t signal_idx = current_start +
-                                        ((idx_in_segment >= current_sz) ?
-                                             (idx_in_segment - current_sz) :
-                                             idx_in_segment);
+                    size_t signal_idx = current_start + ((idx_in_segment >= current_sz)
+                                                             ? (idx_in_segment - current_sz)
+                                                             : idx_in_segment);
                     lp_sum += results.transformedSignal[signal_idx] * lowpassfilter[f];
                     hp_sum += results.transformedSignal[signal_idx] * highpassfilter[f];
                 }
@@ -139,12 +138,12 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
                 // which represents the parent branch. For wavelet packet, if the parent
                 // was a high-pass branch, we swap the low-pass and high-pass outputs
                 // to maintain frequency order.
-                if [[unlikely]](mode == PACKET_WAVELET && current_is_high_pass)
+                if (mode == PACKET_WAVELET && current_is_high_pass) [[likely]]
                 {
                     temp_buffer[current_start + (t / 2)] = hp_sum;
                     temp_buffer[current_start + (t / 2) + half_sz] = lp_sum;
                 }
-                else [[likely]]
+                else [[unlikely]]
                 {
                     temp_buffer[current_start + (t / 2)] = lp_sum;
                     temp_buffer[current_start + (t / 2) + half_sz] = hp_sum;
@@ -153,14 +152,14 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
 
             // After processing, add new tasks for the next level's decomposition.
             // These tasks represent the new low-pass and high-pass bands.
-            if (mode == PACKET_WAVELET)
+            if (mode == PACKET_WAVELET) [[likely]]
             {
                 // Both low-pass and high-pass branches become new tasks for the next level
                 tasks_for_next_level.emplace_back(current_start, half_sz, false); // Low-pass child
                 tasks_for_next_level.emplace_back(
                     current_start + half_sz, half_sz, true); // High-pass child
             }
-            else
+            else [[unlikely]]
             {
                 // For regular DWT, only the low-pass branch is decomposed further
                 tasks_for_next_level.emplace_back(
@@ -175,7 +174,7 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
 
         // Prepare tasks for the next level
         tasks = std::move(tasks_for_next_level);
-        if (tasks.empty())
+        if (tasks.empty()) [[unlikely]]
         {
             break; // No more tasks to process (e.g., all segments are too small)
         }
@@ -194,4 +193,3 @@ auto getNextPowerOfTwo(double number) -> int
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }
 } // namespace wavelets
-
