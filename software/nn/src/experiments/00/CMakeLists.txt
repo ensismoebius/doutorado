@@ -21,6 +21,7 @@ target_link_libraries(M0_wavelet_baseline
         matioCpp
         optimizers
         dataLoaders
+        dataLoaders_10_1117  # Added to link the 10.1117 specific data loaders
         Eigen3::Eigen
         yaml-cpp
         OpenMP::OpenMP_CXX

@@ -29,7 +29,7 @@ auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
     return result;
 }
 
-auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int
+auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned int
 {
     long double m = vector[0];
     unsigned int period = 0;
@@ -87,11 +87,10 @@ void silentHalfOfTheSoundTrack(double* signal, int signalLength)
 void xuxasDevilInvocation(double* signal, int signalLength)
 {
     int middleSignalIndex = signalLength / 2;
-    double tempVar;
 
     for (int i = middleSignalIndex; i < signalLength; ++i)
     {
-        tempVar = signal[i];
+        double tempVar = signal[i];
         signal[i] = signal[signalLength - i - 1];
         signal[signalLength - i - 1] = tempVar;
     }

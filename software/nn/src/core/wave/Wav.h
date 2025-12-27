@@ -113,7 +113,7 @@ class Wav
      * signal), a reference to the signal length, the sampling rate, and the file path.
      */
     void (*callbackFunction)(std::vector<double>& signal, size_t& signalLength,
-                             uint32_t samplingRate, std::string path);
+                             uint32_t samplingRate, std::string path) = nullptr;
 
    public:
     /**

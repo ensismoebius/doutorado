@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+#include <iterator>
 #include <span>
 #include <vector>
 
@@ -26,10 +28,10 @@ class TensorDataset : public Dataset
     {
         std::vector<int> idxs;
         idxs.reserve(indices.size());
-        for (auto i : indices)
-        {
-            idxs.push_back(static_cast<int>(i));
-        }
+        std::transform(indices.begin(),
+                       indices.end(),
+                       std::back_inserter(idxs),
+                       [](std::size_t i) { return static_cast<int>(i); });
         return {.inputs = inputs_.slice(std::span<const int>(idxs)),
                 .targets = targets_.slice(std::span<const int>(idxs))};
     }

@@ -138,7 +138,7 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Row index out of bounds");
     }
 
-    auto* rawDataPtr = static_cast<double*>(eegVar->data);
+    const auto* rawDataPtr = static_cast<const double*>(eegVar->data);
     if (rawDataPtr == nullptr)
     {
         throw std::runtime_error("Failed to access EEG data pointer");

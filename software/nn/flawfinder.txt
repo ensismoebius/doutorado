@@ -1,0 +1,128 @@
+Flawfinder version 2.0.19, (C) 2001-2019 David A. Wheeler.
+Number of rules (primarily dangerous function names) in C/C++ ruleset: 222
+FINAL RESULTS:
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/AudioLoader.cpp:22:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/AudioLoader.cpp:86:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/EEGLoader.cpp:58:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/EEGLoader.h:22:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/IMatLoader.h:18:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/Conv2d_old.hpp:556:  [2] (buffer) memcpy:
+  Does not check for buffer overflows when copying to destination (CWE-120).
+  Make sure destination can always hold the source data.
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:75:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:95:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:139:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:176:  [2] (misc) open:
+  Check when opening files - can an attacker redirect it (via symlinks),
+  force the opening of special file type (e.g., device files), move things
+  around to create a race condition, control its ancestors, or change its
+  contents? (CWE-362).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/MatFileUtils.cpp:33:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/MatFileUtils.cpp:116:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataLoader_gtest.cpp:79:  [1] (buffer) equal:
+  Function does not check the second iterator for over-read conditions
+  (CWE-126). This function is often discouraged by most C++ coding standards
+  in favor of its safer alternatives provided since C++14. Consider using a
+  form of this function that checks the second iterator before potentially
+  overflowing it.
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/loadingData.cpp:67:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:67:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:298:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:388:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:401:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:402:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:415:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:416:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:431:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:432:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:433:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:434:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.h:146:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/demo/create_wav_demo.cpp:34:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/tests/wave_gtest.cpp:37:  [1] (buffer) read:
+  Check buffer boundaries if used in a loop including recursive loops
+  (CWE-120, CWE-20).
+
+ANALYSIS SUMMARY:
+
+Hits = 28
+Lines analyzed = 14430 in approximately 0.11 seconds (127763 lines/second)
+Physical Source Lines of Code (SLOC) = 9583
+Hits@level = [0]   3 [1]  18 [2]  10 [3]   0 [4]   0 [5]   0
+Hits@level+ = [0+]  31 [1+]  28 [2+]  10 [3+]   0 [4+]   0 [5+]   0
+Hits/KSLOC@level+ = [0+] 3.2349 [1+] 2.92184 [2+] 1.04351 [3+]   0 [4+]   0 [5+]   0
+Minimum risk level = 1
+
+Not every hit is necessarily a security vulnerability.
+You can inhibit a report by adding a comment in this form:
+// flawfinder: ignore
+Make *sure* it's a false positive!
+You can use the option --neverignore to show these.
+
+There may be other security vulnerabilities; review your code!
+See 'Secure Programming HOWTO'
+(https://dwheeler.com/secure-programs) for more information.

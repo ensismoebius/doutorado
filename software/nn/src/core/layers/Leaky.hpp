@@ -84,14 +84,14 @@ struct Leaky : public Module
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    Leaky(float dt_ = 1.0F,              // time step
-          float R_ = 1.0F,               // resistance
-          float C_ = 1.0F,               // capacitance
-          float V_thresh_ = 1.0F,        // voltage threshold
-          bool reset_zero_ = true,       // reset to zero or subtract threshold
-          float reset_potential_ = 0.0F, // reset potential value
-          std::shared_ptr<ISurrogateGradient> surrogate_grad =
-              std::make_shared<ExponentialSurrogate>())
+    explicit Leaky(float dt_ = 1.0F,              // time step
+                   float R_ = 1.0F,               // resistance
+                   float C_ = 1.0F,               // capacitance
+                   float V_thresh_ = 1.0F,        // voltage threshold
+                   bool reset_zero_ = true,       // reset to zero or subtract threshold
+                   float reset_potential_ = 0.0F, // reset potential value
+                   std::shared_ptr<ISurrogateGradient> surrogate_grad =
+                       std::make_shared<ExponentialSurrogate>())
         : dt(dt_),                                                     // time step
           resistance(nn::Tensor(Eigen::MatrixXf::Constant(1, 1, R_))), // resistance
           capacitance(C_),                                             // capacitance
@@ -114,15 +114,15 @@ struct Leaky : public Module
     auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
-        if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols()) [[unlikely]]
+        if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols())
+            [[unlikely]]
         {
             v_mem.resize(input.get_data_ref().rows(), input.get_data_ref().cols());
             v_mem.setZero();
         }
 
         // Initialize output tensor
-        Eigen::MatrixXf output =
-            Eigen::MatrixXf::Zero(input.get_data_ref().rows(), input.get_data_ref().cols());
+        Eigen::MatrixXf output;
 
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
         // Beta is the discrete-time decay factor derived from the continuous-time
@@ -157,7 +157,7 @@ struct Leaky : public Module
         {
             std::ostringstream oss;
             oss << "Updated V_mem - " << static_cast<const void*>(this);
-            printTensor(v_mem, oss.str().c_str());
+            printTensor(v_mem, oss.str());
         }
 #endif
         // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.

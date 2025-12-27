@@ -10,7 +10,7 @@
 class MatFile
 {
    public:
-    MatFile(const std::string& filename);
+    explicit MatFile(const std::string& filename);
     ~MatFile();
 
     auto getVariableNames() -> std::vector<std::string>;

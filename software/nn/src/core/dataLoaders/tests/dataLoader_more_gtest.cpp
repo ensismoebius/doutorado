@@ -1,3 +1,5 @@
+#include <numeric>
+
 #include "../DataLoader.h"
 #include "../TensorDataset.h"
 #include "gtest/gtest.h"
@@ -115,6 +117,7 @@ TEST(DataLoaderMoreTest, ConcurrencySmokeTest)
 
     const int num_threads = 4;
     std::vector<std::thread> threads;
+    threads.reserve(num_threads);
     std::atomic<int> total_batches{0};
 
     for (int t = 0; t < num_threads; ++t)
@@ -123,11 +126,12 @@ TEST(DataLoaderMoreTest, ConcurrencySmokeTest)
             [&, t]()
             {
                 DataLoader loader(dataset, 7, true, static_cast<unsigned int>(100 + t));
-                int local = 0;
-                for (const auto& b : loader)
-                {
-                    local += static_cast<int>(b.inputs.get_data_ref().rows());
-                }
+                int local = std::accumulate(
+                    loader.begin(),
+                    loader.end(),
+                    0,
+                    [](int sum, const auto& b)
+                    { return sum + static_cast<int>(b.inputs.get_data_ref().rows()); });
                 total_batches.fetch_add(local, std::memory_order_relaxed);
             });
     }

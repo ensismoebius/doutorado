@@ -59,10 +59,10 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
         auto approximation = dwt_results.getWaveletTransforms(0);
         if (!approximation.empty())
         {
-            for (double val : approximation)
-            {
-                combined_coefficients.push_back(val + offset);
-            }
+            std::transform(approximation.begin(),
+                           approximation.end(),
+                           std::back_inserter(combined_coefficients),
+                           [offset](double val) { return val + offset; });
             if (approximation.size() > 1)
             { // Only calculate range if more than one element
                 offset += (*std::ranges::max_element(approximation.begin(), approximation.end()) -
@@ -77,10 +77,10 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
             auto details = dwt_results.getWaveletTransforms(i);
             if (!details.empty())
             {
-                for (double val : details)
-                {
-                    combined_coefficients.push_back(val + offset);
-                }
+                std::transform(details.begin(),
+                               details.end(),
+                               std::back_inserter(combined_coefficients),
+                               [offset](double val) { return val + offset; });
                 if (details.size() > 1)
                 {
                     offset += (*std::ranges::max_element(details.begin(), details.end()) -
@@ -118,10 +118,10 @@ void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
                 dwpt_results.transformedSignal, i, dwpt_results.levelsOfTransformation);
             if (!part.empty())
             {
-                for (double val : part)
-                {
-                    combined_packets.push_back(val + offset);
-                }
+                std::transform(part.begin(),
+                               part.end(),
+                               std::back_inserter(combined_packets),
+                               [offset](double val) { return val + offset; });
                 if (part.size() > 1)
                 { // Only calculate range if more than one element
                     offset += (*std::ranges::max_element(part.begin(), part.end()) -

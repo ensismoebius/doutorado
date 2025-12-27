@@ -2,6 +2,8 @@
 #define TENSOR_HPP
 
 #include <Eigen/Dense>
+#include <functional>
+#include <numeric>
 #include <span>
 #include <vector>
 
@@ -58,12 +60,8 @@ class Tensor
    private:
     static Eigen::Index calculate_total_size(const std::vector<Eigen::Index>& shape)
     {
-        Eigen::Index total_size = 1;
-        for (Eigen::Index dim : shape)
-        {
-            total_size *= dim;
-        }
-        return total_size;
+        return std::accumulate(
+            shape.begin(), shape.end(), Eigen::Index(1), std::multiplies<Eigen::Index>());
     }
 
     Eigen::MatrixXf m_data;
@@ -71,7 +69,8 @@ class Tensor
     std::vector<Eigen::Index> m_shape; // New member to store N-dimensional shape
 }; // End of class Tensor
 
-// Template implementations must be available in the header, outside the class but inside the namespace.
+// Template implementations must be available in the header, outside the class but inside the
+// namespace.
 template <typename vector_type>
 auto Tensor::toVector() const -> std::vector<vector_type>
 {
@@ -85,6 +84,6 @@ auto Tensor::toVector() const -> std::vector<vector_type>
     return vec;
 }
 
-} // namespace nn (End of namespace nn)
+} // namespace nn
 
 #endif // TENSOR_HPP

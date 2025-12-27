@@ -120,7 +120,7 @@ auto get_variable_dimensions(const std::string& mat_path, const std::string& var
         }
 
         auto dims_span = variable.dimensions();
-        return std::optional<std::vector<size_t>>(dims_span.begin(), dims_span.end());
+        return std::make_optional<std::vector<size_t>>(dims_span.begin(), dims_span.end());
     }
     catch (const std::exception&)
     {

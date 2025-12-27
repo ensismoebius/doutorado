@@ -556,7 +556,7 @@ TEST(Conv2dTest, GradientComputation)
     input.get_data_ref().setRandom();
 
     // Forward and backward
-    nn::Tensor output = conv.forward(input);
+    conv.forward(input);
     nn::Tensor grad_output(batch_size, out_channels, 3, 3);
     grad_output.get_data_ref().setRandom();
     conv.backward(grad_output);

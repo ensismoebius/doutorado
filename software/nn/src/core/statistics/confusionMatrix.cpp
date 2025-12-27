@@ -80,7 +80,7 @@ double truePositiveRate(double tp, double fn)
  * @param matrix
  * @return
  */
-double truePositiveRate(ConfusionMatrix& matrix)
+double truePositiveRate(const ConfusionMatrix& matrix)
 {
     return truePositiveRate(matrix.falseNegative, matrix.truePositive);
 }
@@ -103,7 +103,7 @@ double accuracyRate(double tp, double tn, double fp, double fn)
  * @param matrix
  * @return
  */
-double accuracyRate(ConfusionMatrix& matrix)
+double accuracyRate(const ConfusionMatrix& matrix)
 {
     return accuracyRate(
         matrix.truePositive, matrix.trueNegative, matrix.falsePositive, matrix.falseNegative);
@@ -125,7 +125,7 @@ double precision(double tp, double fp)
  * @param matrix
  * @return
  */
-double precision(ConfusionMatrix& matrix)
+double precision(const ConfusionMatrix& matrix)
 {
     return precision(matrix.truePositive, matrix.falsePositive);
 }
@@ -146,7 +146,7 @@ double recall(double tp, double fn)
  * @param matrix
  * @return
  */
-double recall(ConfusionMatrix& matrix)
+double recall(const ConfusionMatrix& matrix)
 {
     return recall(matrix.truePositive, matrix.falseNegative);
 }
@@ -171,7 +171,8 @@ void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
     for (unsigned int i = 0; i < falsePositiveRates.size(); i++)
     {
         // Calculate the distance between the coordinates and the x=y line in the graph
-        double tempDistance = std::abs((falsePositiveRates[i] - falseNegativeRates[i]) / std::sqrt(2));
+        double tempDistance =
+            std::abs((falsePositiveRates[i] - falseNegativeRates[i]) / std::sqrt(2));
 
         // Store the first nearest point ABOVE x=y line
         if (tempDistance <= minorDistance && falseNegativeRates[i] >= falsePositiveRates[i])
@@ -214,11 +215,13 @@ void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices, double& eer,
     falseNegativeRates.clear();
     falseNegativeRates.reserve(confusionMatrices.size());
 
-    std::transform(confusionMatrices.begin(), confusionMatrices.end(),
+    std::transform(confusionMatrices.begin(),
+                   confusionMatrices.end(),
                    std::back_inserter(falsePositiveRates),
                    [](const ConfusionMatrix& cm) { return falsePositiveRate(cm); });
 
-    std::transform(confusionMatrices.begin(), confusionMatrices.end(),
+    std::transform(confusionMatrices.begin(),
+                   confusionMatrices.end(),
                    std::back_inserter(falseNegativeRates),
                    [](const ConfusionMatrix& cm) { return falseNegativeRate(cm); });
 

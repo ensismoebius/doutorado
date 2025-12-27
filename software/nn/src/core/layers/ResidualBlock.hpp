@@ -13,7 +13,7 @@ struct ResidualBlock : public Module
     std::shared_ptr<ReLU> act1;
     std::shared_ptr<Linear> fc2;
 
-    ResidualBlock(int features)
+    explicit ResidualBlock(int features)
         : fc1(std::make_shared<Linear>(features, features)),
           act1(std::make_shared<ReLU>()),
           fc2(std::make_shared<Linear>(features, features))

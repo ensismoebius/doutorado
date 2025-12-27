@@ -168,7 +168,6 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
                               int input_width, int output_height, int output_width) const
     -> nn::Tensor
 {
-    const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
 
     // Use pre-allocated buffer

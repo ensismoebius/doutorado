@@ -16,7 +16,11 @@ class AudioLoader : public IMatLoader
     AudioLoader() = default;
     ~AudioLoader() override
     {
-        close();
+        if (matFile_ != nullptr)
+        {
+            Mat_Close(matFile_);
+            matFile_ = nullptr;
+        }
     }
 
     auto open(const std::string& filePath) noexcept -> bool override
@@ -119,7 +123,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Get data pointer
-    auto* rawDataPtr = static_cast<double*>(audioVariable->data);
+    const auto* rawDataPtr = static_cast<const double*>(audioVariable->data);
     if (rawDataPtr == nullptr)
     {
         throw std::runtime_error("Failed to access data");

@@ -1,3 +1,5 @@
+#include <iterator>
+
 #include "../DataLoader.h"
 #include "../TensorDataset.h"
 #include "gtest/gtest.h"
@@ -105,10 +107,6 @@ TEST(DataLoaderTest, EmptyDataset)
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
     DataLoader loader(dataset, 4, false);
-    int count = 0;
-    for (const auto& batch : loader)
-    {
-        ++count;
-    }
+    int count = std::distance(loader.begin(), loader.end());
     EXPECT_EQ(count, 0);
 }

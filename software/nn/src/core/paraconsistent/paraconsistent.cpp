@@ -74,7 +74,8 @@ void normalizeClassesFeatureVectors(
 
 auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
                     unsigned int featureVectorSize,
-                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
+                    const std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
+    -> double
 {
     std::map<std::string, std::vector<double>> arrLargestItems;
     std::map<std::string, std::vector<double>> arrSmallestItems;

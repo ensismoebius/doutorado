@@ -7,6 +7,10 @@
 #include <memory>
 #include <tuple>
 
+#include "../../core/saver/NetworkSerializer.hpp"
+#include "../../core/utility/batching.hpp"
+#include "../../core/utility/synthetic_spike_data.hpp"
+#include "../../core/utility/vectorizationCheck.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/Leaky.hpp"
 #include "core/layers/Linear.hpp"
@@ -15,10 +19,6 @@
 #include "core/optimizers/Adam.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
-#include "../../core/saver/NetworkSerializer.hpp"
-#include "../../core/utility/batching.hpp"
-#include "../../core/utility/synthetic_spike_data.hpp"
-#include "../../core/utility/vectorizationCheck.hpp"
 
 using Eigen::MatrixXf;
 using std::cout;
@@ -49,9 +49,10 @@ namespace
 {
 auto debug(const Batch& batch, const nn::Tensor& y_pred, const nn::Tensor& loss_tensor) -> void
 {
-    cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x" << batch.inputs.get_data_ref().cols()
-         << '\n';
-    cout << "Output dimensions: " << y_pred.get_data_ref().rows() << "x" << y_pred.get_data_ref().cols() << '\n';
+    cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x"
+         << batch.inputs.get_data_ref().cols() << '\n';
+    cout << "Output dimensions: " << y_pred.get_data_ref().rows() << "x"
+         << y_pred.get_data_ref().cols() << '\n';
     cout << "Target values: " << batch.targets.get_data_ref().format(CleanFmt) << '\n';
     cout << "Output values: " << y_pred.get_data_ref().format(CleanFmt) << '\n';
     cout << "Loss values: " << loss_tensor.get_data_ref().format(CleanFmt) << '\n';
@@ -342,11 +343,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
         }
 
         // Print progress
-        constexpr int progress_interval = 1; // Print progress every N epochs
-        if (epoch % progress_interval == 0)
-        {
-            cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << std::flush;
-        }
+        cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << std::flush;
 
         // Stop training when target loss is achieved
         if (epoch_loss < target_loss)

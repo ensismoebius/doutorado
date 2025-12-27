@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "Config.hpp"
-#include "core/dataLoaders/MatFileUtils.h"
-#include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/dataLoaders/10.1117/AudioLoader.h"
+#include "core/dataLoaders/10.1117/EEGLoader.h"
+#include "core/dataLoaders/MatFileUtils.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
 #include "core/wavelet/Types.h"
@@ -21,7 +21,8 @@
 // For EEG, signal_data will be (channels x samples_per_channel)
 // For Audio, signal_data will be (1 x samples_per_channel)
 auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, double duration_sec,
-                                           int overlap_percent, int sampling_rate) -> std::vector<double>
+                                           int overlap_percent, int sampling_rate)
+    -> std::vector<double>
 {
     // Daubechies 4 lowpass filter (example)
     auto lowpass = wavelets::get_wavelet<wavelets::Daub4>();
@@ -151,7 +152,7 @@ auto save_results(const std::string& filename, double alpha, double beta, double
     file << alpha << "," << beta << "," << g1 << "," << g2 << "," << accuracy << "\n";
 }
 
-auto main(int argc, char* argv[]) -> int
+auto main(int argc, const char* argv[]) -> int
 {
     if (argc != 2)
     {
@@ -193,9 +194,11 @@ auto main(int argc, char* argv[]) -> int
             {
                 // Get dimensions to determine number of trials
                 auto eeg_dims_opt = matioCpp::utils::get_variable_dimensions(eegFilePath, "EEG");
-                auto audio_dims_opt = matioCpp::utils::get_variable_dimensions(audioFilePath, "Audio");
+                auto audio_dims_opt =
+                    matioCpp::utils::get_variable_dimensions(audioFilePath, "Audio");
 
-                if (!eeg_dims_opt || eeg_dims_opt->empty() || !audio_dims_opt || audio_dims_opt->empty())
+                if (!eeg_dims_opt || eeg_dims_opt->empty() || !audio_dims_opt ||
+                    audio_dims_opt->empty())
                 {
                     std::cerr << "Failed to get dimensions for " << subjectName << ". Skipping.\n";
                     continue;
@@ -205,37 +208,50 @@ auto main(int argc, char* argv[]) -> int
                 size_t num_eeg_trials = eeg_dims_opt->at(0);
                 size_t num_audio_trials = audio_dims_opt->at(0);
 
-                if (num_eeg_trials == 0 || num_audio_trials == 0) {
+                if (num_eeg_trials == 0 || num_audio_trials == 0)
+                {
                     std::cerr << "No trials found for " << subjectName << ". Skipping.\n";
                     continue;
                 }
 
                 if (num_eeg_trials != num_audio_trials)
                 {
-                    std::cerr << "Mismatch in number of trials for " << subjectName << ". EEG: " << num_eeg_trials << ", Audio: " << num_audio_trials << ". Skipping.\n";
+                    std::cerr << "Mismatch in number of trials for " << subjectName
+                              << ". EEG: " << num_eeg_trials << ", Audio: " << num_audio_trials
+                              << ". Skipping.\n";
                     continue;
                 }
 
-                std::cout << "Processing subject " << subjectName << " with " << num_eeg_trials << " trials...\n";
+                std::cout << "Processing subject " << subjectName << " with " << num_eeg_trials
+                          << " trials...\n";
 
                 for (size_t trial_idx = 0; trial_idx < num_eeg_trials; ++trial_idx)
                 {
                     // Load single EEG trial
-                    auto [eeg_trial_data, eeg_labels_array] = nn::dataLoaders::loadEEGFromMat(eegFilePath, trial_idx);
+                    auto [eeg_trial_data, eeg_labels_array] =
+                        nn::dataLoaders::loadEEGFromMat(eegFilePath, trial_idx);
                     int eeg_label = eeg_labels_array[1]; // Assuming stimulus is at index 1
 
                     // Load single Audio trial
-                    auto [audio_trial_data, audio_stimulus_label, audio_eeg_index] = nn::dataLoaders::loadAudioFromMat(audioFilePath, trial_idx);
+                    auto [audio_trial_data, audio_stimulus_label, audio_eeg_index] =
+                        nn::dataLoaders::loadAudioFromMat(audioFilePath, trial_idx);
                     // For now, we'll use EEG label for combined features.
-                    // If audio_stimulus_label is needed, it can be added to all_combined_labels or used for cross-validation.
+                    // If audio_stimulus_label is needed, it can be added to all_combined_labels or
+                    // used for cross-validation.
 
                     // Extract features from EEG trial
-                    std::vector<double> eeg_features_single_trial = extract_wavelet_features_single_trial(
-                        eeg_trial_data, cfg.duration_sec, cfg.overlap_percent, cfg.eeg_sampling_rate);
+                    std::vector<double> eeg_features_single_trial =
+                        extract_wavelet_features_single_trial(eeg_trial_data,
+                                                              cfg.duration_sec,
+                                                              cfg.overlap_percent,
+                                                              cfg.eeg_sampling_rate);
 
                     // Extract features from Audio trial
-                    std::vector<double> audio_features_single_trial = extract_wavelet_features_single_trial(
-                        audio_trial_data, cfg.duration_sec, cfg.overlap_percent, cfg.sampling_rate);
+                    std::vector<double> audio_features_single_trial =
+                        extract_wavelet_features_single_trial(audio_trial_data,
+                                                              cfg.duration_sec,
+                                                              cfg.overlap_percent,
+                                                              cfg.sampling_rate);
 
                     // Combine features
                     std::vector<double> combined_features_current_trial = eeg_features_single_trial;

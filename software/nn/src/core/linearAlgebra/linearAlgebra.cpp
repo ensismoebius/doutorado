@@ -58,12 +58,11 @@ auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> doub
     auto* finalResult = new double[vectorSize];
 
     long middleSignalIndex = vectorSize / 2;
-    double tempVar;
     double inverter = 1.0;
 
     for (long i = middleSignalIndex; i < vectorSize; ++i)
     {
-        tempVar = originalVector[i];
+        double tempVar = originalVector[i];
 
         finalResult[i] = originalVector[vectorSize - i - 1] * (-inverter);
         finalResult[vectorSize - i - 1] = tempVar * inverter;
@@ -103,17 +102,10 @@ void normalizeVectorToSum1(double* signal, long signalLength)
 
 void normalizeVectorToSum1(std::vector<double>& signal)
 {
-    double sum = 0;
+    double sum = std::accumulate(signal.begin(), signal.end(), 0.0);
 
-    for (double& v : signal)
-    {
-        sum += v;
-    }
-
-    for (double& v : signal)
-    {
-        v /= sum;
-    }
+    std::transform(
+        signal.begin(), signal.end(), signal.begin(), [sum](double v) { return v / sum; });
 }
 
 void normalizeVectorToSum1AllPositive(std::vector<double>& signal)
@@ -121,7 +113,7 @@ void normalizeVectorToSum1AllPositive(std::vector<double>& signal)
     double min = signal[0];
     double sum = 0;
 
-    for (double& v : signal)
+    for (const double& v : signal)
     {
         min = std::min(v, min);
         sum += v;
@@ -162,10 +154,7 @@ void normalizeVectorToSum1AllPositive(double* signal, long signalLength)
         }
     }
 
-    for (long i = 0; i < signalLength; ++i)
-    {
-        signal[i] /= sum;
-    }
+    std::transform(signal, signal + signalLength, signal, [sum](double v) { return v / sum; });
 }
 
 void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit, double upperLimit)
@@ -215,10 +204,11 @@ void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit
 
     double rangeVal = max - min;
     double rangeLim = upperLimit - lowerLimit;
-    for (long i = 0; i < signalLength; ++i)
-    {
-        signal[i] = (((signal[i] - min) / rangeVal) * rangeLim) + lowerLimit;
-    }
+    std::transform(signal,
+                   signal + signalLength,
+                   signal,
+                   [min, rangeVal, rangeLim, lowerLimit](double v)
+                   { return (((v - min) / rangeVal) * rangeLim) + lowerLimit; });
 }
 
 void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, double upperLimit)
@@ -257,7 +247,7 @@ void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, doub
     double max;
     min = max = signal[0];
 
-    for (auto& v : signal)
+    for (const auto& v : signal)
     {
         // Minimum
         min = std::min(v, min);
@@ -356,11 +346,10 @@ void discreteCosineTransform(double* vector, long vectorLength)
 {
     auto* res = new double[vectorLength];
     unsigned int N = vectorLength;
-    double sum = 0;
 
     for (unsigned int k = 0; k < N; ++k)
     {
-        sum = 0;
+        double sum = 0;
         for (unsigned int n = 0; n < N; ++n)
         {
             sum += vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
@@ -450,11 +439,8 @@ auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
     }
 }
 
-auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double>
+auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>
 {
-    // Used to make the substitutions
-    double temp;
-
     // final result
     std::vector<double> result(matrix.size());
 
@@ -467,7 +453,7 @@ auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double
         // Make the substitutions:
         //	-Ignore the incognito variable (all values from main diagonal).-> "ci = li + 1"
         //	-Ignore the right side of the equation.-> "colums - 1"
-        temp = 0;
+        double temp = 0;
         for (unsigned ci = li + 1; ci < colums - 1; ci++)
         {
             temp -= matrix[li][ci] * result[ci];

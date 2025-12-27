@@ -18,6 +18,12 @@ class DataLoader
     class Iterator
     {
        public:
+        using iterator_category = std::input_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type        = Batch;
+        using pointer           = Batch*;
+        using reference         = Batch&;
+
         Iterator(DataLoader& loader, std::size_t current_batch);
 
         auto operator*() const -> Batch;

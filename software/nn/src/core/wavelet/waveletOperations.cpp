@@ -17,7 +17,7 @@
 namespace wavelets
 {
 
-auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
+auto malat(const std::vector<double>& signal, const std::span<const double>& lowpassfilter,
            TransformMode mode, unsigned int level) -> WaveletTransformResults
 {
     // The total number of items to process is the size of the input signal.

@@ -1,0 +1,311 @@
+src/core/dataLoaders/10.1117/AudioLoader.cpp:29:10: style: Virtual function 'close' is called from destructor '~AudioLoader()' at line 19. Dynamic binding is not used. [virtualCallInConstructor]
+    void close() noexcept override
+         ^
+src/core/dataLoaders/10.1117/AudioLoader.cpp:19:9: note: Calling close
+        close();
+        ^
+src/core/dataLoaders/10.1117/AudioLoader.cpp:29:10: note: close is a virtual function
+    void close() noexcept override
+         ^
+src/core/dataLoaders/10.1117/AudioLoader.cpp:122:11: style: Variable 'rawDataPtr' can be declared as pointer to const [constVariablePointer]
+    auto* rawDataPtr = static_cast<double*>(audioVariable->data);
+          ^
+src/core/dataLoaders/10.1117/EEGLoader.cpp:141:11: style: Variable 'rawDataPtr' can be declared as pointer to const [constVariablePointer]
+    auto* rawDataPtr = static_cast<double*>(eegVar->data);
+          ^
+src/core/dataLoaders/10.1117/tests/eeg_loader_edge_gtest.cpp:7:0: information: Include file: "MatTestUtils.h" not found. [missingInclude]
+#include "MatTestUtils.h"
+^
+src/core/dataLoaders/10.1117/tests/eeg_loader_gtest.cpp:7:0: information: Include file: "MatTestUtils.h" not found. [missingInclude]
+#include "MatTestUtils.h"
+^
+src/core/tensor/Tensor.hpp:64:24: style: Consider using std::accumulate algorithm instead of a raw loop. [useStlAlgorithm]
+            total_size *= dim;
+                       ^
+src/core/dataLoaders/MatFile.h:13:5: style: Class 'MatFile' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+    MatFile(const std::string& filename);
+    ^
+src/core/dataLoaders/tests/dataLoader_gtest.cpp:3:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/dataLoaders/TensorDataset.h:31:18: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+            idxs.push_back(static_cast<int>(i));
+                 ^
+src/core/dataLoaders/tests/dataLoader_gtest.cpp:111:11: style: Consider using std::distance algorithm instead of a raw loop. [useStlAlgorithm]
+        ++count;
+          ^
+src/core/dataLoaders/tests/dataLoader_more_gtest.cpp:3:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/dataLoaders/tests/dataLoader_more_gtest.cpp:129:27: style: Consider using std::accumulate algorithm instead of a raw loop. [useStlAlgorithm]
+                    local += static_cast<int>(b.inputs.get_data_ref().rows());
+                          ^
+src/core/layers/Conv2d_utils.cpp:171:26: style: Variable 'patch_rows' is assigned a value that is never used. [unreadVariable]
+    const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
+                         ^
+src/core/layers/Conv2d_utils.cpp:171:15: style: Variable 'patch_rows' is assigned a value that is never used. [unreadVariable]
+    const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
+              ^
+src/core/layers/Leaky.hpp:87:5: style: Struct 'Leaky' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+    Leaky(float dt_ = 1.0F,              // time step
+    ^
+src/core/layers/LeakyReLU.hpp:14:5: style: Struct 'LeakyReLU' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+    LeakyReLU(float alpha_ = 0.01F) : alpha(alpha_) {}
+    ^
+src/core/layers/Leaky.hpp:166:16: style: Redundant initialization for 'output'. The initialized value is overwritten before it is read. [redundantInitialization]
+        output = (v_mem.array() > voltage_threshold.get_data_ref()(0, 0)).cast<float>();
+               ^
+src/core/layers/Leaky.hpp:124:32: note: output is initialized
+        Eigen::MatrixXf output =
+                               ^
+src/core/layers/Leaky.hpp:166:16: note: output is overwritten
+        output = (v_mem.array() > voltage_threshold.get_data_ref()(0, 0)).cast<float>();
+               ^
+src/core/layers/tests/layers_gtest.cpp:559:23: style: Variable 'output' is assigned a value that is never used. [unreadVariable]
+    nn::Tensor output = conv.forward(input);
+                      ^
+src/core/layers/Leaky.hpp:160:13: performance: Passing the result of c_str() to a function that takes std::string as argument no. 2 is slow and redundant. [stlcstrParam]
+            printTensor(v_mem, oss.str().c_str());
+            ^
+src/core/linearAlgebra/linearAlgebra.cpp:61:12: style: The scope of the variable 'tempVar' can be reduced. [variableScope]
+    double tempVar;
+           ^
+src/core/linearAlgebra/linearAlgebra.cpp:359:12: style: The scope of the variable 'sum' can be reduced. [variableScope]
+    double sum = 0;
+           ^
+src/core/linearAlgebra/linearAlgebra.cpp:456:12: style: The scope of the variable 'temp' can be reduced. [variableScope]
+    double temp;
+           ^
+src/core/linearAlgebra/linearAlgebra.cpp:108:18: style: Variable 'v' can be declared as reference to const [constVariableReference]
+    for (double& v : signal)
+                 ^
+src/core/linearAlgebra/linearAlgebra.cpp:124:18: style: Variable 'v' can be declared as reference to const [constVariableReference]
+    for (double& v : signal)
+                 ^
+src/core/linearAlgebra/linearAlgebra.cpp:260:16: style: Variable 'v' can be declared as reference to const [constVariableReference]
+    for (auto& v : signal)
+               ^
+src/core/linearAlgebra/linearAlgebra.cpp:453:52: style: Parameter 'matrix' can be declared as reference to const [constParameterReference]
+auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double>
+                                                   ^
+src/core/linearAlgebra/linearAlgebra.cpp:110:13: style: Consider using std::accumulate algorithm instead of a raw loop. [useStlAlgorithm]
+        sum += v;
+            ^
+src/core/linearAlgebra/linearAlgebra.cpp:115:11: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+        v /= sum;
+          ^
+src/core/linearAlgebra/linearAlgebra.cpp:141:11: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+        v /= sum;
+          ^
+src/core/linearAlgebra/linearAlgebra.cpp:272:11: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+        v = (((v - min) / rangeVal) * rangeLim) + lowerLimit;
+          ^
+src/core/linearAlgebra/linearAlgebra.cpp:359:16: style: Variable 'sum' is assigned a value that is never used. [unreadVariable]
+    double sum = 0;
+               ^
+src/core/linearAlgebra/tests/linearAlgebra_gtest.cpp:1:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/paraconsistent/paraconsistent.cpp:77:78: style: Parameter 'arrClasses' can be declared as reference to const [constParameterReference]
+                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
+                                                                             ^
+src/core/saver/tests/NetworkSerializer_gtest.cpp:4:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/statistics/confusionMatrix.cpp:83:42: style: Parameter 'matrix' can be declared as reference to const [constParameterReference]
+double truePositiveRate(ConfusionMatrix& matrix)
+                                         ^
+src/core/statistics/confusionMatrix.cpp:106:38: style: Parameter 'matrix' can be declared as reference to const [constParameterReference]
+double accuracyRate(ConfusionMatrix& matrix)
+                                     ^
+src/core/statistics/confusionMatrix.cpp:128:35: style: Parameter 'matrix' can be declared as reference to const [constParameterReference]
+double precision(ConfusionMatrix& matrix)
+                                  ^
+src/core/statistics/confusionMatrix.cpp:149:32: style: Parameter 'matrix' can be declared as reference to const [constParameterReference]
+double recall(ConfusionMatrix& matrix)
+                               ^
+src/core/statistics/tests/confusionMatrix_gtest.cpp:3:0: information: Include file: "confusionMatrix.h" not found. [missingInclude]
+#include "confusionMatrix.h"
+^
+src/core/statistics/tests/statistics_gtest.cpp:3:0: information: Include file: "statistics.h" not found. [missingInclude]
+#include "statistics.h"
+^
+src/core/utility/imguiGlfw.cpp:51:14: style: Variable 'io' can be declared as reference to const [constVariableReference]
+    ImGuiIO& io = ImGui::GetIO();
+             ^
+src/core/wave/Wav.cpp:25:6: warning: Member variable 'Wav::callbackFunction' is not initialized in the constructor. [uninitMemberVar]
+Wav::Wav()
+     ^
+src/core/wave/Wav.cpp:30:6: warning: Member variable 'Wav::callbackFunction' is not initialized in the constructor. [uninitMemberVar]
+Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
+     ^
+src/core/wave/Wav.cpp:191:26: style: Condition 'numberOfChannels<1' is always false [knownConditionTrueFalse]
+    if (numberOfChannels < 1 || numberOfChannels > 2)
+                         ^
+src/core/wave/Wav.cpp:185:26: note: Assuming that condition 'numberOfChannels==0' is not redundant
+    if (numberOfChannels == 0)
+                         ^
+src/core/wave/Wav.cpp:191:26: note: Condition 'numberOfChannels<1' is always false
+    if (numberOfChannels < 1 || numberOfChannels > 2)
+                         ^
+src/core/wave/Wav.cpp:320:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata), sizeof(waveformdata));
+                  ^
+src/core/wave/Wav.cpp:334:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_left), sizeof(waveformdata_left));
+                  ^
+src/core/wave/Wav.cpp:336:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_right), sizeof(waveformdata_right));
+                  ^
+src/core/wave/Wav.cpp:353:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_lsb), sizeof(waveformdata_lsb));
+                  ^
+src/core/wave/Wav.cpp:354:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_msb), sizeof(waveformdata_msb));
+                  ^
+src/core/wave/Wav.cpp:375:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_lsb_left), sizeof(waveformdata_lsb_left));
+                  ^
+src/core/wave/Wav.cpp:376:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_msb_left), sizeof(waveformdata_msb_left));
+                  ^
+src/core/wave/Wav.cpp:377:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_lsb_right), sizeof(waveformdata_lsb_right));
+                  ^
+src/core/wave/Wav.cpp:378:19: style: C-style pointer casting [cstyleCast]
+        ofs.write((char*) (&waveformdata_msb_right), sizeof(waveformdata_msb_right));
+                  ^
+src/core/wave/Wav.cpp:388:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata), sizeof(waveformdata));
+                 ^
+src/core/wave/Wav.cpp:401:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_left), sizeof(waveformdata_left));
+                 ^
+src/core/wave/Wav.cpp:402:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_right), sizeof(waveformdata_right));
+                 ^
+src/core/wave/Wav.cpp:415:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_lsb), sizeof(waveformdata_lsb));
+                 ^
+src/core/wave/Wav.cpp:416:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_msb), sizeof(waveformdata_msb));
+                 ^
+src/core/wave/Wav.cpp:431:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_lsb_left), sizeof(waveformdata_lsb_left));
+                 ^
+src/core/wave/Wav.cpp:432:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_msb_left), sizeof(waveformdata_msb_left));
+                 ^
+src/core/wave/Wav.cpp:433:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_lsb_right), sizeof(waveformdata_lsb_right));
+                 ^
+src/core/wave/Wav.cpp:434:18: style: C-style pointer casting [cstyleCast]
+        ifs.read((char*) (&waveformdata_msb_right), sizeof(waveformdata_msb_right));
+                 ^
+src/core/wave/Wav.cpp:155:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) (&this->header), sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:164:19: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+        ofs.write((char*) (&sample), sizeof(sample));
+                  ^
+src/core/wave/Wav.cpp:206:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) (&this->header), sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:216:23: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+            ofs.write((char*) (&sample), sizeof(sample));
+                      ^
+src/core/wave/Wav.cpp:225:23: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+            ofs.write((char*) (&left_sample), sizeof(left_sample));
+                      ^
+src/core/wave/Wav.cpp:226:23: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+            ofs.write((char*) (&right_sample), sizeof(right_sample));
+                      ^
+src/core/wave/Wav.cpp:298:14: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ifs.read((char*) &this->header, sizeof(this->header));
+             ^
+src/core/wave/Wav.cpp:313:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) (&this->header), sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:326:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) (&this->header), sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:342:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) (&this->header), sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:360:15: warning: Potentially invalid type conversion in old-style C cast, clarify/fix with C++ cast [dangerousTypeCast]
+    ofs.write((char*) &this->header, sizeof(this->header));
+              ^
+src/core/wave/Wav.cpp:101:9: style: Consecutive return, break, continue, goto or throw statements are unnecessary. [duplicateBreak]
+        return;
+        ^
+src/core/wave/Wav.cpp:303:9: style: Consecutive return, break, continue, goto or throw statements are unnecessary. [duplicateBreak]
+        return;
+        ^
+src/core/wave/simpleSignalOperations.cpp:90:12: style: The scope of the variable 'tempVar' can be reduced. [variableScope]
+    double tempVar;
+           ^
+src/core/wave/simpleSignalOperations.cpp:32:54: performance: Function parameter 'vector' should be passed by const reference. [passedByValue]
+auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int
+                                                     ^
+src/core/wave/simpleSignalOperations.cpp:40:11: style: Consider using std::accumulate algorithm instead of a raw loop. [useStlAlgorithm]
+        m = std::min(m, vector[i]);
+          ^
+src/core/wave/tests/wave_gtest.cpp:6:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/wavelet/WaveletTransformResults.h:43:5: style: Class 'WaveletTransformResults' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+    WaveletTransformResults(long maxItems = 0);
+    ^
+src/core/wavelet/tests/wavelet_gtest.cpp:5:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/core/wavelet/tests/wavelet_gtest.cpp:16:1: error: syntax error [syntaxError]
+TEST(WaveletOperationsTest, TestGetNextPowerOfTwo)
+^
+src/core/wavelet/waveletOperations.cpp:20:72: style: Parameter 'lowpassfilter' can be declared as reference to const [constParameterReference]
+auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
+                                                                       ^
+src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp:346:39: style: Condition 'epoch%progress_interval==0' is always true [knownConditionTrueFalse]
+        if (epoch % progress_interval == 0)
+                                      ^
+src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp:346:19: style: Modulo of one is always equal to zero [moduloofone]
+        if (epoch % progress_interval == 0)
+                  ^
+src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp:7:0: information: Include file: "imgui.h" not found. [missingInclude]
+#include "imgui.h"
+^
+src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp:8:0: information: Include file: "implot.h" not found. [missingInclude]
+#include "implot.h"
+^
+src/core/layers/ResidualBlock.hpp:16:5: style: Struct 'ResidualBlock' has a constructor with 1 argument that is not explicit. [noExplicitConstructor]
+    ResidualBlock(int features)
+    ^
+src/demos/fftw3_demo/fftw3_demo.cpp:9:0: information: Include file: "matplotlibcpp.h" not found. [missingInclude]
+#include "matplotlibcpp.h"
+^
+src/demos/lfcc_pipeline/lfcc_pipeline.cpp:4:0: information: Include file: "audioTypes.h" not found. [missingInclude]
+#include "audioTypes.h"
+^
+src/demos/lfcc_pipeline/tests/lfcc_pipeline_utils_gtest.cpp:7:0: information: Include file: "gtest/gtest.h" not found. [missingInclude]
+#include "gtest/gtest.h"
+^
+src/demos/wavelet_demo/wavelet_demo.cpp:11:0: information: Include file: "matplotlibcpp.h" not found. [missingInclude]
+#include "matplotlibcpp.h"
+^
+src/demos/wavelet_demo/wavelet_demo.cpp:64:39: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+                combined_coefficients.push_back(val + offset);
+                                      ^
+src/demos/wavelet_demo/wavelet_demo.cpp:82:43: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+                    combined_coefficients.push_back(val + offset);
+                                          ^
+src/demos/wavelet_demo/wavelet_demo.cpp:123:38: style: Consider using std::transform algorithm instead of a raw loop. [useStlAlgorithm]
+                    combined_packets.push_back(val + offset);
+                                     ^
+src/experiments/00/main.cpp:11:0: information: Include file: "Config.hpp" not found. [missingInclude]
+#include "Config.hpp"
+^
+src/experiments/00/main.cpp:154:27: style: Parameter 'argv' can be declared as const array [constParameter]
+auto main(int argc, char* argv[]) -> int
+                          ^
+nofile:0:0: information: Active checkers: There was critical errors (use --checkers-report=<filename> to see details) [checkersReport]
+

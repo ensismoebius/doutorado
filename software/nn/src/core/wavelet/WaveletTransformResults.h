@@ -40,7 +40,7 @@ class WaveletTransformResults
      */
     std::vector<double> transformedSignal;
 
-    WaveletTransformResults(long maxItems = 0);
+    explicit WaveletTransformResults(long maxItems = 0);
 
     /**
      * Extracts the approximation and details from the wavelet transformation
