@@ -1,16 +1,16 @@
 include(../../../cmake/SanitizerFlags.cmake)
 
-add_executable(phase1_wavelet_baseline
+add_executable(M0_wavelet_baseline
     main.cpp
 )
 
-target_include_directories(phase1_wavelet_baseline
+target_include_directories(M0_wavelet_baseline
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(phase1_wavelet_baseline
+target_link_libraries(M0_wavelet_baseline
     PRIVATE
         experiments_config
         wavelet
