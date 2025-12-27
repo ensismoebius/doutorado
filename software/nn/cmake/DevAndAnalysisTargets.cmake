@@ -29,6 +29,12 @@ if(NOT FLAWFINDER_EXECUTABLE)
     )
 endif()
 
+if(NOT CLANG_TIDY_EXECUTABLE)
+    add_custom_command(TARGET dev-setup POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E echo "Warning: 'clang-tidy' is not installed. Please install it for static analysis."
+    )
+endif()
+
 
 if(CPPCHECK_EXECUTABLE)
     # Define SRC_DIR if not already defined (assuming project's main src directory)
@@ -86,13 +92,35 @@ if(FLAWFINDER_EXECUTABLE)
     )
 endif()
 
+if(CLANG_TIDY_EXECUTABLE)
+    # Find all source files for clang-tidy
+    file(GLOB_RECURSE CLANG_TIDY_SOURCES
+        "${CMAKE_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_SOURCE_DIR}/src/*.c"
+    )
+    list(FILTER CLANG_TIDY_SOURCES EXCLUDE REGEX "build/_deps")
 
-if(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
+    add_custom_target(analysis-clang-tidy
+        COMMAND ${CLANG_TIDY_EXECUTABLE}
+            --config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
+            ${CLANG_TIDY_SOURCES}
+        COMMENT "Running clang-tidy static analysis..."
+        USES_TERMINAL
+    )
+endif()
+
+
+if(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE AND CLANG_TIDY_EXECUTABLE)
     add_custom_target(analysis-all
-        COMMENT "Running all analysis tools (cppcheck, flawfinder)..."
+        COMMENT "Running all analysis tools (cppcheck, flawfinder, clang-tidy)..."
     )
     # Using DEPENDS ensures that both targets are triggered.
     # If one fails, the overall build command will fail, but CMake
     # may still attempt to run the other target in parallel.
+    add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder analysis-clang-tidy)
+elseif(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
+    add_custom_target(analysis-all
+        COMMENT "Running all analysis tools (cppcheck, flawfinder)..."
+    )
     add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder)
 endif()

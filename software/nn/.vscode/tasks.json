@@ -40,10 +40,21 @@
             }
         },
         {
+            "label": "clang-tidy",
+            "type": "process",
+            "command": "clang-tidy",
+            "args": [
+                "--config-file=.clang-tidy",
+                "src/**/*.cpp",
+                "src/**/*.c"
+            ]
+        },
+        {
             "label": "analise_codebase",
             "dependsOn": [
                 "cppcheck (aggressive)",
                 "flawfinder (security)",
+                "clang-tidy",
                 "CMake: build"
             ],
             "dependsOrder": "sequence",

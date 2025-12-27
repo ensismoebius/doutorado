@@ -18,6 +18,17 @@ endif()
 # --------------------------------------------------------------------------------
 find_program(CPPCHECK_EXECUTABLE cppcheck)
 find_program(FLAWFINDER_EXECUTABLE flawfinder)
+find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 
 # Generate compile_commands.json for tooling
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# --------------------------------------------------------------------------------
+# Clang-Tidy Integration
+# --------------------------------------------------------------------------------
+if(CLANG_TIDY_EXECUTABLE)
+    message(STATUS "clang-tidy found, enabling for C++ compilation")
+    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy")
+else()
+    message(STATUS "clang-tidy not found, proceeding without it")
+endif()
