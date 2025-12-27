@@ -42,8 +42,7 @@ enum TransformMode : uint8_t
  * @return transformed signal
  */
 auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfilter,
-           TransformMode mode = REGULAR_WAVELET, unsigned int level = 1, unsigned int maxItens = 0,
-           bool highPassBranch = false) -> WaveletTransformResults;
+           TransformMode mode, unsigned int level) -> WaveletTransformResults;
 
 /**
  * Return the next power of two based number
