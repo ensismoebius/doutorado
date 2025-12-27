@@ -25,8 +25,11 @@ TEST(WaveletOperationsTest, TestGetNextPowerOfTwo)
 
 TEST(WaveletOperationsTest, TestMalatRegularTransform)
 {
-    std::vector<double> signal(16);
-    for (size_t i = 0; i < 16; ++i) signal[i] = static_cast<double>(i + 1);
+    std::vector<double> signal(64);
+    for (size_t i = 0; i < 16; ++i)
+    {
+        signal[i] = static_cast<double>(i + 1);
+    }
     auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 1);
@@ -37,8 +40,11 @@ TEST(WaveletOperationsTest, TestMalatRegularTransform)
 
 TEST(WaveletOperationsTest, TestMalatPacketTransform)
 {
-    std::vector<double> signal(16);
-    for (size_t i = 0; i < 16; ++i) signal[i] = static_cast<double>(i + 1);
+    std::vector<double> signal(64);
+    for (size_t i = 0; i < 16; ++i)
+    {
+        signal[i] = static_cast<double>(i + 1);
+    }
     auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
@@ -104,7 +110,7 @@ TEST(WaveletOperationsTest, TestMalatHaarCorrectness)
 TEST(WaveletOperationsTest, TestMalatEnergyConservation)
 {
     // Test energy conservation for Haar wavelet (orthogonal)
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -133,7 +139,7 @@ TEST(WaveletOperationsTest, TestMalatEnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub4EnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -159,7 +165,7 @@ TEST(WaveletOperationsTest, TestMalatDaub4EnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub6EnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -185,7 +191,7 @@ TEST(WaveletOperationsTest, TestMalatDaub6EnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub8EnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -211,7 +217,7 @@ TEST(WaveletOperationsTest, TestMalatDaub8EnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatHaarPacketEnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -237,7 +243,7 @@ TEST(WaveletOperationsTest, TestMalatHaarPacketEnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub4PacketEnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -263,7 +269,7 @@ TEST(WaveletOperationsTest, TestMalatDaub4PacketEnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub6PacketEnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);
@@ -289,7 +295,7 @@ TEST(WaveletOperationsTest, TestMalatDaub6PacketEnergyConservation)
 
 TEST(WaveletOperationsTest, TestMalatDaub8PacketEnergyConservation)
 {
-    std::vector<double> signal(16);
+    std::vector<double> signal(64);
     for (size_t i = 0; i < 16; ++i)
     {
         signal[i] = static_cast<double>(i + 1);

@@ -6,6 +6,10 @@
 #include <stdexcept>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 #include "../linearAlgebra/linearAlgebra.h"
 #include "WaveletTransformResults.h"
 
@@ -72,6 +76,9 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
     if (highPassBranch)
     {
         // Translate the filters over the signal
+#ifdef _OPENMP
+#pragma omp parallel for private(lowPassSum, highPassSum, signalIndex)
+#endif
         for (unsigned int translation = 0; translation < maxItens; translation += 2)
         {
             lowPassSum = 0;
@@ -108,6 +115,9 @@ auto malat(const std::vector<double>& signal, std::span<const double>& lowpassfi
     else
     {
         // Translate the filters over the signal
+#ifdef _OPENMP
+#pragma omp parallel for private(lowPassSum, highPassSum, signalIndex)
+#endif
         for (unsigned int translation = 0; translation < maxItens; translation += 2)
         {
             lowPassSum = 0;
