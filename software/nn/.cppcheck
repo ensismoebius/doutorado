@@ -8,3 +8,14 @@
 --platform=unix64
 --inline-suppr
 -j4
+--exclude=**/build/**
+--exclude=**/third_party/**
+--exclude=**/external/**
+--exclude=**/.vscode/**
+--exclude=**/.git/**
+--exclude=**/node_modules/**
+--exclude=**/out/**
+--exclude=**/dist/**
+--exclude=**/.gemini/**
+--exclude=**/docs/**
+--exclude=**/lib/**

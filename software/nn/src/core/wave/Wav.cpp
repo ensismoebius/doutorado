@@ -22,6 +22,9 @@
 using std::floor;
 using std::pow;
 
+const int FORMAT_KEY_MULTIPLIER = 10;
+const int BITS_PER_BYTE = 8;
+
 Wav::Wav()
 {
     resetMetaData();
@@ -46,7 +49,7 @@ void Wav::process()
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
+    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
@@ -106,7 +109,7 @@ void Wav::write(const std::string& _path)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
+    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
@@ -158,9 +161,9 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
     // Convert float data to short and write to file
-    for (float i : inputData)
+    for (float value : inputData)
     {
-        auto sample = static_cast<short>(i * maxAmplitude);
+        auto sample = static_cast<short>(value * maxAmplitude);
         ofs.write(reinterpret_cast<char*>(&sample), sizeof(sample));
     }
 
@@ -269,7 +272,7 @@ void Wav::readWaveData(std::ifstream& ifs)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * 10) + this->header.numberOfChannels;
+    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
 
     switch (formatKey)
     {
@@ -302,8 +305,8 @@ void Wav::readWaveHeaders(std::ifstream& ifs)
         throw std::runtime_error(this->path + " not in PCM format!");
     }
 
-    waveResolution =
-        (this->header.byteRate * 8) / (this->header.numberOfChannels * this->header.sampleRate);
+    waveResolution = static_cast<int>((this->header.byteRate * BITS_PER_BYTE) /
+                                      (this->header.numberOfChannels * this->header.sampleRate));
     amountOfData = this->header.dataSubchunkSize / this->header.blockAlign;
 }
 
@@ -311,11 +314,11 @@ inline void Wav::write8BitMono(std::ofstream& ofs)
 {
     ofs.write(reinterpret_cast<char*>(&this->header), sizeof(this->header));
 
-    unsigned char waveformdata;
+    unsigned char waveformdata = 0;
 
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
-        waveformdata = (unsigned char) (this->data.at(i));
+        waveformdata = static_cast<unsigned char>(this->data.at(i));
         ofs.write(reinterpret_cast<char*>(&waveformdata), sizeof(waveformdata));
     }
 }
@@ -324,14 +327,14 @@ inline void Wav::write8BitStereo(std::ofstream& ofs)
 {
     ofs.write(reinterpret_cast<char*>(&this->header), sizeof(this->header));
 
-    unsigned char waveformdata_right;
-    unsigned char waveformdata_left;
+    unsigned char waveformdata_right = 0;
+    unsigned char waveformdata_left = 0;
 
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
-        waveformdata_left = (unsigned char) (this->dataLeft.at(i));
+        waveformdata_left = static_cast<unsigned char>(this->dataLeft.at(i));
         ofs.write(reinterpret_cast<char*>(&waveformdata_left), sizeof(waveformdata_left));
-        waveformdata_right = (unsigned char) (this->dataRight.at(i));
+        waveformdata_right = static_cast<unsigned char>(this->dataRight.at(i));
         ofs.write(reinterpret_cast<char*>(&waveformdata_right), sizeof(waveformdata_right));
     }
 }
@@ -340,12 +343,12 @@ inline void Wav::write16BitMono(std::ofstream& ofs)
 {
     ofs.write(reinterpret_cast<char*>(&this->header), sizeof(this->header));
 
-    unsigned char waveformdata_lsb;
-    unsigned char waveformdata_msb;
+    unsigned char waveformdata_lsb = 0;
+    unsigned char waveformdata_msb = 0;
 
     const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         const auto sample = static_cast<short>(this->data.at(i) * maxAmplitude);
         split16BitTo8Bit(sample, &waveformdata_lsb, &waveformdata_msb);
@@ -358,14 +361,14 @@ inline void Wav::write16BitStereo(std::ofstream& ofs)
 {
     ofs.write(reinterpret_cast<char*>(&this->header), sizeof(this->header));
 
-    unsigned char waveformdata_lsb_left;
-    unsigned char waveformdata_lsb_right;
-    unsigned char waveformdata_msb_left;
-    unsigned char waveformdata_msb_right;
+    unsigned char waveformdata_lsb_left = 0;
+    unsigned char waveformdata_lsb_right = 0;
+    unsigned char waveformdata_msb_left = 0;
+    unsigned char waveformdata_msb_right = 0;
 
     const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
 
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         const auto left_sample = static_cast<short>(this->dataLeft.at(i) * maxAmplitude);
         split16BitTo8Bit(left_sample, &waveformdata_lsb_left, &waveformdata_msb_left);
@@ -380,61 +383,62 @@ inline void Wav::write16BitStereo(std::ofstream& ofs)
 
 inline void Wav::read8BitMono(std::ifstream& ifs)
 {
-    unsigned char waveformdata;
+    unsigned char waveformdata = 0;
     this->data.resize(amountOfData, 0);
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         ifs.read(reinterpret_cast<char*>(&waveformdata), sizeof(waveformdata));
-        this->data.at(i) = (double) ((waveformdata));
+        this->data.at(i) = static_cast<double>(waveformdata);
     }
 }
 
 inline void Wav::read8BitStereo(std::ifstream& ifs)
 {
-    unsigned char waveformdata_right;
-    unsigned char waveformdata_left;
+    unsigned char waveformdata_right = 0;
+    unsigned char waveformdata_left = 0;
     this->dataLeft.resize(amountOfData, 0);
     this->dataRight.resize(amountOfData, 0);
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         ifs.read(reinterpret_cast<char*>(&waveformdata_left), sizeof(waveformdata_left));
         ifs.read(reinterpret_cast<char*>(&waveformdata_right), sizeof(waveformdata_right));
-        this->dataLeft.at(i) = (double) ((waveformdata_right));
-        this->dataRight.at(i) = (double) ((waveformdata_left));
+        this->dataLeft.at(i) = static_cast<double>(waveformdata_right);
+        this->dataRight.at(i) = static_cast<double>(waveformdata_left);
     }
 }
 
 inline void Wav::read16BitMono(std::ifstream& ifs)
 {
-    unsigned char waveformdata_lsb;
-    unsigned char waveformdata_msb;
+    unsigned char waveformdata_lsb = 0;
+    unsigned char waveformdata_msb = 0;
     this->data.resize(amountOfData, 0);
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         ifs.read(reinterpret_cast<char*>(&waveformdata_lsb), sizeof(waveformdata_lsb));
         ifs.read(reinterpret_cast<char*>(&waveformdata_msb), sizeof(waveformdata_msb));
-        this->data.at(i) = (double) ((combine8BitTo16Bit(waveformdata_lsb, waveformdata_msb)));
+        this->data.at(i) =
+            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb, waveformdata_msb));
     }
 }
 
 inline void Wav::read16BitStereo(std::ifstream& ifs)
 {
-    unsigned char waveformdata_lsb_left;
-    unsigned char waveformdata_lsb_right;
-    unsigned char waveformdata_msb_left;
-    unsigned char waveformdata_msb_right;
+    unsigned char waveformdata_lsb_left = 0;
+    unsigned char waveformdata_lsb_right = 0;
+    unsigned char waveformdata_msb_left = 0;
+    unsigned char waveformdata_msb_right = 0;
     this->dataLeft.resize(amountOfData, 0);
     this->dataRight.resize(amountOfData, 0);
-    for (int i = 0; i < amountOfData; i++)
+    for (size_t i = 0; i < amountOfData; i++)
     {
         ifs.read(reinterpret_cast<char*>(&waveformdata_lsb_left), sizeof(waveformdata_lsb_left));
         ifs.read(reinterpret_cast<char*>(&waveformdata_msb_left), sizeof(waveformdata_msb_left));
         ifs.read(reinterpret_cast<char*>(&waveformdata_lsb_right), sizeof(waveformdata_lsb_right));
         ifs.read(reinterpret_cast<char*>(&waveformdata_msb_right), sizeof(waveformdata_msb_right));
         this->dataLeft.at(i) =
-            (double) ((combine8BitTo16Bit(waveformdata_lsb_left, waveformdata_msb_left)));
+            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb_left, waveformdata_msb_left));
         this->dataRight.at(i) =
-            (double) ((combine8BitTo16Bit(waveformdata_lsb_right, waveformdata_msb_right)));
+            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb_right, waveformdata_msb_right));
     }
 }
 
@@ -445,7 +449,7 @@ auto Wav::combine8BitTo16Bit(unsigned char lsb, unsigned char msb) -> short
     // 8 bits to the left (to occupy the upper 8 bits of the short) and then
     // performing a bitwise OR with the lsb (which occupies the lower 8 bits).
     // This assumes a little-endian system where the lsb comes first.
-    return (static_cast<short>(msb) << 8) | lsb;
+    return static_cast<short>((static_cast<short>(msb) << 8) | lsb);
 }
 
 void Wav::split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb)
