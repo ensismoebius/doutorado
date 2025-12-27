@@ -19,12 +19,14 @@
 // Processes a single trial (either EEG or Audio) and returns its features.
 // For EEG, signal_data will be (channels x samples_per_channel)
 // For Audio, signal_data will be (1 x samples_per_channel)
-auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, double duration_sec,
-                                           int overlap_percent, int sampling_rate)
-    -> std::vector<double>
+auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, //
+                                           double duration_sec,                //
+                                           int overlap_percent,                //
+                                           int sampling_rate                   //
+                                           ) -> std::vector<double>
 {
     // Daubechies 4 lowpass filter (example)
-    auto lowpass = wavelets::get_wavelet<wavelets::Daub4>();
+    constexpr auto lowpass = wavelets::get_wavelet<wavelets::Daub4>();
 
     std::vector<double> all_channel_energies;
 

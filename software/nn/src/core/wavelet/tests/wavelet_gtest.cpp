@@ -9,7 +9,7 @@ namespace wavelets::test
 
 TEST(WaveletTypesTest, TestGetWavelet)
 {
-    auto haarWavelet = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarWavelet = wavelets::get_wavelet<wavelets::Haar>();
     EXPECT_FALSE(haarWavelet.empty());
 }
 
@@ -30,7 +30,7 @@ TEST(WaveletOperationsTest, TestMalatRegularTransform)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 1);
     EXPECT_FALSE(result.transformedSignal.empty());
@@ -45,7 +45,7 @@ TEST(WaveletOperationsTest, TestMalatPacketTransform)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
     EXPECT_FALSE(result.transformedSignal.empty());
@@ -90,7 +90,7 @@ TEST(WaveletOperationsTest, TestMalatHaarCorrectness)
 {
     // Test with a simple signal where we know the expected output
     std::vector<double> signal = {1.0, 1.0, 1.0, 1.0};
-    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 1);
     EXPECT_EQ(result.transformedSignal.size(), 4);
@@ -115,7 +115,7 @@ TEST(WaveletOperationsTest, TestMalatEnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 1);
 
@@ -144,7 +144,7 @@ TEST(WaveletOperationsTest, TestMalatDaub4EnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub4Filter = wavelets::get_wavelet<wavelets::Daub4>();
+    constexpr auto daub4Filter = wavelets::get_wavelet<wavelets::Daub4>();
 
     auto result = wavelets::malat(signal, daub4Filter, wavelets::REGULAR_WAVELET, 1);
 
@@ -170,7 +170,7 @@ TEST(WaveletOperationsTest, TestMalatDaub6EnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub6Filter = wavelets::get_wavelet<wavelets::Daub6>();
+    constexpr auto daub6Filter = wavelets::get_wavelet<wavelets::Daub6>();
 
     auto result = wavelets::malat(signal, daub6Filter, wavelets::REGULAR_WAVELET, 1);
 
@@ -196,7 +196,7 @@ TEST(WaveletOperationsTest, TestMalatDaub8EnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub8Filter = wavelets::get_wavelet<wavelets::Daub8>();
+    constexpr auto daub8Filter = wavelets::get_wavelet<wavelets::Daub8>();
 
     auto result = wavelets::malat(signal, daub8Filter, wavelets::REGULAR_WAVELET, 1);
 
@@ -222,7 +222,7 @@ TEST(WaveletOperationsTest, TestMalatHaarPacketEnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
 
@@ -248,7 +248,7 @@ TEST(WaveletOperationsTest, TestMalatDaub4PacketEnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub4Filter = wavelets::get_wavelet<wavelets::Daub4>();
+    constexpr auto daub4Filter = wavelets::get_wavelet<wavelets::Daub4>();
 
     auto result = wavelets::malat(signal, daub4Filter, wavelets::PACKET_WAVELET, 1);
 
@@ -274,7 +274,7 @@ TEST(WaveletOperationsTest, TestMalatDaub6PacketEnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub6Filter = wavelets::get_wavelet<wavelets::Daub6>();
+    constexpr auto daub6Filter = wavelets::get_wavelet<wavelets::Daub6>();
 
     auto result = wavelets::malat(signal, daub6Filter, wavelets::PACKET_WAVELET, 1);
 
@@ -300,7 +300,7 @@ TEST(WaveletOperationsTest, TestMalatDaub8PacketEnergyConservation)
     {
         signal[i] = static_cast<double>(i + 1);
     }
-    auto daub8Filter = wavelets::get_wavelet<wavelets::Daub8>();
+    constexpr auto daub8Filter = wavelets::get_wavelet<wavelets::Daub8>();
 
     auto result = wavelets::malat(signal, daub8Filter, wavelets::PACKET_WAVELET, 1);
 

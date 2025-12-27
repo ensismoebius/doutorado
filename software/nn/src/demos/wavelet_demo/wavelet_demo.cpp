@@ -158,7 +158,7 @@ auto main() -> int
     auto signal = generateSignal(freq1, freq2, sample_rate, duration_seconds);
 
     // Wavelet initialization
-    auto db8_filter = wavelets::get_wavelet<wavelets::Daub8>();
+    constexpr auto db8_filter = wavelets::get_wavelet<wavelets::Daub8>();
 
     // Debug mode: save plots to files
     // Plot original signal
