@@ -1,5 +1,6 @@
 #include "../linearAlgebra.h"
 #include "gtest/gtest.h"
+#include <cmath>
 
 // Define a simple test fixture if needed, or just use TEST
 TEST(LinearAlgebraTest, BasicAssertion)
@@ -35,11 +36,13 @@ TEST(LinearAlgebraTest, TestMinMaxNormalizeFeatures)
 TEST(LinearAlgebraTest, TestMinMaxNormalizeFeaturesEdgeCases)
 {
     // Single row
+    // With a single row, each feature has only one value, so min equals max.
+    // The normalized value should be the minimum of the range (0.0).
     std::vector<std::vector<double>> single_row = {{1.0, 2.0, 3.0}};
     linearAlgebra::minMaxNormalizeFeatures(single_row);
     EXPECT_NEAR(single_row[0][0], 0.0, 1e-6);
-    EXPECT_NEAR(single_row[0][1], 0.5, 1e-6);
-    EXPECT_NEAR(single_row[0][2], 1.0, 1e-6);
+    EXPECT_NEAR(single_row[0][1], 0.0, 1e-6);
+    EXPECT_NEAR(single_row[0][2], 0.0, 1e-6);
 
     // Single column
     std::vector<std::vector<double>> single_col = {{1.0}, {2.0}, {3.0}};
@@ -49,14 +52,14 @@ TEST(LinearAlgebraTest, TestMinMaxNormalizeFeaturesEdgeCases)
     EXPECT_NEAR(single_col[2][0], 1.0, 1e-6);
 
     // Constant features (min == max)
+    // Should handle division by zero. Current implementation sets to range[0] (0.0).
     std::vector<std::vector<double>> constant = {{2.0, 2.0}, {2.0, 2.0}};
     linearAlgebra::minMaxNormalizeFeatures(constant);
-    // Should handle division by zero, perhaps set to 0.5 or leave as is
     for (const auto& row : constant)
     {
         for (double val : row)
         {
-            EXPECT_TRUE(std::isnan(val) || val == 0.5 || val == 2.0); // Depending on implementation
+            EXPECT_NEAR(val, 0.0, 1e-6);
         }
     }
 

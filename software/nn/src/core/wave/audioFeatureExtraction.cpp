@@ -311,37 +311,34 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
     -> nn::Tensor
 {
     // Número de frames no espectro de potência.
-    const size_t number_of_frames = power_spectrum.get_data_ref().rows();
+    const long number_of_frames = static_cast<long>(power_spectrum.get_data_ref().rows());
 
     // Número de filtros no banco de filtros.
-    const size_t number_of_filters = context.filterbank.get_data_ref().rows();
+    const long number_of_filters = static_cast<long>(context.filterbank.get_data_ref().rows());
 
     // Número de bins de frequência por frame.
-    const size_t number_of_bins = power_spectrum.get_data_ref().cols();
+    const long number_of_bins = static_cast<long>(power_spectrum.get_data_ref().cols());
 
     // Matriz para armazenar as energias logarítmicas resultantes.
-    nn::Tensor log_energies((long) number_of_frames, (long) number_of_filters);
+    nn::Tensor log_energies(number_of_frames, number_of_filters);
 
     // Cálculo das energias logarítmicas para cada frame e filtro.
-    for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
+    for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Índice do frame atual.
-        for (size_t filter_index = 0; filter_index < number_of_filters; ++filter_index)
+        for (long filter_index = 0; filter_index < number_of_filters; ++filter_index)
         {
             // Variável temporária para acumular a soma ponderada do espectro de potência.
             float sum = 0.0F;
-            for (size_t bin_index = 0; bin_index < number_of_bins; ++bin_index)
+            for (long bin_index = 0; bin_index < number_of_bins; ++bin_index)
             {
                 // Índice do bin de frequência atual.
-                sum += power_spectrum.get_data_ref()(static_cast<long>(frame_index),
-                                                     static_cast<long>(bin_index)) *
-                       context.filterbank.get_data_ref()(static_cast<long>(filter_index),
-                                                         static_cast<long>(bin_index));
+                sum += power_spectrum.get_data_ref()(frame_index, bin_index) *
+                       context.filterbank.get_data_ref()(filter_index, bin_index);
             }
             sum = std::max(sum,
                            context.loading_params.constants.min_log_energy); // Evita log(0)
-            log_energies.get_data_ref()(static_cast<long>(frame_index),
-                                        static_cast<long>(filter_index)) = logf(sum);
+            log_energies.get_data_ref()(frame_index, filter_index) = logf(sum);
         }
     }
     return log_energies;
@@ -383,7 +380,8 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
             float sum = 0.0F;
 
             // Cálculo do coeficiente cepstral atual.
-            for (long filter_index = 0; filter_index < number_of_filters; ++filter_index)
+            for (long filter_index = 0; filter_index < static_cast<long>(number_of_filters);
+                 ++filter_index)
             {
                 // Acumula a soma ponderada usando a fórmula da DCT-II.
                 sum += log_energies.get_data_ref()( // Energia logarítmica
@@ -494,6 +492,8 @@ auto compute_deltas(const nn::Tensor& features,
 // Windowing functions
 auto hanning_window(int length) -> std::vector<double>
 {
+    if (length <= 0) return {};
+    if (length == 1) return {1.0};
     std::vector<double> window(length);
     for (int i = 0; i < length; ++i)
     {

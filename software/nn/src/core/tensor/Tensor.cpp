@@ -25,16 +25,16 @@ Tensor::Tensor(Eigen::Index rows, Eigen::Index cols)
 }
 
 Tensor::Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4)
-    : m_shape({dim1, dim2, dim3, dim4}),
-      m_data(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
-      m_grad(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1))
+    : m_data(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
+      m_grad(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
+      m_shape({dim1, dim2, dim3, dim4})
 {
 }
 
 Tensor::Tensor(const std::vector<Eigen::Index>& shape)
-    : m_shape(shape),
-      m_data(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
-      m_grad(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1))
+    : m_data(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
+      m_grad(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
+      m_shape(shape)
 {
 }
 

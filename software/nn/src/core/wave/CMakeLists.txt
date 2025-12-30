@@ -13,7 +13,7 @@ target_include_directories(waveCoreLib
 )
 
 target_link_libraries(waveCoreLib
-    PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f
+    PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f tensor
 )
 
 add_subdirectory(tests)

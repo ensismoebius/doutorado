@@ -58,7 +58,7 @@ struct AudioProcessingParams
     float frame_duration_ms;
     float frame_shift_ms;
     int number_of_filters;
-    int number_of_cepstrals;
+    long number_of_cepstrals;
     long delta_window_span;
 };
 

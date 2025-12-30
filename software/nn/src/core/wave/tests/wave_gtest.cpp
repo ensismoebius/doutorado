@@ -48,9 +48,9 @@ TEST(AudioFeatureExtractionTest, TestHanningWindow)
     EXPECT_EQ(window.size(), static_cast<size_t>(length));
     // Hanning window values for length 4
     EXPECT_NEAR(window[0], 0.0, 1e-6);
-    EXPECT_NEAR(window[1], 0.5, 1e-6);
-    EXPECT_NEAR(window[2], 1.0, 1e-6);
-    EXPECT_NEAR(window[3], 0.5, 1e-6);
+    EXPECT_NEAR(window[1], 0.75, 1e-6);
+    EXPECT_NEAR(window[2], 0.75, 1e-6);
+    EXPECT_NEAR(window[3], 0.0, 1e-6);
 }
 
 TEST(AudioFeatureExtractionTest, TestHanningWindowEdgeCases)
@@ -58,7 +58,7 @@ TEST(AudioFeatureExtractionTest, TestHanningWindowEdgeCases)
     // Length 1
     auto window1 = nn::core::wave::hanning_window(1);
     EXPECT_EQ(window1.size(), 1U);
-    EXPECT_NEAR(window1[0], 0.0, 1e-6);
+    EXPECT_NEAR(window1[0], 1.0, 1e-6);
 
     // Length 2
     auto window2 = nn::core::wave::hanning_window(2);
