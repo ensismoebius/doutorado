@@ -11,6 +11,7 @@
 #include "../ReLU.hpp"
 #include "../Regularization.hpp"
 #include "../Sequential.hpp"
+#include "../SimpleResNet.hpp"
 #include "../SpikeCountLoss.hpp"
 #include "../SurrogateGradient.hpp"
 #include "core/initializers/xavier.hpp"
@@ -778,4 +779,62 @@ TEST(L2RegularizationTest, Backward)
     ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 1.0F)));
     // grad for param2: 2*2*0.5 = 2.0
     ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, 2.0F)));
+}
+
+TEST(SimpleResNetTest, ForwardAndBackward)
+{
+    int input_dim = 10;
+    int hidden_dim = 5;
+    int output_dim = 3;
+    int depth = 2;
+
+    SimpleResNet model(input_dim, hidden_dim, output_dim, depth);
+
+    Eigen::MatrixXf input(1, input_dim);
+    input.setRandom();
+    nn::Tensor in_tensor{input};
+
+    nn::Tensor out = model.forward(in_tensor);
+    EXPECT_EQ(out.rows(), 1);
+    EXPECT_EQ(out.cols(), output_dim);
+
+    Eigen::MatrixXf grad_out(1, output_dim);
+    grad_out.setOnes();
+    nn::Tensor grad_tensor{grad_out};
+
+    nn::Tensor grad_in = model.backward(grad_tensor);
+    EXPECT_EQ(grad_in.rows(), 1);
+    EXPECT_EQ(grad_in.cols(), input_dim);
+}
+
+TEST(SimpleResNetTest, ForwardAndBackwardEdgeCases)
+{
+    // Depth 0 (just input -> linear -> relu -> linear)
+    SimpleResNet model_depth0(5, 3, 2, 0);
+    Eigen::MatrixXf input0(1, 5);
+    input0.setRandom();
+    nn::Tensor in_tensor0{input0};
+    nn::Tensor out0 = model_depth0.forward(in_tensor0);
+    EXPECT_EQ(out0.rows(), 1);
+    EXPECT_EQ(out0.cols(), 2);
+
+    // Depth 1
+    SimpleResNet model_depth1(5, 3, 2, 1);
+    nn::Tensor out1 = model_depth1.forward(in_tensor0);
+    EXPECT_EQ(out1.rows(), 1);
+    EXPECT_EQ(out1.cols(), 2);
+
+    // Large depth
+    SimpleResNet model_large(5, 3, 2, 5);
+    nn::Tensor out_large = model_large.forward(in_tensor0);
+    EXPECT_EQ(out_large.rows(), 1);
+    EXPECT_EQ(out_large.cols(), 2);
+
+    // Backward for depth 0
+    Eigen::MatrixXf grad_out0(1, 2);
+    grad_out0.setOnes();
+    nn::Tensor grad_tensor0{grad_out0};
+    nn::Tensor grad_in0 = model_depth0.backward(grad_tensor0);
+    EXPECT_EQ(grad_in0.rows(), 1);
+    EXPECT_EQ(grad_in0.cols(), 5);
 }

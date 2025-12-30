@@ -319,4 +319,42 @@ TEST(WaveletOperationsTest, TestMalatDaub8PacketEnergyConservation)
     EXPECT_NEAR(original_energy, transformed_energy, 1e-4);
 }
 
+TEST(WaveletOperationsTest, TestExtractSubbandEnergies)
+{
+    std::vector<double> signal(64, 1.0); // Simple signal
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+
+    auto transform = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 2);
+    auto energies = wavelets::extractSubbandEnergies(transform, 2);
+    EXPECT_FALSE(energies.empty());
+    // For packet transform at level 2, should have 4 subbands (2^2)
+    EXPECT_EQ(energies.size(), 4U);
+    // All energies should be non-negative
+    for (double energy : energies)
+    {
+        EXPECT_GE(energy, 0.0);
+    }
+}
+
+TEST(WaveletOperationsTest, TestExtractSubbandEnergiesEdgeCases)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+
+    // Level 1
+    std::vector<double> signal(64, 1.0);
+    auto transform1 = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
+    auto energies1 = wavelets::extractSubbandEnergies(transform1, 1);
+    EXPECT_EQ(energies1.size(), 2U); // 2^1 subbands
+
+    // Regular transform (not packet)
+    auto transform_reg = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 2);
+    auto energies_reg = wavelets::extractSubbandEnergies(transform_reg, 2);
+    EXPECT_FALSE(energies_reg.empty());
+
+    // Empty signal (should handle or throw)
+    std::vector<double> empty_signal;
+    EXPECT_THROW(wavelets::malat(empty_signal, haarFilter, wavelets::PACKET_WAVELET, 1),
+                 std::invalid_argument);
+}
+
 } // namespace wavelets::test
