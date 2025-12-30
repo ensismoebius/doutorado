@@ -234,7 +234,8 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
         static_cast<float>(context.loading_params.constants.default_sampling_rate) / 2.0F;
 
     // Inicialização do banco de filtros e das frequências centrais.
-        context.filterbank = nn::Tensor(context.loading_params.audio_params.number_of_filters, number_of_bins);
+    context.filterbank =
+        nn::Tensor(context.loading_params.audio_params.number_of_filters, number_of_bins);
 
     // Inicialização das frequências centrais.
     context.center_frequencies.resize(context.loading_params.audio_params.number_of_filters + 2);
@@ -367,7 +368,7 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
 
     // Matriz para armazenar os coeficientes cepstrais resultantes.
     nn::Tensor cepstral_coefficients((long) number_of_frames,
-                                 loading_params.audio_params.number_of_cepstrals);
+                                     loading_params.audio_params.number_of_cepstrals);
 
     // Cálculo dos coeficientes cepstrais para cada frame.
     for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
@@ -420,8 +421,8 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
  * @param loading_params Parâmetros de carregamento e processamento.
  * @return Matriz com os coeficientes delta.
  */
-auto compute_deltas(const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params)
-    -> nn::Tensor
+auto compute_deltas(const nn::Tensor& features,
+                    const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
 {
     // Número de frames (vetores de features) de entrada.
     const long number_of_frames = features.get_data_ref().rows();
@@ -488,6 +489,32 @@ auto compute_deltas(const nn::Tensor& features, const LoadingAndProcessingParame
 
     // Retorno dos coeficientes delta calculados.
     return delta_features;
+}
+
+// Windowing functions
+auto hanning_window(int length) -> std::vector<double>
+{
+    std::vector<double> window(length);
+    for (int i = 0; i < length; ++i)
+    {
+        window[i] = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (length - 1)));
+    }
+    return window;
+}
+
+auto apply_window(const std::vector<double>& signal, const std::vector<double>& window)
+    -> std::vector<double>
+{
+    if (signal.size() != window.size())
+    {
+        throw std::invalid_argument("Signal and window must have the same size");
+    }
+    std::vector<double> result(signal.size());
+    for (size_t i = 0; i < signal.size(); ++i)
+    {
+        result[i] = signal[i] * window[i];
+    }
+    return result;
 }
 
 } // namespace nn::core::wave

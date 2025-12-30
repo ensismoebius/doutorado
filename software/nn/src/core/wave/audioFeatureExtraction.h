@@ -19,8 +19,13 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
     -> nn::Tensor;
 auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
     -> nn::Tensor;
-auto compute_deltas(const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params)
-    -> nn::Tensor;
+auto compute_deltas(const nn::Tensor& features,
+                    const LoadingAndProcessingParameters& loading_params) -> nn::Tensor;
+
+// Windowing functions
+auto hanning_window(int length) -> std::vector<double>;
+auto apply_window(const std::vector<double>& signal, const std::vector<double>& window)
+    -> std::vector<double>;
 } // namespace nn::core::wave
 
 #endif // NN_CORE_WAVE_AUDIOFEATUREEXTRACTION_H

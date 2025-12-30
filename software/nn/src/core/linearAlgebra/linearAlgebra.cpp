@@ -495,4 +495,41 @@ void resizeCentered(std::vector<double>& vector, long newSize, double defaultVal
     vector.insert(vector.end(), right.begin(), right.end());
 }
 
+void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
+                             const std::vector<double>& range)
+{
+    if (features.empty() || range.size() != 2) return;
+
+    size_t n_features = features[0].size();
+    std::vector<double> min_vals(n_features, std::numeric_limits<double>::max());
+    std::vector<double> max_vals(n_features, std::numeric_limits<double>::lowest());
+
+    // Find min/max across all samples for each feature
+    for (const auto& sample : features)
+    {
+        for (size_t i = 0; i < n_features; ++i)
+        {
+            min_vals[i] = std::min(min_vals[i], sample[i]);
+            max_vals[i] = std::max(max_vals[i], sample[i]);
+        }
+    }
+
+    // Normalize each feature
+    for (auto& sample : features)
+    {
+        for (size_t i = 0; i < n_features; ++i)
+        {
+            if (max_vals[i] != min_vals[i])
+            {
+                double normalized = (sample[i] - min_vals[i]) / (max_vals[i] - min_vals[i]);
+                sample[i] = normalized * (range[1] - range[0]) + range[0];
+            }
+            else
+            {
+                sample[i] = range[0];
+            }
+        }
+    }
+}
+
 } // namespace linearAlgebra

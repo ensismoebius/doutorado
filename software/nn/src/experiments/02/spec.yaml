@@ -1,0 +1,150 @@
+experiment:
+  id: "M1_WaveletPacket_Baseline"
+  version: "1.0.0"
+  objective: >
+    Establish a deterministic theoretical baseline using Wavelet Packet
+    feature extraction, paraconsistent metrics, and fixed SNN-ResNet
+    classification.
+  determinism:
+    random_seed: 42
+    enforce_single_thread: false
+    allow_parallelism: true
+    numerical_tolerance: 1e-9
+
+data:
+  modality: ["EEG", "Audio"]
+  sampling_rate:
+    EEG: 1000 # Hz
+    Audio: 44100 # Hz
+  segmentation:
+    window:
+      type: "hanning"
+      duration_sec: 1.5
+      overlap_sec: 0.5
+    padding: "zero"
+    discard_incomplete_windows: true
+
+wavelet:
+  type: "discrete"
+  families: "ALL_AVAILABLE"
+  exclude:
+    - "continuous"
+  decomposition:
+    method: "wavelet_packet"
+    depth:
+      strategy: "maximum"
+      formula: "floor(log2(N))"
+      constraints:
+        - "window_length"
+        - "numerical_stability"
+    tree: "full"
+  validation:
+    reproduce_canonical_examples: true
+    reconstruction_error_max: 1e-6
+
+features:
+  extraction:
+    method: "subband_energy"
+    aggregation: "per_window"
+  vector:
+    deterministic_ordering: true
+  normalization:
+    method: "min_max"
+    range: [0.0, 1.0]
+    scope: "per_feature"
+    fit_on: "train_only"
+    epsilon: 1e-12
+
+paraconsistent_metrics:
+  enabled: true
+  metrics:
+    - alpha # intra-class coherence
+    - beta # inter-class separation
+    - G1
+    - G2
+  implementation:
+    source: "internal"
+    equations_frozen: true
+  input: "normalized_feature_vectors"
+
+classifier:
+  model: "ResNet"
+  paradigm: "spiking_neural_network"
+  depth: "deep"
+  configuration:
+    preset: "best_known"
+    frozen: true
+  training:
+    enabled: true
+    hyperparameter_tuning: false
+  purpose: "feature_separability_assessment"
+
+validation_protocol:
+  strategy: "k_fold"
+  k: 10
+  stratified: true
+  shuffle: true
+  metrics:
+    primary:
+      - f1_score
+    secondary:
+      - accuracy
+      - precision
+      - recall
+      - auc_macro
+      - auc_micro
+      - balanced_accuracy
+      - matthews_correlation_coefficient
+    reports:
+      - confusion_matrix
+  aggregation:
+    method: "mean_std"
+
+baseline_validation_criteria:
+  theoretical_consistency:
+    correlation_test:
+      method: "spearman"
+      hypotheses:
+        - metric: "alpha"
+          target: "f1_score"
+          expected_sign: "positive"
+        - metric: "beta"
+          target: "f1_score"
+          expected_sign: "negative"
+      significance_level: 0.05
+  stability:
+    coefficient_of_variation_max: 0.15
+  reference_comparison:
+    enabled: true
+    references:
+      - "haar_shallow_dwt"
+      - "classical_dwt"
+    success_threshold: 0.70
+
+outputs:
+  formats:
+    - csv
+  files:
+    per_wavelet: true
+    aggregated: true
+  contents:
+    - experiment_id
+    - wavelet_name
+    - decomposition_depth
+    - paraconsistent_metrics
+    - classification_metrics
+    - fold_statistics
+    - configuration_hash
+  reproducibility:
+    save_config_snapshot: true
+    save_code_version: true
+
+logging:
+  level: "INFO"
+  record_timestamps: true
+  record_hardware: true
+
+notes:
+  - "No empirical optimization allowed in this phase."
+  - "Classifier must not influence baseline definition."
+  - "All wavelets treated as independent experiments."

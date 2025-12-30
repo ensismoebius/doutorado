@@ -143,5 +143,14 @@ void normalizeVectorToSum1AllPositive(double* signal, long signalLength);
  * @param newSize
  */
 void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue = 0);
+
+/**
+ * Normalize feature matrix to a given range (min-max normalization per feature)
+ * @param features matrix of features (n_samples x n_features), modified in-place
+ * @param range target range [min, max]
+ */
+void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
+                             const std::vector<double>& range = {0.0, 1.0});
+
 } // namespace linearAlgebra
 #endif /* SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_ */

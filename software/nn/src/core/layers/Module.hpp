@@ -1,7 +1,7 @@
 #ifndef MODULE_HPP
 #define MODULE_HPP
 
-#include "../tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 struct Module
 {
     Module() = default;
@@ -51,6 +51,13 @@ struct Module
      * @return Tensor
      */
     virtual auto backward(const nn::Tensor& grad_output) -> nn::Tensor = 0;
+
+    /**
+     * @brief Sets the module in training mode.
+     *
+     * @param on true for training mode, false for evaluation mode.
+     */
+    virtual void train(bool on){};
 
     /**
      * @brief Returns a vector of pointers to the trainable parameters (weights, biases) of the

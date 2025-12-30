@@ -3,7 +3,7 @@
 #include <memory>
 #include <random>
 
-#include "../tensor/Tensor.hpp"
+#include "core/tensor/Tensor.hpp"
 #include "core/layers/Linear.hpp"
 
 /**

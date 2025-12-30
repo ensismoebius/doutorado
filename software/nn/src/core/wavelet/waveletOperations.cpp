@@ -192,4 +192,30 @@ auto getNextPowerOfTwo(double number) -> int
 {
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }
+
+auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
+    -> std::vector<double>
+{
+    std::vector<double> energies;
+    long num_parts = transform.getWaveletPacketAmountOfParts();
+
+    for (long i = 0; i < num_parts; ++i)
+    {
+        auto part = WaveletTransformResults::getWaveletPacketTransforms(
+            transform.transformedSignal, i, transform.levelsOfTransformation);
+
+        if (!part.empty())
+        {
+            double energy = 0.0;
+            for (double coeff : part)
+            {
+                energy += coeff * coeff;
+            }
+            energies.push_back(std::sqrt(energy)); // RMS energy
+        }
+    }
+
+    return energies;
+}
+
 } // namespace wavelets

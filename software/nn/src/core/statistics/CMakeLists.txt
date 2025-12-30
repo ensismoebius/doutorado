@@ -3,6 +3,7 @@ include(GoogleTest)
 add_library(statistics
     statistics.cpp
     confusionMatrix.cpp
+    multiClassMetrics.cpp
 )
 
 target_include_directories(statistics 
@@ -10,4 +11,7 @@ target_include_directories(statistics
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-add_subdirectory(tests)
+target_link_libraries(statistics
+    PUBLIC
+        Eigen3::Eigen
+)

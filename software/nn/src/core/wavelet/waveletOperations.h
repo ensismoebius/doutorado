@@ -50,6 +50,16 @@ auto malat(const std::vector<double>& signal, const std::span<const double>& low
  * @return - Next power of two
  */
 auto getNextPowerOfTwo(double number) -> int;
+
+/**
+ * Extract subband energies from wavelet transform results
+ * @param transform - wavelet transform results
+ * @param level - decomposition level
+ * @return vector of RMS energies for each subband
+ */
+auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
+    -> std::vector<double>;
+
 } // namespace wavelets
 
 #endif /* SRC_LIB_WAVELET_WAVELETOPERATIONS_H_ */
