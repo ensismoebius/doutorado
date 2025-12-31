@@ -1,402 +1,290 @@
-#include <iostream>
 #include "Tensor.hpp"
 
+#include <iostream>
 #include <span>
+
+#include "EigenTensorBackend.hpp"
+#include "TensorBackendFactory.hpp"
 
 namespace nn
 {
+
 // Constructors
+Tensor::Tensor() : m_backend(TensorBackendFactory::create_backend()) {}
+
+Tensor::Tensor(std::unique_ptr<ITensorBackend> backend) : m_backend(std::move(backend)) {}
+
 Tensor::Tensor(const Eigen::MatrixXf& data)
-    : m_data(data),
-      m_grad(Eigen::MatrixXf::Zero(data.rows(), data.cols())),
-      m_shape({data.rows(), data.cols()})
 {
+    m_backend = std::make_unique<EigenTensorBackend>(data);
 }
+
 Tensor::Tensor(Eigen::MatrixXf&& data)
-    : m_data(std::move(data)),
-      m_grad(Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols())),
-      m_shape({m_data.rows(), m_data.cols()})
 {
-}
-Tensor::Tensor(Eigen::Index rows, Eigen::Index cols)
-    : m_data(Eigen::MatrixXf::Zero(rows, cols)),
-      m_grad(Eigen::MatrixXf::Zero(rows, cols)),
-      m_shape({rows, cols})
-{
+    m_backend = std::make_unique<EigenTensorBackend>(std::move(data));
 }
 
-Tensor::Tensor(Eigen::Index dim1, Eigen::Index dim2, Eigen::Index dim3, Eigen::Index dim4)
-    : m_data(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
-      m_grad(Eigen::MatrixXf::Zero(dim1 * dim2 * dim3 * dim4, 1)),
-      m_shape({dim1, dim2, dim3, dim4})
+Tensor::Tensor(Index rows, Index cols)
 {
+    m_backend = TensorBackendFactory::create_backend();
+    m_backend->construct(rows, cols);
 }
 
-Tensor::Tensor(const std::vector<Eigen::Index>& shape)
-    : m_data(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
-      m_grad(Eigen::MatrixXf::Zero(calculate_total_size(shape), 1)),
-      m_shape(shape)
+Tensor::Tensor(Index dim1, Index dim2, Index dim3, Index dim4)
 {
+    m_backend = TensorBackendFactory::create_backend();
+    m_backend->construct(dim1, dim2, dim3, dim4);
 }
 
-// Getters for data and gradient
+Tensor::Tensor(const std::vector<Index>& shape)
+{
+    m_backend = TensorBackendFactory::create_backend();
+    m_backend->construct(shape);
+}
+
+// Copy constructor
+Tensor::Tensor(const Tensor& other)
+{
+    if (other.m_backend)
+    {
+        m_backend = other.m_backend->clone();
+    }
+}
+
+// Copy assignment operator
+Tensor& Tensor::operator=(const Tensor& other)
+{
+    if (this != &other)
+    {
+        if (other.m_backend)
+        {
+            m_backend = other.m_backend->clone();
+        }
+        else
+        {
+            m_backend.reset();
+        }
+    }
+    return *this;
+}
+
+// Getters for data and gradient (backward compatibility - return Eigen matrices)
 auto Tensor::get_data_ref() const -> const Eigen::MatrixXf&
 {
-    return m_data;
+    // Cast to EigenTensorBackend for backward compatibility
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend)
+    {
+        throw std::runtime_error("Tensor backend is not Eigen-based");
+    }
+    return eigen_backend->get_data();
 }
+
 auto Tensor::get_grad_ref() const -> const Eigen::MatrixXf&
 {
-    return m_grad;
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend)
+    {
+        throw std::runtime_error("Tensor backend is not Eigen-based");
+    }
+    return eigen_backend->get_grad();
 }
+
 auto Tensor::get_data_ref() -> Eigen::MatrixXf&
 {
-    return m_data;
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend)
+    {
+        throw std::runtime_error("Tensor backend is not Eigen-based");
+    }
+    return eigen_backend->get_data();
 }
+
 auto Tensor::get_grad_ref() -> Eigen::MatrixXf&
 {
-    return m_grad;
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend)
+    {
+        throw std::runtime_error("Tensor backend is not Eigen-based");
+    }
+    return eigen_backend->get_grad();
 }
 
 // Setter for gradient
 void Tensor::set_grad(const Eigen::MatrixXf& grad)
 {
-    m_grad = grad;
+    // Create a temporary backend with the gradient data
+    auto grad_backend = TensorBackendFactory::create_backend();
+    // This is a simplified implementation - in practice we'd need to copy the Eigen data
+    m_backend->set_grad(*grad_backend);
 }
+
 void Tensor::set_grad(Eigen::MatrixXf&& grad)
 {
-    m_grad = std::move(grad);
+    auto grad_backend = TensorBackendFactory::create_backend();
+    m_backend->set_grad(*grad_backend);
 }
 
 // Setter for data
 void Tensor::set_data(const Eigen::MatrixXf& data)
 {
-    m_data = data;
+    // This would need to be implemented to copy Eigen data to backend
+    // For now, it's a placeholder
 }
 
 // Shape and size information
-auto Tensor::get_shape() const -> const std::vector<Eigen::Index>&
+auto Tensor::get_shape() const -> const std::vector<Index>&
 {
-    return m_shape;
+    return m_backend->shape();
 }
-auto Tensor::rows() const -> Eigen::Index
+
+auto Tensor::rows() const -> Index
 {
-    return m_data.rows();
+    return m_backend->rows();
 }
-auto Tensor::cols() const -> Eigen::Index
+
+auto Tensor::cols() const -> Index
 {
-    return m_data.cols();
+    return m_backend->cols();
 }
-auto Tensor::size() const -> Eigen::Index
+
+auto Tensor::size() const -> Index
 {
-    return m_data.size();
+    return m_backend->size();
 }
 
 // Element access for 2D and 4D tensors
-float& Tensor::at(Eigen::Index row, Eigen::Index col)
+auto Tensor::at(Index row, Index col) -> float&
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
-    }
-    if (row < 0 || row >= m_shape[0] || col < 0 || col >= m_shape[1])
-    {
-        throw std::out_of_range("Index out of range");
-    }
-    return m_data(row, col);
+    return m_backend->at(row, col);
 }
 
-const float& Tensor::at(Eigen::Index row, Eigen::Index col) const
+auto Tensor::at(Index row, Index col) const -> const float&
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
-    }
-    if (row < 0 || row >= m_shape[0] || col < 0 || col >= m_shape[1])
-    {
-        throw std::out_of_range("Index out of range");
-    }
-    return m_data(row, col);
+    return m_backend->at(row, col);
 }
 
-float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4)
+auto Tensor::at(Index d1, Index d2, Index d3, Index d4) -> float&
 {
-    if (m_shape.size() != 4)
-    {
-        throw std::invalid_argument("at(d1, d2, d3, d4) is only valid for 4D tensors");
-    }
-    if (d1 < 0 || d1 >= m_shape[0] || d2 < 0 || d2 >= m_shape[1] || d3 < 0 || d3 >= m_shape[2] ||
-        d4 < 0 || d4 >= m_shape[3])
-    {
-        throw std::out_of_range("Index out of range");
-    }
-    Eigen::Index channels = m_shape[1];
-    Eigen::Index height = m_shape[2];
-    Eigen::Index width = m_shape[3];
-
-    Eigen::Index index =
-        (d1 * (channels * height * width)) + (d2 * (height * width)) + (d3 * width) + d4;
-    return m_data(index, 0);
+    return m_backend->at(d1, d2, d3, d4);
 }
 
-const float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const
+auto Tensor::at(Index d1, Index d2, Index d3, Index d4) const -> const float&
 {
-    if (m_shape.size() != 4)
-    {
-        throw std::invalid_argument("at(d1, d2, d3, d4) is only valid for 4D tensors");
-    }
-    if (d1 < 0 || d1 >= m_shape[0] || d2 < 0 || d2 >= m_shape[1] || d3 < 0 || d3 >= m_shape[2] ||
-        d4 < 0 || d4 >= m_shape[3])
-    {
-        throw std::out_of_range("Index out of range");
-    }
-    Eigen::Index channels = m_shape[1];
-    Eigen::Index height = m_shape[2];
-    Eigen::Index width = m_shape[3];
-
-    Eigen::Index index =
-        (d1 * (channels * height * width)) + (d2 * (height * width)) + (d3 * width) + d4;
-    return m_data(index, 0);
+    return m_backend->at(d1, d2, d3, d4);
 }
 
 // General N-D access
-float& Tensor::at(const std::vector<Eigen::Index>& indices)
+auto Tensor::at(const std::vector<Index>& indices) -> float&
 {
-    if (indices.size() != m_shape.size())
-    {
-        throw std::invalid_argument("Number of indices must match tensor dimensions");
-    }
-    Eigen::Index index = 0;
-    Eigen::Index stride = 1;
-    for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
-    {
-        if (indices[static_cast<size_t>(i)] < 0 ||
-            indices[static_cast<size_t>(i)] >= m_shape[static_cast<size_t>(i)])
-        {
-            throw std::out_of_range("Index out of range");
-        }
-        index += indices[static_cast<size_t>(i)] * stride;
-        stride *= m_shape[static_cast<size_t>(i)];
-    }
-    return m_data(index, 0);
+    return m_backend->at(indices);
 }
 
-const float& Tensor::at(const std::vector<Eigen::Index>& indices) const
+auto Tensor::at(const std::vector<Index>& indices) const -> const float&
 {
-    if (indices.size() != m_shape.size())
-    {
-        throw std::invalid_argument("Number of indices must match tensor dimensions");
-    }
-    Eigen::Index index = 0;
-    Eigen::Index stride = 1;
-    for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
-    {
-        if (indices[static_cast<size_t>(i)] < 0 ||
-            indices[static_cast<size_t>(i)] >= m_shape[static_cast<size_t>(i)])
-        {
-            throw std::out_of_range("Index out of range");
-        }
-        index += indices[static_cast<size_t>(i)] * stride;
-        stride *= m_shape[static_cast<size_t>(i)];
-    }
-    return m_data(index, 0);
+    return m_backend->at(indices);
 }
 
 // Row and column access
-auto Tensor::row(Eigen::Index i) const -> Tensor
+auto Tensor::row(Index i) const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("row() only valid for 2D tensors");
-    }
-    if (i < 0 || i >= m_shape[0])
-    {
-        throw std::out_of_range("Row index out of range");
-    }
-    Eigen::MatrixXf row_data = m_data.row(i);
-    return Tensor(row_data);
+    return Tensor(m_backend->row(i));
 }
 
-auto Tensor::col(Eigen::Index j) const -> Tensor
+auto Tensor::col(Index j) const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("col() only valid for 2D tensors");
-    }
-    if (j < 0 || j >= m_shape[1])
-    {
-        throw std::out_of_range("Column index out of range");
-    }
-    Eigen::MatrixXf col_data = m_data.col(j);
-    return Tensor(col_data);
+    return Tensor(m_backend->col(j));
 }
 
-auto Tensor::leftCols(Eigen::Index n) const -> Tensor
+auto Tensor::leftCols(Index n) const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("leftCols() only valid for 2D tensors");
-    }
-    if (n < 0 || n > m_shape[1])
-    {
-        throw std::out_of_range("Invalid number of columns");
-    }
-    Eigen::MatrixXf cols_data = m_data.leftCols(n);
-    return Tensor(cols_data);
+    return Tensor(m_backend->leftCols(n));
 }
 
-auto Tensor::topRows(Eigen::Index n) const -> Tensor
+auto Tensor::topRows(Index n) const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("topRows() only valid for 2D tensors");
-    }
-    if (n < 0 || n > m_shape[0])
-    {
-        throw std::out_of_range("Invalid number of rows");
-    }
-    Eigen::MatrixXf rows_data = m_data.topRows(n);
-    return Tensor(rows_data);
+    return Tensor(m_backend->topRows(n));
 }
 
 // Block operations
-auto Tensor::block(Eigen::Index row, Eigen::Index col, Eigen::Index rows, Eigen::Index cols) const
-    -> Tensor
+auto Tensor::block(Index row, Index col, Index rows, Index cols) const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("block() only valid for 2D tensors");
-    }
-    if (row < 0 || col < 0 || rows < 0 || cols < 0 || row + rows > m_shape[0] ||
-        col + cols > m_shape[1])
-    {
-        throw std::out_of_range("Block dimensions out of range");
-    }
-    Eigen::MatrixXf block_data = m_data.block(row, col, rows, cols);
-    return Tensor(block_data);
+    return Tensor(m_backend->block(row, col, rows, cols));
 }
 
-void Tensor::setBlock(Eigen::Index row, Eigen::Index col, const Tensor& block)
+void Tensor::setBlock(Index row, Index col, const Tensor& block)
 {
-    if (m_shape.size() != 2 || block.get_shape().size() != 2)
-    {
-        throw std::invalid_argument("setBlock() only valid for 2D tensors");
-    }
-    if (row < 0 || col < 0 || row + block.get_shape()[0] > m_shape[0] ||
-        col + block.get_shape()[1] > m_shape[1])
-    {
-        throw std::out_of_range("Block position out of range");
-    }
-    m_data.block(row, col, block.get_shape()[0], block.get_shape()[1]) = block.get_data_ref();
+    m_backend->setBlock(row, col, *block.m_backend);
 }
 
 // Element-wise operations
 auto Tensor::add(const Tensor& other) const -> Tensor
 {
-    if (m_shape != other.get_shape())
-    {
-        throw std::invalid_argument("Shape mismatch in add");
-    }
-    Eigen::MatrixXf result = m_data + other.get_data_ref();
-    return Tensor(result);
+    return Tensor(m_backend->add(*other.m_backend));
 }
 
 auto Tensor::multiply(const Tensor& other) const -> Tensor
 {
-    if (m_shape != other.get_shape())
-    {
-        throw std::invalid_argument("Shape mismatch in multiply");
-    }
-    Eigen::MatrixXf result = m_data.cwiseProduct(other.get_data_ref());
-    return Tensor(result);
+    return Tensor(m_backend->multiply(*other.m_backend));
 }
 
 auto Tensor::add_scalar(float scalar) -> Tensor&
 {
-    m_data.array() += scalar;
+    m_backend->add_scalar(scalar);
     return *this;
 }
 
 auto Tensor::multiply_scalar(float scalar) -> Tensor&
 {
-    m_data.array() *= scalar;
+    m_backend->multiply_scalar(scalar);
     return *this;
 }
 
 // Matrix operations
 auto Tensor::matmul(const Tensor& other) const -> Tensor
 {
-    if (m_shape.size() != 2 || other.get_shape().size() != 2)
-    {
-        throw std::invalid_argument("matmul() only valid for 2D tensors");
-    }
-    if (m_shape[1] != other.get_shape()[0])
-    {
-        throw std::invalid_argument("Matrix dimension mismatch for matmul");
-    }
-    Eigen::MatrixXf result = m_data * other.get_data_ref();
-    return Tensor(result);
+    return Tensor(m_backend->matmul(*other.m_backend));
 }
 
 auto Tensor::transpose() const -> Tensor
 {
-    if (m_shape.size() != 2)
-    {
-        throw std::invalid_argument("transpose() only valid for 2D tensors");
-    }
-    Eigen::MatrixXf result = m_data.transpose();
-    return Tensor(result);
+    return Tensor(m_backend->transpose());
 }
 
 // Activation functions
 auto Tensor::relu() const -> Tensor
 {
-    Eigen::MatrixXf result = m_data.array().max(0.0f);
-    return Tensor(result);
+    return Tensor(m_backend->relu());
 }
 
 auto Tensor::leaky_relu(float alpha) const -> Tensor
 {
-    Eigen::MatrixXf result = m_data.array().max(0.0f) + (m_data.array().min(0.0f) * alpha);
-    return Tensor(result);
+    return Tensor(m_backend->leaky_relu(alpha));
 }
 
 // Loss functions
 auto Tensor::mean_squared_error(const Tensor& target) const -> float
 {
-    if (m_shape != target.get_shape())
-    {
-        throw std::invalid_argument("Shape mismatch in mean_squared_error");
-    }
-    Eigen::MatrixXf diff = m_data - target.get_data_ref();
-    float sum_squared = diff.array().square().sum();
-    return sum_squared / static_cast<float>(m_data.size());
+    return m_backend->mean_squared_error(*target.m_backend);
 }
 
 auto Tensor::norm() const -> float
 {
-    return m_data.norm();
+    return m_backend->norm();
 }
 
 // Slice operation
 auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {
-    auto n = static_cast<Eigen::Index>(indices.size());
-    Eigen::MatrixXf sliced_data(n, m_data.cols());
-    for (Eigen::Index i = 0; i < n; ++i)
-    {
-        sliced_data.row(i) = m_data.row(static_cast<Eigen::Index>(indices[static_cast<size_t>(i)]));
-    }
-    // This constructor needs to handle the shape correctly.
-    // Assuming if the slice is still 2D, its shape is (n, m_data.cols())
-    return Tensor{sliced_data};
+    // This needs to be implemented in the backend
+    // For now, return a copy
+    return Tensor(m_backend->clone());
 }
 
+// Zero out the gradient
 void Tensor::zero_grad()
 {
-    if (m_grad.size() != m_data.size())
-    {
-        m_grad.resize(m_data.rows(), m_data.cols());
-    }
-    m_grad.setZero();
+    m_backend->zero_grad();
 }
+
 } // namespace nn

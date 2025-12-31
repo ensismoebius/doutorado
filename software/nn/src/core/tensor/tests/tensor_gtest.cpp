@@ -54,7 +54,7 @@ TEST(TensorTest, FourDAccess)
 
 TEST(TensorTest, GeneralNDAccess)
 {
-    nn::Tensor t(std::vector<Eigen::Index>{2, 3, 4}); // 3D tensor
+    nn::Tensor t(std::vector<size_t>{2, 3, 4}); // 3D tensor
     t.at({0, 0, 0}) = 1.0f;
     t.at({1, 2, 3}) = 2.0f;
     ASSERT_EQ(t.at({0, 0, 0}), 1.0f);
@@ -68,7 +68,7 @@ TEST(TensorTest, AccessWrongDimensions)
 {
     nn::Tensor t2d(2, 3);
     nn::Tensor t4d(1, 1, 1, 1);
-    nn::Tensor t3d(std::vector<Eigen::Index>{2, 2, 2});
+    nn::Tensor t3d(std::vector<size_t>{2, 2, 2});
 
     ASSERT_THROW(t4d.at(0, 0), std::invalid_argument);
     ASSERT_THROW(t2d.at(0, 0, 0, 0), std::invalid_argument);
@@ -79,15 +79,15 @@ TEST(TensorTest, AccessWrongDimensions)
 TEST(TensorTest, ShapeAndSize)
 {
     nn::Tensor t2d(2, 3);
-    ASSERT_EQ(t2d.get_shape(), std::vector<Eigen::Index>({2, 3}));
+    ASSERT_EQ(t2d.get_shape(), std::vector<size_t>({2, 3}));
     ASSERT_EQ(t2d.size(), 6);
 
     nn::Tensor t4d(1, 2, 3, 4);
-    ASSERT_EQ(t4d.get_shape(), std::vector<Eigen::Index>({1, 2, 3, 4}));
+    ASSERT_EQ(t4d.get_shape(), std::vector<size_t>({1, 2, 3, 4}));
     ASSERT_EQ(t4d.size(), 24);
 
-    nn::Tensor tnd(std::vector<Eigen::Index>{5, 6, 7});
-    ASSERT_EQ(tnd.get_shape(), std::vector<Eigen::Index>({5, 6, 7}));
+    nn::Tensor tnd(std::vector<size_t>{5, 6, 7});
+    ASSERT_EQ(tnd.get_shape(), std::vector<size_t>({5, 6, 7}));
     ASSERT_EQ(tnd.size(), 210);
 }
 
@@ -102,17 +102,17 @@ TEST(TensorTest, RowColAccess)
     t.at(1, 1) = 6.0f;
 
     auto row0 = t.row(0);
-    ASSERT_EQ(row0.get_shape(), std::vector<Eigen::Index>({1, 4}));
+    ASSERT_EQ(row0.get_shape(), std::vector<size_t>({1, 4}));
     EXPECT_EQ(row0.at(0, 0), 1.0f);
     EXPECT_EQ(row0.at(0, 3), 4.0f);
 
     auto col1 = t.col(1);
-    ASSERT_EQ(col1.get_shape(), std::vector<Eigen::Index>({3, 1}));
+    ASSERT_EQ(col1.get_shape(), std::vector<size_t>({3, 1}));
     EXPECT_EQ(col1.at(0, 0), 2.0f);
     EXPECT_EQ(col1.at(1, 0), 6.0f);
 
     auto left2 = t.leftCols(2);
-    ASSERT_EQ(left2.get_shape(), std::vector<Eigen::Index>({3, 2}));
+    ASSERT_EQ(left2.get_shape(), std::vector<size_t>({3, 2}));
     EXPECT_EQ(left2.at(0, 0), 1.0f);
     EXPECT_EQ(left2.at(0, 1), 2.0f);
 }
@@ -130,7 +130,7 @@ TEST(TensorTest, BlockOperations)
 
     // Test block extraction
     auto block = t.block(1, 1, 2, 2);
-    ASSERT_EQ(block.get_shape(), std::vector<Eigen::Index>({2, 2}));
+    ASSERT_EQ(block.get_shape(), std::vector<size_t>({2, 2}));
     EXPECT_EQ(block.at(0, 0), 5.0f);  // (1,1) -> 1*4+1 = 5
     EXPECT_EQ(block.at(1, 1), 10.0f); // (2,2) -> 2*4+2 = 10
 
@@ -202,7 +202,7 @@ TEST(TensorTest, MatrixOperations)
     t2.at(2, 1) = 12.0f;
 
     auto result = t1.matmul(t2);
-    ASSERT_EQ(result.get_shape(), std::vector<Eigen::Index>({2, 2}));
+    ASSERT_EQ(result.get_shape(), std::vector<size_t>({2, 2}));
     EXPECT_EQ(result.at(0, 0), 58.0f);  // 1*7 + 2*9 + 3*11
     EXPECT_EQ(result.at(0, 1), 64.0f);  // 1*8 + 2*10 + 3*12
     EXPECT_EQ(result.at(1, 0), 139.0f); // 4*7 + 5*9 + 6*11
@@ -210,7 +210,7 @@ TEST(TensorTest, MatrixOperations)
 
     // Test transpose
     auto transposed = t1.transpose();
-    ASSERT_EQ(transposed.get_shape(), std::vector<Eigen::Index>({3, 2}));
+    ASSERT_EQ(transposed.get_shape(), std::vector<size_t>({3, 2}));
     EXPECT_EQ(transposed.at(0, 0), 1.0f);
     EXPECT_EQ(transposed.at(1, 0), 2.0f);
     EXPECT_EQ(transposed.at(2, 0), 3.0f);
@@ -223,7 +223,7 @@ TEST(TensorTest, MatrixOperations)
     ASSERT_THROW(t1.matmul(t3), std::invalid_argument);
 
     // Test non-2D tensor error
-    nn::Tensor t4(std::vector<Eigen::Index>{2, 3, 4});
+    nn::Tensor t4(std::vector<size_t>{2, 3, 4});
     ASSERT_THROW(t4.matmul(t2), std::invalid_argument);
     ASSERT_THROW(t4.transpose(), std::invalid_argument);
 }
@@ -240,7 +240,7 @@ TEST(TensorTest, ActivationFunctions)
     t.at(1, 2) = -6.0f;
 
     auto relu_result = t.relu();
-    ASSERT_EQ(relu_result.get_shape(), std::vector<Eigen::Index>({2, 3}));
+    ASSERT_EQ(relu_result.get_shape(), std::vector<size_t>({2, 3}));
     EXPECT_EQ(relu_result.at(0, 0), 1.0f); // max(1, 0) = 1
     EXPECT_EQ(relu_result.at(0, 1), 0.0f); // max(-2, 0) = 0
     EXPECT_EQ(relu_result.at(0, 2), 3.0f); // max(3, 0) = 3
@@ -249,7 +249,7 @@ TEST(TensorTest, ActivationFunctions)
     EXPECT_EQ(relu_result.at(1, 2), 0.0f); // max(-6, 0) = 0
     // Test LeakyReLU
     auto leaky_result = t.leaky_relu(0.1f);
-    ASSERT_EQ(leaky_result.get_shape(), std::vector<Eigen::Index>({2, 3}));
+    ASSERT_EQ(leaky_result.get_shape(), std::vector<size_t>({2, 3}));
     EXPECT_EQ(leaky_result.at(0, 0), 1.0f);  // max(1, 0) = 1
     EXPECT_EQ(leaky_result.at(0, 1), -0.2f); // min(-2, 0) * 0.1 = -0.2
     EXPECT_EQ(leaky_result.at(0, 2), 3.0f);  // max(3, 0) = 3
@@ -261,12 +261,16 @@ TEST(TensorTest, LossFunctions)
 {
     // Test mean_squared_error
     nn::Tensor pred(2, 2);
-    pred.at(0, 0) = 1.0f; pred.at(0, 1) = 2.0f;
-    pred.at(1, 0) = 3.0f; pred.at(1, 1) = 4.0f;
+    pred.at(0, 0) = 1.0f;
+    pred.at(0, 1) = 2.0f;
+    pred.at(1, 0) = 3.0f;
+    pred.at(1, 1) = 4.0f;
 
     nn::Tensor target(2, 2);
-    target.at(0, 0) = 1.5f; target.at(0, 1) = 2.5f;
-    target.at(1, 0) = 3.5f; target.at(1, 1) = 4.5f;
+    target.at(0, 0) = 1.5f;
+    target.at(0, 1) = 2.5f;
+    target.at(1, 0) = 3.5f;
+    target.at(1, 1) = 4.5f;
 
     float mse = pred.mean_squared_error(target);
     // Differences: 0.5, 0.5, 0.5, 0.5
@@ -276,7 +280,9 @@ TEST(TensorTest, LossFunctions)
 
     // Test norm
     nn::Tensor vec(1, 3);
-    vec.at(0, 0) = 3.0f; vec.at(0, 1) = 4.0f; vec.at(0, 2) = 0.0f;
+    vec.at(0, 0) = 3.0f;
+    vec.at(0, 1) = 4.0f;
+    vec.at(0, 2) = 0.0f;
     float norm_val = vec.norm();
-    EXPECT_FLOAT_EQ(norm_val, 5.0f);  // sqrt(3^2 + 4^2 + 0^2) = 5
+    EXPECT_FLOAT_EQ(norm_val, 5.0f); // sqrt(3^2 + 4^2 + 0^2) = 5
 }

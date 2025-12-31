@@ -2,6 +2,7 @@
 
 #include <omp.h>
 
+#include <Eigen/Dense>
 #include <memory>
 #include <mutex>
 #include <vector>
