@@ -219,7 +219,7 @@ TEST(TensorTest, MatrixOperations)
     EXPECT_EQ(transposed.at(2, 1), 6.0f);
 
     // Test dimension mismatch error
-    nn::Tensor t3(3, 2);
+    nn::Tensor t3(4, 2);
     ASSERT_THROW(t1.matmul(t3), std::invalid_argument);
 
     // Test non-2D tensor error
