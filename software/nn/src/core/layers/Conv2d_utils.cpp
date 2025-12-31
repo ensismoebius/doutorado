@@ -209,7 +209,8 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols.get_data_ref()(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) +=
+                                    cols.get_data_ref()(elem_idx, col_idx);
                             }
                         }
                     }
@@ -240,7 +241,8 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols.get_data_ref()(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) +=
+                                    cols.get_data_ref()(elem_idx, col_idx);
                             }
                         }
                     }
@@ -316,8 +318,8 @@ void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
 
 // ============ Output Reshaping ============
 
-auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size,
-                                      int output_height, int output_width) const -> nn::Tensor
+auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size, int output_height,
+                                      int output_width) const -> nn::Tensor
 {
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);

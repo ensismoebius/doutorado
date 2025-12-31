@@ -8,7 +8,6 @@
 
 // Branch prediction hints: use compiler built-ins when available
 
-
 #include "../tensor/Tensor.hpp"
 #include "Conv2d_utils.hpp"
 #include "Module.hpp"
@@ -160,8 +159,8 @@ class EIGEN_ALIGN16 Conv2d : public Module
      *
      * Reconstructs spatial dimensions from column format, accumulating overlapping patches.
      */
-    auto col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height,
-                          int input_width, int output_height, int output_width) const -> nn::Tensor;
+    auto col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height, int input_width,
+                          int output_height, int output_width) const -> nn::Tensor;
 
     /**
      * @brief Add bias to output matrix with optimized broadcasting
