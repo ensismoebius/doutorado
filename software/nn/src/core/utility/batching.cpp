@@ -7,8 +7,9 @@
 
 #include "core/tensor/Tensor.hpp"
 
-auto create_batches(const std::vector<nn::Tensor>& inputSamples, const std::vector<nn::Tensor>& targets,
-                    const int batch_size) -> std::vector<Batch>
+auto create_batches(const std::vector<nn::Tensor>& inputSamples,
+                    const std::vector<nn::Tensor>& targets, const int batch_size)
+    -> std::vector<Batch>
 {
     const int n_samples = static_cast<int>(inputSamples.size());
     std::vector<int> indices(n_samples);
@@ -36,22 +37,22 @@ auto create_batches(const std::vector<nn::Tensor>& inputSamples, const std::vect
         }
 
         // Get input and target dimensions from first sample
-        Eigen::Index input_rows = inputSamples[0].get_data_ref().rows();
-        Eigen::Index input_cols = inputSamples[0].get_data_ref().cols();
-        Eigen::Index target_rows = targets[0].get_data_ref().rows();
-        Eigen::Index target_cols = targets[0].get_data_ref().cols();
+        int input_rows = inputSamples[0].rows();
+        int input_cols = inputSamples[0].cols();
+        int target_rows = targets[0].rows();
+        int target_cols = targets[0].cols();
 
-        // Create concatenated matrices with proper dimensions
-        Eigen::MatrixXf x_concat(input_rows * actual_batch_size, input_cols);
-        Eigen::MatrixXf y_concat(target_rows * actual_batch_size, target_cols);
+        // Create batch tensors with proper dimensions
+        nn::Tensor x_batch(input_rows * actual_batch_size, input_cols);
+        nn::Tensor y_batch(target_rows * actual_batch_size, target_cols);
 
         for (int j = 0; j < actual_batch_size; ++j)
         {
-            x_concat.block(j * input_rows, 0, input_rows, input_cols) = x_batch_vec[j].get_data_ref();
-            y_concat.block(j * target_rows, 0, target_rows, target_cols) = y_batch_vec[j].get_data_ref();
+            x_batch.setBlock(j * input_rows, 0, x_batch_vec[j]);
+            y_batch.setBlock(j * target_rows, 0, y_batch_vec[j]);
         }
 
-        batches.push_back({nn::Tensor(x_concat), nn::Tensor(y_concat)});
+        batches.push_back({x_batch, y_batch});
     }
 
     return batches;

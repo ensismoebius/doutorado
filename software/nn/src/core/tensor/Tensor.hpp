@@ -50,6 +50,30 @@ class Tensor
     auto at(const std::vector<Eigen::Index>& indices) -> float&;
     [[nodiscard]] auto at(const std::vector<Eigen::Index>& indices) const -> const float&;
 
+    // Row and column access
+    auto row(Eigen::Index i) const -> Tensor;
+    auto col(Eigen::Index j) const -> Tensor;
+    auto leftCols(Eigen::Index n) const -> Tensor;
+    auto topRows(Eigen::Index n) const -> Tensor;
+
+    // Block operations
+    auto block(Eigen::Index row, Eigen::Index col, Eigen::Index rows, Eigen::Index cols) const
+        -> Tensor;
+    void setBlock(Eigen::Index row, Eigen::Index col, const Tensor& block);
+
+    // Element-wise operations
+    auto add(const Tensor& other) const -> Tensor;
+    auto multiply(const Tensor& other) const -> Tensor;
+    auto add_scalar(float scalar) -> Tensor&;
+    auto multiply_scalar(float scalar) -> Tensor&;
+
+    // Matrix operations
+    auto matmul(const Tensor& other) const -> Tensor;
+    auto transpose() const -> Tensor;
+
+    // Activation functions
+    auto relu() const -> Tensor;
+
     // Conversion to std::vector
     template <typename vector_type>
     [[nodiscard]] auto toVector() const -> std::vector<vector_type>;

@@ -13,6 +13,8 @@
 #include <numeric>
 #include <stdexcept>
 
+#include "../../tensor/Tensor.hpp"
+
 namespace statistics
 {
 
@@ -31,11 +33,11 @@ ClassificationMetrics compute_classification_metrics(const std::vector<int>& tru
         n_classes = std::max(n_classes, label + 1);
     }
 
-    // Confusion matrix
-    Eigen::MatrixXi cm = Eigen::MatrixXi::Zero(n_classes, n_classes);
+    // Confusion matrix - using float for now (consider IntTensor for integer precision)
+    nn::Tensor cm(n_classes, n_classes);
     for (int i = 0; i < n_samples; ++i)
     {
-        cm(true_labels[i], pred_labels[i])++;
+        cm.at(true_labels[i], pred_labels[i]) += 1.0f;
     }
 
     // Per-class metrics
@@ -44,14 +46,14 @@ ClassificationMetrics compute_classification_metrics(const std::vector<int>& tru
 
     for (int c = 0; c < n_classes; ++c)
     {
-        int tp = cm(c, c);
+        int tp = static_cast<int>(cm.at(c, c));
         int fp = 0, fn = 0;
         for (int j = 0; j < n_classes; ++j)
         {
             if (j != c)
             {
-                fp += cm(j, c);
-                fn += cm(c, j);
+                fp += static_cast<int>(cm.at(j, c));
+                fn += static_cast<int>(cm.at(c, j));
             }
         }
 

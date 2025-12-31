@@ -13,16 +13,17 @@
 #include "core/dataLoaders/MatFileUtils.h"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
+#include "core/tensor/Tensor.hpp"
 #include "core/wavelet/Types.h"
 #include "core/wavelet/waveletOperations.h"
 
 // Processes a single trial (either EEG or Audio) and returns its features.
 // For EEG, signal_data will be (channels x samples_per_channel)
 // For Audio, signal_data will be (1 x samples_per_channel)
-auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, //
-                                           double duration_sec,                //
-                                           int overlap_percent,                //
-                                           int sampling_rate                   //
+auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, //
+                                           double duration_sec,           //
+                                           int overlap_percent,           //
+                                           int sampling_rate              //
                                            ) -> std::vector<double>
 {
     // Daubechies 4 lowpass filter (example)
@@ -32,8 +33,13 @@ auto extract_wavelet_features_single_trial(const Eigen::MatrixXf& signal_data, /
 
     for (int channel_row_idx = 0; channel_row_idx < signal_data.rows(); ++channel_row_idx)
     {
-        Eigen::VectorXf channel_data = signal_data.row(channel_row_idx);
-        std::vector<double> sig(channel_data.data(), channel_data.data() + channel_data.size());
+        nn::Tensor channel_tensor = signal_data.row(channel_row_idx);
+        std::vector<double> sig;
+        sig.reserve(static_cast<size_t>(channel_tensor.size()));
+        for (size_t j = 0; j < channel_tensor.size(); ++j)
+        {
+            sig.push_back(channel_tensor.at(0, j));
+        }
 
         // Apply wavelet packet transform
         auto wtr = wavelets::malat(sig, lowpass, wavelets::PACKET_WAVELET, 4); // level 4

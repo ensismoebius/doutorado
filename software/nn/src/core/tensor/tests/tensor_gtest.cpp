@@ -90,3 +90,161 @@ TEST(TensorTest, ShapeAndSize)
     ASSERT_EQ(tnd.get_shape(), std::vector<Eigen::Index>({5, 6, 7}));
     ASSERT_EQ(tnd.size(), 210);
 }
+
+TEST(TensorTest, RowColAccess)
+{
+    nn::Tensor t(3, 4);
+    t.at(0, 0) = 1.0f;
+    t.at(0, 1) = 2.0f;
+    t.at(0, 2) = 3.0f;
+    t.at(0, 3) = 4.0f;
+    t.at(1, 0) = 5.0f;
+    t.at(1, 1) = 6.0f;
+
+    auto row0 = t.row(0);
+    ASSERT_EQ(row0.get_shape(), std::vector<Eigen::Index>({1, 4}));
+    EXPECT_EQ(row0.at(0, 0), 1.0f);
+    EXPECT_EQ(row0.at(0, 3), 4.0f);
+
+    auto col1 = t.col(1);
+    ASSERT_EQ(col1.get_shape(), std::vector<Eigen::Index>({3, 1}));
+    EXPECT_EQ(col1.at(0, 0), 2.0f);
+    EXPECT_EQ(col1.at(1, 0), 6.0f);
+
+    auto left2 = t.leftCols(2);
+    ASSERT_EQ(left2.get_shape(), std::vector<Eigen::Index>({3, 2}));
+    EXPECT_EQ(left2.at(0, 0), 1.0f);
+    EXPECT_EQ(left2.at(0, 1), 2.0f);
+}
+
+TEST(TensorTest, BlockOperations)
+{
+    nn::Tensor t(4, 4);
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 4; ++j)
+        {
+            t.at(i, j) = static_cast<float>(i * 4 + j);
+        }
+    }
+
+    // Test block extraction
+    auto block = t.block(1, 1, 2, 2);
+    ASSERT_EQ(block.get_shape(), std::vector<Eigen::Index>({2, 2}));
+    EXPECT_EQ(block.at(0, 0), 5.0f);  // (1,1) -> 1*4+1 = 5
+    EXPECT_EQ(block.at(1, 1), 10.0f); // (2,2) -> 2*4+2 = 10
+
+    // Test block setting
+    nn::Tensor small_block(2, 2);
+    small_block.at(0, 0) = 100.0f;
+    small_block.at(0, 1) = 101.0f;
+    small_block.at(1, 0) = 102.0f;
+    small_block.at(1, 1) = 103.0f;
+
+    t.setBlock(1, 1, small_block);
+    EXPECT_EQ(t.at(1, 1), 100.0f);
+    EXPECT_EQ(t.at(1, 2), 101.0f);
+    EXPECT_EQ(t.at(2, 1), 102.0f);
+    EXPECT_EQ(t.at(2, 2), 103.0f);
+}
+
+TEST(TensorTest, ElementWiseOperations)
+{
+    nn::Tensor t1(2, 2);
+    t1.at(0, 0) = 1.0f;
+    t1.at(0, 1) = 2.0f;
+    t1.at(1, 0) = 3.0f;
+    t1.at(1, 1) = 4.0f;
+
+    nn::Tensor t2(2, 2);
+    t2.at(0, 0) = 5.0f;
+    t2.at(0, 1) = 6.0f;
+    t2.at(1, 0) = 7.0f;
+    t2.at(1, 1) = 8.0f;
+
+    // Test add
+    auto sum = t1.add(t2);
+    EXPECT_EQ(sum.at(0, 0), 6.0f);
+    EXPECT_EQ(sum.at(1, 1), 12.0f);
+
+    // Test multiply (element-wise)
+    auto prod = t1.multiply(t2);
+    EXPECT_EQ(prod.at(0, 0), 5.0f);
+    EXPECT_EQ(prod.at(1, 1), 32.0f);
+
+    // Test scalar operations
+    t1.add_scalar(10.0f);
+    EXPECT_EQ(t1.at(0, 0), 11.0f);
+    EXPECT_EQ(t1.at(1, 1), 14.0f);
+
+    t1.multiply_scalar(2.0f);
+    EXPECT_EQ(t1.at(0, 0), 22.0f);
+    EXPECT_EQ(t1.at(1, 1), 28.0f);
+}
+
+TEST(TensorTest, MatrixOperations)
+{
+    // Test matmul
+    nn::Tensor t1(2, 3);
+    t1.at(0, 0) = 1.0f;
+    t1.at(0, 1) = 2.0f;
+    t1.at(0, 2) = 3.0f;
+    t1.at(1, 0) = 4.0f;
+    t1.at(1, 1) = 5.0f;
+    t1.at(1, 2) = 6.0f;
+
+    nn::Tensor t2(3, 2);
+    t2.at(0, 0) = 7.0f;
+    t2.at(0, 1) = 8.0f;
+    t2.at(1, 0) = 9.0f;
+    t2.at(1, 1) = 10.0f;
+    t2.at(2, 0) = 11.0f;
+    t2.at(2, 1) = 12.0f;
+
+    auto result = t1.matmul(t2);
+    ASSERT_EQ(result.get_shape(), std::vector<Eigen::Index>({2, 2}));
+    EXPECT_EQ(result.at(0, 0), 58.0f);  // 1*7 + 2*9 + 3*11
+    EXPECT_EQ(result.at(0, 1), 64.0f);  // 1*8 + 2*10 + 3*12
+    EXPECT_EQ(result.at(1, 0), 139.0f); // 4*7 + 5*9 + 6*11
+    EXPECT_EQ(result.at(1, 1), 154.0f); // 4*8 + 5*10 + 6*12
+
+    // Test transpose
+    auto transposed = t1.transpose();
+    ASSERT_EQ(transposed.get_shape(), std::vector<Eigen::Index>({3, 2}));
+    EXPECT_EQ(transposed.at(0, 0), 1.0f);
+    EXPECT_EQ(transposed.at(1, 0), 2.0f);
+    EXPECT_EQ(transposed.at(2, 0), 3.0f);
+    EXPECT_EQ(transposed.at(0, 1), 4.0f);
+    EXPECT_EQ(transposed.at(1, 1), 5.0f);
+    EXPECT_EQ(transposed.at(2, 1), 6.0f);
+
+    // Test dimension mismatch error
+    nn::Tensor t3(3, 2);
+    ASSERT_THROW(t1.matmul(t3), std::invalid_argument);
+
+    // Test non-2D tensor error
+    nn::Tensor t4({2, 3, 4});
+    ASSERT_THROW(t4.matmul(t2), std::invalid_argument);
+    ASSERT_THROW(t4.transpose(), std::invalid_argument);
+}
+
+TEST(TensorTest, ActivationFunctions)
+{
+    // Test ReLU
+    nn::Tensor t(2, 3);
+    t.at(0, 0) = 1.0f;
+    t.at(0, 1) = -2.0f;
+    t.at(0, 2) = 3.0f;
+    t.at(1, 0) = -4.0f;
+    t.at(1, 1) = 5.0f;
+    t.at(1, 2) = -6.0f;
+
+    auto relu_result = t.relu();
+    ASSERT_EQ(relu_result.get_shape(), std::vector<Eigen::Index>({2, 3}));
+    EXPECT_EQ(relu_result.at(0, 0), 1.0f); // max(1, 0) = 1
+    EXPECT_EQ(relu_result.at(0, 1), 0.0f); // max(-2, 0) = 0
+    EXPECT_EQ(relu_result.at(0, 2), 3.0f); // max(3, 0) = 3
+    EXPECT_EQ(relu_result.at(1, 0), 0.0f); // max(-4, 0) = 0
+    EXPECT_EQ(relu_result.at(1, 1), 5.0f); // max(5, 0) = 5
+    EXPECT_EQ(relu_result.at(1, 2), 0.0f); // max(-6, 0) = 0
+}

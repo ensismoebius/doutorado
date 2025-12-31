@@ -16,11 +16,11 @@
  */
 struct Linear : public Module
 {
-    int in_features;             // número de entradas (features de entrada do tensor)
-    int out_features;            // número de saídas (neurônios ou unidades na camada)
-    nn::Tensor weight;               // matriz de pesos com dimensão [out_features x in_features]
-    nn::Tensor bias;                 // vetor de bias com dimensão [out_features]
-    Eigen::MatrixXf input_cache; // armazena a entrada da camada para uso no backpropagation
+    int in_features;        // número de entradas (features de entrada do tensor)
+    int out_features;       // número de saídas (neurônios ou unidades na camada)
+    nn::Tensor weight;      // matriz de pesos com dimensão [out_features x in_features]
+    nn::Tensor bias;        // vetor de bias com dimensão [out_features]
+    nn::Tensor input_cache; // armazena a entrada da camada para uso no backpropagation
 
     /**
      * @brief Inicializa pesos e bias com base no número de entradas e saídas
@@ -41,9 +41,12 @@ struct Linear : public Module
     auto debug(const nn::Tensor& input) -> void
     {
         std::cout << "Linear layer forward:" << "\n";
-        std::cout << "Input dims: " << input.get_data_ref().rows() << "x" << input.get_data_ref().cols() << "\n";
-        std::cout << "Weight dims: " << weight.get_data_ref().rows() << "x" << weight.get_data_ref().cols() << "\n";
-        std::cout << "Bias dims: " << bias.get_data_ref().rows() << "x" << bias.get_data_ref().cols() << "\n";
+        std::cout << "Input dims: " << input.get_data_ref().rows() << "x"
+                  << input.get_data_ref().cols() << "\n";
+        std::cout << "Weight dims: " << weight.get_data_ref().rows() << "x"
+                  << weight.get_data_ref().cols() << "\n";
+        std::cout << "Bias dims: " << bias.get_data_ref().rows() << "x"
+                  << bias.get_data_ref().cols() << "\n";
     }
 #endif
 
@@ -56,7 +59,7 @@ struct Linear : public Module
      */
     auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
-        input_cache = input.get_data_ref(); // salva para o backward
+        input_cache = input; // salva para o backward
 
 #ifdef DEBUG
         // If DEBUG is defined then show the debug information
@@ -66,9 +69,16 @@ struct Linear : public Module
         // Be x = input and y = output
         // y = x.w + b
         // Ensure bias is broadcast as a row vector
-        Eigen::MatrixXf const output =
-            (input.get_data_ref() * weight.get_data_ref().transpose()).rowwise() + bias.get_data_ref().col(0).transpose();
-        return nn::Tensor{output};
+        auto weight_t = weight.transpose();
+        auto intermediate = input.matmul(weight_t);
+
+        // Add bias - broadcast bias across batch dimension
+        // intermediate shape: [batch_size, out_features]
+        // bias shape: [out_features, 1] -> needs to be broadcasted to [batch_size, out_features]
+        Eigen::MatrixXf result_data = intermediate.get_data_ref();
+        result_data.rowwise() += bias.get_data_ref().col(0).transpose();
+
+        return nn::Tensor{result_data};
     }
 
     /**
@@ -108,7 +118,7 @@ struct Linear : public Module
         // Então dY/dW = dY/dZ * dZ/dW é igual a:
         // grad_weight = grad_previous.T * input_cache
 
-        weight.set_grad(grad_previous.get_data_ref().transpose() * input_cache);
+        weight.set_grad(grad_previous.get_data_ref().transpose() * input_cache.get_data_ref());
 
         // Da mesma forma o gradiente em relação a B será expresso por
         // dY/db = dY/dZ * dZ/dB
@@ -126,9 +136,8 @@ struct Linear : public Module
         // dY/dX = grad_output * (WX + B)'
         // dY/dX = grad_output * W*1*X^0 + 0
         // dY/dX = grad_output * W
-        Eigen::MatrixXf const grad_input = grad_previous.get_data_ref() * weight.get_data_ref();
-
-        return nn::Tensor{grad_input};
+        auto grad_input_tensor = grad_previous.matmul(weight);
+        return grad_input_tensor;
     }
 };
 

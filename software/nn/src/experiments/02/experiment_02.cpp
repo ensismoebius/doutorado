@@ -236,15 +236,15 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
         std::vector<nn::Tensor> train_inputs, train_targets;
         for (size_t i = 0; i < train_features.size(); ++i)
         {
-            Eigen::MatrixXf x(1, train_features[i].size());
+            nn::Tensor x(1, static_cast<Eigen::Index>(train_features[i].size()));
             for (size_t j = 0; j < train_features[i].size(); ++j)
             {
-                x(0, j) = train_features[i][j];
+                x.at(0, static_cast<Eigen::Index>(j)) = train_features[i][j];
             }
             train_inputs.emplace_back(x);
 
-            Eigen::MatrixXf y = Eigen::MatrixXf::Zero(1, n_classes);
-            y(0, train_labels[i]) = 1.0f;
+            nn::Tensor y(1, n_classes);
+            y.at(0, train_labels[i]) = 1.0f;
             train_targets.emplace_back(y);
         }
 
@@ -268,21 +268,20 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
         std::vector<int> pred_labels;
         for (const auto& test_feat : test_features)
         {
-            Eigen::MatrixXf x(1, test_feat.size());
+            nn::Tensor x(1, static_cast<Eigen::Index>(test_feat.size()));
             for (size_t j = 0; j < test_feat.size(); ++j)
             {
-                x(0, j) = test_feat[j];
+                x.at(0, static_cast<Eigen::Index>(j)) = test_feat[j];
             }
-            nn::Tensor input(x);
+            nn::Tensor input = x;
             nn::Tensor output = model.forward(input);
 
             // Get prediction
-            Eigen::MatrixXf out_data = output.get_data_ref();
             int pred = 0;
-            float max_val = out_data(0, 0);
+            float max_val = output.at(0, 0);
             for (int c = 1; c < n_classes; ++c)
             {
-                if (out_data(0, c) > max_val)
+                if (output.at(0, c) > max_val)
                 {
                     max_val = out_data(0, c);
                     pred = c;
@@ -461,7 +460,7 @@ auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
         throw std::runtime_error("Failed to load EEG data from " + mat_path);
     }
 
-    Eigen::MatrixXf mat = std::move(*mat_opt);
+    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
     std::vector<EEGSample> samples;
 
     for (int i = 0; i < mat.rows(); ++i)
@@ -497,7 +496,7 @@ auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
         throw std::runtime_error("Failed to load Audio data from " + mat_path);
     }
 
-    Eigen::MatrixXf mat = std::move(*mat_opt);
+    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
     std::vector<AudioSample> samples;
 
     for (int i = 0; i < mat.rows(); ++i)

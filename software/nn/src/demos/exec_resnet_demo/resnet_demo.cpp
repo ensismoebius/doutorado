@@ -2,6 +2,7 @@
 #include <memory>
 #include <vector>
 
+#include "../../core/utility/batching.hpp"
 #include "core/dataLoaders/MatFileUtils.h"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
@@ -10,7 +11,7 @@
 #include "core/layers/ResidualBlock.hpp"
 #include "core/layers/Sequential.hpp"
 #include "core/optimizers/Adam.hpp"
-#include "../../core/utility/batching.hpp"
+#include "core/tensor/Tensor.hpp"
 
 using namespace std;
 
@@ -47,7 +48,7 @@ auto main() -> int
         return 1;
     }
 
-    Eigen::MatrixXf mat = std::move(*mat_opt);
+    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
     if (mat.cols() < 2)
     {
         cerr << "Matrix must have at least 2 columns (features + label)" << '\n';
@@ -74,12 +75,12 @@ auto main() -> int
 
     for (int i = 0; i < n_samples; ++i)
     {
-        Eigen::MatrixXf x = mat.row(i).leftCols(n_features);
-        Eigen::MatrixXf y = Eigen::MatrixXf::Zero(1, n_classes);
-        int lbl = static_cast<int>(mat(i, mat.cols() - 1));
+        nn::Tensor x = mat.row(i).leftCols(n_features);
+        nn::Tensor y(1, n_classes);
+        int lbl = static_cast<int>(mat.at(i, mat.cols() - 1));
         if (lbl >= 0 && lbl < n_classes)
         {
-            y(0, lbl) = 1.0F;
+            y.at(0, lbl) = 1.0F;
         }
 
         inputs.emplace_back(std::move(x));
