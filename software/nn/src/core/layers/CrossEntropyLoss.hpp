@@ -34,7 +34,7 @@ class CrossEntropyLoss : public Module
         float loss =
             -(last_targets.get_data_ref().array() * logp).sum() / static_cast<float>(x.rows());
         nn::Tensor loss_tensor(1, 1);
-        loss_tensor.data(0, 0) = loss;
+        loss_tensor.at(0, 0) = loss;
         return loss_tensor;
     }
 

@@ -211,7 +211,7 @@ struct Leaky : public Module
     {
         // --- Surrogate Gradient Calculation ---
         const Eigen::MatrixXf surrogate_grad =
-            surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.get_data_ref()(0, 0));
+            surrogate_gradient->calculate(nn::Tensor(v_mem_pre_spike), voltage_threshold.get_data_ref()(0, 0)).get_data_ref();
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.

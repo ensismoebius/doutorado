@@ -23,7 +23,7 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
     {
         for (int j = 0; j < input_dim; ++j)
         {
-            real.data(i, j) = (dist(gen) + 1.0F) / 2.0F;
+            real.at(i, j) = (dist(gen) + 1.0F) / 2.0F;
         }
     }
 
@@ -37,7 +37,7 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
             for (int j = 0; j < input_dim; ++j)
             {
                 // Scale real values to [0, max_rate]
-                float rate = real.data(i, j) * max_rate;
+                float rate = real.at(i, j) * max_rate;
 
                 // Probability of spike in this time step
                 const float p_spike = rate * timeStep;
@@ -45,7 +45,7 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
                 // Poisson spike generation
                 if (dist(gen) < p_spike)
                 {
-                    spikes.data(i, j) = 1.0F;
+                    spikes.at(i, j) = 1.0F;
                 }
             }
         }
@@ -68,7 +68,7 @@ auto generate_autoencoder_spike_data_of_ones(int n_samples, int input_dim, int n
     {
         // Initialize spike matrix for this time step
         nn::Tensor spikes(n_samples, input_dim);
-        spikes.data.setOnes();
+        spikes.get_data_ref().setOnes();
 
         // Store the spike train for this time step
         spike_inputs.emplace_back(spikes);

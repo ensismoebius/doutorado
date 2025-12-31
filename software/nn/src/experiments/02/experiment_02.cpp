@@ -283,7 +283,7 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
             {
                 if (output.at(0, c) > max_val)
                 {
-                    max_val = out_data(0, c);
+                    max_val = output.at(0, c);
                     pred = c;
                 }
             }
@@ -472,14 +472,14 @@ auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
             std::vector<double> channel(4096);
             for (int s = 0; s < 4096; ++s)
             {
-                channel[s] = mat(i, ch * 4096 + s);
+                channel[s] = mat.at(i, ch * 4096 + s);
             }
             sample.channels.push_back(channel);
         }
         // Labels
-        sample.modality = static_cast<int>(mat(i, 24576));
-        sample.stimulus = static_cast<int>(mat(i, 24577));
-        sample.artifacts = static_cast<int>(mat(i, 24578));
+        sample.modality = static_cast<int>(mat.at(i, 24576));
+        sample.stimulus = static_cast<int>(mat.at(i, 24577));
+        sample.artifacts = static_cast<int>(mat.at(i, 24578));
 
         samples.push_back(sample);
     }
@@ -506,11 +506,11 @@ auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
         sample.signal.resize(176400);
         for (int s = 0; s < 176400; ++s)
         {
-            sample.signal[s] = mat(i, s);
+            sample.signal[s] = mat.at(i, s);
         }
         // Labels
-        sample.stimulus = static_cast<int>(mat(i, 176400));
-        sample.eeg_index = static_cast<int>(mat(i, 176401));
+        sample.stimulus = static_cast<int>(mat.at(i, 176400));
+        sample.eeg_index = static_cast<int>(mat.at(i, 176401));
 
         samples.push_back(sample);
     }

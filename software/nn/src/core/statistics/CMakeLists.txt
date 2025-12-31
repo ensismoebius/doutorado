@@ -14,4 +14,5 @@ target_include_directories(statistics
 target_link_libraries(statistics
     PUBLIC
         Eigen3::Eigen
+        tensor
 )

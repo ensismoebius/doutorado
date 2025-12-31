@@ -153,7 +153,7 @@ TEST(SurrogateGradientTest, Exponential)
     ExponentialSurrogate surrogate(1.0F);
     Eigen::MatrixXf v_mem(1, 1);
     v_mem << 2.1F;
-    Eigen::MatrixXf grad = surrogate.calculate(v_mem, 2.0F);
+    Eigen::MatrixXf grad = surrogate.calculate(nn::Tensor(v_mem), 2.0F).get_data_ref();
     ASSERT_NEAR(grad(0, 0), 0.9048374, 1e-5F);
 }
 
@@ -162,7 +162,7 @@ TEST(SurrogateGradientTest, Boxcar)
     BoxcarSurrogate surrogate(0.5F);
     Eigen::MatrixXf v_mem(1, 2);
     v_mem << 2.1F, 2.3F;
-    Eigen::MatrixXf grad = surrogate.calculate(v_mem, 2.0F);
+    Eigen::MatrixXf grad = surrogate.calculate(nn::Tensor(v_mem), 2.0F).get_data_ref();
     ASSERT_FLOAT_EQ(grad(0, 0), 1.0F);
     ASSERT_FLOAT_EQ(grad(0, 1), 0.0F);
 }

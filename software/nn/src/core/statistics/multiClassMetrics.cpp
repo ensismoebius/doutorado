@@ -13,7 +13,7 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "../../tensor/Tensor.hpp"
+#include "../tensor/Tensor.hpp"
 
 namespace statistics
 {
@@ -78,7 +78,7 @@ ClassificationMetrics compute_classification_metrics(const std::vector<int>& tru
     // Simplified MCC calculation (for binary case, extend for multi-class)
     if (n_classes == 2)
     {
-        int tp = cm(0, 0), tn = cm(1, 1), fp = cm(1, 0), fn = cm(0, 1);
+        int tp = cm.at(0, 0), tn = cm.at(1, 1), fp = cm.at(1, 0), fn = cm.at(0, 1);
         double numerator = static_cast<double>(tp * tn - fp * fn);
         double denominator =
             std::sqrt(static_cast<double>((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)));

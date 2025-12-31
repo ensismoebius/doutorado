@@ -2,8 +2,7 @@ add_library(tensor STATIC
     Tensor.cpp
 )
 
-
-
+set_target_properties(tensor PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 target_include_directories(tensor 
     PUBLIC

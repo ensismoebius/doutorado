@@ -223,7 +223,7 @@ TEST(TensorTest, MatrixOperations)
     ASSERT_THROW(t1.matmul(t3), std::invalid_argument);
 
     // Test non-2D tensor error
-    nn::Tensor t4({2, 3, 4});
+    nn::Tensor t4(std::vector<Eigen::Index>{2, 3, 4});
     ASSERT_THROW(t4.matmul(t2), std::invalid_argument);
     ASSERT_THROW(t4.transpose(), std::invalid_argument);
 }
@@ -256,6 +256,7 @@ TEST(TensorTest, ActivationFunctions)
     EXPECT_EQ(leaky_result.at(1, 0), -0.4f); // min(-4, 0) * 0.1 = -0.4
     EXPECT_EQ(leaky_result.at(1, 1), 5.0f);  // max(5, 0) = 5
     EXPECT_EQ(leaky_result.at(1, 2), -0.6f); // min(-6, 0) * 0.1 = -0.6}
+}
 TEST(TensorTest, LossFunctions)
 {
     // Test mean_squared_error

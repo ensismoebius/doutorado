@@ -67,7 +67,7 @@ class L1Regularization : public Regularization
 
         // Create a 1x1 tensor to hold the scalar penalty value
         nn::Tensor loss(1, 1);
-        loss.data(0, 0) = penalty;
+        loss.at(0, 0) = penalty;
 
         // Return the penalty as a tensor
         return loss;
@@ -125,7 +125,7 @@ class L2Regularization : public Regularization
 
         // Create a 1x1 tensor to hold the scalar penalty value
         nn::Tensor loss(1, 1);
-        loss.data(0, 0) = penalty;
+        loss.at(0, 0) = penalty;
 
         // Return the penalty as a tensor
         return loss;

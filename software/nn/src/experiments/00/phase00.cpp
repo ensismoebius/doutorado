@@ -248,14 +248,14 @@ auto main(int argc, const char* argv[]) -> int
 
                     // Extract features from EEG trial
                     std::vector<double> eeg_features_single_trial =
-                        extract_wavelet_features_single_trial(eeg_trial_data,
+                        extract_wavelet_features_single_trial(nn::Tensor(eeg_trial_data),
                                                               cfg.duration_sec,
                                                               cfg.overlap_percent,
                                                               cfg.eeg_sampling_rate);
 
                     // Extract features from Audio trial
                     std::vector<double> audio_features_single_trial =
-                        extract_wavelet_features_single_trial(audio_trial_data,
+                        extract_wavelet_features_single_trial(nn::Tensor(audio_trial_data),
                                                               cfg.duration_sec,
                                                               cfg.overlap_percent,
                                                               cfg.sampling_rate);

@@ -68,7 +68,7 @@ auto main() -> int
     int max_label = 0;
     for (int i = 0; i < n_samples; ++i)
     {
-        int lbl = static_cast<int>(mat(i, mat.cols() - 1));
+        int lbl = static_cast<int>(mat.at(i, mat.cols() - 1));
         max_label = max(max_label, lbl);
     }
     int n_classes = max_label + 1;
