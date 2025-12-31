@@ -353,6 +353,29 @@ auto Tensor::relu() const -> Tensor
     return Tensor(result);
 }
 
+auto Tensor::leaky_relu(float alpha) const -> Tensor
+{
+    Eigen::MatrixXf result = m_data.array().max(0.0f) + (m_data.array().min(0.0f) * alpha);
+    return Tensor(result);
+}
+
+// Loss functions
+auto Tensor::mean_squared_error(const Tensor& target) const -> float
+{
+    if (m_shape != target.get_shape())
+    {
+        throw std::invalid_argument("Shape mismatch in mean_squared_error");
+    }
+    Eigen::MatrixXf diff = m_data - target.get_data_ref();
+    float sum_squared = diff.array().square().sum();
+    return sum_squared / static_cast<float>(m_data.size());
+}
+
+auto Tensor::norm() const -> float
+{
+    return m_data.norm();
+}
+
 // Slice operation
 auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {

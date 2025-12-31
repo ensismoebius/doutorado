@@ -591,6 +591,8 @@ Based on usage analysis, add these methods to `nn::Tensor`:
 
 - [x] `src/core/layers/Linear.hpp` - Migrated input_cache and matrix operations
 - [x] `src/core/layers/ReLU.hpp` - Migrated gradient storage and activation operations
+- [x] `src/core/layers/LeakyReLU.hpp` - Migrated gradient storage and leaky activation
+- [x] `src/core/layers/MSELoss.hpp` - Migrated loss computation and gradient calculation
 - [ ] `src/core/layers/Conv2d_impl.cpp` - Complex im2col transformation migration
 - [ ] `src/core/layers/Conv2d_utils.cpp` - Bias operations and matrix manipulations
 

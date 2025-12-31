@@ -247,4 +247,35 @@ TEST(TensorTest, ActivationFunctions)
     EXPECT_EQ(relu_result.at(1, 0), 0.0f); // max(-4, 0) = 0
     EXPECT_EQ(relu_result.at(1, 1), 5.0f); // max(5, 0) = 5
     EXPECT_EQ(relu_result.at(1, 2), 0.0f); // max(-6, 0) = 0
+    // Test LeakyReLU
+    auto leaky_result = t.leaky_relu(0.1f);
+    ASSERT_EQ(leaky_result.get_shape(), std::vector<Eigen::Index>({2, 3}));
+    EXPECT_EQ(leaky_result.at(0, 0), 1.0f);  // max(1, 0) = 1
+    EXPECT_EQ(leaky_result.at(0, 1), -0.2f); // min(-2, 0) * 0.1 = -0.2
+    EXPECT_EQ(leaky_result.at(0, 2), 3.0f);  // max(3, 0) = 3
+    EXPECT_EQ(leaky_result.at(1, 0), -0.4f); // min(-4, 0) * 0.1 = -0.4
+    EXPECT_EQ(leaky_result.at(1, 1), 5.0f);  // max(5, 0) = 5
+    EXPECT_EQ(leaky_result.at(1, 2), -0.6f); // min(-6, 0) * 0.1 = -0.6}
+TEST(TensorTest, LossFunctions)
+{
+    // Test mean_squared_error
+    nn::Tensor pred(2, 2);
+    pred.at(0, 0) = 1.0f; pred.at(0, 1) = 2.0f;
+    pred.at(1, 0) = 3.0f; pred.at(1, 1) = 4.0f;
+
+    nn::Tensor target(2, 2);
+    target.at(0, 0) = 1.5f; target.at(0, 1) = 2.5f;
+    target.at(1, 0) = 3.5f; target.at(1, 1) = 4.5f;
+
+    float mse = pred.mean_squared_error(target);
+    // Differences: 0.5, 0.5, 0.5, 0.5
+    // Squared: 0.25, 0.25, 0.25, 0.25
+    // Sum: 1.0, divided by 4 elements: 0.25
+    EXPECT_FLOAT_EQ(mse, 0.25f);
+
+    // Test norm
+    nn::Tensor vec(1, 3);
+    vec.at(0, 0) = 3.0f; vec.at(0, 1) = 4.0f; vec.at(0, 2) = 0.0f;
+    float norm_val = vec.norm();
+    EXPECT_FLOAT_EQ(norm_val, 5.0f);  // sqrt(3^2 + 4^2 + 0^2) = 5
 }

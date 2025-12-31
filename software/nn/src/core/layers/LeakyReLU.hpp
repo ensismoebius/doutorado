@@ -9,42 +9,31 @@
 struct LeakyReLU : public Module
 {
     float alpha; // negative slope
-    Eigen::MatrixXf leaky_grad;
+    nn::Tensor leaky_grad;
 
     explicit LeakyReLU(float alpha_ = 0.01F) : alpha(alpha_) {}
 
     auto forward(const nn::Tensor& input) -> nn::Tensor override
     {
         // Cache the gradient for the backward pass
-        leaky_grad =
-            (input.get_data_ref().array() > 0) // For each element, check if it's greater than 0
-                .select(                       // Select values based on the condition
-                    Eigen::MatrixXf::Ones( // If the element is greater than 0, the gradient is 1
-                        input.get_data_ref().rows(), //
-                        input.get_data_ref().cols()  //
-                        ),                           //
-                    Eigen::MatrixXf::Constant(       // Otherwise, the gradient is alpha
-                        input.get_data_ref().rows(), //
-                        input.get_data_ref().cols(), //
-                        alpha                        //
-                        )                            //
-                );
+        // Create gradient mask: 1 for positive values, alpha for negative values
+        Eigen::MatrixXf grad_mask =
+            (input.get_data_ref().array() > 0)
+                .select(
+                    Eigen::MatrixXf::Ones(input.get_data_ref().rows(), input.get_data_ref().cols()),
+                    Eigen::MatrixXf::Constant(
+                        input.get_data_ref().rows(), input.get_data_ref().cols(), alpha));
+        leaky_grad = nn::Tensor(grad_mask);
 
-        // Apply the LeakyReLU activation function
-        Eigen::MatrixXf activated =
-            (input.get_data_ref().array() > 0) // For each element, check if it's greater than 0
-                .select(                       // Select values based on the condition
-                    input.get_data_ref(), // If the element is greater than 0, it remains unchanged
-                    input.get_data_ref().array() * alpha // Otherwise, it's scaled by alpha
-                );
-
-        return nn::Tensor{activated};
+        // Apply the LeakyReLU activation function using Tensor method
+        return input.leaky_relu(alpha);
     }
 
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
-        Eigen::MatrixXf grad_input = grad_output.get_data_ref().array() * leaky_grad.array();
-        return nn::Tensor{grad_input};
+        // Element-wise multiplication of grad_output with leaky_grad mask
+        auto grad_input = grad_output.multiply(leaky_grad);
+        return grad_input;
     }
 };
 

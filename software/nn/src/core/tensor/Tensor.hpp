@@ -73,6 +73,11 @@ class Tensor
 
     // Activation functions
     auto relu() const -> Tensor;
+    auto leaky_relu(float alpha = 0.01f) const -> Tensor;
+
+    // Loss functions
+    auto mean_squared_error(const Tensor& target) const -> float;
+    auto norm() const -> float;
 
     // Conversion to std::vector
     template <typename vector_type>

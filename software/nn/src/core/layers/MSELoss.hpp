@@ -29,7 +29,7 @@ class MSELoss : public Module
         last_input = prediction;
 
         // Use last_target set by set_target
-        Eigen::MatrixXf diff = prediction.get_data_ref() - last_target.get_data_ref();
+        float mse = prediction.mean_squared_error(last_target);
 
         // Check for invalid values in the predictions
         if (!prediction.get_data_ref().allFinite()) [[unlikely]]
@@ -39,19 +39,6 @@ class MSELoss : public Module
             return nn::Tensor{Eigen::MatrixXf::Constant(
                 1, 1, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR)};
         }
-
-        // Compute MSE with careful reduction
-        float sum_squared = 0.0F;
-        long count = diff.size();
-
-#pragma omp parallel for reduction(+ : sum_squared)
-        for (long i = 0; i < count; ++i)
-        {
-            float val = diff(i);
-            sum_squared += val * val;
-        }
-
-        float mse = sum_squared / static_cast<float>(count);
 
         // Clip extremely large values to prevent overflow
         mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
@@ -68,26 +55,28 @@ class MSELoss : public Module
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
     auto backward(const nn::Tensor& /* prediction */) -> nn::Tensor override
     {
-        Eigen::MatrixXf grad =
-            MSE_GRADIENT_FACTOR * (last_input.get_data_ref() - last_target.get_data_ref()) / last_input.get_data_ref().size();
+        // Compute gradient: 2 * (prediction - target) / num_elements
+        auto diff = last_input.add(last_target.multiply_scalar(-1.0f));
+        auto grad = diff.multiply_scalar(MSE_GRADIENT_FACTOR /
+                                         static_cast<float>(last_input.get_data_ref().size()));
 
         // Check for invalid gradients
-        if (!grad.allFinite()) [[unlikely]]
+        if (!grad.get_data_ref().allFinite()) [[unlikely]]
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
-            grad.setZero(); // Return zero gradient to prevent further issues
-            return nn::Tensor{grad};
+            // Return zero gradient to prevent further issues
+            return nn::Tensor{Eigen::MatrixXf::Zero(last_input.get_data_ref().rows(),
+                                                    last_input.get_data_ref().cols())};
         }
 
         // Gradient clipping to prevent explosion
         float grad_norm = grad.norm();
-        constexpr float max_grad_norm = 1.0F;
-        if (grad_norm > max_grad_norm) [[unlikely]]
+        if (grad_norm > MAX_GRADIENT_NORM) [[unlikely]]
         {
-            grad *= max_grad_norm / grad_norm;
+            grad.multiply_scalar(MAX_GRADIENT_NORM / grad_norm);
         }
 
-        return nn::Tensor{grad};
+        return grad;
     }
 };
 
