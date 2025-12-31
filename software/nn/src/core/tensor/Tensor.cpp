@@ -97,6 +97,10 @@ float& Tensor::at(Eigen::Index row, Eigen::Index col)
     {
         throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
     }
+    if (row < 0 || row >= m_shape[0] || col < 0 || col >= m_shape[1])
+    {
+        throw std::out_of_range("Index out of range");
+    }
     return m_data(row, col);
 }
 
@@ -106,11 +110,24 @@ const float& Tensor::at(Eigen::Index row, Eigen::Index col) const
     {
         throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
     }
+    if (row < 0 || row >= m_shape[0] || col < 0 || col >= m_shape[1])
+    {
+        throw std::out_of_range("Index out of range");
+    }
     return m_data(row, col);
 }
 
 float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4)
 {
+    if (m_shape.size() != 4)
+    {
+        throw std::invalid_argument("at(d1, d2, d3, d4) is only valid for 4D tensors");
+    }
+    if (d1 < 0 || d1 >= m_shape[0] || d2 < 0 || d2 >= m_shape[1] || d3 < 0 || d3 >= m_shape[2] ||
+        d4 < 0 || d4 >= m_shape[3])
+    {
+        throw std::out_of_range("Index out of range");
+    }
     Eigen::Index channels = m_shape[1];
     Eigen::Index height = m_shape[2];
     Eigen::Index width = m_shape[3];
@@ -122,12 +139,64 @@ float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Inde
 
 const float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const
 {
+    if (m_shape.size() != 4)
+    {
+        throw std::invalid_argument("at(d1, d2, d3, d4) is only valid for 4D tensors");
+    }
+    if (d1 < 0 || d1 >= m_shape[0] || d2 < 0 || d2 >= m_shape[1] || d3 < 0 || d3 >= m_shape[2] ||
+        d4 < 0 || d4 >= m_shape[3])
+    {
+        throw std::out_of_range("Index out of range");
+    }
     Eigen::Index channels = m_shape[1];
     Eigen::Index height = m_shape[2];
     Eigen::Index width = m_shape[3];
 
     Eigen::Index index =
         (d1 * (channels * height * width)) + (d2 * (height * width)) + (d3 * width) + d4;
+    return m_data(index, 0);
+}
+
+// General N-D access
+float& Tensor::at(const std::vector<Eigen::Index>& indices)
+{
+    if (indices.size() != m_shape.size())
+    {
+        throw std::invalid_argument("Number of indices must match tensor dimensions");
+    }
+    Eigen::Index index = 0;
+    Eigen::Index stride = 1;
+    for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
+    {
+        if (indices[static_cast<size_t>(i)] < 0 ||
+            indices[static_cast<size_t>(i)] >= m_shape[static_cast<size_t>(i)])
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        index += indices[static_cast<size_t>(i)] * stride;
+        stride *= m_shape[static_cast<size_t>(i)];
+    }
+    return m_data(index, 0);
+}
+
+const float& Tensor::at(const std::vector<Eigen::Index>& indices) const
+{
+    if (indices.size() != m_shape.size())
+    {
+        throw std::invalid_argument("Number of indices must match tensor dimensions");
+    }
+    Eigen::Index index = 0;
+    Eigen::Index stride = 1;
+    for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
+    {
+        if (indices[static_cast<size_t>(i)] < 0 ||
+            indices[static_cast<size_t>(i)] >= m_shape[static_cast<size_t>(i)])
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        index += indices[static_cast<size_t>(i)] * stride;
+        stride *= m_shape[static_cast<size_t>(i)];
+    }
     return m_data(index, 0);
 }
 
