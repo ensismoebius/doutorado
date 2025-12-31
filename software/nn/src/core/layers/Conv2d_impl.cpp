@@ -78,8 +78,9 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     add_bias_optimized(output_2d, bias_, total_patch_cols);
 
     // 5. Reshape output efficiently
+    nn::Tensor output_2d_tensor(output_2d);
     nn::Tensor output =
-        reshape_output_optimized(output_2d, batch_size, output_height, output_width);
+        reshape_output_optimized(output_2d_tensor, batch_size, output_height, output_width);
 
     return output;
 }
@@ -176,8 +177,9 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     Eigen::MatrixXf d_input_col = weights_mapped * grad_output_mapped;
 
     // 7. Convert col2im (input gradient)
+    nn::Tensor d_input_col_tensor(d_input_col);
     nn::Tensor grad_input = col2im_optimized(
-        d_input_col, batch_size, input_height, input_width, output_height, output_width);
+        d_input_col_tensor, batch_size, input_height, input_width, output_height, output_width);
 
     return grad_input;
 }

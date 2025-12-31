@@ -1,8 +1,6 @@
 #ifndef LEAKYRELU_HPP
 #define LEAKYRELU_HPP
 
-#include <Eigen/Dense>
-
 #include "../tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 

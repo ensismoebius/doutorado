@@ -1,5 +1,4 @@
 #pragma once
-#include <Eigen/Dense>
 
 #include "../tensor/Tensor.hpp"
 #include "Module.hpp"
@@ -18,13 +17,14 @@ class SpikeCountLoss : public Module
         // pred and target: (n_samples, 1)
         Eigen::MatrixXf diff = pred.get_data_ref() - target.get_data_ref();
         float loss = diff.array().square().mean();
-        Eigen::MatrixXf loss_mat(1, 1);
-        loss_mat(0, 0) = loss;
-        return nn::Tensor(loss_mat);
+        nn::Tensor loss_tensor(1, 1);
+        loss_tensor.data(0, 0) = loss;
+        return loss_tensor;
     }
     auto backward(const nn::Tensor& pred) -> nn::Tensor override
     {
-        Eigen::MatrixXf grad = 2.0F * (pred.get_data_ref() - target.get_data_ref()) / pred.get_data_ref().size();
+        Eigen::MatrixXf grad =
+            2.0F * (pred.get_data_ref() - target.get_data_ref()) / pred.get_data_ref().size();
         return nn::Tensor(grad);
     }
     void reset_parameters() {}

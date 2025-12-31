@@ -1,7 +1,7 @@
 #ifndef SURROGATE_GRADIENT_HPP
 #define SURROGATE_GRADIENT_HPP
 
-#include <Eigen/Dense>
+#include "../tensor/Tensor.hpp"
 
 // Interface for surrogate gradient functions
 class ISurrogateGradient
@@ -9,8 +9,8 @@ class ISurrogateGradient
    public:
     virtual ~ISurrogateGradient() = default;
 
-    [[nodiscard]] virtual auto calculate(const Eigen::MatrixXf& v_mem_pre_spike,
-                                         float voltage_threshold) const -> Eigen::MatrixXf = 0;
+    [[nodiscard]] virtual auto calculate(const nn::Tensor& v_mem_pre_spike,
+                                         float voltage_threshold) const -> nn::Tensor = 0;
 };
 
 // Exponential / SuperSpike surrogate gradient
@@ -19,12 +19,14 @@ class ExponentialSurrogate : public ISurrogateGradient
    public:
     explicit ExponentialSurrogate(float sharpness = 1.0F) : sharpness_(sharpness) {}
 
-    [[nodiscard]] auto calculate(const Eigen::MatrixXf& v_mem_pre_spike,
-                                 float voltage_threshold) const -> Eigen::MatrixXf override
+    [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
+        -> nn::Tensor override
     {
-        const Eigen::MatrixXf diff_abs = (v_mem_pre_spike.array() - voltage_threshold).abs();
+        const Eigen::MatrixXf& v_mem = v_mem_pre_spike.get_data_ref();
+        const Eigen::MatrixXf diff_abs = (v_mem.array() - voltage_threshold).abs();
 
-        return (1.0F / sharpness_) * ((-diff_abs / sharpness_).array().exp());
+        Eigen::MatrixXf result = (1.0F / sharpness_) * ((-diff_abs / sharpness_).array().exp());
+        return nn::Tensor(result);
     }
 
    private:
@@ -37,12 +39,14 @@ class BoxcarSurrogate : public ISurrogateGradient
    public:
     explicit BoxcarSurrogate(float window = 0.5F) : window_(window) {}
 
-    [[nodiscard]] auto calculate(const Eigen::MatrixXf& v_mem_pre_spike,
-                                 float voltage_threshold) const -> Eigen::MatrixXf override
+    [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
+        -> nn::Tensor override
     {
-        const Eigen::MatrixXf diff_abs = (v_mem_pre_spike.array() - voltage_threshold).abs();
+        const Eigen::MatrixXf& v_mem = v_mem_pre_spike.get_data_ref();
+        const Eigen::MatrixXf diff_abs = (v_mem.array() - voltage_threshold).abs();
 
-        return (diff_abs.array() < (window_ / 2.0F)).cast<float>();
+        Eigen::MatrixXf result = (diff_abs.array() < (window_ / 2.0F)).cast<float>();
+        return nn::Tensor(result);
     }
 
    private:

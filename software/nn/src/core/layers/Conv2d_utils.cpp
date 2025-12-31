@@ -164,7 +164,7 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
 // ============ Column-to-Image (col2im) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
+auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height,
                               int input_width, int output_height, int output_width) const
     -> nn::Tensor
 {
@@ -209,7 +209,7 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) += cols.get_data_ref()(elem_idx, col_idx);
                             }
                         }
                     }
@@ -240,7 +240,7 @@ auto Conv2d::col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int i
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) += cols.get_data_ref()(elem_idx, col_idx);
                             }
                         }
                     }
@@ -316,7 +316,7 @@ void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
 
 // ============ Output Reshaping ============
 
-auto Conv2d::reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size,
+auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size,
                                       int output_height, int output_width) const -> nn::Tensor
 {
     // Create output tensor with correct shape
@@ -332,7 +332,7 @@ auto Conv2d::reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_s
 
     // Direct assignment using noalias - Eigen evaluates most efficiently
     // compared to manual memcpy, as it leverages vectorization
-    output_map.noalias() = matrix;
+    output_map.noalias() = matrix.get_data_ref();
 
     return output;
 }

@@ -2,7 +2,6 @@
 
 #include <omp.h>
 
-#include <Eigen/Dense>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -161,7 +160,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
      *
      * Reconstructs spatial dimensions from column format, accumulating overlapping patches.
      */
-    auto col2im_optimized(const Eigen::MatrixXf& cols, int batch_size, int input_height,
+    auto col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height,
                           int input_width, int output_height, int output_width) const -> nn::Tensor;
 
     /**
@@ -172,7 +171,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Reshape output matrix to 4D tensor without data copy
      */
-    auto reshape_output_optimized(const Eigen::MatrixXf& matrix, int batch_size, int output_height,
+    auto reshape_output_optimized(const nn::Tensor& matrix, int batch_size, int output_height,
                                   int output_width) const -> nn::Tensor;
 
     /**

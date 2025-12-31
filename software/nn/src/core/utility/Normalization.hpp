@@ -1,7 +1,7 @@
 #ifndef NN_CORE_UTILITY_NORMALIZATION_HPP
 #define NN_CORE_UTILITY_NORMALIZATION_HPP
 
-#include <Eigen/Dense>
+#include "../tensor/Tensor.hpp"
 
 class Normalization
 {
@@ -9,29 +9,27 @@ class Normalization
     /**
      * @brief Normalize data to [0, 1] range
      *
-     * @param data Input matrix
-     * @return Eigen::MatrixXf
+     * @param data Input tensor
+     * @return nn::Tensor
      */
-    static auto normalize_0_1(const Eigen::MatrixXf& data) -> Eigen::MatrixXf
+    static auto normalize_0_1(const nn::Tensor& data) -> nn::Tensor
     {
-        if (data.size() == 0)
+        if (data.get_data_ref().size() == 0)
         {
             return data;
         }
 
-        Eigen::MatrixXf normalized_data = data;
-
-        float min_val = data.minCoeff();
-        float max_val = data.maxCoeff();
+        auto data_matrix = data.get_data_ref();
+        float min_val = data_matrix.minCoeff();
+        float max_val = data_matrix.maxCoeff();
 
         if (max_val == min_val)
         {
-            return Eigen::MatrixXf::Zero(data.rows(), data.cols());
+            return nn::Tensor(data.get_shape());
         }
 
-        normalized_data = (data.array() - min_val) / (max_val - min_val);
-
-        return normalized_data;
+        Eigen::MatrixXf normalized_data = (data_matrix.array() - min_val) / (max_val - min_val);
+        return nn::Tensor(normalized_data);
     }
 };
 

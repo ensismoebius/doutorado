@@ -1,8 +1,7 @@
 #ifndef REGULARIZATION_HPP
 #define REGULARIZATION_HPP
 
-// Include necessary headers for Eigen matrix operations, standard vectors, and the Tensor class
-#include <Eigen/Dense>
+// Include necessary headers for standard vectors and the Tensor class
 #include <vector>
 
 #include "../tensor/Tensor.hpp"
@@ -66,12 +65,12 @@ class L1Regularization : public Regularization
         // Scale the total penalty by the regularization strength
         penalty *= lambda_;
 
-        // Create a 1x1 matrix to hold the scalar penalty value
-        Eigen::MatrixXf loss_mat(1, 1);
-        loss_mat(0, 0) = penalty;
+        // Create a 1x1 tensor to hold the scalar penalty value
+        nn::Tensor loss(1, 1);
+        loss.data(0, 0) = penalty;
 
         // Return the penalty as a tensor
-        return nn::Tensor(loss_mat);
+        return loss;
     }
 
     // Computes and accumulates gradients for L1 regularization: lambda * sign(param)
@@ -124,12 +123,12 @@ class L2Regularization : public Regularization
         // Scale the total penalty by the regularization strength
         penalty *= lambda_;
 
-        // Create a 1x1 matrix to hold the scalar penalty value
-        Eigen::MatrixXf loss_mat(1, 1);
-        loss_mat(0, 0) = penalty;
+        // Create a 1x1 tensor to hold the scalar penalty value
+        nn::Tensor loss(1, 1);
+        loss.data(0, 0) = penalty;
 
         // Return the penalty as a tensor
-        return nn::Tensor(loss_mat);
+        return loss;
     }
 
     // Computes and accumulates gradients for L2 regularization: 2 * lambda * param

@@ -1,19 +1,19 @@
 #ifndef NN_CORE_UTILITY_WINDOWING_HPP
 #define NN_CORE_UTILITY_WINDOWING_HPP
 
-#include <Eigen/Dense>
 #include <vector>
+
+#include "../tensor/Tensor.hpp"
 
 class Windowing
 {
    public:
-    static auto slidingWindow(const Eigen::MatrixXf& data, float window_size_sec,
-                              float overlap_ratio, int sampling_rate)
-        -> std::vector<Eigen::MatrixXf>
+    static auto slidingWindow(const nn::Tensor& data, float window_size_sec, float overlap_ratio,
+                              int sampling_rate) -> std::vector<nn::Tensor>
     {
-        std::vector<Eigen::MatrixXf> windows;
+        std::vector<nn::Tensor> windows;
 
-        if (data.size() == 0)
+        if (data.rows() == 0 || data.cols() == 0)
         {
             return windows;
         }
@@ -32,7 +32,16 @@ class Windowing
 
         for (auto i = 0; i + window_size_samples <= data.cols(); i += step_size_samples) [[likely]]
         {
-            windows.emplace_back(data.block(0, i, data.rows(), window_size_samples));
+            // Create a new tensor for the window
+            nn::Tensor window(data.rows(), window_size_samples);
+            for (int row = 0; row < data.rows(); ++row)
+            {
+                for (int col = 0; col < window_size_samples; ++col)
+                {
+                    window.data(row, col) = data.data(row, i + col);
+                }
+            }
+            windows.emplace_back(window);
         }
 
         return windows;

@@ -1,7 +1,6 @@
 #ifndef MSELOSS_HPP
 #define MSELOSS_HPP
 
-#include <Eigen/Dense>
 #include <iostream>
 #include <limits>
 

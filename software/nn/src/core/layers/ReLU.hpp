@@ -1,8 +1,6 @@
 #ifndef RELU_HPP
 #define RELU_HPP
 
-#include <Eigen/Dense>
-
 #include "../tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
