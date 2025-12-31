@@ -46,6 +46,9 @@ class Tensor
     auto at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) -> float&;
     [[nodiscard]] auto at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4) const
         -> const float&;
+    // General N-D access
+    auto at(const std::vector<Eigen::Index>& indices) -> float&;
+    [[nodiscard]] auto at(const std::vector<Eigen::Index>& indices) const -> const float&;
 
     // Conversion to std::vector
     template <typename vector_type>

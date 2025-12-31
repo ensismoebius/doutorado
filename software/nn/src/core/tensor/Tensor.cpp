@@ -93,20 +93,20 @@ auto Tensor::size() const -> Eigen::Index
 // Element access for 2D and 4D tensors
 float& Tensor::at(Eigen::Index row, Eigen::Index col)
 {
-    if (m_shape.size() == 2)
+    if (m_shape.size() != 2)
     {
-        return m_data(row, col);
+        throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
     }
-    return m_data(row, 0);
+    return m_data(row, col);
 }
 
 const float& Tensor::at(Eigen::Index row, Eigen::Index col) const
 {
-    if (m_shape.size() == 2)
+    if (m_shape.size() != 2)
     {
-        return m_data(row, col);
+        throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
     }
-    return m_data(row, 0);
+    return m_data(row, col);
 }
 
 float& Tensor::at(Eigen::Index d1, Eigen::Index d2, Eigen::Index d3, Eigen::Index d4)
