@@ -197,21 +197,45 @@ auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
     -> std::vector<double>
 {
     std::vector<double> energies;
-    long num_parts = transform.getWaveletPacketAmountOfParts();
 
-    for (long i = 0; i < num_parts; ++i)
+    if (transform.packet)
     {
-        auto part = WaveletTransformResults::getWaveletPacketTransforms(
-            transform.transformedSignal, i, transform.levelsOfTransformation);
+        long num_parts = transform.getWaveletPacketAmountOfParts();
 
-        if (!part.empty())
+        for (long i = 0; i < num_parts; ++i)
         {
-            double energy = 0.0;
-            for (double coeff : part)
+            auto part = WaveletTransformResults::getWaveletPacketTransforms(
+                transform.transformedSignal, i, transform.levelsOfTransformation);
+
+            if (!part.empty())
             {
-                energy += coeff * coeff;
+                double energy = 0.0;
+                for (double coeff : part)
+                {
+                    energy += coeff * coeff;
+                }
+                energies.push_back(std::sqrt(energy)); // RMS energy
             }
-            energies.push_back(std::sqrt(energy)); // RMS energy
+        }
+    }
+    else // Regular wavelet transform
+    {
+        // For regular transform, we have 1 approximation and `level` details
+        for (int i = 0; i <= transform.levelsOfTransformation; ++i)
+        {
+            // The getWaveletTransforms is not const, so I need to create a copy
+            WaveletTransformResults temp_transform = transform;
+            auto part = temp_transform.getWaveletTransforms(i);
+
+            if (!part.empty())
+            {
+                double energy = 0.0;
+                for (double coeff : part)
+                {
+                    energy += coeff * coeff;
+                }
+                energies.push_back(std::sqrt(energy)); // RMS energy
+            }
         }
     }
 
