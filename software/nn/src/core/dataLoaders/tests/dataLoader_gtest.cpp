@@ -110,3 +110,12 @@ TEST(DataLoaderTest, EmptyDataset)
     int count = std::distance(loader.begin(), loader.end());
     EXPECT_EQ(count, 0);
 }
+
+TEST(DataLoaderTest, ZeroBatchSizeThrows)
+{
+    auto inputs = make_sequential_tensor(10, 2);
+    auto targets = make_sequential_tensor(10, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    ASSERT_THROW(DataLoader loader(dataset, 0, false), std::invalid_argument);
+}

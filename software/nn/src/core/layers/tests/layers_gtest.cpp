@@ -169,7 +169,6 @@ TEST(SurrogateGradientTest, Boxcar)
 
 TEST(Conv2dTest, ForwardAndBackward)
 {
-    std::cout << "Starting Conv2dTest.ForwardAndBackward" << std::endl;
     // Layer parameters
     const int in_channels = 1;
     const int out_channels = 1;
@@ -178,10 +177,8 @@ TEST(Conv2dTest, ForwardAndBackward)
     const int input_height = 3;
     const int input_width = 3;
 
-    std::cout << "Creating Conv2d layer" << std::endl;
     // Create layer
     Conv2d conv(in_channels, out_channels, kernel_size);
-    std::cout << "Conv2d layer created" << std::endl;
 
     // Initialize weights and bias
     nn::Tensor weights(std::vector<size_t>{

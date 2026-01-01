@@ -13,7 +13,7 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch
       use_parallel_(use_parallel),
       weights_(
           nn::Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
-      bias_(nn::Tensor(out_channels, 1)),
+      bias_(nn::Tensor(1, out_channels)), // Bias should be 1 x out_channels
       im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
                                                   max_batch_size * 256 * 256)),
       col2im_buffer_(std::make_unique<nn::Tensor>(max_batch_size, in_channels, 512, 512)),

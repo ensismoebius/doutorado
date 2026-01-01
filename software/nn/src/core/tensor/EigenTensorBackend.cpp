@@ -167,12 +167,14 @@ const std::vector<Index>& EigenTensorBackend::shape() const
 
 Index EigenTensorBackend::rows() const
 {
-    return static_cast<Index>(m_data.rows());
+    if (m_shape.empty()) return 0;
+    return m_shape[0];
 }
 
 Index EigenTensorBackend::cols() const
 {
-    return static_cast<Index>(m_data.cols());
+    if (m_shape.size() < 2) return 0; // Or handle as 1 for 1D vectors
+    return m_shape[1]; // For 2D tensors, this is the column count
 }
 
 Index EigenTensorBackend::size() const

@@ -7,6 +7,11 @@ DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
                        std::optional<unsigned int> seed)
     : dataset_(std::move(dataset)), batch_size_(batch_size), shuffle_(shuffle), seed_(seed)
 {
+    if (batch_size == 0)
+    {
+        throw std::invalid_argument("Batch size cannot be zero.");
+    }
+
     std::size_t n_samples = dataset_->size();
     num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
 

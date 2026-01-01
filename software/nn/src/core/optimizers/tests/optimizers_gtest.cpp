@@ -1,64 +1,89 @@
 #include <gtest/gtest.h>
 
 #include <Eigen/Dense>
+#include <vector>
 
 #include "core/tensor/Tensor.hpp"
 #include "core/optimizers/Adam.hpp"
 #include "core/optimizers/SGD.hpp"
 #include "core/optimizers/SGDMinimal.hpp"
 
-TEST(SGDMinimalOptimizerTest, StepAndZeroGrad)
+// Test Fixture for common optimizer setup
+class OptimizerTest : public ::testing::Test {
+protected:
+    // Common data for weights and bias
+    Eigen::MatrixXf initial_weights_data = Eigen::MatrixXf::Ones(2, 2);
+    Eigen::MatrixXf initial_bias_data = Eigen::MatrixXf::Zero(2, 1);
+    Eigen::MatrixXf initial_weights_grad = Eigen::MatrixXf::Ones(2, 2);
+    Eigen::MatrixXf initial_bias_grad = Eigen::MatrixXf::Ones(2, 1);
+
+    nn::Tensor weights;
+    nn::Tensor bias;
+    std::vector<nn::Tensor*> params;
+
+    OptimizerTest()
+        : weights(initial_weights_data), // Initialize Tensor objects
+          bias(initial_bias_data)
+    {
+        params.push_back(&weights);
+        params.push_back(&bias);
+        weights.set_grad(initial_weights_grad);
+        bias.set_grad(initial_bias_grad);
+    }
+
+    // Helper to check if a tensor's data has changed from initial
+    bool has_data_changed(const nn::Tensor& tensor, const Eigen::MatrixXf& initial_data) const {
+        return !tensor.get_data_ref().isApprox(initial_data);
+    }
+};
+
+TEST_F(OptimizerTest, SGDMinimalOptimizerStepAndZeroGrad)
 {
-    Eigen::MatrixXf w_data = Eigen::MatrixXf::Ones(2, 2);
-    nn::Tensor w(w_data);
-    Eigen::MatrixXf b_data = Eigen::MatrixXf::Zero(2, 1);
-    nn::Tensor b(b_data);
-    std::vector<nn::Tensor*> params = {&w, &b};
     SGDMinimal sgd_minimal(0.01F);
-    Eigen::MatrixXf w_grad = Eigen::MatrixXf::Ones(2, 2);
-    w.set_grad(w_grad);
-    Eigen::MatrixXf b_grad = Eigen::MatrixXf::Ones(2, 1);
-    b.set_grad(b_grad);
     sgd_minimal.step(params);
-    ASSERT_NE(w.get_data_ref()(0, 0), 1.0F);
+    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd_minimal.zero_grad(params);
-    ASSERT_EQ(w.get_grad_ref()(0, 0), 0.0F);
+    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F)); // Use isZero for Eigen matrices
+    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
 }
 
-TEST(AdamOptimizerTest, StepAndZeroGrad)
+TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
 {
-    Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
-    nn::Tensor weights(weights_data);
-    Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
-    nn::Tensor bias(bias_data);
-    std::vector<nn::Tensor*> params = {&weights, &bias};
     Adam adam(0.01F);
-    adam.attach(params);
-    Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);
-    weights.set_grad(weights_grad);
-    Eigen::MatrixXf bias_grad = Eigen::MatrixXf::Ones(2, 1);
-    bias.set_grad(bias_grad);
+    adam.attach(params); // Adam requires attaching parameters
     adam.step(params);
-    ASSERT_NE(weights.get_data_ref()(0, 0), 1.0F);
+    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     adam.zero_grad(params);
-    ASSERT_EQ(weights.get_grad_ref()(0, 0), 0.0F);
+    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F));
+    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
 }
 
-TEST(SGDOptimizerTest, StepAndZeroGrad)
+TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
 {
-    Eigen::MatrixXf weights_data = Eigen::MatrixXf::Ones(2, 2);
-    nn::Tensor weights(weights_data);
-    Eigen::MatrixXf bias_data = Eigen::MatrixXf::Zero(2, 1);
-    nn::Tensor bias(bias_data);
-    std::vector<nn::Tensor*> params = {&weights, &bias};
     SGD sgd(0.01F);
-    sgd.attach(params);
-    Eigen::MatrixXf weights_grad = Eigen::MatrixXf::Ones(2, 2);
-    weights.set_grad(weights_grad);
-    Eigen::MatrixXf bias_grad = Eigen::MatrixXf::Ones(2, 1);
-    bias.set_grad(bias_grad);
+    sgd.attach(params); // SGD with momentum requires attaching parameters
     sgd.step(params);
-    ASSERT_NE(weights.get_data_ref()(0, 0), 1.0F);
+    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd.zero_grad(params);
-    ASSERT_EQ(weights.get_grad_ref()(0, 0), 0.0F);
+    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F));
+    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
+}
+
+// New test for empty parameters list
+TEST(OptimizerEdgeCases, EmptyParamsList)
+{
+    std::vector<nn::Tensor*> empty_params;
+    SGDMinimal sgd_minimal(0.01F);
+    ASSERT_NO_THROW(sgd_minimal.step(empty_params));
+    ASSERT_NO_THROW(sgd_minimal.zero_grad(empty_params));
+
+    Adam adam(0.01F);
+    ASSERT_NO_THROW(adam.attach(empty_params));
+    ASSERT_NO_THROW(adam.step(empty_params));
+    ASSERT_NO_THROW(adam.zero_grad(empty_params));
+
+    SGD sgd(0.01F);
+    ASSERT_NO_THROW(sgd.attach(empty_params));
+    ASSERT_NO_THROW(sgd.step(empty_params));
+    ASSERT_NO_THROW(sgd.zero_grad(empty_params));
 }

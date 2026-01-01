@@ -16,7 +16,14 @@ class Dataset
         // Default collate: allocate matrices and fill them in one pass
         if (indices.empty())
         {
-            return Batch{};
+            // Return empty tensors but retain column counts from first item
+            // if dataset is not empty, otherwise return default Batch{}
+            if (size() > 0) {
+                Batch first_item = get_item(0); // Get first item to determine column sizes
+                return {.inputs = nn::Tensor(0, first_item.inputs.cols()),
+                        .targets = nn::Tensor(0, first_item.targets.cols())};
+            }
+            return Batch{}; // Empty dataset, return default Batch
         }
 
         // Use the first item to determine column sizes
