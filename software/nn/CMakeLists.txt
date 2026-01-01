@@ -15,7 +15,7 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 include(cmake/Policies.cmake)
 
 # Tooling setup (ccache, analysis tool detection, compile_commands.json export)
-# include(cmake/Tooling.cmake)
+include(cmake/Tooling.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)

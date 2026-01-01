@@ -32,3 +32,22 @@ if(CLANG_TIDY_EXECUTABLE)
 else()
     message(STATUS "clang-tidy not found, proceeding without it")
 endif()
+
+# --------------------------------------------------------------------------------
+# Valgrind Callgrind Support for Performance Profiling
+# --------------------------------------------------------------------------------
+find_program(VALGRIND_EXECUTABLE valgrind)
+if(VALGRIND_EXECUTABLE)
+    message(STATUS "valgrind found, Callgrind available for performance profiling")
+
+    # Function to add Callgrind profiling target for an executable
+    function(add_callgrind_target target_name executable)
+        add_custom_target(${target_name}
+            COMMAND ${VALGRIND_EXECUTABLE} --tool=callgrind --callgrind-out-file=callgrind.out.${target_name} $<TARGET_FILE:${executable}>
+            DEPENDS ${executable}
+            COMMENT "Running ${executable} with Callgrind profiler (output: callgrind.out.${target_name})"
+        )
+    endfunction()
+else()
+    message(STATUS "valgrind not found, Callgrind profiling not available")
+endif()
