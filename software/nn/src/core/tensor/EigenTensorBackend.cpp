@@ -417,10 +417,11 @@ ITensorBackend& EigenTensorBackend::grad()
 std::unique_ptr<ITensorBackend> EigenTensorBackend::clone() const
 {
     auto backend = std::make_unique<EigenTensorBackend>(m_data);
-    backend->m_shape = m_shape;  // Preserve the logical shape
+    backend->m_shape = m_shape; // Preserve the logical shape
     if (m_grad_backend)
     {
-        backend->m_grad_backend = std::unique_ptr<EigenTensorBackend>(static_cast<EigenTensorBackend*>(m_grad_backend->clone().release()));
+        backend->m_grad_backend = std::unique_ptr<EigenTensorBackend>(
+            static_cast<EigenTensorBackend*>(m_grad_backend->clone().release()));
         backend->m_grad_backend->m_shape = m_grad_backend->m_shape;
     }
     return backend;

@@ -184,7 +184,8 @@ TEST(Conv2dTest, ForwardAndBackward)
     std::cout << "Conv2d layer created" << std::endl;
 
     // Initialize weights and bias
-    nn::Tensor weights(std::vector<size_t>{static_cast<size_t>(kernel_size * kernel_size * in_channels), out_channels});
+    nn::Tensor weights(std::vector<size_t>{
+        static_cast<size_t>(kernel_size * kernel_size * in_channels), out_channels});
     weights.at(0, 0) = 1.0F;
     weights.at(1, 0) = 2.0F;
     weights.at(2, 0) = 3.0F;
@@ -228,7 +229,8 @@ TEST(Conv2dTest, ForwardAndBackward)
     ASSERT_NEAR(output.at(0, 0, 1, 0), 67.5, 1e-5);
     ASSERT_NEAR(output.at(0, 0, 1, 1), 77.5, 1e-5);
 
-    nn::Tensor grad_output(std::vector<size_t>{static_cast<size_t>(batch_size), static_cast<size_t>(out_channels), 2, 2});
+    nn::Tensor grad_output(std::vector<size_t>{
+        static_cast<size_t>(batch_size), static_cast<size_t>(out_channels), 2, 2});
     grad_output.get_data_ref().setOnes(); // Gradient of 1 for all output elements
 
     nn::Tensor grad_input = conv.backward(grad_output);
