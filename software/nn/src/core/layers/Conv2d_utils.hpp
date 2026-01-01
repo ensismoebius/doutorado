@@ -33,15 +33,19 @@ struct PatchIndices
 /**
  * @brief Hash function for std::pair<int, int> for use in unordered_map.
  */
-struct PairHash
+struct TripleHash
 {
-    template <typename T, typename U>
-    std::size_t operator()(const std::pair<T, U>& p) const
+    template <typename T, typename U, typename V>
+    std::size_t operator()(const std::tuple<T, U, V>& t) const
     {
-        return std::hash<T>()(p.first) ^ (std::hash<U>()(p.second) << 1);
+        std::size_t h1 = std::hash<T>()(std::get<0>(t));
+        std::size_t h2 = std::hash<U>()(std::get<1>(t));
+        std::size_t h3 = std::hash<V>()(std::get<2>(t));
+        return h1 ^ (h2 << 1) ^ (h3 << 2);
     }
 };
 
-using IndexCache = std::unordered_map<std::pair<int, int>, std::vector<PatchIndices>, PairHash>;
+using IndexCache =
+    std::unordered_map<std::tuple<int, int, int>, std::vector<PatchIndices>, TripleHash>;
 
 } // namespace Conv2dImpl

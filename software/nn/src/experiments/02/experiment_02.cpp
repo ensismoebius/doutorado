@@ -236,10 +236,10 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
         std::vector<nn::Tensor> train_inputs, train_targets;
         for (size_t i = 0; i < train_features.size(); ++i)
         {
-            nn::Tensor x(1, static_cast<Eigen::Index>(train_features[i].size()));
+            nn::Tensor x(1, static_cast<size_t>(train_features[i].size()));
             for (size_t j = 0; j < train_features[i].size(); ++j)
             {
-                x.at(0, static_cast<Eigen::Index>(j)) = train_features[i][j];
+                x.at(0, static_cast<size_t>(j)) = train_features[i][j];
             }
             train_inputs.emplace_back(x);
 
@@ -268,10 +268,10 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
         std::vector<int> pred_labels;
         for (const auto& test_feat : test_features)
         {
-            nn::Tensor x(1, static_cast<Eigen::Index>(test_feat.size()));
+            nn::Tensor x(1, static_cast<size_t>(test_feat.size()));
             for (size_t j = 0; j < test_feat.size(); ++j)
             {
-                x.at(0, static_cast<Eigen::Index>(j)) = test_feat[j];
+                x.at(0, static_cast<size_t>(j)) = test_feat[j];
             }
             nn::Tensor input = x;
             nn::Tensor output = model.forward(input);

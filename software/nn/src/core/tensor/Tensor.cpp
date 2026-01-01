@@ -113,23 +113,32 @@ auto Tensor::get_grad_ref() -> Eigen::MatrixXf&
 // Setter for gradient
 void Tensor::set_grad(const Eigen::MatrixXf& grad)
 {
-    // Create a temporary backend with the gradient data
-    auto grad_backend = TensorBackendFactory::create_backend();
-    // This is a simplified implementation - in practice we'd need to copy the Eigen data
-    m_backend->set_grad(*grad_backend);
+    // Ensure m_backend exists and is of type EigenTensorBackend
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend) {
+        throw std::runtime_error("Tensor backend is not Eigen-based for set_grad");
+    }
+    // Set the gradient directly in the EigenTensorBackend
+    eigen_backend->set_grad(EigenTensorBackend(grad));
 }
 
 void Tensor::set_grad(Eigen::MatrixXf&& grad)
 {
-    auto grad_backend = TensorBackendFactory::create_backend();
-    m_backend->set_grad(*grad_backend);
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend) {
+        throw std::runtime_error("Tensor backend is not Eigen-based for set_grad");
+    }
+    eigen_backend->set_grad(EigenTensorBackend(std::move(grad)));
 }
 
 // Setter for data
 void Tensor::set_data(const Eigen::MatrixXf& data)
 {
-    // This would need to be implemented to copy Eigen data to backend
-    // For now, it's a placeholder
+    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
+    if (!eigen_backend) {
+        throw std::runtime_error("Tensor backend is not Eigen-based for set_data");
+    }
+    eigen_backend->get_data() = data; // Directly assign to the Eigen::MatrixXf in the backend
 }
 
 // Shape and size information
@@ -276,9 +285,11 @@ auto Tensor::norm() const -> float
 // Slice operation
 auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {
-    // This needs to be implemented in the backend
-    // For now, return a copy
-    return Tensor(m_backend->clone());
+    if (!m_backend)
+    {
+        throw std::runtime_error("Tensor backend is null for slice operation.");
+    }
+    return Tensor(m_backend->slice(indices));
 }
 
 // Zero out the gradient

@@ -6,7 +6,8 @@
 
 TEST(TensorTest, ConstructionAndAssignment)
 {
-    Eigen::MatrixXf mat = Eigen::MatrixXf::Random(2, 2);
+    Eigen::MatrixXf mat(2, 2);
+    mat << 1.0f, 2.0f, 3.0f, 4.0f;
     nn::Tensor t1(mat);
     nn::Tensor t2 = t1;
     ASSERT_EQ(t1.get_data_ref().rows(), 2);

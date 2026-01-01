@@ -4,10 +4,10 @@
 
 // ============ Index Caching & Computation ============
 
-auto Conv2d::get_or_compute_indices(int input_height, int input_width) const
+auto Conv2d::get_or_compute_indices(int batch_size, int input_height, int input_width) const
     -> const std::vector<Conv2dImpl::PatchIndices>&
 {
-    auto key = std::make_pair(input_height, input_width);
+    auto key = std::make_tuple(batch_size, input_height, input_width);
 
     {
         std::lock_guard<std::mutex> lock(cache_mutex_);
@@ -19,25 +19,25 @@ auto Conv2d::get_or_compute_indices(int input_height, int input_width) const
     }
 
     // Compute indices if not in cache
-    auto indices = compute_indices(input_height, input_width);
+    auto indices = compute_indices(batch_size, input_height, input_width);
 
     std::lock_guard<std::mutex> lock(cache_mutex_);
     return index_cache_[key] = std::move(indices);
 }
 
-auto Conv2d::compute_indices(int input_height, int input_width) const
+auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) const
     -> std::vector<Conv2dImpl::PatchIndices>
 {
     const int output_height = input_height - kernel_size_ + 1;
     const int output_width = input_width - kernel_size_ + 1;
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
-    const int total_patches = max_batch_size_ * output_height * output_width;
+    const int total_patches = batch_size * output_height * output_width; // Use actual batch_size
 
     std::vector<Conv2dImpl::PatchIndices> indices(total_patches);
 
 // Precompute all indices
 #pragma omp parallel for collapse(2) if (use_parallel_)
-    for (int b = 0; b < max_batch_size_; ++b)
+    for (int b = 0; b < batch_size; ++b) // Loop iterates up to actual batch_size
     {
         for (int oy = 0; oy < output_height; ++oy)
         {
@@ -59,7 +59,8 @@ auto Conv2d::compute_indices(int input_height, int input_width) const
                             const int input_x = ox + kx;
 
                             // For im2col: store reference to value
-                            patch.values[elem_idx] = 0.0F; // Placeholder
+                            // This will be filled during im2col_optimized
+                            patch.values[elem_idx] = 0.0F;
 
                             // For col2im: store output position
                             const int result_row =
@@ -74,15 +75,14 @@ auto Conv2d::compute_indices(int input_height, int input_width) const
             }
         }
     }
-
     return indices;
 }
 
-void Conv2d::compute_indices_once(int input_height, int input_width) const
+void Conv2d::compute_indices_once(int batch_size, int input_height, int input_width) const
 {
     if (!indices_computed_) [[unlikely]]
     {
-        get_or_compute_indices(input_height, input_width);
+        get_or_compute_indices(batch_size, input_height, input_width);
         indices_computed_ = true;
     }
 }

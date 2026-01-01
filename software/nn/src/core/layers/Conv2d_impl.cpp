@@ -1,5 +1,7 @@
 #include "Conv2d.hpp"
 
+constexpr int DEFAULT_SIZE = 32;
+
 // ============ Constructor ============
 
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch_size,
@@ -9,20 +11,20 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch
       kernel_size_(kernel_size),
       max_batch_size_(max_batch_size),
       use_parallel_(use_parallel),
-      weights_(nn::Tensor(static_cast<Eigen::Index>(kernel_size) * kernel_size * in_channels,
+      weights_(nn::Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels,
                           out_channels)),
       bias_(nn::Tensor(out_channels, 1)),
       im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
                                                   max_batch_size * 256 * 256)),
       col2im_buffer_(std::make_unique<nn::Tensor>(max_batch_size, in_channels, 512, 512)),
-      grad_output_buffer_(std::make_unique<nn::Tensor>())
+      grad_output_buffer_(std::make_unique<nn::Tensor>(max_batch_size, out_channels, DEFAULT_SIZE - kernel_size + 1, DEFAULT_SIZE - kernel_size + 1))
 {
     // Initialize weights with He initialization
     initialize_weights_he();
 
     // Warm up indices computation with default size
     constexpr int DEFAULT_SIZE = 32;
-    compute_indices_once(DEFAULT_SIZE, DEFAULT_SIZE);
+    compute_indices_once(max_batch_size_, DEFAULT_SIZE, DEFAULT_SIZE);
 }
 
 // ============ Forward & Backward Passes ============
@@ -41,7 +43,7 @@ auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
     const int output_width = input_width - kernel_size_ + 1;
 
     // Ensure indices are precomputed
-    compute_indices_once(input_height, input_width);
+    compute_indices_once(batch_size, input_height, input_width);
 
     // 1. Perform optimized im2col
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;

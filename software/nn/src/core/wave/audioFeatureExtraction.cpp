@@ -426,7 +426,8 @@ auto compute_deltas(const nn::Tensor& features,
     const long number_of_frames = features.get_data_ref().rows();
     if (number_of_frames == 0)
     {
-        return {};
+        // Return an explicitly empty tensor (0x0)
+        return nn::Tensor(0, 0);
     }
 
     // Dimensionalidade do vetor de features.

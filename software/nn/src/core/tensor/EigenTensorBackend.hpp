@@ -78,9 +78,17 @@ class EigenTensorBackend : public ITensorBackend
     {
         if (!m_grad_backend)
         {
-            // Create a temporary backend for const access
-            m_grad_backend = std::make_unique<EigenTensorBackend>(
-                Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols()));
+            if (m_data.rows() == 0 || m_data.cols() == 0)
+            {
+                // If m_data is empty, initialize m_grad_backend with an empty matrix
+                m_grad_backend = std::make_unique<EigenTensorBackend>(Eigen::MatrixXf(0, 0));
+            }
+            else
+            {
+                // Otherwise, initialize with zeros of the correct size
+                m_grad_backend = std::make_unique<EigenTensorBackend>(
+                    Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols()));
+            }
         }
         return m_grad_backend->m_data;
     }
@@ -88,8 +96,15 @@ class EigenTensorBackend : public ITensorBackend
     {
         if (!m_grad_backend)
         {
-            m_grad_backend = std::make_unique<EigenTensorBackend>(
-                Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols()));
+            if (m_data.rows() == 0 || m_data.cols() == 0)
+            {
+                m_grad_backend = std::make_unique<EigenTensorBackend>(Eigen::MatrixXf(0, 0));
+            }
+            else
+            {
+                m_grad_backend = std::make_unique<EigenTensorBackend>(
+                    Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols()));
+            }
         }
         return m_grad_backend->m_data;
     }
@@ -97,6 +112,7 @@ class EigenTensorBackend : public ITensorBackend
     // Utility
     std::unique_ptr<ITensorBackend> clone() const override;
     void copy_from(const ITensorBackend& other) override;
+    std::unique_ptr<ITensorBackend> slice(std::span<const int> indices) const override;
     Eigen::MatrixXf m_data;
     mutable std::unique_ptr<EigenTensorBackend> m_grad_backend;
     std::vector<Index> m_shape;

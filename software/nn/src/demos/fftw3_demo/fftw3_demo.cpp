@@ -85,7 +85,7 @@ auto executeFFT(                                                 //
 auto calculateFFTMagnitude(int signal_length, const fftw_complex* out_fftw_raw) -> nn::Tensor
 {
     // Tensor to hold magnitude values
-    nn::Tensor fft_magnitude(1, static_cast<Eigen::Index>((signal_length / 2) + 1));
+    nn::Tensor fft_magnitude(1, static_cast<size_t>((signal_length / 2) + 1));
 
     // Small epsilon to avoid log(0)
     const double epsilon = 1e-300;
@@ -150,7 +150,7 @@ auto main() -> int
         out_fftw_ptr.get()                      //
     );
 
-    nn::Tensor in_vec(1, static_cast<Eigen::Index>(signal_length));
+    nn::Tensor in_vec(1, static_cast<size_t>(signal_length));
     for (int i = 0; i < signal_length; i++)
     {
         in_vec.get_data_ref()(0, i) = static_cast<float>(in_ptr.get()[i]);

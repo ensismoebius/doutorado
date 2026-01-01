@@ -169,6 +169,7 @@ TEST(SurrogateGradientTest, Boxcar)
 
 TEST(Conv2dTest, ForwardAndBackward)
 {
+    std::cout << "Starting Conv2dTest.ForwardAndBackward" << std::endl;
     // Layer parameters
     const int in_channels = 1;
     const int out_channels = 1;
@@ -177,24 +178,25 @@ TEST(Conv2dTest, ForwardAndBackward)
     const int input_height = 3;
     const int input_width = 3;
 
+    std::cout << "Creating Conv2d layer" << std::endl;
     // Create layer
     Conv2d conv(in_channels, out_channels, kernel_size);
+    std::cout << "Conv2d layer created" << std::endl;
 
     // Initialize weights and bias
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(std::vector<size_t>{static_cast<size_t>(kernel_size * kernel_size * in_channels), out_channels});
     weights.at(0, 0) = 1.0F;
     weights.at(1, 0) = 2.0F;
     weights.at(2, 0) = 3.0F;
     weights.at(3, 0) = 4.0F;
     conv.set_weights(weights);
 
-    nn::Tensor bias(1, out_channels);
+    nn::Tensor bias(std::vector<size_t>{1, out_channels});
     bias.at(0, 0) = 0.5F;
     conv.set_bias(bias);
 
     // Input tensor
-    nn::Tensor input(batch_size, in_channels, input_height, input_width);
+    nn::Tensor input(std::vector<size_t>{1, 1, 3, 3});
     input.at(0, 0, 0, 0) = 1;
     input.at(0, 0, 0, 1) = 2;
     input.at(0, 0, 0, 2) = 3;
@@ -226,8 +228,7 @@ TEST(Conv2dTest, ForwardAndBackward)
     ASSERT_NEAR(output.at(0, 0, 1, 0), 67.5, 1e-5);
     ASSERT_NEAR(output.at(0, 0, 1, 1), 77.5, 1e-5);
 
-    // Backward pass
-    nn::Tensor grad_output(batch_size, out_channels, 2, 2);
+    nn::Tensor grad_output(std::vector<size_t>{static_cast<size_t>(batch_size), static_cast<size_t>(out_channels), 2, 2});
     grad_output.get_data_ref().setOnes(); // Gradient of 1 for all output elements
 
     nn::Tensor grad_input = conv.backward(grad_output);

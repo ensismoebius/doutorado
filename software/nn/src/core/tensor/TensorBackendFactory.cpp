@@ -7,7 +7,7 @@ namespace nn
 
 // Static member initialization
 TensorBackendFactory::BackendCreator TensorBackendFactory::s_default_creator = []()
-{ return std::make_unique<EigenTensorBackend>(); };
+{ return std::make_unique<EigenTensorBackend>(Eigen::MatrixXf::Zero(1, 1)); };
 
 void TensorBackendFactory::set_default_backend(BackendCreator creator)
 {

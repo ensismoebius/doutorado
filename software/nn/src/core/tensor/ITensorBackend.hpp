@@ -77,6 +77,7 @@ class ITensorBackend
     // Utility
     virtual std::unique_ptr<ITensorBackend> clone() const = 0;
     virtual void copy_from(const ITensorBackend& other) = 0;
+    virtual std::unique_ptr<ITensorBackend> slice(std::span<const int> indices) const = 0;
 };
 
 } // namespace nn

@@ -394,13 +394,12 @@ const ITensorBackend& EigenTensorBackend::grad() const
 {
     if (!m_grad_backend)
     {
-        // Create zero gradient if not exists
-        // This is a const method, so we can't modify m_grad_backend
-        // Return a static zero gradient instead
-        static EigenTensorBackend zero_grad;
-        zero_grad.m_data = Eigen::MatrixXf::Zero(m_data.rows(), m_data.cols());
-        zero_grad.m_shape = m_shape;
-        return zero_grad;
+        // Lazily initialize m_grad_backend if it doesn't exist.
+        // The 'mutable' keyword on m_grad_backend allows this modification in a const method.
+        // We ensure it's properly sized and zeroed.
+        // Call the non-const zero_grad, which will correctly set up m_grad_backend
+        // This const_cast is safe because m_grad_backend is mutable.
+        const_cast<EigenTensorBackend*>(this)->zero_grad();
     }
     return *m_grad_backend;
 }
@@ -417,7 +416,14 @@ ITensorBackend& EigenTensorBackend::grad()
 // Utility methods
 std::unique_ptr<ITensorBackend> EigenTensorBackend::clone() const
 {
-    return std::make_unique<EigenTensorBackend>(m_data);
+    auto backend = std::make_unique<EigenTensorBackend>(m_data);
+    backend->m_shape = m_shape;  // Preserve the logical shape
+    if (m_grad_backend)
+    {
+        backend->m_grad_backend = std::unique_ptr<EigenTensorBackend>(static_cast<EigenTensorBackend*>(m_grad_backend->clone().release()));
+        backend->m_grad_backend->m_shape = m_grad_backend->m_shape;
+    }
+    return backend;
 }
 
 void EigenTensorBackend::copy_from(const ITensorBackend& other)
@@ -437,6 +443,35 @@ void EigenTensorBackend::copy_from(const ITensorBackend& other)
     {
         m_grad_backend = nullptr;
     }
+}
+
+std::unique_ptr<ITensorBackend> EigenTensorBackend::slice(std::span<const int> indices) const
+{
+    // Ensure the tensor is 2D for slicing rows
+    if (m_shape.size() != 2)
+    {
+        throw std::invalid_argument(
+            "Slicing by indices is only supported for 2D tensors (row selection).");
+    }
+
+    // Determine the number of rows in the new sliced tensor
+    const Eigen::Index new_rows = indices.size();
+    const Eigen::Index num_cols = m_data.cols();
+
+    Eigen::MatrixXf sliced_data(new_rows, num_cols);
+
+    for (Eigen::Index i = 0; i < new_rows; ++i)
+    {
+        const int original_row_idx = indices[static_cast<std::size_t>(i)];
+        if (original_row_idx < 0 || original_row_idx >= m_data.rows())
+        {
+            throw std::out_of_range("Slice index out of range.");
+        }
+        sliced_data.row(i) = m_data.row(original_row_idx);
+    }
+
+    // Create a new EigenTensorBackend with the sliced data
+    return std::make_unique<EigenTensorBackend>(sliced_data);
 }
 
 // Data access for backward compatibility

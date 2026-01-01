@@ -132,19 +132,19 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Get or compute precomputed indices for given input dimensions
      */
-    auto get_or_compute_indices(int input_height, int input_width) const
+    auto get_or_compute_indices(int batch_size, int input_height, int input_width) const
         -> const std::vector<Conv2dImpl::PatchIndices>&;
 
     /**
      * @brief Precompute all im2col/col2im indices for efficient reuse
      */
-    auto compute_indices(int input_height, int input_width) const
+    auto compute_indices(int batch_size, int input_height, int input_width) const
         -> std::vector<Conv2dImpl::PatchIndices>;
 
     /**
      * @brief Ensure indices are computed for given dimensions (one-time initialization)
      */
-    void compute_indices_once(int input_height, int input_width) const;
+    void compute_indices_once(int batch_size, int input_height, int input_width) const;
 
     /**
      * @brief Convert input to column matrix (im2col transformation)
