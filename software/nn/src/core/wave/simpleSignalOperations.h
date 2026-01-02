@@ -32,8 +32,6 @@ void doAFineAmplification(double* signal, int signalLength);
 
 void silentHalfOfTheSoundTrack(double* signal, int signalLength);
 
-void xuxasDevilInvocation(double* signal, int signalLength);
-
 void halfVolume(double* signal, int signalLength);
 
 void addEchoes(double* signal, int signalLength);

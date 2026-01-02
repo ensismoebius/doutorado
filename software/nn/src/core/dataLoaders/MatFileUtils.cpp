@@ -1,4 +1,4 @@
-#include "MatFileUtils.h"
+#include "MatFileUtils.hpp"
 
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>

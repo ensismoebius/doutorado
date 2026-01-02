@@ -198,31 +198,31 @@ class Wav
      * @brief Returns the path of file containing the signal
      * @return path The file path of the wav file.
      */
-    [[nodiscard]] auto getPath() const -> std::string;
+    [[nodiscard]] auto get_path() const -> std::string;
 
     /**
      * @brief Returns the raw wav data (monolithic wav)
      * @return data The raw wav data as a vector of doubles.
      */
-    [[nodiscard]] auto getData() const -> const std::vector<double>&;
+    [[nodiscard]] auto get_data() const -> const std::vector<double>&;
 
     /**
      * @brief Returns the raw wav data (left channel wav)
      * @return data The raw wav data for the left channel as a vector of doubles.
      */
-    [[nodiscard]] auto getDataLeft() const -> const std::vector<double>&;
+    [[nodiscard]] auto get_data_left() const -> const std::vector<double>&;
 
     /**
      * @brief Returns the raw wav data (right channel wav)
      * @return data The raw wav data for the right channel as a vector of doubles.
      */
-    [[nodiscard]] auto getDataRight() const -> const std::vector<double>&;
+    [[nodiscard]] auto get_data_right() const -> const std::vector<double>&;
 
     /**
      * The function which will manipulate the wav data
      * @param callbackFunction The callback function to set
      */
-    void setCallbackFunction(            //
+    void set_callback_function(          //
         void (*_callbackFunction)(       //
             std::vector<double>& signal, //
             size_t& signalLength,        //
@@ -243,7 +243,7 @@ class Wav
      * @param msb The most significant byte of the 16-bit sample.
      * @return The reconstructed 16-bit signed sample as a short.
      */
-    static auto combine8BitTo16Bit(unsigned char lsb, unsigned char msb) -> short;
+    static auto combine_8bit_to_16bit(unsigned char lsb, unsigned char msb) -> short;
 
     /**
      * @brief Converts a 16-bit signed short into two 8-bit unsigned chars (LSB and MSB).
@@ -255,7 +255,7 @@ class Wav
      * @param lsb Pointer to an unsigned char to store the least significant byte.
      * @param msb Pointer to an unsigned char to store the most significant byte.
      */
-    static void split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb);
+    static void split_16bit_to_8bit(short sample, unsigned char* lsb, unsigned char* msb);
 
     /**
      * @brief Initializes the WAV file header with the specified audio properties.
@@ -264,19 +264,19 @@ class Wav
      * @param numberOfChannels The number of audio channels (1 for mono, 2 for stereo).
      * @param numSamples The total number of samples.
      */
-    void initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels,
-                           size_t numSamples);
+    void initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels,
+                            size_t numSamples);
     /**
      * @brief Reads the audio data from the WAV file based on the format.
      * @param ifs The input file stream to read from.
      */
-    void readWaveData(std::ifstream& ifs);
+    void read_wave_data(std::ifstream& ifs);
 
     /**
      * @brief Reads the WAV file headers from the input stream.
      * @param ifs The input file stream to read from.
      */
-    void readWaveHeaders(std::ifstream& ifs);
+    void read_wave_headers(std::ifstream& ifs);
 
     /**
      * @brief Writes 8-bit mono audio data to the output stream.
@@ -329,11 +329,11 @@ class Wav
     /**
      * @brief Clears all audio data vectors (mono, left, and right channels).
      */
-    void clearVectors();
+    void clear_vectors();
 
     /**
      * @brief Resets all metadata of the Wav object to their default states.
      */
-    void resetMetaData();
+    void reset_metadata();
 };
 #endif /* SRC_LIB_WAV_H_ */

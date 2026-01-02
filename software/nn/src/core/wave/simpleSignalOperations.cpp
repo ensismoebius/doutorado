@@ -85,18 +85,6 @@ void silentHalfOfTheSoundTrack(double* signal, int signalLength)
     }
 }
 
-void xuxasDevilInvocation(double* signal, int signalLength)
-{
-    int middleSignalIndex = signalLength / 2;
-
-    for (int i = middleSignalIndex; i < signalLength; ++i)
-    {
-        double tempVar = signal[i];
-        signal[i] = signal[signalLength - i - 1];
-        signal[signalLength - i - 1] = tempVar;
-    }
-}
-
 void halfVolume(double* signal, int signalLength)
 {
     for (int i = 0; i < signalLength; ++i)

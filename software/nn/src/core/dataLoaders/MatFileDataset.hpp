@@ -1,8 +1,8 @@
 #ifndef NN_MATFILEDATASET_H
 #define NN_MATFILEDATASET_H
 
-#include "MatFileUtils.h"
-#include "TensorDataset.h"
+#include "MatFileUtils.hpp"
+#include "TensorDataset.hpp"
 
 class MatFileDataset : public TensorDataset
 {

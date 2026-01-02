@@ -28,14 +28,14 @@ const int BITS_PER_BYTE = 8;
 
 Wav::Wav()
 {
-    resetMetaData();
+    reset_metadata();
 }
 
 Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
          size_t audioDataSize)
     : callbackFunction(nullptr)
 {
-    initializeHeaders(samplingRate, bitsPerSample, numOfChan, audioDataSize);
+    initialize_headers(samplingRate, bitsPerSample, numOfChan, audioDataSize);
 
     // Copy audio data
     this->data.assign(audioData, audioData + audioDataSize);
@@ -88,8 +88,8 @@ void Wav::read(const std::string& _path)
         throw std::runtime_error("Path is not a regular file: " + _path);
     }
 
-    this->clearVectors();
-    this->resetMetaData();
+    this->clear_vectors();
+    this->reset_metadata();
 
     this->path = _path;
 
@@ -102,9 +102,9 @@ void Wav::read(const std::string& _path)
     }
 
     // Reads the file headers
-    readWaveHeaders(ifs);
+    read_wave_headers(ifs);
     // Reads actual data
-    readWaveData(ifs);
+    read_wave_data(ifs);
     ifs.clear();
     ifs.close();
 }
@@ -167,7 +167,7 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
 
     const uint16_t bitsPerSample = 16;
     const uint16_t numberOfChannels = 1;
-    initializeHeaders(samplingRate, bitsPerSample, numberOfChannels, inputData.size());
+    initialize_headers(samplingRate, bitsPerSample, numberOfChannels, inputData.size());
 
     this->amountOfData = inputData.size();
     this->waveResolution = bitsPerSample;
@@ -217,7 +217,7 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     }
 
     const uint16_t bitsPerSample = 16;
-    initializeHeaders(
+    initialize_headers(
         samplingRate, bitsPerSample, static_cast<uint16_t>(numberOfChannels), numSamples);
 
     this->amountOfData = numSamples;
@@ -251,27 +251,27 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     ofs.close();
 }
 
-auto Wav::getData() const -> const std::vector<double>&
+auto Wav::get_data() const -> const std::vector<double>&
 {
     return data;
 }
 
-auto Wav::getDataLeft() const -> const std::vector<double>&
+auto Wav::get_data_left() const -> const std::vector<double>&
 {
     return dataLeft;
 }
 
-auto Wav::getDataRight() const -> const std::vector<double>&
+auto Wav::get_data_right() const -> const std::vector<double>&
 {
     return dataRight;
 }
 
-auto Wav::getPath() const -> std::string
+auto Wav::get_path() const -> std::string
 {
     return this->path;
 }
 
-void Wav::setCallbackFunction(       //
+void Wav::set_callback_function(       //
     void (*_callbackFunction)(       //
         std::vector<double>& signal, //
         size_t& signalLength,        //
@@ -283,7 +283,7 @@ void Wav::setCallbackFunction(       //
     this->callbackFunction = _callbackFunction;
 }
 
-void Wav::readWaveData(std::ifstream& ifs)
+void Wav::read_wave_data(std::ifstream& ifs)
 {
     // The format key is a unique identifier created by combining the wave
     // resolution (e.g., 8 or 16 bits) and the number of channels. Multiplying
@@ -313,7 +313,7 @@ void Wav::readWaveData(std::ifstream& ifs)
     }
 }
 
-void Wav::readWaveHeaders(std::ifstream& ifs)
+void Wav::read_wave_headers(std::ifstream& ifs)
 {
     ifs.seekg(0, std::ios::beg);
     Wav::read_binary(ifs, this->header);
@@ -374,7 +374,7 @@ inline void Wav::write16BitMono(std::ofstream& ofs)
     for (size_t i = 0; i < amountOfData; i++)
     {
         const auto sample = static_cast<short>(this->data.at(i) * maxAmplitude);
-        split16BitTo8Bit(sample, &waveformdata_lsb, &waveformdata_msb);
+        split_16bit_to_8bit(sample, &waveformdata_lsb, &waveformdata_msb);
         Wav::write_binary(ofs, waveformdata_lsb);
         Wav::write_binary(ofs, waveformdata_msb);
     }
@@ -394,9 +394,9 @@ inline void Wav::write16BitStereo(std::ofstream& ofs)
     for (size_t i = 0; i < amountOfData; i++)
     {
         const auto left_sample = static_cast<short>(this->dataLeft.at(i) * maxAmplitude);
-        split16BitTo8Bit(left_sample, &waveformdata_lsb_left, &waveformdata_msb_left);
+        split_16bit_to_8bit(left_sample, &waveformdata_lsb_left, &waveformdata_msb_left);
         const auto right_sample = static_cast<short>(this->dataRight.at(i) * maxAmplitude);
-        split16BitTo8Bit(right_sample, &waveformdata_lsb_right, &waveformdata_msb_right);
+        split_16bit_to_8bit(right_sample, &waveformdata_lsb_right, &waveformdata_msb_right);
         Wav::write_binary(ofs, waveformdata_lsb_left);
         Wav::write_binary(ofs, waveformdata_msb_left);
         Wav::write_binary(ofs, waveformdata_lsb_right);
@@ -452,7 +452,7 @@ inline void Wav::read16BitMono(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_lsb);
         Wav::read_binary(ifs, waveformdata_msb);
         this->data.at(i) =
-            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb, waveformdata_msb));
+            static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb, waveformdata_msb));
     }
 }
 
@@ -475,13 +475,13 @@ inline void Wav::read16BitStereo(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_lsb_right);
         Wav::read_binary(ifs, waveformdata_msb_right);
         this->dataLeft.at(i) =
-            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb_left, waveformdata_msb_left));
+            static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb_left, waveformdata_msb_left));
         this->dataRight.at(i) =
-            static_cast<double>(combine8BitTo16Bit(waveformdata_lsb_right, waveformdata_msb_right));
+            static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb_right, waveformdata_msb_right));
     }
 }
 
-auto Wav::combine8BitTo16Bit(unsigned char lsb, unsigned char msb) -> short
+auto Wav::combine_8bit_to_16bit(unsigned char lsb, unsigned char msb) -> short
 {
     // Combine the most significant byte (msb) and the least significant byte (lsb)
     // into a single 16-bit signed short. This is achieved by shifting the msb
@@ -491,7 +491,7 @@ auto Wav::combine8BitTo16Bit(unsigned char lsb, unsigned char msb) -> short
     return static_cast<short>((static_cast<short>(msb) << 8) | lsb);
 }
 
-void Wav::split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb)
+void Wav::split_16bit_to_8bit(short sample, unsigned char* lsb, unsigned char* msb)
 {
     // Extract the least significant byte (lsb) from the 16-bit sample.
     // This is done by applying a bitwise AND with a mask of 0xFF, which
@@ -505,21 +505,21 @@ void Wav::split16BitTo8Bit(short sample, unsigned char* lsb, unsigned char* msb)
     *msb = (sample >> 8) & 0xFF;
 }
 
-void Wav::clearVectors()
+void Wav::clear_vectors()
 {
     this->data.clear();
     this->dataLeft.clear();
     this->dataRight.clear();
 }
 
-void Wav::resetMetaData()
+void Wav::reset_metadata()
 {
     this->amountOfData = 0;
     this->waveResolution = 0;
     this->header = {};
 }
 
-void Wav::initializeHeaders(uint32_t samplingRate, uint16_t bitsPerSample,
+void Wav::initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample,
                             uint16_t numberOfChannels, size_t numSamples)
 {
     this->header.riffChunkId = {'R', 'I', 'F', 'F'};

@@ -31,12 +31,12 @@ TEST(WavFileTest, WriteThenRead)
     // write
     Wav writer;
     ASSERT_NO_THROW(writer.write(filepath, data, 44100));
-    ASSERT_EQ(writer.getPath(), filepath);
+    ASSERT_EQ(writer.get_path(), filepath);
 
     // read
     Wav reader;
     ASSERT_NO_THROW(reader.read(filepath)); // flawfinder: ignore
-    auto readData = reader.getData();
+    auto readData = reader.get_data();
     ASSERT_FALSE(readData.empty());
     // optional: compare contents (convert types if needed)
 }

@@ -83,8 +83,8 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     return linearAlgebra::calcOrthogonalVector(filter);
 }
 
-auto createStopBandFi1lter(int order, double samplingRate, double startFrequency,
-                           double finalFrequency) -> std::vector<double>
+auto createStopBandFilter(int order, double samplingRate, double startFrequency,
+                          double finalFrequency) -> std::vector<double>
 {
     // Order MUST be odd
     if (order % 2 == 0)
