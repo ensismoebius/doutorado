@@ -32,10 +32,11 @@ auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
 
 auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned int
 {
-    if (vector.empty()) {
+    if (vector.empty())
+    {
         throw std::invalid_argument("findFZeroPeriodSamples: vector cannot be empty");
     }
-    
+
     long double m = *std::min_element(vector.begin(), vector.end());
     unsigned int period = 0;
     unsigned int index = 0;

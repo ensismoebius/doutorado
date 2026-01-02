@@ -19,7 +19,10 @@ struct Sequential : Module
     Sequential(std::initializer_list<std::shared_ptr<Module>> init_layers) : layers(init_layers) {}
 
     // Constructor from a vector of layers
-    explicit Sequential(const std::vector<std::shared_ptr<Module>>& init_layers) : layers(init_layers) {}
+    explicit Sequential(const std::vector<std::shared_ptr<Module>>& init_layers)
+        : layers(init_layers)
+    {
+    }
 
     // Add a layer (PyTorch: .add_module)
     void add_module(const std::shared_ptr<Module>& module)
