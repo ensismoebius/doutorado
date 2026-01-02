@@ -38,7 +38,7 @@ Canonical document guiding automatic code generation (Copilot, scripts, PRs) for
 
 - Primary Language: **C++20** (with **C** support for vendored libraries).
 
-- Main Dependencies: **Eigen**, **GoogleTest**, **CMake**, **OpenMP**. Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`, **FFTW3** (with OpenMP + threading), **NFFT3** (via autotools/ExternalProject).
+- Main Dependencies: **Eigen**, **GoogleTest**, **CMake ≥ 3.10**, **OpenMP**. Vendored: `cnpy`, `matio`, `matio-cpp`, `imgui`, `implot`, **FFTW3** (with OpenMP + threading), **NFFT3** (via autotools/ExternalProject), **yaml-cpp**, **matplotlib-cpp** (header-only with Python3 + NumPy and optional venv bootstrap).
 
 - Domain: Spiking Neural Networks (SNN), Sparse Autoencoders, EEG+Audio Synchronization, support for .mat (MATLAB) and experimental pipelines.
 
@@ -82,13 +82,16 @@ nn/
 │   ├── Flags.cmake              # Compiler flags (C++20, OpenMP, optimizations, warnings).
 │   ├── Policies.cmake           # CMake policies for project consistency.
 │   ├── PackageChecking.cmake    # System dependency checks (BLAS, LAPACK, HDF5, OpenGL, etc.).
-│   ├── ProjectSetup.cmake       # General project setup (C++ standard, visibility).
-│   ├── VendorIncludes.cmake     # Main vendor aggregator (cnpy, imgui, implot, matio, eigen parallel).
+│   ├── SanitizerFlags.cmake     # Shared sanitizer flag presets.
+│   ├── DevAndAnalysisTargets.cmake # Custom targets: dev-setup, analysis-*, clean-cache.
+│   ├── VendorIncludes.cmake     # Main vendor aggregator (cnpy, imgui, implot, matio, yaml-cpp, matplotlib-cpp, eigen parallel).
 │   ├── VendorGTest.cmake        # Google Test (FetchContent).
 │   ├── VendorFFTW.cmake         # FFTW3 with `ENABLE_OPENMP=ON` and `ENABLE_THREADS=ON`; finds OpenMP::OpenMP_CXX.
 │   ├── VendorNFFT3.cmake        # NFFT3 via ExternalProject; runs `./bootstrap.sh && autoreconf`; configures with `--enable-openmp --enable-shared`; imports as SHARED library with OpenMP::OpenMP_C.
 │   ├── VendorMatio.cmake        # Matio (MATLAB .mat I/O) via FetchContent.
 │   ├── VendorMatioCppShim.cmake # Matio C++ wrapper shim.
+│   ├── VendorMatplotlibCpp.cmake # Header-only matplotlib-cpp + optional Python venv/bootstrap.
+│   ├── VendorYaml.cmake         # yaml-cpp FetchContent integration.
 │   └── VendorEigenParallel.cmake # Eigen parallelization (OpenMP flags, BLAS/LAPACK).
 ├── debug/                     # Debugging related files.
 │   └── gdb/                     # GDB debugger configurations.
@@ -101,43 +104,22 @@ nn/
 │   ├── matio/                   # Source for Matio library (MATLAB .mat file I/O).
 │   └── matio-cpp/               # Source for Matio C++ wrapper.
 └── src/                       # Source code for the main project.
-    ├── core/                    # Core components of the framework.
-    │   ├── CMakeLists.txt         # CMake build script for the core library.
-    │   ├── NetworkSerializer.hpp  # Header for network serialization utilities.
-    │   ├── NnSaver.hpp            # Header for neural network saving functionalities.
-    │   ├── dataLoaders/           # Implementations for Dataset, DataLoader, MatFile readers.
-    │   ├── initializers/          # Weight initialization strategies (e.g., xavier, kaimingSNN).
-    │   ├── layers/                # Neural network layer implementations (e.g., Module, Linear, LIF, Sequential, activations).
-    │   ├── linearAlgebra/         # Custom linear algebra utilities and helpers.
-    │   ├── optimizers/            # Optimization algorithms (e.g., Adam, SGD, interfaces).
-    │   ├── paraconsistent/        # Components related to paraconsistent logic.
-    │   ├── statistics/            # Statistical metrics and test implementations.
-    │   ├── tensor/                # Custom Tensor wrapper built on Eigen.
-    │   ├── tests/                 # Unit tests for core components.
-    │   ├── utility/               # General utility functions (e.g., logging, time, checks).
-    │   ├── wave/                  # Wave processing and resampling utilities.
-    │   └── wavelet/               # Wavelet transform implementations.
-    ├── experiments/               # Executables for specific research experiments.
-    │   ├── autoEncoderLeakyReLUAndSpikeTest.cpp # Experiment for autoencoder with LeakyReLU and spiking.
-    │   ├── autoEncoderLeakyReLUTest.cpp # Experiment for autoencoder with LeakyReLU.
-    │   ├── plotSpikingNetwork.cpp # Experiment for plotting spiking network activity.
-    │   ├── resnet_demo.cpp        # Demonstration of ResNet integration.
-    │   └── 01/                    # Directory for Experiment 01 related files.
-    ├── main_app/                  # Main application entry point.
-    │   └── main.cpp               # Main source file for the application.
-    └── util/                      # General utilities not specific to core components.
-        ├── batching.cpp           # Implementation for data batching.
-        ├── batching.hpp           # Header for data batching utilities.
-        ├── CMakeLists.txt         # CMake build script for the utility library.
-        ├── imguiGlfw.cpp          # ImGui and GLFW integration implementation.
-        ├── imguiGlfw.hpp          # Header for ImGui and GLFW integration.
-        ├── loadingData.cpp        # Implementation for general data loading.
-        ├── parallel_batching.hpp  # Header for parallel data batching.
-        ├── synthetic_spike_data.cpp # Implementation for generating synthetic spike data.
-        ├── synthetic_spike_data.hpp # Header for synthetic spike data generation.
-        ├── vectorizationCheck.cpp # Implementation for checking vectorization capabilities.
-        ├── vectorizationCheck.hpp # Header for vectorization checks.
-        └── tests/                 # Unit tests for utility functions.
+  ├── core/                    # Core components of the framework.
+  │   ├── CMakeLists.txt         # Aggregates submodules and sanitizer flags.
+  │   ├── saver/                 # NetworkSerializer.hpp, NnSaver.hpp, tests.
+  │   ├── dataLoaders/           # Dataset/DataLoader abstractions, MAT file readers.
+  │   ├── initializers/          # Weight initialization strategies (e.g., xavier, kaimingSNN).
+  │   ├── layers/                # Module base, Linear, Leaky (LIF), Sequential, losses, surrogates.
+  │   ├── linearAlgebra/         # Custom linear algebra utilities and helpers.
+  │   ├── optimizers/            # Optimization algorithms (e.g., Adam, SGD, interfaces).
+  │   ├── paraconsistent/        # Components related to paraconsistent logic.
+  │   ├── statistics/            # Statistical metrics and test implementations.
+  │   ├── tensor/                # Tensor wrapper + backends (ITensorBackend/EigenTensorBackend).
+  │   ├── utility/               # General utility functions (batching, printing, etc.).
+  │   ├── wave/                  # Wave processing and resampling utilities.
+  │   └── wavelet/               # Wavelet transform implementations.
+  ├── demos/                     # Demo executables (see CMake for targets).
+  └── experiments/               # Research experiments (e.g., experiment_02, profiling targets).
 ```
 
 ---
@@ -146,162 +128,81 @@ nn/
 
 > **Rule:** Any public change requires updating this document + CHANGELOG + semantic versioning.
 
-## 3.1 Tensor (src/tensor/Tensor.h)
+## 3.1 Tensor (src/core/tensor/Tensor.hpp + ITensorBackend/EigenTensorBackend)
 
-```cpp
-class Tensor {
-public:
-    Eigen::MatrixXf data;
-    Eigen::MatrixXf grad;
-    Tensor() = default;
-    explicit Tensor(int rows, int cols);
-    auto rows() const -> int { return data.rows(); }
-    auto cols() const -> int { return data.cols(); }
-    auto reshape(int rows, int cols) -> void; // throws runtime_error if incompatible
-    auto clone() const -> Tensor;
-    auto zero_grad() -> void;
-    static auto from_vector(const std::vector<float>& v, int rows, int cols) -> Tensor;
-};
-```
+- Backend-driven design: `Tensor` owns a `std::unique_ptr<ITensorBackend>`; the default backend is provided by `TensorBackendFactory::create_backend()` (EigenTensorBackend with Eigen::MatrixXf storage). `Index` is an alias for `size_t`.
+- Constructors: default, from backend, from `Eigen::MatrixXf` (copy/move), from shape `(rows, cols)`, `(d1, d2, d3, d4)`, or `std::vector<Index>` shape. Copying clones the backend; moves are defaulted.
+- Data/grad access: `get_data_ref()` / `get_grad_ref()` return Eigen matrices (throw if backend is not Eigen-based); `set_data`, `set_grad` (copy/move) write into the backend. Gradients are lazily allocated/zeroed inside `EigenTensorBackend` when first accessed.
+- Shape/size: `get_shape()`, `rows()`, `cols()`, `size()` reflect backend shape. No generic `reshape`; use constructors for the intended shape.
+- Ops: element access `at(...)` for 2D/4D/N-D, views `row/col/leftCols/topRows`, `block`/`setBlock`, elementwise `add`/`multiply` (+ scalar variants), `matmul`, `transpose`, activations `relu`/`leaky_relu`, losses `mean_squared_error`/`norm`, `slice(std::span<const int>)`, `zero_grad()`. `toVector` template currently returns an empty vector placeholder.
 
-- **Invariant:** `data.size()` consistent; `grad` compatible; public operations validate shapes and throw `std::runtime_error` on invalid inputs.
+## 3.2 Module (src/core/layers/Module.hpp)
 
-## 3.2 Module (src/layers/Module.h)
+- Interface: `virtual nn::Tensor forward(const nn::Tensor& input, bool requires_grad = true) = 0;` `virtual nn::Tensor backward(const nn::Tensor& grad_output) = 0;` `virtual void train(bool on) {}`; `virtual std::vector<nn::Tensor*> params()` (default empty). Copyable, non-movable.
+- `Sequential` manages `std::vector<std::shared_ptr<Module>>` on top of this interface.
 
-```cpp
-struct Module {
-    virtual ~Module() = default;
-    virtual Tensor forward(const Tensor& input) = 0;
-    virtual Tensor backward(const Tensor& grad_output) = 0;
-    virtual void train(bool on) { training_ = on; }
-protected:
-    bool training_ = true;
-};
-```
+## 3.3 Dataset / DataLoader (src/core/dataLoaders/ + src/core/utility/batching.hpp)
 
-- `Sequential` manages `std::vector<std::shared_ptr<Module>>`.
+- `Batch` (batching.hpp): `{ nn::Tensor inputs; nn::Tensor targets; }`.
+- `Dataset` interface: `get_item(std::size_t) -> Batch`, `size() const -> std::size_t`, optional override of `collate(indices)`; default `collate` builds contiguous Eigen matrices using the first item to infer column counts, returns empty batch with correct column counts when dataset is empty.
+- `DataLoader` (DataLoader.hpp): construct with `std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool shuffle=true, std::optional<unsigned int> seed`. Provides input iterators `begin()/end()` that snapshot shuffled indices per iterator; `seed` enables deterministic shuffles with per-epoch increment.
 
-## 3.3 Dataset / DataLoader (src/dataLoaders/)
+## 3.4 Optimizer (src/core/optimizers/Optimizer.hpp)
 
-- `class Dataset { virtual auto get_item(size_t idx) -> std::tuple<Tensor, Tensor> = 0; virtual auto size() const -> size_t = 0; virtual auto collate(const std::vector<std::tuple<Tensor, Tensor>>& batch) -> std::tuple<Tensor, Tensor>; };`
-- `DataLoader` provides C++ iterators: `.begin()`, `.end()`; parameters: `batch_size`, `shuffle`, `seed`.
+- Interface: `virtual void step(std::span<nn::Tensor*> params) = 0;` `virtual void zero_grad(std::span<nn::Tensor*> params) = 0;` optional `virtual void attach(std::span<nn::Tensor*> params) {}`. Copyable, non-movable. Implementations: `Adam`, `SGD`.
 
-## 3.4 Optimizer (src/optimizers/Optimizer.h)
+## 3.5 Regularization (src/core/layers/Regularization.hpp)
 
-```cpp
-struct Optimizer {
-    virtual ~Optimizer() = default;
-    virtual void attach(const std::vector<Tensor*>& params) = 0;
-    virtual void zero_grad() = 0;
-    virtual void step() = 0;
-};
-```
-
-- Implement `Adam`, `SGD`. `attach` must store pointers to parameters (Tensor\*).
-
-## 3.5 Regularization (src/layers/Regularization.hpp)
-
-```cpp
-class Regularization {
-protected:
-    float lambda_;
-public:
-    explicit Regularization(float lambda);
-    virtual ~Regularization() = default;
-    virtual nn::Tensor forward(const std::vector<nn::Tensor*>& params) = 0;
-    virtual void backward(const std::vector<nn::Tensor*>& params) = 0;
-};
-
-class L1Regularization : public Regularization {
-public:
-    explicit L1Regularization(float lambda);
-    nn::Tensor forward(const std::vector<nn::Tensor*>& params) override;
-    void backward(const std::vector<nn::Tensor*>& params) override;
-};
-
-class L2Regularization : public Regularization {
-public:
-    explicit L2Regularization(float lambda);
-    nn::Tensor forward(const std::vector<nn::Tensor*>& params) override;
-    void backward(const std::vector<nn::Tensor*>& params) override;
-};
-```
-
-- L1: penalty = lambda _ sum(|param|); grad = lambda _ sign(param)
-- L2: penalty = lambda _ sum(param^2); grad = 2 _ lambda \* param
+- `Regularization(float lambda_)` with pure virtual `forward(const std::vector<nn::Tensor*>&)` and `backward(const std::vector<nn::Tensor*>&)`.
+- `L1Regularization`: penalty `lambda * sum(|param|)`, grad accumulates `lambda * sign(param)` into `param->grad`.
+- `L2Regularization`: penalty `lambda * sum(param^2)`, grad accumulates `2 * lambda * param` into `param->grad`.
 
 ---
 
 # 4 Detailed Component Specifications
+# 4 Detailed Component Specifications
 
 ## 4.1 Linear Layer
 
-- Signature: `Linear(int in_features, int out_features, bool bias=true)`.
-- Forward: `output = input * weight.t() + bias` (batch x features). Use `noalias()` for optimization. Validate shapes.
-- Backward: Compute grads for weights and inputs; accumulate gradients in `weights.grad` and `bias.grad`.
-- Tests: Forward shape, backward grad numeric check (finite differences) and edge cases (batch=0, in_features mismatch).
+- Signature: `Linear(int in_features, int out_features)`; members `weight`, `bias`, `input_cache`.
+- Forward: validates `input.cols() == in_features`, caches input only when `requires_grad`, computes `result = input * weight^T + bias` (broadcast). Throws `std::invalid_argument` on shape mismatch.
+- Backward: validates gradient cols, sets `weight.grad = grad_previous^T * input_cache`, `bias.grad = grad_previous.colwise().sum().transpose()`, returns `grad_input = grad_previous.matmul(weight)`. Uses Tensor backend operations.
+- Tests: verify forward shape, invalid-argument paths on feature mismatch, backward gradients finite-diff sanity.
 
 ## 4.2 LIF / Leaky Layer (SNN)
 
-- Provide discrete-time LIF update:
-  - Membrane: `V[t+1] = alpha * V[t] + W*x[t] - S[t]*V_reset`
-  - Spike: `S[t] = H(V[t] - V_threshold)` (Heaviside)
-  - Surrogate gradient g'(V) used in backprop.
-
-- Parameters: `tau_m`, `V_thr`, `V_reset`, `alpha = exp(-dt / tau_m)`.
-
-- Stateful per timestep. Provide `reset()` method.
-
-- Tests: Single neuron response to step input (expected firing pattern), surrogate gradient sanity check.
-
-- The Exponential / SuperSpike surrogate must be implemented and available as a selectable surrogate alongside `atan`, `fast_sigmoid`, and `piecewise_linear`. Provide `src/layers/surrogate.h` with unit tests validating gradient shapes and numerical stability.
+- `Leaky` (Module) exposes parameters: `dt`, `resistance` (Tensor), `capacitance` (float), `voltage_threshold` (Tensor), `reset_zero` flag, `reset_potential`, `surrogate_gradient` (`std::shared_ptr<ISurrogateGradient>`).
+- State: persistent `v_mem`, `v_mem_pre_spike`, `v_mem_t_minus_1` resized to match input on first use; caches pre-spike membrane when gradients are required.
+- Surrogates (SurrogateGradient.hpp): `ExponentialSurrogate(sharpness)` (default) and `BoxcarSurrogate(window)` implementing `ISurrogateGradient::calculate`.
+- Forward: computes `beta = exp(-dt / (R*C))`, decays `v_mem`, integrates input, generates spikes where `v_mem > voltage_threshold`, then hard-reset to `reset_potential` when `reset_zero` else subtracts threshold. Returns spike tensor.
+- Backward: surrogate gradient on `v_mem_pre_spike` vs `voltage_threshold`; sets grads for `voltage_threshold` (sum of `-grad_v_pre`) and `resistance` (via `d_beta/dR` using cached `v_mem_t_minus_1`), returns `grad_input = grad_output * surrogate_grad`. Guards against zero `tau`.
+- `params()` returns `{&resistance, &voltage_threshold}` for optimizers.
 
 ## 4.3 MatFile Wrapper
 
-- Methods: `read_first_numeric_variable()`, `read_variable(name)`, `write_variable(name, data)`.
-- Validate MAT v5 header, var type (double/float), dims; map to `Eigen::Map` if possible.
-- Tests: Read synthetic `tests/data/test_small.mat`.
+- `mat_file.hpp` exposes `MatFile` with `getVariableNames()`, `readVariable(name)`, `readFirstNumericVariable()` (optional owning `matvar_t` with deleter). Destructor closes `mat_t` handle.
+- `MatFileDataset`/`TensorDataset` live in `dataLoaders/` for consuming `.mat` or in-memory tensors.
+- Validate MAT v5 numeric types and dimensions before mapping to Eigen; add safety caps when extending loaders.
 
 ## 4.4 Encoders (Rate, TTFS, BSA)
 
-- Each encoder implements interface:
-
-```cpp
-struct SpikeEncoder {
-    virtual ~SpikeEncoder() = default;
-    virtual Tensor encode(const Tensor& analog_window) = 0; // returns spikes (time x features) or spike times depending on impl
-};
-```
-
-- Provide both Python pseudo-implementations and C++ optimized versions in `src/encoders/`.
+- Not yet implemented in-tree. Keep the sketches below as design references when adding an `encoders/` module.
 
 ---
 
-# 5 Equations and Implementation — LIF, Surrogate Gradients, Van Rossum, TTFS, BSA
+# 5 Equations and Implementation: LIF, Surrogate Gradients, Van Rossum, TTFS, BSA
 
 ## 5.1 LIF (Discretized)
 
-- Membrane update discrete:
-  - `V[t+1] = decay * V[t] + I[t]` where `decay = exp(-dt / tau_m)` and `I[t] = W * x[t] + b`.
-
-- Spike emission:
-  - `S[t] = Theta(V[t] - V_thr)` where `Theta` is the Heaviside function.
-
-- Reset:
-  - After spike, `V[t] = V[t] - V_reset` (or `V[t] = V_reset_value` depending on the model).
-
-- Include derivation and Euler discretization in `docs/math_lif.md`. Implement forward Euler time-stepping as baseline and document stability constraints (dt relative to tau).
+- Membrane update discrete: `V[t+1] = decay * V[t] + I[t]` where `decay = exp(-dt / tau_m)` and `I[t] = W * x[t] + b`.
+- Spike emission: `S[t] = Theta(V[t] - V_thr)` where `Theta` is the Heaviside function.
+- Reset: hard reset to `reset_potential` or subtract threshold depending on `reset_zero`.
+- Forward Euler discretization is the baseline; document stability constraints (`dt` vs `tau`).
 
 ## 5.2 Surrogate Gradient
 
-- Use surrogate `sigma(x)` approximating derivative of Heaviside.
-
-- Examples:
-  - Fast sigmoid surrogate derivative: `sigma'(x) = 1 / (1 + abs(pi * x))^2` (or another form).
-  - Arctan surrogate: derivative of `atan(k*x)` approximates spike derivative.
-  - Exponential / SuperSpike: provide implementation and config switch.
-
-- Implementation tip: Compute surrogate derivative as function of `V - V_thr`, scale by `scale_factor`.
+- Current implementations: `ExponentialSurrogate` (SuperSpike-like, `sharpness` scale) and `BoxcarSurrogate(window)` returning rectangular support.
+- Compute surrogate derivative as function of `V - V_thr`, scale by `sharpness`/`window`; ensure numerical stability and gradient clipping where necessary.
 
 ## 5.3 Van Rossum Distance (Reconstruction Loss for Spike Trains)
 
@@ -326,10 +227,10 @@ struct SpikeEncoder {
 
 ```python
 def rate_encode(window, scaling_factor=1.0):
-    # window: (time, features) normalized to [0,1]
-    spike_prob = window * scaling_factor
-    spikes = (np.random.rand(*window.shape) < spike_prob).astype(np.float32)
-    return spikes
+  # window: (time, features) normalized to [0,1]
+  spike_prob = window * scaling_factor
+  spikes = (np.random.rand(*window.shape) < spike_prob).astype(np.float32)
+  return spikes
 ```
 
 ## 6.2 TTFS (C++ Sketch)
@@ -338,12 +239,12 @@ def rate_encode(window, scaling_factor=1.0):
 // input: Eigen::MatrixXf window (features x 1) values in [0,1]
 // output: std::vector<int> spike_times (size = features) in [0, T_max) or T_max for no spike.
 std::vector<int> ttfs_encode(const Eigen::VectorXf& window, int T_max) {
-    std::vector<int> spike_times(window.size(), T_max);
-    for (int i=0;i<window.size();++i) {
-        float a = window[i];
-        if (a > 0.0f) spike_times[i] = static_cast<int>((1.0f - a) * (T_max - 1));
-    }
-    return spike_times;
+  std::vector<int> spike_times(window.size(), T_max);
+  for (int i=0;i<window.size();++i) {
+    float a = window[i];
+    if (a > 0.0f) spike_times[i] = static_cast<int>((1.0f - a) * (T_max - 1));
+  }
+  return spike_times;
 }
 ```
 
@@ -351,16 +252,16 @@ std::vector<int> ttfs_encode(const Eigen::VectorXf& window, int T_max) {
 
 ```cpp
 Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float reset) {
-    Eigen::MatrixXi spikes(window.size(), 1);
-    float potential = 0.0f;
-    for (int t=0; t<window.size(); ++t) {
-        potential += window[t];
-        if (potential > threshold) {
-            spikes(t,0) = 1;
-            potential -= reset;
-        }
+  Eigen::MatrixXi spikes(window.size(), 1);
+  float potential = 0.0f;
+  for (int t=0; t<window.size(); ++t) {
+    potential += window[t];
+    if (potential > threshold) {
+      spikes(t,0) = 1;
+      potential -= reset;
     }
-    return spikes;
+  }
+  return spikes;
 }
 ```
 
@@ -396,13 +297,12 @@ Eigen::MatrixXi bsa_encode(const Eigen::VectorXf& window, float threshold, float
 
 ## 7.2 MatFile Reader Expectations
 
-- `MatFile::read_first_numeric_variable()` returns `Eigen::MatrixXf` with warning if too large. Provide safety caps: `max_features`, `max_elements`.
+- `MatFile::readFirstNumericVariable()` returns an owning optional `matvar_t` pointer with deleter; validate numeric type/dimensions before mapping to Eigen. Provide safety caps: `max_features`, `max_elements`.
 
 ## 7.3 DataLoader Contract
 
-- `DataLoader` returns batches `(inputs, targets)` where `inputs` shape = `(batch, features...)`.
-- Provide deterministic shuffle via seed, and an optional `sampler` that can stratify by speaker or stimulus.
-- Persist metadata per-record: subject id, start/stop timestamps, sentence id, modality, noise condition. This metadata must travel with batches for analysis and reproducibility.
+- `DataLoader` yields `Batch{inputs, targets}`; `inputs` are stacked rows, `targets` stacked rows. Deterministic shuffle available via `seed`; iterator snapshots indices per epoch.
+- Persist metadata per-record (subject id, start/stop timestamps, modality, stimulus, noise condition) alongside batch tensors for auditability.
 
 ---
 
@@ -472,7 +372,7 @@ for epoch in range(max_epochs):
 
 ## 10.4 Surrogate Gradients (Recommendations)
 
-- Implement multiple choices: `exponential_super_spike`, `atan`, `fast_sigmoid`, `piecewise_linear`. Select via config.
+- Implemented: `ExponentialSurrogate` (sharpness) and `BoxcarSurrogate` (window) in `SurrogateGradient.hpp`. Add new surrogates by extending `ISurrogateGradient`.
 - Ensure numerical stability; clip gradients where needed; provide unit tests for surrogate gradient behavior.
 
 ---
@@ -521,21 +421,26 @@ for epoch in range(max_epochs):
 ## 14.2 Example Module CMake
 
 ```cmake
-add_library(nn_tensor src/tensor/Tensor.cpp)
-target_include_directories(nn_tensor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(nn_tensor src/core/tensor/Tensor.cpp)
+target_include_directories(nn_tensor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(nn_tensor PUBLIC Eigen3::Eigen)
-add_executable(nn_tensor_test tests/unit/tensor_test.cpp)
+add_executable(nn_tensor_test src/core/tensor/tests/tensor_gtest.cpp)
 target_link_libraries(nn_tensor_test PRIVATE nn_tensor GTest::gtest_main)
 gtest_discover_tests(nn_tensor_test)
 ```
 
 ## 14.3 Vendoring & External Projects
 
-- **FetchContent libraries** (Eigen, FFTW, Matio, ImGui, ImPlot, cnpy, GoogleTest): Downloaded and built as part of CMake configuration. Source placed in `build/_deps/<lib>-src/`, built in `build/_deps/<lib>-build/`, artifacts in `build/lib/` or similar.
+- **FetchContent libraries** (Eigen, FFTW, Matio, ImGui, ImPlot, cnpy, GoogleTest, yaml-cpp, matplotlib-cpp header-only): Downloaded and built as part of CMake configuration. `matplotlib-cpp` can bootstrap a Python venv + NumPy/Matplotlib when `MATPLOTLIBCPP_CREATE_VENV` is ON. Source placed in `build/_deps/<lib>-src/`, built in `build/_deps/<lib>-build/`, artifacts in `build/lib/` or similar.
 - **AutoTools libraries** (NFFT3): Use `ExternalProject_Add()` to download, run `./bootstrap.sh && autoreconf --install --force`, then `./configure --enable-openmp --enable-shared`, `make -j4`, `make install` into `build/_deps/nfft3-install/`.
 - **OpenMP integration**: Explicitly call `find_package(OpenMP REQUIRED)` in vendor modules. Both FFTW and NFFT3 configure with `--enable-openmp` and link against `OpenMP::OpenMP_C` / `OpenMP::OpenMP_CXX`.
 - **Shared vs. Static**: NFFT3 imports as `SHARED IMPORTED` (`.so` library); FFTW3 primary target is the main library (library type determined by CMake config).
 - **Dependency consistency**: NFFT3 depends on FFTW3 and OpenMP; ensure FFTW is configured before NFFT3 in CMake include order.
+
+## 14.4 Dev/Analysis Helpers & Sanitizers
+
+- `DevAndAnalysisTargets.cmake` defines `dev-setup`, `analysis-cppcheck`, `analysis-flawfinder`, `analysis-clang-tidy`, `analysis-all`, and `clean-cache` (ccache) when tools are available.
+- `SanitizerFlags.cmake` centralizes sanitizer options; included by `src/core/CMakeLists.txt`.
 
 ---
 

@@ -1,5 +1,13 @@
 # Speaker Identification Pipeline
 
+## Executive Summary
+
+This project establishes a comprehensive pipeline for speaker identification using synchronized EEG and audio data, leveraging Spiking Neural Networks (SNNs) and paraconsistent analysis. We begin by freezing the methodological foundations—including a fixed 1.5-second window with 50% overlap and a residual SNN classifier—ensuring reproducibility and consistent normalization across all experiments.
+
+We then systematically compare classical feature engineering methods (wavelets) with learned feature approaches (spiking autoencoders), evaluate multiple spectral scales (LFCC, MEL, BARK), and analyze unimodal versus multimodal (EEG + voice) performance. We also introduce a phase dedicated to imagined speech to highlight the project's unique contribution, and a robustness phase to test noise tolerance.
+
+Finally, all experiments are consolidated into comprehensive tables and paraconsistent metric plots, comparing our results with the state of the art. This pipeline is designed to be methodologically rigorous and easily reproducible, offering a robust and innovative approach to speaker identification using brain and voice signals.
+
 **EEG + Audio using Spiking Neural Networks (SNNs)**
 📌 **Updated and Corrected Task List**
 
