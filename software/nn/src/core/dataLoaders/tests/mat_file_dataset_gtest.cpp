@@ -12,7 +12,7 @@ using namespace matioCpp;
 class MatFileDatasetTestFixture : public ::testing::Test
 {
    protected:
-    const std::string test_filename = "test.mat";
+    const std::string test_filename = "test_dataset.mat";
 
     void SetUp() override
     {
@@ -27,10 +27,10 @@ class MatFileDatasetTestFixture : public ::testing::Test
     }
 
     // Helper to create a simple .mat file
-    void create_mat_file(const std::vector<double>& inputs_data, const std::vector<size_t>& inputs_shape,
-                         const std::string& inputs_name,
-                         const std::vector<double>& targets_data, const std::vector<size_t>& targets_shape,
-                         const std::string& targets_name)
+    void create_mat_file(const std::vector<double>& inputs_data,
+                         const std::vector<size_t>& inputs_shape, const std::string& inputs_name,
+                         const std::vector<double>& targets_data,
+                         const std::vector<size_t>& targets_shape, const std::string& targets_name)
     {
         File file = File::Create(test_filename);
         MultiDimensionalArray<double> inputs(inputs_name, inputs_shape, inputs_data.data());
@@ -161,10 +161,10 @@ TEST_F(MatFileDatasetTestFixture, CollateWithValidIndices)
     EXPECT_EQ(batch.targets.get_shape()[0], 2);
     EXPECT_EQ(batch.targets.get_shape()[1], 1);
 
-    EXPECT_FLOAT_EQ(batch.inputs.at(0, 0), 1.0); // Original inputs.at(0,0)
-    EXPECT_FLOAT_EQ(batch.inputs.at(0, 1), 5.0); // Original inputs.at(0,1)
-    EXPECT_FLOAT_EQ(batch.inputs.at(1, 0), 2.0); // Original inputs.at(2,0)
-    EXPECT_FLOAT_EQ(batch.inputs.at(1, 1), 6.0); // Original inputs.at(2,1)
+    EXPECT_FLOAT_EQ(batch.inputs.at(0, 0), 1.0);  // Original inputs.at(0,0)
+    EXPECT_FLOAT_EQ(batch.inputs.at(0, 1), 5.0);  // Original inputs.at(0,1)
+    EXPECT_FLOAT_EQ(batch.inputs.at(1, 0), 2.0);  // Original inputs.at(2,0)
+    EXPECT_FLOAT_EQ(batch.inputs.at(1, 1), 6.0);  // Original inputs.at(2,1)
     EXPECT_FLOAT_EQ(batch.targets.at(0, 0), 1.0); // Original targets.at(0,0)
     EXPECT_FLOAT_EQ(batch.targets.at(1, 0), 1.0); // Original targets.at(2,0)
 }
@@ -172,9 +172,9 @@ TEST_F(MatFileDatasetTestFixture, CollateWithValidIndices)
 TEST_F(MatFileDatasetTestFixture, CollateWithEmptyIndices)
 {
     std::vector<double> inputs_raw = {1.0, 4.0, 2.0, 5.0, 3.0, 6.0}; // From CanLoadData
-    std::vector<size_t> inputs_shape = {2, 3};                     // From CanLoadData
-    std::vector<double> targets_raw = {1.0, 2.0};                   // Made 2x1
-    std::vector<size_t> targets_shape = {2, 1};                     // Made 2x1
+    std::vector<size_t> inputs_shape = {2, 3};                       // From CanLoadData
+    std::vector<double> targets_raw = {1.0, 2.0};                    // Made 2x1
+    std::vector<size_t> targets_shape = {2, 1};                      // Made 2x1
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
     MatFileDataset dataset(test_filename, "inputs", "targets");
@@ -192,9 +192,9 @@ TEST_F(MatFileDatasetTestFixture, CollateWithEmptyIndices)
 TEST_F(MatFileDatasetTestFixture, CollateWithOutOfBoundsIndicesThrows)
 {
     std::vector<double> inputs_raw = {1.0, 4.0, 2.0, 5.0, 3.0, 6.0}; // From CanLoadData
-    std::vector<size_t> inputs_shape = {2, 3};                     // From CanLoadData
-    std::vector<double> targets_raw = {1.0, 2.0};                   // Made 2x1
-    std::vector<size_t> targets_shape = {2, 1};                     // Made 2x1
+    std::vector<size_t> inputs_shape = {2, 3};                       // From CanLoadData
+    std::vector<double> targets_raw = {1.0, 2.0};                    // Made 2x1
+    std::vector<size_t> targets_shape = {2, 1};                      // Made 2x1
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
     MatFileDataset dataset(test_filename, "inputs", "targets");
@@ -214,14 +214,19 @@ TEST_F(MatFileDatasetTestFixture, LoadMinimalTargetsDirectly)
 
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    auto loaded_targets_opt = matioCpp::utils::load_named_variable_as_matrix(test_filename, "targets");
+    // Check that file was created
+    ASSERT_TRUE(std::filesystem::exists(test_filename)) << "Test file was not created";
+
+    auto loaded_targets_opt =
+        matioCpp::utils::load_named_variable_as_matrix(test_filename, "targets");
     ASSERT_TRUE(loaded_targets_opt.has_value());
     EXPECT_EQ(loaded_targets_opt->rows(), 2);
     EXPECT_EQ(loaded_targets_opt->cols(), 1);
     EXPECT_FLOAT_EQ((*loaded_targets_opt)(0, 0), 1.0);
     EXPECT_FLOAT_EQ((*loaded_targets_opt)(1, 0), 2.0);
 
-    auto loaded_inputs_opt = matioCpp::utils::load_named_variable_as_matrix(test_filename, "inputs");
+    auto loaded_inputs_opt =
+        matioCpp::utils::load_named_variable_as_matrix(test_filename, "inputs");
     ASSERT_TRUE(loaded_inputs_opt.has_value());
     EXPECT_EQ(loaded_inputs_opt->rows(), 2);
     EXPECT_EQ(loaded_inputs_opt->cols(), 3);

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
 
 #include "core/tensor/Tensor.hpp"
@@ -11,6 +12,21 @@ auto create_batches(const std::vector<nn::Tensor>& inputSamples,
                     const std::vector<nn::Tensor>& targets, const int batch_size)
     -> std::vector<Batch>
 {
+    if (batch_size <= 0)
+    {
+        throw std::invalid_argument("Batch size must be positive");
+    }
+
+    if (inputSamples.empty() || targets.empty())
+    {
+        throw std::invalid_argument("Input and target samples must not be empty");
+    }
+
+    if (inputSamples.size() != targets.size())
+    {
+        throw std::invalid_argument("Input and target sample counts must match");
+    }
+
     const int n_samples = static_cast<int>(inputSamples.size());
     std::vector<int> indices(n_samples);
     std::iota(indices.begin(), indices.end(), 0);

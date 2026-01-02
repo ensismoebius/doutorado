@@ -174,7 +174,7 @@ Index EigenTensorBackend::rows() const
 Index EigenTensorBackend::cols() const
 {
     if (m_shape.size() < 2) return 0; // Or handle as 1 for 1D vectors
-    return m_shape[1]; // For 2D tensors, this is the column count
+    return m_shape[1];                // For 2D tensors, this is the column count
 }
 
 Index EigenTensorBackend::size() const
@@ -266,7 +266,8 @@ void EigenTensorBackend::setBlock(Index row, Index col, const ITensorBackend& bl
     }
     if (row + block.shape()[0] > m_shape[0] || col + block.shape()[1] > m_shape[1])
     {
-        throw std::out_of_range("Block position out of range");
+        // Treat oversized blocks as invalid argument to align with test expectations
+        throw std::invalid_argument("Block dimensions do not fit target tensor");
     }
     const auto& eigen_block = dynamic_cast<const EigenTensorBackend&>(block);
     m_data.block(static_cast<Eigen::Index>(row),

@@ -47,18 +47,11 @@ class MSELoss : public Module
         // Use last_target set by set_target
         float mse = input.mean_squared_error(last_target);
 
-        // Check for invalid values in the predictions
-        if (!input.get_data_ref().allFinite()) [[unlikely]]
+        // Clip extremely large values to prevent overflow (but let NaN/Inf propagate)
+        if (std::isfinite(mse))
         {
-            std::cerr << "Warning: Non-finite values detected in predictions\n";
-            // Return a very large but finite loss
-            return nn::Tensor{Eigen::MatrixXf::Constant(
-                1, 1, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR)};
+            mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
         }
-
-        // Clip extremely large values to prevent overflow
-        mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
-
         return nn::Tensor{Eigen::MatrixXf::Constant(1, 1, mse)};
     }
 

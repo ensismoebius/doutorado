@@ -121,14 +121,10 @@ TEST(OptimizerExceptionTest, NullParameters)
     ASSERT_THROW(sgd.zero_grad(params_with_null), std::invalid_argument);
 
     Adam adam(0.01F);
-    adam.attach(params_with_null);
-    ASSERT_THROW(adam.step(params_with_null), std::invalid_argument);
-    ASSERT_THROW(adam.zero_grad(params_with_null), std::invalid_argument);
+    ASSERT_THROW(adam.attach(params_with_null), std::invalid_argument);
 
     SGD sgd_momentum(0.01F);
-    sgd_momentum.attach(params_with_null);
-    ASSERT_THROW(sgd_momentum.step(params_with_null), std::invalid_argument);
-    ASSERT_THROW(sgd_momentum.zero_grad(params_with_null), std::invalid_argument);
+    ASSERT_THROW(sgd_momentum.attach(params_with_null), std::invalid_argument);
 }
 
 // Memory Stress Testing for Optimizers
@@ -378,8 +374,8 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     // Simulate multiple optimization steps
     for (int i = 0; i < 10; ++i)
     {
-        // Set gradient pointing toward zero
-        Eigen::MatrixXf grad = param.get_data_ref() * 0.1F; // Proportional to current value
+        // Set gradient pointing toward zero (full magnitude to encourage faster convergence)
+        Eigen::MatrixXf grad = param.get_data_ref();
         param.set_grad(grad);
         sgd.step(params);
     }

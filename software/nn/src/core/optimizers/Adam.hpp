@@ -1,5 +1,6 @@
 #include <Eigen/Core>
 #include <span>
+#include <stdexcept>
 
 #include "../tensor/Tensor.hpp"
 #include "Optimizer.hpp"
@@ -33,20 +34,30 @@ struct Adam : public Optimizer
                   float eps = 1e-8F)
         : lr(learning_rate), beta1(beta1), beta2(beta2), eps(eps), t(0)
     {
+        if (learning_rate <= 0.0F)
+        {
+            throw std::invalid_argument("Learning rate must be positive");
+        }
+        if (learning_rate > 1e8F)
+        {
+            throw std::invalid_argument("Learning rate is unreasonably large");
+        }
     }
 
     // Inicializa os vetores m e v para cada parâmetro, com zeros do mesmo shape dos gradientes.
     // Deve ser chamado sempre que os parâmetros mudarem.
-    auto attach(std::span<nn::Tensor*> paramsList) -> void
+    void attach(std::span<nn::Tensor*> params) override
     {
         m.clear();
         v.clear();
-        for (auto* param : paramsList)
+        for (auto* param : params)
         {
-            m.emplace_back(
-                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
-            v.emplace_back(
-                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
+            if (param == nullptr)
+            {
+                throw std::invalid_argument("Cannot attach null parameter to optimizer");
+            }
+            m.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
+            v.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
         }
     }
 
@@ -62,6 +73,10 @@ struct Adam : public Optimizer
         t += 1;
         for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
+            if (paramsList[i] == nullptr)
+            {
+                throw std::invalid_argument("Parameter pointer is null");
+            }
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             m[i] = (beta1 * m[i].array() + (1 - beta1) * param.get_grad_ref().array()).matrix();
@@ -84,6 +99,10 @@ struct Adam : public Optimizer
     {
         for (auto* param : paramsList) [[likely]]
         {
+            if (param == nullptr)
+            {
+                throw std::invalid_argument("Parameter pointer is null");
+            }
             param->zero_grad();
         }
     }

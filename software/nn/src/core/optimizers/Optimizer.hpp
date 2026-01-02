@@ -45,6 +45,7 @@ struct Optimizer
 
     virtual auto step(std::span<nn::Tensor*> params) -> void = 0;
     virtual auto zero_grad(std::span<nn::Tensor*> params) -> void = 0;
+    virtual auto attach(std::span<nn::Tensor*> params) -> void {}
     virtual ~Optimizer() = default;
 };
 

@@ -970,6 +970,9 @@ TEST(LayerMemoryStressTest, LargeConv2dLayer)
 TEST(LayerNumericalEdgeTest, NaNInfHandling)
 {
     Linear linear(2, 1);
+    // Set weights to 1 so Inf propagates as Inf (not NaN)
+    linear.weight.get_data_ref().setOnes();
+    linear.bias.get_data_ref().setZero();
 
     // Test with NaN inputs
     Eigen::MatrixXf nan_input(1, 2);
@@ -1146,16 +1149,24 @@ TEST(LayerComprehensiveTest, Conv2dPaddingAndStride)
     Conv2d conv(
         1, 1, 3, 2, 1, 1, false); // kernel=3, stride=2, padding=1, dilation=1, use_parallel=false
 
-    Eigen::MatrixXf input(1 * 8, 8); // 1 channel, 8x8 input
-    input.setOnes();
+    // Create a 4D input tensor: (batch=1, channels=1, height=8, width=8)
+    nn::Tensor input_tensor(1, 1, 8, 8);
+    // Set all elements to 1
+    for (int i = 0; i < 1; ++i)
+        for (int c = 0; c < 1; ++c)
+            for (int h = 0; h < 8; ++h)
+                for (int w = 0; w < 8; ++w) input_tensor.at(i, c, h, w) = 1.0f;
 
-    nn::Tensor input_tensor{input};
     nn::Tensor output = conv.forward(input_tensor);
 
     // With stride=2 and kernel=3, output size should be (8-3+2*1)/2 + 1 = 4
-    // So output should be 4x4 for 1 channel
-    EXPECT_EQ(output.rows(), 1 * 4);
-    EXPECT_EQ(output.cols(), 4);
+    // So output should be (batch=1, out_channels=1, height=4, width=4)
+    const auto& out_shape = output.get_shape();
+    ASSERT_EQ(out_shape.size(), 4);
+    EXPECT_EQ(out_shape[0], 1); // batch
+    EXPECT_EQ(out_shape[1], 1); // out_channels
+    EXPECT_EQ(out_shape[2], 4); // out_height
+    EXPECT_EQ(out_shape[3], 4); // out_width
 }
 
 TEST(LayerComprehensiveTest, RegularizationZeroParameters)
