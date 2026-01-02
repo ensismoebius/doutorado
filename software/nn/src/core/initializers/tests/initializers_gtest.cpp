@@ -25,3 +25,24 @@ TEST(InitializerTest, Xavier)
     ASSERT_NE(weights.get_data_ref().sum(), 0.0F);
     ASSERT_NE(bias.get_data_ref().sum(), 0.0F);
 }
+
+TEST(InitializerTest, XavierZeroDimensions)
+{
+    nn::Tensor weights(0, 0);
+    nn::Tensor bias(0, 0);
+    // Expect no throw, but initializers should handle this gracefully
+    ASSERT_NO_THROW(xavierInitializer(0, 0, weights, bias));
+    ASSERT_EQ(weights.rows(), 0);
+    ASSERT_EQ(weights.cols(), 0);
+    ASSERT_EQ(bias.rows(), 0);
+    ASSERT_EQ(bias.cols(), 0);
+
+    // Test with valid fan_in/fan_out but 0-dimension tensors initially
+    nn::Tensor weights_empty(0, 2);
+    nn::Tensor bias_empty(0, 1);
+    ASSERT_NO_THROW(xavierInitializer(2, 4, weights_empty, bias_empty));
+    ASSERT_EQ(weights_empty.rows(), 0);
+    ASSERT_EQ(weights_empty.cols(), 2);
+    ASSERT_EQ(bias_empty.rows(), 0);
+    ASSERT_EQ(bias_empty.cols(), 1);
+}
