@@ -16,10 +16,10 @@
 #include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
 #include "core/layers/SimpleResNet.hpp"
-#include "core/linearAlgebra/linearAlgebra.h"
+#include "core/linearAlgebra/linear_algebra.hpp"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
-#include "core/statistics/multiClassMetrics.h"
+#include "core/statistics/multi_class_metrics.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/batching.hpp"
 #include "core/wave/audioFeatureExtraction.h"
@@ -176,14 +176,14 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
     unsigned int n_samples_per_class = class_features.begin()->second.size();
     unsigned int feature_dim = features[0].size();
 
-    double alpha = calculateAlpha(n_classes, n_samples_per_class, feature_dim, class_features);
-    double beta = calculateBeta(n_classes, n_samples_per_class, feature_dim, class_features);
+    double alpha = calculate_alpha(n_classes, n_samples_per_class, feature_dim, class_features);
+    double beta = calculate_beta(n_classes, n_samples_per_class, feature_dim, class_features);
 
     ParaconsistentMetrics metrics;
     metrics.alpha = alpha;
     metrics.beta = beta;
-    metrics.G1 = calcCertaintyDegree_G1(alpha, beta);
-    metrics.G2 = calcContradictionDegree_G2(alpha, beta);
+    metrics.G1 = calculate_certainty_degree_g1(alpha, beta);
+    metrics.G2 = calculate_contradiction_degree_g2(alpha, beta);
 
     return metrics;
 }

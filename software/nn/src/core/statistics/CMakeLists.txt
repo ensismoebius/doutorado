@@ -2,8 +2,8 @@ include(GoogleTest)
 
 add_library(statistics
     statistics.cpp
-    confusionMatrix.cpp
-    multiClassMetrics.cpp
+    confusion_matrix.cpp
+    multi_class_metrics.cpp
 )
 
 target_include_directories(statistics 

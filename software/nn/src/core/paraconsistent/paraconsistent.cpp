@@ -11,14 +11,14 @@
 #include <string>
 #include <vector>
 
-#include "../linearAlgebra/linearAlgebra.h"
+#include "../linearAlgebra/linear_algebra.hpp"
 #include "core/utility/comparison.h"
 
-auto calcCertaintyDegree_G1(double alpha, double betha) -> double
+auto calculate_certainty_degree_g1(double alpha, double betha) -> double
 {
     return alpha - betha;
 }
-auto calcContradictionDegree_G2(double alpha, double betha) -> double
+auto calculate_contradiction_degree_g2(double alpha, double betha) -> double
 {
     return alpha + betha - 1;
 }
@@ -40,9 +40,9 @@ static void normalizeFeatureVectors(std::vector<std::vector<double>>& featureVec
     }
 }
 
-void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
-                                    unsigned int featureVectorsPerClass,
-                                    unsigned int featureVectorSize, double*** arrClasses)
+void normalize_class_feature_vectors(unsigned int amountOfClasses,
+                                     unsigned int featureVectorsPerClass,
+                                     unsigned int featureVectorSize, double*** arrClasses)
 {
     for (unsigned int i = 0; i < amountOfClasses; i++)
     {
@@ -50,10 +50,10 @@ void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
     }
 }
 
-void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
-                                    unsigned int featureVectorsPerClass,
-                                    unsigned int featureVectorSize,
-                                    std::vector<std::vector<std::vector<double>>>& arrClasses)
+void normalize_class_feature_vectors(unsigned int amountOfClasses,
+                                     unsigned int featureVectorsPerClass,
+                                     unsigned int featureVectorSize,
+                                     std::vector<std::vector<std::vector<double>>>& arrClasses)
 {
     for (unsigned int i = 0; i < amountOfClasses; i++)
     {
@@ -61,7 +61,7 @@ void normalizeClassesFeatureVectors(unsigned int amountOfClasses,
     }
 }
 
-void normalizeClassesFeatureVectors(
+void normalize_class_feature_vectors(
     unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
     std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
@@ -72,9 +72,9 @@ void normalizeClassesFeatureVectors(
     }
 }
 
-auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                    unsigned int featureVectorSize,
-                    const std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
+auto calculate_alpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                     unsigned int featureVectorSize,
+                     const std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
     -> double
 {
     std::map<std::string, std::vector<double>> arrLargestItems;
@@ -123,9 +123,9 @@ auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPer
     return alpha;
 }
 
-auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                   unsigned int featureVectorSize,
-                   std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
+auto calculate_beta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                    unsigned int featureVectorSize,
+                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
 {
     double item;
     std::map<std::string, std::vector<double>> arrLargestItems;

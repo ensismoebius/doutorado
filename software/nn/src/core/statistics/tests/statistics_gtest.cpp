@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "multiClassMetrics.h"
+#include "multi_class_metrics.hpp"
 #include "statistics.h"
 
 TEST(StatisticsTest, VarianceWithVector)

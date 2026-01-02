@@ -19,7 +19,7 @@
  * @param betha
  * @return double
  */
-auto calcCertaintyDegree_G1(double alpha, double betha) -> double;
+auto calculate_certainty_degree_g1(double alpha, double betha) -> double;
 
 /**
  * @brief Given the alfa and the betha calculates the contradiction degree
@@ -28,7 +28,7 @@ auto calcCertaintyDegree_G1(double alpha, double betha) -> double;
  * @param betha
  * @return double
  */
-auto calcContradictionDegree_G2(double alpha, double betha) -> double;
+auto calculate_contradiction_degree_g2(double alpha, double betha) -> double;
 
 /**
  * @brief Calculates the alpha value
@@ -39,9 +39,10 @@ auto calcContradictionDegree_G2(double alpha, double betha) -> double;
  * @param arrClasses Holds all classes
  * @return double Value of alpha
  */
-auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                    unsigned int featureVectorSize,
-                    const std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double;
+auto calculate_alpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                     unsigned int featureVectorSize,
+                     const std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
+    -> double;
 
 /**
  * @brief Calculates the beta value
@@ -52,9 +53,9 @@ auto calculateAlpha(unsigned int amountOfClasses, unsigned int featureVectorsPer
  * @param arrClasses Holds all classes
  * @return double Value of beta
  */
-auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                   unsigned int featureVectorSize,
-                   std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double;
+auto calculate_beta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+                    unsigned int featureVectorSize,
+                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double;
 
 /**
  * @brief Normalize all feature vectors from all classes
@@ -64,7 +65,7 @@ auto calculateBeta(unsigned int amountOfClasses, unsigned int featureVectorsPerC
  * @param featureVectorSize Size of the feature vectors
  * @param arrClasses Holds all classes
  */
-void normalizeClassesFeatureVectors(
+void normalize_class_feature_vectors(
     unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
     std::map<std::string, std::vector<std::vector<double>>>& arrClasses);

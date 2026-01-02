@@ -59,7 +59,7 @@ TEST(paraconsistentTest, alpha)
 {
     initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
     double alpha =
-        calculateAlpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_alpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     ASSERT_NEAR(alpha, 0.9749999, 0.000001);
 }
 
@@ -67,7 +67,7 @@ TEST(paraconsistentTest, betha)
 {
     initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
     double betha =
-        calculateBeta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_beta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     ASSERT_EQ(betha, 0);
 }
 
@@ -75,12 +75,12 @@ TEST(paraconsistentTest, distanceTo1_0)
 {
     initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
     double alpha =
-        calculateAlpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_alpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     double betha =
-        calculateBeta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_beta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
 
-    double certaintyDegree_G1 = calcCertaintyDegree_G1(alpha, betha);
-    double contradictionDegree_G2 = calcContradictionDegree_G2(alpha, betha);
+    double certaintyDegree_G1 = calculate_certainty_degree_g1(alpha, betha);
+    double contradictionDegree_G2 = calculate_contradiction_degree_g2(alpha, betha);
     double distanceTo1_0 =
         std::sqrt(std::pow(certaintyDegree_G1 - 1, 2) + std::pow(contradictionDegree_G2, 2));
 
@@ -91,10 +91,10 @@ TEST(paraconsistentTest, certaintyDegree_G1)
 {
     initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
     double alpha =
-        calculateAlpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_alpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     double betha =
-        calculateBeta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
-    double certaintyDegree_G1 = calcCertaintyDegree_G1(alpha, betha);
+        calculate_beta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+    double certaintyDegree_G1 = calculate_certainty_degree_g1(alpha, betha);
 
     ASSERT_NEAR(certaintyDegree_G1, 0.975, 0.0001);
 }
@@ -103,10 +103,10 @@ TEST(paraconsistentTest, contradictionDegree_G2)
 {
     initializeClasses(arrClasses, amountOfClasses, featureVectorsPerClass, featureVectorSize);
     double alpha =
-        calculateAlpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_alpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     double betha =
-        calculateBeta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
-    double contradictionDegree_G2 = calcContradictionDegree_G2(alpha, betha);
+        calculate_beta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+    double contradictionDegree_G2 = calculate_contradiction_degree_g2(alpha, betha);
 
     ASSERT_NEAR(contradictionDegree_G2, -0.025, 0.0001);
 }

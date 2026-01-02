@@ -11,7 +11,7 @@
 #include <omp.h>
 #endif
 
-#include "../linearAlgebra/linearAlgebra.h"
+#include "../linearAlgebra/linear_algebra.hpp"
 #include "WaveletTransformResults.h"
 
 namespace wavelets

@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "../linearAlgebra/linearAlgebra.h"
+#include "../linearAlgebra/linear_algebra.hpp"
 
 auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> double
 {

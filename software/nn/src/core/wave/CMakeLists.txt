@@ -1,6 +1,6 @@
 add_library(waveCoreLib STATIC
-    filtersOperations.cpp
-    simpleSignalOperations.cpp
+    filter_operations.cpp
+    signal_operations.cpp
     Wav.cpp
     audioFeatureExtraction.cpp
 )

@@ -1,6 +1,7 @@
-#include "../linearAlgebra.h"
-#include "gtest/gtest.h"
 #include <cmath>
+
+#include "../linear_algebra.hpp"
+#include "gtest/gtest.h"
 
 // Define a simple test fixture if needed, or just use TEST
 TEST(LinearAlgebraTest, BasicAssertion)

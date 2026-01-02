@@ -127,18 +127,18 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
     unsigned int featureVectorSize = features[0].size();
 
     // Normalize the feature vectors
-    normalizeClassesFeatureVectors(
+    normalize_class_feature_vectors(
         amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
 
     // Calculate alpha and beta
     double alpha =
-        calculateAlpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_alpha(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
     double beta =
-        calculateBeta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
+        calculate_beta(amountOfClasses, featureVectorsPerClass, featureVectorSize, arrClasses);
 
     // Calculate G1 and G2
-    double g1 = calcCertaintyDegree_G1(alpha, beta);
-    double g2 = calcContradictionDegree_G2(alpha, beta);
+    double g1 = calculate_certainty_degree_g1(alpha, beta);
+    double g2 = calculate_contradiction_degree_g2(alpha, beta);
 
     return {alpha, beta, g1, g2};
 }

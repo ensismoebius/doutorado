@@ -2,8 +2,8 @@
 
 #include "../Wav.h"
 #include "../audioFeatureExtraction.h"
-#include "../filtersOperations.h"
-#include "../simpleSignalOperations.h"
+#include "../filter_operations.hpp"
+#include "../signal_operations.hpp"
 #include "gtest/gtest.h"
 
 TEST(SimpleSignalOperationsTest, TestAMDF)

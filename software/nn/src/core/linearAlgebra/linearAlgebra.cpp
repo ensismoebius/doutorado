@@ -8,12 +8,12 @@
  *
  */
 
-#include "linear_algebra.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
+
+#include "linear_algebra.hpp"
 
 namespace linearAlgebra
 {

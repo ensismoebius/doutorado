@@ -4,7 +4,7 @@
 #include <string>
 
 #include "../Wav.h"
-#include "../filtersOperations.h"
+#include "../filter_operations.hpp"
 
 using std::sin;
 

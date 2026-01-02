@@ -1,5 +1,5 @@
 add_library(linearAlgebra STATIC
-    linearAlgebra.cpp
+    linear_algebra.cpp
 )
 
 set_property(TARGET linearAlgebra PROPERTY POSITION_INDEPENDENT_CODE ON)

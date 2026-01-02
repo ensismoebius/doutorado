@@ -8,12 +8,12 @@
  *
  */
 
-#include "confusion_matrix.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
+
+#include "confusion_matrix.hpp"
 
 namespace statistics
 {
