@@ -78,6 +78,66 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 - `experiment_02` - Main experiment executable
 - `profile_experiment_02` - Callgrind profiling target
 
+## 🔍 Code Quality & Verification
+
+### Comprehensive CI Pipeline
+
+The project includes a full CI pipeline that runs all verification tools:
+
+- **Static Analysis**: Cppcheck for code quality and potential bugs
+- **Security Analysis**: Flawfinder for security vulnerabilities
+- **Code Quality**: Clang-Tidy for style and best practices
+- **Unit Testing**: Google Test with 100% coverage validation
+- **Performance Profiling**: Callgrind for performance analysis
+- **Coverage Analysis**: LCOV with 95% minimum threshold
+
+### Running All Verifications Locally
+
+```bash
+# Run comprehensive verification (requires all analysis tools installed)
+./scripts/run_verification.sh
+```
+
+This script will:
+
+- Build the project with coverage flags
+- Run static analysis (cppcheck, flawfinder, clang-tidy)
+- Execute all unit tests
+- Generate performance profiles with Callgrind
+- Create coverage reports
+- Validate 95% coverage threshold
+
+### Individual Analysis Tools
+
+```bash
+cd build
+
+# Static analysis
+ninja analysis-cppcheck    # Code quality analysis
+ninja analysis-flawfinder  # Security vulnerability scan
+ninja analysis-clang-tidy  # Code style and best practices
+
+# Testing and coverage
+ctest --output-on-failure  # Run all tests
+./scripts/run_coverage.sh          # Generate detailed coverage report
+
+# Performance profiling
+valgrind --tool=callgrind --callgrind-out-file=profile.out ./bin/your_executable
+```
+
+### Coverage Analysis
+
+The project maintains 100% test coverage across all core components:
+
+- **Tensor Operations**: Memory management, mathematical operations, bounds checking
+- **Neural Network Layers**: Forward/backward passes, gradient computation, error handling
+- **Data Loading**: Batch processing, dataset validation, iterator safety
+- **Optimization**: Parameter updates, convergence validation, numerical stability
+- **Statistics**: Metrics calculation, cross-validation, edge case handling
+- **Utilities**: Data generation, vectorization support, comprehensive validation
+
+Coverage reports are generated automatically and require ≥95% line coverage.
+
 ## 🧪 Running Tests
 
 ### All Tests

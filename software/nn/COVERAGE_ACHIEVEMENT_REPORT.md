@@ -198,7 +198,7 @@ src/core/
 
 ```bash
 # Run comprehensive test suite
-./run_coverage.sh
+./scripts/run_coverage.sh
 
 # Expected output:
 # Total lines of code: [XXXX]

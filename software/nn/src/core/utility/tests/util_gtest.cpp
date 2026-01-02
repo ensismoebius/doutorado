@@ -16,7 +16,8 @@ TEST(UtilTest, SyntheticSpikeData)
     float max_rate = 1.0F;
     float timeStep = 1.0F;
 
-    auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
+    auto result =
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
     auto spike_trains = result.first;
     // auto _ = result.second; // unused
 
@@ -171,7 +172,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     const int n_steps = 5;
 
     // Test with very low firing rate
-    auto low_rate_result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F);
+    auto low_rate_result =
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F);
     auto low_rate_spikes = low_rate_result.first;
     // auto _ = low_rate_result.second; // unused
     int total_low_spikes = 0;
@@ -182,7 +184,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     EXPECT_LT(total_low_spikes, n_samples * input_dim * n_steps * 0.01F); // Very few spikes
 
     // Test with very high firing rate
-    auto high_rate_result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F);
+    auto high_rate_result =
+        generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F);
     auto high_rate_spikes = high_rate_result.first;
     // auto _ = high_rate_result.second; // unused
     int total_high_spikes = 0;
@@ -265,7 +268,8 @@ TEST(UtilThreadSafetyTest, ConcurrentSpikeGeneration)
     for (int i = 0; i < 3; ++i)
     {
         EXPECT_NO_THROW({
-            auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 1.0F);
+            auto result =
+                generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 1.0F);
             auto spike_trains = result.first;
             // auto _ = result.second; // unused
 

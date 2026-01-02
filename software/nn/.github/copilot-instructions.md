@@ -63,6 +63,9 @@ nn/
 ├── utils_test.mat             # Utility test MATLAB data file.
 ├── utils_test2.mat            # Another utility test MATLAB data file.
 ├── utils_test3.mat            # Third utility test MATLAB data file.
+├── scripts/                   # Build and verification scripts.
+│   ├── run_coverage.sh         # Comprehensive test coverage analysis script.
+│   └── run_verification.sh     # Local verification script for all analysis tools.
 ├── .github/                   # GitHub specific configurations.
 │   └── copilot-instructions.md  # Instructions and guidelines for Copilot.
 ├── .vscode/                   # VSCode editor configurations.

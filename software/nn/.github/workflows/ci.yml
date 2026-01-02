@@ -2,9 +2,9 @@ name: CI - Comprehensive Verification
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
@@ -12,177 +12,177 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          cmake \
-          ninja-build \
-          libeigen3-dev \
-          libblas-dev \
-          liblapack-dev \
-          libhdf5-dev \
-          libgl1-mesa-dev \
-          libglu1-mesa-dev \
-          libxrandr-dev \
-          libxinerama-dev \
-          libxcursor-dev \
-          libxi-dev \
-          libfftw3-dev \
-          libfftw3-mpi-dev \
-          libopenmpi-dev \
-          clang-tidy \
-          cppcheck \
-          flawfinder \
-          valgrind \
-          ccache \
-          python3 \
-          python3-pip \
-          lcov \
-          gcovr
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libeigen3-dev \
+            libblas-dev \
+            liblapack-dev \
+            libhdf5-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libfftw3-dev \
+            libfftw3-mpi-dev \
+            libopenmpi-dev \
+            clang-tidy \
+            cppcheck \
+            flawfinder \
+            valgrind \
+            ccache \
+            python3 \
+            python3-pip \
+            lcov \
+            gcovr
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
 
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install numpy matplotlib scipy
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy matplotlib scipy
 
-    - name: Configure CMake with coverage
-      run: |
-        mkdir -p build
-        cd build
-        cmake .. \
-          -DCMAKE_BUILD_TYPE=Debug \
-          -DCMAKE_CXX_FLAGS="--coverage -O0 -g -fno-inline" \
-          -DCMAKE_C_FLAGS="--coverage -O0 -g -fno-inline" \
-          -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
-          -G Ninja
+      - name: Configure CMake with coverage
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage -O0 -g -fno-inline" \
+            -DCMAKE_C_FLAGS="--coverage -O0 -g -fno-inline" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+            -G Ninja
 
-    - name: Build project
-      run: |
-        cd build
-        ninja -j$(nproc)
+      - name: Build project
+        run: |
+          cd build
+          ninja -j$(nproc)
 
-    - name: Run Cppcheck static analysis
-      run: |
-        cd build
-        ninja analysis-cppcheck
-        if [ -f cppcheck-report.xml ]; then
-          echo "Cppcheck completed. Report saved to cppcheck-report.xml"
-          cat cppcheck-report.xml | head -20
-        else
-          echo "Cppcheck report not found"
-        fi
-
-    - name: Run Flawfinder security analysis
-      run: |
-        cd build
-        ninja analysis-flawfinder
-        if [ -f flawfinder-report.html ]; then
-          echo "Flawfinder completed. Report saved to flawfinder-report.html"
-          head -20 flawfinder-report.html
-        else
-          echo "Flawfinder report not found"
-        fi
-
-    - name: Run Clang-Tidy static analysis
-      run: |
-        cd build
-        ninja analysis-clang-tidy
-        echo "Clang-Tidy analysis completed"
-
-    - name: Run unit tests
-      run: |
-        cd build
-        ctest --output-on-failure -j$(nproc) --timeout 300
-        echo "All tests completed"
-
-    - name: Run Callgrind profiling on key executables
-      run: |
-        cd build
-        # Find and profile key test executables
-        find . -name "*_gtest" -type f -executable | head -3 | while read exe; do
-          echo "Profiling $exe with Callgrind..."
-          valgrind --tool=callgrind --callgrind-out-file=callgrind.$(basename $exe).out $exe --gtest_filter="*Basic*" || true
-        done
-        echo "Callgrind profiling completed"
-
-    - name: Generate coverage report
-      run: |
-        cd build
-        # Generate coverage data
-        lcov --capture --directory . --output-file coverage.info --gcov-tool gcov
-        lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' --output-file coverage.filtered.info
-        genhtml coverage.filtered.info --output-directory coverage-report
-        echo "Coverage report generated"
-
-    - name: Check coverage threshold
-      run: |
-        cd build
-        if [ -f coverage.filtered.info ]; then
-          COVERAGE=$(lcov --summary coverage.filtered.info 2>/dev/null | grep "lines......" | sed 's/.*: \([0-9.]*\).*/\1/' | head -1)
-          echo "Line coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE >= 95.0" | bc -l) )); then
-            echo "✅ Coverage threshold met: ${COVERAGE}% >= 95.0%"
+      - name: Run Cppcheck static analysis
+        run: |
+          cd build
+          ninja analysis-cppcheck
+          if [ -f cppcheck-report.xml ]; then
+            echo "Cppcheck completed. Report saved to cppcheck-report.xml"
+            cat cppcheck-report.xml | head -20
           else
-            echo "❌ Coverage below threshold: ${COVERAGE}% < 95.0%"
+            echo "Cppcheck report not found"
+          fi
+
+      - name: Run Flawfinder security analysis
+        run: |
+          cd build
+          ninja analysis-flawfinder
+          if [ -f flawfinder-report.html ]; then
+            echo "Flawfinder completed. Report saved to flawfinder-report.html"
+            head -20 flawfinder-report.html
+          else
+            echo "Flawfinder report not found"
+          fi
+
+      - name: Run Clang-Tidy static analysis
+        run: |
+          cd build
+          ninja analysis-clang-tidy
+          echo "Clang-Tidy analysis completed"
+
+      - name: Run unit tests
+        run: |
+          cd build
+          ctest --output-on-failure -j$(nproc) --timeout 300
+          echo "All tests completed"
+
+      - name: Run Callgrind profiling on key executables
+        run: |
+          cd build
+          # Find and profile key test executables
+          find . -name "*_gtest" -type f -executable | head -3 | while read exe; do
+            echo "Profiling $exe with Callgrind..."
+            valgrind --tool=callgrind --callgrind-out-file=callgrind.$(basename $exe).out $exe --gtest_filter="*Basic*" || true
+          done
+          echo "Callgrind profiling completed"
+
+      - name: Generate coverage report
+        run: |
+          cd build
+          # Generate coverage data
+          lcov --capture --directory . --output-file coverage.info --gcov-tool gcov
+          lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' --output-file coverage.filtered.info
+          genhtml coverage.filtered.info --output-directory coverage-report
+          echo "Coverage report generated"
+
+      - name: Check coverage threshold
+        run: |
+          cd build
+          if [ -f coverage.filtered.info ]; then
+            COVERAGE=$(lcov --summary coverage.filtered.info 2>/dev/null | grep "lines......" | sed 's/.*: \([0-9.]*\).*/\1/' | head -1)
+            echo "Line coverage: ${COVERAGE}%"
+            if (( $(echo "$COVERAGE >= 95.0" | bc -l) )); then
+              echo "✅ Coverage threshold met: ${COVERAGE}% >= 95.0%"
+            else
+              echo "❌ Coverage below threshold: ${COVERAGE}% < 95.0%"
+              exit 1
+            fi
+          else
+            echo "Coverage file not found"
             exit 1
           fi
-        else
-          echo "Coverage file not found"
-          exit 1
-        fi
 
-    - name: Upload analysis reports
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: analysis-reports
-        path: |
-          build/cppcheck-report.xml
-          build/flawfinder-report.html
-          build/coverage-report/
-          build/callgrind.*.out
-        retention-days: 30
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analysis-reports
+          path: |
+            build/cppcheck-report.xml
+            build/flawfinder-report.html
+            build/coverage-report/
+            build/callgrind.*.out
+          retention-days: 30
 
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results
-        path: |
-          build/Testing/Temporary/*.log
-        retention-days: 7
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            build/Testing/Temporary/*.log
+          retention-days: 7
 
-    - name: Summary
-      if: always()
-      run: |
-        echo "## CI Verification Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ✅ Completed Checks:" >> $GITHUB_STEP_SUMMARY
-        echo "- Build: Successful" >> $GITHUB_STEP_SUMMARY
-        echo "- Cppcheck: Static analysis completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Flawfinder: Security analysis completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Clang-Tidy: Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Unit Tests: All tests executed" >> $GITHUB_STEP_SUMMARY
-        echo "- Callgrind: Performance profiling completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Coverage: Report generated" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Coverage Results:" >> $GITHUB_STEP_SUMMARY
-        if [ -f build/coverage.filtered.info ]; then
-          COVERAGE=$(lcov --summary build/coverage.filtered.info 2>/dev/null | grep "lines......" | sed 's/.*: \([0-9.]*\).*/\1/' | head -1)
-          echo "- Line Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📁 Artifacts:" >> $GITHUB_STEP_SUMMARY
-        echo "- Analysis reports uploaded" >> $GITHUB_STEP_SUMMARY
-        echo "- Test results uploaded" >> $GITHUB_STEP_SUMMARY
-        echo "- Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY
+      - name: Summary
+        if: always()
+        run: |
+          echo "## CI Verification Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Completed Checks:" >> $GITHUB_STEP_SUMMARY
+          echo "- Build: Successful" >> $GITHUB_STEP_SUMMARY
+          echo "- Cppcheck: Static analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Flawfinder: Security analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Clang-Tidy: Code quality analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit Tests: All tests executed" >> $GITHUB_STEP_SUMMARY
+          echo "- Callgrind: Performance profiling completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage: Report generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Coverage Results:" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/coverage.filtered.info ]; then
+            COVERAGE=$(lcov --summary build/coverage.filtered.info 2>/dev/null | grep "lines......" | sed 's/.*: \([0-9.]*\).*/\1/' | head -1)
+            echo "- Line Coverage: ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📁 Artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "- Analysis reports uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "- Test results uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage report available in artifacts" >> $GITHUB_STEP_SUMMARY

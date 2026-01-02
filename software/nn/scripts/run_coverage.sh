@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/ensismoebius/Repos/doutorado/software/nn
+cd "$(dirname "$0")/.."
 
 echo "=== Neural Network Framework: Comprehensive Test Coverage Analysis ==="
 echo
