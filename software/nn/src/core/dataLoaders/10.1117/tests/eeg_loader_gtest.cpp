@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "../../tests/MatTestUtils/MatTestUtils.h"
 #include "../EEGLoader.h"
@@ -11,7 +12,7 @@ using namespace nn::dataLoaders::test;
 
 TEST(EEGLoaderTest, LoadSingleRow)
 {
-    std::string fname = "./tests_eeg_tmp.mat";
+    std::string fname = std::filesystem::temp_directory_path().string() + "/tests_eeg_tmp.mat";
     const size_t rows = 1;
     const size_t cols = 24579; // 24576 samples + 3 labels
 

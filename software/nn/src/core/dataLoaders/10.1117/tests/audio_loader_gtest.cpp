@@ -30,7 +30,7 @@ class AudioLoaderTest : public ::testing::Test
 
     void SetUp() override
     {
-        testFile = std::string(kTestFileName) + "." + std::to_string(getpid());
+        testFile = std::filesystem::temp_directory_path().string() + "/" + std::string(kTestFileName) + "." + std::to_string(getpid());
 
         // Remove any leftover file from previous runs
         std::filesystem::remove(testFile);

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "../../tests/MatTestUtils/MatTestUtils.h"
 #include "../EEGLoader.h"
@@ -11,7 +12,7 @@ using namespace nn::dataLoaders::test;
 
 TEST(EEGLoaderEdgeTest, MultiRowFileLoadsCorrectRow)
 {
-    std::string fname = "./tests_eeg_multi_tmp.mat";
+    std::string fname = std::filesystem::temp_directory_path().string() + "/tests_eeg_multi_tmp.mat";
     const size_t rows = 3;
     const size_t cols = 24579;
 
@@ -44,7 +45,7 @@ TEST(EEGLoaderEdgeTest, MultiRowFileLoadsCorrectRow)
 
 TEST(EEGLoaderEdgeTest, WrongTypeThrows)
 {
-    std::string fname = "./tests_eeg_badtype_tmp.mat";
+    std::string fname = std::filesystem::temp_directory_path().string() + "/tests_eeg_badtype_tmp.mat";
     const size_t rows = 1;
     const size_t cols = 24579;
     std::vector<float> data(rows * cols, 1.0F);
@@ -58,7 +59,7 @@ TEST(EEGLoaderEdgeTest, WrongTypeThrows)
 
 TEST(EEGLoaderEdgeTest, MissingVariableThrows)
 {
-    std::string fname = "./tests_eeg_missing_tmp.mat";
+    std::string fname = std::filesystem::temp_directory_path().string() + "/tests_eeg_missing_tmp.mat";
     const size_t rows = 1;
     const size_t cols = 10;
     std::vector<double> data(rows * cols, 1.0);
