@@ -766,7 +766,7 @@ auto main(int argc, char* argv[]) -> int
 {
     try
     {
-        std::string spec_path = "src/experiments/02/spec.yaml";
+        std::string spec_path = "../src/experiments/02/spec.yaml";
         if (argc > 1)
         {
             spec_path = argv[1];
