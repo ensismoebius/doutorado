@@ -17,6 +17,10 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp" line="5" column="0"/>
         </error>
+        <error id="identicalConditionAfterEarlyExit" severity="warning" msg="Identical condition &apos;inputs.rows()!=targets.rows()&apos;, second condition is always false" verbose="Identical condition &apos;inputs.rows()!=targets.rows()&apos;, second condition is always false" cwe="398" file0="src/core/dataLoaders/tests/mat_file_dataset_gtest.cpp">
+            <location file="src/core/dataLoaders/MatFileDataset.h" line="31" column="27" info="Testing identical condition &apos;inputs.rows()!=targets.rows()&apos;"/>
+            <location file="src/core/dataLoaders/MatFileDataset.h" line="25" column="27" info="If condition &apos;inputs.rows()!=targets.rows()&apos; is true, the function will return/exit"/>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found." verbose="Include file: &quot;core/dataLoaders/MatFileUtils.h&quot; not found.">
             <location file="src/core/dataLoaders/tests/matfile_row_vector_gtest.cpp" line="7" column="0"/>
         </error>
@@ -37,6 +41,11 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/layers/Module.hpp" line="4" column="0"/>
+        </error>
+        <error id="shadowVariable" severity="style" msg="Local variable &apos;DEFAULT_SIZE&apos; shadows outer variable" verbose="Local variable &apos;DEFAULT_SIZE&apos; shadows outer variable" cwe="398" file0="src/core/layers/Conv2d_impl.cpp">
+            <location file="src/core/layers/Conv2d_impl.cpp" line="28" column="19" info="Shadow variable"/>
+            <location file="src/core/layers/Conv2d_impl.cpp" line="3" column="15" info="Shadowed declaration"/>
+            <symbol>DEFAULT_SIZE</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/layers/Module.hpp&quot; not found." verbose="Include file: &quot;core/layers/Module.hpp&quot; not found.">
             <location file="src/core/layers/Leaky.hpp" line="10" column="0"/>
@@ -75,6 +84,22 @@
             <location file="src/core/layers/Sequential.hpp" line="22" column="5"/>
             <symbol>Sequential</symbol>
         </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;input_height&apos; is assigned a value that is never used." verbose="Variable &apos;input_height&apos; is assigned a value that is never used." cwe="563" file0="src/core/layers/tests/layers_gtest.cpp">
+            <location file="src/core/layers/tests/layers_gtest.cpp" line="177" column="28"/>
+            <symbol>input_height</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;input_width&apos; is assigned a value that is never used." verbose="Variable &apos;input_width&apos; is assigned a value that is never used." cwe="563" file0="src/core/layers/tests/layers_gtest.cpp">
+            <location file="src/core/layers/tests/layers_gtest.cpp" line="178" column="27"/>
+            <symbol>input_width</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;input_height&apos; is assigned a value that is never used." verbose="Variable &apos;input_height&apos; is assigned a value that is never used." cwe="563" file0="src/core/layers/tests/layers_gtest.cpp">
+            <location file="src/core/layers/tests/layers_gtest.cpp" line="177" column="15"/>
+            <symbol>input_height</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;input_width&apos; is assigned a value that is never used." verbose="Variable &apos;input_width&apos; is assigned a value that is never used." cwe="563" file0="src/core/layers/tests/layers_gtest.cpp">
+            <location file="src/core/layers/tests/layers_gtest.cpp" line="178" column="15"/>
+            <symbol>input_width</symbol>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/printTensor.hpp&quot; not found." verbose="Include file: &quot;core/utility/printTensor.hpp&quot; not found.">
             <location file="src/core/layers/Leaky.hpp" line="13" column="0"/>
         </error>
@@ -88,16 +113,16 @@
             <location file="src/core/linearAlgebra/tests/linearAlgebra_gtest.cpp" line="2" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;core/tensor/Tensor.hpp&quot; not found.">
-            <location file="src/core/optimizers/tests/optimizers_gtest.cpp" line="5" column="0"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/Adam.hpp&quot; not found.">
             <location file="src/core/optimizers/tests/optimizers_gtest.cpp" line="6" column="0"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/SGD.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/SGD.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/Adam.hpp&quot; not found.">
             <location file="src/core/optimizers/tests/optimizers_gtest.cpp" line="7" column="0"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/SGDMinimal.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/SGDMinimal.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/SGD.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/SGD.hpp&quot; not found.">
             <location file="src/core/optimizers/tests/optimizers_gtest.cpp" line="8" column="0"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;core/optimizers/SGDMinimal.hpp&quot; not found." verbose="Include file: &quot;core/optimizers/SGDMinimal.hpp&quot; not found.">
+            <location file="src/core/optimizers/tests/optimizers_gtest.cpp" line="9" column="0"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/comparison.h&quot; not found." verbose="Include file: &quot;core/utility/comparison.h&quot; not found.">
             <location file="src/core/paraconsistent/paraconsistent.cpp" line="15" column="0"/>
@@ -135,10 +160,10 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;statistics.h&quot; not found." verbose="Include file: &quot;statistics.h&quot; not found.">
             <location file="src/core/statistics/tests/statistics_gtest.cpp" line="4" column="0"/>
         </error>
-        <error id="shadowFunction" severity="style" msg="Local variable &apos;zero_grad&apos; shadows outer function" verbose="Local variable &apos;zero_grad&apos; shadows outer function" cwe="398" file0="src/core/tensor/EigenTensorBackend.cpp">
-            <location file="src/core/tensor/EigenTensorBackend.cpp" line="400" column="35" info="Shadow variable"/>
-            <location file="src/core/tensor/EigenTensorBackend.hpp" line="58" column="10" info="Shadowed declaration"/>
-            <symbol>zero_grad</symbol>
+        <error id="nullPointerRedundantCheck" severity="warning" msg="Either the condition &apos;!m_grad_backend&apos; is redundant or there is possible null pointer dereference: m_grad_backend." verbose="Either the condition &apos;!m_grad_backend&apos; is redundant or there is possible null pointer dereference: m_grad_backend." cwe="476" file0="src/core/tensor/EigenTensorBackend.cpp">
+            <location file="src/core/tensor/EigenTensorBackend.cpp" line="406" column="13" info="Null pointer dereference"/>
+            <location file="src/core/tensor/EigenTensorBackend.cpp" line="397" column="9" info="Assuming that condition &apos;!m_grad_backend&apos; is not redundant"/>
+            <symbol>m_grad_backend</symbol>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/tensor/EigenTensorBackend.cpp">
             <location file="src/core/tensor/EigenTensorBackend.cpp" line="14" column="15"/>

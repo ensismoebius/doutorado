@@ -30,6 +30,15 @@ Checks: >
   # =====================================================
   cppcoreguidelines-*,
 
+  # =====================================================
+  # EXCLUSÕES PARA EVITAR FALSO POSITIVOS
+  # =====================================================
+  -misc-*,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -bugprone-easily-swappable-parameters
+
 WarningsAsErrors: ""
 HeaderFilterRegex: "^(?!.*\\/build\\/).*/(src|include)/.*"
 FormatStyle: file

@@ -20,11 +20,11 @@ struct ResidualBlock : public Module
     {
     }
 
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
-        nn::Tensor out = fc1->forward(input);
-        out = act1->forward(out);
-        out = fc2->forward(out);
+        nn::Tensor out = fc1->forward(input, requires_grad);
+        out = act1->forward(out, requires_grad);
+        out = fc2->forward(out, requires_grad);
 
         // Add skip connection: assume input and out shapes match (N x D)
         Eigen::MatrixXf res = out.get_data_ref() + input.get_data_ref();

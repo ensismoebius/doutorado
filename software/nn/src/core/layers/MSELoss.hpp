@@ -18,20 +18,30 @@ class MSELoss : public Module
     nn::Tensor last_input;
     nn::Tensor last_target;
 
+    bool training = true;
+
    public:
     MSELoss() = default;
 
-    // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
-    auto forward(const nn::Tensor& prediction) -> nn::Tensor override
+    void train(bool on) override
     {
-        // Cache the prediction for the backward pass
-        last_input = prediction;
+        training = on;
+    }
+
+    // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    {
+        if (training && requires_grad)
+        {
+            // Cache the prediction for the backward pass
+            last_input = input;
+        }
 
         // Use last_target set by set_target
-        float mse = prediction.mean_squared_error(last_target);
+        float mse = input.mean_squared_error(last_target);
 
         // Check for invalid values in the predictions
-        if (!prediction.get_data_ref().allFinite()) [[unlikely]]
+        if (!input.get_data_ref().allFinite()) [[unlikely]]
         {
             std::cerr << "Warning: Non-finite values detected in predictions\n";
             // Return a very large but finite loss

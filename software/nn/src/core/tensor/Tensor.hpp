@@ -46,9 +46,9 @@ class Tensor
 
     // Shape and size information
     [[nodiscard]] auto get_shape() const -> const std::vector<Index>&;
-    [[nodiscard]] auto rows() const -> Index;
-    [[nodiscard]] auto cols() const -> Index;
-    [[nodiscard]] auto size() const -> Index;
+    [[nodiscard]] auto rows() const noexcept -> Index;
+    [[nodiscard]] auto cols() const noexcept -> Index;
+    [[nodiscard]] auto size() const noexcept -> Index;
 
     // Element access for 2D and 4D tensors
     auto at(Index row, Index col) -> float&;

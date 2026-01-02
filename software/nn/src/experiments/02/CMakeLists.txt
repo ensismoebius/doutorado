@@ -22,3 +22,7 @@ target_link_libraries(experiment_02
         yaml-cpp
         OpenMP::OpenMP_CXX
 )
+
+# Add Callgrind profiling target for performance analysis
+include(../../../cmake/Tooling.cmake)
+add_callgrind_target(profile_experiment_02 experiment_02)

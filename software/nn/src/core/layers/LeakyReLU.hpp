@@ -11,17 +11,20 @@ struct LeakyReLU : public Module
 
     explicit LeakyReLU(float alpha_ = 0.01F) : alpha(alpha_) {}
 
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
-        // Cache the gradient for the backward pass
-        // Create gradient mask: 1 for positive values, alpha for negative values
-        Eigen::MatrixXf grad_mask =
-            (input.get_data_ref().array() > 0)
-                .select(
-                    Eigen::MatrixXf::Ones(input.get_data_ref().rows(), input.get_data_ref().cols()),
-                    Eigen::MatrixXf::Constant(
-                        input.get_data_ref().rows(), input.get_data_ref().cols(), alpha));
-        leaky_grad = nn::Tensor(grad_mask);
+        // Cache the gradient for the backward pass only if gradients required
+        if (requires_grad)
+        {
+            // Create gradient mask: 1 for positive values, alpha for negative values
+            Eigen::MatrixXf grad_mask =
+                (input.get_data_ref().array() > 0)
+                    .select(Eigen::MatrixXf::Ones(input.get_data_ref().rows(),
+                                                  input.get_data_ref().cols()),
+                            Eigen::MatrixXf::Constant(
+                                input.get_data_ref().rows(), input.get_data_ref().cols(), alpha));
+            leaky_grad = nn::Tensor(grad_mask);
+        }
 
         // Apply the LeakyReLU activation function using Tensor method
         return input.leaky_relu(alpha);

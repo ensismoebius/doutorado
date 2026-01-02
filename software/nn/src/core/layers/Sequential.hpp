@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
 #include "Module.hpp"
+#include "core/tensor/Tensor.hpp"
 
 // A PyTorch-like Sequential container for C++
 struct Sequential : Module
@@ -38,13 +38,13 @@ struct Sequential : Module
     }
 
     // Forward pass
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         outputs.clear();
         nn::Tensor temp_input = input;
         for (auto& layer : layers) [[likely]]
         {
-            temp_input = layer->forward(temp_input);
+            temp_input = layer->forward(temp_input, requires_grad);
             outputs.emplace_back(temp_input);
         }
         return temp_input;

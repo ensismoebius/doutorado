@@ -57,28 +57,32 @@ struct Linear : public Module
      * @param input Tensor de saída [batch_size x out_features]
      * @return Tensor de saída [batch_size x out_features]
      */
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
-        input_cache = input; // salva para o backward
+        // Cache input for backward pass only if gradients are required
+        if (requires_grad)
+        {
+            input_cache = input; // salva para o backward
+        }
 
 #ifdef DEBUG
         // If DEBUG is defined then show the debug information
         debug(input);
 #endif
 
-        // Be x = input and y = output
-        // y = x.w + b
-        // Ensure bias is broadcast as a row vector
-        auto weight_t = weight.transpose();
-        auto intermediate = input.matmul(weight_t);
+        // Optimized linear transformation: y = x * W^T + b
+        // Use Eigen's lazy evaluation to avoid unnecessary copies
+        const auto& input_data = input.get_data_ref();
+        const auto& weight_data = weight.get_data_ref();
+        const auto& bias_data = bias.get_data_ref();
 
-        // Add bias - broadcast bias across batch dimension
-        // intermediate shape: [batch_size, out_features]
-        // bias shape: [out_features, 1] -> needs to be broadcasted to [batch_size, out_features]
-        Eigen::MatrixXf result_data = intermediate.get_data_ref();
-        result_data.rowwise() += bias.get_data_ref().col(0).transpose();
+        // Compute: input * weight^T + bias (broadcasted)
+        // weight^T has shape [in_features, out_features]
+        // Result has shape [batch_size, out_features]
+        Eigen::MatrixXf result =
+            (input_data * weight_data.transpose()).rowwise() + bias_data.col(0).transpose();
 
-        return nn::Tensor{result_data};
+        return nn::Tensor{std::move(result)};
     }
 
     /**

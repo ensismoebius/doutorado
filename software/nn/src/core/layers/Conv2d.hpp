@@ -49,9 +49,10 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Forward pass: compute convolution output
      * @param input Input tensor of shape (batch, channels, height, width)
+     * @param requires_grad Whether gradients will be computed (default: true)
      * @return Output tensor with shape (batch, out_channels, out_height, out_width)
      */
-    auto forward(const nn::Tensor& input) -> nn::Tensor override;
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor;
 
     /**
      * @brief Backward pass: compute gradients

@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "../../tests/MatTestUtils/MatTestUtils.h"
 #include "../EEGLoader.h"
-#include "MatTestUtils.h"
 
 using namespace nn::dataLoaders;
 using namespace nn::dataLoaders::test;

@@ -27,12 +27,6 @@ class MatFileDataset : public TensorDataset
             throw std::runtime_error("Mismatched sample counts between inputs and targets.");
         }
 
-        // Check for mismatched sample counts (rows)
-        if (inputs.rows() != targets.rows())
-        {
-            throw std::runtime_error("Mismatched sample counts between inputs and targets.");
-        }
-
         // Initialize base storage via the protected setter to avoid UB
         set_tensors(std::move(inputs), std::move(targets));
     }

@@ -1,6 +1,8 @@
 #include "Conv2d.hpp"
 
 constexpr int DEFAULT_SIZE = 32;
+constexpr int MAX_IMAGE_SIZE = 256;
+constexpr int COL2IM_SIZE = 512;
 
 // ============ Constructor ============
 
@@ -14,9 +16,11 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch
       weights_(
           nn::Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
       bias_(nn::Tensor(1, out_channels)), // Bias should be 1 x out_channels
-      im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
-                                                  max_batch_size * 256 * 256)),
-      col2im_buffer_(std::make_unique<nn::Tensor>(max_batch_size, in_channels, 512, 512)),
+      im2col_buffer_(
+          std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
+                                       max_batch_size * MAX_IMAGE_SIZE * MAX_IMAGE_SIZE)),
+      col2im_buffer_(
+          std::make_unique<nn::Tensor>(max_batch_size, in_channels, COL2IM_SIZE, COL2IM_SIZE)),
       grad_output_buffer_(std::make_unique<nn::Tensor>(max_batch_size, out_channels,
                                                        DEFAULT_SIZE - kernel_size + 1,
                                                        DEFAULT_SIZE - kernel_size + 1))
@@ -25,20 +29,22 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch
     initialize_weights_he();
 
     // Warm up indices computation with default size
-    constexpr int DEFAULT_SIZE = 32;
     compute_indices_once(max_batch_size_, DEFAULT_SIZE, DEFAULT_SIZE);
 }
 
 // ============ Forward & Backward Passes ============
 
-auto Conv2d::forward(const nn::Tensor& input) -> nn::Tensor
+auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
 {
     const auto batch_size = static_cast<int>(input.get_shape()[0]);
     const auto input_height = static_cast<int>(input.get_shape()[2]);
     const auto input_width = static_cast<int>(input.get_shape()[3]);
 
-    // Cache input for backward pass
-    input_cache_ = input;
+    // Cache input for backward pass only if gradients are required
+    if (requires_grad)
+    {
+        input_cache_ = input;
+    }
 
     // Compute output dimensions
     const int output_height = input_height - kernel_size_ + 1;

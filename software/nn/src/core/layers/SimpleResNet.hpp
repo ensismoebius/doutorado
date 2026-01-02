@@ -3,12 +3,12 @@
 #include <vector>
 
 #include "../initializers/kaiming_snn.hpp"
-#include "core/tensor/Tensor.hpp"
 #include "Linear.hpp"
 #include "Module.hpp"
 #include "ReLU.hpp"
 #include "ResidualBlock.hpp"
 #include "Sequential.hpp"
+#include "core/tensor/Tensor.hpp"
 
 // Simple ResNet-like model for classification
 class SimpleResNet : public Module
@@ -46,9 +46,9 @@ class SimpleResNet : public Module
         }
     }
 
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
-        return model_->forward(input);
+        return model_->forward(input, requires_grad);
     }
 
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override

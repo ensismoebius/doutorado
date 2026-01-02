@@ -42,7 +42,7 @@ struct Module
      * @param input
      * @return Tensor
      */
-    virtual auto forward(const nn::Tensor& input) -> nn::Tensor = 0;
+    virtual auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor = 0;
 
     /**
      * @brief backward propaga o gradiente (
@@ -57,7 +57,7 @@ struct Module
      *
      * @param on true for training mode, false for evaluation mode.
      */
-    virtual void train(bool on){};
+    virtual void train(bool on) {};
 
     /**
      * @brief Returns a vector of pointers to the trainable parameters (weights, biases) of the

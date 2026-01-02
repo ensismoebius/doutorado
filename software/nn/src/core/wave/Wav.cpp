@@ -13,6 +13,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -70,6 +71,23 @@ void Wav::process()
 
 void Wav::read(const std::string& _path)
 {
+    // Validate input path
+    if (_path.empty())
+    {
+        throw std::invalid_argument("File path cannot be empty");
+    }
+
+    // Check if file exists and is accessible
+    std::filesystem::path filePath(_path);
+    if (!std::filesystem::exists(filePath))
+    {
+        throw std::runtime_error("File does not exist: " + _path);
+    }
+    if (!std::filesystem::is_regular_file(filePath))
+    {
+        throw std::runtime_error("Path is not a regular file: " + _path);
+    }
+
     this->clearVectors();
     this->resetMetaData();
 

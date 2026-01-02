@@ -18,16 +18,20 @@ class CrossEntropyLoss : public Module
         last_targets = target;
     }
 
-    auto forward(const nn::Tensor& logits) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         // numeric-stable softmax
-        const auto& x = logits.get_data_ref();
+        const auto& x = input.get_data_ref();
         Eigen::VectorXf max_per_row = x.rowwise().maxCoeff();
         Eigen::MatrixXf shifted = x.colwise() - max_per_row;
         Eigen::MatrixXf exps = shifted.array().exp();
         Eigen::VectorXf sums = exps.rowwise().sum();
         Eigen::MatrixXf probs = exps.array().colwise() / sums.array();
-        last_probs = nn::Tensor(probs);
+
+        if (requires_grad)
+        {
+            last_probs = nn::Tensor(probs);
+        }
 
         // compute mean cross-entropy
         Eigen::ArrayXf logp = probs.array().log();

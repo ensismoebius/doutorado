@@ -12,11 +12,11 @@ class ResNetBlock : public Module
     {
     }
 
-    nn::Tensor forward(const nn::Tensor& input) override
+    nn::Tensor forward(const nn::Tensor& input, bool requires_grad = true) override
     {
-        nn::Tensor output = conv1_.forward(input);
-        output = relu_.forward(output);
-        output = conv2_.forward(output);
+        nn::Tensor output = conv1_.forward(input, requires_grad);
+        output = relu_.forward(output, requires_grad);
+        output = conv2_.forward(output, requires_grad);
 
         // Add skip connection with shape alignment
         // Handles dimension mismatches by zero-padding/cropping overlapping regions
@@ -42,7 +42,7 @@ class ResNetBlock : public Module
             output.get_data_ref() = out_mat + aligned;
         }
 
-        return relu_.forward(output);
+        return relu_.forward(output, requires_grad);
     }
 
    private:

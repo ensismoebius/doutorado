@@ -162,12 +162,22 @@ struct ParaconsistentMetrics
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
                                     const std::vector<int>& labels) -> ParaconsistentMetrics
 {
+    if (features.empty() || labels.empty())
+    {
+        return ParaconsistentMetrics{};
+    }
+
     // Group features by class
     std::map<std::string, std::vector<std::vector<double>>> class_features;
     for (size_t i = 0; i < features.size(); ++i)
     {
         std::string class_key = std::to_string(labels[i]);
         class_features[class_key].push_back(features[i]);
+    }
+
+    if (class_features.empty())
+    {
+        return ParaconsistentMetrics{};
     }
 
     unsigned int n_classes = class_features.size();

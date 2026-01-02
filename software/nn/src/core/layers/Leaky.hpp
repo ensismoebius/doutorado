@@ -111,7 +111,7 @@ struct Leaky : public Module
      * discrete-time LIF neuron equation.
      * @param input The input current for this time step.
      */
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
         if (v_mem.rows() != input.rows() || v_mem.cols() != input.get_data_ref().cols())
@@ -138,7 +138,10 @@ struct Leaky : public Module
         }
 
         // Cache the membrane potential from the previous time step, v(t-1), for the backward pass.
-        v_mem_t_minus_1 = v_mem;
+        if (requires_grad)
+        {
+            v_mem_t_minus_1 = v_mem;
+        }
 
         // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
         // is decayed by a factor of `beta`. If there were no input, the potential
@@ -152,7 +155,10 @@ struct Leaky : public Module
         // 3. Cache: The potential is saved just before the spike check. This is for
         // the `backward` pass, as the surrogate gradient is calculated based on this
         // pre-spike potential.
-        v_mem_pre_spike = v_mem;
+        if (requires_grad)
+        {
+            v_mem_pre_spike = v_mem;
+        }
 #ifdef DEBUG
         {
             std::ostringstream oss;
@@ -211,7 +217,9 @@ struct Leaky : public Module
     {
         // --- Surrogate Gradient Calculation ---
         const Eigen::MatrixXf surrogate_grad =
-            surrogate_gradient->calculate(nn::Tensor(v_mem_pre_spike), voltage_threshold.get_data_ref()(0, 0)).get_data_ref();
+            surrogate_gradient
+                ->calculate(nn::Tensor(v_mem_pre_spike), voltage_threshold.get_data_ref()(0, 0))
+                .get_data_ref();
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.
