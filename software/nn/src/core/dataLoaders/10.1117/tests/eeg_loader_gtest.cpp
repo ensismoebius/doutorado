@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <filesystem>
 #include <string>
 #include <vector>
-#include <filesystem>
 
 #include "../../tests/MatTestUtils/MatTestUtils.h"
 #include "../EEGLoader.h"

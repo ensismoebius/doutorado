@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>
+#include <unistd.h> // For getpid()
 
 #include <filesystem>
-#include <unistd.h> // For getpid()
 
 #include "../AudioLoader.h"
 
@@ -30,7 +30,8 @@ class AudioLoaderTest : public ::testing::Test
 
     void SetUp() override
     {
-        testFile = std::filesystem::temp_directory_path().string() + "/" + std::string(kTestFileName) + "." + std::to_string(getpid());
+        testFile = std::filesystem::temp_directory_path().string() + "/" +
+                   std::string(kTestFileName) + "." + std::to_string(getpid());
 
         // Remove any leftover file from previous runs
         std::filesystem::remove(testFile);
