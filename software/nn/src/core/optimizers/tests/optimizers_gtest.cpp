@@ -93,8 +93,6 @@ TEST(OptimizerEdgeCases, EmptyParamsList)
 // Exception Testing for Optimizers
 TEST(OptimizerExceptionTest, InvalidLearningRates)
 {
-    std::vector<nn::Tensor*> params;
-
     // Test negative learning rates
     ASSERT_THROW(SGDMinimal sgd_neg(-0.01F), std::invalid_argument);
     ASSERT_THROW(Adam adam_neg(-0.01F), std::invalid_argument);

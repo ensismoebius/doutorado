@@ -593,9 +593,6 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
             auto hanning_eeg = hanning_window(eeg_window_samples);
             for (size_t i = 0; i < window.eeg_window.size(); ++i)
             {
-                // Note: local_idx calculated but window data accessed directly
-                int local_idx = static_cast<int>((i / eeg_window_samples) * eeg_window_samples +
-                                                 (i % eeg_window_samples));
                 window.eeg_window[i] *= hanning_eeg[i % eeg_window_samples];
             }
 
@@ -625,15 +622,14 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
     {
         std::cout << "Processing wavelet: " << wavelet_name << std::endl;
 
-        // Load data (assuming data files are available)
-        std::string eeg_path = "/path/to/S01_EEG.mat";     // TODO: parameterize
-        std::string audio_path = "/path/to/S01_Audio.mat"; // TODO: parameterize
-
         std::vector<EEGSample> eeg_samples;
         std::vector<AudioSample> audio_samples;
 
         try
         {
+            // Load data (assuming data files are available)
+            std::string eeg_path = "/path/to/S01_EEG.mat";     // TODO: parameterize
+            std::string audio_path = "/path/to/S01_Audio.mat"; // TODO: parameterize
             eeg_samples = load_eeg_data(eeg_path);
             audio_samples = load_audio_data(audio_path);
             std::cout << "Loaded " << eeg_samples.size() << " EEG samples and "
@@ -762,7 +758,7 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
     std::cout << "Experiment completed. Results saved to " << config.output_dir << std::endl;
 }
 
-auto main(int argc, char* argv[]) -> int
+auto main(int argc, char const* const* argv) -> int
 {
     try
     {

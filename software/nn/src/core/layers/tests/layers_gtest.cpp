@@ -173,9 +173,9 @@ TEST(Conv2dTest, ForwardAndBackward)
     const int in_channels = 1;
     const int out_channels = 1;
     const int kernel_size = 2;
-    const int batch_size = 1;
-    const int input_height = 3;
-    const int input_width = 3;
+    [[maybe_unused]] const int batch_size = 1;
+    [[maybe_unused]] const int input_height = 3;
+    [[maybe_unused]] const int input_width = 3;
 
     // Create layer
     Conv2d conv(in_channels, out_channels, kernel_size);
@@ -1009,7 +1009,7 @@ TEST(LayerNumericalEdgeTest, GradientNumericalStability)
     Eigen::MatrixXf small_input(1, 2);
     small_input << 1e-8F, 1e-8F;
     nn::Tensor small_tensor{small_input};
-    nn::Tensor small_output = linear.forward(small_tensor);
+    [[maybe_unused]] nn::Tensor small_output = linear.forward(small_tensor);
 
     Eigen::MatrixXf small_grad(1, 1);
     small_grad << 1e-8F;
@@ -1076,13 +1076,13 @@ TEST(LayerThreadSafetyTest, GradientAccumulation)
         nn::Tensor input_tensor{input};
 
         // Forward
-        nn::Tensor output = linear.forward(input_tensor);
+        [[maybe_unused]] nn::Tensor output = linear.forward(input_tensor);
 
         // Backward
         Eigen::MatrixXf grad_output(1, 2);
         grad_output.setOnes();
         nn::Tensor grad_tensor{grad_output};
-        nn::Tensor grad_input = linear.backward(grad_tensor);
+        [[maybe_unused]] nn::Tensor grad_input = linear.backward(grad_tensor);
 
         // Verify gradients are accumulated properly
         EXPECT_FALSE(std::isnan(linear.weight.get_grad_ref().sum()));
@@ -1099,14 +1099,14 @@ TEST(LayerComprehensiveTest, LeakyLayerStateManagement)
     Eigen::MatrixXf input1(1, 1);
     input1 << 3.0F;
     nn::Tensor tensor1{input1};
-    nn::Tensor out1 = leaky.forward(tensor1);
+    [[maybe_unused]] nn::Tensor out1 = leaky.forward(tensor1);
     float vmem_after1 = leaky.v_mem(0, 0);
 
     // Second forward pass should start fresh
     Eigen::MatrixXf input2(1, 1);
     input2 << 1.0F;
     nn::Tensor tensor2{input2};
-    nn::Tensor out2 = leaky.forward(tensor2);
+    [[maybe_unused]] nn::Tensor out2 = leaky.forward(tensor2);
     float vmem_after2 = leaky.v_mem(0, 0);
 
     // Membrane potential should be different

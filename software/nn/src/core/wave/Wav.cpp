@@ -332,11 +332,9 @@ inline void Wav::write8BitMono(std::ofstream& ofs)
 {
     Wav::write_binary(ofs, this->header);
 
-    unsigned char waveformdata = 0;
-
     for (size_t i = 0; i < amountOfData; i++)
     {
-        waveformdata = static_cast<unsigned char>(this->data.at(i));
+        unsigned char waveformdata = static_cast<unsigned char>(this->data.at(i));
         Wav::write_binary(ofs, waveformdata);
     }
 }
@@ -345,14 +343,11 @@ inline void Wav::write8BitStereo(std::ofstream& ofs)
 {
     Wav::write_binary(ofs, this->header);
 
-    unsigned char waveformdata_right = 0;
-    unsigned char waveformdata_left = 0;
-
     for (size_t i = 0; i < amountOfData; i++)
     {
-        waveformdata_left = static_cast<unsigned char>(this->dataLeft.at(i));
+        unsigned char waveformdata_left = static_cast<unsigned char>(this->dataLeft.at(i));
         Wav::write_binary(ofs, waveformdata_left);
-        waveformdata_right = static_cast<unsigned char>(this->dataRight.at(i));
+        unsigned char waveformdata_right = static_cast<unsigned char>(this->dataRight.at(i));
         Wav::write_binary(ofs, waveformdata_right);
     }
 }

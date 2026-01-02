@@ -1,5 +1,6 @@
 #include "EigenTensorBackend.hpp"
 
+#include <cassert>
 #include <stdexcept>
 
 namespace nn
@@ -404,6 +405,8 @@ const ITensorBackend& EigenTensorBackend::grad() const
         // This const_cast is safe because m_grad_backend is mutable.
         const_cast<EigenTensorBackend*>(this)->zero_grad();
     }
+    // At this point m_grad_backend is guaranteed to be non-null
+    assert(m_grad_backend != nullptr);
     return *m_grad_backend;
 }
 

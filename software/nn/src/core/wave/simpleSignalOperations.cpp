@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <stdexcept>
 #include <vector>
 
 auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
@@ -31,19 +32,13 @@ auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
 
 auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned int
 {
-    long double m = vector[0];
+    if (vector.empty()) {
+        throw std::invalid_argument("findFZeroPeriodSamples: vector cannot be empty");
+    }
+    
+    long double m = *std::min_element(vector.begin(), vector.end());
     unsigned int period = 0;
     unsigned int index = 0;
-    // replaced with std::min_element
-    if (!vector.empty()) { // ensure vector is not empty before finding min
-        m = *std::min_element(vector.begin(), vector.end());
-    } else {
-        // Handle empty vector case, perhaps throw an exception or return a default value
-        // For now, retaining original behavior where m = vector[0] implies non-empty.
-        // If the vector can be empty, the initial m = vector[0] would crash.
-        // Assuming vector[0] is always valid based on the original code's implicit assumption.
-        // If vector can be empty, this should be handled before this point.
-    }
 
     while (vector[index] != m)
     {
