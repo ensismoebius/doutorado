@@ -58,6 +58,8 @@ if(NOT FFTW_LIBRARY OR NOT FFTW_INCLUDE_DIR)
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include"
     )
+    set_property(TARGET FFTW::FFTW PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include")
 
     add_dependencies(FFTW::FFTW fftw_build)
 else()
@@ -79,5 +81,7 @@ else()
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}"
     )
+    set_property(TARGET FFTW::FFTW PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${FFTW_INCLUDE_DIR}")
     add_custom_target(fftw_build)
 endif()

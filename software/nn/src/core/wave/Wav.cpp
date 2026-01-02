@@ -326,6 +326,16 @@ void Wav::readWaveHeaders(std::ifstream& ifs)
     waveResolution = static_cast<int>((this->header.byteRate * BITS_PER_BYTE) /
                                       (this->header.numberOfChannels * this->header.sampleRate));
     amountOfData = this->header.dataSubchunkSize / this->header.blockAlign;
+
+    // Validate that the file is large enough to contain the expected data
+    ifs.seekg(0, std::ios::end);
+    std::streamsize fileSize = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
+
+    if (fileSize < static_cast<std::streamsize>(44 + this->header.dataSubchunkSize))
+    {
+        throw std::runtime_error("File is too small to contain the expected audio data");
+    }
 }
 
 inline void Wav::write8BitMono(std::ofstream& ofs)
@@ -400,6 +410,10 @@ inline void Wav::read8BitMono(std::ifstream& ifs)
     this->data.resize(amountOfData, 0);
     for (size_t i = 0; i < amountOfData; i++)
     {
+        if (!ifs.good())
+        {
+            throw std::runtime_error("Error reading audio data: unexpected end of file");
+        }
         Wav::read_binary(ifs, waveformdata);
         this->data.at(i) = static_cast<double>(waveformdata);
     }
@@ -413,6 +427,10 @@ inline void Wav::read8BitStereo(std::ifstream& ifs)
     this->dataRight.resize(amountOfData, 0);
     for (size_t i = 0; i < amountOfData; i++)
     {
+        if (!ifs.good())
+        {
+            throw std::runtime_error("Error reading audio data: unexpected end of file");
+        }
         Wav::read_binary(ifs, waveformdata_left);
         Wav::read_binary(ifs, waveformdata_right);
         this->dataLeft.at(i) = static_cast<double>(waveformdata_right);
@@ -427,6 +445,10 @@ inline void Wav::read16BitMono(std::ifstream& ifs)
     this->data.resize(amountOfData, 0);
     for (size_t i = 0; i < amountOfData; i++)
     {
+        if (!ifs.good())
+        {
+            throw std::runtime_error("Error reading audio data: unexpected end of file");
+        }
         Wav::read_binary(ifs, waveformdata_lsb);
         Wav::read_binary(ifs, waveformdata_msb);
         this->data.at(i) =
@@ -444,6 +466,10 @@ inline void Wav::read16BitStereo(std::ifstream& ifs)
     this->dataRight.resize(amountOfData, 0);
     for (size_t i = 0; i < amountOfData; i++)
     {
+        if (!ifs.good())
+        {
+            throw std::runtime_error("Error reading audio data: unexpected end of file");
+        }
         Wav::read_binary(ifs, waveformdata_lsb_left);
         Wav::read_binary(ifs, waveformdata_msb_left);
         Wav::read_binary(ifs, waveformdata_lsb_right);

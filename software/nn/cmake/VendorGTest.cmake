@@ -34,6 +34,30 @@ get_target_property(
     INTERFACE_INCLUDE_DIRECTORIES
 )
 
+if(GTEST_INCLUDES)
+    if(TARGET gtest)
+        target_include_directories(gtest
+            SYSTEM INTERFACE
+                ${GTEST_INCLUDES}
+        )
+    endif()
+endif()
+
+get_target_property(
+    GTEST_MAIN_INCLUDES
+    GTest::gtest_main
+    INTERFACE_INCLUDE_DIRECTORIES
+)
+
+if(GTEST_MAIN_INCLUDES)
+    if(TARGET gtest_main)
+        target_include_directories(gtest_main
+            SYSTEM INTERFACE
+                ${GTEST_MAIN_INCLUDES}
+        )
+    endif()
+endif()
+
 # Re-expose them as SYSTEM
 target_include_directories(google_test
     SYSTEM INTERFACE

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_MATFILEDATASET_H
+#define NN_MATFILEDATASET_H
 
 #include "MatFileUtils.h"
 #include "TensorDataset.h"
@@ -31,3 +32,4 @@ class MatFileDataset : public TensorDataset
         set_tensors(std::move(inputs), std::move(targets));
     }
 };
+#endif // NN_MATFILEDATASET_H

@@ -69,6 +69,8 @@ set_target_properties(NFFT::NFFT PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include"
     INTERFACE_LINK_LIBRARIES      "FFTW::FFTW;OpenMP::OpenMP_C"
 )
+set_property(TARGET NFFT::NFFT PROPERTY
+    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include")
 add_dependencies(NFFT::NFFT nfft3)
 
 # If NFFT3 is already built, just create the imported target
@@ -80,6 +82,8 @@ else()
         INTERFACE_INCLUDE_DIRECTORIES "${NFFT3_INCLUDE_DIR}"
         INTERFACE_LINK_LIBRARIES      "FFTW::FFTW;OpenMP::OpenMP_C"
     )
+    set_property(TARGET NFFT::NFFT PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${NFFT3_INCLUDE_DIR}")
     # Ensure FFTW is built, as NFFT depends on it.
     add_dependencies(NFFT::NFFT fftw_build)
 endif()

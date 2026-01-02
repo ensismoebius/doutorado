@@ -8,21 +8,13 @@
 #include <fstream>
 #include <iostream>
 #include <map>
-#include <memory>
-#include <numeric>
 #include <random>
 #include <span>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "core/dataLoaders/MatFileUtils.h"
-#include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
-#include "core/layers/Linear.hpp"
-#include "core/layers/ReLU.hpp"
-#include "core/layers/ResidualBlock.hpp"
-#include "core/layers/Sequential.hpp"
 #include "core/layers/SimpleResNet.hpp"
 #include "core/linearAlgebra/linearAlgebra.h"
 #include "core/optimizers/Adam.hpp"
