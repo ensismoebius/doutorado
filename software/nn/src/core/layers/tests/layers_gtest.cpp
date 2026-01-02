@@ -858,18 +858,21 @@ TEST(LayerExceptionTest, LinearInvalidDimensions)
 
 TEST(LayerExceptionTest, Conv2dInvalidInputs)
 {
-    Conv2d conv(1, 1, 3, 1, 1, 1, false);
+    Conv2d conv(1, 1, 3, 1, 0, 1, false); // kernel=3, stride=1, padding=0 (no padding), dilation=1,
+                                          // use_parallel=false
 
-    // Test with input too small for kernel
-    Eigen::MatrixXf small_input(1, 1); // 1x1 input with 3x3 kernel
-    nn::Tensor small_tensor{small_input};
+    // Test with input too small for kernel - proper 4D tensor (batch, channels, height, width)
+    nn::Tensor small_tensor(
+        1,
+        1,
+        1,
+        1); // batch=1, channels=1, height=1, width=1 - too small for 3x3 kernel with no padding
     ASSERT_THROW(conv.forward(small_tensor), std::invalid_argument);
 
-    // Test with wrong number of channels
-    Eigen::MatrixXf wrong_channels(5, 5); // 1 channel expected, but input suggests more
-    nn::Tensor wrong_channels_tensor{wrong_channels};
-    // This might not throw immediately, but should handle gracefully
-    EXPECT_NO_THROW(conv.forward(wrong_channels_tensor));
+    // Test with valid dimensions but 4D tensor
+    nn::Tensor valid_tensor(
+        1, 1, 5, 5); // batch=1, channels=1, height=5, width=5 - valid for 3x3 kernel
+    EXPECT_NO_THROW(conv.forward(valid_tensor));
 }
 
 TEST(LayerExceptionTest, SequentialEmptyLayers)
@@ -926,12 +929,20 @@ TEST(LayerMemoryStressTest, LargeLinearLayer)
     EXPECT_EQ(grad_input.cols(), large_input);
 }
 
+// This test only compiles in Release mode due to high memory requirements
+#ifdef NDEBUG
 TEST(LayerMemoryStressTest, LargeConv2dLayer)
 {
     const int large_channels = 64;
     const int large_size = 128;
 
-    Conv2d conv(large_channels, large_channels, 3, 1, 1, 1, true);
+    Conv2d conv(large_channels,
+                large_channels,
+                3,
+                1,
+                1,
+                1,
+                true); // kernel=3, stride=1, padding=1, dilation=1, use_parallel=true
 
     // Create large input (batch_size=1, channels, height, width)
     Eigen::MatrixXf large_input(large_channels * large_size, large_size);
@@ -953,6 +964,7 @@ TEST(LayerMemoryStressTest, LargeConv2dLayer)
     EXPECT_EQ(grad_input.rows(), large_channels * large_size);
     EXPECT_EQ(grad_input.cols(), large_size);
 }
+#endif // NDEBUG - LargeConv2dLayer test only in Release mode
 
 // Numerical Edge Cases for Layers
 TEST(LayerNumericalEdgeTest, NaNInfHandling)
@@ -1131,7 +1143,8 @@ TEST(LayerComprehensiveTest, ReLUGradientFlow)
 TEST(LayerComprehensiveTest, Conv2dPaddingAndStride)
 {
     // Test different padding and stride combinations
-    Conv2d conv(1, 1, 3, 1, 2, 2, false); // kernel=3, stride=2, padding=1
+    Conv2d conv(
+        1, 1, 3, 2, 1, 1, false); // kernel=3, stride=2, padding=1, dilation=1, use_parallel=false
 
     Eigen::MatrixXf input(1 * 8, 8); // 1 channel, 8x8 input
     input.setOnes();
@@ -1171,9 +1184,17 @@ TEST(LayerComprehensiveTest, SurrogateGradientRange)
     auto surrogate = std::make_shared<ExponentialSurrogate>();
 
     // Test surrogate gradient at different voltage levels
-    float grad_at_zero = surrogate->gradient(0.0F, 1.0F);
-    float grad_at_one = surrogate->gradient(1.0F, 1.0F);
-    float grad_at_minus_one = surrogate->gradient(-1.0F, 1.0F);
+    Eigen::MatrixXf v_zero(1, 1);
+    v_zero << 0.0F;
+    float grad_at_zero = surrogate->calculate(nn::Tensor(v_zero), 1.0F).at(0, 0);
+
+    Eigen::MatrixXf v_one(1, 1);
+    v_one << 1.0F;
+    float grad_at_one = surrogate->calculate(nn::Tensor(v_one), 1.0F).at(0, 0);
+
+    Eigen::MatrixXf v_minus_one(1, 1);
+    v_minus_one << -1.0F;
+    float grad_at_minus_one = surrogate->calculate(nn::Tensor(v_minus_one), 1.0F).at(0, 0);
 
     // All gradients should be finite and reasonable
     EXPECT_TRUE(std::isfinite(grad_at_zero));

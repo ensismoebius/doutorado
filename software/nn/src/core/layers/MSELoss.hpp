@@ -17,6 +17,7 @@ class MSELoss : public Module
 
     nn::Tensor last_input;
     nn::Tensor last_target;
+    bool target_set = false;
 
     bool training = true;
 
@@ -31,6 +32,12 @@ class MSELoss : public Module
     // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
+        // Check if target has been set
+        if (!target_set)
+        {
+            throw std::runtime_error("MSELoss: target has not been set. Call set_target() first.");
+        }
+
         if (training && requires_grad)
         {
             // Cache the prediction for the backward pass
@@ -59,13 +66,17 @@ class MSELoss : public Module
     void set_target(const nn::Tensor& target)
     {
         last_target = target;
+        target_set = true;
     }
 
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
     auto backward(const nn::Tensor& /* prediction */) -> nn::Tensor override
     {
         // Compute gradient: 2 * (prediction - target) / num_elements
-        auto diff = last_input.add(last_target.multiply_scalar(-1.0f));
+        // Create a copy to avoid modifying last_target
+        nn::Tensor negated_target = last_target;
+        negated_target.multiply_scalar(-1.0f);
+        auto diff = last_input.add(negated_target);
         auto grad = diff.multiply_scalar(MSE_GRADIENT_FACTOR /
                                          static_cast<float>(last_input.get_data_ref().size()));
 

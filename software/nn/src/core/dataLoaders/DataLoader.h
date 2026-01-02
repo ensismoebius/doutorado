@@ -19,20 +19,22 @@ class DataLoader
     {
        public:
         using iterator_category = std::input_iterator_tag;
-        using difference_type   = std::ptrdiff_t;
-        using value_type        = Batch;
-        using pointer           = Batch*;
-        using reference         = Batch&;
+        using difference_type = std::ptrdiff_t;
+        using value_type = Batch;
+        using pointer = Batch*;
+        using reference = Batch&;
 
-        Iterator(DataLoader& loader, std::size_t current_batch);
+        Iterator(DataLoader& loader, std::size_t current_batch, std::vector<std::size_t> indices);
 
         auto operator*() const -> Batch;
         auto operator++() -> Iterator&;
         auto operator!=(const Iterator& other) const -> bool;
+        auto operator==(const Iterator& other) const -> bool;
 
        private:
         DataLoader& loader_;
         std::size_t current_batch_;
+        std::vector<std::size_t> indices_; // Each iterator has its own snapshot
     };
 
     [[nodiscard]] auto begin() -> Iterator;

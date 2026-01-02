@@ -30,15 +30,16 @@ class Windowing
             return windows;
         }
 
-        for (auto i = 0; i + window_size_samples <= data.cols(); i += step_size_samples) [[likely]]
+        for (auto i = 0; i + window_size_samples <= static_cast<int>(data.cols());
+             i += step_size_samples) [[likely]]
         {
             // Create a new tensor for the window
-            nn::Tensor window(data.rows(), window_size_samples);
-            for (int row = 0; row < data.rows(); ++row)
+            nn::Tensor window(static_cast<int>(data.rows()), window_size_samples);
+            for (int row = 0; row < static_cast<int>(data.rows()); ++row)
             {
                 for (int col = 0; col < window_size_samples; ++col)
                 {
-                    window.data(row, col) = data.data(row, i + col);
+                    window.get_data_ref()(row, col) = data.get_data_ref()(row, i + col);
                 }
             }
             windows.emplace_back(window);

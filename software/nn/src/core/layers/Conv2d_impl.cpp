@@ -8,9 +8,18 @@ constexpr int COL2IM_SIZE = 512;
 
 Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch_size,
                bool use_parallel)
+    : Conv2d(in_channels, out_channels, kernel_size, 1, 0, 1, use_parallel, max_batch_size)
+{
+}
+
+Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding,
+               int dilation, bool use_parallel, int max_batch_size)
     : in_channels_(in_channels),
       out_channels_(out_channels),
       kernel_size_(kernel_size),
+      stride_(stride),
+      padding_(padding),
+      dilation_(dilation),
       max_batch_size_(max_batch_size),
       use_parallel_(use_parallel),
       weights_(
@@ -36,6 +45,23 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch
 
 auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
 {
+    // Validate input tensor shape
+    const auto& shape = input.get_shape();
+    if (shape.size() != 4)
+    {
+        throw std::invalid_argument(
+            "Conv2d input must be 4D (batch, channels, height, width), got " +
+            std::to_string(shape.size()) + "D tensor");
+    }
+
+    const auto in_ch = static_cast<int>(shape[1]);
+    if (in_ch != in_channels_)
+    {
+        throw std::invalid_argument("Conv2d input channels (" + std::to_string(in_ch) +
+                                    ") do not match expected in_channels (" +
+                                    std::to_string(in_channels_) + ")");
+    }
+
     const auto batch_size = static_cast<int>(input.get_shape()[0]);
     const auto input_height = static_cast<int>(input.get_shape()[2]);
     const auto input_width = static_cast<int>(input.get_shape()[3]);
@@ -46,9 +72,20 @@ auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
         input_cache_ = input;
     }
 
-    // Compute output dimensions
-    const int output_height = input_height - kernel_size_ + 1;
-    const int output_width = input_width - kernel_size_ + 1;
+    // Compute output dimensions with stride and padding
+    const int dilated_kernel_size = dilation_ * (kernel_size_ - 1) + 1;
+    const int output_height = (input_height + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
+    const int output_width = (input_width + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
+
+    // Validate output dimensions
+    if (output_height <= 0 || output_width <= 0)
+    {
+        throw std::invalid_argument(
+            "Conv2d: input spatial dimensions (" + std::to_string(input_height) + "x" +
+            std::to_string(input_width) + ") are too small for kernel size " +
+            std::to_string(kernel_size_) + " with stride=" + std::to_string(stride_) +
+            ", padding=" + std::to_string(padding_) + ", dilation=" + std::to_string(dilation_));
+    }
 
     // Ensure indices are precomputed
     compute_indices_once(batch_size, input_height, input_width);
@@ -101,8 +138,9 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     const auto batch_size = static_cast<int>(input_cache_.get_shape()[0]);
     const auto input_height = static_cast<int>(input_cache_.get_shape()[2]);
     const auto input_width = static_cast<int>(input_cache_.get_shape()[3]);
-    const int output_height = input_height - kernel_size_ + 1;
-    const int output_width = input_width - kernel_size_ + 1;
+    const int dilated_kernel_size = dilation_ * (kernel_size_ - 1) + 1;
+    const int output_height = (input_height + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
+    const int output_width = (input_width + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
 
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;

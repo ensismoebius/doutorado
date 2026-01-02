@@ -40,6 +40,11 @@ struct Sequential : Module
     // Forward pass
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
+        if (layers.empty())
+        {
+            throw std::runtime_error("Sequential: cannot forward with empty layer list");
+        }
+
         outputs.clear();
         nn::Tensor temp_input = input;
         for (auto& layer : layers) [[likely]]

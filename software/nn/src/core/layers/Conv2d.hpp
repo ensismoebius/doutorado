@@ -36,7 +36,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     /**
-     * @brief Constructor for Conv2d layer
+     * @brief Constructor for Conv2d layer (legacy API for backward compatibility)
      * @param in_channels Number of input channels
      * @param out_channels Number of output channels
      * @param kernel_size Size of the convolution kernel (square kernels only)
@@ -47,12 +47,26 @@ class EIGEN_ALIGN16 Conv2d : public Module
            bool use_parallel = true);
 
     /**
+     * @brief Constructor for Conv2d layer
+     * @param in_channels Number of input channels
+     * @param out_channels Number of output channels
+     * @param kernel_size Size of the convolution kernel (square kernels only)
+     * @param stride Stride for the convolution (default: 1)
+     * @param padding Padding for the convolution (default: 0)
+     * @param dilation Dilation for the convolution (default: 1)
+     * @param use_parallel Enable OpenMP parallelization (default: true)
+     * @param max_batch_size Maximum batch size for buffer pre-allocation (default: 64)
+     */
+    Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding,
+           int dilation, bool use_parallel, int max_batch_size = 64);
+
+    /**
      * @brief Forward pass: compute convolution output
      * @param input Input tensor of shape (batch, channels, height, width)
      * @param requires_grad Whether gradients will be computed (default: true)
      * @return Output tensor with shape (batch, out_channels, out_height, out_width)
      */
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor;
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
 
     /**
      * @brief Backward pass: compute gradients
@@ -111,6 +125,9 @@ class EIGEN_ALIGN16 Conv2d : public Module
     int in_channels_;
     int out_channels_;
     int kernel_size_;
+    int stride_;
+    int padding_;
+    int dilation_;
     int max_batch_size_;
     bool use_parallel_;
 

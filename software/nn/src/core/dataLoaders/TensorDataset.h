@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iterator>
 #include <span>
+#include <stdexcept>
 #include <vector>
 
 #include "Dataset.h"
@@ -14,6 +15,14 @@ class TensorDataset : public Dataset
     TensorDataset(nn::Tensor inputs, nn::Tensor targets)
         : inputs_(std::move(inputs)), targets_(std::move(targets))
     {
+        if (inputs_.get_shape()[0] != targets_.get_shape()[0])
+        {
+            throw std::invalid_argument(
+                "TensorDataset: inputs and targets must have the same number of samples. Got "
+                "inputs: " +
+                std::to_string(inputs_.get_shape()[0]) +
+                ", targets: " + std::to_string(targets_.get_shape()[0]));
+        }
     }
 
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override

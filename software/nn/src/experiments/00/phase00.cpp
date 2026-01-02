@@ -21,9 +21,9 @@
 // For EEG, signal_data will be (channels x samples_per_channel)
 // For Audio, signal_data will be (1 x samples_per_channel)
 auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, //
-                                           double duration_sec,           //
-                                           int overlap_percent,           //
-                                           int sampling_rate              //
+                                           double /*duration_sec*/,       //
+                                           int /*overlap_percent*/,       //
+                                           int /*sampling_rate*/          //
                                            ) -> std::vector<double>
 {
     // Daubechies 4 lowpass filter (example)
@@ -31,7 +31,8 @@ auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, //
 
     std::vector<double> all_channel_energies;
 
-    for (int channel_row_idx = 0; channel_row_idx < signal_data.rows(); ++channel_row_idx)
+    for (int channel_row_idx = 0; channel_row_idx < static_cast<int>(signal_data.rows());
+         ++channel_row_idx)
     {
         nn::Tensor channel_tensor = signal_data.row(channel_row_idx);
         std::vector<double> sig;
@@ -142,8 +143,8 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
     return {alpha, beta, g1, g2};
 }
 
-auto train_resnet(const std::vector<std::vector<double>>& features, const std::vector<int>& labels)
-    -> double
+auto train_resnet(const std::vector<std::vector<double>>& /*features*/,
+                  const std::vector<int>& /*labels*/) -> double
 {
     // Implement simple ResNet-like training using existing layers
     // Placeholder: for now, return dummy accuracy

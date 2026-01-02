@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
@@ -28,8 +26,9 @@ auto Conv2d::get_or_compute_indices(int batch_size, int input_height, int input_
 auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) const
     -> std::vector<Conv2dImpl::PatchIndices>
 {
-    const int output_height = input_height - kernel_size_ + 1;
-    const int output_width = input_width - kernel_size_ + 1;
+    const int dilated_kernel_size = dilation_ * (kernel_size_ - 1) + 1;
+    const int output_height = (input_height + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
+    const int output_width = (input_width + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int total_patches = batch_size * output_height * output_width; // Use actual batch_size
 
@@ -55,8 +54,8 @@ auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) 
                     {
                         for (int kx = 0; kx < kernel_size_; ++kx)
                         {
-                            const int input_y = oy + ky;
-                            const int input_x = ox + kx;
+                            const int input_y = oy * stride_ + ky * dilation_ - padding_;
+                            const int input_x = ox * stride_ + kx * dilation_ - padding_;
 
                             // For im2col: store reference to value
                             // This will be filled during im2col_optimized
@@ -123,9 +122,15 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                     {
                         for (int kx = 0; kx < kernel_size_; ++kx)
                         {
-                            const int input_y = oy + ky;
-                            const int input_x = ox + kx;
-                            output_map(elem_idx++, col_idx) = input.at(b, ic, input_y, input_x);
+                            const int input_y = oy * stride_ + ky * dilation_ - padding_;
+                            const int input_x = ox * stride_ + kx * dilation_ - padding_;
+                            float value = 0.0F;
+                            if (input_y >= 0 && input_y < input_height && input_x >= 0 &&
+                                input_x < input_width)
+                            {
+                                value = input.at(b, ic, input_y, input_x);
+                            }
+                            output_map(elem_idx++, col_idx) = value;
                         }
                     }
                 }
@@ -150,9 +155,15 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                     {
                         for (int kx = 0; kx < kernel_size_; ++kx)
                         {
-                            const int input_y = oy + ky;
-                            const int input_x = ox + kx;
-                            output_map(elem_idx++, col_idx) = input.at(b, ic, input_y, input_x);
+                            const int input_y = oy * stride_ + ky * dilation_ - padding_;
+                            const int input_x = ox * stride_ + kx * dilation_ - padding_;
+                            float value = 0.0F;
+                            if (input_y >= 0 && input_y < input_height && input_x >= 0 &&
+                                input_x < input_width)
+                            {
+                                value = input.at(b, ic, input_y, input_x);
+                            }
+                            output_map(elem_idx++, col_idx) = value;
                         }
                     }
                 }

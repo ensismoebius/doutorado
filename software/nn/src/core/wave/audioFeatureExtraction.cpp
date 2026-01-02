@@ -368,10 +368,10 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
                                      loading_params.audio_params.number_of_cepstrals);
 
     // Cálculo dos coeficientes cepstrais para cada frame.
-    for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
+    for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Cria os coeficientes cepstrais para o frame atual.
-        for (long cepstrum_index = 0;
+        for (size_t cepstrum_index = 0;
              cepstrum_index < loading_params.audio_params.number_of_cepstrals;
              ++cepstrum_index)
         {
@@ -449,20 +449,20 @@ auto compute_deltas(const nn::Tensor& features,
     denominator *= loading_params.delta_config.denominator_factor;
 
     // Cálculo dos coeficientes delta para cada frame e feature.
-    for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
+    for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Itera sobre cada dimensão do feature vector.
-        for (long feature_index = 0; feature_index < number_of_features; ++feature_index)
+        for (size_t feature_index = 0; feature_index < number_of_features; ++feature_index)
         {
             // Variável temporária para acumular o numerador da fórmula de deltas.
             float numerator = 0.0F;
 
             // Cálculo do numerador para o delta da feature atual.
-            for (long delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
+            for (size_t delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
                  ++delta_span)
             {
                 // Determine indices for c_{t+n} and c_{t-n} with boundary handling
-                long index_plus_n = frame_index + delta_span;
+                size_t index_plus_n = frame_index + delta_span;
                 long index_minus_n = frame_index - delta_span;
 
                 // Clamp indices to valid range

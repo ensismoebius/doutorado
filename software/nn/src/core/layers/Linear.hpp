@@ -59,6 +59,14 @@ struct Linear : public Module
      */
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
+        // Validate input dimensions
+        if (input.cols() != in_features)
+        {
+            throw std::invalid_argument(
+                "Linear layer forward: input features (" + std::to_string(input.cols()) +
+                ") do not match expected in_features (" + std::to_string(in_features) + ")");
+        }
+
         // Cache input for backward pass only if gradients are required
         if (requires_grad)
         {
@@ -96,6 +104,15 @@ struct Linear : public Module
      */
     auto backward(const nn::Tensor& grad_previous) -> nn::Tensor override
     {
+        // Validate gradient dimensions
+        if (grad_previous.cols() != out_features)
+        {
+            throw std::invalid_argument("Linear layer backward: gradient features (" +
+                                        std::to_string(grad_previous.cols()) +
+                                        ") do not match expected out_features (" +
+                                        std::to_string(out_features) + ")");
+        }
+
         // Considerando que B, X, Y, Z e W são tensores.
         // Vamos representar a camada atual por um tensor Z = f(X) = WX + B.
         // Vamos representar a camada anterior por Y = g(Z) = (pode ser qualquer coisa).

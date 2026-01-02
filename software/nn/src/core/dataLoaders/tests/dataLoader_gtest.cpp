@@ -241,9 +241,10 @@ TEST(DataLoaderThreadSafetyTest, IteratorIndependence)
     ASSERT_NE(it2, loader.end());
     EXPECT_EQ((*it2).inputs.get_data_ref()(0, 0), 0.0f);
 
-    // it1 should be at the third batch
+    // it1 should be at the third batch (batch index 2)
+    // Batch 2 contains rows [10,11,12,13,14], and row 10's first element is 10*3 = 30
     ASSERT_NE(it1, loader.end());
-    EXPECT_EQ((*it1).inputs.get_data_ref()(0, 0), 10.0f); // 2 * 5 * 3 = 30, but sequential
+    EXPECT_EQ((*it1).inputs.get_data_ref()(0, 0), 30.0f); // Row 10: (10 * D) + 0 = 30
 }
 
 // Numerical Edge Cases for DataLoaders

@@ -18,8 +18,8 @@ TEST(UtilTest, SyntheticSpikeData)
 
     auto result =
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, max_rate, timeStep);
-    auto spike_trains = result.first;
-    // auto _ = result.second; // unused
+    auto spike_trains = std::get<0>(result);
+    // auto _ = std::get<1>(result); // unused
 
     ASSERT_EQ(spike_trains.size(), n_steps);
     for (const auto& spikes : spike_trains)
@@ -132,8 +132,8 @@ TEST(UtilMemoryStressTest, LargeSyntheticSpikeData)
 
     EXPECT_NO_THROW({
         auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 0.1F);
-        auto spike_trains = result.first;
-        // auto _ = result.second; // unused
+        auto spike_trains = std::get<0>(result);
+        // auto _ = std::get<1>(result); // unused
 
         EXPECT_EQ(spike_trains.size(), n_steps);
         for (const auto& spikes : spike_trains)
@@ -174,8 +174,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     // Test with very low firing rate
     auto low_rate_result =
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F);
-    auto low_rate_spikes = low_rate_result.first;
-    // auto _ = low_rate_result.second; // unused
+    auto low_rate_spikes = std::get<0>(low_rate_result);
+    // auto _ = std::get<1>(low_rate_result); // unused
     int total_low_spikes = 0;
     for (const auto& spikes : low_rate_spikes)
     {
@@ -186,8 +186,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     // Test with very high firing rate
     auto high_rate_result =
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F);
-    auto high_rate_spikes = high_rate_result.first;
-    // auto _ = high_rate_result.second; // unused
+    auto high_rate_spikes = std::get<0>(high_rate_result);
+    // auto _ = std::get<1>(high_rate_result); // unused
     int total_high_spikes = 0;
     for (const auto& spikes : high_rate_spikes)
     {
@@ -270,8 +270,8 @@ TEST(UtilThreadSafetyTest, ConcurrentSpikeGeneration)
         EXPECT_NO_THROW({
             auto result =
                 generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.5F, 1.0F);
-            auto spike_trains = result.first;
-            // auto _ = result.second; // unused
+            auto spike_trains = std::get<0>(result);
+            // auto _ = std::get<1>(result); // unused
 
             EXPECT_EQ(spike_trains.size(), n_steps);
             for (const auto& spikes : spike_trains)
@@ -339,8 +339,8 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
     const float rate = 0.2F;
 
     auto result = generate_autoencoder_spike_data(n_samples, input_dim, n_steps, rate, 1.0F);
-    auto spike_trains = result.first;
-    // auto _ = result.second; // unused
+    auto spike_trains = std::get<0>(result);
+    // auto _ = std::get<1>(result); // unused
 
     // Calculate overall firing rate
     int total_spikes = 0;

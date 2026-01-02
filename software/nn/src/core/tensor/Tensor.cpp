@@ -1,6 +1,5 @@
 #include "Tensor.hpp"
 
-#include <iostream>
 #include <span>
 
 #include "EigenTensorBackend.hpp"

@@ -473,7 +473,7 @@ auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
     nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
     std::vector<EEGSample> samples;
 
-    for (int i = 0; i < mat.rows(); ++i)
+    for (int i = 0; i < static_cast<int>(mat.rows()); ++i)
     {
         EEGSample sample;
         // Extract 6 channels × 4096 samples each = 24576 total
@@ -509,7 +509,7 @@ auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
     nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
     std::vector<AudioSample> samples;
 
-    for (int i = 0; i < mat.rows(); ++i)
+    for (int i = 0; i < static_cast<int>(mat.rows()); ++i)
     {
         AudioSample sample;
         // Extract 176400 audio samples
@@ -562,8 +562,7 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
             static_cast<int>(window_duration_sec * audio_rate); // 66150 samples
         int eeg_step =
             static_cast<int>((window_duration_sec - overlap_sec) * eeg_rate); // 1000 samples
-        int audio_step =
-            static_cast<int>((window_duration_sec - overlap_sec) * audio_rate); // 44100 samples
+        // Note: audio_step is calculated but may not be directly used in loop
 
         // Extract windows with overlap
         for (int start_eeg = 0; start_eeg + eeg_window_samples <= 4096; start_eeg += eeg_step)
@@ -594,8 +593,9 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
             auto hanning_eeg = hanning_window(eeg_window_samples);
             for (size_t i = 0; i < window.eeg_window.size(); ++i)
             {
-                int local_idx =
-                    (i / eeg_window_samples) * eeg_window_samples + (i % eeg_window_samples);
+                // Note: local_idx calculated but window data accessed directly
+                int local_idx = static_cast<int>((i / eeg_window_samples) * eeg_window_samples +
+                                                 (i % eeg_window_samples));
                 window.eeg_window[i] *= hanning_eeg[i % eeg_window_samples];
             }
 
