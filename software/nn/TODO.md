@@ -1,236 +1,192 @@
-# Speaker Identification Pipeline: EEG + Audio with Spiking Neural Networks
+# Speaker Identification Pipeline
 
-## Project Status and Tasks
-
-### Daily TODO
-
-**Speaker Identification (EEG + Audio)**
+**EEG + Audio using Spiking Neural Networks (SNNs)**
+📌 **Updated and Corrected Task List**
 
 ---
 
-## 🔒 PHASE 0 — Freezing (DO ONCE)
-* [x] Fix window **1.5 s / 50%**
-* [x] Fix normalization **[0,1] before α/β**
-* [x] Mandatory normalization to **[0,1]** (paraconsistent prerequisite) in /src/experiments/.
-* [x] Fix classifier (**ResNet**)
-* [x] Classification with **Residual Neural Networks** in /src/experiments/.
-* [x] Create unique `config.yaml`
+## 🔒 PHASE 0 — Freezing & Infrastructure (DO ONCE)
+
+**Goal:** freeze methodological decisions and guarantee reproducibility.
+
+- [ ] Fix window length: **1.5 s / 50% overlap**
+- [ ] Fix mandatory normalization: **[0,1]**
+  - prerequisite for paraconsistent analysis
+- [ ] Enforce normalization in `/src/experiments/`
+- [ ] Fix classifier:
+  - **Residual Spiking Neural Network (ResNet SNN)**
+
+- [ ] Freeze classifier architecture
+- [ ] Create a unique `config.yaml` (single source of truth)
+- [ ] Define output formats:
+  - CSV (metrics and results)
+  - **PyTorch-compatible format** (network architectures/weights)
 
 ---
 
-## 🧱 PHASE 1 — Baseline Wavelet
-* [ ] Pipeline **Wavelet / Wavelet-Packet** (experiments)
-* [ ] Wavelet / Wavelet-Packet Pipeline in /src/experiments/.
-* [ ] Validate numerical examples of wavelet
-* [ ] Ensure that the wavelet implementation reproduces the presented numerical examples.
-* [ ] Calculate **α, β, G1, G2**
-* [ ] Classify (ResNet)
-* [ ] Save results (CSV)
+## 🧠 PHASE 1 — Classical Feature Engineering (Wavelets)
 
-### 🧪 **Experiment M1 — Wavelet Baseline (Mandatory)**
+**Goal:** establish a deterministic and theoretically grounded baseline.
 
-* [ ] Implement the **Wavelet-Packet** experiment in `/src/experiments/`
-* [ ] Extract feature vectors (sub-band energies)
-* [ ] Apply **[0,1] normalization**
-* [ ] Compute paraconsistent metrics:
-  * [ ] α (intra-class)
-  * [ ] β (inter-class)
-  * [ ] G1, G2
-* [ ] Perform classification using **ResNet** (fixed configuration)
-* [ ] Save results (CSV)
+### 🧪 Experiment E1 — Wavelet / Wavelet-Packet Baseline
 
-🎯 **Objective:** establish a deterministic theoretical baseline.
+- [ ] Implement **Wavelet-Packet Transform (WPT)**
+- [ ] Validate numerical examples of the decomposition
+- [ ] Ensure coefficient reproducibility
+- [ ] Extract **sub-band energy features**
+- [ ] Apply **[0,1] normalization**
+- [ ] Compute paraconsistent metrics:
+  - α (intra-class similarity)
+  - β (inter-class overlap)
+  - G1, G2
+- [ ] Perform classification using **ResNet SNN**
+- [ ] Save results (CSV)
+
+🎯 **Expected outcome:** stable, interpretable theoretical baseline.
 
 ---
 
-## 🔬 PHASE 2 — LFCC × MEL × BARK (CENTRAL)
-* [x] LFCC / MEL / BARK Pipeline - Implemented in `src/demos/lfcc_pipeline/`
-  * Complete LFCC extraction with preprocessing, framing, FFT, filterbank, DCT
-  * Calculation of delta and delta-delta coefficients
-  * Audio loading from .mat files
-  * Subject processing orchestration
-* [ ] Execute **LFCC × MEL × BARK** (full comparison)
-* [ ] Analyze specific impact of **LFCC vs perceptual scales** in /src/experiments/.
-* [ ] **Systematically compare LFCC × MEL × BARK** - mandatory experimental step
-  * Comparison in terms of paraconsistent separability (α, β, G1, G2)
-  * Classification performance
-  * Robustness to severe speech degradations
-* [ ] Modalities:
-  * [ ] Voice
-  * [ ] EEG
-  * [ ] Voice + EEG
-* [ ] Metrics:
-  * [ ] α, β, G1, G2
-  * [ ] Accuracy
-* [ ] Consolidate comparative table
+## 🔬 PHASE 2 — Spectral Scales (CENTRAL PHASE)
 
-### 🧪 **Experiment M2 — LFCC × MEL × BARK Comparison (Central)**
+**Goal:** compare spectral representations while keeping all other variables fixed.
 
-* [ ] Run the **LFCC** pipeline
-* [ ] Run the **MEL / MFCC** pipeline
-* [ ] Run the **BARK** pipeline
-* [ ] Keep:
-  * the same window
-  * the same classifier
-* [ ] Evaluate, for each feature set:
-  * [ ] α, β, G1, G2
-  * [ ] Accuracy
-* [ ] Consolidate results into a single comparative table
+### 🧪 Experiment E2 — LFCC × MEL × BARK
 
-🎯 **Objective:** validate the superiority/adequacy of LFCC (Chap. 2.1.12).
+- [ ] Execute complete pipelines:
+  - LFCC
+  - MEL / MFCC
+  - BARK
+- [ ] Keep fixed:
+  - window
+  - normalization
+  - classifier
+- [ ] Modalities:
+  - Voice
+  - EEG
+  - Voice + EEG
+- [ ] Metrics:
+  - α, β, G1, G2
+  - Accuracy
+  - F1-score
+- [ ] Build a **single comparative table**
+
+🎯 **Expected outcome:** identify the most suitable spectral scale for SNN + paraconsistent analysis.
 
 ---
 
-## 🧠 PHASE 3 — Autoencoders
-* [x] Sub-complete AE (implemented in /src/demos/)
-* [x] Supra-complete AE (implemented in /src/demos/)
-* [ ] **Denoising AE** (mandatory, in /src/experiments/)
-* [ ] Fix architecture and bottleneck
-* [ ] Compare:
-  * [ ] AE × Wavelet-Packet
-  * [ ] Classical × Regularized × Denoising
-  * wavelet-packet features × autoencoder features;
-  * classical autoencoder × regularized × denoising.
-* [ ] Evaluate (α/β + accuracy)
+## 🧠 PHASE 3 — Feature Learning (Spiking Autoencoders)
 
-### 🧪 **Experiment M4 — Autoencoders (Feature Learning)**
+> **Important correction:**
+> This phase occurs **before** final comparisons and is **not optional**.
 
-* [ ] Implement **sub-complete autoencoder** (experiments)
-* [ ] Implement **supra-complete autoencoder** (experiments)
-* [ ] Implement **denoising autoencoder** (mandatory)
-* [ ] Fix and document:
-  * architecture
-  * bottleneck size
-  * stopping criterion
-* [ ] Extract learned features
-* [ ] Compare:
-  * [ ] classical AE × regularized × denoising
-  * [ ] AE × Wavelet-Packet
-* [ ] Evaluate:
-  * [ ] α, β, G1, G2
-  * [ ] Accuracy
+### 🧪 Experiment E3 — Spiking Autoencoders
 
-🎯 **Objective:** validate feature learning versus classical feature engineering.
+- [ ] Consolidate architectures:
+  - Sub-complete AE
+  - Supra-complete AE
+  - **Denoising AE** (mandatory)
+- [ ] Define and document:
+  - number of layers
+  - bottleneck size
+  - stopping criteria
+- [ ] Extract learned feature vectors
+- [ ] Compare:
+  - Wavelet-Packet × Autoencoder features
+  - Sub × Supra × Denoising AEs
+- [ ] Evaluate:
+  - α, β, G1, G2
+  - Accuracy
+
+🎯 **Expected outcome:** validate learned features versus manual feature engineering.
 
 ---
 
-## 🔀 PHASE 4 — Modalities (CLOSURE)
-* [ ] Pronounced speech
-* [ ] Imagined speech
-* [ ] Mixed speech
-* [ ] Compare:
-  * [ ] Voice only
-  * [ ] EEG only
-  * [ ] Voice + EEG
-* [ ] Cross-validation between:
-  * different types of features;
-  * different modalities (voice × EEG) in /src/experiments/.
-* [ ] Demonstrate gain with:
-  * [ ] Imagined speech
-  * [ ] EEG + voice fusion
-* [ ] Demonstrate gains from:
-  * imagined speech;
-  * EEG + voice fusion in /src/experiments/.
+## 🔀 PHASE 4 — Modalities (Unimodal × Multimodal)
 
-### 🧪 **Experiment M3 — Multimodality (EEG × Voice)**
+### Fixed definitions:
 
-* [ ] Select the base feature (LFCC or best from M2)
-* [ ] Run experiments with:
-  * [ ] Voice only
-  * [ ] EEG only
-  * [ ] Voice + EEG (fusion)
-* [ ] Compute:
-  * [ ] α, β, G1, G2
-  * [ ] Accuracy
-* [ ] Compare unimodal × multimodal performance
+- **Unimodal:** single data source
+  → voice **or** EEG
+- **Multimodal:** fused sources
+  → voice **+** EEG
 
-🎯 **Objective:** demonstrate gains from EEG + voice fusion.
+### 🧪 Experiment E4 — Multimodality
 
-### 🧪 **Experiment M5 — Imagined Speech (Thesis Differential)**
+- [ ] Select the **best feature representation** (from E2 or E3)
+- [ ] Run classifications:
+  - Voice only
+  - EEG only
+  - Voice + EEG
+- [ ] Compute:
+  - α, β, G1, G2
+  - Accuracy, F1-score
+- [ ] Compare unimodal × multimodal performance
 
-* [ ] Select the best-performing feature (from previous experiments)
-* [ ] Run scenarios:
-  * [ ] Phonated speech
-  * [ ] Imagined speech
-  * [ ] Mixed speech
-* [ ] Compute:
-  * [ ] α, β, G1, G2
-  * [ ] Accuracy
-* [ ] Compare the impact of imagined speech
-
-🎯 **Objective:** fulfill the central objective of the thesis.
+🎯 **Expected outcome:** demonstrate information gain from EEG + voice fusion.
 
 ---
 
-## 🛡️ PHASE 5 — Robustness (OPTIONAL)
-* [ ] Insert controlled noise
-* [ ] Measure drop in **G1** and accuracy
-* [ ] Validate SNN tolerance
-* [ ] Validate SNN noise tolerance as discussed in Chap. 2.1.9.
+## 🧠 PHASE 5 — Imagined Speech (Thesis Differential)
 
-### 🧪 **Experiment M6 — Noise Robustness (Supportive, Optional)**
+### 🧪 Experiment E5 — Imagined Speech
 
-* [ ] Introduce controlled noise into the signals
-* [ ] Evaluate progressive degradation of:
-  * [ ] G1
-  * [ ] Accuracy
-* [ ] Analyze SNN noise tolerance
+- [ ] Use the globally best configuration
+- [ ] Scenarios:
+  - Phonated speech
+  - Imagined speech
+  - Mixed speech
+- [ ] Metrics:
+  - α, β, G1, G2
+  - Accuracy, F1-score
+- [ ] Direct comparison between scenarios
 
-🎯 **Objective:** support claims regarding SNN robustness (Chap. 2.1.9).
-
----
-
-## 📊 PHASE 6 — Final Consolidation
-* [ ] Table **LFCC × MEL × BARK**
-* [ ] Table **Wavelet × AE × Denoising**
-* [ ] Graph in paraconsistent plane
-* [ ] Check traceability with Section 1.1.1
-* [ ] Report:
-  * classical metrics (accuracy, etc.);
-  * paraconsistent metrics in /src/experiments/.
-* [ ] Ensure that all experiments are linked to the objectives listed in Section 1.1.1.
-
-### 📊 **Final Consolidation (Mandatory)**
-
-* [ ] Final table:
-  * **LFCC × MEL × BARK**
-* [ ] Final table:
-  * **Wavelet × AE × Denoising**
-* [ ] Plot in the **paraconsistent plane**
-* [ ] Verify traceability:
-  * experiment → objective from Section 1.1.1
-
-
-
-### ✅ Implemented Components (/src/core/ and /src/demos/)
-
-#### Core Neural Network Components
-* [x] Implement complete **LIF** neuron.
-* [x] Implement **surrogate gradient function** (Exponential / SuperSpike).
-* [x] Implement **L1 and L2 regularization** (Appendix A).
-
-#### Signal Processing and Feature Extraction
-* [x] Implement **DWT** via Mallat algorithm.
-* [x] Implement **Wavelet-Packet Transform (WPT)**.
-* [x] Select wavelets based on frequency and phase response.
-* [x] Implement **BARK** (energies per band).
-* [x] Implement **MEL / MFCC** (with DCT).
-* [x] **Implement LFCC** (voice and EEG) - both signals implemented.
-* [x] Calculate delta and delta-delta coefficients.
-
-#### Paraconsistent Analysis
-* [x] Implement calculation of **α (intraclass similarity)**.
-* [x] Implement calculation of **β (interclass overlap)**.
-* [x] Calculate **G1** and **G2**.
-* [x] Calculate distances to the optimal point **(1,0)** in the paraconsistent plane.
-* [x] Use these values as **primary quality criterion for the vectors**.
-
-#### Autoencoders
-* [x] Implement **sub-complete autoencoder** (in /src/demos/).
-* [x] Implement **supra-complete autoencoder** (in /src/demos/).
+🎯 **Expected outcome:** demonstrate the biometric viability of imagined speech.
 
 ---
 
-## Executive Summary
+## 🛡️ PHASE 6 — Noise Robustness (FINAL)
 
-For the task of speaker identification using synchronized EEG and audio data, the recommended starting point is a **1.5-second window with a 50% overlap**. This duration is long enough to capture prosodic and intonational cues fundamental to speaker identity, which are often more discriminative than short-term phonetic features (Snyder et al., 2018). The 50% overlap ensures a good trade-off between temporal resolution and computational efficiency, generating a sufficient number of samples for training deep learning models without excessive redundancy.
+### 🧪 Experiment E6 — Robustness to Noise
+
+- [ ] Inject controlled noise into:
+  - audio
+  - EEG / imagined speech
+- [ ] Measure progressive degradation:
+  - G1
+  - Accuracy
+- [ ] Compare:
+  - clean × noisy signals
+  - AE × Denoising AE
+
+🎯 **Expected outcome:** validate structural robustness of SNN-based models.
+
+---
+
+## 📊 PHASE 7 — Final Consolidation (MANDATORY)
+
+- [ ] Table:
+  - **LFCC × MEL × BARK**
+- [ ] Table:
+  - **Wavelet × AE × Denoising**
+- [ ] Plots in the **paraconsistent plane**
+- [ ] Consolidation of classical metrics
+- [ ] Comparison with the **state of the art**
+- [ ] Final conclusions:
+  - technical
+  - experimental
+  - scientific
+
+---
+
+## 📌 Final Notes
+
+- All phases are now:
+  - logically ordered
+  - non-redundant
+  - methodologically consistent
+- Paraconsistent analysis is correctly positioned as:
+  - the **primary feature-quality criterion**
+- The pipeline is ready for:
+  - incremental execution
+  - direct thesis writing
+  - experimental auditing
