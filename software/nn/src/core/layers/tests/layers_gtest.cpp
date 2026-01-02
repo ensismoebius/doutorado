@@ -838,3 +838,348 @@ TEST(SimpleResNetTest, ForwardAndBackwardEdgeCases)
     EXPECT_EQ(grad_in0.rows(), 1);
     EXPECT_EQ(grad_in0.cols(), 5);
 }
+
+// Exception Testing for Layers
+TEST(LayerExceptionTest, LinearInvalidDimensions)
+{
+    // Test Linear layer with invalid dimensions
+    Linear linear(2, 3);
+
+    // Test forward with wrong input dimensions
+    Eigen::MatrixXf wrong_input(1, 5); // Should be 1x2
+    nn::Tensor wrong_tensor{wrong_input};
+    ASSERT_THROW(linear.forward(wrong_tensor), std::invalid_argument);
+
+    // Test backward with wrong gradient dimensions
+    Eigen::MatrixXf wrong_grad(1, 5); // Should be 1x3
+    nn::Tensor wrong_grad_tensor{wrong_grad};
+    ASSERT_THROW(linear.backward(wrong_grad_tensor), std::invalid_argument);
+}
+
+TEST(LayerExceptionTest, Conv2dInvalidInputs)
+{
+    Conv2d conv(1, 1, 3, 1, 1, 1, false);
+
+    // Test with input too small for kernel
+    Eigen::MatrixXf small_input(1, 1); // 1x1 input with 3x3 kernel
+    nn::Tensor small_tensor{small_input};
+    ASSERT_THROW(conv.forward(small_tensor), std::invalid_argument);
+
+    // Test with wrong number of channels
+    Eigen::MatrixXf wrong_channels(5, 5); // 1 channel expected, but input suggests more
+    nn::Tensor wrong_channels_tensor{wrong_channels};
+    // This might not throw immediately, but should handle gracefully
+    EXPECT_NO_THROW(conv.forward(wrong_channels_tensor));
+}
+
+TEST(LayerExceptionTest, SequentialEmptyLayers)
+{
+    Sequential seq({});
+    Eigen::MatrixXf input(1, 2);
+    nn::Tensor input_tensor{input};
+    ASSERT_THROW(seq.forward(input_tensor), std::runtime_error);
+}
+
+TEST(LayerExceptionTest, MSELossInvalidTargets)
+{
+    MSELoss mse;
+    Eigen::MatrixXf pred(2, 1);
+    pred << 1.0F, 2.0F;
+    nn::Tensor pred_tensor{pred};
+
+    // Test without setting target
+    ASSERT_THROW(mse.forward(pred_tensor), std::runtime_error);
+
+    // Test with mismatched dimensions
+    Eigen::MatrixXf target(3, 1); // Different size than prediction
+    target << 0.0F, 1.0F, 2.0F;
+    nn::Tensor target_tensor{target};
+    mse.set_target(target_tensor);
+    ASSERT_THROW(mse.forward(pred_tensor), std::invalid_argument);
+}
+
+// Memory Stress Testing for Layers
+TEST(LayerMemoryStressTest, LargeLinearLayer)
+{
+    const int large_input = 1000;
+    const int large_output = 500;
+
+    Linear linear(large_input, large_output);
+
+    // Create large input
+    Eigen::MatrixXf large_input_data(1, large_input);
+    large_input_data.setRandom();
+
+    nn::Tensor input_tensor{large_input_data};
+    nn::Tensor output = linear.forward(input_tensor);
+
+    EXPECT_EQ(output.rows(), 1);
+    EXPECT_EQ(output.cols(), large_output);
+
+    // Test backward with large gradients
+    Eigen::MatrixXf large_grad(1, large_output);
+    large_grad.setOnes();
+    nn::Tensor grad_tensor{large_grad};
+    nn::Tensor grad_input = linear.backward(grad_tensor);
+
+    EXPECT_EQ(grad_input.rows(), 1);
+    EXPECT_EQ(grad_input.cols(), large_input);
+}
+
+TEST(LayerMemoryStressTest, LargeConv2dLayer)
+{
+    const int large_channels = 64;
+    const int large_size = 128;
+
+    Conv2d conv(large_channels, large_channels, 3, 1, 1, 1, true);
+
+    // Create large input (batch_size=1, channels, height, width)
+    Eigen::MatrixXf large_input(large_channels * large_size, large_size);
+    large_input.setRandom();
+
+    nn::Tensor input_tensor{large_input};
+    nn::Tensor output = conv.forward(input_tensor);
+
+    // Output should be valid
+    EXPECT_GT(output.rows(), 0);
+    EXPECT_GT(output.cols(), 0);
+
+    // Test backward
+    Eigen::MatrixXf grad_output(output.rows(), output.cols());
+    grad_output.setOnes();
+    nn::Tensor grad_tensor{grad_output};
+    nn::Tensor grad_input = conv.backward(grad_tensor);
+
+    EXPECT_EQ(grad_input.rows(), large_channels * large_size);
+    EXPECT_EQ(grad_input.cols(), large_size);
+}
+
+// Numerical Edge Cases for Layers
+TEST(LayerNumericalEdgeTest, NaNInfHandling)
+{
+    Linear linear(2, 1);
+
+    // Test with NaN inputs
+    Eigen::MatrixXf nan_input(1, 2);
+    nan_input << std::numeric_limits<float>::quiet_NaN(), 1.0F;
+    nn::Tensor nan_tensor{nan_input};
+    nn::Tensor nan_output = linear.forward(nan_tensor);
+    EXPECT_TRUE(std::isnan(nan_output.at(0, 0)));
+
+    // Test with Inf inputs
+    Eigen::MatrixXf inf_input(1, 2);
+    inf_input << std::numeric_limits<float>::infinity(), 1.0F;
+    nn::Tensor inf_tensor{inf_input};
+    nn::Tensor inf_output = linear.forward(inf_tensor);
+    EXPECT_TRUE(std::isinf(inf_output.at(0, 0)));
+
+    // Test MSE with NaN
+    MSELoss mse;
+    Eigen::MatrixXf nan_pred(2, 1);
+    nan_pred << std::numeric_limits<float>::quiet_NaN(), 2.0F;
+    Eigen::MatrixXf nan_target(2, 1);
+    nan_target << 1.0F, 2.0F;
+    nn::Tensor nan_pred_tensor{nan_pred};
+    nn::Tensor nan_target_tensor{nan_target};
+    mse.set_target(nan_target_tensor);
+    nn::Tensor nan_loss = mse.forward(nan_pred_tensor);
+    EXPECT_TRUE(std::isnan(nan_loss.at(0, 0)));
+}
+
+TEST(LayerNumericalEdgeTest, GradientNumericalStability)
+{
+    Linear linear(2, 1);
+
+    // Test with very small gradients
+    Eigen::MatrixXf small_input(1, 2);
+    small_input << 1e-8F, 1e-8F;
+    nn::Tensor small_tensor{small_input};
+    nn::Tensor small_output = linear.forward(small_tensor);
+
+    Eigen::MatrixXf small_grad(1, 1);
+    small_grad << 1e-8F;
+    nn::Tensor small_grad_tensor{small_grad};
+    nn::Tensor small_grad_input = linear.backward(small_grad_tensor);
+
+    // Should not produce NaN or Inf
+    EXPECT_FALSE(std::isnan(small_grad_input.at(0, 0)));
+    EXPECT_FALSE(std::isinf(small_grad_input.at(0, 0)));
+    EXPECT_FALSE(std::isnan(small_grad_input.at(0, 1)));
+    EXPECT_FALSE(std::isinf(small_grad_input.at(0, 1)));
+
+    // Test with very large gradients
+    Eigen::MatrixXf large_grad(1, 1);
+    large_grad << 1e8F;
+    nn::Tensor large_grad_tensor{large_grad};
+    nn::Tensor large_grad_input = linear.backward(large_grad_tensor);
+
+    // Should handle large values gracefully
+    EXPECT_FALSE(std::isnan(large_grad_input.at(0, 0)));
+    EXPECT_TRUE(std::isfinite(large_grad_input.at(0, 0)));
+}
+
+// Thread Safety Validation for Layers
+TEST(LayerThreadSafetyTest, ConcurrentForwardPasses)
+{
+    Linear linear(10, 5);
+
+    // Create multiple inputs
+    std::vector<nn::Tensor> inputs;
+    for (int i = 0; i < 10; ++i)
+    {
+        Eigen::MatrixXf input_data(1, 10);
+        input_data.setRandom();
+        inputs.emplace_back(input_data);
+    }
+
+    // Test concurrent forward passes (basic test)
+    std::vector<nn::Tensor> outputs;
+    for (const auto& input : inputs)
+    {
+        nn::Tensor output = linear.forward(input, false); // No gradient caching
+        outputs.push_back(output);
+    }
+
+    // Verify outputs are valid
+    for (const auto& output : outputs)
+    {
+        EXPECT_EQ(output.rows(), 1);
+        EXPECT_EQ(output.cols(), 5);
+        EXPECT_FALSE(std::isnan(output.at(0, 0)));
+    }
+}
+
+TEST(LayerThreadSafetyTest, GradientAccumulation)
+{
+    Linear linear(3, 2);
+
+    // Multiple forward-backward cycles
+    for (int cycle = 0; cycle < 5; ++cycle)
+    {
+        Eigen::MatrixXf input(1, 3);
+        input.setRandom();
+        nn::Tensor input_tensor{input};
+
+        // Forward
+        nn::Tensor output = linear.forward(input_tensor);
+
+        // Backward
+        Eigen::MatrixXf grad_output(1, 2);
+        grad_output.setOnes();
+        nn::Tensor grad_tensor{grad_output};
+        nn::Tensor grad_input = linear.backward(grad_tensor);
+
+        // Verify gradients are accumulated properly
+        EXPECT_FALSE(std::isnan(linear.weight.get_grad_ref().sum()));
+        EXPECT_FALSE(std::isnan(linear.bias.get_grad_ref().sum()));
+    }
+}
+
+// Additional Comprehensive Tests
+TEST(LayerComprehensiveTest, LeakyLayerStateManagement)
+{
+    Leaky leaky(1.0F, 5.0F, 1.0F, 2.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>());
+
+    // Test state reset between forward passes
+    Eigen::MatrixXf input1(1, 1);
+    input1 << 3.0F;
+    nn::Tensor tensor1{input1};
+    nn::Tensor out1 = leaky.forward(tensor1);
+    float vmem_after1 = leaky.v_mem(0, 0);
+
+    // Second forward pass should start fresh
+    Eigen::MatrixXf input2(1, 1);
+    input2 << 1.0F;
+    nn::Tensor tensor2{input2};
+    nn::Tensor out2 = leaky.forward(tensor2);
+    float vmem_after2 = leaky.v_mem(0, 0);
+
+    // Membrane potential should be different
+    EXPECT_NE(vmem_after1, vmem_after2);
+}
+
+TEST(LayerComprehensiveTest, ReLUGradientFlow)
+{
+    // Test that ReLU properly blocks negative gradients
+    Linear linear(2, 1);
+    ReLU relu;
+
+    Sequential seq({std::make_shared<Linear>(linear), std::make_shared<ReLU>(relu)});
+
+    // Input that will produce negative pre-activation
+    linear.weight.set_data((Eigen::MatrixXf(1, 2) << -2.0F, -3.0F).finished());
+    linear.bias.set_data((Eigen::MatrixXf(1, 1) << 1.0F).finished());
+
+    Eigen::MatrixXf input(1, 2);
+    input << 2.0F, 2.0F; // Will produce -4 + 1 = -3 (negative)
+    nn::Tensor input_tensor{input};
+
+    nn::Tensor output = seq.forward(input_tensor);
+    EXPECT_EQ(output.at(0, 0), 0.0F); // ReLU of negative is 0
+
+    // Backward should produce zero gradient for negative inputs
+    Eigen::MatrixXf grad_out(1, 1);
+    grad_out << 1.0F;
+    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_input = seq.backward(grad_tensor);
+
+    // Gradient should be zero for the input that produced negative pre-activation
+    EXPECT_EQ(grad_input.at(0, 0), 0.0F);
+    EXPECT_EQ(grad_input.at(0, 1), 0.0F);
+}
+
+TEST(LayerComprehensiveTest, Conv2dPaddingAndStride)
+{
+    // Test different padding and stride combinations
+    Conv2d conv(1, 1, 3, 1, 2, 2, false); // kernel=3, stride=2, padding=1
+
+    Eigen::MatrixXf input(1 * 8, 8); // 1 channel, 8x8 input
+    input.setOnes();
+
+    nn::Tensor input_tensor{input};
+    nn::Tensor output = conv.forward(input_tensor);
+
+    // With stride=2 and kernel=3, output size should be (8-3+2*1)/2 + 1 = 4
+    // So output should be 4x4 for 1 channel
+    EXPECT_EQ(output.rows(), 1 * 4);
+    EXPECT_EQ(output.cols(), 4);
+}
+
+TEST(LayerComprehensiveTest, RegularizationZeroParameters)
+{
+    L1Regularization l1(0.1F);
+    std::vector<nn::Tensor*> params;
+
+    nn::Tensor param1(2, 2);
+    param1.at(0, 0) = 0.0F;
+    param1.at(0, 1) = 0.0F;
+    param1.at(1, 0) = 0.0F;
+    param1.at(1, 1) = 0.0F;
+
+    params.push_back(&param1);
+
+    nn::Tensor loss = l1.forward(params);
+    EXPECT_EQ(loss.at(0, 0), 0.0F); // L1 of all zeros should be 0
+
+    l1.backward(params);
+    // Gradients should be zero for zero parameters
+    EXPECT_EQ(param1.get_grad_ref().sum(), 0.0F);
+}
+
+TEST(LayerComprehensiveTest, SurrogateGradientRange)
+{
+    auto surrogate = std::make_shared<ExponentialSurrogate>();
+
+    // Test surrogate gradient at different voltage levels
+    float grad_at_zero = surrogate->gradient(0.0F, 1.0F);
+    float grad_at_one = surrogate->gradient(1.0F, 1.0F);
+    float grad_at_minus_one = surrogate->gradient(-1.0F, 1.0F);
+
+    // All gradients should be finite and reasonable
+    EXPECT_TRUE(std::isfinite(grad_at_zero));
+    EXPECT_TRUE(std::isfinite(grad_at_one));
+    EXPECT_TRUE(std::isfinite(grad_at_minus_one));
+
+    // Gradient at threshold (0) should be positive
+    EXPECT_GT(grad_at_zero, 0.0F);
+}

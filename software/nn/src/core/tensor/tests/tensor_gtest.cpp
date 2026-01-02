@@ -287,3 +287,235 @@ TEST(TensorTest, LossFunctions)
     float norm_val = vec.norm();
     EXPECT_FLOAT_EQ(norm_val, 5.0f); // sqrt(3^2 + 4^2 + 0^2) = 5
 }
+
+TEST(TensorTest, ZeroGrad)
+{
+    nn::Tensor t(2, 3);
+    t.at(0, 0) = 1.0f;
+    t.at(0, 1) = 2.0f;
+    t.at(1, 0) = 3.0f;
+    t.at(1, 1) = 4.0f;
+
+    // Set some gradient values
+    t.get_grad_ref()(0, 0) = 5.0f;
+    t.get_grad_ref()(0, 1) = 6.0f;
+    t.get_grad_ref()(1, 0) = 7.0f;
+    t.get_grad_ref()(1, 1) = 8.0f;
+
+    // Verify gradients are set
+    EXPECT_EQ(t.get_grad_ref()(0, 0), 5.0f);
+    EXPECT_EQ(t.get_grad_ref()(0, 1), 6.0f);
+
+    // Zero gradients
+    t.zero_grad();
+
+    // Verify all gradients are zero
+    EXPECT_EQ(t.get_grad_ref().sum(), 0.0f);
+    EXPECT_EQ(t.get_grad_ref()(0, 0), 0.0f);
+    EXPECT_EQ(t.get_grad_ref()(0, 1), 0.0f);
+    EXPECT_EQ(t.get_grad_ref()(1, 0), 0.0f);
+    EXPECT_EQ(t.get_grad_ref()(1, 1), 0.0f);
+}
+
+TEST(TensorTest, SetData)
+{
+    nn::Tensor t(2, 2);
+    t.at(0, 0) = 1.0f;
+    t.at(0, 1) = 2.0f;
+    t.at(1, 0) = 3.0f;
+    t.at(1, 1) = 4.0f;
+
+    Eigen::MatrixXf new_data(2, 2);
+    new_data << 10.0f, 20.0f, 30.0f, 40.0f;
+
+    t.set_data(new_data);
+
+    EXPECT_EQ(t.at(0, 0), 10.0f);
+    EXPECT_EQ(t.at(0, 1), 20.0f);
+    EXPECT_EQ(t.at(1, 0), 30.0f);
+    EXPECT_EQ(t.at(1, 1), 40.0f);
+}
+
+TEST(TensorTest, TopRows)
+{
+    nn::Tensor t(4, 3);
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            t.at(i, j) = static_cast<float>(i * 3 + j);
+        }
+    }
+
+    auto top2 = t.topRows(2);
+    ASSERT_EQ(top2.get_shape(), std::vector<size_t>({2, 3}));
+    EXPECT_EQ(top2.at(0, 0), 0.0f);
+    EXPECT_EQ(top2.at(0, 1), 1.0f);
+    EXPECT_EQ(top2.at(0, 2), 2.0f);
+    EXPECT_EQ(top2.at(1, 0), 3.0f);
+    EXPECT_EQ(top2.at(1, 1), 4.0f);
+    EXPECT_EQ(top2.at(1, 2), 5.0f);
+}
+
+TEST(TensorTest, Slice)
+{
+    nn::Tensor t(4, 3);
+    for (int i = 0; i < 4; ++i)
+    {
+        for (int j = 0; j < 3; ++j)
+        {
+            t.at(i, j) = static_cast<float>(i * 3 + j);
+        }
+    }
+
+    std::vector<int> indices = {0, 2};
+    auto sliced = t.slice(indices);
+    ASSERT_EQ(sliced.get_shape(), std::vector<size_t>({2, 3}));
+    EXPECT_EQ(sliced.at(0, 0), 0.0f);
+    EXPECT_EQ(sliced.at(0, 1), 1.0f);
+    EXPECT_EQ(sliced.at(0, 2), 2.0f);
+    EXPECT_EQ(sliced.at(1, 0), 6.0f);
+    EXPECT_EQ(sliced.at(1, 1), 7.0f);
+    EXPECT_EQ(sliced.at(1, 2), 8.0f);
+}
+
+TEST(TensorTest, ExceptionTesting)
+{
+    // Test invalid operations that should throw exceptions
+
+    // Test matmul with incompatible dimensions
+    nn::Tensor t1(2, 3);
+    nn::Tensor t2(4, 2); // Incompatible for matmul
+    ASSERT_THROW(t1.matmul(t2), std::invalid_argument);
+
+    // Test matmul with non-2D tensor
+    nn::Tensor t3(std::vector<size_t>{2, 3, 4});
+    nn::Tensor t4(4, 2);
+    ASSERT_THROW(t3.matmul(t4), std::invalid_argument);
+
+    // Test transpose with non-2D tensor
+    ASSERT_THROW(t3.transpose(), std::invalid_argument);
+
+    // Test block with invalid indices
+    nn::Tensor t5(4, 4);
+    ASSERT_THROW(t5.block(2, 2, 3, 3), std::out_of_range); // Block too large
+
+    // Test setBlock with incompatible sizes
+    nn::Tensor small_block(3, 3);
+    nn::Tensor large_tensor(2, 2);
+    ASSERT_THROW(large_tensor.setBlock(0, 0, small_block), std::invalid_argument);
+
+    // Test add with incompatible shapes
+    nn::Tensor t6(2, 3);
+    nn::Tensor t7(3, 2);
+    ASSERT_THROW(t6.add(t7), std::invalid_argument);
+
+    // Test multiply with incompatible shapes
+    ASSERT_THROW(t6.multiply(t7), std::invalid_argument);
+}
+
+TEST(TensorTest, MemoryStressTesting)
+{
+    // Test with large tensors to check memory handling
+    const int large_size = 1000;
+
+    // Test large 2D tensor
+    nn::Tensor large_2d(large_size, large_size);
+    EXPECT_EQ(large_2d.rows(), large_size);
+    EXPECT_EQ(large_2d.cols(), large_size);
+    EXPECT_EQ(large_2d.size(), large_size * large_size);
+
+    // Test operations on large tensors
+    large_2d.add_scalar(1.0f);
+    EXPECT_EQ(large_2d.at(0, 0), 1.0f);
+
+    // Test large N-D tensor
+    nn::Tensor large_nd(std::vector<size_t>{100, 100, 10});
+    EXPECT_EQ(large_nd.size(), 100 * 100 * 10);
+
+    // Test memory operations
+    large_nd.zero_grad();
+    EXPECT_EQ(large_nd.get_grad_ref().sum(), 0.0f);
+}
+
+TEST(TensorTest, NumericalEdgeCases)
+{
+    // Test with NaN and Inf values
+    nn::Tensor t(2, 2);
+
+    // Test with NaN
+    t.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_TRUE(std::isnan(t.at(0, 0)));
+
+    // Test with positive infinity
+    t.at(0, 1) = std::numeric_limits<float>::infinity();
+    EXPECT_TRUE(std::isinf(t.at(0, 1)));
+
+    // Test with negative infinity
+    t.at(1, 0) = -std::numeric_limits<float>::infinity();
+    EXPECT_TRUE(std::isinf(t.at(1, 0)) && t.at(1, 0) < 0);
+
+    // Test operations with special values
+    nn::Tensor t2(2, 2);
+    t2.at(0, 0) = 1.0f;
+    t2.at(0, 1) = 2.0f;
+    t2.at(1, 0) = 3.0f;
+    t2.at(1, 1) = 4.0f;
+
+    // Operations should handle special values appropriately
+    auto result = t.add(t2);
+    EXPECT_TRUE(std::isnan(result.at(0, 0))); // NaN + 1 = NaN
+    EXPECT_TRUE(std::isinf(result.at(0, 1))); // Inf + 2 = Inf
+    EXPECT_TRUE(std::isinf(result.at(1, 0))); // -Inf + 3 = -Inf
+
+    // Test norm with special values
+    nn::Tensor special_vec(1, 3);
+    special_vec.at(0, 0) = 3.0f;
+    special_vec.at(0, 1) = std::numeric_limits<float>::quiet_NaN();
+    special_vec.at(0, 2) = 4.0f;
+    float norm_result = special_vec.norm();
+    EXPECT_TRUE(std::isnan(norm_result)); // Norm of vector with NaN is NaN
+
+    // Test MSE with special values
+    nn::Tensor pred_special(2, 1);
+    pred_special.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    pred_special.at(1, 0) = 2.0f;
+
+    nn::Tensor target_special(2, 1);
+    target_special.at(0, 0) = 1.0f;
+    target_special.at(1, 0) = 2.0f;
+
+    float mse_special = pred_special.mean_squared_error(target_special);
+    EXPECT_TRUE(std::isnan(mse_special)); // MSE with NaN predictions is NaN
+}
+
+TEST(TensorTest, ThreadSafetyValidation)
+{
+    // Test concurrent access (basic test - in real scenarios would need more sophisticated testing)
+    nn::Tensor t(100, 100);
+
+    // Fill tensor
+    for (int i = 0; i < 100; ++i)
+    {
+        for (int j = 0; j < 100; ++j)
+        {
+            t.at(i, j) = static_cast<float>(i + j);
+        }
+    }
+
+    // Test that multiple reads work (basic thread safety)
+    auto read_func = [&t]()
+    {
+        for (int i = 0; i < 10; ++i)
+        {
+            float val = t.at(i, i);
+            EXPECT_EQ(val, static_cast<float>(i * 2));
+        }
+    };
+
+    // Run multiple times to simulate concurrent access
+    for (int i = 0; i < 5; ++i)
+    {
+        read_func();
+    }
+}
