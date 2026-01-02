@@ -1,7 +1,7 @@
-#include "mat_file_utils.hpp"
-
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>
+
+#include "mat_file_utils.hpp"
 
 namespace matioCpp::utils
 {

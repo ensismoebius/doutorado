@@ -1,8 +1,8 @@
-#include "mat_file.hpp"
-
 #include <memory>
 #include <optional>
 #include <stdexcept>
+
+#include "mat_file.hpp"
 
 MatFile::MatFile(const std::string& filename)
 {

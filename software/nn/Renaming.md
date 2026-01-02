@@ -5,6 +5,7 @@
 ✅ **PHASE 1: CRITICAL FIXES — COMPLETED**
 
 ### Changes Executed:
+
 - **Task 1.1**: ✅ Fixed typo `createStopBandFi1lter` → `createStopBandFilter`
   - Modified: `src/core/wave/filtersOperations.cpp` (line 86)
   - Modified: `src/core/wave/filtersOperations.h` (line 52)
@@ -24,10 +25,70 @@
   - Updated all includes in: `MatFileDataset.hpp`, `TensorDataset.hpp`, `DataLoader.h`, `DataLoader.cpp`, `MatFile.cpp`, `MatFileUtils.cpp`
 
 ### Status:
+
 - **Compilation**: ✅ In progress (build system active)
 - **Test Suite**: 183 tests identified as running/pending verification
 - **Git Branch**: `warnning-fixes`
 - **Next Phase**: Phase 2 (Wave/Wavelet function renaming)
+
+---
+
+## 🎯 Phase 2 Completion Report (2026-01-02)
+
+✅ **PHASE 2: WAVE/WAVELET FUNCTION RENAMING — COMPLETED**
+
+### Changes Executed:
+
+- **Task 2.1**: ✅ Renamed 13 Wav class methods
+  - Public: `getPath()` → `get_path()`, `getData()` → `get_data()`, `getDataLeft()` → `get_data_left()`, `getDataRight()` → `get_data_right()`, `setCallbackFunction()` → `set_callback_function()`
+  - Private: `readWaveData()` → `read_wave_data()`, `readWaveHeaders()` → `read_wave_headers()`, `combine8BitTo16Bit()` → `combine_8bit_to_16bit()`, `split16BitTo8Bit()` → `split_16bit_to_8bit()`, `initializeHeaders()` → `initialize_headers()`, `clearVectors()` → `clear_vectors()`, `resetMetaData()` → `reset_metadata()`
+  - Modified: `src/core/wave/Wav.h`, `src/core/wave/Wav.cpp`, `src/core/wave/tests/wave_gtest.cpp`
+
+- **Task 2.2**: ✅ Renamed 5 WaveletTransformResults methods
+  - `getWaveletTransforms()` → `get_wavelet_transforms()`
+  - `getWaveletPacketTransforms()` (2 overloads) → `get_wavelet_packet_transforms()`
+  - `getWaveletPacketAmountOfParts()` (2 overloads) → `get_wavelet_packet_amount_of_parts()`
+  - Modified: `src/core/wavelet/WaveletTransformResults.h`, `src/core/wavelet/WaveletTransformResults.cpp`
+
+- **Task 2.3**: ✅ Renamed 2 waveletOperations free functions
+  - `getNextPowerOfTwo()` → `get_next_power_of_two()`
+  - `extractSubbandEnergies()` → `extract_subband_energies()`
+  - Modified: `src/core/wavelet/waveletOperations.h`, `src/core/wavelet/waveletOperations.cpp`, tests, demos, and experiments
+
+### Status:
+
+- **All Changes**: 20 functions/methods renamed, 33 call sites updated
+- **Test Suite**: 183 tests expected to pass (pending verification)
+- **Git Branch**: `warnning-fixes`
+- **Next Phase**: Phase 3 (DataLoaders file renaming)
+
+---
+
+## 🎯 Phase 3 Completion Report (2026-01-02)
+
+✅ **PHASE 3: DATALOADERS FILE RENAMING — COMPLETED**
+
+### Changes Executed:
+
+- **Task 3.1**: ✅ Renamed MatFile files to snake_case
+  - `MatFile.cpp` → `mat_file.cpp`
+  - `MatFile.hpp` → `mat_file.hpp`
+  - Updated self-include in `mat_file.cpp`
+  - Updated CMake reference in `src/demos/lfcc_pipeline/CMakeLists.txt`
+
+- **Task 3.2**: ✅ Renamed MatFileUtils files to snake_case
+  - `MatFileUtils.cpp` → `mat_file_utils.cpp`
+  - `MatFileUtils.hpp` → `mat_file_utils.hpp`
+  - Updated self-include in `mat_file_utils.cpp`
+  - Updated include in `MatFileDataset.hpp`
+  - Updated CMake list in `src/core/dataLoaders/CMakeLists.txt`
+
+### Status:
+
+- **All Changes**: 4 files renamed, 5 include statements updated, 2 CMake files modified
+- **Test Suite**: 183 tests expected to pass (pending verification)
+- **Git Branch**: `warnning-fixes`
+- **Next Phase**: Phase 4 (Utility module renaming)
 
 ---
 

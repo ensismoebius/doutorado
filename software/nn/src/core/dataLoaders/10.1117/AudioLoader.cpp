@@ -5,7 +5,7 @@
 #include <optional>
 #include <stdexcept>
 
-#include "../IMatLoader.h"
+#include "../IMatLoader.hpp"
 
 namespace nn::dataLoaders
 {

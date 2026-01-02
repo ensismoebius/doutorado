@@ -188,23 +188,23 @@ auto malat(const std::vector<double>& signal, const std::span<const double>& low
     return results;
 }
 
-auto getNextPowerOfTwo(double number) -> int
+auto get_next_power_of_two(double number) -> int
 {
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }
 
-auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
+auto extract_subband_energies(const WaveletTransformResults& transform, int level)
     -> std::vector<double>
 {
     std::vector<double> energies;
 
     if (transform.packet)
     {
-        long num_parts = transform.getWaveletPacketAmountOfParts();
+        long num_parts = transform.get_wavelet_packet_amount_of_parts();
 
         for (long i = 0; i < num_parts; ++i)
         {
-            auto part = WaveletTransformResults::getWaveletPacketTransforms(
+            auto part = WaveletTransformResults::get_wavelet_packet_transforms(
                 transform.transformedSignal, i, transform.levelsOfTransformation);
 
             if (!part.empty())
@@ -225,7 +225,7 @@ auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
         {
             // The getWaveletTransforms is not const, so I need to create a copy
             WaveletTransformResults temp_transform = transform;
-            auto part = temp_transform.getWaveletTransforms(i);
+            auto part = temp_transform.get_wavelet_transforms(i);
 
             if (!part.empty())
             {

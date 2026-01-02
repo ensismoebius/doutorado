@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "../../core/utility/batching.hpp"
-#include "core/dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
 #include "core/layers/Linear.hpp"

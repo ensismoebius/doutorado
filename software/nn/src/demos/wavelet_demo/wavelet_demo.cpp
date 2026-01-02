@@ -56,7 +56,7 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
         double offset = 0.0; // Initial offset for visual separation
 
         // Get approximation coefficients
-        auto approximation = dwt_results.getWaveletTransforms(0);
+        auto approximation = dwt_results.get_wavelet_transforms(0);
         if (!approximation.empty())
         {
             std::transform(approximation.begin(),
@@ -74,7 +74,7 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
         // Get detail coefficients for each level
         for (int i = 1; i <= level_to_plot; ++i)
         {
-            auto details = dwt_results.getWaveletTransforms(i);
+            auto details = dwt_results.get_wavelet_transforms(i);
             if (!details.empty())
             {
                 std::transform(details.begin(),
@@ -107,14 +107,14 @@ void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
     {
         auto dwpt_results =
             wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, level_to_plot);
-        long n_parts = dwpt_results.getWaveletPacketAmountOfParts();
+        long n_parts = dwpt_results.get_wavelet_packet_amount_of_parts();
 
         std::vector<double> combined_packets;
         double offset = 0.0; // Initial offset for visual separation
 
         for (long i = 0; i < n_parts; ++i)
         {
-            auto part = wavelets::WaveletTransformResults::getWaveletPacketTransforms(
+            auto part = wavelets::WaveletTransformResults::get_wavelet_packet_transforms(
                 dwpt_results.transformedSignal, i, dwpt_results.levelsOfTransformation);
             if (!part.empty())
             {

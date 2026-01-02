@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <stdexcept> // For std::runtime_error or std::invalid_argument
 
-#include "../MatFileDataset.h"
+#include "../MatFileDataset.hpp"
 
 using namespace matioCpp;
 

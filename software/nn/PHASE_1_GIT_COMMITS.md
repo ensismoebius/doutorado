@@ -105,6 +105,7 @@ All 183 tests should pass with these changes."
 ## Commit Message Format
 
 We're using the following convention:
+
 - **Type**: `fix`, `chore`, `refactor`, `docs`
 - **Scope**: Module name (e.g., `wave`, `dataLoaders`)
 - **Message**: Brief description

@@ -25,10 +25,10 @@ class ImGuiApp
     const char* glsl_version = "#version 330";
 
     static void glfw_error_callback(int error, const char* description);
-    auto initializeGLFW() -> bool;
-    auto initializeImGui() -> bool;
-    void prepareFrame();
-    void renderFrame();
+    auto initialize_glfw() -> bool;
+    auto initialize_imgui() -> bool;
+    void prepare_frame();
+    void render_frame();
     void shutdown();
 };
 

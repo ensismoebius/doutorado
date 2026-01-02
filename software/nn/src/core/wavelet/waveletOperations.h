@@ -49,7 +49,7 @@ auto malat(const std::vector<double>& signal, const std::span<const double>& low
  * @param number - The reference number
  * @return - Next power of two
  */
-auto getNextPowerOfTwo(double number) -> int;
+auto get_next_power_of_two(double number) -> int;
 
 /**
  * Extract subband energies from wavelet transform results
@@ -57,7 +57,7 @@ auto getNextPowerOfTwo(double number) -> int;
  * @param level - decomposition level
  * @return vector of RMS energies for each subband
  */
-auto extractSubbandEnergies(const WaveletTransformResults& transform, int level)
+auto extract_subband_energies(const WaveletTransformResults& transform, int level)
     -> std::vector<double>;
 
 } // namespace wavelets

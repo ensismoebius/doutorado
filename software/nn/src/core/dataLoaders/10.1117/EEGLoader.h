@@ -5,7 +5,7 @@
 #include <array>
 #include <string>
 
-#include "../IMatLoader.h"
+#include "../IMatLoader.hpp"
 
 namespace nn::dataLoaders
 {

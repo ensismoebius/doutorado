@@ -10,7 +10,7 @@
 #include "Config.hpp"
 #include "core/dataLoaders/10.1117/AudioLoader.h"
 #include "core/dataLoaders/10.1117/EEGLoader.h"
-#include "core/dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/optimizers/Adam.hpp"
 #include "core/paraconsistent/paraconsistent.h"
 #include "core/tensor/Tensor.hpp"
@@ -47,14 +47,14 @@ auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, //
 
         // Extract sub-band energies for this channel
         // Approximation
-        auto approx = wtr.getWaveletTransforms(0);
+        auto approx = wtr.get_wavelet_transforms(0);
         double energy_approx =
             std::inner_product(approx.begin(), approx.end(), approx.begin(), 0.0);
         all_channel_energies.push_back(energy_approx);
 
         for (int d = 1; d <= wtr.levelsOfTransformation; ++d)
         {
-            auto detail = wtr.getWaveletTransforms(d);
+            auto detail = wtr.get_wavelet_transforms(d);
             double energy_detail =
                 std::inner_product(detail.begin(), detail.end(), detail.begin(), 0.0);
             all_channel_energies.push_back(energy_detail);

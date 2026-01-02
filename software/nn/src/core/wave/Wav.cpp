@@ -271,7 +271,7 @@ auto Wav::get_path() const -> std::string
     return this->path;
 }
 
-void Wav::set_callback_function(       //
+void Wav::set_callback_function(     //
     void (*_callbackFunction)(       //
         std::vector<double>& signal, //
         size_t& signalLength,        //
@@ -474,10 +474,10 @@ inline void Wav::read16BitStereo(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_msb_left);
         Wav::read_binary(ifs, waveformdata_lsb_right);
         Wav::read_binary(ifs, waveformdata_msb_right);
-        this->dataLeft.at(i) =
-            static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb_left, waveformdata_msb_left));
-        this->dataRight.at(i) =
-            static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb_right, waveformdata_msb_right));
+        this->dataLeft.at(i) = static_cast<double>(
+            combine_8bit_to_16bit(waveformdata_lsb_left, waveformdata_msb_left));
+        this->dataRight.at(i) = static_cast<double>(
+            combine_8bit_to_16bit(waveformdata_lsb_right, waveformdata_msb_right));
     }
 }
 
@@ -520,7 +520,7 @@ void Wav::reset_metadata()
 }
 
 void Wav::initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample,
-                            uint16_t numberOfChannels, size_t numSamples)
+                             uint16_t numberOfChannels, size_t numSamples)
 {
     this->header.riffChunkId = {'R', 'I', 'F', 'F'};
     this->header.waveFormat = {'W', 'A', 'V', 'E'};

@@ -15,12 +15,12 @@ TEST(WaveletTypesTest, TestGetWavelet)
 
 TEST(WaveletOperationsTest, TestGetNextPowerOfTwo)
 {
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(3), 4);
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(4), 4);
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(5), 8);
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(7), 8);
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(8), 8);
-    EXPECT_EQ(wavelets::getNextPowerOfTwo(9), 16);
+    EXPECT_EQ(wavelets::get_next_power_of_two(3), 4);
+    EXPECT_EQ(wavelets::get_next_power_of_two(4), 4);
+    EXPECT_EQ(wavelets::get_next_power_of_two(5), 8);
+    EXPECT_EQ(wavelets::get_next_power_of_two(7), 8);
+    EXPECT_EQ(wavelets::get_next_power_of_two(8), 8);
+    EXPECT_EQ(wavelets::get_next_power_of_two(9), 16);
 }
 
 TEST(WaveletOperationsTest, TestMalatRegularTransform)
@@ -60,15 +60,15 @@ TEST(WaveletTransformResultsTest, TestExtraction)
     results.transformedSignal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
 
     // Test whole signal extraction
-    auto wholeSignal = results.getWaveletTransforms(-1);
+    auto wholeSignal = results.get_wavelet_transforms(-1);
     EXPECT_EQ(wholeSignal, results.transformedSignal);
 
     // Test approximation extraction
-    auto approximation = results.getWaveletTransforms(0);
+    auto approximation = results.get_wavelet_transforms(0);
     EXPECT_FALSE(approximation.empty());
 
     // Test detail extraction
-    auto detail1 = results.getWaveletTransforms(1);
+    auto detail1 = results.get_wavelet_transforms(1);
     EXPECT_FALSE(detail1.empty());
 }
 
@@ -79,11 +79,11 @@ TEST(WaveletTransformResultsTest, TestMaxItems)
     results.transformedSignal = {1.0, 2.0, 3.0, 4.0};
 
     // Should not throw when within maxItems
-    EXPECT_NO_THROW(results.getWaveletTransforms(-1));
+    EXPECT_NO_THROW(results.get_wavelet_transforms(-1));
 
     // Adding more items should throw
     results.transformedSignal.push_back(5.0);
-    EXPECT_THROW(results.getWaveletTransforms(-1), std::runtime_error);
+    EXPECT_THROW(results.get_wavelet_transforms(-1), std::runtime_error);
 }
 
 TEST(WaveletOperationsTest, TestMalatHaarCorrectness)
@@ -325,7 +325,7 @@ TEST(WaveletOperationsTest, TestExtractSubbandEnergies)
     constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
 
     auto transform = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 2);
-    auto energies = wavelets::extractSubbandEnergies(transform, 2);
+    auto energies = wavelets::extract_subband_energies(transform, 2);
     EXPECT_FALSE(energies.empty());
     // For packet transform at level 2, should have 4 subbands (2^2)
     EXPECT_EQ(energies.size(), 4U);
@@ -343,12 +343,12 @@ TEST(WaveletOperationsTest, TestExtractSubbandEnergiesEdgeCases)
     // Level 1
     std::vector<double> signal(64, 1.0);
     auto transform1 = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 1);
-    auto energies1 = wavelets::extractSubbandEnergies(transform1, 1);
+    auto energies1 = wavelets::extract_subband_energies(transform1, 1);
     EXPECT_EQ(energies1.size(), 2U); // 2^1 subbands
 
     // Regular transform (not packet)
     auto transform_reg = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 2);
-    auto energies_reg = wavelets::extractSubbandEnergies(transform_reg, 2);
+    auto energies_reg = wavelets::extract_subband_energies(transform_reg, 2);
     EXPECT_FALSE(energies_reg.empty());
 
     // Empty signal (should handle or throw)

@@ -2,7 +2,7 @@ find_package(ZLIB REQUIRED)
 
 add_library(dataLoaders
     STATIC
-        MatFileUtils.cpp
+        mat_file_utils.cpp
         DataLoader.cpp
 )
 

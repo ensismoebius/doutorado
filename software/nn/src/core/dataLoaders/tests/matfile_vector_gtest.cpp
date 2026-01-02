@@ -4,7 +4,7 @@
 
 #include <filesystem>
 
-#include "core/dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/mat_file_utils.hpp"
 
 using namespace matioCpp;
 

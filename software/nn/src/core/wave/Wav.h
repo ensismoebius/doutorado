@@ -264,8 +264,8 @@ class Wav
      * @param numberOfChannels The number of audio channels (1 for mono, 2 for stereo).
      * @param numSamples The total number of samples.
      */
-    void initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels,
-                            size_t numSamples);
+    void initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample,
+                            uint16_t numberOfChannels, size_t numSamples);
     /**
      * @brief Reads the audio data from the WAV file based on the format.
      * @param ifs The input file stream to read from.

@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "core/dataLoaders/MatFileUtils.h"
+#include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
 #include "core/layers/SimpleResNet.hpp"
 #include "core/linearAlgebra/linearAlgebra.h"
@@ -132,7 +132,7 @@ auto apply_window(const std::vector<double>& signal, const std::vector<double>& 
 auto extract_subband_energy(const wavelets::WaveletTransformResults& transform, int level)
     -> std::vector<double>
 {
-    return wavelets::extractSubbandEnergies(transform, level);
+    return wavelets::extract_subband_energies(transform, level);
 }
 
 // Normalization (using core implementation)

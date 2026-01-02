@@ -37,7 +37,7 @@ add_executable(exec_lfcc_pipeline
     ${SRC_DIR}/core/layers/Linear.hpp
     ${SRC_DIR}/core/layers/ReLU.hpp
     ${SRC_DIR}/core/layers/LeakyReLU.hpp
-    ${SRC_DIR}/core/dataLoaders/MatFile.cpp
+    ${SRC_DIR}/core/dataLoaders/mat_file.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline.cpp
 )
