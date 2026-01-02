@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "imgui.h"
-#include "implot.h"
-#include "core/layers/Leaky.hpp"
 #include "../../core/utility/imgui_glfw.hpp"
 #include "../../core/utility/synthetic_spike_data.hpp"
+#include "core/layers/Leaky.hpp"
+#include "imgui.h"
+#include "implot.h"
 
 using ImGui::Begin;
 using ImGui::End;

@@ -23,11 +23,15 @@ TEST(MatFileRowVectorTest, LoadRowVector)
     ASSERT_TRUE(opt.has_value());
     auto m_original = opt.value(); // Store the original loaded matrix
 
-    // If the loaded matrix is Nx1 (column vector) but was expected to be 1xN (row vector), transpose it.
+    // If the loaded matrix is Nx1 (column vector) but was expected to be 1xN (row vector),
+    // transpose it.
     Eigen::MatrixXf m;
-    if (m_original.rows() > 1 && m_original.cols() == 1) {
+    if (m_original.rows() > 1 && m_original.cols() == 1)
+    {
         m = m_original.transpose();
-    } else {
+    }
+    else
+    {
         m = m_original;
     }
 
