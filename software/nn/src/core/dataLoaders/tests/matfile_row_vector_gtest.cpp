@@ -10,16 +10,17 @@ using namespace matioCpp;
 
 TEST(MatFileRowVectorTest, LoadRowVector)
 {
-    std::filesystem::remove("rowvec_test.mat");
+    const auto mat_path = std::filesystem::temp_directory_path() / "rowvec_test.mat";
+    std::filesystem::remove(mat_path);
 
     // Create a 1x4 row vector (stored column-major as 1x4)
     std::vector<double> raw = {1.0, 2.0, 3.0, 4.0};
-    File file = File::Create("rowvec_test.mat");
+    File file = File::Create(mat_path.string());
     MultiDimensionalArray<double> rv("rvec", {1, 4}, raw.data());
     file.write(rv);
     file.close();
 
-    auto opt = matioCpp::utils::load_named_variable_as_matrix("rowvec_test.mat", "rvec");
+    auto opt = matioCpp::utils::load_named_variable_as_matrix(mat_path.string(), "rvec");
     ASSERT_TRUE(opt.has_value());
     auto m_original = opt.value(); // Store the original loaded matrix
 
