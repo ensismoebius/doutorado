@@ -28,12 +28,30 @@ struct Config
     std::string implementation;
 
     // -------------------- dataset --------------------
+    std::string dataset_base_path;
     int sampling_rate;
     int eeg_sampling_rate;
+
+    // -------------------- experiment --------------------
+    int seed;
+    bool cross_validation;
+    int folds;
+
+    // -------------------- classifier hyperparameters --------------------
+    int resnet_hidden_dim;
+    int resnet_depth;
+    float learning_rate;
+    int batch_size;
+    int max_epochs;
 
     // -------------------- paraconsistent --------------------
     bool enabled;
     std::vector<double> optimal_point; // size == 2
+
+    // -------------------- output --------------------
+    std::string results_dir;
+    std::string metrics_file;
+    std::string torch_state_file;
 
     /**
      * @brief Load and validate configuration from YAML file.
