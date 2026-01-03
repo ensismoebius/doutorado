@@ -8,12 +8,14 @@ We then systematically compare classical feature engineering methods (wavelets) 
 
 Finally, all experiments are consolidated into comprehensive tables and paraconsistent metric plots, comparing our results with the state of the art. This pipeline is designed to be methodologically rigorous and easily reproducible, offering a robust and innovative approach to speaker identification using brain and voice signals.
 
+Use as much as possible all core libraries (src/core) and modern C++ 20.
+
 **EEG + Audio using Spiking Neural Networks (SNNs)**
 📌 **Updated and Corrected Task List**
 
 ---
 
-## 🔒 PHASE 0 — Freezing & Infrastructure (DO ONCE)
+## 🔒 PHASE 0 — Freezing & Infrastructure (src/experiments/00)
 
 **Goal:** freeze methodological decisions and guarantee reproducibility.
 
@@ -32,7 +34,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🧠 PHASE 1 — Classical Feature Engineering (Wavelets)
+## 🧠 PHASE 1 — Classical Feature Engineering (Wavelets) (src/experiments/01)
 
 **Goal:** establish a deterministic and theoretically grounded baseline.
 
@@ -54,7 +56,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🔬 PHASE 2 — Spectral Scales (CENTRAL PHASE)
+## 🔬 PHASE 2 — Spectral Scales (CENTRAL PHASE) (src/experiments/02)
 
 **Goal:** compare spectral representations while keeping all other variables fixed.
 
@@ -82,7 +84,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🧠 PHASE 3 — Feature Learning (Spiking Autoencoders)
+## 🧠 PHASE 3 — Feature Learning (Spiking Autoencoders) (src/experiments/03)
 
 > **Important correction:**
 > This phase occurs **before** final comparisons and is **not optional**.
@@ -109,7 +111,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🔀 PHASE 4 — Modalities (Unimodal × Multimodal)
+## 🔀 PHASE 4 — Modalities (Unimodal × Multimodal) (src/experiments/04)
 
 ### Fixed definitions:
 
@@ -134,7 +136,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🧠 PHASE 5 — Imagined Speech (Thesis Differential)
+## 🧠 PHASE 5 — Imagined Speech (Thesis Differential) (src/experiments/05)
 
 ### 🧪 Experiment E5 — Imagined Speech
 
@@ -152,7 +154,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 🛡️ PHASE 6 — Noise Robustness (FINAL)
+## 🛡️ PHASE 6 — Noise Robustness (FINAL) (src/experiments/06)
 
 ### 🧪 Experiment E6 — Robustness to Noise
 
@@ -170,7 +172,7 @@ Finally, all experiments are consolidated into comprehensive tables and paracons
 
 ---
 
-## 📊 PHASE 7 — Final Consolidation (MANDATORY)
+## 📊 PHASE 7 — Final Consolidation (MANDATORY) (src/experiments/07)
 
 - [ ] Table:
   - **LFCC × MEL × BARK**

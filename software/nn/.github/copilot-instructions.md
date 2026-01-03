@@ -160,7 +160,6 @@ nn/
 ---
 
 # 4 Detailed Component Specifications
-# 4 Detailed Component Specifications
 
 ## 4.1 Linear Layer
 
