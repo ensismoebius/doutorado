@@ -23,13 +23,16 @@ auto main(int argc, const char* argv[]) -> int
         return 1;
     }
 
+    // Load configuration
     auto cfg_opt = Config::load(config_path.string());
     if (!cfg_opt)
     {
         std::cerr << "Failed to load config from " << config_path << "\n";
         return 1;
     }
-    const Config& cfg = *cfg_opt;
+
+    // Extract config from optional
+    const Config& cfg = cfg_opt.value();
 
     std::cout << "PHASE 0: Frozen baseline (1.5 s window / 50% overlap / [0,1] normalization)\n";
     std::cout << "Using config: " << config_path << "\n";

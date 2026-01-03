@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "core/dataLoaders/10.1117/AudioLoader.h"
@@ -10,6 +11,10 @@
 #include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "phase00_features.hpp"
+
+using matioCpp::utils::get_variable_dimensions;
+using nn::dataLoaders::loadAudioFromMat;
+using nn::dataLoaders::loadEEGFromMat;
 
 namespace phase00
 {
@@ -41,9 +46,8 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
             continue;
         }
 
-        auto eeg_dims_opt = matioCpp::utils::get_variable_dimensions(eeg_file.string(), "EEG");
-        auto audio_dims_opt =
-            matioCpp::utils::get_variable_dimensions(audio_file.string(), "Audio");
+        auto eeg_dims_opt = get_variable_dimensions(eeg_file.string(), "EEG");
+        auto audio_dims_opt = get_variable_dimensions(audio_file.string(), "Audio");
 
         if (!eeg_dims_opt || eeg_dims_opt->empty() || !audio_dims_opt || audio_dims_opt->empty())
         {
@@ -73,12 +77,11 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
 
         for (size_t trial_idx = 0; trial_idx < num_eeg_trials; ++trial_idx)
         {
-            auto [eeg_trial_data, eeg_labels_array] =
-                nn::dataLoaders::loadEEGFromMat(eeg_file.string(), trial_idx);
-            int eeg_label = eeg_labels_array[1];
+            auto [eeg_trial_data, eeg_labels_array] = loadEEGFromMat(eeg_file.string(), trial_idx);
+            const int eeg_label = eeg_labels_array[1];
 
             auto [audio_trial_data, audio_stimulus_label, audio_eeg_index] =
-                nn::dataLoaders::loadAudioFromMat(audio_file.string(), trial_idx);
+                loadAudioFromMat(audio_file.string(), trial_idx);
             (void) audio_stimulus_label;
             (void) audio_eeg_index;
 
