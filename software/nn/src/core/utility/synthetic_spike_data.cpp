@@ -43,7 +43,7 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
     {
         // Initialize spike matrix for this time step
         nn::Tensor spikes(n_samples, input_dim);
-        spikes.get_data_ref().setZero();
+        spikes.setZero();
 
         for (int i = 0; i < n_samples; ++i)
         {
@@ -94,7 +94,7 @@ auto generate_autoencoder_spike_data_of_ones(int n_samples, int input_dim, int n
     {
         // Initialize spike matrix for this time step
         nn::Tensor spikes(n_samples, input_dim);
-        spikes.get_data_ref().setOnes();
+        spikes.setOnes();
 
         // Store the spike train for this time step
         spike_inputs.emplace_back(spikes);

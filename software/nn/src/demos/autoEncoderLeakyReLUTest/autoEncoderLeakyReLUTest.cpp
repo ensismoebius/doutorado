@@ -51,13 +51,14 @@ namespace
 {
 auto debug(const Batch& batch, const nn::Tensor& y_pred, const nn::Tensor& loss_tensor) -> void
 {
-    cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x"
-         << batch.inputs.get_data_ref().cols() << '\n';
-    cout << "Output dimensions: " << y_pred.get_data_ref().rows() << "x"
-         << y_pred.get_data_ref().cols() << '\n';
-    cout << "Target values: " << batch.targets.get_data_ref().format(CleanFmt) << '\n';
-    cout << "Output values: " << y_pred.get_data_ref().format(CleanFmt) << '\n';
-    cout << "Loss values: " << loss_tensor.get_data_ref().format(CleanFmt) << '\n';
+    cout << "Input dimensions: " << batch.inputs.rows() << "x" << batch.inputs.cols() << '\n';
+    cout << "Output dimensions: " << y_pred.rows() << "x" << y_pred.cols() << '\n';
+    cout << "Target values:\n";
+    print_tensor(batch.targets);
+    cout << "Output values:\n";
+    print_tensor(y_pred);
+    cout << "Loss values:\n";
+    print_tensor(loss_tensor);
 }
 } // namespace
 #endif
@@ -220,7 +221,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
             // For autoencoder, the target is the input itself
             mse_loss->set_target(batch.inputs);
 
-            // Forward pass through encoder and decoder - Eigen will handle
+            // Forward pass through encoder and decoder - backend will handle
             // internal parallelization
             nn::Tensor encoded = encoders.forward(batch.inputs);
             nn::Tensor decoded = decoders.forward(encoded);
@@ -237,7 +238,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
             optimizer.step(params);
 
             // Track best loss in epoch
-            float tmp = loss_tensor.get_data_ref()(0, 0);
+            float tmp = loss_tensor(0, 0);
             epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
 
 // If DEBUG is defined then show the debug information

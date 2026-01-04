@@ -179,24 +179,24 @@ TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave)
     std::vector<std::vector<float>> frames = {sine_wave};
     nn::Tensor power_spectrum = rfft_power(frames, fft_points);
 
-    ASSERT_EQ(power_spectrum.get_data_ref().rows(), 1);
-    ASSERT_EQ(power_spectrum.get_data_ref().cols(), (fft_points / 2) + 1);
+    ASSERT_EQ(power_spectrum.rows(), 1);
+    ASSERT_EQ(power_spectrum.cols(), (fft_points / 2) + 1);
 
     // Expect a peak at the corresponding frequency bin
     // Frequency bin = frequency * fft_points / sample_rate
     int expected_bin = static_cast<int>(
         roundf(frequency * static_cast<float>(fft_points) / static_cast<float>(sample_rate)));
     // Check that the expected bin has a high value, and others are low
-    for (int i = 0; i < power_spectrum.get_data_ref().cols(); ++i)
+    for (int i = 0; i < power_spectrum.cols(); ++i)
     {
         if (i == expected_bin)
         {
-            ASSERT_GT(power_spectrum.get_data_ref()(0, i), 0.1F); // Should be a significant peak
+            ASSERT_GT(power_spectrum(0, i), 0.1F); // Should be a significant peak
         }
         else
         {
             // Allow some leakage, but generally much lower
-            ASSERT_LT(power_spectrum.get_data_ref()(0, i), 0.01F);
+            ASSERT_LT(power_spectrum(0, i), 0.01F);
         }
     }
 }
@@ -226,8 +226,8 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic)
 
     build_linear_filterbank(fft_points, filterbank_context);
 
-    ASSERT_EQ(filterbank_test.get_data_ref().rows(), 10);
-    ASSERT_EQ(filterbank_test.get_data_ref().cols(), (fft_points / 2) + 1);
+    ASSERT_EQ(filterbank_test.rows(), 10);
+    ASSERT_EQ(filterbank_test.cols(), (fft_points / 2) + 1);
 
     // Check some properties of the filterbank
     // The sum of values in each filter should be positive
@@ -236,7 +236,7 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic)
         float sum = 0.0F;
         for (int j = 0; j < (fft_points / 2) + 1; ++j)
         {
-            sum += filterbank_test.get_data_ref()(i, j);
+            sum += filterbank_test(i, j);
         }
         ASSERT_GT(sum, 0.0F);
     }
@@ -253,7 +253,7 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic)
 {
     // Create a dummy power spectrum (e.g., all 1.0)
     nn::Tensor power_spectrum(2, 257); // 2 frames, 257 bins (for fft_points = 512)
-    power_spectrum.get_data_ref().setConstant(1.0F);
+    power_spectrum.setConstant(1.0F);
 
     // Create a dummy filterbank (e.g., a simple triangular filter)
     nn::Tensor filterbank_test;                 // Declare local Tensor
@@ -274,16 +274,16 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic)
 
     nn::Tensor log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
 
-    ASSERT_EQ(log_energies.get_data_ref().rows(), 2);
-    ASSERT_EQ(log_energies.get_data_ref().cols(), 2);
+    ASSERT_EQ(log_energies.rows(), 2);
+    ASSERT_EQ(log_energies.cols(), 2);
 
     // Since power_spectrum is all 1.0, log_energies should be log(sum of filterbank values)
     // The sum of filterbank values will be positive, so log_energies should be positive
-    for (int i = 0; i < log_energies.get_data_ref().rows(); ++i)
+    for (int i = 0; i < log_energies.rows(); ++i)
     {
-        for (int j = 0; j < log_energies.get_data_ref().cols(); ++j)
+        for (int j = 0; j < log_energies.cols(); ++j)
         {
-            ASSERT_GT(log_energies.get_data_ref()(i, j),
+            ASSERT_GT(log_energies(i, j),
                       logf(dummy_loading_params.constants.min_log_energy) -
                           1.0); // Should be greater than min_log_energy after log
         }
@@ -295,27 +295,27 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic)
 {
     // Create dummy log energies
     nn::Tensor log_energies(2, 10); // 2 frames, 10 filter energies
-    log_energies.get_data_ref().setConstant(1.0F);
+    log_energies.setConstant(1.0F);
 
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.number_of_cepstrals = 5; // Request 5 cepstral coefficients
 
     nn::Tensor cepstral_coeff = dct2(log_energies, loading_params);
 
-    ASSERT_EQ(cepstral_coeff.get_data_ref().rows(), 2);
-    ASSERT_EQ(cepstral_coeff.get_data_ref().cols(), 5);
+    ASSERT_EQ(cepstral_coeff.rows(), 2);
+    ASSERT_EQ(cepstral_coeff.cols(), 5);
 
     // Check that values are not NaN or Inf
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wfloat-equal"
-    for (int i = 0; i < cepstral_coeff.get_data_ref().rows(); ++i)
+    for (int i = 0; i < cepstral_coeff.rows(); ++i)
     {
-        for (int j = 0; j < cepstral_coeff.get_data_ref().cols(); ++j)
+        for (int j = 0; j < cepstral_coeff.cols(); ++j)
         {
             // NOLINTNEXTLINE(bugprone-use-of-uninitialized-value)
-            ASSERT_FALSE(std::isnan(cepstral_coeff.get_data_ref()(i, j)));
+            ASSERT_FALSE(std::isnan(cepstral_coeff(i, j)));
             // NOLINTNEXTLINE(bugprone-use-of-uninitialized-value)
-            ASSERT_FALSE(std::isinf(cepstral_coeff.get_data_ref()(i, j)));
+            ASSERT_FALSE(std::isinf(cepstral_coeff(i, j)));
         }
     }
 #pragma GCC diagnostic pop
@@ -326,32 +326,32 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
 {
     // Create a simple feature matrix
     nn::Tensor features(5, 3); // 5 frames, 3 features
-    features.get_data_ref() << 1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F, 10.0F, 11.0F,
-        12.0F, 13.0F, 14.0F, 15.0F;
+    features << 1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F, 10.0F, 11.0F, 12.0F, 13.0F,
+        14.0F, 15.0F;
 
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1; // Simple delta calculation
 
     nn::Tensor delta_features = compute_deltas(features, loading_params);
 
-    ASSERT_EQ(delta_features.get_data_ref().rows(), 5);
-    ASSERT_EQ(delta_features.get_data_ref().cols(), 3);
+    ASSERT_EQ(delta_features.rows(), 5);
+    ASSERT_EQ(delta_features.cols(), 3);
 
     // Expected delta for first frame (using padding):
     // (features[1] - features[0]) / (2 * 1*1) = (4-1)/2 = 1.5
     // (features[1] - features[0]) / (2 * 1*1) = (5-2)/2 = 1.5
     // (features[1] - features[0]) / (2 * 1*1) = (6-3)/2 = 1.5
-    ASSERT_NEAR(delta_features.get_data_ref()(0, 0), 1.5F, 1e-6);
-    ASSERT_NEAR(delta_features.get_data_ref()(0, 1), 1.5F, 1e-6);
-    ASSERT_NEAR(delta_features.get_data_ref()(0, 2), 1.5F, 1e-6);
+    ASSERT_NEAR(delta_features(0, 0), 1.5F, 1e-6);
+    ASSERT_NEAR(delta_features(0, 1), 1.5F, 1e-6);
+    ASSERT_NEAR(delta_features(0, 2), 1.5F, 1e-6);
 
     // Expected delta for second frame:
     // (features[2] - features[0]) / (2 * 1*1) = (7-1)/2 = 3.0
     // (features[2] - features[0]) / (2 * 1*1) = (8-2)/2 = 3.0
     // (features[2] - features[0]) / (2 * 1*1) = (9-3)/2 = 3.0
-    ASSERT_NEAR(delta_features.get_data_ref()(1, 0), 3.0F, 1e-6);
-    ASSERT_NEAR(delta_features.get_data_ref()(1, 1), 3.0F, 1e-6);
-    ASSERT_NEAR(delta_features.get_data_ref()(1, 2), 3.0F, 1e-6);
+    ASSERT_NEAR(delta_features(1, 0), 3.0F, 1e-6);
+    ASSERT_NEAR(delta_features(1, 1), 3.0F, 1e-6);
+    ASSERT_NEAR(delta_features(1, 2), 3.0F, 1e-6);
 }
 
 TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures)
@@ -360,6 +360,6 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures)
     LoadingAndProcessingParameters loading_params = dummy_loading_params;
     loading_params.audio_params.delta_window_span = 1;
     nn::Tensor delta_features = compute_deltas(features, loading_params);
-    ASSERT_TRUE(delta_features.get_data_ref().rows() == 0);
-    ASSERT_TRUE(delta_features.get_data_ref().cols() == 0);
+    ASSERT_TRUE(delta_features.rows() == 0);
+    ASSERT_TRUE(delta_features.cols() == 0);
 }

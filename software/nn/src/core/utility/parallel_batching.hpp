@@ -41,10 +41,10 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
         }
     }
 
-    const nn::Index input_rows = inputSamples[0].rows();
-    const nn::Index input_cols = inputSamples[0].cols();
-    const nn::Index target_rows = targets[0].rows();
-    const nn::Index target_cols = targets[0].cols();
+    const sizet_t input_rows = inputSamples[0].rows();
+    const sizet_t input_cols = inputSamples[0].cols();
+    const sizet_t target_rows = targets[0].rows();
+    const sizet_t target_cols = targets[0].cols();
 
     const int n_batches = (n_samples + batch_size - 1) / batch_size;
     std::vector<Batch> batches(n_batches);
@@ -56,16 +56,16 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
         const int start_idx = batch_idx * batch_size;
         const int actual_batch_size = std::min(batch_size, n_samples - start_idx);
 
-        nn::Tensor x_concat(input_rows * static_cast<nn::Index>(actual_batch_size), input_cols);
-        nn::Tensor y_concat(target_rows * static_cast<nn::Index>(actual_batch_size), target_cols);
+        nn::Tensor x_concat(input_rows * static_cast<sizet_t>(actual_batch_size), input_cols);
+        nn::Tensor y_concat(target_rows * static_cast<sizet_t>(actual_batch_size), target_cols);
 
 // Fill matrices in parallel within each batch
 #pragma omp parallel for num_threads(2) schedule(static)
         for (int j = 0; j < actual_batch_size; ++j)
         {
             const int idx = indices[start_idx + j];
-            x_concat.setBlock(static_cast<nn::Index>(j) * input_rows, 0, inputSamples[idx]);
-            y_concat.setBlock(static_cast<nn::Index>(j) * target_rows, 0, targets[idx]);
+            x_concat.setBlock(static_cast<sizet_t>(j) * input_rows, 0, inputSamples[idx]);
+            y_concat.setBlock(static_cast<sizet_t>(j) * target_rows, 0, targets[idx]);
         }
 
         batches[batch_idx] = {std::move(x_concat), std::move(y_concat)};
@@ -82,10 +82,10 @@ struct BatchBufferPool
     std::vector<nn::Tensor> input_buffers;
     std::vector<nn::Tensor> target_buffers;
     const int batch_size;
-    const nn::Index input_rows;
-    const nn::Index input_cols;
-    const nn::Index target_rows;
-    const nn::Index target_cols;
+    const sizet_t input_rows;
+    const sizet_t input_cols;
+    const sizet_t target_rows;
+    const sizet_t target_cols;
 
     BatchBufferPool(const std::vector<nn::Tensor>& inputSamples,
                     const std::vector<nn::Tensor>& targets, int batch_size, int num_buffers)
@@ -100,8 +100,8 @@ struct BatchBufferPool
 
         for (int i = 0; i < num_buffers; ++i)
         {
-            input_buffers.emplace_back(input_rows * static_cast<nn::Index>(batch_size), input_cols);
-            target_buffers.emplace_back(target_rows * static_cast<nn::Index>(batch_size),
+            input_buffers.emplace_back(input_rows * static_cast<sizet_t>(batch_size), input_cols);
+            target_buffers.emplace_back(target_rows * static_cast<sizet_t>(batch_size),
                                         target_cols);
         }
     }
@@ -130,8 +130,8 @@ inline auto create_batches_with_pool(const std::vector<nn::Tensor>& inputSamples
     for (int j = 0; j < actual_batch_size; ++j)
     {
         const int idx = indices[batch_start + j];
-        x_concat.setBlock(static_cast<nn::Index>(j) * pool.input_rows, 0, inputSamples[idx]);
-        y_concat.setBlock(static_cast<nn::Index>(j) * pool.target_rows, 0, targets[idx]);
+        x_concat.setBlock(static_cast<sizet_t>(j) * pool.input_rows, 0, inputSamples[idx]);
+        y_concat.setBlock(static_cast<sizet_t>(j) * pool.target_rows, 0, targets[idx]);
     }
 
     return pool.get_buffer(buffer_idx);

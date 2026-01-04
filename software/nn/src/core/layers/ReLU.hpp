@@ -1,6 +1,8 @@
 #ifndef RELU_HPP
 #define RELU_HPP
 
+#include <cstddef>
+
 #include "../tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
@@ -16,8 +18,14 @@ struct ReLU : public Module
         {
             // relu_grad stores which elements were > 0 (for gradient computation)
             // Create a tensor and populate with mask values
-            relu_grad = nn::Tensor(input.get_data_ref().rows(), input.get_data_ref().cols());
-            relu_grad.get_data_ref() = (input.get_data_ref().array() > 0).cast<float>();
+            relu_grad = nn::Tensor(input.rows(), input.cols());
+            for (size_t i = 0; i < input.rows(); ++i)
+            {
+                for (size_t j = 0; j < input.cols(); ++j)
+                {
+                    relu_grad.at(i, j) = (input.at(i, j) > 0.0f) ? 1.0f : 0.0f;
+                }
+            }
         }
 
         // Calcula a ativação usando Tensor method

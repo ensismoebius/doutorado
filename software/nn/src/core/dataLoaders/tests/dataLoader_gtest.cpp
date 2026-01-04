@@ -7,12 +7,12 @@
 // Helper to build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
-    nn::Tensor t(static_cast<nn::Index>(N), static_cast<nn::Index>(D));
+    nn::Tensor t(static_cast<sizet_t>(N), static_cast<sizet_t>(D));
     for (std::size_t i = 0; i < N; ++i)
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            t.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j)) =
+            t.at(static_cast<sizet_t>(i), static_cast<sizet_t>(j)) =
                 static_cast<float>((i * D) + j);
         }
     }
@@ -31,18 +31,18 @@ TEST(DataLoaderTest, DeterministicShuffle)
     std::vector<int> order1;
     for (const auto& batch : loader1)
     {
-        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
+        for (int i = 0; i < batch.inputs.rows(); ++i)
         {
-            order1.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
+            order1.push_back(static_cast<int>(batch.inputs.at(i, 0) / 2));
         }
     }
 
     std::vector<int> order2;
     for (const auto& batch : loader2)
     {
-        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
+        for (int i = 0; i < batch.inputs.rows(); ++i)
         {
-            order2.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
+            order2.push_back(static_cast<int>(batch.inputs.at(i, 0) / 2));
         }
     }
 
@@ -61,18 +61,18 @@ TEST(DataLoaderTest, ShuffleVsNoShuffle)
     std::vector<int> sorder;
     for (const auto& batch : shuffled)
     {
-        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
+        for (int i = 0; i < batch.inputs.rows(); ++i)
         {
-            sorder.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
+            sorder.push_back(static_cast<int>(batch.inputs.at(i, 0) / 2));
         }
     }
 
     std::vector<int> norder;
     for (const auto& batch : not_shuffled)
     {
-        for (int i = 0; i < batch.inputs.get_data_ref().rows(); ++i)
+        for (int i = 0; i < batch.inputs.rows(); ++i)
         {
-            norder.push_back(static_cast<int>(batch.inputs.get_data_ref()(i, 0) / 2));
+            norder.push_back(static_cast<int>(batch.inputs.at(i, 0) / 2));
         }
     }
 
@@ -95,7 +95,7 @@ TEST(DataLoaderTest, SmallDataset)
     for (const auto& batch : loader)
     {
         ++batches;
-        total_rows += static_cast<int>(batch.inputs.get_data_ref().rows());
+        total_rows += static_cast<int>(batch.inputs.rows());
     }
     EXPECT_EQ(batches, 1);
     EXPECT_EQ(total_rows, 3);
@@ -162,9 +162,9 @@ TEST(DataLoaderMemoryStressTest, LargeDataset)
     for (const auto& batch : loader)
     {
         ++batch_count;
-        total_samples += batch.inputs.get_data_ref().rows();
-        EXPECT_EQ(batch.inputs.get_data_ref().cols(), feature_dim);
-        EXPECT_EQ(batch.targets.get_data_ref().cols(), 1);
+        total_samples += batch.inputs.rows();
+        EXPECT_EQ(batch.inputs.cols(), feature_dim);
+        EXPECT_EQ(batch.targets.cols(), 1);
     }
 
     EXPECT_EQ(total_samples, large_size);
@@ -186,7 +186,7 @@ TEST(DataLoaderMemoryStressTest, LargeBatchSize)
     for (const auto& batch : loader)
     {
         ++batch_count;
-        EXPECT_EQ(batch.inputs.get_data_ref().rows(), batch_size);
+        EXPECT_EQ(batch.inputs.rows(), batch_size);
     }
 
     EXPECT_EQ(batch_count, 2); // 1000 / 500 = 2 batches
@@ -219,16 +219,16 @@ TEST(DataLoaderThreadSafetyTest, MultipleIterators)
         ASSERT_EQ(batch1.inputs.cols(), batch2.inputs.cols());
         ASSERT_EQ(batch1.targets.rows(), batch2.targets.rows());
         ASSERT_EQ(batch1.targets.cols(), batch2.targets.cols());
-        for (nn::Index r = 0; r < batch1.inputs.rows(); ++r)
+        for (sizet_t r = 0; r < batch1.inputs.rows(); ++r)
         {
-            for (nn::Index c = 0; c < batch1.inputs.cols(); ++c)
+            for (sizet_t c = 0; c < batch1.inputs.cols(); ++c)
             {
                 EXPECT_FLOAT_EQ(batch1.inputs.at(r, c), batch2.inputs.at(r, c));
             }
         }
-        for (nn::Index r = 0; r < batch1.targets.rows(); ++r)
+        for (sizet_t r = 0; r < batch1.targets.rows(); ++r)
         {
-            for (nn::Index c = 0; c < batch1.targets.cols(); ++c)
+            for (sizet_t c = 0; c < batch1.targets.cols(); ++c)
             {
                 EXPECT_FLOAT_EQ(batch1.targets.at(r, c), batch2.targets.at(r, c));
             }
@@ -256,12 +256,12 @@ TEST(DataLoaderThreadSafetyTest, IteratorIndependence)
 
     // it2 should still be at the beginning
     ASSERT_NE(it2, loader.end());
-    EXPECT_EQ((*it2).inputs.get_data_ref()(0, 0), 0.0f);
+    EXPECT_EQ((*it2).inputs.at(0, 0), 0.0f);
 
     // it1 should be at the third batch (batch index 2)
     // Batch 2 contains rows [10,11,12,13,14], and row 10's first element is 10*3 = 30
     ASSERT_NE(it1, loader.end());
-    EXPECT_EQ((*it1).inputs.get_data_ref()(0, 0), 30.0f); // Row 10: (10 * D) + 0 = 30
+    EXPECT_EQ((*it1).inputs.at(0, 0), 30.0f); // Row 10: (10 * D) + 0 = 30
 }
 
 // Numerical Edge Cases for DataLoaders
@@ -277,10 +277,10 @@ TEST(DataLoaderNumericalEdgeTest, SingleSampleDataset)
     ASSERT_NE(it, loader.end());
 
     const auto& batch = *it;
-    EXPECT_EQ(batch.inputs.get_data_ref().rows(), 1);
-    EXPECT_EQ(batch.inputs.get_data_ref().cols(), 2);
-    EXPECT_EQ(batch.targets.get_data_ref().rows(), 1);
-    EXPECT_EQ(batch.targets.get_data_ref().cols(), 1);
+    EXPECT_EQ(batch.inputs.rows(), 1);
+    EXPECT_EQ(batch.inputs.cols(), 2);
+    EXPECT_EQ(batch.targets.rows(), 1);
+    EXPECT_EQ(batch.targets.cols(), 1);
 
     ++it;
     EXPECT_EQ(it, loader.end());
@@ -298,8 +298,8 @@ TEST(DataLoaderNumericalEdgeTest, BatchSizeLargerThanDataset)
     ASSERT_NE(it, loader.end());
 
     const auto& batch = *it;
-    EXPECT_EQ(batch.inputs.get_data_ref().rows(), 3); // Should return all samples
-    EXPECT_EQ(batch.targets.get_data_ref().rows(), 3);
+    EXPECT_EQ(batch.inputs.rows(), 3); // Should return all samples
+    EXPECT_EQ(batch.targets.rows(), 3);
 
     ++it;
     EXPECT_EQ(it, loader.end());
@@ -319,8 +319,8 @@ TEST(DataLoaderNumericalEdgeTest, PerfectBatchDivision)
     for (const auto& batch : loader)
     {
         ++batch_count;
-        total_samples += batch.inputs.get_data_ref().rows();
-        EXPECT_EQ(batch.inputs.get_data_ref().rows(), 3);
+        total_samples += batch.inputs.rows();
+        EXPECT_EQ(batch.inputs.rows(), 3);
     }
 
     EXPECT_EQ(batch_count, 4);
@@ -340,14 +340,14 @@ TEST(DataLoaderComprehensiveTest, IteratorReset)
     std::vector<float> first_pass;
     for (const auto& batch : loader)
     {
-        first_pass.push_back(batch.inputs.get_data_ref()(0, 0));
+        first_pass.push_back(batch.inputs.at(0, 0));
     }
 
     // Second pass should be identical (no shuffle)
     std::vector<float> second_pass;
     for (const auto& batch : loader)
     {
-        second_pass.push_back(batch.inputs.get_data_ref()(0, 0));
+        second_pass.push_back(batch.inputs.at(0, 0));
     }
 
     EXPECT_EQ(first_pass, second_pass);
@@ -368,9 +368,9 @@ TEST(DataLoaderComprehensiveTest, BatchContentVerification)
     // Verify first batch contains samples 0-3
     for (int i = 0; i < 4; ++i)
     {
-        EXPECT_EQ(batch.inputs.get_data_ref()(i, 0), i * 2.0f);
-        EXPECT_EQ(batch.inputs.get_data_ref()(i, 1), i * 2.0f + 1.0f);
-        EXPECT_EQ(batch.targets.get_data_ref()(i, 0), i * 1.0f);
+        EXPECT_EQ(batch.inputs.at(i, 0), i * 2.0f);
+        EXPECT_EQ(batch.inputs.at(i, 1), i * 2.0f + 1.0f);
+        EXPECT_EQ(batch.targets.at(i, 0), i * 1.0f);
     }
 
     ++it;
@@ -380,9 +380,9 @@ TEST(DataLoaderComprehensiveTest, BatchContentVerification)
     // Verify second batch contains samples 4-7
     for (int i = 0; i < 4; ++i)
     {
-        EXPECT_EQ(batch2.inputs.get_data_ref()(i, 0), (i + 4) * 2.0f);
-        EXPECT_EQ(batch2.inputs.get_data_ref()(i, 1), (i + 4) * 2.0f + 1.0f);
-        EXPECT_EQ(batch2.targets.get_data_ref()(i, 0), (i + 4) * 1.0f);
+        EXPECT_EQ(batch2.inputs.at(i, 0), (i + 4) * 2.0f);
+        EXPECT_EQ(batch2.inputs.at(i, 1), (i + 4) * 2.0f + 1.0f);
+        EXPECT_EQ(batch2.targets.at(i, 0), (i + 4) * 1.0f);
     }
 }
 
@@ -399,11 +399,11 @@ TEST(DataLoaderComprehensiveTest, ShuffleDeterminism)
     std::vector<float> order1, order2;
     for (const auto& batch : loader1)
     {
-        order1.push_back(batch.inputs.get_data_ref()(0, 0));
+        order1.push_back(batch.inputs.at(0, 0));
     }
     for (const auto& batch : loader2)
     {
-        order2.push_back(batch.inputs.get_data_ref()(0, 0));
+        order2.push_back(batch.inputs.at(0, 0));
     }
 
     // Different seeds should likely produce different orders

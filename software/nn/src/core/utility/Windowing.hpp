@@ -39,7 +39,7 @@ class Windowing
             {
                 for (int col = 0; col < window_size_samples; ++col)
                 {
-                    window.get_data_ref()(row, col) = data.get_data_ref()(row, i + col);
+                    window(row, col) = data(row, i + col);
                 }
             }
             windows.emplace_back(window);

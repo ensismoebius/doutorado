@@ -29,22 +29,22 @@ class Dataset
 
         // Use the first item to determine column sizes
         Batch first = get_item(indices[0]);
-        const nn::Index cols_in = first.inputs.cols();
-        const nn::Index cols_tg = first.targets.cols();
+        const sizet_t cols_in = first.inputs.cols();
+        const sizet_t cols_tg = first.targets.cols();
 
-        nn::Tensor inputs(static_cast<nn::Index>(indices.size()), cols_in);
-        nn::Tensor targets(static_cast<nn::Index>(indices.size()), cols_tg);
+        nn::Tensor inputs(static_cast<sizet_t>(indices.size()), cols_in);
+        nn::Tensor targets(static_cast<sizet_t>(indices.size()), cols_tg);
 
         for (std::size_t i = 0; i < indices.size(); ++i)
         {
             Batch b = get_item(indices[i]);
-            for (nn::Index c = 0; c < cols_in; ++c)
+            for (sizet_t c = 0; c < cols_in; ++c)
             {
-                inputs.at(static_cast<nn::Index>(i), c) = b.inputs.at(0, c);
+                inputs.at(static_cast<sizet_t>(i), c) = b.inputs.at(0, c);
             }
-            for (nn::Index c = 0; c < cols_tg; ++c)
+            for (sizet_t c = 0; c < cols_tg; ++c)
             {
-                targets.at(static_cast<nn::Index>(i), c) = b.targets.at(0, c);
+                targets.at(static_cast<sizet_t>(i), c) = b.targets.at(0, c);
             }
         }
 

@@ -1,7 +1,6 @@
 #ifndef TENSOR_HPP
 #define TENSOR_HPP
 
-#include <Eigen/Dense>
 #include <memory>
 #include <span>
 #include <vector>
@@ -21,6 +20,11 @@ class Tensor
     Tensor(Index dim1, Index d2, Index d3, Index d4);
     Tensor(const std::vector<Index>& shape);
 
+    // Static factory methods for creating initialized tensors
+    static auto constant(Index rows, Index cols, float value) -> Tensor;
+    static auto zeros(Index rows, Index cols) -> Tensor;
+    static auto ones(Index rows, Index cols) -> Tensor;
+
     // Default copy/move semantics
     Tensor(const Tensor& other);
     Tensor& operator=(const Tensor& other);
@@ -34,7 +38,9 @@ class Tensor
     [[nodiscard]] auto cols() const noexcept -> Index;
     [[nodiscard]] auto size() const noexcept -> Index;
 
-    // Element access for 2D and 4D tensors
+    // Element access for 1D, 2D and 4D tensors
+    auto at(Index i) -> float&;
+    [[nodiscard]] auto at(Index i) const -> const float&;
     auto at(Index row, Index col) -> float&;
     [[nodiscard]] auto at(Index row, Index col) const -> const float&;
     auto at(Index d1, Index d2, Index d3, Index d4) -> float&;
@@ -56,8 +62,8 @@ class Tensor
     // Element-wise operations
     auto add(const Tensor& other) const -> Tensor;
     auto multiply(const Tensor& other) const -> Tensor;
-    auto add_scalar(float scalar) -> Tensor&;
-    auto multiply_scalar(float scalar) -> Tensor&;
+    auto add_scalar(float scalar) const -> Tensor;
+    auto multiply_scalar(float scalar) const -> Tensor;
 
     // Matrix operations
     auto matmul(const Tensor& other) const -> Tensor;
@@ -70,6 +76,68 @@ class Tensor
     // Loss functions
     auto mean_squared_error(const Tensor& target) const -> float;
     auto norm() const -> float;
+    auto sum() const -> float;
+    auto sum_rows() const -> Tensor; // Sum across columns, return column vector (rows, 1)
+    auto sum_cols() const -> Tensor; // Sum across rows, return row vector (1, cols)
+
+    // Element-wise math operations
+    auto sqrt() const -> Tensor;
+    auto square() const -> Tensor;
+    auto abs() const -> Tensor;
+    auto divide(const Tensor& other) const -> Tensor;
+    auto divide_scalar(float scalar) const -> Tensor;
+
+    // Array-like interface for chaining (returns *this for method chaining)
+    auto array() const -> const Tensor&
+    {
+        return *this;
+    }
+
+    // Initialization
+    void fill(float value);
+    void set_zero();
+    void set_ones();
+    // Compatibility aliases
+    void setZero()
+    {
+        set_zero();
+    }
+    void setOnes()
+    {
+        set_ones();
+    }
+    void setConstant(float value)
+    {
+        fill(value);
+    }
+
+    // Data access (legacy helpers)
+    const float* data() const
+    {
+        return data_ptr();
+    }
+    float* mutable_data()
+    {
+        return mutable_data_ptr();
+    }
+    // Operator() convenience
+    float& operator()(Index i, Index j)
+    {
+        return at(i, j);
+    }
+    const float& operator()(Index i, Index j) const
+    {
+        return at(i, j);
+    }
+
+    // Data access (for backward compatibility with existing code)
+    const float* data_ptr() const;
+    float* mutable_data_ptr();
+
+    // Gradient access
+    auto grad() const -> Tensor;
+    auto grad() -> Tensor&;
+    void set_grad(const Tensor& new_grad);
 
     // Conversion to std::vector
     template <typename vector_type>
@@ -80,6 +148,21 @@ class Tensor
 
     // Zero out the gradient
     void zero_grad();
+
+    // Operator overloads for convenience (member functions to avoid ambiguity)
+    auto operator+(const Tensor& other) const -> Tensor
+    {
+        return add(other);
+    }
+    auto operator-(const Tensor& other) const -> Tensor;
+    auto operator*(const Tensor& other) const -> Tensor
+    {
+        return multiply(other);
+    }
+    auto operator*(float scalar) const -> Tensor;
+    auto operator+(float scalar) const -> Tensor;
+    auto operator-(float scalar) const -> Tensor;
+    auto operator/(float scalar) const -> Tensor;
 
     auto get_backend() const -> const ITensorBackend*
     {

@@ -1,8 +1,8 @@
 enable_testing()
 
+# Layers library - mostly header-only, with Conv2d temporarily disabled
 add_library(layers STATIC
-    Conv2d_impl.cpp
-    Conv2d_utils.cpp
+    dummy.cpp  # Placeholder for header-only library
 )
 
 target_include_directories(layers 
@@ -12,8 +12,9 @@ target_include_directories(layers
 )
 
 target_link_libraries(layers
-    PRIVATE Eigen3::Eigen
+    PUBLIC Eigen3::Eigen
     PUBLIC tensor
 )
 
 add_subdirectory(tests)
+

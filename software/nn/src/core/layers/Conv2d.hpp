@@ -2,7 +2,6 @@
 
 #include <omp.h>
 
-#include <Eigen/Dense>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -30,11 +29,9 @@
  * For implementation details, see Conv2d_impl.cpp and Conv2d_utils.cpp.
  */
 
-class EIGEN_ALIGN16 Conv2d : public Module
+class Conv2d : public Module
 {
    public:
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
     /**
      * @brief Constructor for Conv2d layer (legacy API for backward compatibility)
      * @param in_channels Number of input channels
@@ -184,8 +181,7 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Add bias to output matrix with optimized broadcasting
      */
-    void add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
-                            int num_cols) const; // TODO: refactor to use nn::Tensor
+    void add_bias_optimized(nn::Tensor& matrix, const nn::Tensor& bias, int num_cols) const;
 
     /**
      * @brief Reshape output matrix to 4D tensor without data copy

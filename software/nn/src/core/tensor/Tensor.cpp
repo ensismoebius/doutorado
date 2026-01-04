@@ -2,7 +2,6 @@
 
 #include <span>
 
-#include "EigenTensorBackend.hpp"
 #include "TensorBackendFactory.hpp"
 
 namespace nn
@@ -27,6 +26,28 @@ Tensor::Tensor(Index dim1, Index dim2, Index dim3, Index dim4)
 Tensor::Tensor(const std::vector<Index>& shape) : m_backend(TensorBackendFactory::create_backend())
 {
     m_backend->construct(shape);
+}
+
+// Static factory methods for creating initialized tensors
+auto Tensor::constant(Index rows, Index cols, float value) -> Tensor
+{
+    Tensor t(rows, cols);
+    t.fill(value);
+    return t;
+}
+
+auto Tensor::zeros(Index rows, Index cols) -> Tensor
+{
+    Tensor t(rows, cols);
+    t.set_zero();
+    return t;
+}
+
+auto Tensor::ones(Index rows, Index cols) -> Tensor
+{
+    Tensor t(rows, cols);
+    t.set_ones();
+    return t;
 }
 
 // Copy constructor
@@ -97,6 +118,17 @@ auto Tensor::at(Index d1, Index d2, Index d3, Index d4) const -> const float&
     return m_backend->at(d1, d2, d3, d4);
 }
 
+// 1D access
+auto Tensor::at(Index i) -> float&
+{
+    return m_backend->at(i);
+}
+
+auto Tensor::at(Index i) const -> const float&
+{
+    return m_backend->at(i);
+}
+
 // General N-D access
 auto Tensor::at(const std::vector<Index>& indices) -> float&
 {
@@ -151,16 +183,18 @@ auto Tensor::multiply(const Tensor& other) const -> Tensor
     return Tensor(m_backend->multiply(*other.m_backend));
 }
 
-auto Tensor::add_scalar(float scalar) -> Tensor&
+auto Tensor::add_scalar(float scalar) const -> Tensor
 {
-    m_backend->add_scalar(scalar);
-    return *this;
+    Tensor result = *this;
+    result.m_backend->add_scalar(scalar);
+    return result;
 }
 
-auto Tensor::multiply_scalar(float scalar) -> Tensor&
+auto Tensor::multiply_scalar(float scalar) const -> Tensor
 {
-    m_backend->multiply_scalar(scalar);
-    return *this;
+    Tensor result = *this;
+    result.m_backend->multiply_scalar(scalar);
+    return result;
 }
 
 // Matrix operations
@@ -196,6 +230,19 @@ auto Tensor::norm() const -> float
     return m_backend->norm();
 }
 
+auto Tensor::sum() const -> float
+{
+    return m_backend->sum();
+}
+auto Tensor::sum_rows() const -> Tensor
+{
+    return Tensor(backend_->sum_rows());
+}
+
+auto Tensor::sum_cols() const -> Tensor
+{
+    return Tensor(backend_->sum_cols());
+}
 // Slice operation
 auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {
@@ -210,6 +257,107 @@ auto Tensor::slice(std::span<const int> indices) const -> Tensor
 void Tensor::zero_grad()
 {
     m_backend->zero_grad();
+}
+
+// Operator overload implementations
+auto Tensor::operator-(const Tensor& other) const -> Tensor
+{
+    // Subtraction: this - other = this + (-1 * other)
+    return add(other.multiply_scalar(-1.0f));
+}
+
+auto Tensor::operator*(float scalar) const -> Tensor
+{
+    return multiply_scalar(scalar);
+}
+
+auto Tensor::operator+(float scalar) const -> Tensor
+{
+    return add_scalar(scalar);
+}
+
+auto Tensor::operator-(float scalar) const -> Tensor
+{
+    return add_scalar(-scalar);
+}
+
+auto Tensor::operator/(float scalar) const -> Tensor
+{
+    return divide_scalar(scalar);
+}
+
+// Element-wise math operations
+auto Tensor::sqrt() const -> Tensor
+{
+    return Tensor(m_backend->sqrt());
+}
+
+auto Tensor::square() const -> Tensor
+{
+    return Tensor(m_backend->square());
+}
+
+auto Tensor::abs() const -> Tensor
+{
+    return Tensor(m_backend->abs());
+}
+
+auto Tensor::divide(const Tensor& other) const -> Tensor
+{
+    return Tensor(m_backend->divide(*other.m_backend));
+}
+
+auto Tensor::divide_scalar(float scalar) const -> Tensor
+{
+    return Tensor(m_backend->divide_scalar(scalar));
+}
+
+// Initialization
+void Tensor::fill(float value)
+{
+    m_backend->fill(value);
+}
+
+void Tensor::set_zero()
+{
+    m_backend->set_zero();
+}
+
+void Tensor::set_ones()
+{
+    m_backend->set_ones();
+}
+
+// Data pointer access
+const float* Tensor::data_ptr() const
+{
+    return m_backend->data_ptr();
+}
+
+float* Tensor::mutable_data_ptr()
+{
+    return m_backend->mutable_data_ptr();
+}
+
+// Gradient access
+auto Tensor::grad() const -> Tensor
+{
+    // Return a tensor wrapping the gradient backend
+    return Tensor(m_backend->grad().clone());
+}
+
+auto Tensor::grad() -> Tensor&
+{
+    // For mutable access, we need to return a reference
+    // This is tricky with the current design - for now create a static wrapper
+    static thread_local Tensor grad_wrapper;
+    grad_wrapper = Tensor(m_backend->grad().clone());
+    return grad_wrapper;
+}
+
+void Tensor::set_grad(const Tensor& new_grad)
+{
+    m_backend->set_grad(*new_grad.m_backend);
 }
 
 } // namespace nn

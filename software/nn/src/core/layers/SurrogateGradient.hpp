@@ -22,11 +22,14 @@ class ExponentialSurrogate : public ISurrogateGradient
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
     {
-        const auto& v_mem = v_mem_pre_spike.get_data_ref();
-        const auto diff_abs = (v_mem.array() - voltage_threshold).abs();
-
-        nn::Tensor result(v_mem.rows(), v_mem.cols());
-        result.get_data_ref() = (1.0F / sharpness_) * ((-diff_abs / sharpness_).array().exp());
+        // Compute element-wise: (1/sharpness) * exp(-|v - threshold| / sharpness)
+        nn::Tensor result(v_mem_pre_spike.rows(), v_mem_pre_spike.cols());
+        for (size_t i = 0; i < v_mem_pre_spike.rows(); ++i) {
+            for (size_t j = 0; j < v_mem_pre_spike.cols(); ++j) {
+                float diff_abs = std::abs(v_mem_pre_spike.at(i, j) - voltage_threshold);
+                result.at(i, j) = (1.0F / sharpness_) * std::exp(-diff_abs / sharpness_);
+            }
+        }
         return result;
     }
 
@@ -43,11 +46,15 @@ class BoxcarSurrogate : public ISurrogateGradient
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
     {
-        const auto& v_mem = v_mem_pre_spike.get_data_ref();
-        const auto diff_abs = (v_mem.array() - voltage_threshold).abs();
-
-        nn::Tensor result(v_mem.rows(), v_mem.cols());
-        result.get_data_ref() = (diff_abs.array() < (window_ / 2.0F)).cast<float>();
+        // Boxcar: return 1.0 if |v - threshold| < window/2, else 0.0
+        nn::Tensor result(v_mem_pre_spike.rows(), v_mem_pre_spike.cols());
+        float half_window = window_ / 2.0F;
+        for (size_t i = 0; i < v_mem_pre_spike.rows(); ++i) {
+            for (size_t j = 0; j < v_mem_pre_spike.cols(); ++j) {
+                float diff_abs = std::abs(v_mem_pre_spike.at(i, j) - voltage_threshold);
+                result.at(i, j) = (diff_abs < half_window) ? 1.0F : 0.0F;
+            }
+        }
         return result;
     }
 

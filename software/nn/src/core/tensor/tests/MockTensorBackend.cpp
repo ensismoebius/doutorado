@@ -72,6 +72,26 @@ void MockTensorBackend::construct(const std::vector<Index>& shape)
     log_call("construct:" + shape_to_string());
 }
 
+float& MockTensorBackend::at(Index i)
+{
+    log_call("at1d-write");
+    if (i >= m_data.size())
+    {
+        throw std::out_of_range("Index out of range");
+    }
+    return m_data[i];
+}
+
+const float& MockTensorBackend::at(Index i) const
+{
+    log_call("at1d-read");
+    if (i >= m_data.size())
+    {
+        throw std::out_of_range("Index out of range");
+    }
+    return m_data[i];
+}
+
 float& MockTensorBackend::at(Index row, Index col)
 {
     ensure_shape(2);
@@ -376,6 +396,50 @@ float MockTensorBackend::norm() const
     return std::sqrt(acc);
 }
 
+float MockTensorBackend::sum() const
+{
+    float acc = 0.0f;
+    for (float v : m_data) acc += v;
+    log_call("sum:" + shape_to_string());
+    return acc;
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::sum_rows() const
+{
+    ensure_shape(2);
+    const Index nrows = rows();
+    const Index ncols = cols();
+    std::vector<float> result(static_cast<std::size_t>(nrows), 0.0f);
+    for (Index i = 0; i < nrows; ++i)
+    {
+        for (Index j = 0; j < ncols; ++j)
+        {
+            result[static_cast<std::size_t>(i)] +=
+                m_data[static_cast<std::size_t>(offset_2d(i, j))];
+        }
+    }
+    log_call("sum_rows:" + shape_to_string());
+    return std::make_unique<MockTensorBackend>(std::vector<Index>{nrows, 1}, std::move(result));
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::sum_cols() const
+{
+    ensure_shape(2);
+    const Index nrows = rows();
+    const Index ncols = cols();
+    std::vector<float> result(static_cast<std::size_t>(ncols), 0.0f);
+    for (Index i = 0; i < nrows; ++i)
+    {
+        for (Index j = 0; j < ncols; ++j)
+        {
+            result[static_cast<std::size_t>(j)] +=
+                m_data[static_cast<std::size_t>(offset_2d(i, j))];
+        }
+    }
+    log_call("sum_cols:" + shape_to_string());
+    return std::make_unique<MockTensorBackend>(std::vector<Index>{1, ncols}, std::move(result));
+}
+
 void MockTensorBackend::zero_grad()
 {
     if (!m_grad)
@@ -430,6 +494,11 @@ const float* MockTensorBackend::data_ptr() const
     return m_data.data();
 }
 
+float* MockTensorBackend::mutable_data_ptr()
+{
+    return m_data.data();
+}
+
 Index MockTensorBackend::data_rows() const
 {
     return rows();
@@ -438,6 +507,92 @@ Index MockTensorBackend::data_rows() const
 Index MockTensorBackend::data_cols() const
 {
     return cols();
+}
+
+// Element-wise math operations
+std::unique_ptr<ITensorBackend> MockTensorBackend::sqrt() const
+{
+    std::vector<float> out(m_data.size());
+    for (std::size_t i = 0; i < m_data.size(); ++i)
+    {
+        out[i] = std::sqrt(m_data[i]);
+    }
+    log_call("sqrt");
+    return std::make_unique<MockTensorBackend>(m_shape, std::move(out));
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::square() const
+{
+    std::vector<float> out(m_data.size());
+    for (std::size_t i = 0; i < m_data.size(); ++i)
+    {
+        out[i] = m_data[i] * m_data[i];
+    }
+    log_call("square");
+    return std::make_unique<MockTensorBackend>(m_shape, std::move(out));
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::abs() const
+{
+    std::vector<float> out(m_data.size());
+    for (std::size_t i = 0; i < m_data.size(); ++i)
+    {
+        out[i] = std::abs(m_data[i]);
+    }
+    log_call("abs");
+    return std::make_unique<MockTensorBackend>(m_shape, std::move(out));
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::divide(const ITensorBackend& other) const
+{
+    ensure_same_shape(other, "divide");
+    const auto* rhs = dynamic_cast<const MockTensorBackend*>(&other);
+    if (!rhs) throw std::invalid_argument("divide requires MockTensorBackend");
+    std::vector<float> out(m_data.size());
+    for (std::size_t i = 0; i < m_data.size(); ++i)
+    {
+        if (std::abs(rhs->m_data[i]) < kEpsilon)
+        {
+            throw std::invalid_argument("division by zero");
+        }
+        out[i] = m_data[i] / rhs->m_data[i];
+    }
+    log_call("divide");
+    return std::make_unique<MockTensorBackend>(m_shape, std::move(out));
+}
+
+std::unique_ptr<ITensorBackend> MockTensorBackend::divide_scalar(float scalar) const
+{
+    if (std::abs(scalar) < kEpsilon)
+    {
+        throw std::invalid_argument("division by zero");
+    }
+    std::vector<float> out(m_data.size());
+    for (std::size_t i = 0; i < m_data.size(); ++i)
+    {
+        out[i] = m_data[i] / scalar;
+    }
+    log_call("divide_scalar");
+    return std::make_unique<MockTensorBackend>(m_shape, std::move(out));
+}
+
+// Initialization
+void MockTensorBackend::fill(float value)
+{
+    std::fill(m_data.begin(), m_data.end(), value);
+    log_call("fill:" + std::to_string(value));
+}
+
+void MockTensorBackend::set_zero()
+{
+    std::fill(m_data.begin(), m_data.end(), 0.0f);
+    log_call("set_zero");
+}
+
+void MockTensorBackend::set_ones()
+{
+    std::fill(m_data.begin(), m_data.end(), 1.0f);
+    log_call("set_ones");
 }
 
 std::unique_ptr<ITensorBackend> MockTensorBackend::clone() const

@@ -2,8 +2,6 @@
 
 #include <iostream>
 
-#include "core/tensor/EigenTensorBackend.hpp"
-
 void printVectorizationSupport()
 {
     std::cout << "Eigen vectorization: ";

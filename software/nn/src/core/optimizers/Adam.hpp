@@ -56,10 +56,17 @@ struct Adam : public Optimizer
                 throw std::invalid_argument("Cannot attach null parameter to optimizer");
             }
             // Initialize m and v tensors with zeros matching parameter shape
-            m.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
-            v.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
-            m.back().get_data_ref().setZero();
-            v.back().get_data_ref().setZero();
+            m.emplace_back(param->rows(), param->cols());
+            v.emplace_back(param->rows(), param->cols());
+            // Initialize to zero
+            for (size_t i = 0; i < m.back().rows(); ++i)
+            {
+                for (size_t j = 0; j < m.back().cols(); ++j)
+                {
+                    m.back().at(i, j) = 0.0f;
+                    v.back().at(i, j) = 0.0f;
+                }
+            }
         }
     }
 
@@ -81,21 +88,30 @@ struct Adam : public Optimizer
             }
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
-            m[i].get_data_ref() =
-                (beta1 * m[i].get_data_ref().array() + (1 - beta1) * param.get_grad_ref().array())
-                    .matrix();
-            v[i].get_data_ref() = (beta2 * v[i].get_data_ref().array() +
-                                   (1 - beta2) * param.get_grad_ref().array().square())
-                                      .matrix();
+            // m[i] = beta1 * m[i] + (1 - beta1) * grad
+            nn::Tensor grad_contrib = param.multiply_scalar(1.0f - beta1);
+            m[i] = m[i].multiply_scalar(beta1).add(grad_contrib);
+
+            // v[i] = beta2 * v[i] + (1 - beta2) * grad^2
+            nn::Tensor grad_squared = param.multiply(param);
+            nn::Tensor grad_squared_contrib = grad_squared.multiply_scalar(1.0f - beta2);
+            v[i] = v[i].multiply_scalar(beta2).add(grad_squared_contrib);
 
             // Corrige o viés das médias móveis
-            auto m_hat = m[i].get_data_ref() / (1 - std::pow(beta1, t));
-            auto v_hat = v[i].get_data_ref() / (1 - std::pow(beta2, t));
+            float bias_correction1 = static_cast<float>(
+                1.0 - std::pow(static_cast<double>(beta1), static_cast<double>(t)));
+            float bias_correction2 = static_cast<float>(
+                1.0 - std::pow(static_cast<double>(beta2), static_cast<double>(t)));
+            auto m_hat = m[i] / bias_correction1;
+            auto v_hat = v[i] / bias_correction2;
 
             // Atualiza o parâmetro usando as médias móveis corrigidas
-            param.get_data_ref() =
-                (param.get_data_ref().array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps))
-                    .matrix();
+            // param = param - lr * m_hat / (sqrt(v_hat) + eps)
+            nn::Tensor v_hat_sqrt = v_hat.sqrt();
+            nn::Tensor v_hat_sqrt_eps = v_hat_sqrt.add_scalar(eps);
+            nn::Tensor m_hat_scaled = m_hat.multiply_scalar(lr);
+            nn::Tensor update_step = m_hat_scaled.divide(v_hat_sqrt_eps);
+            param = param.add(update_step.multiply_scalar(-1.0f));
         }
     }
 

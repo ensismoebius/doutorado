@@ -7,12 +7,12 @@
 // Reuse helper from existing tests: build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
-    nn::Tensor t(static_cast<nn::Index>(N), static_cast<nn::Index>(D));
+    nn::Tensor t(static_cast<sizet_t>(N), static_cast<sizet_t>(D));
     for (std::size_t i = 0; i < N; ++i)
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            t.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j)) =
+            t.at(static_cast<sizet_t>(i), static_cast<sizet_t>(j)) =
                 static_cast<float>((i * D) + j);
         }
     }
@@ -29,20 +29,20 @@ TEST(DataLoaderMoreTest, CollateProducesCorrectShapesAndValues)
     std::vector<std::size_t> indices = {1, 4};
     Batch b = dataset->collate(indices);
 
-    EXPECT_EQ(b.inputs.get_data_ref().rows(), 2);
-    EXPECT_EQ(b.inputs.get_data_ref().cols(), 3);
-    EXPECT_EQ(b.targets.get_data_ref().rows(), 2);
-    EXPECT_EQ(b.targets.get_data_ref().cols(), 2);
+    EXPECT_EQ(b.inputs.rows(), 2);
+    EXPECT_EQ(b.inputs.cols(), 3);
+    EXPECT_EQ(b.targets.rows(), 2);
+    EXPECT_EQ(b.targets.cols(), 2);
 
     // Check values: row 0 should equal original row 1
-    for (int c = 0; c < b.inputs.get_data_ref().cols(); ++c)
+    for (int c = 0; c < b.inputs.cols(); ++c)
     {
-        EXPECT_FLOAT_EQ(b.inputs.get_data_ref()(0, c), inputs.get_data_ref()(1, c));
+        EXPECT_FLOAT_EQ(b.inputs.at(0, c), inputs.at(1, c));
     }
     // row 1 equals original row 4
-    for (int c = 0; c < b.inputs.get_data_ref().cols(); ++c)
+    for (int c = 0; c < b.inputs.cols(); ++c)
     {
-        EXPECT_FLOAT_EQ(b.inputs.get_data_ref()(1, c), inputs.get_data_ref()(4, c));
+        EXPECT_FLOAT_EQ(b.inputs.at(1, c), inputs.at(4, c));
     }
 }
 
@@ -56,10 +56,10 @@ TEST(DataLoaderMoreTest, MismatchedInputTargetColumnsDetected)
 
     std::vector<std::size_t> indices = {0, 2};
     Batch b = dataset->collate(indices);
-    EXPECT_EQ(b.inputs.get_data_ref().cols(), 5);
-    EXPECT_EQ(b.targets.get_data_ref().cols(), 1);
-    EXPECT_EQ(b.inputs.get_data_ref().rows(), 2);
-    EXPECT_EQ(b.targets.get_data_ref().rows(), 2);
+    EXPECT_EQ(b.inputs.cols(), 5);
+    EXPECT_EQ(b.targets.cols(), 1);
+    EXPECT_EQ(b.inputs.rows(), 2);
+    EXPECT_EQ(b.targets.rows(), 2);
 }
 
 TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
@@ -74,16 +74,16 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     std::vector<int> orderA1, orderA2;
     for (const auto& b : dl_seedA_1)
     {
-        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
+        for (int r = 0; r < b.inputs.rows(); ++r)
         {
-            orderA1.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
+            orderA1.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
         }
     }
     for (const auto& b : dl_seedA_2)
     {
-        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
+        for (int r = 0; r < b.inputs.rows(); ++r)
         {
-            orderA2.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
+            orderA2.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
         }
     }
     EXPECT_EQ(orderA1, orderA2);
@@ -94,9 +94,9 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     std::vector<int> orderB;
     for (const auto& b : dl_seedB)
     {
-        for (int r = 0; r < b.inputs.get_data_ref().rows(); ++r)
+        for (int r = 0; r < b.inputs.rows(); ++r)
         {
-            orderB.push_back(static_cast<int>(b.inputs.get_data_ref()(r, 0) / 2));
+            orderB.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
         }
     }
     // Expect different ordering for different seeds. If orders are identical
@@ -127,12 +127,11 @@ TEST(DataLoaderMoreTest, ConcurrencySmokeTest)
             [&, t]()
             {
                 DataLoader loader(dataset, 7, true, static_cast<unsigned int>(100 + t));
-                int local = std::accumulate(
-                    loader.begin(),
-                    loader.end(),
-                    0,
-                    [](int sum, const auto& b)
-                    { return sum + static_cast<int>(b.inputs.get_data_ref().rows()); });
+                int local = std::accumulate(loader.begin(),
+                                            loader.end(),
+                                            0,
+                                            [](int sum, const auto& b)
+                                            { return sum + static_cast<int>(b.inputs.rows()); });
                 total_batches.fetch_add(local, std::memory_order_relaxed);
             });
     }

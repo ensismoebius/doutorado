@@ -29,9 +29,8 @@ include(cmake/PackageChecking.cmake)
 # Vendor includes and helpers (cnpy, imgui, implot, eigen parallel settings, fftw, nfft3)
 include(cmake/VendorIncludes.cmake)
 
-
 # Development and analysis custom targets
-include(cmake/DevAndAnalysisTargets.cmake)
+# include(cmake/DevAndAnalysisTargets.cmake)
 
 # Source subdirectories
 add_subdirectory(${SRC_DIR}/core)

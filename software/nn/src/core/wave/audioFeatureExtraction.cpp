@@ -11,9 +11,6 @@
 #include "core/optimizers/Adam.hpp" // For Adam optimizer
 #include "core/tensor/Tensor.hpp"   // For Tensor
 
-// Include Eigen for Eigen::Map and Eigen::VectorXf
-#include <Eigen/Dense>
-
 using std::size_t;
 using std::vector;
 using namespace std; // Resolve cout errors
@@ -195,8 +192,7 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> nn::Tens
             const float imaginary_part = fftw_output[bin_index][1];
 
             // Cálculo do espectro de potência normalizado.
-            power_spectrum.get_data_ref()(static_cast<long>(frame_index),
-                                          static_cast<long>(bin_index)) =
+            power_spectrum(static_cast<long>(frame_index), static_cast<long>(bin_index)) =
                 (real_part * real_part + imaginary_part * imaginary_part) /
                 static_cast<float>(fft_points);
         }
@@ -277,7 +273,7 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
             // Parte ascendente do filtro triangular.
             for (int bin_index = previous_bin_index; bin_index < current_bin_index; ++bin_index)
             {
-                context.filterbank.get_data_ref()(filter_index - 1, bin_index) =
+                context.filterbank(filter_index - 1, bin_index) =
                     static_cast<float>(bin_index - previous_bin_index) /
                     static_cast<float>(current_bin_index - previous_bin_index);
             }
@@ -288,7 +284,7 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
             // Parte descendente do filtro triangular.
             for (int bin_index = current_bin_index; bin_index < next_bin_index; ++bin_index)
             {
-                context.filterbank.get_data_ref()(filter_index - 1, bin_index) =
+                context.filterbank(filter_index - 1, bin_index) =
                     static_cast<float>(next_bin_index - bin_index) /
                     static_cast<float>(next_bin_index - current_bin_index);
             }
@@ -311,13 +307,13 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
     -> nn::Tensor
 {
     // Número de frames no espectro de potência.
-    const long number_of_frames = static_cast<long>(power_spectrum.get_data_ref().rows());
+    const long number_of_frames = static_cast<long>(power_spectrum.rows());
 
     // Número de filtros no banco de filtros.
-    const long number_of_filters = static_cast<long>(context.filterbank.get_data_ref().rows());
+    const long number_of_filters = static_cast<long>(context.filterbank.rows());
 
     // Número de bins de frequência por frame.
-    const long number_of_bins = static_cast<long>(power_spectrum.get_data_ref().cols());
+    const long number_of_bins = static_cast<long>(power_spectrum.cols());
 
     // Matriz para armazenar as energias logarítmicas resultantes.
     nn::Tensor log_energies(number_of_frames, number_of_filters);
@@ -333,12 +329,12 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
             for (long bin_index = 0; bin_index < number_of_bins; ++bin_index)
             {
                 // Índice do bin de frequência atual.
-                sum += power_spectrum.get_data_ref()(frame_index, bin_index) *
-                       context.filterbank.get_data_ref()(filter_index, bin_index);
+                sum += power_spectrum(frame_index, bin_index) *
+                       context.filterbank(filter_index, bin_index);
             }
             sum = std::max(sum,
                            context.loading_params.constants.min_log_energy); // Evita log(0)
-            log_energies.get_data_ref()(frame_index, filter_index) = logf(sum);
+            log_energies(frame_index, filter_index) = logf(sum);
         }
     }
     return log_energies;
@@ -358,10 +354,10 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
     -> nn::Tensor
 {
     // Número de frames (vetores de energia) de entrada.
-    const size_t number_of_frames = log_energies.get_data_ref().rows();
+    const size_t number_of_frames = log_energies.rows();
 
     // Número de filtros, que corresponde ao número de energias por frame.
-    const size_t number_of_filters = log_energies.get_data_ref().cols();
+    const size_t number_of_filters = log_energies.cols();
 
     // Matriz para armazenar os coeficientes cepstrais resultantes.
     nn::Tensor cepstral_coefficients((long) number_of_frames,
@@ -384,9 +380,9 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
                  ++filter_index)
             {
                 // Acumula a soma ponderada usando a fórmula da DCT-II.
-                sum += log_energies.get_data_ref()( // Energia logarítmica
-                           frame_index,             // Índice do frame
-                           filter_index             // Índice do filtro
+                sum += log_energies(    // Energia logarítmica
+                           frame_index, // Índice do frame
+                           filter_index // Índice do filtro
                            ) *
                        cosf(std::numbers::pi_v<float> * static_cast<float>(cepstrum_index) *
                             (static_cast<float>(filter_index) +
@@ -396,14 +392,14 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
             }
 
             // Normalização ortogonal, armazenando o coeficiente cepstral calculado.
-            cepstral_coefficients.get_data_ref()(frame_index, cepstrum_index) =
+            cepstral_coefficients(frame_index, cepstrum_index) =
                 sum * sqrtf(loading_params.dct_config.normalization_factor_sqrt /
                             static_cast<float>(number_of_filters));
 
             // Ajuste do primeiro coeficiente cepstral.
             if (cepstrum_index == 0)
             {
-                cepstral_coefficients.get_data_ref()(frame_index, cepstrum_index) *=
+                cepstral_coefficients(frame_index, cepstrum_index) *=
                     1.0F / std::numbers::sqrt2_v<float>;
             }
         }
@@ -423,7 +419,7 @@ auto compute_deltas(const nn::Tensor& features,
                     const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
 {
     // Número de frames (vetores de features) de entrada.
-    const long number_of_frames = features.get_data_ref().rows();
+    const long number_of_frames = features.rows();
     if (number_of_frames == 0)
     {
         // Return an explicitly empty tensor (0x0)
@@ -431,7 +427,7 @@ auto compute_deltas(const nn::Tensor& features,
     }
 
     // Dimensionalidade do vetor de features.
-    const size_t number_of_features = features.get_data_ref().cols();
+    const size_t number_of_features = features.cols();
 
     // Denominador da fórmula de cálculo dos deltas, pré-calculado.
     float denominator = 0.0F;
@@ -477,12 +473,12 @@ auto compute_deltas(const nn::Tensor& features,
 
                 // Deslocamento para calcular a diferença entre frames.
                 numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
-                             (features.get_data_ref()(index_plus_n, feature_index) -
-                              features.get_data_ref()(index_minus_n, feature_index));
+                             (features(index_plus_n, feature_index) -
+                              features(index_minus_n, feature_index));
             }
 
             // Cálculo do coeficiente delta para o frame e feature atuais.
-            delta_features.get_data_ref()(frame_index, feature_index) = numerator / denominator;
+            delta_features(frame_index, feature_index) = numerator / denominator;
         }
     }
 

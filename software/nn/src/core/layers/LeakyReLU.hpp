@@ -17,12 +17,14 @@ struct LeakyReLU : public Module
         if (requires_grad)
         {
             // Create gradient mask: 1 for positive values, alpha for negative values
-            leaky_grad = nn::Tensor(input.get_data_ref().rows(), input.get_data_ref().cols());
-            const auto& input_ref = input.get_data_ref();
-            leaky_grad.get_data_ref() =
-                input_ref.array()
-                    .unaryExpr([this](float x) { return (x > 0.0F) ? 1.0F : alpha; })
-                    .matrix();
+            leaky_grad = nn::Tensor(input.rows(), input.cols());
+            for (size_t i = 0; i < input.rows(); ++i)
+            {
+                for (size_t j = 0; j < input.cols(); ++j)
+                {
+                    leaky_grad.at(i, j) = (input.at(i, j) > 0.0f) ? 1.0f : alpha;
+                }
+            }
         }
 
         // Apply the LeakyReLU activation function using Tensor method

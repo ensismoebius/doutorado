@@ -96,11 +96,10 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
 
-    // Map output for direct write access with Eigen::Ref-compatible signature
-    Eigen::Map<Eigen::MatrixXf> output_map(
-        output.get_data_ref().data(),
-        patch_rows,
-        static_cast<Eigen::Index>(batch_size) * static_cast<Eigen::Index>(patch_cols_per_batch));
+    // Direct write access using mutable pointer
+    float* output_data = output.mutable_data_ptr();
+    const float* input_data = input.data_ptr();
+    const int total_cols = batch_size * patch_cols_per_batch;
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
     if (use_parallel_ && parallel_heavy) [[likely]]
@@ -130,7 +129,9 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            output_map(elem_idx++, col_idx) = value;
+                            // output is (patch_rows, total_cols) in row-major
+                            output_data[elem_idx * total_cols + col_idx] = value;
+                            elem_idx++;
                         }
                     }
                 }
@@ -163,7 +164,9 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            output_map(elem_idx++, col_idx) = value;
+                            // output is (patch_rows, total_cols) in row-major
+                            output_data[elem_idx * total_cols + col_idx] = value;
+                            elem_idx++;
                         }
                     }
                 }
@@ -187,11 +190,11 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
         result.get_shape()[3] != input_width)
     {
         result = nn::Tensor(batch_size, in_channels_, input_height, input_width);
-        result.get_data_ref().setZero();
+        result.setZero();
     }
     else
     {
-        result.get_data_ref().setZero();
+        result.setZero();
     }
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
@@ -220,8 +223,7 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) +=
-                                    cols.get_data_ref()(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
                             }
                         }
                     }
@@ -252,8 +254,7 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                                 const int input_y = oy + ky;
                                 const int input_x = ox + kx;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) +=
-                                    cols.get_data_ref()(elem_idx, col_idx);
+                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
                             }
                         }
                     }
@@ -268,60 +269,46 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
 // ============ Bias Addition ============
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Conv2d::add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
+void Conv2d::add_bias_optimized(nn::Tensor& matrix, const nn::Tensor& bias,
                                 [[maybe_unused]] int num_cols) const
 {
     // Support bias stored either as (out_channels, 1) or as (1, out_channels)
-    const auto& b = bias.get_data_ref();
-    Eigen::VectorXf bias_vector;
-    if (b.rows() == matrix.rows() && b.cols() >= 1)
-    {
-        // column-major: bias stored as (out_channels, 1)
-        bias_vector = b.col(0);
-    }
-    else if (b.cols() == matrix.rows() && b.rows() >= 1)
-    {
-        // row-major-like storage: bias stored as (1, out_channels)
-        bias_vector = b.row(0).transpose();
-    }
-    else
-    {
-        // Fallback: try to reshape/replicate if possible
-        bias_vector = Eigen::VectorXf::Zero(matrix.rows());
-        const Eigen::Index n = std::min<Eigen::Index>(matrix.rows(), b.size());
-        for (Eigen::Index i = 0; i < n; ++i)
-        {
-            bias_vector(i) = b.data()[i];
-        }
-    }
+    // Extract bias values into a temporary buffer
+    const float* bias_data = bias.data_ptr();
+    const auto bias_size = (bias.rows() == matrix.rows() && bias.cols() >= 1) ? bias.rows()
+                           : (bias.cols() == matrix.rows() && bias.rows() >= 1)
+                               ? bias.cols()
+                               : std::min(matrix.rows(), bias.size());
 
-    // This parallel branch is correct and needs to be here
+    // Use direct pointer access for efficient bias addition
+    float* matrix_data = matrix.mutable_data_ptr();
+    const auto n_rows = matrix.rows();
+    const auto n_cols = matrix.cols();
+
+    // Parallel version for large problems
     if (use_parallel_ && num_cols > 1000)
     {
 #pragma omp parallel for if (use_parallel_)
-        for (int i = 0; i < matrix.rows(); ++i)
+        for (nn::Index i = 0; i < n_rows; ++i)
         {
-            // safe access in case bias_vector length doesn't exactly match
-            const Eigen::Index idx = (bias_vector.size() > 0) ? (i % bias_vector.size()) : 0;
-            const float bias_val = bias_vector(idx);
-            Eigen::Map<Eigen::VectorXf>(matrix.row(i).data(), num_cols).array() += bias_val;
+            const nn::Index bias_idx = (bias_size > 0) ? (i % bias_size) : 0;
+            const float bias_val = bias_data[bias_idx];
+            for (nn::Index j = 0; j < n_cols; ++j)
+            {
+                matrix_data[i * n_cols + j] += bias_val;
+            }
         }
     }
-    else // The sequential branch
+    else
     {
-        if (bias_vector.size() == matrix.rows())
+        // Sequential version
+        for (nn::Index i = 0; i < n_rows; ++i)
         {
-            // Use Eigen's broadcasting with noalias for efficiency
-            matrix.colwise() += bias_vector;
-        }
-        else
-        {
-            // Fallback: element-wise addition with safe indexing
-            const Eigen::Index bvsz = bias_vector.size() > 0 ? bias_vector.size() : 1;
-            for (int r = 0; r < matrix.rows(); ++r)
+            const nn::Index bias_idx = (bias_size > 0) ? (i % bias_size) : 0;
+            const float bias_val = bias_data[bias_idx];
+            for (nn::Index j = 0; j < n_cols; ++j)
             {
-                const Eigen::Index idx = r % bvsz;
-                matrix.row(r).array() += bias_vector(idx);
+                matrix_data[i * n_cols + j] += bias_val;
             }
         }
     }
@@ -335,17 +322,13 @@ auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size, 
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);
 
-    // Use Eigen assignment for better integration with expression templates
-    // If layouts are compatible, Eigen avoids temporary allocation
-    Eigen::Map<Eigen::MatrixXf> output_map(output.get_data_ref().data(),
-                                           out_channels_,
-                                           static_cast<Eigen::Index>(batch_size) *
-                                               static_cast<Eigen::Index>(output_height) *
-                                               static_cast<Eigen::Index>(output_width));
-
-    // Direct assignment using noalias - Eigen evaluates most efficiently
-    // compared to manual memcpy, as it leverages vectorization
-    output_map.noalias() = matrix.get_data_ref();
+    // Direct memory copy - both tensors are contiguous
+    const float* src = matrix.data_ptr();
+    float* dst = output.mutable_data_ptr();
+    const auto total_elements =
+        static_cast<nn::Index>(batch_size) * static_cast<nn::Index>(out_channels_) *
+        static_cast<nn::Index>(output_height) * static_cast<nn::Index>(output_width);
+    std::memcpy(dst, src, total_elements * sizeof(float));
 
     return output;
 }

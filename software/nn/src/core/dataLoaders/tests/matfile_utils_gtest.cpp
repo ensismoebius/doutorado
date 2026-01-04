@@ -54,7 +54,16 @@ TEST(MatFileUtilsTest, LoadVariousIntegerTypes)
 
     auto m1 = utils::load_named_variable_as_matrix(mat_path.string(), "i32");
     ASSERT_TRUE(m1.has_value());
-    EXPECT_FLOAT_EQ(m1->get_data_ref().sum(), 10.0F);
+    // Calculate sum manually: 1+3+2+4 = 10
+    float sum = 0.0F;
+    for (int r = 0; r < m1->rows(); ++r)
+    {
+        for (int c = 0; c < m1->cols(); ++c)
+        {
+            sum += m1->at(r, c);
+        }
+    }
+    EXPECT_FLOAT_EQ(sum, 10.0F);
 
     auto m2 = utils::load_named_variable_as_matrix(mat_path.string(), "i32b");
     ASSERT_TRUE(m2.has_value());

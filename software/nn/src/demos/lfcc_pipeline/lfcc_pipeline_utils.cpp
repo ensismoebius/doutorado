@@ -13,8 +13,17 @@
 #include "core/tensor/Tensor.hpp"             // For Tensor
 #include "core/wave/audioFeatureExtraction.h" // Include the new header
 
-// Include Eigen for Eigen::Map and Eigen::VectorXf
-#include <Eigen/Dense>
+// Include for FFTW library functions and standard libraries
+#include <fftw3.h>
+
+#include <cstddef>  // For size_t
+#include <iostream> // For std::cout (if debugging)
+#include <vector>   // For std::vector
+
+#include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
+#include "core/optimizers/Adam.hpp"
+#include "core/tensor/Tensor.hpp"             // For Tensor
+#include "core/wave/audioFeatureExtraction.h" // Include the new header
 
 using nn::dataLoaders::loadAudioFromMat;
 using std::size_t;
@@ -44,8 +53,12 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
     // Amostras de áudio carregadas do arquivo .mat.
     auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
 
-    // Vetor de float para conter os dados de áudio para processamento.
-    vector<float> input_data(static_cast<size_t>(audioSamples.size()));
+    // Transpõe a matriz de amostras para facilitar o processamento.
+    audioSamples = audioSamples.transpose();
+
+    // Criar vector a partir dos dados do tensor - usa construtor com iteradores
+    vector<float> input_data(audioSamples.data_ptr(),
+                             audioSamples.data_ptr() + audioSamples.size());
 
     // Frames do sinal após janelamento.
     vector<vector<float>> frames;
@@ -68,12 +81,6 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
 
     // Coeficientes delta-delta (segunda derivada).
     nn::Tensor delta_delta_coeff;
-
-    // Transpõe a matriz de amostras para facilitar o processamento.
-    audioSamples = audioSamples.transpose();
-
-    // Copia os dados do áudio para o vetor de processamento.
-    Eigen::Map<Eigen::VectorXf>(input_data.data(), audioSamples.size()) = audioSamples;
 
     // Etapa 1: Pré-ênfase (now nn::core::wave::pre_emphasis_inplace)
     nn::core::wave::pre_emphasis_inplace(
@@ -156,16 +163,4 @@ void processSubject(const SubjectInfo& subject)
     std::vector<nn::Tensor> audio_windows =
         loadAndProcessAudio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
-}
-
-// Extract MGDF cepstral from frames
-inline auto extract_mgdf_from_frame(const Eigen::VectorXf& frame,
-                                    const LoadingAndProcessingParameters& lfc_p,
-                                    const AudioProcessingParams& mg_p, const Eigen::MatrixXd& H)
-    -> Eigen::VectorXd
-{
-    Eigen::VectorXd mgdf_cepstral;
-    // TODO: Implement the actual logic for extracting MGDF cepstral.
-    // The nn::core::wave::extract_mgdf_cepstral_from_frame function was not found.
-    return mgdf_cepstral;
 }

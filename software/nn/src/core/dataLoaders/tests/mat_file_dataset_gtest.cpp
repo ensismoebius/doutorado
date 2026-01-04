@@ -145,8 +145,10 @@ TEST_F(MatFileDatasetTestFixture, GetItemOutOfBoundsThrows)
     MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 2);
 
-    ASSERT_THROW(dataset.get_item(2), std::out_of_range); // Index 2 is out of bounds for size 2
-    ASSERT_THROW(dataset.get_item(100), std::out_of_range);
+    ASSERT_THROW(
+        { auto _ = dataset.get_item(2); },
+        std::out_of_range); // Index 2 is out of bounds for size 2
+    ASSERT_THROW({ auto _ = dataset.get_item(100); }, std::out_of_range);
 }
 
 TEST_F(MatFileDatasetTestFixture, CollateWithValidIndices)

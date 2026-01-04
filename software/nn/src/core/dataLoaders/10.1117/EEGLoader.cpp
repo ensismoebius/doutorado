@@ -6,6 +6,8 @@
 #include <memory>
 #include <stdexcept>
 
+#include "../../tensor/Tensor.hpp"
+
 /*
  * EEGLoader implementation notes
  * ----------------------------
@@ -84,7 +86,7 @@ auto EEGLoader::readVariable(const std::string& name)
 }
 
 auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
-    -> std::tuple<Eigen::MatrixXf, std::array<int, 3>>
+    -> std::tuple<nn::Tensor, std::array<int, 3>>
 {
     // Open MAT file with RAII
     auto matFileDeleter = [](mat_t* mat) { Mat_Close(mat); };
@@ -144,8 +146,8 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to access EEG data pointer");
     }
 
-    // We'll construct an Eigen matrix with rows = channels, cols = samples_per_channel
-    Eigen::MatrixXf eegChannels(EEG_CHANNELS, EEG_SAMPLE_COUNT / EEG_CHANNELS);
+    // We'll construct a Tensor with rows = channels, cols = samples_per_channel
+    nn::Tensor eegChannels(EEG_CHANNELS, EEG_SAMPLE_COUNT / EEG_CHANNELS);
 
     // The dataset in documentations says: 6 channels × 4096 samples = 24576 samples
     // We'll assume the samples are interleaved per channel in blocks (channel-major or
@@ -172,7 +174,7 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     {
         for (int s = 0; s < samplesPerChannel; ++s)
         {
-            eegChannels(ch, s) = samples[(ch * samplesPerChannel) + s];
+            eegChannels.at(ch, s) = samples[(ch * samplesPerChannel) + s];
         }
     }
 

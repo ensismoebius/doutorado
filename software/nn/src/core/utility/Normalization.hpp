@@ -24,9 +24,9 @@ class Normalization
         float min_val = data.at(0, 0);
         float max_val = data.at(0, 0);
 
-        for (nn::Index i = 0; i < data.rows(); ++i)
+        for (sizet_t i = 0; i < data.rows(); ++i)
         {
-            for (nn::Index j = 0; j < data.cols(); ++j)
+            for (sizet_t j = 0; j < data.cols(); ++j)
             {
                 const float value = data.at(i, j);
                 min_val = std::min(min_val, value);
@@ -42,9 +42,9 @@ class Normalization
         nn::Tensor normalized(data.rows(), data.cols());
         const float range = max_val - min_val;
 
-        for (nn::Index i = 0; i < data.rows(); ++i)
+        for (sizet_t i = 0; i < data.rows(); ++i)
         {
-            for (nn::Index j = 0; j < data.cols(); ++j)
+            for (sizet_t j = 0; j < data.cols(); ++j)
             {
                 normalized.at(i, j) = (data.at(i, j) - min_val) / range;
             }

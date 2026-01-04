@@ -72,17 +72,24 @@ class MSELoss : public Module
         nn::Tensor negated_target = last_target;
         negated_target.multiply_scalar(-1.0f);
         auto diff = last_input.add(negated_target);
-        auto grad = diff.multiply_scalar(MSE_GRADIENT_FACTOR /
-                                         static_cast<float>(last_input.get_data_ref().size()));
+        auto grad =
+            diff.multiply_scalar(MSE_GRADIENT_FACTOR / static_cast<float>(last_input.size()));
 
-        // Check for invalid gradients
-        if (!grad.get_data_ref().allFinite()) [[unlikely]]
+        // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
+        float grad_check = grad.norm();
+        if (!std::isfinite(grad_check)) [[unlikely]]
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             // Return zero gradient to prevent further issues
-            nn::Tensor zero_grad(last_input.get_data_ref().rows(),
-                                 last_input.get_data_ref().cols());
-            zero_grad.get_data_ref().setZero();
+            nn::Tensor zero_grad(last_input.rows(), last_input.cols());
+            // Initialize to zero
+            for (size_t i = 0; i < zero_grad.rows(); ++i)
+            {
+                for (size_t j = 0; j < zero_grad.cols(); ++j)
+                {
+                    zero_grad.at(i, j) = 0.0f;
+                }
+            }
             return zero_grad;
         }
 

@@ -14,7 +14,18 @@ auto to_tensor_from_multi(const matioCpp::Variable& variable) -> std::optional<n
 {
     auto multi_array = variable.template asMultiDimensionalArray<T>();
     auto eigen_matrix = matioCpp::to_eigen(multi_array).template cast<float>();
-    return nn::Tensor{eigen_matrix};
+
+    // Create tensor with appropriate dimensions and copy data
+    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
+                      static_cast<size_t>(eigen_matrix.cols()));
+    for (size_t i = 0; i < result.rows(); ++i)
+    {
+        for (size_t j = 0; j < result.cols(); ++j)
+        {
+            result.at(i, j) = eigen_matrix(i, j);
+        }
+    }
+    return result;
 }
 
 template <typename T>
@@ -22,7 +33,18 @@ auto to_tensor_from_vector(const matioCpp::Variable& variable) -> std::optional<
 {
     auto vec = variable.template asVector<T>();
     auto eigen_matrix = matioCpp::to_eigen(vec).template cast<float>();
-    return nn::Tensor{eigen_matrix};
+
+    // Create tensor with appropriate dimensions and copy data
+    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
+                      static_cast<size_t>(eigen_matrix.cols()));
+    for (size_t i = 0; i < result.rows(); ++i)
+    {
+        for (size_t j = 0; j < result.cols(); ++j)
+        {
+            result.at(i, j) = eigen_matrix(i, j);
+        }
+    }
+    return result;
 }
 
 } // anonymous namespace

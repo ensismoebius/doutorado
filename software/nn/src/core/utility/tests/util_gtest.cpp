@@ -12,15 +12,15 @@
 namespace
 {
 
-auto make_random_tensor(nn::Index rows, nn::Index cols, float lower = -1.0F, float upper = 1.0F)
+auto make_random_tensor(sizet_t rows, sizet_t cols, float lower = -1.0F, float upper = 1.0F)
     -> nn::Tensor
 {
     static std::mt19937 gen(42);
     std::uniform_real_distribution<float> dist(lower, upper);
     nn::Tensor t(rows, cols);
-    for (nn::Index i = 0; i < rows; ++i)
+    for (sizet_t i = 0; i < rows; ++i)
     {
-        for (nn::Index j = 0; j < cols; ++j)
+        for (sizet_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = dist(gen);
         }
@@ -28,13 +28,12 @@ auto make_random_tensor(nn::Index rows, nn::Index cols, float lower = -1.0F, flo
     return t;
 }
 
-[[maybe_unused]] auto make_constant_tensor(nn::Index rows, nn::Index cols, float value)
-    -> nn::Tensor
+[[maybe_unused]] auto make_constant_tensor(sizet_t rows, sizet_t cols, float value) -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
-    for (nn::Index i = 0; i < rows; ++i)
+    for (sizet_t i = 0; i < rows; ++i)
     {
-        for (nn::Index j = 0; j < cols; ++j)
+        for (sizet_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = value;
         }
@@ -42,8 +41,8 @@ auto make_random_tensor(nn::Index rows, nn::Index cols, float lower = -1.0F, flo
     return t;
 }
 
-auto make_tensor_from_values(nn::Index rows, nn::Index cols,
-                             const std::initializer_list<float>& values) -> nn::Tensor
+auto make_tensor_from_values(sizet_t rows, sizet_t cols, const std::initializer_list<float>& values)
+    -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
     const auto expected = static_cast<std::size_t>(rows * cols);
@@ -52,9 +51,9 @@ auto make_tensor_from_values(nn::Index rows, nn::Index cols,
         throw std::invalid_argument("Initializer size does not match tensor shape");
     }
     std::size_t idx = 0;
-    for (nn::Index i = 0; i < rows; ++i)
+    for (sizet_t i = 0; i < rows; ++i)
     {
-        for (nn::Index j = 0; j < cols; ++j)
+        for (sizet_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = *(values.begin() + static_cast<long>(idx));
             ++idx;
@@ -82,14 +81,13 @@ TEST(UtilTest, SyntheticSpikeData)
     ASSERT_EQ(spike_trains.size(), n_steps);
     for (const auto& spikes : spike_trains)
     {
-        ASSERT_EQ(spikes.get_data_ref().rows(), n_samples);
-        ASSERT_EQ(spikes.get_data_ref().cols(), input_dim);
-        for (int i = 0; i < spikes.get_data_ref().rows(); ++i)
+        ASSERT_EQ(spikes.rows(), n_samples);
+        ASSERT_EQ(spikes.cols(), input_dim);
+        for (int i = 0; i < static_cast<int>(spikes.rows()); ++i)
         {
-            for (int j = 0; j < spikes.get_data_ref().cols(); ++j)
+            for (int j = 0; j < static_cast<int>(spikes.cols()); ++j)
             {
-                ASSERT_TRUE(spikes.get_data_ref()(i, j) == 0.0F ||
-                            spikes.get_data_ref()(i, j) == 1.0F);
+                ASSERT_TRUE(spikes.at(i, j) == 0.0F || spikes.at(i, j) == 1.0F);
             }
         }
     }
@@ -115,7 +113,7 @@ TEST(UtilTest, Batching)
     auto batches = create_batches(input_samples, target_samples, 2);
 
     ASSERT_EQ(batches.size(), 2U);
-    ASSERT_EQ(batches[0].inputs.get_data_ref().rows(), 2);
+    ASSERT_EQ(batches[0].inputs.rows(), 2);
 }
 
 // Exception Testing for Utilities
@@ -174,10 +172,10 @@ TEST(UtilMemoryStressTest, LargeBatchCreation)
         // Verify batch contents
         for (const auto& batch : batches)
         {
-            EXPECT_EQ(batch.inputs.get_data_ref().rows(), batch_size);
-            EXPECT_EQ(batch.inputs.get_data_ref().cols(), input_dim);
-            EXPECT_EQ(batch.targets.get_data_ref().rows(), batch_size);
-            EXPECT_EQ(batch.targets.get_data_ref().cols(), target_dim);
+            EXPECT_EQ(batch.inputs.rows(), batch_size);
+            EXPECT_EQ(batch.inputs.cols(), input_dim);
+            EXPECT_EQ(batch.targets.rows(), batch_size);
+            EXPECT_EQ(batch.targets.cols(), target_dim);
         }
     });
 }
@@ -196,8 +194,8 @@ TEST(UtilMemoryStressTest, LargeSyntheticSpikeData)
         EXPECT_EQ(spike_trains.size(), n_steps);
         for (const auto& spikes : spike_trains)
         {
-            EXPECT_EQ(spikes.get_data_ref().rows(), n_samples);
-            EXPECT_EQ(spikes.get_data_ref().cols(), input_dim);
+            EXPECT_EQ(spikes.rows(), n_samples);
+            EXPECT_EQ(spikes.cols(), input_dim);
         }
     });
 }
@@ -214,12 +212,12 @@ TEST(UtilNumericalEdgeTest, ExtremeBatchSizes)
 
     auto single_batch = create_batches(input_samples, target_samples, 1);
     EXPECT_EQ(single_batch.size(), 1);
-    EXPECT_EQ(single_batch[0].inputs.get_data_ref().rows(), 1);
+    EXPECT_EQ(single_batch[0].inputs.rows(), 1);
 
     // Batch size larger than dataset
     auto large_batch = create_batches(input_samples, target_samples, 10);
     EXPECT_EQ(large_batch.size(), 1);
-    EXPECT_EQ(large_batch[0].inputs.get_data_ref().rows(),
+    EXPECT_EQ(large_batch[0].inputs.rows(),
               1); // Should return all available samples
 }
 
@@ -237,7 +235,7 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     int total_low_spikes = 0;
     for (const auto& spikes : low_rate_spikes)
     {
-        total_low_spikes += spikes.get_data_ref().sum();
+        total_low_spikes += static_cast<int>(spikes.sum());
     }
     EXPECT_LT(total_low_spikes, n_samples * input_dim * n_steps * 0.01F); // Very few spikes
 
@@ -249,7 +247,7 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     int total_high_spikes = 0;
     for (const auto& spikes : high_rate_spikes)
     {
-        total_high_spikes += spikes.get_data_ref().sum();
+        total_high_spikes += static_cast<int>(spikes.sum());
     }
     EXPECT_GT(total_high_spikes, n_samples * input_dim * n_steps * 0.95F); // Almost all spikes
 }
@@ -311,8 +309,8 @@ TEST(UtilThreadSafetyTest, ConcurrentBatchCreation)
             // Verify batch integrity
             for (const auto& batch : batches)
             {
-                EXPECT_EQ(batch.inputs.get_data_ref().rows(), 10);
-                EXPECT_EQ(batch.targets.get_data_ref().rows(), 10);
+                EXPECT_EQ(batch.inputs.rows(), 10);
+                EXPECT_EQ(batch.targets.rows(), 10);
             }
         });
     }
@@ -336,8 +334,8 @@ TEST(UtilThreadSafetyTest, ConcurrentSpikeGeneration)
             EXPECT_EQ(spike_trains.size(), n_steps);
             for (const auto& spikes : spike_trains)
             {
-                EXPECT_EQ(spikes.get_data_ref().rows(), n_samples);
-                EXPECT_EQ(spikes.get_data_ref().cols(), input_dim);
+                EXPECT_EQ(spikes.rows(), n_samples);
+                EXPECT_EQ(spikes.cols(), input_dim);
             }
         });
     }
@@ -430,7 +428,7 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
 
     for (const auto& spikes : spike_trains)
     {
-        total_spikes += spikes.get_data_ref().sum();
+        total_spikes += static_cast<int>(spikes.sum());
     }
 
     float actual_rate = static_cast<float>(total_spikes) / total_possible;
@@ -443,7 +441,7 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
     std::vector<int> spikes_per_timestep;
     for (const auto& spikes : spike_trains)
     {
-        spikes_per_timestep.push_back(spikes.get_data_ref().sum());
+        spikes_per_timestep.push_back(static_cast<int>(spikes.sum()));
     }
 
     // Check that no timestep has zero spikes (for reasonable rate)

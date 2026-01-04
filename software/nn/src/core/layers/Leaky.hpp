@@ -1,7 +1,6 @@
 #ifndef LIF_HPP
 #define LIF_HPP
 
-#include <Eigen/Dense>
 #include <memory>
 #include <utility>
 
@@ -25,7 +24,7 @@
  *     (`v_mem`), is preserved across multiple calls to the `forward` function.
  *     This allows it to integrate inputs over time.
  *
- * 2.  **Vectorized**: It uses the Eigen library to perform calculations on
+ * 2.  **Vectorized**: It uses the Tensor API to perform calculations on
  *     entire matrices of neurons at once, which is much more efficient than
  *     looping through each neuron individually.
  *
@@ -46,23 +45,13 @@ struct Leaky : public Module
     float dt = 1.0F;
 
     /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
-    nn::Tensor resistance = []()
-    {
-        nn::Tensor t(1, 1);
-        t.at(0, 0) = 1.0F;
-        return t;
-    }();
+    nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
 
     /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
     float capacitance = 1.0F;
 
     /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
-    nn::Tensor voltage_threshold = []()
-    {
-        nn::Tensor t(1, 1);
-        t.at(0, 0) = 1.0F;
-        return t;
-    }();
+    nn::Tensor voltage_threshold = nn::Tensor::constant(1, 1, 1.0F);
 
     /// @brief Controls the reset mechanism after a spike.
     bool reset_zero = true;
@@ -112,170 +101,201 @@ struct Leaky : public Module
         reset_zero = reset_zero_;
         reset_potential = reset_potential_;
         surrogate_gradient = std::move(surrogate_grad);
+    }
 
-        /**
-         * @brief Simulates one time step of the neuron's dynamics.
-         *
-         * This function performs the "Leaky", "Integrate", "Fire", and "Reset"
-         * steps for an entire layer of neurons in a vectorized manner. It follows the
-         * discrete-time LIF neuron equation.
-         * @param input The input current for this time step.
-         */
-        auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    /**
+     * @brief Simulates one time step of the neuron's dynamics.
+     *
+     * This function performs the "Leaky", "Integrate", "Fire", and "Reset"
+     * steps for an entire layer of neurons in a vectorized manner. It follows the
+     * discrete-time LIF neuron equation.
+     * @param input The input current for this time step.
+     */
+    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    {
+        // Ensure v_mem is correctly sized, initializing if necessary
+        if (v_mem.rows() != static_cast<int>(input.rows()) ||
+            v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
         {
-            // Ensure v_mem is correctly sized, initializing if necessary
-            if (v_mem.rows() != static_cast<int>(input.rows()) ||
-                v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
-            {
-                v_mem = nn::Tensor(input.rows(), input.cols());
-                v_mem.get_data_ref().setZero();
-            }
+            v_mem = nn::Tensor(input.rows(), input.cols());
+            v_mem.setZero();
+        }
 
-            // The membrane time constant (tau = R * C) determines how quickly potential leaks.
-            // Beta is the discrete-time decay factor derived from the continuous-time
-            // decay equation, representing the "leaky" nature of the neuron.
-            float const tau = resistance.get_data_ref()(0, 0) * capacitance;
-            float const beta = std::exp(-dt / tau);
+        // The membrane time constant (tau = R * C) determines how quickly potential leaks.
+        // Beta is the discrete-time decay factor derived from the continuous-time
+        // decay equation, representing the "leaky" nature of the neuron.
+        float const tau = resistance(0, 0) * capacitance;
+        float const beta = std::exp(-dt / tau);
 
-            // snnTorch-like: persistent v_mem, decay, and reset on spike
-            if (v_mem.size() == 0 || v_mem.rows() != static_cast<int>(input.rows()) ||
-                v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
-            {
-                v_mem = nn::Tensor(input.rows(), input.cols());
-                v_mem.get_data_ref().setZero();
-            }
+        // snnTorch-like: persistent v_mem, decay, and reset on spike
+        if (v_mem.size() == 0 || v_mem.rows() != static_cast<int>(input.rows()) ||
+            v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
+        {
+            v_mem = nn::Tensor(input.rows(), input.cols());
+            v_mem.setZero();
+        }
 
-            // Cache the membrane potential from the previous time step, v(t-1), for the backward
-            // pass.
-            if (requires_grad)
-            {
-                v_mem_t_minus_1 = v_mem;
-            }
+        // Cache the membrane potential from the previous time step, v(t-1), for the backward
+        // pass.
+        if (requires_grad)
+        {
+            v_mem_t_minus_1 = v_mem;
+        }
 
-            // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
-            // is decayed by a factor of `beta`. If there were no input, the potential
-            // would exponentially decay toward its resting potential (0).
-            v_mem.get_data_ref() = v_mem.get_data_ref() * beta;
+        // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
+        // is decayed by a factor of `beta`. If there were no input, the potential
+        // would exponentially decay toward its resting potential (0).
+        v_mem = v_mem.multiply_scalar(beta);
 
-            // 2. Integrate: The new input current (`input.data`) is added to the
-            // decayed membrane potential. This is the "integrate" part of the neuron's name.
-            v_mem.get_data_ref() = v_mem.get_data_ref() + input.get_data_ref();
+        // 2. Integrate: The new input current (`input.data`) is added to the
+        // decayed membrane potential. This is the "integrate" part of the neuron's name.
+        v_mem = v_mem.add(input);
 
-            // 3. Cache: The potential is saved just before the spike check. This is for
-            // the `backward` pass, as the surrogate gradient is calculated based on this
-            // pre-spike potential.
-            if (requires_grad)
-            {
-                v_mem_pre_spike = v_mem;
-            }
+        // 3. Cache: The potential is saved just before the spike check. This is for
+        // the `backward` pass, as the surrogate gradient is calculated based on this
+        // pre-spike potential.
+        if (requires_grad)
+        {
+            v_mem_pre_spike = v_mem;
+        }
 #ifdef DEBUG
-            {
-                std::ostringstream oss;
-                oss << "Updated V_mem - " << static_cast<const void*>(this);
-                printTensor(v_mem, oss.str());
-            }
-#endif
-            // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
-            // This is a non-differentiable step function, which is why we need surrogate
-            // gradients for training.
-            nn::Tensor output(input.rows(), input.cols());
-            output.get_data_ref() =
-                (v_mem.get_data_ref().array() > voltage_threshold.get_data_ref()(0, 0))
-                    .cast<float>();
-
-            // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
-            if (reset_zero)
-            {
-                // Hard Reset: The potential is reset to a fixed value, `reset_potential`
-                // (which is often 0).
-                nn::Tensor reset_vals(v_mem.rows(), v_mem.cols());
-                reset_vals.get_data_ref().setConstant(reset_potential);
-                v_mem.get_data_ref() = (output.get_data_ref().array() == 1.0F)
-                                           .select(reset_vals.get_data_ref(), v_mem.get_data_ref());
-            }
-            else
-            {
-                // Soft Reset: The threshold voltage is subtracted from the membrane
-                // potential. This retains any "excess" potential that was accumulated
-                // above the threshold.
-                v_mem.get_data_ref() =
-                    v_mem.get_data_ref().array() -
-                    output.get_data_ref().array() * voltage_threshold.get_data_ref()(0, 0);
-            }
-
-            return output;
-        }
-
-        /**
-         * @brief Backward pass for Leaky neuron.
-         *
-         * The Problem: The derivative of the spike function in the forward pass is a
-         * step function (zero almost everywhere, and infinite at the threshold). This
-         * prevents learning via backpropagation, a problem often called the "dead
-         * neuron problem".
-         *
-         * The Solution: We use a **surrogate gradient**. Instead of the true (and
-         * useless) derivative, we substitute a "fake" or "surrogate" derivative that
-         * has a non-zero value in a small region around the threshold. This allows a
-         * gradient to flow back through the neuron, enabling training.
-         *
-         * @param grad_output Gradient from the next layer
-         * @return Tensor Gradient w.r.t. input
-         */
-        auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
         {
-            // --- Surrogate Gradient Calculation ---
-            const auto surrogate_grad =
-                surrogate_gradient
-                    ->calculate(v_mem_pre_spike, voltage_threshold.get_data_ref()(0, 0))
-                    .get_data_ref();
-
-            // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
-            // This is the starting point for calculating other gradients via the chain rule.
-            const auto grad_v_pre_mat = grad_output.get_data_ref().array() * surrogate_grad.array();
-
-            // --- Gradient for voltage_threshold ---
-            // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) =
-            // -grad_v_pre Since V_th is a scalar, we sum the gradients from all neurons.
-            const float dL_dVth = -grad_v_pre_mat.sum();
-            nn::Tensor vth_grad(1, 1);
-            vth_grad.at(0, 0) = dL_dVth;
-            voltage_threshold.set_grad(vth_grad);
-
-            // --- Gradient for resistance ---
-            // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
-            const float R = resistance.get_data_ref()(0, 0);
-            const float C = capacitance;
-            const float tau = R * C;
-            if (tau > 1e-6) [[likely]]
-            { // Avoid division by zero if R or C are zero
-                const float beta = std::exp(-dt / tau);
-                const float d_beta_dR = (beta * dt) / (C * R * R);
-
-                // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
-                const auto dL_dbeta_array = grad_v_pre_mat * v_mem_t_minus_1.get_data_ref().array();
-                const float dL_dbeta = dL_dbeta_array.sum();
-                const float dL_dR = dL_dbeta * d_beta_dR;
-                nn::Tensor r_grad(1, 1);
-                r_grad.at(0, 0) = dL_dR;
-                resistance.set_grad(r_grad);
-            }
-            else
-            {
-                nn::Tensor r_grad(1, 1);
-                r_grad.get_data_ref().setZero();
-                resistance.set_grad(r_grad);
-            }
-
-            // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
-            // the gradient from the subsequent layer (`grad_output`) multiplied by this
-            // local surrogate gradient.
-            // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
-            nn::Tensor grad_input(grad_v_pre_mat.rows(), grad_v_pre_mat.cols());
-            grad_input.get_data_ref() = grad_v_pre_mat.matrix();
-
-            return grad_input;
+            std::ostringstream oss;
+            oss << "Updated V_mem - " << static_cast<const void*>(this);
+            printTensor(v_mem, oss.str());
         }
-    };
+#endif
+        // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
+        // This is a non-differentiable step function, which is why we need surrogate
+        // gradients for training.
+        nn::Tensor output(input.rows(), input.cols());
+        float threshold_val = voltage_threshold.at(0, 0);
+        for (size_t i = 0; i < v_mem.rows(); ++i)
+        {
+            for (size_t j = 0; j < v_mem.cols(); ++j)
+            {
+                output.at(i, j) = (v_mem.at(i, j) > threshold_val) ? 1.0f : 0.0f;
+            }
+        }
+
+        // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
+        if (reset_zero)
+        {
+            // Hard Reset: The potential is reset to a fixed value, `reset_potential`
+            // (which is often 0).
+            for (size_t i = 0; i < v_mem.rows(); ++i)
+            {
+                for (size_t j = 0; j < v_mem.cols(); ++j)
+                {
+                    if (output.at(i, j) == 1.0f)
+                    {
+                        v_mem.at(i, j) = reset_potential;
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Soft Reset: The threshold voltage is subtracted from the membrane
+            // potential. This retains any "excess" potential that was accumulated
+            // above the threshold.
+            for (size_t i = 0; i < v_mem.rows(); ++i)
+            {
+                for (size_t j = 0; j < v_mem.cols(); ++j)
+                {
+                    v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * threshold_val;
+                }
+            }
+        }
+
+        return output;
+    }
+
+    /**
+     * @brief Backward pass for Leaky neuron.
+     *
+     * The Problem: The derivative of the spike function in the forward pass is a
+     * step function (zero almost everywhere, and infinite at the threshold). This
+     * prevents learning via backpropagation, a problem often called the "dead
+     * neuron problem".
+     *
+     * The Solution: We use a **surrogate gradient**. Instead of the true (and
+     * useless) derivative, we substitute a "fake" or "surrogate" derivative that
+     * has a non-zero value in a small region around the threshold. This allows a
+     * gradient to flow back through the neuron, enabling training.
+     *
+     * @param grad_output Gradient from the next layer
+     * @return Tensor Gradient w.r.t. input
+     */
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    {
+        // --- Surrogate Gradient Calculation ---
+        const auto surrogate_grad =
+            surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.at(0, 0));
+
+        // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
+        // This is the starting point for calculating other gradients via the chain rule.
+        nn::Tensor grad_v_pre_mat(grad_output.rows(), grad_output.cols());
+        for (size_t i = 0; i < grad_output.rows(); ++i)
+        {
+            for (size_t j = 0; j < grad_output.cols(); ++j)
+            {
+                grad_v_pre_mat.at(i, j) = grad_output.at(i, j) * surrogate_grad.at(i, j);
+            }
+        }
+
+        // --- Gradient for voltage_threshold ---
+        // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) =
+        // -grad_v_pre Since V_th is a scalar, we sum the gradients from all neurons.
+        float dL_dVth = 0.0f;
+        for (size_t i = 0; i < grad_v_pre_mat.rows(); ++i)
+        {
+            for (size_t j = 0; j < grad_v_pre_mat.cols(); ++j)
+            {
+                dL_dVth -= grad_v_pre_mat.at(i, j);
+            }
+        }
+        nn::Tensor vth_grad(1, 1);
+        vth_grad.at(0, 0) = dL_dVth;
+        voltage_threshold.set_grad(vth_grad);
+
+        // --- Gradient for resistance ---
+        // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
+        const float R = resistance.at(0, 0);
+        const float C = capacitance;
+        const float tau = R * C;
+        if (tau > 1e-6) [[likely]]
+        { // Avoid division by zero if R or C are zero
+            const float beta = std::exp(-dt / tau);
+            const float d_beta_dR = (beta * dt) / (C * R * R);
+
+            // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
+            float dL_dbeta = 0.0f;
+            for (size_t i = 0; i < grad_v_pre_mat.rows(); ++i)
+            {
+                for (size_t j = 0; j < grad_v_pre_mat.cols(); ++j)
+                {
+                    dL_dbeta += grad_v_pre_mat.at(i, j) * v_mem_t_minus_1.at(i, j);
+                }
+            }
+            const float dL_dR = dL_dbeta * d_beta_dR;
+            nn::Tensor r_grad(1, 1);
+            r_grad.at(0, 0) = dL_dR;
+            resistance.set_grad(r_grad);
+        }
+        else
+        {
+            nn::Tensor r_grad(1, 1);
+            r_grad.set_zero();
+            resistance.set_grad(r_grad);
+        }
+
+        // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
+        // the gradient from the subsequent layer (`grad_output`) multiplied by this
+        // local surrogate gradient.
+        // dL/dI = dL/dv_pre * dv_pre/dI = grad_v_pre * 1
+        return grad_v_pre_mat;
+    }
+};
 
 #endif // LIF_HPP

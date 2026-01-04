@@ -42,10 +42,21 @@ TEST(SequentialTest, ForwardAndBackward)
     nn::Tensor weight_data(1, 2);
     weight_data.at(0, 0) = 1.0F;
     weight_data.at(0, 1) = 2.0F;
-    linear->weight.set_data(weight_data.get_data_ref());
+    // Copy weight_data to linear->weight
+    for (size_t i = 0; i < weight_data.rows(); ++i)
+    {
+        for (size_t j = 0; j < weight_data.cols(); ++j)
+        {
+            linear->weight.at(i, j) = weight_data.at(i, j);
+        }
+    }
     nn::Tensor bias_data(1, 1);
     bias_data.at(0, 0) = 0.0F;
-    linear->bias.set_data(bias_data.get_data_ref());
+    // Copy bias_data to linear->bias
+    for (size_t i = 0; i < bias_data.rows(); ++i)
+    {
+        linear->bias.at(i, 0) = bias_data.at(i, 0);
+    }
     auto relu = std::make_shared<ReLU>();
     Sequential seq({linear, relu});
     nn::Tensor in_tensor(1, 2);
@@ -68,10 +79,21 @@ TEST(LinearLayerTest, ForwardSimple)
     nn::Tensor weight_data(1, 2);
     weight_data.at(0, 0) = 2.0F;
     weight_data.at(0, 1) = 3.0F;
-    linear.weight.set_data(weight_data.get_data_ref());
+    // Copy weight_data to linear.weight
+    for (size_t i = 0; i < weight_data.rows(); ++i)
+    {
+        for (size_t j = 0; j < weight_data.cols(); ++j)
+        {
+            linear.weight.at(i, j) = weight_data.at(i, j);
+        }
+    }
     nn::Tensor bias_data(1, 1);
     bias_data.at(0, 0) = 1.0F;
-    linear.bias.set_data(bias_data.get_data_ref());
+    // Copy bias_data to linear.bias
+    for (size_t i = 0; i < bias_data.rows(); ++i)
+    {
+        linear.bias.at(i, 0) = bias_data.at(i, 0);
+    }
     nn::Tensor in_tensor(1, 2);
     in_tensor.at(0, 0) = 1.0F;
     in_tensor.at(0, 1) = 2.0F;
@@ -96,7 +118,7 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
     // Como input > threshold, deve gerar spike (1.0)
     ASSERT_FLOAT_EQ(out.at(0, 0), 1.0F);
     // Após spike, v_mem deve ser resetado para zero
-    ASSERT_FLOAT_EQ(leaky.v_mem(0, 0), 0.0F);
+    ASSERT_FLOAT_EQ(leaky.v_mem.at(0, 0), 0.0F);
 }
 
 // Teste para Leaky sem reset para zero
@@ -115,7 +137,7 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
     // Deve gerar spike
     ASSERT_FLOAT_EQ(out.at(0, 0), 1.0F);
     // v_mem deve ser reduzido pelo threshold
-    ASSERT_FLOAT_EQ(leaky.v_mem(0, 0), 1.0F); // 3.0 - 2.0
+    ASSERT_FLOAT_EQ(leaky.v_mem.at(0, 0), 1.0F); // 3.0 - 2.0
 }
 
 // Teste para LeakyReLU
@@ -160,8 +182,8 @@ TEST(SurrogateGradientTest, Exponential)
     ExponentialSurrogate surrogate(1.0F);
     nn::Tensor v_mem_tensor(1, 1);
     v_mem_tensor.at(0, 0) = 2.1F;
-    Eigen::MatrixXf grad = surrogate.calculate(v_mem_tensor, 2.0F).get_data_ref();
-    ASSERT_NEAR(grad(0, 0), 0.9048374, 1e-5F);
+    auto grad = surrogate.calculate(v_mem_tensor, 2.0F);
+    ASSERT_NEAR(grad.at(0, 0), 0.9048374, 1e-5F);
 }
 
 TEST(SurrogateGradientTest, Boxcar)
@@ -170,9 +192,9 @@ TEST(SurrogateGradientTest, Boxcar)
     nn::Tensor v_mem_tensor(1, 2);
     v_mem_tensor.at(0, 0) = 2.1F;
     v_mem_tensor.at(0, 1) = 2.3F;
-    Eigen::MatrixXf grad = surrogate.calculate(v_mem_tensor, 2.0F).get_data_ref();
-    ASSERT_FLOAT_EQ(grad(0, 0), 1.0F);
-    ASSERT_FLOAT_EQ(grad(0, 1), 0.0F);
+    auto grad = surrogate.calculate(v_mem_tensor, 2.0F);
+    ASSERT_FLOAT_EQ(grad.at(0, 0), 1.0F);
+    ASSERT_FLOAT_EQ(grad.at(0, 1), 0.0F);
 }
 
 TEST(Conv2dTest, ForwardAndBackward)
@@ -236,22 +258,22 @@ TEST(Conv2dTest, ForwardAndBackward)
 
     nn::Tensor grad_output(std::vector<size_t>{
         static_cast<size_t>(batch_size), static_cast<size_t>(out_channels), 2, 2});
-    grad_output.get_data_ref().setOnes(); // Gradient of 1 for all output elements
+    grad_output.set_ones(); // Gradient of 1 for all output elements
 
     nn::Tensor grad_input = conv.backward(grad_output);
 
     // Check bias gradient
-    ASSERT_NEAR(conv.get_bias().get_grad_ref()(0), 4.0, 1e-5); // sum of grad_output = 1+1+1+1
+    ASSERT_NEAR(conv.get_bias().at(0, 0), 4.0, 1e-5); // sum of grad_output = 1+1+1+1
 
     // Check weights gradient
     // grad_w[0] = 1*1 + 2*1 + 4*1 + 5*1 = 12
     // grad_w[1] = 2*1 + 3*1 + 5*1 + 6*1 = 16
     // grad_w[2] = 4*1 + 5*1 + 7*1 + 8*1 = 24
     // grad_w[3] = 5*1 + 6*1 + 8*1 + 9*1 = 28
-    ASSERT_NEAR(conv.get_weights().get_grad_ref()(0), 12, 1e-5);
-    ASSERT_NEAR(conv.get_weights().get_grad_ref()(1), 16, 1e-5);
-    ASSERT_NEAR(conv.get_weights().get_grad_ref()(2), 24, 1e-5);
-    ASSERT_NEAR(conv.get_weights().get_grad_ref()(3), 28, 1e-5);
+    ASSERT_NEAR(conv.get_weights().at(0, 0), 12, 1e-5);
+    ASSERT_NEAR(conv.get_weights().at(0, 1), 16, 1e-5);
+    ASSERT_NEAR(conv.get_weights().at(1, 0), 24, 1e-5);
+    ASSERT_NEAR(conv.get_weights().at(1, 1), 28, 1e-5);
 
     // Check input gradient
     ASSERT_NEAR(grad_input.at(0, 0, 0, 0), 1.0, 1e-5);
@@ -274,7 +296,7 @@ TEST(Conv2dTest, MultipleBatches)
 
     // Simple weights and bias
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    weights.get_data_ref().setOnes();
+    weights.set_ones();
     conv.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
@@ -328,7 +350,7 @@ TEST(Conv2dTest, MultiChannelForward)
 
     // Initialize weights with known pattern
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    weights.get_data_ref().setZero();
+    weights.setZero();
 
     // First output channel: use only first input channel (all 1s)
     for (int i = 0; i < kernel_size * kernel_size; ++i)
@@ -351,7 +373,7 @@ TEST(Conv2dTest, MultiChannelForward)
 
     // Create input
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setZero();
+    input.setZero();
 
     // Set first channel to all 1s
     for (int i = 0; i < input_height; ++i)
@@ -410,7 +432,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
         conv.set_bias(bias);
 
         nn::Tensor input(batch_size, in_channels, input_height, input_width);
-        input.get_data_ref().setOnes();
+        input.set_ones();
 
         nn::Tensor output = conv.forward(input);
 
@@ -426,7 +448,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
     {
         Conv2d conv(in_channels, out_channels, 3);
         nn::Tensor weights(9, out_channels);
-        weights.get_data_ref().setOnes();
+        weights.set_ones();
         conv.set_weights(weights);
 
         nn::Tensor bias(1, out_channels);
@@ -434,7 +456,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
         conv.set_bias(bias);
 
         nn::Tensor input(batch_size, in_channels, input_height, input_width);
-        input.get_data_ref().setOnes();
+        input.set_ones();
 
         nn::Tensor output = conv.forward(input);
 
@@ -449,7 +471,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
     {
         Conv2d conv(in_channels, out_channels, 5);
         nn::Tensor weights(25, out_channels);
-        weights.get_data_ref().setOnes();
+        weights.set_ones();
         conv.set_weights(weights);
 
         nn::Tensor bias(1, out_channels);
@@ -457,7 +479,7 @@ TEST(Conv2dTest, DifferentKernelSizes)
         conv.set_bias(bias);
 
         nn::Tensor input(batch_size, in_channels, input_height, input_width);
-        input.get_data_ref().setOnes();
+        input.set_ones();
 
         nn::Tensor output = conv.forward(input);
 
@@ -491,18 +513,18 @@ TEST(Conv2dTest, ParallelExecution)
 
     // Initialize with same weights and bias
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    weights.get_data_ref().setOnes();
+    weights.set_ones();
     conv_parallel.set_weights(weights);
     conv_sequential.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
-    bias.get_data_ref().setZero();
+    bias.setZero();
     conv_parallel.set_bias(bias);
     conv_sequential.set_bias(bias);
 
     // Create input
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setOnes();
+    input.set_ones();
 
     // Forward passes - just verify they execute without crashing
     nn::Tensor output_parallel = conv_parallel.forward(input);
@@ -520,7 +542,7 @@ TEST(Conv2dTest, ParallelExecution)
 
     // Backward passes
     nn::Tensor grad_output(batch_size, out_channels, shape_p[2], shape_p[3]);
-    grad_output.get_data_ref().setOnes();
+    grad_output.set_ones();
 
     nn::Tensor grad_input_p = conv_parallel.backward(grad_output);
     nn::Tensor grad_input_s = conv_sequential.backward(grad_output);
@@ -558,23 +580,29 @@ TEST(Conv2dTest, GradientComputation)
 
     // Input
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setRandom();
+    for (size_t i = 0; i < input.size(); ++i)
+    {
+        input.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+    }
 
     // Forward and backward
     conv.forward(input);
     nn::Tensor grad_output(batch_size, out_channels, 3, 3);
-    grad_output.get_data_ref().setRandom();
+    for (size_t i = 0; i < grad_output.size(); ++i)
+    {
+        grad_output.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+    }
     conv.backward(grad_output);
 
     // Verify gradients were computed (non-zero)
-    auto& weight_grad = conv.get_weights().get_grad_ref();
-    auto& bias_grad = conv.get_bias().get_grad_ref();
+    auto& weight_grad = conv.get_weights();
+    auto& bias_grad = conv.get_bias();
 
     // Verify that at least some gradients are non-zero
     bool has_nonzero_weight_grad = false;
     for (int i = 0; i < weight_grad.size(); ++i)
     {
-        if (std::abs(weight_grad(i)) > 1e-6F)
+        if (std::abs(weight_grad.at(i)) > 1e-6F)
         {
             has_nonzero_weight_grad = true;
             break;
@@ -583,8 +611,8 @@ TEST(Conv2dTest, GradientComputation)
     ASSERT_TRUE(has_nonzero_weight_grad);
 
     // Bias gradient should be sum of grad_output
-    float expected_bias_grad = grad_output.get_data_ref().sum();
-    ASSERT_NEAR(bias_grad(0), expected_bias_grad, 1e-4F);
+    float expected_bias_grad = grad_output.sum();
+    ASSERT_NEAR(bias_grad.at(0), expected_bias_grad, 1e-4F);
 }
 
 // Test: Edge case - small input
@@ -600,7 +628,7 @@ TEST(Conv2dTest, SmallInputSize)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    weights.get_data_ref().setOnes();
+    weights.set_ones();
     conv.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
@@ -608,7 +636,7 @@ TEST(Conv2dTest, SmallInputSize)
     conv.set_bias(bias);
 
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setOnes();
+    input.set_ones();
 
     nn::Tensor output = conv.forward(input);
 
@@ -649,15 +677,30 @@ TEST(Conv2dTest, LargeBatchSize)
     Conv2d conv(in_channels, out_channels, kernel_size, batch_size);
 
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    weights.get_data_ref().setRandom();
+    for (size_t i = 0; i < weights.rows(); ++i)
+    {
+        for (size_t j = 0; j < weights.cols(); ++j)
+        {
+            weights.at(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+        }
+    }
     conv.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
-    bias.get_data_ref().setRandom();
+    for (size_t i = 0; i < bias.rows(); ++i)
+    {
+        for (size_t j = 0; j < bias.cols(); ++j)
+        {
+            bias.at(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+        }
+    }
     conv.set_bias(bias);
 
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setRandom();
+    for (size_t i = 0; i < input.size(); ++i)
+    {
+        input.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+    }
 
     nn::Tensor output = conv.forward(input);
 
@@ -670,7 +713,10 @@ TEST(Conv2dTest, LargeBatchSize)
 
     // Backward pass
     nn::Tensor grad_output(batch_size, out_channels, 6, 6);
-    grad_output.get_data_ref().setRandom();
+    for (size_t i = 0; i < grad_output.size(); ++i)
+    {
+        grad_output.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
+    }
 
     nn::Tensor grad_input = conv.backward(grad_output);
 
@@ -697,7 +743,7 @@ TEST(Conv2dTest, BiasShapeVariants)
 
     // Weights: simple ones
     nn::Tensor weights(1, out_channels);
-    weights.get_data_ref().setOnes();
+    weights.set_ones();
     conv_col.set_weights(weights);
     conv_row.set_weights(weights);
 
@@ -715,7 +761,7 @@ TEST(Conv2dTest, BiasShapeVariants)
 
     // Input: all ones
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    input.get_data_ref().setOnes();
+    input.set_ones();
 
     nn::Tensor out_col = conv_col.forward(input);
     nn::Tensor out_row = conv_row.forward(input);
@@ -753,11 +799,21 @@ TEST(L1RegularizationTest, Backward)
 
     reg.backward(params);
     // grad for param1: sign(1)*0.5 = 0.5
-    Eigen::MatrixXf expected_grad1 = Eigen::MatrixXf::Constant(2, 2, 0.5F);
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(expected_grad1));
+    for (size_t i = 0; i < 2; ++i)
+    {
+        for (size_t j = 0; j < 2; ++j)
+        {
+            ASSERT_NEAR(param1.at(i, j), 0.5F, 1e-5F);
+        }
+    }
     // grad for param2: sign(-2)*0.5 = -0.5
-    Eigen::MatrixXf expected_grad2 = Eigen::MatrixXf::Constant(1, 3, -0.5F);
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(expected_grad2));
+    for (size_t i = 0; i < 1; ++i)
+    {
+        for (size_t j = 0; j < 3; ++j)
+        {
+            ASSERT_NEAR(param2.at(i, j), -0.5F, 1e-5F);
+        }
+    }
 }
 
 // Test for L2Regularization
@@ -788,11 +844,21 @@ TEST(L2RegularizationTest, Backward)
 
     reg.backward(params);
     // grad for param1: 2*1*0.5 = 1.0
-    Eigen::MatrixXf expected_grad1 = Eigen::MatrixXf::Constant(2, 2, 1.0F);
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(expected_grad1));
+    for (size_t i = 0; i < 2; ++i)
+    {
+        for (size_t j = 0; j < 2; ++j)
+        {
+            ASSERT_NEAR(param1.at(i, j), 1.0F, 1e-5F);
+        }
+    }
     // grad for param2: 2*2*0.5 = 2.0
-    Eigen::MatrixXf expected_grad2 = Eigen::MatrixXf::Constant(1, 3, 2.0F);
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(expected_grad2));
+    for (size_t i = 0; i < 1; ++i)
+    {
+        for (size_t j = 0; j < 3; ++j)
+        {
+            ASSERT_NEAR(param2.at(i, j), 2.0F, 1e-5F);
+        }
+    }
 }
 
 TEST(SimpleResNetTest, ForwardAndBackward)
@@ -966,8 +1032,8 @@ TEST(LayerNumericalEdgeTest, NaNInfHandling)
 {
     Linear linear(2, 1);
     // Set weights to 1 so Inf propagates as Inf (not NaN)
-    linear.weight.get_data_ref().setOnes();
-    linear.bias.get_data_ref().setZero();
+    linear.weight.set_ones();
+    linear.bias.setZero();
 
     // Test with NaN inputs
     nn::Tensor nan_tensor(1, 2);
@@ -1072,8 +1138,8 @@ TEST(LayerThreadSafetyTest, GradientAccumulation)
         [[maybe_unused]] nn::Tensor grad_input = linear.backward(grad_tensor);
 
         // Verify gradients are accumulated properly
-        EXPECT_FALSE(std::isnan(linear.weight.get_grad_ref().sum()));
-        EXPECT_FALSE(std::isnan(linear.bias.get_grad_ref().sum()));
+        EXPECT_FALSE(std::isnan(linear.weight.sum()));
+        EXPECT_FALSE(std::isnan(linear.bias.sum()));
     }
 }
 
@@ -1107,12 +1173,10 @@ TEST(LayerComprehensiveTest, ReLUGradientFlow)
     Sequential seq({std::make_shared<Linear>(linear), std::make_shared<ReLU>(relu)});
 
     // Input that will produce negative pre-activation
-    Eigen::MatrixXf weight_data(1, 2);
-    weight_data << -2.0F, -3.0F;
-    linear.weight.set_data(weight_data);
-    Eigen::MatrixXf bias_data(1, 1);
-    bias_data << 1.0F;
-    linear.bias.set_data(bias_data);
+    linear.weight.at(0, 0) = -2.0F;
+    linear.weight.at(0, 1) = -3.0F;
+
+    linear.bias.at(0, 0) = 1.0F;
 
     nn::Tensor input_tensor(1, 2);
     input_tensor.at(0, 0) = 2.0F;
@@ -1174,7 +1238,7 @@ TEST(LayerComprehensiveTest, RegularizationZeroParameters)
 
     l1.backward(params);
     // Gradients should be zero for zero parameters
-    EXPECT_EQ(param1.get_grad_ref().sum(), 0.0F);
+    EXPECT_EQ(param1.sum(), 0.0F);
 }
 
 TEST(LayerComprehensiveTest, SurrogateGradientRange)

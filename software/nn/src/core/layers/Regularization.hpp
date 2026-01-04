@@ -55,11 +55,14 @@ class L1Regularization : public Regularization
         // Iterate through all parameter tensors
         for (const auto* param : params)
         {
-            // Get reference to the parameter data matrix
-            const auto& data = param->get_data_ref();
-
-            // Add the sum of absolute values of this parameter tensor to the penalty
-            penalty += data.array().abs().sum();
+            // Sum absolute values of each parameter
+            for (size_t i = 0; i < param->rows(); ++i)
+            {
+                for (size_t j = 0; j < param->cols(); ++j)
+                {
+                    penalty += std::abs(param->at(i, j));
+                }
+            }
         }
 
         // Scale the total penalty by the regularization strength
@@ -81,13 +84,20 @@ class L1Regularization : public Regularization
         // Iterate through all parameter tensors
         for (auto* param : params)
         {
-            // Get references to the parameter data and gradient matrices
-            const auto& data = param->get_data_ref();
-            auto& grad = param->get_grad_ref();
+            // Get the gradient tensor
+            auto grad = param->grad();
 
             // Accumulate L1 gradient: lambda * sign(data)
-            // sign() returns -1 for negative, 0 for zero, +1 for positive values
-            grad += lambda_ * data.array().sign().matrix();
+            for (size_t i = 0; i < param->rows(); ++i)
+            {
+                for (size_t j = 0; j < param->cols(); ++j)
+                {
+                    float val = param->at(i, j);
+                    float sign = (val > 0.0f) ? 1.0f : (val < 0.0f) ? -1.0f : 0.0f;
+                    grad.at(i, j) = grad.at(i, j) + lambda_ * sign;
+                }
+            }
+            param->set_grad(grad);
         }
     }
 };
@@ -140,8 +150,8 @@ class L2Regularization : public Regularization
         for (auto* param : params)
         {
             // Get references to the parameter data and gradient matrices
-            const auto& data = param->get_data_ref();
-            auto& grad = param->get_grad_ref();
+            const auto& data = param->data();
+            auto& grad = param->grad();
 
             // Accumulate L2 gradient: 2 * lambda * data
             // The derivative of lambda * sum(x^2) with respect to x is 2 * lambda * x

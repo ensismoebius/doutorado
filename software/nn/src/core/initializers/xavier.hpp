@@ -34,13 +34,13 @@ inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& wei
     {
         for (int j = 0; j < in_features; ++j)
         {
-            weights.get_data_ref()(i, j) = dist(gen);
+            weights(i, j) = dist(gen);
         }
     }
 
     // Initialize biases with random values from the same distribution
     for (int i = 0; i < out_features; ++i)
     {
-        bias.get_data_ref()(i, 0) = dist(gen);
+        bias(i, 0) = dist(gen);
     }
 }

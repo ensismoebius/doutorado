@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/tensor/ITensorBackend.hpp"
+#include "../ITensorBackend.hpp"
 
 namespace nn
 {
@@ -32,6 +32,8 @@ class MockTensorBackend : public ITensorBackend
     void construct(Index d1, Index d2, Index d3, Index d4) override;
     void construct(const std::vector<Index>& shape) override;
 
+    float& at(Index i) override;
+    const float& at(Index i) const override;
     float& at(Index row, Index col) override;
     const float& at(Index row, Index col) const override;
     float& at(Index d1, Index d2, Index d3, Index d4) override;
@@ -66,15 +68,31 @@ class MockTensorBackend : public ITensorBackend
 
     float mean_squared_error(const ITensorBackend& target) const override;
     float norm() const override;
+    float sum() const override;
+    std::unique_ptr<ITensorBackend> sum_rows() const override;
+    std::unique_ptr<ITensorBackend> sum_cols() const override;
 
     void zero_grad() override;
     void set_grad(const ITensorBackend& grad) override;
     const ITensorBackend& grad() const override;
     ITensorBackend& grad() override;
 
+    // Element-wise math operations
+    std::unique_ptr<ITensorBackend> sqrt() const override;
+    std::unique_ptr<ITensorBackend> square() const override;
+    std::unique_ptr<ITensorBackend> abs() const override;
+    std::unique_ptr<ITensorBackend> divide(const ITensorBackend& other) const override;
+    std::unique_ptr<ITensorBackend> divide_scalar(float scalar) const override;
+
+    // Initialization
+    void fill(float value) override;
+    void set_zero() override;
+    void set_ones() override;
+
     const float* data_ptr() const override;
     Index data_rows() const override;
     Index data_cols() const override;
+    float* mutable_data_ptr() override;
 
     std::unique_ptr<ITensorBackend> clone() const override;
     void copy_from(const ITensorBackend& other) override;

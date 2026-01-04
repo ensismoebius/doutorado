@@ -1,9 +1,7 @@
 #pragma once
 
-#include <Eigen/Core>
 #include <filesystem>
 #include <memory>
-#include <tuple>
 #include <vector>
 
 #include "Config.hpp"
@@ -26,7 +24,7 @@ auto tensor_from_slice(const std::vector<std::vector<double>>& features, size_t 
     -> nn::Tensor;
 auto one_hot_from_slice(const std::vector<int>& labels, size_t start, size_t end, int num_classes)
     -> nn::Tensor;
-auto compute_accuracy(const Eigen::MatrixXf& logits, const std::vector<int>& labels) -> double;
+auto compute_accuracy(const nn::Tensor& logits, const std::vector<int>& labels) -> double;
 
 auto train_resnet_snn(const std::vector<std::vector<double>>& features,
                       const std::vector<int>& labels, const Config& cfg, int num_classes)

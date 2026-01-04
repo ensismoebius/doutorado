@@ -14,39 +14,40 @@
 namespace phase00
 {
 
-auto tensor_from_slice(const std::vector<std::vector<double>>& features, size_t start, size_t end)
+auto tensor_from_slice(const std::vector<std::vector<double>>& features, sizet_t start, sizet_t end)
     -> nn::Tensor
 {
-    const int rows = static_cast<int>(end - start);
-    const int cols = static_cast<int>(features.front().size());
-    Eigen::MatrixXf mat(rows, cols);
+    const sizet_t rows = end - start;
+    const sizet_t cols = features.front().size();
+    nn::Tensor result(rows, cols);
 
-    for (size_t i = 0; i < static_cast<size_t>(rows); ++i)
+    for (sizet_t i = 0; i < rows; ++i)
     {
-        for (int j = 0; j < cols; ++j)
+        for (sizet_t j = 0; j < cols; ++j)
         {
-            mat(static_cast<int>(i), j) = static_cast<float>(features[start + i][j]);
+            result.at(i, j) = static_cast<float>(features[start + i][j]);
         }
     }
 
-    return nn::Tensor{mat};
+    return result;
 }
 
-auto one_hot_from_slice(const std::vector<int>& labels, size_t start, size_t end, int num_classes)
+auto one_hot_from_slice(const std::vector<int>& labels, sizet_t start, sizet_t end, int num_classes)
     -> nn::Tensor
 {
-    const int rows = static_cast<int>(end - start);
-    Eigen::MatrixXf mat = Eigen::MatrixXf::Zero(rows, num_classes);
+    const sizet_t rows = end - start;
+    nn::Tensor result(rows, static_cast<sizet_t>(num_classes));
+    result.set_zero();
 
-    for (int i = 0; i < rows; ++i)
+    for (sizet_t i = 0; i < rows; ++i)
     {
-        mat(i, labels[start + static_cast<size_t>(i)]) = 1.0F;
+        result.at(i, labels[start + i]) = 1.0F;
     }
 
-    return nn::Tensor{mat};
+    return result;
 }
 
-auto compute_accuracy(const Eigen::MatrixXf& logits, const std::vector<int>& labels) -> double
+auto compute_accuracy(const nn::Tensor& logits, const std::vector<int>& labels) -> double
 {
     const auto samples = std::min<size_t>(logits.rows(), labels.size());
     if (samples == 0)
@@ -57,9 +58,17 @@ auto compute_accuracy(const Eigen::MatrixXf& logits, const std::vector<int>& lab
     size_t correct = 0;
     for (size_t i = 0; i < samples; ++i)
     {
-        Eigen::Index idx = 0;
-        logits.row(static_cast<int>(i)).maxCoeff(&idx);
-        if (static_cast<int>(idx) == labels[i])
+        float max_val = logits.at(i, 0);
+        int max_idx = 0;
+        for (int j = 1; j < static_cast<int>(logits.cols()); ++j)
+        {
+            if (logits.at(i, j) > max_val)
+            {
+                max_val = logits.at(i, j);
+                max_idx = j;
+            }
+        }
+        if (max_idx == labels[i])
         {
             ++correct;
         }
@@ -92,9 +101,9 @@ auto train_resnet_snn(const std::vector<std::vector<double>>& features,
             const int end = std::min(start + batch_size, total);
 
             auto batch_x =
-                tensor_from_slice(features, static_cast<size_t>(start), static_cast<size_t>(end));
+                tensor_from_slice(features, static_cast<sizet_t>(start), static_cast<sizet_t>(end));
             auto batch_y = one_hot_from_slice(
-                labels, static_cast<size_t>(start), static_cast<size_t>(end), num_classes);
+                labels, static_cast<sizet_t>(start), static_cast<sizet_t>(end), num_classes);
 
             loss.set_target(batch_y);
             optimizer.zero_grad(params);
@@ -107,9 +116,9 @@ auto train_resnet_snn(const std::vector<std::vector<double>>& features,
         }
     }
 
-    auto full_input = tensor_from_slice(features, 0, features.size());
+    auto full_input = tensor_from_slice(features, 0, static_cast<sizet_t>(features.size()));
     auto final_logits = model->forward(full_input, false);
-    double accuracy = compute_accuracy(final_logits.get_data_ref(), labels);
+    double accuracy = compute_accuracy(final_logits, labels);
 
     return {accuracy,
             std::move(model),
@@ -144,7 +153,7 @@ auto save_torch_state(const std::filesystem::path& path, const TrainResult& trai
 
     YAML::Node state_dict(YAML::NodeType::Sequence);
     auto params = trained.model->params();
-    for (size_t idx = 0; idx < params.size(); ++idx)
+    for (sizet_t idx = 0; idx < static_cast<sizet_t>(params.size()); ++idx)
     {
         const auto* param = params[idx];
         YAML::Node param_node;
@@ -154,13 +163,12 @@ auto save_torch_state(const std::filesystem::path& path, const TrainResult& trai
         param_node["shape"].push_back(static_cast<int>(param->cols()));
 
         std::vector<float> flat;
-        const auto& mat = param->get_data_ref();
-        flat.reserve(static_cast<size_t>(mat.size()));
-        for (int r = 0; r < mat.rows(); ++r)
+        flat.reserve(param->size());
+        for (sizet_t r = 0; r < param->rows(); ++r)
         {
-            for (int c = 0; c < mat.cols(); ++c)
+            for (sizet_t c = 0; c < param->cols(); ++c)
             {
-                flat.push_back(mat(r, c));
+                flat.push_back(param->at(r, c));
             }
         }
 

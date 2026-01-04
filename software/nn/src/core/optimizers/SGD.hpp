@@ -36,8 +36,8 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Cannot attach null parameter to optimizer");
             }
             // Initialize velocity tensor with zeros matching parameter shape
-            velocity.emplace_back(param->get_grad_ref().rows(), param->get_grad_ref().cols());
-            velocity.back().get_data_ref().setZero();
+            velocity.emplace_back(param->rows(), param->cols());
+            velocity.back().set_zero();
         }
     }
 
@@ -50,9 +50,16 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
-            velocity[i].get_data_ref() =
-                momentum * velocity[i].get_data_ref() - learning_rate * param.get_grad_ref();
-            param.get_data_ref() += velocity[i].get_data_ref();
+            velocity[i] =
+                velocity[i].multiply_scalar(momentum).add(param.multiply_scalar(-learning_rate));
+            // Element-wise addition to param data
+            for (size_t row = 0; row < param.rows(); ++row)
+            {
+                for (size_t col = 0; col < param.cols(); ++col)
+                {
+                    param.at(row, col) = param.at(row, col) + velocity[i].at(row, col);
+                }
+            }
         }
     }
 

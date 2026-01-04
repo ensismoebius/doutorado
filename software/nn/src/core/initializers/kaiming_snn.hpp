@@ -29,13 +29,13 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer) -> void
     {
         for (int j = 0; j < layer->in_features; ++j)
         {
-            layer->weight.get_data_ref()(i, j) = dist(gen);
+            layer->weight.at(i, j) = dist(gen);
         }
     }
 
     // Initialize biases to zero (common in SNNs)
     for (int i = 0; i < layer->out_features; ++i)
     {
-        layer->bias.get_data_ref()(i, 0) = 0.0F;
+        layer->bias.at(i, 0) = 0.0F;
     }
 }

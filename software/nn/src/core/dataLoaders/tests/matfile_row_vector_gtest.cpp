@@ -29,7 +29,7 @@ TEST(MatFileRowVectorTest, LoadRowVector)
     if (m.rows() > 1 && m.cols() == 1)
     {
         nn::Tensor transposed(1, m.rows());
-        for (nn::Index r = 0; r < m.rows(); ++r)
+        for (sizet_t r = 0; r < m.rows(); ++r)
         {
             transposed.at(0, r) = m.at(r, 0);
         }

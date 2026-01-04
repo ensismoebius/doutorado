@@ -20,6 +20,8 @@ class EigenTensorBackend : public ITensorBackend
     void construct(Index d1, Index d2, Index d3, Index d4) override;
     void construct(const std::vector<Index>& shape) override;
 
+    float& at(Index i) override;
+    const float& at(Index i) const override;
     float& at(Index row, Index col) override;
     const float& at(Index row, Index col) const override;
     float& at(Index d1, Index d2, Index d3, Index d4) override;
@@ -54,34 +56,30 @@ class EigenTensorBackend : public ITensorBackend
 
     float mean_squared_error(const ITensorBackend& target) const override;
     float norm() const override;
+    float sum() const override;
 
     void zero_grad() override;
     void set_grad(const ITensorBackend& grad) override;
     const ITensorBackend& grad() const override;
     ITensorBackend& grad() override;
 
-    // Eigen-specific accessors for backward compatibility
-    Eigen::MatrixXf& get_data_as_eigen() override
-    {
-        return m_data;
-    }
-    const Eigen::MatrixXf& get_data_as_eigen() const override
-    {
-        return m_data;
-    }
-    Eigen::MatrixXf& get_grad_as_eigen() override
-    {
-        return get_grad();
-    }
-    const Eigen::MatrixXf& get_grad_as_eigen() const override
-    {
-        return get_grad();
-    }
+    // Element-wise math operations
+    std::unique_ptr<ITensorBackend> sqrt() const override;
+    std::unique_ptr<ITensorBackend> square() const override;
+    std::unique_ptr<ITensorBackend> abs() const override;
+    std::unique_ptr<ITensorBackend> divide(const ITensorBackend& other) const override;
+    std::unique_ptr<ITensorBackend> divide_scalar(float scalar) const override;
+
+    // Initialization
+    void fill(float value) override;
+    void set_zero() override;
+    void set_ones() override;
 
     // Data access for backward compatibility
     const float* data_ptr() const override;
     Index data_rows() const override;
     Index data_cols() const override;
+    float* mutable_data_ptr() override;
 
     // Direct access to Eigen matrices (for backward compatibility)
     const Eigen::MatrixXf& get_data() const

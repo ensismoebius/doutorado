@@ -82,47 +82,58 @@
     "[cpp]": {
         "editor.defaultFormatter": "xaver.clang-format"
     },
-    // --------------------------------------------------
-    // Disable cpptools (clangd only)
-    // --------------------------------------------------
-    "C_Cpp.intelliSenseEngine": "disabled",
-    "C_Cpp.autocomplete": "Disabled",
-    "C_Cpp.errorSquiggles": "Disabled",
-    "C_Cpp.formatting": "Disabled",
-    "C_Cpp.codeAnalysis.runAutomatically": "Never",
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/build": true,
+        "**/.git": true,
+        "**/.DS_Store": true,
+        "**/dist": true,
+        "**/out": true,
+        "**/debug": true,
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/build": true,
+        "**/dist": true,
+        "**/out": true,
+        "**/debug": true
+    },
     // --------------------------------------------------
     // clangd (authoritative)
     // --------------------------------------------------
-    "clangd.path": "/usr/bin/clangd",
+    "clangd.path": "scripts/clangd-systemd.sh",
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
         "--background-index",
-        "--clang-tidy",
         "--completion-style=detailed",
-        "--header-insertion=never",
-        "--pch-storage=memory",
+        "--header-insertion=iwyu",
+        "--pch-storage=disk",
+        "--malloc-trim",
+        "-j=2",
         "--all-scopes-completion",
-        "--function-arg-placeholders=false"
+        "--function-arg-placeholders=true"
     ],
     // --------------------------------------------------
     // UX / workflow
     // --------------------------------------------------
     "github.copilot.enable": {
         "*": true,
-        "plaintext": false
+        "plaintext": true,
+        "markdown": true,
+        "scminput": false
     },
-    "github.copilot.inlineSuggest.enable": true,
     "editor.inlineSuggest.enabled": true,
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.clangd": "always"
     },
     "editor.semanticHighlighting.enabled": true,
-    "clangd.semanticHighlighting.enabled": true,
-    // --------------------------------------------------
-    // Performance (large HPC codebases)
-    // --------------------------------------------------
-    "files.maxMemoryForLargeFilesMB": 16000,
     // --------------------------------------------------
     // Debugging (kept as provided)
     // --------------------------------------------------

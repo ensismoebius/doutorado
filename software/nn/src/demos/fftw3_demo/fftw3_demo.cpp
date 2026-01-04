@@ -99,7 +99,7 @@ auto calculateFFTMagnitude(int signal_length, const fftw_complex* out_fftw_raw) 
         const double magnitude = sqrt((real * real) + (imag * imag)) + epsilon;
 
         // fft_magnitude stores floats; cast from double
-        fft_magnitude.get_data_ref()(0, k) = static_cast<float>(20.0 * log10(magnitude));
+        fft_magnitude(0, k) = static_cast<float>(20.0 * log10(magnitude));
     }
     return fft_magnitude;
 }
@@ -153,7 +153,7 @@ auto main() -> int
     nn::Tensor in_vec(1, static_cast<size_t>(signal_length));
     for (int i = 0; i < signal_length; i++)
     {
-        in_vec.get_data_ref()(0, i) = static_cast<float>(in_ptr.get()[i]);
+        in_vec(0, i) = static_cast<float>(in_ptr.get()[i]);
     }
 
     // Plotting

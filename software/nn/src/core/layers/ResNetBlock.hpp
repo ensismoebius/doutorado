@@ -24,24 +24,24 @@ class ResNetBlock : public Module
         const auto in_shape = input.get_shape();
         if (out_shape == in_shape) [[likely]]
         {
-            output.get_data_ref() = output.get_data_ref() + input.get_data_ref();
+            output = output + input;
         }
         else
         {
             // Create zero matrix matching output underlying data and copy overlapping region
             nn::Tensor aligned(output.rows(), output.cols());
-            aligned.get_data_ref().setZero();
+            aligned.setZero();
 
-            const auto& in_mat = input.get_data_ref();
-            const auto& out_mat = output.get_data_ref();
-            auto& aligned_mat = aligned.get_data_ref();
+            const auto& in_mat = input;
+            const auto& out_mat = output;
+            auto& aligned_mat = aligned;
 
             const auto rows_copy = static_cast<int>(std::min(in_mat.rows(), aligned_mat.rows()));
             const auto cols_copy = static_cast<int>(std::min(in_mat.cols(), aligned_mat.cols()));
 
             aligned_mat.block(0, 0, rows_copy, cols_copy) =
                 in_mat.block(0, 0, rows_copy, cols_copy);
-            output.get_data_ref() = out_mat + aligned_mat;
+            output = out_mat + aligned_mat;
         }
 
         return relu_.forward(output, requires_grad);

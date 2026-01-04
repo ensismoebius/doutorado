@@ -5,6 +5,7 @@
 #include <optional>
 #include <stdexcept>
 
+#include "../../tensor/Tensor.hpp"
 #include "../IMatLoader.hpp"
 
 namespace nn::dataLoaders
@@ -84,7 +85,7 @@ class AudioLoader : public IMatLoader
 };
 
 auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
-    -> std::tuple<Eigen::VectorXf, int, int>
+    -> std::tuple<nn::Tensor, int, int>
 {
     AudioLoader loader;
     if (!loader.open(filePath)) // flawfinder: ignore
@@ -129,8 +130,8 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to access data");
     }
 
-    // Create Eigen vector for the audio samples
-    Eigen::VectorXf audioSamples(AUDIO_SAMPLES_COUNT);
+    // Create Tensor for the audio samples (column vector)
+    nn::Tensor audioSamples(AUDIO_SAMPLES_COUNT, 1);
 
     // Copy audio samples
     for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
@@ -138,7 +139,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         double doubleValue = rawDataPtr[(i * audioVariable->dims[0]) + rowIndex];
         float floatValue = static_cast<float>(doubleValue);
 
-        audioSamples(i) = floatValue;
+        audioSamples.at(i, 0) = floatValue;
     }
 
     // Get the stimulus

@@ -24,14 +24,14 @@ class OptimizerTest : public ::testing::Test
     OptimizerTest() : weights(2, 2), bias(2, 1)
     {
         // Copy initial data
-        for (nn::Index i = 0; i < 2; ++i)
+        for (sizet_t i = 0; i < 2; ++i)
         {
-            for (nn::Index j = 0; j < 2; ++j)
+            for (sizet_t j = 0; j < 2; ++j)
             {
                 weights.at(i, j) = 1.0F;
             }
         }
-        for (nn::Index i = 0; i < 2; ++i)
+        for (sizet_t i = 0; i < 2; ++i)
         {
             bias.at(i, 0) = 0.0F;
         }
@@ -40,8 +40,8 @@ class OptimizerTest : public ::testing::Test
         params.push_back(&bias);
 
         // Set gradients
-        weights.set_grad(test_helpers::make_ones_tensor(2, 2).get_data_ref());
-        bias.set_grad(test_helpers::make_ones_tensor(2, 1).get_data_ref());
+        weights.set_grad(test_helpers::make_ones_tensor(2, 2));
+        bias.set_grad(test_helpers::make_ones_tensor(2, 1));
     }
 
     // Helper to check if a tensor's data has changed from initial
@@ -57,8 +57,8 @@ TEST_F(OptimizerTest, SGDMinimalOptimizerStepAndZeroGrad)
     sgd_minimal.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd_minimal.zero_grad(params);
-    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
-    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));
 }
 
 TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
@@ -68,8 +68,8 @@ TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
     adam.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     adam.zero_grad(params);
-    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
-    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));
 }
 
 TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
@@ -79,8 +79,8 @@ TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
     sgd.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd.zero_grad(params);
-    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
-    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));
 }
 
 // New test for empty parameters list
@@ -153,23 +153,23 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
         nn::Tensor grad = test_helpers::make_constant_tensor(param_size, param_size, 0.1F);
 
         initial_data.push_back(nn::Tensor(data.rows(), data.cols()));
-        for (nn::Index r = 0; r < data.rows(); ++r)
+        for (sizet_t r = 0; r < data.rows(); ++r)
         {
-            for (nn::Index c = 0; c < data.cols(); ++c)
+            for (sizet_t c = 0; c < data.cols(); ++c)
             {
                 initial_data.back().at(r, c) = data.at(r, c);
             }
         }
 
         auto* tensor = new nn::Tensor(data.rows(), data.cols());
-        for (nn::Index r = 0; r < data.rows(); ++r)
+        for (sizet_t r = 0; r < data.rows(); ++r)
         {
-            for (nn::Index c = 0; c < data.cols(); ++c)
+            for (sizet_t c = 0; c < data.cols(); ++c)
             {
                 tensor->at(r, c) = data.at(r, c);
             }
         }
-        tensor->set_grad(grad.get_data_ref());
+        tensor->set_grad(grad);
         large_params.push_back(tensor);
     }
 
@@ -182,7 +182,7 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
     for (int i = 0; i < num_params; ++i)
     {
         EXPECT_FALSE(test_helpers::tensor_is_approx(*large_params[i], initial_data[i]));
-        EXPECT_TRUE(test_helpers::tensor_is_zero(large_params[i]->get_grad_ref()));
+        EXPECT_TRUE(test_helpers::tensor_is_zero(large_params[i]->grad()));
     }
 
     // Test Adam with large parameter set
@@ -206,7 +206,7 @@ TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
     // Test with NaN gradients
     nn::Tensor nan_grad = test_helpers::make_ones_tensor(2, 2);
     test_helpers::tensor_set_value_at(nan_grad, 0, 0, std::numeric_limits<float>::quiet_NaN());
-    param.set_grad(nan_grad.get_data_ref());
+    param.set_grad(nan_grad);
 
     std::vector<nn::Tensor*> params = {&param};
 
@@ -217,19 +217,19 @@ TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
     // Test with Inf gradients
     nn::Tensor inf_grad = test_helpers::make_ones_tensor(2, 2);
     test_helpers::tensor_set_value_at(inf_grad, 0, 0, std::numeric_limits<float>::infinity());
-    param.set_grad(inf_grad.get_data_ref());
+    param.set_grad(inf_grad);
 
     EXPECT_NO_THROW(sgd.step(params));
 
     // Test with very small gradients
     nn::Tensor tiny_grad = test_helpers::make_constant_tensor(2, 2, 1e-10F);
-    param.set_grad(tiny_grad.get_data_ref());
+    param.set_grad(tiny_grad);
 
     EXPECT_NO_THROW(sgd.step(params));
 
     // Test with very large gradients
     nn::Tensor huge_grad = test_helpers::make_constant_tensor(2, 2, 1e10F);
-    param.set_grad(huge_grad.get_data_ref());
+    param.set_grad(huge_grad);
 
     EXPECT_NO_THROW(sgd.step(params));
 }
@@ -237,24 +237,24 @@ TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
 TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
 {
     nn::Tensor param = test_helpers::make_ones_tensor(2, 2);
-    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F));
     std::vector<nn::Tensor*> params = {&param};
 
     // Test with very small learning rate
     SGDMinimal sgd_tiny(1e-10F);
     nn::Tensor data_before(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
     }
     sgd_tiny.step(params);
     nn::Tensor data_after(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -267,18 +267,18 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
     // Test with very large learning rate (but not invalid)
     SGDMinimal sgd_large(1e6F);
     test_helpers::tensor_fill_with_value(param, 1.0F); // Reset
-    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F));
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
     }
     sgd_large.step(params);
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -300,7 +300,7 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     {
         auto* tensor = new nn::Tensor(10, 10);
         test_helpers::tensor_fill_with_value(*tensor, 1.0F);
-        tensor->set_grad(test_helpers::make_constant_tensor(10, 10, 0.1F).get_data_ref());
+        tensor->set_grad(test_helpers::make_constant_tensor(10, 10, 0.1F));
         params.push_back(tensor);
     }
 
@@ -312,7 +312,7 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
         // Gradients should be preserved between steps
         for (auto* param : params)
         {
-            EXPECT_FALSE(test_helpers::tensor_is_zero(param->get_grad_ref()));
+            EXPECT_FALSE(test_helpers::tensor_is_zero(param->grad()));
         }
     }
 
@@ -320,7 +320,7 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     ASSERT_NO_THROW(sgd.zero_grad(params));
     for (auto* param : params)
     {
-        EXPECT_TRUE(test_helpers::tensor_is_zero(param->get_grad_ref()));
+        EXPECT_TRUE(test_helpers::tensor_is_zero(param->grad()));
     }
 
     // Clean up
@@ -333,16 +333,16 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
 TEST(OptimizerThreadSafetyTest, AdamInternalState)
 {
     nn::Tensor param = test_helpers::make_ones_tensor(3, 3);
-    param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F).get_data_ref());
+    param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F));
     std::vector<nn::Tensor*> params = {&param};
 
     Adam adam(0.01F);
     adam.attach(params);
 
     nn::Tensor data_before(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
@@ -353,13 +353,13 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
     {
         adam.step(params);
         // Re-set gradients for next step
-        param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F).get_data_ref());
+        param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F));
     }
 
     nn::Tensor data_after(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -370,18 +370,18 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
 
     // Test that internal state affects subsequent steps differently
     nn::Tensor data_step3(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_step3.at(i, j) = param.at(i, j);
         }
     }
     adam.step(params);
     nn::Tensor data_step4(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_step4.at(i, j) = param.at(i, j);
         }
@@ -400,14 +400,14 @@ TEST(OptimizerComprehensiveTest, GradientClipping)
 {
     nn::Tensor param = test_helpers::make_ones_tensor(2, 2);
     // Set very large gradients
-    param.set_grad(test_helpers::make_constant_tensor(2, 2, 100.0F).get_data_ref());
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 100.0F));
     std::vector<nn::Tensor*> params = {&param};
 
     SGDMinimal sgd(0.01F);
     nn::Tensor data_before(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
@@ -416,9 +416,9 @@ TEST(OptimizerComprehensiveTest, GradientClipping)
     sgd.step(params);
 
     nn::Tensor data_after(param.rows(), param.cols());
-    for (nn::Index i = 0; i < param.rows(); ++i)
+    for (sizet_t i = 0; i < param.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param.cols(); ++j)
+        for (sizet_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -436,8 +436,8 @@ TEST(OptimizerComprehensiveTest, ParameterGroups)
     nn::Tensor param1 = test_helpers::make_ones_tensor(2, 2);
     nn::Tensor param2 = test_helpers::make_ones_tensor(2, 2);
 
-    param1.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
-    param2.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
+    param1.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F));
+    param2.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F));
 
     std::vector<nn::Tensor*> params1 = {&param1};
     std::vector<nn::Tensor*> params2 = {&param2};
@@ -447,9 +447,9 @@ TEST(OptimizerComprehensiveTest, ParameterGroups)
 
     nn::Tensor data1_before(param1.rows(), param1.cols());
     nn::Tensor data2_before(param2.rows(), param2.cols());
-    for (nn::Index i = 0; i < param1.rows(); ++i)
+    for (sizet_t i = 0; i < param1.rows(); ++i)
     {
-        for (nn::Index j = 0; j < param1.cols(); ++j)
+        for (sizet_t j = 0; j < param1.cols(); ++j)
         {
             data1_before.at(i, j) = param1.at(i, j);
             data2_before.at(i, j) = param2.at(i, j);
@@ -478,14 +478,14 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     {
         // Set gradient pointing toward zero (full magnitude to encourage faster convergence)
         nn::Tensor grad(param.rows(), param.cols());
-        for (nn::Index r = 0; r < param.rows(); ++r)
+        for (sizet_t r = 0; r < param.rows(); ++r)
         {
-            for (nn::Index c = 0; c < param.cols(); ++c)
+            for (sizet_t c = 0; c < param.cols(); ++c)
             {
                 grad.at(r, c) = param.at(r, c);
             }
         }
-        param.set_grad(grad.get_data_ref());
+        param.set_grad(grad);
         sgd.step(params);
     }
 

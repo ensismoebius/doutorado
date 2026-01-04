@@ -2,12 +2,14 @@
 #define ITENSOR_BACKEND_HPP
 
 #include <memory>
+#include <span>
 #include <vector>
 
 namespace nn
 {
 
-using Index = size_t; // Generic index type, not tied to Eigen
+// Forward-declare Index type alias
+using Index = size_t;
 
 class ITensorBackend
 {
@@ -20,6 +22,8 @@ class ITensorBackend
     virtual void construct(const std::vector<Index>& shape) = 0;
 
     // Data access
+    virtual float& at(Index i) = 0;
+    virtual const float& at(Index i) const = 0;
     virtual float& at(Index row, Index col) = 0;
     virtual const float& at(Index row, Index col) const = 0;
     virtual float& at(Index d1, Index d2, Index d3, Index d4) = 0;
@@ -61,12 +65,38 @@ class ITensorBackend
     // Loss functions
     virtual float mean_squared_error(const ITensorBackend& target) const = 0;
     virtual float norm() const = 0;
+    virtual float sum() const = 0;
+    virtual std::unique_ptr<ITensorBackend> sum_rows() const = 0; // Sum across columns
+    virtual std::unique_ptr<ITensorBackend> sum_cols() const = 0; // Sum across rows
 
     // Gradient operations
     virtual void zero_grad() = 0;
     virtual void set_grad(const ITensorBackend& grad) = 0;
     virtual const ITensorBackend& grad() const = 0;
     virtual ITensorBackend& grad() = 0;
+
+    // Element-wise math operations
+    virtual std::unique_ptr<ITensorBackend> sqrt() const = 0;
+    virtual std::unique_ptr<ITensorBackend> square() const = 0;
+    virtual std::unique_ptr<ITensorBackend> abs() const = 0;
+    virtual std::unique_ptr<ITensorBackend> divide(const ITensorBackend& other) const = 0;
+    virtual std::unique_ptr<ITensorBackend> divide_scalar(float scalar) const = 0;
+
+    // Initialization
+    virtual void fill(float value) = 0;
+    virtual void set_zero() = 0;
+    virtual void set_ones() = 0;
+
+    // Data access for backward compatibility
+    virtual const float* data_ptr() const = 0;
+    virtual Index data_rows() const = 0;
+    virtual Index data_cols() const = 0;
+    virtual float* mutable_data_ptr() = 0;
+
+    // Utility
+    virtual std::unique_ptr<ITensorBackend> clone() const = 0;
+    virtual void copy_from(const ITensorBackend& other) = 0;
+    virtual std::unique_ptr<ITensorBackend> slice(std::span<const int> indices) const = 0;
 };
 } // namespace nn
 

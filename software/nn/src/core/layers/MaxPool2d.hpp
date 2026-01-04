@@ -15,7 +15,7 @@ class MaxPool2d : public Module
     {
         const auto shape = input.get_shape();
 
-        // Our lightweight Tensor wrapper in this project is a 2-D Eigen::MatrixXf-backed
+        // Our lightweight Tensor wrapper in this project uses a backend-agnostic
         // structure. This MaxPool2d implementation requires a 4-D tensor (N, C, H, W).
         // If the provided Tensor is not 4-D, fall back to identity (no-op) so code
         // that expects MaxPool2d to exist still compiles and runs. If you want true

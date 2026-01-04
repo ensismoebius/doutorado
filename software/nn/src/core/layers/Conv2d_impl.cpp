@@ -109,25 +109,19 @@ auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
     im2col_optimized(
         input, im2col_tensor, batch_size, input_height, input_width, output_height, output_width);
 
-    // 2. Map to Eigen matrices for efficient operations
-    Eigen::Map<const Eigen::MatrixXf> im2col_mapped(
-        im2col_tensor.get_data_ref().data(), patch_rows, total_patch_cols);
+    // 2. Perform matrix multiplication: output = weights^T * im2col
+    // weights is (patch_rows x out_channels), im2col is (patch_rows x total_patch_cols)
+    // We need weights^T * im2col = (out_channels x patch_rows) * (patch_rows x total_patch_cols)
+    //                              = (out_channels x total_patch_cols)
+    nn::Tensor weights_transposed = weights_.transpose();
+    nn::Tensor output_2d = weights_transposed.matmul(im2col_tensor);
 
-    Eigen::Map<const Eigen::MatrixXf> weights_mapped(
-        weights_.get_data_ref().data(), patch_rows, out_channels_);
-
-    // 3. Perform matrix multiplication (main computation)
-    // Use Eigen's lazy evaluation with noalias() to avoid temporary
-    Eigen::MatrixXf output_2d(out_channels_, total_patch_cols);
-    output_2d.noalias() = weights_mapped.transpose() * im2col_mapped;
-
-    // 4. Add bias using optimized broadcasting
+    // 3. Add bias using optimized broadcasting
     add_bias_optimized(output_2d, bias_, total_patch_cols);
 
-    // 5. Reshape output efficiently
-    nn::Tensor output_2d_tensor(output_2d);
+    // 4. Reshape output efficiently
     nn::Tensor output =
-        reshape_output_optimized(output_2d_tensor, batch_size, output_height, output_width);
+        reshape_output_optimized(output_2d, batch_size, output_height, output_width);
 
     return output;
 }
@@ -146,29 +140,9 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     const int patch_cols_per_batch = output_height * output_width;
     const int total_patch_cols = batch_size * patch_cols_per_batch;
 
-    // 1. Map grad_output to 2D matrix
-    Eigen::Map<const Eigen::MatrixXf> grad_output_mapped(
-        grad_output.get_data_ref().data(), out_channels_, total_patch_cols);
-
-    // 2. Compute bias gradient (sum over all positions and batches)
-    {
-        const Eigen::VectorXf summed = grad_output_mapped.rowwise().sum();
-        auto& bg = bias_.get_grad_ref();
-        if (bg.rows() == summed.size() && bg.cols() >= 1)
-        {
-            bg.col(0) = summed;
-        }
-        else if (bg.cols() == summed.size() && bg.rows() >= 1)
-        {
-            bg.row(0) = summed.transpose();
-        }
-        else
-        {
-            // Fallback: reshape grad storage to (out_channels,1)
-            bg.resize(summed.size(), 1);
-            bg.col(0) = summed;
-        }
-    }
+    // 1. Compute bias gradient (sum over all positions and batches)
+    // grad_output is already in shape (out_channels, total_patch_cols)
+    bias_.grad = grad_output.sum_rows();
 
     // 3. Get im2col of cached input
     auto& im2col_buffer = *im2col_buffer_;
@@ -185,49 +159,20 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
                      output_height,
                      output_width);
 
-    Eigen::Map<const Eigen::MatrixXf> im2col_mapped(
-        im2col_buffer.get_data_ref().data(), patch_rows, total_patch_cols);
+    // 3. Compute weights gradient: dW = im2col_input * dY^T
+    // im2col_buffer is (patch_rows, total_patch_cols), grad_output is (out_channels,
+    // total_patch_cols)
+    nn::Tensor grad_output_transposed = grad_output.transpose();
+    weights_.grad = im2col_buffer.matmul(grad_output_transposed);
 
-    // 4. Compute weights gradient: dW = im2col_input * dY^T
-    // Use parallelization if enabled
-    Eigen::MatrixXf& weights_grad = weights_.get_grad_ref();
+    // 4. Compute input gradient: dX_col = W * dY
+    // weights_ is (patch_rows, out_channels), grad_output is (out_channels, total_patch_cols)
+    nn::Tensor weights_transposed = weights_.transpose();
+    nn::Tensor d_input_col = weights_transposed.matmul(grad_output);
 
-    const bool large_mm = (total_patch_cols > 1000);
-    if (use_parallel_ && large_mm) [[likely]]
-    {
-// Parallel matrix multiplication for large problems
-#pragma omp parallel for if (use_parallel_)
-        for (int i = 0; i < patch_rows; ++i)
-        {
-            for (int j = 0; j < out_channels_; ++j)
-            {
-                float sum = 0.0F;
-#pragma omp simd reduction(+ : sum)
-                for (int k = 0; k < total_patch_cols; ++k)
-                {
-                    sum += im2col_mapped(i, k) * grad_output_mapped(j, k);
-                }
-                weights_grad(i, j) = sum;
-            }
-        }
-    }
-    else
-    {
-        // Sequential for small problems
-        weights_grad.noalias() = im2col_mapped * grad_output_mapped.transpose();
-    }
-
-    // 5. Map weights for input gradient computation
-    Eigen::Map<const Eigen::MatrixXf> weights_mapped(
-        weights_.get_data_ref().data(), patch_rows, out_channels_);
-
-    // 6. Compute input gradient: dX_col = W * dY
-    Eigen::MatrixXf d_input_col = weights_mapped * grad_output_mapped;
-
-    // 7. Convert col2im (input gradient)
-    nn::Tensor d_input_col_tensor(d_input_col);
+    // 5. Convert col2im (input gradient)
     nn::Tensor grad_input = col2im_optimized(
-        d_input_col_tensor, batch_size, input_height, input_width, output_height, output_width);
+        d_input_col, batch_size, input_height, input_width, output_height, output_width);
 
     return grad_input;
 }
@@ -283,12 +228,23 @@ void Conv2d::initialize_weights_he()
     const int fan_in = in_channels_ * kernel_size_ * kernel_size_;
     const float stddev = std::sqrt(2.0F / static_cast<float>(fan_in));
 
-    Eigen::Map<Eigen::MatrixXf> weights_map(
-        weights_.get_data_ref().data(), weights_.rows(), weights_.cols());
+    // Generate random normal distribution using C++ <random>
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<float> dist(0.0F, stddev);
 
-    // Generate random normal distribution
-    weights_map = Eigen::MatrixXf::Random(weights_.rows(), weights_.cols()) * stddev;
+    float* weights_data = weights_.mutable_data_ptr();
+    const auto total_weights = weights_.rows() * weights_.cols();
+    for (nn::Index i = 0; i < total_weights; ++i)
+    {
+        weights_data[i] = dist(gen);
+    }
 
-    // Initialize bias to small positive values
-    bias_.get_data_ref().setConstant(0.01F);
+    // Initialize bias to small positive values using Tensor backend
+    float* bias_data = bias_.mutable_data_ptr();
+    const auto total_bias = bias_.rows() * bias_.cols();
+    for (nn::Index i = 0; i < total_bias; ++i)
+    {
+        bias_data[i] = 0.01F;
+    }
 }

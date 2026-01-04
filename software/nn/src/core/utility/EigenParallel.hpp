@@ -1,7 +1,7 @@
 #ifndef EIGEN_PARALLEL_HPP
 #define EIGEN_PARALLEL_HPP
 
-#include "core/tensor/EigenTensorBackend.hpp"
+#include <Eigen/Dense>
 
 namespace util
 {
@@ -15,13 +15,11 @@ inline auto initializeEigenParallel(int numThreads = 0) -> void
     if (numThreads <= 0)
     {
         // Get the maximum number of threads available
-        using namespace Eigen;
-        numThreads = nbThreads();
+        numThreads = Eigen::nbThreads();
     }
 
     // Set the number of threads Eigen will use
-    using namespace Eigen;
-    setNbThreads(numThreads);
+    Eigen::setNbThreads(numThreads);
 }
 } // namespace util
 

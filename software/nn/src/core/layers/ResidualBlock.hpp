@@ -28,7 +28,7 @@ struct ResidualBlock : public Module
 
         // Add skip connection: assume input and out shapes match (N x D)
         nn::Tensor res(out.rows(), out.cols());
-        res.get_data_ref() = out.get_data_ref() + input.get_data_ref();
+        res = out.add(input);
         return res;
     }
 
@@ -45,7 +45,7 @@ struct ResidualBlock : public Module
         // Total gradient w.r.t. input is grad from main branch (grad_fc2 propagated through fc2->)
         // + grad from skip (identity)
         nn::Tensor total(grad_fc1.rows(), grad_fc1.cols());
-        total.get_data_ref() = grad_fc1.get_data_ref() + grad_output.get_data_ref();
+        total = grad_fc1.add(grad_output);
         return total;
     }
 };

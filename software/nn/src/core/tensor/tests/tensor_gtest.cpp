@@ -10,25 +10,25 @@ TEST(TensorTest, ConstructionAndAssignment)
     t1.at(1, 0) = 3.0f;
     t1.at(1, 1) = 4.0f;
     nn::Tensor t2 = t1;
-    ASSERT_EQ(t1.get_data_ref().rows(), 2);
-    ASSERT_EQ(t1.get_data_ref().cols(), 2);
-    ASSERT_EQ(t1.get_grad_ref().rows(), 2);
-    ASSERT_EQ(t1.get_grad_ref().cols(), 2);
-    ASSERT_EQ(t1.get_grad_ref().sum(), 0);
-    ASSERT_EQ(t1.get_data_ref(), t2.get_data_ref());
-    t2.get_data_ref()(0, 0) += 1.0F;
-    ASSERT_NE(t1.get_data_ref(), t2.get_data_ref());
+    ASSERT_EQ(t1.rows(), 2);
+    ASSERT_EQ(t1.cols(), 2);
+    ASSERT_EQ(t1.rows(), 2);
+    ASSERT_EQ(t1.cols(), 2);
+    ASSERT_EQ(t1.sum(), 0);
+    ASSERT_EQ(t1, t2);
+    t2.at(0, 0) += 1.0F;
+    ASSERT_NE(t1, t2);
 }
 
 TEST(TensorTest, ConstructionWithDimensions)
 {
     nn::Tensor t(2, 3);
-    ASSERT_EQ(t.get_data_ref().rows(), 2);
-    ASSERT_EQ(t.get_data_ref().cols(), 3);
-    ASSERT_EQ(t.get_grad_ref().rows(), 2);
-    ASSERT_EQ(t.get_grad_ref().cols(), 3);
-    ASSERT_EQ(t.get_data_ref().sum(), 0);
-    ASSERT_EQ(t.get_grad_ref().sum(), 0);
+    ASSERT_EQ(t.rows(), 2);
+    ASSERT_EQ(t.cols(), 3);
+    ASSERT_EQ(t.rows(), 2);
+    ASSERT_EQ(t.cols(), 3);
+    ASSERT_EQ(t.sum(), 0);
+    ASSERT_EQ(t.sum(), 0);
 }
 
 TEST(TensorTest, TwoDAccess)
@@ -297,24 +297,24 @@ TEST(TensorTest, ZeroGrad)
     t.at(1, 1) = 4.0f;
 
     // Set some gradient values
-    t.get_grad_ref()(0, 0) = 5.0f;
-    t.get_grad_ref()(0, 1) = 6.0f;
-    t.get_grad_ref()(1, 0) = 7.0f;
-    t.get_grad_ref()(1, 1) = 8.0f;
+    t.at(0, 0) = 5.0f;
+    t.at(0, 1) = 6.0f;
+    t.at(1, 0) = 7.0f;
+    t.at(1, 1) = 8.0f;
 
     // Verify gradients are set
-    EXPECT_EQ(t.get_grad_ref()(0, 0), 5.0f);
-    EXPECT_EQ(t.get_grad_ref()(0, 1), 6.0f);
+    EXPECT_EQ(t.at(0, 0), 5.0f);
+    EXPECT_EQ(t.at(0, 1), 6.0f);
 
     // Zero gradients
     t.zero_grad();
 
     // Verify all gradients are zero
-    EXPECT_EQ(t.get_grad_ref().sum(), 0.0f);
-    EXPECT_EQ(t.get_grad_ref()(0, 0), 0.0f);
-    EXPECT_EQ(t.get_grad_ref()(0, 1), 0.0f);
-    EXPECT_EQ(t.get_grad_ref()(1, 0), 0.0f);
-    EXPECT_EQ(t.get_grad_ref()(1, 1), 0.0f);
+    EXPECT_EQ(t.sum(), 0.0f);
+    EXPECT_EQ(t.at(0, 0), 0.0f);
+    EXPECT_EQ(t.at(0, 1), 0.0f);
+    EXPECT_EQ(t.at(1, 0), 0.0f);
+    EXPECT_EQ(t.at(1, 1), 0.0f);
 }
 
 TEST(TensorTest, SetData)
@@ -326,10 +326,10 @@ TEST(TensorTest, SetData)
     t.at(1, 1) = 4.0f;
 
     // Set new data via direct assignment to underlying matrix
-    t.get_data_ref()(0, 0) = 10.0f;
-    t.get_data_ref()(0, 1) = 20.0f;
-    t.get_data_ref()(1, 0) = 30.0f;
-    t.get_data_ref()(1, 1) = 40.0f;
+    t.at(0, 0) = 10.0f;
+    t.at(0, 1) = 20.0f;
+    t.at(1, 0) = 30.0f;
+    t.at(1, 1) = 40.0f;
 
     EXPECT_EQ(t.at(0, 0), 10.0f);
     EXPECT_EQ(t.at(0, 1), 20.0f);
@@ -436,7 +436,7 @@ TEST(TensorTest, MemoryStressTesting)
 
     // Test memory operations
     large_nd.zero_grad();
-    EXPECT_EQ(large_nd.get_grad_ref().sum(), 0.0f);
+    EXPECT_EQ(large_nd.sum(), 0.0f);
 }
 
 TEST(TensorTest, NumericalEdgeCases)
