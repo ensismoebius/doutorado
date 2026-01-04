@@ -13,18 +13,6 @@
 #include "core/tensor/Tensor.hpp"             // For Tensor
 #include "core/wave/audioFeatureExtraction.h" // Include the new header
 
-// Include for FFTW library functions and standard libraries
-#include <fftw3.h>
-
-#include <cstddef>  // For size_t
-#include <iostream> // For std::cout (if debugging)
-#include <vector>   // For std::vector
-
-#include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
-#include "core/optimizers/Adam.hpp"
-#include "core/tensor/Tensor.hpp"             // For Tensor
-#include "core/wave/audioFeatureExtraction.h" // Include the new header
-
 using nn::dataLoaders::loadAudioFromMat;
 using std::size_t;
 using std::vector;

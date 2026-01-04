@@ -1,3 +1,7 @@
+#ifndef ADAM_HPP
+#define ADAM_HPP
+
+#include <cmath>
 #include <span>
 #include <stdexcept>
 
@@ -151,3 +155,4 @@ struct Adam : public Optimizer
     // https://arxiv.org/abs/1412.6980
     // - https://ruder.io/optimizing-gradient-descent/index.html#adam
 };
+#endif // ADAM_HPP

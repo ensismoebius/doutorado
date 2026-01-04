@@ -234,14 +234,15 @@ auto Tensor::sum() const -> float
 {
     return m_backend->sum();
 }
+
 auto Tensor::sum_rows() const -> Tensor
 {
-    return Tensor(backend_->sum_rows());
+    return Tensor(m_backend->sum_rows());
 }
 
 auto Tensor::sum_cols() const -> Tensor
 {
-    return Tensor(backend_->sum_cols());
+    return Tensor(m_backend->sum_cols());
 }
 // Slice operation
 auto Tensor::slice(std::span<const int> indices) const -> Tensor

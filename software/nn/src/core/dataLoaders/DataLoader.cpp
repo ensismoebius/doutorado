@@ -1,11 +1,12 @@
 #include "DataLoader.hpp"
 
+#include <algorithm>
 #include <random>
 #include <utility>
 
-DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool shuffle,
+DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle,
                        std::optional<unsigned int> seed)
-    : dataset_(std::move(dataset)), batch_size_(batch_size), shuffle_(shuffle), seed_(seed)
+    : dataset_(std::move(dataset)), batch_size_(batch_size), shuffle_(do_shuffle), seed_(seed)
 {
     if (!dataset_)
     {

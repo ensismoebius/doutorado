@@ -12,7 +12,7 @@ class DataLoader
    public:
     // dataset: shared_ptr to a Dataset; batch_size: size_t; optional seed for
     // deterministic shuffle
-    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool shuffle = true,
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle = true,
                std::optional<unsigned int> seed = std::nullopt);
 
     class Iterator

@@ -57,6 +57,8 @@ class EigenTensorBackend : public ITensorBackend
     float mean_squared_error(const ITensorBackend& target) const override;
     float norm() const override;
     float sum() const override;
+    std::unique_ptr<ITensorBackend> sum_rows() const override;
+    std::unique_ptr<ITensorBackend> sum_cols() const override;
 
     void zero_grad() override;
     void set_grad(const ITensorBackend& grad) override;
