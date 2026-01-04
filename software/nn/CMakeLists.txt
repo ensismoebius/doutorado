@@ -20,6 +20,9 @@ include(cmake/Policies.cmake)
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
 
+# Eigen hard-ban helper (compile-time poison + helper functions)
+include(cmake/EigenBan.cmake)
+
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 

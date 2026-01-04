@@ -4,6 +4,8 @@
 # Custom Targets for Development and Analysis
 # --------------------------------------------------------------------------------
 
+find_package(Python3 COMPONENTS Interpreter)
+
 if(CCACHE_FOUND)
     add_custom_target(clean-cache
         COMMAND ${CCACHE_FOUND} -C
@@ -123,4 +125,19 @@ elseif(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
         COMMENT "Running all analysis tools (cppcheck, flawfinder)..."
     )
     add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder)
+endif()
+
+if(Python3_Interpreter_FOUND)
+    # Eigen leak detection (static check)
+    add_custom_target(check_eigen_leaks
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_SOURCE_DIR}/scripts
+            ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/check_eigen_leaks.py
+                --allowlist ${CMAKE_SOURCE_DIR}/eigen_allowlist.txt
+                --root ${CMAKE_SOURCE_DIR}
+                --paths src include
+        COMMENT "Detecting Eigen usage outside the allowlist"
+        USES_TERMINAL
+    )
+else()
+    message(WARNING "Python3 interpreter not found; 'check_eigen_leaks' target disabled.")
 endif()
