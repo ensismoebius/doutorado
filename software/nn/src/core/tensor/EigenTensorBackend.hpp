@@ -60,6 +60,24 @@ class EigenTensorBackend : public ITensorBackend
     const ITensorBackend& grad() const override;
     ITensorBackend& grad() override;
 
+    // Eigen-specific accessors for backward compatibility
+    Eigen::MatrixXf& get_data_as_eigen() override
+    {
+        return m_data;
+    }
+    const Eigen::MatrixXf& get_data_as_eigen() const override
+    {
+        return m_data;
+    }
+    Eigen::MatrixXf& get_grad_as_eigen() override
+    {
+        return get_grad();
+    }
+    const Eigen::MatrixXf& get_grad_as_eigen() const override
+    {
+        return get_grad();
+    }
+
     // Data access for backward compatibility
     const float* data_ptr() const override;
     Index data_rows() const override;

@@ -13,15 +13,6 @@ Tensor::Tensor() : m_backend(TensorBackendFactory::create_backend()) {}
 
 Tensor::Tensor(std::unique_ptr<ITensorBackend> backend) : m_backend(std::move(backend)) {}
 
-Tensor::Tensor(const Eigen::MatrixXf& data) : m_backend(std::make_unique<EigenTensorBackend>(data))
-{
-}
-
-Tensor::Tensor(Eigen::MatrixXf&& data)
-    : m_backend(std::make_unique<EigenTensorBackend>(std::move(data)))
-{
-}
-
 Tensor::Tensor(Index rows, Index cols) : m_backend(TensorBackendFactory::create_backend())
 {
     m_backend->construct(rows, cols);
@@ -62,82 +53,6 @@ Tensor& Tensor::operator=(const Tensor& other)
         }
     }
     return *this;
-}
-
-// Getters for data and gradient (backward compatibility - return Eigen matrices)
-auto Tensor::get_data_ref() const -> const Eigen::MatrixXf&
-{
-    // Cast to EigenTensorBackend for backward compatibility
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based");
-    }
-    return eigen_backend->get_data();
-}
-
-auto Tensor::get_grad_ref() const -> const Eigen::MatrixXf&
-{
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based");
-    }
-    return eigen_backend->get_grad();
-}
-
-auto Tensor::get_data_ref() -> Eigen::MatrixXf&
-{
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based");
-    }
-    return eigen_backend->get_data();
-}
-
-auto Tensor::get_grad_ref() -> Eigen::MatrixXf&
-{
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based");
-    }
-    return eigen_backend->get_grad();
-}
-
-// Setter for gradient
-void Tensor::set_grad(const Eigen::MatrixXf& grad)
-{
-    // Ensure m_backend exists and is of type EigenTensorBackend
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based for set_grad");
-    }
-    // Set the gradient directly in the EigenTensorBackend
-    eigen_backend->set_grad(EigenTensorBackend(grad));
-}
-
-void Tensor::set_grad(Eigen::MatrixXf&& grad)
-{
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based for set_grad");
-    }
-    eigen_backend->set_grad(EigenTensorBackend(std::move(grad)));
-}
-
-// Setter for data
-void Tensor::set_data(const Eigen::MatrixXf& data)
-{
-    auto* eigen_backend = dynamic_cast<EigenTensorBackend*>(m_backend.get());
-    if (!eigen_backend)
-    {
-        throw std::runtime_error("Tensor backend is not Eigen-based for set_data");
-    }
-    eigen_backend->get_data() = data; // Directly assign to the Eigen::MatrixXf in the backend
 }
 
 // Shape and size information

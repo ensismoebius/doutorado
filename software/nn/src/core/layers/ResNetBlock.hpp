@@ -29,17 +29,19 @@ class ResNetBlock : public Module
         else
         {
             // Create zero matrix matching output underlying data and copy overlapping region
-            Eigen::MatrixXf aligned =
-                Eigen::MatrixXf::Zero(output.get_data_ref().rows(), output.get_data_ref().cols());
+            nn::Tensor aligned(output.rows(), output.cols());
+            aligned.get_data_ref().setZero();
 
             const auto& in_mat = input.get_data_ref();
             const auto& out_mat = output.get_data_ref();
+            auto& aligned_mat = aligned.get_data_ref();
 
-            const auto rows_copy = static_cast<int>(std::min(in_mat.rows(), aligned.rows()));
-            const auto cols_copy = static_cast<int>(std::min(in_mat.cols(), aligned.cols()));
+            const auto rows_copy = static_cast<int>(std::min(in_mat.rows(), aligned_mat.rows()));
+            const auto cols_copy = static_cast<int>(std::min(in_mat.cols(), aligned_mat.cols()));
 
-            aligned.block(0, 0, rows_copy, cols_copy) = in_mat.block(0, 0, rows_copy, cols_copy);
-            output.get_data_ref() = out_mat + aligned;
+            aligned_mat.block(0, 0, rows_copy, cols_copy) =
+                in_mat.block(0, 0, rows_copy, cols_copy);
+            output.get_data_ref() = out_mat + aligned_mat;
         }
 
         return relu_.forward(output, requires_grad);

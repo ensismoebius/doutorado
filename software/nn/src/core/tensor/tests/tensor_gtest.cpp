@@ -1,14 +1,14 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Dense>
-
 #include "core/tensor/Tensor.hpp"
 
 TEST(TensorTest, ConstructionAndAssignment)
 {
-    Eigen::MatrixXf mat(2, 2);
-    mat << 1.0f, 2.0f, 3.0f, 4.0f;
-    nn::Tensor t1(mat);
+    nn::Tensor t1(2, 2);
+    t1.at(0, 0) = 1.0f;
+    t1.at(0, 1) = 2.0f;
+    t1.at(1, 0) = 3.0f;
+    t1.at(1, 1) = 4.0f;
     nn::Tensor t2 = t1;
     ASSERT_EQ(t1.get_data_ref().rows(), 2);
     ASSERT_EQ(t1.get_data_ref().cols(), 2);
@@ -325,10 +325,11 @@ TEST(TensorTest, SetData)
     t.at(1, 0) = 3.0f;
     t.at(1, 1) = 4.0f;
 
-    Eigen::MatrixXf new_data(2, 2);
-    new_data << 10.0f, 20.0f, 30.0f, 40.0f;
-
-    t.set_data(new_data);
+    // Set new data via direct assignment to underlying matrix
+    t.get_data_ref()(0, 0) = 10.0f;
+    t.get_data_ref()(0, 1) = 20.0f;
+    t.get_data_ref()(1, 0) = 30.0f;
+    t.get_data_ref()(1, 1) = 40.0f;
 
     EXPECT_EQ(t.at(0, 0), 10.0f);
     EXPECT_EQ(t.at(0, 1), 20.0f);

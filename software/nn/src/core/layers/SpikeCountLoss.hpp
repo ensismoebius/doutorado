@@ -30,17 +30,16 @@ class SpikeCountLoss : public Module
             last_input = input;
         }
         // pred and target: (n_samples, 1)
-        Eigen::MatrixXf diff = input.get_data_ref() - target.get_data_ref();
-        float loss = diff.array().square().mean();
+        auto diff = last_input.add(target.multiply_scalar(-1.0F));
+        float loss = (diff.get_data_ref().array().square()).mean();
         nn::Tensor loss_tensor(1, 1);
         loss_tensor.at(0, 0) = loss;
         return loss_tensor;
     }
     auto backward(const nn::Tensor& /*grad_output*/) -> nn::Tensor override
     {
-        Eigen::MatrixXf grad = 2.0F *
-                               (last_input.get_data_ref() - target.get_data_ref()) /
-                               last_input.get_data_ref().size();
-        return nn::Tensor(grad);
+        auto grad_data = 2.0F * (last_input.get_data_ref() - target.get_data_ref()) /
+                         last_input.get_data_ref().size();
+        return nn::Tensor(grad_data);
     }
 };

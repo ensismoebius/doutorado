@@ -2,7 +2,6 @@
 #define ITENSOR_BACKEND_HPP
 
 #include <memory>
-#include <span>
 #include <vector>
 
 namespace nn
@@ -68,18 +67,7 @@ class ITensorBackend
     virtual void set_grad(const ITensorBackend& grad) = 0;
     virtual const ITensorBackend& grad() const = 0;
     virtual ITensorBackend& grad() = 0;
-
-    // Data access for backward compatibility
-    virtual const float* data_ptr() const = 0;
-    virtual Index data_rows() const = 0;
-    virtual Index data_cols() const = 0;
-
-    // Utility
-    virtual std::unique_ptr<ITensorBackend> clone() const = 0;
-    virtual void copy_from(const ITensorBackend& other) = 0;
-    virtual std::unique_ptr<ITensorBackend> slice(std::span<const int> indices) const = 0;
 };
-
 } // namespace nn
 
 #endif // ITENSOR_BACKEND_HPP

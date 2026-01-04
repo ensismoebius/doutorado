@@ -17,8 +17,8 @@
  * @param bias         Reference to the tensor where the bias vector will be stored.
  *                     Must be pre-allocated as a 1D tensor of shape (out_features).
  */
-inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& weights, nn::Tensor& bias)
-    -> void
+inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& weights,
+                              nn::Tensor& bias) -> void
 {
     // Xavier limit: sqrt(6 / (in_features + out_features))
     float const limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
@@ -30,9 +30,17 @@ inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& wei
     std::mt19937 gen(std::random_device{}());
 
     // Initialize weights with random values from the uniform distribution
-    weights.set_data(
-        Eigen::MatrixXf(out_features, in_features).unaryExpr([&](float) { return dist(gen); }));
+    for (int i = 0; i < out_features; ++i)
+    {
+        for (int j = 0; j < in_features; ++j)
+        {
+            weights.get_data_ref()(i, j) = dist(gen);
+        }
+    }
 
     // Initialize biases with random values from the same distribution
-    bias.set_data(Eigen::VectorXf(out_features).unaryExpr([&](float) { return dist(gen); }));
+    for (int i = 0; i < out_features; ++i)
+    {
+        bias.get_data_ref()(i, 0) = dist(gen);
+    }
 }

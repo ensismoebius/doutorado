@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Dense>
 #include <memory>
 
 #include "../Conv2d.hpp"
@@ -17,16 +16,17 @@
 #include "core/initializers/xavier.hpp"
 #include "core/optimizers/Adam.hpp"
 #include "core/tensor/Tensor.hpp"
+#include "core/utility/tests/test_helpers.hpp"
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)
 {
     MSELoss mse;
-    Eigen::MatrixXf pred(2, 1);
-    pred << 1.0F, 2.0F;
-    Eigen::MatrixXf target(2, 1);
-    target << 0.0F, 2.0F;
-    nn::Tensor pred_tensor{pred};
-    nn::Tensor target_tensor{target};
+    nn::Tensor pred_tensor(2, 1);
+    pred_tensor.at(0, 0) = 1.0F;
+    pred_tensor.at(1, 0) = 2.0F;
+    nn::Tensor target_tensor(2, 1);
+    target_tensor.at(0, 0) = 0.0F;
+    target_tensor.at(1, 0) = 2.0F;
     mse.set_target(target_tensor);
     nn::Tensor loss{mse.forward(pred_tensor)};
     ASSERT_NEAR(loss.at(0, 0), 0.5F, 1e-5F);
@@ -39,18 +39,22 @@ TEST(MSELossTest, ForwardAndBackward)
 TEST(SequentialTest, ForwardAndBackward)
 {
     auto linear = std::make_shared<Linear>(2, 1);
-    linear->weight.set_data((Eigen::MatrixXf(1, 2) << 1.0F, 2.0F).finished());
-    linear->bias.set_data((Eigen::MatrixXf(1, 1) << 0.0F).finished());
+    nn::Tensor weight_data(1, 2);
+    weight_data.at(0, 0) = 1.0F;
+    weight_data.at(0, 1) = 2.0F;
+    linear->weight.set_data(weight_data.get_data_ref());
+    nn::Tensor bias_data(1, 1);
+    bias_data.at(0, 0) = 0.0F;
+    linear->bias.set_data(bias_data.get_data_ref());
     auto relu = std::make_shared<ReLU>();
     Sequential seq({linear, relu});
-    Eigen::MatrixXf input(1, 2);
-    input << -1.0F, 2.0F;
-    nn::Tensor in_tensor{input};
+    nn::Tensor in_tensor(1, 2);
+    in_tensor.at(0, 0) = -1.0F;
+    in_tensor.at(0, 1) = 2.0F;
     nn::Tensor out{seq.forward(in_tensor)};
     ASSERT_NEAR(out.at(0, 0), 3.0F, 1e-5F);
-    Eigen::MatrixXf grad_out(1, 1);
-    grad_out << 1.0F;
-    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_tensor(1, 1);
+    grad_tensor.at(0, 0) = 1.0F;
     nn::Tensor grad_in{seq.backward(grad_tensor)};
     ASSERT_NEAR(grad_in.at(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad_in.at(0, 1), 2.0F, 1e-5F);
@@ -61,11 +65,16 @@ TEST(LinearLayerTest, ForwardSimple)
 {
     Linear linear(2, 1);
     // Define pesos e bias manualmente para teste determinístico
-    linear.weight.set_data((Eigen::MatrixXf(1, 2) << 2.0F, 3.0F).finished());
-    linear.bias.set_data((Eigen::MatrixXf(1, 1) << 1.0F).finished());
-    Eigen::MatrixXf input(1, 2);
-    input << 1.0F, 2.0F;
-    nn::Tensor in_tensor{input};
+    nn::Tensor weight_data(1, 2);
+    weight_data.at(0, 0) = 2.0F;
+    weight_data.at(0, 1) = 3.0F;
+    linear.weight.set_data(weight_data.get_data_ref());
+    nn::Tensor bias_data(1, 1);
+    bias_data.at(0, 0) = 1.0F;
+    linear.bias.set_data(bias_data.get_data_ref());
+    nn::Tensor in_tensor(1, 2);
+    in_tensor.at(0, 0) = 1.0F;
+    in_tensor.at(0, 1) = 2.0F;
     nn::Tensor out{linear.forward(in_tensor)};
     // Esperado: (1*2 + 2*3) + 1 = 2 + 6 + 1 = 9
     ASSERT_FLOAT_EQ(out.at(0, 0), 9.0F);
@@ -81,9 +90,8 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
                 /*reset_zero=*/true,
                 0.0F,
                 std::make_shared<ExponentialSurrogate>());
-    Eigen::MatrixXf input(1, 1);
-    input << 3.0F; // Acima do threshold
-    nn::Tensor in_tensor{input};
+    nn::Tensor in_tensor(1, 1);
+    in_tensor.at(0, 0) = 3.0F; // Acima do threshold
     nn::Tensor out{leaky.forward(in_tensor)};
     // Como input > threshold, deve gerar spike (1.0)
     ASSERT_FLOAT_EQ(out.at(0, 0), 1.0F);
@@ -101,9 +109,8 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
                 /*reset_zero=*/false,
                 0.0F,
                 std::make_shared<ExponentialSurrogate>());
-    Eigen::MatrixXf input(1, 1);
-    input << 3.0F; // Acima do threshold
-    nn::Tensor in_tensor{input};
+    nn::Tensor in_tensor(1, 1);
+    in_tensor.at(0, 0) = 3.0F; // Acima do threshold
     nn::Tensor out{leaky.forward(in_tensor)};
     // Deve gerar spike
     ASSERT_FLOAT_EQ(out.at(0, 0), 1.0F);
@@ -115,15 +122,15 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 TEST(LeakyReLUTest, ForwardAndBackward)
 {
     LeakyReLU leaky_relu(0.1F);
-    Eigen::MatrixXf input(2, 1);
-    input << 1.0F, -2.0F;
-    nn::Tensor in_tensor{input};
+    nn::Tensor in_tensor(2, 1);
+    in_tensor.at(0, 0) = 1.0F;
+    in_tensor.at(1, 0) = -2.0F;
     nn::Tensor out{leaky_relu.forward(in_tensor)};
     ASSERT_NEAR(out.at(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(out.at(1, 0), -0.2F, 1e-5F);
-    Eigen::MatrixXf grad_out(2, 1);
-    grad_out << 1.0F, 1.0F;
-    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_tensor(2, 1);
+    grad_tensor.at(0, 0) = 1.0F;
+    grad_tensor.at(1, 0) = 1.0F;
     nn::Tensor grad_in{leaky_relu.backward(grad_tensor)};
     ASSERT_NEAR(grad_in.at(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad_in.at(1, 0), 0.1F, 1e-5F);
@@ -133,12 +140,12 @@ TEST(LeakyReLUTest, ForwardAndBackward)
 TEST(SpikeCountLossTest, ForwardAndBackward)
 {
     SpikeCountLoss spike_loss;
-    Eigen::MatrixXf pred(2, 1);
-    pred << 10.0F, 20.0F;
-    Eigen::MatrixXf target(2, 1);
-    target << 8.0F, 22.0F;
-    nn::Tensor pred_tensor{pred};
-    nn::Tensor target_tensor{target};
+    nn::Tensor pred_tensor(2, 1);
+    pred_tensor.at(0, 0) = 10.0F;
+    pred_tensor.at(1, 0) = 20.0F;
+    nn::Tensor target_tensor(2, 1);
+    target_tensor.at(0, 0) = 8.0F;
+    target_tensor.at(1, 0) = 22.0F;
     spike_loss.set_target(target_tensor);
     nn::Tensor loss{spike_loss.forward(pred_tensor)};
     ASSERT_NEAR(loss.at(0, 0), 4.0F, 1e-5F);
@@ -151,18 +158,19 @@ TEST(SpikeCountLossTest, ForwardAndBackward)
 TEST(SurrogateGradientTest, Exponential)
 {
     ExponentialSurrogate surrogate(1.0F);
-    Eigen::MatrixXf v_mem(1, 1);
-    v_mem << 2.1F;
-    Eigen::MatrixXf grad = surrogate.calculate(nn::Tensor(v_mem), 2.0F).get_data_ref();
+    nn::Tensor v_mem_tensor(1, 1);
+    v_mem_tensor.at(0, 0) = 2.1F;
+    Eigen::MatrixXf grad = surrogate.calculate(v_mem_tensor, 2.0F).get_data_ref();
     ASSERT_NEAR(grad(0, 0), 0.9048374, 1e-5F);
 }
 
 TEST(SurrogateGradientTest, Boxcar)
 {
     BoxcarSurrogate surrogate(0.5F);
-    Eigen::MatrixXf v_mem(1, 2);
-    v_mem << 2.1F, 2.3F;
-    Eigen::MatrixXf grad = surrogate.calculate(nn::Tensor(v_mem), 2.0F).get_data_ref();
+    nn::Tensor v_mem_tensor(1, 2);
+    v_mem_tensor.at(0, 0) = 2.1F;
+    v_mem_tensor.at(0, 1) = 2.3F;
+    Eigen::MatrixXf grad = surrogate.calculate(v_mem_tensor, 2.0F).get_data_ref();
     ASSERT_FLOAT_EQ(grad(0, 0), 1.0F);
     ASSERT_FLOAT_EQ(grad(0, 1), 0.0F);
 }
@@ -265,8 +273,7 @@ TEST(Conv2dTest, MultipleBatches)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Simple weights and bias
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.get_data_ref().setOnes();
     conv.set_weights(weights);
 
@@ -320,8 +327,7 @@ TEST(Conv2dTest, MultiChannelForward)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Initialize weights with known pattern
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.get_data_ref().setZero();
 
     // First output channel: use only first input channel (all 1s)
@@ -484,8 +490,7 @@ TEST(Conv2dTest, ParallelExecution)
     ASSERT_FALSE(conv_sequential.is_parallel_enabled());
 
     // Initialize with same weights and bias
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.get_data_ref().setOnes();
     conv_parallel.set_weights(weights);
     conv_sequential.set_weights(weights);
@@ -540,8 +545,7 @@ TEST(Conv2dTest, GradientComputation)
     Conv2d conv(in_channels, out_channels, kernel_size);
 
     // Simple weights
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.at(0, 0) = 0.5F;
     weights.at(1, 0) = 1.0F;
     weights.at(2, 0) = 1.5F;
@@ -595,8 +599,7 @@ TEST(Conv2dTest, SmallInputSize)
 
     Conv2d conv(in_channels, out_channels, kernel_size);
 
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.get_data_ref().setOnes();
     conv.set_weights(weights);
 
@@ -645,8 +648,7 @@ TEST(Conv2dTest, LargeBatchSize)
 
     Conv2d conv(in_channels, out_channels, kernel_size, batch_size);
 
-    nn::Tensor weights(static_cast<Eigen::Index>(kernel_size * kernel_size * in_channels),
-                       out_channels);
+    nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
     weights.get_data_ref().setRandom();
     conv.set_weights(weights);
 
@@ -720,15 +722,17 @@ TEST(Conv2dTest, BiasShapeVariants)
 
     // Shapes should match and data should be identical
     ASSERT_EQ(out_col.get_shape(), out_row.get_shape());
-    ASSERT_TRUE(out_col.get_data_ref().isApprox(out_row.get_data_ref()));
+    ASSERT_TRUE(test_helpers::tensor_is_approx(out_col, out_row));
 }
 
 // Test for L1Regularization
 TEST(L1RegularizationTest, Forward)
 {
     L1Regularization reg(0.1F);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0F)};
+    nn::Tensor param1(2, 2);
+    test_helpers::tensor_fill_with_value(param1, 1.0F);
+    nn::Tensor param2(1, 3);
+    test_helpers::tensor_fill_with_value(param2, -2.0F);
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     nn::Tensor loss = reg.forward(params);
@@ -739,25 +743,31 @@ TEST(L1RegularizationTest, Forward)
 TEST(L1RegularizationTest, Backward)
 {
     L1Regularization reg(0.5F);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, -2.0F)};
+    nn::Tensor param1(2, 2);
+    test_helpers::tensor_fill_with_value(param1, 1.0F);
+    nn::Tensor param2(1, 3);
+    test_helpers::tensor_fill_with_value(param2, -2.0F);
     param1.zero_grad();
     param2.zero_grad();
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     reg.backward(params);
     // grad for param1: sign(1)*0.5 = 0.5
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 0.5F)));
+    Eigen::MatrixXf expected_grad1 = Eigen::MatrixXf::Constant(2, 2, 0.5F);
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(expected_grad1));
     // grad for param2: sign(-2)*0.5 = -0.5
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, -0.5F)));
+    Eigen::MatrixXf expected_grad2 = Eigen::MatrixXf::Constant(1, 3, -0.5F);
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(expected_grad2));
 }
 
 // Test for L2Regularization
 TEST(L2RegularizationTest, Forward)
 {
     L2Regularization reg(0.1F);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0F)};
+    nn::Tensor param1(2, 2);
+    test_helpers::tensor_fill_with_value(param1, 1.0F);
+    nn::Tensor param2(1, 3);
+    test_helpers::tensor_fill_with_value(param2, 2.0F);
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     nn::Tensor loss = reg.forward(params);
@@ -768,17 +778,21 @@ TEST(L2RegularizationTest, Forward)
 TEST(L2RegularizationTest, Backward)
 {
     L2Regularization reg(0.5F);
-    nn::Tensor param1{Eigen::MatrixXf::Constant(2, 2, 1.0F)};
-    nn::Tensor param2{Eigen::MatrixXf::Constant(1, 3, 2.0F)};
+    nn::Tensor param1(2, 2);
+    test_helpers::tensor_fill_with_value(param1, 1.0F);
+    nn::Tensor param2(1, 3);
+    test_helpers::tensor_fill_with_value(param2, 2.0F);
     param1.zero_grad();
     param2.zero_grad();
     std::vector<nn::Tensor*> params = {&param1, &param2};
 
     reg.backward(params);
     // grad for param1: 2*1*0.5 = 1.0
-    ASSERT_TRUE(param1.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(2, 2, 1.0F)));
+    Eigen::MatrixXf expected_grad1 = Eigen::MatrixXf::Constant(2, 2, 1.0F);
+    ASSERT_TRUE(param1.get_grad_ref().isApprox(expected_grad1));
     // grad for param2: 2*2*0.5 = 2.0
-    ASSERT_TRUE(param2.get_grad_ref().isApprox(Eigen::MatrixXf::Constant(1, 3, 2.0F)));
+    Eigen::MatrixXf expected_grad2 = Eigen::MatrixXf::Constant(1, 3, 2.0F);
+    ASSERT_TRUE(param2.get_grad_ref().isApprox(expected_grad2));
 }
 
 TEST(SimpleResNetTest, ForwardAndBackward)
@@ -790,17 +804,13 @@ TEST(SimpleResNetTest, ForwardAndBackward)
 
     SimpleResNet model(input_dim, hidden_dim, output_dim, depth);
 
-    Eigen::MatrixXf input(1, input_dim);
-    input.setRandom();
-    nn::Tensor in_tensor{input};
+    nn::Tensor in_tensor = test_helpers::make_random_tensor(1, input_dim);
 
     nn::Tensor out = model.forward(in_tensor);
     EXPECT_EQ(out.rows(), 1);
     EXPECT_EQ(out.cols(), output_dim);
 
-    Eigen::MatrixXf grad_out(1, output_dim);
-    grad_out.setOnes();
-    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_tensor = test_helpers::make_ones_tensor(1, output_dim);
 
     nn::Tensor grad_in = model.backward(grad_tensor);
     EXPECT_EQ(grad_in.rows(), 1);
@@ -811,9 +821,7 @@ TEST(SimpleResNetTest, ForwardAndBackwardEdgeCases)
 {
     // Depth 0 (just input -> linear -> relu -> linear)
     SimpleResNet model_depth0(5, 3, 2, 0);
-    Eigen::MatrixXf input0(1, 5);
-    input0.setRandom();
-    nn::Tensor in_tensor0{input0};
+    nn::Tensor in_tensor0 = test_helpers::make_random_tensor(1, 5);
     nn::Tensor out0 = model_depth0.forward(in_tensor0);
     EXPECT_EQ(out0.rows(), 1);
     EXPECT_EQ(out0.cols(), 2);
@@ -831,9 +839,7 @@ TEST(SimpleResNetTest, ForwardAndBackwardEdgeCases)
     EXPECT_EQ(out_large.cols(), 2);
 
     // Backward for depth 0
-    Eigen::MatrixXf grad_out0(1, 2);
-    grad_out0.setOnes();
-    nn::Tensor grad_tensor0{grad_out0};
+    nn::Tensor grad_tensor0 = test_helpers::make_ones_tensor(1, 2);
     nn::Tensor grad_in0 = model_depth0.backward(grad_tensor0);
     EXPECT_EQ(grad_in0.rows(), 1);
     EXPECT_EQ(grad_in0.cols(), 5);
@@ -846,13 +852,11 @@ TEST(LayerExceptionTest, LinearInvalidDimensions)
     Linear linear(2, 3);
 
     // Test forward with wrong input dimensions
-    Eigen::MatrixXf wrong_input(1, 5); // Should be 1x2
-    nn::Tensor wrong_tensor{wrong_input};
+    nn::Tensor wrong_tensor(1, 5); // Should be 1x2
     ASSERT_THROW(linear.forward(wrong_tensor), std::invalid_argument);
 
     // Test backward with wrong gradient dimensions
-    Eigen::MatrixXf wrong_grad(1, 5); // Should be 1x3
-    nn::Tensor wrong_grad_tensor{wrong_grad};
+    nn::Tensor wrong_grad_tensor(1, 5); // Should be 1x3
     ASSERT_THROW(linear.backward(wrong_grad_tensor), std::invalid_argument);
 }
 
@@ -878,25 +882,25 @@ TEST(LayerExceptionTest, Conv2dInvalidInputs)
 TEST(LayerExceptionTest, SequentialEmptyLayers)
 {
     Sequential seq({});
-    Eigen::MatrixXf input(1, 2);
-    nn::Tensor input_tensor{input};
+    nn::Tensor input_tensor(1, 2);
     ASSERT_THROW(seq.forward(input_tensor), std::runtime_error);
 }
 
 TEST(LayerExceptionTest, MSELossInvalidTargets)
 {
     MSELoss mse;
-    Eigen::MatrixXf pred(2, 1);
-    pred << 1.0F, 2.0F;
-    nn::Tensor pred_tensor{pred};
+    nn::Tensor pred_tensor(2, 1);
+    pred_tensor.at(0, 0) = 1.0F;
+    pred_tensor.at(1, 0) = 2.0F;
 
     // Test without setting target
     ASSERT_THROW(mse.forward(pred_tensor), std::runtime_error);
 
     // Test with mismatched dimensions
-    Eigen::MatrixXf target(3, 1); // Different size than prediction
-    target << 0.0F, 1.0F, 2.0F;
-    nn::Tensor target_tensor{target};
+    nn::Tensor target_tensor(3, 1); // Different size than prediction
+    target_tensor.at(0, 0) = 0.0F;
+    target_tensor.at(1, 0) = 1.0F;
+    target_tensor.at(2, 0) = 2.0F;
     mse.set_target(target_tensor);
     ASSERT_THROW(mse.forward(pred_tensor), std::invalid_argument);
 }
@@ -910,19 +914,14 @@ TEST(LayerMemoryStressTest, LargeLinearLayer)
     Linear linear(large_input, large_output);
 
     // Create large input
-    Eigen::MatrixXf large_input_data(1, large_input);
-    large_input_data.setRandom();
-
-    nn::Tensor input_tensor{large_input_data};
+    nn::Tensor input_tensor = test_helpers::make_random_tensor(1, large_input);
     nn::Tensor output = linear.forward(input_tensor);
 
     EXPECT_EQ(output.rows(), 1);
     EXPECT_EQ(output.cols(), large_output);
 
     // Test backward with large gradients
-    Eigen::MatrixXf large_grad(1, large_output);
-    large_grad.setOnes();
-    nn::Tensor grad_tensor{large_grad};
+    nn::Tensor grad_tensor = test_helpers::make_ones_tensor(1, large_output);
     nn::Tensor grad_input = linear.backward(grad_tensor);
 
     EXPECT_EQ(grad_input.rows(), 1);
@@ -945,10 +944,8 @@ TEST(LayerMemoryStressTest, LargeConv2dLayer)
                 true); // kernel=3, stride=1, padding=1, dilation=1, use_parallel=true
 
     // Create large input (batch_size=1, channels, height, width)
-    Eigen::MatrixXf large_input(large_channels * large_size, large_size);
-    large_input.setRandom();
-
-    nn::Tensor input_tensor{large_input};
+    nn::Tensor input_tensor =
+        test_helpers::make_random_tensor(large_channels * large_size, large_size);
     nn::Tensor output = conv.forward(input_tensor);
 
     // Output should be valid
@@ -956,9 +953,7 @@ TEST(LayerMemoryStressTest, LargeConv2dLayer)
     EXPECT_GT(output.cols(), 0);
 
     // Test backward
-    Eigen::MatrixXf grad_output(output.rows(), output.cols());
-    grad_output.setOnes();
-    nn::Tensor grad_tensor{grad_output};
+    nn::Tensor grad_tensor = test_helpers::make_ones_tensor(output.rows(), output.cols());
     nn::Tensor grad_input = conv.backward(grad_tensor);
 
     EXPECT_EQ(grad_input.rows(), large_channels * large_size);
@@ -975,27 +970,27 @@ TEST(LayerNumericalEdgeTest, NaNInfHandling)
     linear.bias.get_data_ref().setZero();
 
     // Test with NaN inputs
-    Eigen::MatrixXf nan_input(1, 2);
-    nan_input << std::numeric_limits<float>::quiet_NaN(), 1.0F;
-    nn::Tensor nan_tensor{nan_input};
+    nn::Tensor nan_tensor(1, 2);
+    nan_tensor.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    nan_tensor.at(0, 1) = 1.0F;
     nn::Tensor nan_output = linear.forward(nan_tensor);
     EXPECT_TRUE(std::isnan(nan_output.at(0, 0)));
 
     // Test with Inf inputs
-    Eigen::MatrixXf inf_input(1, 2);
-    inf_input << std::numeric_limits<float>::infinity(), 1.0F;
-    nn::Tensor inf_tensor{inf_input};
+    nn::Tensor inf_tensor(1, 2);
+    inf_tensor.at(0, 0) = std::numeric_limits<float>::infinity();
+    inf_tensor.at(0, 1) = 1.0F;
     nn::Tensor inf_output = linear.forward(inf_tensor);
     EXPECT_TRUE(std::isinf(inf_output.at(0, 0)));
 
     // Test MSE with NaN
     MSELoss mse;
-    Eigen::MatrixXf nan_pred(2, 1);
-    nan_pred << std::numeric_limits<float>::quiet_NaN(), 2.0F;
-    Eigen::MatrixXf nan_target(2, 1);
-    nan_target << 1.0F, 2.0F;
-    nn::Tensor nan_pred_tensor{nan_pred};
-    nn::Tensor nan_target_tensor{nan_target};
+    nn::Tensor nan_pred_tensor(2, 1);
+    nan_pred_tensor.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    nan_pred_tensor.at(1, 0) = 2.0F;
+    nn::Tensor nan_target_tensor(2, 1);
+    nan_target_tensor.at(0, 0) = 1.0F;
+    nan_target_tensor.at(1, 0) = 2.0F;
     mse.set_target(nan_target_tensor);
     nn::Tensor nan_loss = mse.forward(nan_pred_tensor);
     EXPECT_TRUE(std::isnan(nan_loss.at(0, 0)));
@@ -1006,14 +1001,13 @@ TEST(LayerNumericalEdgeTest, GradientNumericalStability)
     Linear linear(2, 1);
 
     // Test with very small gradients
-    Eigen::MatrixXf small_input(1, 2);
-    small_input << 1e-8F, 1e-8F;
-    nn::Tensor small_tensor{small_input};
+    nn::Tensor small_tensor(1, 2);
+    small_tensor.at(0, 0) = 1e-8F;
+    small_tensor.at(0, 1) = 1e-8F;
     [[maybe_unused]] nn::Tensor small_output = linear.forward(small_tensor);
 
-    Eigen::MatrixXf small_grad(1, 1);
-    small_grad << 1e-8F;
-    nn::Tensor small_grad_tensor{small_grad};
+    nn::Tensor small_grad_tensor(1, 1);
+    small_grad_tensor.at(0, 0) = 1e-8F;
     nn::Tensor small_grad_input = linear.backward(small_grad_tensor);
 
     // Should not produce NaN or Inf
@@ -1023,9 +1017,8 @@ TEST(LayerNumericalEdgeTest, GradientNumericalStability)
     EXPECT_FALSE(std::isinf(small_grad_input.at(0, 1)));
 
     // Test with very large gradients
-    Eigen::MatrixXf large_grad(1, 1);
-    large_grad << 1e8F;
-    nn::Tensor large_grad_tensor{large_grad};
+    nn::Tensor large_grad_tensor(1, 1);
+    large_grad_tensor.at(0, 0) = 1e8F;
     nn::Tensor large_grad_input = linear.backward(large_grad_tensor);
 
     // Should handle large values gracefully
@@ -1042,9 +1035,7 @@ TEST(LayerThreadSafetyTest, ConcurrentForwardPasses)
     std::vector<nn::Tensor> inputs;
     for (int i = 0; i < 10; ++i)
     {
-        Eigen::MatrixXf input_data(1, 10);
-        input_data.setRandom();
-        inputs.emplace_back(input_data);
+        inputs.push_back(test_helpers::make_random_tensor(1, 10));
     }
 
     // Test concurrent forward passes (basic test)
@@ -1071,17 +1062,13 @@ TEST(LayerThreadSafetyTest, GradientAccumulation)
     // Multiple forward-backward cycles
     for (int cycle = 0; cycle < 5; ++cycle)
     {
-        Eigen::MatrixXf input(1, 3);
-        input.setRandom();
-        nn::Tensor input_tensor{input};
+        nn::Tensor input_tensor = test_helpers::make_random_tensor(1, 3);
 
         // Forward
         [[maybe_unused]] nn::Tensor output = linear.forward(input_tensor);
 
         // Backward
-        Eigen::MatrixXf grad_output(1, 2);
-        grad_output.setOnes();
-        nn::Tensor grad_tensor{grad_output};
+        nn::Tensor grad_tensor = test_helpers::make_ones_tensor(1, 2);
         [[maybe_unused]] nn::Tensor grad_input = linear.backward(grad_tensor);
 
         // Verify gradients are accumulated properly
@@ -1096,16 +1083,14 @@ TEST(LayerComprehensiveTest, LeakyLayerStateManagement)
     Leaky leaky(1.0F, 5.0F, 1.0F, 2.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>());
 
     // Test state reset between forward passes
-    Eigen::MatrixXf input1(1, 1);
-    input1 << 3.0F;
-    nn::Tensor tensor1{input1};
+    nn::Tensor tensor1(1, 1);
+    tensor1.at(0, 0) = 3.0F;
     [[maybe_unused]] nn::Tensor out1 = leaky.forward(tensor1);
     float vmem_after1 = leaky.v_mem(0, 0);
 
     // Second forward pass should start fresh
-    Eigen::MatrixXf input2(1, 1);
-    input2 << 1.0F;
-    nn::Tensor tensor2{input2};
+    nn::Tensor tensor2(1, 1);
+    tensor2.at(0, 0) = 1.0F;
     [[maybe_unused]] nn::Tensor out2 = leaky.forward(tensor2);
     float vmem_after2 = leaky.v_mem(0, 0);
 
@@ -1122,20 +1107,22 @@ TEST(LayerComprehensiveTest, ReLUGradientFlow)
     Sequential seq({std::make_shared<Linear>(linear), std::make_shared<ReLU>(relu)});
 
     // Input that will produce negative pre-activation
-    linear.weight.set_data((Eigen::MatrixXf(1, 2) << -2.0F, -3.0F).finished());
-    linear.bias.set_data((Eigen::MatrixXf(1, 1) << 1.0F).finished());
+    Eigen::MatrixXf weight_data(1, 2);
+    weight_data << -2.0F, -3.0F;
+    linear.weight.set_data(weight_data);
+    Eigen::MatrixXf bias_data(1, 1);
+    bias_data << 1.0F;
+    linear.bias.set_data(bias_data);
 
-    Eigen::MatrixXf input(1, 2);
-    input << 2.0F, 2.0F; // Will produce -4 + 1 = -3 (negative)
-    nn::Tensor input_tensor{input};
+    nn::Tensor input_tensor(1, 2);
+    input_tensor.at(0, 0) = 2.0F;
+    input_tensor.at(0, 1) = 2.0F; // Will produce -4 + 1 = -3 (negative)
 
     nn::Tensor output = seq.forward(input_tensor);
     EXPECT_EQ(output.at(0, 0), 0.0F); // ReLU of negative is 0
 
     // Backward should produce zero gradient for negative inputs
-    Eigen::MatrixXf grad_out(1, 1);
-    grad_out << 1.0F;
-    nn::Tensor grad_tensor{grad_out};
+    nn::Tensor grad_tensor = test_helpers::make_ones_tensor(1, 1);
     nn::Tensor grad_input = seq.backward(grad_tensor);
 
     // Gradient should be zero for the input that produced negative pre-activation
@@ -1195,17 +1182,17 @@ TEST(LayerComprehensiveTest, SurrogateGradientRange)
     auto surrogate = std::make_shared<ExponentialSurrogate>();
 
     // Test surrogate gradient at different voltage levels
-    Eigen::MatrixXf v_zero(1, 1);
-    v_zero << 0.0F;
-    float grad_at_zero = surrogate->calculate(nn::Tensor(v_zero), 1.0F).at(0, 0);
+    nn::Tensor v_zero(1, 1);
+    v_zero.at(0, 0) = 0.0F;
+    float grad_at_zero = surrogate->calculate(v_zero, 1.0F).at(0, 0);
 
-    Eigen::MatrixXf v_one(1, 1);
-    v_one << 1.0F;
-    float grad_at_one = surrogate->calculate(nn::Tensor(v_one), 1.0F).at(0, 0);
+    nn::Tensor v_one(1, 1);
+    v_one.at(0, 0) = 1.0F;
+    float grad_at_one = surrogate->calculate(v_one, 1.0F).at(0, 0);
 
-    Eigen::MatrixXf v_minus_one(1, 1);
-    v_minus_one << -1.0F;
-    float grad_at_minus_one = surrogate->calculate(nn::Tensor(v_minus_one), 1.0F).at(0, 0);
+    nn::Tensor v_minus_one(1, 1);
+    v_minus_one.at(0, 0) = -1.0F;
+    float grad_at_minus_one = surrogate->calculate(v_minus_one, 1.0F).at(0, 0);
 
     // All gradients should be finite and reasonable
     EXPECT_TRUE(std::isfinite(grad_at_zero));

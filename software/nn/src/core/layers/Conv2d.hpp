@@ -184,7 +184,8 @@ class EIGEN_ALIGN16 Conv2d : public Module
     /**
      * @brief Add bias to output matrix with optimized broadcasting
      */
-    void add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias, int num_cols) const;
+    void add_bias_optimized(Eigen::MatrixXf& matrix, const nn::Tensor& bias,
+                            int num_cols) const; // TODO: refactor to use nn::Tensor
 
     /**
      * @brief Reshape output matrix to 4D tensor without data copy

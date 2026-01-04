@@ -20,7 +20,6 @@
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
 
-using Eigen::MatrixXf;
 using std::cout;
 using std::fixed;
 using std::make_shared;
@@ -34,16 +33,19 @@ using std::vector;
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
-// Define a nice format for debugging eigen matrices
-const Eigen::IOFormat CleanFmt(0,                // number of decimals
-                               Eigen::Unaligned, // flags
-                               ",",              // string between numbers
-                               "\n",             // string between rows
-                               "|",              // opening bracket
-                               "|",              // closing bracket
-                               "\n",             // string between matrices
-                               "\n"              // closing bracket for the matrix
-);
+// Format for printing tensors (simple CSV-like format)
+auto print_tensor = [](const nn::Tensor& t)
+{
+    for (size_t i = 0; i < t.rows(); ++i)
+    {
+        for (size_t j = 0; j < t.cols(); ++j)
+        {
+            if (j > 0) std::cout << ",";
+            std::cout << t.at(i, j);
+        }
+        std::cout << "\n";
+    }
+};
 
 namespace
 {

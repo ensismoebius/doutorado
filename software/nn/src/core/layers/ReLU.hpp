@@ -15,8 +15,9 @@ struct ReLU : public Module
         if (requires_grad)
         {
             // relu_grad stores which elements were > 0 (for gradient computation)
-            Eigen::MatrixXf grad_mask = (input.get_data_ref().array() > 0).cast<float>();
-            relu_grad = nn::Tensor(grad_mask);
+            // Create a tensor and populate with mask values
+            relu_grad = nn::Tensor(input.get_data_ref().rows(), input.get_data_ref().cols());
+            relu_grad.get_data_ref() = (input.get_data_ref().array() > 0).cast<float>();
         }
 
         // Calcula a ativação usando Tensor method

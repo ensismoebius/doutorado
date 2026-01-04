@@ -27,8 +27,9 @@ struct ResidualBlock : public Module
         out = fc2->forward(out, requires_grad);
 
         // Add skip connection: assume input and out shapes match (N x D)
-        Eigen::MatrixXf res = out.get_data_ref() + input.get_data_ref();
-        return nn::Tensor{res};
+        nn::Tensor res(out.rows(), out.cols());
+        res.get_data_ref() = out.get_data_ref() + input.get_data_ref();
+        return res;
     }
 
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
@@ -43,7 +44,8 @@ struct ResidualBlock : public Module
 
         // Total gradient w.r.t. input is grad from main branch (grad_fc2 propagated through fc2->)
         // + grad from skip (identity)
-        Eigen::MatrixXf total = grad_fc1.get_data_ref() + grad_output.get_data_ref();
-        return nn::Tensor{total};
+        nn::Tensor total(grad_fc1.rows(), grad_fc1.cols());
+        total.get_data_ref() = grad_fc1.get_data_ref() + grad_output.get_data_ref();
+        return total;
     }
 };

@@ -16,36 +16,20 @@ class Tensor
    public:
     // Constructors
     Tensor();
-    explicit Tensor(std::unique_ptr<ITensorBackend> backend);
-    explicit Tensor(const Eigen::MatrixXf& data);
-    explicit Tensor(Eigen::MatrixXf&& data);
+    Tensor(std::unique_ptr<ITensorBackend> backend);
     Tensor(Index rows, Index cols);
-    Tensor(Index dim1, Index dim2, Index dim3, Index dim4);
-    explicit Tensor(const std::vector<Index>& shape);
+    Tensor(Index dim1, Index d2, Index d3, Index d4);
+    Tensor(const std::vector<Index>& shape);
 
-    // Copy operations
+    // Default copy/move semantics
     Tensor(const Tensor& other);
     Tensor& operator=(const Tensor& other);
-
-    // Move operations
-    Tensor(Tensor&& other) noexcept = default;
-    Tensor& operator=(Tensor&& other) noexcept = default;
-
-    // Getters for data and gradient (backward compatibility - return Eigen matrices)
-    [[nodiscard]] auto get_data_ref() const -> const Eigen::MatrixXf&;
-    [[nodiscard]] auto get_grad_ref() const -> const Eigen::MatrixXf&;
-    auto get_data_ref() -> Eigen::MatrixXf&;
-    auto get_grad_ref() -> Eigen::MatrixXf&;
-
-    // Setter for gradient
-    void set_grad(const Eigen::MatrixXf& grad);
-    void set_grad(Eigen::MatrixXf&& grad);
-
-    // Setter for data
-    void set_data(const Eigen::MatrixXf& data);
+    Tensor(Tensor&& other) = default;
+    Tensor& operator=(Tensor&& other) = default;
+    ~Tensor() = default;
 
     // Shape and size information
-    [[nodiscard]] auto get_shape() const -> const std::vector<Index>&;
+    auto get_shape() const -> const std::vector<Index>&;
     [[nodiscard]] auto rows() const noexcept -> Index;
     [[nodiscard]] auto cols() const noexcept -> Index;
     [[nodiscard]] auto size() const noexcept -> Index;
@@ -96,6 +80,11 @@ class Tensor
 
     // Zero out the gradient
     void zero_grad();
+
+    auto get_backend() const -> const ITensorBackend*
+    {
+        return m_backend.get();
+    }
 
    private:
     std::unique_ptr<ITensorBackend> m_backend;

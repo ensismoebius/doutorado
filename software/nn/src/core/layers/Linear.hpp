@@ -41,12 +41,9 @@ struct Linear : public Module
     auto debug(const nn::Tensor& input) -> void
     {
         std::cout << "Linear layer forward:" << "\n";
-        std::cout << "Input dims: " << input.get_data_ref().rows() << "x"
-                  << input.get_data_ref().cols() << "\n";
-        std::cout << "Weight dims: " << weight.get_data_ref().rows() << "x"
-                  << weight.get_data_ref().cols() << "\n";
-        std::cout << "Bias dims: " << bias.get_data_ref().rows() << "x"
-                  << bias.get_data_ref().cols() << "\n";
+        std::cout << "Input dims: " << input.rows() << "x" << input.cols() << "\n";
+        std::cout << "Weight dims: " << weight.rows() << "x" << weight.cols() << "\n";
+        std::cout << "Bias dims: " << bias.rows() << "x" << bias.cols() << "\n";
     }
 #endif
 
@@ -60,7 +57,7 @@ struct Linear : public Module
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         // Validate input dimensions
-        if (input.cols() != in_features)
+        if (static_cast<int>(input.cols()) != in_features)
         {
             throw std::invalid_argument(
                 "Linear layer forward: input features (" + std::to_string(input.cols()) +
@@ -79,18 +76,18 @@ struct Linear : public Module
 #endif
 
         // Optimized linear transformation: y = x * W^T + b
-        // Use Eigen's lazy evaluation to avoid unnecessary copies
-        const auto& input_data = input.get_data_ref();
-        const auto& weight_data = weight.get_data_ref();
-        const auto& bias_data = bias.get_data_ref();
+        nn::Tensor result = input.matmul(weight.transpose());
 
-        // Compute: input * weight^T + bias (broadcasted)
-        // weight^T has shape [in_features, out_features]
-        // Result has shape [batch_size, out_features]
-        Eigen::MatrixXf result =
-            (input_data * weight_data.transpose()).rowwise() + bias_data.col(0).transpose();
+        // Manual broadcasting of bias
+        for (size_t i = 0; i < result.rows(); ++i)
+        {
+            for (size_t j = 0; j < result.cols(); ++j)
+            {
+                result.at(i, j) += bias.at(j, 0);
+            }
+        }
 
-        return nn::Tensor{std::move(result)};
+        return result;
     }
 
     /**
@@ -113,50 +110,24 @@ struct Linear : public Module
                                         std::to_string(out_features) + ")");
         }
 
-        // Considerando que B, X, Y, Z e W são tensores.
-        // Vamos representar a camada atual por um tensor Z = f(X) = WX + B.
-        // Vamos representar a camada anterior por Y = g(Z) = (pode ser qualquer coisa).
-        // Sendo assim sabemos que na fase do _forward_ as camadas f(X) e g(Z)
-        // interagem da seguinte forma: Y = g(f(X))
+        // Calculate weight gradient: grad_weight = grad_previous.T * input_cache
+        nn::Tensor grad_weight = grad_previous.transpose().matmul(input_cache);
+        // weight.set_grad(grad_weight); // This needs a Tensor-based set_grad
 
-        // Portanto para sabermos a direção do crescimento de W
-        // quando há uma mudança em Y é necessário calcular
-        // a derivada de Y em relação a W: dY/dW
+        // Calculate bias gradient: sum of grad_previous columns
+        nn::Tensor grad_bias(out_features, 1);
+        for (size_t j = 0; j < grad_previous.cols(); ++j)
+        {
+            float sum = 0.0f;
+            for (size_t i = 0; i < grad_previous.rows(); ++i)
+            {
+                sum += grad_previous.at(i, j);
+            }
+            grad_bias.at(j, 0) = sum;
+        }
+        // bias.set_grad(grad_bias); // This needs a Tensor-based set_grad
 
-        // Para que se obtenha isso precisamos recorrer à regra da cadeia:
-        // dY/dW = dY/dZ * dZ/dW
-
-        // Nessa camada dY/dZ = grad_previous então a expressão fica assim:
-        // dY/dW = grad_previous * dZ/dW
-
-        // dZ/dW = x * 1*W^0 + 0 = x
-
-        // Portanto o gradiente da camada atual é:
-        // dY/dW = grad_previous * x
-
-        // Lembrando que:
-        // x = input_cache, dY/dZ = grad_previous e dY/dW = grad_weight
-        // Então dY/dW = dY/dZ * dZ/dW é igual a:
-        // grad_weight = grad_previous.T * input_cache
-
-        weight.set_grad(grad_previous.get_data_ref().transpose() * input_cache.get_data_ref());
-
-        // Da mesma forma o gradiente em relação a B será expresso por
-        // dY/db = dY/dZ * dZ/dB
-        // dZ/dB = (WX + B)' = 0 + 1*B^0 = 1
-        // Portanto:
-        // dY/dB = grad_previous * 1 = grad_previous
-
-        // Considerando que estamos processando mais de um
-        // vetor de entrada (um batch), somamos as derivadas
-        // por linha:
-        bias.set_grad(grad_previous.get_data_ref().colwise().sum().transpose());
-
-        // Por fim a derivada de X será
-        // dY/dX = dY/dZ * dZ/dX
-        // dY/dX = grad_output * (WX + B)'
-        // dY/dX = grad_output * W*1*X^0 + 0
-        // dY/dX = grad_output * W
+        // Calculate input gradient: grad_input = grad_previous * weight
         auto grad_input_tensor = grad_previous.matmul(weight);
         return grad_input_tensor;
     }

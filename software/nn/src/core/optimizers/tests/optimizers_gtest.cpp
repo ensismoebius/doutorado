@@ -1,41 +1,53 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Dense>
+#include <limits>
 #include <vector>
 
 #include "core/optimizers/Adam.hpp"
 #include "core/optimizers/SGD.hpp"
 #include "core/optimizers/SGDMinimal.hpp"
 #include "core/tensor/Tensor.hpp"
+#include "core/utility/tests/test_helpers.hpp"
 
 // Test Fixture for common optimizer setup
 class OptimizerTest : public ::testing::Test
 {
    protected:
     // Common data for weights and bias
-    Eigen::MatrixXf initial_weights_data = Eigen::MatrixXf::Ones(2, 2);
-    Eigen::MatrixXf initial_bias_data = Eigen::MatrixXf::Zero(2, 1);
-    Eigen::MatrixXf initial_weights_grad = Eigen::MatrixXf::Ones(2, 2);
-    Eigen::MatrixXf initial_bias_grad = Eigen::MatrixXf::Ones(2, 1);
+    nn::Tensor initial_weights_data = test_helpers::make_ones_tensor(2, 2);
+    nn::Tensor initial_bias_data = test_helpers::make_zeros_tensor(2, 1);
 
     nn::Tensor weights;
     nn::Tensor bias;
     std::vector<nn::Tensor*> params;
 
-    OptimizerTest()
-        : weights(initial_weights_data), // Initialize Tensor objects
-          bias(initial_bias_data)
+    OptimizerTest() : weights(2, 2), bias(2, 1)
     {
+        // Copy initial data
+        for (nn::Index i = 0; i < 2; ++i)
+        {
+            for (nn::Index j = 0; j < 2; ++j)
+            {
+                weights.at(i, j) = 1.0F;
+            }
+        }
+        for (nn::Index i = 0; i < 2; ++i)
+        {
+            bias.at(i, 0) = 0.0F;
+        }
+
         params.push_back(&weights);
         params.push_back(&bias);
-        weights.set_grad(initial_weights_grad);
-        bias.set_grad(initial_bias_grad);
+
+        // Set gradients
+        weights.set_grad(test_helpers::make_ones_tensor(2, 2).get_data_ref());
+        bias.set_grad(test_helpers::make_ones_tensor(2, 1).get_data_ref());
     }
 
     // Helper to check if a tensor's data has changed from initial
-    bool has_data_changed(const nn::Tensor& tensor, const Eigen::MatrixXf& initial_data) const
+    bool has_data_changed(const nn::Tensor& tensor, const nn::Tensor& initial_data) const
     {
-        return !tensor.get_data_ref().isApprox(initial_data);
+        return !test_helpers::tensor_is_approx(tensor, initial_data);
     }
 };
 
@@ -45,8 +57,8 @@ TEST_F(OptimizerTest, SGDMinimalOptimizerStepAndZeroGrad)
     sgd_minimal.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd_minimal.zero_grad(params);
-    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F)); // Use isZero for Eigen matrices
-    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
 }
 
 TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
@@ -56,8 +68,8 @@ TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
     adam.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     adam.zero_grad(params);
-    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F));
-    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
 }
 
 TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
@@ -67,8 +79,8 @@ TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
     sgd.step(params);
     ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
     sgd.zero_grad(params);
-    ASSERT_TRUE(weights.get_grad_ref().isZero(1e-6F));
-    ASSERT_TRUE(bias.get_grad_ref().isZero(1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(weights.get_grad_ref(), 1e-6F));
+    ASSERT_TRUE(test_helpers::tensor_is_zero(bias.get_grad_ref(), 1e-6F));
 }
 
 // New test for empty parameters list
@@ -132,18 +144,32 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
     const int param_size = 1000;
 
     std::vector<nn::Tensor*> large_params;
-    std::vector<Eigen::MatrixXf> initial_data;
+    std::vector<nn::Tensor> initial_data;
 
     // Create large parameter set
     for (int i = 0; i < num_params; ++i)
     {
-        Eigen::MatrixXf data = Eigen::MatrixXf::Random(param_size, param_size);
-        Eigen::MatrixXf grad = Eigen::MatrixXf::Ones(param_size, param_size) * 0.1F;
+        nn::Tensor data = test_helpers::make_random_tensor(param_size, param_size);
+        nn::Tensor grad = test_helpers::make_constant_tensor(param_size, param_size, 0.1F);
 
-        initial_data.push_back(data);
+        initial_data.push_back(nn::Tensor(data.rows(), data.cols()));
+        for (nn::Index r = 0; r < data.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < data.cols(); ++c)
+            {
+                initial_data.back().at(r, c) = data.at(r, c);
+            }
+        }
 
-        auto* tensor = new nn::Tensor(data);
-        tensor->set_grad(grad);
+        auto* tensor = new nn::Tensor(data.rows(), data.cols());
+        for (nn::Index r = 0; r < data.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < data.cols(); ++c)
+            {
+                tensor->at(r, c) = data.at(r, c);
+            }
+        }
+        tensor->set_grad(grad.get_data_ref());
         large_params.push_back(tensor);
     }
 
@@ -155,8 +181,8 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
     // Verify parameters changed
     for (int i = 0; i < num_params; ++i)
     {
-        EXPECT_FALSE(large_params[i]->get_data_ref().isApprox(initial_data[i]));
-        EXPECT_TRUE(large_params[i]->get_grad_ref().isZero());
+        EXPECT_FALSE(test_helpers::tensor_is_approx(*large_params[i], initial_data[i]));
+        EXPECT_TRUE(test_helpers::tensor_is_zero(large_params[i]->get_grad_ref()));
     }
 
     // Test Adam with large parameter set
@@ -175,12 +201,12 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
 // Numerical Edge Cases for Optimizers
 TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
 {
-    nn::Tensor param(Eigen::MatrixXf::Ones(2, 2));
+    nn::Tensor param = test_helpers::make_ones_tensor(2, 2);
 
     // Test with NaN gradients
-    Eigen::MatrixXf nan_grad = Eigen::MatrixXf::Ones(2, 2);
-    nan_grad(0, 0) = std::numeric_limits<float>::quiet_NaN();
-    param.set_grad(nan_grad);
+    nn::Tensor nan_grad = test_helpers::make_ones_tensor(2, 2);
+    test_helpers::tensor_set_value_at(nan_grad, 0, 0, std::numeric_limits<float>::quiet_NaN());
+    param.set_grad(nan_grad.get_data_ref());
 
     std::vector<nn::Tensor*> params = {&param};
 
@@ -189,52 +215,78 @@ TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
     EXPECT_NO_THROW(sgd.step(params));
 
     // Test with Inf gradients
-    Eigen::MatrixXf inf_grad = Eigen::MatrixXf::Ones(2, 2);
-    inf_grad(0, 0) = std::numeric_limits<float>::infinity();
-    param.set_grad(inf_grad);
+    nn::Tensor inf_grad = test_helpers::make_ones_tensor(2, 2);
+    test_helpers::tensor_set_value_at(inf_grad, 0, 0, std::numeric_limits<float>::infinity());
+    param.set_grad(inf_grad.get_data_ref());
 
     EXPECT_NO_THROW(sgd.step(params));
 
     // Test with very small gradients
-    Eigen::MatrixXf tiny_grad = Eigen::MatrixXf::Ones(2, 2) * 1e-10F;
-    param.set_grad(tiny_grad);
+    nn::Tensor tiny_grad = test_helpers::make_constant_tensor(2, 2, 1e-10F);
+    param.set_grad(tiny_grad.get_data_ref());
 
     EXPECT_NO_THROW(sgd.step(params));
 
     // Test with very large gradients
-    Eigen::MatrixXf huge_grad = Eigen::MatrixXf::Ones(2, 2) * 1e10F;
-    param.set_grad(huge_grad);
+    nn::Tensor huge_grad = test_helpers::make_constant_tensor(2, 2, 1e10F);
+    param.set_grad(huge_grad.get_data_ref());
 
     EXPECT_NO_THROW(sgd.step(params));
 }
 
 TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
 {
-    nn::Tensor param(Eigen::MatrixXf::Ones(2, 2));
-    param.set_grad(Eigen::MatrixXf::Ones(2, 2) * 0.1F);
+    nn::Tensor param = test_helpers::make_ones_tensor(2, 2);
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
     std::vector<nn::Tensor*> params = {&param};
 
     // Test with very small learning rate
     SGDMinimal sgd_tiny(1e-10F);
-    Eigen::MatrixXf data_before = param.get_data_ref();
+    nn::Tensor data_before(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_before.at(i, j) = param.at(i, j);
+        }
+    }
     sgd_tiny.step(params);
-    Eigen::MatrixXf data_after = param.get_data_ref();
+    nn::Tensor data_after(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_after.at(i, j) = param.at(i, j);
+        }
+    }
 
     // Change should be very small
-    Eigen::MatrixXf diff = data_after - data_before;
-    EXPECT_TRUE(diff.norm() < 1e-8F);
+    nn::Tensor diff = test_helpers::tensor_subtract(data_after, data_before);
+    EXPECT_TRUE(test_helpers::tensor_norm(diff) < 1e-8F);
 
     // Test with very large learning rate (but not invalid)
     SGDMinimal sgd_large(1e6F);
-    param.set_data(Eigen::MatrixXf::Ones(2, 2)); // Reset
-    param.set_grad(Eigen::MatrixXf::Ones(2, 2) * 0.1F);
-    data_before = param.get_data_ref();
+    test_helpers::tensor_fill_with_value(param, 1.0F); // Reset
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_before.at(i, j) = param.at(i, j);
+        }
+    }
     sgd_large.step(params);
-    data_after = param.get_data_ref();
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_after.at(i, j) = param.at(i, j);
+        }
+    }
 
     // Change should be large
-    diff = data_after - data_before;
-    EXPECT_TRUE(diff.norm() > 1.0F);
+    diff = test_helpers::tensor_subtract(data_after, data_before);
+    EXPECT_TRUE(test_helpers::tensor_norm(diff) > 1.0F);
 }
 
 // Thread Safety Validation for Optimizers
@@ -246,8 +298,9 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     // Create multiple parameters
     for (int i = 0; i < num_params; ++i)
     {
-        auto* tensor = new nn::Tensor(Eigen::MatrixXf::Ones(10, 10));
-        tensor->set_grad(Eigen::MatrixXf::Ones(10, 10) * 0.1F);
+        auto* tensor = new nn::Tensor(10, 10);
+        test_helpers::tensor_fill_with_value(*tensor, 1.0F);
+        tensor->set_grad(test_helpers::make_constant_tensor(10, 10, 0.1F).get_data_ref());
         params.push_back(tensor);
     }
 
@@ -259,7 +312,7 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
         // Gradients should be preserved between steps
         for (auto* param : params)
         {
-            EXPECT_FALSE(param->get_grad_ref().isZero());
+            EXPECT_FALSE(test_helpers::tensor_is_zero(param->get_grad_ref()));
         }
     }
 
@@ -267,7 +320,7 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     ASSERT_NO_THROW(sgd.zero_grad(params));
     for (auto* param : params)
     {
-        EXPECT_TRUE(param->get_grad_ref().isZero());
+        EXPECT_TRUE(test_helpers::tensor_is_zero(param->get_grad_ref()));
     }
 
     // Clean up
@@ -279,69 +332,112 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
 
 TEST(OptimizerThreadSafetyTest, AdamInternalState)
 {
-    nn::Tensor param(Eigen::MatrixXf::Ones(3, 3));
-    param.set_grad(Eigen::MatrixXf::Ones(3, 3) * 0.1F);
+    nn::Tensor param = test_helpers::make_ones_tensor(3, 3);
+    param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F).get_data_ref());
     std::vector<nn::Tensor*> params = {&param};
 
     Adam adam(0.01F);
     adam.attach(params);
 
-    Eigen::MatrixXf data_before = param.get_data_ref();
+    nn::Tensor data_before(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_before.at(i, j) = param.at(i, j);
+        }
+    }
 
     // Multiple steps to test internal state accumulation
     for (int i = 0; i < 3; ++i)
     {
         adam.step(params);
         // Re-set gradients for next step
-        param.set_grad(Eigen::MatrixXf::Ones(3, 3) * 0.1F);
+        param.set_grad(test_helpers::make_constant_tensor(3, 3, 0.1F).get_data_ref());
     }
 
-    Eigen::MatrixXf data_after = param.get_data_ref();
+    nn::Tensor data_after(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_after.at(i, j) = param.at(i, j);
+        }
+    }
 
     // Parameters should have changed
-    EXPECT_FALSE(data_before.isApprox(data_after));
+    EXPECT_FALSE(test_helpers::tensor_is_approx(data_before, data_after));
 
     // Test that internal state affects subsequent steps differently
-    Eigen::MatrixXf data_step3 = param.get_data_ref();
+    nn::Tensor data_step3(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_step3.at(i, j) = param.at(i, j);
+        }
+    }
     adam.step(params);
-    Eigen::MatrixXf data_step4 = param.get_data_ref();
+    nn::Tensor data_step4(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_step4.at(i, j) = param.at(i, j);
+        }
+    }
 
     // The change should be different due to accumulated internal state
-    Eigen::MatrixXf diff3 = data_step4 - data_step3;
-    Eigen::MatrixXf diff1 = data_after - data_before;
+    nn::Tensor diff3 = test_helpers::tensor_subtract(data_step4, data_step3);
+    nn::Tensor diff1 = test_helpers::tensor_subtract(data_after, data_before);
 
     // Due to bias correction, later steps should behave differently
-    EXPECT_FALSE(diff3.isApprox(diff1));
+    EXPECT_FALSE(test_helpers::tensor_is_approx(diff3, diff1));
 }
 
 // Additional Comprehensive Tests
 TEST(OptimizerComprehensiveTest, GradientClipping)
 {
-    nn::Tensor param(Eigen::MatrixXf::Ones(2, 2));
+    nn::Tensor param = test_helpers::make_ones_tensor(2, 2);
     // Set very large gradients
-    param.set_grad(Eigen::MatrixXf::Ones(2, 2) * 100.0F);
+    param.set_grad(test_helpers::make_constant_tensor(2, 2, 100.0F).get_data_ref());
     std::vector<nn::Tensor*> params = {&param};
 
     SGDMinimal sgd(0.01F);
-    Eigen::MatrixXf data_before = param.get_data_ref();
+    nn::Tensor data_before(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_before.at(i, j) = param.at(i, j);
+        }
+    }
 
     sgd.step(params);
 
-    Eigen::MatrixXf data_after = param.get_data_ref();
-    Eigen::MatrixXf diff = data_after - data_before;
+    nn::Tensor data_after(param.rows(), param.cols());
+    for (nn::Index i = 0; i < param.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param.cols(); ++j)
+        {
+            data_after.at(i, j) = param.at(i, j);
+        }
+    }
+    nn::Tensor diff = test_helpers::tensor_subtract(data_after, data_before);
 
     // Change should be controlled by learning rate
-    EXPECT_TRUE(diff.norm() < 10.0F); // Large gradients but small LR should limit change
+    EXPECT_TRUE(test_helpers::tensor_norm(diff) <
+                10.0F); // Large gradients but small LR should limit change
 }
 
 TEST(OptimizerComprehensiveTest, ParameterGroups)
 {
     // Test different learning rates for different parameter groups
-    nn::Tensor param1(Eigen::MatrixXf::Ones(2, 2));
-    nn::Tensor param2(Eigen::MatrixXf::Ones(2, 2));
+    nn::Tensor param1 = test_helpers::make_ones_tensor(2, 2);
+    nn::Tensor param2 = test_helpers::make_ones_tensor(2, 2);
 
-    param1.set_grad(Eigen::MatrixXf::Ones(2, 2) * 0.1F);
-    param2.set_grad(Eigen::MatrixXf::Ones(2, 2) * 0.1F);
+    param1.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
+    param2.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F).get_data_ref());
 
     std::vector<nn::Tensor*> params1 = {&param1};
     std::vector<nn::Tensor*> params2 = {&param2};
@@ -349,22 +445,30 @@ TEST(OptimizerComprehensiveTest, ParameterGroups)
     SGDMinimal sgd1(0.1F);  // Higher learning rate
     SGDMinimal sgd2(0.01F); // Lower learning rate
 
-    Eigen::MatrixXf data1_before = param1.get_data_ref();
-    Eigen::MatrixXf data2_before = param2.get_data_ref();
+    nn::Tensor data1_before(param1.rows(), param1.cols());
+    nn::Tensor data2_before(param2.rows(), param2.cols());
+    for (nn::Index i = 0; i < param1.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < param1.cols(); ++j)
+        {
+            data1_before.at(i, j) = param1.at(i, j);
+            data2_before.at(i, j) = param2.at(i, j);
+        }
+    }
 
     sgd1.step(params1);
     sgd2.step(params2);
 
-    Eigen::MatrixXf diff1 = param1.get_data_ref() - data1_before;
-    Eigen::MatrixXf diff2 = param2.get_data_ref() - data2_before;
+    nn::Tensor diff1 = test_helpers::tensor_subtract(param1, data1_before);
+    nn::Tensor diff2 = test_helpers::tensor_subtract(param2, data2_before);
 
     // Higher learning rate should cause larger parameter changes
-    EXPECT_TRUE(diff1.norm() > diff2.norm());
+    EXPECT_TRUE(test_helpers::tensor_norm(diff1) > test_helpers::tensor_norm(diff2));
 }
 
 TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
 {
-    nn::Tensor param(Eigen::MatrixXf::Ones(2, 2) * 10.0F); // Start far from zero
+    nn::Tensor param = test_helpers::make_constant_tensor(2, 2, 10.0F); // Start far from zero
     std::vector<nn::Tensor*> params = {&param};
 
     SGDMinimal sgd(0.1F);
@@ -373,14 +477,21 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     for (int i = 0; i < 10; ++i)
     {
         // Set gradient pointing toward zero (full magnitude to encourage faster convergence)
-        Eigen::MatrixXf grad = param.get_data_ref();
-        param.set_grad(grad);
+        nn::Tensor grad(param.rows(), param.cols());
+        for (nn::Index r = 0; r < param.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < param.cols(); ++c)
+            {
+                grad.at(r, c) = param.at(r, c);
+            }
+        }
+        param.set_grad(grad.get_data_ref());
         sgd.step(params);
     }
 
     // Parameter should have moved toward zero
-    EXPECT_TRUE(param.get_data_ref().norm() < 10.0F);
+    EXPECT_TRUE(test_helpers::tensor_norm(param) < 10.0F);
 
     // But not exactly zero (due to constant gradient)
-    EXPECT_FALSE(param.get_data_ref().isZero());
+    EXPECT_FALSE(test_helpers::tensor_is_zero(param));
 }

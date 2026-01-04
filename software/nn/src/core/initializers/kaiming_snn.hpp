@@ -3,8 +3,8 @@
 #include <memory>
 #include <random>
 
-#include "core/tensor/Tensor.hpp"
 #include "core/layers/Linear.hpp"
+#include "core/tensor/Tensor.hpp"
 
 /**
  * @brief Kaiming (He) uniform initializer, adapted for spiking neural networks.
@@ -25,9 +25,17 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer) -> void
     std::mt19937 gen(static_cast<int>(std::random_device{}()));
 
     // Initialize weights
-    layer->weight.set_data(Eigen::MatrixXf(layer->out_features, layer->in_features)
-                             .unaryExpr([&](float) { return dist(gen); }));
+    for (int i = 0; i < layer->out_features; ++i)
+    {
+        for (int j = 0; j < layer->in_features; ++j)
+        {
+            layer->weight.get_data_ref()(i, j) = dist(gen);
+        }
+    }
 
     // Initialize biases to zero (common in SNNs)
-    layer->bias.set_data(Eigen::VectorXf::Zero(layer->out_features));
+    for (int i = 0; i < layer->out_features; ++i)
+    {
+        layer->bias.get_data_ref()(i, 0) = 0.0F;
+    }
 }

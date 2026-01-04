@@ -1,4 +1,3 @@
-#include <Eigen/Core>
 #include <span>
 #include <stdexcept>
 
@@ -24,8 +23,8 @@ struct Adam : public Optimizer
     float eps;   // Termo pequeno para evitar divisão por zero
     int t;       // Contador de iterações
 
-    std::vector<Eigen::MatrixXf> m; // Vetor de médias móveis dos gradientes
-    std::vector<Eigen::MatrixXf> v; // Vetor de médias móveis dos quadrados dos gradientes
+    std::vector<nn::Tensor> m; // Vetor de médias móveis dos gradientes
+    std::vector<nn::Tensor> v; // Vetor de médias móveis dos quadrados dos gradientes
 
     // Inicializa o Adam com hiperparâmetros padrão recomendados na literatura.
     // lr: taxa de aprendizado, beta1: decaimento do primeiro momento, beta2: decaimento do segundo
@@ -56,8 +55,11 @@ struct Adam : public Optimizer
             {
                 throw std::invalid_argument("Cannot attach null parameter to optimizer");
             }
+            // Initialize m and v tensors with zeros matching parameter shape
             m.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
             v.emplace_back(param->get_data_ref().rows(), param->get_data_ref().cols());
+            m.back().get_data_ref().setZero();
+            v.back().get_data_ref().setZero();
         }
     }
 
@@ -79,18 +81,21 @@ struct Adam : public Optimizer
             }
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
-            m[i] = (beta1 * m[i].array() + (1 - beta1) * param.get_grad_ref().array()).matrix();
-            v[i] = (beta2 * v[i].array() + (1 - beta2) * param.get_grad_ref().array().square())
-                       .matrix();
+            m[i].get_data_ref() =
+                (beta1 * m[i].get_data_ref().array() + (1 - beta1) * param.get_grad_ref().array())
+                    .matrix();
+            v[i].get_data_ref() = (beta2 * v[i].get_data_ref().array() +
+                                   (1 - beta2) * param.get_grad_ref().array().square())
+                                      .matrix();
 
             // Corrige o viés das médias móveis
-            Eigen::MatrixXf m_hat = m[i] / (1 - std::pow(beta1, t));
-            Eigen::MatrixXf v_hat = v[i] / (1 - std::pow(beta2, t));
+            auto m_hat = m[i].get_data_ref() / (1 - std::pow(beta1, t));
+            auto v_hat = v[i].get_data_ref() / (1 - std::pow(beta2, t));
 
             // Atualiza o parâmetro usando as médias móveis corrigidas
-            param.set_data(
+            param.get_data_ref() =
                 (param.get_data_ref().array() - lr * m_hat.array() / (v_hat.array().sqrt() + eps))
-                    .matrix());
+                    .matrix();
         }
     }
 

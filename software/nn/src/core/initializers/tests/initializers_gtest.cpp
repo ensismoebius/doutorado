@@ -1,11 +1,9 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Dense>
-
 #include "core/initializers/kaiming_snn.hpp"
+#include "core/initializers/xavier.hpp"
 #include "core/layers/Linear.hpp"
 #include "core/tensor/Tensor.hpp"
-#include "core/initializers/xavier.hpp"
 
 // Initializer: kaiming_snn
 TEST(InitializerTest, KaimingSNN)
@@ -19,8 +17,8 @@ TEST(InitializerTest, KaimingSNN)
 // Initializer: Xavier
 TEST(InitializerTest, Xavier)
 {
-    nn::Tensor weights(Eigen::MatrixXf::Zero(4, 2));
-    nn::Tensor bias(Eigen::MatrixXf::Zero(4, 1));
+    nn::Tensor weights(4, 2);
+    nn::Tensor bias(4, 1);
     xavierInitializer(2, 4, weights, bias);
     ASSERT_NE(weights.get_data_ref().sum(), 0.0F);
     ASSERT_NE(bias.get_data_ref().sum(), 0.0F);

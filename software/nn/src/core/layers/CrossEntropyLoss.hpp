@@ -22,19 +22,21 @@ class CrossEntropyLoss : public Module
     {
         // numeric-stable softmax
         const auto& x = input.get_data_ref();
-        Eigen::VectorXf max_per_row = x.rowwise().maxCoeff();
-        Eigen::MatrixXf shifted = x.colwise() - max_per_row;
-        Eigen::MatrixXf exps = shifted.array().exp();
-        Eigen::VectorXf sums = exps.rowwise().sum();
-        Eigen::MatrixXf probs = exps.array().colwise() / sums.array();
+        auto max_per_row = x.rowwise().maxCoeff();
+        auto shifted = x.colwise() - max_per_row;
+        auto exps = shifted.array().exp();
+        auto sums = exps.rowwise().sum();
+
+        nn::Tensor probs(x.rows(), x.cols());
+        probs.get_data_ref() = exps.array().colwise() / sums.array();
 
         if (requires_grad)
         {
-            last_probs = nn::Tensor(probs);
+            last_probs = probs;
         }
 
         // compute mean cross-entropy
-        Eigen::ArrayXf logp = probs.array().log();
+        auto logp = probs.get_data_ref().array().log();
         float loss =
             -(last_targets.get_data_ref().array() * logp).sum() / static_cast<float>(x.rows());
         nn::Tensor loss_tensor(1, 1);
@@ -45,8 +47,9 @@ class CrossEntropyLoss : public Module
     auto backward(const nn::Tensor& /*unused*/) -> nn::Tensor override
     {
         // gradient of loss wrt logits: (probs - targets)/N
-        Eigen::MatrixXf grad = (last_probs.get_data_ref() - last_targets.get_data_ref()) /
-                               static_cast<float>(last_probs.rows());
-        return nn::Tensor{grad};
+        nn::Tensor grad(last_probs.rows(), last_probs.cols());
+        grad.get_data_ref() = (last_probs.get_data_ref() - last_targets.get_data_ref()) /
+                              static_cast<float>(last_probs.rows());
+        return grad;
     }
 };

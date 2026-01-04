@@ -11,7 +11,7 @@ struct SGD : public Optimizer
     float learning_rate;
     float momentum;
 
-    std::vector<Eigen::MatrixXf> velocity;
+    std::vector<nn::Tensor> velocity;
 
     explicit SGD(float lr = 0.01F, float momentum = 0.0F) : learning_rate(lr), momentum(momentum)
     {
@@ -35,8 +35,9 @@ struct SGD : public Optimizer
             {
                 throw std::invalid_argument("Cannot attach null parameter to optimizer");
             }
-            velocity.emplace_back(
-                Eigen::MatrixXf::Zero(param->get_grad_ref().rows(), param->get_grad_ref().cols()));
+            // Initialize velocity tensor with zeros matching parameter shape
+            velocity.emplace_back(param->get_grad_ref().rows(), param->get_grad_ref().cols());
+            velocity.back().get_data_ref().setZero();
         }
     }
 
@@ -49,8 +50,9 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
-            velocity[i] = momentum * velocity[i] - learning_rate * param.get_grad_ref();
-            param.get_data_ref() += velocity[i];
+            velocity[i].get_data_ref() =
+                momentum * velocity[i].get_data_ref() - learning_rate * param.get_grad_ref();
+            param.get_data_ref() += velocity[i].get_data_ref();
         }
     }
 

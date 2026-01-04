@@ -1,12 +1,69 @@
 #include <gtest/gtest.h>
 
-#include <Eigen/Dense>
+#include <limits>
+#include <random>
 #include <set>
 
 #include "../batching.hpp"
 #include "../synthetic_spike_data.hpp"
 #include "../vectorizationCheck.hpp"
 #include "core/tensor/Tensor.hpp"
+
+namespace
+{
+
+auto make_random_tensor(nn::Index rows, nn::Index cols, float lower = -1.0F, float upper = 1.0F)
+    -> nn::Tensor
+{
+    static std::mt19937 gen(42);
+    std::uniform_real_distribution<float> dist(lower, upper);
+    nn::Tensor t(rows, cols);
+    for (nn::Index i = 0; i < rows; ++i)
+    {
+        for (nn::Index j = 0; j < cols; ++j)
+        {
+            t.at(i, j) = dist(gen);
+        }
+    }
+    return t;
+}
+
+[[maybe_unused]] auto make_constant_tensor(nn::Index rows, nn::Index cols, float value)
+    -> nn::Tensor
+{
+    nn::Tensor t(rows, cols);
+    for (nn::Index i = 0; i < rows; ++i)
+    {
+        for (nn::Index j = 0; j < cols; ++j)
+        {
+            t.at(i, j) = value;
+        }
+    }
+    return t;
+}
+
+auto make_tensor_from_values(nn::Index rows, nn::Index cols,
+                             const std::initializer_list<float>& values) -> nn::Tensor
+{
+    nn::Tensor t(rows, cols);
+    const auto expected = static_cast<std::size_t>(rows * cols);
+    if (values.size() != expected)
+    {
+        throw std::invalid_argument("Initializer size does not match tensor shape");
+    }
+    std::size_t idx = 0;
+    for (nn::Index i = 0; i < rows; ++i)
+    {
+        for (nn::Index j = 0; j < cols; ++j)
+        {
+            t.at(i, j) = *(values.begin() + static_cast<long>(idx));
+            ++idx;
+        }
+    }
+    return t;
+}
+
+} // namespace
 
 // Util: synthetic_spike_data
 TEST(UtilTest, SyntheticSpikeData)
@@ -51,8 +108,8 @@ TEST(UtilTest, Batching)
     std::vector<nn::Tensor> target_samples;
     for (int i = 0; i < 4; ++i)
     {
-        input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
-        target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 1)));
+        input_samples.emplace_back(make_random_tensor(1, 2));
+        target_samples.emplace_back(make_random_tensor(1, 1));
     }
 
     auto batches = create_batches(input_samples, target_samples, 2);
@@ -71,9 +128,9 @@ TEST(UtilExceptionTest, InvalidBatchParameters)
     ASSERT_THROW(create_batches(input_samples, target_samples, 2), std::invalid_argument);
 
     // Mismatched input/target sizes
-    input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
-    target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 1)));
-    input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
+    input_samples.emplace_back(make_random_tensor(1, 2));
+    target_samples.emplace_back(make_random_tensor(1, 1));
+    input_samples.emplace_back(make_random_tensor(1, 2));
     // target_samples has only 1 element, input_samples has 2
     ASSERT_THROW(create_batches(input_samples, target_samples, 2), std::invalid_argument);
 
@@ -106,8 +163,8 @@ TEST(UtilMemoryStressTest, LargeBatchCreation)
     // Create large dataset
     for (int i = 0; i < num_samples; ++i)
     {
-        input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, input_dim)));
-        target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, target_dim)));
+        input_samples.emplace_back(make_random_tensor(1, input_dim));
+        target_samples.emplace_back(make_random_tensor(1, target_dim));
     }
 
     ASSERT_NO_THROW({
@@ -152,8 +209,8 @@ TEST(UtilNumericalEdgeTest, ExtremeBatchSizes)
     std::vector<nn::Tensor> target_samples;
 
     // Single sample
-    input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
-    target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 1)));
+    input_samples.emplace_back(make_random_tensor(1, 2));
+    target_samples.emplace_back(make_random_tensor(1, 1));
 
     auto single_batch = create_batches(input_samples, target_samples, 1);
     EXPECT_EQ(single_batch.size(), 1);
@@ -203,13 +260,14 @@ TEST(UtilNumericalEdgeTest, NaNInfInBatching)
     std::vector<nn::Tensor> target_samples;
 
     // Create tensors with NaN values
-    Eigen::MatrixXf nan_input(1, 2);
-    nan_input << std::numeric_limits<float>::quiet_NaN(), 1.0F;
-    input_samples.push_back(nn::Tensor(nan_input));
+    nn::Tensor nan_input(1, 2);
+    nan_input.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    nan_input.at(0, 1) = 1.0F;
+    input_samples.emplace_back(std::move(nan_input));
 
-    Eigen::MatrixXf nan_target(1, 1);
-    nan_target << 1.0F;
-    target_samples.push_back(nn::Tensor(nan_target));
+    nn::Tensor nan_target(1, 1);
+    nan_target.at(0, 0) = 1.0F;
+    target_samples.emplace_back(std::move(nan_target));
 
     // Should handle NaN gracefully
     ASSERT_NO_THROW({
@@ -218,9 +276,10 @@ TEST(UtilNumericalEdgeTest, NaNInfInBatching)
     });
 
     // Test with Inf values
-    Eigen::MatrixXf inf_input(1, 2);
-    inf_input << std::numeric_limits<float>::infinity(), 1.0F;
-    input_samples[0] = nn::Tensor(inf_input);
+    nn::Tensor inf_input(1, 2);
+    inf_input.at(0, 0) = std::numeric_limits<float>::infinity();
+    inf_input.at(0, 1) = 1.0F;
+    input_samples[0] = std::move(inf_input);
 
     ASSERT_NO_THROW({
         auto batches = create_batches(input_samples, target_samples, 1);
@@ -238,8 +297,8 @@ TEST(UtilThreadSafetyTest, ConcurrentBatchCreation)
     // Create dataset
     for (int i = 0; i < num_samples; ++i)
     {
-        input_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 5)));
-        target_samples.push_back(nn::Tensor(Eigen::MatrixXf::Random(1, 2)));
+        input_samples.emplace_back(make_random_tensor(1, 5));
+        target_samples.emplace_back(make_random_tensor(1, 2));
     }
 
     // Test multiple batch creation calls (simulating concurrent access)
@@ -293,13 +352,9 @@ TEST(UtilComprehensiveTest, BatchContentVerification)
     // Create samples with known values
     for (int i = 0; i < 6; ++i)
     {
-        Eigen::MatrixXf input(1, 2);
-        input << i * 2.0F, i * 2.0F + 1.0F;
-        input_samples.push_back(nn::Tensor(input));
+        input_samples.emplace_back(make_tensor_from_values(1, 2, {i * 2.0F, i * 2.0F + 1.0F}));
 
-        Eigen::MatrixXf target(1, 1);
-        target << i * 1.0F;
-        target_samples.push_back(nn::Tensor(target));
+        target_samples.emplace_back(make_tensor_from_values(1, 1, {static_cast<float>(i)}));
     }
 
     auto batches = create_batches(input_samples, target_samples, 3);

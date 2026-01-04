@@ -22,11 +22,12 @@ class ExponentialSurrogate : public ISurrogateGradient
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
     {
-        const Eigen::MatrixXf& v_mem = v_mem_pre_spike.get_data_ref();
-        const Eigen::MatrixXf diff_abs = (v_mem.array() - voltage_threshold).abs();
+        const auto& v_mem = v_mem_pre_spike.get_data_ref();
+        const auto diff_abs = (v_mem.array() - voltage_threshold).abs();
 
-        Eigen::MatrixXf result = (1.0F / sharpness_) * ((-diff_abs / sharpness_).array().exp());
-        return nn::Tensor(result);
+        nn::Tensor result(v_mem.rows(), v_mem.cols());
+        result.get_data_ref() = (1.0F / sharpness_) * ((-diff_abs / sharpness_).array().exp());
+        return result;
     }
 
    private:
@@ -42,11 +43,12 @@ class BoxcarSurrogate : public ISurrogateGradient
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
     {
-        const Eigen::MatrixXf& v_mem = v_mem_pre_spike.get_data_ref();
-        const Eigen::MatrixXf diff_abs = (v_mem.array() - voltage_threshold).abs();
+        const auto& v_mem = v_mem_pre_spike.get_data_ref();
+        const auto diff_abs = (v_mem.array() - voltage_threshold).abs();
 
-        Eigen::MatrixXf result = (diff_abs.array() < (window_ / 2.0F)).cast<float>();
-        return nn::Tensor(result);
+        nn::Tensor result(v_mem.rows(), v_mem.cols());
+        result.get_data_ref() = (diff_abs.array() < (window_ / 2.0F)).cast<float>();
+        return result;
     }
 
    private:

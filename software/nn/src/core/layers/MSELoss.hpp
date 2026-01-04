@@ -52,7 +52,9 @@ class MSELoss : public Module
         {
             mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
         }
-        return nn::Tensor{Eigen::MatrixXf::Constant(1, 1, mse)};
+        nn::Tensor loss_tensor(1, 1);
+        loss_tensor.at(0, 0) = mse;
+        return loss_tensor;
     }
 
     // Set the target tensor for the loss
@@ -78,8 +80,10 @@ class MSELoss : public Module
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             // Return zero gradient to prevent further issues
-            return nn::Tensor{Eigen::MatrixXf::Zero(last_input.get_data_ref().rows(),
-                                                    last_input.get_data_ref().cols())};
+            nn::Tensor zero_grad(last_input.get_data_ref().rows(),
+                                 last_input.get_data_ref().cols());
+            zero_grad.get_data_ref().setZero();
+            return zero_grad;
         }
 
         // Gradient clipping to prevent explosion

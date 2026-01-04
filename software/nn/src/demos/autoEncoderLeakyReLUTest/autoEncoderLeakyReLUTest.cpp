@@ -7,6 +7,9 @@
 #include <tuple>
 
 #include "../../core/saver/NetworkSerializer.hpp"
+#include "../../core/utility/batching.hpp"
+#include "../../core/utility/synthetic_spike_data.hpp"
+#include "../../core/utility/vectorizationCheck.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/LeakyReLU.hpp"
 #include "core/layers/Linear.hpp"
@@ -15,11 +18,7 @@
 #include "core/optimizers/Adam.hpp"
 #include "core/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
-#include "../../core/utility/batching.hpp"
-#include "../../core/utility/synthetic_spike_data.hpp"
-#include "../../core/utility/vectorizationCheck.hpp"
 
-using Eigen::MatrixXf;
 using std::cout;
 using std::fixed;
 using std::flush;
@@ -32,16 +31,19 @@ using std::vector;
 
 // Initialize Eigen parallel execution is now called inside main
 
-// Define a nice format for debugging eigen matrices
-const Eigen::IOFormat CleanFmt(0,                // number of decimals
-                               Eigen::Unaligned, // flags
-                               ",",              // string between numbers
-                               "\n",             // string between rows
-                               "|",              // opening bracket
-                               "|",              // closing bracket
-                               "\n",             // string between matrices
-                               "\n"              // closing bracket for the matrix
-);
+// Format for printing tensors (simple CSV-like format)
+auto print_tensor = [](const nn::Tensor& t)
+{
+    for (size_t i = 0; i < t.rows(); ++i)
+    {
+        for (size_t j = 0; j < t.cols(); ++j)
+        {
+            if (j > 0) std::cout << ",";
+            std::cout << t.at(i, j);
+        }
+        std::cout << "\n";
+    }
+};
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG
@@ -49,9 +51,10 @@ namespace
 {
 auto debug(const Batch& batch, const nn::Tensor& y_pred, const nn::Tensor& loss_tensor) -> void
 {
-    cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x" << batch.inputs.get_data_ref().cols()
-         << '\n';
-    cout << "Output dimensions: " << y_pred.get_data_ref().rows() << "x" << y_pred.get_data_ref().cols() << '\n';
+    cout << "Input dimensions: " << batch.inputs.get_data_ref().rows() << "x"
+         << batch.inputs.get_data_ref().cols() << '\n';
+    cout << "Output dimensions: " << y_pred.get_data_ref().rows() << "x"
+         << y_pred.get_data_ref().cols() << '\n';
     cout << "Target values: " << batch.targets.get_data_ref().format(CleanFmt) << '\n';
     cout << "Output values: " << y_pred.get_data_ref().format(CleanFmt) << '\n';
     cout << "Loss values: " << loss_tensor.get_data_ref().format(CleanFmt) << '\n';
