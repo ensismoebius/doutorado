@@ -1,6 +1,5 @@
 #include <yaml-cpp/yaml.h>
 
-#include <Eigen/Dense>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -462,7 +461,7 @@ auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
         throw std::runtime_error("Failed to load EEG data from " + mat_path);
     }
 
-    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
+    nn::Tensor mat = std::move(*mat_opt);
     std::vector<EEGSample> samples;
 
     for (int i = 0; i < static_cast<int>(mat.rows()); ++i)
@@ -498,7 +497,7 @@ auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
         throw std::runtime_error("Failed to load Audio data from " + mat_path);
     }
 
-    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
+    nn::Tensor mat = std::move(*mat_opt);
     std::vector<AudioSample> samples;
 
     for (int i = 0; i < static_cast<int>(mat.rows()); ++i)

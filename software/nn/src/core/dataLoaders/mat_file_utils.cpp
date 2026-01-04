@@ -7,25 +7,28 @@ namespace matioCpp::utils
 {
 namespace
 {
-// Small helpers that convert matio-cpp Variable objects into Eigen matrices.
+// Small helpers that convert matio-cpp Variable objects into nn::Tensor instances without
+// exposing Eigen types in this translation unit.
 template <typename T>
-auto to_eigen_from_multi(const matioCpp::Variable& variable) -> std::optional<Eigen::MatrixXf>
+auto to_tensor_from_multi(const matioCpp::Variable& variable) -> std::optional<nn::Tensor>
 {
     auto multi_array = variable.template asMultiDimensionalArray<T>();
-    return matioCpp::to_eigen(multi_array).template cast<float>();
+    auto eigen_matrix = matioCpp::to_eigen(multi_array).template cast<float>();
+    return nn::Tensor{eigen_matrix};
 }
 
 template <typename T>
-auto to_eigen_from_vector(const matioCpp::Variable& variable) -> std::optional<Eigen::MatrixXf>
+auto to_tensor_from_vector(const matioCpp::Variable& variable) -> std::optional<nn::Tensor>
 {
     auto vec = variable.template asVector<T>();
-    return matioCpp::to_eigen(vec).template cast<float>();
+    auto eigen_matrix = matioCpp::to_eigen(vec).template cast<float>();
+    return nn::Tensor{eigen_matrix};
 }
 
 } // anonymous namespace
 
 auto load_named_variable_as_matrix(const std::string& mat_path, const std::string& var_name)
-    -> std::optional<Eigen::MatrixXf>
+    -> std::optional<nn::Tensor>
 {
     try
     {
@@ -55,44 +58,44 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
         {
             case ValueType::DOUBLE:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<double>(variable)
-                           : to_eigen_from_vector<double>(variable);
+                           ? to_tensor_from_multi<double>(variable)
+                           : to_tensor_from_vector<double>(variable);
             case ValueType::SINGLE:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<float>(variable)
-                           : to_eigen_from_vector<float>(variable);
+                           ? to_tensor_from_multi<float>(variable)
+                           : to_tensor_from_vector<float>(variable);
             case ValueType::INT8:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<int8_t>(variable)
-                           : to_eigen_from_vector<int8_t>(variable);
+                           ? to_tensor_from_multi<int8_t>(variable)
+                           : to_tensor_from_vector<int8_t>(variable);
             case ValueType::UINT8:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<uint8_t>(variable)
-                           : to_eigen_from_vector<uint8_t>(variable);
+                           ? to_tensor_from_multi<uint8_t>(variable)
+                           : to_tensor_from_vector<uint8_t>(variable);
             case ValueType::INT16:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<int16_t>(variable)
-                           : to_eigen_from_vector<int16_t>(variable);
+                           ? to_tensor_from_multi<int16_t>(variable)
+                           : to_tensor_from_vector<int16_t>(variable);
             case ValueType::UINT16:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<uint16_t>(variable)
-                           : to_eigen_from_vector<uint16_t>(variable);
+                           ? to_tensor_from_multi<uint16_t>(variable)
+                           : to_tensor_from_vector<uint16_t>(variable);
             case ValueType::INT32:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<int32_t>(variable)
-                           : to_eigen_from_vector<int32_t>(variable);
+                           ? to_tensor_from_multi<int32_t>(variable)
+                           : to_tensor_from_vector<int32_t>(variable);
             case ValueType::UINT32:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<uint32_t>(variable)
-                           : to_eigen_from_vector<uint32_t>(variable);
+                           ? to_tensor_from_multi<uint32_t>(variable)
+                           : to_tensor_from_vector<uint32_t>(variable);
             case ValueType::INT64:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<int64_t>(variable)
-                           : to_eigen_from_vector<int64_t>(variable);
+                           ? to_tensor_from_multi<int64_t>(variable)
+                           : to_tensor_from_vector<int64_t>(variable);
             case ValueType::UINT64:
                 return (variable.variableType() == matioCpp::VariableType::MultiDimensionalArray)
-                           ? to_eigen_from_multi<uint64_t>(variable)
-                           : to_eigen_from_vector<uint64_t>(variable);
+                           ? to_tensor_from_multi<uint64_t>(variable)
+                           : to_tensor_from_vector<uint64_t>(variable);
             default:
                 return std::nullopt;
         }

@@ -24,8 +24,8 @@ TEST(MatFileUtilsTest, LoadExistingDoubleMatrix)
     auto mat = mat_opt.value();
     EXPECT_EQ(mat.rows(), 2);
     EXPECT_EQ(mat.cols(), 2);
-    EXPECT_FLOAT_EQ(mat(0, 0), 1.0F);
-    EXPECT_FLOAT_EQ(mat(1, 1), 4.0F);
+    EXPECT_FLOAT_EQ(mat.at(0, 0), 1.0F);
+    EXPECT_FLOAT_EQ(mat.at(1, 1), 4.0F);
 }
 
 TEST(MatFileUtilsTest, MissingVariableReturnsNullopt)
@@ -54,9 +54,9 @@ TEST(MatFileUtilsTest, LoadVariousIntegerTypes)
 
     auto m1 = utils::load_named_variable_as_matrix(mat_path.string(), "i32");
     ASSERT_TRUE(m1.has_value());
-    EXPECT_FLOAT_EQ(m1->sum(), 10.0F);
+    EXPECT_FLOAT_EQ(m1->get_data_ref().sum(), 10.0F);
 
     auto m2 = utils::load_named_variable_as_matrix(mat_path.string(), "i32b");
     ASSERT_TRUE(m2.has_value());
-    EXPECT_FLOAT_EQ((*m2)(0, 0), -1.0F);
+    EXPECT_FLOAT_EQ(m2->at(0, 0), -1.0F);
 }

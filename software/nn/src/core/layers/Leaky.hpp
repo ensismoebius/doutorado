@@ -163,7 +163,7 @@ struct Leaky : public Module
         {
             std::ostringstream oss;
             oss << "Updated V_mem - " << static_cast<const void*>(this);
-            printTensor(v_mem, oss.str());
+            printTensor(nn::Tensor{v_mem}, oss.str());
         }
 #endif
         // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.

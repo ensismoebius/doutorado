@@ -21,16 +21,10 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
 {
     const int n_samples = static_cast<int>(inputSamples.size());
 
-    // Early return for empty input
     if (n_samples == 0) return {};
 
-    // Create and initialize indices in parallel
     std::vector<int> indices(n_samples);
-#pragma omp parallel for num_threads(num_threads)
-    for (int i = 0; i < n_samples; ++i)
-    {
-        indices[i] = i;
-    }
+    std::iota(indices.begin(), indices.end(), 0);
 
 // Parallel Fisher-Yates shuffle with thread-local RNG
 #pragma omp parallel num_threads(num_threads)
@@ -42,18 +36,16 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
         for (int i = n_samples - 1; i > 0; --i)
         {
             std::uniform_int_distribution<> dis(0, i);
-            int j = dis(gen);
+            const int j = dis(gen);
             std::swap(indices[i], indices[j]);
         }
     }
 
-    // Calculate dimensions
-    const Eigen::Index input_rows = inputSamples[0].get_data_ref().rows();
-    const Eigen::Index input_cols = inputSamples[0].get_data_ref().cols();
-    const Eigen::Index target_rows = targets[0].get_data_ref().rows();
-    const Eigen::Index target_cols = targets[0].get_data_ref().cols();
+    const nn::Index input_rows = inputSamples[0].rows();
+    const nn::Index input_cols = inputSamples[0].cols();
+    const nn::Index target_rows = targets[0].rows();
+    const nn::Index target_cols = targets[0].cols();
 
-    // Calculate number of batches
     const int n_batches = (n_samples + batch_size - 1) / batch_size;
     std::vector<Batch> batches(n_batches);
 
@@ -64,20 +56,19 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
         const int start_idx = batch_idx * batch_size;
         const int actual_batch_size = std::min(batch_size, n_samples - start_idx);
 
-        // Pre-allocate matrices for this batch
-        Eigen::MatrixXf x_concat(input_rows * actual_batch_size, input_cols);
-        Eigen::MatrixXf y_concat(target_rows * actual_batch_size, target_cols);
+        nn::Tensor x_concat(input_rows * static_cast<nn::Index>(actual_batch_size), input_cols);
+        nn::Tensor y_concat(target_rows * static_cast<nn::Index>(actual_batch_size), target_cols);
 
 // Fill matrices in parallel within each batch
 #pragma omp parallel for num_threads(2) schedule(static)
         for (int j = 0; j < actual_batch_size; ++j)
         {
             const int idx = indices[start_idx + j];
-            x_concat.block(j * input_rows, 0, input_rows, input_cols) = inputSamples[idx].data;
-            y_concat.block(j * target_rows, 0, target_rows, target_cols) = targets[idx].data;
+            x_concat.setBlock(static_cast<nn::Index>(j) * input_rows, 0, inputSamples[idx]);
+            y_concat.setBlock(static_cast<nn::Index>(j) * target_rows, 0, targets[idx]);
         }
 
-        batches[batch_idx] = {nn::Tensor(x_concat), nn::Tensor(y_concat)};
+        batches[batch_idx] = {std::move(x_concat), std::move(y_concat)};
     }
 
     return batches;
@@ -88,38 +79,44 @@ inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
  */
 struct BatchBufferPool
 {
-    std::vector<Eigen::MatrixXf> input_buffers;
-    std::vector<Eigen::MatrixXf> target_buffers;
+    std::vector<nn::Tensor> input_buffers;
+    std::vector<nn::Tensor> target_buffers;
     const int batch_size;
-    const Eigen::Index input_rows;
-    const Eigen::Index input_cols;
-    const Eigen::Index target_rows;
-    const Eigen::Index target_cols;
+    const nn::Index input_rows;
+    const nn::Index input_cols;
+    const nn::Index target_rows;
+    const nn::Index target_cols;
 
-    BatchBufferPool(const std::vector<nn::Tensor>& inputSamples, const std::vector<nn::Tensor>& targets,
-                    int batch_size, int num_buffers)
+    BatchBufferPool(const std::vector<nn::Tensor>& inputSamples,
+                    const std::vector<nn::Tensor>& targets, int batch_size, int num_buffers)
         : batch_size(batch_size),
-          input_rows(inputSamples[0].get_data_ref().rows()),
-          input_cols(inputSamples[0].get_data_ref().cols()),
-          target_rows(targets[0].get_data_ref().rows()),
-          target_cols(targets[0].get_data_ref().cols())
+          input_rows(inputSamples[0].rows()),
+          input_cols(inputSamples[0].cols()),
+          target_rows(targets[0].rows()),
+          target_cols(targets[0].cols())
     {
-        // Pre-allocate buffers
-        input_buffers.resize(num_buffers, Eigen::MatrixXf(input_rows * batch_size, input_cols));
-        target_buffers.resize(num_buffers, Eigen::MatrixXf(target_rows * batch_size, target_cols));
+        input_buffers.reserve(num_buffers);
+        target_buffers.reserve(num_buffers);
+
+        for (int i = 0; i < num_buffers; ++i)
+        {
+            input_buffers.emplace_back(input_rows * static_cast<nn::Index>(batch_size), input_cols);
+            target_buffers.emplace_back(target_rows * static_cast<nn::Index>(batch_size),
+                                        target_cols);
+        }
     }
 
     auto get_buffer(int buffer_idx) -> Batch
     {
-        return {nn::Tensor(input_buffers[buffer_idx]), nn::Tensor(target_buffers[buffer_idx])};
+        return {input_buffers[buffer_idx], target_buffers[buffer_idx]};
     }
 };
 
 /**
  * @brief Creates batches using pre-allocated buffer pool for better memory efficiency
  */
-inline auto create_batches_with_pool(const std::vector<Tensor>& inputSamples,
-                                     const std::vector<Tensor>& targets, BatchBufferPool& pool,
+inline auto create_batches_with_pool(const std::vector<nn::Tensor>& inputSamples,
+                                     const std::vector<nn::Tensor>& targets, BatchBufferPool& pool,
                                      const std::vector<int>& indices, int batch_start,
                                      int buffer_idx) -> Batch
 {
@@ -133,10 +130,8 @@ inline auto create_batches_with_pool(const std::vector<Tensor>& inputSamples,
     for (int j = 0; j < actual_batch_size; ++j)
     {
         const int idx = indices[batch_start + j];
-        x_concat.block(j * pool.input_rows, 0, pool.input_rows, pool.input_cols) =
-            inputSamples[idx].data;
-        y_concat.block(j * pool.target_rows, 0, pool.target_rows, pool.target_cols) =
-            targets[idx].data;
+        x_concat.setBlock(static_cast<nn::Index>(j) * pool.input_rows, 0, inputSamples[idx]);
+        y_concat.setBlock(static_cast<nn::Index>(j) * pool.target_rows, 0, targets[idx]);
     }
 
     return pool.get_buffer(buffer_idx);

@@ -12,18 +12,21 @@ using namespace matioCpp;
 class MatFileDatasetTestFixture : public ::testing::Test
 {
    protected:
-    const std::string test_filename = "test_dataset.mat";
+    std::filesystem::path test_filepath{};
 
     void SetUp() override
     {
-        // Ensure a clean slate before each test
-        std::filesystem::remove(test_filename);
+        // Use a unique file per test to avoid collisions when ctest runs cases in parallel.
+        const auto* test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+        const std::string test_name = test_info ? test_info->name() : "default";
+        test_filepath =
+            std::filesystem::temp_directory_path() / ("test_dataset_" + test_name + ".mat");
+        std::filesystem::remove(test_filepath);
     }
 
     void TearDown() override
     {
-        // Clean up after each test
-        std::filesystem::remove(test_filename);
+        std::filesystem::remove(test_filepath);
     }
 
     // Helper to create a simple .mat file
@@ -32,7 +35,7 @@ class MatFileDatasetTestFixture : public ::testing::Test
                          const std::vector<double>& targets_data,
                          const std::vector<size_t>& targets_shape, const std::string& targets_name)
     {
-        File file = File::Create(test_filename);
+        File file = File::Create(test_filepath.string());
         MultiDimensionalArray<double> inputs(inputs_name, inputs_shape, inputs_data.data());
         file.write(inputs);
         MultiDimensionalArray<double> targets(targets_name, targets_shape, targets_data.data());
@@ -53,7 +56,7 @@ TEST_F(MatFileDatasetTestFixture, CanLoadData)
 
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    MatFileDataset dataset(test_filename, "inputs", "targets");
+    MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 2);
 
     auto batch = dataset.get_item(0);
@@ -85,8 +88,9 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnFileDoesNotExist)
 {
     // The file "test.mat" will not be created by create_mat_file,
     // so it should not exist.
-    ASSERT_FALSE(std::filesystem::exists(test_filename));
-    ASSERT_THROW(MatFileDataset dataset(test_filename, "inputs", "targets"), std::runtime_error);
+    ASSERT_FALSE(std::filesystem::exists(test_filepath));
+    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
+                 std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnInputsVariableDoesNotExist)
@@ -97,7 +101,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnInputsVariableDoesNotExist)
     // No inputs data
     create_mat_file({}, {}, "non_existent_inputs", targets_raw, targets_shape, "targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filename, "inputs", "targets"), std::runtime_error);
+    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
+                 std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnTargetsVariableDoesNotExist)
@@ -108,7 +113,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnTargetsVariableDoesNotExist)
     // No targets data
     create_mat_file(inputs_raw, inputs_shape, "inputs", {}, {}, "non_existent_targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filename, "inputs", "targets"), std::runtime_error);
+    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
+                 std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnMismatchedSampleCounts)
@@ -122,7 +128,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnMismatchedSampleCounts)
 
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filename, "inputs", "targets"), std::runtime_error);
+    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
+                 std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, GetItemOutOfBoundsThrows)
@@ -135,7 +142,7 @@ TEST_F(MatFileDatasetTestFixture, GetItemOutOfBoundsThrows)
 
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    MatFileDataset dataset(test_filename, "inputs", "targets");
+    MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 2);
 
     ASSERT_THROW(dataset.get_item(2), std::out_of_range); // Index 2 is out of bounds for size 2
@@ -150,7 +157,7 @@ TEST_F(MatFileDatasetTestFixture, CollateWithValidIndices)
     std::vector<size_t> targets_shape = {3, 1}; // 3 samples
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    MatFileDataset dataset(test_filename, "inputs", "targets");
+    MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 3);
 
     std::vector<size_t> indices = {0, 2};
@@ -177,7 +184,7 @@ TEST_F(MatFileDatasetTestFixture, CollateWithEmptyIndices)
     std::vector<size_t> targets_shape = {2, 1};                      // Made 2x1
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    MatFileDataset dataset(test_filename, "inputs", "targets");
+    MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 2); // Corrected expected size
 
     std::vector<size_t> indices = {};
@@ -197,7 +204,7 @@ TEST_F(MatFileDatasetTestFixture, CollateWithOutOfBoundsIndicesThrows)
     std::vector<size_t> targets_shape = {2, 1};                      // Made 2x1
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    MatFileDataset dataset(test_filename, "inputs", "targets");
+    MatFileDataset dataset(test_filepath.string(), "inputs", "targets");
     EXPECT_EQ(dataset.size(), 2); // Corrected expected size
 
     std::vector<size_t> indices = {0, 2}; // Index 2 is out of bounds for size 2
@@ -215,18 +222,18 @@ TEST_F(MatFileDatasetTestFixture, LoadMinimalTargetsDirectly)
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
     // Check that file was created
-    ASSERT_TRUE(std::filesystem::exists(test_filename)) << "Test file was not created";
+    ASSERT_TRUE(std::filesystem::exists(test_filepath)) << "Test file was not created";
 
     auto loaded_targets_opt =
-        matioCpp::utils::load_named_variable_as_matrix(test_filename, "targets");
+        matioCpp::utils::load_named_variable_as_matrix(test_filepath.string(), "targets");
     ASSERT_TRUE(loaded_targets_opt.has_value());
     EXPECT_EQ(loaded_targets_opt->rows(), 2);
     EXPECT_EQ(loaded_targets_opt->cols(), 1);
-    EXPECT_FLOAT_EQ((*loaded_targets_opt)(0, 0), 1.0);
-    EXPECT_FLOAT_EQ((*loaded_targets_opt)(1, 0), 2.0);
+    EXPECT_FLOAT_EQ(loaded_targets_opt->at(0, 0), 1.0F);
+    EXPECT_FLOAT_EQ(loaded_targets_opt->at(1, 0), 2.0F);
 
     auto loaded_inputs_opt =
-        matioCpp::utils::load_named_variable_as_matrix(test_filename, "inputs");
+        matioCpp::utils::load_named_variable_as_matrix(test_filepath.string(), "inputs");
     ASSERT_TRUE(loaded_inputs_opt.has_value());
     EXPECT_EQ(loaded_inputs_opt->rows(), 2);
     EXPECT_EQ(loaded_inputs_opt->cols(), 3);

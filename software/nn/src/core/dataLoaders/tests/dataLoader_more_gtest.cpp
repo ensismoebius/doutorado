@@ -7,15 +7,16 @@
 // Reuse helper from existing tests: build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
-    Eigen::MatrixXf m(static_cast<int>(N), static_cast<int>(D));
+    nn::Tensor t(static_cast<nn::Index>(N), static_cast<nn::Index>(D));
     for (std::size_t i = 0; i < N; ++i)
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            m(static_cast<int>(i), static_cast<int>(j)) = static_cast<float>((i * D) + j);
+            t.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j)) =
+                static_cast<float>((i * D) + j);
         }
     }
-    return nn::Tensor(m);
+    return t;
 }
 
 TEST(DataLoaderMoreTest, CollateProducesCorrectShapesAndValues)

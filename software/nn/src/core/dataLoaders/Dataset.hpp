@@ -18,7 +18,8 @@ class Dataset
         {
             // Return empty tensors but retain column counts from first item
             // if dataset is not empty, otherwise return default Batch{}
-            if (size() > 0) {
+            if (size() > 0)
+            {
                 Batch first_item = get_item(0); // Get first item to determine column sizes
                 return {.inputs = nn::Tensor(0, first_item.inputs.cols()),
                         .targets = nn::Tensor(0, first_item.targets.cols())};
@@ -28,20 +29,26 @@ class Dataset
 
         // Use the first item to determine column sizes
         Batch first = get_item(indices[0]);
-        const Eigen::Index cols_in = first.inputs.get_data_ref().cols();
-        const Eigen::Index cols_tg = first.targets.get_data_ref().cols();
+        const nn::Index cols_in = first.inputs.cols();
+        const nn::Index cols_tg = first.targets.cols();
 
-        Eigen::MatrixXf inputs_mat(static_cast<int>(indices.size()), static_cast<int>(cols_in));
-        Eigen::MatrixXf targets_mat(static_cast<int>(indices.size()), static_cast<int>(cols_tg));
+        nn::Tensor inputs(static_cast<nn::Index>(indices.size()), cols_in);
+        nn::Tensor targets(static_cast<nn::Index>(indices.size()), cols_tg);
 
         for (std::size_t i = 0; i < indices.size(); ++i)
         {
             Batch b = get_item(indices[i]);
-            inputs_mat.row(static_cast<int>(i)) = b.inputs.get_data_ref().row(0);
-            targets_mat.row(static_cast<int>(i)) = b.targets.get_data_ref().row(0);
+            for (nn::Index c = 0; c < cols_in; ++c)
+            {
+                inputs.at(static_cast<nn::Index>(i), c) = b.inputs.at(0, c);
+            }
+            for (nn::Index c = 0; c < cols_tg; ++c)
+            {
+                targets.at(static_cast<nn::Index>(i), c) = b.targets.at(0, c);
+            }
         }
 
-        return {.inputs = nn::Tensor(inputs_mat), .targets = nn::Tensor(targets_mat)};
+        return {.inputs = std::move(inputs), .targets = std::move(targets)};
     }
 
     [[nodiscard]] virtual auto size() const -> std::size_t = 0;

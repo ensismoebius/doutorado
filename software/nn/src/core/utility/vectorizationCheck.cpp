@@ -1,7 +1,8 @@
 #include "vectorizationCheck.hpp"
 
-#include <Eigen/Dense>
 #include <iostream>
+
+#include "core/tensor/EigenTensorBackend.hpp"
 
 void printVectorizationSupport()
 {

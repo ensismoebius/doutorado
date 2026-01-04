@@ -7,15 +7,16 @@
 // Helper to build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
-    Eigen::MatrixXf m(static_cast<int>(N), static_cast<int>(D));
+    nn::Tensor t(static_cast<nn::Index>(N), static_cast<nn::Index>(D));
     for (std::size_t i = 0; i < N; ++i)
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            m(static_cast<int>(i), static_cast<int>(j)) = static_cast<float>((i * D) + j);
+            t.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j)) =
+                static_cast<float>((i * D) + j);
         }
     }
-    return nn::Tensor{m};
+    return t;
 }
 
 TEST(DataLoaderTest, DeterministicShuffle)
@@ -214,8 +215,24 @@ TEST(DataLoaderThreadSafetyTest, MultipleIterators)
         const auto& batch2 = *it2;
 
         // Batches should be identical with same seed
-        EXPECT_TRUE(batch1.inputs.get_data_ref().isApprox(batch2.inputs.get_data_ref()));
-        EXPECT_TRUE(batch1.targets.get_data_ref().isApprox(batch2.targets.get_data_ref()));
+        ASSERT_EQ(batch1.inputs.rows(), batch2.inputs.rows());
+        ASSERT_EQ(batch1.inputs.cols(), batch2.inputs.cols());
+        ASSERT_EQ(batch1.targets.rows(), batch2.targets.rows());
+        ASSERT_EQ(batch1.targets.cols(), batch2.targets.cols());
+        for (nn::Index r = 0; r < batch1.inputs.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < batch1.inputs.cols(); ++c)
+            {
+                EXPECT_FLOAT_EQ(batch1.inputs.at(r, c), batch2.inputs.at(r, c));
+            }
+        }
+        for (nn::Index r = 0; r < batch1.targets.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < batch1.targets.cols(); ++c)
+            {
+                EXPECT_FLOAT_EQ(batch1.targets.at(r, c), batch2.targets.at(r, c));
+            }
+        }
 
         ++it1;
         ++it2;

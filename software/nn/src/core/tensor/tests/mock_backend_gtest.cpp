@@ -29,8 +29,7 @@ TEST(MockTensorBackend, TensorAddLogsAndComputes)
     EXPECT_NE(last.find("add:[2x2]"), std::string::npos);
 
     // Result should contain element-wise sums; validate via norm to avoid peeking into backend
-    const float expected_norm =
-        std::sqrt(2.0f * 2.0f + 3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f);
+    const float expected_norm = std::sqrt(2.0f * 2.0f + 3.0f * 3.0f + 4.0f * 4.0f + 5.0f * 5.0f);
     EXPECT_NEAR(result.norm(), expected_norm, 1e-5f);
 }
 

@@ -1,15 +1,9 @@
-./src/core/dataLoaders/tests/dataLoader_gtest.cpp
-./src/core/dataLoaders/tests/dataLoader_more_gtest.cpp
-./src/core/dataLoaders/tests/matfile_row_vector_gtest.cpp
 ./src/core/dataLoaders/10.1117/AudioLoader.h
 ./src/core/dataLoaders/10.1117/EEGData.h
 ./src/core/dataLoaders/10.1117/AudioData.h
 ./src/core/dataLoaders/10.1117/EEGLoader.cpp
 ./src/core/dataLoaders/10.1117/EEGLoader.h
 ./src/core/dataLoaders/10.1117/AudioLoader.cpp
-./src/core/dataLoaders/Dataset.hpp
-./src/core/dataLoaders/mat_file_utils.cpp
-./src/core/dataLoaders/mat_file_utils.hpp
 ./src/core/initializers/tests/initializers_gtest.cpp
 ./src/core/initializers/kaiming_snn.hpp
 ./src/core/initializers/xavier.hpp
@@ -38,10 +32,6 @@
 ./src/core/tensor/Tensor.cpp
 ./src/core/tensor/TensorBackendFactory.cpp
 ./src/core/utility/tests/util_gtest.cpp
-./src/core/utility/printTensor.hpp
-./src/core/utility/Normalization.hpp
-./src/core/utility/synthetic_spike_data.hpp
-./src/core/utility/parallel_batching.hpp
 ./src/core/wave/audioFeatureExtraction.cpp
 ./src/core/saver/tests/NetworkSerializer_gtest.cpp
 ./src/core/saver/NnSaver.hpp

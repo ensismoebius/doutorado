@@ -25,6 +25,6 @@ TEST(MatFileVectorTest, LoadColumnVector)
     auto m = opt.value();
     EXPECT_EQ(m.rows(), 4);
     EXPECT_EQ(m.cols(), 1);
-    EXPECT_FLOAT_EQ(m(0, 0), 10.0F);
-    EXPECT_FLOAT_EQ(m(3, 0), 40.0F);
+    EXPECT_FLOAT_EQ(m.at(0, 0), 10.0F);
+    EXPECT_FLOAT_EQ(m.at(3, 0), 40.0F);
 }

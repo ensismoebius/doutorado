@@ -18,7 +18,7 @@ using std::vector;
  * @param timeStep Time step size.
  * @param[out] real_valued (optional) Pointer to store the real-valued input matrix used for
  * encoding.
- * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
+ * @return vector of spike trains (one per time step) paired with reconstruction targets.
  */
 auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
                                      float timeStep)
@@ -29,7 +29,7 @@ auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, 
  * @param n_samples Number of samples.
  * @param input_dim Number of input features.
  * @param n_steps Number of time steps for spike train.
- * @return std::vector<Eigen::MatrixXf> Vector of spike trains (one per time step).
+ * @return vector of spike trains (one per time step) paired with reconstruction targets.
  */
 auto generate_autoencoder_spike_data_of_ones(int n_samples, int input_dim, int n_steps)
     -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>;

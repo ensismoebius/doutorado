@@ -1,18 +1,19 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "core/tensor/Tensor.hpp"
+
 namespace matioCpp::utils
 {
-// Load a named variable from a .mat file and return it as an Eigen::MatrixXf.
+// Load a named variable from a .mat file and return it as an nn::Tensor.
 // Returns std::nullopt on any error (file can't be opened, variable not
 // found, unsupported type, or dimension mismatch).
 [[nodiscard]] auto load_named_variable_as_matrix(const std::string& mat_path,
                                                  const std::string& var_name)
-    -> std::optional<Eigen::MatrixXf>;
+    -> std::optional<nn::Tensor>;
 
 // Return a list of top-level variable names available in the .mat file.
 // Returns an empty vector on error (file can't be opened or parsing failed).
@@ -20,8 +21,7 @@ namespace matioCpp::utils
 
 // Get the dimensions of a named variable from a .mat file without loading its full content.
 // Returns std::nullopt on error (file can't be opened, variable not found).
-[[nodiscard]] auto get_variable_dimensions(const std::string& mat_path,
-                                           const std::string& var_name)
+[[nodiscard]] auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)
     -> std::optional<std::vector<size_t>>;
 
 // Example:

@@ -48,7 +48,7 @@ auto main() -> int
         return 1;
     }
 
-    nn::Tensor mat = nn::Tensor(std::move(*mat_opt));
+    nn::Tensor mat = std::move(*mat_opt);
     if (mat.cols() < 2)
     {
         cerr << "Matrix must have at least 2 columns (features + label)" << '\n';

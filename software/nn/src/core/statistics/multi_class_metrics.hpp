@@ -1,7 +1,6 @@
 #ifndef SRC_CORE_STATISTICS_MULTICLASSMETRICS_H_
 #define SRC_CORE_STATISTICS_MULTICLASSMETRICS_H_
 
-#include <Eigen/Dense>
 #include <algorithm>
 #include <numeric>
 #include <random>

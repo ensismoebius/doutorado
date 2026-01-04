@@ -107,6 +107,12 @@
     // --------------------------------------------------
     // UX / workflow
     // --------------------------------------------------
+    "github.copilot.enable": {
+        "*": true,
+        "plaintext": false
+    },
+    "github.copilot.inlineSuggest.enable": true,
+    "editor.inlineSuggest.enabled": true,
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.fixAll.clangd": "always"

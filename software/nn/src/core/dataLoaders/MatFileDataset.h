@@ -19,8 +19,8 @@ class MatFileDataset : public TensorDataset
             throw std::runtime_error("Error loading data from MAT file");
         }
 
-        nn::Tensor inputs(inputs_mat.value());
-        nn::Tensor targets(targets_mat.value());
+        nn::Tensor inputs = std::move(inputs_mat.value());
+        nn::Tensor targets = std::move(targets_mat.value());
 
         // Check for mismatched sample counts (rows)
         if (inputs.rows() != targets.rows())
