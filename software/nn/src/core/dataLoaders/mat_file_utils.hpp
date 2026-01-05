@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace matioCpp::utils
 {

@@ -9,7 +9,7 @@
 #include <vector>    // For std::vector
 
 #include "core/optimizers/Adam.hpp" // For Adam optimizer
-#include "core/tensor/Tensor.hpp"   // For Tensor
+#include "nn/tensor/Tensor.hpp"   // For Tensor
 
 using std::size_t;
 using std::vector;

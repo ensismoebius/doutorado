@@ -6,7 +6,7 @@
 #include "core/optimizers/Adam.hpp"
 #include "core/optimizers/SGD.hpp"
 #include "core/optimizers/SGDMinimal.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/utility/tests/test_helpers.hpp"
 
 // Test Fixture for common optimizer setup

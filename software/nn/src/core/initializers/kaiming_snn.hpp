@@ -4,7 +4,7 @@
 #include <random>
 
 #include "core/layers/Linear.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * @brief Kaiming (He) uniform initializer, adapted for spiking neural networks.

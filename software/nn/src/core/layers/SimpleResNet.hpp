@@ -8,7 +8,7 @@
 #include "ReLU.hpp"
 #include "ResidualBlock.hpp"
 #include "Sequential.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Simple ResNet-like model for classification
 class SimpleResNet : public Module

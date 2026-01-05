@@ -1,7 +1,7 @@
 #include <cmath>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"             // For Tensor
+#include "nn/tensor/Tensor.hpp"             // For Tensor
 #include "core/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
 #include "core/wave/audioTypes.h"             // Include the new audio types header
 #include "gtest/gtest.h"

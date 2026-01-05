@@ -5,7 +5,7 @@
 #include <memory> // For std::unique_ptr
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "matplotlibcpp.h"
 
 using std::vector;

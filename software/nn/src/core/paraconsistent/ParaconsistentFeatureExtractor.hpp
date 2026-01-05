@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 class ParaconsistentFeatureExtractor
 {

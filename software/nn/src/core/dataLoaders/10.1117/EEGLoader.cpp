@@ -6,7 +6,7 @@
 #include <memory>
 #include <stdexcept>
 
-#include "../../tensor/Tensor.hpp"
+#include "../nn/tensor/Tensor.hpp"
 
 /*
  * EEGLoader implementation notes

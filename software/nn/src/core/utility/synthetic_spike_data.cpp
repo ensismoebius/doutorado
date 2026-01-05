@@ -1,9 +1,9 @@
-#include "synthetic_spike_data.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
 
 #include <algorithm>
 #include <random>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Global random engine and distribution
 static std::mt19937 gen(std::random_device{}());

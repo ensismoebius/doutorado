@@ -13,7 +13,7 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace statistics
 {

@@ -6,7 +6,7 @@
 
 #include "Config.hpp"
 #include "core/layers/SimpleResNet.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace phase00
 {

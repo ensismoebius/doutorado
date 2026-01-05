@@ -2,7 +2,7 @@
 #include <memory>
 #include <vector>
 
-#include "../../core/utility/batching.hpp"
+#include "../../nn/utility/batching.hpp"
 #include "core/dataLoaders/mat_file_utils.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/CrossEntropyLoss.hpp"
@@ -11,7 +11,7 @@
 #include "core/layers/ResidualBlock.hpp"
 #include "core/layers/Sequential.hpp"
 #include "core/optimizers/Adam.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 using namespace std;
 

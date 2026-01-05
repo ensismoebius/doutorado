@@ -4,7 +4,7 @@
 // Include necessary headers for standard vectors and the Tensor class
 #include <vector>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Base class for regularization techniques
 // Provides a common interface for computing regularization penalties and their gradients

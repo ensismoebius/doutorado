@@ -128,7 +128,7 @@ nn/
 
 > **Rule:** Any public change requires updating this document + CHANGELOG + semantic versioning.
 
-## 3.1 Tensor (src/core/tensor/Tensor.hpp + ITensorBackend/EigenTensorBackend)
+## 3.1 Tensor (src/nn/tensor/Tensor.hpp + ITensorBackend/EigenTensorBackend)
 
 - Backend-driven design: `Tensor` owns a `std::unique_ptr<ITensorBackend>`; the default backend is provided by `TensorBackendFactory::create_backend()` (EigenTensorBackend with Eigen::MatrixXf storage). `Index` is an alias for `size_t`.
 - Constructors: default, from backend, from `Eigen::MatrixXf` (copy/move), from shape `(rows, cols)`, `(d1, d2, d3, d4)`, or `std::vector<Index>` shape. Copying clones the backend; moves are defaulted.
@@ -141,7 +141,7 @@ nn/
 - Interface: `virtual nn::Tensor forward(const nn::Tensor& input, bool requires_grad = true) = 0;` `virtual nn::Tensor backward(const nn::Tensor& grad_output) = 0;` `virtual void train(bool on) {}`; `virtual std::vector<nn::Tensor*> params()` (default empty). Copyable, non-movable.
 - `Sequential` manages `std::vector<std::shared_ptr<Module>>` on top of this interface.
 
-## 3.3 Dataset / DataLoader (src/core/dataLoaders/ + src/core/utility/batching.hpp)
+## 3.3 Dataset / DataLoader (src/core/dataLoaders/ + src/nn/utility/batching.hpp)
 
 - `Batch` (batching.hpp): `{ nn::Tensor inputs; nn::Tensor targets; }`.
 - `Dataset` interface: `get_item(std::size_t) -> Batch`, `size() const -> std::size_t`, optional override of `collate(indices)`; default `collate` builds contiguous Eigen matrices using the first item to infer column counts, returns empty batch with correct column counts when dataset is empty.

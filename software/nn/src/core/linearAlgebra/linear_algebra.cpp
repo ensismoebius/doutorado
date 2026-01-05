@@ -8,7 +8,7 @@
  *
  */
 
-#include "linear_algebra.hpp"
+#include "nn/linearAlgebra/linear_algebra.hpp"
 
 #include <algorithm>
 #include <cmath>

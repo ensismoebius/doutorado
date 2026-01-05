@@ -3,7 +3,7 @@
 
 #include <cmath>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Interface for surrogate gradient functions
 class ISurrogateGradient

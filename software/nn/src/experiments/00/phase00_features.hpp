@@ -3,7 +3,7 @@
 #include <tuple>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace phase00
 {

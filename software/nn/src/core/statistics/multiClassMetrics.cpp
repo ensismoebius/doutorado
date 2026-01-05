@@ -11,7 +11,7 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "multi_class_metrics.hpp"
 
 namespace statistics

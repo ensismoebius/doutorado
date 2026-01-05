@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include "MockTensorBackend.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace nn::tests
 {

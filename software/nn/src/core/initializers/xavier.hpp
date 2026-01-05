@@ -1,6 +1,6 @@
 #include <random>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * @brief Initializes weights and biases using the Xavier (Glorot) uniform initialization.

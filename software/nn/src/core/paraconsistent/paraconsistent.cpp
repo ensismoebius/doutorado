@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "../linearAlgebra/linear_algebra.hpp"
-#include "core/utility/comparison.h"
+#include "nn/utility/comparison.h"
 
 auto calculate_certainty_degree_g1(double alpha, double betha) -> double
 {

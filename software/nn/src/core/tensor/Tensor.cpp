@@ -1,8 +1,8 @@
-#include "Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 #include <span>
 
-#include "TensorBackendFactory.hpp"
+#include "nn/tensor/TensorBackendFactory.hpp"
 
 namespace nn
 {

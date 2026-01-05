@@ -8,7 +8,7 @@
 
 // Branch prediction hints: use compiler built-ins when available
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "Conv2d_utils.hpp"
 #include "Module.hpp"
 

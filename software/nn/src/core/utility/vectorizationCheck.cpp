@@ -1,4 +1,4 @@
-#include "vectorizationCheck.hpp"
+#include "nn/utility/vectorizationCheck.hpp"
 
 #include <iostream>
 

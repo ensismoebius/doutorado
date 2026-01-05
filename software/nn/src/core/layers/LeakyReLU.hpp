@@ -1,7 +1,7 @@
 #ifndef LEAKYRELU_HPP
 #define LEAKYRELU_HPP
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
 struct LeakyReLU : public Module

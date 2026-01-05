@@ -1,4 +1,4 @@
-#include "imgui_glfw.hpp"
+#include "nn/utility/imgui_glfw.hpp"
 
 ImGuiApp::ImGuiApp(const std::string& title, int width, int height)
     : window(nullptr), title(title), width(width), height(height)

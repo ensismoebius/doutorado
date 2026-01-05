@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/wave/audioTypes.h" // Include the new audio types header
 
 namespace nn::core::wave

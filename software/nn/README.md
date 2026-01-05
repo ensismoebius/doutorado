@@ -286,7 +286,7 @@ cmake --build build --target tidy
 ### Basic Usage Example
 
 ```cpp
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/layers/Linear.hpp"
 #include "core/layers/ReLU.hpp"
 #include "core/layers/Sequential.hpp"

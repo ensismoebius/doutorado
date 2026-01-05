@@ -11,6 +11,8 @@ set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(util
     PUBLIC 
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
 )

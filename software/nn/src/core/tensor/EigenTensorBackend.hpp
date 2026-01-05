@@ -3,7 +3,7 @@
 
 #include <Eigen/Dense>
 
-#include "ITensorBackend.hpp"
+#include "nn/tensor/ITensorBackend.hpp"
 
 namespace nn
 {

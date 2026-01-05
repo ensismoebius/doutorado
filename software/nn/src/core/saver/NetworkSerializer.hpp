@@ -17,7 +17,7 @@
 #include "../layers/Linear.hpp"
 #include "../layers/ReLU.hpp"
 #include "../layers/Sequential.hpp"
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 using cnpy::NpyArray;
 using cnpy::npz_load;

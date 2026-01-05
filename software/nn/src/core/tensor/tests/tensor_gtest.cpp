@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 TEST(TensorTest, ConstructionAndAssignment)
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "Module.hpp"
 
 // Spike count loss: mean squared error between output spike count and target

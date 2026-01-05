@@ -15,7 +15,7 @@
 #include "../SurrogateGradient.hpp"
 #include "core/initializers/xavier.hpp"
 #include "core/optimizers/Adam.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/utility/tests/test_helpers.hpp"
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector> // For std::vector
 
-#include "core/tensor/Tensor.hpp" // For Tensor
+#include "nn/tensor/Tensor.hpp" // For Tensor
 
 // All struct definitions moved from Experiment01_utils.h
 

@@ -1,7 +1,7 @@
 #ifndef LINEAR_CPP
 #define LINEAR_CPP
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
 /**

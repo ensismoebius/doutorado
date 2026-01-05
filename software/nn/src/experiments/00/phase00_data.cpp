@@ -9,7 +9,7 @@
 #include "core/dataLoaders/10.1117/AudioLoader.h"
 #include "core/dataLoaders/10.1117/EEGLoader.h"
 #include "core/dataLoaders/mat_file_utils.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "phase00_features.hpp"
 
 using matioCpp::utils::get_variable_dimensions;

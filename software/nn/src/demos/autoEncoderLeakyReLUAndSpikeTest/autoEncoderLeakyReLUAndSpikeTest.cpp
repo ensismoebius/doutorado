@@ -8,16 +8,16 @@
 #include <tuple>
 
 #include "../../core/saver/NetworkSerializer.hpp"
-#include "../../core/utility/batching.hpp"
+#include "../../nn/utility/batching.hpp"
 #include "../../core/utility/synthetic_spike_data.hpp"
-#include "../../core/utility/vectorizationCheck.hpp"
+#include "../../nn/utility/vectorizationCheck.hpp"
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/layers/Leaky.hpp"
 #include "core/layers/Linear.hpp"
 #include "core/layers/MSELoss.hpp"
 #include "core/layers/Sequential.hpp"
 #include "core/optimizers/Adam.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/utility/EigenParallel.hpp"
 
 using std::cout;

@@ -10,7 +10,7 @@
 
 #include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
 #include "core/optimizers/Adam.hpp"
-#include "core/tensor/Tensor.hpp"             // For Tensor
+#include "nn/tensor/Tensor.hpp"             // For Tensor
 #include "core/wave/audioFeatureExtraction.h" // Include the new header
 
 using nn::dataLoaders::loadAudioFromMat;

@@ -4,10 +4,10 @@
 #include <random>
 #include <set>
 
-#include "../batching.hpp"
-#include "../synthetic_spike_data.hpp"
-#include "../vectorizationCheck.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/utility/batching.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
+#include "nn/utility/vectorizationCheck.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace
 {

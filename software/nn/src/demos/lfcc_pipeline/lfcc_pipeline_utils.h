@@ -1,7 +1,7 @@
 #ifndef EXPERIMENT01_UTILS_HPP
 #define EXPERIMENT01_UTILS_HPP
 
-#include "core/tensor/Tensor.hpp" // For Tensor
+#include "nn/tensor/Tensor.hpp" // For Tensor
 #include "core/wave/audioTypes.h" // Include the new audio types header
 
 // Declaration for loadAndProcessAudio, now defined in Experiment01_utils.cpp

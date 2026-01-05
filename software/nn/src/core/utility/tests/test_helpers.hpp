@@ -2,7 +2,7 @@
 
 #include <random>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace test_helpers
 {

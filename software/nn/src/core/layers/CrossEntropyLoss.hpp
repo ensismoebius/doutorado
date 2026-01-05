@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
 // Computes softmax + cross-entropy. Assumes predictions are logits (N x C) and targets are one-hot

@@ -3,7 +3,7 @@
 
 #include <span>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 struct Optimizer
 {

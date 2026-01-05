@@ -5,7 +5,7 @@
 #include <span>
 #include <stdexcept>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "Optimizer.hpp"
 
 /**

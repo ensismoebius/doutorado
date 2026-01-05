@@ -4,7 +4,7 @@
 #include <string>
 #include <tuple>
 
-#include "../../tensor/Tensor.hpp"
+#include "../nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {

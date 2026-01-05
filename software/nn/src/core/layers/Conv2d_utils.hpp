@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Forward declaration
 class Conv2d;

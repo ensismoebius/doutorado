@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "Module.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // A PyTorch-like Sequential container for C++
 struct Sequential : Module

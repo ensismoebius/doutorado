@@ -4,7 +4,7 @@
 #include <array>
 #include <string>
 
-#include "../../tensor/Tensor.hpp"
+#include "../nn/tensor/Tensor.hpp"
 #include "../IMatLoader.hpp"
 
 namespace nn::dataLoaders

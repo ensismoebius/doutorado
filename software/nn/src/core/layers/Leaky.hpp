@@ -5,12 +5,12 @@
 #include <memory>
 #include <utility>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "SurrogateGradient.hpp"
 #include "core/layers/Module.hpp"
 
 #ifdef DEBUG
-#include "core/utility/printTensor.hpp"
+#include "nn/utility/printTensor.hpp"
 #endif
 
 /**

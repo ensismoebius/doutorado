@@ -3,7 +3,7 @@
 #include "core/initializers/kaiming_snn.hpp"
 #include "core/initializers/xavier.hpp"
 #include "core/layers/Linear.hpp"
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 // Initializer: kaiming_snn
 TEST(InitializerTest, KaimingSNN)

@@ -1,4 +1,4 @@
-#include "batching.hpp"
+#include "nn/utility/batching.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 auto create_batches(const std::vector<nn::Tensor>& inputSamples,
                     const std::vector<nn::Tensor>& targets, const int batch_size)

@@ -1,7 +1,7 @@
 #ifndef MODULE_HPP
 #define MODULE_HPP
 
-#include "core/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 struct Module
 {
     Module() = default;

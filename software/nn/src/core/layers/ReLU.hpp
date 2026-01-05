@@ -3,7 +3,7 @@
 
 #include <cstddef>
 
-#include "../tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 #include "core/layers/Module.hpp"
 
 struct ReLU : public Module
