@@ -15,7 +15,10 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 include(cmake/Policies.cmake)
 
 # Tooling setup (ccache, analysis tool detection, compile_commands.json export)
-# include(cmake/Tooling.cmake)
+include(cmake/Tooling.cmake)
+
+# Development and analysis custom targets
+include(cmake/DevAndAnalysisTargets.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
@@ -28,9 +31,6 @@ include(cmake/PackageChecking.cmake)
 
 # Vendor includes and helpers (cnpy, imgui, implot, eigen parallel settings, fftw, nfft3)
 include(cmake/VendorIncludes.cmake)
-
-# Development and analysis custom targets
-# include(cmake/DevAndAnalysisTargets.cmake)
 
 # Source subdirectories
 add_subdirectory(${SRC_DIR}/core)
