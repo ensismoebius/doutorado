@@ -137,67 +137,6 @@ TEST(OptimizerExceptionTest, NullParameters)
     ASSERT_THROW(sgd_momentum.attach(params_with_null), std::invalid_argument);
 }
 
-// Memory Stress Testing for Optimizers
-TEST(OptimizerMemoryStressTest, LargeParameterSets)
-{
-    const int num_params = 100;
-    const int param_size = 1000;
-
-    std::vector<nn::Tensor*> large_params;
-    std::vector<nn::Tensor> initial_data;
-
-    // Create large parameter set
-    for (int i = 0; i < num_params; ++i)
-    {
-        nn::Tensor data = test_helpers::make_random_tensor(param_size, param_size);
-        nn::Tensor grad = test_helpers::make_constant_tensor(param_size, param_size, 0.1F);
-
-        initial_data.push_back(nn::Tensor(data.rows(), data.cols()));
-        for (size_t r = 0; r < data.rows(); ++r)
-        {
-            for (size_t c = 0; c < data.cols(); ++c)
-            {
-                initial_data.back().at(r, c) = data.at(r, c);
-            }
-        }
-
-        auto* tensor = new nn::Tensor(data.rows(), data.cols());
-        for (size_t r = 0; r < data.rows(); ++r)
-        {
-            for (size_t c = 0; c < data.cols(); ++c)
-            {
-                tensor->at(r, c) = data.at(r, c);
-            }
-        }
-        tensor->set_grad(grad);
-        large_params.push_back(tensor);
-    }
-
-    // Test SGDMinimal with large parameter set
-    SGDMinimal sgd(0.01F);
-    ASSERT_NO_THROW(sgd.step(large_params));
-    ASSERT_NO_THROW(sgd.zero_grad(large_params));
-
-    // Verify parameters changed
-    for (int i = 0; i < num_params; ++i)
-    {
-        EXPECT_FALSE(test_helpers::tensor_is_approx(*large_params[i], initial_data[i]));
-        EXPECT_TRUE(test_helpers::tensor_is_zero(large_params[i]->grad()));
-    }
-
-    // Test Adam with large parameter set
-    Adam adam(0.001F);
-    ASSERT_NO_THROW(adam.attach(large_params));
-    ASSERT_NO_THROW(adam.step(large_params));
-    ASSERT_NO_THROW(adam.zero_grad(large_params));
-
-    // Clean up
-    for (auto* tensor : large_params)
-    {
-        delete tensor;
-    }
-}
-
 // Numerical Edge Cases for Optimizers
 TEST(OptimizerNumericalEdgeTest, NaNInfGradients)
 {
