@@ -3,9 +3,9 @@
 #include <limits>
 #include <vector>
 
-#include "core/optimizers/Adam.hpp"
-#include "core/optimizers/SGD.hpp"
-#include "core/optimizers/SGDMinimal.hpp"
+#include "nn/optimizers/Adam.hpp"
+#include "nn/optimizers/SGD.hpp"
+#include "nn/optimizers/SGDMinimal.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "core/utility/tests/test_helpers.hpp"
 

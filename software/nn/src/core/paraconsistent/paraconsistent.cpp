@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "../linearAlgebra/linear_algebra.hpp"
+#include "nn/linearAlgebra/linear_algebra.hpp"
 #include "nn/utility/comparison.h"
 
 auto calculate_certainty_degree_g1(double alpha, double betha) -> double

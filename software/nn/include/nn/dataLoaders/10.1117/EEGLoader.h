@@ -4,8 +4,8 @@
 #include <array>
 #include <string>
 
-#include "../nn/tensor/Tensor.hpp"
-#include "../IMatLoader.hpp"
+#include "nn/tensor/Tensor.hpp"
+#include "nn/dataLoaders/IMatLoader.hpp"
 
 namespace nn::dataLoaders
 {

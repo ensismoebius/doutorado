@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "../../tests/MatTestUtils/MatTestUtils.h"
-#include "../EEGLoader.h"
+#include "nn/dataLoaders/10.1117/EEGLoader.h"
 
 using namespace nn::dataLoaders;
 using namespace nn::dataLoaders::test;

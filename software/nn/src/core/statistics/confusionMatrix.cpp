@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "confusion_matrix.hpp"
+#include "nn/statistics/confusion_matrix.hpp"
 
 namespace statistics
 {

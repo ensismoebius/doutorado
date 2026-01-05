@@ -4,9 +4,9 @@
 #include <memory>
 #include <vector>
 
-#include "../../core/utility/imgui_glfw.hpp"
-#include "../../core/utility/synthetic_spike_data.hpp"
-#include "core/layers/Leaky.hpp"
+#include "nn/utility/imgui_glfw.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
+#include "nn/layers/Leaky.hpp"
 #include "imgui.h"
 #include "implot.h"
 

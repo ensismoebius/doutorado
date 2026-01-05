@@ -12,18 +12,18 @@
 #include <string>
 #include <vector>
 
-#include "core/dataLoaders/mat_file_utils.hpp"
-#include "core/layers/CrossEntropyLoss.hpp"
-#include "core/layers/SimpleResNet.hpp"
-#include "core/linearAlgebra/linear_algebra.hpp"
-#include "core/optimizers/Adam.hpp"
-#include "core/paraconsistent/paraconsistent.h"
-#include "core/statistics/multi_class_metrics.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
+#include "nn/layers/CrossEntropyLoss.hpp"
+#include "nn/layers/SimpleResNet.hpp"
+#include "nn/linearAlgebra/linear_algebra.hpp"
+#include "nn/optimizers/Adam.hpp"
+#include "nn/paraconsistent/paraconsistent.h"
+#include "nn/statistics/multi_class_metrics.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
-#include "core/wave/audioFeatureExtraction.h"
-#include "core/wavelet/Types.h"
-#include "core/wavelet/waveletOperations.h"
+#include "nn/wave/audioFeatureExtraction.h"
+#include "nn/wavelet/Types.h"
+#include "nn/wavelet/waveletOperations.h"
 
 namespace fs = std::filesystem;
 

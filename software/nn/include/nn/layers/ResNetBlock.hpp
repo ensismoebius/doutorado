@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Conv2d.hpp"
-#include "Module.hpp"
-#include "ReLU.hpp"
+#include "nn/layers/Conv2d.hpp"
+#include "nn/layers/Module.hpp"
+#include "nn/layers/ReLU.hpp"
 
 class ResNetBlock : public Module
 {

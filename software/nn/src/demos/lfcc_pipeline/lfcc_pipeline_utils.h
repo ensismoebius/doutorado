@@ -2,7 +2,7 @@
 #define EXPERIMENT01_UTILS_HPP
 
 #include "nn/tensor/Tensor.hpp" // For Tensor
-#include "core/wave/audioTypes.h" // Include the new audio types header
+#include "nn/wave/audioTypes.h" // Include the new audio types header
 
 // Declaration for loadAndProcessAudio, now defined in Experiment01_utils.cpp
 auto loadAndProcessAudio(const std::string& audioFilePath,

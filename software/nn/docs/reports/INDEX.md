@@ -20,7 +20,7 @@ This document serves as the main entry point for understanding the solution impl
 
 ### 1. Code Fix (Critical)
 
-- **File Modified**: `src/core/layers/MSELoss.hpp`
+- **File Modified**: `src/nn/layers/MSELoss.hpp`
 - **Change**: Copy `last_target` before negating instead of in-place modify
 - **Impact**: Eliminated "double free or corruption" errors
 - **Tests Fixed**: 40+ tests
@@ -162,7 +162,7 @@ cat test_results/summary_*.txt
   └── INDEX.md                    (This file)
 
 📁 Source Code/
-  └── src/core/layers/MSELoss.hpp (Modified) Critical fix
+  └── src/nn/layers/MSELoss.hpp (Modified) Critical fix
 
 📁 Generated Logs/
   ├── vscode_crash_monitor.log    (Auto-generated)

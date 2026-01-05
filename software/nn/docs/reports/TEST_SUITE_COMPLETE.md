@@ -95,7 +95,7 @@ All the following test suites are now passing:
 
 ### 1. MSELoss Backward Pass (CRITICAL FIX)
 
-**File**: `src/core/layers/MSELoss.hpp`
+**File**: `src/nn/layers/MSELoss.hpp`
 
 **Issue**: The backward pass was modifying the cached `last_target` in-place:
 
@@ -117,7 +117,7 @@ This was causing "double free or corruption" errors because the cached target wa
 
 ### 2. Input Validation in Linear Layer
 
-**File**: `src/core/layers/Linear.hpp`
+**File**: `src/nn/layers/Linear.hpp`
 
 Added dimension validation to prevent accessing out-of-bounds memory.
 
@@ -129,13 +129,13 @@ Added 4D tensor requirement and output size validation.
 
 ### 4. Sequential Layer Validation
 
-**File**: `src/core/layers/Sequential.hpp`
+**File**: `src/nn/layers/Sequential.hpp`
 
 Added check for empty layers vector.
 
 ### 5. MSELoss Target Validation
 
-**File**: `src/core/layers/MSELoss.hpp`
+**File**: `src/nn/layers/MSELoss.hpp`
 
 Added `target_set` flag to ensure target is set before forward pass.
 

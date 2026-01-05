@@ -1,11 +1,11 @@
 #include <cstdio>
 
-#include "../NetworkSerializer.hpp"
-#include "core/layers/Leaky.hpp"
-#include "core/layers/LeakyReLU.hpp"
-#include "core/layers/Linear.hpp"
-#include "core/layers/ReLU.hpp"
-#include "core/layers/Sequential.hpp"
+#include "nn/saver/NetworkSerializer.hpp"
+#include "nn/layers/Leaky.hpp"
+#include "nn/layers/LeakyReLU.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/ReLU.hpp"
+#include "nn/layers/Sequential.hpp"
 #include "gtest/gtest.h"
 
 using std::filesystem::temp_directory_path;

@@ -1,7 +1,7 @@
 #include <iterator>
 
-#include "../DataLoader.h"
-#include "../TensorDataset.h"
+#include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/TensorDataset.hpp"
 #include "gtest/gtest.h"
 
 // Helper to build a Tensor with sequential rows (N x D)

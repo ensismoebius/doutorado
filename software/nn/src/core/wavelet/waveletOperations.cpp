@@ -1,4 +1,4 @@
-#include "waveletOperations.h"
+#include "nn/wavelet/waveletOperations.h"
 
 #include <bit> // For std::bit_width (C++20)
 #include <cmath>
@@ -11,8 +11,8 @@
 #include <omp.h>
 #endif
 
-#include "../linearAlgebra/linear_algebra.hpp"
-#include "WaveletTransformResults.h"
+#include "nn/linearAlgebra/linear_algebra.hpp"
+#include "nn/wavelet/WaveletTransformResults.h"
 
 namespace wavelets
 {

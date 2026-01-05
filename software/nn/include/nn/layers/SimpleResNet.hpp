@@ -2,12 +2,12 @@
 #include <memory>
 #include <vector>
 
-#include "../initializers/kaiming_snn.hpp"
-#include "Linear.hpp"
-#include "Module.hpp"
-#include "ReLU.hpp"
-#include "ResidualBlock.hpp"
-#include "Sequential.hpp"
+#include "nn/initializers/kaiming_snn.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/Module.hpp"
+#include "nn/layers/ReLU.hpp"
+#include "nn/layers/ResidualBlock.hpp"
+#include "nn/layers/Sequential.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 // Simple ResNet-like model for classification

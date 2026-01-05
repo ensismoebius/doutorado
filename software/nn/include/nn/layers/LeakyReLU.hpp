@@ -2,7 +2,7 @@
 #define LEAKYRELU_HPP
 
 #include "nn/tensor/Tensor.hpp"
-#include "core/layers/Module.hpp"
+#include "nn/layers/Module.hpp"
 
 struct LeakyReLU : public Module
 {

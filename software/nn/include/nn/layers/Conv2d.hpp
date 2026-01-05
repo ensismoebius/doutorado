@@ -9,8 +9,8 @@
 // Branch prediction hints: use compiler built-ins when available
 
 #include "nn/tensor/Tensor.hpp"
-#include "Conv2d_utils.hpp"
-#include "Module.hpp"
+#include "nn/layers/Conv2d_utils.hpp"
+#include "nn/layers/Module.hpp"
 
 /**
  * @file Conv2d.hpp

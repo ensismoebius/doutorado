@@ -65,7 +65,7 @@ Both sanitizers are active and reporting clean status.
 
 ```
 Critical Fix Applied:    ✅
-  File: src/core/layers/MSELoss.hpp
+  File: src/nn/layers/MSELoss.hpp
   Change: Copy before modify pattern
   Impact: 40+ tests fixed
 

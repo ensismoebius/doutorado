@@ -15,7 +15,7 @@
 #include <span>
 #include <vector>
 
-#include "WaveletTransformResults.h"
+#include "nn/wavelet/WaveletTransformResults.h"
 
 namespace wavelets
 {

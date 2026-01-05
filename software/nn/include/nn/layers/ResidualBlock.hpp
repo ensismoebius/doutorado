@@ -2,9 +2,9 @@
 
 #include <memory>
 
-#include "Linear.hpp"
-#include "Module.hpp"
-#include "ReLU.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/Module.hpp"
+#include "nn/layers/ReLU.hpp"
 
 // Simple residual block for MLP: x -> Linear -> ReLU -> Linear + x
 struct ResidualBlock : public Module

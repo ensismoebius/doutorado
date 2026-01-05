@@ -2,15 +2,15 @@
 #include <memory>
 #include <vector>
 
-#include "../../nn/utility/batching.hpp"
-#include "core/dataLoaders/mat_file_utils.hpp"
-#include "core/initializers/kaiming_snn.hpp"
-#include "core/layers/CrossEntropyLoss.hpp"
-#include "core/layers/Linear.hpp"
-#include "core/layers/ReLU.hpp"
-#include "core/layers/ResidualBlock.hpp"
-#include "core/layers/Sequential.hpp"
-#include "core/optimizers/Adam.hpp"
+#include "nn/utility/batching.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
+#include "nn/initializers/kaiming_snn.hpp"
+#include "nn/layers/CrossEntropyLoss.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/ReLU.hpp"
+#include "nn/layers/ResidualBlock.hpp"
+#include "nn/layers/Sequential.hpp"
+#include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 using namespace std;

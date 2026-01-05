@@ -5,7 +5,7 @@
 
 #include <filesystem>
 
-#include "../AudioLoader.h"
+#include "nn/dataLoaders/10.1117/AudioLoader.h"
 
 namespace
 {

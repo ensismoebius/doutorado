@@ -8,5 +8,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- L1 and L2 regularization modules in `src/core/layers/Regularization.hpp`
+- L1 and L2 regularization modules in `src/nn/layers/Regularization.hpp`
 - Unit tests for regularization in `src/core/layers/tests/layers_gtest.cpp`

@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "../linear_algebra.hpp"
+#include "nn/linearAlgebra/linear_algebra.hpp"
 #include "gtest/gtest.h"
 
 // Define a simple test fixture if needed, or just use TEST

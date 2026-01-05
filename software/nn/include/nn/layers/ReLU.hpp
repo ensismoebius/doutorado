@@ -3,8 +3,8 @@
 
 #include <cstddef>
 
+#include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "core/layers/Module.hpp"
 
 struct ReLU : public Module
 {

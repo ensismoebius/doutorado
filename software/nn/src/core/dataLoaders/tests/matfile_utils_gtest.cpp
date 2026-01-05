@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <vector>
 
-#include "../mat_file_utils.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
 
 using namespace matioCpp;
 

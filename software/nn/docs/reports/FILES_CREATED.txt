@@ -5,7 +5,7 @@
 
 ## Critical Code Fix
 
-1. src/core/layers/MSELoss.hpp
+1. src/nn/layers/MSELoss.hpp
    - Fixed: backward() method was modifying cached last_target
    - Change: Create copy before negating instead of in-place modify
    - Impact: Fixed "double free or corruption" crashes

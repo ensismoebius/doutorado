@@ -6,8 +6,8 @@
 #include <utility>
 
 #include "nn/tensor/Tensor.hpp"
-#include "SurrogateGradient.hpp"
-#include "core/layers/Module.hpp"
+#include "nn/layers/SurrogateGradient.hpp"
+#include "nn/layers/Module.hpp"
 
 #ifdef DEBUG
 #include "nn/utility/printTensor.hpp"

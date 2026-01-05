@@ -54,7 +54,7 @@ Compilation successful. 184 tests discovered. Many tests passing, but significan
 
 ### Recent Fix Applied
 
-**File**: `src/core/layers/MSELoss.hpp`
+**File**: `src/nn/layers/MSELoss.hpp`
 
 **Issue**: The `backward()` method was calling `last_target.multiply_scalar(-1.0f)` which modifies `last_target` in-place (since `multiply_scalar` returns `Tensor&`). This could corrupt the cached target data.
 
@@ -101,10 +101,10 @@ auto diff = last_input.add(negated_target);
 
 ## Code Changes Made
 
-1. **src/core/layers/Linear.hpp**: Added input dimension validation
+1. **src/nn/layers/Linear.hpp**: Added input dimension validation
 2. **src/core/layers/Conv2d_impl.cpp**: Added 4D tensor and size validation
-3. **src/core/layers/Sequential.hpp**: Added empty layers validation
-4. **src/core/layers/MSELoss.hpp**: Added target_set validation + fixed backward()
+3. **src/nn/layers/Sequential.hpp**: Added empty layers validation
+4. **src/nn/layers/MSELoss.hpp**: Added target_set validation + fixed backward()
 5. **src/core/layers/tests/layers_gtest.cpp**: Fixed Tensor construction from Eigen matrices
 6. Multiple files: Fixed type mismatches, unused includes, signed/unsigned comparisons
 

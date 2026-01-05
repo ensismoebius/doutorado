@@ -1,4 +1,4 @@
-#include "Conv2d.hpp"
+#include "nn/layers/Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
 

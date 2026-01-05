@@ -13,7 +13,7 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "linear_algebra.hpp"
+#include "nn/linearAlgebra/linear_algebra.hpp"
 
 namespace linearAlgebra
 {

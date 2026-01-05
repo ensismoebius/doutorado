@@ -1,4 +1,4 @@
-#include "EEGLoader.h"
+#include "nn/dataLoaders/10.1117/EEGLoader.h"
 
 #include <matio.h>
 
@@ -6,7 +6,7 @@
 #include <memory>
 #include <stdexcept>
 
-#include "../nn/tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /*
  * EEGLoader implementation notes

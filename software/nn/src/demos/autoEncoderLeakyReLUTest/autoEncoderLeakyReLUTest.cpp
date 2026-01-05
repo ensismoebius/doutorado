@@ -6,18 +6,18 @@
 #include <limits>
 #include <tuple>
 
-#include "../../core/saver/NetworkSerializer.hpp"
-#include "../../nn/utility/batching.hpp"
-#include "../../core/utility/synthetic_spike_data.hpp"
-#include "../../nn/utility/vectorizationCheck.hpp"
-#include "core/initializers/kaiming_snn.hpp"
-#include "core/layers/LeakyReLU.hpp"
-#include "core/layers/Linear.hpp"
-#include "core/layers/MSELoss.hpp"
-#include "core/layers/Sequential.hpp"
-#include "core/optimizers/Adam.hpp"
+#include "nn/saver/NetworkSerializer.hpp"
+#include "nn/utility/batching.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
+#include "nn/utility/vectorizationCheck.hpp"
+#include "nn/initializers/kaiming_snn.hpp"
+#include "nn/layers/LeakyReLU.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/MSELoss.hpp"
+#include "nn/layers/Sequential.hpp"
+#include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "core/utility/EigenParallel.hpp"
+#include "nn/utility/EigenParallel.hpp"
 
 using std::cout;
 using std::fixed;

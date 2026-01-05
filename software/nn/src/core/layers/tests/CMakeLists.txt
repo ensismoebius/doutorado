@@ -15,6 +15,7 @@ target_include_directories(
     PRIVATE 
         ${EIGEN3_INCLUDE_DIR}
         ${cnpy_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 include(GoogleTest)

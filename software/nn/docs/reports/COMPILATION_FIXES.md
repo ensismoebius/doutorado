@@ -9,7 +9,7 @@ Fixed critical compilation errors across multiple source files to enable success
 
 ## Phase 1: Conv2d Layer Enhancements
 
-### src/core/layers/Conv2d.hpp
+### src/nn/layers/Conv2d.hpp
 
 - Added two constructor overloads:
   - Legacy: `Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch_size = 64, bool use_parallel = true)`

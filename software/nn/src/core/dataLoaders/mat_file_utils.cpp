@@ -1,4 +1,4 @@
-#include "mat_file_utils.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
 
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>

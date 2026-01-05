@@ -2,7 +2,7 @@
 #define LINEAR_CPP
 
 #include "nn/tensor/Tensor.hpp"
-#include "core/layers/Module.hpp"
+#include "nn/layers/Module.hpp"
 
 /**
  * @brief Camada Linear (ou camada totalmente conectada)

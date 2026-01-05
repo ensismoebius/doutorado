@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "confusion_matrix.hpp"
+#include "nn/statistics/confusion_matrix.hpp"
 
 TEST(ConfusionMatrixTest, FalsePositiveRate)
 {

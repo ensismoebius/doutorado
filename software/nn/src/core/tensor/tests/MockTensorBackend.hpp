@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "../ITensorBackend.hpp"
+#include "nn/tensor/ITensorBackend.hpp"
 
 namespace nn
 {

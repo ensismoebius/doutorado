@@ -7,6 +7,8 @@ add_library(waveCoreLib STATIC
 
 target_include_directories(waveCoreLib
     PUBLIC
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
         ${EIGEN3_INCLUDE_DIR}

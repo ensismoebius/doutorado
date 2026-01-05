@@ -1,7 +1,7 @@
 #include <cmath>
 #include <random>
 
-#include "Conv2d.hpp"
+#include "nn/layers/Conv2d.hpp"
 
 constexpr int DEFAULT_SIZE = 32;
 constexpr int MAX_IMAGE_SIZE = 256;

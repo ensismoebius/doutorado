@@ -8,6 +8,8 @@ add_library(layers STATIC
 
 target_include_directories(layers 
     PUBLIC
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR} # For headers directly in src/core/layers
         ${CMAKE_SOURCE_DIR}/src     # For other project headers
 )

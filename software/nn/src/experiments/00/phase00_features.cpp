@@ -8,9 +8,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "core/paraconsistent/paraconsistent.h"
-#include "core/wavelet/Types.h"
-#include "core/wavelet/waveletOperations.h"
+#include "nn/paraconsistent/paraconsistent.h"
+#include "nn/wavelet/Types.h"
+#include "nn/wavelet/waveletOperations.h"
 
 namespace phase00
 {

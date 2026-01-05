@@ -8,10 +8,10 @@
 #include <iostream> // For std::cout (if debugging)
 #include <vector>   // For std::vector
 
-#include "core/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
-#include "core/optimizers/Adam.hpp"
+#include "nn/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
+#include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"             // For Tensor
-#include "core/wave/audioFeatureExtraction.h" // Include the new header
+#include "nn/wave/audioFeatureExtraction.h" // Include the new header
 
 using nn::dataLoaders::loadAudioFromMat;
 using std::size_t;

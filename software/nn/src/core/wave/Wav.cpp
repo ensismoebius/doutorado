@@ -9,7 +9,7 @@
  *
  * 8 de ago de 2019
  */
-#include "Wav.h"
+#include "nn/wave/Wav.h"
 
 #include <cmath>
 #include <cstddef>

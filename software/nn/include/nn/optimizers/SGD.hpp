@@ -4,7 +4,7 @@
 #include <span>
 #include <stdexcept>
 
-#include "Optimizer.hpp"
+#include "nn/optimizers/Optimizer.hpp"
 
 struct SGD : public Optimizer
 {

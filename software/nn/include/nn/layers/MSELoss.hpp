@@ -6,7 +6,7 @@
 #include <limits>
 
 #include "nn/tensor/Tensor.hpp"
-#include "Module.hpp"
+#include "nn/layers/Module.hpp"
 
 class MSELoss : public Module
 {

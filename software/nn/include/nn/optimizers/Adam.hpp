@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 #include "nn/tensor/Tensor.hpp"
-#include "Optimizer.hpp"
+#include "nn/optimizers/Optimizer.hpp"
 
 /**
  * Adam (Adaptive Moment Estimation) combina as ideias do Momentum

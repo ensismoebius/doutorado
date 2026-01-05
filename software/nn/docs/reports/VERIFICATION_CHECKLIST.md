@@ -100,7 +100,7 @@ Use this checklist to verify that all issues have been resolved and the system i
 - [ ] MSELoss.hpp contains the fix
 
   ```bash
-  grep -A 3 "nn::Tensor negated_target = last_target" src/core/layers/MSELoss.hpp
+  grep -A 3 "nn::Tensor negated_target = last_target" src/nn/layers/MSELoss.hpp
   ```
 
   **Expected**: Shows the copy-before-negate pattern
@@ -108,14 +108,14 @@ Use this checklist to verify that all issues have been resolved and the system i
 - [ ] Linear.hpp has input validation
 
   ```bash
-  grep -A 2 "input.cols() != in_features" src/core/layers/Linear.hpp
+  grep -A 2 "input.cols() != in_features" src/nn/layers/Linear.hpp
   ```
 
   **Expected**: Shows validation code
 
 - [ ] Sequential.hpp validates non-empty
   ```bash
-  grep -A 2 "layers.empty()" src/core/layers/Sequential.hpp
+  grep -A 2 "layers.empty()" src/nn/layers/Sequential.hpp
   ```
   **Expected**: Shows empty check
 

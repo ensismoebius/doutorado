@@ -10,7 +10,7 @@ VSCode was crashing during test execution. The cause was unknown, and there was 
 
 **Root Cause**: MSELoss.backward() was modifying cached target data in-place
 
-- File: `src/core/layers/MSELoss.hpp`
+- File: `src/nn/layers/MSELoss.hpp`
 - Issue: Called `last_target.multiply_scalar(-1.0f)` which modifies in-place
 - Fix: Create a copy first, then negate the copy
 - Result: All 40+ tests now pass
@@ -140,7 +140,7 @@ Created four reference documents:
 
 ### Modified Files:
 
-- `src/core/layers/MSELoss.hpp` - Fixed backward() method
+- `src/nn/layers/MSELoss.hpp` - Fixed backward() method
 
 ## Test Coverage
 

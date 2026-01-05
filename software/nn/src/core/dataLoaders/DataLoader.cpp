@@ -1,4 +1,4 @@
-#include "DataLoader.hpp"
+#include "nn/dataLoaders/DataLoader.hpp"
 
 #include <algorithm>
 #include <random>

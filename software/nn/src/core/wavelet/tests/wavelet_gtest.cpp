@@ -1,7 +1,7 @@
 
-#include "../Types.h"
-#include "../WaveletTransformResults.h"
-#include "../waveletOperations.h"
+#include "nn/wavelet/Types.h"
+#include "nn/wavelet/WaveletTransformResults.h"
+#include "nn/wavelet/waveletOperations.h"
 #include "gtest/gtest.h"
 
 namespace wavelets::test

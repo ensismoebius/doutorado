@@ -6,7 +6,9 @@ add_library(paraconsistent
 
 target_include_directories(paraconsistent
     PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 target_link_libraries(paraconsistent

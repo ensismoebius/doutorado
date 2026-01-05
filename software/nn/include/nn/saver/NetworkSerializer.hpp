@@ -12,11 +12,11 @@
 #include <string>
 #include <vector>
 
-#include "../layers/Leaky.hpp"
-#include "../layers/LeakyReLU.hpp"
-#include "../layers/Linear.hpp"
-#include "../layers/ReLU.hpp"
-#include "../layers/Sequential.hpp"
+#include "nn/layers/Leaky.hpp"
+#include "nn/layers/LeakyReLU.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/ReLU.hpp"
+#include "nn/layers/Sequential.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 using cnpy::NpyArray;

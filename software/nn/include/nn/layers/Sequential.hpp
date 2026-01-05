@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "Module.hpp"
+#include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 // A PyTorch-like Sequential container for C++

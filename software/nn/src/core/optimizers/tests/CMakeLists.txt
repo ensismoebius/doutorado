@@ -13,6 +13,7 @@ target_link_libraries(optimizers_gtest
 target_include_directories(optimizers_gtest 
     PRIVATE 
         ${EIGEN3_INCLUDE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
 )
 
 include(GoogleTest)

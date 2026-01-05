@@ -8,6 +8,8 @@ add_library(dataLoaders
 
 target_include_directories(dataLoaders
     PUBLIC
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
 )
@@ -17,6 +19,7 @@ target_link_libraries(dataLoaders
         Eigen3::Eigen
         ${ZLIB_LIBRARIES}
         matioCpp
+        tensor
 )
 
 add_subdirectory(tests)

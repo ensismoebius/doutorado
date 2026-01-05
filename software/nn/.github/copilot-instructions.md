@@ -136,7 +136,7 @@ nn/
 - Shape/size: `get_shape()`, `rows()`, `cols()`, `size()` reflect backend shape. No generic `reshape`; use constructors for the intended shape.
 - Ops: element access `at(...)` for 2D/4D/N-D, views `row/col/leftCols/topRows`, `block`/`setBlock`, elementwise `add`/`multiply` (+ scalar variants), `matmul`, `transpose`, activations `relu`/`leaky_relu`, losses `mean_squared_error`/`norm`, `slice(std::span<const int>)`, `zero_grad()`. `toVector` template currently returns an empty vector placeholder.
 
-## 3.2 Module (src/core/layers/Module.hpp)
+## 3.2 Module (src/nn/layers/Module.hpp)
 
 - Interface: `virtual nn::Tensor forward(const nn::Tensor& input, bool requires_grad = true) = 0;` `virtual nn::Tensor backward(const nn::Tensor& grad_output) = 0;` `virtual void train(bool on) {}`; `virtual std::vector<nn::Tensor*> params()` (default empty). Copyable, non-movable.
 - `Sequential` manages `std::vector<std::shared_ptr<Module>>` on top of this interface.
@@ -151,7 +151,7 @@ nn/
 
 - Interface: `virtual void step(std::span<nn::Tensor*> params) = 0;` `virtual void zero_grad(std::span<nn::Tensor*> params) = 0;` optional `virtual void attach(std::span<nn::Tensor*> params) {}`. Copyable, non-movable. Implementations: `Adam`, `SGD`.
 
-## 3.5 Regularization (src/core/layers/Regularization.hpp)
+## 3.5 Regularization (src/nn/layers/Regularization.hpp)
 
 - `Regularization(float lambda_)` with pure virtual `forward(const std::vector<nn::Tensor*>&)` and `backward(const std::vector<nn::Tensor*>&)`.
 - `L1Regularization`: penalty `lambda * sum(|param|)`, grad accumulates `lambda * sign(param)` into `param->grad`.

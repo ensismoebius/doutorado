@@ -1,4 +1,4 @@
-#include "audioFeatureExtraction.h"
+#include "nn/wave/audioFeatureExtraction.h"
 
 #include <fftw3.h> // For FFTW library functions
 
@@ -8,7 +8,7 @@
 #include <numbers>   // For std::numbers::pi_v, std::numbers::sqrt2_v
 #include <vector>    // For std::vector
 
-#include "core/optimizers/Adam.hpp" // For Adam optimizer
+#include "nn/optimizers/Adam.hpp" // For Adam optimizer
 #include "nn/tensor/Tensor.hpp"   // For Tensor
 
 using std::size_t;

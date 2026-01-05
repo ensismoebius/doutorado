@@ -2,8 +2,8 @@
 #include <vector>
 
 #include "nn/tensor/Tensor.hpp"             // For Tensor
-#include "core/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
-#include "core/wave/audioTypes.h"             // Include the new audio types header
+#include "nn/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
+#include "nn/wave/audioTypes.h"             // Include the new audio types header
 #include "gtest/gtest.h"
 
 using namespace nn::core::wave; // Use the namespace for moved functions

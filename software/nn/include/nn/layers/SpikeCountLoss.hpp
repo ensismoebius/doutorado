@@ -1,7 +1,7 @@
 #pragma once
 
 #include "nn/tensor/Tensor.hpp"
-#include "Module.hpp"
+#include "nn/layers/Module.hpp"
 
 // Spike count loss: mean squared error between output spike count and target
 class SpikeCountLoss : public Module

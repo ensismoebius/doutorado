@@ -7,7 +7,7 @@
  * Multi-class classification metrics implementation
  */
 
-#include "multi_class_metrics.hpp"
+#include "nn/statistics/multi_class_metrics.hpp"
 
 #include <algorithm>
 #include <numeric>

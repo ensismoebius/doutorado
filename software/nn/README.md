@@ -287,9 +287,9 @@ cmake --build build --target tidy
 
 ```cpp
 #include "nn/tensor/Tensor.hpp"
-#include "core/layers/Linear.hpp"
-#include "core/layers/ReLU.hpp"
-#include "core/layers/Sequential.hpp"
+#include "nn/layers/Linear.hpp"
+#include "nn/layers/ReLU.hpp"
+#include "nn/layers/Sequential.hpp"
 
 // Create a simple neural network
 auto model = std::make_unique<Sequential>();
@@ -311,7 +311,7 @@ nn::Tensor output_train = model->forward(input, true);  // requires_grad=true
 ### Spiking Neural Network Example
 
 ```cpp
-#include "core/layers/Leaky.hpp"
+#include "nn/layers/Leaky.hpp"
 
 // Create SNN layer
 Leaky snn_layer(0.01f, 1.0f, 0.5f, 20);  // alpha, threshold, reset, timesteps
@@ -523,7 +523,7 @@ make profile_experiment_02
 valgrind --tool=massif --massif-out-file=memory_profile.out ./build/bin/experiment_02
 
 # Vectorization check
-clang++ -O3 -Rpass=loop-vectorize -c src/core/layers/Linear.hpp -I src -I build/_deps/eigen-src
+clang++ -O3 -Rpass=loop-vectorize -c src/nn/layers/Linear.hpp -I src -I build/_deps/eigen-src
 ```
 
 ## 🤝 Contributing

@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "Module.hpp"
+#include "nn/layers/Module.hpp"
 #include "tensor/Tensor.hpp"
 
 class MaxPool2d : public Module

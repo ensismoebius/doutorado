@@ -8,8 +8,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "core/layers/MSELoss.hpp"
-#include "core/optimizers/Adam.hpp"
+#include "nn/layers/MSELoss.hpp"
+#include "nn/optimizers/Adam.hpp"
 
 namespace phase00
 {

@@ -8,7 +8,9 @@ add_library(statistics
 
 target_include_directories(statistics 
     PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(statistics

@@ -1,12 +1,12 @@
-#include "AudioLoader.h"
+#include "nn/dataLoaders/10.1117/AudioLoader.h"
 
 #include <matio.h>
 
 #include <optional>
 #include <stdexcept>
 
-#include "../nn/tensor/Tensor.hpp"
-#include "../IMatLoader.hpp"
+#include "nn/tensor/Tensor.hpp"
+#include "nn/dataLoaders/IMatLoader.hpp"
 
 namespace nn::dataLoaders
 {

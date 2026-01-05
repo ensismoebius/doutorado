@@ -1,7 +1,7 @@
 #include <filesystem>
 #include <string>
 
-#include "audioTypes.h"
+#include "nn/wave/audioTypes.h"
 #include "demos/lfcc_pipeline/lfcc_pipeline_utils.h"
 
 using std::string;

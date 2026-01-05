@@ -5,9 +5,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "core/wavelet/Types.h"
-#include "core/wavelet/WaveletTransformResults.h"
-#include "core/wavelet/waveletOperations.h"
+#include "nn/wavelet/Types.h"
+#include "nn/wavelet/WaveletTransformResults.h"
+#include "nn/wavelet/waveletOperations.h"
 #include "matplotlibcpp.h"
 
 namespace plt = matplotlibcpp;

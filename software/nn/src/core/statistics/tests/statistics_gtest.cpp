@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "multi_class_metrics.hpp"
-#include "statistics.h"
+#include "nn/statistics/multi_class_metrics.hpp"
+#include "nn/statistics/statistics.h"
 
 TEST(StatisticsTest, VarianceWithVector)
 {
