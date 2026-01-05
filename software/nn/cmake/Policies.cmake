@@ -71,3 +71,10 @@ if(POLICY CMP0069)
 	# Explanation: https://cmake.org/cmake/help/latest/policy/CMP0069.html
 	cmake_policy(SET CMP0069 NEW)
 endif()
+
+if(POLICY CMP0079)
+	# Allow target_link_libraries() to be used with targets defined in other 
+	# directories than the current one.
+	# Explanation: https://cmake.org/cmake/help/latest/policy/CMP0079.html
+	cmake_policy(SET CMP0079 NEW)
+endif()

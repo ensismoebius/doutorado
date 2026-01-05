@@ -20,31 +20,35 @@ set(MATPLOTLIBCPP_VENV_DIR "${CMAKE_BINARY_DIR}/venv")
 # Disable examples to avoid warnings
 set(MATPLOTLIB_CPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
+# Use a minimal CMakeLists.txt to replace the upstream one
+# This avoids building examples and fixes include paths
+set(MATPLOTLIBCPP_PATCH_FILE "${CMAKE_SOURCE_DIR}/cmake/patches/matplotlib_cpp/CMakeLists.txt")
+
 FetchContent_Declare(
     matplotlib_cpp
     GIT_REPOSITORY https://github.com/lava/matplotlib-cpp.git
     GIT_TAG        ef0383f1315d32e0156335e10b82e90b334f6d9f
     SOURCE_DIR     "${MATPLOTLIBCPP_SRC_DIR}"
+    PATCH_COMMAND  "${CMAKE_COMMAND}" -E copy "${MATPLOTLIBCPP_PATCH_FILE}" CMakeLists.txt
 )
 
-# Use manual population and target definition to avoid building examples
-FetchContent_GetProperties(matplotlib_cpp)
-if(NOT matplotlib_cpp_POPULATED)
-    FetchContent_Populate(matplotlib_cpp)
-endif()
+FetchContent_MakeAvailable(matplotlib_cpp)
 
 if(NOT EXISTS "${MATPLOTLIBCPP_SRC_DIR}/matplotlibcpp.h")
     message(FATAL_ERROR "matplotlib-cpp headers not found after FetchContent.")
 endif()
 
-# Manually define the target to avoid including examples/
-if(NOT TARGET matplotlib_cpp)
-    add_library(matplotlib_cpp INTERFACE)
-    target_include_directories(matplotlib_cpp SYSTEM INTERFACE "$<BUILD_INTERFACE:${MATPLOTLIBCPP_SRC_DIR}>")
+# Configure the target (defined by FetchContent_MakeAvailable)
+if(TARGET matplotlib_cpp)
     target_compile_features(matplotlib_cpp INTERFACE cxx_std_11)
     
     # Python dependencies
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    # CMP0079 allows linking to targets created in other directories
+    cmake_policy(PUSH)
+    if(POLICY CMP0079)
+        cmake_policy(SET CMP0079 NEW)
+    endif()
     target_link_libraries(matplotlib_cpp INTERFACE Python3::Python Python3::Module)
     
     find_package(Python3 COMPONENTS NumPy)
@@ -53,6 +57,7 @@ if(NOT TARGET matplotlib_cpp)
     else()
         target_compile_definitions(matplotlib_cpp INTERFACE WITHOUT_NUMPY)
     endif()
+    cmake_policy(POP)
 
     # Suppress clang-tidy
     set_target_properties(matplotlib_cpp PROPERTIES CXX_CLANG_TIDY "")
