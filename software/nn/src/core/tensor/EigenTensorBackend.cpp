@@ -53,6 +53,11 @@ void EigenTensorBackend::construct(Index d1, Index d2, Index d3, Index d4)
 
 void EigenTensorBackend::construct(const std::vector<Index>& shape)
 {
+    if (shape.size() == 2)
+    {
+        construct(shape[0], shape[1]);
+        return;
+    }
     Index total_size = calculate_total_size(shape);
     m_data = Eigen::MatrixXf::Zero(static_cast<Eigen::Index>(total_size), 1);
     m_grad_backend = nullptr;
@@ -100,7 +105,7 @@ float& EigenTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
     Index height = m_shape[2];
     Index width = m_shape[3];
     Index index = (d1 * (channels * height * width)) + (d2 * (height * width)) + (d3 * width) + d4;
-    return m_data(static_cast<Eigen::Index>(index), 0);
+    return m_data(static_cast<Eigen::Index>(index));
 }
 
 const float& EigenTensorBackend::at(Index d1, Index d2, Index d3, Index d4) const
@@ -117,7 +122,7 @@ const float& EigenTensorBackend::at(Index d1, Index d2, Index d3, Index d4) cons
     Index height = m_shape[2];
     Index width = m_shape[3];
     Index index = (d1 * (channels * height * width)) + (d2 * (height * width)) + (d3 * width) + d4;
-    return m_data(static_cast<Eigen::Index>(index), 0);
+    return m_data(static_cast<Eigen::Index>(index));
 }
 
 // 1D access
@@ -127,7 +132,7 @@ float& EigenTensorBackend::at(Index i)
     {
         throw std::out_of_range("Index out of range");
     }
-    return m_data(static_cast<Eigen::Index>(i), 0);
+    return m_data(static_cast<Eigen::Index>(i));
 }
 
 const float& EigenTensorBackend::at(Index i) const
@@ -136,7 +141,7 @@ const float& EigenTensorBackend::at(Index i) const
     {
         throw std::out_of_range("Index out of range");
     }
-    return m_data(static_cast<Eigen::Index>(i), 0);
+    return m_data(static_cast<Eigen::Index>(i));
 }
 
 // N-D access

@@ -1,5 +1,4 @@
 #include "Conv2d.hpp"
-#include <cstring>
 
 // ============ Index Caching & Computation ============
 
@@ -130,8 +129,8 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            // output is (patch_rows, total_cols) in row-major
-                            output_data[elem_idx * total_cols + col_idx] = value;
+                            // output is (patch_rows, total_cols) in column-major (Eigen default)
+                            output_data[col_idx * patch_rows + elem_idx] = value;
                             elem_idx++;
                         }
                     }
@@ -165,8 +164,8 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            // output is (patch_rows, total_cols) in row-major
-                            output_data[elem_idx * total_cols + col_idx] = value;
+                            // output is (patch_rows, total_cols) in column-major (Eigen default)
+                            output_data[col_idx * patch_rows + elem_idx] = value;
                             elem_idx++;
                         }
                     }
@@ -323,13 +322,47 @@ auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size, 
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);
 
-    // Direct memory copy - both tensors are contiguous
-    const float* src = matrix.data_ptr();
-    float* dst = output.mutable_data_ptr();
-    const auto total_elements =
-        static_cast<nn::Index>(batch_size) * static_cast<nn::Index>(out_channels_) *
-        static_cast<nn::Index>(output_height) * static_cast<nn::Index>(output_width);
-    std::memcpy(dst, src, total_elements * sizeof(float));
+    const int patch_cols = output_height * output_width;
+
+    // We need to copy from matrix (C, B*H*W) to output (B, C, H, W)
+    // matrix(c, col_idx) corresponds to output(b, c, oy, ox)
+    // where col_idx = b * (H*W) + oy * W + ox
+
+    if (use_parallel_)
+    {
+#pragma omp parallel for collapse(2) if (use_parallel_)
+        for (int b = 0; b < batch_size; ++b)
+        {
+            for (int c = 0; c < out_channels_; ++c)
+            {
+                for (int oy = 0; oy < output_height; ++oy)
+                {
+                    for (int ox = 0; ox < output_width; ++ox)
+                    {
+                        const int col_idx = b * patch_cols + oy * output_width + ox;
+                        output.at(b, c, oy, ox) = matrix.at(c, col_idx);
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        for (int b = 0; b < batch_size; ++b)
+        {
+            for (int c = 0; c < out_channels_; ++c)
+            {
+                for (int oy = 0; oy < output_height; ++oy)
+                {
+                    for (int ox = 0; ox < output_width; ++ox)
+                    {
+                        const int col_idx = b * patch_cols + oy * output_width + ox;
+                        output.at(b, c, oy, ox) = matrix.at(c, col_idx);
+                    }
+                }
+            }
+        }
+    }
 
     return output;
 }

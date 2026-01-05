@@ -298,10 +298,13 @@ TEST(TensorTest, ZeroGrad)
     t.at(1, 1) = 4.0f;
 
     // Set some gradient values
-    t.grad().at(0, 0) = 5.0f;
-    t.grad().at(0, 1) = 6.0f;
-    t.grad().at(1, 0) = 7.0f;
-    t.grad().at(1, 1) = 8.0f;
+    nn::Tensor g(2, 3);
+    g.setZero(); // Initialize to zero first
+    g.at(0, 0) = 5.0f;
+    g.at(0, 1) = 6.0f;
+    g.at(1, 0) = 7.0f;
+    g.at(1, 1) = 8.0f;
+    t.set_grad(g);
 
     // Verify gradients are set
     EXPECT_EQ(t.grad().at(0, 0), 5.0f);

@@ -263,17 +263,18 @@ TEST(Conv2dTest, ForwardAndBackward)
     nn::Tensor grad_input = conv.backward(grad_output);
 
     // Check bias gradient
-    ASSERT_NEAR(conv.get_bias().at(0, 0), 4.0, 1e-5); // sum of grad_output = 1+1+1+1
+    ASSERT_NEAR(conv.get_bias().grad().at(0, 0), 4.0, 1e-5); // sum of grad_output = 1+1+1+1
 
     // Check weights gradient
     // grad_w[0] = 1*1 + 2*1 + 4*1 + 5*1 = 12
     // grad_w[1] = 2*1 + 3*1 + 5*1 + 6*1 = 16
     // grad_w[2] = 4*1 + 5*1 + 7*1 + 8*1 = 24
     // grad_w[3] = 5*1 + 6*1 + 8*1 + 9*1 = 28
-    ASSERT_NEAR(conv.get_weights().at(0, 0), 12, 1e-5);
-    ASSERT_NEAR(conv.get_weights().at(0, 1), 16, 1e-5);
-    ASSERT_NEAR(conv.get_weights().at(1, 0), 24, 1e-5);
-    ASSERT_NEAR(conv.get_weights().at(1, 1), 28, 1e-5);
+    // Weights are (patch_rows, out_channels) = (4, 1)
+    ASSERT_NEAR(conv.get_weights().grad().at(0, 0), 12, 1e-5);
+    ASSERT_NEAR(conv.get_weights().grad().at(1, 0), 16, 1e-5);
+    ASSERT_NEAR(conv.get_weights().grad().at(2, 0), 24, 1e-5);
+    ASSERT_NEAR(conv.get_weights().grad().at(3, 0), 28, 1e-5);
 
     // Check input gradient
     ASSERT_NEAR(grad_input.at(0, 0, 0, 0), 1.0, 1e-5);
@@ -595,8 +596,8 @@ TEST(Conv2dTest, GradientComputation)
     conv.backward(grad_output);
 
     // Verify gradients were computed (non-zero)
-    auto& weight_grad = conv.get_weights();
-    auto& bias_grad = conv.get_bias();
+    auto weight_grad = conv.get_weights().grad();
+    auto bias_grad = conv.get_bias().grad();
 
     // Verify that at least some gradients are non-zero
     bool has_nonzero_weight_grad = false;

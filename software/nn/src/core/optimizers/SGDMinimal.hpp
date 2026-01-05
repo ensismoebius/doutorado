@@ -34,6 +34,9 @@ struct SGDMinimal : public Optimizer
             nn::Tensor grad_copy = param->grad();
             auto update = grad_copy.multiply_scalar(learning_rate);
             *param = *param - update;
+
+            // Restore gradients (as they are lost during assignment)
+            param->set_grad(grad_copy);
         }
     }
 

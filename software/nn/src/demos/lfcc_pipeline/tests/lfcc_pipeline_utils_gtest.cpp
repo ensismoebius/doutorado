@@ -326,6 +326,7 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
 {
     // Create a simple feature matrix
     nn::Tensor features(5, 3); // 5 frames, 3 features
+    // Use << operator (fills Column-Major)
     features << 1.0F, 2.0F, 3.0F, 4.0F, 5.0F, 6.0F, 7.0F, 8.0F, 9.0F, 10.0F, 11.0F, 12.0F, 13.0F,
         14.0F, 15.0F;
 
@@ -338,20 +339,31 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
     ASSERT_EQ(delta_features.cols(), 3);
 
     // Expected delta for first frame (using padding):
-    // (features[1] - features[0]) / (2 * 1*1) = (4-1)/2 = 1.5
-    // (features[1] - features[0]) / (2 * 1*1) = (5-2)/2 = 1.5
-    // (features[1] - features[0]) / (2 * 1*1) = (6-3)/2 = 1.5
-    ASSERT_NEAR(delta_features(0, 0), 1.5F, 1e-6);
-    ASSERT_NEAR(delta_features(0, 1), 1.5F, 1e-6);
-    ASSERT_NEAR(delta_features(0, 2), 1.5F, 1e-6);
+    // Matrix is filled Column-Major:
+    // Col 0: 1, 2, 3, 4, 5
+    // Col 1: 6, 7, 8, 9, 10
+    // Col 2: 11, 12, 13, 14, 15
+    //
+    // Row 0: 1, 6, 11
+    // Row 1: 2, 7, 12
+    // Row 2: 3, 8, 13
+    //
+    // Frame 0 delta: (Row 1 - Row 0) / 2
+    // Col 0: (2 - 1) / 2 = 0.5
+    // Col 1: (7 - 6) / 2 = 0.5
+    // Col 2: (12 - 11) / 2 = 0.5
+    ASSERT_NEAR(delta_features(0, 0), 0.5F, 1e-6);
+    ASSERT_NEAR(delta_features(0, 1), 0.5F, 1e-6);
+    ASSERT_NEAR(delta_features(0, 2), 0.5F, 1e-6);
 
     // Expected delta for second frame:
-    // (features[2] - features[0]) / (2 * 1*1) = (7-1)/2 = 3.0
-    // (features[2] - features[0]) / (2 * 1*1) = (8-2)/2 = 3.0
-    // (features[2] - features[0]) / (2 * 1*1) = (9-3)/2 = 3.0
-    ASSERT_NEAR(delta_features(1, 0), 3.0F, 1e-6);
-    ASSERT_NEAR(delta_features(1, 1), 3.0F, 1e-6);
-    ASSERT_NEAR(delta_features(1, 2), 3.0F, 1e-6);
+    // Frame 1 delta: (Row 2 - Row 0) / 2
+    // Col 0: (3 - 1) / 2 = 1.0
+    // Col 1: (8 - 6) / 2 = 1.0
+    // Col 2: (13 - 11) / 2 = 1.0
+    ASSERT_NEAR(delta_features(1, 0), 1.0F, 1e-6);
+    ASSERT_NEAR(delta_features(1, 1), 1.0F, 1e-6);
+    ASSERT_NEAR(delta_features(1, 2), 1.0F, 1e-6);
 }
 
 TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures)
