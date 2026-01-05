@@ -262,6 +262,121 @@
 			],
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "list_cnpy",
+			"type": "shell",
+			"command": "ls -R build/_deps/cnpy-build/"
+		},
+		{
+			"label": "build_implot",
+			"type": "shell",
+			"command": "cmake --build build --target implot",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build_plotSpikingNetwork",
+			"type": "shell",
+			"command": "cmake --build build --target plotSpikingNetwork",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build_layers_gtest",
+			"type": "shell",
+			"command": "cmake --build build --target layers_gtest",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run_large_conv2d_test",
+			"type": "shell",
+			"command": "ctest --test-dir build --output-on-failure -j4 -R LayerMemoryStressTest.LargeConv2dLayer",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build_layers_gtest_2",
+			"type": "shell",
+			"command": "cmake --build build --target layers_gtest",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run_large_conv2d_test_2",
+			"type": "shell",
+			"command": "ctest --test-dir build --output-on-failure -j4 -R LayerMemoryStressTest.LargeConv2dLayer",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "build_layers_gtest_3",
+			"type": "shell",
+			"command": "cmake --build build --target layers_gtest",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "run_large_conv2d_test_3",
+			"type": "shell",
+			"command": "ctest --test-dir build --output-on-failure -j4 -R LayerMemoryStressTest.LargeConv2dLayer",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "run_all_tests_final",
+			"type": "shell",
+			"command": "ctest --test-dir build --output-on-failure -j4",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "check_deps",
+			"type": "shell",
+			"command": "ldd build/src/demos/exec_plotSpikingNetwork/plotSpikingNetwork",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
+		},
+		{
+			"label": "run_plotSpikingNetwork",
+			"type": "shell",
+			"command": "./build/src/demos/exec_plotSpikingNetwork/plotSpikingNetwork",
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "test"
 		}
 	]
 }

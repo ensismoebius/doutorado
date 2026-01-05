@@ -8,7 +8,7 @@ include(cmake/VendorFFTW.cmake)
 include(cmake/VendorNFFT3.cmake)
 
 # ImGui integration
-# include(cmake/VendorImgui.cmake)
+include(cmake/VendorImgui.cmake)
 
 # Sets up GoogleTest (downloads, 
 # configures, exposes GTest::GTest 
@@ -21,7 +21,7 @@ include(cmake/VendorGTest.cmake)
 include(cmake/VendorMatio.cmake)
 
 # Implot integration
-# include(cmake/VendorImplot.cmake)
+include(cmake/VendorImplot.cmake)
 
 # Workarounds / shims for matio-cpp 
 # configure/export behavior

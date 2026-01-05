@@ -5,7 +5,7 @@ include(FetchContent)
 FetchContent_Declare(
     imgui
     URL            https://github.com/ocornut/imgui/archive/refs/tags/v1.88.zip
-    URL_HASH       SHA256=b70d61578a9360d7d67c71a87d655819d118a742c53828d9640f94d8d369479e
+    URL_HASH       SHA256=81087a74599e5890a07b636887cee73a7dc1a9eb9e1f19a4a0d82a76090bf4c2
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
@@ -31,7 +31,11 @@ add_library(imgui
         ${IMGUI_SOURCES} 
         ${IMGUI_BACKEND_SOURCES}
 )
+
+# Suppress warnings and disable clang-tidy for ImGui
 target_compile_options(imgui PRIVATE -w)
+set_target_properties(imgui PROPERTIES CXX_CLANG_TIDY "")
+
 target_include_directories(imgui 
     SYSTEM PUBLIC
         ${imgui_SOURCE_DIR}

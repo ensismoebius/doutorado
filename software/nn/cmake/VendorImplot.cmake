@@ -18,10 +18,14 @@ set(IMPLOT_SOURCES
 
 # Create ImPlot library target
 add_library(implot STATIC ${IMPLOT_SOURCES})
-target_compile_options(implot PRIVATE -w)
+
 target_include_directories(implot 
     SYSTEM PUBLIC
     ${implot_SOURCE_DIR}
     ${imgui_SOURCE_DIR} # ImPlot depends on ImGui headers
 )
 target_link_libraries(implot PRIVATE imgui)
+
+# Suppress warnings for ImPlot and disable clang-tidy
+target_compile_options(implot PRIVATE -w -O0 -fno-var-tracking)
+set_target_properties(implot PROPERTIES CXX_CLANG_TIDY "")

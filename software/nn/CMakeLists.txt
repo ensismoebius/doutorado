@@ -34,5 +34,5 @@ include(cmake/VendorIncludes.cmake)
 
 # Source subdirectories
 add_subdirectory(${SRC_DIR}/core)
-# add_subdirectory(${SRC_DIR}/demos)
-# add_subdirectory(${SRC_DIR}/experiments)
+add_subdirectory(${SRC_DIR}/demos)
+add_subdirectory(${SRC_DIR}/experiments)
