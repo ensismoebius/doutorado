@@ -123,11 +123,9 @@ class L2Regularization : public Regularization
         // Iterate through all parameter tensors
         for (const auto* param : params)
         {
-            // Get reference to the parameter data matrix
-            const auto& data = param->get_data_ref();
-
-            // Add the sum of squared values of this parameter tensor to the penalty
-            penalty += data.array().square().sum();
+            // Sum squared values using proper Tensor methods
+            nn::Tensor squared = param->square();
+            penalty += squared.sum();
         }
 
         // Scale the total penalty by the regularization strength
@@ -149,13 +147,19 @@ class L2Regularization : public Regularization
         // Iterate through all parameter tensors
         for (auto* param : params)
         {
-            // Get references to the parameter data and gradient matrices
-            const auto& data = param->data();
-            auto& grad = param->grad();
+            // Get gradient tensor
+            auto grad = param->grad();
 
-            // Accumulate L2 gradient: 2 * lambda * data
-            // The derivative of lambda * sum(x^2) with respect to x is 2 * lambda * x
-            grad += 2.0F * lambda_ * data;
+            // Accumulate L2 gradient: 2 * lambda * param
+            // grad += 2.0F * lambda_ * param
+            for (size_t i = 0; i < param->rows(); ++i)
+            {
+                for (size_t j = 0; j < param->cols(); ++j)
+                {
+                    grad.at(i, j) = grad.at(i, j) + 2.0F * lambda_ * param->at(i, j);
+                }
+            }
+            param->set_grad(grad);
         }
     }
 };

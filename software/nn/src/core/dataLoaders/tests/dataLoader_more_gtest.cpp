@@ -7,12 +7,12 @@
 // Reuse helper from existing tests: build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
-    nn::Tensor t(static_cast<sizet_t>(N), static_cast<sizet_t>(D));
+    nn::Tensor t(static_cast<size_t>(N), static_cast<size_t>(D));
     for (std::size_t i = 0; i < N; ++i)
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            t.at(static_cast<sizet_t>(i), static_cast<sizet_t>(j)) =
+            t.at(static_cast<size_t>(i), static_cast<size_t>(j)) =
                 static_cast<float>((i * D) + j);
         }
     }

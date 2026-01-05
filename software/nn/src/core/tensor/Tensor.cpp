@@ -1,5 +1,6 @@
 #include "Tensor.hpp"
 
+#include <cmath>
 #include <span>
 
 #include "TensorBackendFactory.hpp"
@@ -359,6 +360,21 @@ auto Tensor::grad() -> Tensor&
 void Tensor::set_grad(const Tensor& new_grad)
 {
     m_backend->set_grad(*new_grad.m_backend);
+}
+
+auto Tensor::hasNaN() const -> bool
+{
+    return m_backend->hasNaN();
+}
+
+auto Tensor::operator==(const Tensor& other) const -> bool
+{
+    return m_backend->equals(*other.m_backend);
+}
+
+auto Tensor::operator!=(const Tensor& other) const -> bool
+{
+    return !(*this == other);
 }
 
 } // namespace nn

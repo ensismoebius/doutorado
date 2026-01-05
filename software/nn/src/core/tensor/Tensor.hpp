@@ -80,6 +80,9 @@ class Tensor
     auto sum_rows() const -> Tensor; // Sum across columns, return column vector (rows, 1)
     auto sum_cols() const -> Tensor; // Sum across rows, return row vector (1, cols)
 
+    // Validation methods
+    auto hasNaN() const -> bool;
+
     // Element-wise math operations
     auto sqrt() const -> Tensor;
     auto square() const -> Tensor;
@@ -163,6 +166,10 @@ class Tensor
     auto operator+(float scalar) const -> Tensor;
     auto operator-(float scalar) const -> Tensor;
     auto operator/(float scalar) const -> Tensor;
+
+    // Comparison operators
+    auto operator==(const Tensor& other) const -> bool;
+    auto operator!=(const Tensor& other) const -> bool;
 
     auto get_backend() const -> const ITensorBackend*
     {

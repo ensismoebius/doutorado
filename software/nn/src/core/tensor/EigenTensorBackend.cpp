@@ -613,4 +613,24 @@ float* EigenTensorBackend::mutable_data_ptr()
     return m_data.data();
 }
 
+// Validation and comparison
+bool EigenTensorBackend::hasNaN() const
+{
+    return m_data.hasNaN();
+}
+
+bool EigenTensorBackend::equals(const ITensorBackend& other) const
+{
+    const auto* eigen_other = dynamic_cast<const EigenTensorBackend*>(&other);
+    if (!eigen_other)
+    {
+        return false;
+    }
+    if (m_data.rows() != eigen_other->m_data.rows() || m_data.cols() != eigen_other->m_data.cols())
+    {
+        return false;
+    }
+    return m_data.isApprox(eigen_other->m_data);
+}
+
 } // namespace nn

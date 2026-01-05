@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cmath>
+
 #include "core/tensor/Tensor.hpp"
 
 TEST(TensorTest, ConstructionAndAssignment)

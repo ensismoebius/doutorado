@@ -72,6 +72,10 @@ class EigenTensorBackend : public ITensorBackend
     std::unique_ptr<ITensorBackend> divide(const ITensorBackend& other) const override;
     std::unique_ptr<ITensorBackend> divide_scalar(float scalar) const override;
 
+    // Validation and comparison
+    bool hasNaN() const override;
+    bool equals(const ITensorBackend& other) const override;
+
     // Initialization
     void fill(float value) override;
     void set_zero() override;

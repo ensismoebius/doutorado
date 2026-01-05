@@ -30,7 +30,9 @@ struct SGDMinimal : public Optimizer
             {
                 throw std::invalid_argument("Parameter pointer is null");
             }
-            param->get_data_ref() -= learning_rate * param->get_grad_ref();
+            // Update: param = param - learning_rate * grad (uses backend operations)
+            auto update = param->grad().multiply_scalar(learning_rate);
+            *param = *param - update;
         }
     }
 

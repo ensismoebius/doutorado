@@ -14,16 +14,16 @@
 namespace phase00
 {
 
-auto tensor_from_slice(const std::vector<std::vector<double>>& features, sizet_t start, sizet_t end)
+auto tensor_from_slice(const std::vector<std::vector<double>>& features, size_t start, size_t end)
     -> nn::Tensor
 {
-    const sizet_t rows = end - start;
-    const sizet_t cols = features.front().size();
+    const size_t rows = end - start;
+    const size_t cols = features.front().size();
     nn::Tensor result(rows, cols);
 
-    for (sizet_t i = 0; i < rows; ++i)
+    for (size_t i = 0; i < rows; ++i)
     {
-        for (sizet_t j = 0; j < cols; ++j)
+        for (size_t j = 0; j < cols; ++j)
         {
             result.at(i, j) = static_cast<float>(features[start + i][j]);
         }
@@ -32,14 +32,14 @@ auto tensor_from_slice(const std::vector<std::vector<double>>& features, sizet_t
     return result;
 }
 
-auto one_hot_from_slice(const std::vector<int>& labels, sizet_t start, sizet_t end, int num_classes)
+auto one_hot_from_slice(const std::vector<int>& labels, size_t start, size_t end, int num_classes)
     -> nn::Tensor
 {
-    const sizet_t rows = end - start;
-    nn::Tensor result(rows, static_cast<sizet_t>(num_classes));
+    const size_t rows = end - start;
+    nn::Tensor result(rows, static_cast<size_t>(num_classes));
     result.set_zero();
 
-    for (sizet_t i = 0; i < rows; ++i)
+    for (size_t i = 0; i < rows; ++i)
     {
         result.at(i, labels[start + i]) = 1.0F;
     }
@@ -101,9 +101,9 @@ auto train_resnet_snn(const std::vector<std::vector<double>>& features,
             const int end = std::min(start + batch_size, total);
 
             auto batch_x =
-                tensor_from_slice(features, static_cast<sizet_t>(start), static_cast<sizet_t>(end));
+                tensor_from_slice(features, static_cast<size_t>(start), static_cast<size_t>(end));
             auto batch_y = one_hot_from_slice(
-                labels, static_cast<sizet_t>(start), static_cast<sizet_t>(end), num_classes);
+                labels, static_cast<size_t>(start), static_cast<size_t>(end), num_classes);
 
             loss.set_target(batch_y);
             optimizer.zero_grad(params);
@@ -116,7 +116,7 @@ auto train_resnet_snn(const std::vector<std::vector<double>>& features,
         }
     }
 
-    auto full_input = tensor_from_slice(features, 0, static_cast<sizet_t>(features.size()));
+    auto full_input = tensor_from_slice(features, 0, static_cast<size_t>(features.size()));
     auto final_logits = model->forward(full_input, false);
     double accuracy = compute_accuracy(final_logits, labels);
 
@@ -153,7 +153,7 @@ auto save_torch_state(const std::filesystem::path& path, const TrainResult& trai
 
     YAML::Node state_dict(YAML::NodeType::Sequence);
     auto params = trained.model->params();
-    for (sizet_t idx = 0; idx < static_cast<sizet_t>(params.size()); ++idx)
+    for (size_t idx = 0; idx < static_cast<size_t>(params.size()); ++idx)
     {
         const auto* param = params[idx];
         YAML::Node param_node;
@@ -164,9 +164,9 @@ auto save_torch_state(const std::filesystem::path& path, const TrainResult& trai
 
         std::vector<float> flat;
         flat.reserve(param->size());
-        for (sizet_t r = 0; r < param->rows(); ++r)
+        for (size_t r = 0; r < param->rows(); ++r)
         {
-            for (sizet_t c = 0; c < param->cols(); ++c)
+            for (size_t c = 0; c < param->cols(); ++c)
             {
                 flat.push_back(param->at(r, c));
             }

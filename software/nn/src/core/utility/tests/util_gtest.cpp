@@ -12,15 +12,15 @@
 namespace
 {
 
-auto make_random_tensor(sizet_t rows, sizet_t cols, float lower = -1.0F, float upper = 1.0F)
+auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upper = 1.0F)
     -> nn::Tensor
 {
     static std::mt19937 gen(42);
     std::uniform_real_distribution<float> dist(lower, upper);
     nn::Tensor t(rows, cols);
-    for (sizet_t i = 0; i < rows; ++i)
+    for (size_t i = 0; i < rows; ++i)
     {
-        for (sizet_t j = 0; j < cols; ++j)
+        for (size_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = dist(gen);
         }
@@ -28,12 +28,12 @@ auto make_random_tensor(sizet_t rows, sizet_t cols, float lower = -1.0F, float u
     return t;
 }
 
-[[maybe_unused]] auto make_constant_tensor(sizet_t rows, sizet_t cols, float value) -> nn::Tensor
+[[maybe_unused]] auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
-    for (sizet_t i = 0; i < rows; ++i)
+    for (size_t i = 0; i < rows; ++i)
     {
-        for (sizet_t j = 0; j < cols; ++j)
+        for (size_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = value;
         }
@@ -41,7 +41,7 @@ auto make_random_tensor(sizet_t rows, sizet_t cols, float lower = -1.0F, float u
     return t;
 }
 
-auto make_tensor_from_values(sizet_t rows, sizet_t cols, const std::initializer_list<float>& values)
+auto make_tensor_from_values(size_t rows, size_t cols, const std::initializer_list<float>& values)
     -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
@@ -51,9 +51,9 @@ auto make_tensor_from_values(sizet_t rows, sizet_t cols, const std::initializer_
         throw std::invalid_argument("Initializer size does not match tensor shape");
     }
     std::size_t idx = 0;
-    for (sizet_t i = 0; i < rows; ++i)
+    for (size_t i = 0; i < rows; ++i)
     {
-        for (sizet_t j = 0; j < cols; ++j)
+        for (size_t j = 0; j < cols; ++j)
         {
             t.at(i, j) = *(values.begin() + static_cast<long>(idx));
             ++idx;

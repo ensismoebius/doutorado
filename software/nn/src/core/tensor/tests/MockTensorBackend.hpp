@@ -94,6 +94,9 @@ class MockTensorBackend : public ITensorBackend
     Index data_cols() const override;
     float* mutable_data_ptr() override;
 
+    bool hasNaN() const override;
+    bool equals(const ITensorBackend& other) const override;
+
     std::unique_ptr<ITensorBackend> clone() const override;
     void copy_from(const ITensorBackend& other) override;
     std::unique_ptr<ITensorBackend> slice(std::span<const int> indices) const override;

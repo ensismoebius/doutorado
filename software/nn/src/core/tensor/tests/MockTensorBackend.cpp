@@ -713,4 +713,38 @@ void MockTensorBackend::log_call(const std::string& name) const
     m_calls.push_back(name);
 }
 
+bool MockTensorBackend::hasNaN() const
+{
+    for (float val : m_data)
+    {
+        if (std::isnan(val))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MockTensorBackend::equals(const ITensorBackend& other) const
+{
+    if (m_shape != other.shape())
+    {
+        return false;
+    }
+    const auto* mock_other = dynamic_cast<const MockTensorBackend*>(&other);
+    if (!mock_other)
+    {
+        return false;
+    }
+    constexpr float epsilon = 1e-6f;
+    for (size_t i = 0; i < m_data.size(); ++i)
+    {
+        if (std::abs(m_data[i] - mock_other->m_data[i]) > epsilon)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 } // namespace nn

@@ -1,6 +1,7 @@
 #ifndef LIF_HPP
 #define LIF_HPP
 
+#include <cmath>
 #include <memory>
 #include <utility>
 

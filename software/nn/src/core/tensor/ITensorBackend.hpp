@@ -82,6 +82,10 @@ class ITensorBackend
     virtual std::unique_ptr<ITensorBackend> divide(const ITensorBackend& other) const = 0;
     virtual std::unique_ptr<ITensorBackend> divide_scalar(float scalar) const = 0;
 
+    // Validation and comparison
+    virtual bool hasNaN() const = 0;
+    virtual bool equals(const ITensorBackend& other) const = 0;
+
     // Initialization
     virtual void fill(float value) = 0;
     virtual void set_zero() = 0;

@@ -284,10 +284,10 @@ inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer
     const NpyArray& arr_w = w_it->second;
     const auto* weight_data = arr_w.data<float>();
     // Copy weights from npz array to tensor
-    sizet_t w_idx = 0;
-    for (sizet_t i = 0; i < layer->weight.rows(); ++i)
+    size_t w_idx = 0;
+    for (size_t i = 0; i < layer->weight.rows(); ++i)
     {
-        for (sizet_t j = 0; j < layer->weight.cols(); ++j)
+        for (size_t j = 0; j < layer->weight.cols(); ++j)
         {
             layer->weight.at(i, j) = weight_data[w_idx++];
         }
@@ -304,17 +304,17 @@ inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer
 
     if (arr_b.shape.size() == 1)
     { // Handle 1D bias array
-        for (sizet_t i = 0; i < static_cast<sizet_t>(arr_b.shape[0]); ++i)
+        for (size_t i = 0; i < static_cast<size_t>(arr_b.shape[0]); ++i)
         {
             layer->bias.at(i, 0) = bias_data[i];
         }
     }
     else
     { // Handle 2D bias array
-        sizet_t b_idx = 0;
-        for (sizet_t i = 0; i < layer->bias.rows(); ++i)
+        size_t b_idx = 0;
+        for (size_t i = 0; i < layer->bias.rows(); ++i)
         {
-            for (sizet_t j = 0; j < layer->bias.cols(); ++j)
+            for (size_t j = 0; j < layer->bias.cols(); ++j)
             {
                 layer->bias.at(i, j) = bias_data[b_idx++];
             }
@@ -333,8 +333,8 @@ inline void NetworkSerializer::_loadLeakyParams(const std::shared_ptr<Leaky>& la
     }
     const cnpy::NpyArray& arr_r = r_it->second;
     const float* r_data = arr_r.data<float>();
-    size_t r_rows = static_cast<sizet_t>(arr_r.shape[0]);
-    size_t r_cols = static_cast<sizet_t>(arr_r.shape[1]);
+    size_t r_rows = static_cast<size_t>(arr_r.shape[0]);
+    size_t r_cols = static_cast<size_t>(arr_r.shape[1]);
 
     // Copy data element by element
     for (size_t i = 0; i < r_rows; ++i)
@@ -354,8 +354,8 @@ inline void NetworkSerializer::_loadLeakyParams(const std::shared_ptr<Leaky>& la
     }
     const cnpy::NpyArray& arr_vth = vth_it->second;
     const float* vth_data = arr_vth.data<float>();
-    size_t vth_rows = static_cast<sizet_t>(arr_vth.shape[0]);
-    size_t vth_cols = static_cast<sizet_t>(arr_vth.shape[1]);
+    size_t vth_rows = static_cast<size_t>(arr_vth.shape[0]);
+    size_t vth_cols = static_cast<size_t>(arr_vth.shape[1]);
 
     // Copy data element by element
     for (size_t i = 0; i < vth_rows; ++i)
