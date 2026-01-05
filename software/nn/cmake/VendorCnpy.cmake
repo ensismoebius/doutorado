@@ -16,3 +16,11 @@ FetchContent_MakeAvailable(cnpy)
 target_include_directories(cnpy INTERFACE SYSTEM "$<BUILD_INTERFACE:${cnpy_SOURCE_DIR}>")
 target_compile_options(cnpy PRIVATE -w)
 target_compile_options(cnpy-static PRIVATE -w)
+
+# Disable clang-tidy for this vendor
+if(TARGET cnpy)
+    set_target_properties(cnpy PROPERTIES CXX_CLANG_TIDY "")
+endif()
+if(TARGET cnpy-static)
+    set_target_properties(cnpy-static PROPERTIES CXX_CLANG_TIDY "")
+endif()

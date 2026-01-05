@@ -189,6 +189,79 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "cmake_build_verify_warnings",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build_verify_warnings_2",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build_verify_final",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build_verify_final_2",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_reconfigure",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build_verify_final_3",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

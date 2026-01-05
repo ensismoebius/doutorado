@@ -29,6 +29,17 @@ target_link_libraries(google_test
         GTest::gtest_main
 )
 
+# Suppress warnings and clang-tidy for GTest targets
+if(TARGET gtest)
+    target_compile_options(gtest PRIVATE -w)
+    set_target_properties(gtest PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
+if(TARGET gtest_main)
+    target_compile_options(gtest_main PRIVATE -w)
+    set_target_properties(gtest_main PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
 # Extract GoogleTest include dirs
 get_target_property(
     GTEST_INCLUDES

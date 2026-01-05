@@ -40,6 +40,17 @@ endif()
 
 FetchContent_MakeAvailable(matio-cpp)
 
+# Suppress warnings and clang-tidy
+if(TARGET matio-cpp)
+    target_compile_options(matio-cpp PRIVATE -w)
+    set_target_properties(matio-cpp PROPERTIES CXX_CLANG_TIDY "")
+endif()
+# In case the target name is matioCpp (some versions/forks might differ)
+if(TARGET matioCpp)
+    target_compile_options(matioCpp PRIVATE -w)
+    set_target_properties(matioCpp PROPERTIES CXX_CLANG_TIDY "")
+endif()
+
 target_include_directories(matioCpp SYSTEM
   PUBLIC
     "$<BUILD_INTERFACE:${matio-cpp_SOURCE_DIR}/include>"

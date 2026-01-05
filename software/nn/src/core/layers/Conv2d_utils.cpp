@@ -98,8 +98,8 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
 
     // Direct write access using mutable pointer
     float* output_data = output.mutable_data_ptr();
-    const float* input_data = input.data_ptr();
-    const int total_cols = batch_size * patch_cols_per_batch;
+    // const float* input_data = input.data_ptr(); // Unused
+    // const int total_cols = batch_size * patch_cols_per_batch; // Unused
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
     if (use_parallel_ && parallel_heavy) [[likely]]

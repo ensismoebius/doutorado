@@ -30,6 +30,9 @@ target_include_directories(matio SYSTEM
     "${matio_BINARY_DIR}/src"
 )
 target_compile_options(matio PRIVATE -w)
+if(TARGET matio)
+    set_target_properties(matio PROPERTIES CXX_CLANG_TIDY "")
+endif()
 
 
 # Provide a lightweight imported "matio" target if the subproject doesn't

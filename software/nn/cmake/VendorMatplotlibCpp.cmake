@@ -17,16 +17,45 @@ set(MATPLOTLIBCPP_VENV_DIR "${CMAKE_BINARY_DIR}/venv")
 # ------------------------------------------------------------
 # Fetch matplotlib-cpp (header-only)
 # ------------------------------------------------------------
+# Disable examples to avoid warnings
+set(MATPLOTLIB_CPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     matplotlib_cpp
     GIT_REPOSITORY https://github.com/lava/matplotlib-cpp.git
     GIT_TAG        ef0383f1315d32e0156335e10b82e90b334f6d9f
     SOURCE_DIR     "${MATPLOTLIBCPP_SRC_DIR}"
 )
-FetchContent_MakeAvailable(matplotlib_cpp)
+
+# Use manual population and target definition to avoid building examples
+FetchContent_GetProperties(matplotlib_cpp)
+if(NOT matplotlib_cpp_POPULATED)
+    FetchContent_Populate(matplotlib_cpp)
+endif()
 
 if(NOT EXISTS "${MATPLOTLIBCPP_SRC_DIR}/matplotlibcpp.h")
     message(FATAL_ERROR "matplotlib-cpp headers not found after FetchContent.")
+endif()
+
+# Manually define the target to avoid including examples/
+if(NOT TARGET matplotlib_cpp)
+    add_library(matplotlib_cpp INTERFACE)
+    target_include_directories(matplotlib_cpp SYSTEM INTERFACE "$<BUILD_INTERFACE:${MATPLOTLIBCPP_SRC_DIR}>")
+    target_compile_features(matplotlib_cpp INTERFACE cxx_std_11)
+    
+    # Python dependencies
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    target_link_libraries(matplotlib_cpp INTERFACE Python3::Python Python3::Module)
+    
+    find_package(Python3 COMPONENTS NumPy)
+    if(Python3_NumPy_FOUND)
+        target_link_libraries(matplotlib_cpp INTERFACE Python3::NumPy)
+    else()
+        target_compile_definitions(matplotlib_cpp INTERFACE WITHOUT_NUMPY)
+    endif()
+
+    # Suppress clang-tidy
+    set_target_properties(matplotlib_cpp PROPERTIES CXX_CLANG_TIDY "")
 endif()
 
 # ------------------------------------------------------------

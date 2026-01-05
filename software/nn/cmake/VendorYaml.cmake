@@ -16,6 +16,8 @@ FetchContent_MakeAvailable(yaml-cpp)
 # Provide an alias for consistency
 if(TARGET yaml-cpp)
     add_library(YAML::YAML ALIAS yaml-cpp)
+    target_compile_options(yaml-cpp PRIVATE -w)
+    set_target_properties(yaml-cpp PROPERTIES CXX_CLANG_TIDY "")
 endif()
 
 target_include_directories(yaml-cpp 
