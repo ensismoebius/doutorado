@@ -2,6 +2,8 @@
 
 #include <memory>
 
+#include "core/utility/tests/test_helpers.hpp"
+#include "nn/initializers/xavier.hpp"
 #include "nn/layers/Conv2d.hpp"
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/LeakyReLU.hpp"
@@ -13,10 +15,8 @@
 #include "nn/layers/SimpleResNet.hpp"
 #include "nn/layers/SpikeCountLoss.hpp"
 #include "nn/layers/SurrogateGradient.hpp"
-#include "nn/initializers/xavier.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "core/utility/tests/test_helpers.hpp"
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)
 {
@@ -1016,6 +1016,7 @@ TEST(LayerMemoryStressTest, LargeConv2dLayer)
     nn::Tensor output = conv.forward(input_tensor);
 
     // Output should be valid
+    EXPECT_GT(output.size(), 0);
     EXPECT_GT(output.rows(), 0);
     EXPECT_GT(output.cols(), 0);
 

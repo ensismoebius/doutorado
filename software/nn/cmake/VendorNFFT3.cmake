@@ -34,46 +34,52 @@ endif()
 if(NOT NFFT3_LIBRARY OR NOT NFFT3_INCLUDE_DIR)
     message(STATUS "NFFT3 library not found, building from source.")
 
+    # Check if fftw_build target exists to add dependency
+    set(NFFT3_DEPENDS "")
+    if(TARGET fftw_build)
+        list(APPEND NFFT3_DEPENDS fftw_build)
+    endif()
 
-ExternalProject_Add(nfft3
-    URL            https://github.com/NFFT/nfft/releases/download/3.5.3/nfft-3.5.3.tar.gz
-    URL_HASH       SHA256=caf1b3b3e5bf8c33a6bfd7eca811d954efce896605ecfd0144d47d0bebdf4371
-    DOWNLOAD_DIR   "${CMAKE_BINARY_DIR}/_deps"
-    INSTALL_DIR    "${NFFT3_INSTALL_DIR}"
-    UPDATE_DISCONNECTED 1
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    message(STATUS "Starting ExternalProject_Add for nfft3...")
+    ExternalProject_Add(nfft3
+        URL            https://github.com/NFFT/nfft/releases/download/3.5.3/nfft-3.5.3.tar.gz
+        URL_HASH       SHA256=caf1b3b3e5bf8c33a6bfd7eca811d954efce896605ecfd0144d47d0bebdf4371
+        DOWNLOAD_DIR   "${CMAKE_BINARY_DIR}/_deps"
+        INSTALL_DIR    "${NFFT3_INSTALL_DIR}"
+        UPDATE_DISCONNECTED 1
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 
-    BUILD_BYPRODUCTS "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
-    DEPENDS fftw_build
+        BUILD_BYPRODUCTS "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
+        # DEPENDS ${NFFT3_DEPENDS}  <-- Commented out to test
 
-    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env ${NFFT3_ENV_FLAGS}
-        <SOURCE_DIR>/configure
-        --prefix=<INSTALL_DIR>
-        --disable-examples
-        --disable-applications
-        --enable-openmp
-        --enable-shared
-        --with-fftw3=${NFFT3_FFTW_CONFIG_PATH}
+        CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env ${NFFT3_ENV_FLAGS}
+            <SOURCE_DIR>/configure
+            --prefix=<INSTALL_DIR>
+            --disable-examples
+            --disable-applications
+            --enable-openmp
+            --enable-shared
+            --with-fftw3=${NFFT3_FFTW_CONFIG_PATH}
 
-    BUILD_COMMAND make -j4
-    INSTALL_COMMAND make install
-    LOG_DOWNLOAD 1
-    LOG_CONFIGURE 1
-    LOG_BUILD 1
-    LOG_INSTALL 1
-)
+        BUILD_COMMAND make -j4
+        INSTALL_COMMAND make install
+        LOG_DOWNLOAD 1
+        LOG_CONFIGURE 1
+        LOG_BUILD 1
+        LOG_INSTALL 1
+    )
+    message(STATUS "Finished ExternalProject_Add for nfft3.")
 
-add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
-set_target_properties(NFFT::NFFT PROPERTIES
-    IMPORTED_LOCATION             "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include"
-    INTERFACE_LINK_LIBRARIES      "FFTW::FFTW;OpenMP::OpenMP_C"
-)
-set_property(TARGET NFFT::NFFT PROPERTY
-    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include")
-add_dependencies(NFFT::NFFT nfft3)
+    add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
+    set_target_properties(NFFT::NFFT PROPERTIES
+        IMPORTED_LOCATION             "${NFFT3_INSTALL_DIR}/lib/libnfft3.so"
+        INTERFACE_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include"
+        INTERFACE_LINK_LIBRARIES      "FFTW::FFTW;OpenMP::OpenMP_C"
+    )
+    set_property(TARGET NFFT::NFFT PROPERTY
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${NFFT3_INSTALL_DIR}/include")
+    add_dependencies(NFFT::NFFT nfft3)
 
-# If NFFT3 is already built, just create the imported target
 else()
     message(STATUS "Found pre-built NFFT3 at: ${NFFT3_LIBRARY}")
     add_library(NFFT::NFFT SHARED IMPORTED GLOBAL)
@@ -84,6 +90,8 @@ else()
     )
     set_property(TARGET NFFT::NFFT PROPERTY
         INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${NFFT3_INCLUDE_DIR}")
-    # Ensure FFTW is built, as NFFT depends on it.
-    add_dependencies(NFFT::NFFT fftw_build)
+    
+    if(TARGET fftw_build)
+        add_dependencies(NFFT::NFFT fftw_build)
+    endif()
 endif()

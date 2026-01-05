@@ -220,10 +220,15 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                         {
                             for (int kx = 0; kx < kernel_size_; ++kx)
                             {
-                                const int input_y = oy + ky;
-                                const int input_x = ox + kx;
+                                const int input_y = oy * stride_ + ky * dilation_ - padding_;
+                                const int input_x = ox * stride_ + kx * dilation_ - padding_;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+
+                                if (input_y >= 0 && input_y < input_height && input_x >= 0 &&
+                                    input_x < input_width)
+                                {
+                                    result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                                }
                             }
                         }
                     }
@@ -251,10 +256,15 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
                         {
                             for (int kx = 0; kx < kernel_size_; ++kx)
                             {
-                                const int input_y = oy + ky;
-                                const int input_x = ox + kx;
+                                const int input_y = oy * stride_ + ky * dilation_ - padding_;
+                                const int input_x = ox * stride_ + kx * dilation_ - padding_;
                                 const int elem_idx = channel_row_offset + (ky * kernel_size_) + kx;
-                                result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+
+                                if (input_y >= 0 && input_y < input_height && input_x >= 0 &&
+                                    input_x < input_width)
+                                {
+                                    result.at(b, ic, input_y, input_x) += cols(elem_idx, col_idx);
+                                }
                             }
                         }
                     }

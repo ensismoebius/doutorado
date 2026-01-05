@@ -1,56 +1,194 @@
 {
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "cppcheck (aggressive)",
-            "type": "process",
-            "command": "cppcheck",
-            "args": [
-                "--enable=all",
-                "--check-level=exhaustive",
-                "--std=c++20",
-                "--platform=native",
-                "--suppress=missingIncludeSystem",
-                "--suppress=unusedFunction",
-                "--quiet",
-                "--xml",
-                "--output-file=cppcheck.xml",
-                "src/"
-            ]
-        },
-        {
-            "label": "flawfinder (security)",
-            "type": "process",
-            "command": "flawfinder",
-            "args": [
-                "--minlevel=1",
-                "--columns",
-                "--singleline",
-                "src/"
-            ],
-            "problemMatcher": {
-                "owner": "flawfinder",
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+\\[(\\d+)\\]\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "analise_codebase",
-            "dependsOn": [
-                "cppcheck (aggressive)",
-                "flawfinder (security)",
-                "CMake: build"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        }
-    ]
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cppcheck (aggressive)",
+			"type": "process",
+			"command": "cppcheck",
+			"args": [
+				"--enable=all",
+				"--check-level=exhaustive",
+				"--std=c++20",
+				"--platform=native",
+				"--suppress=missingIncludeSystem",
+				"--suppress=unusedFunction",
+				"--quiet",
+				"--xml",
+				"--output-file=cppcheck.xml",
+				"src/"
+			]
+		},
+		{
+			"label": "flawfinder (security)",
+			"type": "process",
+			"command": "flawfinder",
+			"args": [
+				"--minlevel=1",
+				"--columns",
+				"--singleline",
+				"src/"
+			],
+			"problemMatcher": {
+				"owner": "flawfinder",
+				"pattern": {
+					"regexp": "^(.*):(\\d+):(\\d+):\\s+\\[(\\d+)\\]\\s+(.*)$",
+					"file": 1,
+					"line": 2,
+					"column": 3,
+					"message": 5
+				}
+			}
+		},
+		{
+			"label": "analise_codebase",
+			"dependsOn": [
+				"cppcheck (aggressive)",
+				"flawfinder (security)",
+				"CMake: build"
+			],
+			"dependsOrder": "sequence",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "cmake_config",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ctest",
+			"type": "shell",
+			"command": "ctest",
+			"args": [
+				"--test-dir",
+				"build",
+				"--output-on-failure",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cmake_build_log",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_config_retry",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"-S",
+				".",
+				"-B",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "cmake_build_retry",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ctest_retry",
+			"type": "shell",
+			"command": "ctest",
+			"args": [
+				"--test-dir",
+				"build",
+				"--output-on-failure",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cmake_build_fix",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ctest_final",
+			"type": "shell",
+			"command": "ctest",
+			"args": [
+				"--test-dir",
+				"build",
+				"--output-on-failure",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "cmake_build_fix_2",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"build",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ctest_verify_fix",
+			"type": "shell",
+			"command": "ctest",
+			"args": [
+				"--test-dir",
+				"build",
+				"--output-on-failure",
+				"-j4"
+			],
+			"isBackground": false,
+			"group": "test"
+		}
+	]
 }

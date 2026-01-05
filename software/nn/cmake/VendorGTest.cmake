@@ -1,6 +1,8 @@
 # Fetch and make available googletest
 include(FetchContent)
 
+message(STATUS "Configuring GTest...")
+
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/refs/tags/v1.13.0.zip

@@ -1,10 +1,11 @@
+message(STATUS "Configuring ImGui...")
 include(FetchContent)
 
 # IMGui configuration
 FetchContent_Declare(
     imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG        v1.88 # Pinned to a specific tag for reproducibility
+    URL            https://github.com/ocornut/imgui/archive/refs/tags/v1.88.zip
+    URL_HASH       SHA256=b70d61578a9360d7d67c71a87d655819d118a742c53828d9640f94d8d369479e
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
