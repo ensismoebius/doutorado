@@ -2,7 +2,8 @@ enable_testing()
 
 # Layers library - mostly header-only, with Conv2d temporarily disabled
 add_library(layers STATIC
-    dummy.cpp  # Placeholder for header-only library
+    Conv2d_impl.cpp
+    Conv2d_utils.cpp
 )
 
 target_include_directories(layers 

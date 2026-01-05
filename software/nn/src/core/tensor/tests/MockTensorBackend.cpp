@@ -137,6 +137,22 @@ const std::vector<Index>& MockTensorBackend::shape() const
     return m_shape;
 }
 
+void MockTensorBackend::reshape(const std::vector<Index>& new_shape)
+{
+    log_call("reshape:" + shape_to_string());
+    Index new_size = 1;
+    for (Index dim : new_shape)
+    {
+        new_size *= dim;
+    }
+
+    if (new_size != size())
+    {
+        throw std::invalid_argument("New shape size must match old shape size");
+    }
+    m_shape = new_shape;
+}
+
 Index MockTensorBackend::rows() const
 {
     return m_shape.size() >= 1 ? m_shape[0] : 0;

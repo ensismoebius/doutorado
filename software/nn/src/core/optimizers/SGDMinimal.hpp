@@ -31,7 +31,8 @@ struct SGDMinimal : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             // Update: param = param - learning_rate * grad (uses backend operations)
-            auto update = param->grad().multiply_scalar(learning_rate);
+            nn::Tensor grad_copy = param->grad();
+            auto update = grad_copy.multiply_scalar(learning_rate);
             *param = *param - update;
         }
     }

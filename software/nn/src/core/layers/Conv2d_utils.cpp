@@ -1,4 +1,5 @@
 #include "Conv2d.hpp"
+#include <cstring>
 
 // ============ Index Caching & Computation ============
 

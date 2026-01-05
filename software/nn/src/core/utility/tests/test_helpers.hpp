@@ -49,19 +49,16 @@ inline auto make_zeros_tensor(size_t rows, size_t cols) -> nn::Tensor
 inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b, float tolerance = 1e-6F)
     -> bool
 {
-    if (a.rows() != b.rows() || a.cols() != b.cols())
+    if (a.get_shape() != b.get_shape())
     {
         return false;
     }
 
-    for (size_t i = 0; i < a.rows(); ++i)
+    for (size_t i = 0; i < a.size(); ++i)
     {
-        for (size_t j = 0; j < a.cols(); ++j)
+        if (std::abs(a.at(i) - b.at(i)) > tolerance)
         {
-            if (std::abs(a.at(i, j) - b.at(i, j)) > tolerance)
-            {
-                return false;
-            }
+            return false;
         }
     }
     return true;
@@ -69,14 +66,11 @@ inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b, float tol
 
 inline auto tensor_is_zero(const nn::Tensor& t, float tolerance = 1e-6F) -> bool
 {
-    for (size_t i = 0; i < t.rows(); ++i)
+    for (size_t i = 0; i < t.size(); ++i)
     {
-        for (size_t j = 0; j < t.cols(); ++j)
+        if (std::abs(t.at(i)) > tolerance)
         {
-            if (std::abs(t.at(i, j)) > tolerance)
-            {
-                return false;
-            }
+            return false;
         }
     }
     return true;

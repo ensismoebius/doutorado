@@ -15,6 +15,7 @@ target_link_libraries(dataLoaders_10_1117
         Eigen3::Eigen
         ${ZLIB_LIBRARIES}
         matioCpp
+        tensor
 )
 
 add_subdirectory(tests)

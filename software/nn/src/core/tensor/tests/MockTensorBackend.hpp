@@ -42,6 +42,7 @@ class MockTensorBackend : public ITensorBackend
     const float& at(const std::vector<Index>& indices) const override;
 
     const std::vector<Index>& shape() const override;
+    void reshape(const std::vector<Index>& new_shape) override;
     Index rows() const override;
     Index cols() const override;
     Index size() const override;

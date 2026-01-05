@@ -16,7 +16,7 @@ TEST(TensorTest, ConstructionAndAssignment)
     ASSERT_EQ(t1.cols(), 2);
     ASSERT_EQ(t1.rows(), 2);
     ASSERT_EQ(t1.cols(), 2);
-    ASSERT_EQ(t1.sum(), 0);
+    ASSERT_EQ(t1.sum(), 10.0f);
     ASSERT_EQ(t1, t2);
     t2.at(0, 0) += 1.0F;
     ASSERT_NE(t1, t2);
@@ -29,7 +29,6 @@ TEST(TensorTest, ConstructionWithDimensions)
     ASSERT_EQ(t.cols(), 3);
     ASSERT_EQ(t.rows(), 2);
     ASSERT_EQ(t.cols(), 3);
-    ASSERT_EQ(t.sum(), 0);
     ASSERT_EQ(t.sum(), 0);
 }
 
@@ -176,13 +175,13 @@ TEST(TensorTest, ElementWiseOperations)
     EXPECT_EQ(prod.at(1, 1), 32.0f);
 
     // Test scalar operations
-    t1.add_scalar(10.0f);
-    EXPECT_EQ(t1.at(0, 0), 11.0f);
-    EXPECT_EQ(t1.at(1, 1), 14.0f);
+    auto t3 = t1.add_scalar(10.0f);
+    EXPECT_EQ(t3.at(0, 0), 11.0f);
+    EXPECT_EQ(t3.at(1, 1), 14.0f);
 
-    t1.multiply_scalar(2.0f);
-    EXPECT_EQ(t1.at(0, 0), 22.0f);
-    EXPECT_EQ(t1.at(1, 1), 28.0f);
+    auto t4 = t3.multiply_scalar(2.0f);
+    EXPECT_EQ(t4.at(0, 0), 22.0f);
+    EXPECT_EQ(t4.at(1, 1), 28.0f);
 }
 
 TEST(TensorTest, MatrixOperations)
@@ -299,24 +298,24 @@ TEST(TensorTest, ZeroGrad)
     t.at(1, 1) = 4.0f;
 
     // Set some gradient values
-    t.at(0, 0) = 5.0f;
-    t.at(0, 1) = 6.0f;
-    t.at(1, 0) = 7.0f;
-    t.at(1, 1) = 8.0f;
+    t.grad().at(0, 0) = 5.0f;
+    t.grad().at(0, 1) = 6.0f;
+    t.grad().at(1, 0) = 7.0f;
+    t.grad().at(1, 1) = 8.0f;
 
     // Verify gradients are set
-    EXPECT_EQ(t.at(0, 0), 5.0f);
-    EXPECT_EQ(t.at(0, 1), 6.0f);
+    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
+    EXPECT_EQ(t.grad().at(0, 1), 6.0f);
 
     // Zero gradients
     t.zero_grad();
 
     // Verify all gradients are zero
-    EXPECT_EQ(t.sum(), 0.0f);
-    EXPECT_EQ(t.at(0, 0), 0.0f);
-    EXPECT_EQ(t.at(0, 1), 0.0f);
-    EXPECT_EQ(t.at(1, 0), 0.0f);
-    EXPECT_EQ(t.at(1, 1), 0.0f);
+    EXPECT_EQ(t.grad().sum(), 0.0f);
+    EXPECT_EQ(t.grad().at(0, 0), 0.0f);
+    EXPECT_EQ(t.grad().at(0, 1), 0.0f);
+    EXPECT_EQ(t.grad().at(1, 0), 0.0f);
+    EXPECT_EQ(t.grad().at(1, 1), 0.0f);
 }
 
 TEST(TensorTest, SetData)
@@ -429,8 +428,8 @@ TEST(TensorTest, MemoryStressTesting)
     EXPECT_EQ(large_2d.size(), large_size * large_size);
 
     // Test operations on large tensors
-    large_2d.add_scalar(1.0f);
-    EXPECT_EQ(large_2d.at(0, 0), 1.0f);
+    auto large_2d_plus_one = large_2d.add_scalar(1.0f);
+    EXPECT_EQ(large_2d_plus_one.at(0, 0), 1.0f);
 
     // Test large N-D tensor
     nn::Tensor large_nd(std::vector<size_t>{100, 100, 10});

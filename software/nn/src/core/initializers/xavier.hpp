@@ -20,6 +20,12 @@
 inline auto xavierInitializer(int in_features, int out_features, nn::Tensor& weights,
                               nn::Tensor& bias) -> void
 {
+    // Handle zero dimensions gracefully
+    if (in_features == 0 || out_features == 0)
+    {
+        return;
+    }
+
     // Xavier limit: sqrt(6 / (in_features + out_features))
     float const limit = std::sqrt(6.0F / static_cast<float>(in_features + out_features));
 

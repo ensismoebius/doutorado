@@ -1,6 +1,5 @@
 #include "Tensor.hpp"
 
-#include <cmath>
 #include <span>
 
 #include "TensorBackendFactory.hpp"
@@ -81,6 +80,11 @@ Tensor& Tensor::operator=(const Tensor& other)
 auto Tensor::get_shape() const -> const std::vector<Index>&
 {
     return m_backend->shape();
+}
+
+void Tensor::reshape(const std::vector<Index>& new_shape)
+{
+    m_backend->reshape(new_shape);
 }
 
 auto Tensor::rows() const noexcept -> Index
@@ -348,13 +352,11 @@ auto Tensor::grad() const -> Tensor
     return Tensor(m_backend->grad().clone());
 }
 
-auto Tensor::grad() -> Tensor&
+auto Tensor::grad() -> Tensor
 {
     // For mutable access, we need to return a reference
     // This is tricky with the current design - for now create a static wrapper
-    static thread_local Tensor grad_wrapper;
-    grad_wrapper = Tensor(m_backend->grad().clone());
-    return grad_wrapper;
+    return Tensor(m_backend->grad().clone());
 }
 
 void Tensor::set_grad(const Tensor& new_grad)
@@ -375,11 +377,6 @@ auto Tensor::operator==(const Tensor& other) const -> bool
 auto Tensor::operator!=(const Tensor& other) const -> bool
 {
     return !(*this == other);
-}
-
-auto Tensor::operator<<(float value) -> CommaInitializer
-{
-    return CommaInitializer(*this, value);
 }
 
 } // namespace nn

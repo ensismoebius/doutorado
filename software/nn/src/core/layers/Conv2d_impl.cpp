@@ -1,3 +1,6 @@
+#include <cmath>
+#include <random>
+
 #include "Conv2d.hpp"
 
 constexpr int DEFAULT_SIZE = 32;
@@ -140,9 +143,12 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     const int patch_cols_per_batch = output_height * output_width;
     const int total_patch_cols = batch_size * patch_cols_per_batch;
 
+    // Reshape grad_output to 2D
+    nn::Tensor grad_output_2d = grad_output;
+    grad_output_2d.reshape({static_cast<size_t>(out_channels_), static_cast<size_t>(total_patch_cols)});
+
     // 1. Compute bias gradient (sum over all positions and batches)
-    // grad_output is already in shape (out_channels, total_patch_cols)
-    bias_.grad = grad_output.sum_rows();
+    bias_.set_grad(grad_output_2d.sum_rows());
 
     // 3. Get im2col of cached input
     auto& im2col_buffer = *im2col_buffer_;
@@ -162,13 +168,12 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     // 3. Compute weights gradient: dW = im2col_input * dY^T
     // im2col_buffer is (patch_rows, total_patch_cols), grad_output is (out_channels,
     // total_patch_cols)
-    nn::Tensor grad_output_transposed = grad_output.transpose();
-    weights_.grad = im2col_buffer.matmul(grad_output_transposed);
+    nn::Tensor grad_output_transposed = grad_output_2d.transpose();
+    weights_.set_grad(im2col_buffer.matmul(grad_output_transposed));
 
     // 4. Compute input gradient: dX_col = W * dY
     // weights_ is (patch_rows, out_channels), grad_output is (out_channels, total_patch_cols)
-    nn::Tensor weights_transposed = weights_.transpose();
-    nn::Tensor d_input_col = weights_transposed.matmul(grad_output);
+    nn::Tensor d_input_col = weights_.matmul(grad_output_2d);
 
     // 5. Convert col2im (input gradient)
     nn::Tensor grad_input = col2im_optimized(

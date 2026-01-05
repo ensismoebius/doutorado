@@ -35,6 +35,7 @@ class Tensor
 
     // Shape and size information
     auto get_shape() const -> const std::vector<Index>&;
+    void reshape(const std::vector<Index>& new_shape);
     [[nodiscard]] auto rows() const noexcept -> Index;
     [[nodiscard]] auto cols() const noexcept -> Index;
     [[nodiscard]] auto size() const noexcept -> Index;
@@ -140,7 +141,7 @@ class Tensor
 
     // Gradient access
     auto grad() const -> Tensor;
-    auto grad() -> Tensor&;
+    auto grad() -> Tensor;
     void set_grad(const Tensor& new_grad);
 
     // Conversion to std::vector
@@ -216,6 +217,11 @@ class Tensor::CommaInitializer
     Tensor& m_tensor;
     std::vector<float> m_values;
 };
+
+inline auto Tensor::operator<<(float value) -> CommaInitializer
+{
+    return CommaInitializer(*this, value);
+}
 
 // Template implementations must be available in the header, outside the class but inside the
 // namespace.

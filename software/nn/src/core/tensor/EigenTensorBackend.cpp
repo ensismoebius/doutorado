@@ -203,6 +203,15 @@ Index EigenTensorBackend::size() const
     return static_cast<Index>(m_data.size());
 }
 
+void EigenTensorBackend::reshape(const std::vector<Index>& new_shape)
+{
+    if (calculate_total_size(new_shape) != size())
+    {
+        throw std::invalid_argument("New shape size must match old shape size");
+    }
+    m_shape = new_shape;
+}
+
 // Row/column operations
 std::unique_ptr<ITensorBackend> EigenTensorBackend::row(Index i) const
 {

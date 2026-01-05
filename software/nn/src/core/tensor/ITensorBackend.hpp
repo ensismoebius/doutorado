@@ -33,6 +33,7 @@ class ITensorBackend
 
     // Shape and size
     virtual const std::vector<Index>& shape() const = 0;
+    virtual void reshape(const std::vector<Index>& new_shape) = 0;
     virtual Index rows() const = 0;
     virtual Index cols() const = 0;
     virtual Index size() const = 0;

@@ -803,7 +803,7 @@ TEST(L1RegularizationTest, Backward)
     {
         for (size_t j = 0; j < 2; ++j)
         {
-            ASSERT_NEAR(param1.at(i, j), 0.5F, 1e-5F);
+            ASSERT_NEAR(param1.grad().at(i, j), 0.5F, 1e-5F);
         }
     }
     // grad for param2: sign(-2)*0.5 = -0.5
@@ -811,7 +811,7 @@ TEST(L1RegularizationTest, Backward)
     {
         for (size_t j = 0; j < 3; ++j)
         {
-            ASSERT_NEAR(param2.at(i, j), -0.5F, 1e-5F);
+            ASSERT_NEAR(param2.grad().at(i, j), -0.5F, 1e-5F);
         }
     }
 }
@@ -848,7 +848,7 @@ TEST(L2RegularizationTest, Backward)
     {
         for (size_t j = 0; j < 2; ++j)
         {
-            ASSERT_NEAR(param1.at(i, j), 1.0F, 1e-5F);
+            ASSERT_NEAR(param1.grad().at(i, j), 1.0F, 1e-5F);
         }
     }
     // grad for param2: 2*2*0.5 = 2.0
@@ -856,7 +856,7 @@ TEST(L2RegularizationTest, Backward)
     {
         for (size_t j = 0; j < 3; ++j)
         {
-            ASSERT_NEAR(param2.at(i, j), 2.0F, 1e-5F);
+            ASSERT_NEAR(param2.grad().at(i, j), 2.0F, 1e-5F);
         }
     }
 }
@@ -1238,7 +1238,7 @@ TEST(LayerComprehensiveTest, RegularizationZeroParameters)
 
     l1.backward(params);
     // Gradients should be zero for zero parameters
-    EXPECT_EQ(param1.sum(), 0.0F);
+    EXPECT_EQ(param1.grad().sum(), 0.0F);
 }
 
 TEST(LayerComprehensiveTest, SurrogateGradientRange)

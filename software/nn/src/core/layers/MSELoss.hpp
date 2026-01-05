@@ -69,12 +69,10 @@ class MSELoss : public Module
     auto backward(const nn::Tensor& /* prediction */) -> nn::Tensor override
     {
         // Compute gradient: 2 * (prediction - target) / num_elements
-        // Create a copy to avoid modifying last_target
-        nn::Tensor negated_target = last_target;
-        negated_target.multiply_scalar(-1.0f);
-        auto diff = last_input.add(negated_target);
-        auto grad =
-            diff.multiply_scalar(MSE_GRADIENT_FACTOR / static_cast<float>(last_input.size()));
+        nn::Tensor diff = last_input - last_target;
+        
+        float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input.size());
+        nn::Tensor grad = diff * factor;
 
         // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
         float grad_check = grad.norm();
