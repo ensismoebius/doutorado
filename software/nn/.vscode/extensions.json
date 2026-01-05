@@ -3,5 +3,7 @@
         "github.copilot",
         "github.copilot-chat"
     ],
-    "unwantedRecommendations": []
+    "unwantedRecommendations": [
+        "googlecloudtools.cloudcode"
+    ]
 }

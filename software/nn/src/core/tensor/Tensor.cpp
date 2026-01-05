@@ -377,4 +377,9 @@ auto Tensor::operator!=(const Tensor& other) const -> bool
     return !(*this == other);
 }
 
+auto Tensor::operator<<(float value) -> CommaInitializer
+{
+    return CommaInitializer(*this, value);
+}
+
 } // namespace nn

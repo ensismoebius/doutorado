@@ -24,14 +24,14 @@ class OptimizerTest : public ::testing::Test
     OptimizerTest() : weights(2, 2), bias(2, 1)
     {
         // Copy initial data
-        for (sizet_t i = 0; i < 2; ++i)
+        for (size_t i = 0; i < 2; ++i)
         {
-            for (sizet_t j = 0; j < 2; ++j)
+            for (size_t j = 0; j < 2; ++j)
             {
                 weights.at(i, j) = 1.0F;
             }
         }
-        for (sizet_t i = 0; i < 2; ++i)
+        for (size_t i = 0; i < 2; ++i)
         {
             bias.at(i, 0) = 0.0F;
         }
@@ -153,18 +153,18 @@ TEST(OptimizerMemoryStressTest, LargeParameterSets)
         nn::Tensor grad = test_helpers::make_constant_tensor(param_size, param_size, 0.1F);
 
         initial_data.push_back(nn::Tensor(data.rows(), data.cols()));
-        for (sizet_t r = 0; r < data.rows(); ++r)
+        for (size_t r = 0; r < data.rows(); ++r)
         {
-            for (sizet_t c = 0; c < data.cols(); ++c)
+            for (size_t c = 0; c < data.cols(); ++c)
             {
                 initial_data.back().at(r, c) = data.at(r, c);
             }
         }
 
         auto* tensor = new nn::Tensor(data.rows(), data.cols());
-        for (sizet_t r = 0; r < data.rows(); ++r)
+        for (size_t r = 0; r < data.rows(); ++r)
         {
-            for (sizet_t c = 0; c < data.cols(); ++c)
+            for (size_t c = 0; c < data.cols(); ++c)
             {
                 tensor->at(r, c) = data.at(r, c);
             }
@@ -243,18 +243,18 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
     // Test with very small learning rate
     SGDMinimal sgd_tiny(1e-10F);
     nn::Tensor data_before(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
     }
     sgd_tiny.step(params);
     nn::Tensor data_after(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -268,17 +268,17 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
     SGDMinimal sgd_large(1e6F);
     test_helpers::tensor_fill_with_value(param, 1.0F); // Reset
     param.set_grad(test_helpers::make_constant_tensor(2, 2, 0.1F));
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
     }
     sgd_large.step(params);
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -340,9 +340,9 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
     adam.attach(params);
 
     nn::Tensor data_before(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
@@ -357,9 +357,9 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
     }
 
     nn::Tensor data_after(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -370,18 +370,18 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
 
     // Test that internal state affects subsequent steps differently
     nn::Tensor data_step3(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_step3.at(i, j) = param.at(i, j);
         }
     }
     adam.step(params);
     nn::Tensor data_step4(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_step4.at(i, j) = param.at(i, j);
         }
@@ -405,9 +405,9 @@ TEST(OptimizerComprehensiveTest, GradientClipping)
 
     SGDMinimal sgd(0.01F);
     nn::Tensor data_before(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_before.at(i, j) = param.at(i, j);
         }
@@ -416,9 +416,9 @@ TEST(OptimizerComprehensiveTest, GradientClipping)
     sgd.step(params);
 
     nn::Tensor data_after(param.rows(), param.cols());
-    for (sizet_t i = 0; i < param.rows(); ++i)
+    for (size_t i = 0; i < param.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param.cols(); ++j)
+        for (size_t j = 0; j < param.cols(); ++j)
         {
             data_after.at(i, j) = param.at(i, j);
         }
@@ -447,9 +447,9 @@ TEST(OptimizerComprehensiveTest, ParameterGroups)
 
     nn::Tensor data1_before(param1.rows(), param1.cols());
     nn::Tensor data2_before(param2.rows(), param2.cols());
-    for (sizet_t i = 0; i < param1.rows(); ++i)
+    for (size_t i = 0; i < param1.rows(); ++i)
     {
-        for (sizet_t j = 0; j < param1.cols(); ++j)
+        for (size_t j = 0; j < param1.cols(); ++j)
         {
             data1_before.at(i, j) = param1.at(i, j);
             data2_before.at(i, j) = param2.at(i, j);
@@ -478,9 +478,9 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     {
         // Set gradient pointing toward zero (full magnitude to encourage faster convergence)
         nn::Tensor grad(param.rows(), param.cols());
-        for (sizet_t r = 0; r < param.rows(); ++r)
+        for (size_t r = 0; r < param.rows(); ++r)
         {
-            for (sizet_t c = 0; c < param.cols(); ++c)
+            for (size_t c = 0; c < param.cols(); ++c)
             {
                 grad.at(r, c) = param.at(r, c);
             }

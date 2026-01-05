@@ -110,12 +110,10 @@
     "clangd.path": "scripts/clangd-systemd.sh",
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
-        "--background-index",
+        "--background-index=false",
         "--completion-style=detailed",
         "--header-insertion=iwyu",
-        "--pch-storage=disk",
-        "--malloc-trim",
-        "-j=2",
+        "--pch-storage=memory",
         "--all-scopes-completion",
         "--function-arg-placeholders=true"
     ],

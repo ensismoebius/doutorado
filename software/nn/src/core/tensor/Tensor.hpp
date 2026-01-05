@@ -1,6 +1,7 @@
 #ifndef TENSOR_HPP
 #define TENSOR_HPP
 
+#include <algorithm>
 #include <memory>
 #include <span>
 #include <vector>
@@ -171,6 +172,10 @@ class Tensor
     auto operator==(const Tensor& other) const -> bool;
     auto operator!=(const Tensor& other) const -> bool;
 
+    // Comma initializer for easy tensor filling
+    class CommaInitializer;
+    auto operator<<(float value) -> CommaInitializer;
+
     auto get_backend() const -> const ITensorBackend*
     {
         return m_backend.get();
@@ -178,6 +183,38 @@ class Tensor
 
    private:
     std::unique_ptr<ITensorBackend> m_backend;
+};
+
+// Helper for stream-like comma initialization using backend data
+class Tensor::CommaInitializer
+{
+   public:
+    CommaInitializer(Tensor& tensor, float first_value) : m_tensor(tensor)
+    {
+        m_values.reserve(static_cast<size_t>(m_tensor.size()));
+        m_values.push_back(first_value);
+    }
+
+    auto operator,(float value) -> CommaInitializer&
+    {
+        m_values.push_back(value);
+        return *this;
+    }
+
+    ~CommaInitializer() noexcept(false)
+    {
+        const auto total = static_cast<size_t>(m_tensor.size());
+        if (m_values.size() > total)
+        {
+            throw std::out_of_range("Tensor comma initializer received too many values");
+        }
+        float* data = m_tensor.mutable_data_ptr();
+        std::copy(m_values.begin(), m_values.end(), data);
+    }
+
+   private:
+    Tensor& m_tensor;
+    std::vector<float> m_values;
 };
 
 // Template implementations must be available in the header, outside the class but inside the
