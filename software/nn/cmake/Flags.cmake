@@ -19,7 +19,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(BUILD_TESTING OFF CACHE BOOL "Disable building tests in subprojects" FORCE)
 
 # Verbose output during builds
-set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # Generate compile_commands.json for clangd, etc.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
