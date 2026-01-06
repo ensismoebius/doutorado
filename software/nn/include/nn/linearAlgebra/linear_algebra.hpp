@@ -30,32 +30,14 @@ auto derivative(std::vector<double>& vector, long level = 1) -> std::vector<doub
  * @param b
  * @return
  */
-auto dotProduct(std::vector<double> a, std::vector<double> b) -> double;
-
-/**
- * Create an orthogonal vector given another one
- * @param originalVector
- * @param vectorSize
- * @return
- */
-auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> double*;
+auto dotProduct(std::span<const double> a, std::span<const double> b) -> double;
 
 /**
  * Given a vector calculates the corresponding orthogonal vector
  * @param vector - source vector
  * @return orthogonal vector
  */
-auto calcOrthogonalVector(const std::span<const double>& vector) -> std::vector<double>;
-
-/**
- * Normalize the vector
- * @param signal
- * @param signalLength
- * @param lowerLimit
- * @param upperLimit
- */
-void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit,
-                            double upperLimit);
+auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>;
 
 /**
  * Normalize the vector
@@ -63,43 +45,27 @@ void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, double upperLimit);
-
-/**
- * Normalize the vector to sum 1
- * @param signal
- * @param signalLength
- */
-void normalizeVectorToSum1(double* signal, long signalLength);
+void normalizeVectorToRange(std::span<double> signal, double lowerLimit, double upperLimit);
 
 /**
  * Normalize the vector to sum 1
  * @param signal
  */
-void normalizeVectorToSum1(std::vector<double>& signal);
+void normalizeVectorToSum1(std::span<double> signal);
 
 /**
  * Convolute a signal with a filter (kernel)
  * @param data
- * @param dataLength
  * @param kernel
- * @param kernelSize
- * @return
+ * @return true if successful (always true with spans)
  */
-auto convolution(double* data, int dataLength, double* kernel, long kernelSize) -> bool;
-
-/**
- * Performs a DCT on vector
- * @param vector
- * @param vectorLength
- */
-void discreteCosineTransform(double* vector, long vectorLength);
+auto convolution(std::span<double> data, std::span<const double> kernel) -> bool;
 
 /**
  * Performs a DCT on vector
  * @param vector
  */
-void discreteCosineTransform(std::vector<double>& vector);
+void discreteCosineTransform(std::span<double> vector);
 
 /**
  * Scales a given matrix
@@ -115,22 +81,14 @@ void scaleMatrix(std::vector<std::vector<double>>& matrix);
  * @param matrix - A scaled matrix
  * @return a vetor with results
  */
-auto solveMatrix(std::vector<std::vector<double>>& matrix) -> std::vector<double>;
+auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>;
 
 /**
  * Normalize the vector to sum 1 and guarantees
  * that all values are positives
  * @param signal
  */
-void normalizeVectorToSum1AllPositive(std::vector<double>& signal);
-
-/**
- * Normalize the vector to sum 1 and guarantees
- * that all values are positives
- * @param signal
- * @param signalLength
- */
-void normalizeVectorToSum1AllPositive(double* signal, long signalLength);
+void normalizeVectorToSum1AllPositive(std::span<double> signal);
 
 /**
  * Resizes a vector in a centered way

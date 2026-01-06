@@ -18,7 +18,7 @@ class EigenTensorBackend : public ITensorBackend
     // Implement all ITensorBackend methods using Eigen
     void construct(Index rows, Index cols) override;
     void construct(Index d1, Index d2, Index d3, Index d4) override;
-    void construct(const std::vector<Index>& shape) override;
+    void construct(std::span<const Index> shape) override;
 
     float& at(Index i) override;
     const float& at(Index i) const override;
@@ -26,11 +26,11 @@ class EigenTensorBackend : public ITensorBackend
     const float& at(Index row, Index col) const override;
     float& at(Index d1, Index d2, Index d3, Index d4) override;
     const float& at(Index d1, Index d2, Index d3, Index d4) const override;
-    float& at(const std::vector<Index>& indices) override;
-    const float& at(const std::vector<Index>& indices) const override;
+    float& at(std::span<const Index> indices) override;
+    const float& at(std::span<const Index> indices) const override;
 
     const std::vector<Index>& shape() const override;
-    void reshape(const std::vector<Index>& new_shape) override;
+    void reshape(std::span<const Index> new_shape) override;
     Index rows() const override;
     Index cols() const override;
     Index size() const override;
@@ -141,7 +141,7 @@ class EigenTensorBackend : public ITensorBackend
     std::vector<Index> m_shape;
 
     // Helper to calculate total size from shape
-    static Index calculate_total_size(const std::vector<Index>& shape);
+    static Index calculate_total_size(std::span<const Index> shape);
 };
 
 } // namespace nn

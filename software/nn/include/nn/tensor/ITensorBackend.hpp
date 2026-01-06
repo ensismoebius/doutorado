@@ -19,7 +19,7 @@ class ITensorBackend
     // Construction
     virtual void construct(Index rows, Index cols) = 0;
     virtual void construct(Index d1, Index d2, Index d3, Index d4) = 0;
-    virtual void construct(const std::vector<Index>& shape) = 0;
+    virtual void construct(std::span<const Index> shape) = 0;
 
     // Data access
     virtual float& at(Index i) = 0;
@@ -28,12 +28,12 @@ class ITensorBackend
     virtual const float& at(Index row, Index col) const = 0;
     virtual float& at(Index d1, Index d2, Index d3, Index d4) = 0;
     virtual const float& at(Index d1, Index d2, Index d3, Index d4) const = 0;
-    virtual float& at(const std::vector<Index>& indices) = 0;
-    virtual const float& at(const std::vector<Index>& indices) const = 0;
+    virtual float& at(std::span<const Index> indices) = 0;
+    virtual const float& at(std::span<const Index> indices) const = 0;
 
     // Shape and size
     virtual const std::vector<Index>& shape() const = 0;
-    virtual void reshape(const std::vector<Index>& new_shape) = 0;
+    virtual void reshape(std::span<const Index> new_shape) = 0;
     virtual Index rows() const = 0;
     virtual Index cols() const = 0;
     virtual Index size() const = 0;

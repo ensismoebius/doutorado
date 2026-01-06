@@ -28,7 +28,8 @@ static void normalizeFeatureVectors(double**& featureVectors, unsigned int vecto
 {
     for (unsigned int vi = 0; vi < vectorSize; vi++)
     {
-        linearAlgebra::normalizeVectorToSum1(featureVectors[vi], subVectorsSize);
+        linearAlgebra::normalizeVectorToSum1(
+            {featureVectors[vi], static_cast<size_t>(subVectorsSize)});
     }
 }
 static void normalizeFeatureVectors(std::vector<std::vector<double>>& featureVectors,

@@ -47,7 +47,7 @@ auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequen
         filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
     }
 
-    linearAlgebra::normalizeVectorToRange(filter.data(), order + 1, 0, 1);
+    linearAlgebra::normalizeVectorToRange(filter, 0, 1);
 
     return filter;
 }
@@ -76,7 +76,7 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     }
 
     // normalizing data
-    linearAlgebra::normalizeVectorToRange(filter.data(), order + 1, 0, 1);
+    linearAlgebra::normalizeVectorToRange(filter, 0, 1);
 
     // Builds the orthogonal vector
     // and return the final result (high pass filter)

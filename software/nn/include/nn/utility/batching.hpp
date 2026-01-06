@@ -1,6 +1,7 @@
 #ifndef BATCHING_HPP
 #define BATCHING_HPP
 
+#include <span>
 #include <vector>
 
 #include "nn/tensor/Tensor.hpp"
@@ -17,12 +18,12 @@ struct Batch
  * preservando a correspondência entre eles, e as divide em batches de tamanho
  * especificado. É usada para treinamento com mini-batches em redes neurais.
  *
- * @param inputSamples Tensor contendo as amostras de entrada (shape: N × D).
- * @param targets Tensor contendo os alvos correspondentes (shape: N × C).
+ * @param inputSamples Span contendo as amostras de entrada (shape: N × D).
+ * @param targets Span contendo os alvos correspondentes (shape: N × C).
  * @param batch_size Tamanho de cada batch.
  * @return std::vector<Batch> Vetor de Batch, cada um contendo um par {x_batch, y_batch}.
  */
-auto create_batches(const std::vector<nn::Tensor>& inputSamples,
-                    const std::vector<nn::Tensor>& targets, int batch_size) -> std::vector<Batch>;
+auto create_batches(std::span<const nn::Tensor> inputSamples, std::span<const nn::Tensor> targets,
+                    int batch_size) -> std::vector<Batch>;
 
 #endif // BATCHING_HPP

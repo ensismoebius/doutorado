@@ -31,6 +31,9 @@ add_compile_options(
     # -Wshadow
     -fdiagnostics-color=always
     -fdiagnostics-show-option
+    -Rpass-analysis=copy-construction
+    -Wpessimizing-move
+    -Wredundant-move
 )
 
 # --- Debug-specific flags ---

@@ -12,8 +12,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <numeric>
+#include <span>
 #include <stdexcept>
+#include <vector>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 namespace linearAlgebra
 {
@@ -22,13 +29,13 @@ auto derivative(std::vector<double>& vector, long level) -> std::vector<double>
 {
     if (vector.size() < 2)
     {
-        return std::vector<double>({vector.at(0)});
+        return std::vector<double>({vector.empty() ? 0.0 : vector[0]});
     }
 
     for (unsigned int i = 0; i < vector.size() - 1; ++i)
     {
         vector.at(i) = vector.at(i + 1) - vector.at(i);
-    }
+    } // TODO: Refactor loop?
 
     level--;
 
@@ -41,399 +48,178 @@ auto derivative(std::vector<double>& vector, long level) -> std::vector<double>
     return vector;
 }
 
-auto dotProduct(const std::vector<double>& a, const std::vector<double>& b) -> double
+auto dotProduct(std::span<const double> a, std::span<const double> b) -> double
 {
-    double product = 0;
-
-    // Loop for calculate cot product
-    for (unsigned int i = 0; i < a.size(); i++)
+    if (a.size() != b.size())
     {
-        product = product + (a.at(i) * b.at(i));
+        throw std::invalid_argument("Vector sizes must match for dot product");
     }
-    return product;
+    return std::transform_reduce(a.begin(), a.end(), b.begin(), 0.0);
 }
 
-auto calcOrthogonalVector(const double* originalVector, long vectorSize) -> double*
-{
-    auto* finalResult = new double[vectorSize];
-
-    long middleSignalIndex = vectorSize / 2;
-    double inverter = 1.0;
-
-    for (long i = middleSignalIndex; i < vectorSize; ++i)
-    {
-        double tempVar = originalVector[i];
-
-        finalResult[i] = originalVector[vectorSize - i - 1] * (-inverter);
-        finalResult[vectorSize - i - 1] = tempVar * inverter;
-        inverter *= -1.0;
-    }
-
-    return finalResult;
-}
-
-auto calcOrthogonalVector(const std::span<const double>& vector) -> std::vector<double>
+auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>
 {
     std::vector<double> result(vector.size());
-    double multiplier = 1;
+    double multiplier = 1.0;
 
-    for (int index = static_cast<int>(vector.size()) - 1; index >= 0; index--)
+    for (size_t i = 0; i < vector.size(); ++i)
     {
-        result.at(vector.size() - (index + 1)) = vector[index] * multiplier;
-        multiplier *= -1;
+        result[i] = vector[vector.size() - 1 - i] * multiplier;
+        multiplier *= -1.0;
     }
     return result;
 }
 
-void normalizeVectorToSum1(double* signal, long signalLength)
+void normalizeVectorToSum1(std::span<double> signal)
 {
-    double sum = 0;
+    if (signal.empty()) return;
+    double sum = std::reduce(signal.begin(), signal.end(), 0.0);
 
-    for (long i = 0; i < signalLength; ++i)
-    {
-        sum += signal[i];
-    }
-
-    for (long i = 0; i < signalLength; ++i)
-    {
-        signal[i] /= sum;
-    }
+    if (std::abs(sum) > 1e-9) // Check if not zero
+        std::ranges::for_each(signal, [sum](double& v) { v /= sum; });
 }
 
-void normalizeVectorToSum1(std::vector<double>& signal)
+void normalizeVectorToSum1AllPositive(std::span<double> signal)
 {
-    double sum = std::accumulate(signal.begin(), signal.end(), 0.0);
+    if (signal.empty()) return;
+    double min_val = *std::min_element(signal.begin(), signal.end());
 
-    std::transform(
-        signal.begin(), signal.end(), signal.begin(), [sum](double v) { return v / sum; });
+    if (min_val < 0)
+    {
+        double offset = std::abs(min_val) + 1.0;
+        std::ranges::for_each(signal, [offset](double& v) { v += offset; });
+    }
+
+    normalizeVectorToSum1(signal);
 }
 
-void normalizeVectorToSum1AllPositive(std::vector<double>& signal)
-{
-    double min = signal[0];
-    double sum = 0;
-
-    for (const double& v : signal)
-    {
-        min = std::min(v, min);
-        sum += v;
-    }
-
-    if (min < 0)
-    {
-        sum = 0;
-        for (double& v : signal)
-        {
-            sum += v += std::abs(min) + (double) 1; // @suppress("Ambiguous problem")
-        }
-    }
-
-    for (double& v : signal)
-    {
-        v /= sum;
-    }
-}
-
-void normalizeVectorToSum1AllPositive(double* signal, long signalLength)
-{
-    double min = signal[0];
-    double sum = 0;
-
-    for (long i = 0; i < signalLength; ++i)
-    {
-        min = std::min(signal[i], min);
-        sum += signal[i];
-    }
-
-    if (min < 0)
-    {
-        sum = 0;
-        for (long i = 0; i < signalLength; ++i)
-        {
-            sum += signal[i] += std::abs(min) + (double) 1; // @suppress("Ambiguous problem")
-        }
-    }
-
-    std::transform(signal, signal + signalLength, signal, [sum](double v) { return v / sum; });
-}
-
-void normalizeVectorToRange(double* signal, long signalLength, double lowerLimit, double upperLimit)
+void normalizeVectorToRange(std::span<double> signal, double lowerLimit, double upperLimit)
 {
     if (lowerLimit >= upperLimit)
     {
         throw std::runtime_error("lowerLimit MUST be bigger than upperLimit");
     }
+    if (signal.empty()) return;
 
-    /*
-     * Keep this comment!
-     *
-     *	double min, max;
-     *	min = max = signal[0];
-     *
-     *	for (auto &v : signal)
-     *	{
-     *		// Minimum
-     *		if (v < min) min = v;
-     *		// Maximum
-     *		if (v > max) max = v;
-     *	}
-     *
-     *	// Normalize between 0 and 1
-     *	double rangeVal = max - min;
-     *	for (auto &v : signal)
-     *		v = (v - min) / rangeVal;
-     *
-     *	// Then scale to [lowerLimit,upperLimit]:
-     *	double rangeLim = upperLimit - lowerLimit;
-     *	for (auto &v : signal)
-     *		v = (v * rangeLim) + lowerLimit;
-     */
+    auto [minIt, maxIt] = std::minmax_element(signal.begin(), signal.end());
+    double minVal = *minIt;
+    double maxVal = *maxIt;
 
-    // The code bellow do the same as the commented code above
-    double min;
-    double max;
-    min = max = signal[0];
-
-    for (long i = 0; i < signalLength; ++i)
-    {
-        // Minimum
-        min = std::min(signal[i], min);
-        // Maximum
-        max = std::max(signal[i], max);
-    }
-
-    double rangeVal = max - min;
+    double rangeVal = (maxVal == minVal) ? 1.0 : (maxVal - minVal);
     double rangeLim = upperLimit - lowerLimit;
-    std::transform(signal,
-                   signal + signalLength,
-                   signal,
-                   [min, rangeVal, rangeLim, lowerLimit](double v)
-                   { return (((v - min) / rangeVal) * rangeLim) + lowerLimit; });
+
+    std::ranges::for_each(
+        signal, [=](double& v) { v = (((v - minVal) / rangeVal) * rangeLim) + lowerLimit; });
 }
 
-void normalizeVectorToRange(std::vector<double>& signal, double lowerLimit, double upperLimit)
+auto convolution(std::span<double> data, std::span<const double> kernel) -> bool
 {
-    if (lowerLimit >= upperLimit)
-    {
-        throw std::runtime_error("lowerLimit MUST be bigger than upperLimit");
-    }
-    /*
-     * Keep this comment!
-     *
-     *	double min, max;
-     *	min = max = signal[0];
-     *
-     *	for (auto &v : signal)
-     *	{
-     *		// Minimum
-     *		if (v < min) min = v;
-     *		// Maximum
-     *		if (v > max) max = v;
-     *	}
-     *
-     *	// Normalize between 0 and 1
-     *	double rangeVal = max == min ? 1 : max - min;
-     *	for (auto &v : signal)
-     *		v = (v - min) / rangeVal;
-     *
-     *	// Then scale to [lowerLimit,upperLimit]:
-     *	double rangeLim = upperLimit - lowerLimit;
-     *	for (auto &v : signal)
-     *		v = (v * rangeLim) + lowerLimit;
-     */
+    if (data.empty() || kernel.empty()) return false;
 
-    // The code bellow do the same as the commented code above
-    double min;
-    double max;
-    min = max = signal[0];
-
-    for (const auto& v : signal)
-    {
-        // Minimum
-        min = std::min(v, min);
-        // Maximum
-        max = std::max(v, max);
-    }
-
-    double rangeVal = max == min ? 1 : max - min;
-    double rangeLim = upperLimit - lowerLimit;
-    for (auto& v : signal)
-    {
-        v = (((v - min) / rangeVal) * rangeLim) + lowerLimit;
-    }
-}
-
-auto convolution(double* data, long dataLength, const double* kernel, long kernelSize) -> bool
-{
-    long i;
-    long j;
-    long k;
-
-    auto* convolutedSignal = new double[dataLength];
-
-    // check validity of params
-    if ((data == nullptr) || (convolutedSignal == nullptr) || (kernel == nullptr))
-    {
-        delete[] convolutedSignal;
-        return false;
-    }
-
-    if (dataLength <= 0 || kernelSize <= 0)
-    {
-        delete[] convolutedSignal;
-        return false;
-    }
+    long dataLength = static_cast<long>(data.size());
+    long kernelSize = static_cast<long>(kernel.size());
+    std::vector<double> convolutedSignal(dataLength, 0.0);
 
     // start convolution from out[kernelSize-1] to out[dataSize-1] (last)
-    for (i = kernelSize - 1; i < dataLength; ++i)
+    for (long i = kernelSize - 1; i < dataLength; ++i)
     {
-        convolutedSignal[i] = 0; // init to 0 before accumulate
-
-        for (j = i, k = 0; k < kernelSize; --j, ++k)
+        double sum = 0;
+        for (long j = i, k = 0; k < kernelSize; --j, ++k)
         {
-            convolutedSignal[i] += data[j] * kernel[k];
+            sum += data[j] * kernel[k];
         }
+        convolutedSignal[i] = sum;
     }
 
     // convolution from out[0] to out[kernelSize-2]
-    for (i = 0; i < kernelSize - 1; ++i)
+    for (long i = 0; i < kernelSize - 1; ++i)
     {
-        convolutedSignal[i] = 0; // init to 0 before sum
-
-        for (j = i, k = 0; j >= 0; --j, ++k)
+        double sum = 0;
+        for (long j = i, k = 0; j >= 0; --j, ++k)
         {
-            convolutedSignal[i] += data[j] * kernel[k];
+            sum += data[j] * kernel[k];
         }
+        convolutedSignal[i] = sum;
     }
 
-    std::copy(convolutedSignal, convolutedSignal + dataLength, data);
-
-    delete[] convolutedSignal;
-
+    std::copy(convolutedSignal.begin(), convolutedSignal.end(), data.begin());
     return true;
 }
 
-inline auto getAlphaK(unsigned int k, unsigned int N) -> double
+void discreteCosineTransform(std::span<double> vector)
 {
-    return k == 0 ? std::sqrt(1.0 / N) : std::sqrt(2.0 / N);
-}
+    if (vector.empty()) return;
+    size_t N = vector.size();
+    std::vector<double> res(N);
 
-auto discreteCosineTransform(std::vector<double>& vector) -> void
-{
-    std::vector<double> res(vector.size());
-    unsigned int N = vector.size();
-
-    // Create a vector of indices [0, 1, ..., N-1] for std::accumulate
-    std::vector<unsigned int> indices(N);
-    std::iota(indices.begin(), indices.end(), 0);
-
-    for (unsigned int k = 0; k < N; ++k)
-    {
-        double sum = std::accumulate(
-            indices.begin(),
-            indices.end(),
-            0.0,
-            [&](double acc, unsigned int n)
-            { return acc + (vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N))); });
-
-        res[k] = getAlphaK(k, N) * sum;
-    }
-
-    vector = res;
-}
-
-void discreteCosineTransform(double* vector, long vectorLength)
-{
-    auto* res = new double[vectorLength];
-    unsigned int N = vectorLength;
-
-    for (unsigned int k = 0; k < N; ++k)
+    // Naive implementation matching original logic
+    for (size_t k = 0; k < N; ++k)
     {
         double sum = 0;
-        for (unsigned int n = 0; n < N; ++n)
+        for (size_t n = 0; n < N; ++n)
         {
             sum += vector[n] * std::cos(((2.0 * n + 1.0) * M_PI * k) / (2.0 * N));
         }
 
-        res[k] = getAlphaK(k, N) * sum;
+        double alpha = (k == 0) ? std::sqrt(1.0 / N) : std::sqrt(2.0 / N);
+        res[k] = alpha * sum;
     }
 
-    for (unsigned int i = 0; i < N; ++i)
-    {
-        vector[i] = res[i];
-    }
-
-    delete[] res;
+    std::copy(res.begin(), res.end(), vector.begin());
 }
 
-auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
+void scaleMatrix(std::vector<std::vector<double>>& matrix)
 {
-    // Points to the best line that can nullify our values
-    unsigned int bestLineForSubtration = 0;
+    if (matrix.empty()) return;
+    unsigned int size = matrix.size();
 
     // Selecting the line on which we have the value to nullify
-    for (unsigned int lineIndex = 1; lineIndex < matrix.size(); lineIndex++)
+    for (unsigned int lineIndex = 1; lineIndex < size; lineIndex++)
     {
         // Selecting the column on which we have the value to nullify
         for (unsigned columnIndex = 0; columnIndex < lineIndex; columnIndex++)
         {
-            // If this value is already zero then we are ok, move on
-            if (matrix[lineIndex][columnIndex] == 0)
-            {
-                continue;
-            }
+            if (matrix[lineIndex][columnIndex] == 0) continue;
 
-            // Otherwise we must find the best line for subtraction
-            bestLineForSubtration = 0;
-            for (; bestLineForSubtration < matrix.size(); bestLineForSubtration++)
-            {
-                // The line must have an value different of
-                // zero at the position we want nullify
-                if (matrix[bestLineForSubtration][columnIndex] == 0)
-                {
-                    continue;
-                }
+            // Find best line for subtraction
+            unsigned int bestLine = 0;
+            bool found = false;
 
-                // The line must have zeros BEFORE the
-                // current position we want to nullify
+            for (; bestLine < size; bestLine++)
+            {
+                if (matrix[bestLine][columnIndex] == 0) continue;
+
                 bool zeroedBefore = true;
                 for (unsigned int ci = 0; ci < columnIndex; ci++)
                 {
-                    if (matrix[bestLineForSubtration][ci] != 0)
+                    if (matrix[bestLine][ci] != 0)
                     {
                         zeroedBefore = false;
                         break;
                     }
                 }
-                if (!zeroedBefore)
+                if (zeroedBefore)
                 {
-                    continue;
+                    found = true;
+                    break;
                 }
-
-                // We got it! Stop now!
-                break;
             }
 
-            // Check if a suitable line was actually found
-            if (bestLineForSubtration == matrix.size() ||
-                matrix[bestLineForSubtration][columnIndex] == 0)
+            if (!found || matrix[bestLine][columnIndex] == 0)
             {
+                // Keep exception message from original
                 throw std::runtime_error(
                     "Matrix is singular or ill-conditioned: no suitable pivot found for column " +
                     std::to_string(columnIndex));
             }
 
-            // Ready to calculate the coefficient
-            double coef =
-                matrix[lineIndex][columnIndex] / matrix[bestLineForSubtration][columnIndex];
+            double coef = matrix[lineIndex][columnIndex] / matrix[bestLine][columnIndex];
 
-            unsigned int ci = columnIndex;
-            matrix[lineIndex][ci] = 0;
-            ci++;
-
-            for (; ci < matrix[lineIndex].size(); ci++)
+            // Apply subtraction
+            matrix[lineIndex][columnIndex] = 0;
+            for (unsigned int ci = columnIndex + 1; ci < matrix[lineIndex].size(); ci++)
             {
-                matrix[lineIndex][ci] -= coef * matrix[bestLineForSubtration][ci];
+                matrix[lineIndex][ci] -= coef * matrix[bestLine][ci];
             }
         }
     }
@@ -441,30 +227,22 @@ auto scaleMatrix(std::vector<std::vector<double>>& matrix) -> void
 
 auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>
 {
-    // final result
-    std::vector<double> result(matrix.size());
+    if (matrix.empty()) return {};
+    unsigned int rows = matrix.size();
+    unsigned int cols = matrix[0].size();
 
-    // The amount of the matrix columns
-    unsigned int colums = matrix[0].size();
+    std::vector<double> result(rows);
 
-    // loop over all matrix lines from bottom to up
-    for (int li = static_cast<int>(matrix.size()) - 1; li >= 0; li--)
+    // Back substitution
+    for (int li = static_cast<int>(rows) - 1; li >= 0; li--)
     {
-        // Make the substitutions:
-        //	-Ignore the incognito variable (all values from main diagonal).-> "ci = li + 1"
-        //	-Ignore the right side of the equation.-> "colums - 1"
         double temp = 0;
-        for (unsigned ci = li + 1; ci < colums - 1; ci++)
+        for (unsigned int ci = li + 1; ci < cols - 1; ci++)
         {
             temp -= matrix[li][ci] * result[ci];
         }
 
-        // The result is computed as follows:
-        //	-Take the right side of the equation (the number) -> matrix[li][colums - 1]
-        //	-Take the value multiplying the incognito variable -> matrix[li][li]
-        //	-Make a substitution with previous result (the loop above)
-        //	-Then sum the substitutions with the right side of equation and divide by incognito
-        result[li] = (matrix[li][colums - 1] + temp) / matrix[li][li];
+        result[li] = (matrix[li][cols - 1] + temp) / matrix[li][li];
     }
 
     return result;
@@ -472,27 +250,27 @@ auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<
 
 void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue)
 {
-    if (newSize == vector.size())
+    long currentSize = static_cast<long>(vector.size());
+    if (currentSize == newSize) return;
+
+    if (newSize < currentSize)
     {
-        return;
+        long removeCount = currentSize - newSize;
+        long left = removeCount / 2;
+        long right = removeCount - left;
+
+        vector.erase(vector.begin(), vector.begin() + left);
+        vector.erase(vector.end() - right, vector.end());
     }
-
-    int diff = static_cast<int>(newSize - vector.size());
-    long leftPadding = diff / 2;
-    long rightPadding = diff - leftPadding;
-
-    if (newSize < vector.size())
+    else
     {
-        vector.erase(vector.begin(), vector.begin() + leftPadding * -1);
-        vector.erase(vector.end() + rightPadding, vector.end());
-        return;
+        long addCount = newSize - currentSize;
+        long left = addCount / 2;
+        long right = addCount - left;
+
+        vector.insert(vector.begin(), left, defaultValue);
+        vector.insert(vector.end(), right, defaultValue);
     }
-
-    std::vector<double> left(leftPadding, defaultValue);
-    std::vector<double> right(rightPadding, defaultValue);
-
-    vector.insert(vector.begin(), left.begin(), left.end());
-    vector.insert(vector.end(), right.begin(), right.end());
 }
 
 void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
@@ -504,7 +282,7 @@ void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
     std::vector<double> min_vals(n_features, std::numeric_limits<double>::max());
     std::vector<double> max_vals(n_features, std::numeric_limits<double>::lowest());
 
-    // Find min/max across all samples for each feature
+    // Find min/max
     for (const auto& sample : features)
     {
         for (size_t i = 0; i < n_features; ++i)
@@ -514,19 +292,25 @@ void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
         }
     }
 
-    // Normalize each feature
+    double rangeDiff = range[1] - range[0];
+    double rangeMin = range[0];
+
+    // Normalize
     for (auto& sample : features)
     {
         for (size_t i = 0; i < n_features; ++i)
         {
-            if (max_vals[i] != min_vals[i])
+            double minV = min_vals[i];
+            double maxV = max_vals[i];
+
+            if (maxV != minV)
             {
-                double normalized = (sample[i] - min_vals[i]) / (max_vals[i] - min_vals[i]);
-                sample[i] = normalized * (range[1] - range[0]) + range[0];
+                double normalized = (sample[i] - minV) / (maxV - minV);
+                sample[i] = normalized * rangeDiff + rangeMin;
             }
             else
             {
-                sample[i] = range[0];
+                sample[i] = rangeMin;
             }
         }
     }

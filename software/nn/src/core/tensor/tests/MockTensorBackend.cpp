@@ -62,11 +62,11 @@ void MockTensorBackend::construct(Index d1, Index d2, Index d3, Index d4)
     log_call("construct:" + shape_to_string());
 }
 
-void MockTensorBackend::construct(const std::vector<Index>& shape)
+void MockTensorBackend::construct(std::span<const Index> shape)
 {
     Index total = 1;
     for (Index d : shape) total *= d;
-    m_shape = shape;
+    m_shape.assign(shape.begin(), shape.end());
     m_data.assign(static_cast<std::size_t>(total), 0.0f);
     m_grad.reset();
     log_call("construct:" + shape_to_string());
@@ -110,23 +110,25 @@ float& MockTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
 {
     ensure_shape(4);
     log_call("at4d-write");
-    return m_data.at(static_cast<std::size_t>(offset_nd({d1, d2, d3, d4})));
+    std::array<Index, 4> idx = {d1, d2, d3, d4};
+    return m_data.at(static_cast<std::size_t>(offset_nd(idx)));
 }
 
 const float& MockTensorBackend::at(Index d1, Index d2, Index d3, Index d4) const
 {
     ensure_shape(4);
     log_call("at4d-read");
-    return m_data.at(static_cast<std::size_t>(offset_nd({d1, d2, d3, d4})));
+    std::array<Index, 4> idx = {d1, d2, d3, d4};
+    return m_data.at(static_cast<std::size_t>(offset_nd(idx)));
 }
 
-float& MockTensorBackend::at(const std::vector<Index>& indices)
+float& MockTensorBackend::at(std::span<const Index> indices)
 {
     log_call("atnd-write");
     return m_data.at(static_cast<std::size_t>(offset_nd(indices)));
 }
 
-const float& MockTensorBackend::at(const std::vector<Index>& indices) const
+const float& MockTensorBackend::at(std::span<const Index> indices) const
 {
     log_call("atnd-read");
     return m_data.at(static_cast<std::size_t>(offset_nd(indices)));
@@ -137,7 +139,7 @@ const std::vector<Index>& MockTensorBackend::shape() const
     return m_shape;
 }
 
-void MockTensorBackend::reshape(const std::vector<Index>& new_shape)
+void MockTensorBackend::reshape(std::span<const Index> new_shape)
 {
     log_call("reshape:" + shape_to_string());
     Index new_size = 1;
@@ -150,7 +152,7 @@ void MockTensorBackend::reshape(const std::vector<Index>& new_shape)
     {
         throw std::invalid_argument("New shape size must match old shape size");
     }
-    m_shape = new_shape;
+    m_shape.assign(new_shape.begin(), new_shape.end());
 }
 
 Index MockTensorBackend::rows() const
@@ -675,7 +677,7 @@ Index MockTensorBackend::offset_2d(Index row, Index col) const
     return row * cols() + col;
 }
 
-Index MockTensorBackend::offset_nd(const std::vector<Index>& indices) const
+Index MockTensorBackend::offset_nd(std::span<const Index> indices) const
 {
     if (indices.size() != m_shape.size())
     {

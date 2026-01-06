@@ -3,14 +3,14 @@
 #include <algorithm>
 #include <numeric>
 #include <random>
+#include <span>
 #include <stdexcept>
 #include <vector>
 
 #include "nn/tensor/Tensor.hpp"
 
-auto create_batches(const std::vector<nn::Tensor>& inputSamples,
-                    const std::vector<nn::Tensor>& targets, const int batch_size)
-    -> std::vector<Batch>
+auto create_batches(std::span<const nn::Tensor> inputSamples, std::span<const nn::Tensor> targets,
+                    const int batch_size) -> std::vector<Batch>
 {
     if (batch_size <= 0)
     {

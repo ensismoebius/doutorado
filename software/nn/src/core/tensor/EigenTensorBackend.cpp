@@ -7,7 +7,7 @@ namespace nn
 {
 
 // Helper function
-Index EigenTensorBackend::calculate_total_size(const std::vector<Index>& shape)
+Index EigenTensorBackend::calculate_total_size(std::span<const Index> shape)
 {
     Index total = 1;
     for (Index dim : shape)
@@ -51,7 +51,7 @@ void EigenTensorBackend::construct(Index d1, Index d2, Index d3, Index d4)
     m_shape = {d1, d2, d3, d4};
 }
 
-void EigenTensorBackend::construct(const std::vector<Index>& shape)
+void EigenTensorBackend::construct(std::span<const Index> shape)
 {
     if (shape.size() == 2)
     {
@@ -61,7 +61,7 @@ void EigenTensorBackend::construct(const std::vector<Index>& shape)
     Index total_size = calculate_total_size(shape);
     m_data = Eigen::MatrixXf::Zero(static_cast<Eigen::Index>(total_size), 1);
     m_grad_backend = nullptr;
-    m_shape = shape;
+    m_shape.assign(shape.begin(), shape.end());
 }
 
 // Data access methods
@@ -145,7 +145,7 @@ const float& EigenTensorBackend::at(Index i) const
 }
 
 // N-D access
-float& EigenTensorBackend::at(const std::vector<Index>& indices)
+float& EigenTensorBackend::at(std::span<const Index> indices)
 {
     if (indices.size() != m_shape.size())
     {
@@ -165,7 +165,7 @@ float& EigenTensorBackend::at(const std::vector<Index>& indices)
     return m_data(static_cast<Eigen::Index>(index), 0);
 }
 
-const float& EigenTensorBackend::at(const std::vector<Index>& indices) const
+const float& EigenTensorBackend::at(std::span<const Index> indices) const
 {
     if (indices.size() != m_shape.size())
     {
@@ -208,13 +208,13 @@ Index EigenTensorBackend::size() const
     return static_cast<Index>(m_data.size());
 }
 
-void EigenTensorBackend::reshape(const std::vector<Index>& new_shape)
+void EigenTensorBackend::reshape(std::span<const Index> new_shape)
 {
     if (calculate_total_size(new_shape) != size())
     {
         throw std::invalid_argument("New shape size must match old shape size");
     }
-    m_shape = new_shape;
+    m_shape.assign(new_shape.begin(), new_shape.end());
 }
 
 // Row/column operations
