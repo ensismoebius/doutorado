@@ -7,18 +7,18 @@
 #include <memory>
 #include <tuple>
 
-#include "nn/saver/NetworkSerializer.hpp"
-#include "nn/utility/batching.hpp"
-#include "nn/utility/synthetic_spike_data.hpp"
-#include "nn/utility/vectorizationCheck.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
+#include "nn/saver/NetworkSerializer.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/EigenParallel.hpp"
+#include "nn/utility/batching.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
+#include "nn/utility/vectorizationCheck.hpp"
 
 using std::cout;
 using std::fixed;
@@ -28,8 +28,6 @@ using std::setprecision;
 using std::string;
 using std::tie;
 using std::vector;
-
-// Initialize Eigen parallel execution is now called inside main
 
 // If DEBUG is defined then show the debug information
 #ifdef DEBUG

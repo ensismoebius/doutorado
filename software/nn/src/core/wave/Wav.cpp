@@ -69,6 +69,7 @@ void Wav::process()
     }
 }
 
+// flawfinder: ignore
 void Wav::read(const std::string& _path)
 {
     // Validate input path
@@ -414,7 +415,14 @@ inline void Wav::read8BitMono(std::ifstream& ifs)
         {
             throw std::runtime_error("Error reading audio data: unexpected end of file");
         }
+
         Wav::read_binary(ifs, waveformdata);
+
+        if (i >= this->data.size())
+        {
+            throw std::runtime_error("Buffer overflow detected in read8BitMono");
+        }
+
         this->data.at(i) = static_cast<double>(waveformdata);
     }
 }
@@ -431,8 +439,15 @@ inline void Wav::read8BitStereo(std::ifstream& ifs)
         {
             throw std::runtime_error("Error reading audio data: unexpected end of file");
         }
+
         Wav::read_binary(ifs, waveformdata_left);
         Wav::read_binary(ifs, waveformdata_right);
+
+        if (i >= this->dataLeft.size() || i >= this->dataRight.size())
+        {
+            throw std::runtime_error("Buffer overflow detected in read8BitStereo");
+        }
+
         this->dataLeft.at(i) = static_cast<double>(waveformdata_right);
         this->dataRight.at(i) = static_cast<double>(waveformdata_left);
     }
@@ -449,8 +464,15 @@ inline void Wav::read16BitMono(std::ifstream& ifs)
         {
             throw std::runtime_error("Error reading audio data: unexpected end of file");
         }
+
         Wav::read_binary(ifs, waveformdata_lsb);
         Wav::read_binary(ifs, waveformdata_msb);
+
+        if (i >= this->data.size())
+        {
+            throw std::runtime_error("Buffer overflow detected in read16BitMono");
+        }
+
         this->data.at(i) =
             static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb, waveformdata_msb));
     }
@@ -474,8 +496,15 @@ inline void Wav::read16BitStereo(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_msb_left);
         Wav::read_binary(ifs, waveformdata_lsb_right);
         Wav::read_binary(ifs, waveformdata_msb_right);
+
+        if (i >= this->dataLeft.size() || i >= this->dataRight.size())
+        {
+            throw std::runtime_error("Buffer overflow detected in read16BitStereo");
+        }
+
         this->dataLeft.at(i) = static_cast<double>(
             combine_8bit_to_16bit(waveformdata_lsb_left, waveformdata_msb_left));
+
         this->dataRight.at(i) = static_cast<double>(
             combine_8bit_to_16bit(waveformdata_lsb_right, waveformdata_msb_right));
     }

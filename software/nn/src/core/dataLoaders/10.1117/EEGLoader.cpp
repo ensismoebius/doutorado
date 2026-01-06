@@ -3,6 +3,7 @@
 #include <matio.h>
 
 #include <array>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
 
@@ -57,9 +58,24 @@ auto EEGLoader::readFirstNumericVariable() -> std::optional<MatVarUniquePtr>
     return std::nullopt;
 }
 
+// flawfinder: ignore
 auto EEGLoader::open(const std::string& filePath) noexcept -> bool
 {
     filePath_ = filePath;
+    // Security: Check for symlinks and regular file
+    std::filesystem::path fpath(filePath);
+    try
+    {
+        if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath) ||
+            std::filesystem::is_symlink(fpath))
+        {
+            return false;
+        }
+    }
+    catch (...)
+    {
+        return false;
+    }
     matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY); // flawfinder: ignore
     return matFile_ != nullptr;
 }

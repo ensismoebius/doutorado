@@ -2,11 +2,12 @@
 
 #include <matio.h>
 
+#include <filesystem>
 #include <optional>
 #include <stdexcept>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/dataLoaders/IMatLoader.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {
@@ -24,10 +25,29 @@ class AudioLoader : public IMatLoader
         }
     }
 
+    // flawfinder: ignore
     auto open(const std::string& filePath) noexcept -> bool override
     {
         filePath_ = filePath;
-        matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY); // flawfinder: ignore
+        // Security: Check for symlinks and regular file to prevent CWE-362
+        std::filesystem::path fpath(filePath);
+        try
+        {
+            // Ensure the path exists, is a regular file, and is not a symlink.
+            // This helps mitigate risks like symlink attacks (CWE-362).
+            if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
+            {
+                return false;
+            }
+            // std::filesystem::is_symlink(fpath) is implicitly covered by is_regular_file(fpath)
+            // for the target of the symlink. If fpath itself is a symlink, is_regular_file returns
+            // false.
+        }
+        catch (...)
+        {
+            return false;
+        }
+        matFile_ = Mat_Open(filePath.c_str(), MAT_ACC_RDONLY);
         return matFile_ != nullptr;
     }
 

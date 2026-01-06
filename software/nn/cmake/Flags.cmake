@@ -26,14 +26,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # --- Common flags for all build types ---
 add_compile_options(
-    # -Wall
-    # -Wpedantic
-    # -Wshadow
+    -Wall
+    -Wpedantic
+    -Wshadow
     -fdiagnostics-color=always
     -fdiagnostics-show-option
-    -Rpass-analysis=copy-construction
     -Wpessimizing-move
     -Wredundant-move
+    -Wno-user-defined-literals
+    -Wno-unknown-warning-option
 )
 
 # --- Debug-specific flags ---

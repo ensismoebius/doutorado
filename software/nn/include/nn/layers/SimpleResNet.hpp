@@ -15,7 +15,6 @@ class SimpleResNet : public Module
 {
    public:
     SimpleResNet(int input_dim, int hidden_dim, int output_dim, int depth = 3)
-        : input_dim_(input_dim), output_dim_(output_dim)
     {
         // Build model: input -> Linear -> ReLU -> ResidualBlocks -> Linear(output)
         auto fc_in = std::make_shared<Linear>(input_dim, hidden_dim);
@@ -67,8 +66,6 @@ class SimpleResNet : public Module
     }
 
    private:
-    int input_dim_;
-    int output_dim_;
     std::vector<std::shared_ptr<Module>> layers_;
     std::unique_ptr<Sequential> model_;
 };
