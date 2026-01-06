@@ -183,5 +183,10 @@
     "terminal.integrated.gpuAcceleration": "on",
     "editor.gotoLocation.multipleDefinitions": "goto",
     "editor.gotoLocation.multipleDeclarations": "goto",
-    "editor.gotoLocation.multipleImplementations": "goto"
+    "editor.gotoLocation.multipleImplementations": "goto",
+    // --------------------------------------------------
+    // Disable CMake Tools test explorer integration
+    // (using Tests Mate)
+    // --------------------------------------------------
+    "cmake.ctest.testExplorerIntegrationEnabled": false
 }

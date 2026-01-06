@@ -1,6 +1,7 @@
 #include "EigenTensorBackend.hpp"
 
 #include <cassert>
+#include <numeric>
 #include <stdexcept>
 
 namespace nn
@@ -13,12 +14,24 @@ namespace nn
 // Accepts a non-owning view (`std::span`) over the shape dimensions.
 Index EigenTensorBackend::calculate_total_size(std::span<const Index> shape)
 {
-    Index total = 1;
-    for (Index dim : shape)
-    {
-        total *= dim;
-    }
-    return total;
+    return std::accumulate(
+        shape.begin(),
+        shape.end(),
+        Index{1},
+        [](Index accumulator, Index value) -> Index
+        {
+            if (value < 0) [[unlikely]]
+            {
+                throw std::invalid_argument("Negative tensor dimension");
+            }
+
+            if (value != 0 && accumulator > std::numeric_limits<Index>::max() / value) [[unlikely]]
+            {
+                throw std::overflow_error("Tensor size overflow");
+            }
+
+            return accumulator * value;
+        });
 }
 
 // -----------------------------------------------------------------------------
@@ -355,8 +368,10 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::add(const ITensorBackend& ot
         throw std::invalid_argument("Shape mismatch in add");
     }
     const auto& eigen_other = dynamic_cast<const EigenTensorBackend&>(other);
+    // Use std::move to allow EigenTensorBackend to take ownership of the data
+    // without triggering a copy, as MatrixXf has move semantics.
     Eigen::MatrixXf result = m_data + eigen_other.m_data;
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::multiply(const ITensorBackend& other) const
@@ -367,7 +382,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::multiply(const ITensorBacken
     }
     const auto& eigen_other = dynamic_cast<const EigenTensorBackend&>(other);
     Eigen::MatrixXf result = m_data.cwiseProduct(eigen_other.m_data);
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 void EigenTensorBackend::add_scalar(float scalar)
@@ -395,7 +410,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::matmul(const ITensorBackend&
     }
     const auto& eigen_other = dynamic_cast<const EigenTensorBackend&>(other);
     Eigen::MatrixXf result = m_data * eigen_other.m_data;
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::transpose() const
@@ -405,7 +420,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::transpose() const
         throw std::invalid_argument("transpose() only valid for 2D tensors");
     }
     Eigen::MatrixXf result = m_data.transpose();
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 // -----------------------------------------------------------------------------
@@ -414,13 +429,13 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::transpose() const
 std::unique_ptr<ITensorBackend> EigenTensorBackend::relu() const
 {
     Eigen::MatrixXf result = m_data.array().max(0.0f);
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::leaky_relu(float alpha) const
 {
     Eigen::MatrixXf result = m_data.array().max(0.0f) + (m_data.array().min(0.0f) * alpha);
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 // -----------------------------------------------------------------------------
@@ -433,8 +448,8 @@ float EigenTensorBackend::mean_squared_error(const ITensorBackend& target) const
         throw std::invalid_argument("Shape mismatch in mean_squared_error");
     }
     const auto& eigen_target = dynamic_cast<const EigenTensorBackend&>(target);
-    Eigen::MatrixXf diff = m_data - eigen_target.m_data;
-    float sum_squared = diff.array().square().sum();
+    // Use Eigen expression templates to avoid allocating a temporary difference matrix
+    float sum_squared = (m_data - eigen_target.m_data).array().square().sum();
     return sum_squared / static_cast<float>(m_data.size());
 }
 
@@ -458,7 +473,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::sum_rows() const
     Eigen::VectorXf summed = m_data.rowwise().sum();
     Eigen::MatrixXf result(summed.size(), 1);
     result.col(0) = summed;
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::sum_cols() const
@@ -471,7 +486,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::sum_cols() const
     Eigen::RowVectorXf summed = m_data.colwise().sum();
     Eigen::MatrixXf result(1, summed.size());
     result.row(0) = summed;
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 // -----------------------------------------------------------------------------
@@ -602,7 +617,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::slice(std::span<const int> i
     }
 
     // Create a new EigenTensorBackend with the sliced data
-    return std::make_unique<EigenTensorBackend>(sliced_data);
+    return std::make_unique<EigenTensorBackend>(std::move(sliced_data));
 }
 
 Index EigenTensorBackend::data_rows() const
@@ -619,19 +634,19 @@ Index EigenTensorBackend::data_cols() const
 std::unique_ptr<ITensorBackend> EigenTensorBackend::sqrt() const
 {
     Eigen::MatrixXf result = m_data.array().sqrt().matrix();
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::square() const
 {
     Eigen::MatrixXf result = m_data.array().square().matrix();
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::abs() const
 {
     Eigen::MatrixXf result = m_data.array().abs().matrix();
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::divide(const ITensorBackend& other) const
@@ -646,7 +661,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::divide(const ITensorBackend&
         throw std::invalid_argument("Shape mismatch in divide operation");
     }
     Eigen::MatrixXf result = m_data.array() / other_eigen->m_data.array();
-    return std::make_unique<EigenTensorBackend>(result.matrix());
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 std::unique_ptr<ITensorBackend> EigenTensorBackend::divide_scalar(float scalar) const
@@ -656,7 +671,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::divide_scalar(float scalar) 
         throw std::invalid_argument("Division by zero");
     }
     Eigen::MatrixXf result = m_data / scalar;
-    return std::make_unique<EigenTensorBackend>(result);
+    return std::make_unique<EigenTensorBackend>(std::move(result));
 }
 
 // Initialization
