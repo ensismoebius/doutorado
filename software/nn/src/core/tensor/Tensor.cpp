@@ -100,29 +100,9 @@ Tensor& Tensor::operator=(const Tensor& other)
 // Shape and size information
 // These methods forward to the backend which owns the concrete shape info.
 // ---------------------------------------------------------------------------
-auto Tensor::get_shape() const -> const std::vector<Index>&
-{
-    return m_backend->shape();
-}
-
 void Tensor::reshape(const std::vector<Index>& new_shape)
 {
     m_backend->reshape(new_shape);
-}
-
-auto Tensor::rows() const noexcept -> Index
-{
-    return m_backend->rows();
-}
-
-auto Tensor::cols() const noexcept -> Index
-{
-    return m_backend->cols();
-}
-
-auto Tensor::size() const noexcept -> Index
-{
-    return m_backend->size();
 }
 
 // ---------------------------------------------------------------------------
@@ -130,47 +110,6 @@ auto Tensor::size() const noexcept -> Index
 // Thin forwarding accessors for common indexing patterns. Bounds checking and
 // indexing semantics are implemented by the backend; Tensor simply delegates.
 // ---------------------------------------------------------------------------
-auto Tensor::at(Index row, Index col) -> float&
-{
-    return m_backend->at(row, col);
-}
-
-auto Tensor::at(Index row, Index col) const -> const float&
-{
-    return m_backend->at(row, col);
-}
-
-auto Tensor::at(Index d1, Index d2, Index d3, Index d4) -> float&
-{
-    return m_backend->at(d1, d2, d3, d4);
-}
-
-auto Tensor::at(Index d1, Index d2, Index d3, Index d4) const -> const float&
-{
-    return m_backend->at(d1, d2, d3, d4);
-}
-
-// 1D access
-auto Tensor::at(Index i) -> float&
-{
-    return m_backend->at(i);
-}
-
-auto Tensor::at(Index i) const -> const float&
-{
-    return m_backend->at(i);
-}
-
-// General N-D access (delegates to backend's span-based implementation)
-auto Tensor::at(const std::vector<Index>& indices) -> float&
-{
-    return m_backend->at(indices);
-}
-
-auto Tensor::at(const std::vector<Index>& indices) const -> const float&
-{
-    return m_backend->at(indices);
-}
 
 // ---------------------------------------------------------------------------
 // Views and block operations
@@ -374,15 +313,6 @@ void Tensor::set_ones()
 }
 
 // Data pointer access
-const float* Tensor::data_ptr() const
-{
-    return m_backend->data_ptr();
-}
-
-float* Tensor::mutable_data_ptr()
-{
-    return m_backend->mutable_data_ptr();
-}
 
 // Gradient access
 auto Tensor::grad() const -> Tensor

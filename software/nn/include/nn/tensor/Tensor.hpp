@@ -53,30 +53,71 @@ class Tensor
 
     // -----------------------------------------------------------------
     // Shape / sizing helpers
+    // Implementation note: These are defined inline to allow the compiler
+    // to eliminate function call overhead in tight loops.
     // -----------------------------------------------------------------
     /// Return the tensor shape as a vector of dimension sizes.
-    auto get_shape() const -> const std::vector<Index>&;
+    auto get_shape() const -> const std::vector<Index>&
+    {
+        return m_backend->shape();
+    }
     /// Reshape the tensor (backend dependent; may reallocate or reinterpret).
     void reshape(const std::vector<Index>& new_shape);
-    [[nodiscard]] auto rows() const noexcept -> Index;
-    [[nodiscard]] auto cols() const noexcept -> Index;
-    [[nodiscard]] auto size() const noexcept -> Index;
+    [[nodiscard]] auto rows() const noexcept -> Index
+    {
+        return m_backend->rows();
+    }
+    [[nodiscard]] auto cols() const noexcept -> Index
+    {
+        return m_backend->cols();
+    }
+    [[nodiscard]] auto size() const noexcept -> Index
+    {
+        return m_backend->size();
+    }
 
     // -----------------------------------------------------------------
     // Element access
+    // Implementation note: These are defined inline to allow the compiler
+    // to eliminate function call overhead. Bounds checking is handled
+    // by the backend.
     // -----------------------------------------------------------------
     /// 1-D element access
-    auto at(Index i) -> float&;
-    [[nodiscard]] auto at(Index i) const -> const float&;
+    auto at(Index i) -> float&
+    {
+        return m_backend->at(i);
+    }
+    [[nodiscard]] auto at(Index i) const -> const float&
+    {
+        return m_backend->at(i);
+    }
     /// 2-D element access (row, col)
-    auto at(Index row, Index col) -> float&;
-    [[nodiscard]] auto at(Index row, Index col) const -> const float&;
+    auto at(Index row, Index col) -> float&
+    {
+        return m_backend->at(row, col);
+    }
+    [[nodiscard]] auto at(Index row, Index col) const -> const float&
+    {
+        return m_backend->at(row, col);
+    }
     /// 4-D element access
-    auto at(Index d1, Index d2, Index d3, Index d4) -> float&;
-    [[nodiscard]] auto at(Index d1, Index d2, Index d3, Index d4) const -> const float&;
+    auto at(Index d1, Index d2, Index d3, Index d4) -> float&
+    {
+        return m_backend->at(d1, d2, d3, d4);
+    }
+    [[nodiscard]] auto at(Index d1, Index d2, Index d3, Index d4) const -> const float&
+    {
+        return m_backend->at(d1, d2, d3, d4);
+    }
     /// N-D element access using an indices vector.
-    auto at(const std::vector<Index>& indices) -> float&;
-    [[nodiscard]] auto at(const std::vector<Index>& indices) const -> const float&;
+    auto at(const std::vector<Index>& indices) -> float&
+    {
+        return m_backend->at(indices);
+    }
+    [[nodiscard]] auto at(const std::vector<Index>& indices) const -> const float&
+    {
+        return m_backend->at(indices);
+    }
 
     // -----------------------------------------------------------------
     // Views / Slicing
@@ -172,8 +213,14 @@ class Tensor
         return at(i, j);
     }
 
-    const float* data_ptr() const;
-    float* mutable_data_ptr();
+    const float* data_ptr() const
+    {
+        return m_backend->data_ptr();
+    }
+    float* mutable_data_ptr()
+    {
+        return m_backend->mutable_data_ptr();
+    }
 
     // -----------------------------------------------------------------
     // Gradients and backend access
