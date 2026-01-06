@@ -14,11 +14,11 @@ set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 # Sets the CMake policies for this project
 include(cmake/Policies.cmake)
 
-# Tooling setup (ccache, analysis tool detection, compile_commands.json export)
-include(cmake/Tooling.cmake)
+# # Tooling setup (ccache, analysis tool detection, compile_commands.json export)
+# include(cmake/Tooling.cmake)
 
-# Development and analysis custom targets
-include(cmake/DevAndAnalysisTargets.cmake)
+# # Development and analysis custom targets
+# include(cmake/DevAndAnalysisTargets.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)

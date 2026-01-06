@@ -21,4 +21,6 @@ target_link_libraries(tensor
     PRIVATE Eigen3::Eigen
 )
 
+configure_eigen_parallel_target(tensor)
+
 add_subdirectory(tests)

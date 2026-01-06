@@ -7,11 +7,25 @@
 namespace nn
 {
 
+// ---------------------------------------------------------------------------
+// Tensor - Implementation
+// This file implements the small, high-level `Tensor` wrapper which delegates
+// storage and numerical operations to a pluggable `ITensorBackend` (default
+// provided by `TensorBackendFactory`). The implementation below is intentionally
+// thin: it forwards calls to the backend and provides convenient factory
+// methods and operator overloads used by the rest of the codebase.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 // Constructors
+// ---------------------------------------------------------------------------
+// Construct an empty tensor backed by the default backend.
 Tensor::Tensor() : m_backend(TensorBackendFactory::create_backend()) {}
 
+// Construct a tensor from an existing backend (takes ownership).
 Tensor::Tensor(std::unique_ptr<ITensorBackend> backend) : m_backend(std::move(backend)) {}
 
+// Construct common shapes. These allocate storage via the backend.
 Tensor::Tensor(Index rows, Index cols) : m_backend(TensorBackendFactory::create_backend())
 {
     m_backend->construct(rows, cols);
@@ -28,7 +42,10 @@ Tensor::Tensor(const std::vector<Index>& shape) : m_backend(TensorBackendFactory
     m_backend->construct(shape);
 }
 
-// Static factory methods for creating initialized tensors
+// ---------------------------------------------------------------------------
+// Factory helpers
+// Convenient static constructors for common initialized tensors.
+// ---------------------------------------------------------------------------
 auto Tensor::constant(Index rows, Index cols, float value) -> Tensor
 {
     Tensor t(rows, cols);
@@ -50,7 +67,11 @@ auto Tensor::ones(Index rows, Index cols) -> Tensor
     return t;
 }
 
-// Copy constructor
+// ---------------------------------------------------------------------------
+// Copy / assignment
+// The tensor performs deep copies of the backend via `clone()` to preserve
+// value semantics while keeping the backend implementation opaque.
+// ---------------------------------------------------------------------------
 Tensor::Tensor(const Tensor& other)
 {
     if (other.m_backend)
@@ -59,7 +80,6 @@ Tensor::Tensor(const Tensor& other)
     }
 }
 
-// Copy assignment operator
 Tensor& Tensor::operator=(const Tensor& other)
 {
     if (this != &other)
@@ -76,7 +96,10 @@ Tensor& Tensor::operator=(const Tensor& other)
     return *this;
 }
 
+// ---------------------------------------------------------------------------
 // Shape and size information
+// These methods forward to the backend which owns the concrete shape info.
+// ---------------------------------------------------------------------------
 auto Tensor::get_shape() const -> const std::vector<Index>&
 {
     return m_backend->shape();
@@ -102,7 +125,11 @@ auto Tensor::size() const noexcept -> Index
     return m_backend->size();
 }
 
-// Element access for 2D and 4D tensors
+// ---------------------------------------------------------------------------
+// Element accessors
+// Thin forwarding accessors for common indexing patterns. Bounds checking and
+// indexing semantics are implemented by the backend; Tensor simply delegates.
+// ---------------------------------------------------------------------------
 auto Tensor::at(Index row, Index col) -> float&
 {
     return m_backend->at(row, col);
@@ -134,7 +161,7 @@ auto Tensor::at(Index i) const -> const float&
     return m_backend->at(i);
 }
 
-// General N-D access
+// General N-D access (delegates to backend's span-based implementation)
 auto Tensor::at(const std::vector<Index>& indices) -> float&
 {
     return m_backend->at(indices);
@@ -145,7 +172,10 @@ auto Tensor::at(const std::vector<Index>& indices) const -> const float&
     return m_backend->at(indices);
 }
 
-// Row and column access
+// ---------------------------------------------------------------------------
+// Views and block operations
+// Return new `Tensor` instances that own the extracted sub-blocks or columns/rows.
+// ---------------------------------------------------------------------------
 auto Tensor::row(Index i) const -> Tensor
 {
     return Tensor(m_backend->row(i));
@@ -166,7 +196,6 @@ auto Tensor::topRows(Index n) const -> Tensor
     return Tensor(m_backend->topRows(n));
 }
 
-// Block operations
 auto Tensor::block(Index row, Index col, Index rows, Index cols) const -> Tensor
 {
     return Tensor(m_backend->block(row, col, rows, cols));
@@ -177,7 +206,10 @@ void Tensor::setBlock(Index row, Index col, const Tensor& block)
     m_backend->setBlock(row, col, *block.m_backend);
 }
 
+// ---------------------------------------------------------------------------
 // Element-wise operations
+// These create new `Tensor` results by delegating to the backend.
+// ---------------------------------------------------------------------------
 auto Tensor::add(const Tensor& other) const -> Tensor
 {
     return Tensor(m_backend->add(*other.m_backend));
@@ -202,7 +234,9 @@ auto Tensor::multiply_scalar(float scalar) const -> Tensor
     return result;
 }
 
-// Matrix operations
+// ---------------------------------------------------------------------------
+// Matrix / linear algebra operations
+// ---------------------------------------------------------------------------
 auto Tensor::matmul(const Tensor& other) const -> Tensor
 {
     return Tensor(m_backend->matmul(*other.m_backend));
@@ -213,7 +247,10 @@ auto Tensor::transpose() const -> Tensor
     return Tensor(m_backend->transpose());
 }
 
-// Activation functions
+// ---------------------------------------------------------------------------
+// Activations, losses and reductions
+// Simple forwarding helpers for common neural-network operations.
+// ---------------------------------------------------------------------------
 auto Tensor::relu() const -> Tensor
 {
     return Tensor(m_backend->relu());
@@ -224,7 +261,6 @@ auto Tensor::leaky_relu(float alpha) const -> Tensor
     return Tensor(m_backend->leaky_relu(alpha));
 }
 
-// Loss functions
 auto Tensor::mean_squared_error(const Tensor& target) const -> float
 {
     return m_backend->mean_squared_error(*target.m_backend);
@@ -249,7 +285,11 @@ auto Tensor::sum_cols() const -> Tensor
 {
     return Tensor(m_backend->sum_cols());
 }
-// Slice operation
+// ---------------------------------------------------------------------------
+// Slice & gradient helpers
+// `slice` creates a new tensor by selecting rows (backend-defined). `zero_grad`
+// forwards gradient clearing to the backend.
+// ---------------------------------------------------------------------------
 auto Tensor::slice(std::span<const int> indices) const -> Tensor
 {
     if (!m_backend)
@@ -259,7 +299,6 @@ auto Tensor::slice(std::span<const int> indices) const -> Tensor
     return Tensor(m_backend->slice(indices));
 }
 
-// Zero out the gradient
 void Tensor::zero_grad()
 {
     m_backend->zero_grad();

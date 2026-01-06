@@ -6,7 +6,11 @@
 namespace nn
 {
 
-// Helper function
+// -----------------------------------------------------------------------------
+// Helper utilities
+// -----------------------------------------------------------------------------
+// Calculate the total number of elements represented by `shape`.
+// Accepts a non-owning view (`std::span`) over the shape dimensions.
 Index EigenTensorBackend::calculate_total_size(std::span<const Index> shape)
 {
     Index total = 1;
@@ -17,7 +21,10 @@ Index EigenTensorBackend::calculate_total_size(std::span<const Index> shape)
     return total;
 }
 
-// Constructors
+// -----------------------------------------------------------------------------
+// Constructors / destructor
+// -----------------------------------------------------------------------------
+// Default constructs an empty backend (0x0 matrix).
 EigenTensorBackend::EigenTensorBackend() : m_data(), m_grad_backend(nullptr), m_shape() {}
 
 EigenTensorBackend::EigenTensorBackend(const Eigen::MatrixXf& data)
@@ -34,11 +41,16 @@ EigenTensorBackend::EigenTensorBackend(Eigen::MatrixXf&& data)
 {
 }
 
+// -----------------------------------------------------------------------------
 // Construction methods
+// These helpers allocate the underlying Eigen matrix and reset gradient state.
+// -----------------------------------------------------------------------------
 void EigenTensorBackend::construct(Index rows, Index cols)
 {
-    m_data =
-        Eigen::MatrixXf::Zero(static_cast<Eigen::Index>(rows), static_cast<Eigen::Index>(cols));
+    m_data = Eigen::MatrixXf::Zero(      //
+        static_cast<Eigen::Index>(rows), //
+        static_cast<Eigen::Index>(cols)  //
+    );
     m_grad_backend = nullptr;
     m_shape = {rows, cols};
 }
@@ -64,7 +76,12 @@ void EigenTensorBackend::construct(std::span<const Index> shape)
     m_shape.assign(shape.begin(), shape.end());
 }
 
-// Data access methods
+// -----------------------------------------------------------------------------
+// Element accessors
+// Provide bounds-checked access for 1D/2D/4D and N-D indexing. These throw
+// `std::out_of_range` or `std::invalid_argument` upon misuse, matching the
+// behavior expected by callers and unit tests.
+// -----------------------------------------------------------------------------
 float& EigenTensorBackend::at(Index row, Index col)
 {
     if (m_shape.size() != 2)
@@ -125,7 +142,9 @@ const float& EigenTensorBackend::at(Index d1, Index d2, Index d3, Index d4) cons
     return m_data(static_cast<Eigen::Index>(index));
 }
 
-// 1D access
+// -----------------------------------------------------------------------------
+// 1D access (flattened index)
+// -----------------------------------------------------------------------------
 float& EigenTensorBackend::at(Index i)
 {
     if (i >= static_cast<Index>(m_data.size()))
@@ -144,7 +163,12 @@ const float& EigenTensorBackend::at(Index i) const
     return m_data(static_cast<Eigen::Index>(i));
 }
 
+// -----------------------------------------------------------------------------
 // N-D access
+// Calculates a flattened index using row-major ordering and returns the
+// corresponding element. This supports tensors whose logical shape is stored
+// in `m_shape` (which may be different from the 2D storage of Eigen).
+// -----------------------------------------------------------------------------
 float& EigenTensorBackend::at(std::span<const Index> indices)
 {
     if (indices.size() != m_shape.size())
@@ -185,7 +209,9 @@ const float& EigenTensorBackend::at(std::span<const Index> indices) const
     return m_data(static_cast<Eigen::Index>(index), 0);
 }
 
-// Shape and size methods
+// -----------------------------------------------------------------------------
+// Shape and size queries
+// -----------------------------------------------------------------------------
 const std::vector<Index>& EigenTensorBackend::shape() const
 {
     return m_shape;
@@ -217,7 +243,12 @@ void EigenTensorBackend::reshape(std::span<const Index> new_shape)
     m_shape.assign(new_shape.begin(), new_shape.end());
 }
 
-// Row/column operations
+// -----------------------------------------------------------------------------
+// Row / Column / Block views
+// These methods return new `EigenTensorBackend` instances owning copies of the
+// requested sub-matrices. Returning copies keeps semantics simple and avoids
+// lifetime coupling with the original matrix.
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::row(Index i) const
 {
     if (m_shape.size() != 2)
@@ -274,7 +305,9 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::topRows(Index n) const
     return std::make_unique<EigenTensorBackend>(rows_data);
 }
 
+// -----------------------------------------------------------------------------
 // Block operations
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::block(Index row, Index col, Index rows,
                                                           Index cols) const
 {
@@ -311,7 +344,10 @@ void EigenTensorBackend::setBlock(Index row, Index col, const ITensorBackend& bl
                  static_cast<Eigen::Index>(block.shape()[1])) = eigen_block.m_data;
 }
 
-// Element-wise operations
+// -----------------------------------------------------------------------------
+// Element-wise arithmetic
+// These operate elementwise and return new backends with the result.
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::add(const ITensorBackend& other) const
 {
     if (m_shape != other.shape())
@@ -344,7 +380,9 @@ void EigenTensorBackend::multiply_scalar(float scalar)
     m_data.array() *= scalar;
 }
 
+// -----------------------------------------------------------------------------
 // Matrix operations
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::matmul(const ITensorBackend& other) const
 {
     if (m_shape.size() != 2 || other.shape().size() != 2)
@@ -370,7 +408,9 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::transpose() const
     return std::make_unique<EigenTensorBackend>(result);
 }
 
-// Activation functions
+// -----------------------------------------------------------------------------
+// Activation helpers
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::relu() const
 {
     Eigen::MatrixXf result = m_data.array().max(0.0f);
@@ -383,7 +423,9 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::leaky_relu(float alpha) cons
     return std::make_unique<EigenTensorBackend>(result);
 }
 
-// Loss functions
+// -----------------------------------------------------------------------------
+// Losses, norms and reductions
+// -----------------------------------------------------------------------------
 float EigenTensorBackend::mean_squared_error(const ITensorBackend& target) const
 {
     if (m_shape != target.shape())
@@ -432,7 +474,12 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::sum_cols() const
     return std::make_unique<EigenTensorBackend>(result);
 }
 
+// -----------------------------------------------------------------------------
 // Gradient operations
+// The backend lazily allocates `m_grad_backend` (mutable) so const methods can
+// still ensure a valid gradient exists. `zero_grad()` will allocate and size
+// the gradient container appropriately and zero its contents.
+// -----------------------------------------------------------------------------
 void EigenTensorBackend::zero_grad()
 {
     if (!m_grad_backend)
@@ -484,7 +531,10 @@ ITensorBackend& EigenTensorBackend::grad()
     return *m_grad_backend;
 }
 
-// Utility methods
+// -----------------------------------------------------------------------------
+// Utilities
+// clone/copy/slice helpers used by higher-level logic and tests.
+// -----------------------------------------------------------------------------
 std::unique_ptr<ITensorBackend> EigenTensorBackend::clone() const
 {
     auto backend = std::make_unique<EigenTensorBackend>(m_data);
@@ -532,6 +582,7 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::slice(std::span<const int> i
 
     Eigen::MatrixXf sliced_data(new_rows, num_cols);
 
+    // 1. Validation pass (must be serial to safely throw exceptions)
     for (Eigen::Index i = 0; i < new_rows; ++i)
     {
         const int original_row_idx = indices[static_cast<std::size_t>(i)];
@@ -539,6 +590,14 @@ std::unique_ptr<ITensorBackend> EigenTensorBackend::slice(std::span<const int> i
         {
             throw std::out_of_range("Slice index out of range.");
         }
+    }
+
+// 2. Execution pass (parallelized)
+// Using a threshold to avoid overhead on small slices
+#pragma omp parallel for if (new_rows > 64)
+    for (Eigen::Index i = 0; i < new_rows; ++i)
+    {
+        const int original_row_idx = indices[static_cast<std::size_t>(i)];
         sliced_data.row(i) = m_data.row(original_row_idx);
     }
 

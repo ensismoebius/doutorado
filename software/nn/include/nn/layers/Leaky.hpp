@@ -5,9 +5,9 @@
 #include <memory>
 #include <utility>
 
-#include "nn/tensor/Tensor.hpp"
-#include "nn/layers/SurrogateGradient.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/layers/SurrogateGradient.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 #ifdef DEBUG
 #include "nn/utility/printTensor.hpp"
@@ -236,26 +236,12 @@ struct Leaky : public Module
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.
-        nn::Tensor grad_v_pre_mat(grad_output.rows(), grad_output.cols());
-        for (size_t i = 0; i < grad_output.rows(); ++i)
-        {
-            for (size_t j = 0; j < grad_output.cols(); ++j)
-            {
-                grad_v_pre_mat.at(i, j) = grad_output.at(i, j) * surrogate_grad.at(i, j);
-            }
-        }
+        nn::Tensor grad_v_pre_mat = grad_output.multiply(surrogate_grad);
 
         // --- Gradient for voltage_threshold ---
         // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) =
         // -grad_v_pre Since V_th is a scalar, we sum the gradients from all neurons.
-        float dL_dVth = 0.0f;
-        for (size_t i = 0; i < grad_v_pre_mat.rows(); ++i)
-        {
-            for (size_t j = 0; j < grad_v_pre_mat.cols(); ++j)
-            {
-                dL_dVth -= grad_v_pre_mat.at(i, j);
-            }
-        }
+        float dL_dVth = -grad_v_pre_mat.sum();
         nn::Tensor vth_grad(1, 1);
         vth_grad.at(0, 0) = dL_dVth;
         voltage_threshold.set_grad(vth_grad);
@@ -271,14 +257,7 @@ struct Leaky : public Module
             const float d_beta_dR = (beta * dt) / (C * R * R);
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
-            float dL_dbeta = 0.0f;
-            for (size_t i = 0; i < grad_v_pre_mat.rows(); ++i)
-            {
-                for (size_t j = 0; j < grad_v_pre_mat.cols(); ++j)
-                {
-                    dL_dbeta += grad_v_pre_mat.at(i, j) * v_mem_t_minus_1.at(i, j);
-                }
-            }
+            float dL_dbeta = grad_v_pre_mat.multiply(v_mem_t_minus_1).sum();
             const float dL_dR = dL_dbeta * d_beta_dR;
             nn::Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dR;

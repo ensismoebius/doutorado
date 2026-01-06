@@ -22,3 +22,5 @@ src/.vscode/c_cpp_properties.json
 *build*
 CMakeLists.txt.user
 programs.txt
+software/nn/weights/decoder_spike_model_weights.npz
+software/nn/weights/encoder_spike_model_weights.npz
