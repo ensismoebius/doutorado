@@ -2,7 +2,6 @@
 #define TENSOR_HPP
 
 #include <algorithm>
-#include <memory>
 #include <span>
 #include <vector>
 
