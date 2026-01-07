@@ -18,21 +18,21 @@ gtest_discover_tests(tensor_gtest)
 configure_eigen_parallel_target(tensor_gtest)
 
 # Mock-backend focused tests (Eigen-free math, but Tensor header still requires Eigen include)
-add_executable(tensor_mock_gtest 
-    mock_backend_gtest.cpp
-    MockTensorBackend.cpp
-)
-
-target_link_libraries(tensor_mock_gtest
-    PRIVATE
-        google_test
-        Eigen3::Eigen
-        tensor
-)
-
-target_include_directories(tensor_mock_gtest
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-)
-
-gtest_discover_tests(tensor_mock_gtest)
+# add_executable(tensor_mock_gtest 
+#     mock_backend_gtest.cpp
+#     MockTensorBackend.cpp
+# )
+# 
+# target_link_libraries(tensor_mock_gtest
+#     PRIVATE
+#         google_test
+#         Eigen3::Eigen
+#         tensor
+# )
+# 
+# target_include_directories(tensor_mock_gtest
+#     PRIVATE
+#         ${CMAKE_SOURCE_DIR}/src
+# )
+# 
+# gtest_discover_tests(tensor_mock_gtest)

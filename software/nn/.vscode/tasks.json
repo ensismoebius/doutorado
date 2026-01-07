@@ -377,6 +377,41 @@
 				"$gcc"
 			],
 			"group": "test"
+		},
+		{
+			"label": "debug_tensor_test",
+			"type": "shell",
+			"command": "ctest --test-dir build -R TensorTest --output-on-failure",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "build_tensor_gtest",
+			"type": "shell",
+			"command": "cmake --build build --target tensor_gtest",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "ctest_verify_full",
+			"type": "shell",
+			"command": "ctest --test-dir build --output-on-failure -j4",
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "run_tensor_test_debug",
+			"type": "shell",
+			"command": "ctest",
+			"args": [
+				"--test-dir",
+				"build",
+				"-R",
+				"TensorTest",
+				"--output-on-failure"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

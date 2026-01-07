@@ -1,10 +1,8 @@
 add_library(tensor STATIC
     Tensor.cpp
-    ${CMAKE_SOURCE_DIR}/include/nn/tensor/ITensorBackend.hpp
-    EigenTensorBackend.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/tensor/Tensor.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/tensor/EigenTensorBackend.hpp
     EigenTensorBackend.cpp
-    ${CMAKE_SOURCE_DIR}/include/nn/tensor/TensorBackendFactory.hpp
-    TensorBackendFactory.cpp
 )
 
 set_target_properties(tensor PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
