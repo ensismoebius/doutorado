@@ -39,8 +39,13 @@ inline auto initializeEigenParallel(int numThreads = 0) -> void
 #ifdef _OPENMP
     // Inform OpenMP runtime about the desired thread count as well.
     omp_set_num_threads(numThreads);
-    // Disable nested parallelism by default to avoid oversubscription.
+#if _OPENMP >= 200805
+    // Disable nested parallelism by default to avoid oversubscription (OpenMP 3.0+)
+    omp_set_max_active_levels(1);
+#else
+    // Disable nested parallelism by default to avoid oversubscription
     omp_set_nested(0);
+#endif
 #endif
 
     // Set Eigen's internal threading to match.

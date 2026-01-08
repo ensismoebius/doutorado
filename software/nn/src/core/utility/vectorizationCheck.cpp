@@ -1,5 +1,5 @@
 #include "nn/utility/vectorizationCheck.hpp"
-
+#include <Eigen/Dense>
 #include <iostream>
 
 void printVectorizationSupport()
