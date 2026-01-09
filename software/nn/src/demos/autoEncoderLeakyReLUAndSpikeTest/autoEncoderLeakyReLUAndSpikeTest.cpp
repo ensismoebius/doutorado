@@ -1,11 +1,14 @@
 #include <cnpy.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <ranges>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -17,7 +20,6 @@
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/EigenParallel.hpp"
-#include "nn/utility/batching.hpp"
 #include "nn/utility/reset.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
@@ -54,8 +56,9 @@ class SpikeAutoEncoder : public Module
     SpikeAutoEncoder(const ModelConfig& cfg)
     {
         // --- Helper to create layers succinctly ---
-        auto lin = [](int in, int out) { return make_shared<Linear>(in, out); };
-        auto leaky = [&](bool readout = false)
+        auto lin = [](int in, int out) -> std::shared_ptr<Module>
+        { return make_shared<Linear>(in, out); };
+        auto leaky = [&](bool readout = false) -> std::shared_ptr<Module>
         {
             return make_shared<LeakyBPTT>(cfg.steps,
                                           cfg.dt,
@@ -70,37 +73,37 @@ class SpikeAutoEncoder : public Module
 
         // --- Build Encoder ---
         // Layers: Input -> H1 -> H2 -> H3 -> H4 -> H5 -> Bottleneck
-        std::vector<std::shared_ptr<Module>> enc_layers;
-        enc_layers.push_back(lin(cfg.input_dim, cfg.hidden_dims[0]));
-        enc_layers.push_back(leaky());
-        enc_layers.push_back(lin(cfg.hidden_dims[0], cfg.hidden_dims[1]));
-        enc_layers.push_back(leaky());
-        enc_layers.push_back(lin(cfg.hidden_dims[1], cfg.hidden_dims[2]));
-        enc_layers.push_back(leaky());
-        enc_layers.push_back(lin(cfg.hidden_dims[2], cfg.hidden_dims[3]));
-        enc_layers.push_back(leaky());
-        enc_layers.push_back(lin(cfg.hidden_dims[3], cfg.hidden_dims[4]));
-        enc_layers.push_back(leaky());
-        enc_layers.push_back(lin(cfg.hidden_dims[4], cfg.bottleneck_dim));
-        enc_layers.push_back(leaky());
-        encoder = Sequential(enc_layers);
+        encoder = Sequential({
+            lin(cfg.input_dim, cfg.hidden_dims[0]),
+            leaky(),
+            lin(cfg.hidden_dims[0], cfg.hidden_dims[1]),
+            leaky(),
+            lin(cfg.hidden_dims[1], cfg.hidden_dims[2]),
+            leaky(),
+            lin(cfg.hidden_dims[2], cfg.hidden_dims[3]),
+            leaky(),
+            lin(cfg.hidden_dims[3], cfg.hidden_dims[4]),
+            leaky(),
+            lin(cfg.hidden_dims[4], cfg.bottleneck_dim),
+            leaky(),
+        });
 
         // --- Build Decoder ---
         // Layers: Bottleneck -> H5 -> H4 -> H3 -> H2 -> H1 -> Output
-        std::vector<std::shared_ptr<Module>> dec_layers;
-        dec_layers.push_back(lin(cfg.bottleneck_dim, cfg.hidden_dims[4]));
-        dec_layers.push_back(leaky());
-        dec_layers.push_back(lin(cfg.hidden_dims[4], cfg.hidden_dims[3]));
-        dec_layers.push_back(leaky());
-        dec_layers.push_back(lin(cfg.hidden_dims[3], cfg.hidden_dims[2]));
-        dec_layers.push_back(leaky());
-        dec_layers.push_back(lin(cfg.hidden_dims[2], cfg.hidden_dims[1]));
-        dec_layers.push_back(leaky());
-        dec_layers.push_back(lin(cfg.hidden_dims[1], cfg.hidden_dims[0]));
-        dec_layers.push_back(leaky());
-        dec_layers.push_back(lin(cfg.hidden_dims[0], cfg.input_dim));
-        dec_layers.push_back(leaky(true)); // Readout layer (leaky integrator)
-        decoder = Sequential(dec_layers);
+        decoder = Sequential({
+            lin(cfg.bottleneck_dim, cfg.hidden_dims[4]),
+            leaky(),
+            lin(cfg.hidden_dims[4], cfg.hidden_dims[3]),
+            leaky(),
+            lin(cfg.hidden_dims[3], cfg.hidden_dims[2]),
+            leaky(),
+            lin(cfg.hidden_dims[2], cfg.hidden_dims[1]),
+            leaky(),
+            lin(cfg.hidden_dims[1], cfg.hidden_dims[0]),
+            leaky(),
+            lin(cfg.hidden_dims[0], cfg.input_dim),
+            leaky(true), // Readout layer (leaky integrator)
+        });
     }
 
     // Forward pass: x -> Encoder -> z -> Decoder -> x_recon
@@ -213,31 +216,38 @@ class SpikeAutoEncoder : public Module
 // =============================================================================
 // Utility: Gradient Clipping
 // =============================================================================
-void clip_gradients(vector<nn::Tensor*>& params, float max_norm)
+void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
 {
+    // C++20 Ranges: Compute total norm squared
+    auto param_norms = params | std::views::transform(
+                                    [](auto* p)
+                                    {
+                                        float n = p->grad().norm();
+                                        return n * n;
+                                    });
+
     float total_norm_sq = 0.0f;
-    for (auto* p : params)
-    {
-        nn::Tensor g = p->grad();
-        if (g.size() > 0)
-        {
-            // Simple check: iterate to find norm
-            for (int i = 0; i < g.rows(); ++i)
-                for (int j = 0; j < g.cols(); ++j) total_norm_sq += g.at(i, j) * g.at(i, j);
-        }
-    }
+    for (float n_sq : param_norms) total_norm_sq += n_sq;
+
     float total_norm = std::sqrt(total_norm_sq);
 
     if (total_norm > max_norm)
     {
         float scale = max_norm / (total_norm + 1e-6f);
-        for (auto* p : params)
-        {
-            nn::Tensor g = p->grad();
-            for (int i = 0; i < g.rows(); ++i)
-                for (int j = 0; j < g.cols(); ++j) g.at(i, j) *= scale;
-            p->set_grad(g);
-        }
+
+        // C++20 Ranges: Scale gradients
+        std::ranges::for_each(params,
+                              [scale](auto* p)
+                              {
+                                  nn::Tensor g = p->grad();
+                                  if (g.size() > 0)
+                                  {
+                                      std::span<float> data(g.mutable_data(), g.size());
+                                      std::ranges::for_each(data,
+                                                            [scale](float& val) { val *= scale; });
+                                      p->set_grad(g);
+                                  }
+                              });
     }
 }
 
@@ -251,7 +261,18 @@ auto main(int, char*[]) -> int
     cout << fixed << scientific << setprecision(4);
 
     // 1. Setup
-    ModelConfig config;
+    ModelConfig config{.input_dim = 100,
+                       .hidden_dims = {50, 40, 30, 20, 10},
+                       .bottleneck_dim = 10,
+                       .steps = 100,
+                       .dt = 0.001f,
+                       .R = 5.0f,
+                       .C = 1.0f,
+                       .thr = 0.01f,
+                       .lr = 0.001f,
+                       .epochs = 4000,
+                       .batch_size = 32};
+
     SpikeAutoEncoder model(config);
     model.initialize_weights("weights/encoder_spike_model_weights.npz",
                              "weights/decoder_spike_model_weights.npz");
@@ -268,11 +289,13 @@ auto main(int, char*[]) -> int
         generate_autoencoder_spike_data_of_ones(n_samples, config.input_dim, config.steps);
 
     nn::Tensor inputs(n_samples * config.steps, config.input_dim);
-    for (int t = 0; t < config.steps; ++t)
+
+    // C++20 Ranges: Nested loops for data flattening
+    for (int t : std::views::iota(0, config.steps))
     {
-        for (int i = 0; i < n_samples; ++i)
+        for (int i : std::views::iota(0, n_samples))
         {
-            for (int j = 0; j < config.input_dim; ++j)
+            for (int j : std::views::iota(0, config.input_dim))
             {
                 inputs.at(t * n_samples + i, j) = input_seq[t].at(i, j);
             }
@@ -283,7 +306,7 @@ auto main(int, char*[]) -> int
     ofstream log_file("cpp_loss_log.txt");
     cout << "Starting training...\n";
 
-    for (int epoch = 0; epoch < config.epochs; ++epoch)
+    for (int epoch : std::views::iota(0, config.epochs))
     {
         // Zero Grad
         optimizer.zero_grad(params);
