@@ -13,6 +13,9 @@ class ISurrogateGradient
 
     [[nodiscard]] virtual auto calculate(const nn::Tensor& v_mem_pre_spike,
                                          float voltage_threshold) const -> nn::Tensor = 0;
+
+    [[nodiscard]] virtual auto calculate_scalar(float v_mem_pre_spike,
+                                                float voltage_threshold) const -> float = 0;
 };
 
 // Exponential / SuperSpike surrogate gradient
@@ -30,11 +33,17 @@ class ExponentialSurrogate : public ISurrogateGradient
         {
             for (size_t j = 0; j < v_mem_pre_spike.cols(); ++j)
             {
-                float diff_abs = std::abs(v_mem_pre_spike.at(i, j) - voltage_threshold);
-                result.at(i, j) = (1.0F / sharpness_) * std::exp(-diff_abs / sharpness_);
+                result.at(i, j) = calculate_scalar(v_mem_pre_spike.at(i, j), voltage_threshold);
             }
         }
         return result;
+    }
+
+    [[nodiscard]] auto calculate_scalar(float v_mem_pre_spike, float voltage_threshold) const
+        -> float override
+    {
+        float diff_abs = std::abs(v_mem_pre_spike - voltage_threshold);
+        return (1.0F / sharpness_) * std::exp(-diff_abs / sharpness_);
     }
 
    private:
@@ -52,16 +61,22 @@ class BoxcarSurrogate : public ISurrogateGradient
     {
         // Boxcar: return 1.0 if |v - threshold| < window/2, else 0.0
         nn::Tensor result(v_mem_pre_spike.rows(), v_mem_pre_spike.cols());
-        float half_window = window_ / 2.0F;
         for (size_t i = 0; i < v_mem_pre_spike.rows(); ++i)
         {
             for (size_t j = 0; j < v_mem_pre_spike.cols(); ++j)
             {
-                float diff_abs = std::abs(v_mem_pre_spike.at(i, j) - voltage_threshold);
-                result.at(i, j) = (diff_abs < half_window) ? 1.0F : 0.0F;
+                result.at(i, j) = calculate_scalar(v_mem_pre_spike.at(i, j), voltage_threshold);
             }
         }
         return result;
+    }
+
+    [[nodiscard]] auto calculate_scalar(float v_mem_pre_spike, float voltage_threshold) const
+        -> float override
+    {
+        float half_window = window_ / 2.0F;
+        float diff_abs = std::abs(v_mem_pre_spike - voltage_threshold);
+        return (diff_abs < half_window) ? 1.0F : 0.0F;
     }
 
    private:

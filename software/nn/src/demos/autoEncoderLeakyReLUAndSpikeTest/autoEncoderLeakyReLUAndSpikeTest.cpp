@@ -1,14 +1,23 @@
+#include <cnpy.h>
+
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
+#include <string>
 #include <tuple>
+#include <vector>
 
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/layers/Leaky.hpp"
+#include "nn/layers/LeakyBPTT.hpp"
+#include "nn/layers/LeakyIntegrator.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/layers/Sequential.hpp"
@@ -17,6 +26,7 @@
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/EigenParallel.hpp"
 #include "nn/utility/batching.hpp"
+#include "nn/utility/reset.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
 
@@ -73,16 +83,16 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     // ==== Data Generation ====
 
     // Network parameters
-    constexpr float learning_rate = 0.0001;  // Learning rate for the optimizer - low for stability
+    constexpr float learning_rate = 0.001;   // Reduced learning rate
     constexpr float target_loss = -1.0e-14F; // Target loss value for early stopping
-    constexpr int input_dim = 1000;          // Input dimension for synthetic data
-    constexpr int hidden_dim1 = 500;         // First hidden layer dimension
-    constexpr int hidden_dim2 = 250;         // Second hidden layer dimension
-    constexpr int hidden_dim3 = 125;         // Third hidden layer dimension
-    constexpr int hidden_dim4 = 63;          // Fourth hidden layer dimension
-    constexpr int hidden_dim5 = 32;          // Fifth hidden layer dimension
-    constexpr int bottleneck_dim = 15;       // bottleneck layer size
-    constexpr int epochs = 3; // Number of training epochs in which n_samples is presented
+    constexpr int input_dim = 100;           // Input dimension for synthetic data
+    constexpr int hidden_dim1 = 50;          // First hidden layer dimension
+    constexpr int hidden_dim2 = 40;          // Second hidden layer dimension
+    constexpr int hidden_dim3 = 30;          // Third hidden layer dimension
+    constexpr int hidden_dim4 = 20;          // Fourth hidden layer dimension
+    constexpr int hidden_dim5 = 10;          // Fifth hidden layer dimension
+    constexpr int bottleneck_dim = 10;       // bottleneck layer size
+    constexpr int epochs = 4000; // Number of training epochs in which n_samples is presented
     const string encoder_weights_file_path =
         "weights/encoder_spike_model_weights.npz"; // Model weights file
     const string decoder_weights_file_path =
@@ -96,136 +106,103 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     constexpr int n_steps = 100;  // Number of time steps in the spike train
     constexpr float time_step = 0.001F; // Time step duration
 
-    constexpr float resist = 5.0F;      // Resistance R
-    constexpr float capct = 1.0F;       // Capacitance C
-    constexpr float v_thresh = 0.0001F; // Membrane potential threshold
+    constexpr float resist = 5.0F;    // Resistance R
+    constexpr float capct = 1.0F;     // Capacitance C
+    constexpr float v_thresh = 0.01F; // Membrane potential threshold
 
     // Create input and target tensors
-    vector<nn::Tensor> inputs;
-    vector<nn::Tensor> targets;
+    vector<nn::Tensor> input_sequence;
+    vector<nn::Tensor> target_sequence;
 
     // Generate synthetic spike data
-    // float max_rate = 500.0F; // Maximum firing rate
-    // tie(inputs, targets) =
-    //     generate_autoencoder_spike_data(n_samples, input_dim, n_steps,
-    //     max_rate, time_step);
-    tie(inputs, targets) = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
+    tie(input_sequence, target_sequence) =
+        generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
+
+    // Stack sequence into single Tensor (Time*Batch, Features)
+    // input_sequence is vector of n_steps, each (n_samples, input_dim)
+    nn::Tensor inputs(n_samples * n_steps, input_dim);
+    nn::Tensor targets(n_samples * n_steps, input_dim);
+
+    for (int t = 0; t < n_steps; ++t)
+    {
+        for (int i = 0; i < n_samples; ++i)
+        {
+            for (int j = 0; j < input_dim; ++j)
+            {
+                float val = input_sequence[t].at(i, j);
+                inputs.at(t * n_samples + i, j) = val;
+                targets.at(t * n_samples + i, j) = val;
+            }
+        }
+    }
+
+    // Use SINGLE BATCH containing all data (simplified for this test)
+    // Or we should adapt create_batches to handle 3D Logic.
+    // Given the small data size, full batch training is fine.
+    // inputs is now (1000, 100).
 
     // ==== Model Definition ====
+
+    // Use LeakyBPTT for comparison with snnTorch
+    auto EncLayer = [&](int in, int out) { return make_shared<Linear>(in, out); };
+
+    auto ActLayer = [&](int steps)
+    {
+        return make_shared<LeakyBPTT>(steps,
+                                      time_step,
+                                      resist,
+                                      capct,
+                                      v_thresh,
+                                      true,
+                                      0.0F,
+                                      false,
+                                      std::make_shared<ExponentialSurrogate>(1.0F));
+    };
 
     ///////////////////////////////
     //////// Encoder layers ///////
     ///////////////////////////////
-    auto enc1 = make_shared<Linear>(input_dim, hidden_dim1);
-    auto enc_act1 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc1 = EncLayer(input_dim, hidden_dim1);
+    auto enc_act1 = ActLayer(n_steps);
 
-    auto enc2 = make_shared<Linear>(hidden_dim1, hidden_dim2);
-    auto enc_act2 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc2 = EncLayer(hidden_dim1, hidden_dim2);
+    auto enc_act2 = ActLayer(n_steps);
 
-    auto enc3 = make_shared<Linear>(hidden_dim2, hidden_dim3);
-    auto enc_act3 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc3 = EncLayer(hidden_dim2, hidden_dim3);
+    auto enc_act3 = ActLayer(n_steps);
 
-    auto enc4 = make_shared<Linear>(hidden_dim3, hidden_dim4);
-    auto enc_act4 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc4 = EncLayer(hidden_dim3, hidden_dim4);
+    auto enc_act4 = ActLayer(n_steps);
 
-    auto enc5 = make_shared<Linear>(hidden_dim4, hidden_dim5);
-    auto enc_act5 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc5 = EncLayer(hidden_dim4, hidden_dim5);
+    auto enc_act5 = ActLayer(n_steps);
 
-    auto enc6 = make_shared<Linear>(hidden_dim5, bottleneck_dim);
-    auto enc_act6 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto enc6 = EncLayer(hidden_dim5, bottleneck_dim);
+    auto enc_act6 = ActLayer(n_steps);
 
     ///////////////////////////////
     //////// Decoder layers ///////
     ///////////////////////////////
-    auto dec1 = make_shared<Linear>(bottleneck_dim, hidden_dim5);
-    auto dec_act1 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec1 = EncLayer(bottleneck_dim, hidden_dim5);
+    auto dec_act1 = ActLayer(n_steps);
 
-    auto dec2 = make_shared<Linear>(hidden_dim5, hidden_dim4);
-    auto dec_act2 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec2 = EncLayer(hidden_dim5, hidden_dim4);
+    auto dec_act2 = ActLayer(n_steps);
 
-    auto dec3 = make_shared<Linear>(hidden_dim4, hidden_dim3);
-    auto dec_act3 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec3 = EncLayer(hidden_dim4, hidden_dim3);
+    auto dec_act3 = ActLayer(n_steps);
 
-    auto dec4 = make_shared<Linear>(hidden_dim3, hidden_dim2);
-    auto dec_act4 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec4 = EncLayer(hidden_dim3, hidden_dim2);
+    auto dec_act4 = ActLayer(n_steps);
 
-    auto dec5 = make_shared<Linear>(hidden_dim2, hidden_dim1);
-    auto dec_act5 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec5 = EncLayer(hidden_dim2, hidden_dim1);
+    auto dec_act5 = ActLayer(n_steps);
 
-    auto dec6 = make_shared<Linear>(hidden_dim1, input_dim);
-    auto dec_act6 = make_shared<Leaky>(time_step,
-                                       resist,
-                                       capct,
-                                       v_thresh,
-                                       true,
-                                       0.0F,
-                                       std::make_shared<ExponentialSurrogate>(1.0F));
+    auto dec6 = EncLayer(hidden_dim1, input_dim);
+    // Final Layer: Readout Mode (Leaky Integrator BPTT)
+    // readout_mode = true
+    auto dec_act6 =
+        make_shared<LeakyBPTT>(n_steps, time_step, resist, capct, v_thresh, true, 0.0F, true);
 
     //////////////////////////
     // ==== Loss Layer ====///
@@ -264,12 +241,69 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
     // ==== Initialization ====
 
-    // Try to load existing weights, if they exist
-    // otherwise initialize encoder and decoder weights and biases
-    // Try to load weights for both encoder and decoder networks
-    const bool loaded_weights =
-        NetworkSerializer::loadNetwork(encoders, encoder_weights_file_path) &&
-        NetworkSerializer::loadNetwork(decoders, decoder_weights_file_path);
+    // Helper to load weights explicitly from NPZ files generated by Python script
+    auto load_weights_explicit = [&](Sequential& seq, const string& file) -> bool
+    {
+        if (!std::filesystem::exists(file)) return false;
+        try
+        {
+            cnpy::npz_t data = cnpy::npz_load(file);
+            for (size_t i = 0; i < seq.layers.size(); ++i)
+            {
+                if (auto lin = std::dynamic_pointer_cast<Linear>(seq.layers[i]))
+                {
+                    string key_prefix = std::to_string(i);
+                    string w_key = key_prefix + ".weight";
+                    if (data.count(w_key))
+                    {
+                        auto& arr = data[w_key];
+                        float* w_ptr = arr.data<float>();
+                        // Check dimensions loosely (total size)
+                        size_t total_size = 1;
+                        for (auto d : arr.shape) total_size *= d;
+
+                        if (lin->weight.rows() * lin->weight.cols() != total_size)
+                        {
+                            std::cerr << "Shape mismatch loading " << w_key << "\n";
+                            continue;
+                        }
+
+                        for (int r = 0; r < lin->weight.rows(); ++r)
+                        {
+                            for (int c = 0; c < lin->weight.cols(); ++c)
+                            {
+                                lin->weight.at(r, c) = w_ptr[r * lin->weight.cols() + c];
+                            }
+                        }
+                    }
+
+                    string b_key = key_prefix + ".bias";
+                    if (data.count(b_key))
+                    {
+                        auto& arr = data[b_key];
+                        float* b_ptr = arr.data<float>();
+                        for (int r = 0; r < lin->bias.rows(); ++r)
+                        {
+                            for (int c = 0; c < lin->bias.cols(); ++c)
+                            {
+                                lin->bias.at(r, c) = b_ptr[r * lin->bias.cols() + c];
+                            }
+                        }
+                    }
+                }
+            }
+            std::cout << "Loaded weights from " << file << "\n";
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error loading weights: " << e.what() << "\n";
+            return false;
+        }
+    };
+
+    const bool loaded_weights = load_weights_explicit(encoders, encoder_weights_file_path) &&
+                                load_weights_explicit(decoders, decoder_weights_file_path);
 
     if (!loaded_weights)
     {
@@ -284,7 +318,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
         kaimingSNNInitializer(enc5);
         kaimingSNNInitializer(enc6);
 
-        // Initialize decoder weights and biases if no saved weights exist
+        // Initialize decoder weights
         kaimingSNNInitializer(dec1);
         kaimingSNNInitializer(dec2);
         kaimingSNNInitializer(dec3);
@@ -301,71 +335,113 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     params.insert(params.end(), encoder_params.begin(), encoder_params.end());
     params.insert(params.end(), decoder_params.begin(), decoder_params.end());
 
+    // Scale down weights to prevent explosion with high Tau
+    if (!loaded_weights)
+    {
+        for (auto* p : params)
+        {
+            // Only scale weights, not biases (though biases are usually 0 init)
+            // KaimingSNN might give large values for this depth.
+            // Multiply by 0.01f
+            for (int i = 0; i < p->rows(); ++i)
+            {
+                for (int j = 0; j < p->cols(); ++j)
+                {
+                    p->at(i, j) *= 0.01f;
+                }
+            }
+        }
+    }
+
     Adam optimizer(learning_rate);
     optimizer.attach(params);
 
     // ==== Training Loop ====
     float epoch_loss = std::numeric_limits<float>::max();
+    std::ofstream log_file("cpp_loss_log.txt");
 
     for (size_t epoch = 0; epoch < epochs; ++epoch)
     {
-        // Create batches
-        auto batches = create_batches(inputs, targets, batch_size);
+        // Zero gradients!
+        optimizer.zero_grad(params);
 
-        for (const auto& batch : batches)
+        // Reset state (utils.reset)
+        nn::utility::reset(encoders);
+        nn::utility::reset(decoders);
+
+        // For autoencoder, the target is the input itself
+        mse_loss->set_target(inputs);
+
+        // Forward pass (Time Unrolled internally)
+        nn::Tensor encoded = encoders.forward(inputs);
+        nn::Tensor decoded = decoders.forward(encoded);
+
+        nn::Tensor loss_tensor = mse_loss->forward(decoded);
+
+        // Compute gradients using the improved MSELoss backward pass
+        nn::Tensor grad_loss = mse_loss->backward(decoded);
+
+        // Backward pass (BPTT internally)
+        nn::Tensor decoder_grad = decoders.backward(grad_loss);
+        encoders.backward(decoder_grad);
+
+        // Gradient Clipping
+        float max_grad_norm = 1.0f;
+        float total_norm_sq = 0.0f;
+        for (auto* p : params)
         {
-            // For autoencoder, the target is the input itself
-            mse_loss->set_target(batch.inputs);
+            nn::Tensor g = p->grad();
+            // Simple sum of squares
+            if (g.size() > 0)
+            {
+                // Access data directly if possible or iterate
+                for (int i = 0; i < g.rows(); ++i)
+                    for (int j = 0; j < g.cols(); ++j)
+                    {
+                        float val = g.at(i, j);
+                        total_norm_sq += val * val;
+                    }
+            }
+        }
+        float total_norm = std::sqrt(total_norm_sq);
 
-            // Forward pass through encoder and decoder - backend will handle
-            // internal parallelization
-            nn::Tensor encoded = encoders.forward(batch.inputs);
-            nn::Tensor decoded = decoders.forward(encoded);
-            nn::Tensor loss_tensor = mse_loss->forward(decoded);
-
-            // Compute gradients using the improved MSELoss backward pass
-            nn::Tensor grad_loss = mse_loss->backward(decoded);
-
-            // Backward pass through decoder first, then encoder
-            nn::Tensor decoder_grad = decoders.backward(grad_loss);
-            encoders.backward(decoder_grad);
-
-            // Update parameters
-            optimizer.step(params);
-
-            // Track best loss in epoch
-            float tmp = loss_tensor(0, 0);
-            epoch_loss = tmp < epoch_loss ? tmp : epoch_loss;
-
-// If DEBUG is defined then show the debug information
-#ifdef DEBUG
-            debug(batch, decoded, loss_tensor);
-#endif
+        if (epoch % 10 == 0 || epoch < 5)
+        {
+            std::cout << "Epoch " << epoch << " Grad Norm: " << total_norm << std::endl;
         }
 
-        // Print progress
-        cout << "Epoch: " << epoch << " - Loss: " << epoch_loss << "\r" << std::flush;
-
-        // Stop training when target loss is achieved
-        if (epoch_loss < target_loss)
+        if (total_norm > max_grad_norm)
         {
-            break;
+            float scale = max_grad_norm / (total_norm + 1e-6f);
+            for (auto* p : params)
+            {
+                nn::Tensor g = p->grad();
+                // Scale gradient
+                for (int i = 0; i < g.rows(); ++i)
+                    for (int j = 0; j < g.cols(); ++j)
+                    {
+                        g.at(i, j) *= scale;
+                    }
+                p->set_grad(g);
+            }
+            if (epoch == 0) std::cout << "Gradients clipped. Scale: " << scale << std::endl;
         }
+
+        // Update parameters
+        optimizer.step(params);
+
+        // Track best loss in epoch
+        float current_loss = loss_tensor.at(0, 0);
+        epoch_loss = current_loss; // Update final loss tracker
+
+        if (epoch % 10 == 0)
+        {
+            std::cout << "Epoch " << epoch << " Loss: " << current_loss << std::endl;
+        }
+        log_file << epoch << "," << current_loss << "\n";
     }
 
-    // ==== End of Training ====
-    cout << "Training complete. Final loss: " << epoch_loss << "\n";
-
-    // Save both encoder and decoder networks
-    if (NetworkSerializer::saveNetwork(encoders, encoder_weights_file_path) &&
-        NetworkSerializer::saveNetwork(decoders, decoder_weights_file_path))
-    {
-        cout << "Network weights saved successfully.\n";
-    }
-    else
-    {
-        cout << "Failed to save network weights.\n";
-    }
-
+    log_file.close();
+    std::cout << "Final Loss: " << epoch_loss << std::endl;
     return 0;
 }

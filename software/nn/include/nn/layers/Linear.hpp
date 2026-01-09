@@ -1,8 +1,8 @@
 #ifndef LINEAR_CPP
 #define LINEAR_CPP
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * @brief Camada Linear (ou camada totalmente conectada)
@@ -112,7 +112,8 @@ struct Linear : public Module
 
         // Calculate weight gradient: grad_weight = grad_previous.T * input_cache
         nn::Tensor grad_weight = grad_previous.transpose().matmul(input_cache);
-        // weight.set_grad(grad_weight); // This needs a Tensor-based set_grad
+
+        weight.set_grad(grad_weight);
 
         // Calculate bias gradient: sum of grad_previous columns
         nn::Tensor grad_bias(out_features, 1);
@@ -125,11 +126,19 @@ struct Linear : public Module
             }
             grad_bias.at(j, 0) = sum;
         }
-        // bias.set_grad(grad_bias); // This needs a Tensor-based set_grad
+        bias.set_grad(grad_bias);
 
         // Calculate input gradient: grad_input = grad_previous * weight
         auto grad_input_tensor = grad_previous.matmul(weight);
         return grad_input_tensor;
+    }
+
+    /**
+     * @brief Returns trainable parameters
+     */
+    auto params() -> std::vector<nn::Tensor*> override
+    {
+        return {&weight, &bias};
     }
 };
 

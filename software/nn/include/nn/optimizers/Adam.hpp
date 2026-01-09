@@ -5,8 +5,8 @@
 #include <span>
 #include <stdexcept>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/optimizers/Optimizer.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * Adam (Adaptive Moment Estimation) combina as ideias do Momentum
@@ -93,11 +93,12 @@ struct Adam : public Optimizer
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             // m[i] = beta1 * m[i] + (1 - beta1) * grad
-            nn::Tensor grad_contrib = param.multiply_scalar(1.0f - beta1);
+            nn::Tensor grad = param.grad(); // Get gradient from parameter
+            nn::Tensor grad_contrib = grad.multiply_scalar(1.0f - beta1);
             m[i] = m[i].multiply_scalar(beta1).add(grad_contrib);
 
             // v[i] = beta2 * v[i] + (1 - beta2) * grad^2
-            nn::Tensor grad_squared = param.multiply(param);
+            nn::Tensor grad_squared = grad.multiply(grad); // Square gradient, not weights!
             nn::Tensor grad_squared_contrib = grad_squared.multiply_scalar(1.0f - beta2);
             v[i] = v[i].multiply_scalar(beta2).add(grad_squared_contrib);
 
@@ -115,6 +116,7 @@ struct Adam : public Optimizer
             nn::Tensor v_hat_sqrt_eps = v_hat_sqrt.add_scalar(eps);
             nn::Tensor m_hat_scaled = m_hat.multiply_scalar(lr);
             nn::Tensor update_step = m_hat_scaled.divide(v_hat_sqrt_eps);
+
             param = param.add(update_step.multiply_scalar(-1.0f));
         }
     }

@@ -60,6 +60,11 @@ struct Module
     virtual void train(bool on) {};
 
     /**
+     * @brief Resets the state of the module (e.g. LIF membrane potential).
+     */
+    virtual void reset_state() {};
+
+    /**
      * @brief Returns a vector of pointers to the trainable parameters (weights, biases) of the
      * module.
      * @return std::vector<Tensor*>
