@@ -1,3 +1,9 @@
+##
+## Wavelet unit tests (GoogleTest)
+##
+## Builds:
+## - `wavelet_gtest`: tests for wavelet traits, transforms, and result extraction.
+##
 add_executable(wavelet_gtest 
     wavelet_gtest.cpp
 )

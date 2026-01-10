@@ -1,3 +1,13 @@
+##
+## LFCC pipeline unit tests (GoogleTest)
+##
+## Builds:
+## - `lfcc_pipeline_utils_gtest`: tests for feature extraction helpers used by the LFCC demo.
+##
+## Notes:
+## - This links both core libs (tensor/dataLoaders/util/waveCoreLib) and the demo-specific
+##   helper library `lfcc_pipeline_utils_lib`.
+##
 add_executable(lfcc_pipeline_utils_gtest lfcc_pipeline_utils_gtest.cpp)
 
 target_link_libraries(lfcc_pipeline_utils_gtest

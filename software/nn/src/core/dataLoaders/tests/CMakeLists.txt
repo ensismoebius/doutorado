@@ -1,3 +1,14 @@
+##
+## DataLoader + MAT I/O unit tests (GoogleTest)
+##
+## Builds:
+## - `dataLoaders_gtest`: consolidated test binary for DataLoader iteration,
+##   dataset collation, and MAT-file utility conversions.
+##
+## Notes:
+## - Links `dataLoaders` and `tensor` plus matio-cpp (`matioCpp`) and a small
+##   internal helper lib (`MatTestUtilsLib`) for generating MAT fixtures.
+##
 ## Consolidated GoogleTest target for dataLoaders
 add_executable(dataLoaders_gtest
 	dataLoader_more_gtest.cpp

@@ -1,3 +1,13 @@
+##
+## Optimizer unit tests (GoogleTest)
+##
+## Builds:
+## - `optimizers_gtest`: tests for optimizer implementations (Adam/SGD variants).
+##
+## Notes:
+## - Linked against `optimizers` + `tensor` and uses Eigen/OpenMP via
+##   `configure_eigen_parallel_target`.
+##
 add_executable(optimizers_gtest 
     optimizers_gtest.cpp
 )

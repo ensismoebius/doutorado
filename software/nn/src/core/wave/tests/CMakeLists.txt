@@ -1,3 +1,9 @@
+##
+## Wave (audio) unit tests (GoogleTest)
+##
+## Builds:
+## - `wave_gtest`: tests for WAV I/O and basic DSP helpers.
+##
 add_executable(wave_gtest 
     wave_gtest.cpp
 )

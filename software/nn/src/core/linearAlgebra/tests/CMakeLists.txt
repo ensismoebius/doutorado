@@ -1,3 +1,9 @@
+##
+## linearAlgebra unit tests (GoogleTest)
+##
+## Builds:
+## - `linearAlgebra_gtest`: tests for legacy numeric/signal helpers.
+##
 add_executable(linearAlgebra_gtest
     linearAlgebra_gtest.cpp
 )

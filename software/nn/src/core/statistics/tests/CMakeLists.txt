@@ -1,3 +1,10 @@
+##
+## Statistics unit tests (GoogleTest)
+##
+## Builds:
+## - `statistics_gtest`: descriptive stats + multi-class metric helpers.
+## - `confusionMatrix_gtest`: confusion-matrix derived binary metrics.
+##
 include(GoogleTest)
 
 add_executable(statistics_gtest 

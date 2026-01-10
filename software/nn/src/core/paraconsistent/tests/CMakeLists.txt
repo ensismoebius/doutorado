@@ -1,3 +1,9 @@
+##
+## Paraconsistent logic unit tests (GoogleTest)
+##
+## Builds:
+## - `paraconsistent_gtest`: tests for certainty/contradiction computations.
+##
 include(GoogleTest)
 
 add_executable(paraconsistent_gtest

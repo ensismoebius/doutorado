@@ -1,3 +1,22 @@
+"""snnTorch parity demo.
+
+This script is a Python reference implementation used to compare against the C++
+spiking autoencoder demo.
+
+What it is for:
+- Validate that the *training dynamics* (surrogate gradient shape, LIF parameters,
+    and overall loss trend) are broadly consistent between C++ and snnTorch.
+
+Important conventions:
+- Inputs are treated as (T, B, F) = (time, batch, features).
+- The surrogate gradient below is customized to mirror the C++ exponential surrogate:
+    (1/sharpness) * exp(-|v - v_th| / sharpness).
+
+Running:
+- Typically executed from the repo root as part of manual comparisons.
+- Requires `torch` and `snntorch` to be installed in the chosen Python environment.
+"""
+
 import torch
 import torch.nn as nn
 import snntorch as snn

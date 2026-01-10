@@ -1,3 +1,13 @@
+##
+## Core layers unit tests (GoogleTest)
+##
+## Builds:
+## - `layers_gtest`: broad coverage across dense layers and SNN components.
+##
+## Notes:
+## - clang-tidy is disabled for this binary (test convenience; avoids noisy
+##   diagnostics in third-party include stacks).
+##
 add_executable(layers_gtest
     layers_gtest.cpp
 )

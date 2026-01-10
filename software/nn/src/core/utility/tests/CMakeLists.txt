@@ -1,3 +1,9 @@
+##
+## Utility unit tests (GoogleTest)
+##
+## Builds:
+## - `util_gtest`: tests for batching, synthetic spike generators, and misc helpers.
+##
 # Add util_gtest
 add_executable(util_gtest 
     util_gtest.cpp 

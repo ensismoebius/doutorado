@@ -1,3 +1,10 @@
+##
+## MatTestUtilsLib
+##
+## Purpose
+## - Small helper library used by loader tests to write MAT v5 fixture files
+##   via matio/matio-cpp.
+##
 add_library(MatTestUtilsLib STATIC
     MatTestUtils.cpp
 )

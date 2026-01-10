@@ -1,3 +1,13 @@
+##
+## Tensor API unit tests (GoogleTest)
+##
+## Builds:
+## - `tensor_gtest`: construction/indexing/shape behavior for `nn::Tensor`.
+##
+## Notes:
+## - Uses `configure_eigen_parallel_target` because the default backend is Eigen-based.
+## - There is a commented-out mock-backend test sketch kept for future Eigen-free testing.
+##
 add_executable(tensor_gtest tensor_gtest.cpp)
 
 target_link_libraries(tensor_gtest 

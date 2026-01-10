@@ -1,3 +1,13 @@
+##
+## 10.1117 dataset loader unit tests (GoogleTest)
+##
+## Builds:
+## - `dataLoaders_10_1117_gtest`: tests for EEG/Audio MAT loaders following the
+##   10.1117-style dataset schema.
+##
+## Notes:
+## - Links against `dataLoaders_10_1117` and uses `MatTestUtilsLib` fixtures.
+##
 add_executable(dataLoaders_10_1117_gtest
 	audio_loader_gtest.cpp
     eeg_loader_gtest.cpp

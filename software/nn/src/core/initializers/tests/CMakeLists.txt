@@ -1,3 +1,12 @@
+##
+## Initializer unit tests (GoogleTest)
+##
+## Builds:
+## - `initializers_gtest`: tests for weight initialization helpers.
+##
+## Notes:
+## - Linked against `initializers` + `tensor` and uses Eigen/OpenMP settings.
+##
 add_executable(
     initializers_gtest 
         initializers_gtest.cpp
