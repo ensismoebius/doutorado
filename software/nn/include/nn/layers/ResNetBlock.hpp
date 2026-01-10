@@ -4,6 +4,21 @@
 #include "nn/layers/Module.hpp"
 #include "nn/layers/ReLU.hpp"
 
+/**
+ * @file ResNetBlock.hpp
+ * @brief Simple 2-layer convolutional residual block.
+ *
+ * Intended behavior (high level):
+ *   y = ReLU( x + Conv2(ReLU(Conv1(x))) )
+ *
+ * Notes in this codebase:
+ * - There is no learnable projection on the skip path; when shapes differ, the
+ *   implementation tries to align by zero-padding/cropping the underlying 2D
+ *   storage. This is a pragmatic fallback, not a canonical ResNet design.
+ * - For a production-quality conv ResNet, add explicit shape management
+ *   (padding/stride choices) or a 1x1 conv projection.
+ */
+
 class ResNetBlock : public Module
 {
    public:

@@ -1,3 +1,8 @@
+/**
+ * @file mat_file_dataset_gtest.cpp
+ * @brief Unit tests for `MatFileDataset` (MAT file -> batches).
+ */
+
 #include <gtest/gtest.h>
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>

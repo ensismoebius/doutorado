@@ -1,3 +1,8 @@
+/**
+ * @file phase00_data.hpp
+ * @brief Data aggregation for PHASE 0 (dataset traversal + trial loading).
+ */
+
 #pragma once
 
 #include <filesystem>

@@ -1,3 +1,8 @@
+/**
+ * @file tensor_gtest.cpp
+ * @brief Unit tests for the `nn::Tensor` API (construction, indexing, shape behavior).
+ */
+
 #include <gtest/gtest.h>
 
 #include <cmath>

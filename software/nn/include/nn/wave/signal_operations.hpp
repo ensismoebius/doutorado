@@ -8,6 +8,18 @@
  *
  */
 
+/**
+ * @file signal_operations.hpp
+ * @brief Small signal-processing utilities (pitch period heuristics, simple effects).
+ *
+ * This header collects standalone operations used by older experiments:
+ * - AMDF (Average Magnitude Difference Function)
+ * - Rough F0 period estimation helpers
+ * - In-place simple effects (amplification, silence, half volume, echo)
+ *
+ * These functions work on raw arrays/vectors and are independent of the NN layers.
+ */
+
 #ifndef SRC_LIB_SIMPLESIGNALOPERATIONS_H_
 #define SRC_LIB_SIMPLESIGNALOPERATIONS_H_
 

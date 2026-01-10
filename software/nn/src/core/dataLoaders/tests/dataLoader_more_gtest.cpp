@@ -1,8 +1,13 @@
+/**
+ * @file dataLoader_more_gtest.cpp
+ * @brief Additional tests for dataset collation and edge cases.
+ */
+
 #include <numeric>
 
+#include "gtest/gtest.h"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/TensorDataset.hpp"
-#include "gtest/gtest.h"
 
 // Reuse helper from existing tests: build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
@@ -12,8 +17,7 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
     {
         for (std::size_t j = 0; j < D; ++j)
         {
-            t.at(static_cast<size_t>(i), static_cast<size_t>(j)) =
-                static_cast<float>((i * D) + j);
+            t.at(static_cast<size_t>(i), static_cast<size_t>(j)) = static_cast<float>((i * D) + j);
         }
     }
     return t;

@@ -1,8 +1,18 @@
+/**
+ * @file mat_file.cpp
+ * @brief Implementation of the `MatFile` RAII wrapper around matio.
+ */
+
 #include "nn/dataLoaders/mat_file.hpp"
 
 #include <memory>
 #include <optional>
 #include <stdexcept>
+
+// `MatFile` is a minimal RAII wrapper around matio:
+// - Owns `mat_t*` and closes it in the destructor.
+// - Exposes both a raw-pointer read (`readVariable`) and an owning read
+//   (`readFirstNumericVariable`) depending on caller needs.
 
 MatFile::MatFile(const std::string& filename)
 {

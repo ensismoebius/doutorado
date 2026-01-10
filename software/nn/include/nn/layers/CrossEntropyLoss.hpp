@@ -2,12 +2,28 @@
 
 #include <cmath>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
 
-// Computes softmax + cross-entropy. Assumes predictions are logits (N x C) and targets are one-hot
-// or class indices stored as (N x 1)
-// NOTE: Simplified implementation using pure Tensor API (performance not optimized)
+/**
+ * @file CrossEntropyLoss.hpp
+ * @brief Softmax + cross-entropy loss for multi-class classification.
+ *
+ * Expected shapes:
+ * - `input` (logits): (N x C)
+ * - `target` (one-hot): (N x C)
+ *
+ * Usage pattern:
+ * - Call `set_target(one_hot_targets)` before `forward(logits)`.
+ * - `forward()` returns a scalar (1x1) mean loss over the batch.
+ * - `backward()` ignores its argument and returns `dL/d(logits)` as (N x C).
+ *
+ * Implementation notes:
+ * - This is a pedagogical implementation using explicit loops and a numerically
+ *   stable softmax (row-wise max subtraction).
+ * - There is no internal checking that targets are valid one-hot vectors.
+ */
+
 class CrossEntropyLoss : public Module
 {
    public:
@@ -15,7 +31,9 @@ class CrossEntropyLoss : public Module
     nn::Tensor last_probs;
     nn::Tensor last_targets; // one-hot targets
 
-    // targets should be passed via set_target as Tensor (N x C) one-hot matrix
+    // Targets should be passed via set_target as Tensor (N x C) one-hot matrix.
+    // (If you store class indices instead, you must convert to one-hot before using
+    // this implementation.)
     void set_target(const nn::Tensor& target)
     {
         last_targets = target;
@@ -75,6 +93,7 @@ class CrossEntropyLoss : public Module
         }
 
         // Compute mean cross-entropy: -mean(targets * log(probs))
+        // Small epsilon avoids log(0) in edge cases.
         float loss_sum = 0.0f;
         for (size_t i = 0; i < x.rows(); ++i)
         {

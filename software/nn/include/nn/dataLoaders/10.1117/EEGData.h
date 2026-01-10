@@ -1,3 +1,11 @@
+/**
+ * @file EEGData.h
+ * @brief Data-only holder types for EEG records in the 10.1117 dataset loaders.
+ *
+ * The loaders in this folder historically use both a packed matrix representation
+ * (`eegSamplesMatrix`) and per-channel vectors (`eegChannels`) for convenience.
+ */
+
 #pragma once
 
 #include <Eigen/Dense>

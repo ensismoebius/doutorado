@@ -1,3 +1,19 @@
+##
+## VendorMatio.cmake
+##
+## Purpose
+## - Fetch and build `matio` (MATLAB .mat file IO library) as a vendored dependency.
+##
+## What it provides
+## - Target: `matio` (as defined by the upstream project).
+## - Alias: `MATIO::MATIO` when `matio` exists.
+##
+## Local policy
+## - Disable upstream matio tests to keep the main configure/build fast and quiet.
+##   This is done by overwriting `<SOURCE_DIR>/cmake/test.cmake` during FetchContent.
+## - Expose include dirs as SYSTEM and suppress warnings/clang-tidy for vendor code.
+##
+
 # VendorMatio.cmake
 # Configure vendored lib/matio presence and make MATIO::MATIO available
 

@@ -1,3 +1,10 @@
+#+#+#+#+-----------------------------------------------------------------------
+# Policies.cmake
+#
+# Centralizes CMake policy selection so the rest of the build can assume modern,
+# consistent behavior across CMake versions.
+#+#+#+#+-----------------------------------------------------------------------
+
 # --- CMake policy settings ---
 # Prefer modern behavior for these policies. Use guarded checks so the file
 # remains compatible with older CMake versions that don't know about these

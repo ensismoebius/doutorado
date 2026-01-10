@@ -7,11 +7,24 @@
 #include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file Sequential.hpp
+ * @brief A lightweight PyTorch-like container that composes multiple `Module`s.
+ *
+ * Why this exists:
+ * - Most experiments in this repo build models as stacks (Linear → LIF → Linear → ...).
+ * - `Sequential` provides that composition with a tiny API surface.
+ *
+ * How it fits:
+ * - Higher-level models (autoencoders, ResNets, etc.) typically own one or more `Sequential`s
+ *   and delegate `forward()` / `backward()` to them.
+ */
+
 // A PyTorch-like Sequential container for C++
 struct Sequential : Module
 {
     std::vector<std::shared_ptr<Module>> layers;
-    std::vector<nn::Tensor> outputs; // output cache
+    std::vector<nn::Tensor> outputs; // Optional cache of intermediate activations (per layer).
 
     Sequential() = default;
 
@@ -48,6 +61,9 @@ struct Sequential : Module
             throw std::runtime_error("Sequential: cannot forward with empty layer list");
         }
 
+        // Cache intermediates so debugging/visualization can inspect per-layer outputs.
+        // Note: this cache is not strictly required for backprop because each layer may
+        // manage its own caches; it is primarily a convenience.
         outputs.clear();
         nn::Tensor temp_input = input;
         for (auto& layer : layers) [[likely]]
@@ -61,6 +77,8 @@ struct Sequential : Module
     // Backward pass
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
     {
+        // Reverse-order gradient propagation (chain rule).
+        // Each layer is responsible for producing gradients for its own parameters.
         nn::Tensor grad = grad_output;
         for (size_t i = layers.size(); i-- > 0;) [[likely]]
         {
@@ -83,6 +101,7 @@ struct Sequential : Module
 
         for (auto& layer : layers) [[likely]]
         {
+            // Concatenate per-layer params into one flat list for optimizers.
             auto layer_params = layer->params();
             parameters.insert(parameters.end(), layer_params.begin(), layer_params.end());
         }

@@ -1,3 +1,8 @@
+/**
+ * @file test_helpers.hpp
+ * @brief Small helpers for unit tests (tensor factories and comparisons).
+ */
+
 #pragma once
 
 #include <random>

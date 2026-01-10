@@ -1,3 +1,12 @@
+/**
+ * @file Regularization.hpp
+ * @brief L1/L2 regularization helpers that accumulate into parameter gradients.
+ *
+ * Design contract:
+ * - `forward()` returns a scalar penalty as a `nn::Tensor`.
+ * - `backward()` accumulates into each parameter's gradient.
+ */
+
 #ifndef REGULARIZATION_HPP
 #define REGULARIZATION_HPP
 
@@ -8,6 +17,12 @@
 
 // Base class for regularization techniques
 // Provides a common interface for computing regularization penalties and their gradients
+//
+// Design notes for this codebase:
+// - `forward()` returns a scalar tensor (1x1) penalty value.
+// - `backward()` *accumulates* into existing parameter gradients.
+// - Be aware that `nn::Tensor::grad()` returns a value copy in this project; after
+//   modifying it you must call `param->set_grad(updated_grad)` to persist changes.
 class Regularization
 {
    protected:

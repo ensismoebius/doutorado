@@ -1,3 +1,11 @@
+/**
+ * @file AudioLoader.cpp
+ * @brief Implementation of the 10.1117-style audio MAT loader.
+ *
+ * The public entry point is `nn::dataLoaders::loadAudioFromMat()`, which returns
+ * a sample tensor plus integer labels extracted from the MAT matrix row.
+ */
+
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 
 #include <matio.h>

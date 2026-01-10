@@ -1,4 +1,9 @@
 /**
+ * @file WaveletTransformResults.cpp
+ * @brief Implementation of the wavelet transform result container/extraction helpers.
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

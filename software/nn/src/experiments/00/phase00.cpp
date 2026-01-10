@@ -1,3 +1,15 @@
+/**
+ * @file phase00.cpp
+ * @brief PHASE 0 experiment entry point (frozen baseline pipeline).
+ *
+ * End-to-end flow:
+ * - load YAML config (with frozen defaults for this phase)
+ * - aggregate trials from the dataset
+ * - extract features, normalize to [0,1], sanity-check
+ * - compute paraconsistent metrics
+ * - train a small classifier and write metrics/artifacts
+ */
+
 #include <filesystem>
 #include <iostream>
 

@@ -1,8 +1,16 @@
+/**
+ * @file resnet_demo.cpp
+ * @brief Minimal classification demo: load a `.mat` matrix and train a small residual MLP.
+ *
+ * Notes:
+ * - The current path is hard-coded for a local dataset checkout (demo convenience).
+ * - Targets are built as one-hot vectors and trained with `CrossEntropyLoss`.
+ */
+
 #include <iostream>
 #include <memory>
 #include <vector>
 
-#include "nn/utility/batching.hpp"
 #include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/layers/CrossEntropyLoss.hpp"
@@ -12,6 +20,7 @@
 #include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/utility/batching.hpp"
 
 using namespace std;
 

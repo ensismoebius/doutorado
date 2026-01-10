@@ -1,5 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
+# -----------------------------------------------------------------------------
+# Top-level build entrypoint
+#
+# Intent:
+# - Keep the root CMakeLists.txt small and “index-like”.
+# - Delegate real logic to `cmake/*.cmake` modules for clarity and reuse.
+#
+# Include order matters:
+# - Policies/tooling/analysis targets/flags are configured before vendored deps.
+# - Vendored dependencies are configured before adding project subdirectories.
+# -----------------------------------------------------------------------------
+
 # Project declaration
 project(nn VERSION 0.2.0 LANGUAGES CXX C)
 

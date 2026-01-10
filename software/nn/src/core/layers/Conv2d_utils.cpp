@@ -1,3 +1,8 @@
+/**
+ * @file Conv2d_utils.cpp
+ * @brief Implementation details for `Conv2d` (index caching, im2col/col2im helpers).
+ */
+
 #include "nn/layers/Conv2d.hpp"
 
 // ============ Index Caching & Computation ============

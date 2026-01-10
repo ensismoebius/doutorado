@@ -6,6 +6,19 @@
  *
  * 1 de abr de 2020
  */
+
+/**
+ * @file waveletOperations.h
+ * @brief Core wavelet transform entry points (Mallat) and analysis helpers.
+ *
+ * Main API:
+ * - `malat(...)` runs a discrete wavelet transform using Mallat's algorithm.
+ *   The low-pass filter coefficients are provided explicitly (see `Types.h`).
+ * - `TransformMode` selects regular vs packet decomposition.
+ *
+ * The additional helpers provide common utilities used by experiments
+ * (next power of two, subband energy extraction).
+ */
 #ifndef SRC_LIB_WAVELET_WAVELETOPERATIONS_H_
 #define SRC_LIB_WAVELET_WAVELETOPERATIONS_H_
 

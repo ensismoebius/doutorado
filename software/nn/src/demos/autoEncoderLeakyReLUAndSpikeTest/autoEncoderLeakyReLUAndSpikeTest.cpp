@@ -1,3 +1,13 @@
+/**
+ * @file autoEncoderLeakyReLUAndSpikeTest.cpp
+ * @brief End-to-end spiking autoencoder demo (snnTorch-like structure).
+ *
+ * This executable is written to be read like a small PyTorch/snnTorch script:
+ * - a model class (encoder/decoder built from `Sequential` blocks)
+ * - a clean training loop (zero_grad → reset_state → forward → loss → backward → step)
+ * - explicit notes about the project-specific shape conventions for time-flattened SNN input.
+ */
+
 #include <cnpy.h>
 
 #include <algorithm>
@@ -61,6 +71,11 @@ class SpikeAutoEncoder : public Module
 
         auto leaky = [&](bool readout = false) -> std::shared_ptr<Module>
         {
+            // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
+            // (time-major flatten). This demo flattens the per-step tensors that way.
+            //
+            // In spiking mode it outputs spikes; in readout_mode it outputs the membrane value
+            // (useful for continuous reconstruction at the final layer).
             return make_shared<LeakyBPTT>( //
                 cfg.steps,
                 cfg.dt,
@@ -104,7 +119,8 @@ class SpikeAutoEncoder : public Module
             lin(cfg.hidden_dims[1], cfg.hidden_dims[0]),
             leaky(),
             lin(cfg.hidden_dims[0], cfg.input_dim),
-            leaky(true), // Readout layer (leaky integrator)
+            // Readout layer: do not spike; return membrane potential as a continuous output.
+            leaky(true),
         });
     }
 
@@ -178,8 +194,13 @@ class SpikeAutoEncoder : public Module
         try
         {
             cnpy::npz_t data = cnpy::npz_load(file);
-            // Matches index to layer in sequential
-            // Seq.layers contains [Linear, Leaky, Linear, Leaky...]
+            // Weight-keying convention:
+            // - Keys are based on the *layer index* inside `Sequential::layers`.
+            // - Because `Sequential` interleaves [Linear, LeakyBPTT, Linear, ...], only the
+            //   indices corresponding to Linear layers are expected to have ".weight"/".bias".
+            //
+            // Pitfall: changing the architecture (inserting/removing layers) shifts indices and
+            // will break loading unless the NPZ files are regenerated.
             for (size_t i = 0; i < seq.layers.size(); ++i)
             {
                 if (auto lin = dynamic_pointer_cast<Linear>(seq.layers[i]))
@@ -220,6 +241,14 @@ class SpikeAutoEncoder : public Module
 // =============================================================================
 void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
 {
+    // Global-norm gradient clipping (PyTorch-style):
+    // - Compute ||g|| over all parameters.
+    // - If it exceeds max_norm, scale every gradient tensor by max_norm/||g||.
+    //
+    // Why it matters here:
+    // - Deep SNN stacks + surrogate gradients can produce unstable/large gradients.
+    // - Clipping helps keep training numerically stable without changing the forward dynamics.
+
     // C++20 Ranges: Compute total norm squared
     auto param_norms = params | std::views::transform(
                                     [](auto* p)
@@ -236,6 +265,10 @@ void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
     if (total_norm > max_norm)
     {
         float scale = max_norm / (total_norm + 1e-6f);
+
+        // Important Tensor API note:
+        // - `p->grad()` returns a *copy* in this codebase, so we must `set_grad()` after editing.
+        // - We scale elementwise via a std::span over the contiguous buffer.
 
         // C++20 Ranges: Scale gradients
         std::ranges::for_each( //
@@ -286,7 +319,15 @@ auto main(int, char*[]) -> int
     auto criterion = make_shared<MSELoss>();
 
     // 2. Data Generation
-    // Flatten logic: (Samples * Steps, Dim)
+    // Data layout note:
+    // - `generate_autoencoder_spike_data_*` returns a vector of length T.
+    // - Each entry is a tensor of shape (B, F).
+    // - `LeakyBPTT` expects a single flattened tensor of shape (T*B, F), time-major.
+    //   So we stack time on the row axis: row = t*B + b.
+    //
+    // Demo note:
+    // - `config.batch_size` is not used in this particular demo: we use `n_samples` as B.
+    //   (Kept in config because the same model structure can be used with a DataLoader.)
     int n_samples = 10;
     auto [input_seq, _] =
         generate_autoencoder_spike_data_of_ones(n_samples, config.input_dim, config.steps);
@@ -311,16 +352,26 @@ auto main(int, char*[]) -> int
 
     for (int epoch : std::views::iota(0, config.epochs))
     {
+        // Typical training step structure:
+        // 1) zero gradients
+        // 2) reset spiking state (membrane potentials) at sequence boundaries
+        // 3) forward + loss
+        // 4) backward
+        // 5) optional gradient clipping
+        // 6) optimizer step
+
         // Zero Grad
         optimizer.zero_grad(params);
         model.reset_states();
 
         // Forward
-        criterion->set_target(inputs); // Autoencoder target = input
+        // Autoencoder target = input: learn to reconstruct the spike train.
+        criterion->set_target(inputs);
         nn::Tensor recon = model.forward(inputs);
         nn::Tensor loss_val = criterion->forward(recon);
 
         // Backward
+        // `criterion->backward(recon)` returns dL/d(recon).
         nn::Tensor grad_loss = criterion->backward(recon);
         model.backward(grad_loss);
 

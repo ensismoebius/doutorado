@@ -1,14 +1,24 @@
+/**
+ * @file plotSpikingNetwork.cpp
+ * @brief Visualization demo: simulate a tiny LIF network and plot spikes/voltages via ImGui/ImPlot.
+ *
+ * This demo is meant for intuition-building:
+ * - generate a Poisson-like spike input
+ * - run a couple of `Leaky` neurons forward in time
+ * - plot spike trains and membrane potentials
+ */
+
 #define DEBUG
 
 #include <iostream>
 #include <memory>
 #include <vector>
 
-#include "nn/utility/imgui_glfw.hpp"
-#include "nn/utility/synthetic_spike_data.hpp"
-#include "nn/layers/Leaky.hpp"
 #include "imgui.h"
 #include "implot.h"
+#include "nn/layers/Leaky.hpp"
+#include "nn/utility/imgui_glfw.hpp"
+#include "nn/utility/synthetic_spike_data.hpp"
 
 using ImGui::Begin;
 using ImGui::End;

@@ -1,3 +1,8 @@
+/**
+ * @file matfile_row_vector_gtest.cpp
+ * @brief Unit tests for loading row-vectors from MAT files.
+ */
+
 #include <gtest/gtest.h>
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>

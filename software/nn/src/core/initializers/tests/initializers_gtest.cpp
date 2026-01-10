@@ -1,3 +1,8 @@
+/**
+ * @file initializers_gtest.cpp
+ * @brief Unit tests for weight initialization helpers.
+ */
+
 #include <gtest/gtest.h>
 
 #include "nn/initializers/kaiming_snn.hpp"

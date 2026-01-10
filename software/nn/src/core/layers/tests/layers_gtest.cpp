@@ -1,3 +1,8 @@
+/**
+ * @file layers_gtest.cpp
+ * @brief Broad unit-test coverage for core NN/SNN layers.
+ */
+
 #include <gtest/gtest.h>
 
 #include <memory>

@@ -7,6 +7,18 @@
 
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file ParaconsistentFeatureExtractor.hpp
+ * @brief Placeholder adapter for paraconsistent feature analysis.
+ *
+ * This is currently a stub that returns dummy metrics. It exists so experiment
+ * code can compile while the real paraconsistent logic pipeline is integrated.
+ *
+ * Expected future direction:
+ * - Accept feature tensors (e.g., embeddings) and compute certainty/contradiction
+ *   measures or other paraconsistent-derived statistics.
+ */
+
 class ParaconsistentFeatureExtractor
 {
    public:

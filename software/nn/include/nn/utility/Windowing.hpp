@@ -5,6 +5,16 @@
 
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file Windowing.hpp
+ * @brief Sliding-window extraction for time-series stored in `nn::Tensor`.
+ *
+ * Shape convention:
+ * - This utility treats `data` as (channels x samples), i.e. rows are channels
+ *   (or features) and columns are time samples.
+ * - Windows are extracted along the *column* axis.
+ */
+
 class Windowing
 {
    public:

@@ -1,3 +1,18 @@
+##
+## VendorYaml.cmake
+##
+## Purpose
+## - Fetch and build `yaml-cpp` (YAML parser/emitter) as a vendored dependency.
+##
+## What it provides
+## - Target: `yaml-cpp` (from upstream).
+## - Alias: `YAML::YAML` for consistent namespaced linking from this repo.
+##
+## Local policy
+## - Disable tools/tests/contrib to reduce build surface.
+## - Suppress warnings and clang-tidy for vendored code.
+##
+
 # VendorYaml.cmake
 # Configure vendored yaml-cpp presence and make yaml-cpp available
 

@@ -1,3 +1,23 @@
+##
+## VendorMatioCppShim.cmake
+##
+## Purpose
+## - Fetch and configure `matio-cpp` (C++ wrapper around matio) in a way that is safe
+##   for a vendored build: avoid generating install/export artifacts that reference
+##   external targets.
+##
+## Strategy
+## - Set `matioCpp_IS_TOP_LEVEL=ON` to reduce upstream packaging side effects.
+## - Provide a no-op `install_basic_package_files()` to satisfy upstream calls without
+##   emitting export/install metadata.
+## - Bridge legacy matio-cpp find logic by seeding `MATIO_INCLUDE_DIR`, `MATIO_LIBRARY`,
+##   and `MATIO_FOUND` from the already-configured `matio` target.
+##
+## Notes
+## - This is intentionally a “shim”: it’s about making third-party CMake behave inside
+##   this repo. Keep it small and comment-heavy.
+##
+
 # VendorMatioCppShim.cmake
 # Make matio-cpp configure safely inside the top-level project without
 # generating install/export files that would reference external targets.

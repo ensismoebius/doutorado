@@ -6,6 +6,18 @@
 #include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file ReLU.hpp
+ * @brief ReLU activation (dense, non-spiking).
+ *
+ * Notes:
+ * - This is the classic piecewise-linear ReLU: $\max(0, x)$.
+ * - `forward(requires_grad=true)` caches a 0/1 mask so `backward()` can multiply
+ *   incoming gradients elementwise.
+ * - Like the other small activations in this repo, it assumes a 2D tensor layout
+ *   (rows x cols) and does not manage a computation graph.
+ */
+
 struct ReLU : public Module
 {
     nn::Tensor relu_grad; // usado para backward

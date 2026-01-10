@@ -1,4 +1,9 @@
 /**
+ * @file signal_operations.cpp
+ * @brief Low-level signal processing helpers (AMDF, period estimation, simple editing).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

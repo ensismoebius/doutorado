@@ -1,8 +1,12 @@
+/**
+ * @file wavelet_gtest.cpp
+ * @brief Unit tests for wavelet utilities (filters, transforms, result extraction).
+ */
 
+#include "gtest/gtest.h"
 #include "nn/wavelet/Types.h"
 #include "nn/wavelet/WaveletTransformResults.h"
 #include "nn/wavelet/waveletOperations.h"
-#include "gtest/gtest.h"
 
 namespace wavelets::test
 {

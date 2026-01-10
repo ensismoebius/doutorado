@@ -5,9 +5,24 @@
 #include <iostream>
 #include <limits>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file MSELoss.hpp
+ * @brief Mean Squared Error loss module.
+ *
+ * Design notes for this codebase:
+ * - This is implemented as a `Module` for a PyTorch-like training loop.
+ * - `forward()` returns a *scalar* tensor (shape 1x1) representing the loss value.
+ * - `backward()` returns the gradient w.r.t. the prediction (dL/d(prediction)), with the
+ *   same shape as the last `input` passed to `forward()`.
+ *
+ * Usage pattern:
+ * - Call `set_target(target)` before `forward(pred)`.
+ * - During training with gradients, `forward(..., requires_grad=true)` caches the last
+ *   prediction internally for use in `backward()`.
+ */
 class MSELoss : public Module
 {
    private:
@@ -41,7 +56,9 @@ class MSELoss : public Module
 
         if (training && requires_grad)
         {
-            // Cache the prediction for the backward pass
+            // Cache the prediction for the backward pass.
+            // Note: we do not currently cache the target here because it is provided
+            // via set_target() and stored in `last_target`.
             last_input = input;
         }
 
@@ -61,6 +78,7 @@ class MSELoss : public Module
     // Set the target tensor for the loss
     void set_target(const nn::Tensor& target)
     {
+        // Contract: target must be shape-compatible with the prediction passed to forward().
         last_target = target;
         target_set = true;
     }
@@ -68,9 +86,11 @@ class MSELoss : public Module
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
     auto backward(const nn::Tensor& /* prediction */) -> nn::Tensor override
     {
+        // Returns dL/d(prediction) for the *last* cached prediction.
+        // The `prediction` argument is unused because `last_input` is cached in forward().
         // Compute gradient: 2 * (prediction - target) / num_elements
         nn::Tensor diff = last_input - last_target;
-        
+
         float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input.size());
         nn::Tensor grad = diff * factor;
 

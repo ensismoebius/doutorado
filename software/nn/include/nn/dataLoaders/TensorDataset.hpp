@@ -8,6 +8,20 @@
 
 #include "Dataset.hpp"
 
+/**
+ * @file TensorDataset.hpp
+ * @brief Dataset backed by in-memory tensors.
+ *
+ * Shape convention:
+ * - `inputs` and `targets` are expected to use the first dimension as the number
+ *   of samples (rows in a 2D view).
+ * - `get_item(i)` returns a batch with a single row (1 x features) by slicing.
+ *
+ * Performance note:
+ * - `collate(indices)` uses `Tensor::slice` to gather multiple rows in one call.
+ *   This is typically more efficient than the elementwise default `Dataset::collate`.
+ */
+
 class TensorDataset : public Dataset
 {
    public:

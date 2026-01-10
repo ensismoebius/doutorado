@@ -1,3 +1,11 @@
+/**
+ * @file wavelet_demo.cpp
+ * @brief Wavelet transform demo (Mallat) with matplotlib visualization.
+ *
+ * Generates a synthetic signal, computes a discrete wavelet decomposition,
+ * and plots approximation/detail coefficients to help validate the wavelet code.
+ */
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -5,10 +13,10 @@
 #include <stdexcept>
 #include <vector>
 
+#include "matplotlibcpp.h"
 #include "nn/wavelet/Types.h"
 #include "nn/wavelet/WaveletTransformResults.h"
 #include "nn/wavelet/waveletOperations.h"
-#include "matplotlibcpp.h"
 
 namespace plt = matplotlibcpp;
 

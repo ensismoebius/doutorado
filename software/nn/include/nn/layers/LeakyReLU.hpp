@@ -1,8 +1,18 @@
 #ifndef LEAKYRELU_HPP
 #define LEAKYRELU_HPP
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
+
+/**
+ * @file LeakyReLU.hpp
+ * @brief LeakyReLU activation (dense, non-spiking).
+ *
+ * Contract:
+ * - `forward(requires_grad=true)` caches a per-element slope mask for `backward()`.
+ * - `backward()` assumes `forward()` was called on the same instance and shape.
+ * - This layer is *stateless* besides the cached mask.
+ */
 
 struct LeakyReLU : public Module
 {

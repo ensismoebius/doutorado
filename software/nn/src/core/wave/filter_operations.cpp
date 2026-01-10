@@ -1,4 +1,9 @@
 /**
+ * @file filter_operations.cpp
+ * @brief FIR filter construction helpers (low-pass, high-pass, alpha computation).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

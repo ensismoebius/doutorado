@@ -1,3 +1,8 @@
+/**
+ * @file eeg_loader_gtest.cpp
+ * @brief Basic correctness tests for loading an EEG row into (channels x samples) form.
+ */
+
 #include <gtest/gtest.h>
 
 #include <filesystem>

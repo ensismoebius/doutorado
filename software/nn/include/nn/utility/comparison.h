@@ -9,6 +9,11 @@
  * Contains comparison routines
  */
 
+/**
+ * @file comparison.h
+ * @brief Small comparison helpers (range check).
+ */
+
 #ifndef SRC_LIB_UTILITY_COMPARISON_H_
 #define SRC_LIB_UTILITY_COMPARISON_H_
 

@@ -1,3 +1,8 @@
+/**
+ * @file statistics_gtest.cpp
+ * @brief Unit tests for basic statistics and multi-class metric helpers.
+ */
+
 #include <gtest/gtest.h>
 
 #include "nn/statistics/multi_class_metrics.hpp"

@@ -1,13 +1,18 @@
+/**
+ * @file optimizers_gtest.cpp
+ * @brief Unit tests for optimizer implementations (SGD, Adam, etc.).
+ */
+
 #include <gtest/gtest.h>
 
 #include <limits>
 #include <vector>
 
+#include "core/utility/tests/test_helpers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/optimizers/SGD.hpp"
 #include "nn/optimizers/SGDMinimal.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "core/utility/tests/test_helpers.hpp"
 
 // Test Fixture for common optimizer setup
 class OptimizerTest : public ::testing::Test

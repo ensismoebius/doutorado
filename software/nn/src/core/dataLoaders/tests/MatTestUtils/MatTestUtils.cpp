@@ -1,3 +1,8 @@
+/**
+ * @file MatTestUtils.cpp
+ * @brief Helpers for writing small MAT v5 test fixtures using matio.
+ */
+
 #include "MatTestUtils.h"
 
 #include <matio.h>

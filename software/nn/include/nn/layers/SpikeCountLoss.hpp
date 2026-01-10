@@ -1,9 +1,30 @@
 #pragma once
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
 
-// Spike count loss: mean squared error between output spike count and target
+/**
+ * @file SpikeCountLoss.hpp
+ * @brief Spike-count regression loss (MSE on spike counts).
+ *
+ * This loss is commonly used in SNN training when the model output is a spike
+ * count (or firing-rate proxy) per sample rather than class logits.
+ *
+ * Expected shapes:
+ * - `input`: (N x 1) predicted spike counts (or rates)
+ * - `target`: (N x 1) desired spike counts (or rates)
+ *
+ * Usage pattern:
+ * - Call `set_target(target)` before `forward(pred)`.
+ * - Call `forward(requires_grad=true)` before `backward()`.
+ *
+ * Implementation caveat:
+ * - `forward()` computes `diff` from `last_input` rather than `input`.
+ *   That means if you call `forward(..., requires_grad=false)` in training mode,
+ *   `last_input` may refer to a previous batch. This header keeps behavior as-is;
+ *   callers should prefer `requires_grad=true` during training.
+ */
+
 class SpikeCountLoss : public Module
 {
    private:

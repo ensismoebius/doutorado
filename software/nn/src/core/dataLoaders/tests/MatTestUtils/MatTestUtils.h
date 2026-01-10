@@ -1,3 +1,8 @@
+/**
+ * @file MatTestUtils.h
+ * @brief Small MAT-file creation helpers used by loader unit tests.
+ */
+
 // Small test utilities for creating MAT files used in unit tests
 #pragma once
 

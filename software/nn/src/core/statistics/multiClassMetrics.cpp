@@ -1,4 +1,9 @@
 /**
+ * @file multiClassMetrics.cpp
+ * @brief Multi-class classification metrics implementation (camelCase translation unit).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for
@@ -11,8 +16,8 @@
 #include <numeric>
 #include <stdexcept>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/statistics/multi_class_metrics.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace statistics
 {

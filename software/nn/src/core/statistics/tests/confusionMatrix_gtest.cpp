@@ -1,3 +1,8 @@
+/**
+ * @file confusionMatrix_gtest.cpp
+ * @brief Unit tests for confusion-matrix derived metrics.
+ */
+
 #include <gtest/gtest.h>
 
 #include "nn/statistics/confusion_matrix.hpp"

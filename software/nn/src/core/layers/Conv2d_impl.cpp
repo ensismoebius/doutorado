@@ -1,3 +1,8 @@
+/**
+ * @file Conv2d_impl.cpp
+ * @brief Implementation of the `Conv2d` layer forward/backward paths.
+ */
+
 #include <cmath>
 #include <random>
 

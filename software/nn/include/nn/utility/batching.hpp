@@ -6,6 +6,15 @@
 
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file batching.hpp
+ * @brief Simple batching utilities and the `Batch` struct.
+ *
+ * This is the glue between datasets/dataloaders and training loops:
+ * - A `Batch` always carries a pair of tensors: `.inputs` and `.targets`.
+ * - Code in this repo typically treats rows as batch dimension.
+ */
+
 struct Batch
 {
     nn::Tensor inputs;

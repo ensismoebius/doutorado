@@ -1,3 +1,8 @@
+/**
+ * @file eeg_loader_edge_gtest.cpp
+ * @brief Edge-case tests for the 10.1117 EEG loader (row selection, missing vars, wrong types).
+ */
+
 #include <gtest/gtest.h>
 
 #include <filesystem>

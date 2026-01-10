@@ -1,3 +1,17 @@
+/**
+ * @file experiment_02.cpp
+ * @brief Experiment 02: wavelet-based feature extraction + classification + metrics.
+ *
+ * This is a large, monolithic experiment driver that combines:
+ * - YAML config parsing
+ * - synchronized windowing/feature extraction (EEG/Audio)
+ * - optional paraconsistent metrics
+ * - model training and multi-fold evaluation
+ *
+ * It is kept as a single translation unit to make the full experimental pipeline
+ * easy to audit end-to-end, even if not “library-clean”.
+ */
+
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>

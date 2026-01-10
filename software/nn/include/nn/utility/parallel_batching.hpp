@@ -12,6 +12,22 @@
 #include "nn/utility/batching.hpp"
 
 /**
+ * @file parallel_batching.hpp
+ * @brief OpenMP-accelerated batch creation helpers.
+ *
+ * These helpers are useful when:
+ * - You store each sample as its own `nn::Tensor` and want to concatenate into
+ *   a large batch tensor.
+ *
+ * Caveats:
+ * - The "parallel Fisher-Yates" shuffle here uses thread-local RNGs; results are
+ *   not deterministic across runs.
+ * - There are nested `#pragma omp parallel` regions (outer batch loop plus inner
+ *   fill loop). On some OpenMP runtimes this can oversubscribe CPU threads unless
+ *   nested parallelism is disabled.
+ */
+
+/**
  * @brief Creates batches in parallel using OpenMP.
  * Optimizes batch creation through parallel shuffling and concatenation.
  */
@@ -101,8 +117,7 @@ struct BatchBufferPool
         for (int i = 0; i < num_buffers; ++i)
         {
             input_buffers.emplace_back(input_rows * static_cast<size_t>(batch_size), input_cols);
-            target_buffers.emplace_back(target_rows * static_cast<size_t>(batch_size),
-                                        target_cols);
+            target_buffers.emplace_back(target_rows * static_cast<size_t>(batch_size), target_cols);
         }
     }
 

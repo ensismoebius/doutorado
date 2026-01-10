@@ -1,3 +1,11 @@
+/**
+ * @file IMatLoader.hpp
+ * @brief Minimal interface for reading MATLAB MAT variables via matio.
+ *
+ * This abstraction keeps the rest of the codebase decoupled from raw `mat_t*`/`matvar_t*`
+ * ownership details while still exposing the underlying variables when needed.
+ */
+
 #pragma once
 
 #include <matio.h>

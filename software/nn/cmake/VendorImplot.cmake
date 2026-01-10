@@ -1,3 +1,18 @@
+##
+## VendorImplot.cmake
+##
+## Purpose
+## - Fetch and build ImPlot (plotting for Dear ImGui) as a static library.
+##
+## What it provides
+## - Target: `implot` (STATIC).
+## - Includes: ImPlot headers and ImGui headers (SYSTEM) for consumers.
+##
+## Notes / pitfalls
+## - This module assumes the ImGui FetchContent module ran first so `${imgui_SOURCE_DIR}` exists.
+## - Warnings are suppressed and clang-tidy is disabled (third-party code).
+##
+
 include(FetchContent)
 
 # IMPlot configuration

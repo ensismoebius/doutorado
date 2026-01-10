@@ -1,3 +1,8 @@
+/**
+ * @file phase00_training.hpp
+ * @brief Training utilities for PHASE 0 (tensorization, one-hot, training loop, saving).
+ */
+
 #pragma once
 
 #include <filesystem>

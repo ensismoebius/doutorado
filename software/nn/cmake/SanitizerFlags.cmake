@@ -1,3 +1,22 @@
+##
+## SanitizerFlags.cmake
+##
+## Purpose
+## - Enable common runtime sanitizers for Debug builds to catch memory/UB issues early.
+##
+## What it does
+## - Adds `-fno-omit-frame-pointer` to make stack traces usable.
+## - On non-MSVC compilers, enables:
+##   - AddressSanitizer (`-fsanitize=address`)
+##   - UndefinedBehaviorSanitizer (`-fsanitize=undefined`)
+##   for both compile and link in Debug config.
+##
+## Notes
+## - This is meant for developer builds, not release artifacts.
+## - If you need other sanitizers (TSan/MSan), add them deliberately and consider
+##   toolchain/platform constraints.
+##
+
 # cmake/SanitizerFlags.cmake
 # Sanitazer is a tool to detect various kinds of bugs and undefined behavior
 # at runtime. This is used to ensure code quality during development, showing 

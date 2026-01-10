@@ -9,6 +9,16 @@
 #include <functional>
 #include <iostream>
 
+/**
+ * @file imgui_glfw.hpp
+ * @brief Minimal RAII wrapper for an ImGui + GLFW + OpenGL3 application loop.
+ *
+ * This is used by visualization demos. It hides the boilerplate required to:
+ * - initialize GLFW and OpenGL context
+ * - set up Dear ImGui backends
+ * - run a render loop executing user-provided UI code
+ */
+
 class ImGuiApp
 {
    public:

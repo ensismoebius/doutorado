@@ -1,4 +1,10 @@
+/**
+ * @file vectorizationCheck.cpp
+ * @brief Prints compile-time Eigen SIMD/vectorization support information.
+ */
+
 #include "nn/utility/vectorizationCheck.hpp"
+
 #include <Eigen/Dense>
 #include <iostream>
 

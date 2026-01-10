@@ -1,12 +1,17 @@
+/**
+ * @file NetworkSerializer_gtest.cpp
+ * @brief Unit tests for round-trip network serialization (NPZ) and architecture matching.
+ */
+
 #include <cstdio>
 
-#include "nn/saver/NetworkSerializer.hpp"
+#include "gtest/gtest.h"
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/LeakyReLU.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/ReLU.hpp"
 #include "nn/layers/Sequential.hpp"
-#include "gtest/gtest.h"
+#include "nn/saver/NetworkSerializer.hpp"
 
 using std::filesystem::temp_directory_path;
 

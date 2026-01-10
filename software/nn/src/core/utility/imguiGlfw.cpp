@@ -1,3 +1,8 @@
+/**
+ * @file imguiGlfw.cpp
+ * @brief ImGui+GLFW application wrapper (camelCase translation unit).
+ */
+
 #include "nn/utility/imgui_glfw.hpp"
 
 ImGuiApp::ImGuiApp(const std::string& title, int width, int height)

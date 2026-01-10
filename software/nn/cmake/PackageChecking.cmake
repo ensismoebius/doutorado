@@ -1,3 +1,13 @@
+#+#+#+#+-----------------------------------------------------------------------
+# PackageChecking.cmake
+#
+# System dependency discovery.
+#
+# This module is where we require system-provided packages (Eigen, OpenMP, SDL2,
+# BLAS/LAPACK/OpenBLAS, etc). Vendored dependencies are handled separately via
+# `Vendor*.cmake` modules.
+#+#+#+#+-----------------------------------------------------------------------
+
 # Package finder
 find_package(PkgConfig REQUIRED)
 

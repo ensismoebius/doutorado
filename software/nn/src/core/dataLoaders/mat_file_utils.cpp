@@ -1,7 +1,25 @@
+/**
+ * @file mat_file_utils.cpp
+ * @brief Conversions from matio-cpp variable types into `nn::Tensor`.
+ */
+
 #include "nn/dataLoaders/mat_file_utils.hpp"
 
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>
+
+// Implementation strategy:
+// - matio-cpp reads variables and can convert them to Eigen structures.
+// - This translation unit converts supported variable types into `nn::Tensor`
+//   by copying into the project's float-based tensor storage.
+//
+// Supported forms:
+// - Multi-dimensional arrays and vectors
+// - Real (non-complex) numeric types (double/float and integral types)
+//
+// Failure model:
+// - Helpers return `std::nullopt` on unsupported types, missing variables, or
+//   any exception thrown by the underlying matio-cpp library.
 
 namespace matioCpp::utils
 {

@@ -9,6 +9,18 @@
  *
  * 8 de ago de 2019
  */
+
+/**
+ * @file Wav.h
+ * @brief Minimal WAV (PCM) reader/writer used by audio experiments.
+ *
+ * This is a self-contained utility for loading and saving WAV files and exposing
+ * the decoded samples as `std::vector<double>`.
+ *
+ * Notes:
+ * - Intended for offline preprocessing/feature extraction rather than real-time audio.
+ * - Current implementation focuses on PCM formats.
+ */
 #ifndef SRC_LIB_WAV_H_
 #define SRC_LIB_WAV_H_
 

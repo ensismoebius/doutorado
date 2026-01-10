@@ -5,6 +5,20 @@
 
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file Normalization.hpp
+ * @brief Simple tensor normalization helpers.
+ *
+ * `normalize_0_1()` performs min-max normalization over all elements:
+ * $$x' = (x - \min(x)) / (\max(x) - \min(x))$$
+ *
+ * Notes:
+ * - If the tensor is constant (`max == min`), this implementation returns a
+ *   new tensor with the same shape (but does not preserve values).
+ * - This is a convenience helper for preprocessing; it is not intended to be
+ *   used as a trainable layer.
+ */
+
 class Normalization
 {
    public:

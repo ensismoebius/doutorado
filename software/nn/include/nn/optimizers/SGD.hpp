@@ -6,6 +6,22 @@
 
 #include "nn/optimizers/Optimizer.hpp"
 
+/**
+ * @file SGD.hpp
+ * @brief Stochastic Gradient Descent (with optional momentum).
+ *
+ * Lifecycle:
+ * - `attach(params)` allocates velocity buffers matching each parameter shape.
+ * - `step(params)` applies an update in-place.
+ * - `zero_grad(params)` resets gradients on all parameters.
+ *
+ * Important caveat:
+ * - A conventional SGD update uses `param.grad()`.
+ *   This implementation currently builds its velocity from `param` values
+ *   (not `grad`), which is atypical and likely not what you want for training.
+ *   Treat this as experimental/placeholder unless verified.
+ */
+
 struct SGD : public Optimizer
 {
     float learning_rate;

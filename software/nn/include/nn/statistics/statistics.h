@@ -14,6 +14,13 @@
 
 namespace statistics
 {
+/**
+ * @file statistics.h
+ * @brief Small numeric helpers (variance, standard deviation).
+ *
+ * These are generic utilities used by experiments/analysis code.
+ * All functions operate on raw doubles and do not depend on the NN/SNN modules.
+ */
 auto variance(const std::vector<double>& data) -> double;
 auto variance(const double* data, unsigned int length) -> double;
 

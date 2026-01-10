@@ -1,3 +1,22 @@
+##
+## VendorMatplotlibCpp.cmake
+##
+## Purpose
+## - Fetch `matplotlib-cpp` (header-only plotting wrapper) and make it usable from CMake.
+## - Optionally bootstrap a Python venv containing NumPy + Matplotlib for demos/tests.
+##
+## What it provides
+## - Target: `MatplotlibCpp` (INTERFACE) and alias `MatplotlibCpp::MatplotlibCpp`.
+## - Includes: matplotlib-cpp headers + Python + NumPy include dirs.
+##
+## Notes / pitfalls
+## - When `MATPLOTLIBCPP_CREATE_VENV=ON`, this runs `python -m venv` and `pip install` at
+##   *configure* time and sets `Python3_EXECUTABLE` in the cache to point to the venv.
+##   This is convenient locally but can be undesirable in hermetic CI.
+## - `matplotlib_cpp` (lowercase) may also be defined by the upstream FetchContent project;
+##   this file disables clang-tidy for that target as it is third-party code.
+##
+
 # ------------------------------------------------------------
 # VendorMatplotlibCpp.cmake
 # Header-only matplotlib-cpp + Python/NumPy provisioning

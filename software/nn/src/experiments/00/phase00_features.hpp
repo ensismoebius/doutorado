@@ -1,3 +1,8 @@
+/**
+ * @file phase00_features.hpp
+ * @brief Feature extraction + normalization utilities for PHASE 0.
+ */
+
 #pragma once
 
 #include <tuple>

@@ -1,3 +1,13 @@
+/**
+ * @file Config.cpp
+ * @brief YAML parsing + validation for experiment configuration.
+ *
+ * Philosophy:
+ * - Fail early with clear messages when the experiment spec is inconsistent.
+ * - Keep some parameters fixed in early phases to reduce degrees of freedom and
+ *   make results comparable.
+ */
+
 #include "Config.hpp"
 
 #include <cmath>

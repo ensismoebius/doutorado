@@ -1,4 +1,9 @@
 /**
+ * @file linear_algebra.cpp
+ * @brief Implementation of miscellaneous linear algebra helpers.
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

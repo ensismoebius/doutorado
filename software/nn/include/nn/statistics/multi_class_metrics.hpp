@@ -9,6 +9,25 @@
 namespace statistics
 {
 
+/**
+ * @file multi_class_metrics.hpp
+ * @brief Multi-class classification metrics and a simple k-fold helper.
+ *
+ * `compute_classification_metrics()` returns common aggregate metrics from
+ * integer class labels.
+ *
+ * Averaging conventions:
+ * - `precision`, `recall`, and `f1_score` are macro-averaged (each class gets
+ *   equal weight, independent of class frequency).
+ * - `balanced_accuracy` is the mean per-class recall.
+ * - `mcc` is only meaningful for binary classification in this implementation.
+ *
+ * `k_fold_cross_validation()` is a convenience helper for small experiments:
+ * - It shuffles indices with a fixed RNG seed.
+ * - It uses contiguous fold slices; if `n_samples % k != 0`, the remainder is
+ *   currently ignored (the last few samples never appear in a test fold).
+ */
+
 struct ClassificationMetrics
 {
     double accuracy = 0.0;

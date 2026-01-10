@@ -7,6 +7,17 @@
  * 29 de mar de 2020
  *
  */
+
+/**
+ * @file linear_algebra.hpp
+ * @brief Small numeric/vector utilities used by preprocessing and analysis code.
+ *
+ * This namespace contains classic signal-processing helpers (convolution, DCT,
+ * normalization) and simple linear algebra utilities for legacy experiments.
+ *
+ * Most functions operate on `std::vector<double>` or `std::span<double>` and do
+ * not depend on the neural network modules.
+ */
 #ifndef SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_
 #define SRC_LIB_LINEARALGEBRA_LINEARALGEBRA_H_
 #include <span>

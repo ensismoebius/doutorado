@@ -10,6 +10,15 @@
 // All struct definitions moved from Experiment01_utils.h
 
 /**
+ * @file audioTypes.h
+ * @brief Configuration structs for audio preprocessing/feature extraction.
+ *
+ * These small POD-like structs hold parameters and scratch buffers shared across
+ * feature extraction steps. They are passed by reference to avoid copying large
+ * intermediate tensors (e.g., filterbanks).
+ */
+
+/**
  * @brief Configurações da janela de Hamming.
  */
 struct HammingWindowConfig

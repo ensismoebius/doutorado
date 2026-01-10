@@ -1,3 +1,11 @@
+/**
+ * @file ResidualBlock.hpp
+ * @brief A small MLP-style residual block (Linear/ReLU/Linear + skip).
+ *
+ * This is used by the dense `SimpleResNet` model and follows the codebase’s
+ * 2D tensor convention: (batch x features).
+ */
+
 #pragma once
 
 #include <memory>
@@ -7,6 +15,10 @@
 #include "nn/layers/ReLU.hpp"
 
 // Simple residual block for MLP: x -> Linear -> ReLU -> Linear + x
+//
+// This is the classic residual pattern from ResNets adapted to a 2D tensor
+// convention (N x D). The skip connection improves gradient flow in deeper
+// networks by providing an identity path.
 struct ResidualBlock : public Module
 {
     std::shared_ptr<Linear> fc1;
@@ -27,6 +39,7 @@ struct ResidualBlock : public Module
         out = fc2->forward(out, requires_grad);
 
         // Add skip connection: assume input and out shapes match (N x D)
+        // (No projection layer is provided here; callers must ensure feature dims match.)
         nn::Tensor res(out.rows(), out.cols());
         res = out.add(input);
         return res;
@@ -44,6 +57,7 @@ struct ResidualBlock : public Module
 
         // Total gradient w.r.t. input is grad from main branch (grad_fc2 propagated through fc2->)
         // + grad from skip (identity)
+        // This mirrors: d(x + f(x))/dx = I + df/dx.
         nn::Tensor total(grad_fc1.rows(), grad_fc1.cols());
         total = grad_fc1.add(grad_output);
         return total;

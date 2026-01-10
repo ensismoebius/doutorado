@@ -8,6 +8,21 @@
 
 namespace matioCpp::utils
 {
+/**
+ * @file mat_file_utils.hpp
+ * @brief Convenience helpers for loading MATLAB variables into `nn::Tensor`.
+ *
+ * Design goals:
+ * - Keep demo/experiment code simple by providing "load by name" building blocks.
+ * - Fail safely: functions return `std::nullopt` / empty vectors rather than
+ *   throwing, so callers can decide how to report errors.
+ *
+ * Mapping notes:
+ * - The loader targets numeric matrices that can be represented as float data in
+ *   this project's `nn::Tensor`.
+ * - Higher-dimensional arrays may be rejected unless explicitly supported.
+ */
+
 // Load a named variable from a .mat file and return it as an nn::Tensor.
 // Returns std::nullopt on any error (file can't be opened, variable not
 // found, unsupported type, or dimension mismatch).

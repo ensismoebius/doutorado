@@ -1,3 +1,10 @@
+/**
+ * @file MatFileFlags.h
+ * @brief Column/field indices for MAT dataset layouts used by the loaders.
+ *
+ * The codebase uses these enums as self-documenting alternatives to “magic indices”.
+ */
+
 #pragma once
 
 #include <cstdint>

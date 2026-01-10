@@ -9,6 +9,22 @@
 namespace nn::core::wave
 {
 
+/**
+ * @file audioFeatureExtraction.h
+ * @brief Audio feature extraction helpers (MFCC-style pipeline).
+ *
+ * These declarations support the experiment code that converts raw audio samples
+ * into frame-based features such as log filterbank energies and MFCCs.
+ *
+ * Typical pipeline:
+ * 1) optional pre-emphasis
+ * 2) framing + windowing
+ * 3) FFT -> power spectrum
+ * 4) linear filterbank -> log energies
+ * 5) DCT -> cepstral coefficients
+ * 6) optional deltas / delta-deltas
+ */
+
 // Function declarations moved from Experiment01_utils.cpp
 void pre_emphasis_inplace(std::vector<float>& signal, float coefficient);
 auto framing_and_window(const std::vector<float>& signal, FramingConfig& context)

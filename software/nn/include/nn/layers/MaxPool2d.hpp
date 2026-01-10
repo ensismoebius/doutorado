@@ -6,6 +6,24 @@
 #include "nn/layers/Module.hpp"
 #include "tensor/Tensor.hpp"
 
+/**
+ * @file MaxPool2d.hpp
+ * @brief Placeholder MaxPool2d layer.
+ *
+ * This implementation currently behaves as a guarded no-op:
+ * - It checks whether the input tensor reports a 4D shape (N,C,H,W).
+ * - Regardless, it returns `input` unchanged.
+ *
+ * Why keep it around:
+ * - It allows higher-level model code to reference `MaxPool2d` without having to
+ *   conditionalize compilation while the true 4D pooling implementation is in
+ *   progress.
+ *
+ * If you want real max-pooling:
+ * - Implement a 4D-aware path consistent with this project's `Tensor` storage
+ *   conventions and add a corresponding `backward()`.
+ */
+
 class MaxPool2d : public Module
 {
    public:

@@ -7,6 +7,18 @@
 #include <string>
 #include <vector>
 
+/**
+ * @file mat_file.hpp
+ * @brief Thin RAII wrapper around `matio` for reading MATLAB .mat files.
+ *
+ * Ownership / lifetime:
+ * - `MatFile` owns the underlying `mat_t*` handle and closes it in the destructor.
+ * - `readVariable()` returns a raw `matvar_t*` allocated by matio; the caller is
+ *   responsible for freeing it with `Mat_VarFree()`.
+ * - `readFirstNumericVariable()` returns an owning `unique_ptr` with a custom
+ *   deleter, which is safer for "read-and-map" workflows.
+ */
+
 class MatFile
 {
    public:

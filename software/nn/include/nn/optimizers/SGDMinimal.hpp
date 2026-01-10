@@ -6,6 +6,20 @@
 
 #include "nn/optimizers/Optimizer.hpp"
 
+/**
+ * @file SGDMinimal.hpp
+ * @brief Minimal SGD implementation without momentum/state.
+ *
+ * This is the simplest optimizer in the project:
+ *   param = param - lr * grad
+ *
+ * Implementation note (Tensor semantics):
+ * - In this codebase, `nn::Tensor` behaves like a value type; assigning to `*param`
+ *   can replace internal storage and drop the gradient buffer.
+ * - To preserve gradients (for debugging or subsequent computations), this optimizer
+ *   saves a copy of `grad()` and restores it via `set_grad()` after updating data.
+ */
+
 struct SGDMinimal : public Optimizer
 {
     float learning_rate;

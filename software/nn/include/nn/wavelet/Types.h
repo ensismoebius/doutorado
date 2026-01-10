@@ -10,6 +10,20 @@
  *
  */
 
+/**
+ * @file Types.h
+ * @brief Compile-time wavelet "tags" and coefficient traits.
+ *
+ * This header defines:
+ * - Tag structs (e.g., `Haar`, `Daub4`, ...), used only for template selection.
+ * - `WaveletTraits<Tag>` specializations providing the low-pass decomposition
+ *   filter coefficients as `constexpr std::array<double, N>`.
+ *
+ * Usage:
+ * - Select a wavelet by tag type and access `WaveletTraits<Tag>::coeffs`.
+ * - Coefficients live in read-only memory and do not allocate.
+ */
+
 #ifndef SRC_LIB_WAVELET_TYPES_H_
 #define SRC_LIB_WAVELET_TYPES_H_
 

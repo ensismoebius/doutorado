@@ -1,3 +1,12 @@
+/**
+ * @file phase00_features.cpp
+ * @brief PHASE 0 feature extraction implementation.
+ *
+ * Current baseline:
+ * - wavelet packet energies per channel
+ * - optional paraconsistent metrics derived from normalized feature vectors
+ */
+
 #include "phase00_features.hpp"
 
 #include <algorithm>

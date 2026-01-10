@@ -1,3 +1,12 @@
+/**
+ * @file loadingData.cpp
+ * @brief Tiny utility demo: inspect a MATLAB `.mat` file via matio-cpp.
+ *
+ * The intent is debugging/verification of dataset files:
+ * - list variable names
+ * - print variable/value types and dimensions
+ */
+
 #include <matioCpp/File.h>
 #include <matioCpp/ForwardDeclarations.h> // For VariableType and ValueType enums
 

@@ -1,10 +1,15 @@
+/**
+ * @file wave_gtest.cpp
+ * @brief Unit tests for wave utilities (WAV I/O, filtering, simple feature extraction).
+ */
+
 #include <filesystem>
 
+#include "gtest/gtest.h"
 #include "nn/wave/Wav.h"
 #include "nn/wave/audioFeatureExtraction.h"
 #include "nn/wave/filter_operations.hpp"
 #include "nn/wave/signal_operations.hpp"
-#include "gtest/gtest.h"
 
 TEST(SimpleSignalOperationsTest, TestAMDF)
 {

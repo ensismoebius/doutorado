@@ -1,8 +1,16 @@
+/**
+ * @file lfcc_pipeline.cpp
+ * @brief Demo driver for LFCC feature extraction over a dataset directory.
+ *
+ * This executable walks a dataset folder structure, locates `*_Audio.mat`/`*_EEG.mat`
+ * pairs per subject, and delegates LFCC extraction to `lfcc_pipeline_utils`.
+ */
+
 #include <filesystem>
 #include <string>
 
-#include "nn/wave/audioTypes.h"
 #include "demos/lfcc_pipeline/lfcc_pipeline_utils.h"
+#include "nn/wave/audioTypes.h"
 
 using std::string;
 

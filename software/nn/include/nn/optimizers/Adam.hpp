@@ -9,6 +9,20 @@
 #include "nn/tensor/Tensor.hpp"
 
 /**
+ * @file Adam.hpp
+ * @brief Adam optimizer implementation for this project.
+ *
+ * How it fits:
+ * - Training code typically does:
+ *   1) `auto params = model.params();`
+ *   2) `optimizer.attach(params);`
+ *   3) Loop: `zero_grad(params)` → forward/loss/backward → `step(params)`.
+ *
+ * Important invariant:
+ * - `attach()` allocates per-parameter state (m, v) sized to match the parameters.
+ *   If you change the model architecture (different params list), you must call `attach()` again.
+ */
+/**
  * Adam (Adaptive Moment Estimation) combina as ideias do Momentum
  * (acumular média móvel dos gradientes) e do RMSProp (acumular
  * média móvel dos quadrados dos gradientes), ajustando dinamicamente
@@ -51,6 +65,8 @@ struct Adam : public Optimizer
     // Deve ser chamado sempre que os parâmetros mudarem.
     void attach(std::span<nn::Tensor*> params) override
     {
+        // Why attach(): Adam needs one m/v tensor per parameter.
+        // Pitfall: if `params` changes size/order, m/v will no longer align.
         m.clear();
         v.clear();
         for (auto* param : params)
@@ -83,6 +99,7 @@ struct Adam : public Optimizer
     //   θ = θ - lr * m̂_t / (sqrt(v̂_t) + ε)
     auto step(std::span<nn::Tensor*> paramsList) -> void override
     {
+        // Numerical note: bias correction uses pow(beta, t). For large t, beta^t → 0.
         t += 1;
         for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
@@ -93,6 +110,8 @@ struct Adam : public Optimizer
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             // m[i] = beta1 * m[i] + (1 - beta1) * grad
+            // Precondition: `param.grad()` must be meaningful. If the model did not run
+            // backward(), gradients may be zero or uninitialized depending on backend behavior.
             nn::Tensor grad = param.grad(); // Get gradient from parameter
             nn::Tensor grad_contrib = grad.multiply_scalar(1.0f - beta1);
             m[i] = m[i].multiply_scalar(beta1).add(grad_contrib);

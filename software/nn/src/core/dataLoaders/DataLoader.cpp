@@ -1,8 +1,21 @@
+/**
+ * @file DataLoader.cpp
+ * @brief Implementation of the `DataLoader` batching/iteration utilities.
+ */
+
 #include "nn/dataLoaders/DataLoader.hpp"
 
 #include <algorithm>
 #include <random>
 #include <utility>
+
+// Implementation notes:
+// - The `DataLoader` owns a base `indices_` vector and produces per-iterator
+//   snapshots to avoid iterator interference.
+// - When `seed_` is present, `begin()` adds `epoch_` to the seed to produce a
+//   deterministic-but-different shuffle each epoch.
+// - `Iterator::operator*()` delegates batching to `Dataset::collate()`, which
+//   enables datasets to implement fast slicing/gather.
 
 DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle,
                        std::optional<unsigned int> seed)

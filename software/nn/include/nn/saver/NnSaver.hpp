@@ -1,8 +1,22 @@
 #include <span>
 #include <string>
 
-#include "nn/tensor/Tensor.hpp"
 #include "cnpy.h"
+#include "nn/tensor/Tensor.hpp"
+
+/**
+ * @file NnSaver.hpp
+ * @brief Small helper for saving/loading a single (weights,bias) pair as `.npy`.
+ *
+ * Naming convention:
+ * - Saves to `<prefix>_weights.npy` and `<prefix>_bias.npy`.
+ *
+ * Shape convention:
+ * - `weights` is saved as a 2D array: (rows, cols).
+ * - `bias` is saved as a 1D array of length `bias.size()` and reloaded as (N,1).
+ *
+ * This is intentionally minimal and does not store architecture metadata.
+ */
 
 struct NnSaver
 {

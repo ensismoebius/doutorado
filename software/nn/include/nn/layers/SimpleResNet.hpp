@@ -1,3 +1,10 @@
+/**
+ * @file SimpleResNet.hpp
+ * @brief Dense (MLP) ResNet-like classifier built from `ResidualBlock`s.
+ *
+ * This is a convenience model used for quick experiments/demos, not an image ResNet.
+ */
+
 #pragma once
 #include <memory>
 #include <vector>
@@ -11,6 +18,15 @@
 #include "nn/tensor/Tensor.hpp"
 
 // Simple ResNet-like model for classification
+//
+// This is a *dense* (MLP) residual network, not the image ResNet architecture.
+// It uses `ResidualBlock` (Linear/ReLU/Linear + skip) stacked `depth` times.
+//
+// Design notes:
+// - Internally it builds a `Sequential` and delegates `forward/backward/params/train`.
+// - Weight initialization uses `kaimingSNNInitializer()` on the Linear layers.
+//   This is applied only to known Linear modules (fc_in/fc_out and residual block
+//   linears).
 class SimpleResNet : public Module
 {
    public:

@@ -14,6 +14,28 @@
 #endif
 
 /**
+ * @file Leaky.hpp
+ * @brief Leaky Integrate-and-Fire (LIF) layer.
+ *
+ * This is the simplest (single-step) spiking neuron layer in the project.
+ * Conceptually it matches snnTorch's `snn.Leaky` behavior: it keeps a persistent
+ * membrane potential `v_mem` across calls to `forward()`, emits spikes when
+ * crossing a threshold, and then resets.
+ *
+ * Shape contract:
+ * - Input is a 2D tensor (rows x cols). In non-temporal use, rows usually act as
+ *   batch and cols as features.
+ * - This layer is *stateful*; if you change the input shape between calls,
+ *   `v_mem` is resized and reset to zeros.
+ *
+ * Training contract:
+ * - `forward(requires_grad=true)` must be called before `backward()` so cached
+ *   state (`v_mem_pre_spike`, `v_mem_t_minus_1`) is available.
+ * - The spike function is non-differentiable; gradients are approximated via a
+ *   configurable surrogate (`ISurrogateGradient`).
+ */
+
+/**
  * @brief A layer of Leaky Integrate-and-Fire (LIF) neurons, a fundamental component for Spiking
  * Neural Networks (SNNs).
  *
@@ -37,6 +59,8 @@ struct Leaky : public Module
    public:
     [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
     {
+        // Parameters are stored as 1x1 tensors so optimizers can treat them like
+        // any other trainable parameter.
         return {&resistance, &voltage_threshold};
     }
 
@@ -129,6 +153,9 @@ struct Leaky : public Module
         float const beta = std::exp(-dt / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
+        // NOTE: This check is redundant with the initialization above, but is
+        // kept as-is for safety/clarity. If you refactor, ensure state semantics
+        // remain identical.
         if (v_mem.size() == 0 || v_mem.rows() != static_cast<int>(input.rows()) ||
             v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
         {
@@ -169,6 +196,8 @@ struct Leaky : public Module
         // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
         // This is a non-differentiable step function, which is why we need surrogate
         // gradients for training.
+        // Implementation note: this uses explicit loops rather than a vectorized
+        // compare operation; for large tensors this can become a hotspot.
         nn::Tensor output(input.rows(), input.cols());
         float threshold_val = voltage_threshold.at(0, 0);
         for (size_t i = 0; i < v_mem.rows(); ++i)

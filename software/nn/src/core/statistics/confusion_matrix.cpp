@@ -1,4 +1,9 @@
 /**
+ * @file confusion_matrix.cpp
+ * @brief Confusion-matrix metrics implementation (snake_case translation unit).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

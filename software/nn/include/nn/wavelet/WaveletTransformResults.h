@@ -7,6 +7,22 @@
  * 12 de abr de 2020
  */
 
+/**
+ * @file WaveletTransformResults.h
+ * @brief Container for wavelet transform output and helpers to extract subbands.
+ *
+ * The `transformedSignal` vector stores the concatenated coefficients generated
+ * by the transform implementation.
+ *
+ * Key concepts:
+ * - Regular wavelet transform: decomposes only the low-pass (approximation) branch.
+ * - Packet wavelet transform: decomposes both low-pass and high-pass branches,
+ *   producing a full binary tree of subbands.
+ *
+ * The helper methods here provide ways to slice out approximation/detail signals
+ * or packet partitions from that flattened storage.
+ */
+
 #ifndef SRC_LIB_WAVELET_WAVELETTRANSFORMRESULTS_H_
 #define SRC_LIB_WAVELET_WAVELETTRANSFORMRESULTS_H_
 

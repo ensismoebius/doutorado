@@ -1,3 +1,17 @@
+#+#+#+#+-----------------------------------------------------------------------
+# DevAndAnalysisTargets.cmake
+#
+# Adds convenience targets for local development and code-quality checks.
+# Typical usage:
+# - `cmake --build build --target dev-setup`
+# - `cmake --build build --target analysis-all`
+# - `cmake --build build --target check_eigen_leaks`
+#
+# Notes:
+# - These targets are *optional* (they exist only when tools are found).
+# - They should never affect normal builds of the library/executables.
+#+#+#+#+-----------------------------------------------------------------------
+
 # CMake/DevAndAnalysisTargets.cmake
 
 # --------------------------------------------------------------------------------

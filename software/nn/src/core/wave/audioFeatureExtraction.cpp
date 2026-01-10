@@ -1,3 +1,8 @@
+/**
+ * @file audioFeatureExtraction.cpp
+ * @brief Audio feature extraction routines (framing, windowing, FFT-based features, etc.).
+ */
+
 #include "nn/wave/audioFeatureExtraction.h"
 
 #include <fftw3.h> // For FFTW library functions

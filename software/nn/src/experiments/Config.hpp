@@ -1,3 +1,12 @@
+/**
+ * @file Config.hpp
+ * @brief YAML-backed experiment configuration (validated, immutable struct).
+ *
+ * This module centralizes runtime configuration for experiment executables.
+ * The `Config::load()` implementation performs validation and can enforce
+ * “frozen” settings for specific phases.
+ */
+
 #pragma once
 
 #include <yaml-cpp/yaml.h>

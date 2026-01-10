@@ -13,6 +13,27 @@ namespace nn
 
 using Index = std::size_t;
 
+/**
+ * @file EigenTensorBackend.hpp
+ * @brief Default tensor backend using Eigen::MatrixXf storage.
+ *
+ * Storage model:
+ * - Data is stored as an Eigen::MatrixXf (`m_data`) with a separate logical `m_shape`.
+ * - For 2D tensors, `m_shape == {rows, cols}` and `m_data` has the same shape.
+ * - For 4D tensors, `m_shape == {d1, d2, d3, d4}` but `m_data` is stored as:
+ *     rows = d1
+ *     cols = d2*d3*d4
+ *   and `at(d1,d2,d3,d4)` maps the last three dims into a single column index.
+ *
+ * Important gotcha for callers:
+ * - `rows()` and `cols()` report logical dims (d1 and d2 for 4D), not the flattened storage cols.
+ *   If you need the true contiguous storage shape, use `size()` + `data_ptr()`.
+ *
+ * Gradients:
+ * - Grad is stored lazily via `m_grad_backend` (unique_ptr). If absent, `get_grad()` returns zeros.
+ * - `set_grad()` copies data into the grad buffer (allocating if needed).
+ * - Copying a backend deep-copies its grad backend to preserve autograd state.
+ */
 class EigenTensorBackend
 {
    public:
@@ -124,6 +145,10 @@ class EigenTensorBackend
 
     void reshape(const std::vector<Index>& new_shape)
     {
+        // Reshape is conservative:
+        // - Total element count must match.
+        // - If the underlying matrix dimensions change, we allocate new storage and
+        //   copy elements in the backend's linear order (Eigen's `.data()` order).
         Eigen::Index current_size = m_data.size();
         Eigen::Index new_size = 1;
         for (auto s : new_shape) new_size *= static_cast<Eigen::Index>(s);
@@ -482,23 +507,30 @@ class EigenTensorBackend
     // -----------------------------------------------------------------
     EigenTensorBackend get_grad() const
     {
+        // Returns a *value* (copy). If no grad is allocated, returns a zeros tensor.
         if (m_grad_backend) return *m_grad_backend;
         return EigenTensorBackend::zeros(rows(), cols());
     }
 
     void set_grad(const EigenTensorBackend& other)
     {
+        // Copies the provided gradient values into this backend's grad buffer.
+        // Precondition: `other` should be shape-compatible with this tensor.
         if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(rows(), cols());
         m_grad_backend->m_data = other.m_data;
     }
 
     void zero_grad()
     {
+        // If gradient storage exists, overwrite with zeros.
+        // If it doesn't exist yet, we keep it unallocated (lazy) until someone needs it.
         if (m_grad_backend) m_grad_backend->m_data.setZero();
     }
 
     EigenTensorBackend& grad_ref()
     {
+        // Internal mutable gradient access used by parts of the library.
+        // TensorImpl does not currently expose this publicly.
         if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(rows(), cols());
         return *m_grad_backend;
     }

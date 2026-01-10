@@ -1,3 +1,8 @@
+/**
+ * @file linearAlgebra_gtest.cpp
+ * @brief Unit tests for small linear algebra helper routines.
+ */
+
 #include "gtest/gtest.h"
 #include "nn/linearAlgebra/linear_algebra.hpp"
 TEST(LinearAlgebraTest, TestMinMaxNormalizeFeatures)

@@ -4,6 +4,18 @@
 #include "TensorDataset.hpp"
 #include "mat_file_utils.hpp"
 
+/**
+ * @file MatFileDataset.hpp
+ * @brief Dataset wrapper that loads input/target matrices from a MATLAB .mat file.
+ *
+ * Expected .mat layout:
+ * - `input_var_name` resolves to a numeric matrix (N x D_in)
+ * - `target_var_name` resolves to a numeric matrix (N x D_out)
+ *
+ * This constructor eagerly loads both matrices into memory and then delegates to
+ * `TensorDataset` for slicing/collation.
+ */
+
 class MatFileDataset : public TensorDataset
 {
    public:

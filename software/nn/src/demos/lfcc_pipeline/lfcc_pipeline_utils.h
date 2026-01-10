@@ -1,3 +1,12 @@
+/**
+ * @file lfcc_pipeline_utils.h
+ * @brief LFCC pipeline helpers used by the demo/experiment code.
+ *
+ * These declarations expose a small, testable surface:
+ * - load and process audio from a `.mat` file
+ * - per-subject orchestration helpers
+ */
+
 #ifndef EXPERIMENT01_UTILS_HPP
 #define EXPERIMENT01_UTILS_HPP
 

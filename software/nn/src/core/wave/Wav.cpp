@@ -1,4 +1,9 @@
 /**
+ * @file Wav.cpp
+ * @brief WAV file read/write implementation.
+ */
+
+/**
  * @author André Furlan <ensismoebius@gmail.com>
  *
  * Based on the original code of:

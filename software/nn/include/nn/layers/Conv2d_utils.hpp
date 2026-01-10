@@ -16,6 +16,14 @@ class Conv2d;
  *
  * This header contains internal implementation details for the Conv2d class,
  * including index caching and helper function declarations.
+ *
+ * Why caching exists:
+ * - The im2col/col2im implementation needs to know, for each output spatial
+ *   position, which input elements participate in the convolution patch.
+ * - Those index patterns depend on (batch_size, input_height, input_width) and
+ *   layer hyperparameters (kernel/stride/padding/dilation).
+ * - Precomputing them once and reusing them avoids repeated integer math in
+ *   hot loops, at the cost of memory.
  */
 
 namespace Conv2dImpl
@@ -47,5 +55,10 @@ struct TripleHash
 
 using IndexCache =
     std::unordered_map<std::tuple<int, int, int>, std::vector<PatchIndices>, TripleHash>;
+
+// Implementation note:
+// - The cache key is a (batch_size, input_height, input_width) tuple.
+// - The cached value contains the patch extraction mapping for those dimensions.
+// - Thread safety is handled on the Conv2d side (mutex around cache updates).
 
 } // namespace Conv2dImpl

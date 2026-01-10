@@ -1,11 +1,20 @@
+/**
+ * @file EEGLoader.h
+ * @brief MAT-file loader for EEG rows in the 10.1117-style dataset.
+ *
+ * The public API here is split into:
+ * - `EEGLoader` (stateful) to open/close and read MAT variables.
+ * - `loadEEGFromMat()` (stateless convenience) returning `nn::Tensor` + label array.
+ */
+
 // EEGLoader.h
 #pragma once
 
 #include <array>
 #include <string>
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/dataLoaders/IMatLoader.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {

@@ -1,3 +1,14 @@
+#+#+#+#+-----------------------------------------------------------------------
+# Flags.cmake
+#
+# Central compiler and configuration flags for the whole project.
+#
+# Philosophy:
+# - Keep flags consistent across all targets.
+# - Prefer warnings that catch common mistakes.
+# - Keep subprojects (vendored deps) from enabling their own tests.
+#+#+#+#+-----------------------------------------------------------------------
+
 # To use the LLVM/Clang toolchain, set the CC and CXX environment variables
 # before configuring CMake, for example:
 #

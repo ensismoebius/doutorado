@@ -19,6 +19,26 @@
 #include "nn/layers/Sequential.hpp"
 #include "nn/tensor/Tensor.hpp"
 
+/**
+ * @file NetworkSerializer.hpp
+ * @brief Serialize/deserialize a `Sequential` model to NumPy `.npz` via cnpy.
+ *
+ * What gets stored:
+ * - An architecture metadata string under the key `__architecture__`.
+ * - Parameter arrays keyed by layer index + suffix (e.g. `"3.weight"`, `"3.bias"`).
+ *
+ * Supported layers:
+ * - `Linear` (weights + bias)
+ * - `Leaky` (scalar 1x1 tensor params: resistance, voltage_threshold)
+ * - `ReLU`, `LeakyReLU` (no parameters)
+ *
+ * Limitations / caveats:
+ * - This is not a general-purpose checkpoint format; it is intentionally narrow
+ *   to support demos.
+ * - Layer indices are positional in `model.layers`. If you insert/remove layers,
+ *   old checkpoints may not load as intended.
+ */
+
 using cnpy::NpyArray;
 using cnpy::npz_load;
 using cnpy::npz_save;

@@ -1,3 +1,13 @@
+/**
+ * @file phase00_data.cpp
+ * @brief PHASE 0 dataset traversal and trial extraction.
+ *
+ * This translation unit:
+ * - iterates subjects under `cfg.dataset_base_path`
+ * - checks for `*_Audio.mat` and `*_EEG.mat`
+ * - loads trials, aligns EEG/audio by index, and produces `TrialData` records
+ */
+
 #include "phase00_data.hpp"
 
 #include <filesystem>

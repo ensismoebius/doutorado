@@ -6,6 +6,20 @@
 #include "nn/layers/Leaky.hpp"
 
 /**
+ * @file LeakyIntegrator.hpp
+ * @brief Continuous (non-spiking) leaky integrator readout.
+ *
+ * This class derives from `Leaky` but overrides the spiking behavior:
+ * it integrates with decay and returns the membrane potential directly.
+ *
+ * Practical use:
+ * - Often used as a readout layer after spiking layers when you want continuous
+ *   values (e.g., reconstruction, regression) instead of spike events.
+ * - In this codebase, it is conceptually similar to using `LeakyBPTT` in
+ *   `readout_mode=true`, but without explicit time-unrolling.
+ */
+
+/**
  * @brief Leaky Integrator (Readout) Layer.
  *
  * A non-spiking neuron model that accumulates input current into membrane potential
@@ -48,6 +62,9 @@ struct LeakyIntegrator : public Leaky
         // beta = exp(-dt / RC)
         float const tau = resistance.at(0, 0) * capacitance;
         float const beta = std::exp(-dt / tau);
+
+        // Note: if tau is extremely small, beta can underflow; callers should
+        // keep (R,C,dt) in a numerically sensible range.
 
         // 3. Cache state for gradient calculation (dL/dR depends on previous voltage)
         if (requires_grad)
@@ -99,6 +116,8 @@ struct LeakyIntegrator : public Leaky
         }
         else
         {
+            // Degenerate tau (R or C near zero): treat d(beta)/dR as 0 and keep
+            // resistance gradient well-defined.
             nn::Tensor r_grad(1, 1);
             r_grad.set_zero();
             resistance.set_grad(r_grad);

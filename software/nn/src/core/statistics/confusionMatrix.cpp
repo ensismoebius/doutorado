@@ -1,4 +1,9 @@
 /**
+ * @file confusionMatrix.cpp
+ * @brief Confusion-matrix metrics implementation (camelCase translation unit).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

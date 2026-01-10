@@ -1,3 +1,11 @@
+/**
+ * @file fftw3_demo.cpp
+ * @brief Small FFTW3 + matplotlib-cpp demo.
+ *
+ * Generates a synthetic signal, computes an FFT (r2c), converts magnitudes to dB,
+ * and plots the result. This is primarily a dependency/sanity check for FFTW.
+ */
+
 #include <fftw3.h>
 
 #include <cmath>
@@ -5,8 +13,8 @@
 #include <memory> // For std::unique_ptr
 #include <vector>
 
-#include "nn/tensor/Tensor.hpp"
 #include "matplotlibcpp.h"
+#include "nn/tensor/Tensor.hpp"
 
 using std::vector;
 

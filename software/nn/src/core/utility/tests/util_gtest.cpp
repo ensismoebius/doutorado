@@ -1,13 +1,18 @@
+/**
+ * @file util_gtest.cpp
+ * @brief Unit tests for assorted utility helpers (batching, synthetic data, checks).
+ */
+
 #include <gtest/gtest.h>
 
 #include <limits>
 #include <random>
 #include <set>
 
+#include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 namespace
 {

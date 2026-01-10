@@ -1,3 +1,15 @@
+/**
+ * @file autoEncoderLeakyReLUTest.cpp
+ * @brief Dense (non-spiking) autoencoder demo using `Sequential` + Adam.
+ *
+ * This demo exercises the classic module/loss/optimizer loop without spiking dynamics:
+ * - model is an MLP built from Linear + LeakyReLU
+ * - loss is `MSELoss`
+ * - optimization is `Adam`
+ *
+ * It serves as a baseline for comparing with the spiking autoencoder demo.
+ */
+
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>

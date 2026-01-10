@@ -1,3 +1,11 @@
+/**
+ * @file kaiming_snn.hpp
+ * @brief Kaiming/He-style initializer used by several demos and small models.
+ *
+ * Note: the default implementation seeds a local RNG from `std::random_device`, so
+ * it is non-deterministic unless you refactor to pass a seeded generator.
+ */
+
 #pragma once
 #include <cmath>
 #include <memory>
@@ -12,6 +20,15 @@
  * This initializer is often preferred for SNNs, especially with ReLU or spiking activations,
  * as it helps maintain variance in the forward pass. It samples from a uniform distribution
  * in [-limit, +limit], where limit = sqrt(6 / fan_in).
+ *
+ * Practical note for deep SNN stacks:
+ * - Even with Kaiming init, deeply stacked Linear→Spiking blocks can still be numerically
+ *   “hot” early in training (large currents/membrane). Some demos additionally scale weights
+ *   down after initialization to keep the initial firing rates reasonable.
+ *
+ * Reproducibility note:
+ * - This helper seeds its own RNG from `std::random_device`, so it is non-deterministic across
+ * runs. For deterministic experiments, seed `gen` from a fixed value (or thread a seed through).
  *
  * @param layer The linear layer to initialize.
  */

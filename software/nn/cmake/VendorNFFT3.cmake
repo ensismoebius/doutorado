@@ -1,3 +1,24 @@
+##
+## VendorNFFT3.cmake
+##
+## Purpose
+## - Provide NFFT3 (Non-uniform FFT library) as a vendored dependency.
+## - If not found under `build/_deps/nfft3-install`, build it via autotools using
+##   `ExternalProject_Add`.
+##
+## What it provides
+## - Imported target: `NFFT::NFFT`.
+##
+## Dependencies / ordering
+## - Links against `FFTW::FFTW` and `OpenMP::OpenMP_C`.
+## - This module expects FFTW to be configured first (via `VendorFFTW.cmake`) so it can
+##   pass `--with-fftw3=<prefix>` to NFFT3's configure.
+##
+## Notes
+## - This is an autotools build embedded in a CMake configure. Keep changes minimal
+##   and prefer pinning versions + hashes for reproducibility.
+##
+
 # VendorNFFT3.cmake
 # Configure vendored lib/nfft3 presence and make NFFT::NFFT available
 

@@ -1,3 +1,8 @@
+/**
+ * @file create_wav_demo.cpp
+ * @brief Tiny demo that synthesizes a sine wave and writes/reads a WAV file.
+ */
+
 #include <cmath>
 #include <cstdio>
 #include <filesystem>

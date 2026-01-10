@@ -1,3 +1,8 @@
+/**
+ * @file paraconsistent.cpp
+ * @brief Paraconsistent logic utilities and normalization helpers.
+ */
+
 /*
  * paraconsistent.cpp
  *

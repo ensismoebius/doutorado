@@ -1,3 +1,11 @@
+/**
+ * @file EigenParallel.hpp
+ * @brief Small helper to align Eigen and OpenMP thread configuration.
+ *
+ * This is best-effort runtime tuning. Deterministic experiments should still pin
+ * thread counts explicitly (e.g., set `OMP_NUM_THREADS=1`).
+ */
+
 #ifndef EIGEN_PARALLEL_HPP
 #define EIGEN_PARALLEL_HPP
 

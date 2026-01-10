@@ -1,3 +1,14 @@
+#+#+#+#+-----------------------------------------------------------------------
+# Tooling.cmake
+#
+# Centralized “developer experience” tooling:
+# - Detect optional tools (ccache, cppcheck, flawfinder, clang-tidy, valgrind).
+# - Enable `compile_commands.json` export for clangd/IDE integration.
+# - Wire clang-tidy into compilation when available.
+#
+# This module is intentionally side-effectful (sets CMake variables / launchers).
+#+#+#+#+-----------------------------------------------------------------------
+
 # CMake/Tooling.cmake
 
 # --------------------------------------------------------------------------------

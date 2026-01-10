@@ -622,6 +622,13 @@
 			"command": "micromamba install pytorch -c pytorch -y && micromamba install snntorch -c conda-forge -y",
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "scan_missing_at_file",
+			"type": "shell",
+			"command": "python3 -c \"import pathlib; exts={'.h','.hpp','.c','.cc','.cpp'}; miss=[str(f) for base in ('include/nn','src/core') for f in pathlib.Path(base).rglob('*') if f.suffix.lower() in exts and '@file' not in f.read_text(encoding='utf-8', errors='ignore')]; print('Missing @file:', len(miss)); print('\\\\n'.join(miss))\"",
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

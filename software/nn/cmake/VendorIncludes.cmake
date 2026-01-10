@@ -1,3 +1,13 @@
+#+#+#+#+-----------------------------------------------------------------------
+# VendorIncludes.cmake
+#
+# Aggregates vendored/FetchContent/ExternalProject dependencies in one place so
+# the rest of the project can `include()` a single module.
+#
+# This file should remain declarative: it delegates to `Vendor*.cmake` modules
+# that each own the details for a specific dependency.
+#+#+#+#+-----------------------------------------------------------------------
+
 # Cnpy integration
 include(cmake/VendorCnpy.cmake)
 

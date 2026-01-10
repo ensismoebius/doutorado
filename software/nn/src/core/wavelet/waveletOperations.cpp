@@ -1,3 +1,8 @@
+/**
+ * @file waveletOperations.cpp
+ * @brief Wavelet transform operations (Mallat algorithm, regular/packet modes).
+ */
+
 #include "nn/wavelet/waveletOperations.h"
 
 #include <bit> // For std::bit_width (C++20)

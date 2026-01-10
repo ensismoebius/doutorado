@@ -11,6 +11,31 @@
 #include "nn/tensor/Tensor.hpp"
 
 /**
+ * @file LeakyBPTT.hpp
+ * @brief LIF/Leaky Integrate-and-Fire dynamics with a full (explicit) BPTT-style backward.
+ *
+ * Design intent (snnTorch mental model):
+ * - This is similar to snnTorch's leaky neuron module that is unrolled over time.
+ * - Input is provided as a *flattened* time-major matrix: rows are concatenated time slices.
+ *
+ * Shape contract:
+ * - forward() expects `input` with shape (T*B, F)
+ *   where T = time_steps, B = batch size, F = features.
+ * - Rows are ordered as: t0 batch rows, then t1 batch rows, ..., t(T-1) batch rows.
+ * - Invariants: `input.rows() % time_steps == 0` and `batch_size = rows / time_steps`.
+ *
+ * State semantics:
+ * - `v_mem` is the persistent membrane state across calls (like keeping hidden state).
+ * - `reset_state()` clears that persistent state so the next forward starts from zero.
+ * - When `requires_grad==true`, we cache `v_mem_history` so backward can do BPTT.
+ *
+ * Notes on gradients:
+ * - The backward() here is intentionally “manual BPTT”: it iterates time in reverse and
+ *   propagates gradients through the recurrence `v[t] = beta * v[t-1] + input[t]`.
+ * - Because spiking includes a hard threshold + reset, the gradient uses a surrogate
+ *   derivative for the spike event and simplified/approximate handling of the reset.
+ */
+/**
  * @brief Leaky Integrate-and-Fire (LIF) layer with Full Backpropagation Through Time (BPTT).
  *
  * This module expects a flattened time-series input of shape (Time * Batch, Features).
@@ -22,6 +47,8 @@ struct LeakyBPTT : public Module
    public:
     [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
     {
+        // These are the trainable scalars exposed to optimizers.
+        // Note: dt and capacitance are plain floats (not optimized here).
         return {&resistance, &voltage_threshold};
     }
 
@@ -38,9 +65,10 @@ struct LeakyBPTT : public Module
     nn::Tensor voltage_threshold = nn::Tensor::constant(1, 1, 1.0F);
 
     // State management
-    nn::Tensor v_mem;         ///< Current batch state (at end of forward)
-    nn::Tensor v_mem_history; ///< History of potentials for BPTT [Time*Batch, Feat]
-    nn::Tensor spike_history; ///< History of spikes for BPTT [Time*Batch, Feat] (optional/derived)
+    nn::Tensor v_mem;         ///< Persistent state after last processed time step (shape: B x F)
+    nn::Tensor v_mem_history; ///< Cached pre-reset membrane values for BPTT (shape: (T*B) x F)
+    nn::Tensor
+        spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
 
     // Configuration
     int time_steps; ///< Number of time steps in the input sequence
@@ -68,6 +96,8 @@ struct LeakyBPTT : public Module
 
     void reset_state() override
     {
+        // Clearing v_mem means the next forward() will re-initialize state to zeros.
+        // This matches the common “reset hidden state between sequences” pattern.
         v_mem = nn::Tensor(); // Clear state
     }
 
@@ -93,6 +123,8 @@ struct LeakyBPTT : public Module
         nn::Tensor output(total_rows, features);
         if (requires_grad)
         {
+            // We cache v_pre (the membrane after decay+input, before spike/reset) for each time.
+            // Backward() reads this cache as its “pre-activation” for surrogate gradients.
             v_mem_history = nn::Tensor(total_rows, features);
         }
 
@@ -104,10 +136,9 @@ struct LeakyBPTT : public Module
         for (int t = 0; t < time_steps; ++t)
         {
             // Extract input slice for this time step
-            // Note: Tensor doesn't have block() exposed directly in interface?
-            // We use manual loop or slicing if available.
-            // Assuming we must implement manual copy for now or add block() to Tensor.
-            // Using a simple loop for clarity given strict interface.
+            // Implementation detail:
+            // - We iterate manually instead of using a block view to stay within the current
+            //   Tensor interface and keep the logic explicit/teachable.
 
             // 1. Decay & Integrate
             // v[t] = v[t-1] * beta + input[t]
@@ -136,11 +167,8 @@ struct LeakyBPTT : public Module
                     {
                         // Readout Mode: Output is V_mem
                         output.at(offset + b, f) = v;
-                        // No reset in readout mode typically?
-                        // snnTorch readout layer DOES decay but usually doesn't reset?
-                        // Or does it?
-                        // If it's a "Leaky Output", it decays. It doesn't spike, so no reset
-                        // mechanism triggered by logic. So we skip reset.
+                        // Readout mode is used for regression/continuous outputs.
+                        // There is no spike event, so no threshold/reset is applied.
                     }
                     else
                     {
@@ -175,7 +203,7 @@ struct LeakyBPTT : public Module
         int features = grad_output.cols();
 
         nn::Tensor grad_input(total_rows, features);
-        nn::Tensor grad_next_state(batch_size, features); // dL / dv[t+1]
+        nn::Tensor grad_next_state(batch_size, features); // dL / dv[t+1] (recurrence accumulator)
         grad_next_state.setZero();
 
         float const tau = resistance.at(0, 0) * capacitance;
@@ -188,6 +216,8 @@ struct LeakyBPTT : public Module
         float d_beta_dR =
             (tau > 1e-6) ? (beta * dt) / (capacitance * resistance.at(0, 0) * resistance.at(0, 0))
                          : 0.0f;
+        // Note: d_beta_dR is derived from beta = exp(-dt/(R*C)).
+        // This implementation uses a scalar R and C shared across all neurons.
 
         // BPTT Loop (Reverse Time)
         for (int t = time_steps - 1; t >= 0; --t)
@@ -227,7 +257,9 @@ struct LeakyBPTT : public Module
 
                         if (reset_zero)
                         {
-                            dvpost_dvpre = 1.0f; // Approx
+                            // Approximation: hard reset is non-differentiable; treat as identity
+                            // for the purpose of propagating gradients through the state.
+                            dvpost_dvpre = 1.0f;
                         }
                         else
                         {
@@ -247,12 +279,17 @@ struct LeakyBPTT : public Module
 
                     // Params Gradients
                     dL_dVth_sum += -grad_v_pre; // Simplified
+                    // Note: threshold gradient is simplified here. A more complete treatment
+                    // would include how V_th influences spike/reset and therefore the state.
 
                     // R: dL/dR = dL/dbeta * dbeta/dR + ...
                     // approximation for resistance gradient:
                     float v_prev_post = 0.0f;
                     if (t > 0)
                     {
+                        // We reconstruct an approximate post-reset previous state using cached
+                        // v_pre (and re-applying the spike decision). This keeps backward
+                        // self-contained without storing a full spike history.
                         float vp = v_mem_history.at((t - 1) * batch_size + b, f);
                         float s_p = (vp > threshold_val) ? 1.0f : 0.0f;
                         if (reset_zero && s_p > 0.5f)

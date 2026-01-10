@@ -1,3 +1,18 @@
+##
+## VendorGTest.cmake
+##
+## Purpose
+## - Fetch GoogleTest and expose it in a consistent way for this workspace.
+##
+## What it provides
+## - Upstream targets: `GTest::gtest`, `GTest::gtest_main`.
+## - Local convenience target: `google_test` (INTERFACE) linking the above.
+##
+## Local policy
+## - Suppress warnings (`-w`) and disable clang-tidy for vendored test targets.
+## - Re-expose includes as SYSTEM to keep project builds readable.
+##
+
 # Fetch and make available googletest
 include(FetchContent)
 

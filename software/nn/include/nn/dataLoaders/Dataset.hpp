@@ -7,6 +7,18 @@
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 
+/**
+ * @file Dataset.hpp
+ * @brief Minimal dataset interface (PyTorch-like) used by `DataLoader`.
+ *
+ * Conventions used throughout this codebase:
+ * - `get_item(idx)` returns a `Batch` whose `.inputs` and `.targets` are usually
+ *   single-sample tensors (1 x features). This keeps `collate()` simple.
+ * - `collate(indices)` builds a batch by stacking samples along rows.
+ * - Datasets can override `collate()` for efficiency (e.g., slicing contiguous
+ *   storage rather than looping per element).
+ */
+
 // Abstract dataset interface similar to PyTorch's Dataset
 class Dataset
 {

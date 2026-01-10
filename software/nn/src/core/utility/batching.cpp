@@ -1,3 +1,8 @@
+/**
+ * @file batching.cpp
+ * @brief Batch construction helpers for simple dataset-in-memory workflows.
+ */
+
 #include "nn/utility/batching.hpp"
 
 #include <algorithm>

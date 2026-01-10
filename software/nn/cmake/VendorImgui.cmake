@@ -1,3 +1,19 @@
+##
+## VendorImgui.cmake
+##
+## Purpose
+## - Fetch and build Dear ImGui as a static library target (`imgui`).
+##
+## What it provides
+## - Target: `imgui` (STATIC), built from core ImGui sources + GLFW/OpenGL3 backends.
+## - Includes: `${imgui_SOURCE_DIR}` and `${imgui_SOURCE_DIR}/backends` as SYSTEM.
+##
+## Notes / pitfalls
+## - This module only builds ImGui sources; consumers are responsible for linking
+##   platform libs (e.g., GLFW / OpenGL) as needed.
+## - Warnings are suppressed and clang-tidy is disabled because this is third-party code.
+##
+
 message(STATUS "Configuring ImGui...")
 include(FetchContent)
 

@@ -1,3 +1,15 @@
+/**
+ * @file phase00_training.cpp
+ * @brief Training loop and artifact writing for PHASE 0.
+ *
+ * This file keeps training logic explicit (PyTorch-like):
+ * - build model
+ * - optimizer attach
+ * - epoch/batch loop with forward/loss/backward/step
+ *
+ * It also writes a small “torch-state-like” artifact for reproducibility.
+ */
+
 #include "phase00_training.hpp"
 
 #include <yaml-cpp/yaml.h>

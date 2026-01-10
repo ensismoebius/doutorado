@@ -1,3 +1,12 @@
+/**
+ * @file AudioLoader.h
+ * @brief Helpers for loading audio rows from the 10.1117-style MAT dataset into `nn::Tensor`.
+ *
+ * Contract (current dataset convention):
+ * - Audio signal is stored as a single long row of samples followed by label columns.
+ * - `loadAudioFromMat()` returns a column-vector tensor of raw samples plus two integer labels.
+ */
+
 #pragma once
 
 #include <map>

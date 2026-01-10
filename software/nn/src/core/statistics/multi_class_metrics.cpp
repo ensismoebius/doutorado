@@ -1,4 +1,9 @@
 /**
+ * @file multi_class_metrics.cpp
+ * @brief Multi-class classification metrics implementation (snake_case translation unit).
+ */
+
+/**
  * @author André Furlan
  * @email ensismoebius@gmail.com
  * This whole project are under GPLv3, for

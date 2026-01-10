@@ -7,6 +7,20 @@
 
 #include "Dataset.hpp"
 
+/**
+ * @file DataLoader.hpp
+ * @brief Mini-batch iterator over a `Dataset`.
+ *
+ * This is intentionally small and "framework-free": it does not manage threads,
+ * pinned memory, prefetching, or async I/O. It exists to support the demos and
+ * experiments in this repository.
+ *
+ * Determinism model:
+ * - If `seed` is provided, shuffling is deterministic per epoch.
+ * - Each iterator captures its own snapshot of the shuffled indices so multiple
+ *   iterators can coexist without interfering with each other.
+ */
+
 class DataLoader
 {
    public:

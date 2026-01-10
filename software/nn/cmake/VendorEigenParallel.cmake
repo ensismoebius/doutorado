@@ -1,3 +1,20 @@
+##
+## VendorEigenParallel.cmake
+##
+## Purpose
+## - Centralize the “Eigen + OpenMP + BLAS/LAPACK” wiring for targets that want it.
+##
+## What it provides
+## - `configure_eigen_parallel_target(<target>)`: links OpenMP + BLAS/LAPACK and applies
+##   Eigen-related compile definitions.
+##
+## Assumptions / pitfalls
+## - Expects `OpenMP::OpenMP_CXX` and `${BLAS_LIBRARIES}` / `${LAPACK_LIBRARIES}` to be available
+##   (typically established by `cmake/PackageChecking.cmake`).
+## - This is a performance configuration; for deterministic experiments, pin thread counts
+##   explicitly (e.g., `OMP_NUM_THREADS=1`).
+##
+
 # Configure Eigen with parallel execution and enable vectorization
 # add_definitions(-DEIGEN_MAX_ALIGN_BYTES=32) # Managed by target_compile_definitions
 # add_definitions(-DEIGEN_NO_DEBUG)          # Managed by target_compile_definitions

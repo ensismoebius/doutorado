@@ -1,3 +1,16 @@
+/**
+ * @file lfcc_pipeline_utils.cpp
+ * @brief Implementation of the LFCC extraction pipeline.
+ *
+ * High-level steps:
+ * - load audio from `.mat`
+ * - pre-emphasis
+ * - framing + windowing
+ * - FFT + power spectrum
+ * - (linear) filterbank + log compression
+ * - DCT → LFCCs, plus delta/delta-delta features
+ */
+
 #define USE_MATH_DEFINES
 
 #include "lfcc_pipeline_utils.h"

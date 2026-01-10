@@ -5,6 +5,22 @@
 #include "nn/tensor/Tensor.hpp"
 
 /**
+ * @file Linear.hpp
+ * @brief Fully-connected (affine) layer: y = x W^T + b.
+ *
+ * How it fits in the system:
+ * - Linear layers implement the learnable synaptic connections.
+ * - Spiking layers (`LeakyBPTT`, `Leaky`, etc.) provide the nonlinearity and temporal dynamics.
+ * - Most networks in this repo alternate: Linear → (spiking/nonlinear) → Linear → ...
+ *
+ * Shape convention used here:
+ * - Input:  (batch, in_features)
+ * - Weight: (out_features, in_features)
+ * - Bias:   (out_features, 1) and is broadcast across the batch.
+ * - Output: (batch, out_features)
+ */
+
+/**
  * @brief Camada Linear (ou camada totalmente conectada)
  * Implementa uma camada linear que aplica a transformação afim:
  * saída = entrada * W^T + b
@@ -16,11 +32,13 @@
  */
 struct Linear : public Module
 {
-    int in_features;        // número de entradas (features de entrada do tensor)
-    int out_features;       // número de saídas (neurônios ou unidades na camada)
-    nn::Tensor weight;      // matriz de pesos com dimensão [out_features x in_features]
-    nn::Tensor bias;        // vetor de bias com dimensão [out_features]
-    nn::Tensor input_cache; // armazena a entrada da camada para uso no backpropagation
+    int in_features;   // número de entradas (features de entrada do tensor)
+    int out_features;  // número de saídas (neurônios ou unidades na camada)
+    nn::Tensor weight; // matriz de pesos com dimensão [out_features x in_features]
+    nn::Tensor bias;   // vetor de bias com dimensão [out_features]
+    // Cached input needed to compute gradients during backward.
+    // Only populated when `forward(..., requires_grad=true)`.
+    nn::Tensor input_cache;
 
     /**
      * @brief Inicializa pesos e bias com base no número de entradas e saídas
@@ -64,7 +82,8 @@ struct Linear : public Module
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
-        // Cache input for backward pass only if gradients are required
+        // Cache input for backward pass only if gradients are required.
+        // This is the standard memory/performance trade-off used in autodiff systems.
         if (requires_grad)
         {
             input_cache = input; // salva para o backward
@@ -78,7 +97,8 @@ struct Linear : public Module
         // Optimized linear transformation: y = x * W^T + b
         nn::Tensor result = input.matmul(weight.transpose());
 
-        // Manual broadcasting of bias
+        // Manual broadcasting of bias across the batch.
+        // Pitfall: bias is stored as (out_features, 1), so indexing uses bias.at(j, 0).
         for (size_t i = 0; i < result.rows(); ++i)
         {
             for (size_t j = 0; j < result.cols(); ++j)
@@ -110,12 +130,16 @@ struct Linear : public Module
                                         std::to_string(out_features) + ")");
         }
 
-        // Calculate weight gradient: grad_weight = grad_previous.T * input_cache
+        // Weight gradient (matrix calculus): dL/dW = (dL/dY)^T · X
+        // where:
+        //   X = input_cache (batch, in_features)
+        //   dL/dY = grad_previous (batch, out_features)
         nn::Tensor grad_weight = grad_previous.transpose().matmul(input_cache);
 
         weight.set_grad(grad_weight);
 
-        // Calculate bias gradient: sum of grad_previous columns
+        // Bias gradient: sum over the batch dimension.
+        // dL/db[j] = sum_i dL/dY[i,j]
         nn::Tensor grad_bias(out_features, 1);
         for (size_t j = 0; j < grad_previous.cols(); ++j)
         {
@@ -128,7 +152,7 @@ struct Linear : public Module
         }
         bias.set_grad(grad_bias);
 
-        // Calculate input gradient: grad_input = grad_previous * weight
+        // Input gradient: dL/dX = dL/dY · W
         auto grad_input_tensor = grad_previous.matmul(weight);
         return grad_input_tensor;
     }

@@ -1,3 +1,8 @@
+/**
+ * @file paraconsistent_gtest.cpp
+ * @brief Unit tests for paraconsistent logic utilities.
+ */
+
 #include <gtest/gtest.h>
 
 #include <cassert>

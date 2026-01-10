@@ -1,3 +1,18 @@
+##
+## VendorCnpy.cmake
+##
+## Purpose
+## - Fetch and configure `cnpy` (NumPy .npy/.npz IO) as a vendored dependency.
+##
+## What it provides
+## - Targets: `cnpy` and (in upstream) `cnpy-static`.
+## - Include path: exposes `${cnpy_SOURCE_DIR}` as a SYSTEM include directory.
+##
+## Local policy
+## - Suppress warnings for third-party code (`-w`) and disable clang-tidy on cnpy targets.
+## - Pin to a specific commit for reproducibility.
+##
+
 # Cnpy configuration
 # Cnpy lets you read and write to .npy and .npz formats in C++.
 

@@ -3,6 +3,18 @@
 #include "nn/tensor/Tensor.hpp"
 
 /**
+ * @file xavier.hpp
+ * @brief Xavier/Glorot weight initialization helper.
+ *
+ * Notes:
+ * - This is a standalone function (not a Module) that writes directly into
+ *   provided `weights` and `bias` tensors.
+ * - It uses `std::random_device` seeding, so results are non-deterministic
+ *   unless callers provide a deterministic seeding strategy elsewhere.
+ * - On dimension mismatch, it returns early without throwing.
+ */
+
+/**
  * @brief Initializes weights and biases using the Xavier (Glorot) uniform initialization.
  *
  * This initializer sets the weights and biases using values drawn from a uniform distribution

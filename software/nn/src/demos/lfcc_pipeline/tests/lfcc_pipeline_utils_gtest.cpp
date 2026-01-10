@@ -1,10 +1,18 @@
+/**
+ * @file lfcc_pipeline_utils_gtest.cpp
+ * @brief Unit tests for the LFCC feature extraction helpers.
+ *
+ * These tests validate core signal-processing steps (pre-emphasis, framing,
+ * windowing, filterbanks, DCT, deltas) with small synthetic inputs.
+ */
+
 #include <cmath>
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "nn/tensor/Tensor.hpp"             // For Tensor
 #include "nn/wave/audioFeatureExtraction.h" // Include the new audio feature extraction header
 #include "nn/wave/audioTypes.h"             // Include the new audio types header
-#include "gtest/gtest.h"
 
 using namespace nn::core::wave; // Use the namespace for moved functions
 

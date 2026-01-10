@@ -7,6 +7,18 @@
  * 2 de abr de 2020
  *
  */
+
+/**
+ * @file filter_operations.hpp
+ * @brief Simple FIR filter coefficient generation helpers.
+ *
+ * This header declares functions for building basic windowed FIR filter
+ * coefficients (low-pass, high-pass, stop-band) and applying windows.
+ *
+ * Notes:
+ * - These utilities are used by audio/EEG preprocessing code paths.
+ * - They operate on raw `std::vector<double>` coefficient arrays.
+ */
 #ifndef SRC_LIB_FILTEROPERATIONS_H_
 #define SRC_LIB_FILTEROPERATIONS_H_
 

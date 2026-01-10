@@ -1,3 +1,8 @@
+/**
+ * @file EEGLoader.cpp
+ * @brief Implementation of the 10.1117-style EEG MAT loader.
+ */
+
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
 
 #include <matio.h>

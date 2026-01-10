@@ -13,6 +13,18 @@
 #include <vector>
 
 /**
+ * @file paraconsistent.h
+ * @brief Paraconsistent logic utilities used by legacy experiments.
+ *
+ * These functions implement simple calculations around certainty/contradiction
+ * degrees (g1/g2) from alpha/beta parameters.
+ *
+ * Notes:
+ * - This module is independent of the NN/SNN layers.
+ * - The API uses raw STL containers and doubles to keep dependencies minimal.
+ */
+
+/**
  * @brief Given the alfa and the betha calculates the certainty degree
  *
  * @param alpha

@@ -1,3 +1,8 @@
+/**
+ * @file matfile_utils_gtest.cpp
+ * @brief Unit tests for MAT-file utility helpers (matioCpp -> Eigen/Tensor mapping).
+ */
+
 #include <gtest/gtest.h>
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>

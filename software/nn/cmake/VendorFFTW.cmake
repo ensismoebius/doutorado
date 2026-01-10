@@ -1,3 +1,21 @@
+##
+## VendorFFTW.cmake
+##
+## Purpose
+## - Provide FFTW3 (double or float) either from a prebuilt install under build/_deps
+##   or by building from source via `ExternalProject_Add`.
+##
+## What it provides
+## - Imported target: `FFTW::FFTW`.
+## - Optional build target: `fftw_build` when FFTW is found prebuilt (no-op target).
+##
+## Important details
+## - OpenMP is located before configuring FFTW so FFTW can be built with `--enable-openmp`.
+## - The import location uses a generator expression to switch between `libfftw3.so`
+##   and `libfftw3f.so` based on `USE_FFTWF`.
+## - Headers are exposed as SYSTEM includes to reduce warnings from vendor code.
+##
+
 # VendorFFTW.cmake
 # Configure vendored lib/fftw presence and make FFTW::FFTW available
 
