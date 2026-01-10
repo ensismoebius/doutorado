@@ -1,233 +1,376 @@
-# SNN Design and Diagnosis Analysis
+# Spiking Autoencoder (LeakyBPTT) — Experiment Guide
 
-## 1. Input Encoding Analysis
+This document explains the experiment implemented in `src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp`.
 
-### Mechanisms and Flaws
+It is designed to stand alone as educational technical documentation: you should be able to understand what the demo does, why it is structured this way, what behavior to expect, and which parameters you can safely change.
 
-In your current setup, the input to the network is not explicitly encoded into spikes. Instead, `generate_autoencoder_spike_data_of_ones` (implied by name and context) likely returns floating-point tensors of `1.0` or `0.0`.
-
-**If inputs are direct floating-point values (e.g., constant 1.0):**
-- **Direct Current Injection:** The first LIF layer receives a constant current $I = W \cdot 1.0 + b$.
-- **LIF Dynamics:** The membrane integrates this current: $V_{t} = \beta V_{t-1} + I$.
-- **Result:** The first layer **implicitly** acts as a Rate Encoder (or more accurately, an Integrate-and-Fire encoder). A constant input causes the neuron to charge up and fire periodically.
-
-**Why this might prevent convergence:**
-1. **Implicit Quantization (The "Integer" Problem):** An SNN is fundamentally a discrete signaling system. If your target is to reconstruct a constant `1.0` perfectly, the network must find a firing pattern that, when filtered by the decoder, equals exactly `1.0`.
-   - If utilizing a standard LIF readout, the output is binary (0 or 1). MSE loss on $y \in \{0, 1\}$ vs target $1.0$ is huge when $y=0$ and zero when $y=1$. This creates a "bang-bang" control problem, not smooth convergence.
-   - Even with a LeakyIntegrator readout, the input information is quantized into spikes. If the bottleneck bandwidth (5 neurons) or the firing rate is insufficient, information is lost (quantization error). You cannot reconstruct a precise analog value from a low-bitrate digital signal without error.
-
-2. **Temporal Structure:** The input is constant across `n_steps`.
-   - **Good:** This is the easiest case for SNNs (Rate Coding).
-   - **Bad:** If your loss is calculated at *every time step* (Dense BPTT), the initial transient period (where neurons are charging up but haven't fired yet) produces a huge error.
-   - **Fix:** Loss should often be calculated only on the *steady state* part of the output, or the network needs a "warm-up" period.
-
-3. **Convergence Failure Mechanism:**
-   - If the first layer fires, say, every 10 steps (100 Hz), the autoencoder sees "Silence... Silence... SPIKE... Silence...".
-   - The decoder must reconstruct "Constant 1.0" from this sparse signal.
-   - Without a very slow temporal filter (high $\tau$) at the readout, the output will ripple/oscillate.
-   - MSE loss will penalized these ripples, but the SNN cannot remove them completely without stopping firing (which increases error).
-   - **Result:** Loss hits a "floor" corresponding to the inherent ripple noise of the spike train. It cannot go to zero.
+> Note on naming: despite the filename containing “LeakyReLU”, this demo **does not** use the Leaky ReLU activation. The “leaky” here refers to **leaky integrate-and-fire (LIF)** neuron dynamics implemented by `LeakyBPTT`.
 
 ---
 
-## 2. LeakyIntegrator Refactor
+## 1. What this experiment is (and what it is not)
 
-The `LeakyIntegrator` has been implemented as a standalone header-only library in `include/nn/layers/LeakyIntegrator.hpp`.
+**Goal (experimental intent):** validate that a deep spiking autoencoder can be trained end-to-end in this C++ framework using:
 
-**Computational Role:**
-- **LIF Neurons:** Perform non-linear activation (Spike) and reset. They introduce the quantization.
-- **LeakyIntegrator:** Performs linear filtering (integration). It removes high-frequency quantization noise.
-- **Surrogate Gradients:** Not used in LeakyIntegrator (it is differentiable). It allows gradients to pass through the readout unchanged, providing a clear error signal to the previous spiking layers.
+- a time-unrolled spiking layer (`LeakyBPTT`) with **full BPTT** (backpropagation through time),
+- an explicit **surrogate gradient** for spike non-differentiability,
+- stable optimization practices (weight initialization + gradient clipping),
+- deterministic, synthetic data.
 
-**Recommended Usage:**
-- **As a Readout Layer (Decoder Output):** This is the **standard** way to perform regression or reconstruction in SNNs. It allows the network to sum up spikes $S_t$ into a smooth potential $V_{out}$ that can match a target $y$.
-- **Not as Input Encoder:** It assumes inputs are currents/spikes. It does not convert "Data -> Spikes"; it converts "Spikes -> Data".
+**Not the goal:** benchmarking accuracy on real datasets, learning rich latent structure, or demonstrating state-of-the-art encoding. The input is intentionally simple so that failures are interpretable.
 
----
+**Observable outputs:**
 
-## 3. Re-analysis of Code (Assumptions: Original Arch + LeakyIntegrator Readout)
-
-With the **LeakyIntegrator** as the final layer and **LIF** hidden layers:
-
-**Causal Failures & Fixes:**
-
-1.  **State Contamination (Verified):**
-    -   **Issue:** Batch updates happen, but membrane potentials ($V_{mem}$) are not reset. State bleeds from Batch $i$ to Batch $i+1$.
-    -   **Mechanism:** Gradients are calculated assuming $V_0 = 0$. In reality, $V_0 \approx V_{final\_prev}$. The gradient $\frac{\partial L}{\partial W}$ is theoretically wrong because it ignores the history term from the previous batch (which acts as random noise).
-    -   **Status:** **CRITICAL**. This destroys the i.i.d. assumption of SGD/Adam.
-
-2.  **Gradient Detachment (1-Step Approximation):**
-    -   See Section 4. The current `Leaky::backward` implementation only considers the *local* gradient at time $t$. It does not Backpropagate Through Time (BPTT) effectively because it ignores the term $\frac{\partial V_t}{\partial V_{t-1}}$.
-    -   **Consequence:** The network cannot learn "long-term" dependencies. For a constant input task, this is less fatal, but it makes learning inefficient.
-
-3.  **Surrogate Scale Mismatch:**
-    -   **Issue:** `ExponentialSurrogate(1.0F)`.
-    -   **Analysis:** If the threshold is `0.01` and the surrogate is `exp(-|u|)`, the gradient is huge when $V \approx V_{th}$ and decays only when $|V - V_{th}|$ is large. With $V_{th}$ so small (0.01), standard initialization might push potentials far from this range, or keep them constantly crossing it.
-    -   **Verification:** Check if `(v_mem - threshold)` is dominating the surrogate derivative.
+- Console prints including loss.
+- A training log written to `cpp_loss_log.txt` with `epoch,loss`.
 
 ---
 
-## 4. Surrogate Gradient Learning without Temporal Recurrence Derivatives
+## 2. Core definitions (terms used throughout)
 
-This refers to an approximation used in many deep learning frameworks (like SLAYER or some modes of snnTorch) to save memory/compute.
-
-### 4.1. The Math
-
-The true dynamics of a LIF neuron are:
-$$
-V[t] = \beta V[t-1] + \text{Input}[t] - S[t-1] \cdot V_{th}
-$$
-$$
-S[t] = \Theta(V[t] - V_{th})
-$$
-
-To find the gradient of the Loss $L$ w.r.t. Weights $W$, we use the chain rule. A key term is $\frac{\partial S[t]}{\partial W}$.
-Expanding over time requires the **recurrent derivative**: $\frac{\partial S[t]}{\partial S[t-1]}$.
-
-**Full BPTT** computes:
-$$
-\frac{d V[t]}{d W} = \frac{\partial V[t]}{\partial W} + \frac{\partial V[t]}{\partial V[t-1]} \frac{d V[t-1]}{d W}
-$$
-Where $\frac{\partial V[t]}{\partial V[t-1]} = \beta$. This term ($\beta^k$) links time steps.
-
-### 4.2. The Approximation ("1-Step" or "Spatial-Only")
-
-In "Surrogate Gradient Learning without temporal recurrence" (or spatial-only backprop), we **ignore** the $\frac{\partial V[t]}{\partial V[t-1]}$ term during the backward pass through the *spiking* non-linearity history.
-
-We effectively say:
-> "Credit assignment for a spike at time $t$ depends *only* on the input at time $t$, not on the residual potential left over from $t-1$."
-
-**Formal Difference:**
--   **Full BPTT:** $\nabla W = \sum_t \delta_t \otimes I_t$, where $\delta_t$ includes terms $\beta \delta_{t+1}$.
--   **1-Step Approx:** $\nabla W = \sum_t \delta_t \otimes I_t$, where $\delta_t$ is calculated assuming adjacent time steps are independent layers.
-
-**Why it works (sometimes):**
--   For "Rate Coding" tasks (like yours), the information is in the *count* of spikes. The precise timing dependency (that $V_t$ depends on $V_{t-1}$) matters less than the aggregate Input $\to$ Output mapping.
--   It provides a "directionally correct" gradient: increasing $W$ increases $V$, which increases $P(\text{spike})$.
-
-**Where it breaks:**
--   **Temporal Pattern Matching:** If the task requires detecting a sequence (e.g., "Spike A *then* Spike B"), this approximation fails because it severs the causal link between $t-1$ and $t$ in the gradient.
--   **Vanishing Gradients:** Ironically, *ignoring* recurrence prevents vanishing gradients through time (since you effectively restart backprop at every step), but it prevents learning temporal memory.
-
-### 4.3. Relevance to your Convergence Issue
-Since your task is **Constant Input Reconstruction** (Rate Code), this approximation is **likely NOT the primary cause** of your convergence failure. State contamination and readout dynamics are far more significant.
+- **Autoencoder:** a model trained to reconstruct its input $x$ as output $\hat{x}$. It learns a compressed representation (latent code) in the middle.
+- **Latent / bottleneck:** the smallest representation $z$ (lower dimensionality), forcing compression.
+- **Spike train:** a sequence of events in time, typically $S[t] \in \{0,1\}$.
+- **LIF neuron (leaky integrate-and-fire):** a neuron with a membrane potential $V$ that decays over time (“leaks”), integrates input current, and emits a spike when $V$ crosses a threshold.
+- **BPTT (backpropagation through time):** gradient computation for dynamical systems/RNNs by unrolling the recurrence across time steps and applying the chain rule backward.
+- **Surrogate gradient:** a differentiable approximation used in the backward pass for the derivative of the spike function.
+- **Readout mode:** using the membrane potential $V$ directly as output (continuous), rather than emitting spikes.
 
 ---
 
-## 5. Summary of Diagnosis
+## 3. Theory → code → behavior (the causal chain)
 
-1.  **Primary Failure:** **State Contamination**. Random batches are sharing internal state $V_{mem}$, creating a noisy, non-stationary optimization problem.
-2.  **Secondary Failure:** **Output Quantization**. Standard LIF readout cannot produce "1.0". The replacement with `LeakyIntegrator` is theoretically sound and necessary.
-3.  **Low-Level Warning:** **Gradient Approximation**. Your `Leaky::backward` implementation currently **calculates** the recurrence term `dL/dbeta` (gradient for resistance) but essentially treats the voltage flow `dL/dI` as purely spatial (`grad_v_pre * 1`). This confirms you are using the **1-step approximation** for the input stream gradient.
+### 3.1 Autoencoder objective
 
-**Required Fixes for Convergence:**
-1.  Use `LeakyIntegrator` at the output.
-2.  Call `reset_state()` on batches.
-3.  Ensure your loss calculation ignores the first few "warm-up" time steps (transient response).
----
+**Theory:** train parameters $(\theta, \phi)$ so that:
 
-## 6. Deep Dive: Input Encoding, Warm-Up, and Determinism
+$$z = f_\theta(x), \quad \hat{x} = g_\phi(z), \quad \min \; \mathcal{L}(x, \hat{x}).$$
 
-### 6.1. Determinism and Temporal Dynamics
-**Is an SNN a deterministic system?**
-Yes. Given fixed parameters $(\mathbf{W}, \mathbf{b})$, fixed initial state $S_0$ (usually $\mathbf{V}=0$), and a deterministic input sequence $X_{1:T}$, the evolution of an SNN is purely deterministic.
+**In this code:**
 
-**Behavior for Repeated Identical Inputs:**
-If you present the exact same input pattern (e.g., constant current) for a long duration, the network behavior depends on the regime:
-1.  **Transient (Warm-up):** Starting from $V=0$, the neurons integrate input. No spikes occur until $V > V_{th}$. This is the "charging" phase.
-2.  **Attractor (Limit Cycle):** Once neurons start firing, they will typically settle into a periodic firing pattern (limit cycle). For a constant input $I$, the Inter-Spike Interval (ISI) is determined by $t_{isi} = \tau \ln \frac{I}{I - V_{th}}$.
+- `SpikeAutoEncoder::forward(x)` computes `encoder.forward(x)` then `decoder.forward(z)`.
+- The target is set to the input: `criterion->set_target(inputs)`.
+- The loss is MSE: `MSELoss` computes $\|\hat{x} - x\|^2$.
 
-**Why "Warm-up" Matters for Autoencoders:**
-Your expectation:
-> Input: $[1,1,1] \to$ Output: $[1,1,1]$
+**Observed behavior:** if training works, the scalar loss printed every ~10 epochs decreases over time.
 
-Reality in SNNs:
-> Input: $[1,1,1] \dots$
->
-> Layer 1 Internal: $0.1 \to 0.2 \to \dots \to V_{th}(\text{SPIKE}) \to 0 \dots$
->
-> Layer 1 Output: $[0, 0, \dots, 1, 0, \dots]$
+### 3.2 Spiking dynamics (LIF)
 
-The network **cannot** produce a correct output during the initial warm-up phase because the signal hasn't propagated through the layers yet.
-*   **Pathological?** No, this is expected physics.
-*   **Implication:** Calculating Loss at $t=0, 1, 2$ is incorrect because the error is theoretically unavoidable (causal delay). You should mask the loss for the first few steps or allow the network to "settle".
+**Theory (discrete time):** for each neuron and time step,
 
-### 6.2. Bang-Bang Control Analysis
+$$V[t] = \beta V[t-1] + I[t], \quad \beta = \exp(-dt/\tau), \quad \tau = RC.$$
 
-**Definition:**
-Bang-bang control is a feedback strategy that switches abruptly between two states (e.g., "Full On" and "Full Off") to control a continuous variable. The thermostat in a house is a classic example.
+Spiking uses a threshold:
 
-**LIF as Bang-Bang:**
-A LIF neuron is a bang-bang controller attempting to represent a value:
-*   State: Membrane potential.
-*   Switch: Spike (1) or No Spike (0).
-*   Reset: Hard drop to 0.
+$$S[t] = \Theta(V[t] - V_{th}),$$
 
-**Impact on Reconstruction:**
-To reconstruct a target $y=0.5$ with a binary output $s \in \{0,1\}$:
-*   The neuron must fire such that the temporal average $\langle s \rangle \approx 0.5$.
-*   Output trajectory: $1, 0, 1, 0 \dots$
-*   Instantaneous Error $(s_t - 0.5)^2$: Always $0.25$. **The error never goes to zero at any single time step.**
-*   **Gradient:** The derivative of this switching behavior is zero (flat) or infinite (step), requiring surrogate gradients which are approximations. This makes the "loss landscape" extremely rugged and non-convex.
+followed by a reset (here: hard reset to 0 if spiking).
 
-**Conclusion:** Using a standard LIF neuron at the output of a regression/reconstruction task forces the optimizer to solve a bang-bang control problem using gradients, which is mathematically ill-posed.
+**In this code:** `LeakyBPTT::forward` implements exactly this, operating on a flattened input of shape `(Time*Batch, Features)`.
+
+**Observed behavior:** with constant-ish input current, many neurons converge to periodic firing (rate-coded behavior), because the system becomes a stable limit cycle: integrate → spike → reset → repeat.
+
+### 3.3 Rate coding vs. event-based representations
+
+Spikes are **event-based** (sparse in time), but many tasks treat information as **rate-coded**: the value is represented by spike count over a window.
+
+- **Rate-coded view:** a constant input often produces a regular firing rate; reconstruction can rely on average spike rates.
+- **Timing-coded view (e.g., TTFS):** precise spike timing carries information; training is typically harder.
+
+**This experiment is closer to rate coding** because the synthetic generator produces a simple, repetitive pattern and the network is trained with MSE on dense time steps.
 
 ---
 
-## 7. Implementation Validation & Fixes
+## 4. The model architecture (layer-by-layer)
 
-### 7.1. Primary Failure: State Contamination (VALIDATED)
-*   **Diagnosis:** Correct. Processing independent batches without resetting $V_{mem}$ creates hidden temporal dependencies between samples that should be independent.
-*   **Fix:** Call \`encoder.reset_state()\` and \`decoder.reset_state()\` at the start of the batch loop.
+The demo builds the model in `SpikeAutoEncoder` using two `Sequential` containers.
 
-### 7.2. Secondary Failure: Output Quantization (VALIDATED)
-*   **Diagnosis:** Correct. A spiking LIF layer cannot output a constant float value.
-*   **Fix:** Replace the final layer with \`LeakyIntegrator\`. This moves the system from "Spike Matching" (impossible for constants) to "Potential Matching" (possible).
+### 4.1 Encoder
 
-### 7.3. Gradient Approximation (VALIDATED)
-*   **Observation:** Your code computes \`dL/dInput = grad_output\` (identity pass-through of the surrogate derivative).
-*   **Missing Term:** Full BPTT would include $\frac{\partial V_t}{\partial V_{t-1}} = \beta$.
-*   **Type:** This is indeed the **1-step (spatial) surrogate approximation**.
-*   **Consequence:**
-    *   **Rate Coding (Static):** Works fine. The "spatial" direction of the gradient ($W \uparrow \implies V \uparrow \implies \text{Spike} \uparrow$) is correct.
-    *   **Temporal Tasks:** Fails. The network doesn't know that "firing now reduces potential later". It effectively treats every time step as a separate feedforward network, linked only by the forward pass state but not the backward pass gradient.
-## 8. Comparison with Standard Libraries (snnTorch)
+The encoder is:
 
-It is useful to compare these diagnoses with how the Python library **snnTorch** (a standard reference) handles these problems.
-
-### 8.1. State Management
-*   **snnTorch:** Requires manual resets.
-    *   *Stateless Mode:* User must pass state `mem` loop-to-loop.
-    *   *Stateful Mode:* User must call `utils.reset(net)` every batch or epoch.
-*   **Our Solution:** Precisely matches this. We implemented `reset_state()` and call it manually at the batch start.
-
-### 8.2. Regression Readout
-*   **snnTorch:** Does **not** use spikes for regression output.
-    *   The standard tutorial for regression/autoencoders uses the **Membrane Potential** of the final layer as the prediction $.
-    *   Code: `spk, mem = output_layer(x); return mem`
-*   **Our Solution:** Our `LeakyIntegrator` is mathematically identical to collecting the membrane potential of a non-thresholded LIF neuron. We just formalized it into a class to ensure it's impossible to "accidentally" spike.
-
-### 8.3. Gradient Dynamics
-*   **snnTorch:** Uses **Full BPTT** (via PyTorch autograd unrolling). It computes gradients through time, capturing the decay term $\beta$.
-*   **Our Solution:** We currently use a **1-step approximation** (checking only local inputs), effectively assuming $\frac{\partial V_t}{\partial V_{t-1}} \approx 0$ for the gradient flow (though we handle the weight gradients correctly).
-    *   *Impact:* This makes our training more stable but potentially less capable of learning complex temporal patterns compared to snnTorch. For static/rate-coded autoencoders, this difference is negligible.
-
-### 8.4. Solution: LeakyBPTT Module
-
-To resolve the gradient approximation issue, we have introduced a new module `LeakyBPTT` (Backpropagation Through Time).
-
-**Features:**
-*   **Time Awareness:** It accepts a flattened tensor of shape $ and internally unrolls the loop over $ steps.
-*   **Full Gradients:** It calculates the recurrent derivative term $\frac{\partial V_t}{\partial V_{t-1}}$, enabling the network to learn temporal dependencies that the 1-step approximation misses.
-*   **snnTorch Equivalence:**
-    *   **Stateful:** Maintains state across batches, requiring manual `nn::utility::reset(net)` calls.
-    *   **Regression Mode:** Supports a `readout_mode=true` flag that outputs membrane potential instead of spikes, matching snnTorch's regression readout strategy.
-
-**Usage:**
-```cpp
-// Standard Spiking Layer (Hidden)
-auto layer = std::make_shared<LeakyBPTT>(n_steps, dt, ...);
-
-// Regression Readout Layer (Output)
-auto readout = std::make_shared<LeakyBPTT>(n_steps, dt, ..., true); // true = readout_mode
 ```
+Linear(100 → 50) → LeakyBPTT
+Linear(50  → 40) → LeakyBPTT
+Linear(40  → 30) → LeakyBPTT
+Linear(30  → 20) → LeakyBPTT
+Linear(20  → 10) → LeakyBPTT
+Linear(10  → 10) → LeakyBPTT
+```
+
+The final size `bottleneck_dim` is 10 by default.
+
+### 4.2 Decoder
+
+The decoder mirrors the encoder, ending with a **readout** layer:
+
+```
+Linear(10  → 10)  → LeakyBPTT
+Linear(10  → 20)  → LeakyBPTT
+Linear(20  → 30)  → LeakyBPTT
+Linear(30  → 40)  → LeakyBPTT
+Linear(40  → 50)  → LeakyBPTT
+Linear(50  → 100) → LeakyBPTT(readout_mode=true)
+```
+
+### 4.3 Why the final layer is “readout mode”
+
+**Key misconception:** “An autoencoder must output spikes.” Not necessarily.
+
+For reconstruction with MSE, a continuous output is typically easier and better behaved. In snnTorch tutorials, it is common to use the **membrane potential** as the regression output.
+
+**In this code:** the final `LeakyBPTT` is constructed with `readout_mode=true`, which outputs $V[t]$ directly (no thresholding, no reset). That makes $\hat{x}$ continuous and differentiable at the output.
+
+---
+
+## 5. Time handling and tensor shapes (critical for correctness)
+
+### 5.1 Flattened time-major representation
+
+`LeakyBPTT` expects the input tensor to have shape:
+
+$$ (T \cdot B, F) $$
+
+where:
+
+- $T$ = `time_steps` (called `steps` in the config)
+- $B$ = batch size (inferred)
+- $F$ = feature dimension
+
+**Constraint enforced in code:** `input.rows() % time_steps == 0` or `LeakyBPTT::forward` throws.
+
+### 5.2 How the demo builds `inputs`
+
+The generator returns a sequence of tensors `input_seq[t]` with shape `(B, F)`.
+The demo flattens it into a single tensor `(T*B, F)` by writing:
+
+$$\text{inputs}[tB + b, f] = \text{input\_seq}[t][b, f].$$
+
+**Observed behavior:** if you accidentally swap the indexing order (e.g., using `b*T + t`), you will train on scrambled temporal structure and the loss will not behave as expected.
+
+---
+
+## 6. Learning mechanics in detail
+
+### 6.1 Loss function (MSE)
+
+The training objective is:
+
+$$\mathcal{L} = \frac{1}{TBF} \sum_{t,b,f} (\hat{x}[t,b,f] - x[t,b,f])^2.$$
+
+In practice, the demo computes a scalar loss stored in a 1×1 `Tensor`.
+
+### 6.2 Where gradients come from in spiking layers
+
+**The problem:** $S[t] = \Theta(V[t] - V_{th})$ is non-differentiable.
+
+**The solution used here:** the backward pass uses an **exponential surrogate** (configured as `ExponentialSurrogate(1.0f)` when constructing `LeakyBPTT`). Conceptually:
+
+$$\frac{\partial S}{\partial V} \approx \frac{1}{\alpha} \exp\left(-\frac{|V - V_{th}|}{\alpha}\right).$$
+
+This gives non-zero gradients when $V$ is near threshold. The surrogate does not change the forward spikes, only the learning signal.
+
+### 6.3 Full BPTT in `LeakyBPTT`
+
+The forward pass stores `v_mem_history` across time when `requires_grad=true`.
+The backward pass iterates from $t=T-1$ down to $0$, propagating `grad_next_state` through the decay term $\beta$.
+
+**Causal consequence:** increasing $T$ increases both learning capacity (more temporal context) and memory/computation cost (more history to store).
+
+### 6.4 Parameters that are actually optimized
+
+This is easy to miss:
+
+- Each `LeakyBPTT` exposes parameters via `params()` as `{&resistance, &voltage_threshold}`.
+- Each `Linear` exposes its own weights/bias.
+- `SpikeAutoEncoder::params()` concatenates encoder and decoder parameters.
+
+So the optimizer updates both synaptic weights (Linear layers) and neuron parameters (R and threshold) unless you intentionally filter them out.
+
+### 6.5 Gradient clipping
+
+The demo clips gradients by global norm:
+
+1. compute total norm across all parameter gradients,
+2. if norm exceeds `max_norm`, scale all gradients.
+
+This prevents exploding gradients, which are common in time-unrolled systems.
+
+---
+
+## 7. Configuration reference (parameters, ranges, constraints)
+
+The demo uses this struct:
+
+```cpp
+struct ModelConfig {
+    int input_dim;            // F
+    int hidden_dims[5];       // fixed-length array
+    int bottleneck_dim;
+    int steps;                // T
+    float dt;                 // seconds
+    float R;                  // resistance
+    float C;                  // capacitance
+    float thr;                // threshold
+    float lr;
+    int epochs;
+    int batch_size;           // declared, not used for batching in this demo
+};
+```
+
+Practical constraints (to avoid undefined/unstable behavior):
+
+- `steps > 0`.
+- `dt > 0`.
+- `R > 0`, `C > 0` so that $\tau = RC > 0$ and $\beta = \exp(-dt/\tau)$ is well-defined.
+- `thr > 0` (threshold at or below 0 makes spiking degenerate).
+- `input.rows() % steps == 0` for any tensor passed into `LeakyBPTT`.
+
+Typical “sane” ranges (task-dependent, but useful as guardrails):
+
+- $\beta$ close to 1 (slow leak) gives longer memory but can amplify gradient issues; $\beta$ too small forgets too quickly.
+- Threshold `thr` too large → almost no spikes (“dead network”); too small → frequent spikes (“spike storm”).
+
+### 7.1 Subtle but important: which neuron parameters are learned
+
+In this framework, each `LeakyBPTT` layer owns:
+
+- `resistance`: a **1×1 tensor**, i.e., a *scalar* $R$ shared by all units in that layer.
+- `voltage_threshold`: a **1×1 tensor**, i.e., a *scalar* $V_{th}$ shared by all units in that layer.
+
+This matches the common “scalar beta/threshold” setup in snnTorch examples. It is not (currently) a per-neuron threshold vector.
+
+---
+
+## 8. Weight loading and initialization (reproducibility)
+
+The demo attempts to load weights from:
+
+- `weights/encoder_spike_model_weights.npz`
+- `weights/decoder_spike_model_weights.npz`
+
+If loading fails, it initializes Linear layers using Kaiming initialization and then scales weights by `0.01`.
+
+**Why the `0.01` scale matters:** with deep spiking stacks, large initial weights can push membrane potentials far above threshold, causing immediate saturation (everything spikes) and poor gradients.
+
+### 8.1 NPZ weight format assumptions
+
+The loader iterates over `Sequential::layers` and only loads weights for layers that can be `dynamic_pointer_cast<Linear>`.
+
+- Keys are derived from the **layer index in the Sequential container**, not from “linear layer number”.
+    For example, because the sequence alternates `[Linear, LeakyBPTT, Linear, LeakyBPTT, ...]`, weights typically appear at even indices.
+- For an index `i`, it expects:
+    - `"<i>.weight"`
+    - `"<i>.bias"`
+
+Practical implication: if you change the ordering or insert/remove layers, old `.npz` files will silently stop matching the architecture.
+
+---
+
+## 9. Expected runtime behavior (what “working” looks like)
+
+1. The program prints CPU vectorization support.
+2. It loads weights or initializes them.
+3. Training begins, printing a loss value periodically.
+4. `cpp_loss_log.txt` grows over time.
+
+You should expect:
+
+- loss to generally decrease (not strictly monotonic),
+- occasional plateaus if the network settles into a stable firing regime,
+- sensitivity to `thr`, `R`, `C`, and the initialization scale.
+
+---
+
+## 10. Common pitfalls and misconceptions (practical debugging guide)
+
+### 10.1 “My loss doesn’t go down — BPTT must be broken”
+
+Often false. In spiking systems, the more common causes are:
+
+- thresholds too high (no spikes → weak learning signal),
+- thresholds too low (always spiking → little discrimination),
+- weights too large (saturation) or too small (silence).
+
+### 10.2 State handling across batches
+
+Spiking layers are stateful because they keep `v_mem`.
+If you do SGD over multiple independent samples, you must reset state between samples/batches.
+
+**In this demo:** `model.reset_states()` is called each epoch before forward.
+
+### 10.3 “batch_size” is not actually used
+
+The config includes `batch_size`, but this particular demo constructs `inputs` with `n_samples = 10` and trains on the whole flattened tensor each epoch. There is no minibatching loop.
+
+**Implication:** optimization behavior differs from a true minibatch SGD setup (gradient noise is lower; learning can be more stable but less representative).
+
+### 10.4 Loss on early time steps (warm-up)
+
+When an SNN starts from $V=0$, the first few steps can be “charging up” transients. Penalizing these equally can slow training.
+
+This demo computes loss on all time steps for simplicity. If you extend this experiment, consider masking early steps.
+
+### 10.5 Confusing “LeakyReLU” with “Leaky LIF”
+
+- **Leaky ReLU:** a piecewise-linear activation $\max(\alpha x, x)$ in standard ANNs.
+- **Leaky LIF:** exponential decay of membrane potential in spiking neurons.
+
+This experiment uses the latter.
+
+---
+
+## 11. How to extend this experiment safely
+
+Once the mechanics are validated, typical next steps are:
+
+- Replace the synthetic generator with real data (and define an explicit spike encoding if needed).
+- Introduce minibatching (use `DataLoader`) and keep state resets correct.
+- Add metrics beyond MSE (e.g., spike rate statistics, sparsity penalties).
+
+If you do any of these, re-check the shape constraint `(T*B, F)` at every spiking layer boundary.
+
+---
+
+## 12. Code map (functions and responsibilities)
+
+This section documents the major functions in the demo in “what it does / why it exists” form.
+
+### 12.1 `SpikeAutoEncoder`
+
+- `SpikeAutoEncoder::SpikeAutoEncoder(cfg)`
+    - Builds the encoder and decoder `Sequential` stacks.
+    - Uses `LeakyBPTT(cfg.steps, cfg.dt, cfg.R, cfg.C, cfg.thr, ..., readout_mode)` for spiking/non-spiking behavior.
+- `forward(x, requires_grad)`
+    - Runs encoder then decoder.
+    - `requires_grad=true` is important: it enables `LeakyBPTT` to store history needed for BPTT.
+- `backward(grad_output)`
+    - Backpropagates through decoder then encoder.
+- `params()`
+    - Concatenates encoder and decoder parameters for the optimizer.
+- `reset_states()`
+    - Calls `nn::utility::reset(...)` on both sequentials to clear `v_mem` in each `LeakyBPTT`.
+
+### 12.2 Weight init / load
+
+- `initialize_weights(enc_path, dec_path)`
+    - Tries to load weights from NPZ; otherwise falls back to Kaiming init + scale.
+- `load_weights_from_file(seq, file)`
+    - Loads only `Linear` weights/biases; ignores spiking layer parameters.
+
+### 12.3 Optimization helpers
+
+- `clip_gradients(params, max_norm)`
+    - Computes the global gradient norm over all params.
+    - Scales each gradient tensor in-place if the norm exceeds `max_norm`.
+    - Note: `Tensor::grad()` returns a tensor value (copy), so scaling must be followed by `set_grad(...)`.
+
+### 12.4 Main training loop
+
+- Builds synthetic time-series inputs, flattens to `(T*B, F)`.
+- Per epoch:
+    - `optimizer.zero_grad(params)`
+    - `model.reset_states()`
+    - forward → loss → backward
+    - clip → `optimizer.step(params)`
+    - log to `cpp_loss_log.txt`

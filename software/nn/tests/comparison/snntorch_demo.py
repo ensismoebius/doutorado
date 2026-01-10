@@ -34,7 +34,7 @@ class AutoEncoder(nn.Module):
         self.hidden_dim3 = 30
         self.hidden_dim4 = 20
         self.hidden_dim5 = 10
-        self.bottleneck_dim = 5
+        self.bottleneck_dim = 10
         
         # Leaky parameters
         dt = 0.001

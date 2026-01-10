@@ -58,17 +58,19 @@ class SpikeAutoEncoder : public Module
         // --- Helper to create layers succinctly ---
         auto lin = [](int in, int out) -> std::shared_ptr<Module>
         { return make_shared<Linear>(in, out); };
+
         auto leaky = [&](bool readout = false) -> std::shared_ptr<Module>
         {
-            return make_shared<LeakyBPTT>(cfg.steps,
-                                          cfg.dt,
-                                          cfg.R,
-                                          cfg.C,
-                                          cfg.thr,
-                                          true, // reset_zero
-                                          0.0f, // reset_pot
-                                          readout,
-                                          make_shared<ExponentialSurrogate>(1.0f));
+            return make_shared<LeakyBPTT>( //
+                cfg.steps,
+                cfg.dt,
+                cfg.R,
+                cfg.C,
+                cfg.thr,
+                true, // reset_zero
+                0.0f, // reset_pot
+                readout,
+                make_shared<ExponentialSurrogate>(1.0f));
         };
 
         // --- Build Encoder ---
@@ -236,18 +238,19 @@ void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
         float scale = max_norm / (total_norm + 1e-6f);
 
         // C++20 Ranges: Scale gradients
-        std::ranges::for_each(params,
-                              [scale](auto* p)
-                              {
-                                  nn::Tensor g = p->grad();
-                                  if (g.size() > 0)
-                                  {
-                                      std::span<float> data(g.mutable_data(), g.size());
-                                      std::ranges::for_each(data,
-                                                            [scale](float& val) { val *= scale; });
-                                      p->set_grad(g);
-                                  }
-                              });
+        std::ranges::for_each( //
+            params,
+            [scale](auto* p)
+            {
+                nn::Tensor g = p->grad();
+                if (g.size() > 0)
+                {
+                    std::span<float> data(g.mutable_data(), g.size());
+                    std::ranges::for_each(data, [scale](float& val) { val *= scale; });
+                    p->set_grad(g);
+                }
+            } //
+        );
     }
 }
 
