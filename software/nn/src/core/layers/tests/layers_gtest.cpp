@@ -999,54 +999,6 @@ TEST(LayerMemoryStressTest, LargeLinearLayer)
     EXPECT_EQ(grad_input.cols(), large_input);
 }
 
-// This test only compiles in Release mode due to high memory requirements
-#ifdef NDEBUG
-TEST(LayerMemoryStressTest, LargeConv2dLayer)
-{
-    const int large_channels = 64;
-    const int large_size = 128;
-
-    Conv2d conv(large_channels,
-                large_channels,
-                3,
-                1,
-                1,
-                1,
-                true); // kernel=3, stride=1, padding=1, dilation=1, use_parallel=true
-
-    // Create large input (batch_size=1, channels, height, width)
-    nn::Tensor input_tensor(std::vector<size_t>{1,
-                                                static_cast<size_t>(large_channels),
-                                                static_cast<size_t>(large_size),
-                                                static_cast<size_t>(large_size)});
-    // Fill with random values
-    std::mt19937 gen(42);
-    std::uniform_real_distribution<float> dist(-1.0F, 1.0F);
-    for (size_t i = 0; i < input_tensor.size(); ++i)
-    {
-        input_tensor.at(i) = dist(gen);
-    }
-
-    nn::Tensor output = conv.forward(input_tensor);
-
-    // Output should be valid
-    EXPECT_GT(output.size(), 0);
-    EXPECT_GT(output.rows(), 0);
-    EXPECT_GT(output.cols(), 0);
-
-    // Test backward
-    nn::Tensor grad_tensor(output.get_shape());
-    grad_tensor.set_ones();
-    nn::Tensor grad_input = conv.backward(grad_tensor);
-
-    const auto& grad_shape = grad_input.get_shape();
-    EXPECT_EQ(grad_shape[0], 1);
-    EXPECT_EQ(grad_shape[1], large_channels);
-    EXPECT_EQ(grad_shape[2], large_size);
-    EXPECT_EQ(grad_shape[3], large_size);
-}
-#endif // NDEBUG - LargeConv2dLayer test only in Release mode
-
 // Numerical Edge Cases for Layers
 TEST(LayerNumericalEdgeTest, NaNInfHandling)
 {

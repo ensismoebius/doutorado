@@ -67,7 +67,7 @@ EOF
 
 # Find all test binaries
 echo "Finding test binaries..."
-TEST_BINARIES=($(find "$BUILD_DIR" -name "*_gtest" -o -name "*_test" -type f 2>/dev/null | sort))
+TEST_BINARIES=($(find "$BUILD_DIR" -name "*_gtest" -o -name "*_test" -o -name "*Test" -type f 2>/dev/null | sort))
 
 if [ ${#TEST_BINARIES[@]} -eq 0 ]; then
     echo "❌ No test binaries found in $BUILD_DIR"
@@ -126,11 +126,11 @@ cat "$SUMMARY_LOG"
 echo ""
 
 # Check for crashes
-CRASH_COUNT=$(grep -c "CRASH/TIMEOUT" "$CRASH_LOG")
+CRASH_COUNT=$(grep -c "CRASH/TIMEOUT:" "$CRASH_LOG")
 if [ "$CRASH_COUNT" -gt 0 ]; then
     echo "⚠️  CRASHES DETECTED!"
     echo ""
-    grep "CRASH/TIMEOUT" "$CRASH_LOG"
+    grep "CRASH/TIMEOUT:" "$CRASH_LOG"
 fi
 
 echo ""
