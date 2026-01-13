@@ -11,22 +11,30 @@ try:
     HAS_SCIPY = True
 except ImportError:
     HAS_SCIPY = False
-    print("Aviso: Scipy não encontrado. Resampling usará interpolação linear (menor qualidade).", flush=True)
+    print(
+        "Aviso: SciPy não encontrado. Reamostragem usará interpolação linear (menor qualidade).",
+        flush=True,
+    )
 
-def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
-    if orig_sr == target_sr:
+def reamostrar_audio(audio: np.ndarray, taxa_origem: int, taxa_destino: int) -> np.ndarray:
+    if taxa_origem == taxa_destino:
         return audio
     
-    num_samples = int(len(audio) * target_sr / orig_sr)
+    num_amostras = int(len(audio) * taxa_destino / taxa_origem)
     
     if HAS_SCIPY:
-        # FFT-based resampling
-        return signal.resample(audio, num_samples)
+        # Reamostragem baseada em FFT
+        return signal.resample(audio, num_amostras)
     else:
-        # Linear interpolation fallback
+        # Fallback: interpolação linear
         x_old = np.linspace(0, len(audio), len(audio))
-        x_new = np.linspace(0, len(audio), num_samples)
+        x_new = np.linspace(0, len(audio), num_amostras)
         return np.interp(x_new, x_old, audio)
+
+
+# Wrapper (compatibilidade)
+def resample_audio(audio: np.ndarray, orig_sr: int, target_sr: int) -> np.ndarray:
+    return reamostrar_audio(audio, taxa_origem=orig_sr, taxa_destino=target_sr)
 
 def capturar_audio(
     duracao_segundos: float, 
@@ -45,9 +53,8 @@ def capturar_audio(
         np.ndarray: Vetor de áudio 1D (float32).
     """
     
-    # Lista de taxas seguras para tentar capturar (hardware consumer-grade)
-    # 48kHz e 44.1kHz são as mais comuns.
-    SAFE_RATES = [48000, 44100, 32000, 16000, 8000]
+    # Lista de taxas seguras para tentar capturar (hardware típico)
+    TAXAS_SEGURAS = [48000, 44100, 32000, 16000, 8000]
     
     # Se a taxa solicitada estiver na lista segura, tente-a primeiro.
     # Se for uma taxa exótica (ex: 16000 em placa que só aceita 48k), tente as seguras primeiro.
@@ -55,7 +62,7 @@ def capturar_audio(
     # Para garantir, vamos tentar 48000 primeiro se 16000 falhar, mas o log mostrou falha/travamento.
     # Então vamos priorizar 48000 se a solicitada for diferente.
     
-    rates_to_try = []
+    taxas_para_tentar = []
     
     # Prioridade estratégica:
     # 1. Tentar 48000Hz (Padrão ouro moderno)
@@ -63,59 +70,65 @@ def capturar_audio(
     # 3. Tentar a taxa solicitada (se não for uma das acima)
     
     defaults = [48000, 44100]
-    rates_to_try.extend(defaults)
+    taxas_para_tentar.extend(defaults)
     if sample_rate not in defaults:
-        rates_to_try.append(sample_rate)
-    rates_to_try.extend([r for r in SAFE_RATES if r not in rates_to_try])
+        taxas_para_tentar.append(sample_rate)
+    taxas_para_tentar.extend([r for r in TAXAS_SEGURAS if r not in taxas_para_tentar])
 
-    captured_audio = None
-    actual_rate = None
+    audio_capturado = None
+    taxa_real = None
     
-    print(f"[Capture] Solicitado Final: {duracao_segundos}s @ {sample_rate}Hz", flush=True)
+    print(f"[Captura] Solicitado (saída): {duracao_segundos}s @ {sample_rate}Hz", flush=True)
 
     try:
-        for rate in rates_to_try:
+        for rate in taxas_para_tentar:
             try:
-                # print(f"[Capture] Tentando capturar a {rate}Hz...", flush=True)
                 num_samples = int(duracao_segundos * rate)
                 audio = sd.rec(num_samples, samplerate=rate, channels=1, dtype="float32")
                 sd.wait()
                 
-                captured_audio = np.squeeze(audio)
-                actual_rate = rate
-                print(f"[Capture] Sucesso na captura a {actual_rate}Hz.", flush=True)
+                audio_capturado = np.squeeze(audio)
+                taxa_real = rate
+                print(f"[Captura] Sucesso na captura a {taxa_real}Hz.", flush=True)
                 break
                 
             except Exception as e:
-                # print(f"[Capture] Falha ao capturar a {rate}Hz: {e}", flush=True)
+                # print(f"[Captura] Falha ao capturar a {rate}Hz: {e}", flush=True)
                 continue
     
     except Exception as e:
-        print(f"[Capture] Erro crítico no loop de captura: {e}", flush=True)
+        print(f"[Captura] Erro crítico no loop de captura: {e}", flush=True)
 
     # Fallback para Ruído
-    if captured_audio is None:
-        print("[Capture] ERRO FATAL DE HARDWARE: Não foi possível capturar áudio.", flush=True)
-        print("[Capture] MODO FALLBACK ATIVADO: Gerando Ruído Branco.", flush=True)
+    if audio_capturado is None:
+        print("[Captura] ERRO: Não foi possível capturar áudio.", flush=True)
+        print("[Captura] FALLBACK: Gerando ruído branco (para validar o pipeline).", flush=True)
         
         num_samples_forced = int(duracao_segundos * sample_rate)
         np.random.seed(42) 
-        captured_audio = np.random.uniform(-0.1, 0.1, size=num_samples_forced).astype("float32")
-        actual_rate = sample_rate
-        return captured_audio
+        audio_capturado = np.random.uniform(-0.1, 0.1, size=num_samples_forced).astype("float32")
+        taxa_real = sample_rate
+        return audio_capturado
 
     # Resampling
-    if actual_rate != sample_rate:
-        print(f"[Capture] Hardware capturou a {actual_rate}Hz. Convertendo para {sample_rate}Hz...", flush=True)
-        captured_audio = resample_audio(captured_audio, actual_rate, sample_rate)
+    if taxa_real != sample_rate:
+        print(
+            f"[Captura] Hardware capturou a {taxa_real}Hz. Reamostrando para {sample_rate}Hz...",
+            flush=True,
+        )
+        audio_capturado = reamostrar_audio(audio_capturado, taxa_origem=taxa_real, taxa_destino=sample_rate)
         
     expected_samples = int(duracao_segundos * sample_rate)
     
-    if len(captured_audio) != expected_samples:
-        if len(captured_audio) > expected_samples:
-            captured_audio = captured_audio[:expected_samples]
+    if len(audio_capturado) != expected_samples:
+        if len(audio_capturado) > expected_samples:
+            audio_capturado = audio_capturado[:expected_samples]
         else:
-            captured_audio = np.pad(captured_audio, (0, expected_samples - len(captured_audio)), 'constant')
+            audio_capturado = np.pad(
+                audio_capturado,
+                (0, expected_samples - len(audio_capturado)),
+                "constant",
+            )
             
-    print(f"[Capture] Pronto: {len(captured_audio)} samples.", flush=True)
-    return captured_audio
+    print(f"[Captura] Pronto: {len(audio_capturado)} amostras.", flush=True)
+    return audio_capturado
