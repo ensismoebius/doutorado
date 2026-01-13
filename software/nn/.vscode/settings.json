@@ -188,5 +188,9 @@
     // Disable CMake Tools test explorer integration
     // (using Tests Mate)
     // --------------------------------------------------
-    "cmake.ctest.testExplorerIntegrationEnabled": false
+    "cmake.ctest.testExplorerIntegrationEnabled": false,
+    "cSpell.words": [
+        "Backpropagates",
+        "minibatching"
+    ]
 }
