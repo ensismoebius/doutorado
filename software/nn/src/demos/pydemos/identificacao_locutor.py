@@ -1,0 +1,232 @@
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+from arquivo_audio import carregar_wav_pcm16
+from captura import capturar_audio
+from captura import reamostrar_audio
+from conjunto_dados import (
+    ConfigExtracao,
+    extrair_janelas_caracteristicas,
+    carregar_dataset_janelas,
+)
+from codificacao import codificar_poisson
+from rede_snn import criar_modelo_snn
+
+
+@dataclass(frozen=True)
+class ConfigSNN:
+    passos_por_janela: int = 10
+    alvo_spikes_por_passo: float = 0.10
+
+
+def treinar_classificador_locutor(
+    diretorio_dados: str,
+    *,
+    cfg_extracao: ConfigExtracao,
+    cfg_snn: ConfigSNN,
+    epocas: int = 5,
+    taxa_aprendizado: float = 1e-3,
+    device: str | None = None,
+) -> tuple[torch.nn.Module, list[str]]:
+    """Treina uma SNN simples para classificar janelas por locutor."""
+
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    X, y, rotulos = carregar_dataset_janelas(diretorio_dados, cfg=cfg_extracao)
+
+    num_classes = len(rotulos)
+    model = criar_modelo_snn(num_inputs=cfg_extracao.num_bandas, num_outputs=num_classes).to(device)
+    model.train()
+
+    opt = torch.optim.Adam(model.parameters(), lr=taxa_aprendizado)
+
+    X_t = torch.tensor(X, dtype=torch.float32, device=device)
+    y_t = torch.tensor(y, dtype=torch.long, device=device)
+
+    # Treino simples em minibatches (para não estourar memória)
+    batch = 128
+    n = X_t.shape[0]
+
+    for ep in range(epocas):
+        perm = torch.randperm(n, device=device)
+        total_loss = 0.0
+        correct = 0
+
+        for i0 in range(0, n, batch):
+            idx = perm[i0 : i0 + batch]
+            xb = X_t[idx]
+            yb = y_t[idx]
+
+            spk_in = codificar_poisson(
+                xb,
+                passos=cfg_snn.passos_por_janela,
+                adaptativo=True,
+                alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+            )
+
+            spk_out_seq, _ = model(spk_in, None)
+            contagem = spk_out_seq.sum(dim=0)  # [lote, classes]
+
+            loss = F.cross_entropy(contagem, yb)
+
+            opt.zero_grad(set_to_none=True)
+            loss.backward()
+            opt.step()
+
+            total_loss += float(loss.detach().cpu()) * int(xb.shape[0])
+            pred = torch.argmax(contagem, dim=1)
+            correct += int((pred == yb).sum().detach().cpu())
+
+        acc = correct / n
+        print(f"[Treino] Época {ep+1}/{epocas} | loss={total_loss/n:.4f} | acc={acc:.3f}")
+
+    return model, rotulos
+
+
+def salvar_modelo_e_rotulos(
+    model: torch.nn.Module,
+    rotulos: list[str],
+    *,
+    caminho_modelo: str,
+    caminho_rotulos: str,
+) -> None:
+    os.makedirs(os.path.dirname(caminho_modelo) or ".", exist_ok=True)
+    torch.save(model.state_dict(), caminho_modelo)
+    with open(caminho_rotulos, "w", encoding="utf-8") as f:
+        json.dump({"rotulos": rotulos}, f, ensure_ascii=False, indent=2)
+
+
+def carregar_modelo_e_rotulos(
+    *,
+    caminho_modelo: str,
+    caminho_rotulos: str,
+    num_inputs: int,
+    device: str | None = None,
+) -> tuple[torch.nn.Module, list[str]]:
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    with open(caminho_rotulos, "r", encoding="utf-8") as f:
+        rotulos = json.load(f)["rotulos"]
+
+    model = criar_modelo_snn(num_inputs=num_inputs, num_outputs=len(rotulos)).to(device)
+    sd = torch.load(caminho_modelo, map_location=device)
+    model.load_state_dict(sd)
+    model.eval()
+    return model, rotulos
+
+
+@torch.no_grad()
+def identificar_locutor_por_microfone(
+    model: torch.nn.Module,
+    rotulos: list[str],
+    *,
+    cfg_extracao: ConfigExtracao,
+    cfg_snn: ConfigSNN,
+    duracao: float,
+    taxa_amostragem: int,
+    device: str | None = None,
+) -> tuple[str, float, np.ndarray]:
+    """Captura áudio, extrai janelas e retorna (predição, confiança, probs)."""
+
+    if device is None:
+        device = next(model.parameters()).device
+
+    audio = capturar_audio(duracao, taxa_amostragem)
+    caracs = extrair_janelas_caracteristicas(audio, cfg=cfg_extracao)
+    if not caracs:
+        raise RuntimeError("Nenhuma janela gerada na captura.")
+
+    probs_utt = torch.zeros((len(rotulos),), device=device)
+
+    for c in caracs:
+        xb = torch.tensor(c, dtype=torch.float32, device=device).unsqueeze(0)
+        spk_in = codificar_poisson(
+            xb,
+            passos=cfg_snn.passos_por_janela,
+            adaptativo=True,
+            alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+        )
+        spk_out_seq, _ = model(spk_in, None)
+        contagem = spk_out_seq.sum(dim=0).squeeze(0)
+        probs = F.softmax(contagem, dim=0)
+        probs_utt += probs
+
+    probs_utt = probs_utt / float(len(caracs))
+    idx = int(torch.argmax(probs_utt).detach().cpu())
+    return (
+        rotulos[idx],
+        float(probs_utt[idx].detach().cpu()),
+        probs_utt.detach().cpu().numpy(),
+    )
+
+
+@torch.no_grad()
+def identificar_locutor_por_wav(
+    model: torch.nn.Module,
+    rotulos: list[str],
+    *,
+    caminho_wav: str,
+    cfg_extracao: ConfigExtracao,
+    cfg_snn: ConfigSNN,
+    device: str | None = None,
+) -> tuple[str, float, np.ndarray]:
+    """Identifica o locutor a partir de um arquivo WAV."""
+
+    if device is None:
+        device = next(model.parameters()).device
+
+    audio, info = carregar_wav_pcm16(caminho_wav)
+    if info.taxa_amostragem != cfg_extracao.taxa_amostragem:
+        audio = reamostrar_audio(
+            audio,
+            taxa_origem=info.taxa_amostragem,
+            taxa_destino=cfg_extracao.taxa_amostragem,
+        )
+
+    caracs = extrair_janelas_caracteristicas(audio, cfg=cfg_extracao)
+    if not caracs:
+        raise RuntimeError(f"Nenhuma janela gerada para: {caminho_wav}")
+
+    probs_utt = torch.zeros((len(rotulos),), device=device)
+    for c in caracs:
+        xb = torch.tensor(c, dtype=torch.float32, device=device).unsqueeze(0)
+        spk_in = codificar_poisson(
+            xb,
+            passos=cfg_snn.passos_por_janela,
+            adaptativo=True,
+            alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+        )
+        spk_out_seq, _ = model(spk_in, None)
+        contagem = spk_out_seq.sum(dim=0).squeeze(0)
+        probs_utt += F.softmax(contagem, dim=0)
+
+    probs_utt = probs_utt / float(len(caracs))
+    idx = int(torch.argmax(probs_utt).detach().cpu())
+    return (
+        rotulos[idx],
+        float(probs_utt[idx].detach().cpu()),
+        probs_utt.detach().cpu().numpy(),
+    )
+
+
+def aplicar_limiar_desconhecido(
+    pessoa: str,
+    confianca: float,
+    *,
+    limiar: float,
+    rotulo_desconhecido: str = "desconhecido",
+) -> str:
+    """Se a confiança for baixa, devolve 'desconhecido'."""
+
+    if confianca < limiar:
+        return rotulo_desconhecido
+    return pessoa

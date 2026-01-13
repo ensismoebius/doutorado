@@ -1,135 +1,360 @@
-from capture import capturar_audio
-from windowing import aplicar_janelamento
-from features import calcular_energia_wpt
-from wavelet import calcular_nivel_wpt
-from snn import criar_modelo_snn
-from visualization import plotar_resultados
-import torch
+import argparse
+
 import numpy as np
+import torch
 
-# --- Configurações Explícitas ---
-TAXA_AMOSTRAGEM = 44100  # 1) Captura de áudio: taxa fixa
+from captura import capturar_audio
+from conjunto_dados import ConfigExtracao, extrair_janelas_caracteristicas, listar_amostras_por_pessoa
+from codificacao import codificar_poisson
+from cadastro import capturar_e_salvar_amostra
+from rede_snn import criar_modelo_snn
+from identificacao_locutor import (
+    ConfigSNN,
+    aplicar_limiar_desconhecido,
+    carregar_modelo_e_rotulos,
+    identificar_locutor_por_microfone,
+    identificar_locutor_por_wav,
+    salvar_modelo_e_rotulos,
+    treinar_classificador_locutor,
+)
+from visualizacao import plotar_resultados
 
-TAMANHO_JANELA = 512  # 2) Janelamento: tamanho fixo
-TAMANHO_PASSO = 256  # 2) Janelamento: passo fixo (50% overlap)
 
-WAVELET_BASE = "db4"  # 3) WPT: base fixa
+def cmd_demo(args: argparse.Namespace) -> None:
+    """Demo visual: pipeline WPT -> preprocess -> codificação Poisson -> SNN -> plots."""
 
-# 3. WPT: Max level (calculado dinamicamente)
-# A profundidade máxima da Wavelet Packet depende do tamanho do sinal de entrada.
-# Como aqui extraímos WPT *por janela*, o limite prático vem do tamanho efetivo da janela.
-# Para manter compatibilidade com NUM_BANDS, escolhemos um nível tal que 2^level >= NUM_BANDS,
-# respeitando o máximo permitido pelo tamanho do sinal disponível (que pode variar com DURATION).
-
-NUM_BANDAS = 100  # 4) Extração de energia: 100 bandas
-DURACAO = 1.0  # duração em segundos
-
-def pipeline_exec():
-    # 1) Captura de áudio
-    audio_raw = capturar_audio(DURACAO, TAXA_AMOSTRAGEM)
-
-    nivel_wpt = calcular_nivel_wpt(
-        duracao=DURACAO,
-        taxa_amostragem=TAXA_AMOSTRAGEM,
-        tamanho_janela=TAMANHO_JANELA,
-        num_bandas=NUM_BANDAS,
-        wavelet_base=WAVELET_BASE,
+    cfg_extracao = ConfigExtracao(
+        taxa_amostragem=args.taxa_amostragem,
+        tamanho_janela=args.tamanho_janela,
+        tamanho_passo=args.tamanho_passo,
+        wavelet_base=args.wavelet,
+        num_bandas=args.num_bandas,
+        duracao_referencia=args.duracao,
     )
-    print(f"[Características] Nível WPT calculado: {nivel_wpt}")
+    cfg_snn = ConfigSNN(passos_por_janela=args.passos_por_janela)
 
-    # 2) Janelamento
-    janelas = aplicar_janelamento(
-        audio_raw, TAMANHO_JANELA, TAMANHO_PASSO, funcao_janela=np.hanning
-    )
+    audio = capturar_audio(args.duracao, args.taxa_amostragem)
+    caracs = extrair_janelas_caracteristicas(audio, cfg=cfg_extracao)
+    if not caracs:
+        raise RuntimeError("Nenhuma janela gerada.")
 
-    if not janelas:
-        print("Nenhuma janela gerada.")
-        return
+    # Modelo com saída do mesmo tamanho das entradas (para manter plots didáticos)
+    model = criar_modelo_snn(num_inputs=cfg_extracao.num_bandas, num_outputs=cfg_extracao.num_bandas)
+    model.eval()
 
-    # 3) WPT + 4) Energia por banda
-    print(f"[Características] Extraindo energia WPT ({NUM_BANDAS} bandas)...")
-    caracteristicas_janelas = []
-    for janela in janelas:
-        energia = calcular_energia_wpt(
-            janela,
-            wavelet_base=WAVELET_BASE,
-            nivel_maximo=nivel_wpt,
-            num_bandas=NUM_BANDAS,
-        )
-        caracteristicas_janelas.append(energia)
-
-    # 6) Inicialização da SNN
-    model = criar_modelo_snn()
-    print("[SNN] Modelo inicializado (pesos determinísticos).")
-
-    # 7) Inferência
-    print("[SNN] Processando inferência...")
     lista_spikes_saida = []
-
-    # --- Simulação temporal (explicação didática) ---
-    # Conceito 1 — Janela de áudio:
-    #   O sinal contínuo de áudio é dividido em pequenos trechos (“janelas”) de tamanho fixo.
-    #   Cada janela vira um vetor de características (aqui: energia WPT com NUM_BANDAS dimensões).
-    #
-    # Conceito 2 — Passo de tempo (passo temporal) para uma SNN:
-    #   Em uma Spiking Neural Network, a dinâmica temporal normalmente é modelada por estados internos
-    #   (ex.: potencial de membrana). Em um cenário “online”, a rede recebe uma sequência ao longo do tempo:
-    #   x[0], x[1], x[2], ... e atualiza seu estado a cada passo.
-    #
-    # Ideia usada aqui:
-    #   Tratamos *cada janela* como um passo de tempo: para cada vetor de características, chamamos o modelo uma vez.
-    #   Isso cria uma sequência de saídas (spikes) alinhada às janelas, permitindo visualizar “atividade” ao longo
-    #   da gravação (eixo x = índice da janela).
-    #
-    # Importante — Estado interno (com estado vs sem estado):
-    #   Se o neurônio spiking mantiver estado entre passos, a saída em t pode depender de entradas anteriores
-    #   (memória temporal). Porém, em snnTorch, alguns módulos podem reinicializar o estado automaticamente
-    #   dependendo de como o modelo foi implementado.
-    #
-    # No nosso caso (com estado):
-    #   Aqui nós *propagamos explicitamente* o estado entre janelas: o modelo retorna (spk, state) e nós
-    #   alimentamos o mesmo state de volta na próxima iteração. Esse state contém as memórias (ex.: mem1/mem2/mem3)
-    #   dos neurônios LIF, então a saída em uma janela pode depender do histórico recente.
-    #
-    # O que isso muda na prática:
-    #   - A rede passa a ter “memória” entre janelas (dinâmica temporal de verdade).
-    #   - Dois sinais com as mesmas características instantâneas podem produzir spikes diferentes dependendo do contexto.
-    #
-    # Observação:
-    #   Se você quiser reiniciar a dinâmica (por exemplo, em outra gravação), basta resetar `state = None`.
-
     with torch.no_grad():
-        state = None  # estado interno (memórias) propagado entre janelas
-        for carac in caracteristicas_janelas:
-            # 5) Codificação: acontece dentro do modelo (injeção direta de corrente via escala)
-            entrada = torch.tensor(carac, dtype=torch.float32).unsqueeze(0)
+        state = None
+        for c in caracs:
+            xb = torch.tensor(c, dtype=torch.float32).unsqueeze(0)
+            spk_in = codificar_poisson(xb, passos=cfg_snn.passos_por_janela, adaptativo=True)
+            spk_out_seq, state = model(spk_in, state)
 
-            # Forward pass
-            spk, state = model(entrada, state)
+            # Para plotar por janela, agregamos os spikes ao longo dos passos.
+            spk_janela = spk_out_seq.sum(dim=0)  # [1, num_bandas]
+            lista_spikes_saida.append(spk_janela)
 
-            lista_spikes_saida.append(spk)
-
-    # 8) Coleta e visualização
     plotar_resultados(
-        caracteristicas_janelas,
+        caracs,
         lista_spikes_saida,
-        sample_rate=TAXA_AMOSTRAGEM,
-        window_size=TAMANHO_JANELA,
-        hop_size=TAMANHO_PASSO,
-        duration=DURACAO,
-        wavelet=WAVELET_BASE,
-        wpt_level=nivel_wpt,
-        num_bands=NUM_BANDAS,
+        sample_rate=cfg_extracao.taxa_amostragem,
+        window_size=cfg_extracao.tamanho_janela,
+        hop_size=cfg_extracao.tamanho_passo,
+        duration=args.duracao,
+        wavelet=cfg_extracao.wavelet_base,
+        wpt_level=None,
+        num_bands=cfg_extracao.num_bandas,
         stateful=True,
+        output_file=args.saida_plot,
     )
-    print("Pipeline concluído.")
+
+
+def cmd_capturar(args: argparse.Namespace) -> None:
+    capturar_e_salvar_amostra(
+        pessoa=args.pessoa,
+        diretorio_base=args.diretorio_dados,
+        duracao=args.duracao,
+        taxa_amostragem=args.taxa_amostragem,
+    )
+
+
+def cmd_treinar(args: argparse.Namespace) -> None:
+    cfg_extracao = ConfigExtracao(
+        taxa_amostragem=args.taxa_amostragem,
+        tamanho_janela=args.tamanho_janela,
+        tamanho_passo=args.tamanho_passo,
+        wavelet_base=args.wavelet,
+        num_bandas=args.num_bandas,
+        duracao_referencia=args.duracao_referencia,
+    )
+    cfg_snn = ConfigSNN(
+        passos_por_janela=args.passos_por_janela,
+        alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+    )
+
+    model, rotulos = treinar_classificador_locutor(
+        args.diretorio_dados,
+        cfg_extracao=cfg_extracao,
+        cfg_snn=cfg_snn,
+        epocas=args.epocas,
+        taxa_aprendizado=args.lr,
+    )
+    salvar_modelo_e_rotulos(
+        model,
+        rotulos,
+        caminho_modelo=args.saida_modelo,
+        caminho_rotulos=args.saida_rotulos,
+    )
+    print(f"[Treino] Modelo salvo em: {args.saida_modelo}")
+    print(f"[Treino] Rótulos salvos em: {args.saida_rotulos}")
+
+
+def cmd_identificar(args: argparse.Namespace) -> None:
+    cfg_extracao = ConfigExtracao(
+        taxa_amostragem=args.taxa_amostragem,
+        tamanho_janela=args.tamanho_janela,
+        tamanho_passo=args.tamanho_passo,
+        wavelet_base=args.wavelet,
+        num_bandas=args.num_bandas,
+        duracao_referencia=args.duracao_referencia,
+    )
+    cfg_snn = ConfigSNN(
+        passos_por_janela=args.passos_por_janela,
+        alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+    )
+
+    model, rotulos = carregar_modelo_e_rotulos(
+        caminho_modelo=args.modelo,
+        caminho_rotulos=args.rotulos,
+        num_inputs=cfg_extracao.num_bandas,
+    )
+
+    pessoa, conf, _ = identificar_locutor_por_microfone(
+        model,
+        rotulos,
+        cfg_extracao=cfg_extracao,
+        cfg_snn=cfg_snn,
+        duracao=args.duracao,
+        taxa_amostragem=args.taxa_amostragem,
+    )
+    print(f"[Identificação] Predição: {pessoa} (confiança≈{conf:.3f})")
+
+
+def cmd_verificar(args: argparse.Namespace) -> None:
+    """Identifica, mas permite retornar 'desconhecido' com base em um limiar."""
+
+    cfg_extracao = ConfigExtracao(
+        taxa_amostragem=args.taxa_amostragem,
+        tamanho_janela=args.tamanho_janela,
+        tamanho_passo=args.tamanho_passo,
+        wavelet_base=args.wavelet,
+        num_bandas=args.num_bandas,
+        duracao_referencia=args.duracao_referencia,
+    )
+    cfg_snn = ConfigSNN(
+        passos_por_janela=args.passos_por_janela,
+        alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+    )
+
+    model, rotulos = carregar_modelo_e_rotulos(
+        caminho_modelo=args.modelo,
+        caminho_rotulos=args.rotulos,
+        num_inputs=cfg_extracao.num_bandas,
+    )
+
+    pessoa, conf, _ = identificar_locutor_por_microfone(
+        model,
+        rotulos,
+        cfg_extracao=cfg_extracao,
+        cfg_snn=cfg_snn,
+        duracao=args.duracao,
+        taxa_amostragem=args.taxa_amostragem,
+    )
+
+    final = aplicar_limiar_desconhecido(pessoa, conf, limiar=args.limiar)
+    print(f"[Verificação] Predição: {final} (confiança≈{conf:.3f}, limiar={args.limiar:.2f})")
+
+
+def cmd_avaliar(args: argparse.Namespace) -> None:
+    """Avalia o modelo em WAVs gravados (por pessoa) e imprime uma matriz de confusão simples."""
+
+    cfg_extracao = ConfigExtracao(
+        taxa_amostragem=args.taxa_amostragem,
+        tamanho_janela=args.tamanho_janela,
+        tamanho_passo=args.tamanho_passo,
+        wavelet_base=args.wavelet,
+        num_bandas=args.num_bandas,
+        duracao_referencia=args.duracao_referencia,
+    )
+    cfg_snn = ConfigSNN(
+        passos_por_janela=args.passos_por_janela,
+        alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+    )
+
+    model, rotulos = carregar_modelo_e_rotulos(
+        caminho_modelo=args.modelo,
+        caminho_rotulos=args.rotulos,
+        num_inputs=cfg_extracao.num_bandas,
+    )
+
+    pessoas = listar_amostras_por_pessoa(args.diretorio_dados)
+    if not pessoas:
+        raise FileNotFoundError("Nenhum WAV encontrado para avaliação. Esperado: <base>/<pessoa>/*.wav")
+
+    idx_por_pessoa = {p: i for i, p in enumerate(rotulos)}
+    conf = np.zeros((len(rotulos), len(rotulos)), dtype=np.int64)
+    total = 0
+    corretos = 0
+
+    for pessoa_real, wavs in pessoas.items():
+        if pessoa_real not in idx_por_pessoa:
+            continue
+        y = idx_por_pessoa[pessoa_real]
+        for wav in wavs:
+            pred, conf_pred, _ = identificar_locutor_por_wav(
+                model,
+                rotulos,
+                caminho_wav=wav,
+                cfg_extracao=cfg_extracao,
+                cfg_snn=cfg_snn,
+            )
+            yhat = idx_por_pessoa.get(pred)
+            if yhat is None:
+                continue
+            conf[y, yhat] += 1
+            total += 1
+            corretos += int(pred == pessoa_real)
+            if args.verbose:
+                print(f"[Avaliar] {pessoa_real} -> {pred} (conf≈{conf_pred:.3f}) | {wav}")
+
+    acc = (corretos / total) if total else 0.0
+    print(f"[Avaliar] Arquivos avaliados: {total} | acurácia={acc:.3f}")
+    print("[Avaliar] Matriz de confusão (linhas=real, colunas=pred):")
+    header = "        " + " ".join([f"{r:>8}" for r in rotulos])
+    print(header)
+    for i, r in enumerate(rotulos):
+        row = " ".join([f"{int(v):8d}" for v in conf[i]])
+        print(f"{r:>8} {row}")
+
+
+def construir_cli() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        description=(
+            "Biometria por voz (demo): WPT -> codificação em spikes -> SNN -> classificação por pessoa.\n"
+            "Fluxo recomendado: capturar dados -> treinar -> identificar."
+        )
+    )
+
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    # --- Demo visual ---
+    demo = sub.add_parser("demo", help="Roda a pipeline e gera plots didáticos")
+    demo.add_argument("--duracao", type=float, default=1.0)
+    demo.add_argument("--taxa-amostragem", type=int, default=44100)
+    demo.add_argument("--tamanho-janela", type=int, default=512)
+    demo.add_argument("--tamanho-passo", type=int, default=256)
+    demo.add_argument("--wavelet", type=str, default="db4")
+    demo.add_argument("--num-bandas", type=int, default=100)
+    demo.add_argument("--passos-por-janela", type=int, default=10)
+    demo.add_argument("--saida-plot", type=str, default="result_pipeline_wpt_snn.png")
+    demo.set_defaults(func=cmd_demo)
+
+    # --- Captura/cadastro ---
+    cap = sub.add_parser("capturar", help="Captura áudio e salva WAV para uma pessoa (cadastro)")
+    cap.add_argument("--pessoa", type=str, required=True, help="ID da pessoa (ex.: alice)")
+    cap.add_argument("--diretorio-dados", type=str, default="dados/vozes")
+    cap.add_argument("--duracao", type=float, default=3.0)
+    cap.add_argument("--taxa-amostragem", type=int, default=44100)
+    cap.set_defaults(func=cmd_capturar)
+
+    # Alias mais biométrico ("enrolar" = cadastrar)
+    enr = sub.add_parser("enrolar", help="Alias de capturar (cadastrar amostras por pessoa)")
+    enr.add_argument("--pessoa", type=str, required=True, help="ID da pessoa (ex.: alice)")
+    enr.add_argument("--diretorio-dados", type=str, default="dados/vozes")
+    enr.add_argument("--duracao", type=float, default=3.0)
+    enr.add_argument("--taxa-amostragem", type=int, default=44100)
+    enr.set_defaults(func=cmd_capturar)
+
+    # --- Treino ---
+    tr = sub.add_parser("treinar", help="Treina a SNN para classificar locutores")
+    tr.add_argument("--diretorio-dados", type=str, default="dados/vozes")
+    tr.add_argument("--taxa-amostragem", type=int, default=44100)
+    tr.add_argument("--tamanho-janela", type=int, default=512)
+    tr.add_argument("--tamanho-passo", type=int, default=256)
+    tr.add_argument("--wavelet", type=str, default="db4")
+    tr.add_argument("--num-bandas", type=int, default=100)
+    tr.add_argument("--duracao-referencia", type=float, default=1.0)
+    tr.add_argument("--passos-por-janela", type=int, default=10)
+    tr.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    tr.add_argument("--epocas", type=int, default=5)
+    tr.add_argument("--lr", type=float, default=1e-3)
+    tr.add_argument("--saida-modelo", type=str, default="modelo_snn_locutor.pt")
+    tr.add_argument("--saida-rotulos", type=str, default="rotulos_locutor.json")
+    tr.set_defaults(func=cmd_treinar)
+
+    # --- Identificação ---
+    inf = sub.add_parser("identificar", help="Identifica a pessoa por voz (microfone)")
+    inf.add_argument("--modelo", type=str, default="modelo_snn_locutor.pt")
+    inf.add_argument("--rotulos", type=str, default="rotulos_locutor.json")
+    inf.add_argument("--duracao", type=float, default=2.0)
+    inf.add_argument("--taxa-amostragem", type=int, default=44100)
+    inf.add_argument("--tamanho-janela", type=int, default=512)
+    inf.add_argument("--tamanho-passo", type=int, default=256)
+    inf.add_argument("--wavelet", type=str, default="db4")
+    inf.add_argument("--num-bandas", type=int, default=100)
+    inf.add_argument("--duracao-referencia", type=float, default=1.0)
+    inf.add_argument("--passos-por-janela", type=int, default=10)
+    inf.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    inf.set_defaults(func=cmd_identificar)
+
+    # --- Verificação (com desconhecido) ---
+    ver = sub.add_parser(
+        "verificar",
+        help=("Verifica a identidade e pode retornar 'desconhecido' se a confiança for baixa"),
+    )
+    ver.add_argument("--modelo", type=str, default="modelo_snn_locutor.pt")
+    ver.add_argument("--rotulos", type=str, default="rotulos_locutor.json")
+    ver.add_argument("--duracao", type=float, default=2.0)
+    ver.add_argument("--taxa-amostragem", type=int, default=44100)
+    ver.add_argument("--tamanho-janela", type=int, default=512)
+    ver.add_argument("--tamanho-passo", type=int, default=256)
+    ver.add_argument("--wavelet", type=str, default="db4")
+    ver.add_argument("--num-bandas", type=int, default=100)
+    ver.add_argument("--duracao-referencia", type=float, default=1.0)
+    ver.add_argument("--passos-por-janela", type=int, default=10)
+    ver.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    ver.add_argument(
+        "--limiar",
+        type=float,
+        default=0.55,
+        help="Abaixo deste valor, retorna 'desconhecido'",
+    )
+    ver.set_defaults(func=cmd_verificar)
+
+    # --- Avaliação offline ---
+    av = sub.add_parser("avaliar", help="Avalia o modelo em WAVs gravados e imprime matriz de confusão")
+    av.add_argument("--modelo", type=str, default="modelo_snn_locutor.pt")
+    av.add_argument("--rotulos", type=str, default="rotulos_locutor.json")
+    av.add_argument("--diretorio-dados", type=str, default="dados/vozes")
+    av.add_argument("--taxa-amostragem", type=int, default=44100)
+    av.add_argument("--tamanho-janela", type=int, default=512)
+    av.add_argument("--tamanho-passo", type=int, default=256)
+    av.add_argument("--wavelet", type=str, default="db4")
+    av.add_argument("--num-bandas", type=int, default=100)
+    av.add_argument("--duracao-referencia", type=float, default=1.0)
+    av.add_argument("--passos-por-janela", type=int, default=10)
+    av.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    av.add_argument("--verbose", action="store_true")
+    av.set_defaults(func=cmd_avaliar)
+
+    return p
+
+
+def main() -> None:
+    p = construir_cli()
+    args = p.parse_args()
+    args.func(args)
 
 
 if __name__ == "__main__":
-    try:
-        pipeline_exec()
-    except Exception as e:
-        print(f"Erro fatal: {e}")
-        import traceback
-
-        traceback.print_exc()
+    main()

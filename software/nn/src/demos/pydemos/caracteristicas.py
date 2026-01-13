@@ -5,6 +5,7 @@ try:
 except ImportError:
     raise ImportError("A biblioteca 'PyWavelets' é necessária. Instale-a via pip ou conda.")
 
+
 def calcular_energia_wpt(
     sinal: np.ndarray,
     wavelet_base: str = "db4",

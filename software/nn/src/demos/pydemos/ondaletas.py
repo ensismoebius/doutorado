@@ -66,7 +66,7 @@ def calcular_wpt_level(
 def extrair_features_wavelet(janela, num_features=100, wavelet="db4"):
     """(Legado) Extração baseada em DWT + LFCC.
 
-    Este demo atual usa WPT via `features.calcular_energia_wpt`.
+    Este demo atual usa WPT via `caracteristicas.calcular_energia_wpt`.
     Esta função foi mantida apenas para referência; requer um módulo `lfcc.py`.
     """
 
@@ -75,7 +75,7 @@ def extrair_features_wavelet(janela, num_features=100, wavelet="db4"):
     except ImportError as e:
         raise ImportError(
             "Função legada: requer o módulo 'lfcc'. "
-            "Use `features.calcular_energia_wpt` (WPT) ou adicione um `lfcc.py`."
+            "Use `caracteristicas.calcular_energia_wpt` (WPT) ou adicione um `lfcc.py`."
         ) from e
 
     w = pywt.Wavelet(wavelet)  # type: ignore[attr-defined]
