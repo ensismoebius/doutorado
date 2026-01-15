@@ -1,9 +1,13 @@
+"""Extração de características via energia WPT (Wavelet Packet Transform)."""
+
 import numpy as np
 
 try:
     import pywt
 except ImportError:
-    raise ImportError("A biblioteca 'PyWavelets' é necessária. Instale-a via pip ou conda.")
+    raise ImportError(
+        "A biblioteca 'PyWavelets' é necessária. Instale-a via pip ou conda."
+    )
 
 
 def calcular_energia_wpt(
@@ -25,25 +29,25 @@ def calcular_energia_wpt(
       para padronizar o tamanho de saída.
     """
 
-    # Se o sinal for muito curto para o nível solicitado, reduz o nível para não gerar decomposição inválida.
+    # Se o sinal for muito curto para o nível solicitado, reduz o nível.
     if len(sinal) < 2**nivel_maximo:
         nivel_maximo = int(np.log2(max(1, len(sinal))))
 
-    # 1) Decomposição Wavelet Packet até o nível `nivel_maximo`
+    # 1) Decomposição Wavelet Packet até o nível `nivel_maximo`.
     wp = pywt.WaveletPacket(
         data=sinal, wavelet=wavelet_base, mode="symmetric", maxlevel=nivel_maximo
     )
 
-    # 2) Obter os nós do nível mais profundo (ordenados por frequência)
+    # 2) Obter os nós do nível mais profundo (ordenados por frequência).
     nos = [no.data for no in wp.get_level(nivel_maximo, order="freq")]
 
-    # 3) Energia por nó: E = sum(x^2)
+    # 3) Energia por nó: E = sum(x^2).
     energias_folhas = np.array([np.sum(n**2) for n in nos])
 
     if len(energias_folhas) == 0:
         return np.zeros(num_bandas)
 
-    # 4) Ajustar para `num_bandas` via interpolação
+    # 4) Ajustar para `num_bandas` via interpolação (padroniza o tamanho de saída).
     if len(energias_folhas) != num_bandas:
         idx_origem = np.linspace(0, 1, len(energias_folhas))
         idx_destino = np.linspace(0, 1, num_bandas)

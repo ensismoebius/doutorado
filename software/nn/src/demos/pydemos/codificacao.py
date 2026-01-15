@@ -1,3 +1,5 @@
+"""Codificação de sinais contínuos em spikes via Poisson (rate coding)."""
+
 import torch
 
 
@@ -18,6 +20,7 @@ def calcular_taxa_max_adaptativa(
     Retorna um escalar (float) para uso como `taxa_max`.
     """
 
+    # Média do vetor em [0, 1] (usa CPU para evitar warnings em logs).
     mean_val = float(torch.mean(caracteristicas_01).detach().cpu())
     # Esperado: E[p] ~ taxa_max * mean_val. Ajusta taxa_max para bater o alvo.
     if mean_val < eps:
@@ -53,8 +56,10 @@ def codificar_poisson(
     if passos < 1:
         raise ValueError("`passos` deve ser >= 1")
 
+    # Garante domínio esperado da codificação.
     x = torch.clamp(caracteristicas_01, 0.0, 1.0)
 
+    # Taxa máxima default caso não haja ajuste adaptativo.
     if taxa_max is None:
         taxa_max = 0.25
 
@@ -66,11 +71,11 @@ def codificar_poisson(
             taxa_max_max=0.50,
         )
 
-    # Probabilidade por feature por passo
+    # Probabilidade por feature por passo.
     p = torch.clamp(x * float(taxa_max), 0.0, 1.0)
 
-    # Amostragem Bernoulli por passo
-    # spikes[t] = 1 se rand < p
+    # Amostragem Bernoulli por passo:
+    # spikes[t] = 1 se rand < p.
     rand = torch.rand((passos,) + p.shape, device=p.device, dtype=p.dtype)
     spikes = (rand < p.unsqueeze(0)).to(dtype=p.dtype)
     return spikes

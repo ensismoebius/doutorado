@@ -1,3 +1,5 @@
+"""Cálculo auxiliar de nível WPT e função de compatibilidade legada."""
+
 import numpy as np
 
 try:
@@ -23,18 +25,25 @@ def calcular_nivel_wpt(
     - Escolhe o menor nível tal que len(get_level(nível)) >= num_bandas
     """
 
+    # Define a quantidade de amostras efetiva por janela.
     total_amostras = int(duracao * taxa_amostragem)
     janela_efetiva = max(1, min(tamanho_janela, total_amostras))
 
+    # Nível máximo permitido pelo tamanho (2^nivel <= janela_efetiva).
     nivel_max_por_tamanho = int(np.floor(np.log2(janela_efetiva)))
     if nivel_max_por_tamanho < 1:
         return 1
 
+    # WaveletPacket exige um vetor; usamos um dummy para sondar níveis.
     dummy = np.zeros(janela_efetiva, dtype=np.float32)
     wp = pywt.WaveletPacket(
-        data=dummy, wavelet=wavelet_base, mode="symmetric", maxlevel=nivel_max_por_tamanho
+        data=dummy,
+        wavelet=wavelet_base,
+        mode="symmetric",
+        maxlevel=nivel_max_por_tamanho,
     )
 
+    # Seleciona o primeiro nível que alcança o número de bandas desejado.
     nivel_escolhido = nivel_max_por_tamanho
     for nivel in range(1, nivel_max_por_tamanho + 1):
         nos = wp.get_level(nivel, order="freq")

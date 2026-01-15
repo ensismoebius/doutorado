@@ -1,3 +1,5 @@
+"""Modelo SNN simples em snnTorch para o demo de biometria por voz."""
+
 try:
     import torch
     import torch.nn as nn
@@ -28,7 +30,7 @@ class ModeloSNN(nn.Module):
         # - Se você alimentar valores contínuos, a escala evita saturação.
         self.escala_entrada = 1.0
 
-        # Camadas
+        # Camadas densas + neurônios LIF (Leaky Integrate-and-Fire).
         self.fc1 = nn.Linear(num_inputs, hidden)
         self.lif1 = snn.Leaky(beta=beta)
 
@@ -39,14 +41,21 @@ class ModeloSNN(nn.Module):
         self.lif3 = snn.Leaky(beta=beta)
 
     def inicializar_estado(self, tamanho_lote: int, device=None, dtype=None):
+        # Estado explícito permite processamento stateful entre janelas.
         if device is None:
             device = next(self.parameters()).device
         if dtype is None:
             dtype = next(self.parameters()).dtype
         return {
-            "mem1": torch.zeros(tamanho_lote, self.num_ocultos, device=device, dtype=dtype),
-            "mem2": torch.zeros(tamanho_lote, self.num_ocultos, device=device, dtype=dtype),
-            "mem3": torch.zeros(tamanho_lote, self.num_saidas, device=device, dtype=dtype),
+            "mem1": torch.zeros(
+                tamanho_lote, self.num_ocultos, device=device, dtype=dtype
+            ),
+            "mem2": torch.zeros(
+                tamanho_lote, self.num_ocultos, device=device, dtype=dtype
+            ),
+            "mem3": torch.zeros(
+                tamanho_lote, self.num_saidas, device=device, dtype=dtype
+            ),
         }
 
     def _forward_passo(self, x, state=None):
@@ -54,7 +63,9 @@ class ModeloSNN(nn.Module):
         # state: dicionário com memórias para propagação temporal
 
         if state is None:
-            state = self.inicializar_estado(tamanho_lote=x.shape[0], device=x.device, dtype=x.dtype)
+            state = self.inicializar_estado(
+                tamanho_lote=x.shape[0], device=x.device, dtype=x.dtype
+            )
 
         mem1 = state["mem1"]
         mem2 = state["mem2"]
@@ -63,6 +74,7 @@ class ModeloSNN(nn.Module):
         # Entrada como corrente: maior valor -> maior corrente -> mais spikes.
         corrente_entrada = x * self.escala_entrada
 
+        # Cada camada calcula corrente -> gera spike + atualiza memória.
         cur1 = self.fc1(corrente_entrada.float())
         spk1, mem1 = self.lif1(cur1, mem1)
 
@@ -88,12 +100,16 @@ class ModeloSNN(nn.Module):
              onde spk_seq tem shape [T, lote, num_saidas]
         """
 
+        # Caso 1: passo único (sem dimensão temporal).
         if x.dim() == 2:
             return self._forward_passo(x, state)
 
         if x.dim() != 3:
-            raise ValueError("Entrada deve ter shape [lote, features] ou [T, lote, features].")
+            raise ValueError(
+                "Entrada deve ter shape [lote, features] ou [T, lote, features]."
+            )
 
+        # Caso 2: sequência temporal de spikes.
         T = x.shape[0]
         spk_seq = []
         for t in range(T):
@@ -103,7 +119,7 @@ class ModeloSNN(nn.Module):
 
 
 def criar_modelo_snn(*, num_inputs: int = 100, num_outputs: int | None = None):
-    # Regra de inicialização determinística
+    # Regra de inicialização determinística (reprodutibilidade do demo).
     torch.manual_seed(42)
     return ModeloSNN(num_inputs=num_inputs, num_outputs=num_outputs)
 
@@ -114,7 +130,7 @@ create_snn_model = criar_modelo_snn
 
 
 if __name__ == "__main__":
-    # Uma entrada de exemplo para teste
+    # Uma entrada de exemplo para teste rápido do modelo.
     model = criar_modelo_snn()
     input_data = torch.randn(1, 100)
     spk, state = model(input_data)

@@ -1,3 +1,5 @@
+"""Segmentação de sinais em janelas sobrepostas (com janela de Hann por padrão)."""
+
 import numpy as np
 
 
@@ -14,8 +16,11 @@ def aplicar_janelamento(
     if funcao_janela is None:
         funcao_janela = kwargs.pop("window_fn", np.hanning)
     if kwargs:
-        raise TypeError(f"Argumentos inesperados em aplicar_janelamento: {list(kwargs.keys())}")
+        raise TypeError(
+            f"Argumentos inesperados em aplicar_janelamento: {list(kwargs.keys())}"
+        )
 
+    # Calcula quantidade de amostras e inicializa a lista de janelas.
     num_amostras = len(sinal)
     janelas = []
 
@@ -23,7 +28,7 @@ def aplicar_janelamento(
         print("[Janelamento] Aviso: sinal menor que o tamanho da janela.")
         return []
 
-    # Gerar a janela uma única vez
+    # Gerar a janela uma única vez (mesmo shape para todas as fatias).
     janela = funcao_janela(tamanho_janela)
 
     # Iterar sobre o sinal com passo fixo (hop_size)
@@ -31,7 +36,7 @@ def aplicar_janelamento(
         fim = inicio + tamanho_janela
         segmento = sinal[inicio:fim]
 
-        # Aplicar a função de janela (multiplicação de elementos)
+        # Aplicar a função de janela (multiplicação de elementos).
         segmento_janelado = segmento * janela
         janelas.append(segmento_janelado)
 

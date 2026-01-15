@@ -1,3 +1,11 @@
+"""Utilitários de E/S de áudio em WAV PCM.
+
+Este módulo é propositalmente simples e auto-contido:
+- usa apenas a stdlib (`wave`) para leitura/escrita;
+- trabalha com `float32` normalizado em [-1, 1];
+- converte para PCM 16-bit na gravação.
+"""
+
 from __future__ import annotations
 
 import os
@@ -23,13 +31,16 @@ def salvar_wav_pcm16(caminho: str, sinal: np.ndarray, taxa_amostragem: int) -> N
     - Usamos o módulo padrão `wave` para evitar dependências extras.
     """
 
+    # Garante que o diretório existe antes de escrever o arquivo.
     os.makedirs(os.path.dirname(caminho) or ".", exist_ok=True)
 
+    # Normaliza o sinal (float32) para o intervalo seguro de PCM 16-bit.
     x = np.asarray(sinal, dtype=np.float32)
     x = np.clip(x, -1.0, 1.0)
     pcm = (x * 32767.0).astype(np.int16)
 
     with wave.open(caminho, "wb") as wf:
+        # Header WAV: mono, 16-bit, taxa de amostragem definida pelo usuário.
         wf.setnchannels(1)
         wf.setsampwidth(2)  # int16
         wf.setframerate(int(taxa_amostragem))
@@ -47,6 +58,7 @@ def carregar_wav_pcm16(caminho: str) -> tuple[np.ndarray, WavInfo]:
     - Arquivos WAV comprimidos (ex.: ADPCM) podem falhar.
     """
 
+    # Lê metadados e frames brutos do arquivo WAV.
     with wave.open(caminho, "rb") as wf:
         num_canais = wf.getnchannels()
         taxa = int(wf.getframerate())
@@ -54,6 +66,7 @@ def carregar_wav_pcm16(caminho: str) -> tuple[np.ndarray, WavInfo]:
         nframes = wf.getnframes()
         raw = wf.readframes(nframes)
 
+    # Converte o PCM inteiro para float32 em [-1, 1].
     if largura == 1:
         # unsigned 8-bit
         data = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
@@ -65,6 +78,7 @@ def carregar_wav_pcm16(caminho: str) -> tuple[np.ndarray, WavInfo]:
     else:
         raise ValueError(f"Largura de amostra WAV não suportada: {largura} bytes")
 
+    # Converte para mono se necessário (média simples por canal).
     if num_canais > 1:
         data = data.reshape(-1, num_canais).mean(axis=1)
 

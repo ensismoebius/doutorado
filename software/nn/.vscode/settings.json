@@ -191,6 +191,7 @@
     "cmake.ctest.testExplorerIntegrationEnabled": false,
     "cSpell.words": [
         "Backpropagates",
+        "comandos",
         "minibatching"
     ]
 }

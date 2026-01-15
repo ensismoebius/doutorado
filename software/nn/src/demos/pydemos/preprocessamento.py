@@ -1,3 +1,5 @@
+"""Pré-processamento das energias WPT para entrada em SNN."""
+
 import numpy as np
 
 
@@ -23,12 +25,15 @@ def preprocessar_energia_wpt_para_snn(
       por pessoa ou por corpus. Aqui escolhemos uma normalização por janela para ser simples e estável.
     """
 
+    # Converte para float32 e elimina valores negativos por segurança.
     x = np.asarray(energia, dtype=np.float32)
     x = np.maximum(x, 0.0)
 
+    # Compressão logarítmica opcional para reduzir faixa dinâmica.
     if usar_log:
         x = np.log1p(x)
 
+    # Normaliza em [0,1] usando o máximo da janela.
     maxv = float(np.max(x))
     if maxv < eps:
         return np.zeros_like(x, dtype=np.float32)
