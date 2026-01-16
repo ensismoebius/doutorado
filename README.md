@@ -75,7 +75,7 @@ Um framework de alto desempenho para redes neurais com suporte a:
 ```bash
 cd software/nn
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -- -j$(nproc)
+cmake --build build -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 ctest --test-dir build --output-on-failure
 ```
 
@@ -179,7 +179,7 @@ cd doutorado
 ```bash
 cd software/nn
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -- -j$(nproc)
+cmake --build build -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 ```
 
 ### 3. Executar testes / Run tests
