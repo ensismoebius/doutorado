@@ -1,22 +1,18 @@
+"""Implementação dos comandos da CLI do demo de biometria por voz."""
+
 import argparse
 
 import numpy as np
 import torch
 
-from captura import capturar_audio
-from conjunto_dados import (
-    ConfigExtracao,
+from core.configs import ConfigExtracao, ConfigSNN
+from infra.captura import capturar_audio
+from services.cadastro import capturar_e_salvar_amostra
+from services.conjunto_dados import (
     extrair_janelas_caracteristicas,
     listar_amostras_por_pessoa,
 )
-from codificacao import codificar_poisson
-from cadastro import capturar_e_salvar_amostra
-from rede_snn import criar_modelo_snn
-
-"""Implementação dos comandos da CLI do demo de biometria por voz."""
-
-from identificacao_locutor import (
-    ConfigSNN,
+from services.identificacao_locutor import (
     aplicar_limiar_desconhecido,
     carregar_modelo_e_rotulos,
     identificar_locutor_por_microfone,
@@ -24,7 +20,9 @@ from identificacao_locutor import (
     salvar_modelo_e_rotulos,
     treinar_classificador_locutor,
 )
-from visualizacao import plotar_resultados
+from services.modelos.rede_snn import criar_modelo_snn
+from utils.codificacao import codificar_poisson
+from infra.visualizacao import plotar_resultados
 
 
 def cmd_demo(args: argparse.Namespace) -> None:

@@ -10,15 +10,10 @@ from __future__ import annotations
 
 import os
 import wave
-from dataclasses import dataclass
 
 import numpy as np
 
-
-@dataclass(frozen=True)
-class WavInfo:
-    taxa_amostragem: int
-    num_canais: int
+from core.configs import WavInfo
 
 
 def salvar_wav_pcm16(caminho: str, sinal: np.ndarray, taxa_amostragem: int) -> None:

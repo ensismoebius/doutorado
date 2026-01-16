@@ -6,8 +6,9 @@ Objetivo didático:
 - opcionalmente usa SciPy para reamostragem de melhor qualidade.
 """
 
-import numpy as np
 import sys
+
+import numpy as np
 
 try:
     import sounddevice as sd
@@ -107,9 +108,8 @@ def capturar_audio(duracao_segundos: float, sample_rate: int = 44100) -> np.ndar
                 print(f"[Captura] Sucesso na captura a {taxa_real}Hz.", flush=True)
                 break
 
-            except Exception as e:
+            except Exception:
                 # Erros de driver/dispositivo são esperados em algumas taxas.
-                # print(f"[Captura] Falha ao capturar a {rate}Hz: {e}", flush=True)
                 continue
 
     except Exception as e:

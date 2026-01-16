@@ -106,50 +106,50 @@ class ModeloSNN(nn.Module):
         state = {"mem1": mem1, "mem2": mem2, "mem3": mem3}
         return spk3, state
 
-        def forward(self, x, estado=None):
-            """Forward compatível com 2 formatos de entrada (2D ou 3D).
+    def forward(self, x, estado=None):
+        """Forward compatível com 2 formatos de entrada (2D ou 3D).
 
-            Resumo
-            -----
-            - Aceita um único passo (2D) ou uma sequência temporal (3D).
-            - Retorna uma tupla ``(spikes, state)`` onde ``state`` é o dicionário de
-                memórias atualizado (mapeado por amostra do batch).
+        Resumo
+        -----
+        - Aceita um único passo (2D) ou uma sequência temporal (3D).
+        - Retorna uma tupla ``(spikes, state)`` onde ``state`` é o dicionário de
+          memórias atualizado (mapeado por amostra do batch).
 
-            Formatos
-            -------
-            1) Passo único (2D)
-                 - Entrada: ``x`` com shape ``(batch, features)``.
-                     Ex.: ``(8, 100)`` para ``batch=8`` e ``features=100``.
-                 - Saída: ``spk`` com shape ``(batch, num_saidas)``.
-                 - Exemplo rápido::
+        Formatos
+        -------
+        1) Passo único (2D)
+           - Entrada: ``x`` com shape ``(batch, features)``.
+             Ex.: ``(8, 100)`` para ``batch=8`` e ``features=100``.
+           - Saída: ``spk`` com shape ``(batch, num_saidas)``.
+           - Exemplo rápido::
 
-                     x = torch.randn(8, 100)         # shape (8,100)
-                     spk, state = model(x)
-                     # spk.shape == (8, num_saidas)
+             x = torch.randn(8, 100)         # shape (8,100)
+             spk, state = model(x)
+             # spk.shape == (8, num_saidas)
 
-            2) Sequência temporal (3D)
-                 - Entrada: ``x`` com shape ``(num_passos, batch, features)``.
-                     Ex.: ``(10, 8, 100)`` para 10 passos, batch=8, features=100.
-                 - Saída: ``spk_seq`` com shape ``(num_passos, batch, num_saidas)``.
-                 - Exemplo rápido::
+        2) Sequência temporal (3D)
+           - Entrada: ``x`` com shape ``(num_passos, batch, features)``.
+             Ex.: ``(10, 8, 100)`` para 10 passos, batch=8, features=100.
+           - Saída: ``spk_seq`` com shape ``(num_passos, batch, num_saidas)``.
+           - Exemplo rápido::
 
-                     # exemplo concreto com num_passos=3, batch=2, features=4
-                     x = torch.tensor([
-                         [[0,0,1,0], [1,0,0,0]],   # t=0 -> shape (2,4)
-                         [[0,1,0,0], [0,0,1,0]],   # t=1
-                         [[1,0,0,0], [0,1,0,1]],   # t=2
-                     ])  # shape (3,2,4)
-                     spk_seq, state = model(x)
-                     # spk_seq.shape == (3,2,num_saidas)
+             # exemplo concreto com num_passos=3, batch=2, features=4
+             x = torch.tensor([
+               [[0,0,1,0], [1,0,0,0]],   # t=0 -> shape (2,4)
+               [[0,1,0,0], [0,0,1,0]],   # t=1
+               [[1,0,0,0], [0,1,0,1]],   # t=2
+             ])  # shape (3,2,4)
+             spk_seq, state = model(x)
+             # spk_seq.shape == (3,2,num_saidas)
 
-            Observações
-            ----------
-            - ``state`` (opcional) permite continuação da dinâmica entre janelas;
-                se passado, o modelo reusa as memórias; caso contrário, o estado é
-                inicializado com zeros via ``inicializar_estado``.
-            - Internamente a operação em um passo é a mesma usada em cada passo da
-                sequência temporal; na versão temporal iteramos sobre o eixo 0.
-            """
+        Observações
+        ----------
+        - ``state`` (opcional) permite continuação da dinâmica entre janelas;
+          se passado, o modelo reusa as memórias; caso contrário, o estado é
+          inicializado com zeros via ``inicializar_estado``.
+        - Internamente a operação em um passo é a mesma usada em cada passo da
+          sequência temporal; na versão temporal iteramos sobre o eixo 0.
+        """
 
         # Caso 1: passo único (sem dimensão temporal).
         # Aqui o `x` já representa o vetor de features do lote atual.

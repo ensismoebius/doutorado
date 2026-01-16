@@ -4,28 +4,22 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from arquivo_audio import carregar_wav_pcm16
-from captura import capturar_audio
-from captura import reamostrar_audio
-from conjunto_dados import (
-    ConfigExtracao,
+from core.configs import ConfigExtracao, ConfigSNN
+from domain.regras import aplicar_limiar_desconhecido
+from infra.arquivo_audio import carregar_wav_pcm16
+from infra.captura import capturar_audio, reamostrar_audio
+from services.conjunto_dados import (
     extrair_janelas_caracteristicas,
     carregar_dataset_janelas,
+    listar_amostras_por_pessoa,
 )
-from codificacao import codificar_poisson
-from rede_snn import criar_modelo_snn
-
-
-@dataclass(frozen=True)
-class ConfigSNN:
-    passos_por_janela: int = 10
-    alvo_spikes_por_passo: float = 0.10
+from services.modelos.rede_snn import criar_modelo_snn
+from utils.codificacao import codificar_poisson
 
 
 def treinar_classificador_locutor(
@@ -243,15 +237,12 @@ def identificar_locutor_por_wav(
     )
 
 
-def aplicar_limiar_desconhecido(
-    pessoa: str,
-    confianca: float,
-    *,
-    limiar: float,
-    rotulo_desconhecido: str = "desconhecido",
-) -> str:
-    """Se a confiança for baixa, devolve 'desconhecido'."""
-
-    if confianca < limiar:
-        return rotulo_desconhecido
-    return pessoa
+__all__ = [
+    "ConfigSNN",
+    "treinar_classificador_locutor",
+    "salvar_modelo_e_rotulos",
+    "carregar_modelo_e_rotulos",
+    "identificar_locutor_por_microfone",
+    "identificar_locutor_por_wav",
+    "aplicar_limiar_desconhecido",
+]

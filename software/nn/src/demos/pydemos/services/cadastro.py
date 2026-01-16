@@ -11,8 +11,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from arquivo_audio import salvar_wav_pcm16
-from captura import capturar_audio
+from infra.arquivo_audio import salvar_wav_pcm16
+from infra.captura import capturar_audio
 
 
 def capturar_e_salvar_amostra(

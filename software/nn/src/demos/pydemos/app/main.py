@@ -1,12 +1,12 @@
 """CLI de alto nível do demo de biometria por voz.
 
 Este arquivo mantém apenas a interface de linha de comando e o entrypoint,
-delegando a implementação dos comandos para o módulo `comandos`.
+ delegando a implementação dos comandos para o módulo `comandos`.
 """
 
 import argparse
 
-from comandos import (
+from app.comandos import (
     cmd_demo,
     cmd_capturar,
     cmd_treinar,

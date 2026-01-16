@@ -11,26 +11,16 @@ from __future__ import annotations
 
 import glob
 import os
-from dataclasses import dataclass
 
 import numpy as np
 
-from arquivo_audio import carregar_wav_pcm16
-from captura import reamostrar_audio
-from caracteristicas import calcular_energia_wpt
-from ondaletas import calcular_nivel_wpt
-from preprocessamento import preprocessar_energia_wpt_para_snn
-from janelamento import aplicar_janelamento
-
-
-@dataclass(frozen=True)
-class ConfigExtracao:
-    taxa_amostragem: int = 44100
-    tamanho_janela: int = 512
-    tamanho_passo: int = 256
-    wavelet_base: str = "db4"
-    num_bandas: int = 100
-    duracao_referencia: float = 1.0
+from core.configs import ConfigExtracao
+from infra.arquivo_audio import carregar_wav_pcm16
+from infra.captura import reamostrar_audio
+from utils.caracteristicas import calcular_energia_wpt
+from utils.ondaletas import calcular_nivel_wpt
+from utils.preprocessamento import preprocessar_energia_wpt_para_snn
+from utils.janelamento import aplicar_janelamento
 
 
 def listar_amostras_por_pessoa(diretorio_base: str) -> dict[str, list[str]]:
