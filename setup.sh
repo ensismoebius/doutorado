@@ -109,7 +109,15 @@ if [ -d "software/nn" ]; then
             print_success "CMake configuration successful"
             
             print_info "Building the framework (this may take a while)..."
-            if cmake --build build -- -j$(nproc); then
+            # Detect number of processors (works on Linux and macOS)
+            if command -v nproc &> /dev/null; then
+                JOBS=$(nproc)
+            elif command -v sysctl &> /dev/null; then
+                JOBS=$(sysctl -n hw.ncpu)
+            else
+                JOBS=2
+            fi
+            if cmake --build build -- -j$JOBS; then
                 print_success "Build successful!"
                 
                 read -p "Do you want to run tests? (y/n) " -n 1 -r

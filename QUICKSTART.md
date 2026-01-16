@@ -14,7 +14,7 @@ O jeito mais fácil de configurar o repositório é usar o script de setup:
 
 ```bash
 # Clone o repositório / Clone the repository
-git clone https://github.com/ensismoebius/doutorado.git
+git clone <repository-url>
 cd doutorado
 
 # Execute o script de setup / Run the setup script
@@ -44,7 +44,7 @@ Se preferir fazer manualmente:
 #### 1. Clonar o Repositório / Clone the Repository
 
 ```bash
-git clone https://github.com/ensismoebius/doutorado.git
+git clone <repository-url>
 cd doutorado
 ```
 
