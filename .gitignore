@@ -1,9 +1,8 @@
+# LaTeX files
 *.spl
 *.snm
 *.out
 *.nav
-*.sw*
-.DS_Store
 *.aux
 *.bbl
 *.blg
@@ -14,18 +13,89 @@
 *.lot
 *.toc
 *.gz
-/src/build
-/build
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Editor files
+*.sw*
+.DS_Store
 /.vscode
 .vscode/settings.json
 src/.vscode/c_cpp_properties.json
+*~
+*.swp
+*.swo
+
+# Build directories
+/src/build
+/build
 *build*
 CMakeLists.txt.user
-programs.txt
-software/nn/weights/decoder_spike_model_weights.npz
-software/nn/weights/encoder_spike_model_weights.npz
-software/nn/src/demos/pydemos/__pycache__
+
+# Python
 *.pyc
 __pycache__/
 **.pyc
 **/__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Model weights and data
+software/nn/weights/decoder_spike_model_weights.npz
+software/nn/weights/encoder_spike_model_weights.npz
+*.npz
+*.npy
+
+# Temporary files
+programs.txt
+*.tmp
+*.temp
+
+# C/C++ compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Profiling and debugging
+*.out
+callgrind.out*
+massif.out*
+*.gcda
+*.gcno
+*.gcov
+
+# Coverage
+coverage/
+*.coverage
+htmlcov/
+
+# OS specific
+.DS_Store
+Thumbs.db
