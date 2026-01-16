@@ -56,8 +56,9 @@ cd software/nn
 # Configurar com CMake / Configure with CMake
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-# Compilar / Build
-cmake --build build -- -j$(nproc)
+# Compilar / Build (use número apropriado de jobs / use appropriate number of jobs)
+# Linux: nproc, macOS: sysctl -n hw.ncpu
+cmake --build build -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 
 # Executar testes (opcional) / Run tests (optional)
 ctest --test-dir build --output-on-failure
@@ -199,8 +200,8 @@ cd software/nn
 cmake --build build --target analysis-cppcheck
 cmake --build build --target analysis-clang-tidy
 
-# Executar todos os testes / Run all tests
-ctest --test-dir build --output-on-failure -j$(nproc)
+# Executar todos os testes / Run all tests (cross-platform)
+ctest --test-dir build --output-on-failure -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 
 # Gerar relatório de cobertura / Generate coverage report
 cmake --build build --target coverage
@@ -215,7 +216,7 @@ cmake --build build --target coverage
 cd software/nn
 rm -rf build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -- -j$(nproc)
+cmake --build build -- -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
 ctest --test-dir build --output-on-failure
 ```
 
