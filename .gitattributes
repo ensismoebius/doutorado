@@ -1,0 +1,68 @@
+# Git attributes for proper file handling
+
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Source code
+*.cpp text diff=cpp
+*.hpp text diff=cpp
+*.h text diff=cpp
+*.c text diff=c
+*.py text diff=python
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Scripts should always use LF
+*.sh text eol=lf
+
+# Documentation
+*.md text
+*.txt text
+*.tex text
+README text
+LICENSE text
+CONTRIBUTING text
+
+# Configuration files
+*.yaml text
+*.yml text
+*.json text
+*.xml text
+*.toml text
+.gitignore text
+.gitattributes text
+CMakeLists.txt text
+*.cmake text
+
+# Jupyter notebooks
+*.ipynb text
+
+# Binary files
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.wav binary
+*.mat binary
+*.npz binary
+*.npy binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.tgz binary
+*.bz2 binary
+
+# Compiled binaries
+*.so binary
+*.a binary
+*.o binary
+*.exe binary
+
+# Export ignore for certain files
+.gitattributes export-ignore
+.gitignore export-ignore
+.github export-ignore
