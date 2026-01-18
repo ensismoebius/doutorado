@@ -73,7 +73,7 @@ def treinar_classificador_locutor(
                 xb,
                 passos=cfg_snn.passos_por_janela,
                 adaptativo=True,
-                alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+                qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
             )
 
             # Conta spikes por neurônio de saída (soma no tempo).
@@ -168,7 +168,7 @@ def identificar_locutor_por_microfone(
             xb,
             passos=cfg_snn.passos_por_janela,
             adaptativo=True,
-            alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+            qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
         )
         spk_out_seq, _ = model(spk_in, None)
         contagem = spk_out_seq.sum(dim=0).squeeze(0)
@@ -222,7 +222,7 @@ def identificar_locutor_por_wav(
             xb,
             passos=cfg_snn.passos_por_janela,
             adaptativo=True,
-            alvo_spikes_por_passo=cfg_snn.alvo_spikes_por_passo,
+            qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
         )
         spk_out_seq, _ = model(spk_in, None)
         contagem = spk_out_seq.sum(dim=0).squeeze(0)
