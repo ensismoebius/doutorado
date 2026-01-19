@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,7 @@ class ConfigExtracao:
 class ConfigSNN:
     passos_por_janela: int = 10
     alvo_spikes_por_passo: float = 0.10
+    profundidade: Optional[int] = None
 
 
 @dataclass(frozen=True)

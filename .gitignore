@@ -29,3 +29,16 @@ software/nn/src/demos/pydemos/__pycache__
 __pycache__/
 **.pyc
 **/__pycache__/
+software/nn/src/demos/pydemos/dados/vozes/alice/amostra_20260118_201843.wav
+software/nn/src/demos/pydemos/dados/vozes/alice/amostra_20260118_201854.wav
+software/nn/src/demos/pydemos/dados/vozes/alice/amostra_20260118_201902.wav
+software/nn/src/demos/pydemos/dados/vozes/andre/amostra_20260118_201925.wav
+software/nn/src/demos/pydemos/dados/vozes/andre/amostra_20260118_201933.wav
+software/nn/src/demos/pydemos/dados/vozes/andre/amostra_20260118_201941.wav
+software/nn/src/demos/pydemos/dados/vozes/andre/amostra_20260118_202011.wav
+software/nn/src/demos/pydemos/dados/vozes/humberto/amostra_20260118_202151.wav
+software/nn/src/demos/pydemos/dados/vozes/humberto/amostra_20260118_202253.wav
+software/nn/src/demos/pydemos/dados/vozes/humberto/amostra_20260118_202443.wav
+software/nn/src/demos/pydemos/demo.png
+software/nn/src/demos/pydemos/modelo_snn_locutor.pt
+software/nn/src/demos/pydemos/rotulos_locutor.json

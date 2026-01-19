@@ -8,7 +8,6 @@ except ImportError:
     raise ImportError("As bibliotecas 'torch' e 'snntorch' são necessárias.")
 
 
-
 # Bloco residual para SNN: Linear -> LIF -> Linear -> LIF + skip connection
 class ResidualSNNBlock(nn.Module):
     def __init__(self, dim: int, beta: float = 0.9):
@@ -52,10 +51,12 @@ class ModeloSNN(nn.Module):
 
         # Blocos residuais profundos
         self.num_blocos_residuais = num_blocos_residuais
-        self.res_blocks = nn.ModuleList([
-            ResidualSNNBlock(tamanho_da_camada_escondida, beta=beta)
-            for _ in range(num_blocos_residuais)
-        ])
+        self.res_blocks = nn.ModuleList(
+            [
+                ResidualSNNBlock(tamanho_da_camada_escondida, beta=beta)
+                for _ in range(num_blocos_residuais)
+            ]
+        )
 
         # Camada de saída
         self.fc_out = nn.Linear(tamanho_da_camada_escondida, self.num_saidas)
@@ -68,13 +69,21 @@ class ModeloSNN(nn.Module):
         if dtype is None:
             dtype = next(self.parameters()).dtype
         state = {
-            "mem_in": torch.zeros(tamanho_lote, self.num_ocultos, device=device, dtype=dtype),
-            "mem_out": torch.zeros(tamanho_lote, self.num_saidas, device=device, dtype=dtype),
+            "mem_in": torch.zeros(
+                tamanho_lote, self.num_ocultos, device=device, dtype=dtype
+            ),
+            "mem_out": torch.zeros(
+                tamanho_lote, self.num_saidas, device=device, dtype=dtype
+            ),
         }
         # Para cada bloco residual, duas memórias (uma para cada LIF)
         for i in range(self.num_blocos_residuais):
-            state[f"mem_res{i}_1"] = torch.zeros(tamanho_lote, self.num_ocultos, device=device, dtype=dtype)
-            state[f"mem_res{i}_2"] = torch.zeros(tamanho_lote, self.num_ocultos, device=device, dtype=dtype)
+            state[f"mem_res{i}_1"] = torch.zeros(
+                tamanho_lote, self.num_ocultos, device=device, dtype=dtype
+            )
+            state[f"mem_res{i}_2"] = torch.zeros(
+                tamanho_lote, self.num_ocultos, device=device, dtype=dtype
+            )
         return state
 
     def _forward_passo(self, x, state=None):
@@ -172,10 +181,18 @@ class ModeloSNN(nn.Module):
         return torch.stack(sequencia_de_pulsos, dim=0), estado
 
 
-def criar_modelo_snn(*, num_inputs: int = 100, num_outputs: int | None = None, profundidade: int = 3):
+def criar_modelo_snn(
+    *, num_inputs: int = 100, num_outputs: int | None = None, profundidade: int = 3
+):
     # Regra de inicialização determinística (reprodutibilidade do demo).
     torch.manual_seed(42)
-    return ModeloSNN(tamanho_da_entrada=num_inputs, quantidade_de_classes=num_outputs, num_blocos_residuais=profundidade)
+    if profundidade is None:
+        profundidade = 3
+    return ModeloSNN(
+        tamanho_da_entrada=num_inputs,
+        quantidade_de_classes=num_outputs,
+        num_blocos_residuais=int(profundidade),
+    )
 
 
 if __name__ == "__main__":

@@ -37,7 +37,10 @@ def cmd_demo(args: argparse.Namespace) -> None:
         num_bandas=args.num_bandas,
         duracao_referencia=args.duracao,
     )
-    cfg_snn = ConfigSNN(passos_por_janela=args.passos_por_janela)
+    cfg_snn = ConfigSNN(
+        passos_por_janela=args.passos_por_janela,
+        profundidade=getattr(args, "profundidade", None),
+    )
 
     # Captura áudio ao vivo e extrai características por janela.
     audio = capturar_audio(args.duracao, args.taxa_amostragem)
@@ -47,7 +50,9 @@ def cmd_demo(args: argparse.Namespace) -> None:
 
     # Modelo com saída do mesmo tamanho das entradas (para manter plots didáticos).
     model = criar_modelo_snn(
-        num_inputs=cfg_extracao.num_bandas, num_outputs=cfg_extracao.num_bandas
+        num_inputs=cfg_extracao.num_bandas,
+        num_outputs=cfg_extracao.num_bandas,
+        profundidade=getattr(args, "profundidade", None),
     )
     model.eval()
 
@@ -104,6 +109,7 @@ def cmd_treinar(args: argparse.Namespace) -> None:
     cfg_snn = ConfigSNN(
         passos_por_janela=args.passos_por_janela,
         alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+        profundidade=getattr(args, "profundidade", None),
     )
 
     model, rotulos = treinar_classificador_locutor(
@@ -113,6 +119,7 @@ def cmd_treinar(args: argparse.Namespace) -> None:
         cfg_snn=cfg_snn,
         epocas=args.epocas,
         taxa_aprendizado=args.lr,
+        num_blocos_residuais=getattr(args, "profundidade", None),
     )
     salvar_modelo_e_rotulos(
         model,
@@ -136,6 +143,7 @@ def cmd_identificar(args: argparse.Namespace) -> None:
     cfg_snn = ConfigSNN(
         passos_por_janela=args.passos_por_janela,
         alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+        profundidade=getattr(args, "profundidade", None),
     )
 
     model, rotulos = carregar_modelo_e_rotulos(
@@ -143,6 +151,7 @@ def cmd_identificar(args: argparse.Namespace) -> None:
         caminho_modelo=args.modelo,
         caminho_rotulos=args.rotulos,
         num_inputs=cfg_extracao.num_bandas,
+        num_blocos_residuais=getattr(args, "profundidade", None),
     )
 
     pessoa, conf, _ = identificar_locutor_por_microfone(
@@ -170,12 +179,14 @@ def cmd_verificar(args: argparse.Namespace) -> None:
     cfg_snn = ConfigSNN(
         passos_por_janela=args.passos_por_janela,
         alvo_spikes_por_passo=args.alvo_spikes_por_passo,
+        profundidade=getattr(args, "profundidade", None),
     )
 
     model, rotulos = carregar_modelo_e_rotulos(
         caminho_modelo=args.modelo,
         caminho_rotulos=args.rotulos,
         num_inputs=cfg_extracao.num_bandas,
+        num_blocos_residuais=getattr(args, "profundidade", None),
     )
 
     pessoa, conf, _ = identificar_locutor_por_microfone(
@@ -213,6 +224,7 @@ def cmd_avaliar(args: argparse.Namespace) -> None:
         caminho_modelo=args.modelo,
         caminho_rotulos=args.rotulos,
         num_inputs=cfg_extracao.num_bandas,
+        num_blocos_residuais=getattr(args, "profundidade", None),
     )
 
     pessoas = listar_amostras_por_pessoa(args.diretorio_dados)

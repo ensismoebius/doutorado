@@ -30,6 +30,7 @@ def treinar_classificador_locutor(
     epocas: int = 5,
     taxa_aprendizado: float = 1e-3,
     device: str | None = None,
+    num_blocos_residuais: int | None = None,
 ) -> tuple[torch.nn.Module, list[str]]:
     """Treina uma SNN simples para classificar janelas por locutor."""
 
@@ -43,7 +44,9 @@ def treinar_classificador_locutor(
     num_classes = len(rotulos)
     # Modelo SNN simples (snntorch) com saída = número de pessoas.
     model = criar_modelo_snn(
-        num_inputs=cfg_extracao.num_bandas, num_outputs=num_classes
+        num_inputs=cfg_extracao.num_bandas,
+        num_outputs=num_classes,
+        profundidade=num_blocos_residuais,
     ).to(device)
     model.train()
 
@@ -109,8 +112,13 @@ def salvar_modelo_e_rotulos(
     # Garante diretório e salva pesos + rótulos em JSON.
     os.makedirs(os.path.dirname(caminho_modelo) or ".", exist_ok=True)
     torch.save(model.state_dict(), caminho_modelo)
+    # Também persiste a profundidade (se disponível) para reconstruir a arquitetura ao recarregar.
+    profundidade = getattr(model, "num_blocos_residuais", None)
+    meta = {"rotulos": rotulos}
+    if profundidade is not None:
+        meta["profundidade"] = int(profundidade)
     with open(caminho_rotulos, "w", encoding="utf-8") as f:
-        json.dump({"rotulos": rotulos}, f, ensure_ascii=False, indent=2)
+        json.dump(meta, f, ensure_ascii=False, indent=2)
 
 
 def carregar_modelo_e_rotulos(
@@ -119,6 +127,7 @@ def carregar_modelo_e_rotulos(
     caminho_rotulos: str,
     num_inputs: int,
     device: str | None = None,
+    num_blocos_residuais: int | None = None,
 ) -> tuple[torch.nn.Module, list[str]]:
     # Usa GPU se disponível, senão CPU.
     if device is None:
@@ -126,10 +135,19 @@ def carregar_modelo_e_rotulos(
 
     # Carrega os rótulos na mesma ordem usada no treino.
     with open(caminho_rotulos, "r", encoding="utf-8") as f:
-        rotulos = json.load(f)["rotulos"]
+        meta = json.load(f)
+    rotulos = meta["rotulos"]
 
-    # Reconstrói o modelo com a mesma dimensão de saída.
-    model = criar_modelo_snn(num_inputs=num_inputs, num_outputs=len(rotulos)).to(device)
+    # Se a profundidade não foi fornecida explicitamente, tenta ler do arquivo de rótulos.
+    profundidade_meta = meta.get("profundidade")
+    profundidade_final = (
+        num_blocos_residuais if num_blocos_residuais is not None else profundidade_meta
+    )
+
+    # Reconstrói o modelo com a mesma dimensão de saída e profundidade.
+    model = criar_modelo_snn(
+        num_inputs=num_inputs, num_outputs=len(rotulos), profundidade=profundidade_final
+    ).to(device)
     sd = torch.load(caminho_modelo, map_location=device)
     model.load_state_dict(sd)
     model.eval()

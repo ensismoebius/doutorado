@@ -38,6 +38,12 @@ def construir_cli() -> argparse.ArgumentParser:
     demo.add_argument("--wavelet", type=str, default="db4")
     demo.add_argument("--num-bandas", type=int, default=100)
     demo.add_argument("--passos-por-janela", type=int, default=10)
+    demo.add_argument(
+        "--profundidade",
+        type=int,
+        default=None,
+        help="Número de blocos residuais na SNN (override)",
+    )
     demo.add_argument("--saida-plot", type=str, default="result_pipeline_wpt_snn.png")
     demo.set_defaults(func=cmd_demo)
 
@@ -75,6 +81,12 @@ def construir_cli() -> argparse.ArgumentParser:
     tr.add_argument("--num-bandas", type=int, default=100)
     tr.add_argument("--duracao-referencia", type=float, default=1.0)
     tr.add_argument("--passos-por-janela", type=int, default=10)
+    tr.add_argument(
+        "--profundidade",
+        type=int,
+        default=None,
+        help="Número de blocos residuais na SNN",
+    )
     tr.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
     tr.add_argument("--epocas", type=int, default=5)
     tr.add_argument("--lr", type=float, default=1e-3)
@@ -94,6 +106,12 @@ def construir_cli() -> argparse.ArgumentParser:
     inf.add_argument("--num-bandas", type=int, default=100)
     inf.add_argument("--duracao-referencia", type=float, default=1.0)
     inf.add_argument("--passos-por-janela", type=int, default=10)
+    inf.add_argument(
+        "--profundidade",
+        type=int,
+        default=None,
+        help="Número de blocos residuais na SNN (override ao carregar modelo)",
+    )
     inf.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
     inf.set_defaults(func=cmd_identificar)
 
@@ -114,6 +132,12 @@ def construir_cli() -> argparse.ArgumentParser:
     ver.add_argument("--num-bandas", type=int, default=100)
     ver.add_argument("--duracao-referencia", type=float, default=1.0)
     ver.add_argument("--passos-por-janela", type=int, default=10)
+    ver.add_argument(
+        "--profundidade",
+        type=int,
+        default=None,
+        help="Número de blocos residuais na SNN (override ao carregar modelo)",
+    )
     ver.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
     ver.add_argument(
         "--limiar",
@@ -137,6 +161,12 @@ def construir_cli() -> argparse.ArgumentParser:
     av.add_argument("--num-bandas", type=int, default=100)
     av.add_argument("--duracao-referencia", type=float, default=1.0)
     av.add_argument("--passos-por-janela", type=int, default=10)
+    av.add_argument(
+        "--profundidade",
+        type=int,
+        default=None,
+        help="Número de blocos residuais na SNN (override ao carregar modelo)",
+    )
     av.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
     av.add_argument("--verbose", action="store_true")
     av.set_defaults(func=cmd_avaliar)

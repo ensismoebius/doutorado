@@ -1,4 +1,44 @@
+
 # Biometria por voz (demo) — WPT → codificação em spikes → SNN
+
+## Como rodar este demo
+
+Entre no diretório `pydemos` e execute:
+
+```bash
+python -m app.main <comando> [opções]
+```
+
+Exemplo para rodar o demo visual:
+
+```bash
+python -m app.main demo --duracao 1.0 --saida-plot demo.png
+```
+
+Todos os comandos abaixo são subcomandos do `app.main`.
+
+Para ver todas as opções e ajuda de cada comando, use:
+
+```bash
+python -m app.main -h
+python -m app.main <comando> -h
+```
+
+### Subcomandos disponíveis
+
+| Comando     | Descrição                                                     |
+| ----------- | ------------------------------------------------------------- |
+| demo        | Executa pipeline e gera plots didáticos                       |
+| capturar    | Captura áudio e salva WAV para uma pessoa (cadastro)          |
+| enrolar     | Alias de capturar (cadastrar amostras por pessoa)             |
+| treinar     | Treina a SNN para classificar locutores                       |
+| identificar | Identifica a pessoa por voz (microfone)                       |
+| verificar   | Identifica e pode retornar 'desconhecido' (com limiar)        |
+| avaliar     | Avalia o modelo em WAVs gravados e imprime matriz de confusão |
+
+Cada comando aceita diversas opções (veja -h). Exemplos de uso estão abaixo e nas seções específicas.
+
+> **Nota:** A profundidade da SNN (número de blocos residuais) pode ser ajustada no código ao criar o modelo, veja `rede_snn.py` e a seção "Arquitetura da SNN" neste README.
 
 Este diretório contém um demo didático de **identificação de locutor** (biometria por voz) usando:
 
@@ -64,25 +104,26 @@ pip install torch snntorch
 
 Todos os comandos abaixo são executados **dentro deste diretório**.
 
+
 ### Receita rápida (3 passos)
 
 1) Enrole (cadastre) 2–5 amostras por pessoa:
 
 ```bash
-python principal.py enrolar --pessoa alice --duracao 3
-python principal.py enrolar --pessoa bob --duracao 3
+python -m app.main enrolar --pessoa alice --duracao 3
+python -m app.main enrolar --pessoa bob --duracao 3
 ```
 
 2) Treine o classificador:
 
 ```bash
-python principal.py treinar --diretorio-dados dados/vozes --epocas 10
+python -m app.main treinar --diretorio-dados dados/vozes --epocas 10
 ```
 
 3) Identifique (microfone):
 
 ```bash
-python principal.py identificar --duracao 2
+python -m app.main identificar --duracao 2
 ```
 
 ### Ajuda do CLI
@@ -90,29 +131,29 @@ python principal.py identificar --duracao 2
 Para ver todas as opções disponíveis:
 
 ```bash
-python principal.py -h
-python principal.py treinar -h
-python principal.py verificar -h
+python -m app.main -h
+python -m app.main treinar -h
+python -m app.main verificar -h
 ```
 
 ### Resumo dos subcomandos
 
-| Subcomando | Para que serve | Saídas típicas |
-|---|---|---|
-| `demo` | roda pipeline e gera plots didáticos | `result_pipeline_wpt_snn.png` (ou `--saida-plot`) |
-| `capturar` | grava uma amostra WAV para uma pessoa | `<base>/<pessoa>/amostra_*.wav` |
-| `enrolar` | alias de `capturar` (linguagem biométrica) | `<base>/<pessoa>/amostra_*.wav` |
-| `treinar` | treina o classificador multiclasse | `modelo_snn_locutor.pt`, `rotulos_locutor.json` |
-| `identificar` | identifica a pessoa via microfone | imprime predição/confiança |
-| `verificar` | identifica e pode retornar `desconhecido` (limiar) | imprime predição/confiança |
-| `avaliar` | avalia em WAVs gravados e imprime matriz de confusão | imprime acurácia + matriz |
+| Subcomando    | Para que serve                                       | Saídas típicas                                    |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------- |
+| `demo`        | roda pipeline e gera plots didáticos                 | `result_pipeline_wpt_snn.png` (ou `--saida-plot`) |
+| `capturar`    | grava uma amostra WAV para uma pessoa                | `<base>/<pessoa>/amostra_*.wav`                   |
+| `enrolar`     | alias de `capturar` (linguagem biométrica)           | `<base>/<pessoa>/amostra_*.wav`                   |
+| `treinar`     | treina o classificador multiclasse                   | `modelo_snn_locutor.pt`, `rotulos_locutor.json`   |
+| `identificar` | identifica a pessoa via microfone                    | imprime predição/confiança                        |
+| `verificar`   | identifica e pode retornar `desconhecido` (limiar)   | imprime predição/confiança                        |
+| `avaliar`     | avalia em WAVs gravados e imprime matriz de confusão | imprime acurácia + matriz                         |
 
 ### 1) Demo visual (pipeline + plot)
 
 Captura áudio do microfone, extrai WPT, codifica em spikes e gera um PNG com os gráficos.
 
 ```bash
-python principal.py demo --duracao 1.0 --passos-por-janela 10 --saida-plot result_demo_biometria.png
+python -m app.main demo --duracao 1.0 --passos-por-janela 10 --saida-plot result_demo_biometria.png
 ```
 
 Parâmetros úteis:
@@ -127,14 +168,14 @@ Parâmetros úteis:
 Captura áudio e salva WAV no diretório de dados.
 
 ```bash
-python principal.py enrolar --pessoa alice --duracao 3
-python principal.py enrolar --pessoa bob --duracao 3
+python -m app.main enrolar --pessoa alice --duracao 3
+python -m app.main enrolar --pessoa bob --duracao 3
 ```
 
 O comando `capturar` é equivalente (alias):
 
 ```bash
-python principal.py capturar --pessoa alice --duracao 3
+python -m app.main capturar --pessoa alice --duracao 3
 ```
 
 Recomendação prática:
@@ -145,7 +186,7 @@ Recomendação prática:
 Treina uma SNN para classificar **janelas** por pessoa.
 
 ```bash
-python principal.py treinar --diretorio-dados dados/vozes --epocas 10 --passos-por-janela 10
+python -m app.main treinar --diretorio-dados dados/vozes --epocas 10 --passos-por-janela 10
 ```
 
 Saídas geradas:
@@ -162,7 +203,7 @@ Parâmetros úteis:
 Carrega o modelo treinado e identifica quem está falando.
 
 ```bash
-python principal.py identificar --duracao 2
+python -m app.main identificar --duracao 2
 ```
 
 ### 5) Verificar (com “desconhecido” via limiar)
@@ -170,7 +211,7 @@ python principal.py identificar --duracao 2
 Útil quando você quer rejeitar vozes fora do conjunto de pessoas treinadas.
 
 ```bash
-python principal.py verificar --duracao 2 --limiar 0.55
+python -m app.main verificar --duracao 2 --limiar 0.55
 ```
 
 Interpretação:
@@ -181,13 +222,13 @@ Interpretação:
 Roda o classificador em cada WAV em `<base>/<pessoa>/*.wav` e imprime acurácia e matriz de confusão.
 
 ```bash
-python principal.py avaliar --diretorio-dados dados/vozes
+python -m app.main avaliar --diretorio-dados dados/vozes
 ```
 
 Para ver o resultado arquivo-a-arquivo:
 
 ```bash
-python principal.py avaliar --diretorio-dados dados/vozes --verbose
+python -m app.main avaliar --diretorio-dados dados/vozes --verbose
 ```
 
 ---
@@ -220,12 +261,48 @@ Se `scipy` não estiver instalado, a reamostragem cai para interpolação linear
 
 ## Arquivos principais
 
-- `main.py`: CLI do demo
+- `app/main.py`: CLI do demo
 - `conjunto_dados.py`: leitura do conjunto de dados por pastas + extração de janelas
 - `caracteristicas.py`: extração de energia WPT
 - `preprocessamento.py`: compressão/normalização das características
 - `codificacao.py`: codificador Poisson e taxa adaptativa
-- `rede_snn.py`: modelo SNN (suporta entrada em sequência `[T,B,F]`)
+- `rede_snn.py`: modelo SNN profundo com blocos residuais (ResNet-style), suporta entrada em sequência `[T,B,F]` e configuração de profundidade
+## Arquitetura da SNN (atualizado)
+
+O modelo SNN deste demo agora suporta **profundidade arbitrária** e **blocos residuais** (estilo ResNet) usando snnTorch.
+
+- Por padrão, a rede é composta por:
+  - Camada de entrada (Linear + LIF)
+  - Vários blocos residuais profundos (cada bloco: Linear → LIF → Linear → LIF + skip connection)
+  - Camada de saída (Linear + LIF)
+
+- O número de blocos residuais pode ser ajustado ao criar o modelo:
+
+```python
+from rede_snn import criar_modelo_snn
+modelo = criar_modelo_snn(num_inputs=100, num_outputs=3, profundidade=5)  # 5 blocos residuais
+```
+
+- O forward aceita entrada 2D (um passo) ou 3D (sequência temporal), e o estado é explícito para permitir continuidade entre janelas.
+
+Veja o código em `rede_snn.py` para detalhes e exemplos.
+
+### Exemplos de `--profundidade`
+
+Você pode controlar o número de blocos residuais (profundidade) via CLI usando `--profundidade`. Exemplos:
+
+```bash
+# Demo com profundidade 5
+python -m app.main demo --profundidade 5 --duracao 1.0 --saida-plot demo.png
+
+# Treino com profundidade 4 (salva profundidade em rotulos.json)
+python -m app.main treinar --profundidade 4 --diretorio-dados dados/vozes --epocas 10
+
+# Inferência forçando profundidade ao carregar modelo (override)
+python -m app.main identificar --modelo modelo_snn_locutor.pt --rotulos rotulos_locutor.json --profundidade 3 --duracao 2
+```
+
+Nota: ao treinar, se você não passar `--profundidade`, a profundidade padrão do código será usada; a profundidade utilizada é salva no arquivo de rótulos (`rotulos.json`) e será lida automaticamente ao recarregar o modelo. Você também pode forçar um override com `--profundidade` na inferência.
 - `identificacao_locutor.py`: treino e inferência (microfone e WAV)
 - `visualizacao.py`: plots didáticos
 - `captura.py`: captura e reamostragem
