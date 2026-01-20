@@ -223,3 +223,11 @@ Use as much as possible all core libraries (src/core) and modern C++ 20.
 - YAML for configuration management
 - CSV for results storage
 - Modular code structure in `src/core` and `src/experiments`
+# Comparison with regular neural networks (DNNs, CNNs)
+- Evaluation of computational efficiency (MACs, RTF)
+- Robustness to noise and signal degradation
+- Integration of EEG and audio data for multimodal speaker identification
+- Use of imagined speech for biometric identification
+- Comprehensive experimental design and documentation
+- Paraconsistent analysis for feature quality assessment
+- Unimodal vs. multimodal performance analysis
