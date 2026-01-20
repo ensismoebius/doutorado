@@ -200,3 +200,26 @@ Use as much as possible all core libraries (src/core) and modern C++ 20.
   - incremental execution
   - direct thesis writing
   - experimental auditing
+
+## Metrics
+- α (intra-class similarity)
+- β (inter-class overlap)
+- G1, G2 (paraconsistent metrics)
+- Accuracy
+- F1-score
+- MACs - Mulytiply-Accumulate Operations
+- RTF - Real-Time Factor
+
+## Neural Networks
+- Residual Spiking Neural Network (ResNet SNN)
+- Spiking Autoencoders (Sub-complete, Supra-complete, Denoising)
+- Wavelet-Packet Transform (WPT)
+- Batch Normalization
+- Dropout
+- Adam Optimizer
+- Cross-Entropy Loss
+- PyTorch C++ API (LibTorch)
+- C++20 Standard
+- YAML for configuration management
+- CSV for results storage
+- Modular code structure in `src/core` and `src/experiments`

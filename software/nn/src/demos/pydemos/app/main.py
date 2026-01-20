@@ -173,13 +173,8 @@ def construir_cli() -> argparse.ArgumentParser:
 
     return p
 
-
-def main() -> None:
+if __name__ == "__main__":
     # Ponto de entrada: parseia argumentos e executa o comando selecionado.
     p = construir_cli()
     args = p.parse_args()
     args.func(args)
-
-
-if __name__ == "__main__":
-    main()
