@@ -11,6 +11,9 @@
 # Cnpy integration
 include(cmake/VendorCnpy.cmake)
 
+# Argparse integration
+include(cmake/VendorArgparse.cmake)
+
 # Vendored FFTW handling
 include(cmake/VendorFFTW.cmake)
 
