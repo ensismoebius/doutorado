@@ -2,8 +2,6 @@
 #define DEVICE_TENSOR_BACKEND_HPP
 
 #include <algorithm>
-#include <memory>
-#include <vector>
 
 #include "nn/tensor/EigenTensorBackend.hpp"
 
@@ -22,27 +20,70 @@ namespace nn
  * Required behaviour (contract): see `EigenTensorBackend.hpp` for detailed
  * expectations and per-method documentation. This skeleton preserves that
  * contract while showing where device-specific code would go.
+ *
  */
 class DeviceTensorBackend
 {
    public:
+    // Below you'll find concise, per-method annotations (allocation,
+    // copy semantics, gradients, kernels) placed next to the methods
+    // you will need to implement.
+
     // -- Constructors ----------------------------------------------------
+    // Keep constructors lightweight. Avoid performing device allocations here;
+    // prefer explicit `allocate_on_device()` to control allocation timing.
     DeviceTensorBackend() = default;
 
+    // Construct a 2D host-backed tensor. Does not allocate device memory.
     explicit DeviceTensorBackend(Index rows, Index cols) : m_host(rows, cols) {}
 
+    // Construct a 4D host-backed tensor (stored using the 4D->2D convention).
+    // Note: avoid device allocations here; call `allocate_on_device()` when ready.
     explicit DeviceTensorBackend(Index d1, Index d2, Index d3, Index d4) : m_host(d1, d2, d3, d4) {}
 
+    // Construct from arbitrary shape vector (may be >2 dimensions).
+    // Ensure `reshape()` semantics are preserved on device copies.
     explicit DeviceTensorBackend(const std::vector<Index>& shape) : m_host(shape) {}
 
+    // Construct directly from an Eigen matrix (host data). For device
+    // backends prefer explicit host->device transfers via `copy_to_device()`.
     explicit DeviceTensorBackend(const Eigen::MatrixXf& data) : m_host(data) {}
 
     explicit DeviceTensorBackend(Eigen::MatrixXf&& data) : m_host(std::move(data)) {}
 
     // Copy / Move
+
+    // Special members (copy / move): short, plain notes.
+
+    // Copy constructor
+    // Role: create a new object that is a copy of `other`.
+    // Skeleton: performs member-wise copy of host and simulated device vectors
+    // and duplicates the boolean flags.
+    // Risk: copying raw device pointers (in a real backend) leads to double
+    // free or use-after-free. Prefer one of:
+    //  - Host-centric copy: copy only the host mirror and set device flags
+    //    false so device memory is reallocated on demand.
+    //  - Deep device copy: allocate device memory and copy device contents.
+    // Example host-centric: DeviceTensorBackend(const DeviceTensorBackend& other)
+    //   : m_host(other.m_host), m_on_device(false), m_grad_on_device(false) {}
     DeviceTensorBackend(const DeviceTensorBackend& other) = default;
+
+    // Move constructor
+    // Role: transfer resources from `other` to this object (leave `other`
+    // valid but unspecified).
+    // Keep `noexcept` if move cannot throw (helps containers). If your
+    // backend cannot transfer device ownership, delete the move ctor.
     DeviceTensorBackend(DeviceTensorBackend&&) noexcept = default;
+
+    // Copy assignment
+    // Role: overwrite this object with a copy of `other`.
+    // Same risks as copy constructor — avoid duplicating ownership of device
+    // resources without proper bookkeeping.
     DeviceTensorBackend& operator=(const DeviceTensorBackend& other) = default;
+
+    // Move assignment
+    // Role: overwrite this object by moving resources from `other`.
+    // Keep `noexcept` when safe; otherwise delete to enforce explicit policies.
     DeviceTensorBackend& operator=(DeviceTensorBackend&&) noexcept = default;
 
     // Static factories
@@ -122,7 +163,9 @@ class DeviceTensorBackend
         return m_host.at(idx);
     }
 
-    // Arithmetic ops (forward to host mirror)
+    // Element-wise arithmetic (add/subtract/multiply).
+    // - Implement device kernels for element-wise ops for performance.
+    // - Ensure shape compatibility checks match `EigenTensorBackend` behaviour.
     DeviceTensorBackend add(const DeviceTensorBackend& other) const
     {
         return DeviceTensorBackend(m_host.add(other.m_host));
@@ -136,16 +179,23 @@ class DeviceTensorBackend
         return DeviceTensorBackend(m_host.multiply(other.m_host));
     }
 
+    // Matrix multiply: implement a device-accelerated path (cuBLAS/hipBLAS)
+    // when possible. Provide a host fallback for testing/portability.
     DeviceTensorBackend matmul(const DeviceTensorBackend& other) const
     {
         return DeviceTensorBackend(m_host.matmul(other.m_host));
     }
 
+    // Transpose (2D only). Implement an in-device transpose when possible
+    // to avoid a host round-trip. Keep API semantics identical to Eigen fallback.
     DeviceTensorBackend transpose() const
     {
         return DeviceTensorBackend(m_host.transpose());
     }
 
+    // Scalar unary/binary ops. Prefer an in-device implementation to
+    // reduce copies for hot paths (e.g., broadcasting a scalar onto a large
+    // tensor). Fallback to host for correctness tests.
     DeviceTensorBackend add_scalar(float val) const
     {
         return DeviceTensorBackend(m_host.add_scalar(val));
@@ -159,6 +209,9 @@ class DeviceTensorBackend
         return DeviceTensorBackend(m_host.divide_scalar(val));
     }
 
+    // Element-wise unary functions. Implement device kernels where
+    // practical. Ensure numerical stability and consistent edge-case handling
+    // (NaN/Infs) with Eigen reference behaviour.
     DeviceTensorBackend sqrt() const
     {
         return DeviceTensorBackend(m_host.sqrt());
@@ -181,11 +234,16 @@ class DeviceTensorBackend
         return DeviceTensorBackend(m_host.leaky_relu(alpha));
     }
 
-    // Reductions
+    // Reductions: consider using device-native reductions for performance
+    // (e.g., thrust, custom kernels, or cuBLAS reductions). Keep a host
+    // fallback for correctness tests.
     float mean_squared_error(const DeviceTensorBackend& target) const
     {
         return m_host.mean_squared_error(target.m_host);
     }
+    // Reductions: norm and sum. For large tensors use device-native
+    // reductions (parallel tree-reduce or library routines) to avoid host
+    // bottlenecks. Keep a host fallback for verification and testing.
     float norm() const
     {
         return m_host.norm();
@@ -195,6 +253,8 @@ class DeviceTensorBackend
         return m_host.sum();
     }
 
+    // Row/column reductions return small tensors; consider computing them
+    // on-device and returning host copies as needed.
     DeviceTensorBackend sum_rows() const
     {
         return DeviceTensorBackend(m_host.sum_rows());
@@ -204,12 +264,18 @@ class DeviceTensorBackend
         return DeviceTensorBackend(m_host.sum_cols());
     }
 
+    // NaN detection helper; for device backends consider performing a
+    // short-circuit device scan to avoid copying entire tensors to host.
     bool hasNaN() const
     {
         return m_host.hasNaN();
     }
 
     // Slicing / Blocks
+    // Views / slicing - these return *copies* in the current design.
+    // For device backends you can implement zero-copy views if you expose
+    // a proper view type. Otherwise, implement device-side copying and
+    // document the cost of these operations.
     DeviceTensorBackend row(Index i) const
     {
         return DeviceTensorBackend(m_host.row(i));
@@ -239,7 +305,9 @@ class DeviceTensorBackend
         return DeviceTensorBackend(m_host.slice(indices));
     }
 
-    // Mutators
+    // Mutators: update both host mirror and optionally device buffer.
+    // - For device backends, either perform the operation on-device or
+    //   update host mirror and mark device buffer stale/dirty.
     void fill(float v)
     {
         m_host.fill(v);
@@ -253,6 +321,11 @@ class DeviceTensorBackend
         m_host.set_ones();
     }
 
+    // Raw data pointer semantics (Step 6 in BackendGuide.md):
+    // - For device backends decide whether `data_ptr()` returns a host-accessible
+    //   pointer (in which case you must ensure `copy_to_host()` happened) or
+    //   if it returns nullptr / throws when data is device-only. Provide
+    //   `device_data_ptr()` to expose device pointers explicitly.
     const float* data_ptr() const
     {
         return m_host.data_ptr();
@@ -262,8 +335,11 @@ class DeviceTensorBackend
         return m_host.mutable_data_ptr();
     }
 
-    // Gradient API (delegated to host mirror; device backends should implement
-    // device gradient handling and host/device synchronization as needed)
+    // Gradient API (Step 6 in BackendGuide.md):
+    // - Decide and document whether `get_grad()` performs an implicit host
+    //   copy from device memory or requires an explicit `grad_to_host()` call.
+    // - If gradients live on-device by default, provide `grad_to_host()` and
+    //   `grad_to_device()` helpers and keep `get_grad()` as an explicit host-copy.
     DeviceTensorBackend get_grad() const
     {
         // Return the host gradient as a DeviceTensorBackend value. For real
@@ -279,12 +355,19 @@ class DeviceTensorBackend
     {
         m_host.zero_grad();
     }
+
+    // Return a mutable reference to gradient storage. If gradients are
+    // stored on-device in your implementation, ensure appropriate host-device
+    // synchronization before returning a host-visible grad reference.
     DeviceTensorBackend& grad_ref()
     {
         m_host.grad_ref();
         return *this;
     }
 
+    // Equality compares host mirrors. If your backend keeps device-only
+    // state, ensure you copy/sync device data to host before comparing, or
+    // override these operators to compare device buffers directly when safe.
     bool operator==(const DeviceTensorBackend& other) const
     {
         return m_host == other.m_host;
@@ -323,6 +406,56 @@ class DeviceTensorBackend
         // Keep device buffer allocated for potential reuse.
     }
 
+    // -----------------------------------------------------------------
+    // Gradient device-mirror helpers (for testing and as a reference for
+    // real backends). These mirror the host gradient into a device buffer
+    // and back. Replace with device-native implementations when available.
+    // -----------------------------------------------------------------
+    void allocate_device_grad()
+    {
+        m_device_grad.assign(static_cast<size_t>(size()), 0.0f);
+        m_grad_on_device = true;
+    }
+
+    void copy_grad_to_device()
+    {
+        // Copy the host gradient into the device grad buffer. The host grad is
+        // obtained via m_host.get_grad() which returns an EigenTensorBackend
+        // value; copy its contents into the device vector.
+        if (!m_grad_on_device) allocate_device_grad();
+        auto host_grad = m_host.get_grad();
+        const float* src = host_grad.data_ptr();
+        std::copy(src, src + static_cast<size_t>(size()), m_device_grad.begin());
+        m_grad_on_device = true;
+    }
+
+    void copy_grad_to_host()
+    {
+        // Copy device grad back into host gradient storage. Ensure host grad
+        // storage exists by calling grad_ref() which lazily allocates it.
+        if (!m_grad_on_device) return;
+        auto& host_grad_ref = m_host.grad_ref();
+        std::copy(m_device_grad.begin(),
+                  m_device_grad.begin() + static_cast<size_t>(size()),
+                  host_grad_ref.mutable_data_ptr());
+    }
+
+    bool is_grad_on_device() const
+    {
+        return m_grad_on_device;
+    }
+
+    float* mutable_device_grad_ptr()
+    {
+        if (!m_grad_on_device) allocate_device_grad();
+        return m_device_grad.data();
+    }
+
+    const float* device_grad_ptr() const
+    {
+        return m_grad_on_device ? m_device_grad.data() : nullptr;
+    }
+
     // Query whether a device buffer exists (useful for tests and debugging).
     bool is_on_device() const
     {
@@ -343,14 +476,20 @@ class DeviceTensorBackend
 
    private:
     // Host mirror (Eigen implementation). Replace with device-native storage in
-    // concrete implementations.
+    // concrete implementations. Use this as a reliable host fallback in tests.
     EigenTensorBackend m_host;
 
     // Simulated device buffer (for the skeleton): stores a host-side copy of
-    // what would be device memory. Real backends would manage device memory
-    // and provide proper synchronization primitives.
+    // what would be device memory. Replace with an actual device pointer,
+    // allocator, and optional stream/context state in real backends. Ensure
+    // you track allocation size and alignment when using device allocators.
     std::vector<float> m_device;
     bool m_on_device = false;
+
+    // Simulated device gradient mirror (for testing).
+    // Replace with device-native gradient storage in real backends.
+    std::vector<float> m_device_grad;
+    bool m_grad_on_device = false;
 };
 
 } // namespace nn

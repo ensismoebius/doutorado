@@ -124,3 +124,40 @@ TEST(DeviceBackendTest, DeviceCopySemantics)
     backend.copy_to_host();
     EXPECT_EQ(t.at(0, 0), 123.0f);
 }
+
+TEST(DeviceBackendTest, DeviceGradCopySemantics)
+{
+    DeviceTensor t(2, 3);
+    // Set host gradient values
+    DeviceTensor g(2, 3);
+    g.setZero();
+    g.at(0, 0) = 5.0f;
+    g.at(0, 1) = 6.0f;
+    g.at(0, 2) = 7.0f;
+    g.at(1, 0) = 8.0f;
+    g.at(1, 1) = 9.0f;
+    g.at(1, 2) = 10.0f;
+
+    t.set_grad(g);
+    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
+
+    auto& backend = t.get_backend();
+    EXPECT_FALSE(backend.is_grad_on_device());
+
+    // Copy grad to device and verify device buffer
+    backend.copy_grad_to_device();
+    EXPECT_TRUE(backend.is_grad_on_device());
+    const float* dgptr = backend.device_grad_ptr();
+    ASSERT_NE(dgptr, nullptr);
+    EXPECT_EQ(dgptr[0], 5.0f);
+    EXPECT_EQ(dgptr[5], 10.0f);
+
+    // Mutate device grad and ensure host grad unchanged until copy back
+    float* mdgptr = backend.mutable_device_grad_ptr();
+    mdgptr[0] = 321.0f;
+    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
+
+    // Copy device grad back to host and verify host sees change
+    backend.copy_grad_to_host();
+    EXPECT_EQ(t.grad().at(0, 0), 321.0f);
+}
