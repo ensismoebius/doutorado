@@ -5,6 +5,7 @@ add_executable(speaker_demo
 target_link_libraries(speaker_demo PRIVATE
     Eigen3::Eigen
     tensor
+    argparse
     wavelet
     waveCoreLib
     linearAlgebra

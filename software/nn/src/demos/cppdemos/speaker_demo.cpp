@@ -1,203 +1,249 @@
-#include <algorithm>
-#include <chrono>
+// Single, consistent CLI implementation using RAII to own subparsers.
+
+#include <argparse/argparse.hpp>
 #include <iostream>
-#include <random>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
-#include "nn/layers/Leaky.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/Sequential.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/wave/Wav.h"
-#include "nn/wave/filter_operations.hpp"
-#include "nn/wavelet/waveletOperations.h"
+using argparse::ArgumentParser;
+using std::string;
 
-using namespace std;
-using namespace nn;
-
-// Simple helper: parse int suffix for wavelet name like "db4" -> 4
-static int parse_wavelet_order(const string& wavelet_name)
+template <typename T>
+T arg_to(argparse::ArgumentParser& p, const std::string& name)
 {
-    for (size_t i = 0; i < wavelet_name.size(); ++i)
+    try
     {
-        if (isdigit(wavelet_name[i]))
-        {
-            return stoi(wavelet_name.substr(i));
-        }
+        return p.get<T>(name);
     }
-    return 4; // default to 4
+    catch (const std::bad_any_cast&)
+    {
+        std::string s = p.get<std::string>(name);
+        if constexpr (std::is_same_v<T, double>)
+            return std::stod(s);
+        else if constexpr (std::is_same_v<T, int>)
+            return std::stoi(s);
+        else if constexpr (std::is_same_v<T, bool>)
+            return (s == "1" || s == "true" || s == "True");
+        else if constexpr (std::is_same_v<T, std::string>)
+            return s;
+        else
+            throw;
+    }
 }
 
-// Compute RMS energies per subband using wavelet malat + extract_subband_energies
-static vector<double> extract_subband_rms(const vector<double>& window, int sampling_rate,
-                                          const string& wavelet_name)
+/**
+ * Avoid dangling pointers by owning the root parser and all
+ * subparsers.(heap-use-after-free error)
+ */
+struct ParserPointersOwner
 {
-    int order = parse_wavelet_order(wavelet_name);
-    // Create a lowpass filter; choose a conservative final frequency (nyquist)
-    double finalFreq = sampling_rate / 2.0;
-    auto lp = createLowPassFilter(order, sampling_rate, finalFreq);
+    std::unique_ptr<ArgumentParser> parser;
+    std::vector<std::unique_ptr<ArgumentParser>> subParsers;
+};
 
-    auto res = wavelets::malat(window,
-                               std::span<const double>(lp.data(), lp.size()),
-                               wavelets::PACKET_WAVELET,
-                               /*level=*/1);
-
-    auto energies = wavelets::extract_subband_energies(res, /*level=*/1);
-    return energies;
-}
-
-// Poisson encode normalized [0,1] vector into a sequence of spike tensors
-static vector<Tensor> poisson_encode(const vector<double>& features, int steps_per_window,
-                                     float time_step = 0.1f)
+/**
+ * @brief Construct the CLI parser with all subcommands and options.
+ *
+ * @return std::unique_ptr<ParserPointersOwner>
+ */
+std::unique_ptr<ParserPointersOwner> construir_cli()
 {
-    std::mt19937 gen(static_cast<unsigned>(
-        std::chrono::high_resolution_clock::now().time_since_epoch().count()));
-    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    auto pointerOwner = std::make_unique<ParserPointersOwner>();
 
-    int n_bands = static_cast<int>(features.size());
-    vector<Tensor> seq;
-    seq.reserve(steps_per_window);
+    pointerOwner->parser = std::make_unique<ArgumentParser>("biometria-voz");
+    pointerOwner->parser->add_description(
+        "Biometria por voz (demo): WPT -> codificacao em spikes -> SNN -> "
+        "classificacao por pessoa. Fluxo recomendado: capturar -> treinar -> "
+        "identificar.");
 
-    for (int t = 0; t < steps_per_window; ++t)
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "demo",
+            "Demonstracao do pipeline completo."));
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "capturar",
+            "Captura amostras de voz para uma pessoa."));
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "treinar",
+            "Treina um modelo SNN para reconhecimento de locutor."));
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "identificar",
+            "Identifica um locutor a partir de uma amostra de voz."));
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "verificar",
+            "Verifica se uma amostra de voz pertence a um locutor especifico."));
+    pointerOwner->subParsers.emplace_back( //
+        std::make_unique<ArgumentParser>(  //
+            "avaliar",
+            "Avalia o desempenho do modelo em um conjunto de dados."));
+
+    // demo
+    auto* demo = pointerOwner->subParsers[0].get();
+    demo->add_argument("--duracao").default_value(1.0);
+    demo->add_argument("--taxa-amostragem").default_value(44100);
+    demo->add_argument("--tamanho-janela").default_value(512);
+    demo->add_argument("--tamanho-passo").default_value(256);
+    demo->add_argument("--wavelet").default_value(std::string("db4"));
+    demo->add_argument("--num-bandas").default_value(100);
+    demo->add_argument("--passos-por-janela").default_value(10);
+    demo->add_argument("--profundidade").default_value(-1);
+    demo->add_argument("--saida-plot").default_value(std::string("result_pipeline_wpt_snn.png"));
+
+    // capturar
+    auto* capturar = pointerOwner->subParsers[1].get();
+    capturar->add_argument("--pessoa").required();
+    capturar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    capturar->add_argument("--duracao").default_value(3.0);
+    capturar->add_argument("--taxa-amostragem").default_value(44100);
+
+    // treinar
+    auto* treinar = pointerOwner->subParsers[2].get();
+    treinar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    treinar->add_argument("--taxa-amostragem").default_value(44100);
+    treinar->add_argument("--tamanho-janela").default_value(512);
+    treinar->add_argument("--tamanho-passo").default_value(256);
+    treinar->add_argument("--wavelet").default_value(std::string("db4"));
+    treinar->add_argument("--num-bandas").default_value(100);
+    treinar->add_argument("--duracao-referencia").default_value(1.0);
+    treinar->add_argument("--passos-por-janela").default_value(10);
+    treinar->add_argument("--profundidade").default_value(-1);
+    treinar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    treinar->add_argument("--epocas").default_value(5);
+    treinar->add_argument("--lr").default_value(1e-3);
+    treinar->add_argument("--saida-modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    treinar->add_argument("--saida-rotulos").default_value(std::string("rotulos_locutor.json"));
+
+    // identificar
+    auto* identificar = pointerOwner->subParsers[3].get();
+    identificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    identificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    identificar->add_argument("--duracao").default_value(2.0);
+    identificar->add_argument("--taxa-amostragem").default_value(44100);
+    identificar->add_argument("--tamanho-janela").default_value(512);
+    identificar->add_argument("--tamanho-passo").default_value(256);
+    identificar->add_argument("--wavelet").default_value(std::string("db4"));
+    identificar->add_argument("--num-bandas").default_value(100);
+    identificar->add_argument("--duracao-referencia").default_value(1.0);
+    identificar->add_argument("--passos-por-janela").default_value(10);
+    identificar->add_argument("--profundidade").default_value(-1);
+    identificar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+
+    // verificar
+    auto* verificar = pointerOwner->subParsers[4].get();
+    verificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    verificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    verificar->add_argument("--duracao").default_value(2.0);
+    verificar->add_argument("--taxa-amostragem").default_value(44100);
+    verificar->add_argument("--tamanho-janela").default_value(512);
+    verificar->add_argument("--tamanho-passo").default_value(256);
+    verificar->add_argument("--wavelet").default_value(std::string("db4"));
+    verificar->add_argument("--num-bandas").default_value(100);
+    verificar->add_argument("--duracao-referencia").default_value(1.0);
+    verificar->add_argument("--passos-por-janela").default_value(10);
+    verificar->add_argument("--profundidade").default_value(-1);
+    verificar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    verificar->add_argument("--limiar").default_value(0.55);
+
+    // avaliar
+    auto* avaliar = pointerOwner->subParsers[5].get();
+    avaliar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    avaliar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    avaliar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    avaliar->add_argument("--taxa-amostragem").default_value(44100);
+    avaliar->add_argument("--tamanho-janela").default_value(512);
+    avaliar->add_argument("--tamanho-passo").default_value(256);
+    avaliar->add_argument("--wavelet").default_value(std::string("db4"));
+    avaliar->add_argument("--num-bandas").default_value(100);
+    avaliar->add_argument("--duracao-referencia").default_value(1.0);
+    avaliar->add_argument("--passos-por-janela").default_value(10);
+    avaliar->add_argument("--profundidade").default_value(-1);
+    avaliar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    avaliar->add_argument("--verbose").flag();
+
+    for (auto& s : pointerOwner->subParsers)
     {
-        Tensor spike(1, n_bands);
-        spike.setZero();
-        for (int j = 0; j < n_bands; ++j)
-        {
-            float p = static_cast<float>(features[j]) * time_step; // simple mapping
-            p = std::clamp(p, 0.0f, 1.0f);
-            if (dist(gen) < p) spike.at(0, j) = 1.0f;
-        }
-        seq.emplace_back(spike);
+        pointerOwner->parser->add_subparser(*s);
     }
-    return seq;
+
+    return pointerOwner;
 }
 
 int main(int argc, char** argv)
 {
-    ios::sync_with_stdio(false);
-
-    // Simple CLI: speaker_demo demo --input sample.wav --wavelet db4 --steps 10
-    if (argc < 2)
-    {
-        cout << "Usage: " << argv[0]
-             << " demo [--input file.wav] [--wavelet db4] [--num-bands N] [--steps S]" << endl;
-        return 1;
-    }
-
-    string cmd = argv[1];
-    if (cmd != string("demo"))
-    {
-        cerr << "Only 'demo' subcommand is implemented in this C++ port." << endl;
-        return 1;
-    }
-
-    string input_wav = "src/demos/pydemos/dados/vozes/alice/amostra_20260118_201843.wav";
-    string wavelet = "db4";
-    int num_bands = 100;
-    int steps = 10;
-
-    for (int i = 2; i < argc; ++i)
-    {
-        string a = argv[i];
-        if (a == "--input" && i + 1 < argc)
-            input_wav = argv[++i];
-        else if (a == "--wavelet" && i + 1 < argc)
-            wavelet = argv[++i];
-        else if (a == "--num-bands" && i + 1 < argc)
-            num_bands = stoi(argv[++i]);
-        else if (a == "--steps" && i + 1 < argc)
-            steps = stoi(argv[++i]);
-    }
+    auto pointerOwner = construir_cli();
 
     try
     {
-        // 1) Read WAV
-        Wav w;
-        w.read(input_wav);
-        const auto& data = w.get_data_left();
-        if (data.empty())
-        {
-            cerr << "No audio data read from " << input_wav << endl;
-            return 1;
-        }
-        int fs = static_cast<int>(w.get_path().empty() ? 44100 : w.get_path().length()); // fallback
-
-        // NOTE: Wav doesn't expose sampling rate getter directly; hack: read header via object
-        // internals if needed. For the demo assume standard sampling rate 44100
-        fs = 44100;
-
-        // 2) Windowing: fixed window length equal to entire file or subwindows (simple: one window)
-        vector<double> window(data.begin(), data.end());
-
-        // 3) Extract subband RMS energies via wavelet
-        auto energies = extract_subband_rms(window, fs, wavelet);
-
-        // Reduce or interpolate energies to requested num_bands
-        vector<double> bands;
-        if (static_cast<int>(energies.size()) == num_bands)
-        {
-            bands = energies;
-        }
-        else if (static_cast<int>(energies.size()) > num_bands)
-        {
-            bands.assign(energies.begin(), energies.begin() + num_bands);
-        }
-        else
-        {
-            // upsample by repeating
-            bands.reserve(num_bands);
-            for (int i = 0; i < num_bands; ++i)
-            {
-                bands.push_back(energies[i % energies.size()]);
-            }
-        }
-
-        // Normalize bands to [0,1]
-        double maxv = *max_element(bands.begin(), bands.end());
-        if (maxv <= 0.0) maxv = 1.0;
-        for (double& b : bands) b = b / maxv;
-
-        // 4) Poisson encode
-        float time_step = 1.0f / static_cast<float>(steps);
-        auto spike_seq = poisson_encode(bands, steps, time_step);
-
-        // 5) Build a tiny SNN: Linear -> Leaky -> Linear -> Leaky
-        int hidden = num_bands; // keep same dimensionality for didactic plots
-        auto seq_model = Sequential({
-            make_shared<Linear>(num_bands, hidden),
-            make_shared<Leaky>(1.0F, 1.0F, 1.0F, 1.0F),
-            make_shared<Linear>(hidden, num_bands),
-            make_shared<Leaky>(1.0F, 1.0F, 1.0F, 1.0F),
-        });
-
-        // 6) Run through SNN timesteps
-        Tensor sum_output(1, num_bands);
-        sum_output.setZero();
-
-        for (int t = 0; t < steps; ++t)
-        {
-            Tensor spike_in = spike_seq[t];
-            Tensor out = seq_model.forward(spike_in, /*requires_grad=*/false);
-            // For interpretability we treat "out" as spikes (it already is from Leaky)
-            sum_output = sum_output.add(out);
-        }
-
-        // 7) Print aggregated output (sum of spikes per band)
-        cout << "Aggregated output spikes (per band):\n";
-        for (int j = 0; j < sum_output.cols(); ++j)
-        {
-            cout << sum_output.at(0, j);
-            if (j + 1 < sum_output.cols()) cout << ",";
-        }
-        cout << "\n";
+        // parse_args uses references into the subparsers owned by `pointerOwner`,
+        // so `pointerOwner` must remain alive until parse_args returns.
+        pointerOwner->parser->parse_args(argc, argv);
     }
-    catch (const std::exception& ex)
+    catch (const std::exception& err)
     {
-        cerr << "Error: " << ex.what() << endl;
-        return 2;
+        std::cerr << err.what() << std::endl;
+        return 1;
     }
 
-    return 0;
+    auto& program = *pointerOwner->parser;
+
+    if (program.is_subcommand_used("demo"))
+    {
+        double dur = arg_to<double>(program.at<ArgumentParser>("demo"), "--duracao");
+        std::cout << "demo: duracao=" << dur << std::endl;
+        return 0;
+    }
+
+    if (program.is_subcommand_used("capturar"))
+    {
+        std::string pessoa = arg_to<string>(program.at<ArgumentParser>("capturar"), "--pessoa");
+        std::string dir =
+            arg_to<string>(program.at<ArgumentParser>("capturar"), "--diretorio-dados");
+        double dur = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
+        std::cout << "capturar: pessoa=" << pessoa << " dir=" << dir << " duracao=" << dur
+                  << std::endl;
+        return 0;
+    }
+
+    if (program.is_subcommand_used("treinar"))
+    {
+        auto& treinar_parser = program.at<ArgumentParser>("treinar");
+        std::string dir = arg_to<std::string>(treinar_parser, "--diretorio-dados");
+        int epocas = static_cast<int>(arg_to<int>(treinar_parser, "--epocas"));
+        std::cout << "treinar: dados=" << dir << " epocas=" << epocas << std::endl;
+        return 0;
+    }
+
+    if (program.is_subcommand_used("identificar"))
+    {
+        auto& identificar_parser = program.at<ArgumentParser>("identificar");
+        std::string model = arg_to<std::string>(identificar_parser, "--modelo");
+        std::cout << "identificar: modelo=" << model << std::endl;
+        return 0;
+    }
+
+    if (program.is_subcommand_used("verificar"))
+    {
+        auto& verificar_parser = program.at<ArgumentParser>("verificar");
+        std::string model = arg_to<std::string>(verificar_parser, "--modelo");
+        double limiar = arg_to<double>(verificar_parser, "--limiar");
+        std::cout << "verificar: modelo=" << model << " limiar=" << limiar << std::endl;
+        return 0;
+    }
+
+    if (program.is_subcommand_used("avaliar"))
+    {
+        auto& avaliar_parser = program.at<ArgumentParser>("avaliar");
+        bool verb = arg_to<bool>(avaliar_parser, "--verbose");
+        std::cout << "avaliar: verbose=" << (verb ? "true" : "false") << std::endl;
+        return 0;
+    }
+
+    std::cerr << "No command provided. Use --help." << std::endl;
+    return 1;
 }
