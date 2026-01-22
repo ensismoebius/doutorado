@@ -148,9 +148,6 @@ void cmd_demo(                     //
         return m;
     };
 
-    // Poisson encoder is implemented as a file-scoped inline static function
-    // `codificar_poisson(...)` so we call that below.
-
     auto executar_inferencia = [&](std::shared_ptr<Sequential> model, const nn::Tensor& features)
     {
         std::vector<nn::Tensor> lista_spikes;
