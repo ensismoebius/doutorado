@@ -1,3 +1,6 @@
+// TODO: Estamos fazendo um modelo SNN em C++ a partir de um exemplo em Python.
+// TODO: Precisamos verificar as correspondências 1 para 1 para evitar erros.
+
 #include <cstdlib>
 #include <cstring>
 #include <random>
