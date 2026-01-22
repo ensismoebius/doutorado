@@ -529,3 +529,151 @@ TEST(TensorTest, ThreadSafetyValidation)
         read_func();
     }
 }
+
+TEST(TensorTest, RandDeterminism)
+{
+    std::mt19937 rng1(12345);
+    std::mt19937 rng2(12345);
+    auto a = nn::Tensor::rand(2, 3, rng1);
+    auto b = nn::Tensor::rand(2, 3, rng2);
+    ASSERT_EQ(a.get_shape(), b.get_shape());
+    for (size_t i = 0; i < a.rows(); ++i)
+        for (size_t j = 0; j < a.cols(); ++j) EXPECT_FLOAT_EQ(a.at(i, j), b.at(i, j));
+}
+
+TEST(TensorTest, ComparisonAndBroadcasting)
+{
+    // elementwise equality and comparison
+    nn::Tensor A(2, 3);
+    A.at(0, 0) = 1.0f;
+    A.at(0, 1) = 2.0f;
+    A.at(0, 2) = 3.0f;
+    A.at(1, 0) = 4.0f;
+    A.at(1, 1) = 5.0f;
+    A.at(1, 2) = 6.0f;
+
+    auto eq = A.equal(A);
+    // all ones
+    for (size_t i = 0; i < eq.rows(); ++i)
+    {
+        for (size_t j = 0; j < eq.cols(); ++j)
+        {
+            EXPECT_FLOAT_EQ(eq.at(i, j), 1.0f);
+        }
+    }
+
+    // broadcasting: 1x3 compared to 2x3
+    nn::Tensor r(1, 3);
+    r.at(0, 0) = 2.0f;
+    r.at(0, 1) = 3.0f;
+    r.at(0, 2) = 1.0f;
+    nn::Tensor B(2, 3);
+    B.at(0, 0) = 3.0f;
+    B.at(0, 1) = 4.0f;
+    B.at(0, 2) = 0.0f;
+    B.at(1, 0) = 1.0f;
+    B.at(1, 1) = 2.0f;
+    B.at(1, 2) = 1.0f;
+
+    auto lt = r < B; // elementwise compare with broadcasting
+    EXPECT_EQ(lt.get_shape(), std::vector<size_t>({2, 3}));
+    // row0: [2<3,3<4,1<0] -> [1,1,0]
+    EXPECT_FLOAT_EQ(lt.at(0, 0), 1.0f);
+    EXPECT_FLOAT_EQ(lt.at(0, 1), 1.0f);
+    EXPECT_FLOAT_EQ(lt.at(0, 2), 0.0f);
+    // row1: [2<1,3<2,1<1] -> [0,0,0]
+    EXPECT_FLOAT_EQ(lt.at(1, 0), 0.0f);
+    EXPECT_FLOAT_EQ(lt.at(1, 1), 0.0f);
+    EXPECT_FLOAT_EQ(lt.at(1, 2), 0.0f);
+
+    // scalar comparisons
+    auto gt_scalar = A > 3.0f;
+    EXPECT_FLOAT_EQ(gt_scalar.at(0, 0), 0.0f);
+    EXPECT_FLOAT_EQ(gt_scalar.at(1, 0), 1.0f);
+}
+
+TEST(TensorTest, CommaInitializerWorks)
+{
+    nn::Tensor t(2, 2);
+    // comma-initializer should populate values in row-major logic used by Tensor
+    t << 1.0f, 2.0f, 3.0f, 4.0f;
+    // Comma-initializer copies into underlying storage order (Eigen column-major),
+    // so sequence maps to: (0,0)=1, (1,0)=2, (0,1)=3, (1,1)=4
+    EXPECT_FLOAT_EQ(t.at(0, 0), 1.0f);
+    EXPECT_FLOAT_EQ(t.at(1, 0), 2.0f);
+    EXPECT_FLOAT_EQ(t.at(0, 1), 3.0f);
+    EXPECT_FLOAT_EQ(t.at(1, 1), 4.0f);
+}
+
+TEST(TensorTest, DivideOperations)
+{
+    nn::Tensor a(2, 2);
+    a.at(0, 0) = 2.0f;
+    a.at(0, 1) = 4.0f;
+    a.at(1, 0) = 8.0f;
+    a.at(1, 1) = 16.0f;
+    nn::Tensor b(2, 2);
+    b.at(0, 0) = 10.0f;
+    b.at(0, 1) = 20.0f;
+    b.at(1, 0) = 40.0f;
+    b.at(1, 1) = 80.0f;
+
+    auto div = b.divide(a);
+    EXPECT_FLOAT_EQ(div.at(0, 0), 5.0f);
+    EXPECT_FLOAT_EQ(div.at(0, 1), 5.0f);
+    EXPECT_FLOAT_EQ(div.at(1, 0), 5.0f);
+    EXPECT_FLOAT_EQ(div.at(1, 1), 5.0f);
+
+    auto div_scalar = b.divide_scalar(2.0f);
+    EXPECT_FLOAT_EQ(div_scalar.at(0, 0), 5.0f);
+    EXPECT_FLOAT_EQ(div_scalar.at(1, 1), 40.0f);
+}
+
+TEST(TensorTest, ZerosOnesConstantAndSetters)
+{
+    auto z = nn::Tensor::zeros(3, 2);
+    ASSERT_EQ(z.get_shape(), std::vector<size_t>({3, 2}));
+    EXPECT_EQ(z.sum(), 0.0f);
+
+    auto o = nn::Tensor::ones(2, 4);
+    ASSERT_EQ(o.size(), 8);
+    EXPECT_EQ(o.sum(), 8.0f);
+
+    auto c = nn::Tensor::constant(2, 2, 3.5f);
+    EXPECT_FLOAT_EQ(c.at(0, 0), 3.5f);
+    EXPECT_FLOAT_EQ(c.at(1, 1), 3.5f);
+
+    nn::Tensor t(2, 2);
+    t.set_ones();
+    EXPECT_EQ(t.sum(), 4.0f);
+    t.set_zero();
+    EXPECT_EQ(t.sum(), 0.0f);
+}
+
+TEST(TensorTest, TensorOperatorComparisons)
+{
+    nn::Tensor A(2, 2);
+    A.at(0, 0) = 1;
+    A.at(0, 1) = 4;
+    A.at(1, 0) = 2;
+    A.at(1, 1) = 3;
+    nn::Tensor B(2, 2);
+    B.at(0, 0) = 2;
+    B.at(0, 1) = 3;
+    B.at(1, 0) = 2;
+    B.at(1, 1) = 5;
+
+    auto lt = A < B;
+    EXPECT_FLOAT_EQ(lt.at(0, 0), 1.0f); // 1<2
+    EXPECT_FLOAT_EQ(lt.at(0, 1), 0.0f); // 4<3
+
+    auto gt = A > B;
+    EXPECT_FLOAT_EQ(gt.at(0, 1), 1.0f); // 4>3
+    EXPECT_FLOAT_EQ(gt.at(1, 0), 0.0f); // 2>2 false
+
+    auto le = A <= B;
+    EXPECT_FLOAT_EQ(le.at(1, 0), 1.0f); // 2<=2 true
+
+    auto ge = A >= B;
+    EXPECT_FLOAT_EQ(ge.at(1, 1), 0.0f); // 3>=5 false
+}

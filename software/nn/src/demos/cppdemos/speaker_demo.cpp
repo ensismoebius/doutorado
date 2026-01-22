@@ -33,6 +33,14 @@ T arg_to(argparse::ArgumentParser& p, const std::string& name)
     }
 }
 
+// Forward declaration for the demo implementation in comandos.cpp
+namespace demo
+{
+void cmd_demo(double duracao, int taxa_amostragem, int tamanho_janela, int tamanho_passo,
+              const std::string& wavelet, int num_bandas, int passos_por_janela, int profundidade,
+              const std::string& saida_plot);
+}
+
 /**
  * Avoid dangling pointers by owning the root parser and all
  * subparsers.(heap-use-after-free error)
@@ -194,9 +202,26 @@ int main(int argc, char** argv)
 
     if (program.is_subcommand_used("demo"))
     {
-        double dur = arg_to<double>(program.at<ArgumentParser>("demo"), "--duracao");
-        std::cout << "demo: duracao=" << dur << std::endl;
-        return 0;
+        auto& demo_parser = program.at<ArgumentParser>("demo");
+        double dur = arg_to<double>(demo_parser, "--duracao");
+        int taxa = arg_to<int>(demo_parser, "--taxa-amostragem");
+        int win = arg_to<int>(demo_parser, "--tamanho-janela");
+        int hop = arg_to<int>(demo_parser, "--tamanho-passo");
+        std::string wavelet = arg_to<std::string>(demo_parser, "--wavelet");
+        int num_bandas = arg_to<int>(demo_parser, "--num-bandas");
+        int passos = arg_to<int>(demo_parser, "--passos-por-janela");
+        int profundidade = arg_to<int>(demo_parser, "--profundidade");
+        std::string saida = arg_to<std::string>(demo_parser, "--saida-plot");
+        try
+        {
+            demo::cmd_demo(dur, taxa, win, hop, wavelet, num_bandas, passos, profundidade, saida);
+            return 0;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "demo failed: " << e.what() << std::endl;
+            return 2;
+        }
     }
 
     if (program.is_subcommand_used("capturar"))

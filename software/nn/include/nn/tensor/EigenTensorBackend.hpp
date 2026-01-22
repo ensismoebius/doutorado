@@ -4,6 +4,7 @@
 #include <Eigen/Dense>
 #include <algorithm>
 #include <memory>
+#include <random>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -120,6 +121,27 @@ class EigenTensorBackend
     {
         EigenTensorBackend t(rows, cols);
         t.m_data.setOnes();
+        return t;
+    }
+    // Random uniform [0,1) initializer. Uses std::random_device to seed.
+    static EigenTensorBackend random(Index rows, Index cols)
+    {
+        EigenTensorBackend t(rows, cols);
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(rows),
+                                                static_cast<Eigen::Index>(cols),
+                                                [&]() { return dist(rng); });
+        return t;
+    }
+    // Random uniform [0,1) initializer using an external RNG for reproducibility.
+    static EigenTensorBackend random(Index rows, Index cols, std::mt19937& rng)
+    {
+        EigenTensorBackend t(rows, cols);
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(rows),
+                                                static_cast<Eigen::Index>(cols),
+                                                [&]() { return dist(rng); });
         return t;
     }
 
@@ -353,6 +375,136 @@ class EigenTensorBackend
         return EigenTensorBackend(m_data.array() / other.m_data.array());
     }
 
+    // Elementwise comparisons: return tensor of 0.0/1.0 floats where condition holds.
+    // Supports simple broadcasting along the first dimension when one operand has rows()==1.
+    EigenTensorBackend compare_lt(const EigenTensorBackend& other) const
+    {
+        Index rows_a = rows();
+        Index cols_a = cols();
+        Index rows_b = other.rows();
+        Index cols_b = other.cols();
+
+        if (cols_a != cols_b) throw std::invalid_argument("Shape mismatch for compare_lt");
+
+        Index out_rows = std::max(rows_a, rows_b);
+
+        // Use Eigen array expressions + replicate when needed to leverage SIMD
+        Eigen::ArrayXXf a = m_data.array();
+        Eigen::ArrayXXf b = other.m_data.array();
+
+        if (rows_a == rows_b)
+        {
+            return EigenTensorBackend((a < b).cast<float>().matrix());
+        }
+        else if (rows_a == 1)
+        {
+            return EigenTensorBackend(
+                (a.replicate(static_cast<int>(out_rows), 1) < b).cast<float>().matrix());
+        }
+        else // rows_b == 1
+        {
+            return EigenTensorBackend(
+                (a < b.replicate(static_cast<int>(out_rows), 1)).cast<float>().matrix());
+        }
+    }
+
+    EigenTensorBackend compare_gt(const EigenTensorBackend& other) const
+    {
+        // Vectorized: flip operands and reuse compare_lt semantics
+        return other.compare_lt(*this);
+    }
+
+    EigenTensorBackend compare_le(const EigenTensorBackend& other) const
+    {
+        Index rows_a = rows();
+        Index cols_a = cols();
+        Index rows_b = other.rows();
+        Index cols_b = other.cols();
+
+        if (cols_a != cols_b) throw std::invalid_argument("Shape mismatch for compare_le");
+
+        Index out_rows = std::max(rows_a, rows_b);
+        Eigen::ArrayXXf a = m_data.array();
+        Eigen::ArrayXXf b = other.m_data.array();
+
+        if (rows_a == rows_b)
+        {
+            return EigenTensorBackend((a <= b).cast<float>().matrix());
+        }
+        else if (rows_a == 1)
+        {
+            return EigenTensorBackend(
+                (a.replicate(static_cast<int>(out_rows), 1) <= b).cast<float>().matrix());
+        }
+        else
+        {
+            return EigenTensorBackend(
+                (a <= b.replicate(static_cast<int>(out_rows), 1)).cast<float>().matrix());
+        }
+    }
+
+    EigenTensorBackend compare_ge(const EigenTensorBackend& other) const
+    {
+        // a >= b  <=>  b <= a
+        return other.compare_le(*this);
+    }
+
+    EigenTensorBackend compare_eq(const EigenTensorBackend& other) const
+    {
+        Index rows_a = rows();
+        Index cols_a = cols();
+        Index rows_b = other.rows();
+        Index cols_b = other.cols();
+
+        if (cols_a != cols_b) throw std::invalid_argument("Shape mismatch for compare_eq");
+
+        Index out_rows = std::max(rows_a, rows_b);
+        Eigen::ArrayXXf a = m_data.array();
+        Eigen::ArrayXXf b = other.m_data.array();
+
+        if (rows_a == rows_b)
+        {
+            return EigenTensorBackend((a == b).cast<float>().matrix());
+        }
+        else if (rows_a == 1)
+        {
+            return EigenTensorBackend(
+                (a.replicate(static_cast<int>(out_rows), 1) == b).cast<float>().matrix());
+        }
+        else
+        {
+            return EigenTensorBackend(
+                (a == b.replicate(static_cast<int>(out_rows), 1)).cast<float>().matrix());
+        }
+    }
+
+    // Scalar comparisons: compare every element to a scalar value.
+    EigenTensorBackend compare_lt_scalar(float value) const
+    {
+        Eigen::MatrixXf out = (m_data.array() < value).cast<float>().matrix();
+        return EigenTensorBackend(std::move(out));
+    }
+    EigenTensorBackend compare_gt_scalar(float value) const
+    {
+        Eigen::MatrixXf out = (m_data.array() > value).cast<float>().matrix();
+        return EigenTensorBackend(std::move(out));
+    }
+    EigenTensorBackend compare_le_scalar(float value) const
+    {
+        Eigen::MatrixXf out = (m_data.array() <= value).cast<float>().matrix();
+        return EigenTensorBackend(std::move(out));
+    }
+    EigenTensorBackend compare_ge_scalar(float value) const
+    {
+        Eigen::MatrixXf out = (m_data.array() >= value).cast<float>().matrix();
+        return EigenTensorBackend(std::move(out));
+    }
+    EigenTensorBackend compare_eq_scalar(float value) const
+    {
+        Eigen::MatrixXf out = (m_data.array() == value).cast<float>().matrix();
+        return EigenTensorBackend(std::move(out));
+    }
+
     EigenTensorBackend sqrt() const
     {
         return EigenTensorBackend(m_data.array().sqrt());
@@ -377,6 +529,21 @@ class EigenTensorBackend
     }
 
     // -----------------------------------------------------------------
+    // Clamp helpers
+    // -----------------------------------------------------------------
+    EigenTensorBackend clamp(float min_val, float max_val) const
+    {
+        EigenTensorBackend out(*this);
+        out.m_data = out.m_data.cwiseMax(min_val).cwiseMin(max_val);
+        return out;
+    }
+
+    void clamp_inplace(float min_val, float max_val)
+    {
+        m_data = m_data.cwiseMax(min_val).cwiseMin(max_val);
+    }
+
+    // -----------------------------------------------------------------
     // Reductions
     // - Reduction APIs should be implemented using numerically-stable kernels
     //   and avoid temporary allocations when possible.
@@ -397,6 +564,13 @@ class EigenTensorBackend
     float sum() const
     {
         return m_data.sum();
+    }
+
+    // Mean of all elements.
+    float mean() const
+    {
+        if (m_data.size() == 0) return 0.0f;
+        return static_cast<float>(m_data.mean());
     }
 
     // Sum over rows returning a column vector (rowwise sum).

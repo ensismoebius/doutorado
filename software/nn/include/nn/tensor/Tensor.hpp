@@ -96,6 +96,17 @@ class TensorImpl
         return TensorImpl(Backend::ones(rows, cols));
     }
 
+    /// Create a tensor with uniform random values in [0,1).
+    static auto rand(Index rows, Index cols) -> TensorImpl
+    {
+        return TensorImpl(Backend::random(rows, cols));
+    }
+    /// Create a tensor with uniform random values in [0,1) using provided RNG.
+    static auto rand(Index rows, Index cols, std::mt19937& rng) -> TensorImpl
+    {
+        return TensorImpl(Backend::random(rows, cols, rng));
+    }
+
     // -----------------------------------------------------------------
     // Copy / Move (Defaulted - rules of 5 handled by Backend)
     // -----------------------------------------------------------------
@@ -258,6 +269,13 @@ class TensorImpl
     {
         return m_backend.mean_squared_error(target.m_backend);
     }
+    /**
+     * Mean of all elements in the tensor. Delegates to the backend.
+     */
+    auto mean() const -> float
+    {
+        return m_backend.mean();
+    }
     auto norm() const -> float
     {
         return m_backend.norm();
@@ -295,6 +313,23 @@ class TensorImpl
     auto abs() const -> TensorImpl
     {
         return TensorImpl(m_backend.abs());
+    }
+
+    /**
+     * Element-wise clamp: returns a new tensor where each element x is
+     * clamped to the interval [min_val, max_val].
+     */
+    auto clamp(float min_val, float max_val) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.clamp(min_val, max_val));
+    }
+
+    /**
+     * In-place clamp: mutates this tensor's storage.
+     */
+    void clamp_inplace(float min_val, float max_val)
+    {
+        m_backend.clamp_inplace(min_val, max_val);
     }
 
     auto divide(const TensorImpl& other) const -> TensorImpl
@@ -437,6 +472,56 @@ class TensorImpl
     auto operator!=(const TensorImpl& other) const -> bool
     {
         return !(*this == other);
+    }
+
+    // Elementwise comparisons returning tensors of 0.0/1.0 floats.
+    auto operator<(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_lt(other.m_backend));
+    }
+
+    auto operator>(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_gt(other.m_backend));
+    }
+
+    auto operator<=(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_le(other.m_backend));
+    }
+
+    auto operator>=(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_ge(other.m_backend));
+    }
+
+    // Elementwise equality returning 0/1 tensor (not to be confused with overall equality)
+    auto equal(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_eq(other.m_backend));
+    }
+
+    // Scalar comparisons
+    auto operator<(float scalar) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_lt_scalar(scalar));
+    }
+    auto operator>(float scalar) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_gt_scalar(scalar));
+    }
+    auto operator<=(float scalar) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_le_scalar(scalar));
+    }
+    auto operator>=(float scalar) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_ge_scalar(scalar));
+    }
+
+    auto equal(float scalar) const -> TensorImpl
+    {
+        return TensorImpl(m_backend.compare_eq_scalar(scalar));
     }
 
     template <typename vector_type>

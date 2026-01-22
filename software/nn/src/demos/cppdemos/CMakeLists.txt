@@ -1,5 +1,7 @@
 add_executable(speaker_demo
     speaker_demo.cpp
+    comandos.cpp
+    codificacao.cpp
 )
 
 target_link_libraries(speaker_demo PRIVATE
@@ -8,6 +10,7 @@ target_link_libraries(speaker_demo PRIVATE
     argparse
     wavelet
     waveCoreLib
+    util
     linearAlgebra
 )
 
