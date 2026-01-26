@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <random>
 
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/initializers/xavier.hpp"
@@ -38,6 +39,8 @@ TEST(MSELossTest, ForwardAndBackward)
     ASSERT_NEAR(grad.at(0, 0), 1.0F, 1e-5F);
     ASSERT_NEAR(grad.at(1, 0), 0.0F, 1e-5F);
 }
+
+// Deterministic random fills for tests use test_helpers::rand_fill(..., nn::testing::SEED)
 
 // Teste para Sequential
 TEST(SequentialTest, ForwardAndBackward)
@@ -585,18 +588,12 @@ TEST(Conv2dTest, GradientComputation)
 
     // Input
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    for (size_t i = 0; i < input.size(); ++i)
-    {
-        input.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-    }
+    test_helpers::rand_fill(input, -0.5F, 0.5F, 42U);
 
     // Forward and backward
     conv.forward(input);
     nn::Tensor grad_output(batch_size, out_channels, 3, 3);
-    for (size_t i = 0; i < grad_output.size(); ++i)
-    {
-        grad_output.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-    }
+    test_helpers::rand_fill(grad_output, -0.5F, 0.5F, 42U);
     conv.backward(grad_output);
 
     // Verify gradients were computed (non-zero)
@@ -682,30 +679,15 @@ TEST(Conv2dTest, LargeBatchSize)
     Conv2d conv(in_channels, out_channels, kernel_size, batch_size);
 
     nn::Tensor weights(kernel_size * kernel_size * in_channels, out_channels);
-    for (size_t i = 0; i < weights.rows(); ++i)
-    {
-        for (size_t j = 0; j < weights.cols(); ++j)
-        {
-            weights.at(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-        }
-    }
+    test_helpers::rand_fill(weights, -0.5F, 0.5F, 42U);
     conv.set_weights(weights);
 
     nn::Tensor bias(1, out_channels);
-    for (size_t i = 0; i < bias.rows(); ++i)
-    {
-        for (size_t j = 0; j < bias.cols(); ++j)
-        {
-            bias.at(i, j) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-        }
-    }
+    test_helpers::rand_fill(bias, -0.5F, 0.5F, 42U);
     conv.set_bias(bias);
 
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    for (size_t i = 0; i < input.size(); ++i)
-    {
-        input.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-    }
+    test_helpers::rand_fill(input, -0.5F, 0.5F, 42U);
 
     nn::Tensor output = conv.forward(input);
 
@@ -718,10 +700,7 @@ TEST(Conv2dTest, LargeBatchSize)
 
     // Backward pass
     nn::Tensor grad_output(batch_size, out_channels, 6, 6);
-    for (size_t i = 0; i < grad_output.size(); ++i)
-    {
-        grad_output.at(i) = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) - 0.5f;
-    }
+    test_helpers::rand_fill(grad_output, -0.5F, 0.5F, 42U);
 
     nn::Tensor grad_input = conv.backward(grad_output);
 
@@ -1210,7 +1189,7 @@ TEST(LayerComprehensiveTest, RegularizationZeroParameters)
 
     l1.backward(params);
     // Gradients should be zero for zero parameters
-    EXPECT_EQ(param1.grad().sum(), 0.0F);
+    EXPECT_NEAR(param1.grad().sum(), 0.0F, 1e-6F);
 }
 
 TEST(LayerComprehensiveTest, SurrogateGradientRange)

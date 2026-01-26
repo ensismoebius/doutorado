@@ -9,6 +9,7 @@
 #pragma once
 #include <cmath>
 #include <memory>
+#include <optional>
 #include <random>
 
 #include "nn/layers/Linear.hpp"
@@ -32,14 +33,16 @@
  *
  * @param layer The linear layer to initialize.
  */
-inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer) -> void
+inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer,
+                                  std::optional<unsigned int> seed = std::nullopt) -> void
 {
     // Kaiming/He uniform limit: sqrt(6 / fan_in)
     float const limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));
 
     // Uniform distribution in [-limit, +limit]
     std::uniform_real_distribution<float> dist(-limit, limit);
-    std::mt19937 gen(static_cast<int>(std::random_device{}()));
+    std::mt19937 gen =
+        seed ? std::mt19937(*seed) : std::mt19937(static_cast<unsigned>(std::random_device{}()));
 
     // Initialize weights
     for (int i = 0; i < layer->out_features; ++i)

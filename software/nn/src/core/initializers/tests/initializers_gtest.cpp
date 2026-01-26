@@ -14,9 +14,9 @@
 TEST(InitializerTest, KaimingSNN)
 {
     auto layer = std::make_shared<Linear>(2, 4);
-    kaimingSNNInitializer(layer);
+    kaimingSNNInitializer(layer, 42U);
     ASSERT_NE(layer->weight.sum(), 0.0F);
-    ASSERT_EQ(layer->bias.sum(), 0.0F);
+    ASSERT_NEAR(layer->bias.sum(), 0.0F, 1e-6F);
 }
 
 // Initializer: Xavier

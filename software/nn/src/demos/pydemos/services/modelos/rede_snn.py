@@ -68,6 +68,7 @@ class ModeloSNN(nn.Module):
             device = next(self.parameters()).device
         if dtype is None:
             dtype = next(self.parameters()).dtype
+
         state = {
             "mem_in": torch.zeros(
                 tamanho_lote, self.num_ocultos, device=device, dtype=dtype
@@ -76,6 +77,7 @@ class ModeloSNN(nn.Module):
                 tamanho_lote, self.num_saidas, device=device, dtype=dtype
             ),
         }
+        
         # Para cada bloco residual, duas memórias (uma para cada LIF)
         for i in range(self.num_blocos_residuais):
             state[f"mem_res{i}_1"] = torch.zeros(

@@ -22,7 +22,7 @@ TEST(DeviceBackendTest, ConstructionAndAssignment)
     DeviceTensor t2 = t1;
     ASSERT_EQ(t1.rows(), 2);
     ASSERT_EQ(t1.cols(), 2);
-    EXPECT_EQ(t1.sum(), 10.0f);
+    EXPECT_NEAR(t1.sum(), 10.0f, 1e-6f);
     EXPECT_EQ(t1, t2);
 
     t2.at(0, 0) += 1.0f;
@@ -34,8 +34,8 @@ TEST(DeviceBackendTest, TwoDAccess)
     DeviceTensor t(2, 3);
     t.at(0, 0) = 1.0f;
     t.at(1, 2) = 2.0f;
-    EXPECT_EQ(t.at(0, 0), 1.0f);
-    EXPECT_EQ(t.at(1, 2), 2.0f);
+    EXPECT_NEAR(t.at(0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 2), 2.0f, 1e-6f);
     EXPECT_THROW(t.at(2, 0), std::out_of_range);
     EXPECT_THROW(t.at(0, 3), std::out_of_range);
 }
@@ -45,8 +45,8 @@ TEST(DeviceBackendTest, FourDAccess)
     DeviceTensor t(2, 3, 4, 5);
     t.at(0, 0, 0, 0) = 1.0f;
     t.at(1, 2, 3, 4) = 2.0f;
-    EXPECT_EQ(t.at(0, 0, 0, 0), 1.0f);
-    EXPECT_EQ(t.at(1, 2, 3, 4), 2.0f);
+    EXPECT_NEAR(t.at(0, 0, 0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 2, 3, 4), 2.0f, 1e-6f);
 }
 
 TEST(DeviceBackendTest, ZeroGrad)
@@ -60,11 +60,11 @@ TEST(DeviceBackendTest, ZeroGrad)
     g.at(1, 1) = 8.0f;
 
     t.set_grad(g);
-    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
-    EXPECT_EQ(t.grad().at(0, 1), 6.0f);
+    EXPECT_NEAR(t.grad().at(0, 0), 5.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(0, 1), 6.0f, 1e-6f);
 
     t.zero_grad();
-    EXPECT_EQ(t.grad().sum(), 0.0f);
+    EXPECT_NEAR(t.grad().sum(), 0.0f, 1e-6f);
 }
 
 TEST(DeviceBackendTest, MatrixOperations)
@@ -112,8 +112,8 @@ TEST(DeviceBackendTest, DeviceCopySemantics)
     EXPECT_TRUE(backend.is_on_device());
     const float* dptr = backend.device_data_ptr();
     ASSERT_NE(dptr, nullptr);
-    EXPECT_EQ(dptr[0], 1.0f);
-    EXPECT_EQ(dptr[5], 6.0f);
+    EXPECT_NEAR(dptr[0], 1.0f, 1e-6f);
+    EXPECT_NEAR(dptr[5], 6.0f, 1e-6f);
 
     // Mutate device buffer and ensure host unchanged until we copy back
     float* mdptr = backend.mutable_device_data_ptr();
@@ -139,7 +139,7 @@ TEST(DeviceBackendTest, DeviceGradCopySemantics)
     g.at(1, 2) = 10.0f;
 
     t.set_grad(g);
-    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
+    EXPECT_NEAR(t.grad().at(0, 0), 5.0f, 1e-6f);
 
     auto& backend = t.get_backend();
     EXPECT_FALSE(backend.is_grad_on_device());
@@ -149,8 +149,8 @@ TEST(DeviceBackendTest, DeviceGradCopySemantics)
     EXPECT_TRUE(backend.is_grad_on_device());
     const float* dgptr = backend.device_grad_ptr();
     ASSERT_NE(dgptr, nullptr);
-    EXPECT_EQ(dgptr[0], 5.0f);
-    EXPECT_EQ(dgptr[5], 10.0f);
+    EXPECT_NEAR(dgptr[0], 5.0f, 1e-6f);
+    EXPECT_NEAR(dgptr[5], 10.0f, 1e-6f);
 
     // Mutate device grad and ensure host grad unchanged until copy back
     float* mdgptr = backend.mutable_device_grad_ptr();

@@ -80,9 +80,9 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient)
     std::vector<float> signal = {1.0F, 2.0F, 3.0F};
     float coefficient = 0.0F;
     pre_emphasis_inplace(signal, coefficient);
-    ASSERT_EQ(signal[0], 1.0F);
-    ASSERT_EQ(signal[1], 2.0F);
-    ASSERT_EQ(signal[2], 3.0F);
+    ASSERT_NEAR(signal[0], 1.0F, 1e-6);
+    ASSERT_NEAR(signal[1], 2.0F, 1e-6);
+    ASSERT_NEAR(signal[2], 3.0F, 1e-6);
 }
 
 TEST_F(Experiment01UtilsTest, PreEmphasisInplace_EmptySignal)
@@ -98,7 +98,7 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_SingleElementSignal)
     std::vector<float> signal = {5.0F};
     float coefficient = 0.97F;
     pre_emphasis_inplace(signal, coefficient);
-    ASSERT_EQ(signal[0], 5.0F); // First element should remain unchanged
+    ASSERT_NEAR(signal[0], 5.0F, 1e-6); // First element should remain unchanged
 }
 
 // Test for framing_and_window

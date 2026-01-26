@@ -13,6 +13,7 @@
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Sequential.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing.hpp"
 #include "nn/wave/Wav.h"
 #include "nn/wave/audioFeatureExtraction.h"
 
@@ -143,8 +144,8 @@ void cmd_demo(                     //
         m->add_module(l1);
         m->add_module(lk);
         m->add_module(l2);
-        kaimingSNNInitializer(l1);
-        kaimingSNNInitializer(l2);
+        kaimingSNNInitializer(l1, nn::testing::SEED);
+        kaimingSNNInitializer(l2, nn::testing::SEED);
         return m;
     };
 

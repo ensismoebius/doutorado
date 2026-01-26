@@ -9,6 +9,7 @@
 #include <random>
 #include <set>
 
+#include "core/utility/tests/test_helpers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
@@ -20,17 +21,7 @@ namespace
 auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upper = 1.0F)
     -> nn::Tensor
 {
-    static std::mt19937 gen(42);
-    std::uniform_real_distribution<float> dist(lower, upper);
-    nn::Tensor t(rows, cols);
-    for (size_t i = 0; i < rows; ++i)
-    {
-        for (size_t j = 0; j < cols; ++j)
-        {
-            t.at(i, j) = dist(gen);
-        }
-    }
-    return t;
+    return test_helpers::make_random_tensor(rows, cols, lower, upper);
 }
 
 [[maybe_unused]] auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor

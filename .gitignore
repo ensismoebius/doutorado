@@ -42,3 +42,4 @@ software/nn/src/demos/pydemos/dados/vozes/humberto/amostra_20260118_202443.wav
 software/nn/src/demos/pydemos/demo.png
 software/nn/src/demos/pydemos/modelo_snn_locutor.pt
 software/nn/src/demos/pydemos/rotulos_locutor.json
+software/nn/.vscode-ctags.next

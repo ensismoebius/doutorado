@@ -20,6 +20,7 @@
 #include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing.hpp"
 #include "nn/utility/batching.hpp"
 
 using namespace std;
@@ -106,12 +107,12 @@ auto main() -> int
     Sequential model({fc_in, act, rb1, rb2, fc_out});
 
     // init weights
-    kaimingSNNInitializer(fc_in);
-    kaimingSNNInitializer(fc_out);
-    kaimingSNNInitializer(rb1->fc1);
-    kaimingSNNInitializer(rb1->fc2);
-    kaimingSNNInitializer(rb2->fc1);
-    kaimingSNNInitializer(rb2->fc2);
+    kaimingSNNInitializer(fc_in, nn::testing::SEED);
+    kaimingSNNInitializer(fc_out, nn::testing::SEED);
+    kaimingSNNInitializer(rb1->fc1, nn::testing::SEED);
+    kaimingSNNInitializer(rb1->fc2, nn::testing::SEED);
+    kaimingSNNInitializer(rb2->fc1, nn::testing::SEED);
+    kaimingSNNInitializer(rb2->fc2, nn::testing::SEED);
 
     // Loss and optimizer
     CrossEntropyLoss loss;

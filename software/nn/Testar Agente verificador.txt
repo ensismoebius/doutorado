@@ -1,0 +1,5 @@
+Testar:
+	Agente verificador para voz apenas;
+	Agente veficador para EEG apenas;
+	Ambos agentes votando;
+	Agente unico classificando a partir de uma "imagem" (x->Áudio, y->EEG).

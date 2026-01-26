@@ -29,6 +29,7 @@
 #include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing.hpp"
 #include "nn/utility/EigenParallel.hpp"
 #include "nn/utility/reset.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
@@ -171,7 +172,7 @@ class SpikeAutoEncoder : public Module
                 {
                     if (auto l = dynamic_pointer_cast<Linear>(layer))
                     {
-                        kaimingSNNInitializer(l);
+                        kaimingSNNInitializer(l, nn::testing::SEED);
                         // Scale weights slightly to prevent explosion in deep SNNs
                         for (int i = 0; i < l->weight.rows(); ++i)
                             for (int j = 0; j < l->weight.cols(); ++j) l->weight.at(i, j) *= 0.01f;

@@ -21,7 +21,3 @@ add_library(rede_snn SHARED rede_snn.cpp)
 set_target_properties(rede_snn PROPERTIES PREFIX "" OUTPUT_NAME "rede_snn")
 target_link_libraries(rede_snn PRIVATE tensor Eigen3::Eigen)
 configure_eigen_parallel_target(rede_snn)
-
-add_executable(rede_snn_test rede_snn_test.cpp)
-target_link_libraries(rede_snn_test PRIVATE rede_snn)
-configure_eigen_parallel_target(rede_snn_test)

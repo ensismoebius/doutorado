@@ -134,14 +134,14 @@
         // Includes e headers
         // -------------------------
         "--header-insertion=iwyu",
-        "--header-insertion-decorators=false",
+        "--header-insertion-decorators=true",
         // -------------------------
         // Diagnóstico preciso
         // -------------------------
         "--clang-tidy=true",
         "--fallback-style=none",
         // -------------------------
-        // Ruído mínimo
+        // Ruído máximo
         // -------------------------
         "--log=verbose",
     ],

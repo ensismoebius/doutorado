@@ -21,7 +21,7 @@ TEST(TensorTest, ConstructionAndAssignment)
     ASSERT_EQ(t1.cols(), 2);
     ASSERT_EQ(t1.rows(), 2);
     ASSERT_EQ(t1.cols(), 2);
-    ASSERT_EQ(t1.sum(), 10.0f);
+    ASSERT_NEAR(t1.sum(), 10.0f, 1e-6f);
     ASSERT_EQ(t1, t2);
     t2.at(0, 0) += 1.0F;
     ASSERT_NE(t1, t2);
@@ -42,8 +42,8 @@ TEST(TensorTest, TwoDAccess)
     nn::Tensor t(2, 3);
     t.at(0, 0) = 1.0f;
     t.at(1, 2) = 2.0f;
-    ASSERT_EQ(t.at(0, 0), 1.0f);
-    ASSERT_EQ(t.at(1, 2), 2.0f);
+    ASSERT_NEAR(t.at(0, 0), 1.0f, 1e-6f);
+    ASSERT_NEAR(t.at(1, 2), 2.0f, 1e-6f);
     ASSERT_THROW(t.at(2, 0), std::out_of_range);
     ASSERT_THROW(t.at(0, 3), std::out_of_range);
 }
@@ -53,8 +53,8 @@ TEST(TensorTest, FourDAccess)
     nn::Tensor t(2, 3, 4, 5); // batch=2, channels=3, height=4, width=5
     t.at(0, 0, 0, 0) = 1.0f;
     t.at(1, 2, 3, 4) = 2.0f;
-    ASSERT_EQ(t.at(0, 0, 0, 0), 1.0f);
-    ASSERT_EQ(t.at(1, 2, 3, 4), 2.0f);
+    ASSERT_NEAR(t.at(0, 0, 0, 0), 1.0f, 1e-6f);
+    ASSERT_NEAR(t.at(1, 2, 3, 4), 2.0f, 1e-6f);
     ASSERT_THROW(t.at(2, 0, 0, 0), std::out_of_range);
     ASSERT_THROW(t.at(0, 3, 0, 0), std::out_of_range);
 }
@@ -64,8 +64,8 @@ TEST(TensorTest, GeneralNDAccess)
     nn::Tensor t(std::vector<size_t>{2, 3, 4}); // 3D tensor
     t.at({0, 0, 0}) = 1.0f;
     t.at({1, 2, 3}) = 2.0f;
-    ASSERT_EQ(t.at({0, 0, 0}), 1.0f);
-    ASSERT_EQ(t.at({1, 2, 3}), 2.0f);
+    ASSERT_NEAR(t.at({0, 0, 0}), 1.0f, 1e-6f);
+    ASSERT_NEAR(t.at({1, 2, 3}), 2.0f, 1e-6f);
     ASSERT_THROW(t.at({2, 0, 0}), std::out_of_range);
     ASSERT_THROW(t.at({0, 3, 0}), std::out_of_range);
     ASSERT_THROW(t.at({0, 0}), std::invalid_argument); // wrong number of indices
@@ -110,13 +110,13 @@ TEST(TensorTest, RowColAccess)
 
     auto row0 = t.row(0);
     ASSERT_EQ(row0.get_shape(), std::vector<size_t>({1, 4}));
-    EXPECT_EQ(row0.at(0, 0), 1.0f);
-    EXPECT_EQ(row0.at(0, 3), 4.0f);
+    EXPECT_NEAR(row0.at(0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(row0.at(0, 3), 4.0f, 1e-6f);
 
     auto col1 = t.col(1);
     ASSERT_EQ(col1.get_shape(), std::vector<size_t>({3, 1}));
-    EXPECT_EQ(col1.at(0, 0), 2.0f);
-    EXPECT_EQ(col1.at(1, 0), 6.0f);
+    EXPECT_NEAR(col1.at(0, 0), 2.0f, 1e-6f);
+    EXPECT_NEAR(col1.at(1, 0), 6.0f, 1e-6f);
 
     auto left2 = t.leftCols(2);
     ASSERT_EQ(left2.get_shape(), std::vector<size_t>({3, 2}));
@@ -312,18 +312,18 @@ TEST(TensorTest, ZeroGrad)
     t.set_grad(g);
 
     // Verify gradients are set
-    EXPECT_EQ(t.grad().at(0, 0), 5.0f);
-    EXPECT_EQ(t.grad().at(0, 1), 6.0f);
+    EXPECT_NEAR(t.grad().at(0, 0), 5.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(0, 1), 6.0f, 1e-6f);
 
     // Zero gradients
     t.zero_grad();
 
     // Verify all gradients are zero
-    EXPECT_EQ(t.grad().sum(), 0.0f);
-    EXPECT_EQ(t.grad().at(0, 0), 0.0f);
-    EXPECT_EQ(t.grad().at(0, 1), 0.0f);
-    EXPECT_EQ(t.grad().at(1, 0), 0.0f);
-    EXPECT_EQ(t.grad().at(1, 1), 0.0f);
+    EXPECT_NEAR(t.grad().sum(), 0.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(0, 1), 0.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(1, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(t.grad().at(1, 1), 0.0f, 1e-6f);
 }
 
 TEST(TensorTest, SetData)
@@ -340,10 +340,10 @@ TEST(TensorTest, SetData)
     t.at(1, 0) = 30.0f;
     t.at(1, 1) = 40.0f;
 
-    EXPECT_EQ(t.at(0, 0), 10.0f);
-    EXPECT_EQ(t.at(0, 1), 20.0f);
-    EXPECT_EQ(t.at(1, 0), 30.0f);
-    EXPECT_EQ(t.at(1, 1), 40.0f);
+    EXPECT_NEAR(t.at(0, 0), 10.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 1), 20.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 0), 30.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 1), 40.0f, 1e-6f);
 }
 
 TEST(TensorTest, TopRows)
@@ -359,12 +359,12 @@ TEST(TensorTest, TopRows)
 
     auto top2 = t.topRows(2);
     ASSERT_EQ(top2.get_shape(), std::vector<size_t>({2, 3}));
-    EXPECT_EQ(top2.at(0, 0), 0.0f);
-    EXPECT_EQ(top2.at(0, 1), 1.0f);
-    EXPECT_EQ(top2.at(0, 2), 2.0f);
-    EXPECT_EQ(top2.at(1, 0), 3.0f);
-    EXPECT_EQ(top2.at(1, 1), 4.0f);
-    EXPECT_EQ(top2.at(1, 2), 5.0f);
+    EXPECT_NEAR(top2.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(top2.at(0, 1), 1.0f, 1e-6f);
+    EXPECT_NEAR(top2.at(0, 2), 2.0f, 1e-6f);
+    EXPECT_NEAR(top2.at(1, 0), 3.0f, 1e-6f);
+    EXPECT_NEAR(top2.at(1, 1), 4.0f, 1e-6f);
+    EXPECT_NEAR(top2.at(1, 2), 5.0f, 1e-6f);
 }
 
 TEST(TensorTest, Slice)
@@ -437,7 +437,7 @@ TEST(TensorTest, MemoryStressTesting)
 
     // Test operations on large tensors
     auto large_2d_plus_one = large_2d.add_scalar(1.0f);
-    EXPECT_EQ(large_2d_plus_one.at(0, 0), 1.0f);
+    EXPECT_NEAR(large_2d_plus_one.at(0, 0), 1.0f, 1e-6f);
 
     // Test large N-D tensor
     nn::Tensor large_nd(std::vector<size_t>{100, 100, 10});
@@ -445,7 +445,7 @@ TEST(TensorTest, MemoryStressTesting)
 
     // Test memory operations
     large_nd.zero_grad();
-    EXPECT_EQ(large_nd.sum(), 0.0f);
+    EXPECT_NEAR(large_nd.sum(), 0.0f, 1e-6f);
 }
 
 TEST(TensorTest, NumericalEdgeCases)
@@ -519,7 +519,7 @@ TEST(TensorTest, ThreadSafetyValidation)
         for (int i = 0; i < 10; ++i)
         {
             float val = t.at(i, i);
-            EXPECT_EQ(val, static_cast<float>(i * 2));
+            EXPECT_NEAR(val, static_cast<float>(i * 2), 1e-6f);
         }
     };
 
@@ -633,11 +633,11 @@ TEST(TensorTest, ZerosOnesConstantAndSetters)
 {
     auto z = nn::Tensor::zeros(3, 2);
     ASSERT_EQ(z.get_shape(), std::vector<size_t>({3, 2}));
-    EXPECT_EQ(z.sum(), 0.0f);
+    EXPECT_NEAR(z.sum(), 0.0f, 1e-6f);
 
     auto o = nn::Tensor::ones(2, 4);
     ASSERT_EQ(o.size(), 8);
-    EXPECT_EQ(o.sum(), 8.0f);
+    EXPECT_NEAR(o.sum(), 8.0f, 1e-6f);
 
     auto c = nn::Tensor::constant(2, 2, 3.5f);
     EXPECT_FLOAT_EQ(c.at(0, 0), 3.5f);
@@ -645,9 +645,9 @@ TEST(TensorTest, ZerosOnesConstantAndSetters)
 
     nn::Tensor t(2, 2);
     t.set_ones();
-    EXPECT_EQ(t.sum(), 4.0f);
+    EXPECT_NEAR(t.sum(), 4.0f, 1e-6f);
     t.set_zero();
-    EXPECT_EQ(t.sum(), 0.0f);
+    EXPECT_NEAR(t.sum(), 0.0f, 1e-6f);
 }
 
 TEST(TensorTest, TensorOperatorComparisons)

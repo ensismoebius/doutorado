@@ -26,6 +26,7 @@
 #include "nn/optimizers/Adam.hpp"
 #include "nn/saver/NetworkSerializer.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing.hpp"
 #include "nn/utility/EigenParallel.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
@@ -190,20 +191,20 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
                      "initialization\n";
 
         // Initialize encoder weights and biases
-        kaimingSNNInitializer(encoder1);
-        kaimingSNNInitializer(encoder2);
-        kaimingSNNInitializer(encoder3);
-        kaimingSNNInitializer(encoder4);
-        kaimingSNNInitializer(encoder5);
-        kaimingSNNInitializer(encoder6);
+        kaimingSNNInitializer(encoder1, nn::testing::SEED);
+        kaimingSNNInitializer(encoder2, nn::testing::SEED);
+        kaimingSNNInitializer(encoder3, nn::testing::SEED);
+        kaimingSNNInitializer(encoder4, nn::testing::SEED);
+        kaimingSNNInitializer(encoder5, nn::testing::SEED);
+        kaimingSNNInitializer(encoder6, nn::testing::SEED);
 
         // Initialize decoder weights and biases if no saved weights exist
-        kaimingSNNInitializer(decoder1);
-        kaimingSNNInitializer(decoder2);
-        kaimingSNNInitializer(decoder3);
-        kaimingSNNInitializer(decoder4);
-        kaimingSNNInitializer(decoder5);
-        kaimingSNNInitializer(decoder6);
+        kaimingSNNInitializer(decoder1, nn::testing::SEED);
+        kaimingSNNInitializer(decoder2, nn::testing::SEED);
+        kaimingSNNInitializer(decoder3, nn::testing::SEED);
+        kaimingSNNInitializer(decoder4, nn::testing::SEED);
+        kaimingSNNInitializer(decoder5, nn::testing::SEED);
+        kaimingSNNInitializer(decoder6, nn::testing::SEED);
     }
 
     // ==== Optimizer ====

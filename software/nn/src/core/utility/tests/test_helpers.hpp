@@ -8,6 +8,7 @@
 #include <random>
 
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing.hpp"
 
 namespace test_helpers
 {
@@ -15,7 +16,7 @@ namespace test_helpers
 inline auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upper = 1.0F)
     -> nn::Tensor
 {
-    static std::mt19937 gen(42);
+    static std::mt19937 gen(nn::testing::SEED);
     std::uniform_real_distribution<float> dist(lower, upper);
     nn::Tensor t(rows, cols);
     for (size_t i = 0; i < rows; ++i)
@@ -26,6 +27,17 @@ inline auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, fl
         }
     }
     return t;
+}
+
+inline void rand_fill(nn::Tensor& t, float lower = -0.5F, float upper = 0.5F,
+                      unsigned int seed = nn::testing::SEED)
+{
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(lower, upper);
+    for (size_t i = 0; i < t.size(); ++i)
+    {
+        t.at(i) = dist(gen);
+    }
 }
 
 inline auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor
@@ -51,8 +63,8 @@ inline auto make_zeros_tensor(size_t rows, size_t cols) -> nn::Tensor
     return make_constant_tensor(rows, cols, 0.0F);
 }
 
-inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b, float tolerance = 1e-6F)
-    -> bool
+inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b,
+                             float tolerance = nn::testing::TOL) -> bool
 {
     if (a.get_shape() != b.get_shape())
     {
@@ -69,7 +81,7 @@ inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b, float tol
     return true;
 }
 
-inline auto tensor_is_zero(const nn::Tensor& t, float tolerance = 1e-6F) -> bool
+inline auto tensor_is_zero(const nn::Tensor& t, float tolerance = nn::testing::TOL) -> bool
 {
     for (size_t i = 0; i < t.size(); ++i)
     {
