@@ -45,7 +45,6 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN (override)",
     )
     demo.add_argument("--saida-plot", type=str, default="result_pipeline_wpt_snn.png")
-    demo.set_defaults(func=cmd_demo)
 
     # --- Captura/cadastro ---
     cap = sub.add_parser(
@@ -57,19 +56,6 @@ def construir_cli() -> argparse.ArgumentParser:
     cap.add_argument("--diretorio-dados", type=str, default="dados/vozes")
     cap.add_argument("--duracao", type=float, default=3.0)
     cap.add_argument("--taxa-amostragem", type=int, default=44100)
-    cap.set_defaults(func=cmd_capturar)
-
-    # Alias mais biométrico ("enrolar" = cadastrar)
-    enr = sub.add_parser(
-        "enrolar", help="Alias de capturar (cadastrar amostras por pessoa)"
-    )
-    enr.add_argument(
-        "--pessoa", type=str, required=True, help="ID da pessoa (ex.: alice)"
-    )
-    enr.add_argument("--diretorio-dados", type=str, default="dados/vozes")
-    enr.add_argument("--duracao", type=float, default=3.0)
-    enr.add_argument("--taxa-amostragem", type=int, default=44100)
-    enr.set_defaults(func=cmd_capturar)
 
     # --- Treino ---
     tr = sub.add_parser("treinar", help="Treina a SNN para classificar locutores")
@@ -92,7 +78,6 @@ def construir_cli() -> argparse.ArgumentParser:
     tr.add_argument("--lr", type=float, default=1e-3)
     tr.add_argument("--saida-modelo", type=str, default="modelo_snn_locutor.pt")
     tr.add_argument("--saida-rotulos", type=str, default="rotulos_locutor.json")
-    tr.set_defaults(func=cmd_treinar)
 
     # --- Identificação ---
     inf = sub.add_parser("identificar", help="Identifica a pessoa por voz (microfone)")
@@ -113,7 +98,6 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN (override ao carregar modelo)",
     )
     inf.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
-    inf.set_defaults(func=cmd_identificar)
 
     # --- Verificação (com desconhecido) ---
     ver = sub.add_parser(
@@ -145,7 +129,6 @@ def construir_cli() -> argparse.ArgumentParser:
         default=0.55,
         help="Abaixo deste valor, retorna 'desconhecido'",
     )
-    ver.set_defaults(func=cmd_verificar)
 
     # --- Avaliação offline ---
     av = sub.add_parser(
@@ -165,13 +148,20 @@ def construir_cli() -> argparse.ArgumentParser:
         "--profundidade",
         type=int,
         default=None,
-        help="Número de blocos residuais na SNN (override ao carregar modelo)",
+        help="Número de blocos residuais na SNN",
     )
     av.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
     av.add_argument("--verbose", action="store_true")
+
+    demo.set_defaults(func=cmd_demo)
+    tr.set_defaults(func=cmd_treinar)
     av.set_defaults(func=cmd_avaliar)
+    cap.set_defaults(func=cmd_capturar)
+    ver.set_defaults(func=cmd_verificar)
+    inf.set_defaults(func=cmd_identificar)
 
     return p
+
 
 if __name__ == "__main__":
     # Ponto de entrada: parseia argumentos e executa o comando selecionado.

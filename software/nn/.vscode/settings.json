@@ -116,13 +116,13 @@
     // --------------------------------------------------
     // clangd (authoritative)
     // --------------------------------------------------
-    "clangd.path": "scripts/clangd-systemd.sh",
+    "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
         "--compile-commands-dir=${workspaceFolder}/build",
         // -------------------------
         // Indexação mínima
         // -------------------------
-        "--background-index=false",
+        "--background-index=true",
         "--pch-storage=disk",
         // -------------------------
         // Autocomplete consciente
@@ -141,10 +141,11 @@
         "--clang-tidy=true",
         "--fallback-style=none",
         // -------------------------
-        // Ruído máximo
+        // Ruído mínimo
         // -------------------------
-        "--log=verbose",
+        "--log=info",
     ],
+    "C_Cpp.intelliSenseEngine": "Disabled",
     // --------------------------------------------------
     // UX / workflow
     // --------------------------------------------------
