@@ -41,6 +41,7 @@ class ModeloSNN(nn.Module):
 
         if quantidade_de_classes is None or quantidade_de_classes <= 0:
             raise ValueError("`quantidade_de_classes` não pode ser None ou <= 0.")
+
         self.num_saidas = quantidade_de_classes
 
         self.escala_entrada = 1.0
@@ -77,7 +78,7 @@ class ModeloSNN(nn.Module):
                 tamanho_lote, self.num_saidas, device=device, dtype=dtype
             ),
         }
-        
+
         # Para cada bloco residual, duas memórias (uma para cada LIF)
         for i in range(self.num_blocos_residuais):
             state[f"mem_res{i}_1"] = torch.zeros(
@@ -188,8 +189,12 @@ def criar_modelo_snn(
 ):
     # Regra de inicialização determinística (reprodutibilidade do demo).
     torch.manual_seed(42)
+
+    # Parâmetros padrão.
     if profundidade is None:
         profundidade = 3
+
+    # Cria e retorna o modelo SNN.
     return ModeloSNN(
         tamanho_da_entrada=num_inputs,
         quantidade_de_classes=num_outputs,

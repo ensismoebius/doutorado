@@ -34,22 +34,15 @@ def calcular_nivel_wpt(
     if nivel_max_por_tamanho < 1:
         return 1
 
-    # WaveletPacket exige um vetor; usamos um dummy para sondar níveis.
-    dummy = np.zeros(janela_efetiva, dtype=np.float32)
-    wp = pywt.WaveletPacket(
-        data=dummy,
-        wavelet=wavelet_base,
-        mode="symmetric",
-        maxlevel=nivel_max_por_tamanho,
-    )
+    # Escolha direta: menor nível L tal que 2**L >= num_bandas.
+    if num_bandas <= 1:
+        nivel_escolhido = 1
+    else:
+        # Calcula o nível necessário: 2^nivel >= num_bandas
+        nivel_necessario = int(np.ceil(np.log2(num_bandas)))
 
-    # Seleciona o primeiro nível que alcança o número de bandas desejado.
-    nivel_escolhido = nivel_max_por_tamanho
-    for nivel in range(1, nivel_max_por_tamanho + 1):
-        nos = wp.get_level(nivel, order="freq")
-        if len(nos) >= num_bandas:
-            nivel_escolhido = nivel
-            break
+        # Escolhe o nível final considerando o máximo permitido.
+        nivel_escolhido = min(nivel_max_por_tamanho, max(1, nivel_necessario))
 
     return nivel_escolhido
 

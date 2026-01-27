@@ -39,7 +39,7 @@ def listar_amostras_por_pessoa(diretorio_base: str) -> dict[str, list[str]]:
 
 
 def extrair_janelas_caracteristicas(
-    audio: np.ndarray,
+    sinal: np.ndarray,
     *,
     cfg: ConfigExtracao,
 ) -> list[np.ndarray]:
@@ -55,24 +55,27 @@ def extrair_janelas_caracteristicas(
     )
 
     # Segmenta o áudio em janelas sobrepostas.
-    janelas = aplicar_janelamento(
-        audio,
+    sinal_janelado = aplicar_janelamento(
+        sinal,
         cfg.tamanho_janela,
         cfg.tamanho_passo,
-        funcao_janela=np.hanning,
+        funcao_de_janelamento=np.hanning,
     )
 
     # Constrói o vetor de características por janela.
     caracteristicas: list[np.ndarray] = []
-    for janela in janelas:
-        # Energia por banda + normalização para [0, 1].
-        energia = calcular_energia_wpt(
+
+    # Processa cada janela.
+    for janela in sinal_janelado:
+
+        # Energia por banda decomposta via WPT + normalização para [0, 1].
+        energia_por_bandas = calcular_energia_wpt(
             janela,
             wavelet_base=cfg.wavelet_base,
             nivel_maximo=nivel_wpt,
             num_bandas=cfg.num_bandas,
         )
-        caracteristicas.append(preprocessar_energia_wpt_para_snn(energia))
+        caracteristicas.append(preprocessar_energia_wpt_para_snn(energia_por_bandas))
 
     return caracteristicas
 

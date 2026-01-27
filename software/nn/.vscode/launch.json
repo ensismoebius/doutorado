@@ -12,6 +12,86 @@
             ]
         },
         {
+            "name": "Run: demo",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "demo",
+                "--duracao",
+                "1.0",
+                "--saida-plot",
+                "debug_demo.png"
+            ]
+        },
+        {
+            "name": "Run: capturar",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "capturar",
+                "--pessoa",
+                "alice",
+                "--duracao",
+                "3.0"
+            ]
+        },
+        {
+            "name": "Run: treinar",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "treinar",
+                "--epocas",
+                "5",
+                "--saida-modelo",
+                "debug_model.pt"
+            ]
+        },
+        {
+            "name": "Run: identificar",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "identificar"
+            ]
+        },
+        {
+            "name": "Run: verificar",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "verificar"
+            ]
+        },
+        {
+            "name": "Run: avaliar",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.main",
+            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "console": "integratedTerminal",
+            "args": [
+                "avaliar",
+                "--diretorio-dados",
+                "dados/vozes"
+            ]
+        },
+        {
             "name": "CMake Debug (LLDB DAP)",
             "type": "lldb-dap",
             "request": "launch",

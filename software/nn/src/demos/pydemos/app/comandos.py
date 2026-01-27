@@ -44,28 +44,30 @@ def cmd_demo(args: argparse.Namespace) -> None:
 
     # Captura áudio ao vivo e extrai características por janela.
     audio = capturar_audio(args.duracao, args.taxa_amostragem)
-    caracs = extrair_janelas_caracteristicas(audio, cfg=cfg_extracao)
-    if not caracs:
+    caracteristicas = extrair_janelas_caracteristicas(audio, cfg=cfg_extracao)
+
+    # Verifica se gerou janelas.
+    if not caracteristicas:
         raise RuntimeError("Nenhuma janela gerada.")
 
-    # Modelo com saída do mesmo tamanho das entradas (para manter plots didáticos).
-    model = criar_modelo_snn(
+    # Modelo com saída do mesmo tamanho das entradas.
+    rede_neural = criar_modelo_snn(
         num_inputs=cfg_extracao.num_bandas,
         num_outputs=cfg_extracao.num_bandas,
         profundidade=getattr(args, "profundidade", None),
     )
-    model.eval()
+    rede_neural.eval()
 
     lista_spikes_saida = []
     with torch.no_grad():
         state = None
         # Processa cada janela; soma spikes ao longo do tempo para plot.
-        for c in caracs:
+        for c in caracteristicas:
             xb = torch.tensor(c, dtype=torch.float32).unsqueeze(0)
             spk_in = codificar_poisson(
                 xb, passos=cfg_snn.passos_por_janela, adaptativo=True
             )
-            spk_out_seq, state = model(spk_in, state)
+            spk_out_seq, state = rede_neural(spk_in, state)
 
             # Para plotar por janela, agregamos os spikes ao longo dos passos.
             spk_janela = spk_out_seq.sum(dim=0)  # [1, num_bandas]
@@ -73,7 +75,7 @@ def cmd_demo(args: argparse.Namespace) -> None:
 
     # Gera os gráficos de características e spikes.
     plotar_resultados(
-        caracs,
+        caracteristicas,
         lista_spikes_saida,
         sample_rate=cfg_extracao.taxa_amostragem,
         window_size=cfg_extracao.tamanho_janela,

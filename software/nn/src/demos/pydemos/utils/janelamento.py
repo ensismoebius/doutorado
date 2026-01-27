@@ -7,40 +7,42 @@ def aplicar_janelamento(
     sinal: np.ndarray,
     tamanho_janela: int,
     tamanho_passo: int,
-    funcao_janela=None,
+    funcao_de_janelamento=None,
     **kwargs,
 ) -> list[np.ndarray]:
     """Segmenta o sinal em janelas sobrepostas com função de janelamento explícita."""
 
-    # Compatibilidade: permitir chamada antiga com window_fn=...
-    if funcao_janela is None:
-        funcao_janela = kwargs.pop("window_fn", np.hanning)
-    if kwargs:
-        raise TypeError(
-            f"Argumentos inesperados em aplicar_janelamento: {list(kwargs.keys())}"
-        )
+    # Janela de Hann por padrão.
+    if funcao_de_janelamento is None:
+        funcao_de_janelamento = np.hanning
 
     # Calcula quantidade de amostras e inicializa a lista de janelas.
-    num_amostras = len(sinal)
-    janelas = []
+    tamanho_do_sinal = len(sinal)
 
-    if num_amostras < tamanho_janela:
+    # Lista de janelas resultantes.
+    sinal_janelado = []
+
+    if tamanho_do_sinal < tamanho_janela:
         print("[Janelamento] Aviso: sinal menor que o tamanho da janela.")
         return []
 
-    # Gerar a janela uma única vez (mesmo shape para todas as fatias).
-    janela = funcao_janela(tamanho_janela)
+    # Gera os coefficients da janelamento.
+    coeficientes_da_janela = funcao_de_janelamento(tamanho_janela)
 
     # Iterar sobre o sinal com passo fixo (hop_size)
-    for inicio in range(0, num_amostras - tamanho_janela + 1, tamanho_passo):
+    for inicio in range(0, tamanho_do_sinal - tamanho_janela + 1, tamanho_passo):
         fim = inicio + tamanho_janela
-        segmento = sinal[inicio:fim]
+
+        # Extrai o segmento do sinal
+        segmento_do_sinal = sinal[inicio:fim]
 
         # Aplicar a função de janela (multiplicação de elementos).
-        segmento_janelado = segmento * janela
-        janelas.append(segmento_janelado)
+        segmento_do_sinal_janelado = segmento_do_sinal * coeficientes_da_janela
+
+        # Adiciona o sinal janelado à lista
+        sinal_janelado.append(segmento_do_sinal_janelado)
 
     print(
-        f"[Janelamento] Geradas {len(janelas)} janelas (tamanho={tamanho_janela}, passo={tamanho_passo})"
+        f"[Janelamento] Geradas {len(sinal_janelado)} janelas (tamanho={tamanho_janela}, passo={tamanho_passo})"
     )
-    return janelas
+    return sinal_janelado
