@@ -1,3 +1,0 @@
-./src/core/tensor/EigenTensorBackend.hpp
-./src/core/tensor/EigenTensorBackend.cpp
-./src/core/tensor/TensorBackendFactory.cpp
