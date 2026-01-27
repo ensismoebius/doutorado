@@ -137,7 +137,7 @@ def cmd_treinar(args: argparse.Namespace) -> None:
         cfg_snn=cfg_snn,
         epocas=args.epocas,
         taxa_aprendizado=args.lr,
-        num_blocos_residuais=getattr(args, "profundidade", None),
+        num_blocos_residuais=cfg_snn.profundidade,
     )
     salvar_modelo_e_rotulos(
         model,
