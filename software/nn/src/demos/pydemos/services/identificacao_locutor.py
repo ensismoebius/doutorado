@@ -44,9 +44,9 @@ def treinar_classificador_locutor(
     num_classes = len(rotulos)
     # Modelo SNN simples (snntorch) com saída = número de pessoas.
     model = criar_modelo_snn(
-        num_inputs=cfg_extracao.num_bandas,
-        num_outputs=num_classes,
-        profundidade=num_blocos_residuais,
+        numero_de_entradas=cfg_extracao.num_bandas,
+        numero_de_saidas=num_classes,
+        qtde_de_blocos_residuais=num_blocos_residuais,
     ).to(device)
     model.train()
 
@@ -146,7 +146,9 @@ def carregar_modelo_e_rotulos(
 
     # Reconstrói o modelo com a mesma dimensão de saída e profundidade.
     model = criar_modelo_snn(
-        num_inputs=num_inputs, num_outputs=len(rotulos), profundidade=profundidade_final
+        numero_de_entradas=num_inputs,
+        numero_de_saidas=len(rotulos),
+        qtde_de_blocos_residuais=profundidade_final,
     ).to(device)
     sd = torch.load(caminho_modelo, map_location=device)
     model.load_state_dict(sd)

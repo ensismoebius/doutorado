@@ -28,7 +28,7 @@ from infra.visualizacao import plotar_resultados
 def cmd_demo(args: argparse.Namespace) -> None:
     """Demo visual: pipeline WPT -> preprocess -> codificação Poisson -> SNN -> plots."""
 
-    # Configurações da extração e da SNN para este demo visual.
+    # Configurações da extração e da SNN.
     cfg_extracao = ConfigExtracao(
         taxa_amostragem=args.taxa_amostragem,
         tamanho_janela=args.tamanho_janela,
@@ -37,6 +37,8 @@ def cmd_demo(args: argparse.Namespace) -> None:
         num_bandas=args.num_bandas,
         duracao_referencia=args.duracao,
     )
+
+    # Configurações da SNN.
     cfg_snn = ConfigSNN(
         passos_por_janela=args.passos_por_janela,
         profundidade=getattr(args, "profundidade", None),
@@ -52,31 +54,45 @@ def cmd_demo(args: argparse.Namespace) -> None:
 
     # Modelo com saída do mesmo tamanho das entradas.
     rede_neural = criar_modelo_snn(
-        num_inputs=cfg_extracao.num_bandas,
-        num_outputs=cfg_extracao.num_bandas,
-        profundidade=getattr(args, "profundidade", None),
+        numero_de_entradas=cfg_extracao.num_bandas,
+        numero_de_saidas=cfg_extracao.num_bandas,
+        qtde_de_blocos_residuais=cfg_snn.profundidade,
     )
+
+    # Modo avaliação.
     rede_neural.eval()
 
-    lista_spikes_saida = []
+    # Processa cada janela e coleta spikes de saída.
+    lista_de_pulsos_de_saida = []
+
+    # Desabilita gradientes
     with torch.no_grad():
-        state = None
+
+        # Estado inicial da SNN (None = zeros).
+        estado = None
+
         # Processa cada janela; soma spikes ao longo do tempo para plot.
-        for c in caracteristicas:
-            xb = torch.tensor(c, dtype=torch.float32).unsqueeze(0)
-            spk_in = codificar_poisson(
-                xb, passos=cfg_snn.passos_por_janela, adaptativo=True
+        for vetor in caracteristicas:
+
+            # Converte a janela atual para tensor (shape [1, num_bandas]).
+            tensor_de_entrada = torch.from_numpy(vetor).float().unsqueeze(0)
+
+            # Codifica a janela atual em spikes Poisson.
+            pulsos_de_entrada = codificar_poisson(
+                tensor_de_entrada, passos=cfg_snn.passos_por_janela, adaptativo=True
             )
-            spk_out_seq, state = rede_neural(spk_in, state)
+
+            # Passa os spikes pela SNN.
+            pulsos_de_saida, estado = rede_neural(pulsos_de_entrada, estado)
 
             # Para plotar por janela, agregamos os spikes ao longo dos passos.
-            spk_janela = spk_out_seq.sum(dim=0)  # [1, num_bandas]
-            lista_spikes_saida.append(spk_janela)
+            soma_dos_pulsos_por_janela = pulsos_de_saida.sum(dim=0)  # [1, num_bandas]
+            lista_de_pulsos_de_saida.append(soma_dos_pulsos_por_janela)
 
     # Gera os gráficos de características e spikes.
     plotar_resultados(
         caracteristicas,
-        lista_spikes_saida,
+        lista_de_pulsos_de_saida,
         sample_rate=cfg_extracao.taxa_amostragem,
         window_size=cfg_extracao.tamanho_janela,
         hop_size=cfg_extracao.tamanho_passo,

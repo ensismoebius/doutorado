@@ -30,19 +30,19 @@ class ModeloSNN(nn.Module):
     def __init__(
         self,
         tamanho_da_entrada: int = 100,
-        quantidade_de_classes: int | None = None,
+        quantidade_de_saidas: int | None = None,
         tamanho_da_camada_escondida: int = 100,
         beta: float = 0.9,
-        num_blocos_residuais: int = 3,
+        numero_de_blocos_residuais: int = 3,
     ):
         super().__init__()
         self.num_entradas = tamanho_da_entrada
         self.num_ocultos = tamanho_da_camada_escondida
 
-        if quantidade_de_classes is None or quantidade_de_classes <= 0:
-            raise ValueError("`quantidade_de_classes` não pode ser None ou <= 0.")
+        if quantidade_de_saidas is None or quantidade_de_saidas <= 0:
+            raise ValueError("`quantidade_de_saidas` não pode ser None ou <= 0.")
 
-        self.num_saidas = quantidade_de_classes
+        self.num_saidas = quantidade_de_saidas
 
         self.escala_entrada = 1.0
 
@@ -51,11 +51,11 @@ class ModeloSNN(nn.Module):
         self.lif_in = snn.Leaky(beta=beta)
 
         # Blocos residuais profundos
-        self.num_blocos_residuais = num_blocos_residuais
+        self.num_blocos_residuais = numero_de_blocos_residuais
         self.res_blocks = nn.ModuleList(
             [
                 ResidualSNNBlock(tamanho_da_camada_escondida, beta=beta)
-                for _ in range(num_blocos_residuais)
+                for _ in range(numero_de_blocos_residuais)
             ]
         )
 
@@ -185,20 +185,23 @@ class ModeloSNN(nn.Module):
 
 
 def criar_modelo_snn(
-    *, num_inputs: int = 100, num_outputs: int | None = None, profundidade: int = 3
+    *,
+    numero_de_entradas: int = 100,
+    numero_de_saidas: int | None = None,
+    qtde_de_blocos_residuais: int = 3,
 ):
     # Regra de inicialização determinística (reprodutibilidade do demo).
     torch.manual_seed(42)
 
     # Parâmetros padrão.
-    if profundidade is None:
-        profundidade = 3
+    if qtde_de_blocos_residuais is None:
+        qtde_de_blocos_residuais = 3
 
     # Cria e retorna o modelo SNN.
     return ModeloSNN(
-        tamanho_da_entrada=num_inputs,
-        quantidade_de_classes=num_outputs,
-        num_blocos_residuais=int(profundidade),
+        tamanho_da_entrada=numero_de_entradas,
+        quantidade_de_saidas=numero_de_saidas,
+        numero_de_blocos_residuais=int(qtde_de_blocos_residuais),
     )
 
 
