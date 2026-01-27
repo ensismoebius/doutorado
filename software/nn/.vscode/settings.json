@@ -128,7 +128,7 @@
         // Autocomplete consciente
         // -------------------------
         "--completion-style=detailed",
-        "--all-scopes-completion=false",
+        "--all-scopes-completion=true",
         "--function-arg-placeholders=true",
         // -------------------------
         // Includes e headers

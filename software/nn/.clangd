@@ -18,4 +18,4 @@ CompileFlags:
     - -Wno-unused-variable
 
 Index:
-  Background: Skip
+  Background: true
