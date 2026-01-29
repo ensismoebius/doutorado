@@ -164,8 +164,12 @@ class ModeloSNN(nn.Module):
         # Caso 1: passo único (sem dimensão temporal).
         # Aqui o `x` já representa o vetor de features do lote atual.
         # Ex.: x.shape == (8, 100)
+        # Retorna: (spk, state, mem_out) onde `mem_out` é o traço de membrana
+        # da camada de saída para esse passo (shape: [batch, num_saidas]).
         if x.dim() == 2:
-            return self._forward_passo(x, estado)
+            spk_out, estado = self._forward_passo(x, estado)
+            mem_out = estado.get("mem_out")
+            return spk_out, estado, mem_out
 
         if x.dim() != 3:
             raise ValueError(
@@ -173,15 +177,25 @@ class ModeloSNN(nn.Module):
             )
 
         # Caso 2: sequência temporal de spikes.
-        # Iteramos ao longo do tempo e acumulamos a saída em `spk_seq`.
-        # Ex.: x.shape == (10, 8, 100) -> spk_seq terá 10 tensores [8, num_saidas].
+        # Iteramos ao longo do tempo e acumulamos a saída em `spk_seq` e
+        # o traço de membrana da camada de saída em `mem_seq`.
+        # Ex.: x.shape == (10, 8, 100) -> spk_seq terá shape (10,8,num_saidas)
+        # e mem_seq terá shape (10,8,num_saidas).
         num_passos = x.shape[0]
         sequencia_de_pulsos = []
+        sequencia_de_mem = []
         for passo_index in range(num_passos):
             # Cada passo reutiliza o estado atualizado da etapa anterior.
             pulsos_t, estado = self._forward_passo(x[passo_index], estado)
             sequencia_de_pulsos.append(pulsos_t)
-        return torch.stack(sequencia_de_pulsos, dim=0), estado
+            # lê o traço de membrana atual da camada de saída
+            mem_out = estado.get("mem_out")
+            sequencia_de_mem.append(mem_out)
+        return (
+            torch.stack(sequencia_de_pulsos, dim=0),
+            estado,
+            torch.stack(sequencia_de_mem, dim=0),
+        )
 
 
 def criar_modelo_snn(

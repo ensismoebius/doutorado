@@ -140,6 +140,8 @@ def cmd_treinar(args: argparse.Namespace) -> None:
         taxa_aprendizado=args.lr,
         num_blocos_residuais=cfg_snn.profundidade,
         tamanho_camada_oculta=getattr(args, "tamanho_camada_oculta", 100),
+        loss_mode=getattr(args, "loss_mode", "rate"),
+        num_passes=getattr(args, "num_passes", 1),
     )
     salvar_modelo_e_rotulos(
         model,

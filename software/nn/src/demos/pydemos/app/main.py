@@ -90,6 +90,27 @@ def construir_cli() -> argparse.ArgumentParser:
     tr.add_argument("--lr", type=float, default=1e-3)
     tr.add_argument("--saida-modelo", type=str, default="modelo_snn_locutor.pt")
     tr.add_argument("--saida-rotulos", type=str, default="rotulos_locutor.json")
+    tr.add_argument(
+        "--loss-mode",
+        type=str,
+        default="rate",
+        choices=[
+            "rate",
+            "monte_carlo",
+            "temporal_pooling",
+            "van_rossum",
+            "membrane",
+            "cosine",
+            "mse_vector",
+        ],
+        help="Modo de readout + loss durante o treino",
+    )
+    tr.add_argument(
+        "--num-passes",
+        type=int,
+        default=1,
+        help="Número de passadas (multi-pass) do mesmo batch durante treino",
+    )
 
     # --- Identificação ---
     inf = sub.add_parser("identificar", help="Identifica a pessoa por voz (microfone)")
