@@ -1,233 +1,214 @@
-# Speaker Identification Pipeline
+# Multi-Pass Forward
 
-## Executive Summary
+**Contexto:**
+Estou trabalhando em um projeto Python de **classificação de locutor usando Spiking Neural Networks (SNN)** em PyTorch/snntorch. O código contém as funções:
 
-This project establishes a comprehensive pipeline for speaker identification using synchronized EEG and audio data, leveraging Spiking Neural Networks (SNNs) and paraconsistent analysis. We begin by freezing the methodological foundations—including a fixed 1.5-second window with 50% overlap and a residual SNN classifier—ensuring reproducibility and consistent normalization across all experiments.
+* `treinar_classificador_locutor`
+* `identificar_locutor_por_microfone`
+* `identificar_locutor_por_wav`
 
-We then systematically compare classical feature engineering methods (wavelets) with learned feature approaches (spiking autoencoders), evaluate multiple spectral scales (LFCC, MEL, BARK), and analyze unimodal versus multimodal (EEG + voice) performance. We also introduce a phase dedicated to imagined speech to highlight the project's unique contribution, and a robustness phase to test noise tolerance.
+Atualmente, o *loss* é calculado assim:
 
-Finally, all experiments are consolidated into comprehensive tables and paraconsistent metric plots, comparing our results with the state of the art. This pipeline is designed to be methodologically rigorous and easily reproducible, offering a robust and innovative approach to speaker identification using brain and voice signals.
+```python
+spk_out_seq, _ = model(spk_in, None)
+contagem = spk_out_seq.sum(dim=0)
+loss = F.cross_entropy(contagem, yb)
+```
 
-Use as much as possible all core libraries (src/core) and modern C++ 20.
+Quero **refatorar o código** para que:
 
-**EEG + Audio using Spiking Neural Networks (SNNs)**
-📌 **Updated and Corrected Task List**
-
----
-
-## 🔒 PHASE 0 — Freezing & Infrastructure (src/experiments/00)
-
-**Goal:** freeze methodological decisions and guarantee reproducibility.
-
-- [ ] Fix window length: **1.5 s / 50% overlap**
-- [ ] Fix mandatory normalization: **[0,1]**
-  - prerequisite for paraconsistent analysis
-- [ ] Enforce normalization in `/src/experiments/`
-- [ ] Fix classifier:
-  - **Residual Spiking Neural Network (ResNet SNN)**
-
-- [ ] Freeze classifier architecture
-- [ ] Create a unique `config.yaml` (single source of truth)
-- [ ] Define output formats:
-  - CSV (metrics and results)
-  - **PyTorch-compatible format** (network architectures/weights)
+1. **O método de cálculo do loss seja configurável via CLI** (`--loss_mode`)
+2. **O cálculo do loss seja feito sobre múltiplas passadas do mesmo input pela rede** (multi-trial averaging), reduzindo ruído estocástico da SNN
+3. O pipeline original continue funcional
 
 ---
 
-## 🧠 PHASE 1 — Classical Feature Engineering (Wavelets) (src/experiments/01)
+## 🎯 Objetivo técnico
 
-**Goal:** establish a deterministic and theoretically grounded baseline.
+Adicionar argumento CLI:
 
-### 🧪 Experiment E1 — Wavelet / Wavelet-Packet Baseline
+```
+--loss_mode=<modo>
+--num_passes=<int>
+```
 
-- [ ] Implement **Wavelet-Packet Transform (WPT)**
-- [ ] Validate numerical examples of the decomposition
-- [ ] Ensure coefficient reproducibility
-- [ ] Extract **sub-band energy features**
-- [ ] Apply **[0,1] normalization**
-- [ ] Compute paraconsistent metrics:
-  - α (intra-class similarity)
-  - β (inter-class overlap)
-  - G1, G2
-- [ ] Perform classification using **ResNet SNN**
-- [ ] Save results (CSV)
+Onde:
 
-🎯 **Expected outcome:** stable, interpretable theoretical baseline.
+* `loss_mode` controla a estratégia de readout + loss
+* `num_passes` define **quantas vezes o mesmo batch deve ser passado pela SNN**
+* O loss final deve ser calculado **sobre a média agregada das múltiplas execuções**
 
 ---
 
-## 🔬 PHASE 2 — Spectral Scales (CENTRAL PHASE) (src/experiments/02)
+## 📌 Regra obrigatória — Multi-Pass Aggregation
 
-**Goal:** compare spectral representations while keeping all other variables fixed.
+Durante o treino, para cada batch:
 
-### 🧪 Experiment E2 — LFCC × MEL × BARK
+```python
+outputs = []
+for _ in range(num_passes):
+    spk_out_seq, mem_trace = model(spk_in, None)
+    outputs.append((spk_out_seq, mem_trace))
 
-- [ ] Execute complete pipelines:
-  - LFCC
-  - MEL / MFCC
-  - BARK
-- [ ] Keep fixed:
-  - window
-  - normalization
-  - classifier
-- [ ] Modalities:
-  - Voice
-  - EEG
-  - Voice + EEG
-- [ ] Metrics:
-  - α, β, G1, G2
-  - Accuracy
-  - F1-score
-- [ ] Build a **single comparative table**
+# Agregar estatísticas entre múltiplas execuções
+spk_out_seq = mean(outputs.spikes)
+mem_trace   = mean(outputs.membrane)
+```
 
-🎯 **Expected outcome:** identify the most suitable spectral scale for SNN + paraconsistent analysis.
+**O loss SEMPRE deve ser calculado após essa agregação**, e **não por execução individual**.
+
+Objetivo: **reduzir variância induzida por spikes, refratariedade e Poisson noise**.
 
 ---
 
-## 🧠 PHASE 3 — Feature Learning (Spiking Autoencoders) (src/experiments/03)
+## 📌 Função central obrigatória
 
-> **Important correction:**
-> This phase occurs **before** final comparisons and is **not optional**.
+Criar:
 
-### 🧪 Experiment E3 — Spiking Autoencoders
-
-- [ ] Consolidate architectures:
-  - Sub-complete AE
-  - Supra-complete AE
-  - **Denoising AE** (mandatory)
-- [ ] Define and document:
-  - number of layers
-  - bottleneck size
-  - stopping criteria
-- [ ] Extract learned feature vectors
-- [ ] Compare:
-  - Wavelet-Packet × Autoencoder features
-  - Sub × Supra × Denoising AEs
-- [ ] Evaluate:
-  - α, β, G1, G2
-  - Accuracy
-
-🎯 **Expected outcome:** validate learned features versus manual feature engineering.
+```python
+def compute_loss(loss_mode, spk_out_seq, mem_trace, target, cfg_snn):
+    ...
+```
 
 ---
 
-## 🔀 PHASE 4 — Modalities (Unimodal × Multimodal) (src/experiments/04)
-
-### Fixed definitions:
-
-- **Unimodal:** single data source
-  → voice **or** EEG
-- **Multimodal:** fused sources
-  → voice **+** EEG
-
-### 🧪 Experiment E4 — Multimodality
-
-- [ ] Select the **best feature representation** (from E2 or E3)
-- [ ] Run classifications:
-  - Voice only
-  - EEG only
-  - Voice + EEG
-- [ ] Compute:
-  - α, β, G1, G2
-  - Accuracy, F1-score
-- [ ] Compare unimodal × multimodal performance
-
-🎯 **Expected outcome:** demonstrate information gain from EEG + voice fusion.
+## 📌 Modos obrigatórios (TODOS devem ser implementados)
 
 ---
 
-## 🧠 PHASE 5 — Imagined Speech (Thesis Differential) (src/experiments/05)
+### 1️⃣ `rate` — Rate coding clássico (modo atual)
 
-### 🧪 Experiment E5 — Imagined Speech
-
-- [ ] Use the globally best configuration
-- [ ] Scenarios:
-  - Phonated speech
-  - Imagined speech
-  - Mixed speech
-- [ ] Metrics:
-  - α, β, G1, G2
-  - Accuracy, F1-score
-- [ ] Direct comparison between scenarios
-
-🎯 **Expected outcome:** demonstrate the biometric viability of imagined speech.
+```python
+contagem = spk_out_seq.sum(dim=0)
+loss = F.cross_entropy(contagem, target)
+```
 
 ---
 
-## 🛡️ PHASE 6 — Noise Robustness (FINAL) (src/experiments/06)
+### 2️⃣ `monte_carlo` — Monte Carlo sampling (nativo)
 
-### 🧪 Experiment E6 — Robustness to Noise
+Já embutido no **multi-pass forward**:
 
-- [ ] Inject controlled noise into:
-  - audio
-  - EEG / imagined speech
-- [ ] Measure progressive degradation:
-  - G1
-  - Accuracy
-- [ ] Compare:
-  - clean × noisy signals
-  - AE × Denoising AE
-
-🎯 **Expected outcome:** validate structural robustness of SNN-based models.
+```python
+contagem = spk_out_seq.sum(dim=0)
+loss = F.cross_entropy(contagem, target)
+```
 
 ---
 
-## 📊 PHASE 7 — Final Consolidation (MANDATORY) (src/experiments/07)
+### 3️⃣ `temporal_pooling` — Pooling por janelas temporais
 
-- [ ] Table:
-  - **LFCC × MEL × BARK**
-- [ ] Table:
-  - **Wavelet × AE × Denoising**
-- [ ] Plots in the **paraconsistent plane**
-- [ ] Consolidation of classical metrics
-- [ ] Comparison with the **state of the art**
-- [ ] Final conclusions:
-  - technical
-  - experimental
-  - scientific
+```python
+pooled = spk_out_seq.view(num_windows, window_size, B, C).mean(dim=1)
+readout = pooled.mean(dim=0)
+loss = F.cross_entropy(readout, target)
+```
 
 ---
 
-## 📌 Final Notes
+### 4️⃣ `van_rossum` — PSC / Van Rossum kernel
 
-- All phases are now:
-  - logically ordered
-  - non-redundant
-  - methodologically consistent
-- Paraconsistent analysis is correctly positioned as:
-  - the **primary feature-quality criterion**
-- The pipeline is ready for:
-  - incremental execution
-  - direct thesis writing
-  - experimental auditing
+```python
+filtered = apply_psc_kernel(spk_out_seq, tau=cfg_snn.tau_psc)
+readout = filtered.sum(dim=0)
+loss = F.mse_loss(readout, target_vector)
+```
 
-## Metrics
-- α (intra-class similarity)
-- β (inter-class overlap)
-- G1, G2 (paraconsistent metrics)
-- Accuracy
-- F1-score
-- MACs - Mulytiply-Accumulate Operations
-- RTF - Real-Time Factor
+---
 
-## Neural Networks
-- Residual Spiking Neural Network (ResNet SNN)
-- Spiking Autoencoders (Sub-complete, Supra-complete, Denoising)
-- Wavelet-Packet Transform (WPT)
-- Batch Normalization
-- Dropout
-- Adam Optimizer
-- Cross-Entropy Loss
-- PyTorch C++ API (LibTorch)
-- C++20 Standard
-- YAML for configuration management
-- CSV for results storage
-- Modular code structure in `src/core` and `src/experiments`
-# Comparison with regular neural networks (DNNs, CNNs)
-- Evaluation of computational efficiency (MACs, RTF)
-- Robustness to noise and signal degradation
-- Integration of EEG and audio data for multimodal speaker identification
-- Use of imagined speech for biometric identification
-- Comprehensive experimental design and documentation
-- Paraconsistent analysis for feature quality assessment
-- Unimodal vs. multimodal performance analysis
+### 5️⃣ `membrane` — Potencial de membrana como saída
+
+```python
+readout = mem_trace.sum(dim=0)
+loss = F.mse_loss(readout, target_vector)
+```
+
+---
+
+### 6️⃣ `cosine` — Cosine similarity sobre vetor médio contínuo
+
+```python
+readout = mem_trace.mean(dim=0)
+loss = 1 - F.cosine_similarity(readout, target_vector).mean()
+```
+
+---
+
+### 7️⃣ `mse_vector` — MSE sobre vetor médio contínuo
+
+```python
+readout = mem_trace.mean(dim=0)
+loss = F.mse_loss(readout, target_vector)
+```
+
+---
+
+## 📌 Atualizações necessárias no código real
+
+### Em `treinar_classificador_locutor`
+
+Substituir forward único por **multi-forward**:
+
+```python
+spk_runs = []
+mem_runs = []
+
+for _ in range(cfg_snn.num_passes):
+    spk_seq, mem = model(spk_in, None)
+    spk_runs.append(spk_seq)
+    mem_runs.append(mem)
+
+spk_out_seq = torch.stack(spk_runs).mean(dim=0)
+mem_trace   = torch.stack(mem_runs).mean(dim=0)
+
+loss = compute_loss(loss_mode, spk_out_seq, mem_trace, yb, cfg_snn)
+```
+
+---
+
+## 📌 Compatibilidade obrigatória
+
+### ✅ Não quebrar inferência
+
+Inferência pode continuar usando **uma passada**, sem custo extra.
+
+### ✅ Default seguro
+
+```
+loss_mode = "rate"
+num_passes = 1
+```
+
+### ✅ GPU-safe
+
+Nada deve mover tensores para CPU.
+
+---
+
+## 📌 Helpers esperados
+
+```python
+aggregate_spikes()
+aggregate_membrane()
+apply_psc_kernel()
+multi_forward_pass()
+```
+
+---
+
+## 📌 Log desejado
+
+```python
+print(f"[INFO] Loss mode = {loss_mode} | num_passes = {num_passes}")
+```
+
+---
+
+## 📦 Saída esperada do Copilot
+
+1. Código modificado completo
+2. Implementação de `compute_loss`
+3. Multi-pass forward integrado
+4. CLI parsing atualizado
+5. Explicação curta do patch
+

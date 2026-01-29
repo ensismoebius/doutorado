@@ -56,6 +56,7 @@ def cmd_demo(args: argparse.Namespace) -> None:
     rede_neural = criar_modelo_snn(
         numero_de_entradas=cfg_extracao.num_bandas,
         numero_de_saidas=cfg_extracao.num_bandas,
+        tamanho_da_camada_escondida=getattr(args, "tamanho_camada_oculta", 100),
         qtde_de_blocos_residuais=cfg_snn.profundidade,
     )
 
@@ -138,6 +139,7 @@ def cmd_treinar(args: argparse.Namespace) -> None:
         epocas=args.epocas,
         taxa_aprendizado=args.lr,
         num_blocos_residuais=cfg_snn.profundidade,
+        tamanho_camada_oculta=getattr(args, "tamanho_camada_oculta", 100),
     )
     salvar_modelo_e_rotulos(
         model,

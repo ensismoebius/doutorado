@@ -31,6 +31,7 @@ def treinar_classificador_locutor(
     taxa_aprendizado: float = 1e-3,
     device: str | None = None,
     num_blocos_residuais: int | None = None,
+    tamanho_camada_oculta: int = 100,
 ) -> tuple[torch.nn.Module, list[str]]:
     """Treina uma SNN simples para classificar janelas por locutor."""
 
@@ -43,67 +44,71 @@ def treinar_classificador_locutor(
 
     num_classes = len(rotulos)
     # Modelo SNN simples (snntorch) com saída = número de pessoas.
-    model = criar_modelo_snn(
+    rede_neural = criar_modelo_snn(
         numero_de_entradas=cfg_extracao.num_bandas,
         numero_de_saidas=num_classes,
+        tamanho_da_camada_escondida=tamanho_camada_oculta,
         qtde_de_blocos_residuais=num_blocos_residuais,
     ).to(device)
-    model.train()
+    rede_neural.train()
 
-    opt = torch.optim.Adam(model.parameters(), lr=taxa_aprendizado)
+    opcoes = torch.optim.Adam(rede_neural.parameters(), lr=taxa_aprendizado)
 
-    # Converte para tensores para treinamento.
-    X_t = torch.tensor(X, dtype=torch.float32, device=device)
-    y_t = torch.tensor(y, dtype=torch.long, device=device)
+    # Converte array para tensores para treinamento.
+    entradas = torch.tensor(X, dtype=torch.float32, device=device)
+    alvos = torch.tensor(y, dtype=torch.long, device=device)
 
     # Treino simples em minibatches (para não estourar memória).
-    batch = 128
-    n = X_t.shape[0]
+
+    batch_size = 32
+    num_samples = entradas.shape[0]
 
     for ep in range(epocas):
         # Embaralha índices por época.
-        perm = torch.randperm(n, device=device)
+        perm = torch.randperm(num_samples, device=device)
         total_loss = 0.0
         correct = 0
 
-        for i0 in range(0, n, batch):
-            idx = perm[i0 : i0 + batch]
-            xb = X_t[idx]
-            yb = y_t[idx]
+        for start_idx in range(0, num_samples, batch_size):
+            indice_do_lote = perm[start_idx : start_idx + batch_size]
+            lote_de_entrada_atual = entradas[indice_do_lote]
+            lote_de_alvo_atual = alvos[indice_do_lote]
 
             # Codifica características contínuas em trens de spikes.
-            spk_in = codificar_poisson(
-                xb,
+            pulsos_de_entrada = codificar_poisson(
+                lote_de_entrada_atual,
                 passos=cfg_snn.passos_por_janela,
                 adaptativo=True,
                 qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
             )
 
             # Conta spikes por neurônio de saída (soma no tempo).
-            spk_out_seq, _ = model(spk_in, None)
-            contagem = spk_out_seq.sum(dim=0)  # [lote, classes]
+            resultado, _ = rede_neural(pulsos_de_entrada, None)
+            quantidade_de_pulsos = resultado.sum(dim=0)  # [lote, classes]
 
             # Perda de classificação sobre contagens de spikes.
-            loss = F.cross_entropy(contagem, yb)
+            loss = F.cross_entropy(quantidade_de_pulsos, lote_de_alvo_atual)
 
-            opt.zero_grad(set_to_none=True)
+            opcoes.zero_grad(set_to_none=True)
             loss.backward()
-            opt.step()
+            opcoes.step()
 
-            total_loss += float(loss.detach().cpu()) * int(xb.shape[0])
-            pred = torch.argmax(contagem, dim=1)
-            correct += int((pred == yb).sum().detach().cpu())
+            total_loss += float(loss.detach().cpu()) * int(
+                lote_de_entrada_atual.shape[0]
+            )
+            pred = torch.argmax(quantidade_de_pulsos, dim=1)
+            correct += int((pred == lote_de_alvo_atual).sum().detach().cpu())
 
-        acc = correct / n
+        acc = correct / num_samples
         print(
-            f"[Treino] Época {ep+1}/{epocas} | loss={total_loss/n:.4f} | acc={acc:.3f}"
+            f"[Treino] Época {ep+1}/{epocas} | loss={total_loss/num_samples:.4f} | acc={acc:.3f}"
         )
 
-    return model, rotulos
+    return rede_neural, rotulos
 
 
 def salvar_modelo_e_rotulos(
-    model: torch.nn.Module,
+    rede_neural: torch.nn.Module,
     rotulos: list[str],
     *,
     caminho_modelo: str,
@@ -111,9 +116,9 @@ def salvar_modelo_e_rotulos(
 ) -> None:
     # Garante diretório e salva pesos + rótulos em JSON.
     os.makedirs(os.path.dirname(caminho_modelo) or ".", exist_ok=True)
-    torch.save(model.state_dict(), caminho_modelo)
+    torch.save(rede_neural.state_dict(), caminho_modelo)
     # Também persiste a profundidade (se disponível) para reconstruir a arquitetura ao recarregar.
-    profundidade = getattr(model, "num_blocos_residuais", None)
+    profundidade = getattr(rede_neural, "num_blocos_residuais", None)
     meta = {"rotulos": rotulos}
     if profundidade is not None:
         meta["profundidade"] = int(profundidade)
@@ -145,20 +150,20 @@ def carregar_modelo_e_rotulos(
     )
 
     # Reconstrói o modelo com a mesma dimensão de saída e profundidade.
-    model = criar_modelo_snn(
+    rede_neural = criar_modelo_snn(
         numero_de_entradas=num_inputs,
         numero_de_saidas=len(rotulos),
         qtde_de_blocos_residuais=profundidade_final,
     ).to(device)
     sd = torch.load(caminho_modelo, map_location=device)
-    model.load_state_dict(sd)
-    model.eval()
-    return model, rotulos
+    rede_neural.load_state_dict(sd)
+    rede_neural.eval()
+    return rede_neural, rotulos
 
 
 @torch.no_grad()
 def identificar_locutor_por_microfone(
-    model: torch.nn.Module,
+    rede_neural: torch.nn.Module,
     rotulos: list[str],
     *,
     cfg_extracao: ConfigExtracao,
@@ -171,7 +176,7 @@ def identificar_locutor_por_microfone(
 
     # Reutiliza o device do modelo se não for informado.
     if device is None:
-        device = next(model.parameters()).device
+        device = next(rede_neural.parameters()).device
 
     # Captura áudio e extrai características por janela.
     audio = capturar_audio(duracao, taxa_amostragem)
@@ -190,7 +195,7 @@ def identificar_locutor_por_microfone(
             adaptativo=True,
             qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
         )
-        spk_out_seq, _ = model(spk_in, None)
+        spk_out_seq, _ = rede_neural(spk_in, None)
         contagem = spk_out_seq.sum(dim=0).squeeze(0)
         # Softmax sobre a contagem de spikes para obter "confiança" relativa.
         probs = F.softmax(contagem, dim=0)
@@ -255,14 +260,3 @@ def identificar_locutor_por_wav(
         float(probs_utt[idx].detach().cpu()),
         probs_utt.detach().cpu().numpy(),
     )
-
-
-__all__ = [
-    "ConfigSNN",
-    "treinar_classificador_locutor",
-    "salvar_modelo_e_rotulos",
-    "carregar_modelo_e_rotulos",
-    "identificar_locutor_por_microfone",
-    "identificar_locutor_por_wav",
-    "aplicar_limiar_desconhecido",
-]

@@ -44,6 +44,12 @@ def construir_cli() -> argparse.ArgumentParser:
         default=None,
         help="Número de blocos residuais na SNN (override)",
     )
+    demo.add_argument(
+        "--tamanho-camada-oculta",
+        type=int,
+        default=100,
+        help="Tamanho da camada oculta (hidden size) da SNN",
+    )
     demo.add_argument("--saida-plot", type=str, default="result_pipeline_wpt_snn.png")
 
     # --- Captura/cadastro ---
@@ -74,6 +80,12 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN",
     )
     tr.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    tr.add_argument(
+        "--tamanho-camada-oculta",
+        type=int,
+        default=100,
+        help="Tamanho da camada oculta (hidden size) da SNN",
+    )
     tr.add_argument("--epocas", type=int, default=5)
     tr.add_argument("--lr", type=float, default=1e-3)
     tr.add_argument("--saida-modelo", type=str, default="modelo_snn_locutor.pt")
@@ -98,6 +110,12 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN (override ao carregar modelo)",
     )
     inf.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    inf.add_argument(
+        "--tamanho-camada-oculta",
+        type=int,
+        default=100,
+        help="Tamanho da camada oculta (hidden size) da SNN",
+    )
 
     # --- Verificação (com desconhecido) ---
     ver = sub.add_parser(
@@ -123,6 +141,12 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN (override ao carregar modelo)",
     )
     ver.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    ver.add_argument(
+        "--tamanho-camada-oculta",
+        type=int,
+        default=100,
+        help="Tamanho da camada oculta (hidden size) da SNN",
+    )
     ver.add_argument(
         "--limiar",
         type=float,
@@ -151,6 +175,12 @@ def construir_cli() -> argparse.ArgumentParser:
         help="Número de blocos residuais na SNN",
     )
     av.add_argument("--alvo-spikes-por-passo", type=float, default=0.10)
+    av.add_argument(
+        "--tamanho-camada-oculta",
+        type=int,
+        default=100,
+        help="Tamanho da camada oculta (hidden size) da SNN",
+    )
     av.add_argument("--verbose", action="store_true")
 
     demo.set_defaults(func=cmd_demo)

@@ -188,6 +188,7 @@ def criar_modelo_snn(
     *,
     numero_de_entradas: int = 100,
     numero_de_saidas: int | None = None,
+    tamanho_da_camada_escondida: int = 100,
     qtde_de_blocos_residuais: int = 3,
 ):
     # Regra de inicialização determinística (reprodutibilidade do demo).
@@ -201,6 +202,7 @@ def criar_modelo_snn(
     return ModeloSNN(
         tamanho_da_entrada=numero_de_entradas,
         quantidade_de_saidas=numero_de_saidas,
+        tamanho_da_camada_escondida=tamanho_da_camada_escondida,
         numero_de_blocos_residuais=int(qtde_de_blocos_residuais),
     )
 
