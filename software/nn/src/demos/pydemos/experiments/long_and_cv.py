@@ -6,6 +6,7 @@ Outputs:
 
 Be careful: this runs full training loops and may take time.
 """
+
 from __future__ import annotations
 
 import csv
@@ -50,7 +51,13 @@ SEED = 42
 os.makedirs("experiments", exist_ok=True)
 
 # preload dataset
-cfg_extr = ConfigExtracao(taxa_amostragem=44100, tamanho_janela=512, tamanho_passo=256, wavelet_base="db4", num_bandas=100)
+cfg_extr = ConfigExtracao(
+    taxa_amostragem=44100,
+    tamanho_janela=512,
+    tamanho_passo=256,
+    wavelet_base="db4",
+    num_bandas=100,
+)
 cfg_snn = ConfigSNN(passos_por_janela=5, alvo_spikes_por_passo=0.1)
 print("Loading dataset...")
 X, y, rotulos = carregar_dataset_janelas(DATA_DIR, cfg=cfg_extr)
@@ -59,7 +66,21 @@ print(f"Loaded {X.shape[0]} samples, {len(rotulos)} classes")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-def train_loop(model, optimizer, X_train, y_train, X_val, y_val, cfg_extr, cfg_snn, epochs, batch_size, loss_mode, num_passes, device=DEVICE):
+def train_loop(
+    model,
+    optimizer,
+    X_train,
+    y_train,
+    X_val,
+    y_val,
+    cfg_extr,
+    cfg_snn,
+    epochs,
+    batch_size,
+    loss_mode,
+    num_passes,
+    device=DEVICE,
+):
     model.to(device)
     model.train()
     n = X_train.shape[0]
@@ -72,7 +93,12 @@ def train_loop(model, optimizer, X_train, y_train, X_val, y_val, cfg_extr, cfg_s
             idx = perm[start : start + batch_size]
             xb = torch.tensor(X_train[idx], dtype=torch.float32, device=device)
             yb = torch.tensor(y_train[idx], dtype=torch.long, device=device)
-            spk_in = codificar_poisson(xb, passos=cfg_snn.passos_por_janela, adaptativo=True, qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo)
+            spk_in = codificar_poisson(
+                xb,
+                passos=cfg_snn.passos_por_janela,
+                adaptativo=True,
+                qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
+            )
 
             spk_runs = []
             mem_runs = []
@@ -86,7 +112,11 @@ def train_loop(model, optimizer, X_train, y_train, X_val, y_val, cfg_extr, cfg_s
                     if isinstance(m_candidate, dict):
                         m = torch.zeros_like(s)
                     else:
-                        m = m_candidate if m_candidate is not None else torch.zeros_like(s)
+                        m = (
+                            m_candidate
+                            if m_candidate is not None
+                            else torch.zeros_like(s)
+                        )
                 else:
                     s = res
                     m = torch.zeros_like(s)
@@ -109,7 +139,9 @@ def train_loop(model, optimizer, X_train, y_train, X_val, y_val, cfg_extr, cfg_s
         train_loss = total_loss / n
         train_acc = correct / n
         val_acc = evaluate(model, X_val, y_val, cfg_extr, cfg_snn, device)
-        print(f"[Train] Ep {ep+1}/{epochs} | loss={train_loss:.4f} | acc={train_acc:.3f} | val_acc={val_acc:.3f}")
+        print(
+            f"[Train] Ep {ep+1}/{epochs} | loss={train_loss:.4f} | acc={train_acc:.3f} | val_acc={val_acc:.3f}"
+        )
         history.append((train_loss, train_acc, val_acc))
     return history
 
@@ -121,9 +153,18 @@ def evaluate(model, X_eval, y_eval, cfg_extr, cfg_snn, device=DEVICE):
     bs = BATCH_SIZE
     with torch.no_grad():
         for start in range(0, n, bs):
-            xb = torch.tensor(X_eval[start : start + bs], dtype=torch.float32, device=device)
-            yb = torch.tensor(y_eval[start : start + bs], dtype=torch.long, device=device)
-            spk_in = codificar_poisson(xb, passos=cfg_snn.passos_por_janela, adaptativo=True, qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo)
+            xb = torch.tensor(
+                X_eval[start : start + bs], dtype=torch.float32, device=device
+            )
+            yb = torch.tensor(
+                y_eval[start : start + bs], dtype=torch.long, device=device
+            )
+            spk_in = codificar_poisson(
+                xb,
+                passos=cfg_snn.passos_por_janela,
+                adaptativo=True,
+                qtde_de_spikes_esperada_por_passo=cfg_snn.alvo_spikes_por_passo,
+            )
             res = model(spk_in, None)
             spk_out_seq = res[0] if isinstance(res, tuple) else res
             counts = spk_out_seq.sum(dim=0)
@@ -145,21 +186,44 @@ val_idx = indices[cut:]
 X_train, y_train = X[train_idx], y[train_idx]
 X_val, y_val = X[val_idx], y[val_idx]
 
-model = criar_modelo_snn(numero_de_entradas=cfg_extr.num_bandas, numero_de_saidas=len(rotulos), tamanho_da_camada_escondida=BEST_CFG['hidden'], qtde_de_blocos_residuais=1).to(DEVICE)
-opt = torch.optim.Adam(model.parameters(), lr=BEST_CFG['lr'])
+model = criar_modelo_snn(
+    numero_de_entradas=cfg_extr.num_bandas,
+    numero_de_saidas=len(rotulos),
+    tamanho_da_camada_escondida=BEST_CFG["hidden"],
+    qtde_de_blocos_residuais=1,
+).to(DEVICE)
+opt = torch.optim.Adam(model.parameters(), lr=BEST_CFG["lr"])
 start = time.time()
-history = train_loop(model, opt, X_train, y_train, X_val, y_val, cfg_extr, cfg_snn, EPOCHS_LONG, BATCH_SIZE, BEST_CFG['loss_mode'], BEST_CFG['num_passes'], device=DEVICE)
+history = train_loop(
+    model,
+    opt,
+    X_train,
+    y_train,
+    X_val,
+    y_val,
+    cfg_extr,
+    cfg_snn,
+    EPOCHS_LONG,
+    BATCH_SIZE,
+    BEST_CFG["loss_mode"],
+    BEST_CFG["num_passes"],
+    device=DEVICE,
+)
 elapsed = time.time() - start
 # write curve
-with open('experiments/long_train_curve.csv','w',newline='',encoding='utf-8') as f:
+with open("experiments/long_train_curve.csv", "w", newline="", encoding="utf-8") as f:
     w = csv.writer(f)
-    w.writerow(['epoch','train_loss','train_acc','val_acc'])
-    for i,(tl,ta,va) in enumerate(history,1):
-        w.writerow([i,tl,ta,va])
-print('Long training finished in',round(elapsed,2),'s -> experiments/long_train_curve.csv')
+    w.writerow(["epoch", "train_loss", "train_acc", "val_acc"])
+    for i, (tl, ta, va) in enumerate(history, 1):
+        w.writerow([i, tl, ta, va])
+print(
+    "Long training finished in",
+    round(elapsed, 2),
+    "s -> experiments/long_train_curve.csv",
+)
 
 # k-fold CV for top candidates
-print('Starting k-fold CV for top candidates')
+print("Starting k-fold CV for top candidates")
 results = []
 K = FOLDS
 n = X.shape[0]
@@ -170,31 +234,73 @@ fold_sizes = [n // K + (1 if i < n % K else 0) for i in range(K)]
 cur = 0
 folds = []
 for fs in fold_sizes:
-    folds.append(indices[cur:cur+fs])
+    folds.append(indices[cur : cur + fs])
     cur += fs
 
 for cand in TOP_CANDIDATES:
     for fi in range(K):
         # build train/val for this fold
         val_idx = folds[fi]
-        train_idx = [i for j,fold in enumerate(folds) if j!=fi for i in fold]
+        train_idx = [i for j, fold in enumerate(folds) if j != fi for i in fold]
         X_tr, y_tr = X[train_idx], y[train_idx]
         X_va, y_va = X[val_idx], y[val_idx]
-        model = criar_modelo_snn(numero_de_entradas=cfg_extr.num_bandas, numero_de_saidas=len(rotulos), tamanho_da_camada_escondida=cand['hidden'], qtde_de_blocos_residuais=1).to(DEVICE)
-        opt = torch.optim.Adam(model.parameters(), lr=cand['lr'])
+        model = criar_modelo_snn(
+            numero_de_entradas=cfg_extr.num_bandas,
+            numero_de_saidas=len(rotulos),
+            tamanho_da_camada_escondida=cand["hidden"],
+            qtde_de_blocos_residuais=1,
+        ).to(DEVICE)
+        opt = torch.optim.Adam(model.parameters(), lr=cand["lr"])
         print(f"CV candidate {cand} fold {fi+1}/{K}")
         start = time.time()
-        history = train_loop(model, opt, X_tr, y_tr, X_va, y_va, cfg_extr, cfg_snn, EPOCHS_CV, BATCH_SIZE, cand['loss_mode'], cand['num_passes'], device=DEVICE)
+        history = train_loop(
+            model,
+            opt,
+            X_tr,
+            y_tr,
+            X_va,
+            y_va,
+            cfg_extr,
+            cfg_snn,
+            EPOCHS_CV,
+            BATCH_SIZE,
+            cand["loss_mode"],
+            cand["num_passes"],
+            device=DEVICE,
+        )
         elapsed = time.time() - start
         tr_loss, tr_acc, val_acc = history[-1]
-        results.append({
-            'lr': cand['lr'], 'hidden': cand['hidden'], 'loss_mode': cand['loss_mode'], 'num_passes': cand['num_passes'], 'fold': fi+1, 'train_loss': tr_loss, 'train_acc': tr_acc, 'val_acc': val_acc, 'time_s': round(elapsed,2)
-        })
+        results.append(
+            {
+                "lr": cand["lr"],
+                "hidden": cand["hidden"],
+                "loss_mode": cand["loss_mode"],
+                "num_passes": cand["num_passes"],
+                "fold": fi + 1,
+                "train_loss": tr_loss,
+                "train_acc": tr_acc,
+                "val_acc": val_acc,
+                "time_s": round(elapsed, 2),
+            }
+        )
         # flush intermediate results
-        with open('experiments/cv_results.csv','w',newline='',encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=['lr','hidden','loss_mode','num_passes','fold','train_loss','train_acc','val_acc','time_s'])
+        with open("experiments/cv_results.csv", "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "lr",
+                    "hidden",
+                    "loss_mode",
+                    "num_passes",
+                    "fold",
+                    "train_loss",
+                    "train_acc",
+                    "val_acc",
+                    "time_s",
+                ],
+            )
             writer.writeheader()
             for r in results:
                 writer.writerow(r)
 
-print('CV finished. Results in experiments/cv_results.csv')
+print("CV finished. Results in experiments/cv_results.csv")
