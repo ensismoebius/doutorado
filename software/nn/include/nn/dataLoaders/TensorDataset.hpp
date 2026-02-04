@@ -24,6 +24,10 @@
 
 class TensorDataset : public Dataset
 {
+   private:
+    nn::Tensor inputs_;
+    nn::Tensor targets_;
+
    public:
     TensorDataset() = default;
     TensorDataset(nn::Tensor inputs, nn::Tensor targets)
@@ -63,10 +67,6 @@ class TensorDataset : public Dataset
     {
         return static_cast<std::size_t>(inputs_.get_shape()[0]);
     }
-
-   private:
-    nn::Tensor inputs_;
-    nn::Tensor targets_;
 
    protected:
     void set_tensors(nn::Tensor inputs, nn::Tensor targets)

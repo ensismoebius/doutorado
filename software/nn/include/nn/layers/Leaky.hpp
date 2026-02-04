@@ -57,13 +57,6 @@
 struct Leaky : public Module
 {
    public:
-    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
-    {
-        // Parameters are stored as 1x1 tensors so optimizers can treat them like
-        // any other trainable parameter.
-        return {&resistance, &voltage_threshold};
-    }
-
     // --- Parameters for LIF neuron dynamics ---
 
     /// @brief The simulation time step (dt).
@@ -97,6 +90,13 @@ struct Leaky : public Module
 
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
+
+    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
+    {
+        // Parameters are stored as 1x1 tensors so optimizers can treat them like
+        // any other trainable parameter.
+        return {&resistance, &voltage_threshold};
+    }
 
     /**
      * @brief Construct a new Leaky object

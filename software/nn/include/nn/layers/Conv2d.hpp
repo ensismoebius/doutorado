@@ -8,9 +8,9 @@
 
 // Branch prediction hints: use compiler built-ins when available
 
-#include "nn/tensor/Tensor.hpp"
 #include "nn/layers/Conv2d_utils.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file Conv2d.hpp
@@ -31,6 +31,31 @@
 
 class Conv2d : public Module
 {
+   private:
+    // ============ Layer Parameters ============
+    int in_channels_;
+    int out_channels_;
+    int kernel_size_;
+    int stride_;
+    int padding_;
+    int dilation_;
+    int max_batch_size_;
+    bool use_parallel_;
+
+    nn::Tensor weights_;
+    nn::Tensor bias_;
+    nn::Tensor input_cache_;
+
+    // ============ Pre-allocated Buffers ============
+    std::unique_ptr<nn::Tensor> im2col_buffer_;
+    std::unique_ptr<nn::Tensor> col2im_buffer_;
+    std::unique_ptr<nn::Tensor> grad_output_buffer_;
+
+    // ============ Index Caching ============
+    mutable Conv2dImpl::IndexCache index_cache_;
+    mutable bool indices_computed_ = false;
+    mutable std::mutex cache_mutex_;
+
    public:
     /**
      * @brief Constructor for Conv2d layer (legacy API for backward compatibility)
@@ -118,30 +143,6 @@ class Conv2d : public Module
     void set_parallel_enabled(bool enabled);
 
    private:
-    // ============ Layer Parameters ============
-    int in_channels_;
-    int out_channels_;
-    int kernel_size_;
-    int stride_;
-    int padding_;
-    int dilation_;
-    int max_batch_size_;
-    bool use_parallel_;
-
-    nn::Tensor weights_;
-    nn::Tensor bias_;
-    nn::Tensor input_cache_;
-
-    // ============ Pre-allocated Buffers ============
-    std::unique_ptr<nn::Tensor> im2col_buffer_;
-    std::unique_ptr<nn::Tensor> col2im_buffer_;
-    std::unique_ptr<nn::Tensor> grad_output_buffer_;
-
-    // ============ Index Caching ============
-    mutable Conv2dImpl::IndexCache index_cache_;
-    mutable bool indices_computed_ = false;
-    mutable std::mutex cache_mutex_;
-
     // ============ Private Helper Methods ============
 
     /**

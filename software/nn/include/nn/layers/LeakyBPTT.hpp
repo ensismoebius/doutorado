@@ -45,13 +45,6 @@
 struct LeakyBPTT : public Module
 {
    public:
-    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
-    {
-        // These are the trainable scalars exposed to optimizers.
-        // Note: dt and capacitance are plain floats (not optimized here).
-        return {&resistance, &voltage_threshold};
-    }
-
     /// @brief The simulation time step (dt).
     float dt = 1.0F;
 
@@ -78,6 +71,13 @@ struct LeakyBPTT : public Module
     float reset_potential = 0.0F;
 
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
+
+    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
+    {
+        // These are the trainable scalars exposed to optimizers.
+        // Note: dt and capacitance are plain floats (not optimized here).
+        return {&resistance, &voltage_threshold};
+    }
 
     explicit LeakyBPTT(int time_steps_, float dt_ = 1.0F, float R_ = 1.0F, float C_ = 1.0F,
                        float V_thresh_ = 1.0F, bool reset_zero_ = true,
