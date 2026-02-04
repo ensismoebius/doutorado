@@ -12,7 +12,7 @@ add_executable(plotSpikingNetwork
     ${CMAKE_SOURCE_DIR}/include/nn/layers/Leaky.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/layers/ReLU.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/layers/LeakyReLU.hpp
-    ${SRC_DIR}/core/utility/imguiGlfw.cpp
+    ${SRC_DIR}/core/utility/imgui_glfw.cpp
     ${SRC_DIR}/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp
 )
 

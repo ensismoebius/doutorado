@@ -20,6 +20,7 @@ T arg_to(argparse::ArgumentParser& p, const std::string& name)
     catch (const std::bad_any_cast&)
     {
         std::string s = p.get<std::string>(name);
+
         if constexpr (std::is_same_v<T, double>)
             return std::stod(s);
         else if constexpr (std::is_same_v<T, int>)
@@ -186,13 +187,13 @@ int main(int argc, char** argv)
 {
     try
     {
-        auto pointerOwner = construir_cli();
+        auto pointerToClient = construir_cli();
 
         // parse_args uses references into the subparsers owned by `pointerOwner`,
         // so `pointerOwner` must remain alive until parse_args returns.
         try
         {
-            pointerOwner->parser->parse_args(argc, argv);
+            pointerToClient->parser->parse_args(argc, argv);
         }
         catch (const std::exception& err)
         {
@@ -200,7 +201,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        auto& program = *pointerOwner->parser;
+        auto& program = *pointerToClient->parser;
 
         if (program.is_subcommand_used("demo"))
         {
