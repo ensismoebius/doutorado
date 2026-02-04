@@ -128,10 +128,10 @@ nn/
 
 > **Rule:** Any public change requires updating this document + CHANGELOG + semantic versioning.
 
-## 3.1 Tensor (src/nn/tensor/Tensor.hpp + ITensorBackend/EigenTensorBackend)
+## 3.1 Tensor (src/nn/tensor/Tensor.hpp + EigenTensorBackend)
 
-- Backend-driven design: `Tensor` owns a `std::unique_ptr<ITensorBackend>`; the default backend is provided by `TensorBackendFactory::create_backend()` (EigenTensorBackend with Eigen::MatrixXf storage). `Index` is an alias for `size_t`.
-- Constructors: default, from backend, from `Eigen::MatrixXf` (copy/move), from shape `(rows, cols)`, `(d1, d2, d3, d4)`, or `std::vector<Index>` shape. Copying clones the backend; moves are defaulted.
+- Templated design: `Tensor` is a typedef for `TensorImpl<EigenTensorBackend>`. It uses compile-time polymorphism (templates) for performance, owning its backend (e.g., `EigenTensorBackend` holding `Eigen::MatrixXf`) by value. `Index` is an alias for `size_t`.
+- Constructors: default, from backend (move), from `Eigen::MatrixXf` (copy/move), from shape `(rows, cols)`, `(d1, d2, d3, d4)`, or `std::vector<Index>` shape. Copying copies the backend (deep copy behavior depends on backend); moves are defaulted.
 - Data/grad access: `get_data_ref()` / `get_grad_ref()` return Eigen matrices (throw if backend is not Eigen-based); `set_data`, `set_grad` (copy/move) write into the backend. Gradients are lazily allocated/zeroed inside `EigenTensorBackend` when first accessed.
 - Shape/size: `get_shape()`, `rows()`, `cols()`, `size()` reflect backend shape. No generic `reshape`; use constructors for the intended shape.
 - Ops: element access `at(...)` for 2D/4D/N-D, views `row/col/leftCols/topRows`, `block`/`setBlock`, elementwise `add`/`multiply` (+ scalar variants), `matmul`, `transpose`, activations `relu`/`leaky_relu`, losses `mean_squared_error`/`norm`, `slice(std::span<const int>)`, `zero_grad()`. `toVector` template currently returns an empty vector placeholder.

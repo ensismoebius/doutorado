@@ -184,91 +184,100 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
 
 int main(int argc, char** argv)
 {
-    auto pointerOwner = construir_cli();
-
     try
     {
+        auto pointerOwner = construir_cli();
+
         // parse_args uses references into the subparsers owned by `pointerOwner`,
         // so `pointerOwner` must remain alive until parse_args returns.
-        pointerOwner->parser->parse_args(argc, argv);
-    }
-    catch (const std::exception& err)
-    {
-        std::cerr << err.what() << std::endl;
-        return 1;
-    }
-
-    auto& program = *pointerOwner->parser;
-
-    if (program.is_subcommand_used("demo"))
-    {
-        auto& demo_parser = program.at<ArgumentParser>("demo");
-        double dur = arg_to<double>(demo_parser, "--duracao");
-        int taxa = arg_to<int>(demo_parser, "--taxa-amostragem");
-        int win = arg_to<int>(demo_parser, "--tamanho-janela");
-        int hop = arg_to<int>(demo_parser, "--tamanho-passo");
-        std::string wavelet = arg_to<std::string>(demo_parser, "--wavelet");
-        int num_bandas = arg_to<int>(demo_parser, "--num-bandas");
-        int passos = arg_to<int>(demo_parser, "--passos-por-janela");
-        int profundidade = arg_to<int>(demo_parser, "--profundidade");
-        std::string saida = arg_to<std::string>(demo_parser, "--saida-plot");
         try
         {
-            demo::cmd_demo(dur, taxa, win, hop, wavelet, num_bandas, passos, profundidade, saida);
+            pointerOwner->parser->parse_args(argc, argv);
+        }
+        catch (const std::exception& err)
+        {
+            std::cerr << err.what() << std::endl;
+            return 1;
+        }
+
+        auto& program = *pointerOwner->parser;
+
+        if (program.is_subcommand_used("demo"))
+        {
+            auto& demo_parser = program.at<ArgumentParser>("demo");
+            double dur = arg_to<double>(demo_parser, "--duracao");
+            int taxa = arg_to<int>(demo_parser, "--taxa-amostragem");
+            int win = arg_to<int>(demo_parser, "--tamanho-janela");
+            int hop = arg_to<int>(demo_parser, "--tamanho-passo");
+            std::string wavelet = arg_to<std::string>(demo_parser, "--wavelet");
+            int num_bandas = arg_to<int>(demo_parser, "--num-bandas");
+            int passos = arg_to<int>(demo_parser, "--passos-por-janela");
+            int profundidade = arg_to<int>(demo_parser, "--profundidade");
+            std::string saida = arg_to<std::string>(demo_parser, "--saida-plot");
+            try
+            {
+                demo::cmd_demo(
+                    dur, taxa, win, hop, wavelet, num_bandas, passos, profundidade, saida);
+                return 0;
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "demo failed: " << e.what() << std::endl;
+                return 2;
+            }
+        }
+
+        if (program.is_subcommand_used("capturar"))
+        {
+            std::string pessoa = arg_to<string>(program.at<ArgumentParser>("capturar"), "--pessoa");
+            std::string dir =
+                arg_to<string>(program.at<ArgumentParser>("capturar"), "--diretorio-dados");
+            double dur = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
+            std::cout << "capturar: pessoa=" << pessoa << " dir=" << dir << " duracao=" << dur
+                      << std::endl;
             return 0;
         }
-        catch (const std::exception& e)
+
+        if (program.is_subcommand_used("treinar"))
         {
-            std::cerr << "demo failed: " << e.what() << std::endl;
-            return 2;
+            auto& treinar_parser = program.at<ArgumentParser>("treinar");
+            std::string dir = arg_to<std::string>(treinar_parser, "--diretorio-dados");
+            int epocas = static_cast<int>(arg_to<int>(treinar_parser, "--epocas"));
+            std::cout << "treinar: dados=" << dir << " epocas=" << epocas << std::endl;
+            return 0;
         }
-    }
 
-    if (program.is_subcommand_used("capturar"))
-    {
-        std::string pessoa = arg_to<string>(program.at<ArgumentParser>("capturar"), "--pessoa");
-        std::string dir =
-            arg_to<string>(program.at<ArgumentParser>("capturar"), "--diretorio-dados");
-        double dur = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
-        std::cout << "capturar: pessoa=" << pessoa << " dir=" << dir << " duracao=" << dur
-                  << std::endl;
+        if (program.is_subcommand_used("identificar"))
+        {
+            auto& identificar_parser = program.at<ArgumentParser>("identificar");
+            std::string model = arg_to<std::string>(identificar_parser, "--modelo");
+            std::cout << "identificar: modelo=" << model << std::endl;
+            return 0;
+        }
+
+        if (program.is_subcommand_used("verificar"))
+        {
+            auto& verificar_parser = program.at<ArgumentParser>("verificar");
+            std::string model = arg_to<std::string>(verificar_parser, "--modelo");
+            double limiar = arg_to<double>(verificar_parser, "--limiar");
+            std::cout << "verificar: modelo=" << model << " limiar=" << limiar << std::endl;
+            return 0;
+        }
+
+        if (program.is_subcommand_used("avaliar"))
+        {
+            auto& avaliar_parser = program.at<ArgumentParser>("avaliar");
+            bool verb = arg_to<bool>(avaliar_parser, "--verbose");
+            std::cout << "avaliar: verbose=" << (verb ? "true" : "false") << std::endl;
+            return 0;
+        }
+
+        std::cout << program;
         return 0;
     }
-
-    if (program.is_subcommand_used("treinar"))
+    catch (const std::exception& e)
     {
-        auto& treinar_parser = program.at<ArgumentParser>("treinar");
-        std::string dir = arg_to<std::string>(treinar_parser, "--diretorio-dados");
-        int epocas = static_cast<int>(arg_to<int>(treinar_parser, "--epocas"));
-        std::cout << "treinar: dados=" << dir << " epocas=" << epocas << std::endl;
-        return 0;
+        std::cerr << "Unhandled exception: " << e.what() << std::endl;
+        return 1;
     }
-
-    if (program.is_subcommand_used("identificar"))
-    {
-        auto& identificar_parser = program.at<ArgumentParser>("identificar");
-        std::string model = arg_to<std::string>(identificar_parser, "--modelo");
-        std::cout << "identificar: modelo=" << model << std::endl;
-        return 0;
-    }
-
-    if (program.is_subcommand_used("verificar"))
-    {
-        auto& verificar_parser = program.at<ArgumentParser>("verificar");
-        std::string model = arg_to<std::string>(verificar_parser, "--modelo");
-        double limiar = arg_to<double>(verificar_parser, "--limiar");
-        std::cout << "verificar: modelo=" << model << " limiar=" << limiar << std::endl;
-        return 0;
-    }
-
-    if (program.is_subcommand_used("avaliar"))
-    {
-        auto& avaliar_parser = program.at<ArgumentParser>("avaliar");
-        bool verb = arg_to<bool>(avaliar_parser, "--verbose");
-        std::cout << "avaliar: verbose=" << (verb ? "true" : "false") << std::endl;
-        return 0;
-    }
-
-    std::cerr << "No command provided. Use --help." << std::endl;
-    return 1;
 }

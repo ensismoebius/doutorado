@@ -74,7 +74,7 @@ struct ResidualSNNBlock : public Module
    public:
     Sequential model;
 
-    ResidualSNNBlock(const ModelConfig& cfg)
+    explicit ResidualSNNBlock(const ModelConfig& cfg)
     {
         model = Sequential({
             lin(cfg.tamanho_oculto, cfg.tamanho_oculto),
@@ -112,7 +112,7 @@ struct ModeloSNN : public Module
    public:
     Sequential model;
 
-    ModeloSNN(const ModelConfig& cfg)
+    explicit ModeloSNN(const ModelConfig& cfg)
     {
         model = Sequential({
             lin(cfg.num_entradas, cfg.tamanho_oculto),

@@ -37,6 +37,8 @@
 
 using namespace std;
 
+namespace
+{
 // Configuration holding all hyperparameters
 struct ModelConfig
 {
@@ -54,6 +56,7 @@ struct ModelConfig
     int epochs = 4000;
     int batch_size = 32;
 };
+} // namespace
 
 // =============================================================================
 // SNN Encoder-Decoder Model (PyTorch/snntorch style)
@@ -64,7 +67,7 @@ class SpikeAutoEncoder : public Module
     Sequential encoder;
     Sequential decoder;
 
-    SpikeAutoEncoder(const ModelConfig& cfg)
+    explicit SpikeAutoEncoder(const ModelConfig& cfg)
     {
         // --- Helper to create layers succinctly ---
         auto lin = [](int in, int out) -> std::shared_ptr<Module>
