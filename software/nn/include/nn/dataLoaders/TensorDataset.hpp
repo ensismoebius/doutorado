@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_DATALOADERS_TENSORDATASET_HPP
+#define NN_DATALOADERS_TENSORDATASET_HPP
 
 #include <algorithm>
 #include <iterator>
@@ -75,3 +76,5 @@ class TensorDataset : public Dataset
         targets_ = std::move(targets);
     }
 };
+
+#endif // NN_DATALOADERS_TENSORDATASET_HPP

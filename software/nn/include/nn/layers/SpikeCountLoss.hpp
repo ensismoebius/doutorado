@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_SPIKECOUNTLOSS_HPP
+#define NN_LAYERS_SPIKECOUNTLOSS_HPP
 
 #include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -28,30 +29,30 @@
 class SpikeCountLoss : public Module
 {
    private:
-    nn::Tensor target;
-    nn::Tensor last_input;
-    bool training = true;
+    nn::Tensor target_;
+    nn::Tensor last_input_;
+    bool training_ = true;
 
    public:
     SpikeCountLoss() = default;
 
     void train(bool on) override
     {
-        training = on;
+        training_ = on;
     }
 
     void set_target(const nn::Tensor& t)
     {
-        target = t;
+        target_ = t;
     }
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
-        if (training && requires_grad)
+        if (training_ && requires_grad)
         {
-            last_input = input;
+            last_input_ = input;
         }
         // pred and target: (n_samples, 1)
-        auto diff = last_input.add(target.multiply_scalar(-1.0F));
+        auto diff = last_input_.add(target_.multiply_scalar(-1.0F));
         float sum_sq = 0.0f;
         for (size_t i = 0; i < diff.rows(); ++i)
         {
@@ -69,8 +70,10 @@ class SpikeCountLoss : public Module
     auto backward(const nn::Tensor& /*grad_output*/) -> nn::Tensor override
     {
         // Gradient: 2 * (prediction - target) / N
-        auto grad_data = last_input.add(target.multiply_scalar(-1.0f));
-        grad_data = grad_data.multiply_scalar(2.0f / static_cast<float>(last_input.size()));
+        auto grad_data = last_input_.add(target_.multiply_scalar(-1.0f));
+        grad_data = grad_data.multiply_scalar(2.0f / static_cast<float>(last_input_.size()));
         return nn::Tensor(grad_data);
     }
 };
+
+#endif // NN_LAYERS_SPIKECOUNTLOSS_HPP

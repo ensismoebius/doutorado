@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_SAVER_NETWORKSERIALIZER_HPP
+#define NN_SAVER_NETWORKSERIALIZER_HPP
 
 #include <cnpy.h>
 
@@ -188,8 +189,8 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer, size_t
                                           string& arch_str,
                                           map<string, pair<vector<size_t>, const float*>>& params)
 {
-    arch_str += "Leaky:" + to_string(layer->dt) + ":" + to_string(layer->resistance.at(0, 0)) +
-                ":" + to_string(layer->capacitance) + ":" +
+    arch_str += "Leaky:" + to_string(layer->time_step) + ":" +
+                to_string(layer->resistance.at(0, 0)) + ":" + to_string(layer->capacitance) + ":" +
                 to_string(layer->voltage_threshold.at(0, 0)) + ":" +
                 (layer->reset_zero ? "1" : "0") + ":" + to_string(layer->reset_potential) + "\n";
     params[to_string(index) + ".resistance"] = {
@@ -386,3 +387,5 @@ inline void NetworkSerializer::_loadLeakyParams(const std::shared_ptr<Leaky>& la
         }
     }
 }
+
+#endif // NN_SAVER_NETWORKSERIALIZER_HPP

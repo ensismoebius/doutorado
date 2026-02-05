@@ -66,16 +66,16 @@ class TensorImpl
     TensorImpl() = default;
 
     /// Construct from explicit backend instance (Moved).
-    TensorImpl(Backend backend) : m_backend(std::move(backend)) {}
+    TensorImpl(Backend backend) : backend_(std::move(backend)) {}
 
     /// Construct a 2-D tensor.
-    TensorImpl(Index rows, Index cols) : m_backend(rows, cols) {}
+    TensorImpl(Index rows, Index cols) : backend_(rows, cols) {}
 
     /// Construct a 4-D tensor.
-    TensorImpl(Index dim1, Index d2, Index d3, Index d4) : m_backend(dim1, d2, d3, d4) {}
+    TensorImpl(Index dim1, Index d2, Index d3, Index d4) : backend_(dim1, d2, d3, d4) {}
 
     /// Construct from shape vector.
-    TensorImpl(const std::vector<Index>& shape) : m_backend(shape) {}
+    TensorImpl(const std::vector<Index>& shape) : backend_(shape) {}
 
     /// Create a tensor filled with `value`.
     static auto constant(Index rows, Index cols, float value) -> TensorImpl
@@ -121,23 +121,23 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto get_shape() const -> const std::vector<Index>&
     {
-        return m_backend.shape();
+        return backend_.shape();
     }
     void reshape(const std::vector<Index>& new_shape)
     {
-        m_backend.reshape(new_shape);
+        backend_.reshape(new_shape);
     }
     [[nodiscard]] auto rows() const noexcept -> Index
     {
-        return m_backend.rows();
+        return backend_.rows();
     }
     [[nodiscard]] auto cols() const noexcept -> Index
     {
-        return m_backend.cols();
+        return backend_.cols();
     }
     [[nodiscard]] auto size() const noexcept -> Index
     {
-        return m_backend.size();
+        return backend_.size();
     }
 
     // Shape caveat:
@@ -150,38 +150,38 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto at(Index i) -> float&
     {
-        return m_backend.at(i);
+        return backend_.at(i);
     }
     [[nodiscard]] auto at(Index i) const -> const float&
     {
-        return m_backend.at(i);
+        return backend_.at(i);
     }
 
     auto at(Index row, Index col) -> float&
     {
-        return m_backend.at(row, col);
+        return backend_.at(row, col);
     }
     [[nodiscard]] auto at(Index row, Index col) const -> const float&
     {
-        return m_backend.at(row, col);
+        return backend_.at(row, col);
     }
 
     auto at(Index d1, Index d2, Index d3, Index d4) -> float&
     {
-        return m_backend.at(d1, d2, d3, d4);
+        return backend_.at(d1, d2, d3, d4);
     }
     [[nodiscard]] auto at(Index d1, Index d2, Index d3, Index d4) const -> const float&
     {
-        return m_backend.at(d1, d2, d3, d4);
+        return backend_.at(d1, d2, d3, d4);
     }
 
     auto at(const std::vector<Index>& indices) -> float&
     {
-        return m_backend.at(indices);
+        return backend_.at(indices);
     }
     [[nodiscard]] auto at(const std::vector<Index>& indices) const -> const float&
     {
-        return m_backend.at(indices);
+        return backend_.at(indices);
     }
 
     // -----------------------------------------------------------------
@@ -189,34 +189,34 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto row(Index i) const -> TensorImpl
     {
-        return TensorImpl(m_backend.row(i));
+        return TensorImpl(backend_.row(i));
     }
     auto col(Index j) const -> TensorImpl
     {
-        return TensorImpl(m_backend.col(j));
+        return TensorImpl(backend_.col(j));
     }
     auto leftCols(Index n) const -> TensorImpl
     {
-        return TensorImpl(m_backend.leftCols(n));
+        return TensorImpl(backend_.leftCols(n));
     }
     auto topRows(Index n) const -> TensorImpl
     {
-        return TensorImpl(m_backend.topRows(n));
+        return TensorImpl(backend_.topRows(n));
     }
 
     auto block(Index row, Index col, Index rows, Index cols) const -> TensorImpl
     {
-        return TensorImpl(m_backend.block(row, col, rows, cols));
+        return TensorImpl(backend_.block(row, col, rows, cols));
     }
 
     void setBlock(Index row, Index col, const TensorImpl& block)
     {
-        m_backend.setBlock(row, col, block.m_backend);
+        backend_.setBlock(row, col, block.backend_);
     }
 
     [[nodiscard]] auto slice(std::span<const int> indices) const -> TensorImpl
     {
-        return TensorImpl(m_backend.slice(indices));
+        return TensorImpl(backend_.slice(indices));
     }
 
     // -----------------------------------------------------------------
@@ -224,42 +224,42 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto add(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.add(other.m_backend));
+        return TensorImpl(backend_.add(other.backend_));
     }
 
     auto multiply(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.multiply(other.m_backend));
+        return TensorImpl(backend_.multiply(other.backend_));
     }
 
     auto add_scalar(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.add_scalar(scalar));
+        return TensorImpl(backend_.add_scalar(scalar));
     }
 
     auto multiply_scalar(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.multiply_scalar(scalar));
+        return TensorImpl(backend_.multiply_scalar(scalar));
     }
 
     auto matmul(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.matmul(other.m_backend));
+        return TensorImpl(backend_.matmul(other.backend_));
     }
 
     auto transpose() const -> TensorImpl
     {
-        return TensorImpl(m_backend.transpose());
+        return TensorImpl(backend_.transpose());
     }
 
     auto relu() const -> TensorImpl
     {
-        return TensorImpl(m_backend.relu());
+        return TensorImpl(backend_.relu());
     }
 
     auto leaky_relu(float alpha = 0.01f) const -> TensorImpl
     {
-        return TensorImpl(m_backend.leaky_relu(alpha));
+        return TensorImpl(backend_.leaky_relu(alpha));
     }
 
     // -----------------------------------------------------------------
@@ -267,36 +267,36 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto mean_squared_error(const TensorImpl& target) const -> float
     {
-        return m_backend.mean_squared_error(target.m_backend);
+        return backend_.mean_squared_error(target.backend_);
     }
     /**
      * Mean of all elements in the tensor. Delegates to the backend.
      */
     auto mean() const -> float
     {
-        return m_backend.mean();
+        return backend_.mean();
     }
     auto norm() const -> float
     {
-        return m_backend.norm();
+        return backend_.norm();
     }
     auto sum() const -> float
     {
-        return m_backend.sum();
+        return backend_.sum();
     }
 
     auto sum_rows() const -> TensorImpl
     {
-        return TensorImpl(m_backend.sum_rows());
+        return TensorImpl(backend_.sum_rows());
     }
     auto sum_cols() const -> TensorImpl
     {
-        return TensorImpl(m_backend.sum_cols());
+        return TensorImpl(backend_.sum_cols());
     }
 
     auto hasNaN() const -> bool
     {
-        return m_backend.hasNaN();
+        return backend_.hasNaN();
     }
 
     // -----------------------------------------------------------------
@@ -304,15 +304,15 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto sqrt() const -> TensorImpl
     {
-        return TensorImpl(m_backend.sqrt());
+        return TensorImpl(backend_.sqrt());
     }
     auto square() const -> TensorImpl
     {
-        return TensorImpl(m_backend.square());
+        return TensorImpl(backend_.square());
     }
     auto abs() const -> TensorImpl
     {
-        return TensorImpl(m_backend.abs());
+        return TensorImpl(backend_.abs());
     }
 
     /**
@@ -321,7 +321,7 @@ class TensorImpl
      */
     auto clamp(float min_val, float max_val) const -> TensorImpl
     {
-        return TensorImpl(m_backend.clamp(min_val, max_val));
+        return TensorImpl(backend_.clamp(min_val, max_val));
     }
 
     /**
@@ -329,17 +329,17 @@ class TensorImpl
      */
     void clamp_inplace(float min_val, float max_val)
     {
-        m_backend.clamp_inplace(min_val, max_val);
+        backend_.clamp_inplace(min_val, max_val);
     }
 
     auto divide(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.divide(other.m_backend));
+        return TensorImpl(backend_.divide(other.backend_));
     }
 
     auto divide_scalar(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.divide_scalar(scalar));
+        return TensorImpl(backend_.divide_scalar(scalar));
     }
 
     // -----------------------------------------------------------------
@@ -347,15 +347,15 @@ class TensorImpl
     // -----------------------------------------------------------------
     void fill(float value)
     {
-        m_backend.fill(value);
+        backend_.fill(value);
     }
     void set_zero()
     {
-        m_backend.set_zero();
+        backend_.set_zero();
     }
     void set_ones()
     {
-        m_backend.set_ones();
+        backend_.set_ones();
     }
     void setZero()
     {
@@ -399,11 +399,11 @@ class TensorImpl
 
     const float* data_ptr() const
     {
-        return m_backend.data_ptr();
+        return backend_.data_ptr();
     }
     float* mutable_data_ptr()
     {
-        return m_backend.mutable_data_ptr();
+        return backend_.mutable_data_ptr();
     }
 
     // -----------------------------------------------------------------
@@ -411,24 +411,24 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto grad() const -> TensorImpl
     {
-        return TensorImpl(m_backend.get_grad());
+        return TensorImpl(backend_.get_grad());
     }
     // Mutable grad version?
     auto grad() -> TensorImpl
     {
         // Returns a copy.
         // If you need to mutate gradients, use set_grad()/zero_grad().
-        return TensorImpl(m_backend.get_grad());
+        return TensorImpl(backend_.get_grad());
     }
 
     void set_grad(const TensorImpl& new_grad)
     {
-        m_backend.set_grad(new_grad.m_backend);
+        backend_.set_grad(new_grad.backend_);
     }
 
     void zero_grad()
     {
-        m_backend.zero_grad();
+        backend_.zero_grad();
     }
 
     // -----------------------------------------------------------------
@@ -440,7 +440,7 @@ class TensorImpl
     }
     auto operator-(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.subtract(other.m_backend));
+        return TensorImpl(backend_.subtract(other.backend_));
     }
 
     auto operator*(const TensorImpl& other) const -> TensorImpl
@@ -467,7 +467,7 @@ class TensorImpl
 
     auto operator==(const TensorImpl& other) const -> bool
     {
-        return m_backend == other.m_backend;
+        return backend_ == other.backend_;
     }
     auto operator!=(const TensorImpl& other) const -> bool
     {
@@ -477,51 +477,51 @@ class TensorImpl
     // Elementwise comparisons returning tensors of 0.0/1.0 floats.
     auto operator<(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_lt(other.m_backend));
+        return TensorImpl(backend_.compare_lt(other.backend_));
     }
 
     auto operator>(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_gt(other.m_backend));
+        return TensorImpl(backend_.compare_gt(other.backend_));
     }
 
     auto operator<=(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_le(other.m_backend));
+        return TensorImpl(backend_.compare_le(other.backend_));
     }
 
     auto operator>=(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_ge(other.m_backend));
+        return TensorImpl(backend_.compare_ge(other.backend_));
     }
 
     // Elementwise equality returning 0/1 tensor (not to be confused with overall equality)
     auto equal(const TensorImpl& other) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_eq(other.m_backend));
+        return TensorImpl(backend_.compare_eq(other.backend_));
     }
 
     // Scalar comparisons
     auto operator<(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_lt_scalar(scalar));
+        return TensorImpl(backend_.compare_lt_scalar(scalar));
     }
     auto operator>(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_gt_scalar(scalar));
+        return TensorImpl(backend_.compare_gt_scalar(scalar));
     }
     auto operator<=(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_le_scalar(scalar));
+        return TensorImpl(backend_.compare_le_scalar(scalar));
     }
     auto operator>=(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_ge_scalar(scalar));
+        return TensorImpl(backend_.compare_ge_scalar(scalar));
     }
 
     auto equal(float scalar) const -> TensorImpl
     {
-        return TensorImpl(m_backend.compare_eq_scalar(scalar));
+        return TensorImpl(backend_.compare_eq_scalar(scalar));
     }
 
     template <typename vector_type>
@@ -539,15 +539,15 @@ class TensorImpl
     /// Direct access to backend
     auto get_backend() const -> const Backend&
     {
-        return m_backend;
+        return backend_;
     }
     auto get_backend() -> Backend&
     {
-        return m_backend;
+        return backend_;
     }
 
    private:
-    Backend m_backend;
+    Backend backend_;
 };
 
 // Default type alias

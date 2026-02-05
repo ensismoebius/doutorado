@@ -6,7 +6,8 @@
  * it is non-deterministic unless you refactor to pass a seeded generator.
  */
 
-#pragma once
+#ifndef NN_INITIALIZERS_KAIMING_SNN_HPP
+#define NN_INITIALIZERS_KAIMING_SNN_HPP
 #include <cmath>
 #include <memory>
 #include <optional>
@@ -59,3 +60,5 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer,
         layer->bias.at(i, 0) = 0.0F;
     }
 }
+
+#endif // NN_INITIALIZERS_KAIMING_SNN_HPP

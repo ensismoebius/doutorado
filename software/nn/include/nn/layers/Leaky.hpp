@@ -59,8 +59,8 @@ struct Leaky : public Module
    public:
     // --- Parameters for LIF neuron dynamics ---
 
-    /// @brief The simulation time step (dt).
-    float dt = 1.0F;
+    /// @brief The simulation time step (time_step).
+    float time_step = 1.0F;
 
     /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
     nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
@@ -101,28 +101,28 @@ struct Leaky : public Module
     /**
      * @brief Construct a new Leaky object
      *
-     * @param dt_ Time step
-     * @param R_ Resistance
-     * @param C_ Capacitance
-     * @param V_thresh_ Voltage threshold
+     * @param time_step_ Time step
+     * @param resistance_ Resistance
+     * @param capacitance_ Capacitance
+     * @param voltage_threshold_ Voltage threshold
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    explicit Leaky(float dt_ = 1.0F,              // time step
-                   float R_ = 1.0F,               // resistance
-                   float C_ = 1.0F,               // capacitance
-                   float V_thresh_ = 1.0F,        // voltage threshold
-                   bool reset_zero_ = true,       // reset to zero or subtract threshold
-                   float reset_potential_ = 0.0F, // reset potential value
+    explicit Leaky(float time_step_ = 1.0F,         // time step
+                   float resistance_ = 1.0F,        // resistance
+                   float capacitance_ = 1.0F,       // capacitance
+                   float voltage_threshold_ = 1.0F, // voltage threshold
+                   bool reset_zero_ = true,         // reset to zero or subtract threshold
+                   float reset_potential_ = 0.0F,   // reset potential value
                    std::shared_ptr<ISurrogateGradient> surrogate_grad =
                        std::make_shared<ExponentialSurrogate>())
-        : dt(dt_)
+        : time_step(time_step_)
     {
         resistance = nn::Tensor(1, 1);
-        resistance.at(0, 0) = R_;
-        capacitance = C_;
+        resistance.at(0, 0) = resistance_;
+        capacitance = capacitance_;
         voltage_threshold = nn::Tensor(1, 1);
-        voltage_threshold.at(0, 0) = V_thresh_;
+        voltage_threshold.at(0, 0) = voltage_threshold_;
         reset_zero = reset_zero_;
         reset_potential = reset_potential_;
         surrogate_gradient = std::move(surrogate_grad);
@@ -150,7 +150,7 @@ struct Leaky : public Module
         // Beta is the discrete-time decay factor derived from the continuous-time
         // decay equation, representing the "leaky" nature of the neuron.
         float const tau = resistance(0, 0) * capacitance;
-        float const beta = std::exp(-dt / tau);
+        float const beta = std::exp(-time_step / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
         // NOTE: This check is redundant with the initialization above, but is
@@ -282,8 +282,8 @@ struct Leaky : public Module
         const float tau = R * C;
         if (tau > 1e-6) [[likely]]
         { // Avoid division by zero if R or C are zero
-            const float beta = std::exp(-dt / tau);
-            const float d_beta_dR = (beta * dt) / (C * R * R);
+            const float beta = std::exp(-time_step / tau);
+            const float d_beta_dR = (beta * time_step) / (C * R * R);
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
             float dL_dbeta = grad_v_pre_mat.multiply(v_mem_t_minus_1).sum();

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CMAKE_EIGENBAN_HPP
+#define CMAKE_EIGENBAN_HPP
 // Pre-included guard to prevent Eigen usage unless explicitly allowed.
 // Define NN_ALLOW_EIGEN for translation units that are permitted to include Eigen
 // (e.g., backend implementations only).
@@ -16,3 +17,5 @@
 #endif
 
 #endif // NN_ALLOW_EIGEN
+
+#endif // CMAKE_EIGENBAN_HPP

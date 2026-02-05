@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_UTILITY_PRINTTENSOR_HPP
+#define NN_UTILITY_PRINTTENSOR_HPP
 
 #include <iomanip>
 #include <iostream>
@@ -30,3 +31,5 @@ inline void printTensor(const nn::Tensor& t, const std::string& name = "Tensor")
         std::cout << " ]\n";
     }
 }
+
+#endif // NN_UTILITY_PRINTTENSOR_HPP

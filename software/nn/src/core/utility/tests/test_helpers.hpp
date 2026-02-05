@@ -3,7 +3,8 @@
  * @brief Small helpers for unit tests (tensor factories and comparisons).
  */
 
-#pragma once
+#ifndef SRC_CORE_UTILITY_TESTS_TEST_HELPERS_HPP
+#define SRC_CORE_UTILITY_TESTS_TEST_HELPERS_HPP
 
 #include <random>
 
@@ -142,3 +143,5 @@ inline void tensor_set_value_at(nn::Tensor& t, size_t row, size_t col, float val
 }
 
 } // namespace test_helpers
+
+#endif // SRC_CORE_UTILITY_TESTS_TEST_HELPERS_HPP

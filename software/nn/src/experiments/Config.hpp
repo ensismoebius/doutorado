@@ -7,7 +7,8 @@
  * “frozen” settings for specific phases.
  */
 
-#pragma once
+#ifndef EXPERIMENTS_CONFIG_HPP
+#define EXPERIMENTS_CONFIG_HPP
 
 #include <yaml-cpp/yaml.h>
 
@@ -69,3 +70,5 @@ struct Config
      */
     static auto load(const std::string& path) -> std::optional<Config>;
 };
+
+#endif // EXPERIMENTS_CONFIG_HPP

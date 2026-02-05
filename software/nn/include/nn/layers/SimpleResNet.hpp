@@ -5,7 +5,8 @@
  * This is a convenience model used for quick experiments/demos, not an image ResNet.
  */
 
-#pragma once
+#ifndef NN_LAYERS_SIMPLERESNET_HPP
+#define NN_LAYERS_SIMPLERESNET_HPP
 #include <memory>
 #include <vector>
 
@@ -85,3 +86,4 @@ class SimpleResNet : public Module
     std::vector<std::shared_ptr<Module>> layers_;
     std::unique_ptr<Sequential> model_;
 };
+#endif // NN_LAYERS_SIMPLERESNET_HPP

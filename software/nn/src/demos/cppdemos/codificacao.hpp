@@ -1,4 +1,5 @@
-#pragma once
+#ifndef DEMOS_CPPDEMOS_CODIFICACAO_HPP
+#define DEMOS_CPPDEMOS_CODIFICACAO_HPP
 
 #include <random>
 #include <vector>
@@ -68,3 +69,5 @@ nn::Tensor codificar_poisson(const nn::Tensor& frm, int passos, std::mt19937& rn
                              float qtde_de_spikes_esperada_por_passo = 0.10f);
 
 } // namespace codificacao
+
+#endif // DEMOS_CPPDEMOS_CODIFICACAO_HPP

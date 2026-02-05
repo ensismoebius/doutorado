@@ -3,7 +3,8 @@
  * @brief Feature extraction + normalization utilities for PHASE 0.
  */
 
-#pragma once
+#ifndef EXPERIMENTS_00_PHASE00_FEATURES_HPP
+#define EXPERIMENTS_00_PHASE00_FEATURES_HPP
 
 #include <tuple>
 #include <vector>
@@ -29,3 +30,5 @@ auto build_label_index(const std::vector<int>& raw_labels)
     -> std::pair<std::vector<int>, std::vector<int>>;
 
 } // namespace phase00
+
+#endif // EXPERIMENTS_00_PHASE00_FEATURES_HPP

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_MAXPOOL2D_HPP
+#define NN_LAYERS_MAXPOOL2D_HPP
 
 #include <iostream>
 #include <vector>
@@ -69,3 +70,5 @@ class MaxPool2d : public Module
     int kernel_size_;
     int stride_;
 };
+
+#endif // NN_LAYERS_MAXPOOL2D_HPP

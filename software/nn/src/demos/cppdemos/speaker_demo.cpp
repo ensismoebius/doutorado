@@ -37,9 +37,9 @@ T arg_to(argparse::ArgumentParser& p, const std::string& name)
 // Forward declaration for the demo implementation in comandos.cpp
 namespace demo
 {
-void cmd_demo(double duracao, int taxa_amostragem, int tamanho_janela, int tamanho_passo,
-              const std::string& wavelet, int num_bandas, int passos_por_janela, int profundidade,
-              const std::string& saida_plot);
+void cmd_demo(double duration, int sample_rate, int window_size, int hop_size,
+              const std::string& wavelet, int num_bands, int steps_per_window, int depth,
+              const std::string& plot_output);
 }
 
 /**
@@ -124,7 +124,7 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     treinar->add_argument("--profundidade").default_value(-1);
     treinar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
     treinar->add_argument("--epocas").default_value(5);
-    treinar->add_argument("--lr").default_value(1e-3);
+    treinar->add_argument("--learning-rate").default_value(1e-3);
     treinar->add_argument("--saida-modelo").default_value(std::string("modelo_snn_locutor.pt"));
     treinar->add_argument("--saida-rotulos").default_value(std::string("rotulos_locutor.json"));
 

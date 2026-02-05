@@ -48,47 +48,47 @@ using nn::TensorImpl;
 // `codificacao.cpp` and declared in `codificacao.hpp`.
 
 // Forward-declare the new signature so the old-wrapper can call it.
-void cmd_demo(double duracao, int taxa_amostragem, int tamanho_janela, int tamanho_passo,
-              const std::string& wavelet, int num_bandas, int passos_por_janela, int profundidade,
-              const std::string& saida_plot, unsigned int random_seed /* = 0 */);
+void cmd_demo(double duration, int sample_rate, int window_size, int hop_size,
+              const std::string& wavelet, int num_bands, int steps_per_window, int depth,
+              const std::string& plot_output, unsigned int random_seed /* = 0 */);
 
 // Backwards-compatible wrapper (old callers expect no seed parameter).
 void cmd_demo(                    // old signature
-    double duracao,               //
-    int taxa_amostragem,          //
-    int tamanho_janela,           //
-    int tamanho_passo,            //
+    double duration,               //
+    int sample_rate,          //
+    int window_size,           //
+    int hop_size,            //
     const std::string& wavelet,   //
-    int num_bandas,               //
-    int passos_por_janela,        //
-    int profundidade,             //
-    const std::string& saida_plot //
+    int num_bands,               //
+    int steps_per_window,        //
+    int depth,             //
+    const std::string& plot_output //
 )
 {
     // Forward to the new signature with default seed = 0 (nondeterministic)
-    cmd_demo(duracao,
-             taxa_amostragem,
-             tamanho_janela,
-             tamanho_passo,
+    cmd_demo(duration,
+             sample_rate,
+             window_size,
+             hop_size,
              wavelet,
-             num_bandas,
-             passos_por_janela,
-             profundidade,
-             saida_plot,
+             num_bands,
+             steps_per_window,
+             depth,
+             plot_output,
              0u);
 }
 
 // New signature with explicit seed for reproducibility.
 void cmd_demo(                     //
-    double duracao,                //
-    int taxa_amostragem,           //
-    int tamanho_janela,            //
-    int tamanho_passo,             //
+    double duration,                //
+    int sample_rate,           //
+    int window_size,            //
+    int hop_size,             //
     const std::string& wavelet,    //
-    int num_bandas,                //
-    int passos_por_janela,         //
-    int profundidade,              //
-    const std::string& saida_plot, //
+    int num_bands,                //
+    int steps_per_window,         //
+    int depth,              //
+    const std::string& plot_output, //
     unsigned int random_seed = 0   // optional seed for reproducibility (0 => nondeterministic)
 )
 {
@@ -108,16 +108,16 @@ void cmd_demo(                     //
     auto extrair_janelas_caracteristicas = [&](std::vector<float>& audio)
     {
         LoadingAndProcessingParameters loading_params{};
-        loading_params.audio_params.target_sampling_rate = taxa_amostragem;
+        loading_params.audio_params.target_sampling_rate = sample_rate;
         loading_params.audio_params.preemphasis_coefficient = 0.97f;
         loading_params.audio_params.frame_duration_ms =
-            static_cast<float>(tamanho_janela) * 1000.0f / taxa_amostragem;
+            static_cast<float>(window_size) * 1000.0f / sample_rate;
         loading_params.audio_params.frame_shift_ms =
-            static_cast<float>(tamanho_passo) * 1000.0f / taxa_amostragem;
-        loading_params.audio_params.number_of_filters = num_bandas;
-        loading_params.constants.default_sampling_rate = taxa_amostragem;
+            static_cast<float>(hop_size) * 1000.0f / sample_rate;
+        loading_params.audio_params.number_of_filters = num_bands;
+        loading_params.constants.default_sampling_rate = sample_rate;
 
-        FramingConfig framing_cfg{tamanho_janela, tamanho_passo, loading_params};
+        FramingConfig framing_cfg{window_size, hop_size, loading_params};
 
         std::vector<float> center_frequencies;
         nn::Tensor filterbank(1, 1);
@@ -136,7 +136,7 @@ void cmd_demo(                     //
 
     auto criar_modelo_snn = [&](int in_dim) -> std::shared_ptr<Sequential>
     {
-        int hidden = std::max(8, num_bandas);
+        int hidden = std::max(8, num_bands);
         auto m = std::make_shared<Sequential>();
         auto l1 = std::make_shared<Linear>(in_dim, hidden);
         auto lk = std::make_shared<Leaky>(1.0f, 1.0f, 1.0f, 1.0f, true);
@@ -158,7 +158,7 @@ void cmd_demo(                     //
         {
             nn::Tensor frm(1, features.cols());
             for (int j = 0; j < features.cols(); ++j) frm.at(0, j) = features.at(fi, j);
-            nn::Tensor spikes = codificacao::codificar_poisson(frm, passos_por_janela, rng);
+            nn::Tensor spikes = codificacao::codificar_poisson(frm, steps_per_window, rng);
             nn::Tensor accum(1, in_dim);
             accum.setZero();
             for (int t = 0; t < static_cast<int>(spikes.rows()); ++t)
@@ -205,18 +205,18 @@ void cmd_demo(                     //
     };
 
     // --- main pipeline using the helper lambdas above ---
-    size_t total_samples = static_cast<size_t>(std::round(duracao * taxa_amostragem));
+    size_t total_samples = static_cast<size_t>(std::round(duration * sample_rate));
     std::vector<float> audio(total_samples);
     for (size_t i = 0; i < total_samples; ++i)
     {
-        audio[i] = 0.1f * std::sin(2.0 * M_PI * 440.0 * static_cast<double>(i) / taxa_amostragem);
+        audio[i] = 0.1f * std::sin(2.0 * M_PI * 440.0 * static_cast<double>(i) / sample_rate);
     }
 
     auto features = extrair_janelas_caracteristicas(audio);
     int in_dim = static_cast<int>(features.cols());
     auto model = criar_modelo_snn(in_dim);
     auto lista_spikes_saida = executar_inferencia(model, features);
-    plotar_resultados(saida_plot, lista_spikes_saida, audio, taxa_amostragem);
+    plotar_resultados(plot_output, lista_spikes_saida, audio, sample_rate);
 }
 
 } // namespace demo

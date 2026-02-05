@@ -83,7 +83,7 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     // Check Leaky config and parameters
     auto loaded_leaky = std::dynamic_pointer_cast<Leaky>(loaded.layers[2]);
     ASSERT_TRUE(loaded_leaky);
-    EXPECT_FLOAT_EQ(loaded_leaky->dt, 1.0F);
+    EXPECT_FLOAT_EQ(loaded_leaky->time_step, 1.0F);
     EXPECT_FLOAT_EQ(loaded_leaky->capacitance, 3.0F);
     EXPECT_FLOAT_EQ(loaded_leaky->reset_potential, 0.5F);
     EXPECT_TRUE(loaded_leaky->reset_zero);

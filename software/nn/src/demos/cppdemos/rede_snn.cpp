@@ -21,17 +21,17 @@ using std::vector;
 struct ModelConfig
 {
     // Hardcoded defaults matching common demo usage
-    int num_entradas = 100;
-    int num_saidas = 10;
-    int num_blocos_residuais = 3;
-    int tamanho_oculto = 100;
-    float escala_entrada = 1.0f;
-    int passos = 100;
-    float delta_t = 0.001f;
-    float R = 5.0f;
-    float C = 1.0f;
-    float thr = 0.01f;
-    float lr = 0.001f;
+    int input_size = 100;
+    int output_size = 10;
+    int num_residual_blocks = 3;
+    int hidden_size = 100;
+    float input_scale = 1.0f;
+    int num_steps = 100;
+    float time_step = 0.001f;
+    float resistance = 5.0f;
+    float capacitance = 1.0f;
+    float voltage_threshold = 0.01f;
+    float learning_rate = 0.001f;
     int epochs = 4000;
     int batch_size = 32;
 };
@@ -55,11 +55,11 @@ auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<Modu
     // In spiking mode it outputs spikes; in readout_mode it outputs the membrane value
     // (useful for continuous reconstruction at the final layer).
     return make_shared<LeakyBPTT>( //
-        cfg.passos,
-        cfg.delta_t,
-        cfg.R,
-        cfg.C,
-        cfg.thr,
+        cfg.num_steps,
+        cfg.time_step,
+        cfg.resistance,
+        cfg.capacitance,
+        cfg.voltage_threshold,
         true, // reset_zero
         0.0f, // reset_pot
         readout,
@@ -77,9 +77,9 @@ struct ResidualSNNBlock : public Module
     explicit ResidualSNNBlock(const ModelConfig& cfg)
     {
         model = Sequential({
-            lin(cfg.tamanho_oculto, cfg.tamanho_oculto),
+            lin(cfg.hidden_size, cfg.hidden_size),
             leaky(cfg),
-            lin(cfg.tamanho_oculto, cfg.tamanho_oculto),
+            lin(cfg.hidden_size, cfg.hidden_size),
             leaky(cfg),
         });
     }
@@ -115,12 +115,12 @@ struct ModeloSNN : public Module
     explicit ModeloSNN(const ModelConfig& cfg)
     {
         model = Sequential({
-            lin(cfg.num_entradas, cfg.tamanho_oculto),
+            lin(cfg.input_size, cfg.hidden_size),
             leaky(cfg),
             make_shared<ResidualSNNBlock>(cfg),
             make_shared<ResidualSNNBlock>(cfg),
             make_shared<ResidualSNNBlock>(cfg),
-            lin(cfg.tamanho_oculto, cfg.num_saidas),
+            lin(cfg.hidden_size, cfg.output_size),
             leaky(cfg, true),
         });
 

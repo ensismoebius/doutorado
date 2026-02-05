@@ -35,56 +35,60 @@
  */
 struct Adam : public Optimizer
 {
-    float lr;    // Taxa de aprendizado (learning rate)
-    float beta1; // Hiperparâmetro de decaimento do primeiro momento (tipicamente 0.9)
-    float beta2; // Hiperparâmetro de decaimento do segundo momento (tipicamente 0.999)
-    float eps;   // Termo pequeno para evitar divisão por zero
-    int t;       // Contador de iterações
+    float learning_rate;      // Taxa de aprendizado (learning rate)
+    float decay_rate_moment1; // Hiperparâmetro de decaimento do primeiro momento (tipicamente 0.9)
+    float decay_rate_moment2; // Hiperparâmetro de decaimento do segundo momento (tipicamente 0.999)
+    float epsilon;            // Termo pequeno para evitar divisão por zero
+    int time_step;            // Contador de iterações
 
-    std::vector<nn::Tensor> m; // Vetor de médias móveis dos gradientes
-    std::vector<nn::Tensor> v; // Vetor de médias móveis dos quadrados dos gradientes
+    std::vector<nn::Tensor> moment1; // Vetor de médias móveis dos gradientes
+    std::vector<nn::Tensor> moment2; // Vetor de médias móveis dos quadrados dos gradientes
 
     // Inicializa o Adam com hiperparâmetros padrão recomendados na literatura.
-    // lr: taxa de aprendizado, beta1: decaimento do primeiro momento, beta2: decaimento do segundo
-    // momento, eps: termo de estabilidade.
-    explicit Adam(float learning_rate = 0.001F, float beta1 = 0.9F, float beta2 = 0.999F,
-                  float eps = 1e-8F)
-        : lr(learning_rate), beta1(beta1), beta2(beta2), eps(eps), t(0)
+    // learning_rate: taxa de aprendizado, decay_rate_moment1: decaimento do primeiro momento,
+    // decay_rate_moment2: decaimento do segundo momento, epsilon: termo de estabilidade.
+    explicit Adam(float learning_rate_ = 0.001F, float decay_rate_moment1_ = 0.9F,
+                  float decay_rate_moment2_ = 0.999F, float epsilon_ = 1e-8F)
+        : learning_rate(learning_rate_),
+          decay_rate_moment1(decay_rate_moment1_),
+          decay_rate_moment2(decay_rate_moment2_),
+          epsilon(epsilon_),
+          time_step(0)
     {
-        if (learning_rate <= 0.0F)
+        if (learning_rate_ <= 0.0F)
         {
             throw std::invalid_argument("Learning rate must be positive");
         }
-        if (learning_rate > 1e8F)
+        if (learning_rate_ > 1e8F)
         {
             throw std::invalid_argument("Learning rate is unreasonably large");
         }
     }
 
-    // Inicializa os vetores m e v para cada parâmetro, com zeros do mesmo shape dos gradientes.
-    // Deve ser chamado sempre que os parâmetros mudarem.
+    // Inicializa os vetores moment1 e moment2 para cada parâmetro, com zeros do mesmo shape dos
+    // gradientes. Deve ser chamado sempre que os parâmetros mudarem.
     void attach(std::span<nn::Tensor*> params) override
     {
-        // Why attach(): Adam needs one m/v tensor per parameter.
-        // Pitfall: if `params` changes size/order, m/v will no longer align.
-        m.clear();
-        v.clear();
+        // Why attach(): Adam needs one moment1/moment2 tensor per parameter.
+        // Pitfall: if `params` changes size/order, moment1/moment2 will no longer align.
+        moment1.clear();
+        moment2.clear();
         for (auto* param : params)
         {
             if (param == nullptr)
             {
                 throw std::invalid_argument("Cannot attach null parameter to optimizer");
             }
-            // Initialize m and v tensors with zeros matching parameter shape
-            m.emplace_back(param->rows(), param->cols());
-            v.emplace_back(param->rows(), param->cols());
+            // Initialize moment1 and moment2 tensors with zeros matching parameter shape
+            moment1.emplace_back(param->rows(), param->cols());
+            moment2.emplace_back(param->rows(), param->cols());
             // Initialize to zero
-            for (size_t i = 0; i < m.back().rows(); ++i)
+            for (size_t i = 0; i < moment1.back().rows(); ++i)
             {
-                for (size_t j = 0; j < m.back().cols(); ++j)
+                for (size_t j = 0; j < moment1.back().cols(); ++j)
                 {
-                    m.back().at(i, j) = 0.0f;
-                    v.back().at(i, j) = 0.0f;
+                    moment1.back().at(i, j) = 0.0f;
+                    moment2.back().at(i, j) = 0.0f;
                 }
             }
         }
@@ -96,11 +100,11 @@ struct Adam : public Optimizer
     //   v_t = β2 * v_{t-1} + (1 - β2) * (g_t)^2
     //   m̂_t = m_t / (1 - β1^t)
     //   v̂_t = v_t / (1 - β2^t)
-    //   θ = θ - lr * m̂_t / (sqrt(v̂_t) + ε)
+    //   θ = θ - learning_rate * m̂_t / (sqrt(v̂_t) + ε)
     auto step(std::span<nn::Tensor*> paramsList) -> void override
     {
         // Numerical note: bias correction uses pow(beta, t). For large t, beta^t → 0.
-        t += 1;
+        time_step += 1;
         for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
             if (paramsList[i] == nullptr)
@@ -109,31 +113,34 @@ struct Adam : public Optimizer
             }
             auto& param = *paramsList[i];
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
-            // m[i] = beta1 * m[i] + (1 - beta1) * grad
+            // moment1[i] = decay_rate_moment1 * moment1[i] + (1 - decay_rate_moment1) * grad
             // Precondition: `param.grad()` must be meaningful. If the model did not run
             // backward(), gradients may be zero or uninitialized depending on backend behavior.
             nn::Tensor grad = param.grad(); // Get gradient from parameter
-            nn::Tensor grad_contrib = grad.multiply_scalar(1.0f - beta1);
-            m[i] = m[i].multiply_scalar(beta1).add(grad_contrib);
+            nn::Tensor grad_contrib = grad.multiply_scalar(1.0f - decay_rate_moment1);
+            moment1[i] = moment1[i].multiply_scalar(decay_rate_moment1).add(grad_contrib);
 
-            // v[i] = beta2 * v[i] + (1 - beta2) * grad^2
+            // moment2[i] = decay_rate_moment2 * moment2[i] + (1 - decay_rate_moment2) * grad^2
             nn::Tensor grad_squared = grad.multiply(grad); // Square gradient, not weights!
-            nn::Tensor grad_squared_contrib = grad_squared.multiply_scalar(1.0f - beta2);
-            v[i] = v[i].multiply_scalar(beta2).add(grad_squared_contrib);
+            nn::Tensor grad_squared_contrib =
+                grad_squared.multiply_scalar(1.0f - decay_rate_moment2);
+            moment2[i] = moment2[i].multiply_scalar(decay_rate_moment2).add(grad_squared_contrib);
 
             // Corrige o viés das médias móveis
-            float bias_correction1 = static_cast<float>(
-                1.0 - std::pow(static_cast<double>(beta1), static_cast<double>(t)));
-            float bias_correction2 = static_cast<float>(
-                1.0 - std::pow(static_cast<double>(beta2), static_cast<double>(t)));
-            auto m_hat = m[i] / bias_correction1;
-            auto v_hat = v[i] / bias_correction2;
+            float bias_correction1 =
+                static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment1),
+                                                  static_cast<double>(time_step)));
+            float bias_correction2 =
+                static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment2),
+                                                  static_cast<double>(time_step)));
+            auto m_hat = moment1[i] / bias_correction1;
+            auto v_hat = moment2[i] / bias_correction2;
 
             // Atualiza o parâmetro usando as médias móveis corrigidas
-            // param = param - lr * m_hat / (sqrt(v_hat) + eps)
+            // param = param - learning_rate * m_hat / (sqrt(v_hat) + epsilon)
             nn::Tensor v_hat_sqrt = v_hat.sqrt();
-            nn::Tensor v_hat_sqrt_eps = v_hat_sqrt.add_scalar(eps);
-            nn::Tensor m_hat_scaled = m_hat.multiply_scalar(lr);
+            nn::Tensor v_hat_sqrt_eps = v_hat_sqrt.add_scalar(epsilon);
+            nn::Tensor m_hat_scaled = m_hat.multiply_scalar(learning_rate);
             nn::Tensor update_step = m_hat_scaled.divide(v_hat_sqrt_eps);
 
             param = param.add(update_step.multiply_scalar(-1.0f));

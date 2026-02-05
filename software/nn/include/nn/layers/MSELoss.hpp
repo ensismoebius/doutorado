@@ -31,39 +31,39 @@ class MSELoss : public Module
     static constexpr float MSE_GRADIENT_FACTOR = 2.0F;
     static constexpr float MAX_GRADIENT_NORM = 1.0F;
 
-    nn::Tensor last_input;
-    nn::Tensor last_target;
-    bool target_set = false;
+    nn::Tensor last_input_;
+    nn::Tensor last_target_;
+    bool target_set_ = false;
 
-    bool training = true;
+    bool training_ = true;
 
    public:
     MSELoss() = default;
 
     void train(bool on) override
     {
-        training = on;
+        training_ = on;
     }
 
     // Forward computes the loss value as a Tensor (scalar) with numerical stability checks
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         // Check if target has been set
-        if (!target_set)
+        if (!target_set_)
         {
             throw std::runtime_error("MSELoss: target has not been set. Call set_target() first.");
         }
 
-        if (training && requires_grad)
+        if (training_ && requires_grad)
         {
             // Cache the prediction for the backward pass.
             // Note: we do not currently cache the target here because it is provided
             // via set_target() and stored in `last_target`.
-            last_input = input;
+            last_input_ = input;
         }
 
         // Use last_target set by set_target
-        float mse = input.mean_squared_error(last_target);
+        float mse = input.mean_squared_error(last_target_);
 
         // Clip extremely large values to prevent overflow (but let NaN/Inf propagate)
         if (std::isfinite(mse))
@@ -79,8 +79,8 @@ class MSELoss : public Module
     void set_target(const nn::Tensor& target)
     {
         // Contract: target must be shape-compatible with the prediction passed to forward().
-        last_target = target;
-        target_set = true;
+        last_target_ = target;
+        target_set_ = true;
     }
 
     // Backward computes the gradient of the loss w.r.t. prediction with gradient clipping
@@ -89,9 +89,9 @@ class MSELoss : public Module
         // Returns dL/d(prediction) for the *last* cached prediction.
         // The `prediction` argument is unused because `last_input` is cached in forward().
         // Compute gradient: 2 * (prediction - target) / num_elements
-        nn::Tensor diff = last_input - last_target;
+        nn::Tensor diff = last_input_ - last_target_;
 
-        float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input.size());
+        float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input_.size());
         nn::Tensor grad = diff * factor;
 
         // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
@@ -100,7 +100,7 @@ class MSELoss : public Module
         {
             std::cerr << "Warning: Non-finite gradients detected in MSE backward pass\n";
             // Return zero gradient to prevent further issues
-            nn::Tensor zero_grad(last_input.rows(), last_input.cols());
+            nn::Tensor zero_grad(last_input_.rows(), last_input_.cols());
             // Initialize to zero
             for (size_t i = 0; i < zero_grad.rows(); ++i)
             {

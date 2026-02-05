@@ -6,7 +6,8 @@
  * 2D tensor convention: (batch x features).
  */
 
-#pragma once
+#ifndef NN_LAYERS_RESIDUALBLOCK_HPP
+#define NN_LAYERS_RESIDUALBLOCK_HPP
 
 #include <memory>
 
@@ -63,3 +64,5 @@ struct ResidualBlock : public Module
         return total;
     }
 };
+
+#endif // NN_LAYERS_RESIDUALBLOCK_HPP

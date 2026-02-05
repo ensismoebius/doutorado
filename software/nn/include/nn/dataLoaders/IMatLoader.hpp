@@ -6,7 +6,8 @@
  * ownership details while still exposing the underlying variables when needed.
  */
 
-#pragma once
+#ifndef NN_DATALOADERS_IMATLOADER_HPP
+#define NN_DATALOADERS_IMATLOADER_HPP
 
 #include <matio.h>
 
@@ -41,3 +42,5 @@ class IMatLoader
 };
 
 } // namespace nn::dataLoaders
+
+#endif // NN_DATALOADERS_IMATLOADER_HPP

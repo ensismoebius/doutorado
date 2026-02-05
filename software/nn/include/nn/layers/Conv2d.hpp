@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_CONV2D_HPP
+#define NN_LAYERS_CONV2D_HPP
 
 #include <omp.h>
 
@@ -195,3 +196,5 @@ class Conv2d : public Module
      */
     void initialize_weights_he();
 };
+
+#endif // NN_LAYERS_CONV2D_HPP

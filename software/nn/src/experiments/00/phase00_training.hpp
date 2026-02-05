@@ -3,7 +3,8 @@
  * @brief Training utilities for PHASE 0 (tensorization, one-hot, training loop, saving).
  */
 
-#pragma once
+#ifndef EXPERIMENTS_00_PHASE00_TRAINING_HPP
+#define EXPERIMENTS_00_PHASE00_TRAINING_HPP
 
 #include <filesystem>
 #include <memory>
@@ -40,3 +41,5 @@ auto save_results(const std::filesystem::path& path, double alpha, double beta, 
 auto save_torch_state(const std::filesystem::path& path, const TrainResult& trained) -> void;
 
 } // namespace phase00
+
+#endif // EXPERIMENTS_00_PHASE00_TRAINING_HPP

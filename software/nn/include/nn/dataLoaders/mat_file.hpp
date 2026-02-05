@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_DATALOADERS_MAT_FILE_HPP
+#define NN_DATALOADERS_MAT_FILE_HPP
 
 #include <matio.h>
 
@@ -33,3 +34,5 @@ class MatFile
    private:
     mat_t* matfp_ = nullptr;
 };
+
+#endif // NN_DATALOADERS_MAT_FILE_HPP

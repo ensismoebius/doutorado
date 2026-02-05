@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_RESNETBLOCK_HPP
+#define NN_LAYERS_RESNETBLOCK_HPP
 
 #include "nn/layers/Conv2d.hpp"
 #include "nn/layers/Module.hpp"
@@ -67,3 +68,5 @@ class ResNetBlock : public Module
     ReLU relu_;
     Conv2d conv2_;
 };
+
+#endif // NN_LAYERS_RESNETBLOCK_HPP

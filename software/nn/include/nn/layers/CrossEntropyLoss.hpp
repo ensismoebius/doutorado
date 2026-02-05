@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_CROSSENTROPYLOSS_HPP
+#define NN_LAYERS_CROSSENTROPYLOSS_HPP
 
 #include <cmath>
 
@@ -127,3 +128,5 @@ class CrossEntropyLoss : public Module
         return grad;
     }
 };
+
+#endif // NN_LAYERS_CROSSENTROPYLOSS_HPP

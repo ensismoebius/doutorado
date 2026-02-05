@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_SEQUENTIAL_HPP
+#define NN_LAYERS_SEQUENTIAL_HPP
 #include <cstddef>
 #include <initializer_list>
 #include <memory>
@@ -117,3 +118,5 @@ struct Sequential : Module
         }
     }
 };
+
+#endif // NN_LAYERS_SEQUENTIAL_HPP

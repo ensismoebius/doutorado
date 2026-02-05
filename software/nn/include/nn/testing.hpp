@@ -3,7 +3,8 @@
  * @brief Small shared testing constants for deterministic tests.
  */
 
-#pragma once
+#ifndef NN_TESTING_HPP
+#define NN_TESTING_HPP
 
 namespace nn
 {
@@ -17,3 +18,5 @@ inline constexpr float TOL = 1e-6F;
 
 } // namespace testing
 } // namespace nn
+
+#endif // NN_TESTING_HPP

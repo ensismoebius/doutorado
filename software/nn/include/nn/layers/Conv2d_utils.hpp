@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_LAYERS_CONV2D_UTILS_HPP
+#define NN_LAYERS_CONV2D_UTILS_HPP
 
 #include <memory>
 #include <mutex>
@@ -62,3 +63,5 @@ using IndexCache =
 // - Thread safety is handled on the Conv2d side (mutex around cache updates).
 
 } // namespace Conv2dImpl
+
+#endif // NN_LAYERS_CONV2D_UTILS_HPP

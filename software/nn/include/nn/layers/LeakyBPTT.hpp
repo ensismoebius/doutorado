@@ -45,8 +45,8 @@
 struct LeakyBPTT : public Module
 {
    public:
-    /// @brief The simulation time step (dt).
-    float dt = 1.0F;
+    /// @brief The simulation time step (time_step).
+    float time_step = 1.0F;
 
     /// @brief Membrane resistance (R).
     nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
@@ -75,20 +75,21 @@ struct LeakyBPTT : public Module
     [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
     {
         // These are the trainable scalars exposed to optimizers.
-        // Note: dt and capacitance are plain floats (not optimized here).
+        // Note: time_step and capacitance are plain floats (not optimized here).
         return {&resistance, &voltage_threshold};
     }
 
-    explicit LeakyBPTT(int time_steps_, float dt_ = 1.0F, float R_ = 1.0F, float C_ = 1.0F,
-                       float V_thresh_ = 1.0F, bool reset_zero_ = true,
-                       float reset_potential_ = 0.0F, bool readout_mode_ = false,
+    explicit LeakyBPTT(int time_steps_, float time_step_ = 1.0F, float resistance_ = 1.0F,
+                       float capacitance_ = 1.0F, float voltage_threshold_ = 1.0F,
+                       bool reset_zero_ = true, float reset_potential_ = 0.0F,
+                       bool readout_mode_ = false,
                        std::shared_ptr<ISurrogateGradient> surrogate_grad =
                            std::make_shared<ExponentialSurrogate>())
-        : dt(dt_), time_steps(time_steps_), readout_mode(readout_mode_)
+        : time_step(time_step_), time_steps(time_steps_), readout_mode(readout_mode_)
     {
-        resistance.at(0, 0) = R_;
-        capacitance = C_;
-        voltage_threshold.at(0, 0) = V_thresh_;
+        resistance.at(0, 0) = resistance_;
+        capacitance = capacitance_;
+        voltage_threshold.at(0, 0) = voltage_threshold_;
         reset_zero = reset_zero_;
         reset_potential = reset_potential_;
         surrogate_gradient = std::move(surrogate_grad);
@@ -129,7 +130,7 @@ struct LeakyBPTT : public Module
         }
 
         float const tau = resistance.at(0, 0) * capacitance;
-        float const beta = std::exp(-dt / tau);
+        float const beta = std::exp(-time_step / tau);
         float threshold_val = voltage_threshold.at(0, 0);
 
         // Time Loop
@@ -207,16 +208,17 @@ struct LeakyBPTT : public Module
         grad_next_state.setZero();
 
         float const tau = resistance.at(0, 0) * capacitance;
-        float const beta = std::exp(-dt / tau);
+        float const beta = std::exp(-time_step / tau);
         float threshold_val = voltage_threshold.at(0, 0);
 
         // Accumulators for params
         float dL_dVth_sum = 0.0f;
         float dL_dR_sum = 0.0f;
         float d_beta_dR =
-            (tau > 1e-6) ? (beta * dt) / (capacitance * resistance.at(0, 0) * resistance.at(0, 0))
-                         : 0.0f;
-        // Note: d_beta_dR is derived from beta = exp(-dt/(R*C)).
+            (tau > 1e-6)
+                ? (beta * time_step) / (capacitance * resistance.at(0, 0) * resistance.at(0, 0))
+                : 0.0f;
+        // Note: d_beta_dR is derived from beta = exp(-time_step/(R*C)).
         // This implementation uses a scalar R and C shared across all neurons.
 
         // BPTT Loop (Reverse Time)

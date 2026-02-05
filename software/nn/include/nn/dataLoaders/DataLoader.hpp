@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_DATALOADERS_DATALOADER_HPP
+#define NN_DATALOADERS_DATALOADER_HPP
 
 #include <cstddef>
 #include <memory>
@@ -64,3 +65,5 @@ class DataLoader
     // epoch counter used when seed_ is present to vary shuffle between epochs
     mutable std::size_t epoch_ = 0;
 };
+
+#endif // NN_DATALOADERS_DATALOADER_HPP

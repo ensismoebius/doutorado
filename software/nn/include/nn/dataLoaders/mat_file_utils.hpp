@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_DATALOADERS_MAT_FILE_UTILS_HPP
+#define NN_DATALOADERS_MAT_FILE_UTILS_HPP
 
 #include <optional>
 #include <string>
@@ -44,3 +45,4 @@ namespace matioCpp::utils
 // if (mat) { std::cout << "Loaded matrix: " << mat->rows() << "x" << mat->cols() << '\n'; }
 
 } // namespace matioCpp::utils
+#endif // NN_DATALOADERS_MAT_FILE_UTILS_HPP
