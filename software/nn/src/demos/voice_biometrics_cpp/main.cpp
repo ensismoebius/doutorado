@@ -27,6 +27,16 @@ using ::Linear;
 using argparse::ArgumentParser;
 using nn::Index;
 using nn::Tensor;
+using std::cout;
+using std::exception;
+using std::llround;
+using std::mt19937;
+using std::ofstream;
+using std::runtime_error;
+using std::shared_ptr;
+using std::sin;
+using std::string;
+using std::vector;
 
 struct ConfigExtracao
 {
@@ -235,7 +245,7 @@ struct ModeloSNN : public Module
 {
     std::shared_ptr<Linear> fc_in;
     std::shared_ptr<Leaky> lif_in;
-    std::vector<std::shared_ptr<ResidualBlock>> blocks;
+    std::vector<shared_ptr<ResidualBlock>> residual_blocks;
     std::shared_ptr<Linear> fc_out;
     std::shared_ptr<Leaky> lif_out;
 
@@ -243,18 +253,23 @@ struct ModeloSNN : public Module
     {
         fc_in = std::make_shared<Linear>(entradas, ocultos);
         lif_in = std::make_shared<Leaky>();
+
         for (int i = 0; i < profundidade; ++i)
         {
-            blocks.push_back(std::make_shared<ResidualBlock>(ocultos));
+            residual_blocks.push_back(std::make_shared<ResidualBlock>(ocultos));
         }
+
         fc_out = std::make_shared<Linear>(ocultos, saidas);
         lif_out = std::make_shared<Leaky>();
 
         const unsigned int base_seed = seed == 0 ? nn::testing::SEED : seed;
+
         kaimingSNNInitializer(fc_in, base_seed + 1U);
         kaimingSNNInitializer(fc_out, base_seed + 2U);
+
         unsigned int offset = 3U;
-        for (auto& b : blocks)
+
+        for (auto& b : residual_blocks)
         {
             kaimingSNNInitializer(b->fc1, base_seed + offset);
             kaimingSNNInitializer(b->fc2, base_seed + offset + 1U);
@@ -266,7 +281,7 @@ struct ModeloSNN : public Module
     {
         auto h = fc_in->forward(x, requires_grad);
         h = lif_in->forward(h, requires_grad);
-        for (auto& b : blocks)
+        for (auto& b : residual_blocks)
         {
             h = b->forward(h, requires_grad);
         }
@@ -278,7 +293,7 @@ struct ModeloSNN : public Module
     {
         auto g = lif_out->backward(grad_out);
         g = fc_out->backward(g);
-        for (auto it = blocks.rbegin(); it != blocks.rend(); ++it)
+        for (auto it = residual_blocks.rbegin(); it != residual_blocks.rend(); ++it)
         {
             g = (*it)->backward(g);
         }
@@ -295,7 +310,7 @@ struct ModeloSNN : public Module
         auto lifout = lif_out->params();
         p.insert(p.end(), lifp.begin(), lifp.end());
         p.insert(p.end(), lifout.begin(), lifout.end());
-        for (auto& b : blocks)
+        for (auto& b : residual_blocks)
         {
             auto bp = b->params();
             p.insert(p.end(), bp.begin(), bp.end());
@@ -307,7 +322,7 @@ struct ModeloSNN : public Module
     {
         lif_in->reset_state();
         lif_out->reset_state();
-        for (auto& b : blocks)
+        for (auto& b : residual_blocks)
         {
             b->reset_state();
         }
@@ -316,8 +331,7 @@ struct ModeloSNN : public Module
 
 // --- Pipeline ---
 
-auto carregar_audio(const std::string& caminho, double duracao, int sample_rate)
-    -> std::vector<double>
+auto carregar_audio(const string& caminho, double duracao, int sample_rate) -> vector<double>
 {
     if (!caminho.empty())
     {
@@ -326,25 +340,24 @@ auto carregar_audio(const std::string& caminho, double duracao, int sample_rate)
         return w.get_data();
     }
 
-    const size_t total =
-        static_cast<size_t>(std::llround(duracao * static_cast<double>(sample_rate)));
-    std::vector<double> out(total);
+    const size_t total = static_cast<size_t>(llround(duracao * static_cast<double>(sample_rate)));
+    vector<double> out(total);
     constexpr double f1 = 440.0;
     constexpr double pi = std::numbers::pi;
     for (size_t i = 0; i < total; ++i)
     {
-        out[i] = 0.1 * std::sin(2.0 * pi * f1 * static_cast<double>(i) /
-                                static_cast<double>(sample_rate));
+        out[i] =
+            0.1 * sin(2.0 * pi * f1 * static_cast<double>(i) / static_cast<double>(sample_rate));
     }
     return out;
 }
 
-auto salvar_csv(const std::string& caminho, const std::vector<Tensor>& spikes) -> void
+auto salvar_csv(const string& caminho, const vector<Tensor>& spikes) -> void
 {
-    std::ofstream out(caminho);
+    ofstream out(caminho);
     if (!out.is_open())
     {
-        throw std::runtime_error("Nao foi possivel abrir o arquivo de saida.");
+        throw runtime_error("Nao foi possivel abrir o arquivo de saida.");
     }
     int cols = spikes.empty() ? 0 : static_cast<int>(spikes.front().cols());
     out << "frame";
@@ -364,38 +377,57 @@ auto salvar_csv(const std::string& caminho, const std::vector<Tensor>& spikes) -
     }
 }
 
-auto executar_pipeline(const std::string& wav_path, double duracao_sintetica,
-                       const ConfigExtracao& cfg_extracao, const ConfigSNN& cfg_snn,
-                       unsigned int seed, const std::string& saida_csv) -> void
+auto executar_pipeline(const string& wav_path,             //
+                       double duracao_sintetica,           //
+                       const ConfigExtracao& cfg_extracao, //
+                       const ConfigSNN& cfg_snn,           //
+                       unsigned int seed,                  //
+                       const string& saida_csv             //
+                       ) -> void
 {
-    auto audio = carregar_audio(wav_path, duracao_sintetica, cfg_extracao.taxa_amostragem);
+    auto audio = carregar_audio(     //
+        wav_path,                    //
+        duracao_sintetica,           //
+        cfg_extracao.taxa_amostragem //
+    );
+
     auto features = construir_features(audio, cfg_extracao);
+
     if (features.empty())
     {
-        throw std::runtime_error("Nenhuma janela gerada.");
+        throw runtime_error("Nenhuma janela gerada.");
     }
 
-    ModeloSNN modelo(static_cast<int>(features.front().size()),
-                     static_cast<int>(features.front().size()),
-                     cfg_snn.profundidade,
-                     cfg_snn.tamanho_camada_oculta,
-                     seed);
+    ModeloSNN modelo(                              //
+        static_cast<int>(features.front().size()), //
+        static_cast<int>(features.front().size()), //
+        cfg_snn.profundidade,                      //
+        cfg_snn.tamanho_camada_oculta,             //
+        seed                                       //
+    );
 
-    std::mt19937 rng(seed == 0 ? nn::testing::SEED : seed);
+    mt19937 rng(seed == 0 ? nn::testing::SEED : seed);
 
-    std::vector<Tensor> saida_por_janela;
+    vector<Tensor> saida_por_janela;
     saida_por_janela.reserve(features.size());
 
     for (const auto& feat : features)
     {
         Tensor entrada(1, static_cast<Index>(feat.size()));
+
         for (Index j = 0; j < entrada.cols(); ++j)
         {
             entrada.at(0, j) = feat[static_cast<size_t>(j)];
         }
 
-        auto spikes_in = codificacao::codificar_poisson(
-            entrada, cfg_snn.passos_por_janela, rng, -1.0F, true, cfg_snn.alvo_spikes_por_passo);
+        auto spikes_in = codificacao::codificar_poisson( //
+            entrada,                                     //
+            cfg_snn.passos_por_janela,                   //
+            rng,                                         //
+            -1.0F,                                       //
+            true,                                        //
+            cfg_snn.alvo_spikes_por_passo                //
+        );
 
         Tensor acumulado(1, static_cast<Index>(feat.size()));
         acumulado.setZero();
@@ -407,59 +439,91 @@ auto executar_pipeline(const std::string& wav_path, double duracao_sintetica,
             auto spk_out = modelo.forward(step, false);
             acumulado = acumulado.add(spk_out);
         }
+
         saida_por_janela.push_back(acumulado);
     }
 
     salvar_csv(saida_csv, saida_por_janela);
-    std::cout << "Pipeline concluido. Saida em " << saida_csv << "\n";
+    cout << "Pipeline concluido. Saida em " << saida_csv << "\n";
 }
 
 int main(int argc, char** argv)
 {
-    ArgumentParser program("voice_biometrics_cpp");
-    program.add_description("Pipeline WPT -> log-normalizacao -> codificacao Poisson -> SNN.");
+    ArgumentParser parser("voice_biometrics_cpp");
+    parser.add_description("Pipeline WPT -> log-normalizacao -> codificacao Poisson -> SNN.");
 
-    program.add_argument("--entrada-wav")
-        .default_value(std::string(""))
+    parser
+        .add_argument("--entrada-wav") //
+        .default_value(string(""))     //
         .help("WAV de entrada (opcional)");
-    program.add_argument("--saida-csv").default_value(std::string("resultado_spikes.csv"));
-    program.add_argument("--duracao")
-        .default_value(1.0)
-        .help("Duracao sintetica se nao houver WAV");
-    program.add_argument("--taxa-amostragem").default_value(44100).help("Taxa alvo (Hz)");
-    program.add_argument("--tamanho-janela").default_value(512);
-    program.add_argument("--tamanho-passo").default_value(256);
-    program.add_argument("--num-bandas").default_value(100);
-    program.add_argument("--passos-por-janela").default_value(10);
-    program.add_argument("--profundidade").default_value(3);
-    program.add_argument("--hidden").default_value(128);
-    program.add_argument("--seed").default_value(42u);
+
+    parser
+        .add_argument("--saida-csv")                    //
+        .default_value(string("resultado_spikes.csv")); //
+
+    parser
+        .add_argument("--duracao")                    //
+        .default_value(1.0)                           //
+        .help("Duracao sintetica se nao houver WAV"); //
+
+    parser
+        .add_argument("--taxa-amostragem") //
+        .default_value(44100)              //
+        .help("Taxa alvo (Hz)");           //
+
+    parser
+        .add_argument("--tamanho-janela") //
+        .default_value(512);              //
+
+    parser
+        .add_argument("--tamanho-passo") //
+        .default_value(256);             //
+
+    parser
+        .add_argument("--num-bandas") //
+        .default_value(100);          //
+
+    parser
+        .add_argument("--passos-por-janela") //
+        .default_value(10);                  //
+
+    parser
+        .add_argument("--profundidade") //
+        .default_value(3);              //
+
+    parser
+        .add_argument("--hidden") //
+        .default_value(128);      //
+
+    parser
+        .add_argument("--seed") //
+        .default_value(42u);    //
 
     try
     {
-        program.parse_args(argc, argv);
+        parser.parse_args(argc, argv);
     }
-    catch (const std::exception& e)
+    catch (const exception& e)
     {
         std::cerr << e.what() << "\n";
         return 1;
     }
 
     ConfigExtracao cfg_extr;
-    cfg_extr.taxa_amostragem = program.get<int>("--taxa-amostragem");
-    cfg_extr.tamanho_janela = program.get<int>("--tamanho-janela");
-    cfg_extr.tamanho_passo = program.get<int>("--tamanho-passo");
-    cfg_extr.num_bandas = program.get<int>("--num-bandas");
+    cfg_extr.taxa_amostragem = parser.get<int>("--taxa-amostragem");
+    cfg_extr.tamanho_janela = parser.get<int>("--tamanho-janela");
+    cfg_extr.tamanho_passo = parser.get<int>("--tamanho-passo");
+    cfg_extr.num_bandas = parser.get<int>("--num-bandas");
 
     ConfigSNN cfg_snn;
-    cfg_snn.passos_por_janela = program.get<int>("--passos-por-janela");
-    cfg_snn.profundidade = program.get<int>("--profundidade");
-    cfg_snn.tamanho_camada_oculta = program.get<int>("--hidden");
+    cfg_snn.passos_por_janela = parser.get<int>("--passos-por-janela");
+    cfg_snn.profundidade = parser.get<int>("--profundidade");
+    cfg_snn.tamanho_camada_oculta = parser.get<int>("--hidden");
 
-    auto seed = program.get<unsigned int>("--seed");
-    auto entrada = program.get<std::string>("--entrada-wav");
-    auto saida_csv = program.get<std::string>("--saida-csv");
-    auto duracao = program.get<double>("--duracao");
+    auto seed = parser.get<unsigned int>("--seed");
+    auto entrada = parser.get<std::string>("--entrada-wav");
+    auto saida_csv = parser.get<std::string>("--saida-csv");
+    auto duracao = parser.get<double>("--duracao");
 
     try
     {
