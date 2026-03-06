@@ -14,6 +14,9 @@ include(cmake/VendorCnpy.cmake)
 # Argparse integration
 include(cmake/VendorArgparse.cmake)
 
+# CLI11 integration
+include(cmake/VendorCLI11.cmake)
+
 # Vendored FFTW handling
 include(cmake/VendorFFTW.cmake)
 

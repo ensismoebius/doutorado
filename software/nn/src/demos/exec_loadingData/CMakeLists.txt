@@ -13,6 +13,7 @@ target_link_libraries(loadingData
 
 target_link_libraries(loadingData PRIVATE
     dataLoaders
+    CLI11::CLI11
     Eigen3::Eigen
     matioCpp
     cnpy-static
