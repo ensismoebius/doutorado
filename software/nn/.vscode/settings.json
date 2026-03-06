@@ -194,5 +194,21 @@
         "Backpropagates",
         "comandos",
         "minibatching"
-    ]
+    ],
+    "python.defaultInterpreterPath": "/home/ensismoebius/.local/share/mamba/envs/mortgage-sim/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "terminal.integrated.profiles.linux": {
+        "bash (mortgage-sim)": {
+            "path": "/bin/bash",
+            "args": [
+                "-ic",
+                "micromamba activate mortgage-sim; exec bash"
+            ]
+        }
+    },
+    "terminal.integrated.defaultProfile.linux": "bash (mortgage-sim)",
+    "terminal.integrated.env.linux": {
+        "CONDA_DEFAULT_ENV": "mortgage-sim"
+    },
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

@@ -1,115 +1,62 @@
 {
-    "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
+            "name": "Debug: Prototype (file)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/src/demos/pydemos/prototipo_multimodal/run_prototype.py",
             "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PATH": "/home/ensismoebius/.local/share/mamba/envs/mortgage-sim/bin:${env:PATH}",
+                "CONDA_DEFAULT_ENV": "mortgage-sim",
+                "CONDA_PREFIX": "/home/ensismoebius/.local/share/mamba/envs/mortgage-sim"
+            },
             "args": [
-                "demo"
-            ]
-        },
-        {
-            "name": "Run: demo",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
-            "console": "integratedTerminal",
-            "args": [
-                "demo",
-                "--duracao",
-                "1.0",
-                "--saida-plot",
-                "debug_demo.png"
-            ]
-        },
-        {
-            "name": "Run: capturar",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
-            "console": "integratedTerminal",
-            "args": [
-                "capturar",
-                "--pessoa",
-                "alice",
-                "--duracao",
-                "3.0"
-            ]
-        },
-        {
-            "name": "Run: treinar",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
-            "console": "integratedTerminal",
-            "args": [
-                "treinar",
-                "--epocas",
+                "--data-root",
+                "src/demos/pydemos/prototipo_multimodal",
+                "--format",
+                "npz",
+                "--audio-orig-sr",
+                "16000",
+                "--eeg-orig-sr",
+                "200",
+                "--epochs",
                 "5",
-                "--saida-modelo",
-                "debug_model.pt"
+                "--batch-size",
+                "32",
+                "--device",
+                "cpu"
             ]
         },
         {
-            "name": "Run: identificar",
+            "name": "Debug: Prototype (module)",
             "type": "debugpy",
             "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
+            "module": "demos.pydemos.prototipo_multimodal.run_prototype",
             "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src",
+                "PATH": "/home/ensismoebius/.local/share/mamba/envs/mortgage-sim/bin:${env:PATH}",
+                "CONDA_DEFAULT_ENV": "mortgage-sim",
+                "CONDA_PREFIX": "/home/ensismoebius/.local/share/mamba/envs/mortgage-sim"
+            },
             "args": [
-                "identificar"
+                "--data-root",
+                "src/demos/pydemos/prototipo_multimodal",
+                "--format",
+                "npz",
+                "--audio-orig-sr",
+                "16000",
+                "--eeg-orig-sr",
+                "200",
+                "--epochs",
+                "5",
+                "--batch-size",
+                "32",
+                "--device",
+                "cpu"
             ]
-        },
-        {
-            "name": "Run: verificar",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
-            "console": "integratedTerminal",
-            "args": [
-                "verificar"
-            ]
-        },
-        {
-            "name": "Run: avaliar",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "app.main",
-            "cwd": "${workspaceFolder}/src/demos/pydemos",
-            "console": "integratedTerminal",
-            "args": [
-                "avaliar",
-                "--diretorio-dados",
-                "dados/vozes"
-            ]
-        },
-        {
-            "name": "CMake Debug (LLDB DAP)",
-            "type": "lldb-dap",
-            "request": "launch",
-            "program": "${command:cmake.launchTargetPath}",
-            "cwd": "${command:cmake.launchTargetDirectory}",
-            "args": [
-                "${workspaceFolder}/src/experiments/config.yaml"
-            ],
-            "console": "internalConsole",
-            "preLaunchTask": "analise_codebase",
-            "initCommands": [
-                "script import sys, os, importlib",
-                "script sys.path.insert(0, '${workspaceFolder}/debug/lldb')",
-                "script import eigenlldb",
-                "script importlib.reload(eigenlldb)",
-                "script eigenlldb.__lldb_init_module(lldb.debugger, None)"
-            ],
-            "stopOnEntry": false
         }
     ]
 }
