@@ -1,16 +1,23 @@
+#include <cstddef>
+#include <optional>
 #include <string>
 
 #include "CLI/CLI.hpp"
 
 using CLI::App;
-using CLI::ExistingFile;
+using std::optional;
 using std::string;
 
 struct Config
 {
-    size_t row_index = 0;
-    string eeg_mat;
-    string audio_mat;
+    string subject_regex_pattern; // Subject Id
+    string dataset_root;          // Path containing subject dirs
+
+    size_t batch_size;  // Batch size for DataLoader
+    size_t max_batches; // Max batches to iterate
+
+    bool shuffle = true;         // Shuffle samples before batching?
+    optional<unsigned int> seed; // Random seed for shuffling (ignored if shuffle=false)
 };
 
 /**

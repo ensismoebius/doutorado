@@ -17,27 +17,6 @@
 
 namespace nn::dataLoaders
 {
-
-/**
- * @brief Map stimulus IDs to their string representations.
- * For this dataset, the stimulus are A, E, I, O, U vowels
- * and directions in Spanish and the words "Up", "Down", "Forward",
- * "Backward", "Right", "Left" in Spanish.
- */
-const std::map<int, std::string> ESTIMULUS_NAMES = {
-    {1, "A"},         // Vowel "A"
-    {2, "E"},         // Vowel "E"
-    {3, "I"},         // Vowel "I"
-    {4, "O"},         // Vowel "O"
-    {5, "U"},         // Vowel "U"
-    {6, "Arriba"},    // "Up" in Spanish
-    {7, "Abajo"},     //  "Down" in Spanish
-    {8, "Adelante"},  // "Forward" in Spanish
-    {9, "Atras"},     // "Backward" in Spanish
-    {10, "Derecha"},  // "Right" in Spanish
-    {11, "Izquierda"} // "Left" in Spanish
-};
-
 // Audio data format constants
 constexpr size_t AUDIO_SAMPLES_COUNT = 176400; // Number of audio samples per row
 constexpr size_t MATRIX_COLUMNS = 176402;      // Total columns (samples + stimulus + EEG index)

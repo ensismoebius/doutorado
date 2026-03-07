@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 #include "nn/tensor/Tensor.hpp"
 
@@ -33,6 +34,7 @@
 
 namespace nn::dataLoaders
 {
+using std::string;
 
 // Constants matching dataset schema
 static constexpr int EEG_TOTAL_COLUMNS = 24579; // M columns including labels
@@ -209,7 +211,6 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
 
     return {eegChannels, {modality, stimulus, artifact}};
 }
-
 } // namespace nn::dataLoaders
 
 // Provide out-of-line destructor definition so the vtable/typeinfo is emitted

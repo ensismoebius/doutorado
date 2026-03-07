@@ -2,19 +2,35 @@
 
 void parseCliParams(int argc, char* argv[], Config& config, const Config& default_config)
 {
-    App app("Load one audio row and one EEG row from 10.1117 MATLAB files.");
+    App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
 
-    app.add_option("--audio-mat", config.audio_mat, "Path to audio MAT file")
+    app.add_option("--dataset-root", config.dataset_root, "Path containing subjects dir")
         ->expected(0, 1)
-        ->check(ExistingFile);
+        ->check(CLI::ExistingDirectory)
+        ->default_val(default_config.dataset_root);
 
-    app.add_option("--eeg-mat", config.eeg_mat, "Path to EEG MAT file")
+    app.add_option("--subject", config.subject_regex_pattern, "Optional subject filter (e.g., S01)")
         ->expected(0, 1)
-        ->check(ExistingFile);
+        ->default_val(default_config.subject_regex_pattern);
 
-    app.add_option("--row", config.row_index, "Row index to load from both files")
+    app.add_option("--batch-size", config.batch_size, "Mini-batch size")
         ->expected(1)
-        ->check(CLI::NonNegativeNumber);
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.batch_size);
+
+    app.add_option("--max-batches", config.max_batches, "Max batches to iterate in this demo")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.max_batches);
+
+    app.add_option(
+           "--seed", config.seed, "Deterministic seed for shuffling (ignored if --no-shuffle)")
+        ->expected(0, 1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(default_config.seed);
+
+    app.add_flag("--shuffle,!--no-shuffle", config.shuffle, "Shuffle samples before batching")
+        ->default_val(default_config.shuffle);
 
     try
     {
@@ -24,16 +40,4 @@ void parseCliParams(int argc, char* argv[], Config& config, const Config& defaul
     {
         app.exit(e);
     }
-
-    config.audio_mat =             //
-        config.audio_mat.empty() ? //
-            default_config.audio_mat
-                                 : //
-            config.audio_mat;
-
-    config.eeg_mat =             //
-        config.eeg_mat.empty() ? //
-            default_config.eeg_mat
-                               : //
-            config.eeg_mat;
 }

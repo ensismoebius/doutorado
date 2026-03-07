@@ -17,8 +17,12 @@
 // - `Iterator::operator*()` delegates batching to `Dataset::collate()`, which
 //   enables datasets to implement fast slicing/gather.
 
-DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle,
-                       std::optional<unsigned int> seed)
+DataLoader::DataLoader(               //
+    std::shared_ptr<Dataset> dataset, //
+    std::size_t batch_size,           //
+    bool do_shuffle,                  //
+    std::optional<unsigned int> seed  //
+    )
     : dataset_(std::move(dataset)), batch_size_(batch_size), shuffle_(do_shuffle), seed_(seed)
 {
     if (!dataset_)
@@ -39,17 +43,20 @@ DataLoader::DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
             "DataLoader: batch size is unreasonably large (possible negative value).");
     }
 
-    std::size_t n_samples = dataset_->size();
+    // Precompute number of batches and initialize indices
+    const std::size_t n_samples = dataset_->size();
     num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
-
     indices_.resize(n_samples);
+
     std::iota(indices_.begin(), indices_.end(), 0);
     if (shuffle_ && seed_)
     {
         std::mt19937 g(*seed_);
         std::shuffle(indices_.begin(), indices_.end(), g);
+        return;
     }
-    else if (shuffle_)
+
+    if (shuffle_)
     {
         std::random_device rd;
         std::mt19937 g(rd());
@@ -88,9 +95,15 @@ auto DataLoader::end() -> DataLoader::Iterator
     return {*this, num_batches_, {}};
 }
 
-DataLoader::Iterator::Iterator(DataLoader& loader, std::size_t current_batch,
-                               std::vector<std::size_t> indices)
-    : loader_(loader), current_batch_(current_batch), indices_(std::move(indices))
+DataLoader::Iterator::Iterator(      //
+    DataLoader& loader,              //
+    std::size_t current_batch,       //
+    std::vector<std::size_t> indices //
+    )
+    : loader_(loader),               //
+      current_batch_(current_batch), //
+      indices_(std::move(indices)    //
+      )
 {
 }
 

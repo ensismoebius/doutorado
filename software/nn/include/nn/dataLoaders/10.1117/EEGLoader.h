@@ -11,6 +11,7 @@
 #pragma once
 
 #include <array>
+#include <map>
 #include <string>
 
 #include "nn/dataLoaders/IMatLoader.hpp"
@@ -18,9 +19,6 @@
 
 namespace nn::dataLoaders
 {
-
-// EEG channel names corresponding to the 6 channels in the dataset
-constexpr std::array<std::string, 6> EEG_CHANNELS_NAMES = {"F3", "F4", "C3", "C4", "P3", "P4"};
 
 class EEGLoader : public IMatLoader
 {
@@ -33,8 +31,10 @@ class EEGLoader : public IMatLoader
 
     auto readVariable(const std::string& name)
         -> std::unique_ptr<matvar_t, void (*)(matvar_t*)> override;
+
     std::optional<std::unique_ptr<matvar_t, void (*)(matvar_t*)>> readFirstNumericVariable()
         override;
+
     [[nodiscard]] auto filePath() const noexcept -> std::string override
     {
         return filePath_;
