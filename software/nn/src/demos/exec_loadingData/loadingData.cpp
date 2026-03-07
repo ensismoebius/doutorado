@@ -1,18 +1,20 @@
 /**
  * @file loadingData.cpp
- * @brief Tiny utility demo: inspect a MATLAB `.mat` file via project dataLoaders helpers.
+ * @brief Tiny utility demo: load one audio row and one EEG row via 10.1117 loaders.
  */
 
-#include <CLI/CLI.hpp>
+#include <array>
 #include <iostream>
 #include <string>
-#include <vector>
+#include <tuple>
 
-#include "nn/dataLoaders/mat_file_utils.hpp"
+#include "cli.hpp"
+#include "nn/dataLoaders/10.1117/AudioLoader.h"
+#include "nn/dataLoaders/10.1117/EEGLoader.h"
 
-using CLI::App;
-using matioCpp::utils::get_variable_dimensions;
-using matioCpp::utils::list_variable_names;
+using nn::dataLoaders::EEG_CHANNELS_NAMES;
+using nn::dataLoaders::loadAudioFromMat;
+using nn::dataLoaders::loadEEGFromMat;
 using std::cerr;
 using std::cout;
 using std::exception;
@@ -20,71 +22,47 @@ using std::string;
 
 auto main(int argc, char* argv[]) -> int
 {
-    const std::vector<string> default_mat_paths = {
-        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/S01/S01_Audio.mat",
-        "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/S01/S01_EEG.mat"};
+    const string prefix =
+        "/home/ensismoebius/Documentos/"
+        "UNESP/doutorado/databases/"
+        "BaseDeDatosHablaImaginada/";
 
-    string mat_path;
+    const Config dft_config{
+        .row_index = 0,                                                     //
+        .eeg_mat = prefix + "BaseDeDatosHablaImaginada/S01/S01_EEG.mat",    //
+        .audio_mat = prefix + "BaseDeDatosHablaImaginada/S01/S01_Audio.mat" //
+    };
 
-    App app{"Inspect variables and dimensions from a MATLAB .mat file."};
+    Config config;
 
-    app.add_option(           //
-           "mat_file",        //
-           mat_path,          //
-           "Path to MAT file" //
-           )
-          ->expected(0, 1)
-        ->check(CLI::ExistingFile);
-
-    CLI11_PARSE(app, argc, argv);
+    parseCliParams(argc, argv, config, dft_config);
 
     try
     {
-        const std::vector<string> files_to_inspect =
-            mat_path.empty() ? default_mat_paths : std::vector<string>{mat_path};
+        const auto [audio_tensor, stimulus, eeg_index] = loadAudioFromMat( //
+            config.audio_mat,                                              //
+            config.row_index                                               //
+        );
+        cout << "Audio loaded from: " << config.audio_mat << '\n';
+        cout << "  shape: [" << audio_tensor.rows() << "x" << audio_tensor.cols() << "]\n";
+        cout << "  stimulus: " << stimulus << '\n';
+        cout << "  eeg_index: " << eeg_index << "\n\n";
 
-        bool had_errors = false;
+        const auto [eeg_tensor, eeg_labels] = loadEEGFromMat(config.eeg_mat, config.row_index);
+        cout << "EEG loaded from: " << config.eeg_mat << '\n';
+        cout << "  shape: [" << eeg_tensor.rows() << "x" << eeg_tensor.cols() << "]\n";
+        cout << "  modality: " << eeg_labels[0] << '\n';
+        cout << "  stimulus: " << eeg_labels[1] << '\n';
+        cout << "  artifact: " << eeg_labels[2] << '\n';
 
-        for (const auto& file_path : files_to_inspect)
+        if (eeg_tensor.rows() == EEG_CHANNELS_NAMES.size())
         {
-            auto variables = list_variable_names(file_path);
-
-            if (variables.empty())
+            cout << "  channels:";
+            for (const auto& channel_name : EEG_CHANNELS_NAMES)
             {
-                cerr << "Error: no variables found: " << file_path << '\n';
-                had_errors = true;
-                continue;
+                cout << ' ' << channel_name;
             }
-
-            cout << "Variables in file: " << file_path << '\n';
-
-            for (const auto& name : variables)
-            {
-                auto dims_opt = get_variable_dimensions(file_path, name);
-                if (!dims_opt)
-                {
-                    cout << "  " << name << ": [unavailable dimensions]\n";
-                    continue;
-                }
-
-                const auto& dims = *dims_opt;
-
-                cout << "  " << name << ": [";
-                for (size_t i = 0; i < dims.size(); ++i)
-                {
-                    if (i != 0)
-                    {
-                        cout << "x";
-                    }
-                    cout << dims[i];
-                }
-                cout << "]\n";
-            }
-        }
-
-        if (had_errors)
-        {
-            return 1;
+            cout << '\n';
         }
     }
     catch (const exception& e)

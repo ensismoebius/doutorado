@@ -2,6 +2,7 @@
 # Target for loadingData utility
 
 add_executable(loadingData
+    ${SRC_DIR}/demos/exec_loadingData/cli.cpp
     ${SRC_DIR}/demos/exec_loadingData/loadingData.cpp
 )
 
@@ -12,10 +13,11 @@ target_link_libraries(loadingData
 )
 
 target_link_libraries(loadingData PRIVATE
-    dataLoaders
     CLI11::CLI11
     Eigen3::Eigen
-    matioCpp
     cnpy-static
+    dataLoaders_10_1117
+    dataLoaders
+    matioCpp
     z
 )
