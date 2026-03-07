@@ -11,6 +11,7 @@
 #include <filesystem>
 
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
+#include "nn/dataLoaders/10.1117/METADATA.hpp"
 
 namespace
 {

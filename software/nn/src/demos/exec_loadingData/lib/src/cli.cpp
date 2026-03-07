@@ -1,5 +1,4 @@
 #include "../include/cli.hpp"
-
 void parseCliParams(int argc, char* argv[], Config& config, const Config& default_config)
 {
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");

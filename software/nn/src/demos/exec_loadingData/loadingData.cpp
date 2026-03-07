@@ -10,20 +10,20 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <filesystem>
-#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "lib/include/batch_util.hpp"
 #include "lib/include/cli.hpp"
+#include "lib/include/subject_discovery.hpp"
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/NAMES.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/Dataset.hpp"
@@ -33,7 +33,9 @@ using nn::dataLoaders::loadEEGFromMat;
 
 using nn::dataLoaders::ARTIFACT_NAMES;
 using nn::dataLoaders::AUDIO_SAMPLES_COUNT;
+using nn::dataLoaders::EEG_CHANNELS;
 using nn::dataLoaders::EEG_CHANNELS_NAMES;
+using nn::dataLoaders::EEG_SAMPLE_COUNT;
 using nn::dataLoaders::ESTIMULUS_NAMES;
 using nn::dataLoaders::MODALITY_NAMES;
 
@@ -46,99 +48,8 @@ using std::string;
 namespace
 {
 
-constexpr size_t EEG_CHANNELS = 6;
-constexpr size_t EEG_SAMPLES_PER_CHANNEL = 4096;
-constexpr size_t EEG_FEATURES = EEG_CHANNELS * EEG_SAMPLES_PER_CHANNEL;
+constexpr size_t EEG_FEATURES = EEG_CHANNELS * EEG_SAMPLE_COUNT;
 constexpr size_t INPUT_FEATURES = EEG_FEATURES + AUDIO_SAMPLES_COUNT;
-
-struct SubjectFiles
-{
-    int subject_id = 0;
-    string subject_name;
-    string eeg_mat_path;
-    string audio_mat_path;
-    size_t eeg_rows = 0;
-    size_t audio_rows = 0;
-};
-
-auto discoverSubjects(const string& root_dir, string& subject_regex_pattern)
-    -> std::vector<SubjectFiles>
-{
-    namespace fs = std::filesystem;
-
-    // Checks if root path exists and is a directory
-    fs::path root_path(root_dir);
-    if (!fs::exists(root_path) || !fs::is_directory(root_path))
-    {
-        throw std::runtime_error("Dataset root does not exist or is not a directory: " + root_dir);
-    }
-
-    // List subject directories matching the regex
-    // pattern and check for required MAT files
-    std::vector<SubjectFiles> subjects;
-
-    // Create regex for subject selection.
-    std::regex selection_pattern(subject_regex_pattern);
-
-    // Iterate over entries in the root directory
-    for (const auto& entry : fs::directory_iterator(root_path))
-    {
-        if (!entry.is_directory())
-        {
-            continue;
-        }
-
-        // Extract the directory name
-        const string dir_name = entry.path().filename().string();
-
-        // Check if the directory name matches the subject selection pattern
-        std::smatch regex_groups_matches;
-
-        if (!std::regex_match(dir_name, regex_groups_matches, selection_pattern))
-        {
-            continue;
-        }
-
-        // Extract subject ID from the regex match
-        // (assuming it's in the first capture group)
-        const int subject_id = std::stoi(regex_groups_matches[1].str());
-
-        const fs::path eeg_path = entry.path() / (dir_name + "_EEG.mat");
-        const fs::path audio_path = entry.path() / (dir_name + "_Audio.mat");
-
-        if (!fs::exists(eeg_path) || !fs::exists(audio_path))
-        {
-            continue;
-        }
-
-        SubjectFiles info{};
-        info.subject_id = subject_id;
-        info.subject_name = dir_name;
-        info.eeg_mat_path = eeg_path.string();
-        info.audio_mat_path = audio_path.string();
-
-        subjects.push_back(std::move(info));
-    }
-
-    if (subjects.empty())
-    {
-        throw std::runtime_error(
-            "No valid subject directories found. "
-            "Expected S01/S01_EEG.mat and S01/S01_Audio.mat" //
-        );
-    }
-
-    std::sort(            //
-        subjects.begin(), //
-        subjects.end(),   //
-        [](const SubjectFiles& a, const SubjectFiles& b)
-        {
-            return a.subject_id < b.subject_id; // sort by subject ID ascending
-        } //
-    );
-
-    return subjects;
-}
 
 auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
 {
@@ -164,7 +75,7 @@ auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
 
 auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor
 {
-    if (eeg.rows() != EEG_CHANNELS || eeg.cols() != EEG_SAMPLES_PER_CHANNEL)
+    if (eeg.rows() != EEG_CHANNELS || eeg.cols() != EEG_SAMPLE_COUNT)
     {
         throw std::runtime_error("Unexpected EEG shape. Expected [6x4096].");
     }
@@ -179,7 +90,7 @@ auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tens
     size_t col = 0;
     for (size_t ch = 0; ch < EEG_CHANNELS; ++ch)
     {
-        for (size_t s = 0; s < EEG_SAMPLES_PER_CHANNEL; ++s)
+        for (size_t s = 0; s < EEG_SAMPLE_COUNT; ++s)
         {
             input.at(0, col++) = eeg.at(ch, s);
         }
@@ -212,19 +123,25 @@ class Protocol101117Dataset : public Dataset
     explicit Protocol101117Dataset(std::vector<SubjectFiles> subjects)
         : subjects_(std::move(subjects))
     {
-        prefix_offsets_.reserve(subjects_.size() + 1);
-        prefix_offsets_.push_back(0);
+        // Build prefix-sum offsets for per-subject audio rows.
+        // After this loop `prefix_audio_row_offsets_` contains cumulative
+        // counts such that prefix_audio_row_offsets_[i] is the start index
+        // (in the flattened dataset space) of subject i's audio rows.
+        // Example: subjects audio_rows = {A, B, C} -> offsets = {0, A, A+B, A+B+C}
+        prefix_audio_row_offsets_.reserve(subjects_.size() + 1);
+        prefix_audio_row_offsets_.emplace_back(0);
 
         for (const auto& subject : subjects_)
         {
-            const size_t next = prefix_offsets_.back() + subject.audio_rows;
-            prefix_offsets_.push_back(next);
+            const size_t next = prefix_audio_row_offsets_.back() + subject.audio_rows;
+            prefix_audio_row_offsets_.emplace_back(next);
         }
     }
 
     [[nodiscard]] auto size() const -> size_t override
     {
-        return prefix_offsets_.empty() ? 0 : prefix_offsets_.back();
+        // Total number of synchronized (audio) samples across all subjects
+        return prefix_audio_row_offsets_.empty() ? 0 : prefix_audio_row_offsets_.back();
     }
 
     [[nodiscard]] auto get_item(size_t idx) const -> Batch override
@@ -234,14 +151,20 @@ class Protocol101117Dataset : public Dataset
             throw std::out_of_range("Dataset index out of range: " + std::to_string(idx));
         }
 
-        const auto upper = std::upper_bound(prefix_offsets_.begin(), prefix_offsets_.end(), idx);
-        const size_t subject_pos =
-            static_cast<size_t>(std::distance(prefix_offsets_.begin(), upper) - 1);
-        const size_t local_audio_row = idx - prefix_offsets_[subject_pos];
-        const SubjectFiles& subject = subjects_.at(subject_pos);
+        // Find the subject that owns the global flattened index `idx`.
+        // `upper_it` points to the first offset > idx, so the subject index
+        // is one before that iterator.
+        const auto upper_it = std::upper_bound(
+            prefix_audio_row_offsets_.begin(), prefix_audio_row_offsets_.end(), idx);
+        const size_t subject_index =
+            static_cast<size_t>(std::distance(prefix_audio_row_offsets_.begin(), upper_it) - 1);
+
+        // Convert global index to per-subject (local) audio row index.
+        const size_t local_audio_row_index = idx - prefix_audio_row_offsets_[subject_index];
+        const SubjectFiles& subject = subjects_.at(subject_index);
 
         const auto [audio_tensor, audio_stimulus, eeg_index_label] =
-            loadAudioFromMat(subject.audio_mat_path, local_audio_row);
+            loadAudioFromMat(subject.audio_mat_path, local_audio_row_index);
 
         const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
         const auto [eeg_tensor, eeg_labels] = loadEEGFromMat(subject.eeg_mat_path, eeg_row);
@@ -250,7 +173,7 @@ class Protocol101117Dataset : public Dataset
         {
             throw std::runtime_error("Stimulus mismatch between audio and EEG for subject " +
                                      subject.subject_name + " at audio row " +
-                                     std::to_string(local_audio_row));
+                                     std::to_string(local_audio_row_index));
         }
 
         nn::Tensor input = makeInputTensor(eeg_tensor, audio_tensor);
@@ -266,7 +189,9 @@ class Protocol101117Dataset : public Dataset
 
    private:
     std::vector<SubjectFiles> subjects_;
-    std::vector<size_t> prefix_offsets_;
+    // Cumulative start offsets (prefix sums) of audio rows for each subject.
+    // Use this to map a flattened dataset index -> (subject index, local row).
+    std::vector<size_t> prefix_audio_row_offsets_;
 };
 
 class DemoProbeModel
@@ -300,22 +225,6 @@ class DemoProbeModel
     }
 };
 
-auto printData(const Batch& batch) -> void
-{
-    for (size_t i = 0; i < batch.inputs.rows(); ++i)
-    {
-        cout << "Sample " << i << ":\n";
-        cout << "  - Target subject ID: " << batch.targets.at(i, 0) << '\n';
-        cout << "  - Target modality: "
-             << MODALITY_NAMES.at(static_cast<int>(batch.targets.at(i, 1))) << '\n';
-        cout << "  - Target stimulus: "
-             << ESTIMULUS_NAMES.at(static_cast<int>(batch.targets.at(i, 2))) << '\n';
-        cout << "  - Target artifact: "
-             << ARTIFACT_NAMES.at(static_cast<int>(batch.targets.at(i, 3))) << '\n';
-        cout << "  - Target EEG index label: " << batch.targets.at(i, 4) << "\n\n";
-    }
-}
-
 } // namespace
 
 auto main(int argc, char* argv[]) -> int
@@ -338,7 +247,7 @@ auto main(int argc, char* argv[]) -> int
     try
     {
         auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
-        auto dataset = std::make_shared<Protocol101117Dataset>(std::move(discovered));
+        auto dataset = std::make_shared<Protocol101117Dataset>(discovered);
 
         DataLoader loader(dataset, config.batch_size, config.shuffle, config.seed);
 

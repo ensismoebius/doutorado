@@ -11,7 +11,6 @@
 #pragma once
 
 #include <array>
-#include <map>
 #include <string>
 
 #include "nn/dataLoaders/IMatLoader.hpp"

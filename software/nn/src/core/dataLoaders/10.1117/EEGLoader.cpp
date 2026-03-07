@@ -4,6 +4,7 @@
  */
 
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/METADATA.hpp"
 
 #include <matio.h>
 
@@ -35,11 +36,6 @@
 namespace nn::dataLoaders
 {
 using std::string;
-
-// Constants matching dataset schema
-static constexpr int EEG_TOTAL_COLUMNS = 24579; // M columns including labels
-static constexpr int EEG_SAMPLE_COUNT = 24576;  // samples portion
-static constexpr int EEG_CHANNELS = 6;          // number of EEG channels
 
 // Alias for unique_ptr to matvar_t with custom deleter
 using MatVarUniquePtr = std::unique_ptr<matvar_t, void (*)(matvar_t*)>;

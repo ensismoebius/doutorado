@@ -14,6 +14,7 @@
 #include <optional>
 #include <stdexcept>
 
+#include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/IMatLoader.hpp"
 #include "nn/tensor/Tensor.hpp"
 
