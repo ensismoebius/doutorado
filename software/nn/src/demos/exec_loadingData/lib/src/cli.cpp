@@ -1,4 +1,4 @@
-#include "cli.hpp"
+#include "../include/cli.hpp"
 
 void parseCliParams(int argc, char* argv[], Config& config, const Config& default_config)
 {

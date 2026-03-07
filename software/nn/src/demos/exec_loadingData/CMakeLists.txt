@@ -2,7 +2,7 @@
 # Target for loadingData utility
 
 add_executable(loadingData
-    ${SRC_DIR}/demos/exec_loadingData/cli.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/cli.cpp
     ${SRC_DIR}/demos/exec_loadingData/loadingData.cpp
 )
 

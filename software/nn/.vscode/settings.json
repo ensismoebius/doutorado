@@ -172,7 +172,11 @@
         "type": "lldb-dap",
         "request": "launch",
         "program": "${command:cmake.launchTargetPath}",
-        "cwd": "${workspaceFolder}/build"
+        "cwd": "${workspaceFolder}/build",
+        "env": {
+            "ASAN_OPTIONS": "detect_leaks=0",
+            "LSAN_OPTIONS": "verbosity=1:log_threads=1"
+        }
     },
     "editor.quickSuggestions": {
         "other": "on",

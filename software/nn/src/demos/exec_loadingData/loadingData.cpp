@@ -8,13 +8,14 @@
 #include <string>
 #include <tuple>
 
-#include "cli.hpp"
+#include "lib/include/cli.hpp"
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
 
 using nn::dataLoaders::EEG_CHANNELS_NAMES;
 using nn::dataLoaders::loadAudioFromMat;
 using nn::dataLoaders::loadEEGFromMat;
+
 using std::cerr;
 using std::cout;
 using std::exception;
@@ -28,9 +29,9 @@ auto main(int argc, char* argv[]) -> int
         "BaseDeDatosHablaImaginada/";
 
     const Config dft_config{
-        .row_index = 0,                                                     //
-        .eeg_mat = prefix + "BaseDeDatosHablaImaginada/S01/S01_EEG.mat",    //
-        .audio_mat = prefix + "BaseDeDatosHablaImaginada/S01/S01_Audio.mat" //
+        .row_index = 0,                           //
+        .eeg_mat = prefix + "S01/S01_EEG.mat",    //
+        .audio_mat = prefix + "S01/S01_Audio.mat" //
     };
 
     Config config;
@@ -43,12 +44,17 @@ auto main(int argc, char* argv[]) -> int
             config.audio_mat,                                              //
             config.row_index                                               //
         );
+
+        const auto [eeg_tensor, eeg_labels] = loadEEGFromMat( //
+            config.eeg_mat,                                   //
+            config.row_index                                  //
+        );
+
         cout << "Audio loaded from: " << config.audio_mat << '\n';
         cout << "  shape: [" << audio_tensor.rows() << "x" << audio_tensor.cols() << "]\n";
         cout << "  stimulus: " << stimulus << '\n';
         cout << "  eeg_index: " << eeg_index << "\n\n";
 
-        const auto [eeg_tensor, eeg_labels] = loadEEGFromMat(config.eeg_mat, config.row_index);
         cout << "EEG loaded from: " << config.eeg_mat << '\n';
         cout << "  shape: [" << eeg_tensor.rows() << "x" << eeg_tensor.cols() << "]\n";
         cout << "  modality: " << eeg_labels[0] << '\n';
