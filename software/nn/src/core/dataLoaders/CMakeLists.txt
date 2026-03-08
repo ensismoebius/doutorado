@@ -1,5 +1,7 @@
 find_package(ZLIB REQUIRED)
 
+add_subdirectory(samplers)
+
 add_library(dataLoaders
     STATIC
         mat_file_utils.cpp
@@ -16,12 +18,12 @@ target_include_directories(dataLoaders
 
 target_link_libraries(dataLoaders
     PRIVATE
-        Eigen3::Eigen
         ${ZLIB_LIBRARIES}
+        dataLoaders_samplers
+        Eigen3::Eigen
         matioCpp
         tensor
 )
 
 add_subdirectory(tests)
-
 add_subdirectory(10.1117)

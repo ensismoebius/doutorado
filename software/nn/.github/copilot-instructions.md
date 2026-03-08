@@ -145,7 +145,15 @@ nn/
 
 - `Batch` (batching.hpp): `{ nn::Tensor inputs; nn::Tensor targets; }`.
 - `Dataset` interface: `get_item(std::size_t) -> Batch`, `size() const -> std::size_t`, optional override of `collate(indices)`; default `collate` builds contiguous Eigen matrices using the first item to infer column counts, returns empty batch with correct column counts when dataset is empty.
-- `DataLoader` (DataLoader.hpp): construct with `std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool shuffle=true, std::optional<unsigned int> seed`. Provides input iterators `begin()/end()` that snapshot shuffled indices per iterator; `seed` enables deterministic shuffles with per-epoch increment.
+- `DataLoader` (DataLoader.hpp): supports two construction modes:
+  - Backward-compatible: `DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool shuffle=true, std::optional<unsigned int> seed=std::nullopt)`.
+  - Sampler-injected (preferred): `DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, std::unique_ptr<ISampler> sampler)`.
+- `ISampler` contract (Sampler.hpp):
+  - `index_count() const -> std::size_t`: number of indices generated per epoch.
+  - `set_epoch(std::size_t)`: optional epoch hook for stateful samplers.
+  - `sample_into(std::span<std::size_t>)`: fills caller-provided index buffer.
+- Built-in samplers: `SequentialSampler`, `RandomSampler`, `WeightedRandomSampler`, `DistributedSampler`.
+- `DataLoader::begin()` calls `sampler->set_epoch(epoch_)` and `sampler->sample_into(...)`, then snapshots indices into iterator state; batching remains implemented via `Dataset::collate()`.
 
 ## 3.4 Optimizer (src/core/optimizers/Optimizer.hpp)
 

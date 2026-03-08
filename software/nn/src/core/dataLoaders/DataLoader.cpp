@@ -6,16 +6,31 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 
 #include <algorithm>
-#include <random>
+#include <stdexcept>
 #include <utility>
 
+#include "nn/dataLoaders/Sampler.hpp"
+
 // Implementation notes:
-// - The `DataLoader` owns a base `indices_` vector and produces per-iterator
-//   snapshots to avoid iterator interference.
-// - When `seed_` is present, `begin()` adds `epoch_` to the seed to produce a
-//   deterministic-but-different shuffle each epoch.
+// - The `DataLoader` delegates sample-index generation to an `ISampler`.
+// - Each iterator owns a sampler-produced snapshot to avoid interference.
 // - `Iterator::operator*()` delegates batching to `Dataset::collate()`, which
 //   enables datasets to implement fast slicing/gather.
+
+namespace
+{
+
+auto make_default_sampler(std::size_t dataset_size, bool do_shuffle,
+                          std::optional<unsigned int> seed) -> std::unique_ptr<ISampler>
+{
+    if (!do_shuffle)
+    {
+        return std::make_unique<SequentialSampler>(dataset_size);
+    }
+    return std::make_unique<RandomSampler>(dataset_size, seed);
+}
+
+} // namespace
 
 DataLoader::DataLoader(               //
     std::shared_ptr<Dataset> dataset, //
@@ -23,11 +38,25 @@ DataLoader::DataLoader(               //
     bool do_shuffle,                  //
     std::optional<unsigned int> seed  //
     )
-    : dataset_(std::move(dataset)), batch_size_(batch_size), shuffle_(do_shuffle), seed_(seed)
+    : DataLoader(dataset, batch_size,
+                 make_default_sampler(dataset ? dataset->size() : 0, do_shuffle, seed))
+{
+}
+
+DataLoader::DataLoader(               //
+    std::shared_ptr<Dataset> dataset, //
+    std::size_t batch_size,           //
+    std::unique_ptr<ISampler> sampler //
+    )
+    : dataset_(std::move(dataset)), batch_size_(batch_size), sampler_(std::move(sampler))
 {
     if (!dataset_)
     {
         throw std::invalid_argument("DataLoader: dataset cannot be null.");
+    }
+    if (!sampler_)
+    {
+        throw std::invalid_argument("DataLoader: sampler cannot be null.");
     }
     if (batch_size == 0)
     {
@@ -45,43 +74,27 @@ DataLoader::DataLoader(               //
         );
     }
 
-    // Precompute number of batches and initialize indices
-    const std::size_t n_samples = dataset_->size();
+    // Precompute number of batches from sampler cardinality.
+    const std::size_t n_samples = sampler_->index_count();
 
     // Calculate number of batches needed, rounding up for the last
     // batch if it doesn't divide evenly in order to partition samples
     // into batches
     num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
 
-    // Initialize indices to [0, 1, 2, ..., n_samples-1]
-    indices_.resize(n_samples);
-    std::iota(indices_.begin(), indices_.end(), 0);
-
-    // NOTE: Do not shuffle here. Shuffling is centralized in `begin()` so
-    // each iterator gets its own snapshot and deterministic per-epoch
-    // permutations (when `seed_` is provided).
+    if (dataset_->size() == 0 && n_samples > 0)
+    {
+        throw std::invalid_argument("DataLoader: sampler requested indices for an empty dataset.");
+    }
 }
 
 auto DataLoader::begin() -> DataLoader::Iterator
 {
-    // Create a snapshot of indices for this iterator
-    auto snapshot = indices_;
+    // Generate this epoch's sampled index list.
+    std::vector<std::size_t> snapshot(sampler_->index_count());
+    sampler_->set_epoch(epoch_);
+    sampler_->sample_into(snapshot);
 
-    // Shuffle the snapshot if requested. Centralized here so each iterator
-    // gets an independent permutation. When `seed_` is present we derive a
-    // deterministic-per-epoch RNG using `seed_ + epoch_` so each epoch yields
-    // a reproducible but different ordering.
-    if (shuffle_)
-    {
-        thread_local std::mt19937 rng{std::random_device{}()};
-
-        if (seed_)
-        {
-            rng.seed(*seed_ + static_cast<unsigned int>(epoch_));
-        }
-
-        std::shuffle(snapshot.begin(), snapshot.end(), rng);
-    }
     ++epoch_;
     return {*this, 0, std::move(snapshot)};
 }

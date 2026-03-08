@@ -2,11 +2,13 @@
 #define NN_DATALOADERS_DATALOADER_HPP
 
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "Dataset.hpp"
+#include "nn/dataLoaders/samplers/ISampler.hpp"
 
 /**
  * @file DataLoader.hpp
@@ -25,10 +27,15 @@
 class DataLoader
 {
    public:
-    // dataset: shared_ptr to a Dataset; batch_size: size_t; optional seed for
-    // deterministic shuffle
+    // Backward-compatible constructor that maps to built-in samplers:
+    // - do_shuffle=false: SequentialSampler
+    // - do_shuffle=true:  RandomSampler(seed)
     DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle = true,
                std::optional<unsigned int> seed = std::nullopt);
+
+    // Preferred constructor: inject an arbitrary sampler implementation.
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+               std::unique_ptr<ISampler> sampler);
 
     class Iterator
     {
@@ -58,11 +65,10 @@ class DataLoader
    private:
     std::shared_ptr<Dataset> dataset_;
     std::size_t batch_size_;
-    bool shuffle_;
-    std::optional<unsigned int> seed_;
+    std::unique_ptr<ISampler> sampler_;
     std::size_t num_batches_;
-    std::vector<std::size_t> indices_;
-    // epoch counter used when seed_ is present to vary shuffle between epochs
+    // Epoch is propagated to samplers so they can update internal state
+    // (e.g. deterministic per-epoch shuffles in RandomSampler).
     mutable std::size_t epoch_ = 0;
 };
 
