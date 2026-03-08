@@ -36,6 +36,7 @@ using nn::dataLoaders::EEG_CHANNELS_NAMES;
 using nn::dataLoaders::ESTIMULUS_NAMES;
 using nn::dataLoaders::MODALITY_NAMES;
 
+using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using std::cerr;
 using std::cout;
 using std::exception;
@@ -75,14 +76,13 @@ auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
 
 auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor
 {
-    if (eeg.rows() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels ||
-        eeg.cols() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel())
+    if (eeg.rows() != ImaginedSpeechSchema_10_1117.eeg_channels ||
+        eeg.cols() != ImaginedSpeechSchema_10_1117.eegSamplesPerChannel())
     {
         throw std::runtime_error("Unexpected EEG shape. Expected [6x4096].");
     }
 
-    if (audio.rows() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples() ||
-        audio.cols() != 1)
+    if (audio.rows() != ImaginedSpeechSchema_10_1117.audioSamples() || audio.cols() != 1)
     {
         throw std::runtime_error("Unexpected Audio shape. Expected [176400x1].");
     }
@@ -90,16 +90,15 @@ auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tens
     nn::Tensor input(1, INPUT_FEATURES);
 
     size_t col = 0;
-    for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
+    for (size_t ch = 0; ch < ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
     {
-        for (size_t s = 0; s < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-             ++s)
+        for (size_t s = 0; s < ImaginedSpeechSchema_10_1117.eegSamplesPerChannel(); ++s)
         {
             input.at(0, col++) = eeg.at(ch, s);
         }
     }
 
-    for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
+    for (size_t i = 0; i < ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
     {
         input.at(0, col++) = audio.at(i, 0);
     }

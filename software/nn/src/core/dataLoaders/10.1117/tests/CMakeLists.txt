@@ -10,8 +10,15 @@
 ##
 add_executable(dataLoaders_10_1117_gtest
 	audio_loader_gtest.cpp
+	audio_loader_article_spec_gtest.cpp
+	fuzz/audio_loader_property_tests.cpp
     eeg_loader_gtest.cpp
 	eeg_loader_edge_gtest.cpp
+	eeg_loader_article_spec_gtest.cpp
+	fuzz/eeg_loader_property_tests.cpp
+	dataset_schema_article_spec_gtest.cpp
+	mock_dataset_generator_gtest.cpp
+	utils/MockImaginedSpeechDatasetGenerator.cpp
 )
 
 target_include_directories(dataLoaders_10_1117_gtest 
@@ -31,6 +38,7 @@ target_link_libraries(dataLoaders_10_1117_gtest
         MatTestUtilsLib
 )
 
-configure_eigen_parallel_target(dataLoaders_10_1117_gtest)
 include(GoogleTest)
+add_subdirectory(fuzz)
+configure_eigen_parallel_target(dataLoaders_10_1117_gtest)
 gtest_discover_tests(dataLoaders_10_1117_gtest)
