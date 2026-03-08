@@ -154,26 +154,54 @@ class Protocol101117Dataset : public Dataset
         // Find the subject that owns the global flattened index `idx`.
         // `upper_it` points to the first offset > idx, so the subject index
         // is one before that iterator.
-        const auto upper_it = std::upper_bound(
-            prefix_audio_row_offsets_.begin(), prefix_audio_row_offsets_.end(), idx);
-        const size_t subject_index =
-            static_cast<size_t>(std::distance(prefix_audio_row_offsets_.begin(), upper_it) - 1);
+        const auto upper_it = std::upper_bound( //
+            prefix_audio_row_offsets_.begin(),  //
+            prefix_audio_row_offsets_.end(),    //
+            idx                                 //
+        );
+
+        const size_t subject_index = static_cast<size_t>( //
+            std::distance(                                //
+                prefix_audio_row_offsets_.begin(),        //
+                upper_it) -
+            1 //
+        );
 
         // Convert global index to per-subject (local) audio row index.
-        const size_t local_audio_row_index = idx - prefix_audio_row_offsets_[subject_index];
+        const size_t audio_row = idx - prefix_audio_row_offsets_[subject_index];
+
+        // Load the subject's audio and EEG data paths for the given row index.
         const SubjectFiles& subject = subjects_.at(subject_index);
 
-        const auto [audio_tensor, audio_stimulus, eeg_index_label] =
-            loadAudioFromMat(subject.audio_mat_path, local_audio_row_index);
+        // Load audio and EEG data for the given subject and row index.
+        const auto [                //
+            audio_tensor,           //
+            audio_stimulus,         //
+            eeg_index_label         //
+        ] = loadAudioFromMat(       //
+            subject.audio_mat_path, //
+            audio_row               //
+        );
 
+        // Resolve the EEG row index using the audio->EEG index label
+        // and the subject's EEG row count.
         const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
-        const auto [eeg_tensor, eeg_labels] = loadEEGFromMat(subject.eeg_mat_path, eeg_row);
+        const auto [              //
+            eeg_tensor,           //
+            eeg_labels            //
+        ] = loadEEGFromMat(       //
+            subject.eeg_mat_path, //
+            eeg_row               //
+        );
 
-        if (audio_stimulus != eeg_labels[1])
+        // Constant created just for clarity
+        const int stimulus_label = eeg_labels[1];
+
+        if (audio_stimulus != stimulus_label)
         {
             throw std::runtime_error("Stimulus mismatch between audio and EEG for subject " +
                                      subject.subject_name + " at audio row " +
-                                     std::to_string(local_audio_row_index));
+                                     std::to_string(audio_row));
         }
 
         nn::Tensor input = makeInputTensor(eeg_tensor, audio_tensor);

@@ -65,7 +65,7 @@ DataLoader::DataLoader(               //
 auto DataLoader::begin() -> DataLoader::Iterator
 {
     // Create a snapshot of indices for this iterator
-    std::vector<std::size_t> snapshot = indices_;
+    auto snapshot = indices_;
 
     // Shuffle the snapshot if requested. Centralized here so each iterator
     // gets an independent permutation. When `seed_` is present we derive a
@@ -73,17 +73,14 @@ auto DataLoader::begin() -> DataLoader::Iterator
     // a reproducible but different ordering.
     if (shuffle_)
     {
+        thread_local std::mt19937 rng{std::random_device{}()};
+
         if (seed_)
         {
-            std::mt19937 g(*seed_ + static_cast<unsigned int>(epoch_));
-            std::shuffle(snapshot.begin(), snapshot.end(), g);
+            rng.seed(*seed_ + static_cast<unsigned int>(epoch_));
         }
-        else
-        {
-            std::random_device rd;
-            std::mt19937 g(rd());
-            std::shuffle(snapshot.begin(), snapshot.end(), g);
-        }
+
+        std::shuffle(snapshot.begin(), snapshot.end(), rng);
     }
     ++epoch_;
     return {*this, 0, std::move(snapshot)};
@@ -117,7 +114,7 @@ auto DataLoader::Iterator::operator*() const -> Batch
     idxs.reserve(end_index - start_index);
     for (std::size_t i = start_index; i < end_index; ++i)
     {
-        idxs.push_back(indices_.at(i));
+        idxs.emplace_back(indices_.at(i));
     }
 
     // Delegate collation to dataset (allows custom collate behavior)
