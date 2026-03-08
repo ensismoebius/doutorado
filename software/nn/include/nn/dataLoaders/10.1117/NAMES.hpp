@@ -37,4 +37,10 @@ const std::map<int, std::string> MODALITY_NAMES = {
 // EEG channel names corresponding to the 6 channels in the dataset
 constexpr std::array<std::string, 6> EEG_CHANNELS_NAMES = {"F3", "F4", "C3", "C4", "P3", "P4"};
 
+constexpr std::string EEG_MAT_FILE_SUFFIX = "_EEG.mat";
+constexpr std::string AUDIO_MAT_FILE_SUFFIX = "_Audio.mat";
+
+constexpr std::string EEG_MAT_VARIABLE_NAME = "EEG";
+constexpr std::string AUDIO_MAT_VARIABLE_NAME = "Audio";
+
 } // namespace nn::dataLoaders

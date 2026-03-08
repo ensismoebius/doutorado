@@ -43,6 +43,9 @@ DataLoader::DataLoader(               //
             "DataLoader: batch size is unreasonably large (possible negative value).");
     }
 
+    // TODO - Stopped here - Im checking _indices values and batches calculation. I want to make
+    // sure the logic is correct before proceeding to iterators.
+
     // Precompute number of batches and initialize indices
     const std::size_t n_samples = dataset_->size();
     num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
