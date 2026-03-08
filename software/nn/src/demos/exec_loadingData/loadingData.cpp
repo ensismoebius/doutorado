@@ -235,8 +235,8 @@ auto main(int argc, char* argv[]) -> int
             "/home/ensismoebius/Documentos"
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
-        .batch_size = 4,
-        .max_batches = 2,
+        .batch_size = 20,
+        .max_batches = 20,
         .shuffle = true,
         .seed = 42U,
     };

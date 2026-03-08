@@ -40,31 +40,26 @@ DataLoader::DataLoader(               //
     if (batch_size > MAX_REASONABLE_BATCH_SIZE)
     {
         throw std::invalid_argument(
-            "DataLoader: batch size is unreasonably large (possible negative value).");
+            "DataLoader: batch size is unreasonably "
+            "large (possible negative value)." //
+        );
     }
-
-    // TODO - Stopped here - Im checking _indices values and batches calculation. I want to make
-    // sure the logic is correct before proceeding to iterators.
 
     // Precompute number of batches and initialize indices
     const std::size_t n_samples = dataset_->size();
+
+    // Calculate number of batches needed, rounding up for the last
+    // batch if it doesn't divide evenly in order to partition samples
+    // into batches
     num_batches_ = (n_samples + batch_size_ - 1) / batch_size_;
+
+    // Initialize indices to [0, 1, 2, ..., n_samples-1]
     indices_.resize(n_samples);
-
     std::iota(indices_.begin(), indices_.end(), 0);
-    if (shuffle_ && seed_)
-    {
-        std::mt19937 g(*seed_);
-        std::shuffle(indices_.begin(), indices_.end(), g);
-        return;
-    }
 
-    if (shuffle_)
-    {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(indices_.begin(), indices_.end(), g);
-    }
+    // NOTE: Do not shuffle here. Shuffling is centralized in `begin()` so
+    // each iterator gets its own snapshot and deterministic per-epoch
+    // permutations (when `seed_` is provided).
 }
 
 auto DataLoader::begin() -> DataLoader::Iterator
@@ -72,12 +67,14 @@ auto DataLoader::begin() -> DataLoader::Iterator
     // Create a snapshot of indices for this iterator
     std::vector<std::size_t> snapshot = indices_;
 
-    // Shuffle the snapshot if requested
+    // Shuffle the snapshot if requested. Centralized here so each iterator
+    // gets an independent permutation. When `seed_` is present we derive a
+    // deterministic-per-epoch RNG using `seed_ + epoch_` so each epoch yields
+    // a reproducible but different ordering.
     if (shuffle_)
     {
         if (seed_)
         {
-            // use epoch to vary shuffle when seed is provided
             std::mt19937 g(*seed_ + static_cast<unsigned int>(epoch_));
             std::shuffle(snapshot.begin(), snapshot.end(), g);
         }
