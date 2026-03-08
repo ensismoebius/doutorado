@@ -11,8 +11,10 @@
 #include <matio.h>
 
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <stdexcept>
+#include <vector>
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/NAMES.hpp"
@@ -78,8 +80,44 @@ class AudioLoader : public IMatLoader
             return {nullptr, &Mat_VarFree};
         }
 
-        matvar_t* var = Mat_VarRead(matFile_, name.c_str());
+        // Fast path: read only variable metadata. Payload is fetched on demand.
+        matvar_t* var = Mat_VarReadInfo(matFile_, name.c_str());
         return {var, &Mat_VarFree};
+    }
+
+    auto readRowAsDoubles(const matvar_t& var, size_t rowIndex) const -> std::vector<double>
+    {
+        if (matFile_ == nullptr)
+        {
+            throw std::runtime_error("AudioLoader: MAT file is not open.");
+        }
+        if (var.rank != 2)
+        {
+            throw std::runtime_error("AudioLoader: expected rank-2 variable.");
+        }
+        if (rowIndex >= var.dims[0])
+        {
+            throw std::runtime_error("AudioLoader: row index out of bounds.");
+        }
+        if (var.dims[0] > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+            var.dims[1] > static_cast<size_t>(std::numeric_limits<int>::max()))
+        {
+            throw std::runtime_error("AudioLoader: matrix dimensions exceed MatIO int limits.");
+        }
+
+        std::vector<double> row_values(var.dims[1], 0.0);
+
+        int start[2] = {static_cast<int>(rowIndex), 0};
+        int stride[2] = {1, 1};
+        int edge[2] = {1, static_cast<int>(var.dims[1])};
+
+        if (Mat_VarReadData(
+                matFile_, const_cast<matvar_t*>(&var), row_values.data(), start, stride, edge) != 0)
+        {
+            throw std::runtime_error("AudioLoader: failed to read row data from MAT variable.");
+        }
+
+        return row_values;
     }
 
     auto readFirstNumericVariable()
@@ -154,12 +192,8 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Row index out of bounds");
     }
 
-    // Get data pointer
-    const auto* rawDataPtr = static_cast<const double*>(audioVariable->data);
-    if (rawDataPtr == nullptr)
-    {
-        throw std::runtime_error("Failed to access data");
-    }
+    // Read only the requested row to avoid loading the full matrix payload.
+    const std::vector<double> rowValues = loader.readRowAsDoubles(*audioVariable, rowIndex);
 
     // Create Tensor for the audio samples (column vector)
     nn::Tensor audioSamples(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(), 1);
@@ -167,7 +201,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     // Copy audio samples
     for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
     {
-        double doubleValue = rawDataPtr[(i * audioVariable->dims[0]) + rowIndex];
+        double doubleValue = rowValues[i];
         float floatValue = static_cast<float>(doubleValue);
 
         audioSamples.at(i, 0) = floatValue;
@@ -175,15 +209,11 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
 
     // Get the stimulus
     int stimulus = static_cast<int>(
-        rawDataPtr[(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioStimulusColumn() *
-                    audioVariable->dims[0]) +
-                   rowIndex]);
+        rowValues[nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioStimulusColumn()]);
 
     // Get the EEG index
     int eegIndex = static_cast<int>(
-        rawDataPtr[(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioEEGIndexColumn() *
-                    audioVariable->dims[0]) +
-                   rowIndex]);
+        rowValues[nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
 
     return {std::move(audioSamples), stimulus, eegIndex};
 }

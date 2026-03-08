@@ -9,9 +9,11 @@
 
 #include <array>
 #include <filesystem>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/NAMES.hpp"
@@ -49,7 +51,8 @@ auto EEGLoader::readFirstNumericVariable() -> std::optional<MatVarUniquePtr>
     }
 
     // Iterate variables looking for numeric matrix
-    for (matvar_t* var = Mat_VarReadNext(matFile_); var != nullptr; var = Mat_VarReadNext(matFile_))
+    for (matvar_t* var = Mat_VarReadNextInfo(matFile_); var != nullptr;
+         var = Mat_VarReadNextInfo(matFile_))
     {
         if (var->class_type == MAT_C_DOUBLE && var->rank == 2)
         {
@@ -101,7 +104,8 @@ auto EEGLoader::readVariable(const std::string& name)
         return {nullptr, &Mat_VarFree};
     }
 
-    matvar_t* var = Mat_VarRead(matFile_, name.c_str());
+    // Fast path: load variable metadata only; data is read on demand.
+    matvar_t* var = Mat_VarReadInfo(matFile_, name.c_str());
     return {var, &Mat_VarFree};
 }
 
@@ -118,8 +122,8 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }
 
-    // Try to find a variable named "EEG" first
-    matvar_t* var = Mat_VarRead(matFile.get(), EEG_MAT_VARIABLE_NAME.c_str());
+    // Try to find a variable named "EEG" first (metadata only).
+    matvar_t* var = Mat_VarReadInfo(matFile.get(), EEG_MAT_VARIABLE_NAME.c_str());
 
     MatVarUniquePtr eegVar(var, &Mat_VarFree);
 
@@ -127,8 +131,8 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     if (!eegVar)
     {
         // iterate variables
-        for (matvar_t* v = Mat_VarReadNext(matFile.get()); v != nullptr;
-             v = Mat_VarReadNext(matFile.get()))
+        for (matvar_t* v = Mat_VarReadNextInfo(matFile.get()); v != nullptr;
+             v = Mat_VarReadNextInfo(matFile.get()))
         {
             if (v->class_type == MAT_C_DOUBLE && v->rank == 2)
             {
@@ -161,10 +165,21 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Row index out of bounds");
     }
 
-    const auto* rawDataPtr = static_cast<const double*>(eegVar->data);
-    if (rawDataPtr == nullptr)
+    if (eegVar->dims[0] > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        eegVar->dims[1] > static_cast<size_t>(std::numeric_limits<int>::max()))
     {
-        throw std::runtime_error("Failed to access EEG data pointer");
+        throw std::runtime_error("EEG matrix dimensions exceed MatIO int limits.");
+    }
+
+    // Read only the requested row to avoid loading the full EEG matrix payload.
+    std::vector<double> row_values(eegVar->dims[1], 0.0);
+    int start[2] = {static_cast<int>(rowIndex), 0};
+    int stride[2] = {1, 1};
+    int edge[2] = {1, static_cast<int>(eegVar->dims[1])};
+
+    if (Mat_VarReadData(matFile.get(), eegVar.get(), row_values.data(), start, stride, edge) != 0)
+    {
+        throw std::runtime_error("Failed to read EEG row data from MAT variable");
     }
 
     // We'll construct a Tensor with rows = channels, cols = samples_per_channel
@@ -178,14 +193,12 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     // column corresponds to a feature across rows. Here, columns are 24579 features: first 24576
     // are samples. We'll extract them and reshape into channels.
 
-    const int rows = static_cast<int>(eegVar->dims[0]);
-
     // Extract sample values into a temporary vector of length eegSignalColumns
     std::vector<float> samples;
     samples.reserve(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns());
     for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns(); ++i)
     {
-        double v = rawDataPtr[(i * static_cast<size_t>(rows)) + rowIndex];
+        double v = row_values[i];
         samples.push_back(static_cast<float>(v));
     }
 
@@ -207,12 +220,9 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn();
     const size_t artifact_column = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
 
-    int modality =
-        static_cast<int>(rawDataPtr[(modality_column * static_cast<size_t>(rows)) + rowIndex]);
-    int stimulus =
-        static_cast<int>(rawDataPtr[(stimulus_column * static_cast<size_t>(rows)) + rowIndex]);
-    int artifact =
-        static_cast<int>(rawDataPtr[(artifact_column * static_cast<size_t>(rows)) + rowIndex]);
+    int modality = static_cast<int>(row_values[modality_column]);
+    int stimulus = static_cast<int>(row_values[stimulus_column]);
+    int artifact = static_cast<int>(row_values[artifact_column]);
 
     return {eegChannels, {modality, stimulus, artifact}};
 }
