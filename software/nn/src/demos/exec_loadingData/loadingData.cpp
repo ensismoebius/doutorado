@@ -246,7 +246,10 @@ auto main(int argc, char* argv[]) -> int
 
     try
     {
-        auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
+        auto discovered = discoverSubjects( //
+            config.dataset_root,            //
+            config.subject_regex_pattern    //
+        );
         auto dataset = std::make_shared<Protocol101117Dataset>(discovered);
 
         DataLoader loader(dataset, config.batch_size, config.shuffle, config.seed);

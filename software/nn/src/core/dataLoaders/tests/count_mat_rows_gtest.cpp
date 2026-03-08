@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "MatTestUtils/MatTestUtils.h"
-#include "nn/dataLoaders/mat_file.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
+
+using matioCpp::utils::countMatRows;
 
 using namespace nn::dataLoaders;
 

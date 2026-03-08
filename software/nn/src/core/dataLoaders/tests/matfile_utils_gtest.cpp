@@ -7,6 +7,7 @@
 #include <matioCpp/File.h>
 #include <matioCpp/MultiDimensionalArray.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <vector>
 
@@ -73,4 +74,28 @@ TEST(MatFileUtilsTest, LoadVariousIntegerTypes)
     auto m2 = utils::load_named_variable_as_matrix(mat_path.string(), "i32b");
     ASSERT_TRUE(m2.has_value());
     EXPECT_FLOAT_EQ(m2->at(0, 0), -1.0F);
+}
+
+TEST(MatFileUtilsTest, ListVariableNamesReturnsAllTopLevelVariables)
+{
+    const auto mat_path = std::filesystem::temp_directory_path() / "utils_list_names_test.mat";
+    std::filesystem::remove(mat_path);
+
+    std::vector<double> a_data = {1.0, 3.0, 2.0, 4.0}; // 2x2, column-major
+    std::vector<double> b_data = {10.0, 20.0};         // 2x1
+
+    File file = File::Create(mat_path.string());
+    MultiDimensionalArray<double> a_var("A", {2, 2}, a_data.data());
+    MultiDimensionalArray<double> b_var("B", {2, 1}, b_data.data());
+    file.write(a_var);
+    file.write(b_var);
+    file.close();
+
+    auto names = utils::list_variable_names(mat_path.string());
+    ASSERT_EQ(names.size(), 2U);
+
+    EXPECT_NE(std::find(names.begin(), names.end(), "A"), names.end());
+    EXPECT_NE(std::find(names.begin(), names.end(), "B"), names.end());
+
+    std::filesystem::remove(mat_path);
 }

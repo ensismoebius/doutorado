@@ -2,30 +2,37 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <nn/dataLoaders/mat_file.hpp>
 #include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace nn::dataLoaders
-{
-auto countMatRows(const std::string& matPath, const std::string& varName) -> std::size_t;
-}
+#include "nn/dataLoaders/mat_file_utils.hpp"
 
-auto discoverSubjects(const std::string& root_dir, const std::string& subject_regex_pattern)
-    -> std::vector<SubjectFiles>
+using matioCpp::utils::countMatRows;
+using std::regex;
+using std::vector;
+
+auto discoverSubjects(                       //
+    const std::string& root_dir,             //
+    const std::string& subject_regex_pattern //
+    ) -> std::vector<SubjectFiles>
 {
+    regex selection_pattern(subject_regex_pattern);
+    vector<SubjectFiles> subjects;
+
     namespace fs = std::filesystem;
-
     fs::path root_path(root_dir);
+
     if (!fs::exists(root_path) || !fs::is_directory(root_path))
     {
-        throw std::runtime_error("Dataset root does not exist or is not a directory: " + root_dir);
+        throw std::runtime_error(
+            "Dataset root does not "
+            "exist or is not a directory: " +
+            root_dir);
     }
-
-    std::vector<SubjectFiles> subjects;
-    std::regex selection_pattern(subject_regex_pattern);
 
     for (const auto& entry : fs::directory_iterator(root_path))
     {
@@ -57,10 +64,10 @@ auto discoverSubjects(const std::string& root_dir, const std::string& subject_re
         info.subject_name = dir_name;
         info.eeg_mat_path = eeg_path.string();
         info.audio_mat_path = audio_path.string();
-        info.eeg_rows = nn::dataLoaders::countMatRows(info.eeg_mat_path, "EEG");
-        info.audio_rows = nn::dataLoaders::countMatRows(info.audio_mat_path, "Audio");
+        info.eeg_rows = countMatRows(info.eeg_mat_path, "EEG");
+        info.audio_rows = countMatRows(info.audio_mat_path, "Audio");
 
-        subjects.push_back(std::move(info));
+        subjects.emplace_back(std::move(info));
     }
 
     if (subjects.empty())

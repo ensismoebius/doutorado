@@ -5,6 +5,8 @@
 
 #include "nn/dataLoaders/mat_file.hpp"
 
+#include <matio.h>
+
 #include <memory>
 #include <optional>
 #include <stdexcept>

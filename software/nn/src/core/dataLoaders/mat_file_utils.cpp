@@ -5,9 +5,11 @@
 
 #include "nn/dataLoaders/mat_file_utils.hpp"
 
+#include <matio.h>
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "nn/dataLoaders/mat_file.hpp"
@@ -29,6 +31,16 @@ namespace matioCpp::utils
 {
 namespace
 {
+auto to_tensor_from_eigen_matrix(const Eigen::MatrixXf& eigen_matrix) -> nn::Tensor
+{
+    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
+                      static_cast<size_t>(eigen_matrix.cols()));
+    std::copy_n(
+        eigen_matrix.data(), static_cast<size_t>(eigen_matrix.size()), result.mutable_data_ptr());
+    return result;
+}
+} // namespace
+
 // Small helpers that convert matio-cpp Variable objects into nn::Tensor instances without
 // exposing Eigen types in this translation unit.
 template <typename T>
@@ -36,18 +48,7 @@ auto to_tensor_from_multi(const matioCpp::Variable& variable) -> std::optional<n
 {
     auto multi_array = variable.template asMultiDimensionalArray<T>();
     auto eigen_matrix = matioCpp::to_eigen(multi_array).template cast<float>();
-
-    // Create tensor with appropriate dimensions and copy data
-    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
-                      static_cast<size_t>(eigen_matrix.cols()));
-    for (size_t i = 0; i < result.rows(); ++i)
-    {
-        for (size_t j = 0; j < result.cols(); ++j)
-        {
-            result.at(i, j) = eigen_matrix(i, j);
-        }
-    }
-    return result;
+    return to_tensor_from_eigen_matrix(eigen_matrix);
 }
 
 template <typename T>
@@ -55,21 +56,8 @@ auto to_tensor_from_vector(const matioCpp::Variable& variable) -> std::optional<
 {
     auto vec = variable.template asVector<T>();
     auto eigen_matrix = matioCpp::to_eigen(vec).template cast<float>();
-
-    // Create tensor with appropriate dimensions and copy data
-    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
-                      static_cast<size_t>(eigen_matrix.cols()));
-    for (size_t i = 0; i < result.rows(); ++i)
-    {
-        for (size_t j = 0; j < result.cols(); ++j)
-        {
-            result.at(i, j) = eigen_matrix(i, j);
-        }
-    }
-    return result;
+    return to_tensor_from_eigen_matrix(eigen_matrix);
 }
-
-} // anonymous namespace
 
 auto load_named_variable_as_matrix(const std::string& mat_path, const std::string& var_name)
     -> std::optional<nn::Tensor>
@@ -150,58 +138,79 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
     }
 }
 
-} // namespace matioCpp::utils
-
-namespace nn::dataLoaders
-{
 auto countMatRows(const std::string& matPath, const std::string& varName) -> std::size_t
 {
-    auto dims = matioCpp::utils::get_variable_dimensions(matPath, varName);
-    if (!dims || dims->empty())
+    auto dims = get_variable_dimensions(matPath, varName);
+    if (!dims)
     {
-        throw std::runtime_error("Failed to get variable dimensions for '" + varName + "' in " +
+        throw std::runtime_error("Failed to read dimensions for variable '" + varName + "' in " +
                                  matPath);
     }
     return (*dims)[0];
 }
 
-} // namespace nn::dataLoaders
-
-namespace matioCpp::utils
-{
 auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)
     -> std::optional<std::vector<size_t>>
 {
-    try
-    {
-        matioCpp::File file(mat_path);
-        auto variable = file.read(var_name); // flawfinder: ignore
-        if (!variable.isValid())
-        {
-            return std::nullopt;
-        }
-
-        auto dims_span = variable.dimensions();
-        return std::make_optional<std::vector<size_t>>(dims_span.begin(), dims_span.end());
-    }
-    catch (const std::exception&)
+    mat_t* mat_file = Mat_Open(mat_path.c_str(), MAT_ACC_RDONLY);
+    if (mat_file == nullptr)
     {
         return std::nullopt;
     }
+
+    matvar_t* var_info = Mat_VarReadInfo(mat_file, var_name.c_str());
+    if (var_info == nullptr)
+    {
+        Mat_Close(mat_file);
+        return std::nullopt;
+    }
+
+    if (var_info->dims == nullptr || var_info->rank <= 0)
+    {
+        Mat_VarFree(var_info);
+        Mat_Close(mat_file);
+        return std::nullopt;
+    }
+
+    std::vector<size_t> dims(static_cast<size_t>(var_info->rank));
+    for (int i = 0; i < var_info->rank; ++i)
+    {
+        dims[static_cast<size_t>(i)] = static_cast<size_t>(var_info->dims[i]);
+    }
+
+    Mat_VarFree(var_info);
+    Mat_Close(mat_file);
+    return dims;
 }
 
 [[nodiscard]] auto list_variable_names(const std::string& mat_path) -> std::vector<std::string>
 {
-    try
-    {
-        matioCpp::File file(mat_path);
-        // matioCpp::File::variableNames() returns a std::vector<std::string>
-        return file.variableNames();
-    }
-    catch (const std::exception&)
+    mat_t* mat_file = Mat_Open(mat_path.c_str(), MAT_ACC_RDONLY);
+    if (mat_file == nullptr)
     {
         return {};
     }
+
+    size_t var_count = 0;
+    char** dir = Mat_GetDir(mat_file, &var_count);
+    if (dir == nullptr)
+    {
+        Mat_Close(mat_file);
+        return {};
+    }
+
+    std::vector<std::string> names;
+    names.reserve(var_count);
+    for (size_t i = 0; i < var_count; ++i)
+    {
+        if (dir[i] != nullptr)
+        {
+            names.emplace_back(dir[i]);
+        }
+    }
+
+    Mat_Close(mat_file);
+    return names;
 }
 
 } // namespace matioCpp::utils

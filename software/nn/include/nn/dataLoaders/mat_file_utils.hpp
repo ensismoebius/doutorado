@@ -40,9 +40,8 @@ namespace matioCpp::utils
 [[nodiscard]] auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)
     -> std::optional<std::vector<size_t>>;
 
-// Example:
-// auto mat = matio::utils::load_named_variable_as_matrix("/tmp/file.mat", "data");
-// if (mat) { std::cout << "Loaded matrix: " << mat->rows() << "x" << mat->cols() << '\n'; }
+[[nodiscard]] auto countMatRows(const std::string& matPath, const std::string& varName)
+    -> std::size_t;
 
 } // namespace matioCpp::utils
 #endif // NN_DATALOADERS_MAT_FILE_UTILS_HPP
