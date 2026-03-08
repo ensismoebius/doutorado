@@ -35,4 +35,11 @@ class MatFile
     mat_t* matfp_ = nullptr;
 };
 
+// Count the number of rows (first dimension) for a named numeric variable inside a MAT file.
+// Throws std::runtime_error on failure to open/read the file or if the variable is missing.
+namespace nn::dataLoaders
+{
+auto countMatRows(const std::string& matPath, const std::string& varName) -> std::size_t;
+}
+
 #endif // NN_DATALOADERS_MAT_FILE_HPP

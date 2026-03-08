@@ -18,6 +18,7 @@ add_executable(dataLoaders_gtest
 	mat_file_dataset_gtest.cpp
 	matfile_vector_gtest.cpp
 	mat_file_gtest.cpp
+    count_mat_rows_gtest.cpp
 )
 
 target_include_directories(dataLoaders_gtest 

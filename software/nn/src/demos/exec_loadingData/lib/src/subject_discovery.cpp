@@ -8,6 +8,11 @@
 #include <utility>
 #include <vector>
 
+namespace nn::dataLoaders
+{
+auto countMatRows(const std::string& matPath, const std::string& varName) -> std::size_t;
+}
+
 auto discoverSubjects(const std::string& root_dir, const std::string& subject_regex_pattern)
     -> std::vector<SubjectFiles>
 {
@@ -52,8 +57,8 @@ auto discoverSubjects(const std::string& root_dir, const std::string& subject_re
         info.subject_name = dir_name;
         info.eeg_mat_path = eeg_path.string();
         info.audio_mat_path = audio_path.string();
-        info.eeg_rows = countMatRows(info.eeg_mat_path, "EEG");
-        info.audio_rows = countMatRows(info.audio_mat_path, "Audio");
+        info.eeg_rows = nn::dataLoaders::countMatRows(info.eeg_mat_path, "EEG");
+        info.audio_rows = nn::dataLoaders::countMatRows(info.audio_mat_path, "Audio");
 
         subjects.push_back(std::move(info));
     }

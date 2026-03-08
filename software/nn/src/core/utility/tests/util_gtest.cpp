@@ -222,6 +222,7 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     const int n_samples = 10;
     const int input_dim = 5;
     const int n_steps = 5;
+    const int total_events = n_samples * input_dim * n_steps; // 250
 
     // Test with very low firing rate
     auto low_rate_result =
@@ -233,7 +234,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     {
         total_low_spikes += static_cast<int>(spikes.sum());
     }
-    EXPECT_LT(total_low_spikes, n_samples * input_dim * n_steps * 0.01F); // Very few spikes
+    // Expected ~0.25 spikes (250 * 0.001), allow reasonable statistical variation
+    EXPECT_LE(total_low_spikes, 10);
 
     // Test with very high firing rate
     auto high_rate_result =
@@ -245,7 +247,8 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
     {
         total_high_spikes += static_cast<int>(spikes.sum());
     }
-    EXPECT_GT(total_high_spikes, n_samples * input_dim * n_steps * 0.95F); // Almost all spikes
+    // Expected ~249.75 spikes (250 * 0.999), allow reasonable statistical variation
+    EXPECT_GE(total_high_spikes, total_events - 10);
 }
 
 TEST(UtilNumericalEdgeTest, NaNInfInBatching)

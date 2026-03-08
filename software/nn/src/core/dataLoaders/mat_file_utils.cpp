@@ -8,6 +8,10 @@
 #include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>
 
+#include <stdexcept>
+
+#include "nn/dataLoaders/mat_file.hpp"
+
 // Implementation strategy:
 // - matio-cpp reads variables and can convert them to Eigen structures.
 // - This translation unit converts supported variable types into `nn::Tensor`
@@ -147,6 +151,21 @@ auto load_named_variable_as_matrix(const std::string& mat_path, const std::strin
 }
 
 } // namespace matioCpp::utils
+
+namespace nn::dataLoaders
+{
+auto countMatRows(const std::string& matPath, const std::string& varName) -> std::size_t
+{
+    auto dims = matioCpp::utils::get_variable_dimensions(matPath, varName);
+    if (!dims || dims->empty())
+    {
+        throw std::runtime_error("Failed to get variable dimensions for '" + varName + "' in " +
+                                 matPath);
+    }
+    return (*dims)[0];
+}
+
+} // namespace nn::dataLoaders
 
 namespace matioCpp::utils
 {
