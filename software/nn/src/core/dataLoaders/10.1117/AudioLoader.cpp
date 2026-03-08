@@ -15,6 +15,7 @@
 #include <stdexcept>
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/NAMES.hpp"
 #include "nn/dataLoaders/IMatLoader.hpp"
 #include "nn/tensor/Tensor.hpp"
 
@@ -122,7 +123,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }
 
-    auto audioVariable = loader.readVariable(AUDIO_VARIABLE_NAME);
+    auto audioVariable = loader.readVariable(AUDIO_MAT_VARIABLE_NAME);
     if (!audioVariable)
     {
         // try first numeric
@@ -134,8 +135,9 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
         audioVariable = std::move(*maybe);
     }
 
-    // Verify dimensions (M_rows x MATRIX_COLUMNS)
-    if (audioVariable->rank != 2 || audioVariable->dims[1] != MATRIX_COLUMNS)
+    // Verify dimensions (M_rows x audioTotalColumns)
+    if (audioVariable->rank != 2 ||
+        audioVariable->dims[1] != nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioTotalColumns())
     {
         throw std::runtime_error("Invalid matrix dimensions. Expected Mx176402");
     }
@@ -160,10 +162,10 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Create Tensor for the audio samples (column vector)
-    nn::Tensor audioSamples(AUDIO_SAMPLES_COUNT, 1);
+    nn::Tensor audioSamples(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(), 1);
 
     // Copy audio samples
-    for (int i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
+    for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
     {
         double doubleValue = rawDataPtr[(i * audioVariable->dims[0]) + rowIndex];
         float floatValue = static_cast<float>(doubleValue);
@@ -172,12 +174,16 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Get the stimulus
-    int stimulus =
-        static_cast<int>(rawDataPtr[(STIMULUS_COLUMN * audioVariable->dims[0]) + rowIndex]);
+    int stimulus = static_cast<int>(
+        rawDataPtr[(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioStimulusColumn() *
+                    audioVariable->dims[0]) +
+                   rowIndex]);
 
     // Get the EEG index
-    int eegIndex =
-        static_cast<int>(rawDataPtr[(EEG_INDEX_COLUMN * audioVariable->dims[0]) + rowIndex]);
+    int eegIndex = static_cast<int>(
+        rawDataPtr[(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioEEGIndexColumn() *
+                    audioVariable->dims[0]) +
+                   rowIndex]);
 
     return {std::move(audioSamples), stimulus, eegIndex};
 }

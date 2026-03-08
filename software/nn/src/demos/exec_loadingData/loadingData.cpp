@@ -32,10 +32,7 @@ using nn::dataLoaders::loadAudioFromMat;
 using nn::dataLoaders::loadEEGFromMat;
 
 using nn::dataLoaders::ARTIFACT_NAMES;
-using nn::dataLoaders::AUDIO_SAMPLES_COUNT;
-using nn::dataLoaders::EEG_CHANNELS;
 using nn::dataLoaders::EEG_CHANNELS_NAMES;
-using nn::dataLoaders::EEG_SAMPLE_COUNT;
 using nn::dataLoaders::ESTIMULUS_NAMES;
 using nn::dataLoaders::MODALITY_NAMES;
 
@@ -48,8 +45,9 @@ using std::string;
 namespace
 {
 
-constexpr size_t EEG_FEATURES = EEG_CHANNELS * EEG_SAMPLE_COUNT;
-constexpr size_t INPUT_FEATURES = EEG_FEATURES + AUDIO_SAMPLES_COUNT;
+constexpr size_t EEG_FEATURES = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+constexpr size_t INPUT_FEATURES =
+    EEG_FEATURES + nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 
 auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
 {
@@ -61,7 +59,9 @@ auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
     // Protocol files are MATLAB-oriented and usually 1-based row indexing.
     if (eeg_index_label >= 1 && static_cast<size_t>(eeg_index_label) <= eeg_rows)
     {
-        return static_cast<size_t>(eeg_index_label - 1); // TODO - Check if this off-by-one adjustment is actually needed for the provided dataset.
+        return static_cast<size_t>(eeg_index_label -
+                                   1); // TODO - Check if this off-by-one adjustment is actually
+                                       // needed for the provided dataset.
     }
 
     if (eeg_index_label >= 0 && static_cast<size_t>(eeg_index_label) < eeg_rows)
@@ -75,12 +75,14 @@ auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
 
 auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor
 {
-    if (eeg.rows() != EEG_CHANNELS || eeg.cols() != EEG_SAMPLE_COUNT)
+    if (eeg.rows() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels ||
+        eeg.cols() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel())
     {
         throw std::runtime_error("Unexpected EEG shape. Expected [6x4096].");
     }
 
-    if (audio.rows() != AUDIO_SAMPLES_COUNT || audio.cols() != 1)
+    if (audio.rows() != nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples() ||
+        audio.cols() != 1)
     {
         throw std::runtime_error("Unexpected Audio shape. Expected [176400x1].");
     }
@@ -88,15 +90,16 @@ auto makeInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tens
     nn::Tensor input(1, INPUT_FEATURES);
 
     size_t col = 0;
-    for (size_t ch = 0; ch < EEG_CHANNELS; ++ch)
+    for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
     {
-        for (size_t s = 0; s < EEG_SAMPLE_COUNT; ++s)
+        for (size_t s = 0; s < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+             ++s)
         {
             input.at(0, col++) = eeg.at(ch, s);
         }
     }
 
-    for (size_t i = 0; i < AUDIO_SAMPLES_COUNT; ++i)
+    for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
     {
         input.at(0, col++) = audio.at(i, 0);
     }
@@ -293,7 +296,9 @@ class DemoProbeModel
             }
 
             features.at(r, 0) = eeg_abs_sum / static_cast<float>(EEG_FEATURES);
-            features.at(r, 1) = audio_abs_sum / static_cast<float>(AUDIO_SAMPLES_COUNT);
+            features.at(r, 1) =
+                audio_abs_sum /
+                static_cast<float>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples());
         }
 
         return features;

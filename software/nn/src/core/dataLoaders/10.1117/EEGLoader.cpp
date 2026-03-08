@@ -4,7 +4,6 @@
  */
 
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
-#include "nn/dataLoaders/10.1117/METADATA.hpp"
 
 #include <matio.h>
 
@@ -14,6 +13,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "nn/dataLoaders/10.1117/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/NAMES.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /*
@@ -118,7 +119,7 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Try to find a variable named "EEG" first
-    matvar_t* var = Mat_VarRead(matFile.get(), "EEG");
+    matvar_t* var = Mat_VarRead(matFile.get(), EEG_MAT_VARIABLE_NAME.c_str());
 
     MatVarUniquePtr eegVar(var, &Mat_VarFree);
 
@@ -144,7 +145,8 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // Validate dims
-    if (eegVar->rank != 2 || eegVar->dims[1] != EEG_TOTAL_COLUMNS)
+    if (eegVar->rank != 2 ||
+        eegVar->dims[1] != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegTotalColumns())
     {
         throw std::runtime_error("Invalid EEG matrix dimensions. Expected Nx24579");
     }
@@ -166,7 +168,8 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     }
 
     // We'll construct a Tensor with rows = channels, cols = samples_per_channel
-    nn::Tensor eegChannels(EEG_CHANNELS, EEG_SAMPLE_COUNT / EEG_CHANNELS);
+    nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+                           nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
 
     // The dataset in documentations says: 6 channels × 4096 samples = 24576 samples
     // We'll assume the samples are interleaved per channel in blocks (channel-major or
@@ -177,33 +180,39 @@ auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
 
     const int rows = static_cast<int>(eegVar->dims[0]);
 
-    // Extract sample values into a temporary vector of length EEG_SAMPLE_COUNT
+    // Extract sample values into a temporary vector of length eegSignalColumns
     std::vector<float> samples;
-    samples.reserve(EEG_SAMPLE_COUNT);
-    for (int i = 0; i < EEG_SAMPLE_COUNT; ++i)
+    samples.reserve(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns());
+    for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns(); ++i)
     {
-        double v = rawDataPtr[(i * rows) + static_cast<int>(rowIndex)];
+        double v = rawDataPtr[(i * static_cast<size_t>(rows)) + rowIndex];
         samples.push_back(static_cast<float>(v));
     }
 
     // Now, split into channels. We'll assume contiguous blocks per channel: channel 0 samples at
     // indices 0..4095, channel1 4096..8191, etc.
-    const int samplesPerChannel = EEG_SAMPLE_COUNT / EEG_CHANNELS;
-    for (int ch = 0; ch < EEG_CHANNELS; ++ch)
+    const size_t samplesPerChannel =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+    for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
     {
-        for (int s = 0; s < samplesPerChannel; ++s)
+        for (size_t s = 0; s < samplesPerChannel; ++s)
         {
             eegChannels.at(ch, s) = samples[(ch * samplesPerChannel) + s];
         }
     }
 
     // Read labels from the last three columns
-    int baseIdx = EEG_SAMPLE_COUNT; // index of first label column
-    int modality = static_cast<int>(rawDataPtr[(baseIdx * rows) + static_cast<int>(rowIndex)]);
+    const size_t modality_column = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn();
+    const size_t stimulus_column =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn();
+    const size_t artifact_column = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
+
+    int modality =
+        static_cast<int>(rawDataPtr[(modality_column * static_cast<size_t>(rows)) + rowIndex]);
     int stimulus =
-        static_cast<int>(rawDataPtr[((baseIdx + 1) * rows) + static_cast<int>(rowIndex)]);
+        static_cast<int>(rawDataPtr[(stimulus_column * static_cast<size_t>(rows)) + rowIndex]);
     int artifact =
-        static_cast<int>(rawDataPtr[((baseIdx + 2) * rows) + static_cast<int>(rowIndex)]);
+        static_cast<int>(rawDataPtr[(artifact_column * static_cast<size_t>(rows)) + rowIndex]);
 
     return {eegChannels, {modality, stimulus, artifact}};
 }

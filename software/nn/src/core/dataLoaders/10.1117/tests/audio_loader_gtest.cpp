@@ -12,16 +12,16 @@
 
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/NAMES.hpp"
 
 namespace
 {
 // Constants for test data dimensions and indices
 constexpr size_t kNumRows = 2;
-constexpr size_t kNumCols = 176402;         // total columns in MAT variable (samples + 2 labels)
-constexpr size_t kNumAudioSamples = 176400; // number of audio samples per row
-constexpr size_t kStimulusCol =
-    176400; // column index in MAT for stimulus ID (0-based column index)
-constexpr size_t kEEGIndexCol = 176401;     // column index in MAT for EEG index
+constexpr size_t kNumCols = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioTotalColumns();
+constexpr size_t kNumAudioSamples = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+constexpr size_t kStimulusCol = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioStimulusColumn();
+constexpr size_t kEEGIndexCol = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioEEGIndexColumn();
 constexpr size_t kModBase = 1000;           // modulus used to generate sample values
 constexpr double kRow0Div = 1000.0;         // divisor for row 0 sample normalization
 constexpr double kRow1Div = 500.0;          // divisor for row 1 sample normalization
@@ -67,7 +67,7 @@ class AudioLoaderTest : public ::testing::Test
 
         // Create the variable and write it to the file
         matioCpp::MultiDimensionalArray<double> audio_data(
-            nn::dataLoaders::AUDIO_VARIABLE_NAME, {2, 176402}, data.data());
+            nn::dataLoaders::AUDIO_MAT_VARIABLE_NAME, {kNumRows, kNumCols}, data.data());
         file.write(audio_data);
         file.close();
     }
@@ -85,7 +85,7 @@ TEST_F(AudioLoaderTest, LoadsAudioDataCorrectly)
     auto [audioSamples, audioStimulus, eegIndex] = nn::dataLoaders::loadAudioFromMat(testFile, 0);
 
     // Check dimensions
-    EXPECT_EQ(audioSamples.size(), 176400);
+    EXPECT_EQ(audioSamples.size(), nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples());
 
     // Basic sanity checks
     EXPECT_FALSE(audioSamples.hasNaN());
