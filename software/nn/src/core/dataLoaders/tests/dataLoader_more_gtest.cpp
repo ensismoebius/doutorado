@@ -108,6 +108,109 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     EXPECT_NE(orderA1, orderB);
 }
 
+TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsSequentialAndRandom)
+{
+    auto inputs = make_sequential_tensor(10, 2);
+    auto targets = make_sequential_tensor(10, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    DataLoader seq_loader(
+        dataset,
+        5,
+        DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::Sequential});
+    DataLoader rnd_loader_a(dataset,
+                            5,
+                            DataLoader::DefaultSamplerOptions{
+                                .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
+    DataLoader rnd_loader_b(dataset,
+                            5,
+                            DataLoader::DefaultSamplerOptions{
+                                .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
+
+    std::vector<int> seq_order;
+    for (const auto& b : seq_loader)
+    {
+        for (int r = 0; r < b.inputs.rows(); ++r)
+        {
+            seq_order.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
+        }
+    }
+
+    std::vector<int> rnd_a;
+    for (const auto& b : rnd_loader_a)
+    {
+        for (int r = 0; r < b.inputs.rows(); ++r)
+        {
+            rnd_a.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
+        }
+    }
+
+    std::vector<int> rnd_b;
+    for (const auto& b : rnd_loader_b)
+    {
+        for (int r = 0; r < b.inputs.rows(); ++r)
+        {
+            rnd_b.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
+        }
+    }
+
+    std::vector<int> expected_seq(10);
+    std::iota(expected_seq.begin(), expected_seq.end(), 0);
+
+    EXPECT_EQ(seq_order, expected_seq);
+    EXPECT_EQ(rnd_a, rnd_b);
+    EXPECT_NE(rnd_a, expected_seq);
+}
+
+TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)
+{
+    auto inputs = make_sequential_tensor(8, 2);
+    auto targets = make_sequential_tensor(8, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    DataLoader weighted_loader(
+        dataset,
+        4,
+        DataLoader::DefaultSamplerOptions{
+            .type = DataLoader::DefaultSamplerType::WeightedRandom,
+            .seed = 11u,
+            .weights = std::vector<double>{0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+            .weighted_num_samples = 8});
+
+    int weighted_rows = 0;
+    for (const auto& b : weighted_loader)
+    {
+        weighted_rows += b.inputs.rows();
+        for (int r = 0; r < b.inputs.rows(); ++r)
+        {
+            EXPECT_EQ(static_cast<int>(b.inputs.at(r, 0) / 2), 2);
+        }
+    }
+    EXPECT_EQ(weighted_rows, 8);
+
+    DataLoader dist_loader(
+        dataset,
+        2,
+        DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::Distributed,
+                                          .seed = 9u,
+                                          .num_replicas = 2,
+                                          .rank = 1,
+                                          .distributed_shuffle = false,
+                                          .distributed_drop_last = false});
+
+    std::vector<int> dist_order;
+    for (const auto& b : dist_loader)
+    {
+        for (int r = 0; r < b.inputs.rows(); ++r)
+        {
+            dist_order.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
+        }
+    }
+
+    const std::vector<int> expected_rank1 = {1, 3, 5, 7};
+    EXPECT_EQ(dist_order, expected_rank1);
+}
+
 // Basic concurrency test: spawn multiple threads that iterate over separate
 // DataLoader instances (same dataset) to ensure no shared-state races in the
 // loader's per-instance state. This is intentionally light-weight and only

@@ -1,4 +1,8 @@
 #include "../include/cli.hpp"
+
+#include <algorithm>
+#include <cctype>
+
 void parseCliParams(int argc, char* argv[], Config& config, const Config& default_config)
 {
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
@@ -32,8 +36,61 @@ void parseCliParams(int argc, char* argv[], Config& config, const Config& defaul
         ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.seed.value());
 
-    app.add_flag("--shuffle,!--no-shuffle", config.shuffle, "Shuffle samples before batching")
+    app.add_flag(                            //
+           "--shuffle,!--no-shuffle",        //
+           config.shuffle,                   //
+           "Shuffle samples before batching" //
+           )
         ->default_val(default_config.shuffle);
+
+    app.add_option(                                                       //
+           "--sampler-type",                                              //
+           config.sampler_type,                                           //
+           "Default sampler type: sequential|random|weighted|distributed" //
+           )
+        ->check(CLI::IsMember(                                   //
+            {"sequential", "random", "weighted", "distributed"}, //
+            CLI::ignore_case                                     //
+            ))
+        ->default_val(default_config.sampler_type);
+
+    app.add_option( //
+           "--sampler-weights",
+           config.sampler_weights,
+           "Comma-separated weights for weighted sampler (e.g. 0.1,0.2,0.7)")
+        ->delimiter(',');
+
+    app.add_option( //
+           "--weighted-num-samples",
+           config.weighted_num_samples,
+           "Number of sampled indices per epoch for weighted sampler")
+        ->check(CLI::PositiveNumber);
+
+    app.add_option( //
+           "--distributed-num-replicas",
+           config.distributed_num_replicas,
+           "Total number of distributed replicas")
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.distributed_num_replicas);
+
+    app.add_option( //
+           "--distributed-rank",
+           config.distributed_rank,
+           "Current distributed rank")
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(default_config.distributed_rank);
+
+    app.add_flag( //
+           "--distributed-shuffle,!--distributed-no-shuffle",
+           config.distributed_shuffle,
+           "Shuffle globally before distributed partition")
+        ->default_val(default_config.distributed_shuffle);
+
+    app.add_flag( //
+           "--distributed-drop-last,!--distributed-no-drop-last",
+           config.distributed_drop_last,
+           "Drop tail to make dataset divisible by replicas")
+        ->default_val(default_config.distributed_drop_last);
 
     try
     {
@@ -43,4 +100,9 @@ void parseCliParams(int argc, char* argv[], Config& config, const Config& defaul
     {
         app.exit(e);
     }
+
+    std::transform(config.sampler_type.begin(),
+                   config.sampler_type.end(),
+                   config.sampler_type.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 }

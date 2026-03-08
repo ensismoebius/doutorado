@@ -9,8 +9,10 @@
 #include <stdexcept>
 #include <utility>
 
+#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
 #include "nn/dataLoaders/samplers/RandomSampler.hpp"
 #include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 // Implementation notes:
 // - The `DataLoader` delegates sample-index generation to an `ISampler`.
@@ -30,18 +32,41 @@ using std::vector;
 namespace
 {
 
-auto make_default_sampler(      //
-    size_t dataset_size,        //
-    bool do_shuffle,            //
-    optional<unsigned int> seed //
+auto make_default_sampler(                           //
+    size_t dataset_size,                             //
+    const DataLoader::DefaultSamplerOptions& options //
     ) -> unique_ptr<ISampler>
 {
-    if (do_shuffle)
+    switch (options.type)
     {
-        return make_unique<RandomSampler>(dataset_size, seed);
+        case DataLoader::DefaultSamplerType::Sequential:
+            return make_unique<SequentialSampler>(dataset_size);
+        case DataLoader::DefaultSamplerType::Random:
+            return make_unique<RandomSampler>(dataset_size, options.seed);
+        case DataLoader::DefaultSamplerType::WeightedRandom:
+        {
+            const size_t num_samples = options.weighted_num_samples.value_or(dataset_size);
+            if (!options.weights.empty())
+            {
+                return make_unique<WeightedRandomSampler>(
+                    options.weights, num_samples, options.seed);
+            }
+
+            // Fallback: uniform weights across the full dataset.
+            vector<double> uniform_weights(dataset_size, 1.0);
+            return make_unique<WeightedRandomSampler>(
+                std::move(uniform_weights), num_samples, options.seed);
+        }
+        case DataLoader::DefaultSamplerType::Distributed:
+            return make_unique<DistributedSampler>(dataset_size,
+                                                   options.num_replicas,
+                                                   options.rank,
+                                                   options.distributed_shuffle,
+                                                   options.distributed_drop_last,
+                                                   options.seed);
     }
 
-    return make_unique<SequentialSampler>(dataset_size);
+    throw invalid_argument("DataLoader: unknown default sampler type.");
 }
 
 } // namespace
@@ -52,13 +77,24 @@ DataLoader::DataLoader(          //
     bool do_shuffle,             //
     optional<unsigned int> seed  //
     )
+    : DataLoader(dataset, batch_size,
+                 DefaultSamplerOptions{.type = do_shuffle ? DefaultSamplerType::Random
+                                                          : DefaultSamplerType::Sequential,
+                                       .seed = seed})
+{
+}
+
+DataLoader::DataLoader(           //
+    shared_ptr<Dataset> dataset,  //
+    size_t batch_size,            //
+    DefaultSamplerOptions options //
+    )
     : DataLoader(                            //
           dataset,                           //
           batch_size,                        //
           make_default_sampler(              //
               dataset ? dataset->size() : 0, //
-              do_shuffle,                    //
-              seed                           //
+              options                        //
               )                              //
       )
 {

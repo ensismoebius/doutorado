@@ -27,11 +27,40 @@
 class DataLoader
 {
    public:
+    enum class DefaultSamplerType
+    {
+        Sequential,
+        Random,
+        WeightedRandom,
+        Distributed,
+    };
+
+    struct DefaultSamplerOptions
+    {
+        DefaultSamplerType type = DefaultSamplerType::Sequential;
+
+        std::optional<unsigned int> seed = std::nullopt;
+
+        // WeightedRandomSampler options
+        std::vector<double> weights = {};
+        std::optional<std::size_t> weighted_num_samples = std::nullopt;
+
+        // DistributedSampler options
+        std::size_t num_replicas = 1;
+        std::size_t rank = 0;
+        bool distributed_shuffle = true;
+        bool distributed_drop_last = false;
+    };
+
     // Backward-compatible constructor that maps to built-in samplers:
     // - do_shuffle=false: SequentialSampler
     // - do_shuffle=true:  RandomSampler(seed)
     DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle = true,
                std::optional<unsigned int> seed = std::nullopt);
+
+    // Built-in sampler selector constructor.
+    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
+               DefaultSamplerOptions options);
 
     // Preferred constructor: inject an arbitrary sampler implementation.
     DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,

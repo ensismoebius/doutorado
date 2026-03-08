@@ -61,7 +61,7 @@ auto resolveEegRowIndex(int eeg_index_label, size_t eeg_rows) -> size_t
     // Protocol files are MATLAB-oriented and usually 1-based row indexing.
     if (eeg_index_label >= 1 && static_cast<size_t>(eeg_index_label) <= eeg_rows)
     {
-        return static_cast<size_t>(eeg_index_label - 1);
+        return static_cast<size_t>(eeg_index_label - 1); // TODO - Check if this off-by-one adjustment is actually needed for the provided dataset.
     }
 
     if (eeg_index_label >= 0 && static_cast<size_t>(eeg_index_label) < eeg_rows)
@@ -115,6 +115,53 @@ auto makeTargetTensor(int subject_id, const std::array<int, 3>& eeg_labels, int 
     target.at(0, 3) = static_cast<float>(eeg_labels[2]);
     target.at(0, 4) = static_cast<float>(eeg_index_label);
     return target;
+}
+
+auto makeSamplerOptions(const Config& config) -> DataLoader::DefaultSamplerOptions
+{
+    DataLoader::DefaultSamplerOptions options{};
+    options.seed = config.seed;
+
+    // Backward compatibility: when no explicit sampler is requested,
+    // preserve legacy --shuffle/--no-shuffle behavior.
+    if (config.sampler_type.empty())
+    {
+        options.type = config.shuffle ? DataLoader::DefaultSamplerType::Random
+                                      : DataLoader::DefaultSamplerType::Sequential;
+        return options;
+    }
+
+    if (config.sampler_type == "sequential")
+    {
+        options.type = DataLoader::DefaultSamplerType::Sequential;
+        return options;
+    }
+
+    if (config.sampler_type == "random")
+    {
+        options.type = DataLoader::DefaultSamplerType::Random;
+        return options;
+    }
+
+    if (config.sampler_type == "weighted")
+    {
+        options.type = DataLoader::DefaultSamplerType::WeightedRandom;
+        options.weights = config.sampler_weights;
+        options.weighted_num_samples = config.weighted_num_samples;
+        return options;
+    }
+
+    if (config.sampler_type == "distributed")
+    {
+        options.type = DataLoader::DefaultSamplerType::Distributed;
+        options.num_replicas = config.distributed_num_replicas;
+        options.rank = config.distributed_rank;
+        options.distributed_shuffle = config.distributed_shuffle;
+        options.distributed_drop_last = config.distributed_drop_last;
+        return options;
+    }
+
+    throw std::runtime_error("Unknown sampler type: " + config.sampler_type);
 }
 
 class Protocol101117Dataset : public Dataset
@@ -267,6 +314,13 @@ auto main(int argc, char* argv[]) -> int
         .max_batches = 20,
         .shuffle = true,
         .seed = 42U,
+        .sampler_type = "sequential",
+        .sampler_weights = {},
+        .weighted_num_samples = std::nullopt,
+        .distributed_num_replicas = 1,
+        .distributed_rank = 0,
+        .distributed_shuffle = true,
+        .distributed_drop_last = false,
     };
 
     Config config{};
@@ -280,7 +334,7 @@ auto main(int argc, char* argv[]) -> int
         );
         auto dataset = std::make_shared<Protocol101117Dataset>(discovered);
 
-        DataLoader loader(dataset, config.batch_size, config.shuffle, config.seed);
+        DataLoader loader(dataset, config.batch_size, makeSamplerOptions(config));
 
         DemoProbeModel model;
 
