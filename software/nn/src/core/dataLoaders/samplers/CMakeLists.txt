@@ -1,9 +1,9 @@
 add_library(dataLoaders_samplers
     STATIC
-        SequentialSampler.cpp
         RandomSampler.cpp
-        WeightedRandomSampler.cpp
+        SequentialSampler.cpp
         DistributedSampler.cpp
+        WeightedRandomSampler.cpp
 )
 
 target_include_directories(dataLoaders_samplers
