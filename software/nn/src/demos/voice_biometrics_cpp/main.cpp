@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <argparse/argparse.hpp>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <numbers>
@@ -335,9 +336,21 @@ auto carregar_audio(const string& caminho, double duracao, int sample_rate) -> v
 {
     if (!caminho.empty())
     {
+        if (!std::filesystem::exists(caminho) || !std::filesystem::is_regular_file(caminho))
+        {
+            throw runtime_error("Arquivo de audio invalido: " + caminho);
+        }
+
         Wav w;
         w.read(caminho);
-        return w.get_data();
+
+        auto data = w.get_data();
+        if (data.empty())
+        {
+            throw runtime_error("Arquivo de audio vazio ou invalido: " + caminho);
+        }
+
+        return data;
     }
 
     const size_t total = static_cast<size_t>(llround(duracao * static_cast<double>(sample_rate)));
@@ -377,13 +390,14 @@ auto salvar_csv(const string& caminho, const vector<Tensor>& spikes) -> void
     }
 }
 
-auto executar_pipeline(const string& wav_path,             //
-                       double duracao_sintetica,           //
-                       const ConfigExtracao& cfg_extracao, //
-                       const ConfigSNN& cfg_snn,           //
-                       unsigned int seed,                  //
-                       const string& saida_csv             //
-                       ) -> void
+auto executar_pipeline(                 //
+    const string& wav_path,             //
+    double duracao_sintetica,           //
+    const ConfigExtracao& cfg_extracao, //
+    const ConfigSNN& cfg_snn,           //
+    unsigned int seed,                  //
+    const string& saida_csv             //
+    ) -> void
 {
     auto audio = carregar_audio(     //
         wav_path,                    //

@@ -19,7 +19,7 @@ This module uses a sampler-driven architecture inspired by large ML frameworks w
 Declared in `include/nn/dataLoaders/samplers/ISampler.hpp`:
 
 - `index_count()`: number of indices produced per epoch.
-- `set_epoch(std::size_t)`: optional epoch hook for stateful samplers.
+- `set_epoch(std::size_t)`: hook for stateful samplers.
 - `sample_into(std::span<std::size_t>)`: fills caller-provided buffer.
 
 Using `sample_into(std::span<...>)` avoids hidden allocations inside samplers and keeps the data path explicit.
@@ -27,7 +27,6 @@ Using `sample_into(std::span<...>)` avoids hidden allocations inside samplers an
 ## File Layout
 
 - Interface: `include/nn/dataLoaders/samplers/ISampler.hpp`
-- Umbrella include: `include/nn/dataLoaders/Sampler.hpp`
 - Built-in sampler headers:
 	- `include/nn/dataLoaders/samplers/SequentialSampler.hpp`
 	- `include/nn/dataLoaders/samplers/RandomSampler.hpp`

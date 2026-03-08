@@ -9,7 +9,8 @@
 #include <stdexcept>
 #include <utility>
 
-#include "nn/dataLoaders/Sampler.hpp"
+#include "nn/dataLoaders/samplers/RandomSampler.hpp"
+#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 
 // Implementation notes:
 // - The `DataLoader` delegates sample-index generation to an `ISampler`.
@@ -17,65 +18,88 @@
 // - `Iterator::operator*()` delegates batching to `Dataset::collate()`, which
 //   enables datasets to implement fast slicing/gather.
 
+using std::invalid_argument;
+using std::make_unique;
+using std::move;
+using std::optional;
+using std::shared_ptr;
+using std::size_t;
+using std::unique_ptr;
+using std::vector;
+
 namespace
 {
 
-auto make_default_sampler(std::size_t dataset_size, bool do_shuffle,
-                          std::optional<unsigned int> seed) -> std::unique_ptr<ISampler>
+auto make_default_sampler(      //
+    size_t dataset_size,        //
+    bool do_shuffle,            //
+    optional<unsigned int> seed //
+    ) -> unique_ptr<ISampler>
 {
-    if (!do_shuffle)
+    if (do_shuffle)
     {
-        return std::make_unique<SequentialSampler>(dataset_size);
+        return make_unique<RandomSampler>(dataset_size, seed);
     }
-    return std::make_unique<RandomSampler>(dataset_size, seed);
+
+    return make_unique<SequentialSampler>(dataset_size);
 }
 
 } // namespace
 
-DataLoader::DataLoader(               //
-    std::shared_ptr<Dataset> dataset, //
-    std::size_t batch_size,           //
-    bool do_shuffle,                  //
-    std::optional<unsigned int> seed  //
+DataLoader::DataLoader(          //
+    shared_ptr<Dataset> dataset, //
+    size_t batch_size,           //
+    bool do_shuffle,             //
+    optional<unsigned int> seed  //
     )
-    : DataLoader(dataset, batch_size,
-                 make_default_sampler(dataset ? dataset->size() : 0, do_shuffle, seed))
+    : DataLoader(                            //
+          dataset,                           //
+          batch_size,                        //
+          make_default_sampler(              //
+              dataset ? dataset->size() : 0, //
+              do_shuffle,                    //
+              seed                           //
+              )                              //
+      )
 {
 }
 
-DataLoader::DataLoader(               //
-    std::shared_ptr<Dataset> dataset, //
-    std::size_t batch_size,           //
-    std::unique_ptr<ISampler> sampler //
+DataLoader::DataLoader(          //
+    shared_ptr<Dataset> dataset, //
+    size_t batch_size,           //
+    unique_ptr<ISampler> sampler //
     )
-    : dataset_(std::move(dataset)), batch_size_(batch_size), sampler_(std::move(sampler))
+    :                               //
+      dataset_(std::move(dataset)), //
+      batch_size_(batch_size),      //
+      sampler_(std::move(sampler))
 {
     if (!dataset_)
     {
-        throw std::invalid_argument("DataLoader: dataset cannot be null.");
+        throw invalid_argument("DataLoader: dataset cannot be null.");
     }
     if (!sampler_)
     {
-        throw std::invalid_argument("DataLoader: sampler cannot be null.");
+        throw invalid_argument("DataLoader: sampler cannot be null.");
     }
     if (batch_size == 0)
     {
-        throw std::invalid_argument("DataLoader: batch size cannot be zero.");
+        throw invalid_argument("DataLoader: batch size cannot be zero.");
     }
     // Check for implicitly converted negative values (wrapped to very large size_t)
     // When -1 is passed to size_t, it becomes SIZE_MAX (typically 2^64-1 or 2^32-1)
     // Any batch_size > 1 billion is suspicious and likely a wrapped negative
-    constexpr std::size_t MAX_REASONABLE_BATCH_SIZE = 1'000'000'000;
+    constexpr size_t MAX_REASONABLE_BATCH_SIZE = 1'000'000'000;
     if (batch_size > MAX_REASONABLE_BATCH_SIZE)
     {
-        throw std::invalid_argument(
+        throw invalid_argument(
             "DataLoader: batch size is unreasonably "
             "large (possible negative value)." //
         );
     }
 
     // Precompute number of batches from sampler cardinality.
-    const std::size_t n_samples = sampler_->index_count();
+    const size_t n_samples = sampler_->index_count();
 
     // Calculate number of batches needed, rounding up for the last
     // batch if it doesn't divide evenly in order to partition samples
@@ -84,14 +108,14 @@ DataLoader::DataLoader(               //
 
     if (dataset_->size() == 0 && n_samples > 0)
     {
-        throw std::invalid_argument("DataLoader: sampler requested indices for an empty dataset.");
+        throw invalid_argument("DataLoader: sampler requested indices for an empty dataset.");
     }
 }
 
 auto DataLoader::begin() -> DataLoader::Iterator
 {
     // Generate this epoch's sampled index list.
-    std::vector<std::size_t> snapshot(sampler_->index_count());
+    vector<size_t> snapshot(sampler_->index_count());
     sampler_->set_epoch(epoch_);
     sampler_->sample_into(snapshot);
 
@@ -105,10 +129,10 @@ auto DataLoader::end() -> DataLoader::Iterator
     return {*this, num_batches_, {}};
 }
 
-DataLoader::Iterator::Iterator(      //
-    DataLoader& loader,              //
-    std::size_t current_batch,       //
-    std::vector<std::size_t> indices //
+DataLoader::Iterator::Iterator( //
+    DataLoader& loader,         //
+    size_t current_batch,       //
+    vector<size_t> indices      //
     )
     : loader_(loader),               //
       current_batch_(current_batch), //
@@ -119,13 +143,13 @@ DataLoader::Iterator::Iterator(      //
 
 auto DataLoader::Iterator::operator*() const -> Batch
 {
-    std::size_t start_index = current_batch_ * loader_.batch_size_;
-    std::size_t end_index = std::min(start_index + loader_.batch_size_, indices_.size());
+    size_t start_index = current_batch_ * loader_.batch_size_;
+    size_t end_index = std::min(start_index + loader_.batch_size_, indices_.size());
 
     // build indices (size_t -> int) for Dataset::collate
-    std::vector<std::size_t> idxs;
+    vector<size_t> idxs;
     idxs.reserve(end_index - start_index);
-    for (std::size_t i = start_index; i < end_index; ++i)
+    for (size_t i = start_index; i < end_index; ++i)
     {
         idxs.emplace_back(indices_.at(i));
     }

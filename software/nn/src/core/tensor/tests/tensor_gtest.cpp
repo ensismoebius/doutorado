@@ -552,6 +552,7 @@ TEST(TensorTest, ComparisonAndBroadcasting)
     A.at(1, 1) = 5.0f;
     A.at(1, 2) = 6.0f;
 
+    // flawfinder: ignore - calls Tensor::equal (API method), not std::equal/iterator traversal.
     auto eq = A.equal(A);
     // all ones
     for (size_t i = 0; i < eq.rows(); ++i)

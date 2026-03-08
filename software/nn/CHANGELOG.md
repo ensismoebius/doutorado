@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Added sampler abstraction in `include/nn/dataLoaders/Sampler.hpp` with built-in implementations:
+- Added sampler abstraction in `include/nn/dataLoaders/samplers/ISampler.hpp` with built-in implementations:
   - `SequentialSampler`
   - `RandomSampler`
   - `WeightedRandomSampler`

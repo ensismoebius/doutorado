@@ -3,7 +3,10 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/Sampler.hpp"
+#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+#include "nn/dataLoaders/samplers/RandomSampler.hpp"
+#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 TEST(SamplerTest, SequentialSamplerProducesOrderedIndices)
 {
