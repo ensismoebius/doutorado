@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <random>
 #include <string>
@@ -10,6 +9,7 @@
 
 #include "Experiment02Data.hpp"
 #include "Experiment02Evaluation.hpp"
+#include "Experiment02Reporting.hpp"
 #include "Experiment02Training.hpp"
 #include "Experiment02Wavelets.hpp"
 #include "nn/linearAlgebra/linear_algebra.hpp"
@@ -115,51 +115,13 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
         auto fold_results =
             k_fold_cross_validation(features, labels, config.k_folds, config.random_seed);
 
-        ClassificationMetrics avg_cls_metrics;
-        ParaconsistentMetrics avg_para_metrics;
-        double total_time = 0.0;
-
-        for (const auto& result : fold_results)
-        {
-            avg_cls_metrics.accuracy += result.metrics.accuracy;
-            avg_cls_metrics.precision += result.metrics.precision;
-            avg_cls_metrics.recall += result.metrics.recall;
-            avg_cls_metrics.f1_score += result.metrics.f1_score;
-            avg_cls_metrics.mcc += result.metrics.mcc;
-
-            avg_para_metrics.alpha += result.para_metrics.alpha;
-            avg_para_metrics.beta += result.para_metrics.beta;
-            avg_para_metrics.G1 += result.para_metrics.G1;
-            avg_para_metrics.G2 += result.para_metrics.G2;
-
-            total_time += result.fold_time_sec;
-        }
-
-        int n_folds = static_cast<int>(fold_results.size());
-        avg_cls_metrics.accuracy /= n_folds;
-        avg_cls_metrics.precision /= n_folds;
-        avg_cls_metrics.recall /= n_folds;
-        avg_cls_metrics.f1_score /= n_folds;
-        avg_cls_metrics.mcc /= n_folds;
-
-        avg_para_metrics.alpha /= n_folds;
-        avg_para_metrics.beta /= n_folds;
-        avg_para_metrics.G1 /= n_folds;
-        avg_para_metrics.G2 /= n_folds;
+        const auto aggregated = aggregate_fold_results(fold_results);
 
         std::string csv_path = config.output_dir + "/" + wavelet_name + "_results.csv";
-        std::ofstream csv_file(csv_path);
-        csv_file << "experiment_id,wavelet_name,decomposition_depth,alpha,beta,G1,G2,"
-                 << "accuracy,precision,recall,f1_score,mcc,total_time_sec\n";
-        csv_file << config.id << "," << wavelet_name << "," << config.max_decomposition_depth << ","
-                 << avg_para_metrics.alpha << "," << avg_para_metrics.beta << ","
-                 << avg_para_metrics.G1 << "," << avg_para_metrics.G2 << ","
-                 << avg_cls_metrics.accuracy << "," << avg_cls_metrics.precision << ","
-                 << avg_cls_metrics.recall << "," << avg_cls_metrics.f1_score << ","
-                 << avg_cls_metrics.mcc << "," << total_time << "\n";
+        write_wavelet_results_csv(csv_path, config, wavelet_name, aggregated);
 
-        std::cout << "Completed " << wavelet_name << " - F1: " << avg_cls_metrics.f1_score
-                  << ", Alpha: " << avg_para_metrics.alpha << std::endl;
+        std::cout << "Completed " << wavelet_name << " - F1: " << aggregated.classification.f1_score
+                  << ", Alpha: " << aggregated.paraconsistent.alpha << std::endl;
     }
 
     std::cout << "Experiment completed. Results saved to " << config.output_dir << std::endl;

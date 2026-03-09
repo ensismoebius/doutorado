@@ -5,6 +5,7 @@ add_executable(experiment_02
     Experiment02Data.cpp
     Experiment02Evaluation.cpp
     Experiment02Pipeline.cpp
+    Experiment02Reporting.cpp
     Experiment02Training.cpp
     Experiment02Wavelets.cpp
     experiment_02.cpp
