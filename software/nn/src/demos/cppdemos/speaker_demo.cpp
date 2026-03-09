@@ -105,75 +105,75 @@ std::unique_ptr<ParserPointersOwner> build_cli()
     demo->add_argument("--saida-plot").default_value(std::string("result_pipeline_wpt_snn.png"));
 
     // capturar
-    auto* capturar = parser_owner->subparsers[1].get();
-    capturar->add_argument("--pessoa").required();
-    capturar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
-    capturar->add_argument("--duracao").default_value(3.0);
-    capturar->add_argument("--taxa-amostragem").default_value(44100);
+    auto* capture = parser_owner->subparsers[1].get();
+    capture->add_argument("--pessoa").required();
+    capture->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    capture->add_argument("--duracao").default_value(3.0);
+    capture->add_argument("--taxa-amostragem").default_value(44100);
 
     // treinar
-    auto* treinar = parser_owner->subparsers[2].get();
-    treinar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
-    treinar->add_argument("--taxa-amostragem").default_value(44100);
-    treinar->add_argument("--tamanho-janela").default_value(512);
-    treinar->add_argument("--tamanho-passo").default_value(256);
-    treinar->add_argument("--wavelet").default_value(std::string("db4"));
-    treinar->add_argument("--num-bandas").default_value(100);
-    treinar->add_argument("--duracao-referencia").default_value(1.0);
-    treinar->add_argument("--passos-por-janela").default_value(10);
-    treinar->add_argument("--profundidade").default_value(-1);
-    treinar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
-    treinar->add_argument("--epocas").default_value(5);
-    treinar->add_argument("--learning-rate").default_value(1e-3);
-    treinar->add_argument("--saida-modelo").default_value(std::string("modelo_snn_locutor.pt"));
-    treinar->add_argument("--saida-rotulos").default_value(std::string("rotulos_locutor.json"));
+    auto* train = parser_owner->subparsers[2].get();
+    train->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    train->add_argument("--taxa-amostragem").default_value(44100);
+    train->add_argument("--tamanho-janela").default_value(512);
+    train->add_argument("--tamanho-passo").default_value(256);
+    train->add_argument("--wavelet").default_value(std::string("db4"));
+    train->add_argument("--num-bandas").default_value(100);
+    train->add_argument("--duracao-referencia").default_value(1.0);
+    train->add_argument("--passos-por-janela").default_value(10);
+    train->add_argument("--profundidade").default_value(-1);
+    train->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    train->add_argument("--epocas").default_value(5);
+    train->add_argument("--learning-rate").default_value(1e-3);
+    train->add_argument("--saida-modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    train->add_argument("--saida-rotulos").default_value(std::string("rotulos_locutor.json"));
 
     // identificar
-    auto* identificar = parser_owner->subparsers[3].get();
-    identificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
-    identificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
-    identificar->add_argument("--duracao").default_value(2.0);
-    identificar->add_argument("--taxa-amostragem").default_value(44100);
-    identificar->add_argument("--tamanho-janela").default_value(512);
-    identificar->add_argument("--tamanho-passo").default_value(256);
-    identificar->add_argument("--wavelet").default_value(std::string("db4"));
-    identificar->add_argument("--num-bandas").default_value(100);
-    identificar->add_argument("--duracao-referencia").default_value(1.0);
-    identificar->add_argument("--passos-por-janela").default_value(10);
-    identificar->add_argument("--profundidade").default_value(-1);
-    identificar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    auto* identify = parser_owner->subparsers[3].get();
+    identify->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    identify->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    identify->add_argument("--duracao").default_value(2.0);
+    identify->add_argument("--taxa-amostragem").default_value(44100);
+    identify->add_argument("--tamanho-janela").default_value(512);
+    identify->add_argument("--tamanho-passo").default_value(256);
+    identify->add_argument("--wavelet").default_value(std::string("db4"));
+    identify->add_argument("--num-bandas").default_value(100);
+    identify->add_argument("--duracao-referencia").default_value(1.0);
+    identify->add_argument("--passos-por-janela").default_value(10);
+    identify->add_argument("--profundidade").default_value(-1);
+    identify->add_argument("--alvo-spikes-por-passo").default_value(0.10);
 
     // verificar
-    auto* verificar = parser_owner->subparsers[4].get();
-    verificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
-    verificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
-    verificar->add_argument("--duracao").default_value(2.0);
-    verificar->add_argument("--taxa-amostragem").default_value(44100);
-    verificar->add_argument("--tamanho-janela").default_value(512);
-    verificar->add_argument("--tamanho-passo").default_value(256);
-    verificar->add_argument("--wavelet").default_value(std::string("db4"));
-    verificar->add_argument("--num-bandas").default_value(100);
-    verificar->add_argument("--duracao-referencia").default_value(1.0);
-    verificar->add_argument("--passos-por-janela").default_value(10);
-    verificar->add_argument("--profundidade").default_value(-1);
-    verificar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
-    verificar->add_argument("--limiar").default_value(0.55);
+    auto* verify = parser_owner->subparsers[4].get();
+    verify->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    verify->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    verify->add_argument("--duracao").default_value(2.0);
+    verify->add_argument("--taxa-amostragem").default_value(44100);
+    verify->add_argument("--tamanho-janela").default_value(512);
+    verify->add_argument("--tamanho-passo").default_value(256);
+    verify->add_argument("--wavelet").default_value(std::string("db4"));
+    verify->add_argument("--num-bandas").default_value(100);
+    verify->add_argument("--duracao-referencia").default_value(1.0);
+    verify->add_argument("--passos-por-janela").default_value(10);
+    verify->add_argument("--profundidade").default_value(-1);
+    verify->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    verify->add_argument("--limiar").default_value(0.55);
 
     // avaliar
-    auto* avaliar = parser_owner->subparsers[5].get();
-    avaliar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
-    avaliar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
-    avaliar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
-    avaliar->add_argument("--taxa-amostragem").default_value(44100);
-    avaliar->add_argument("--tamanho-janela").default_value(512);
-    avaliar->add_argument("--tamanho-passo").default_value(256);
-    avaliar->add_argument("--wavelet").default_value(std::string("db4"));
-    avaliar->add_argument("--num-bandas").default_value(100);
-    avaliar->add_argument("--duracao-referencia").default_value(1.0);
-    avaliar->add_argument("--passos-por-janela").default_value(10);
-    avaliar->add_argument("--profundidade").default_value(-1);
-    avaliar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
-    avaliar->add_argument("--verbose").flag();
+    auto* evaluate = parser_owner->subparsers[5].get();
+    evaluate->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
+    evaluate->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
+    evaluate->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
+    evaluate->add_argument("--taxa-amostragem").default_value(44100);
+    evaluate->add_argument("--tamanho-janela").default_value(512);
+    evaluate->add_argument("--tamanho-passo").default_value(256);
+    evaluate->add_argument("--wavelet").default_value(std::string("db4"));
+    evaluate->add_argument("--num-bandas").default_value(100);
+    evaluate->add_argument("--duracao-referencia").default_value(1.0);
+    evaluate->add_argument("--passos-por-janela").default_value(10);
+    evaluate->add_argument("--profundidade").default_value(-1);
+    evaluate->add_argument("--alvo-spikes-por-passo").default_value(0.10);
+    evaluate->add_argument("--verbose").flag();
 
     for (auto& s : parser_owner->subparsers)
     {
@@ -237,37 +237,37 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("capturar"))
         {
-            std::string pessoa = arg_to<string>(program.at<ArgumentParser>("capturar"), "--pessoa");
-            std::string dir =
+            std::string person = arg_to<string>(program.at<ArgumentParser>("capturar"), "--pessoa");
+            std::string data_dir =
                 arg_to<string>(program.at<ArgumentParser>("capturar"), "--diretorio-dados");
-            double dur = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
-            std::cout << "capturar: pessoa=" << pessoa << " dir=" << dir << " duracao=" << dur
-                      << std::endl;
+            double duration = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
+            std::cout << "capturar: pessoa=" << person << " dir=" << data_dir
+                      << " duracao=" << duration << std::endl;
             return 0;
         }
 
         if (program.is_subcommand_used("treinar"))
         {
-            auto& treinar_parser = program.at<ArgumentParser>("treinar");
-            std::string dir = arg_to<std::string>(treinar_parser, "--diretorio-dados");
-            int epocas = static_cast<int>(arg_to<int>(treinar_parser, "--epocas"));
-            std::cout << "treinar: dados=" << dir << " epocas=" << epocas << std::endl;
+            auto& train_parser = program.at<ArgumentParser>("treinar");
+            std::string data_dir = arg_to<std::string>(train_parser, "--diretorio-dados");
+            int epochs = static_cast<int>(arg_to<int>(train_parser, "--epocas"));
+            std::cout << "treinar: dados=" << data_dir << " epocas=" << epochs << std::endl;
             return 0;
         }
 
         if (program.is_subcommand_used("identificar"))
         {
-            auto& identificar_parser = program.at<ArgumentParser>("identificar");
-            std::string model_path = arg_to<std::string>(identificar_parser, "--modelo");
+            auto& identify_parser = program.at<ArgumentParser>("identificar");
+            std::string model_path = arg_to<std::string>(identify_parser, "--modelo");
             std::cout << "identificar: modelo=" << model_path << std::endl;
             return 0;
         }
 
         if (program.is_subcommand_used("verificar"))
         {
-            auto& verificar_parser = program.at<ArgumentParser>("verificar");
-            std::string model_path = arg_to<std::string>(verificar_parser, "--modelo");
-            double threshold = arg_to<double>(verificar_parser, "--limiar");
+            auto& verify_parser = program.at<ArgumentParser>("verificar");
+            std::string model_path = arg_to<std::string>(verify_parser, "--modelo");
+            double threshold = arg_to<double>(verify_parser, "--limiar");
             std::cout << "verificar: modelo=" << model_path << " limiar=" << threshold
                       << std::endl;
             return 0;
@@ -275,9 +275,9 @@ int main(int argc, char** argv)
 
         if (program.is_subcommand_used("avaliar"))
         {
-            auto& avaliar_parser = program.at<ArgumentParser>("avaliar");
-            bool verb = arg_to<bool>(avaliar_parser, "--verbose");
-            std::cout << "avaliar: verbose=" << (verb ? "true" : "false") << std::endl;
+            auto& evaluate_parser = program.at<ArgumentParser>("avaliar");
+            bool verbose = arg_to<bool>(evaluate_parser, "--verbose");
+            std::cout << "avaliar: verbose=" << (verbose ? "true" : "false") << std::endl;
             return 0;
         }
 

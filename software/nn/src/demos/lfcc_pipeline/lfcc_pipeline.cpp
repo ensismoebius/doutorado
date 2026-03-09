@@ -19,30 +19,30 @@ static void init()
     // Initialization code goes here
 }
 
-static void perform(const std::string& basePath)
+static void perform(const std::string& base_path)
 {
-    for (const auto& entry : std::filesystem::directory_iterator(basePath))
+    for (const auto& entry : std::filesystem::directory_iterator(base_path))
     {
         if (entry.is_directory())
         {
-            string subjectPath = entry.path().string();
-            string subjectName = entry.path().filename().string();
-            string audioFilePath = subjectPath;
-            audioFilePath += "/";
-            audioFilePath += subjectName;
-            audioFilePath += "_Audio.mat";
-            string eegFilePath = subjectPath;
-            eegFilePath += "/";
-            eegFilePath += subjectName;
-            eegFilePath += "_EEG.mat";
+            string subject_path = entry.path().string();
+            string subject_name = entry.path().filename().string();
+            string audio_file_path = subject_path;
+            audio_file_path += "/";
+            audio_file_path += subject_name;
+            audio_file_path += "_Audio.mat";
+            string eeg_file_path = subject_path;
+            eeg_file_path += "/";
+            eeg_file_path += subject_name;
+            eeg_file_path += "_EEG.mat";
 
-            if (std::filesystem::exists(audioFilePath) && std::filesystem::exists(eegFilePath))
+            if (std::filesystem::exists(audio_file_path) && std::filesystem::exists(eeg_file_path))
             {
-                const SubjectInfo subject = {.path = subjectPath,
-                                             .name = subjectName,
-                                             .audio_file_path = audioFilePath,
-                                             .eeg_file_path = eegFilePath};
-                processSubject(subject);
+                const SubjectInfo subject = {.path = subject_path,
+                                             .name = subject_name,
+                                             .audio_file_path = audio_file_path,
+                                             .eeg_file_path = eeg_file_path};
+                process_subject(subject);
             }
         }
     }
@@ -52,11 +52,11 @@ auto main(int argc, char** argv) -> int
 {
     init();
 
-    std::string basePath =
+    std::string base_path =
         "/home/ensismoebius/Documentos/UNESP/doutorado/"
         "databases/BaseDeDatosHablaImaginada/";
 
-    perform(basePath);
+    perform(base_path);
 
     return 0;
 }

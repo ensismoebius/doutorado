@@ -13,12 +13,10 @@
 #include <numbers>   // For std::numbers::pi_v, std::numbers::sqrt2_v
 #include <vector>    // For std::vector
 
-#include "nn/optimizers/Adam.hpp" // For Adam optimizer
 #include "nn/tensor/Tensor.hpp"   // For Tensor
 
 using std::size_t;
 using std::vector;
-using namespace std; // Resolve cout errors
 
 namespace nn::core::wave
 {
@@ -64,6 +62,26 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     {
         return {}; // Return empty frames for an empty signal
     }
+
+    if (context.loading_params.constants.ms_to_seconds_factor <= 0.0F)
+    {
+        throw std::invalid_argument("ms_to_seconds_factor must be > 0");
+    }
+    if (context.loading_params.audio_params.target_sampling_rate <= 0)
+    {
+        throw std::invalid_argument("target_sampling_rate must be > 0");
+    }
+    if (!std::isfinite(context.loading_params.audio_params.frame_duration_ms) ||
+        context.loading_params.audio_params.frame_duration_ms <= 0.0F)
+    {
+        throw std::invalid_argument("frame_duration_ms must be finite and > 0");
+    }
+    if (!std::isfinite(context.loading_params.audio_params.frame_shift_ms) ||
+        context.loading_params.audio_params.frame_shift_ms <= 0.0F)
+    {
+        throw std::invalid_argument("frame_shift_ms must be finite and > 0");
+    }
+
     // Comprimento de cada frame em amostras. (Parâmetro de saída)
     context.frame_length = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_duration_ms *
@@ -75,6 +93,11 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
         roundf(context.loading_params.audio_params.frame_shift_ms *
                static_cast<float>(context.loading_params.audio_params.target_sampling_rate) /
                context.loading_params.constants.ms_to_seconds_factor));
+
+    if (context.frame_length <= 0 || context.frame_step <= 0)
+    {
+        throw std::invalid_argument("Computed frame_length and frame_step must be > 0");
+    }
 
     // Comprimento total do sinal de entrada.
     const int signal_length = static_cast<int>(signal.size());

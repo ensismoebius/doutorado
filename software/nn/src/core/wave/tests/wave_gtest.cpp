@@ -4,6 +4,8 @@
  */
 
 #include <filesystem>
+#include <string>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "nn/wave/Wav.h"
@@ -19,11 +21,11 @@ TEST(SimpleSignalOperationsTest, TestAMDF)
     EXPECT_EQ(result.size(), signal.size());
 }
 
-TEST(FiltersOperationsTest, TestCreateAlpha)
+TEST(FilterOperationsTest, TestCreateAlpha)
 {
-    double samplingRate = 44100.0;
-    double cutoffFrequency = 2000.0;
-    auto alpha = createAlpha(samplingRate, cutoffFrequency);
+    double sampling_rate = 44100.0;
+    double cutoff_frequency = 2000.0;
+    auto alpha = createAlpha(sampling_rate, cutoff_frequency);
     EXPECT_GT(alpha, 0.0);
     EXPECT_LT(alpha, 1.0);
 }
@@ -41,8 +43,8 @@ TEST(WavFileTest, WriteThenRead)
     // read
     Wav reader;
     ASSERT_NO_THROW(reader.read(filepath)); // flawfinder: ignore
-    auto readData = reader.get_data();
-    ASSERT_FALSE(readData.empty());
+    auto read_data = reader.get_data();
+    ASSERT_FALSE(read_data.empty());
     // optional: compare contents (convert types if needed)
 }
 
@@ -61,19 +63,19 @@ TEST(AudioFeatureExtractionTest, TestHanningWindow)
 TEST(AudioFeatureExtractionTest, TestHanningWindowEdgeCases)
 {
     // Length 1
-    auto window1 = nn::core::wave::hanning_window(1);
-    EXPECT_EQ(window1.size(), 1U);
-    EXPECT_NEAR(window1[0], 1.0, 1e-6);
+    auto window_1 = nn::core::wave::hanning_window(1);
+    EXPECT_EQ(window_1.size(), 1U);
+    EXPECT_NEAR(window_1[0], 1.0, 1e-6);
 
     // Length 2
-    auto window2 = nn::core::wave::hanning_window(2);
-    EXPECT_EQ(window2.size(), 2U);
-    EXPECT_NEAR(window2[0], 0.0, 1e-6);
-    EXPECT_NEAR(window2[1], 0.0, 1e-6);
+    auto window_2 = nn::core::wave::hanning_window(2);
+    EXPECT_EQ(window_2.size(), 2U);
+    EXPECT_NEAR(window_2[0], 0.0, 1e-6);
+    EXPECT_NEAR(window_2[1], 0.0, 1e-6);
 
     // Length 0
-    auto window0 = nn::core::wave::hanning_window(0);
-    EXPECT_TRUE(window0.empty());
+    auto window_0 = nn::core::wave::hanning_window(0);
+    EXPECT_TRUE(window_0.empty());
 }
 
 TEST(AudioFeatureExtractionTest, TestApplyWindow)

@@ -17,7 +17,7 @@
 using namespace nn::core::wave; // Use the namespace for moved functions
 
 // Helper function to create dummy LoadingAndProcessingParameters
-auto createDummyLoadingParams() -> LoadingAndProcessingParameters
+auto create_dummy_loading_params() -> LoadingAndProcessingParameters
 {
     AudioProcessingParams audio_params = {.target_sampling_rate = 16000,
                                           .preemphasis_coefficient = 0.97,
@@ -47,19 +47,19 @@ auto createDummyLoadingParams() -> LoadingAndProcessingParameters
 }
 
 // Test fixture for common setup if needed
-class Experiment01UtilsTest : public ::testing::Test
+class LfccPipelineUtilsTest : public ::testing::Test
 {
    protected:
     LoadingAndProcessingParameters dummy_loading_params;
 
     void SetUp() override
     {
-        dummy_loading_params = createDummyLoadingParams();
+        dummy_loading_params = create_dummy_loading_params();
     }
 };
 
 // Test for pre_emphasis_inplace
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace)
+TEST_F(LfccPipelineUtilsTest, PreEmphasisInplace)
 {
     std::vector<float> signal = {1.0F, 2.0F, 3.0F, 4.0F};
     float coefficient = 0.97F;
@@ -75,7 +75,7 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace)
     ASSERT_NEAR(signal[3], 1.09F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient)
+TEST_F(LfccPipelineUtilsTest, PreEmphasisInplace_ZeroCoefficient)
 {
     std::vector<float> signal = {1.0F, 2.0F, 3.0F};
     float coefficient = 0.0F;
@@ -85,7 +85,7 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_ZeroCoefficient)
     ASSERT_NEAR(signal[2], 3.0F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_EmptySignal)
+TEST_F(LfccPipelineUtilsTest, PreEmphasisInplace_EmptySignal)
 {
     std::vector<float> signal = {};
     float coefficient = 0.97F;
@@ -93,7 +93,7 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_EmptySignal)
     ASSERT_TRUE(signal.empty());
 }
 
-TEST_F(Experiment01UtilsTest, PreEmphasisInplace_SingleElementSignal)
+TEST_F(LfccPipelineUtilsTest, PreEmphasisInplace_SingleElementSignal)
 {
     std::vector<float> signal = {5.0F};
     float coefficient = 0.97F;
@@ -102,7 +102,7 @@ TEST_F(Experiment01UtilsTest, PreEmphasisInplace_SingleElementSignal)
 }
 
 // Test for framing_and_window
-TEST_F(Experiment01UtilsTest, FramingAndWindow_Basic)
+TEST_F(LfccPipelineUtilsTest, FramingAndWindow_Basic)
 {
     std::vector<float> signal(100, 1.0F); // 100 samples, all 1.0
 
@@ -137,7 +137,7 @@ TEST_F(Experiment01UtilsTest, FramingAndWindow_Basic)
     ASSERT_NEAR(frames[0][expected_frame_length - 1], 0.0F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, FramingAndWindow_EmptySignal)
+TEST_F(LfccPipelineUtilsTest, FramingAndWindow_EmptySignal)
 {
     std::vector<float> signal = {};
     FramingConfig framing_context = {
@@ -146,7 +146,7 @@ TEST_F(Experiment01UtilsTest, FramingAndWindow_EmptySignal)
     ASSERT_TRUE(frames.empty());
 }
 
-TEST_F(Experiment01UtilsTest, FramingAndWindow_MultipleFrames)
+TEST_F(LfccPipelineUtilsTest, FramingAndWindow_MultipleFrames)
 {
     std::vector<float> signal(500, 1.0F);                       // 500 samples, all 1.0
     dummy_loading_params.audio_params.frame_duration_ms = 25.0; // 400 samples
@@ -171,7 +171,7 @@ TEST_F(Experiment01UtilsTest, FramingAndWindow_MultipleFrames)
 }
 
 // Test for rfft_power
-TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave)
+TEST_F(LfccPipelineUtilsTest, RFFTPower_BasicSineWave)
 {
     // Test with a simple sine wave to verify FFT and power spectrum
     int sample_rate = 16000;
@@ -209,7 +209,7 @@ TEST_F(Experiment01UtilsTest, RFFTPower_BasicSineWave)
     }
 }
 
-TEST_F(Experiment01UtilsTest, RFFTPower_EmptyFrames)
+TEST_F(LfccPipelineUtilsTest, RFFTPower_EmptyFrames)
 {
     std::vector<std::vector<float>> frames = {};
     int fft_points = 512;
@@ -217,7 +217,7 @@ TEST_F(Experiment01UtilsTest, RFFTPower_EmptyFrames)
 }
 
 // Test for build_linear_filterbank
-TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic)
+TEST_F(LfccPipelineUtilsTest, BuildLinearFilterbank_Basic)
 {
     int fft_points = 512;
     nn::Tensor filterbank_test;                 // Declare local Tensor
@@ -257,7 +257,7 @@ TEST_F(Experiment01UtilsTest, BuildLinearFilterbank_Basic)
 }
 
 // Test for dot_power_filterbank
-TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic)
+TEST_F(LfccPipelineUtilsTest, DotPowerFilterbank_Basic)
 {
     // Create a dummy power spectrum (e.g., all 1.0)
     nn::Tensor power_spectrum(2, 257); // 2 frames, 257 bins (for fft_points = 512)
@@ -299,7 +299,7 @@ TEST_F(Experiment01UtilsTest, DotPowerFilterbank_Basic)
 }
 
 // Test for dct2
-TEST_F(Experiment01UtilsTest, DCT2_Basic)
+TEST_F(LfccPipelineUtilsTest, DCT2_Basic)
 {
     // Create dummy log energies
     nn::Tensor log_energies(2, 10); // 2 frames, 10 filter energies
@@ -330,7 +330,7 @@ TEST_F(Experiment01UtilsTest, DCT2_Basic)
 }
 
 // Test for compute_deltas
-TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
+TEST_F(LfccPipelineUtilsTest, ComputeDeltas_Basic)
 {
     // Create a simple feature matrix
     nn::Tensor features(5, 3); // 5 frames, 3 features
@@ -374,7 +374,7 @@ TEST_F(Experiment01UtilsTest, ComputeDeltas_Basic)
     ASSERT_NEAR(delta_features(1, 2), 1.0F, 1e-6);
 }
 
-TEST_F(Experiment01UtilsTest, ComputeDeltas_EmptyFeatures)
+TEST_F(LfccPipelineUtilsTest, ComputeDeltas_EmptyFeatures)
 {
     nn::Tensor features(0, 3);
     LoadingAndProcessingParameters loading_params = dummy_loading_params;

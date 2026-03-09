@@ -7,17 +7,29 @@
  * - per-subject orchestration helpers
  */
 
-#ifndef EXPERIMENT01_UTILS_HPP
-#define EXPERIMENT01_UTILS_HPP
+#ifndef LFCC_PIPELINE_UTILS_HPP
+#define LFCC_PIPELINE_UTILS_HPP
 
 #include "nn/tensor/Tensor.hpp" // For Tensor
 #include "nn/wave/audioTypes.h" // Include the new audio types header
 
-// Declaration for loadAndProcessAudio, now defined in Experiment01_utils.cpp
-auto loadAndProcessAudio(const std::string& audioFilePath,
-                         const LoadingAndProcessingParameters& loading_params)
+auto load_and_process_audio(const std::string& audio_file_path,
+                            const LoadingAndProcessingParameters& loading_params)
     -> std::vector<nn::Tensor>;
 
-void processSubject(const SubjectInfo& subject);
+void process_subject(const SubjectInfo& subject);
 
-#endif // EXPERIMENT01_UTILS_HPP
+// Backward-compatible wrappers for legacy callers.
+inline auto loadAndProcessAudio(const std::string& audioFilePath,
+                                const LoadingAndProcessingParameters& loading_params)
+    -> std::vector<nn::Tensor>
+{
+    return load_and_process_audio(audioFilePath, loading_params);
+}
+
+inline void processSubject(const SubjectInfo& subject)
+{
+    process_subject(subject);
+}
+
+#endif // LFCC_PIPELINE_UTILS_HPP

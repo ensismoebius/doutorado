@@ -22,7 +22,6 @@
 #include <vector>   // For std::vector
 
 #include "nn/dataLoaders/10.1117/AudioLoader.h" // For loadAudioFromMat
-#include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"             // For Tensor
 #include "nn/wave/audioFeatureExtraction.h" // Include the new header
 
@@ -47,19 +46,19 @@ using namespace std; // Use standard namespace
  * @param loading_params Parâmetros de carregamento e processamento.
  * @return Vetor de tensores contendo os LFCCs e seus deltas.
  */
-auto loadAndProcessAudio(const std::string& audioFilePath,
-                         const LoadingAndProcessingParameters& loading_params)
+auto load_and_process_audio(const std::string& audio_file_path,
+                            const LoadingAndProcessingParameters& loading_params)
     -> std::vector<nn::Tensor>
 {
     // Amostras de áudio carregadas do arquivo .mat.
-    auto [audioSamples, audioStimulus, eegIndex] = loadAudioFromMat(audioFilePath, 0);
+    auto [audio_samples, audio_stimulus, eeg_index] = loadAudioFromMat(audio_file_path, 0);
 
     // Transpõe a matriz de amostras para facilitar o processamento.
-    audioSamples = audioSamples.transpose();
+    audio_samples = audio_samples.transpose();
 
     // Criar vector a partir dos dados do tensor - usa construtor com iteradores
-    vector<float> input_data(audioSamples.data_ptr(),
-                             audioSamples.data_ptr() + audioSamples.size());
+    vector<float> input_data(audio_samples.data_ptr(),
+                             audio_samples.data_ptr() + audio_samples.size());
 
     // Frames do sinal após janelamento.
     vector<vector<float>> frames;
@@ -130,7 +129,7 @@ auto loadAndProcessAudio(const std::string& audioFilePath,
  *
  * @param subject Informações do sujeito a ser processado.
  */
-void processSubject(const SubjectInfo& subject)
+void process_subject(const SubjectInfo& subject)
 {
     cout << "Processing subject: " << subject.name << '\n';
 
@@ -162,6 +161,6 @@ void processSubject(const SubjectInfo& subject)
         .constants = general_constants};
 
     std::vector<nn::Tensor> audio_windows =
-        loadAndProcessAudio(subject.audio_file_path, loading_params);
+        load_and_process_audio(subject.audio_file_path, loading_params);
     cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
 }
