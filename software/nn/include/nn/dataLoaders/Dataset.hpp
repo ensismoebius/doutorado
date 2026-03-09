@@ -2,6 +2,7 @@
 #define DATASET_HPP
 
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 #include "nn/tensor/Tensor.hpp"
@@ -48,17 +49,22 @@ class Dataset
         nn::Tensor inputs(static_cast<size_t>(indices.size()), cols_in);
         nn::Tensor targets(static_cast<size_t>(indices.size()), cols_tg);
 
-        for (std::size_t i = 0; i < indices.size(); ++i)
+        for (std::size_t row = 0; row < indices.size(); ++row)
         {
-            Batch b = get_item(indices[i]);
-            for (size_t c = 0; c < cols_in; ++c)
+            Batch b = get_item(indices[row]);
+
+            // Default collate expects single-sample rows from get_item().
+            if (b.inputs.rows() != 1 || b.inputs.cols() != cols_in)
             {
-                inputs.at(static_cast<size_t>(i), c) = b.inputs.at(0, c);
+                throw std::invalid_argument("Dataset::collate: inconsistent input sample shape");
             }
-            for (size_t c = 0; c < cols_tg; ++c)
+            if (b.targets.rows() != 1 || b.targets.cols() != cols_tg)
             {
-                targets.at(static_cast<size_t>(i), c) = b.targets.at(0, c);
+                throw std::invalid_argument("Dataset::collate: inconsistent target sample shape");
             }
+
+            inputs.setBlock(row, 0, b.inputs);
+            targets.setBlock(row, 0, b.targets);
         }
 
         return {.inputs = std::move(inputs), .targets = std::move(targets)};

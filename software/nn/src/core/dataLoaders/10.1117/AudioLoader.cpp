@@ -10,6 +10,7 @@
 
 #include <matio.h>
 
+#include <algorithm>
 #include <filesystem>
 #include <limits>
 #include <optional>
@@ -23,6 +24,8 @@
 
 namespace nn::dataLoaders
 {
+using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using std::ptrdiff_t;
 
 class AudioLoader : public IMatLoader
 {
@@ -175,7 +178,7 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
 
     // Verify dimensions (M_rows x audioTotalColumns)
     if (audioVariable->rank != 2 ||
-        audioVariable->dims[1] != nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioTotalColumns())
+        audioVariable->dims[1] != ImaginedSpeechSchema_10_1117.audioTotalColumns())
     {
         throw std::runtime_error("Invalid matrix dimensions. Expected Mx176402");
     }
@@ -196,24 +199,23 @@ auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     const std::vector<double> rowValues = loader.readRowAsDoubles(*audioVariable, rowIndex);
 
     // Create Tensor for the audio samples (column vector)
-    nn::Tensor audioSamples(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(), 1);
+    nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
 
-    // Copy audio samples
-    for (size_t i = 0; i < nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(); ++i)
+    // Copy audio samples through contiguous storage
+    // to avoid per-element at(i,0) overhead.
+    const double* src = rowValues.data();
+    float* dst = audioSamples.mutable_data_ptr();
+    const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+    for (size_t i = 0; i < n; ++i)
     {
-        double doubleValue = rowValues[i];
-        float floatValue = static_cast<float>(doubleValue);
-
-        audioSamples.at(i, 0) = floatValue;
+        dst[i] = static_cast<float>(src[i]);
     }
 
     // Get the stimulus
-    int stimulus = static_cast<int>(
-        rowValues[nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioStimulusColumn()]);
+    int stimulus = static_cast<int>(rowValues[ImaginedSpeechSchema_10_1117.audioStimulusColumn()]);
 
     // Get the EEG index
-    int eegIndex = static_cast<int>(
-        rowValues[nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
+    int eegIndex = static_cast<int>(rowValues[ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
 
     return {std::move(audioSamples), stimulus, eegIndex};
 }
