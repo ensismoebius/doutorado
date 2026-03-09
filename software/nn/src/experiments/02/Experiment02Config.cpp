@@ -20,7 +20,13 @@ auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
     ExperimentConfig exp_config;
 
     exp_config.id = config["experiment"]["id"].as<std::string>();
-    exp_config.random_seed = config["determinism"]["random_seed"].as<int>();
+
+    // Keep backward compatibility with both old and nested determinism layouts.
+    if (config["determinism"] && config["determinism"]["random_seed"]) {
+        exp_config.random_seed = config["determinism"]["random_seed"].as<int>();
+    } else {
+        exp_config.random_seed = config["experiment"]["determinism"]["random_seed"].as<int>();
+    }
 
     exp_config.eeg_sampling_rate = config["data"]["sampling_rate"]["EEG"].as<int>();
     exp_config.audio_sampling_rate = config["data"]["sampling_rate"]["Audio"].as<int>();

@@ -19,19 +19,18 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <random>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "Experiment02Config.hpp"
+#include "Experiment02Evaluation.hpp"
 #include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/layers/CrossEntropyLoss.hpp"
 #include "nn/layers/SimpleResNet.hpp"
 #include "nn/linearAlgebra/linear_algebra.hpp"
 #include "nn/optimizers/Adam.hpp"
-#include "nn/paraconsistent/paraconsistent.h"
 #include "nn/statistics/multi_class_metrics.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
@@ -67,71 +66,8 @@ void min_max_normalize(std::vector<std::vector<double>>& features,
     linearAlgebra::minMaxNormalizeFeatures(features, range);
 }
 
-// Paraconsistent metrics calculation
-struct ParaconsistentMetrics
-{
-    double alpha = 0.0;
-    double beta = 0.0;
-    double G1 = 0.0;
-    double G2 = 0.0;
-};
-
-auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
-                                    const std::vector<int>& labels) -> ParaconsistentMetrics
-{
-    if (features.empty() || labels.empty())
-    {
-        return ParaconsistentMetrics{};
-    }
-
-    // Group features by class
-    std::map<std::string, std::vector<std::vector<double>>> class_features;
-    for (size_t i = 0; i < features.size(); ++i)
-    {
-        std::string class_key = std::to_string(labels[i]);
-        class_features[class_key].push_back(features[i]);
-    }
-
-    if (class_features.empty())
-    {
-        return ParaconsistentMetrics{};
-    }
-
-    unsigned int n_classes = class_features.size();
-    unsigned int n_samples_per_class = class_features.begin()->second.size();
-    unsigned int feature_dim = features[0].size();
-
-    double alpha = calculate_alpha(n_classes, n_samples_per_class, feature_dim, class_features);
-    double beta = calculate_beta(n_classes, n_samples_per_class, feature_dim, class_features);
-
-    ParaconsistentMetrics metrics;
-    metrics.alpha = alpha;
-    metrics.beta = beta;
-    metrics.G1 = calculate_certainty_degree_g1(alpha, beta);
-    metrics.G2 = calculate_contradiction_degree_g2(alpha, beta);
-
-    return metrics;
-}
-
-// Classification metrics (using core implementation)
-using ClassificationMetrics = statistics::ClassificationMetrics;
-
-auto compute_classification_metrics(const std::vector<int>& true_labels,
-                                    const std::vector<int>& pred_labels) -> ClassificationMetrics
-{
-    return statistics::compute_classification_metrics(true_labels, pred_labels);
-}
-
 // Simple SNN-ResNet classifier (using core implementation)
 using SNNResNet = SimpleResNet;
-
-// K-fold cross validation (using core template)
-struct FoldResult
-{
-    ClassificationMetrics metrics;
-    ParaconsistentMetrics para_metrics;
-    double fold_time_sec;
-};
 
 auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
                              const std::vector<int>& labels, int k_folds, int random_seed)
