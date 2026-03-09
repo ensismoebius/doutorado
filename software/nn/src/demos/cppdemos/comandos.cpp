@@ -105,7 +105,7 @@ void cmd_demo(                      //
         rng.seed(rd());
     }
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    auto extrair_janelas_caracteristicas = [&](std::vector<float>& audio)
+    auto extract_feature_windows = [&](std::vector<float>& audio)
     {
         LoadingAndProcessingParameters loading_params{};
         loading_params.audio_params.target_sampling_rate = sample_rate;
@@ -134,7 +134,7 @@ void cmd_demo(                      //
         return features;
     };
 
-    auto criar_modelo_snn = [&](int in_dim) -> std::shared_ptr<Sequential>
+    auto create_snn_model = [&](int in_dim) -> std::shared_ptr<Sequential>
     {
         int hidden = std::max(8, num_bands);
         auto m = std::make_shared<Sequential>();
@@ -149,7 +149,7 @@ void cmd_demo(                      //
         return m;
     };
 
-    auto executar_inferencia = [&](std::shared_ptr<Sequential> model, const nn::Tensor& features)
+    auto run_inference = [&](std::shared_ptr<Sequential> model, const nn::Tensor& features)
     {
         std::vector<nn::Tensor> lista_spikes;
         int in_dim = static_cast<int>(features.cols());
@@ -158,7 +158,7 @@ void cmd_demo(                      //
         {
             nn::Tensor frm(1, features.cols());
             for (int j = 0; j < features.cols(); ++j) frm.at(0, j) = features.at(fi, j);
-            nn::Tensor spikes = codificacao::codificar_poisson(frm, steps_per_window, rng);
+            nn::Tensor spikes = codificacao::encode_poisson(frm, steps_per_window, rng);
             nn::Tensor accum(1, in_dim);
             accum.setZero();
             for (int t = 0; t < static_cast<int>(spikes.rows()); ++t)
@@ -172,13 +172,13 @@ void cmd_demo(                      //
         return lista_spikes;
     };
 
-    auto plotar_resultados = [&](const std::string& outpath,
-                                 const std::vector<nn::Tensor>& lista_spikes,
-                                 const std::vector<float>& audio,
-                                 int fs)
+    auto write_demo_outputs = [&](const std::string& outpath,
+                                  const std::vector<nn::Tensor>& spike_frames,
+                                  const std::vector<float>& audio,
+                                  int fs)
     {
         std::ofstream fout(outpath);
-        int in_dim = lista_spikes.empty() ? 0 : lista_spikes[0].cols();
+        int in_dim = spike_frames.empty() ? 0 : spike_frames[0].cols();
         fout << "frame,";
         for (int j = 0; j < in_dim; ++j)
         {
@@ -186,13 +186,13 @@ void cmd_demo(                      //
             fout << "band_" << j;
         }
         fout << '\n';
-        for (size_t i = 0; i < lista_spikes.size(); ++i)
+        for (size_t i = 0; i < spike_frames.size(); ++i)
         {
             fout << i << ',';
-            for (int j = 0; j < lista_spikes[i].cols(); ++j)
+            for (int j = 0; j < spike_frames[i].cols(); ++j)
             {
                 if (j) fout << ',';
-                fout << lista_spikes[i].at(0, j);
+                fout << spike_frames[i].at(0, j);
             }
             fout << '\n';
         }
@@ -212,11 +212,11 @@ void cmd_demo(                      //
         audio[i] = 0.1f * std::sin(2.0 * M_PI * 440.0 * static_cast<double>(i) / sample_rate);
     }
 
-    auto features = extrair_janelas_caracteristicas(audio);
+    auto features = extract_feature_windows(audio);
     int in_dim = static_cast<int>(features.cols());
-    auto model = criar_modelo_snn(in_dim);
-    auto lista_spikes_saida = executar_inferencia(model, features);
-    plotar_resultados(plot_output, lista_spikes_saida, audio, sample_rate);
+    auto model = create_snn_model(in_dim);
+    auto output_spike_frames = run_inference(model, features);
+    write_demo_outputs(plot_output, output_spike_frames, audio, sample_rate);
 }
 
 } // namespace demo

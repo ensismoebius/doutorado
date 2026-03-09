@@ -49,7 +49,7 @@ void cmd_demo(double duration, int sample_rate, int window_size, int hop_size,
 struct ParserPointersOwner
 {
     std::unique_ptr<ArgumentParser> parser;
-    std::vector<std::unique_ptr<ArgumentParser>> subParsers;
+    std::vector<std::unique_ptr<ArgumentParser>> subparsers;
 };
 
 /**
@@ -57,43 +57,43 @@ struct ParserPointersOwner
  *
  * @return std::unique_ptr<ParserPointersOwner>
  */
-std::unique_ptr<ParserPointersOwner> construir_cli()
+std::unique_ptr<ParserPointersOwner> build_cli()
 {
-    auto pointerOwner = std::make_unique<ParserPointersOwner>();
+    auto parser_owner = std::make_unique<ParserPointersOwner>();
 
-    pointerOwner->parser = std::make_unique<ArgumentParser>("biometria-voz");
-    pointerOwner->parser->add_description(
+    parser_owner->parser = std::make_unique<ArgumentParser>("biometria-voz");
+    parser_owner->parser->add_description(
         "Biometria por voz (demo): WPT -> codificacao em spikes -> SNN -> "
         "classificacao por pessoa. Fluxo recomendado: capturar -> treinar -> "
         "identificar.");
 
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "demo",
             "Demonstracao do pipeline completo."));
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "capturar",
             "Captura amostras de voz para uma pessoa."));
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "treinar",
             "Treina um modelo SNN para reconhecimento de locutor."));
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "identificar",
             "Identifica um locutor a partir de uma amostra de voz."));
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "verificar",
             "Verifica se uma amostra de voz pertence a um locutor especifico."));
-    pointerOwner->subParsers.emplace_back( //
+    parser_owner->subparsers.emplace_back( //
         std::make_unique<ArgumentParser>(  //
             "avaliar",
             "Avalia o desempenho do modelo em um conjunto de dados."));
 
     // demo
-    auto* demo = pointerOwner->subParsers[0].get();
+    auto* demo = parser_owner->subparsers[0].get();
     demo->add_argument("--duracao").default_value(1.0);
     demo->add_argument("--taxa-amostragem").default_value(44100);
     demo->add_argument("--tamanho-janela").default_value(512);
@@ -105,14 +105,14 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     demo->add_argument("--saida-plot").default_value(std::string("result_pipeline_wpt_snn.png"));
 
     // capturar
-    auto* capturar = pointerOwner->subParsers[1].get();
+    auto* capturar = parser_owner->subparsers[1].get();
     capturar->add_argument("--pessoa").required();
     capturar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
     capturar->add_argument("--duracao").default_value(3.0);
     capturar->add_argument("--taxa-amostragem").default_value(44100);
 
     // treinar
-    auto* treinar = pointerOwner->subParsers[2].get();
+    auto* treinar = parser_owner->subparsers[2].get();
     treinar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
     treinar->add_argument("--taxa-amostragem").default_value(44100);
     treinar->add_argument("--tamanho-janela").default_value(512);
@@ -129,7 +129,7 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     treinar->add_argument("--saida-rotulos").default_value(std::string("rotulos_locutor.json"));
 
     // identificar
-    auto* identificar = pointerOwner->subParsers[3].get();
+    auto* identificar = parser_owner->subparsers[3].get();
     identificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
     identificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
     identificar->add_argument("--duracao").default_value(2.0);
@@ -144,7 +144,7 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     identificar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
 
     // verificar
-    auto* verificar = pointerOwner->subParsers[4].get();
+    auto* verificar = parser_owner->subparsers[4].get();
     verificar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
     verificar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
     verificar->add_argument("--duracao").default_value(2.0);
@@ -160,7 +160,7 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     verificar->add_argument("--limiar").default_value(0.55);
 
     // avaliar
-    auto* avaliar = pointerOwner->subParsers[5].get();
+    auto* avaliar = parser_owner->subparsers[5].get();
     avaliar->add_argument("--modelo").default_value(std::string("modelo_snn_locutor.pt"));
     avaliar->add_argument("--rotulos").default_value(std::string("rotulos_locutor.json"));
     avaliar->add_argument("--diretorio-dados").default_value(std::string("dados/vozes"));
@@ -175,25 +175,25 @@ std::unique_ptr<ParserPointersOwner> construir_cli()
     avaliar->add_argument("--alvo-spikes-por-passo").default_value(0.10);
     avaliar->add_argument("--verbose").flag();
 
-    for (auto& s : pointerOwner->subParsers)
+    for (auto& s : parser_owner->subparsers)
     {
-        pointerOwner->parser->add_subparser(*s);
+        parser_owner->parser->add_subparser(*s);
     }
 
-    return pointerOwner;
+    return parser_owner;
 }
 
 int main(int argc, char** argv)
 {
     try
     {
-        auto pointerToClient = construir_cli();
+        auto parser_owner = build_cli();
 
         // parse_args uses references into the subparsers owned by `pointerOwner`,
         // so `pointerOwner` must remain alive until parse_args returns.
         try
         {
-            pointerToClient->parser->parse_args(argc, argv);
+            parser_owner->parser->parse_args(argc, argv);
         }
         catch (const std::exception& err)
         {
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        auto& program = *pointerToClient->parser;
+        auto& program = *parser_owner->parser;
 
         if (program.is_subcommand_used("demo"))
         {

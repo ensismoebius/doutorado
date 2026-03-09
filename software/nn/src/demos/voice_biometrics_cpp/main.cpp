@@ -401,9 +401,9 @@ auto run_pipeline(                      //
     ) -> void
 {
     auto audio = load_audio_or_synthetic( //
-        wav_path,                    //
-        duracao_sintetica,           //
-        cfg_extracao.taxa_amostragem //
+        wav_path,                         //
+        duracao_sintetica,                //
+        cfg_extracao.taxa_amostragem      //
     );
 
     auto features = build_features(audio, cfg_extracao);
