@@ -19,6 +19,7 @@
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/NAMES.hpp"
+#include "nn/dataLoaders/10.1117/SchemaIndexing.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /*
@@ -40,6 +41,8 @@
 
 namespace nn::dataLoaders
 {
+using nn::dataLoaders::schema101117::columnMajorIndex;
+using nn::dataLoaders::schema101117::eegSignalFlatColumn;
 using std::string;
 
 // Alias for unique_ptr to matvar_t with custom deleter
@@ -215,7 +218,7 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     {
         for (size_t s = 0; s < samplesPerChannel; ++s)
         {
-            eegChannels.at(ch, s) = static_cast<float>(row_values[(ch * samplesPerChannel) + s]);
+            eegChannels.at(ch, s) = static_cast<float>(row_values[eegSignalFlatColumn(ch, s)]);
         }
     }
 
@@ -292,7 +295,7 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
             {
                 const size_t signal_col = (ch * samplesPerChannel) + s;
                 eegChannels.at(ch, s) =
-                    static_cast<float>(block_values[(signal_col * rowCount) + r]);
+                    static_cast<float>(block_values[columnMajorIndex(signal_col, r, rowCount)]);
             }
         }
 
@@ -303,9 +306,12 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
         const size_t artifact_column =
             nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
 
-        int modality = static_cast<int>(block_values[(modality_column * rowCount) + r]);
-        int stimulus = static_cast<int>(block_values[(stimulus_column * rowCount) + r]);
-        int artifact = static_cast<int>(block_values[(artifact_column * rowCount) + r]);
+        int modality =
+            static_cast<int>(block_values[columnMajorIndex(modality_column, r, rowCount)]);
+        int stimulus =
+            static_cast<int>(block_values[columnMajorIndex(stimulus_column, r, rowCount)]);
+        int artifact =
+            static_cast<int>(block_values[columnMajorIndex(artifact_column, r, rowCount)]);
 
         std::tuple<nn::Tensor, std::array<int, 3>> sample{
             std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
@@ -351,13 +357,13 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
         for (size_t c = 0; c < signalCols; ++c)
         {
             out.signals[(r * signalCols) + c] =
-                static_cast<float>(block_values[(c * rowCount) + r]);
+                static_cast<float>(block_values[columnMajorIndex(c, r, rowCount)]);
         }
 
-        out.labels[r] =
-            std::array<int, 3>{static_cast<int>(block_values[(modality_column * rowCount) + r]),
-                               static_cast<int>(block_values[(stimulus_column * rowCount) + r]),
-                               static_cast<int>(block_values[(artifact_column * rowCount) + r])};
+        out.labels[r] = std::array<int, 3>{
+            static_cast<int>(block_values[columnMajorIndex(modality_column, r, rowCount)]),
+            static_cast<int>(block_values[columnMajorIndex(stimulus_column, r, rowCount)]),
+            static_cast<int>(block_values[columnMajorIndex(artifact_column, r, rowCount)])};
     }
 
     return out;

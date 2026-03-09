@@ -2,12 +2,12 @@
 #define NN_DATALOADERS_DATALOADER_HPP
 
 #include <cstddef>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <vector>
 
 #include "Dataset.hpp"
+#include "nn/dataLoaders/DataLoaderIterator.hpp"
 #include "nn/dataLoaders/samplers/ISampler.hpp"
 
 /**
@@ -66,33 +66,14 @@ class DataLoader
     DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
                std::unique_ptr<ISampler> sampler);
 
-    class Iterator
-    {
-       public:
-        using iterator_category = std::input_iterator_tag;
-        using difference_type = std::ptrdiff_t;
-        using value_type = Batch;
-        using pointer = Batch*;
-        using reference = Batch&;
-
-        Iterator(DataLoader& loader, std::size_t current_batch,
-                 std::shared_ptr<std::vector<std::size_t>> indices);
-
-        auto operator*() const -> Batch;
-        auto operator++() -> Iterator&;
-        auto operator!=(const Iterator& other) const -> bool;
-        auto operator==(const Iterator& other) const -> bool;
-
-       private:
-        DataLoader& loader_;
-        std::size_t current_batch_;
-        std::shared_ptr<std::vector<std::size_t>> indices_; // Shared snapshot per epoch iterator
-    };
+    using Iterator = DataLoaderIterator;
 
     [[nodiscard]] auto begin() -> Iterator;
     [[nodiscard]] auto end() -> Iterator;
 
    private:
+    friend class DataLoaderIterator;
+
     std::shared_ptr<Dataset> dataset_;
     std::size_t batch_size_;
     std::unique_ptr<ISampler> sampler_;

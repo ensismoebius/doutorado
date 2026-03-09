@@ -20,11 +20,13 @@
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/NAMES.hpp"
+#include "nn/dataLoaders/10.1117/SchemaIndexing.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using nn::dataLoaders::schema101117::columnMajorIndex;
 namespace
 {
 struct MatFileCloser
@@ -254,13 +256,13 @@ auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
         const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
         for (size_t i = 0; i < n; ++i)
         {
-            dst[i] = static_cast<float>(blockValues[(i * rowCount) + r]);
+            dst[i] = static_cast<float>(blockValues[columnMajorIndex(i, r, rowCount)]);
         }
 
-        const int stimulus = static_cast<int>(
-            blockValues[(ImaginedSpeechSchema_10_1117.audioStimulusColumn() * rowCount) + r]);
-        const int eegIndex = static_cast<int>(
-            blockValues[(ImaginedSpeechSchema_10_1117.audioEEGIndexColumn() * rowCount) + r]);
+        const int stimulus = static_cast<int>(blockValues[columnMajorIndex(
+            ImaginedSpeechSchema_10_1117.audioStimulusColumn(), r, rowCount)]);
+        const int eegIndex = static_cast<int>(blockValues[columnMajorIndex(
+            ImaginedSpeechSchema_10_1117.audioEEGIndexColumn(), r, rowCount)]);
 
         std::tuple<nn::Tensor, int, int> sample{std::move(audioSamples), stimulus, eegIndex};
 
@@ -301,13 +303,13 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
         for (size_t i = 0; i < samplesPerRow; ++i)
         {
             out.samples[(r * samplesPerRow) + i] =
-                static_cast<float>(blockValues[(i * rowCount) + r]);
+                static_cast<float>(blockValues[columnMajorIndex(i, r, rowCount)]);
         }
 
-        out.stimuli[r] = static_cast<int>(
-            blockValues[(ImaginedSpeechSchema_10_1117.audioStimulusColumn() * rowCount) + r]);
-        out.eegIndices[r] = static_cast<int>(
-            blockValues[(ImaginedSpeechSchema_10_1117.audioEEGIndexColumn() * rowCount) + r]);
+        out.stimuli[r] = static_cast<int>(blockValues[columnMajorIndex(
+            ImaginedSpeechSchema_10_1117.audioStimulusColumn(), r, rowCount)]);
+        out.eegIndices[r] = static_cast<int>(blockValues[columnMajorIndex(
+            ImaginedSpeechSchema_10_1117.audioEEGIndexColumn(), r, rowCount)]);
     }
 
     return out;

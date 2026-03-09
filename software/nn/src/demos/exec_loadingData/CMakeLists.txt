@@ -5,6 +5,8 @@ add_library(loadingData_lib STATIC
     ${SRC_DIR}/demos/exec_loadingData/lib/src/cli.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/batch_util.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/subject_discovery.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/BatchPrefetcher.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/Protocol101117Dataset.cpp
 )
 
 target_include_directories(loadingData_lib
@@ -16,6 +18,10 @@ target_include_directories(loadingData_lib
 target_link_libraries(loadingData_lib
     PUBLIC
         CLI11::CLI11
+        dataLoaders_10_1117
+        dataLoaders
+        matioCpp
+        z
     Eigen3::Eigen
 )
 
