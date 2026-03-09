@@ -22,6 +22,7 @@
 using std::cerr;
 using std::cout;
 using std::exception;
+using std::make_shared;
 using std::size_t;
 
 auto main(int argc, char* argv[]) -> int
@@ -51,7 +52,7 @@ auto main(int argc, char* argv[]) -> int
     try
     {
         auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
-        auto dataset = std::make_shared<Protocol101117Dataset>(discovered);
+        auto dataset = make_shared<Protocol101117Dataset>(discovered);
 
         DataLoader loader(dataset, config.batch_size, makeSamplerOptions(config));
         DemoProbeModel model;
