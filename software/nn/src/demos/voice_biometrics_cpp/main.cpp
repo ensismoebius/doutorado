@@ -39,21 +39,21 @@ using std::sin;
 using std::string;
 using std::vector;
 
-struct ConfigExtracao
+struct ExtractionConfig
 {
-    int taxa_amostragem{44100};
-    int tamanho_janela{512};
-    int tamanho_passo{256};
-    int num_bandas{100};
-    int nivel_wpt{6};
+    int sample_rate{44100};
+    int window_size{512};
+    int hop_size{256};
+    int num_bands{100};
+    int wpt_level{6};
 };
 
-struct ConfigSNN
+struct SnnConfig
 {
-    int passos_por_janela{10};
-    float alvo_spikes_por_passo{0.10F};
-    int profundidade{3};
-    int tamanho_camada_oculta{128};
+    int steps_per_window{10};
+    float target_spikes_per_step{0.10F};
+    int depth{3};
+    int hidden_size{128};
 };
 
 // --- Signal helpers ---
@@ -66,60 +66,60 @@ auto compute_wpt_level(int window_size, int num_bandas) -> int
     return std::max(1, std::min(nivel_max_por_tamanho, nivel_necessario));
 }
 
-auto generate_hann_window(int tamanho) -> std::vector<double>
+auto generate_hann_window(int size) -> std::vector<double>
 {
-    std::vector<double> w(static_cast<size_t>(tamanho));
-    for (int i = 0; i < tamanho; ++i)
+    std::vector<double> w(static_cast<size_t>(size));
+    for (int i = 0; i < size; ++i)
     {
         constexpr double pi = std::numbers::pi;
         w[static_cast<size_t>(i)] =
             0.5 *
-            (1.0 - std::cos(2.0 * pi * static_cast<double>(i) / static_cast<double>(tamanho - 1)));
+            (1.0 - std::cos(2.0 * pi * static_cast<double>(i) / static_cast<double>(size - 1)));
     }
     return w;
 }
 
-auto apply_windowing(const std::vector<double>& sinal, const ConfigExtracao& cfg)
+auto apply_windowing(const std::vector<double>& signal, const ExtractionConfig& cfg)
     -> std::vector<std::vector<double>>
 {
-    std::vector<std::vector<double>> janelas;
-    if (sinal.size() < static_cast<size_t>(cfg.tamanho_janela))
+    std::vector<std::vector<double>> windows;
+    if (signal.size() < static_cast<size_t>(cfg.window_size))
     {
-        return janelas;
+        return windows;
     }
 
-    const auto janela = generate_hann_window(cfg.tamanho_janela);
-    for (int inicio = 0; inicio + cfg.tamanho_janela <= static_cast<int>(sinal.size());
-         inicio += cfg.tamanho_passo)
+    const auto window = generate_hann_window(cfg.window_size);
+    for (int start = 0; start + cfg.window_size <= static_cast<int>(signal.size());
+         start += cfg.hop_size)
     {
-        std::vector<double> segmento(static_cast<size_t>(cfg.tamanho_janela));
-        for (int i = 0; i < cfg.tamanho_janela; ++i)
+        std::vector<double> segment(static_cast<size_t>(cfg.window_size));
+        for (int i = 0; i < cfg.window_size; ++i)
         {
-            segmento[static_cast<size_t>(i)] =
-                sinal[static_cast<size_t>(inicio + i)] * janela[static_cast<size_t>(i)];
+            segment[static_cast<size_t>(i)] =
+                signal[static_cast<size_t>(start + i)] * window[static_cast<size_t>(i)];
         }
-        janelas.push_back(std::move(segmento));
+        windows.push_back(std::move(segment));
     }
-    return janelas;
+    return windows;
 }
 
-auto interpolate_to_size(const std::vector<double>& src, int destino) -> std::vector<float>
+auto interpolate_to_size(const std::vector<double>& src, int destination_size) -> std::vector<float>
 {
-    if (destino <= 0)
+    if (destination_size <= 0)
     {
         return {};
     }
 
-    if (static_cast<int>(src.size()) == destino)
+    if (static_cast<int>(src.size()) == destination_size)
     {
         return std::vector<float>(src.begin(), src.end());
     }
 
-    std::vector<float> out(static_cast<size_t>(destino));
+    std::vector<float> out(static_cast<size_t>(destination_size));
 
-    for (int i = 0; i < destino; ++i)
+    for (int i = 0; i < destination_size; ++i)
     {
-        double pos = (static_cast<double>(i) / static_cast<double>(destino - 1)) *
+        double pos = (static_cast<double>(i) / static_cast<double>(destination_size - 1)) *
                      static_cast<double>(src.size() - 1);
         auto idx0 = static_cast<size_t>(std::floor(pos));
         auto idx1 = static_cast<size_t>(std::ceil(pos));
@@ -132,58 +132,58 @@ auto interpolate_to_size(const std::vector<double>& src, int destino) -> std::ve
     return out;
 }
 
-auto compute_wpt_energy(const std::vector<double>& janela, int num_bandas, int nivel_wpt)
+auto compute_wpt_energy(const std::vector<double>& window, int num_bands, int wpt_level)
     -> std::vector<float>
 {
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
     const std::vector<double> haar{inv_sqrt2, inv_sqrt2};
 
     // Pad to next power of two if needed (mallat expects power-of-two length)
-    int alvo = wavelets::get_next_power_of_two(static_cast<double>(janela.size()));
-    std::vector<double> sinal_padd(janela.begin(), janela.end());
-    sinal_padd.resize(static_cast<size_t>(alvo), 0.0);
+    int target_size = wavelets::get_next_power_of_two(static_cast<double>(window.size()));
+    std::vector<double> padded_signal(window.begin(), window.end());
+    padded_signal.resize(static_cast<size_t>(target_size), 0.0);
 
-    auto transform = wavelets::malat(sinal_padd,
+    auto transform = wavelets::malat(padded_signal,
                                      std::span<const double>(haar.data(), haar.size()),
                                      wavelets::TransformMode::PACKET_WAVELET,
-                                     static_cast<unsigned int>(nivel_wpt));
-    auto energias = wavelets::extract_subband_energies(transform, nivel_wpt);
-    return interpolate_to_size(energias, num_bandas);
+                                     static_cast<unsigned int>(wpt_level));
+    auto energies = wavelets::extract_subband_energies(transform, wpt_level);
+    return interpolate_to_size(energies, num_bands);
 }
 
-auto preprocess_energy(const std::vector<float>& energia) -> std::vector<float>
+auto preprocess_energy(const std::vector<float>& energy) -> std::vector<float>
 {
-    std::vector<float> out(energia.size());
-    float max_v = 0.0F;
-    for (size_t i = 0; i < energia.size(); ++i)
+    std::vector<float> out(energy.size());
+    float max_value = 0.0F;
+    for (size_t i = 0; i < energy.size(); ++i)
     {
-        float v = std::log1pf(std::max(0.0F, energia[i]));
+        float v = std::log1pf(std::max(0.0F, energy[i]));
         out[i] = v;
-        max_v = std::max(max_v, v);
+        max_value = std::max(max_value, v);
     }
-    if (max_v < 1e-8F)
+    if (max_value < 1e-8F)
     {
         std::fill(out.begin(), out.end(), 0.0F);
         return out;
     }
     for (auto& v : out)
     {
-        v = std::clamp(v / max_v, 0.0F, 1.0F);
+        v = std::clamp(v / max_value, 0.0F, 1.0F);
     }
     return out;
 }
 
-auto build_features(const std::vector<double>& audio, ConfigExtracao cfg)
+auto build_features(const std::vector<double>& audio, ExtractionConfig cfg)
     -> std::vector<std::vector<float>>
 {
-    cfg.nivel_wpt = compute_wpt_level(cfg.tamanho_janela, cfg.num_bandas);
-    auto janelas = apply_windowing(audio, cfg);
+    cfg.wpt_level = compute_wpt_level(cfg.window_size, cfg.num_bands);
+    auto windows = apply_windowing(audio, cfg);
     std::vector<std::vector<float>> features;
-    features.reserve(janelas.size());
-    for (const auto& j : janelas)
+    features.reserve(windows.size());
+    for (const auto& window : windows)
     {
-        auto energia = compute_wpt_energy(j, cfg.num_bandas, cfg.nivel_wpt);
-        features.push_back(preprocess_energy(energia));
+        auto energy = compute_wpt_energy(window, cfg.num_bands, cfg.wpt_level);
+        features.push_back(preprocess_energy(energy));
     }
     return features;
 }
@@ -242,7 +242,7 @@ struct ResidualBlock : public Module
     }
 };
 
-struct ModeloSNN : public Module
+struct SnnModel : public Module
 {
     std::shared_ptr<Linear> fc_in;
     std::shared_ptr<Leaky> lif_in;
@@ -250,17 +250,17 @@ struct ModeloSNN : public Module
     std::shared_ptr<Linear> fc_out;
     std::shared_ptr<Leaky> lif_out;
 
-    ModeloSNN(int entradas, int saidas, int profundidade, int ocultos, unsigned int seed)
+    SnnModel(int input_size, int output_size, int depth, int hidden_size, unsigned int seed)
     {
-        fc_in = std::make_shared<Linear>(entradas, ocultos);
+        fc_in = std::make_shared<Linear>(input_size, hidden_size);
         lif_in = std::make_shared<Leaky>();
 
-        for (int i = 0; i < profundidade; ++i)
+        for (int i = 0; i < depth; ++i)
         {
-            residual_blocks.push_back(std::make_shared<ResidualBlock>(ocultos));
+            residual_blocks.push_back(std::make_shared<ResidualBlock>(hidden_size));
         }
 
-        fc_out = std::make_shared<Linear>(ocultos, saidas);
+        fc_out = std::make_shared<Linear>(hidden_size, output_size);
         lif_out = std::make_shared<Leaky>();
 
         const unsigned int base_seed = seed == 0 ? nn::testing::SEED : seed;
@@ -332,29 +332,29 @@ struct ModeloSNN : public Module
 
 // --- Pipeline ---
 
-auto load_audio_or_synthetic(const string& caminho, double duracao, int sample_rate)
+auto load_audio_or_synthetic(const string& audio_path, double duration, int sample_rate)
     -> vector<double>
 {
-    if (!caminho.empty())
+    if (!audio_path.empty())
     {
-        if (!std::filesystem::exists(caminho) || !std::filesystem::is_regular_file(caminho))
+        if (!std::filesystem::exists(audio_path) || !std::filesystem::is_regular_file(audio_path))
         {
-            throw runtime_error("Arquivo de audio invalido: " + caminho);
+            throw runtime_error("Arquivo de audio invalido: " + audio_path);
         }
 
         Wav w;
-        w.read(caminho);
+        w.read(audio_path);
 
         auto data = w.get_data();
         if (data.empty())
         {
-            throw runtime_error("Arquivo de audio vazio ou invalido: " + caminho);
+            throw runtime_error("Arquivo de audio vazio ou invalido: " + audio_path);
         }
 
         return data;
     }
 
-    const size_t total = static_cast<size_t>(llround(duracao * static_cast<double>(sample_rate)));
+    const size_t total = static_cast<size_t>(llround(duration * static_cast<double>(sample_rate)));
     vector<double> out(total);
     constexpr double f1 = 440.0;
     constexpr double pi = std::numbers::pi;
@@ -366,9 +366,9 @@ auto load_audio_or_synthetic(const string& caminho, double duracao, int sample_r
     return out;
 }
 
-auto save_spikes_csv(const string& caminho, const vector<Tensor>& spikes) -> void
+auto save_spikes_csv(const string& output_path, const vector<Tensor>& spikes) -> void
 {
-    ofstream out(caminho);
+    ofstream out(output_path);
     if (!out.is_open())
     {
         throw runtime_error("Nao foi possivel abrir o arquivo de saida.");
@@ -393,73 +393,73 @@ auto save_spikes_csv(const string& caminho, const vector<Tensor>& spikes) -> voi
 
 auto run_pipeline(                      //
     const string& wav_path,             //
-    double duracao_sintetica,           //
-    const ConfigExtracao& cfg_extracao, //
-    const ConfigSNN& cfg_snn,           //
+    double synthetic_duration,          //
+    const ExtractionConfig& extraction_cfg, //
+    const SnnConfig& snn_cfg,           //
     unsigned int seed,                  //
-    const string& saida_csv             //
+    const string& output_csv            //
     ) -> void
 {
     auto audio = load_audio_or_synthetic( //
         wav_path,                         //
-        duracao_sintetica,                //
-        cfg_extracao.taxa_amostragem      //
+        synthetic_duration,               //
+        extraction_cfg.sample_rate        //
     );
 
-    auto features = build_features(audio, cfg_extracao);
+    auto features = build_features(audio, extraction_cfg);
 
     if (features.empty())
     {
         throw runtime_error("Nenhuma janela gerada.");
     }
 
-    ModeloSNN modelo(                              //
+    SnnModel model(                                //
         static_cast<int>(features.front().size()), //
         static_cast<int>(features.front().size()), //
-        cfg_snn.profundidade,                      //
-        cfg_snn.tamanho_camada_oculta,             //
+        snn_cfg.depth,                             //
+        snn_cfg.hidden_size,                       //
         seed                                       //
     );
 
     mt19937 rng(seed == 0 ? nn::testing::SEED : seed);
 
-    vector<Tensor> saida_por_janela;
-    saida_por_janela.reserve(features.size());
+    vector<Tensor> output_per_window;
+    output_per_window.reserve(features.size());
 
     for (const auto& feat : features)
     {
-        Tensor entrada(1, static_cast<Index>(feat.size()));
+        Tensor input_tensor(1, static_cast<Index>(feat.size()));
 
-        for (Index j = 0; j < entrada.cols(); ++j)
+        for (Index j = 0; j < input_tensor.cols(); ++j)
         {
-            entrada.at(0, j) = feat[static_cast<size_t>(j)];
+            input_tensor.at(0, j) = feat[static_cast<size_t>(j)];
         }
 
         auto spikes_in = codificacao::encode_poisson(    //
-            entrada,                                     //
-            cfg_snn.passos_por_janela,                   //
+            input_tensor,                                //
+            snn_cfg.steps_per_window,                    //
             rng,                                         //
             -1.0F,                                       //
             true,                                        //
-            cfg_snn.alvo_spikes_por_passo                //
+            snn_cfg.target_spikes_per_step               //
         );
 
-        Tensor acumulado(1, static_cast<Index>(feat.size()));
-        acumulado.setZero();
-        modelo.reset_state();
+        Tensor accumulated(1, static_cast<Index>(feat.size()));
+        accumulated.setZero();
+        model.reset_state();
 
         for (Index t = 0; t < spikes_in.rows(); ++t)
         {
             auto step = spikes_in.row(t);
-            auto spk_out = modelo.forward(step, false);
-            acumulado = acumulado.add(spk_out);
+            auto spk_out = model.forward(step, false);
+            accumulated = accumulated.add(spk_out);
         }
 
-        saida_por_janela.push_back(acumulado);
+        output_per_window.push_back(accumulated);
     }
 
-    save_spikes_csv(saida_csv, saida_por_janela);
-    cout << "Pipeline concluido. Saida em " << saida_csv << "\n";
+    save_spikes_csv(output_csv, output_per_window);
+    cout << "Pipeline concluido. Saida em " << output_csv << "\n";
 }
 
 int main(int argc, char** argv)
@@ -524,25 +524,25 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    ConfigExtracao cfg_extr;
-    cfg_extr.taxa_amostragem = parser.get<int>("--taxa-amostragem");
-    cfg_extr.tamanho_janela = parser.get<int>("--tamanho-janela");
-    cfg_extr.tamanho_passo = parser.get<int>("--tamanho-passo");
-    cfg_extr.num_bandas = parser.get<int>("--num-bandas");
+    ExtractionConfig extraction_cfg;
+    extraction_cfg.sample_rate = parser.get<int>("--taxa-amostragem");
+    extraction_cfg.window_size = parser.get<int>("--tamanho-janela");
+    extraction_cfg.hop_size = parser.get<int>("--tamanho-passo");
+    extraction_cfg.num_bands = parser.get<int>("--num-bandas");
 
-    ConfigSNN cfg_snn;
-    cfg_snn.passos_por_janela = parser.get<int>("--passos-por-janela");
-    cfg_snn.profundidade = parser.get<int>("--profundidade");
-    cfg_snn.tamanho_camada_oculta = parser.get<int>("--hidden");
+    SnnConfig snn_cfg;
+    snn_cfg.steps_per_window = parser.get<int>("--passos-por-janela");
+    snn_cfg.depth = parser.get<int>("--profundidade");
+    snn_cfg.hidden_size = parser.get<int>("--hidden");
 
     auto seed = parser.get<unsigned int>("--seed");
-    auto entrada = parser.get<std::string>("--entrada-wav");
-    auto saida_csv = parser.get<std::string>("--saida-csv");
-    auto duracao = parser.get<double>("--duracao");
+    auto input_wav = parser.get<std::string>("--entrada-wav");
+    auto output_csv = parser.get<std::string>("--saida-csv");
+    auto duration = parser.get<double>("--duracao");
 
     try
     {
-        run_pipeline(entrada, duracao, cfg_extr, cfg_snn, seed, saida_csv);
+        run_pipeline(input_wav, duration, extraction_cfg, snn_cfg, seed, output_csv);
     }
     catch (const std::exception& e)
     {

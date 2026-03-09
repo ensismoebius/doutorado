@@ -107,12 +107,12 @@ struct ResidualSNNBlock : public Module
     }
 };
 
-struct ModeloSNN : public Module
+struct SnnModel : public Module
 {
    public:
     Sequential model;
 
-    explicit ModeloSNN(const ModelConfig& cfg)
+    explicit SnnModel(const ModelConfig& cfg)
     {
         model = Sequential({
             lin(cfg.input_size, cfg.hidden_size),
@@ -146,7 +146,7 @@ struct ModeloSNN : public Module
         // fc_out->bias = Tensor::zeros((Index) num_saidas, 1);
     }
 
-    auto inicializar_estado(Index /*batch_size*/) -> void
+    auto initialize_state(Index /*batch_size*/) -> void
     {
         // Initialize all Linear layers inside the Sequential model using
         // kaimingSNNInitializer. We walk the top-level layers and also

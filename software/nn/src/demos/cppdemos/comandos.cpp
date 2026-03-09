@@ -115,7 +115,17 @@ void cmd_demo(                      //
         loading_params.audio_params.frame_shift_ms =
             static_cast<float>(hop_size) * 1000.0f / sample_rate;
         loading_params.audio_params.number_of_filters = num_bands;
+        loading_params.audio_params.number_of_cepstrals = num_bands;
+        loading_params.audio_params.delta_window_span = 2;
+        loading_params.hamming_window_config.alpha = 0.54f;
+        loading_params.hamming_window_config.beta = 0.46f;
+        loading_params.dct_config.normalization_factor_sqrt = 2.0f;
+        loading_params.dct_config.filter_index_offset = 0.5f;
+        loading_params.delta_config.denominator_factor = 2.0f;
+        loading_params.constants.ms_to_seconds_factor = 1000.0f;
+        loading_params.constants.min_log_energy = 1e-12f;
         loading_params.constants.default_sampling_rate = sample_rate;
+        loading_params.constants.debug_frame_limit = 5;
 
         FramingConfig framing_cfg{window_size, hop_size, loading_params};
 
