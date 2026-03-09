@@ -43,16 +43,21 @@ void parseCliParams(int argc, char* argv[], Config& config, const Config& defaul
            )
         ->default_val(default_config.shuffle);
 
-    app.add_option(                                                       //
-           "--sampler-type",                                              //
-           config.sampler_type,                                           //
-           "Default sampler type: sequential|random|weighted|distributed" //
-           )
-        ->check(CLI::IsMember(                                   //
-            {"sequential", "random", "weighted", "distributed"}, //
-            CLI::ignore_case                                     //
-            ))
-        ->default_val(default_config.sampler_type);
+    auto* sampler_type_option = app.add_option(                        //
+        "--sampler-type",                                              //
+        config.sampler_type,                                           //
+        "Default sampler type: sequential|random|weighted|distributed" //
+    );
+    sampler_type_option->check(CLI::IsMember(                //
+        {"sequential", "random", "weighted", "distributed"}, //
+        CLI::ignore_case));
+
+    // Keep sampler type unset by default so --shuffle/--no-shuffle remains
+    // the default behavior unless the user explicitly selects a sampler.
+    if (!default_config.sampler_type.empty())
+    {
+        sampler_type_option->default_val(default_config.sampler_type);
+    }
 
     app.add_option( //
            "--sampler-weights",

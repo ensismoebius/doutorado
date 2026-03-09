@@ -14,12 +14,19 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "nn/dataLoaders/IMatLoader.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {
+
+struct EEGRowsFlat
+{
+    std::vector<float> signals; // row-major: [row0_signal..., row1_signal...]
+    std::vector<std::array<int, 3>> labels;
+};
 
 class EEGMatSession
 {
@@ -33,6 +40,9 @@ class EEGMatSession
     EEGMatSession& operator=(EEGMatSession&&) noexcept;
 
     auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>;
+    auto readRowsFlat(size_t startRow, size_t rowCount) const -> EEGRowsFlat;
+    auto readRows(size_t startRow, size_t rowCount) const
+        -> std::vector<std::tuple<nn::Tensor, std::array<int, 3>>>;
     [[nodiscard]] auto rowCount() const -> size_t;
     [[nodiscard]] auto filePath() const -> const std::string&;
 

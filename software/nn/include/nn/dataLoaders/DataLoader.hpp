@@ -75,7 +75,8 @@ class DataLoader
         using pointer = Batch*;
         using reference = Batch&;
 
-        Iterator(DataLoader& loader, std::size_t current_batch, std::vector<std::size_t> indices);
+        Iterator(DataLoader& loader, std::size_t current_batch,
+                 std::shared_ptr<std::vector<std::size_t>> indices);
 
         auto operator*() const -> Batch;
         auto operator++() -> Iterator&;
@@ -85,7 +86,7 @@ class DataLoader
        private:
         DataLoader& loader_;
         std::size_t current_batch_;
-        std::vector<std::size_t> indices_; // Each iterator has its own snapshot
+        std::shared_ptr<std::vector<std::size_t>> indices_; // Shared snapshot per epoch iterator
     };
 
     [[nodiscard]] auto begin() -> Iterator;

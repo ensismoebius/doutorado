@@ -151,24 +151,24 @@ DataLoader::DataLoader(          //
 auto DataLoader::begin() -> DataLoader::Iterator
 {
     // Generate this epoch's sampled index list.
-    vector<size_t> snapshot(sampler_->index_count());
+    auto snapshot = std::make_shared<vector<size_t>>(sampler_->index_count());
     sampler_->set_epoch(epoch_);
-    sampler_->sample_into(snapshot);
+    sampler_->sample_into(*snapshot);
 
     ++epoch_;
-    return {*this, 0, std::move(snapshot)};
+    return {*this, 0, snapshot};
 }
 
 auto DataLoader::end() -> DataLoader::Iterator
 {
     // End iterator doesn't need valid indices, just position
-    return {*this, num_batches_, {}};
+    return {*this, num_batches_, std::make_shared<vector<size_t>>()};
 }
 
-DataLoader::Iterator::Iterator( //
-    DataLoader& loader,         //
-    size_t current_batch,       //
-    vector<size_t> indices      //
+DataLoader::Iterator::Iterator(             //
+    DataLoader& loader,                     //
+    size_t current_batch,                   //
+    std::shared_ptr<vector<size_t>> indices //
     )
     : loader_(loader),               //
       current_batch_(current_batch), //
@@ -180,14 +180,15 @@ DataLoader::Iterator::Iterator( //
 auto DataLoader::Iterator::operator*() const -> Batch
 {
     size_t start_index = current_batch_ * loader_.batch_size_;
-    size_t end_index = std::min(start_index + loader_.batch_size_, indices_.size());
+    const auto& indices = *indices_;
+    size_t end_index = std::min(start_index + loader_.batch_size_, indices.size());
 
     // build indices (size_t -> int) for Dataset::collate
     vector<size_t> idxs;
     idxs.reserve(end_index - start_index);
     for (size_t i = start_index; i < end_index; ++i)
     {
-        idxs.emplace_back(indices_.at(i));
+        idxs.emplace_back(indices.at(i));
     }
 
     // Delegate collation to dataset (allows custom collate behavior)

@@ -8,13 +8,17 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
+#include <future>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -195,6 +199,7 @@ class Protocol101117Dataset : public Dataset
 
     [[nodiscard]] auto get_item(size_t idx) const -> Batch override
     {
+        const auto t0 = std::chrono::steady_clock::now();
         if (idx >= size())
         {
             throw std::out_of_range("Dataset index out of range: " + std::to_string(idx));
@@ -216,31 +221,255 @@ class Protocol101117Dataset : public Dataset
             1 //
         );
 
-        // Convert global index to per-subject (local) audio row index.
         const size_t audio_row = idx - prefix_audio_row_offsets_[subject_index];
+        Batch out = loadSampleByLocalIndex(subject_index, audio_row);
 
-        // Load the subject's audio and EEG data paths for the given row index.
+        const auto t1 = std::chrono::steady_clock::now();
+        ++perf_.get_item_calls;
+        perf_.get_item_total_us +=
+            std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+        return out;
+    }
+
+    [[nodiscard]] auto collate(const std::vector<std::size_t>& indices) const -> Batch override
+    {
+        const auto t0 = std::chrono::steady_clock::now();
+        if (indices.empty())
+        {
+            return Dataset::collate(indices);
+        }
+
+        nn::Tensor inputs(indices.size(), INPUT_FEATURES);
+        nn::Tensor targets(indices.size(), 5);
+
+        struct RowRequest
+        {
+            size_t batch_row;
+            size_t local_audio_row;
+        };
+
+        std::vector<std::vector<RowRequest>> grouped(subjects_.size());
+        for (size_t row = 0; row < indices.size(); ++row)
+        {
+            const size_t idx = indices[row];
+            if (idx >= size())
+            {
+                throw std::out_of_range("Dataset index out of range in collate: " +
+                                        std::to_string(idx));
+            }
+
+            const auto upper_it = std::upper_bound(
+                prefix_audio_row_offsets_.begin(), prefix_audio_row_offsets_.end(), idx);
+            const size_t subject_index =
+                static_cast<size_t>(std::distance(prefix_audio_row_offsets_.begin(), upper_it) - 1);
+            grouped[subject_index].push_back(
+                RowRequest{row, idx - prefix_audio_row_offsets_[subject_index]});
+        }
+
+        const auto t_reads_start = std::chrono::steady_clock::now();
+        for (size_t subject_index = 0; subject_index < grouped.size(); ++subject_index)
+        {
+            if (grouped[subject_index].empty())
+            {
+                continue;
+            }
+
+            ensureSessions(subject_index);
+            auto& requests = grouped[subject_index];
+            std::sort(requests.begin(),
+                      requests.end(),
+                      [](const RowRequest& a, const RowRequest& b)
+                      { return a.local_audio_row < b.local_audio_row; });
+
+            size_t pos = 0;
+            while (pos < requests.size())
+            {
+                size_t run_end = pos + 1;
+                while (run_end < requests.size() && requests[run_end].local_audio_row ==
+                                                        requests[run_end - 1].local_audio_row + 1)
+                {
+                    ++run_end;
+                }
+
+                const size_t run_start_row = requests[pos].local_audio_row;
+                const size_t run_count = run_end - pos;
+                const auto t_audio_start = std::chrono::steady_clock::now();
+                const auto audio_rows_flat =
+                    audio_sessions_.at(subject_index)->readRowsFlat(run_start_row, run_count);
+                const auto t_audio_end = std::chrono::steady_clock::now();
+
+                struct BatchTask
+                {
+                    size_t batch_row;
+                    size_t audio_index;
+                    int audio_stimulus;
+                    int eeg_index_label;
+                    size_t eeg_row;
+                };
+
+                std::vector<BatchTask> tasks;
+                tasks.reserve(run_count);
+                const SubjectFiles& subject = subjects_.at(subject_index);
+                for (size_t k = 0; k < run_count; ++k)
+                {
+                    const RowRequest& req = requests[pos + k];
+                    const int audio_stimulus = audio_rows_flat.stimuli[k];
+                    const int eeg_index_label = audio_rows_flat.eegIndices[k];
+                    const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
+                    tasks.push_back(
+                        BatchTask{req.batch_row, k, audio_stimulus, eeg_index_label, eeg_row});
+                }
+
+                std::vector<size_t> order(tasks.size());
+                std::iota(order.begin(), order.end(), 0);
+                std::sort(order.begin(),
+                          order.end(),
+                          [&tasks](size_t a, size_t b)
+                          { return tasks[a].eeg_row < tasks[b].eeg_row; });
+
+                const auto t_eeg_start = std::chrono::steady_clock::now();
+                size_t op = 0;
+                while (op < order.size())
+                {
+                    size_t op_end = op + 1;
+                    while (op_end < order.size() &&
+                           tasks[order[op_end]].eeg_row == tasks[order[op_end - 1]].eeg_row + 1)
+                    {
+                        ++op_end;
+                    }
+
+                    const size_t eeg_run_start = tasks[order[op]].eeg_row;
+                    const size_t eeg_run_count = op_end - op;
+                    const auto eeg_rows_flat =
+                        eeg_sessions_.at(subject_index)->readRowsFlat(eeg_run_start, eeg_run_count);
+
+                    const auto t_pack_start = std::chrono::steady_clock::now();
+                    nn::Tensor eegRow(1, EEG_FEATURES);
+                    nn::Tensor audioRow(1, ImaginedSpeechSchema_10_1117.audioSamples());
+                    float* eegDst = eegRow.mutable_data_ptr();
+                    float* audioDst = audioRow.mutable_data_ptr();
+                    const size_t audioCols = ImaginedSpeechSchema_10_1117.audioSamples();
+
+                    for (size_t j = 0; j < eeg_run_count; ++j)
+                    {
+                        const BatchTask& task = tasks[order[op + j]];
+                        const size_t audioOffset =
+                            task.audio_index * ImaginedSpeechSchema_10_1117.audioSamples();
+                        const size_t eegOffset = j * EEG_FEATURES;
+                        const auto& eeg_labels = eeg_rows_flat.labels[j];
+
+                        const int stimulus_label = eeg_labels[1];
+                        if (task.audio_stimulus != stimulus_label)
+                        {
+                            throw std::runtime_error(
+                                "Stimulus mismatch between audio and EEG in collate");
+                        }
+
+                        for (size_t c = 0; c < EEG_FEATURES; ++c)
+                        {
+                            eegDst[c] = eeg_rows_flat.signals[eegOffset + c];
+                        }
+                        inputs.setBlock(task.batch_row, 0, eegRow);
+
+                        for (size_t c = 0; c < audioCols; ++c)
+                        {
+                            audioDst[c] = audio_rows_flat.samples[audioOffset + c];
+                        }
+                        inputs.setBlock(task.batch_row, EEG_FEATURES, audioRow);
+
+                        targets.at(task.batch_row, 0) = static_cast<float>(subject.subject_id);
+                        targets.at(task.batch_row, 1) = static_cast<float>(eeg_labels[0]);
+                        targets.at(task.batch_row, 2) = static_cast<float>(eeg_labels[1]);
+                        targets.at(task.batch_row, 3) = static_cast<float>(eeg_labels[2]);
+                        targets.at(task.batch_row, 4) = static_cast<float>(task.eeg_index_label);
+                    }
+                    const auto t_pack_end = std::chrono::steady_clock::now();
+                    perf_.collate_pack_us += std::chrono::duration_cast<std::chrono::microseconds>(
+                                                 t_pack_end - t_pack_start)
+                                                 .count();
+
+                    op = op_end;
+                }
+                const auto t_eeg_end = std::chrono::steady_clock::now();
+
+                perf_.collate_audio_us += std::chrono::duration_cast<std::chrono::microseconds>(
+                                              t_audio_end - t_audio_start)
+                                              .count();
+                perf_.collate_eeg_us +=
+                    std::chrono::duration_cast<std::chrono::microseconds>(t_eeg_end - t_eeg_start)
+                        .count();
+
+                pos = run_end;
+            }
+        }
+        const auto t1 = std::chrono::steady_clock::now();
+
+        ++perf_.collate_calls;
+        perf_.collate_total_us +=
+            std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+        perf_.collate_reads_us +=
+            std::chrono::duration_cast<std::chrono::microseconds>(t1 - t_reads_start).count();
+
+        if ((perf_.collate_calls % 5U) == 0U)
+        {
+            const double avg_collate_ms = static_cast<double>(perf_.collate_total_us) /
+                                          static_cast<double>(perf_.collate_calls) / 1000.0;
+            const double avg_reads_ms = static_cast<double>(perf_.collate_reads_us) /
+                                        static_cast<double>(perf_.collate_calls) / 1000.0;
+            const double avg_get_item_ms =
+                perf_.get_item_calls == 0U ? 0.0
+                                           : static_cast<double>(perf_.get_item_total_us) /
+                                                 static_cast<double>(perf_.get_item_calls) / 1000.0;
+            const double avg_audio_ms = static_cast<double>(perf_.collate_audio_us) /
+                                        static_cast<double>(perf_.collate_calls) / 1000.0;
+            const double avg_eeg_ms = static_cast<double>(perf_.collate_eeg_us) /
+                                      static_cast<double>(perf_.collate_calls) / 1000.0;
+            const double avg_pack_ms = static_cast<double>(perf_.collate_pack_us) /
+                                       static_cast<double>(perf_.collate_calls) / 1000.0;
+
+            std::cout << "[loader-perf] collate_calls=" << perf_.collate_calls
+                      << " avg_collate_ms=" << avg_collate_ms
+                      << " avg_read_loop_ms=" << avg_reads_ms << " avg_audio_ms=" << avg_audio_ms
+                      << " avg_eeg_ms=" << avg_eeg_ms << " avg_pack_ms=" << avg_pack_ms
+                      << " avg_get_item_ms=" << avg_get_item_ms << '\n';
+        }
+
+        return {.inputs = std::move(inputs), .targets = std::move(targets)};
+    }
+
+    [[nodiscard]] auto subjects() const -> const std::vector<SubjectFiles>&
+    {
+        return subjects_;
+    }
+
+   private:
+    struct PerfStats
+    {
+        size_t collate_calls = 0;
+        size_t get_item_calls = 0;
+        long long collate_total_us = 0;
+        long long collate_reads_us = 0;
+        long long collate_audio_us = 0;
+        long long collate_eeg_us = 0;
+        long long collate_pack_us = 0;
+        long long get_item_total_us = 0;
+    };
+
+    auto loadSampleByLocalIndex(size_t subject_index, size_t audio_row) const -> Batch
+    {
         const SubjectFiles& subject = subjects_.at(subject_index);
         ensureSessions(subject_index);
 
-        // Load audio and EEG data for the given subject and row index.
-        const auto [        //
-            audio_tensor,   //
-            audio_stimulus, //
-            eeg_index_label //
-        ] = audio_sessions_.at(subject_index)->readRow(audio_row);
+        const auto [audio_tensor, audio_stimulus, eeg_index_label] =
+            audio_sessions_.at(subject_index)->readRow(audio_row);
 
-        // Resolve the EEG row index using the audio->EEG index label
-        // and the subject's EEG row count.
         const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
         const auto [    //
             eeg_tensor, //
             eeg_labels  //
         ] = eeg_sessions_.at(subject_index)->readRow(eeg_row);
 
-        // Constant created just for clarity
         const int stimulus_label = eeg_labels[1];
-
         if (audio_stimulus != stimulus_label)
         {
             throw std::runtime_error("Stimulus mismatch between audio and EEG for subject " +
@@ -250,16 +479,9 @@ class Protocol101117Dataset : public Dataset
 
         nn::Tensor input = makeInputTensor(eeg_tensor, audio_tensor);
         nn::Tensor target = makeTargetTensor(subject.subject_id, eeg_labels, eeg_index_label);
-
         return {.inputs = std::move(input), .targets = std::move(target)};
     }
 
-    [[nodiscard]] auto subjects() const -> const std::vector<SubjectFiles>&
-    {
-        return subjects_;
-    }
-
-   private:
     void ensureSessions(size_t subject_index) const
     {
         if (audio_sessions_.at(subject_index) && eeg_sessions_.at(subject_index))
@@ -281,6 +503,7 @@ class Protocol101117Dataset : public Dataset
     }
 
     std::vector<SubjectFiles> subjects_;
+    mutable PerfStats perf_{};
     mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;
     mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>> eeg_sessions_;
     // Cumulative start offsets (prefix sums) of audio rows for each subject.
@@ -335,7 +558,7 @@ auto main(int argc, char* argv[]) -> int
         .max_batches = 10,
         .shuffle = true,
         .seed = 42U,
-        .sampler_type = "sequential",
+        .sampler_type = "",
         .sampler_weights = {},
         .weighted_num_samples = std::nullopt,
         .distributed_num_replicas = 1,
@@ -368,17 +591,42 @@ auto main(int argc, char* argv[]) -> int
         cout << "Total synchronized samples: " << dataset->size() << "\n\n";
 
         size_t seen_batches = 0;
-        for (const auto& batch : loader)
+        auto it = loader.begin();
+        auto end = loader.end();
+
+        std::optional<std::future<Batch>> next_batch_future;
+        if (it != end)
         {
+            auto it_snapshot = it;
+            next_batch_future =
+                std::async(std::launch::async, [it_snapshot]() mutable { return *it_snapshot; });
+        }
+
+        while (it != end && seen_batches < config.max_batches)
+        {
+            if (!next_batch_future.has_value())
+            {
+                break;
+            }
+
+            Batch batch = next_batch_future->get();
+
+            ++it;
+            if (it != end && (seen_batches + 1) < config.max_batches)
+            {
+                auto it_snapshot = it;
+                next_batch_future = std::async(std::launch::async,
+                                               [it_snapshot]() mutable { return *it_snapshot; });
+            }
+            else
+            {
+                next_batch_future.reset();
+            }
+
             ++seen_batches;
             nn::Tensor probe = model.forward(batch.inputs);
 
             printData(batch);
-
-            if (seen_batches >= config.max_batches)
-            {
-                break;
-            }
         }
 
         if (seen_batches == 0)

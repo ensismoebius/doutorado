@@ -8,11 +8,13 @@
 #include <matio.h>
 
 #include <array>
+#include <deque>
 #include <filesystem>
 #include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
@@ -103,6 +105,46 @@ auto readMatRow(const mat_t* matFile, matvar_t* var, size_t rowIndex) -> std::ve
 
     return row_values;
 }
+
+auto readMatRows(const mat_t* matFile, matvar_t* var, size_t startRow, size_t rowCount)
+    -> std::vector<double>
+{
+    if (matFile == nullptr || var == nullptr)
+    {
+        throw std::runtime_error("EEGLoader: MAT file/session not initialized.");
+    }
+    if (var->rank != 2)
+    {
+        throw std::runtime_error("EEGLoader: expected rank-2 variable.");
+    }
+    if (rowCount == 0)
+    {
+        return {};
+    }
+    if (startRow >= var->dims[0] || (startRow + rowCount) > var->dims[0])
+    {
+        throw std::runtime_error("EEGLoader: row range out of bounds");
+    }
+    if (var->dims[0] > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        var->dims[1] > static_cast<size_t>(std::numeric_limits<int>::max()) ||
+        rowCount > static_cast<size_t>(std::numeric_limits<int>::max()))
+    {
+        throw std::runtime_error("EEGLoader: matrix dimensions exceed MatIO int limits.");
+    }
+
+    std::vector<double> block_values(rowCount * var->dims[1], 0.0);
+    int start[2] = {static_cast<int>(startRow), 0};
+    int stride[2] = {1, 1};
+    int edge[2] = {static_cast<int>(rowCount), static_cast<int>(var->dims[1])};
+
+    if (Mat_VarReadData(
+            const_cast<mat_t*>(matFile), var, block_values.data(), start, stride, edge) != 0)
+    {
+        throw std::runtime_error("Failed to read EEG row block from MAT variable");
+    }
+
+    return block_values;
+}
 } // namespace
 
 struct EEGMatSession::Impl
@@ -110,6 +152,9 @@ struct EEGMatSession::Impl
     std::string filePath;
     SessionMatFilePtr matFile{nullptr};
     SessionMatVarPtr eegVar{nullptr};
+    static constexpr size_t kRowCacheCapacity = 32;
+    mutable std::unordered_map<size_t, std::tuple<nn::Tensor, std::array<int, 3>>> rowCache;
+    mutable std::deque<size_t> rowCacheOrder;
 };
 
 EEGMatSession::EEGMatSession(const std::string& filePath) : impl_(std::make_unique<Impl>())
@@ -153,6 +198,11 @@ auto EEGMatSession::operator=(EEGMatSession&&) noexcept -> EEGMatSession& = defa
 
 auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
 {
+    if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
+    {
+        return it->second;
+    }
+
     std::vector<double> row_values =
         readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
 
@@ -178,7 +228,139 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     int stimulus = static_cast<int>(row_values[stimulus_column]);
     int artifact = static_cast<int>(row_values[artifact_column]);
 
-    return {std::move(eegChannels), {modality, stimulus, artifact}};
+    std::tuple<nn::Tensor, std::array<int, 3>> result{
+        std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+
+    if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+    {
+        const size_t evict = impl_->rowCacheOrder.front();
+        impl_->rowCacheOrder.pop_front();
+        impl_->rowCache.erase(evict);
+    }
+    impl_->rowCache[rowIndex] = result;
+    impl_->rowCacheOrder.push_back(rowIndex);
+
+    return result;
+}
+
+auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
+    -> std::vector<std::tuple<nn::Tensor, std::array<int, 3>>>
+{
+    if (rowCount == 0)
+    {
+        return {};
+    }
+
+    std::vector<std::tuple<nn::Tensor, std::array<int, 3>>> out;
+    out.reserve(rowCount);
+
+    bool allCached = true;
+    for (size_t r = 0; r < rowCount; ++r)
+    {
+        const size_t row = startRow + r;
+        const auto it = impl_->rowCache.find(row);
+        if (it == impl_->rowCache.end())
+        {
+            allCached = false;
+            break;
+        }
+    }
+
+    if (allCached)
+    {
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            out.push_back(impl_->rowCache.at(startRow + r));
+        }
+        return out;
+    }
+
+    const std::vector<double> block_values =
+        readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);
+
+    const size_t samplesPerChannel =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+    for (size_t r = 0; r < rowCount; ++r)
+    {
+        nn::Tensor eegChannels(
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+
+        for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
+        {
+            for (size_t s = 0; s < samplesPerChannel; ++s)
+            {
+                const size_t signal_col = (ch * samplesPerChannel) + s;
+                eegChannels.at(ch, s) =
+                    static_cast<float>(block_values[(signal_col * rowCount) + r]);
+            }
+        }
+
+        const size_t modality_column =
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn();
+        const size_t stimulus_column =
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn();
+        const size_t artifact_column =
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
+
+        int modality = static_cast<int>(block_values[(modality_column * rowCount) + r]);
+        int stimulus = static_cast<int>(block_values[(stimulus_column * rowCount) + r]);
+        int artifact = static_cast<int>(block_values[(artifact_column * rowCount) + r]);
+
+        std::tuple<nn::Tensor, std::array<int, 3>> sample{
+            std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+
+        const size_t rowIndex = startRow + r;
+        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        {
+            const size_t evict = impl_->rowCacheOrder.front();
+            impl_->rowCacheOrder.pop_front();
+            impl_->rowCache.erase(evict);
+        }
+        impl_->rowCache[rowIndex] = sample;
+        impl_->rowCacheOrder.push_back(rowIndex);
+
+        out.emplace_back(std::move(sample));
+    }
+
+    return out;
+}
+
+auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGRowsFlat
+{
+    EEGRowsFlat out{};
+    if (rowCount == 0)
+    {
+        return out;
+    }
+
+    const std::vector<double> block_values =
+        readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);
+
+    const size_t signalCols = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+    out.signals.resize(rowCount * signalCols);
+    out.labels.resize(rowCount);
+
+    const size_t modality_column = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn();
+    const size_t stimulus_column =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn();
+    const size_t artifact_column = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
+
+    for (size_t r = 0; r < rowCount; ++r)
+    {
+        for (size_t c = 0; c < signalCols; ++c)
+        {
+            out.signals[(r * signalCols) + c] =
+                static_cast<float>(block_values[(c * rowCount) + r]);
+        }
+
+        out.labels[r] =
+            std::array<int, 3>{static_cast<int>(block_values[(modality_column * rowCount) + r]),
+                               static_cast<int>(block_values[(stimulus_column * rowCount) + r]),
+                               static_cast<int>(block_values[(artifact_column * rowCount) + r])};
+    }
+
+    return out;
 }
 
 auto EEGMatSession::rowCount() const -> size_t

@@ -13,11 +13,19 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
 {
+struct AudioRowsFlat
+{
+    std::vector<float> samples; // row-major: [row0_samples..., row1_samples...]
+    std::vector<int> stimuli;
+    std::vector<int> eegIndices;
+};
+
 class AudioMatSession
 {
    public:
@@ -30,6 +38,9 @@ class AudioMatSession
     AudioMatSession& operator=(AudioMatSession&&) noexcept;
 
     auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>;
+    auto readRows(size_t startRow, size_t rowCount) const
+        -> std::vector<std::tuple<nn::Tensor, int, int>>;
+    auto readRowsFlat(size_t startRow, size_t rowCount) const -> AudioRowsFlat;
     [[nodiscard]] auto rowCount() const -> size_t;
     [[nodiscard]] auto filePath() const -> const std::string&;
 
