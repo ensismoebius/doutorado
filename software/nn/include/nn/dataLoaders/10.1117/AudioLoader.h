@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -16,6 +18,26 @@
 
 namespace nn::dataLoaders
 {
+class AudioMatSession
+{
+   public:
+    explicit AudioMatSession(const std::string& filePath);
+    ~AudioMatSession();
+
+    AudioMatSession(const AudioMatSession&) = delete;
+    AudioMatSession& operator=(const AudioMatSession&) = delete;
+    AudioMatSession(AudioMatSession&&) noexcept;
+    AudioMatSession& operator=(AudioMatSession&&) noexcept;
+
+    auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>;
+    [[nodiscard]] auto rowCount() const -> size_t;
+    [[nodiscard]] auto filePath() const -> const std::string&;
+
+   private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
 /**
  * @brief Load audio data from a MAT file. Searches for the variable named "Audio" and extracts the
  * audio samples (which starts at the column 0 and ends at column 176400) and EEG index (which is

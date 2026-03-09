@@ -11,6 +11,8 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
+#include <memory>
 #include <string>
 
 #include "nn/dataLoaders/IMatLoader.hpp"
@@ -18,6 +20,26 @@
 
 namespace nn::dataLoaders
 {
+
+class EEGMatSession
+{
+   public:
+    explicit EEGMatSession(const std::string& filePath);
+    ~EEGMatSession();
+
+    EEGMatSession(const EEGMatSession&) = delete;
+    EEGMatSession& operator=(const EEGMatSession&) = delete;
+    EEGMatSession(EEGMatSession&&) noexcept;
+    EEGMatSession& operator=(EEGMatSession&&) noexcept;
+
+    auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>;
+    [[nodiscard]] auto rowCount() const -> size_t;
+    [[nodiscard]] auto filePath() const -> const std::string&;
+
+   private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
 
 class EEGLoader : public IMatLoader
 {

@@ -28,9 +28,6 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/Dataset.hpp"
 
-using nn::dataLoaders::loadAudioFromMat;
-using nn::dataLoaders::loadEEGFromMat;
-
 using nn::dataLoaders::ARTIFACT_NAMES;
 using nn::dataLoaders::EEG_CHANNELS_NAMES;
 using nn::dataLoaders::ESTIMULUS_NAMES;
@@ -185,6 +182,9 @@ class Protocol101117Dataset : public Dataset
             const size_t next = prefix_audio_row_offsets_.back() + subject.audio_rows;
             prefix_audio_row_offsets_.emplace_back(next);
         }
+
+        audio_sessions_.resize(subjects_.size());
+        eeg_sessions_.resize(subjects_.size());
     }
 
     [[nodiscard]] auto size() const -> size_t override
@@ -221,27 +221,22 @@ class Protocol101117Dataset : public Dataset
 
         // Load the subject's audio and EEG data paths for the given row index.
         const SubjectFiles& subject = subjects_.at(subject_index);
+        ensureSessions(subject_index);
 
         // Load audio and EEG data for the given subject and row index.
-        const auto [                //
-            audio_tensor,           //
-            audio_stimulus,         //
-            eeg_index_label         //
-        ] = loadAudioFromMat(       //
-            subject.audio_mat_path, //
-            audio_row               //
-        );
+        const auto [        //
+            audio_tensor,   //
+            audio_stimulus, //
+            eeg_index_label //
+        ] = audio_sessions_.at(subject_index)->readRow(audio_row);
 
         // Resolve the EEG row index using the audio->EEG index label
         // and the subject's EEG row count.
         const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
-        const auto [              //
-            eeg_tensor,           //
-            eeg_labels            //
-        ] = loadEEGFromMat(       //
-            subject.eeg_mat_path, //
-            eeg_row               //
-        );
+        const auto [    //
+            eeg_tensor, //
+            eeg_labels  //
+        ] = eeg_sessions_.at(subject_index)->readRow(eeg_row);
 
         // Constant created just for clarity
         const int stimulus_label = eeg_labels[1];
@@ -265,7 +260,29 @@ class Protocol101117Dataset : public Dataset
     }
 
    private:
+    void ensureSessions(size_t subject_index) const
+    {
+        if (audio_sessions_.at(subject_index) && eeg_sessions_.at(subject_index))
+        {
+            return;
+        }
+
+        const SubjectFiles& subject = subjects_.at(subject_index);
+        if (!audio_sessions_.at(subject_index))
+        {
+            audio_sessions_.at(subject_index) =
+                std::make_unique<nn::dataLoaders::AudioMatSession>(subject.audio_mat_path);
+        }
+        if (!eeg_sessions_.at(subject_index))
+        {
+            eeg_sessions_.at(subject_index) =
+                std::make_unique<nn::dataLoaders::EEGMatSession>(subject.eeg_mat_path);
+        }
+    }
+
     std::vector<SubjectFiles> subjects_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>> eeg_sessions_;
     // Cumulative start offsets (prefix sums) of audio rows for each subject.
     // Use this to map a flattened dataset index -> (subject index, local row).
     std::vector<size_t> prefix_audio_row_offsets_;
@@ -314,8 +331,8 @@ auto main(int argc, char* argv[]) -> int
             "/home/ensismoebius/Documentos"
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
-        .batch_size = 20,
-        .max_batches = 20,
+        .batch_size = 4,
+        .max_batches = 10,
         .shuffle = true,
         .seed = 42U,
         .sampler_type = "sequential",
