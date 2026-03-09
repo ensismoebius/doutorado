@@ -22,9 +22,12 @@ auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
     exp_config.id = config["experiment"]["id"].as<std::string>();
 
     // Keep backward compatibility with both old and nested determinism layouts.
-    if (config["determinism"] && config["determinism"]["random_seed"]) {
+    if (config["determinism"] && config["determinism"]["random_seed"])
+    {
         exp_config.random_seed = config["determinism"]["random_seed"].as<int>();
-    } else {
+    }
+    else
+    {
         exp_config.random_seed = config["experiment"]["determinism"]["random_seed"].as<int>();
     }
 

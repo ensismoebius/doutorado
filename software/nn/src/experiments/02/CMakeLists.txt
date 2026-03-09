@@ -3,6 +3,8 @@ include(../../../cmake/SanitizerFlags.cmake)
 add_executable(experiment_02
     Experiment02Config.cpp
     Experiment02Evaluation.cpp
+    Experiment02Pipeline.cpp
+    Experiment02Wavelets.cpp
     experiment_02.cpp
 )
 
