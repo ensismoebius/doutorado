@@ -1,6 +1,5 @@
 #include "Experiment02Pipeline.hpp"
 
-#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -70,8 +69,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         if (windows.empty())
         {
-            std::cout << "No valid windows for " << wavelet_name
-                      << "; skipping this wavelet." << std::endl;
+            std::cout << "No valid windows for " << wavelet_name << "; skipping this wavelet."
+                      << std::endl;
             continue;
         }
 
@@ -95,8 +94,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         if (features.empty() || labels.empty())
         {
-            std::cout << "No features produced for " << wavelet_name
-                      << "; skipping this wavelet." << std::endl;
+            std::cout << "No features produced for " << wavelet_name << "; skipping this wavelet."
+                      << std::endl;
             continue;
         }
 
