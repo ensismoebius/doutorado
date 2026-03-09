@@ -435,7 +435,7 @@ auto run_pipeline(                      //
             entrada.at(0, j) = feat[static_cast<size_t>(j)];
         }
 
-        auto spikes_in = codificacao::codificar_poisson( //
+        auto spikes_in = codificacao::encode_poisson(    //
             entrada,                                     //
             cfg_snn.passos_por_janela,                   //
             rng,                                         //

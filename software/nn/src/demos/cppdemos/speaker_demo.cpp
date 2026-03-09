@@ -206,19 +206,26 @@ int main(int argc, char** argv)
         if (program.is_subcommand_used("demo"))
         {
             auto& demo_parser = program.at<ArgumentParser>("demo");
-            double dur = arg_to<double>(demo_parser, "--duracao");
-            int taxa = arg_to<int>(demo_parser, "--taxa-amostragem");
-            int win = arg_to<int>(demo_parser, "--tamanho-janela");
-            int hop = arg_to<int>(demo_parser, "--tamanho-passo");
+            double duration = arg_to<double>(demo_parser, "--duracao");
+            int sample_rate = arg_to<int>(demo_parser, "--taxa-amostragem");
+            int window_size = arg_to<int>(demo_parser, "--tamanho-janela");
+            int hop_size = arg_to<int>(demo_parser, "--tamanho-passo");
             std::string wavelet = arg_to<std::string>(demo_parser, "--wavelet");
-            int num_bandas = arg_to<int>(demo_parser, "--num-bandas");
-            int passos = arg_to<int>(demo_parser, "--passos-por-janela");
-            int profundidade = arg_to<int>(demo_parser, "--profundidade");
-            std::string saida = arg_to<std::string>(demo_parser, "--saida-plot");
+            int num_bands = arg_to<int>(demo_parser, "--num-bandas");
+            int steps_per_window = arg_to<int>(demo_parser, "--passos-por-janela");
+            int depth = arg_to<int>(demo_parser, "--profundidade");
+            std::string plot_output = arg_to<std::string>(demo_parser, "--saida-plot");
             try
             {
-                demo::cmd_demo(
-                    dur, taxa, win, hop, wavelet, num_bandas, passos, profundidade, saida);
+                demo::cmd_demo(duration,
+                               sample_rate,
+                               window_size,
+                               hop_size,
+                               wavelet,
+                               num_bands,
+                               steps_per_window,
+                               depth,
+                               plot_output);
                 return 0;
             }
             catch (const std::exception& e)
@@ -251,17 +258,18 @@ int main(int argc, char** argv)
         if (program.is_subcommand_used("identificar"))
         {
             auto& identificar_parser = program.at<ArgumentParser>("identificar");
-            std::string model = arg_to<std::string>(identificar_parser, "--modelo");
-            std::cout << "identificar: modelo=" << model << std::endl;
+            std::string model_path = arg_to<std::string>(identificar_parser, "--modelo");
+            std::cout << "identificar: modelo=" << model_path << std::endl;
             return 0;
         }
 
         if (program.is_subcommand_used("verificar"))
         {
             auto& verificar_parser = program.at<ArgumentParser>("verificar");
-            std::string model = arg_to<std::string>(verificar_parser, "--modelo");
-            double limiar = arg_to<double>(verificar_parser, "--limiar");
-            std::cout << "verificar: modelo=" << model << " limiar=" << limiar << std::endl;
+            std::string model_path = arg_to<std::string>(verificar_parser, "--modelo");
+            double threshold = arg_to<double>(verificar_parser, "--limiar");
+            std::cout << "verificar: modelo=" << model_path << " limiar=" << threshold
+                      << std::endl;
             return 0;
         }
 

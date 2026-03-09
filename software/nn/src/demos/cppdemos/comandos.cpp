@@ -44,7 +44,7 @@ using nn::TensorImpl;
  *   (dado p = x * frequencia, a expectativa E[p] ~ frequencia * mean_val = 0.2 * 0.5 = 0.1).
  * - Com `passos = 10`, espera-se ~1 spike por neurônio por janela (10 * 0.1).
  */
-// `calcular_taxa_max_adaptativa` and `codificar_poisson` are implemented in
+// `compute_adaptive_max_rate` and `encode_poisson` are implemented in
 // `codificacao.cpp` and declared in `codificacao.hpp`.
 
 // Forward-declare the new signature so the old-wrapper can call it.
