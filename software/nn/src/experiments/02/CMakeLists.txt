@@ -1,6 +1,7 @@
 include(../../../cmake/SanitizerFlags.cmake)
 
 add_executable(experiment_02
+    Experiment02Config.cpp
     experiment_02.cpp
 )
 

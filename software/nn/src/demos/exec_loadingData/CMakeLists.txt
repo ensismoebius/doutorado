@@ -3,10 +3,13 @@
 
 add_library(loadingData_lib STATIC
     ${SRC_DIR}/demos/exec_loadingData/lib/src/cli.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/SamplerOptionsFactory.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/batch_util.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/subject_discovery.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/BatchPrefetcher.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/SamplePacking.cpp
     ${SRC_DIR}/demos/exec_loadingData/lib/src/Protocol101117Dataset.cpp
+    ${SRC_DIR}/demos/exec_loadingData/lib/src/SynchronizedBatchAssembler.cpp
 )
 
 target_include_directories(loadingData_lib
