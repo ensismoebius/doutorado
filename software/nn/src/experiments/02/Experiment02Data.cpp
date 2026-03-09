@@ -1,6 +1,8 @@
 #include "Experiment02Data.hpp"
 
 #include <cstddef>
+#include <random>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -8,37 +10,46 @@
 #include "nn/tensor/Tensor.hpp"
 #include "nn/wave/audioFeatureExtraction.h"
 
-auto hanning_window(int length) -> std::vector<double>
+namespace
 {
-    return nn::core::wave::hanning_window(length);
-}
+constexpr int kEegChannelCount = 6;
+constexpr int kEegSamplesPerChannel = 4096;
+constexpr int kAudioSamplesPerRow = 176400;
+constexpr int kEegModalityColumn = 24576;
+constexpr int kEegStimulusColumn = 24577;
+constexpr int kEegArtifactsColumn = 24578;
+constexpr int kAudioStimulusColumn = 176400;
+constexpr int kAudioEegIndexColumn = 176401;
+constexpr int kNoArtifactsFlag = 1;
+} // namespace
 
 auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
 {
-    auto mat_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, "Sxx_EEG");
-    if (!mat_opt)
+    auto matrix_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, "Sxx_EEG");
+    if (!matrix_opt)
     {
         throw std::runtime_error("Failed to load EEG data from " + mat_path);
     }
 
-    nn::Tensor mat = std::move(*mat_opt);
+    nn::Tensor matrix = std::move(*matrix_opt);
     std::vector<EEGSample> samples;
 
-    for (int i = 0; i < static_cast<int>(mat.rows()); ++i)
+    for (int row = 0; row < static_cast<int>(matrix.rows()); ++row)
     {
         EEGSample sample;
-        for (int ch = 0; ch < 6; ++ch)
+        for (int channel = 0; channel < kEegChannelCount; ++channel)
         {
-            std::vector<double> channel(4096);
-            for (int s = 0; s < 4096; ++s)
+            std::vector<double> channel_values(kEegSamplesPerChannel);
+            for (int sample_index = 0; sample_index < kEegSamplesPerChannel; ++sample_index)
             {
-                channel[s] = mat.at(i, ch * 4096 + s);
+                channel_values[sample_index] =
+                    matrix.at(row, channel * kEegSamplesPerChannel + sample_index);
             }
-            sample.channels.push_back(channel);
+            sample.channels.push_back(channel_values);
         }
-        sample.modality = static_cast<int>(mat.at(i, 24576));
-        sample.stimulus = static_cast<int>(mat.at(i, 24577));
-        sample.artifacts = static_cast<int>(mat.at(i, 24578));
+        sample.modality = static_cast<int>(matrix.at(row, kEegModalityColumn));
+        sample.stimulus = static_cast<int>(matrix.at(row, kEegStimulusColumn));
+        sample.artifacts = static_cast<int>(matrix.at(row, kEegArtifactsColumn));
 
         samples.push_back(sample);
     }
@@ -48,25 +59,25 @@ auto load_eeg_data(const std::string& mat_path) -> std::vector<EEGSample>
 
 auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
 {
-    auto mat_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, "Sxx_Audio");
-    if (!mat_opt)
+    auto matrix_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, "Sxx_Audio");
+    if (!matrix_opt)
     {
         throw std::runtime_error("Failed to load Audio data from " + mat_path);
     }
 
-    nn::Tensor mat = std::move(*mat_opt);
+    nn::Tensor matrix = std::move(*matrix_opt);
     std::vector<AudioSample> samples;
 
-    for (int i = 0; i < static_cast<int>(mat.rows()); ++i)
+    for (int row = 0; row < static_cast<int>(matrix.rows()); ++row)
     {
         AudioSample sample;
-        sample.signal.resize(176400);
-        for (int s = 0; s < 176400; ++s)
+        sample.signal.resize(kAudioSamplesPerRow);
+        for (int sample_index = 0; sample_index < kAudioSamplesPerRow; ++sample_index)
         {
-            sample.signal[s] = mat.at(i, s);
+            sample.signal[sample_index] = matrix.at(row, sample_index);
         }
-        sample.stimulus = static_cast<int>(mat.at(i, 176400));
-        sample.eeg_index = static_cast<int>(mat.at(i, 176401));
+        sample.stimulus = static_cast<int>(matrix.at(row, kAudioStimulusColumn));
+        sample.eeg_index = static_cast<int>(matrix.at(row, kAudioEegIndexColumn));
 
         samples.push_back(sample);
     }
@@ -94,7 +105,7 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                 break;
             }
         }
-        if (!audio || eeg.artifacts != 1)
+        if (!audio || eeg.artifacts != kNoArtifactsFlag)
         {
             continue;
         }
@@ -103,7 +114,8 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
         int audio_window_samples = static_cast<int>(window_duration_sec * audio_rate);
         int eeg_step = static_cast<int>((window_duration_sec - overlap_sec) * eeg_rate);
 
-        for (int start_eeg = 0; start_eeg + eeg_window_samples <= 4096; start_eeg += eeg_step)
+        for (int start_eeg = 0; start_eeg + eeg_window_samples <= kEegSamplesPerChannel;
+             start_eeg += eeg_step)
         {
             int start_audio = start_eeg * audio_rate / eeg_rate;
             if (start_audio + audio_window_samples > static_cast<int>(audio->signal.size()))
@@ -114,7 +126,7 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
             WindowedSample window;
             window.label = eeg.stimulus;
 
-            for (int ch = 0; ch < 6; ++ch)
+            for (int ch = 0; ch < kEegChannelCount; ++ch)
             {
                 for (int s = start_eeg; s < start_eeg + eeg_window_samples; ++s)
                 {
@@ -127,13 +139,13 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                 window.audio_window.push_back(audio->signal[s]);
             }
 
-            auto hanning_eeg = hanning_window(eeg_window_samples);
+            auto hanning_eeg = nn::core::wave::hanning_window(eeg_window_samples);
             for (std::size_t i = 0; i < window.eeg_window.size(); ++i)
             {
                 window.eeg_window[i] *= hanning_eeg[i % eeg_window_samples];
             }
 
-            auto hanning_audio = hanning_window(audio_window_samples);
+            auto hanning_audio = nn::core::wave::hanning_window(audio_window_samples);
             for (std::size_t i = 0; i < window.audio_window.size(); ++i)
             {
                 window.audio_window[i] *= hanning_audio[i];
@@ -144,4 +156,42 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
     }
 
     return windows;
+}
+
+void generate_synthetic_samples(std::vector<EEGSample>& eeg_samples,
+                                std::vector<AudioSample>& audio_samples, int sample_count,
+                                int random_seed)
+{
+    eeg_samples.resize(sample_count);
+    audio_samples.resize(sample_count);
+
+    std::mt19937 random_engine(random_seed);
+    std::normal_distribution<double> gaussian_dist(0.0, 1.0);
+
+    for (int sample_index = 0; sample_index < sample_count; ++sample_index)
+    {
+        EEGSample eeg_sample;
+        eeg_sample.channels.resize(kEegChannelCount, std::vector<double>(kEegSamplesPerChannel));
+        for (auto& channel : eeg_sample.channels)
+        {
+            for (double& value : channel)
+            {
+                value = gaussian_dist(random_engine);
+            }
+        }
+        eeg_sample.modality = 1;
+        eeg_sample.stimulus = (sample_index % 5) + 1;
+        eeg_sample.artifacts = kNoArtifactsFlag;
+        eeg_samples[sample_index] = eeg_sample;
+
+        AudioSample audio_sample;
+        audio_sample.signal.resize(kAudioSamplesPerRow);
+        for (double& value : audio_sample.signal)
+        {
+            value = gaussian_dist(random_engine);
+        }
+        audio_sample.stimulus = eeg_sample.stimulus;
+        audio_sample.eeg_index = sample_index;
+        audio_samples[sample_index] = audio_sample;
+    }
 }

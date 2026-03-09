@@ -34,4 +34,8 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                      double overlap_sec, int eeg_rate, int audio_rate)
     -> std::vector<WindowedSample>;
 
+void generate_synthetic_samples(std::vector<EEGSample>& eeg_samples,
+                                std::vector<AudioSample>& audio_samples, int sample_count,
+                                int random_seed);
+
 #endif // NN_EXPERIMENTS_02_EXPERIMENT02DATA_HPP

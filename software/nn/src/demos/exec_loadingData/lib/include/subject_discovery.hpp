@@ -16,4 +16,3 @@ struct SubjectFiles
 
 auto discoverSubjects(const std::string& root_dir, const std::string& subject_regex_pattern)
     -> std::vector<SubjectFiles>;
-

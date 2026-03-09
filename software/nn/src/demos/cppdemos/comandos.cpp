@@ -53,15 +53,15 @@ void cmd_demo(double duration, int sample_rate, int window_size, int hop_size,
               const std::string& plot_output, unsigned int random_seed /* = 0 */);
 
 // Backwards-compatible wrapper (old callers expect no seed parameter).
-void cmd_demo(                    // old signature
+void cmd_demo(                     // old signature
     double duration,               //
-    int sample_rate,          //
-    int window_size,           //
-    int hop_size,            //
-    const std::string& wavelet,   //
-    int num_bands,               //
-    int steps_per_window,        //
-    int depth,             //
+    int sample_rate,               //
+    int window_size,               //
+    int hop_size,                  //
+    const std::string& wavelet,    //
+    int num_bands,                 //
+    int steps_per_window,          //
+    int depth,                     //
     const std::string& plot_output //
 )
 {
@@ -79,17 +79,17 @@ void cmd_demo(                    // old signature
 }
 
 // New signature with explicit seed for reproducibility.
-void cmd_demo(                     //
+void cmd_demo(                      //
     double duration,                //
-    int sample_rate,           //
-    int window_size,            //
-    int hop_size,             //
-    const std::string& wavelet,    //
-    int num_bands,                //
-    int steps_per_window,         //
-    int depth,              //
+    int sample_rate,                //
+    int window_size,                //
+    int hop_size,                   //
+    const std::string& wavelet,     //
+    int num_bands,                  //
+    int steps_per_window,           //
+    int depth,                      //
     const std::string& plot_output, //
-    unsigned int random_seed = 0   // optional seed for reproducibility (0 => nondeterministic)
+    unsigned int random_seed = 0    // optional seed for reproducibility (0 => nondeterministic)
 )
 {
     // RNG for Poisson encoder (matches Python's uniform sampling behavior)

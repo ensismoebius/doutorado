@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
-#include <random>
 #include <string>
 #include <vector>
 
@@ -17,12 +16,12 @@
 
 namespace fs = std::filesystem;
 
-// Wavelet feature extraction (using core implementation)
-auto extract_subband_energy(const wavelets::WaveletTransformResults& transform, int level)
-    -> std::vector<double>
+namespace
 {
-    return wavelets::extract_subband_energies(transform, level);
-}
+constexpr int kSyntheticSampleCount = 100;
+constexpr const char* kDefaultEegPath = "/path/to/S01_EEG.mat";
+constexpr const char* kDefaultAudioPath = "/path/to/S01_Audio.mat";
+} // namespace
 
 // Normalization (using core implementation)
 void min_max_normalize(std::vector<std::vector<double>>& features,
@@ -45,8 +44,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         try
         {
-            std::string eeg_path = "/path/to/S01_EEG.mat";
-            std::string audio_path = "/path/to/S01_Audio.mat";
+            std::string eeg_path = kDefaultEegPath;
+            std::string audio_path = kDefaultAudioPath;
             eeg_samples = load_eeg_data(eeg_path);
             audio_samples = load_audio_data(audio_path);
             std::cout << "Loaded " << eeg_samples.size() << " EEG samples and "
@@ -57,32 +56,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
             std::cout << "Data loading failed: " << e.what() << std::endl;
             std::cout << "Using synthetic data for demonstration" << std::endl;
 
-            eeg_samples.resize(100);
-            audio_samples.resize(100);
-
-            std::mt19937 rng(config.random_seed);
-            std::normal_distribution<double> dist(0.0, 1.0);
-
-            for (int i = 0; i < 100; ++i)
-            {
-                EEGSample eeg;
-                eeg.channels.resize(6, std::vector<double>(4096));
-                for (auto& ch : eeg.channels)
-                {
-                    for (double& s : ch) s = dist(rng);
-                }
-                eeg.modality = 1;
-                eeg.stimulus = (i % 5) + 1;
-                eeg.artifacts = 1;
-                eeg_samples[i] = eeg;
-
-                AudioSample audio;
-                audio.signal.resize(176400);
-                for (double& s : audio.signal) s = dist(rng);
-                audio.stimulus = eeg.stimulus;
-                audio.eeg_index = i;
-                audio_samples[i] = audio;
-            }
+            generate_synthetic_samples(
+                eeg_samples, audio_samples, kSyntheticSampleCount, config.random_seed);
         }
 
         auto windows = extract_windows(eeg_samples,
@@ -105,7 +80,8 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
             auto wavelet_coeffs =
                 get_wavelet_coeffs(wavelet_name, combined_signal, config.max_decomposition_depth);
 
-            auto energies = extract_subband_energy(wavelet_coeffs, config.max_decomposition_depth);
+            auto energies =
+                wavelets::extract_subband_energies(wavelet_coeffs, config.max_decomposition_depth);
             features.push_back(energies);
             labels.push_back(window.label);
         }

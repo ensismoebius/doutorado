@@ -1,130 +1,67 @@
 #include "Experiment02Wavelets.hpp"
 
+#include <array>
 #include <string>
 #include <vector>
 
 #include "nn/wavelet/Types.h"
 #include "nn/wavelet/waveletOperations.h"
 
+namespace
+{
+template <typename TWavelet>
+auto compute_packet_transform(const std::vector<double>& signal, int max_level)
+    -> wavelets::WaveletTransformResults
+{
+    auto filter = wavelets::get_wavelet<TWavelet>();
+    return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
+}
+
+using WaveletTransformFn = wavelets::WaveletTransformResults (*)(const std::vector<double>&, int);
+
+struct WaveletDispatchEntry
+{
+    const char* wavelet_name;
+    WaveletTransformFn transform_fn;
+};
+
+constexpr std::array<WaveletDispatchEntry, 23> kWaveletDispatch = {{
+    {"Haar", &compute_packet_transform<wavelets::Haar>},
+    {"Daub4", &compute_packet_transform<wavelets::Daub4>},
+    {"Daub6", &compute_packet_transform<wavelets::Daub6>},
+    {"Daub8", &compute_packet_transform<wavelets::Daub8>},
+    {"Daub10", &compute_packet_transform<wavelets::Daub10>},
+    {"Daub12", &compute_packet_transform<wavelets::Daub12>},
+    {"Daub14", &compute_packet_transform<wavelets::Daub14>},
+    {"Daub16", &compute_packet_transform<wavelets::Daub16>},
+    {"Daub18", &compute_packet_transform<wavelets::Daub18>},
+    {"Daub20", &compute_packet_transform<wavelets::Daub20>},
+    {"Daub22", &compute_packet_transform<wavelets::Daub22>},
+    {"Daub24", &compute_packet_transform<wavelets::Daub24>},
+    {"Daub26", &compute_packet_transform<wavelets::Daub26>},
+    {"Daub28", &compute_packet_transform<wavelets::Daub28>},
+    {"Daub30", &compute_packet_transform<wavelets::Daub30>},
+    {"Daub32", &compute_packet_transform<wavelets::Daub32>},
+    {"Daub34", &compute_packet_transform<wavelets::Daub34>},
+    {"Daub36", &compute_packet_transform<wavelets::Daub36>},
+    {"Daub38", &compute_packet_transform<wavelets::Daub38>},
+    {"Daub40", &compute_packet_transform<wavelets::Daub40>},
+    {"Daub42", &compute_packet_transform<wavelets::Daub42>},
+    {"Daub44", &compute_packet_transform<wavelets::Daub44>},
+    {"Daub46", &compute_packet_transform<wavelets::Daub46>},
+}};
+} // namespace
+
 auto get_wavelet_coeffs(const std::string& wavelet_name, const std::vector<double>& signal,
                         int max_level) -> wavelets::WaveletTransformResults
 {
-    if (wavelet_name == "Haar")
+    for (const auto& dispatch_entry : kWaveletDispatch)
     {
-        auto filter = wavelets::get_wavelet<wavelets::Haar>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub4")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub4>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub6")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub6>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub8")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub8>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub10")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub10>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub12")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub12>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub14")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub14>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub16")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub16>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub18")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub18>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub20")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub20>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub22")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub22>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub24")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub24>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub26")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub26>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub28")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub28>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub30")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub30>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub32")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub32>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub34")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub34>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub36")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub36>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub38")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub38>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub40")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub40>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub42")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub42>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub44")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub44>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
-    }
-    if (wavelet_name == "Daub46")
-    {
-        auto filter = wavelets::get_wavelet<wavelets::Daub46>();
-        return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
+        if (wavelet_name == dispatch_entry.wavelet_name)
+        {
+            return dispatch_entry.transform_fn(signal, max_level);
+        }
     }
 
-    auto filter = wavelets::get_wavelet<wavelets::Haar>();
-    return wavelets::malat(signal, filter, wavelets::PACKET_WAVELET, max_level);
+    return compute_packet_transform<wavelets::Haar>(signal, max_level);
 }

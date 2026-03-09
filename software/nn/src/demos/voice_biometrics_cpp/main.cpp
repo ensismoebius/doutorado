@@ -58,7 +58,7 @@ struct ConfigSNN
 
 // --- Signal helpers ---
 
-auto calcular_nivel_wpt(int window_size, int num_bandas) -> int
+auto compute_wpt_level(int window_size, int num_bandas) -> int
 {
     const int nivel_max_por_tamanho =
         static_cast<int>(std::floor(std::log2(std::max(1, window_size))));
@@ -66,7 +66,7 @@ auto calcular_nivel_wpt(int window_size, int num_bandas) -> int
     return std::max(1, std::min(nivel_max_por_tamanho, nivel_necessario));
 }
 
-auto gerar_janela_hann(int tamanho) -> std::vector<double>
+auto generate_hann_window(int tamanho) -> std::vector<double>
 {
     std::vector<double> w(static_cast<size_t>(tamanho));
     for (int i = 0; i < tamanho; ++i)
@@ -79,7 +79,7 @@ auto gerar_janela_hann(int tamanho) -> std::vector<double>
     return w;
 }
 
-auto aplicar_janelamento(const std::vector<double>& sinal, const ConfigExtracao& cfg)
+auto apply_windowing(const std::vector<double>& sinal, const ConfigExtracao& cfg)
     -> std::vector<std::vector<double>>
 {
     std::vector<std::vector<double>> janelas;
@@ -88,7 +88,7 @@ auto aplicar_janelamento(const std::vector<double>& sinal, const ConfigExtracao&
         return janelas;
     }
 
-    const auto janela = gerar_janela_hann(cfg.tamanho_janela);
+    const auto janela = generate_hann_window(cfg.tamanho_janela);
     for (int inicio = 0; inicio + cfg.tamanho_janela <= static_cast<int>(sinal.size());
          inicio += cfg.tamanho_passo)
     {
@@ -103,7 +103,7 @@ auto aplicar_janelamento(const std::vector<double>& sinal, const ConfigExtracao&
     return janelas;
 }
 
-auto interpolar(const std::vector<double>& src, int destino) -> std::vector<float>
+auto interpolate_to_size(const std::vector<double>& src, int destino) -> std::vector<float>
 {
     if (destino <= 0)
     {
@@ -132,7 +132,7 @@ auto interpolar(const std::vector<double>& src, int destino) -> std::vector<floa
     return out;
 }
 
-auto calcular_energia_wpt(const std::vector<double>& janela, int num_bandas, int nivel_wpt)
+auto compute_wpt_energy(const std::vector<double>& janela, int num_bandas, int nivel_wpt)
     -> std::vector<float>
 {
     const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
@@ -148,10 +148,10 @@ auto calcular_energia_wpt(const std::vector<double>& janela, int num_bandas, int
                                      wavelets::TransformMode::PACKET_WAVELET,
                                      static_cast<unsigned int>(nivel_wpt));
     auto energias = wavelets::extract_subband_energies(transform, nivel_wpt);
-    return interpolar(energias, num_bandas);
+    return interpolate_to_size(energias, num_bandas);
 }
 
-auto preprocessar_energia(const std::vector<float>& energia) -> std::vector<float>
+auto preprocess_energy(const std::vector<float>& energia) -> std::vector<float>
 {
     std::vector<float> out(energia.size());
     float max_v = 0.0F;
@@ -173,17 +173,17 @@ auto preprocessar_energia(const std::vector<float>& energia) -> std::vector<floa
     return out;
 }
 
-auto construir_features(const std::vector<double>& audio, ConfigExtracao cfg)
+auto build_features(const std::vector<double>& audio, ConfigExtracao cfg)
     -> std::vector<std::vector<float>>
 {
-    cfg.nivel_wpt = calcular_nivel_wpt(cfg.tamanho_janela, cfg.num_bandas);
-    auto janelas = aplicar_janelamento(audio, cfg);
+    cfg.nivel_wpt = compute_wpt_level(cfg.tamanho_janela, cfg.num_bandas);
+    auto janelas = apply_windowing(audio, cfg);
     std::vector<std::vector<float>> features;
     features.reserve(janelas.size());
     for (const auto& j : janelas)
     {
-        auto energia = calcular_energia_wpt(j, cfg.num_bandas, cfg.nivel_wpt);
-        features.push_back(preprocessar_energia(energia));
+        auto energia = compute_wpt_energy(j, cfg.num_bandas, cfg.nivel_wpt);
+        features.push_back(preprocess_energy(energia));
     }
     return features;
 }
@@ -332,7 +332,8 @@ struct ModeloSNN : public Module
 
 // --- Pipeline ---
 
-auto carregar_audio(const string& caminho, double duracao, int sample_rate) -> vector<double>
+auto load_audio_or_synthetic(const string& caminho, double duracao, int sample_rate)
+    -> vector<double>
 {
     if (!caminho.empty())
     {
@@ -365,7 +366,7 @@ auto carregar_audio(const string& caminho, double duracao, int sample_rate) -> v
     return out;
 }
 
-auto salvar_csv(const string& caminho, const vector<Tensor>& spikes) -> void
+auto save_spikes_csv(const string& caminho, const vector<Tensor>& spikes) -> void
 {
     ofstream out(caminho);
     if (!out.is_open())
@@ -390,7 +391,7 @@ auto salvar_csv(const string& caminho, const vector<Tensor>& spikes) -> void
     }
 }
 
-auto executar_pipeline(                 //
+auto run_pipeline(                      //
     const string& wav_path,             //
     double duracao_sintetica,           //
     const ConfigExtracao& cfg_extracao, //
@@ -399,13 +400,13 @@ auto executar_pipeline(                 //
     const string& saida_csv             //
     ) -> void
 {
-    auto audio = carregar_audio(     //
+    auto audio = load_audio_or_synthetic( //
         wav_path,                    //
         duracao_sintetica,           //
         cfg_extracao.taxa_amostragem //
     );
 
-    auto features = construir_features(audio, cfg_extracao);
+    auto features = build_features(audio, cfg_extracao);
 
     if (features.empty())
     {
@@ -457,7 +458,7 @@ auto executar_pipeline(                 //
         saida_por_janela.push_back(acumulado);
     }
 
-    salvar_csv(saida_csv, saida_por_janela);
+    save_spikes_csv(saida_csv, saida_por_janela);
     cout << "Pipeline concluido. Saida em " << saida_csv << "\n";
 }
 
@@ -541,18 +542,7 @@ int main(int argc, char** argv)
 
     try
     {
-        if (entrada.empty())
-        {
-            // Generate synthetic audio with desired duration
-            auto audio = carregar_audio("", duracao, cfg_extr.taxa_amostragem);
-            auto features = construir_features(audio, cfg_extr);
-            if (features.empty())
-            {
-                throw std::runtime_error("Nenhuma janela gerada.");
-            }
-        }
-
-        executar_pipeline(entrada, duracao, cfg_extr, cfg_snn, seed, saida_csv);
+        run_pipeline(entrada, duracao, cfg_extr, cfg_snn, seed, saida_csv);
     }
     catch (const std::exception& e)
     {
