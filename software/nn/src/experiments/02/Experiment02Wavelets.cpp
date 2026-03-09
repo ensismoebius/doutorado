@@ -1,6 +1,7 @@
 #include "Experiment02Wavelets.hpp"
 
 #include <array>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -55,13 +56,25 @@ constexpr std::array<WaveletDispatchEntry, 23> kWaveletDispatch = {{
 auto get_wavelet_coeffs(const std::string& wavelet_name, const std::vector<double>& signal,
                         int max_level) -> wavelets::WaveletTransformResults
 {
+    if (signal.empty())
+    {
+        throw std::invalid_argument("Signal size must be greater than zero.");
+    }
+
+    std::vector<double> padded_signal(signal.begin(), signal.end());
+    const int padded_size = wavelets::get_next_power_of_two(static_cast<double>(signal.size()));
+    if (padded_size > static_cast<int>(signal.size()))
+    {
+        padded_signal.resize(static_cast<std::size_t>(padded_size), 0.0);
+    }
+
     for (const auto& dispatch_entry : kWaveletDispatch)
     {
         if (wavelet_name == dispatch_entry.wavelet_name)
         {
-            return dispatch_entry.transform_fn(signal, max_level);
+            return dispatch_entry.transform_fn(padded_signal, max_level);
         }
     }
 
-    return compute_packet_transform<wavelets::Haar>(signal, max_level);
+    return compute_packet_transform<wavelets::Haar>(padded_signal, max_level);
 }

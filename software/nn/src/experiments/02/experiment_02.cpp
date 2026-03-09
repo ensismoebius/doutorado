@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -14,6 +15,10 @@ auto main(int argc, char const* const* argv) -> int
     try
     {
         std::string spec_path = "../src/experiments/02/spec.yaml";
+        if (!std::filesystem::exists(spec_path))
+        {
+            spec_path = "src/experiments/02/spec.yaml";
+        }
         if (argc > 1)
         {
             spec_path = argv[1];

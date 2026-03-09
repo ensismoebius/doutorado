@@ -1,5 +1,6 @@
 #include "Experiment02Evaluation.hpp"
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -9,7 +10,8 @@
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
                                     const std::vector<int>& labels) -> ParaconsistentMetrics
 {
-    if (features.empty() || labels.empty())
+    if (features.empty() || labels.empty() || features.size() != labels.size() ||
+        features.front().empty())
     {
         return ParaconsistentMetrics{};
     }
@@ -26,9 +28,19 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
         return ParaconsistentMetrics{};
     }
 
-    unsigned int n_classes = class_features.size();
+    const unsigned int n_classes = class_features.size();
     unsigned int n_samples_per_class = class_features.begin()->second.size();
-    unsigned int feature_dim = features[0].size();
+    for (const auto& [_, class_samples] : class_features)
+    {
+        n_samples_per_class = std::min<unsigned int>(
+            n_samples_per_class, static_cast<unsigned int>(class_samples.size()));
+    }
+    const unsigned int feature_dim = features[0].size();
+
+    if (n_classes == 0 || n_samples_per_class == 0 || feature_dim == 0)
+    {
+        return ParaconsistentMetrics{};
+    }
 
     double alpha = calculate_alpha(n_classes, n_samples_per_class, feature_dim, class_features);
     double beta = calculate_beta(n_classes, n_samples_per_class, feature_dim, class_features);

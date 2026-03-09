@@ -13,7 +13,7 @@
 #include <numbers>   // For std::numbers::pi_v, std::numbers::sqrt2_v
 #include <vector>    // For std::vector
 
-#include "nn/tensor/Tensor.hpp"   // For Tensor
+#include "nn/tensor/Tensor.hpp" // For Tensor
 
 using std::size_t;
 using std::vector;
@@ -22,14 +22,14 @@ namespace nn::core::wave
 {
 
 /**
- * @brief Etapa 1: Pré-ênfase.
+ * @brief Step 1: pre-emphasis.
  *
- * Aplica um filtro de pré-ênfase para amplificar os componentes de alta frequência do sinal.
- * A fórmula é: y[n] = x[n] - α * x[n-1].
- * Isso compensa o decaimento natural do espectro da voz humana.
+ * Applies pre-emphasis to boost high-frequency components.
+ * Formula: y[n] = x[n] - alpha * x[n-1].
+ * This compensates for natural high-frequency roll-off in speech spectra.
  *
- * @param signal Sinal de áudio (modificado in-place).
- * @param coefficient Coeficiente de pré-ênfase.
+ * @param signal Audio signal (modified in place).
+ * @param coefficient Pre-emphasis coefficient.
  */
 void pre_emphasis_inplace(vector<float>& signal, float coefficient)
 {
@@ -37,23 +37,23 @@ void pre_emphasis_inplace(vector<float>& signal, float coefficient)
     {
         return; // Nothing to do for an empty signal
     }
-    // Aplica o filtro de pré-ênfase ao sinal.
+    // Apply pre-emphasis filter in reverse order to avoid temporary copies.
     for (size_t i = signal.size() - 1; i > 0; --i)
     {
         signal[i] = signal[i] - (coefficient * signal[i - 1]);
     }
-    // signal[0] permanece
+    // signal[0] remains unchanged.
 }
 
 /**
- * @brief Etapa 2: Janelamento.
+ * @brief Step 2: framing and windowing.
  *
- * Divide o sinal em frames curtos e aplica uma janela (Hamming) para reduzir o vazamento espectral.
- * O sinal é considerado estacionário dentro de cada frame.
+ * Splits the signal into short frames and applies a Hamming window to reduce
+ * spectral leakage. The signal is assumed quasi-stationary within each frame.
  *
- * @param signal Sinal de áudio.
- * @param context Contexto contendo parâmetros e saídas.
- * @return Frames do sinal após janelamento.
+ * @param signal Audio signal.
+ * @param context Context containing framing parameters and outputs.
+ * @return Windowed signal frames.
  */
 auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     -> vector<vector<float>>
@@ -82,13 +82,13 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
         throw std::invalid_argument("frame_shift_ms must be finite and > 0");
     }
 
-    // Comprimento de cada frame em amostras. (Parâmetro de saída)
+    // Frame length in samples (output parameter).
     context.frame_length = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_duration_ms *
                static_cast<float>(context.loading_params.audio_params.target_sampling_rate) /
                context.loading_params.constants.ms_to_seconds_factor));
 
-    // Deslocamento entre frames consecutivos em amostras. (Parâmetro de saída)
+    // Step size between consecutive frames in samples (output parameter).
     context.frame_step = static_cast<int>(
         roundf(context.loading_params.audio_params.frame_shift_ms *
                static_cast<float>(context.loading_params.audio_params.target_sampling_rate) /
@@ -99,27 +99,27 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
         throw std::invalid_argument("Computed frame_length and frame_step must be > 0");
     }
 
-    // Comprimento total do sinal de entrada.
+    // Input signal length.
     const int signal_length = static_cast<int>(signal.size());
 
-    // Número total de frames que serão extraídos do sinal.
+    // Total number of frames extracted from the signal.
     const int number_of_frames =
         1 + std::max(0, (signal_length - context.frame_length) / context.frame_step);
 
-    // Comprimento do sinal após o padding para conter todos os frames.
+    // Padded length required to hold all frames.
     const int padded_length = (number_of_frames * context.frame_step) + context.frame_length;
 
-    // Cópia do sinal com padding de zeros no final.
+    // Copy signal with zero-padding at the end.
     vector<float> padded_signal(padded_length, 0.0F);
     std::copy(signal.begin(), signal.end(), padded_signal.begin());
 
-    // Vetor para armazenar a função de janelamento (Hamming).
+    // Hamming window coefficients.
     vector<float> window_function(context.frame_length);
 
-    // Matriz para armazenar os frames resultantes após o janelamento.
+    // Output frame matrix.
     vector<vector<float>> frames(number_of_frames, vector<float>(context.frame_length));
 
-    // Janela de Hamming: w[n] = 0.54 - 0.46 * cos(2πn / (N-1))
+    // Hamming window: w[n] = 0.54 - 0.46 * cos(2*pi*n / (N-1))
     for (int i = 0; i < context.frame_length; ++i)
     {
         window_function[i] = context.loading_params.hamming_window_config.alpha -
@@ -128,13 +128,13 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
                                    (static_cast<float>(context.frame_length) - 1))); // Hamming
     }
 
-    // Aplicação do janelamento em cada frame.
+    // Apply window to each frame.
     for (int i = 0; i < number_of_frames; ++i)
     {
-        // Índice do frame atual.
+        // Start index for current frame.
         const int start_index = i * context.frame_step;
 
-        // Preenchimento do frame atual com a janela aplicada.
+        // Fill current frame with windowed samples.
         for (int j = 0; j < context.frame_length; ++j)
         {
             frames[i][j] = padded_signal[start_index + j] * window_function[j];
@@ -144,16 +144,16 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
 }
 
 /**
- * @brief Etapas 3 & 4: STFT e Espectro de Potência.
+ * @brief Steps 3 and 4: STFT and power spectrum.
  *
- * Calcula a Transformada Rápida de Fourier de Tempo Curto (STFT) para cada frame
- * e, em seguida, o espectro de potência.
- * A STFT é calculada usando a biblioteca FFTW.
- * O espectro de potência é |X[k]|^2, onde X[k] é a STFT.
+ * Computes the Short-Time Fourier Transform (STFT) for each frame and then
+ * derives the power spectrum.
+ * STFT is computed with FFTW.
+ * Power spectrum is |X[k]|^2, where X[k] is the STFT output.
  *
- * @param frames Frames do sinal após janelamento.
- * @param fft_points Número de pontos da FFT (igual ao comprimento do frame).
- * @return Espectro de potência de cada frame.
+ * @param frames Windowed signal frames.
+ * @param fft_points Number of FFT points (typically frame length).
+ * @return Power spectrum for each frame.
  */
 auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> nn::Tensor
 {
@@ -162,109 +162,107 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> nn::Tens
         throw std::invalid_argument("Input frames cannot be empty.");
     }
 
-    // Número de frames de entrada.
+    // Number of input frames.
     const size_t number_of_frames = frames.size();
 
-    // Número de bins de frequência resultantes da FFT (N/2 + 1).
+    // Number of frequency bins from FFT (N/2 + 1).
     const size_t number_of_bins = (fft_points / 2) + 1;
 
-    // Matriz para armazenar o espectro de potência de cada frame.
+    // Output matrix storing per-frame power spectra.
     nn::Tensor power_spectrum(static_cast<int>(number_of_frames), static_cast<int>(number_of_bins));
 
-    // Buffer de entrada para a FFTW (real).
+    // FFTW input buffer (real-valued).
     auto* fftw_input = static_cast<float*>(fftwf_malloc(sizeof(float) * fft_points));
 
-    // Buffer de saída para a FFTW (complexo).
+    // FFTW output buffer (complex-valued).
     auto* fftw_output =
         static_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex) * (fft_points / 2 + 1)));
 
-    // Plano da FFTW para a transformada de real para complexo.
+    // FFTW real-to-complex plan.
     fftwf_plan fftw_plan =
         fftwf_plan_dft_r2c_1d(fft_points, fftw_input, fftw_output, FFTW_ESTIMATE);
 
-    // Processamento de cada frame.
+    // Process each frame.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
-        // Comprimento do frame atual.
+        // Current frame length.
         const size_t frame_length = frames[frame_index].size();
 
-        // Tamanho da FFT em `size_t` para comparações.
+        // FFT size as `size_t` for safe comparisons.
         const auto fft_points_size_t = static_cast<size_t>(fft_points);
 
-        // Comprimento a ser copiado para o buffer da FFT, o mínimo entre o comprimento do frame e o
-        // tamanho da FFT.
+        // Number of samples copied to FFT input (min(frame_length, fft_points)).
         const size_t copy_length = std::min(frame_length, fft_points_size_t);
 
-        // Cópia do frame atual para o buffer de entrada da FFT, com zero-padding se necessário.
+        // Copy current frame into FFT input buffer.
         for (size_t i = 0; i < copy_length; ++i)
         {
             fftw_input[i] = frames[frame_index][i];
         }
 
-        // Preenchimento com zeros se o frame for menor que o tamanho da FFT.
+        // Zero-pad when frame is shorter than FFT size.
         for (size_t i = copy_length; i < fft_points_size_t; ++i)
         {
             fftw_input[i] = 0.0F;
         }
 
-        // Execução da FFT.
+        // Execute FFT.
         fftwf_execute(fftw_plan);
 
-        // Cálculo do espectro de potência para o frame atual.
+        // Compute power spectrum for current frame.
         for (size_t bin_index = 0; bin_index < number_of_bins; ++bin_index)
         {
-            // Parte real do resultado da FFT para o bin atual.
+            // Real part for current frequency bin.
             const float real_part = fftw_output[bin_index][0];
 
-            // Parte imaginária do resultado da FFT para o bin atual.
+            // Imaginary part for current frequency bin.
             const float imaginary_part = fftw_output[bin_index][1];
 
-            // Cálculo do espectro de potência normalizado.
+            // Normalized power spectrum value.
             power_spectrum(static_cast<long>(frame_index), static_cast<long>(bin_index)) =
                 (real_part * real_part + imaginary_part * imaginary_part) /
                 static_cast<float>(fft_points);
         }
     }
 
-    // Liberação dos recursos da FFTW.
+    // Release FFTW resources.
     fftwf_destroy_plan(fftw_plan);
     fftwf_free(fftw_input);
     fftwf_free(fftw_output);
 
-    // Retorno do espectro de potência calculado.
+    // Return computed power spectrum.
     return power_spectrum;
 }
 
 /**
- * @brief Constrói o banco de filtros triangulares lineares.
+ * @brief Build the linear triangular filterbank.
  *
- * Diferente do MFCC, que usa a escala Mel, o LFCC usa filtros espaçados linearmente
- * em frequência.
+ * Unlike MFCC (Mel scale), LFCC uses linearly spaced filters in frequency.
  *
- * @param fft_points Número de pontos da FFT.
- * @param context Contexto contendo parâmetros e saídas.
+ * @param fft_points Number of FFT points.
+ * @param context Context with parameters and output buffers.
  */
 void build_linear_filterbank(int fft_points, FilterbankConfig& context)
 {
-    // Número de bins de frequência resultantes da FFT (N/2 + 1).
-    // Um "bin" representa uma pequena faixa de frequência na saída da FFT.
+    // Number of FFT bins (N/2 + 1).
+    // A bin represents a narrow frequency interval in FFT output.
     const int number_of_bins = (fft_points / 2) + 1;
 
-    // Vetor de índices dos bins correspondentes às frequências centrais.
+    // Bin indices corresponding to center frequencies.
     vector<int> bin_indices(context.loading_params.audio_params.number_of_filters + 2);
 
-    // Frequência máxima representada (Metade da frequência de amostragem).
+    // Maximum represented frequency (Nyquist frequency).
     const float max_frequency =
         static_cast<float>(context.loading_params.constants.default_sampling_rate) / 2.0F;
 
-    // Inicialização do banco de filtros e das frequências centrais.
+    // Initialize filterbank tensor and center-frequency buffer.
     context.filterbank =
         nn::Tensor(context.loading_params.audio_params.number_of_filters, number_of_bins);
 
-    // Inicialização das frequências centrais.
+    // Resize center-frequency array.
     context.center_frequencies.resize(context.loading_params.audio_params.number_of_filters + 2);
 
-    // Cálculo das frequências centrais dos filtros.
+    // Compute filter center frequencies.
     for (int i = 0; i < context.loading_params.audio_params.number_of_filters + 2; ++i)
     {
         context.center_frequencies[i] =
@@ -272,33 +270,33 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
             static_cast<float>(context.loading_params.audio_params.number_of_filters + 1);
     }
 
-    // Cálculo dos índices dos bins para as frequências centrais.
+    // Map center frequencies to FFT bin indices.
     for (size_t i = 0; i < context.center_frequencies.size(); ++i)
     {
-        // Índice para mapear frequências centrais para bins da FFT.
+        // Convert center frequency to FFT bin index.
         bin_indices[i] = static_cast<int>(
             floorf((static_cast<float>(fft_points) + 1.0F) * context.center_frequencies[i] /
                    static_cast<float>(context.loading_params.audio_params.target_sampling_rate)));
     }
 
-    // Construção dos filtros triangulares.
+    // Build triangular filters.
     for (int filter_index = 1;
          filter_index <= context.loading_params.audio_params.number_of_filters;
          ++filter_index)
     {
-        // Índice do bin anterior ao filtro atual.
+        // Previous bin index for current filter.
         const int previous_bin_index = bin_indices[filter_index - 1];
 
-        // Índice do bin central do filtro atual.
+        // Center bin index for current filter.
         const int current_bin_index = bin_indices[filter_index];
 
-        // Índice do bin posterior ao filtro atual.
+        // Next bin index for current filter.
         const int next_bin_index = bin_indices[filter_index + 1];
 
-        // Construção da parte ascendente e descendente do filtro triangular.
+        // Build ascending and descending sides of the triangular filter.
         if (current_bin_index > previous_bin_index)
         {
-            // Parte ascendente do filtro triangular.
+            // Ascending slope.
             for (int bin_index = previous_bin_index; bin_index < current_bin_index; ++bin_index)
             {
                 context.filterbank(filter_index - 1, bin_index) =
@@ -306,10 +304,10 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
                     static_cast<float>(current_bin_index - previous_bin_index);
             }
         }
-        // Parte descendente do filtro triangular.
+        // Descending slope.
         if (next_bin_index > current_bin_index)
         {
-            // Parte descendente do filtro triangular.
+            // Descending slope.
             for (int bin_index = current_bin_index; bin_index < next_bin_index; ++bin_index)
             {
                 context.filterbank(filter_index - 1, bin_index) =
@@ -321,47 +319,47 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
 }
 
 /**
- * @brief Aplica o banco de filtros e a compressão logarítmica.
+ * @brief Apply filterbank and log compression.
  *
- * Multiplica o espectro de potência de cada frame pelo banco de filtros para obter
- * a energia em cada banda. Em seguida, aplica o logaritmo natural.
- * Fórmula: E = log(Σ |X[k]|^2 * H_m[k])
+ * Multiplies each frame power spectrum by the filterbank to obtain per-band
+ * energies and then applies natural logarithm.
+ * Formula: E = log(sum |X[k]|^2 * H_m[k]).
  *
- * @param power_spectrum Espectro de potência de cada frame.
- * @param context Contexto contendo parâmetros e o banco de filtros.
- * @return Energias logarítmicas das bandas de filtro.
+ * @param power_spectrum Per-frame power spectra.
+ * @param context Context containing parameters and filterbank.
+ * @return Log energies per filter band.
  */
 auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterbankConfig& context)
     -> nn::Tensor
 {
-    // Número de frames no espectro de potência.
+    // Number of frames in the power spectrum.
     const long number_of_frames = static_cast<long>(power_spectrum.rows());
 
-    // Número de filtros no banco de filtros.
+    // Number of filters in the filterbank.
     const long number_of_filters = static_cast<long>(context.filterbank.rows());
 
-    // Número de bins de frequência por frame.
+    // Number of frequency bins per frame.
     const long number_of_bins = static_cast<long>(power_spectrum.cols());
 
-    // Matriz para armazenar as energias logarítmicas resultantes.
+    // Output matrix for log-filterbank energies.
     nn::Tensor log_energies(number_of_frames, number_of_filters);
 
-    // Cálculo das energias logarítmicas para cada frame e filtro.
+    // Compute log energies for each frame/filter pair.
     for (long frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
-        // Índice do frame atual.
+        // Current frame index.
         for (long filter_index = 0; filter_index < number_of_filters; ++filter_index)
         {
-            // Variável temporária para acumular a soma ponderada do espectro de potência.
+            // Accumulator for weighted power-spectrum sum.
             float sum = 0.0F;
             for (long bin_index = 0; bin_index < number_of_bins; ++bin_index)
             {
-                // Índice do bin de frequência atual.
+                // Current frequency-bin index.
                 sum += power_spectrum(frame_index, bin_index) *
                        context.filterbank(filter_index, bin_index);
             }
             sum = std::max(sum,
-                           context.loading_params.constants.min_log_energy); // Evita log(0)
+                           context.loading_params.constants.min_log_energy); // Avoid log(0).
             log_energies(frame_index, filter_index) = logf(sum);
         }
     }
@@ -369,62 +367,60 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
 }
 
 /**
- * @brief Calcula a Transformada Cosseno Discreta (DCT-II).
+ * @brief Compute the Discrete Cosine Transform (DCT-II).
  *
- * A DCT é aplicada para decorrelacionar as energias das bandas de filtro,
- * resultando nos coeficientes cepstrais (LFCC).
+ * DCT decorrelates filterbank log energies, producing cepstral coefficients (LFCC).
  *
- * @param log_energies Energias logarítmicas das bandas de filtro.
- * @param loading_params Parâmetros de carregamento e processamento.
- * @return Coeficientes cepstrais (LFCC).
+ * @param log_energies Filterbank log energies.
+ * @param loading_params Loading and processing parameters.
+ * @return LFCC cepstral coefficients.
  */
 auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
     -> nn::Tensor
 {
-    // Número de frames (vetores de energia) de entrada.
+    // Number of input frames (energy vectors).
     const size_t number_of_frames = log_energies.rows();
 
-    // Número de filtros, que corresponde ao número de energias por frame.
+    // Number of filters, equal to energies per frame.
     const size_t number_of_filters = log_energies.cols();
 
-    // Matriz para armazenar os coeficientes cepstrais resultantes.
+    // Output matrix for cepstral coefficients.
     nn::Tensor cepstral_coefficients((long) number_of_frames,
                                      loading_params.audio_params.number_of_cepstrals);
 
-    // Cálculo dos coeficientes cepstrais para cada frame.
+    // Compute cepstral coefficients for each frame.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
-        // Cria os coeficientes cepstrais para o frame atual.
+        // Compute cepstral terms for current frame.
         for (size_t cepstrum_index = 0;
              cepstrum_index < loading_params.audio_params.number_of_cepstrals;
              ++cepstrum_index)
         {
-            // Variável temporária para acumular a soma ponderada para o cálculo do coeficiente
-            // cepstral.
+            // Accumulator for weighted DCT sum.
             float sum = 0.0F;
 
-            // Cálculo do coeficiente cepstral atual.
+            // Compute current cepstral coefficient.
             for (long filter_index = 0; filter_index < static_cast<long>(number_of_filters);
                  ++filter_index)
             {
-                // Acumula a soma ponderada usando a fórmula da DCT-II.
-                sum += log_energies(    // Energia logarítmica
-                           frame_index, // Índice do frame
-                           filter_index // Índice do filtro
+                // Weighted DCT-II accumulation.
+                sum += log_energies(    // Log energy
+                           frame_index, // Frame index
+                           filter_index // Filter index
                            ) *
                        cosf(std::numbers::pi_v<float> * static_cast<float>(cepstrum_index) *
                             (static_cast<float>(filter_index) +
                              loading_params.dct_config.filter_index_offset) /
-                            static_cast<float>(number_of_filters) // Índice do filtro normalizado
+                            static_cast<float>(number_of_filters) // Normalized filter index
                        );
             }
 
-            // Normalização ortogonal, armazenando o coeficiente cepstral calculado.
+            // Orthogonal normalization.
             cepstral_coefficients(frame_index, cepstrum_index) =
                 sum * sqrtf(loading_params.dct_config.normalization_factor_sqrt /
                             static_cast<float>(number_of_filters));
 
-            // Ajuste do primeiro coeficiente cepstral.
+            // Extra normalization for the first cepstral coefficient.
             if (cepstrum_index == 0)
             {
                 cepstral_coefficients(frame_index, cepstrum_index) *=
@@ -436,17 +432,17 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
 }
 
 /**
- * @brief Calcula os deltas (derivada temporal) dos features.
- * Os deltas capturam a dinâmica temporal dos coeficientes cepstrais.
+ * @brief Compute temporal deltas for feature vectors.
+ * Deltas capture short-term dynamics of cepstral coefficients.
  *
- * @param features Matriz de features (LFCCs).
- * @param loading_params Parâmetros de carregamento e processamento.
- * @return Matriz com os coeficientes delta.
+ * @param features Feature matrix (LFCCs).
+ * @param loading_params Loading and processing parameters.
+ * @return Matrix with delta coefficients.
  */
 auto compute_deltas(const nn::Tensor& features,
                     const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
 {
-    // Número de frames (vetores de features) de entrada.
+    // Number of input frames.
     const long number_of_frames = features.rows();
     if (number_of_frames == 0)
     {
@@ -454,34 +450,34 @@ auto compute_deltas(const nn::Tensor& features,
         return nn::Tensor(0, 0);
     }
 
-    // Dimensionalidade do vetor de features.
+    // Feature vector dimensionality.
     const size_t number_of_features = features.cols();
 
-    // Denominador da fórmula de cálculo dos deltas, pré-calculado.
+    // Precomputed denominator for delta formula.
     float denominator = 0.0F;
 
-    // Matriz para armazenar os coeficientes delta resultantes.
+    // Output tensor for delta features.
     nn::Tensor delta_features(number_of_frames, (long) number_of_features);
 
-    // Cálculo do denominador da fórmula de deltas.
+    // Compute denominator term.
     for (int i = 1; i <= loading_params.audio_params.delta_window_span; ++i)
     {
         denominator += static_cast<float>(i) * static_cast<float>(i);
     }
 
-    // Essa multiplicação é feita pois o denominador é usado duas vezes na fórmula de deltas.
+    // Apply scaling factor used by the delta definition.
     denominator *= loading_params.delta_config.denominator_factor;
 
-    // Cálculo dos coeficientes delta para cada frame e feature.
+    // Compute deltas per frame and feature.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
-        // Itera sobre cada dimensão do feature vector.
+        // Iterate over feature dimensions.
         for (size_t feature_index = 0; feature_index < number_of_features; ++feature_index)
         {
-            // Variável temporária para acumular o numerador da fórmula de deltas.
+            // Accumulator for numerator term.
             float numerator = 0.0F;
 
-            // Cálculo do numerador para o delta da feature atual.
+            // Build numerator for current feature delta.
             for (size_t delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
                  ++delta_span)
             {
@@ -499,18 +495,18 @@ auto compute_deltas(const nn::Tensor& features,
                     index_minus_n = 0;
                 }
 
-                // Deslocamento para calcular a diferença entre frames.
-                numerator += static_cast<float>(delta_span) * // Peso baseado na distância temporal
-                             (features(index_plus_n, feature_index) -
-                              features(index_minus_n, feature_index));
+                // Temporal difference weighted by span distance.
+                numerator +=
+                    static_cast<float>(delta_span) * (features(index_plus_n, feature_index) -
+                                                      features(index_minus_n, feature_index));
             }
 
-            // Cálculo do coeficiente delta para o frame e feature atuais.
+            // Final delta value for frame/feature.
             delta_features(frame_index, feature_index) = numerator / denominator;
         }
     }
 
-    // Retorno dos coeficientes delta calculados.
+    // Return computed deltas.
     return delta_features;
 }
 

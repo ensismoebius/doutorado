@@ -90,7 +90,33 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                      double overlap_sec, int eeg_rate, int audio_rate)
     -> std::vector<WindowedSample>
 {
+    if (window_duration_sec <= 0.0)
+    {
+        throw std::invalid_argument("window_duration_sec must be > 0");
+    }
+    if (overlap_sec < 0.0 || overlap_sec >= window_duration_sec)
+    {
+        throw std::invalid_argument(
+            "overlap_sec must be >= 0 and strictly less than window_duration_sec");
+    }
+    if (eeg_rate <= 0 || audio_rate <= 0)
+    {
+        throw std::invalid_argument("eeg_rate and audio_rate must be > 0");
+    }
+
     std::vector<WindowedSample> windows;
+
+    const int eeg_window_samples = static_cast<int>(window_duration_sec * eeg_rate);
+    const int audio_window_samples = static_cast<int>(window_duration_sec * audio_rate);
+    const int eeg_step = static_cast<int>((window_duration_sec - overlap_sec) * eeg_rate);
+
+    if (eeg_window_samples <= 0 || audio_window_samples <= 0 || eeg_step <= 0)
+    {
+        throw std::invalid_argument("computed window/step sizes must be > 0");
+    }
+
+    const auto hanning_eeg = nn::core::wave::hanning_window(eeg_window_samples);
+    const auto hanning_audio = nn::core::wave::hanning_window(audio_window_samples);
 
     for (std::size_t eeg_idx = 0; eeg_idx < eeg_samples.size(); ++eeg_idx)
     {
@@ -109,10 +135,6 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
         {
             continue;
         }
-
-        int eeg_window_samples = static_cast<int>(window_duration_sec * eeg_rate);
-        int audio_window_samples = static_cast<int>(window_duration_sec * audio_rate);
-        int eeg_step = static_cast<int>((window_duration_sec - overlap_sec) * eeg_rate);
 
         for (int start_eeg = 0; start_eeg + eeg_window_samples <= kEegSamplesPerChannel;
              start_eeg += eeg_step)
@@ -139,13 +161,11 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                 window.audio_window.push_back(audio->signal[s]);
             }
 
-            auto hanning_eeg = nn::core::wave::hanning_window(eeg_window_samples);
             for (std::size_t i = 0; i < window.eeg_window.size(); ++i)
             {
                 window.eeg_window[i] *= hanning_eeg[i % eeg_window_samples];
             }
 
-            auto hanning_audio = nn::core::wave::hanning_window(audio_window_samples);
             for (std::size_t i = 0; i < window.audio_window.size(); ++i)
             {
                 window.audio_window[i] *= hanning_audio[i];

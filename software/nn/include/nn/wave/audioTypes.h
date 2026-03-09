@@ -7,7 +7,7 @@
 
 #include "nn/tensor/Tensor.hpp" // For Tensor
 
-// All struct definitions moved from Experiment01_utils.h
+// Centralized audio pipeline configuration structs.
 
 /**
  * @file audioTypes.h
@@ -19,7 +19,7 @@
  */
 
 /**
- * @brief Configurações da janela de Hamming.
+ * @brief Hamming window coefficients.
  */
 struct HammingWindowConfig
 {
@@ -28,7 +28,7 @@ struct HammingWindowConfig
 };
 
 /**
- * @brief Configurações da Transformada Discreta de Cosseno (DCT).
+ * @brief DCT (Discrete Cosine Transform) configuration.
  *
  */
 struct DctConfig
@@ -38,7 +38,7 @@ struct DctConfig
 };
 
 /**
- * @brief Configurações para o cálculo dos deltas.
+ * @brief Delta-feature computation configuration.
  */
 struct DeltaConfig
 {
@@ -46,7 +46,7 @@ struct DeltaConfig
 };
 
 /**
- * @brief Constantes gerais usadas no processamento.
+ * @brief General constants used by audio feature extraction.
  */
 struct GeneralConstants
 {
@@ -57,7 +57,7 @@ struct GeneralConstants
 };
 
 /**
- * @brief Parâmetros para o processamento de áudio.
+ * @brief Audio processing parameters.
  *
  */
 struct AudioProcessingParams
@@ -72,11 +72,11 @@ struct AudioProcessingParams
 };
 
 /**
- * @brief Parâmetros de carregamento e processamento.
+ * @brief Aggregated loading and processing parameters.
  */
 struct LoadingAndProcessingParameters
 {
-    AudioProcessingParams audio_params; // Changed to by value
+    AudioProcessingParams audio_params;
     HammingWindowConfig hamming_window_config;
     DctConfig dct_config;
     DeltaConfig delta_config;
@@ -84,7 +84,7 @@ struct LoadingAndProcessingParameters
 };
 
 /**
- * @brief Informações sobre o sujeito a ser processado.
+ * @brief Subject metadata used by dataset demos/pipelines.
  */
 struct SubjectInfo
 {
@@ -95,18 +95,18 @@ struct SubjectInfo
 };
 
 /**
- * @brief Configurações para o janelamento do sinal.
+ * @brief Framing/windowing configuration.
  *
  */
 struct FramingConfig
 {
-    int frame_length; // Changed to by value
-    int frame_step;   // Changed to by value
+    int frame_length;
+    int frame_step;
     const LoadingAndProcessingParameters& loading_params;
 };
 
 /**
- * @brief Configurações para o filtro de banco de dados.
+ * @brief Filterbank construction context.
  *
  */
 struct FilterbankConfig
@@ -117,7 +117,7 @@ struct FilterbankConfig
 };
 
 /**
- * @brief Configurações para o cálculo do espectro de potência após o filtro.
+ * @brief Context for applying filterbanks to power spectra.
  *
  */
 struct PowerFilterbankConfig

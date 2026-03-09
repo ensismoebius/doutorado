@@ -14,6 +14,14 @@
 
 using SNNResNet = SimpleResNet;
 
+namespace
+{
+constexpr int kHiddenSize = 128;
+constexpr int kTrainingEpochs = 10;
+constexpr int kBatchSize = 32;
+constexpr float kLearningRate = 0.001F;
+} // namespace
+
 auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
                              const std::vector<int>& labels, int k_folds, int random_seed)
     -> std::vector<FoldResult>
@@ -23,16 +31,22 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
                              const std::vector<std::vector<double>>& test_features,
                              const std::vector<int>& test_labels) -> FoldResult
     {
+        if (train_features.empty() || train_labels.empty() || test_features.empty() ||
+            test_labels.empty())
+        {
+            return FoldResult{};
+        }
+
         auto start_time = std::chrono::high_resolution_clock::now();
 
         ParaconsistentMetrics para_metrics =
             compute_paraconsistent_metrics(train_features, train_labels);
 
-        int n_classes = 0;
-        for (int label : labels) n_classes = std::max(n_classes, label + 1);
+        int class_count = 0;
+        for (int label : labels) class_count = std::max(class_count, label + 1);
 
-        SNNResNet model(train_features[0].size(), 128, n_classes);
-        Adam optimizer(0.001F);
+        SNNResNet model(train_features[0].size(), kHiddenSize, class_count);
+        Adam optimizer(kLearningRate);
         auto params = model.params();
         optimizer.attach(params);
         CrossEntropyLoss loss;
@@ -48,14 +62,15 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
             }
             train_inputs.emplace_back(x);
 
-            nn::Tensor y(1, n_classes);
+            nn::Tensor y(1, class_count);
+            y.setZero();
             y.at(0, train_labels[i]) = 1.0F;
             train_targets.emplace_back(y);
         }
 
-        for (int epoch = 0; epoch < 10; ++epoch)
+        for (int epoch = 0; epoch < kTrainingEpochs; ++epoch)
         {
-            auto batches = create_batches(train_inputs, train_targets, 32);
+            auto batches = create_batches(train_inputs, train_targets, kBatchSize);
             for (const auto& batch : batches)
             {
                 loss.set_target(batch.targets);
@@ -79,7 +94,7 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
 
             int pred = 0;
             float max_val = output.at(0, 0);
-            for (int c = 1; c < n_classes; ++c)
+            for (int c = 1; c < class_count; ++c)
             {
                 if (output.at(0, c) > max_val)
                 {

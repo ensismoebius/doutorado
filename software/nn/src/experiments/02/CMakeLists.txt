@@ -33,3 +33,5 @@ target_link_libraries(experiment_02
 # Add Callgrind profiling target for performance analysis
 include(../../../cmake/Tooling.cmake)
 add_callgrind_target(profile_experiment_02 experiment_02)
+
+add_subdirectory(tests)

@@ -68,6 +68,13 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
                                        config.audio_sampling_rate);
         std::cout << "Extracted " << windows.size() << " windows" << std::endl;
 
+        if (windows.empty())
+        {
+            std::cout << "No valid windows for " << wavelet_name
+                      << "; skipping this wavelet." << std::endl;
+            continue;
+        }
+
         std::vector<std::vector<double>> features;
         std::vector<int> labels;
 
@@ -84,6 +91,13 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
                 wavelets::extract_subband_energies(wavelet_coeffs, config.max_decomposition_depth);
             features.push_back(energies);
             labels.push_back(window.label);
+        }
+
+        if (features.empty() || labels.empty())
+        {
+            std::cout << "No features produced for " << wavelet_name
+                      << "; skipping this wavelet." << std::endl;
+            continue;
         }
 
         min_max_normalize(features, config.normalization_range);
