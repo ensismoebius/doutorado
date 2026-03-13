@@ -12,8 +12,8 @@ class BatchPrefetcher
    public:
     BatchPrefetcher(DataLoader& loader, std::size_t max_batches);
 
-    [[nodiscard]] auto hasNext() const -> bool;
     auto next() -> std::optional<Batch>;
+    [[nodiscard]] auto hasNext() const -> bool;
     [[nodiscard]] auto seenBatches() const -> std::size_t;
 
    private:
