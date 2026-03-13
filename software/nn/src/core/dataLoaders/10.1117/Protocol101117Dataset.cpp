@@ -1,4 +1,4 @@
-#include "../include/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -7,12 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "../include/SamplePacking.hpp"
-#include "../include/SynchronizedBatchAssembler.hpp"
-#include "nn/dataLoaders/10.1117/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/SamplePacking.hpp"
 #include "nn/dataLoaders/10.1117/SchemaIndexing.hpp"
+#include "nn/dataLoaders/10.1117/SynchronizedBatchAssembler.hpp"
 
-using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::schema101117::multimodalInputFeatureColumns;
 using nn::dataLoaders::schema101117::resolveEegRowIndex;
 using std::size_t;

@@ -1,5 +1,5 @@
-#ifndef EXEC_LOADINGDATA_BATCHPREFETCHER_HPP
-#define EXEC_LOADINGDATA_BATCHPREFETCHER_HPP
+#ifndef NN_DATALOADERS_BATCHPREFETCHER_HPP
+#define NN_DATALOADERS_BATCHPREFETCHER_HPP
 
 #include <cstddef>
 #include <future>
@@ -24,4 +24,4 @@ class BatchPrefetcher
     std::optional<std::future<Batch>> next_batch_future_;
 };
 
-#endif // EXEC_LOADINGDATA_BATCHPREFETCHER_HPP
+#endif // NN_DATALOADERS_BATCHPREFETCHER_HPP

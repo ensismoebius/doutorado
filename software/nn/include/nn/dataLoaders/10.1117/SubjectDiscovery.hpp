@@ -1,4 +1,5 @@
-#pragma once
+#ifndef NN_DATALOADERS_10_1117_SUBJECTDISCOVERY_HPP
+#define NN_DATALOADERS_10_1117_SUBJECTDISCOVERY_HPP
 
 #include <cstddef>
 #include <string>
@@ -16,3 +17,5 @@ struct SubjectFiles
 
 auto discoverSubjects(const std::string& root_dir, const std::string& subject_regex_pattern)
     -> std::vector<SubjectFiles>;
+
+#endif // NN_DATALOADERS_10_1117_SUBJECTDISCOVERY_HPP

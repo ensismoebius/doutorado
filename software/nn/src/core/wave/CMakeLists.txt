@@ -3,6 +3,7 @@ add_library(waveCoreLib STATIC
     signal_operations.cpp
     Wav.cpp
     audioFeatureExtraction.cpp
+    lfcc_pipeline_utils.cpp
 )
 
 target_include_directories(waveCoreLib
@@ -15,7 +16,7 @@ target_include_directories(waveCoreLib
 )
 
 target_link_libraries(waveCoreLib
-    PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f tensor
+    PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f tensor dataLoaders_10_1117
 )
 
 add_subdirectory(tests)

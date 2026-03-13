@@ -1,5 +1,4 @@
-
-#include "../include/subject_discovery.hpp"
+#include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
 
 #include <algorithm>
 #include <filesystem>

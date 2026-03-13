@@ -1,5 +1,5 @@
-#ifndef EXEC_LOADINGDATA_SAMPLEPACKING_HPP
-#define EXEC_LOADINGDATA_SAMPLEPACKING_HPP
+#ifndef NN_DATALOADERS_10_1117_SAMPLEPACKING_HPP
+#define NN_DATALOADERS_10_1117_SAMPLEPACKING_HPP
 
 #include <array>
 
@@ -9,4 +9,4 @@ auto buildInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Ten
 auto buildTargetTensor(int subject_id, const std::array<int, 3>& eeg_labels, int eeg_index_label)
     -> nn::Tensor;
 
-#endif // EXEC_LOADINGDATA_SAMPLEPACKING_HPP
+#endif // NN_DATALOADERS_10_1117_SAMPLEPACKING_HPP

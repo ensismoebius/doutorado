@@ -1,5 +1,5 @@
-#ifndef EXEC_LOADINGDATA_PROTOCOL101117DATASET_HPP
-#define EXEC_LOADINGDATA_PROTOCOL101117DATASET_HPP
+#ifndef NN_DATALOADERS_10_1117_PROTOCOL101117DATASET_HPP
+#define NN_DATALOADERS_10_1117_PROTOCOL101117DATASET_HPP
 
 #include <cstddef>
 #include <memory>
@@ -7,8 +7,8 @@
 
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/Dataset.hpp"
-#include "subject_discovery.hpp"
 
 class Protocol101117Dataset : public Dataset
 {
@@ -31,4 +31,4 @@ class Protocol101117Dataset : public Dataset
     std::vector<std::size_t> prefix_audio_row_offsets_;
 };
 
-#endif // EXEC_LOADINGDATA_PROTOCOL101117DATASET_HPP
+#endif // NN_DATALOADERS_10_1117_PROTOCOL101117DATASET_HPP

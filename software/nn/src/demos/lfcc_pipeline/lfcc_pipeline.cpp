@@ -9,7 +9,7 @@
 #include <filesystem>
 #include <string>
 
-#include "demos/lfcc_pipeline/lfcc_pipeline_utils.h"
+#include "nn/wave/lfcc_pipeline_utils.h"
 #include "nn/wave/audioTypes.h"
 
 using std::string;

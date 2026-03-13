@@ -1,33 +1,6 @@
 find_package(ZLIB REQUIRED)
 
 # Experiment 01 CMake configuration
-add_library(lfcc_pipeline_utils_lib STATIC
-    ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline_utils.cpp
-)
-
-target_include_directories(lfcc_pipeline_utils_lib
-    PRIVATE
-        ${SRC_DIR}
-        ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
-        ${OpenMP_INCLUDE_DIRS}
-        ${cnpy_SOURCE_DIR}
-)
-
-target_link_libraries(lfcc_pipeline_utils_lib
-    PRIVATE
-        cnpy
-        Eigen3::Eigen
-        ${ZLIB_LIBRARIES}
-        ${OpenMP_CXX_LIBRARIES}
-        matioCpp
-        fftw3f
-        util
-        tensor
-        dataLoaders_10_1117
-        waveCoreLib
-)
-
 add_executable(exec_lfcc_pipeline
     ${CMAKE_SOURCE_DIR}/include/nn/initializers/xavier.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGDMinimal.hpp
@@ -63,7 +36,6 @@ target_link_libraries(exec_lfcc_pipeline
         fftw3f
         util
         tensor
-        lfcc_pipeline_utils_lib
         dataLoaders_10_1117
         waveCoreLib
 )

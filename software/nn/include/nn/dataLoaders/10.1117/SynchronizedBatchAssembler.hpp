@@ -1,5 +1,5 @@
-#ifndef EXEC_LOADINGDATA_SYNCHRONIZEDBATCHASSEMBLER_HPP
-#define EXEC_LOADINGDATA_SYNCHRONIZEDBATCHASSEMBLER_HPP
+#ifndef NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP
+#define NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP
 
 #include <cstddef>
 #include <memory>
@@ -7,8 +7,8 @@
 
 #include "nn/dataLoaders/10.1117/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "subject_discovery.hpp"
 
 struct RowRequest
 {
@@ -27,4 +27,4 @@ class SynchronizedBatchAssembler
         nn::Tensor& inputs, nn::Tensor& targets);
 };
 
-#endif // EXEC_LOADINGDATA_SYNCHRONIZEDBATCHASSEMBLER_HPP
+#endif // NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP

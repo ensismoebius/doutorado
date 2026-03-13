@@ -1,7 +1,6 @@
-#include "../include/SynchronizedBatchAssembler.hpp"
+#include "nn/dataLoaders/10.1117/SynchronizedBatchAssembler.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <numeric>
 #include <stdexcept>

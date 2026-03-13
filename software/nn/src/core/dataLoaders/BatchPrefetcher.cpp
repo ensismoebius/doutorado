@@ -1,4 +1,4 @@
-#include "../include/BatchPrefetcher.hpp"
+#include "nn/dataLoaders/BatchPrefetcher.hpp"
 
 BatchPrefetcher::BatchPrefetcher(DataLoader& loader, std::size_t max_batches)
     : it_(loader.begin()), end_(loader.end()), max_batches_(max_batches), seen_batches_(0)

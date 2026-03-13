@@ -10,13 +10,13 @@
 #include <iostream>
 #include <memory>
 
-#include "lib/include/BatchPrefetcher.hpp"
 #include "lib/include/DemoProbeModel.hpp"
-#include "lib/include/Protocol101117Dataset.hpp"
 #include "lib/include/SamplerOptionsFactory.hpp"
 #include "lib/include/batch_util.hpp"
 #include "lib/include/cli.hpp"
-#include "lib/include/subject_discovery.hpp"
+#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
+#include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 
 using std::cerr;

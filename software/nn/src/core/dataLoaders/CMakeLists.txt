@@ -6,7 +6,8 @@ add_library(dataLoaders
     STATIC
         mat_file_utils.cpp
         DataLoader.cpp
-    DataLoaderIterator.cpp
+        DataLoaderIterator.cpp
+        BatchPrefetcher.cpp
 )
 
 target_include_directories(dataLoaders

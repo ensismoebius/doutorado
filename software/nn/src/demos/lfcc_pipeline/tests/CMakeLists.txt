@@ -5,8 +5,7 @@
 ## - `lfcc_pipeline_utils_gtest`: tests for feature extraction helpers used by the LFCC demo.
 ##
 ## Notes:
-## - This links both core libs (tensor/dataLoaders/util/waveCoreLib) and the demo-specific
-##   helper library `lfcc_pipeline_utils_lib`.
+## - This links core libs only; LFCC helpers now live in `waveCoreLib`.
 ##
 add_executable(lfcc_pipeline_utils_gtest lfcc_pipeline_utils_gtest.cpp)
 
@@ -17,14 +16,12 @@ target_link_libraries(lfcc_pipeline_utils_gtest
         tensor
         dataLoaders
         util
-        lfcc_pipeline_utils_lib # Link against the new library
         waveCoreLib # Link against the new waveCoreLib
 )
 
 target_include_directories(lfcc_pipeline_utils_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_SOURCE_DIR}/src/demos/lfcc_pipeline
         ${CMAKE_SOURCE_DIR}/src/core/tensor
         ${EIGEN3_INCLUDE_DIR}
 )

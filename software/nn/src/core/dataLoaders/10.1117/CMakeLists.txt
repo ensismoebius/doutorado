@@ -2,6 +2,10 @@ add_library(dataLoaders_10_1117
     STATIC
         AudioLoader.cpp
         EEGLoader.cpp
+    SubjectDiscovery.cpp
+    SamplePacking.cpp
+    SynchronizedBatchAssembler.cpp
+    Protocol101117Dataset.cpp
 )
 
 target_include_directories(dataLoaders_10_1117

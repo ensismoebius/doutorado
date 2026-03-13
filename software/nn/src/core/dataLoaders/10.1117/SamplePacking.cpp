@@ -1,4 +1,4 @@
-#include "../include/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/SamplePacking.hpp"
 
 #include <cstddef>
 #include <stdexcept>
