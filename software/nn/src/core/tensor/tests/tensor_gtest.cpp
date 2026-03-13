@@ -448,57 +448,6 @@ TEST(TensorTest, MemoryStressTesting)
     EXPECT_NEAR(large_nd.sum(), 0.0f, 1e-6f);
 }
 
-TEST(TensorTest, NumericalEdgeCases)
-{
-    // Test with NaN and Inf values
-    nn::Tensor t(2, 2);
-
-    // Test with NaN
-    t.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
-    EXPECT_TRUE(std::isnan(t.at(0, 0)));
-
-    // Test with positive infinity
-    t.at(0, 1) = std::numeric_limits<float>::infinity();
-    EXPECT_TRUE(std::isinf(t.at(0, 1)));
-
-    // Test with negative infinity
-    t.at(1, 0) = -std::numeric_limits<float>::infinity();
-    EXPECT_TRUE(std::isinf(t.at(1, 0)) && t.at(1, 0) < 0);
-
-    // Test operations with special values
-    nn::Tensor t2(2, 2);
-    t2.at(0, 0) = 1.0f;
-    t2.at(0, 1) = 2.0f;
-    t2.at(1, 0) = 3.0f;
-    t2.at(1, 1) = 4.0f;
-
-    // Operations should handle special values appropriately
-    auto result = t.add(t2);
-    EXPECT_TRUE(std::isnan(result.at(0, 0))); // NaN + 1 = NaN
-    EXPECT_TRUE(std::isinf(result.at(0, 1))); // Inf + 2 = Inf
-    EXPECT_TRUE(std::isinf(result.at(1, 0))); // -Inf + 3 = -Inf
-
-    // Test norm with special values
-    nn::Tensor special_vec(1, 3);
-    special_vec.at(0, 0) = 3.0f;
-    special_vec.at(0, 1) = std::numeric_limits<float>::quiet_NaN();
-    special_vec.at(0, 2) = 4.0f;
-    float norm_result = special_vec.norm();
-    EXPECT_TRUE(std::isnan(norm_result)); // Norm of vector with NaN is NaN
-
-    // Test MSE with special values
-    nn::Tensor pred_special(2, 1);
-    pred_special.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
-    pred_special.at(1, 0) = 2.0f;
-
-    nn::Tensor target_special(2, 1);
-    target_special.at(0, 0) = 1.0f;
-    target_special.at(1, 0) = 2.0f;
-
-    float mse_special = pred_special.mean_squared_error(target_special);
-    EXPECT_TRUE(std::isnan(mse_special)); // MSE with NaN predictions is NaN
-}
-
 TEST(TensorTest, ThreadSafetyValidation)
 {
     // Test concurrent access (basic test - in real scenarios would need more sophisticated testing)

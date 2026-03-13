@@ -38,7 +38,7 @@ auto amdf(const std::vector<long double>& vector) -> std::vector<long double>;
  * @param vector
  * @return integer
  */
-auto findFZeroPeriodSamples(std::vector<long double> vector) -> unsigned int;
+auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned int;
 
 void doAFineAmplification(double* signal, int signalLength);
 

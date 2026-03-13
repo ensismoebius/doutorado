@@ -130,12 +130,12 @@ jobs:
           if [ -f coverage.filtered.info ]; then
             COVERAGE=$(lcov --summary coverage.filtered.info 2>/dev/null | grep "lines......" | sed 's/.*: \([0-9.]*\).*/\1/' | head -1)
             echo "Line coverage: ${COVERAGE}%"
-            if (( $(echo "$COVERAGE >= 95.0" | bc -l) )); then
-              echo "✅ Coverage threshold met: ${COVERAGE}% >= 95.0%"
-            else
-              echo "❌ Coverage below threshold: ${COVERAGE}% < 95.0%"
+            if [ "${COVERAGE}" != "100.0" ] && [ "${COVERAGE}" != "100" ]; then
+              echo "❌ Global line coverage must be exactly 100%, got ${COVERAGE}%"
               exit 1
             fi
+
+            bash ../scripts/check_core_coverage_gate.sh coverage.filtered.info
           else
             echo "Coverage file not found"
             exit 1

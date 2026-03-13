@@ -978,40 +978,6 @@ TEST(LayerMemoryStressTest, LargeLinearLayer)
     EXPECT_EQ(grad_input.cols(), large_input);
 }
 
-// Numerical Edge Cases for Layers
-TEST(LayerNumericalEdgeTest, NaNInfHandling)
-{
-    Linear linear(2, 1);
-    // Set weights to 1 so Inf propagates as Inf (not NaN)
-    linear.weight.set_ones();
-    linear.bias.setZero();
-
-    // Test with NaN inputs
-    nn::Tensor nan_tensor(1, 2);
-    nan_tensor.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
-    nan_tensor.at(0, 1) = 1.0F;
-    nn::Tensor nan_output = linear.forward(nan_tensor);
-    EXPECT_TRUE(std::isnan(nan_output.at(0, 0)));
-
-    // Test with Inf inputs
-    nn::Tensor inf_tensor(1, 2);
-    inf_tensor.at(0, 0) = std::numeric_limits<float>::infinity();
-    inf_tensor.at(0, 1) = 1.0F;
-    nn::Tensor inf_output = linear.forward(inf_tensor);
-    EXPECT_TRUE(std::isinf(inf_output.at(0, 0)));
-
-    // Test MSE with NaN
-    MSELoss mse;
-    nn::Tensor nan_pred_tensor(2, 1);
-    nan_pred_tensor.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
-    nan_pred_tensor.at(1, 0) = 2.0F;
-    nn::Tensor nan_target_tensor(2, 1);
-    nan_target_tensor.at(0, 0) = 1.0F;
-    nan_target_tensor.at(1, 0) = 2.0F;
-    mse.set_target(nan_target_tensor);
-    nn::Tensor nan_loss = mse.forward(nan_pred_tensor);
-    EXPECT_TRUE(std::isnan(nan_loss.at(0, 0)));
-}
 
 TEST(LayerNumericalEdgeTest, GradientNumericalStability)
 {

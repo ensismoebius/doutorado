@@ -25,8 +25,8 @@ auto load_and_process_audio(const std::string& audio_file_path,
     -> std::vector<nn::Tensor>
 {
     auto [audio_samples, audio_stimulus, eeg_index] = loadAudioFromMat(audio_file_path, 0);
-    (void)audio_stimulus;
-    (void)eeg_index;
+    (void) audio_stimulus;
+    (void) eeg_index;
 
     audio_samples = audio_samples.transpose();
     vector<float> input_data(audio_samples.data_ptr(),
@@ -41,8 +41,8 @@ auto load_and_process_audio(const std::string& audio_file_path,
     nn::Tensor delta_coeff;
     nn::Tensor delta_delta_coeff;
 
-    nn::core::wave::pre_emphasis_inplace(
-        input_data, loading_params.audio_params.preemphasis_coefficient);
+    nn::core::wave::pre_emphasis_inplace(input_data,
+                                         loading_params.audio_params.preemphasis_coefficient);
 
     FramingConfig framing_context = {
         .frame_length = 0,
@@ -88,7 +88,8 @@ void process_subject(const SubjectInfo& subject)
     };
 
     constexpr HammingWindowConfig hamming_window_config = {.alpha = 0.54F, .beta = 0.46F};
-    constexpr DctConfig dct_config = {.normalization_factor_sqrt = 2.0F, .filter_index_offset = 0.5F};
+    constexpr DctConfig dct_config = {.normalization_factor_sqrt = 2.0F,
+                                      .filter_index_offset = 0.5F};
     constexpr DeltaConfig delta_config = {.denominator_factor = 2.0F};
     constexpr GeneralConstants general_constants = {
         .ms_to_seconds_factor = 1000.0F,

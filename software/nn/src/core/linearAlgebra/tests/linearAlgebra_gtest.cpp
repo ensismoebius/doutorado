@@ -124,3 +124,90 @@ TEST(LinearAlgebraTest, TestConvolution)
     EXPECT_NEAR(data[2], 2.0, 1e-6);
     EXPECT_NEAR(data[3], 2.0, 1e-6);
 }
+
+TEST(LinearAlgebraTest, TestDerivativeLevels)
+{
+    std::vector<double> v = {1.0, 4.0, 9.0, 16.0};
+    auto d1 = linearAlgebra::derivative(v, 1);
+    ASSERT_EQ(d1.size(), 3U);
+    EXPECT_NEAR(d1[0], 3.0, 1e-6);
+    EXPECT_NEAR(d1[1], 5.0, 1e-6);
+    EXPECT_NEAR(d1[2], 7.0, 1e-6);
+
+    std::vector<double> empty;
+    auto d_empty = linearAlgebra::derivative(empty, 2);
+    ASSERT_EQ(d_empty.size(), 1U);
+    EXPECT_NEAR(d_empty[0], 0.0, 1e-9);
+}
+
+TEST(LinearAlgebraTest, TestNormalizeVectorToRangeAndExceptions)
+{
+    std::vector<double> v = {2.0, 4.0, 6.0};
+    linearAlgebra::normalizeVectorToRange(v, -1.0, 1.0);
+    EXPECT_NEAR(v.front(), -1.0, 1e-6);
+    EXPECT_NEAR(v.back(), 1.0, 1e-6);
+
+    std::vector<double> same = {3.0, 3.0, 3.0};
+    linearAlgebra::normalizeVectorToRange(same, 0.0, 1.0);
+    for (double x : same)
+    {
+        EXPECT_NEAR(x, 0.0, 1e-9);
+    }
+
+    EXPECT_THROW((void) linearAlgebra::normalizeVectorToRange(v, 2.0, 2.0), std::runtime_error);
+}
+
+TEST(LinearAlgebraTest, TestNormalizeAllPositiveAndDotException)
+{
+    std::vector<double> v = {-2.0, 0.0, 2.0};
+    linearAlgebra::normalizeVectorToSum1AllPositive(v);
+    for (double x : v)
+    {
+        EXPECT_GT(x, 0.0);
+    }
+    EXPECT_NEAR(v[0] + v[1] + v[2], 1.0, 1e-9);
+
+    std::vector<double> a = {1.0, 2.0};
+    std::vector<double> b = {1.0};
+    EXPECT_THROW((void) linearAlgebra::dotProduct(a, b), std::invalid_argument);
+}
+
+TEST(LinearAlgebraTest, TestConvolutionEdgeCasesAndDct)
+{
+    std::vector<double> data_empty;
+    std::vector<double> kernel = {1.0, -1.0};
+    EXPECT_FALSE(linearAlgebra::convolution(data_empty, kernel));
+
+    std::vector<double> data = {1.0, 2.0, 3.0};
+    std::vector<double> kernel_empty;
+    EXPECT_FALSE(linearAlgebra::convolution(data, kernel_empty));
+
+    std::vector<double> dct_in = {1.0, 1.0, 1.0, 1.0};
+    linearAlgebra::discreteCosineTransform(dct_in);
+    EXPECT_GT(std::abs(dct_in[0]), 0.0);
+}
+
+TEST(LinearAlgebraTest, TestScaleSolveAndResizeCentered)
+{
+    std::vector<std::vector<double>> matrix = {
+        {2.0, 1.0, 5.0},
+        {4.0, 4.0, 16.0},
+    };
+    linearAlgebra::scaleMatrix(matrix);
+    auto solution = linearAlgebra::solveMatrix(matrix);
+    ASSERT_EQ(solution.size(), 2U);
+    EXPECT_NEAR(solution[0], 1.0, 1e-6);
+    EXPECT_NEAR(solution[1], 3.0, 1e-6);
+
+    std::vector<double> centered = {1, 2, 3, 4, 5};
+    linearAlgebra::resizeCentered(centered, 9, 0.0);
+    ASSERT_EQ(centered.size(), 9U);
+    EXPECT_NEAR(centered[2], 1.0, 1e-9);
+    EXPECT_NEAR(centered[6], 5.0, 1e-9);
+
+    linearAlgebra::resizeCentered(centered, 3, 0.0);
+    ASSERT_EQ(centered.size(), 3U);
+    EXPECT_NEAR(centered[0], 2.0, 1e-9);
+    EXPECT_NEAR(centered[1], 3.0, 1e-9);
+    EXPECT_NEAR(centered[2], 4.0, 1e-9);
+}
