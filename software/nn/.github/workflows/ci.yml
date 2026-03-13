@@ -87,6 +87,25 @@ jobs:
             exit 1
           fi
 
+      - name: Dump nfft3 configure logs (always)
+        if: always()
+        run: |
+          echo "=== nfft3 configure logs (searching build/) ==="
+          find build -type f -name 'nfft3-configure-*.log' -print -exec printf '\n---- %s ----\n' {} \; -exec sed -n '1,500p' {} \;
+          echo "=== nfft3 prefix logs ==="
+          find build -type f -path '*/nfft3-prefix/src/nfft3-stamp/*' -maxdepth 4 -type f -print -exec printf '\n---- %s ----\n' {} \; -exec sed -n '1,500p' {} \;
+          echo "=== end of nfft3 logs ==="
+
+      - name: Dump ExternalProject logs (always)
+        if: always()
+        run: |
+          echo "=== ExternalProject logs (out/err/configure) ==="
+          # Print common ExternalProject logs produced by FETCH/CONFIGURE/BUILD/INSTALL
+          find build -type f \( -name '*-out.log' -o -name '*-err.log' -o -name '*-configure-*.log' \) -print -exec printf '\n---- %s ----\n' {} \; -exec sed -n '1,500p' {} \;
+          echo "=== Search for fftw/matio/nfft3 specific logs ==="
+          find build -type f -path '*/fftw*-*' -o -path '*/matio*-*' -o -path '*/nfft3-prefix/src/nfft3-stamp/*' -print -exec printf '\n---- %s ----\n' {} \; -exec sed -n '1,500p' {} \;
+          echo "=== end ExternalProject logs ==="
+
       - name: Run Cppcheck static analysis
         run: |
           cd build
@@ -167,6 +186,10 @@ jobs:
             build/flawfinder-report.html
             build/coverage-report/
             build/callgrind.*.out
+            build/**/nfft3-configure-*.log
+            build/**/nfft3-prefix/src/nfft3-stamp/*.log
+            build/**/*-out.log
+            build/**/*-err.log
           retention-days: 30
 
       - name: Upload test results
