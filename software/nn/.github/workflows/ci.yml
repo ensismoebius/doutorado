@@ -79,7 +79,13 @@ jobs:
       - name: Build project
         run: |
           cd build
-          ninja -j$(nproc)
+          # Run ninja; on failure, dump nfft3 configure logs for diagnosis
+          if ! ninja -j$(nproc); then
+            echo "Build failed — collecting nfft3 configure logs..."
+            find . -type f -name "nfft3-configure-*.log" -print -exec echo "---- {} ----" \; -exec sed -n '1,200p' {} \;
+            echo "End of nfft3 logs"
+            exit 1
+          fi
 
       - name: Run Cppcheck static analysis
         run: |
