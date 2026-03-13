@@ -50,15 +50,24 @@ endif()
 find_program(VALGRIND_EXECUTABLE valgrind)
 if(VALGRIND_EXECUTABLE)
     message(STATUS "valgrind found, Callgrind available for performance profiling")
+else()
+    message(STATUS "valgrind not found, Callgrind profiling not available")
+endif()
 
-    # Function to add Callgrind profiling target for an executable
-    function(add_callgrind_target target_name executable)
+# Function to add a Callgrind profiling target for an executable.
+# When valgrind is unavailable, provide a no-op target so configure still succeeds.
+function(add_callgrind_target target_name executable)
+    if(VALGRIND_EXECUTABLE)
         add_custom_target(${target_name}
             COMMAND ${VALGRIND_EXECUTABLE} --tool=callgrind --callgrind-out-file=callgrind.out.${target_name} $<TARGET_FILE:${executable}>
             DEPENDS ${executable}
             COMMENT "Running ${executable} with Callgrind profiler (output: callgrind.out.${target_name})"
         )
-    endfunction()
-else()
-    message(STATUS "valgrind not found, Callgrind profiling not available")
-endif()
+    else()
+        add_custom_target(${target_name}
+            COMMAND ${CMAKE_COMMAND} -E echo "Skipping ${target_name}: valgrind not found in PATH"
+            DEPENDS ${executable}
+            COMMENT "Valgrind unavailable, creating no-op Callgrind target ${target_name}"
+        )
+    endif()
+endfunction()
