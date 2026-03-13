@@ -29,6 +29,12 @@ find_package(OpenMP REQUIRED)
 set(FFTW_INSTALL_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-install")
 set(FFTW_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/fftw-src")
 
+if(USE_FFTWF)
+    set(FFTW_IMPORTED_LIBRARY_PATH "${FFTW_INSTALL_DIR}/lib/libfftw3f.so")
+else()
+    set(FFTW_IMPORTED_LIBRARY_PATH "${FFTW_INSTALL_DIR}/lib/libfftw3.so")
+endif()
+
 # Try to find pre-built FFTW
 find_library(FFTW_LIBRARY fftw3 HINTS "${FFTW_INSTALL_DIR}/lib" "${FFTW_INSTALL_DIR}/lib64")
 find_path(FFTW_INCLUDE_DIR fftw3.h HINTS "${FFTW_INSTALL_DIR}/include")
@@ -54,8 +60,7 @@ if(NOT FFTW_LIBRARY OR NOT FFTW_INCLUDE_DIR)
         BUILD_IN_SOURCE TRUE
         # Make Ninja/CMake aware of which files this ExternalProject will produce
         BUILD_BYPRODUCTS
-            "${FFTW_INSTALL_DIR}/lib/libfftw3.so"
-            "${FFTW_INSTALL_DIR}/lib/libfftw3f.so"
+            "${FFTW_IMPORTED_LIBRARY_PATH}"
 
         CONFIGURE_COMMAND "<SOURCE_DIR>/configure"
             --prefix=<INSTALL_DIR>
@@ -72,7 +77,7 @@ if(NOT FFTW_LIBRARY OR NOT FFTW_INCLUDE_DIR)
     )
 
     set_target_properties(FFTW::FFTW PROPERTIES
-        IMPORTED_LOCATION "$<IF:$<BOOL:${USE_FFTWF}>,${FFTW_INSTALL_DIR}/lib/libfftw3f.so,${FFTW_INSTALL_DIR}/lib/libfftw3.so>"
+        IMPORTED_LOCATION "${FFTW_IMPORTED_LIBRARY_PATH}"
         IMPORTED_NO_SONAME TRUE
         INTERFACE_INCLUDE_DIRECTORIES "${FFTW_INSTALL_DIR}/include"
     )
