@@ -17,6 +17,7 @@ add_executable(dataLoaders_10_1117_gtest
 	eeg_loader_article_spec_gtest.cpp
 	fuzz/eeg_loader_property_tests.cpp
 	dataset_schema_article_spec_gtest.cpp
+	input_mode_codec_gtest.cpp
 	protocol101117_dataset_modes_gtest.cpp
 	mock_dataset_generator_gtest.cpp
 	utils/MockImaginedSpeechDatasetGenerator.cpp

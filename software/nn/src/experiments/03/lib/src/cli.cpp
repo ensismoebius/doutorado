@@ -1,106 +1,12 @@
 #include "../include/cli.hpp"
 
-#include <algorithm>
-#include <cctype>
-#include <stdexcept>
-
-namespace
-{
-
-void toLowerAsciiInPlace(std::string& value)
-{
-    std::transform(value.begin(),
-                   value.end(),
-                   value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-}
-
-auto inputModeToCliToken(Protocol101117InputMode mode) -> std::string
-{
-    switch (mode)
-    {
-        case Protocol101117InputMode::Concatenated:
-            return "concatenated";
-        case Protocol101117InputMode::EegOnly:
-            return "eeg-only";
-        case Protocol101117InputMode::AudioOnly:
-            return "audio-only";
-    }
-
-    throw std::runtime_error("Unsupported input mode enum value");
-}
-
-auto parseInputModeToken(const std::string& token) -> Protocol101117InputMode
-{
-    if (token == "concatenated")
-    {
-        return Protocol101117InputMode::Concatenated;
-    }
-
-    if (token == "eeg-only")
-    {
-        return Protocol101117InputMode::EegOnly;
-    }
-
-    if (token == "audio-only")
-    {
-        return Protocol101117InputMode::AudioOnly;
-    }
-
-    throw std::runtime_error("Unknown input mode: " + token);
-}
-
-auto resolveSamplerOptions(const Config& config) -> DataLoader::DefaultSamplerOptions
-{
-    DataLoader::DefaultSamplerOptions options{};
-    options.seed = config.seed;
-
-    if (config.sampler_type.empty())
-    {
-        options.type = config.shuffle ? DataLoader::DefaultSamplerType::Random
-                                      : DataLoader::DefaultSamplerType::Sequential;
-        return options;
-    }
-
-    if (config.sampler_type == "sequential")
-    {
-        options.type = DataLoader::DefaultSamplerType::Sequential;
-        return options;
-    }
-
-    if (config.sampler_type == "random")
-    {
-        options.type = DataLoader::DefaultSamplerType::Random;
-        return options;
-    }
-
-    if (config.sampler_type == "weighted")
-    {
-        options.type = DataLoader::DefaultSamplerType::WeightedRandom;
-        options.weights = config.sampler_weights;
-        options.weighted_num_samples = config.weighted_num_samples;
-        return options;
-    }
-
-    if (config.sampler_type == "distributed")
-    {
-        options.type = DataLoader::DefaultSamplerType::Distributed;
-        options.num_replicas = config.distributed_num_replicas;
-        options.rank = config.distributed_rank;
-        options.distributed_shuffle = config.distributed_shuffle;
-        options.distributed_drop_last = config.distributed_drop_last;
-        return options;
-    }
-
-    throw std::runtime_error("Unknown sampler type: " + config.sampler_type);
-}
-
-} // namespace
+#include "nn/dataLoaders/10.1117/InputModeCodec.hpp"
+#include "nn/dataLoaders/SamplerOptionResolution.hpp"
 
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
 {
     Config config = default_config;
-    std::string input_mode_token = inputModeToCliToken(default_config.input_mode);
+    std::string input_mode_token = protocol101117InputModeToToken(default_config.input_mode);
 
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
 
@@ -127,14 +33,13 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.max_batches);
 
+    const auto input_mode_tokens = supportedProtocol101117InputModeTokens();
     app.add_option(          //
            "--input-mode",   //
            input_mode_token, //
            "Dataset input mode: concatenated|eeg-only|audio-only")
-        ->check(CLI::IsMember(                          //
-            {"concatenated", "eeg-only", "audio-only"}, //
-            CLI::ignore_case))
-        ->default_val(inputModeToCliToken(default_config.input_mode));
+        ->check(CLI::IsMember(input_mode_tokens, CLI::ignore_case))
+        ->default_val(protocol101117InputModeToToken(default_config.input_mode));
 
     app.add_option(
            "--seed", config.seed, "Deterministic seed for shuffling (ignored if --no-shuffle)")
@@ -212,11 +117,20 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         app.exit(e);
     }
 
-    toLowerAsciiInPlace(config.sampler_type);
-    toLowerAsciiInPlace(input_mode_token);
+    config.sampler_type = normalizeSamplerTypeToken(config.sampler_type);
 
-    config.input_mode = parseInputModeToken(input_mode_token);
+    config.input_mode = parseProtocol101117InputModeToken(input_mode_token);
 
-    config.sampler_options = resolveSamplerOptions(config);
+    config.sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
+        .sampler_type = config.sampler_type,
+        .shuffle = config.shuffle,
+        .seed = config.seed,
+        .weights = config.sampler_weights,
+        .weighted_num_samples = config.weighted_num_samples,
+        .distributed_num_replicas = config.distributed_num_replicas,
+        .distributed_rank = config.distributed_rank,
+        .distributed_shuffle = config.distributed_shuffle,
+        .distributed_drop_last = config.distributed_drop_last,
+    });
     return config;
 }

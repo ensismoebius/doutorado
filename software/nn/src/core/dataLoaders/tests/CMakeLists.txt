@@ -14,6 +14,7 @@ add_executable(dataLoaders_gtest
 	dataLoader_more_gtest.cpp
 	matfile_utils_gtest.cpp
 	dataLoader_gtest.cpp
+	sampler_option_resolution_gtest.cpp
 	matfile_row_vector_gtest.cpp
 	mat_file_dataset_gtest.cpp
 	matfile_vector_gtest.cpp

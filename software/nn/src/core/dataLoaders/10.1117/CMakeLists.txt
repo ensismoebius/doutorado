@@ -2,6 +2,7 @@ add_library(dataLoaders_10_1117
     STATIC
         AudioLoader.cpp
         EEGLoader.cpp
+    InputModeCodec.cpp
     SubjectDiscovery.cpp
     SamplePacking.cpp
     SynchronizedBatchAssembler.cpp
