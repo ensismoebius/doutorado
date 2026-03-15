@@ -1,19 +1,19 @@
-## exec_loadingData.cmake
-# Target for loadingData utility
+## exec_experiment04.cmake
+# Target for experiment04 utility
 
-add_library(loadingData_lib STATIC
+add_library(experiment04_lib STATIC
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
     ${SRC_DIR}/experiments/03/lib/src/SamplerOptionsFactory.cpp
     ${SRC_DIR}/experiments/03/lib/src/batch_util.cpp
 )
 
-target_include_directories(loadingData_lib
+target_include_directories(experiment04_lib
     PUBLIC
         ${SRC_DIR}/experiments/03/lib/include
     ${PROJECT_SOURCE_DIR}/include
 )
 
-target_link_libraries(loadingData_lib
+target_link_libraries(experiment04_lib
     PUBLIC
         CLI11::CLI11
         dataLoaders_10_1117
@@ -23,14 +23,14 @@ target_link_libraries(loadingData_lib
     Eigen3::Eigen
 )
 
-add_executable(loadingData
+add_executable(experiment04
     ${SRC_DIR}/experiments/03/experiment04.cpp
 )
 
 # Link libraries
-target_link_libraries(loadingData
+target_link_libraries(experiment04
     PRIVATE
-    loadingData_lib
+    experiment04_lib
     Eigen3::Eigen
     cnpy-static
     dataLoaders_10_1117
