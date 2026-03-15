@@ -94,12 +94,6 @@ void copyAudioColumnsFromConcatenated(const nn::Tensor& concatenated_inputs,
     }
 }
 
-auto modeFromConcatenateFlag(bool concatenate_modalities) -> Protocol101117InputMode
-{
-    return concatenate_modalities ? Protocol101117InputMode::Concatenated
-                                  : Protocol101117InputMode::EegOnly;
-}
-
 auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
                                         const nn::dataLoaders::AudioMatSession& audio_session,
                                         const nn::dataLoaders::EEGMatSession& eeg_session,
@@ -131,23 +125,6 @@ auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
 } // namespace
 
 Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects,
-                                             bool concatenate_modalities)
-    : subjects_(std::move(subjects)), input_mode_(modeFromConcatenateFlag(concatenate_modalities))
-{
-    prefix_audio_row_offsets_.reserve(subjects_.size() + 1);
-    prefix_audio_row_offsets_.emplace_back(0);
-
-    for (const auto& subject : subjects_)
-    {
-        const size_t next = prefix_audio_row_offsets_.back() + subject.audio_rows;
-        prefix_audio_row_offsets_.emplace_back(next);
-    }
-
-    audio_sessions_.resize(subjects_.size());
-    eeg_sessions_.resize(subjects_.size());
-}
-
-Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects,
                                              Protocol101117InputMode input_mode)
     : subjects_(std::move(subjects)), input_mode_(input_mode)
 {
@@ -162,16 +139,6 @@ Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects,
 
     audio_sessions_.resize(subjects_.size());
     eeg_sessions_.resize(subjects_.size());
-}
-
-void Protocol101117Dataset::set_concatenate_modalities(bool concatenate_modalities)
-{
-    input_mode_ = modeFromConcatenateFlag(concatenate_modalities);
-}
-
-[[nodiscard]] auto Protocol101117Dataset::concatenate_modalities() const -> bool
-{
-    return input_mode_ == Protocol101117InputMode::Concatenated;
 }
 
 void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
@@ -229,20 +196,6 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     }
 
     return sample;
-}
-
-[[nodiscard]] auto Protocol101117Dataset::get_sample(size_t idx,
-                                                     std::optional<bool> concatenate_override) const
-    -> Protocol101117Sample
-{
-    if (!concatenate_override.has_value())
-    {
-        return get_sample(idx, std::optional<Protocol101117InputMode>{});
-    }
-
-    return get_sample(idx,
-                      std::optional<Protocol101117InputMode>{
-                          modeFromConcatenateFlag(concatenate_override.value())});
 }
 
 [[nodiscard]] auto Protocol101117Dataset::size() const -> size_t

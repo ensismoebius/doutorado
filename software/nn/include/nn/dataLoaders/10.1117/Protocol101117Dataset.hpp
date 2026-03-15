@@ -30,23 +30,10 @@ struct Protocol101117Sample
 class Protocol101117Dataset : public Dataset
 {
    public:
-    /**
-     * Create dataset with modality output mode.
-     * @param subjects Discovered subject files.
-     * @param concatenate_modalities
-     *   - true: `.inputs` is EEG+audio concatenated.
-     *   - false: `.inputs` is EEG-only (audio is available via `get_sample().audio`).
-     */
-    explicit Protocol101117Dataset(std::vector<SubjectFiles> subjects,
-                                   bool concatenate_modalities = true);
-
     /** Create dataset with explicit input mode. */
     explicit Protocol101117Dataset(std::vector<SubjectFiles> subjects,
-                                   Protocol101117InputMode input_mode);
-
-    /** Set default output mode used by `get_item()` and `collate()`. */
-    void set_concatenate_modalities(bool concatenate_modalities);
-    [[nodiscard]] auto concatenate_modalities() const -> bool;
+                                   Protocol101117InputMode input_mode =
+                                       Protocol101117InputMode::Concatenated);
 
     /** Set/get explicit input mode used by `get_item()` and `collate()`. */
     void set_input_mode(Protocol101117InputMode input_mode);
@@ -55,17 +42,13 @@ class Protocol101117Dataset : public Dataset
     /**
      * PyTorch-like sample access with per-call override for output mode.
      * @param idx Global sample index.
-        * @param input_mode_override Optional override for this call only.
+     * @param input_mode_override Optional override for this call only.
      * @return Protocol101117Sample containing targets and either concatenated
      *         input or separated EEG/audio tensors.
      */
     [[nodiscard]] auto get_sample(std::size_t idx,
                                   std::optional<Protocol101117InputMode> input_mode_override =
                                       std::nullopt) const -> Protocol101117Sample;
-
-    /** Backward-compatible overload: true=>Concatenated, false=>EegOnly. */
-    [[nodiscard]] auto get_sample(std::size_t idx, std::optional<bool> concatenate_override) const
-        -> Protocol101117Sample;
 
     [[nodiscard]] auto size() const -> std::size_t override;
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override;

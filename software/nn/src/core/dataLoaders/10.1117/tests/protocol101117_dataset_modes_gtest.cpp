@@ -101,25 +101,21 @@ class Protocol101117DatasetModesTest : public ::testing::Test
 TEST_F(Protocol101117DatasetModesTest, ConstructorAndSetterControlConcatenationMode)
 {
     auto dataset = Protocol101117Dataset(discoveredSubjects());
-    EXPECT_TRUE(dataset.concatenate_modalities());
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::Concatenated);
 
-    dataset.set_concatenate_modalities(false);
-    EXPECT_FALSE(dataset.concatenate_modalities());
+    dataset.set_input_mode(Protocol101117InputMode::EegOnly);
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::EegOnly);
 
-    dataset.set_concatenate_modalities(true);
-    EXPECT_TRUE(dataset.concatenate_modalities());
+    dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::Concatenated);
 
     dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::AudioOnly);
-    EXPECT_FALSE(dataset.concatenate_modalities());
 }
 
 TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfigured)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), false);
+    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const auto sample = dataset.get_sample(0);
 
@@ -135,9 +131,10 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfi
 
 TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), false);
+    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
-    const auto sample = dataset.get_sample(0, true);
+    const auto sample =
+        dataset.get_sample(0, Protocol101117InputMode::Concatenated);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
     EXPECT_EQ(sample.inputs.cols(),
@@ -162,13 +159,13 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
 
 TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), false);
+    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const Batch item = dataset.get_item(0);
     EXPECT_EQ(item.inputs.cols(),
               static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
 
-    dataset.set_concatenate_modalities(true);
+    dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     const Batch concat_batch = dataset.get_item(0);
     EXPECT_EQ(concat_batch.inputs.cols(),
               static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
@@ -194,7 +191,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
-    Protocol101117Dataset dataset({only_subject}, false);
+    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::EegOnly);
 
     const Batch eeg_only_batch = dataset.collate({0U, 1U, 2U});
     EXPECT_EQ(eeg_only_batch.inputs.rows(), 3);
@@ -203,7 +200,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     EXPECT_EQ(eeg_only_batch.targets.rows(), 3);
     EXPECT_EQ(eeg_only_batch.targets.cols(), 5);
 
-    dataset.set_concatenate_modalities(true);
+    dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     const Batch concat_batch = dataset.collate({0U, 1U, 2U});
     EXPECT_EQ(concat_batch.inputs.rows(), 3);
     EXPECT_EQ(concat_batch.inputs.cols(),
