@@ -21,6 +21,19 @@
 namespace wavelets
 {
 
+namespace
+{
+
+void ensurePacketTransform(bool packet)
+{
+    if (!packet)
+    {
+        throw std::runtime_error("This is not a wavelet packet transformed signal");
+    }
+}
+
+} // namespace
+
 WaveletTransformResults::WaveletTransformResults(long maxItems)
 {
     this->maxItems = maxItems;
@@ -113,13 +126,10 @@ auto WaveletTransformResults::get_wavelet_packet_transforms(long startIndex, lon
     }
 
     // Checks if this is a wavelet transform
-    if (!this->packet)
-    {
-        throw std::runtime_error("This is not a wavelet packet transformed signal");
-    }
+    ensurePacketTransform(this->packet);
 
     // Calculate the size of the chunks
-    auto chunkSize = this->get_wavelet_packet_amount_of_parts() / maxFrequecy;
+    const auto chunkSize = this->get_wavelet_packet_amount_of_parts() / maxFrequecy;
 
     // Get the ranges that must be returned
     long sstart = startIndex * chunkSize;
@@ -136,13 +146,9 @@ auto WaveletTransformResults::get_wavelet_packet_transforms(long startIndex, lon
  */
 auto WaveletTransformResults::get_wavelet_packet_amount_of_parts() const -> long
 {
-    // Checks if this is a wavelet transform
-    if (!this->packet)
-    {
-        throw std::runtime_error("This is not a wavelet packet transformed signal");
-    }
-
-    return (long) std::pow(2, this->levelsOfTransformation);
+    ensurePacketTransform(this->packet);
+    return WaveletTransformResults::get_wavelet_packet_amount_of_parts(
+        this->levelsOfTransformation);
 }
 
 /**

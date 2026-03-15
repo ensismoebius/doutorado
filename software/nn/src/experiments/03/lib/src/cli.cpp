@@ -7,6 +7,14 @@
 namespace
 {
 
+void toLowerAsciiInPlace(std::string& value)
+{
+    std::transform(value.begin(),
+                   value.end(),
+                   value.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+}
+
 auto inputModeToCliToken(Protocol101117InputMode mode) -> std::string
 {
     switch (mode)
@@ -204,15 +212,8 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         app.exit(e);
     }
 
-    std::transform(config.sampler_type.begin(),
-                   config.sampler_type.end(),
-                   config.sampler_type.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-
-    std::transform(input_mode_token.begin(),
-                   input_mode_token.end(),
-                   input_mode_token.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    toLowerAsciiInPlace(config.sampler_type);
+    toLowerAsciiInPlace(input_mode_token);
 
     config.input_mode = parseInputModeToken(input_mode_token);
 

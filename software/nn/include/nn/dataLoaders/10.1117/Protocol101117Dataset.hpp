@@ -57,7 +57,6 @@ class Protocol101117Dataset : public Dataset
     [[nodiscard]] auto subjects() const -> const std::vector<SubjectFiles>&;
 
    private:
-    auto loadSampleByLocalIndex(std::size_t subject_index, std::size_t audio_row) const -> Batch;
     void ensureSessions(std::size_t subject_index) const;
 
     std::vector<SubjectFiles> subjects_;

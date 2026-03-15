@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -30,6 +31,34 @@ using std::pow;
 
 const int FORMAT_KEY_MULTIPLIER = 10;
 const int BITS_PER_BYTE = 8;
+
+namespace
+{
+
+auto makeFormatKey(int wave_resolution, uint16_t channel_count) -> int
+{
+    return (wave_resolution * FORMAT_KEY_MULTIPLIER) + channel_count;
+}
+
+auto maxAmplitudeForBits(int bits_per_sample) -> double
+{
+    return floor((pow(2, bits_per_sample) - 1) / 2);
+}
+
+auto toPcm16Sample(double value, double max_amplitude) -> short
+{
+    // Accept both normalized input [-1, 1] and pre-scaled PCM input.
+    const double scaled = (std::abs(value) <= 1.0) ? (value * max_amplitude) : value;
+
+    const double min_short = static_cast<double>(std::numeric_limits<short>::min());
+    const double max_short = static_cast<double>(std::numeric_limits<short>::max());
+    const double clamped =
+        (scaled < min_short) ? min_short : ((scaled > max_short) ? max_short : scaled);
+
+    return static_cast<short>(std::llround(clamped));
+}
+
+} // namespace
 
 Wav::Wav()
 {
@@ -55,7 +84,7 @@ void Wav::process()
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
+    int formatKey = makeFormatKey(waveResolution, this->header.numberOfChannels);
 
     switch (formatKey)
     {
@@ -133,7 +162,7 @@ void Wav::write(const std::string& _path)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
+    int formatKey = makeFormatKey(waveResolution, this->header.numberOfChannels);
 
     switch (formatKey)
     {
@@ -182,12 +211,12 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     Wav::write_binary(ofs, this->header);
 
     // Calculate maximum amplitude for the audio format
-    const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+    const float maxAmplitude = static_cast<float>(maxAmplitudeForBits(this->waveResolution));
 
     // Convert float data to short and write to file
     for (float value : inputData)
     {
-        auto sample = static_cast<short>(value * maxAmplitude);
+        const auto sample = toPcm16Sample(value, maxAmplitude);
         Wav::write_binary(ofs, sample);
     }
 
@@ -233,13 +262,13 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     Wav::write_binary(ofs, this->header);
 
     // Calculate maximum amplitude for the audio format
-    const float maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+    const float maxAmplitude = static_cast<float>(maxAmplitudeForBits(this->waveResolution));
 
     if (numberOfChannels == 1)
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
-            auto sample = static_cast<short>(inputData[0][i] * maxAmplitude);
+            const auto sample = toPcm16Sample(inputData[0][i], maxAmplitude);
             Wav::write_binary(ofs, sample);
         }
     }
@@ -247,8 +276,8 @@ void Wav::write(const std::string& _path, const std::vector<std::vector<float>>&
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
-            auto left_sample = static_cast<short>(inputData[0][i] * maxAmplitude);
-            auto right_sample = static_cast<short>(inputData[1][i] * maxAmplitude);
+            const auto left_sample = toPcm16Sample(inputData[0][i], maxAmplitude);
+            const auto right_sample = toPcm16Sample(inputData[1][i], maxAmplitude);
             Wav::write_binary(ofs, left_sample);
             Wav::write_binary(ofs, right_sample);
         }
@@ -296,7 +325,7 @@ void Wav::read_wave_data(std::ifstream& ifs)
     // the resolution by 10 ensures that a unique value is generated for each
     // combination, allowing a simple switch statement to handle different audio
     // formats. For example, 8-bit mono is 81, while 16-bit mono is 161.
-    int formatKey = (waveResolution * FORMAT_KEY_MULTIPLIER) + this->header.numberOfChannels;
+    int formatKey = makeFormatKey(waveResolution, this->header.numberOfChannels);
 
     switch (formatKey)
     {
@@ -375,11 +404,11 @@ inline void Wav::write16BitMono(std::ofstream& ofs)
     unsigned char waveformdata_lsb = 0;
     unsigned char waveformdata_msb = 0;
 
-    const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+    const double maxAmplitude = maxAmplitudeForBits(this->waveResolution);
 
     for (size_t i = 0; i < amountOfData; i++)
     {
-        const auto sample = static_cast<short>(this->data.at(i) * maxAmplitude);
+        const auto sample = toPcm16Sample(this->data.at(i), maxAmplitude);
         split_16bit_to_8bit(sample, &waveformdata_lsb, &waveformdata_msb);
         Wav::write_binary(ofs, waveformdata_lsb);
         Wav::write_binary(ofs, waveformdata_msb);
@@ -395,13 +424,13 @@ inline void Wav::write16BitStereo(std::ofstream& ofs)
     unsigned char waveformdata_msb_left = 0;
     unsigned char waveformdata_msb_right = 0;
 
-    const double maxAmplitude = floor((pow(2, this->waveResolution) - 1) / 2);
+    const double maxAmplitude = maxAmplitudeForBits(this->waveResolution);
 
     for (size_t i = 0; i < amountOfData; i++)
     {
-        const auto left_sample = static_cast<short>(this->dataLeft.at(i) * maxAmplitude);
+        const auto left_sample = toPcm16Sample(this->dataLeft.at(i), maxAmplitude);
         split_16bit_to_8bit(left_sample, &waveformdata_lsb_left, &waveformdata_msb_left);
-        const auto right_sample = static_cast<short>(this->dataRight.at(i) * maxAmplitude);
+        const auto right_sample = toPcm16Sample(this->dataRight.at(i), maxAmplitude);
         split_16bit_to_8bit(right_sample, &waveformdata_lsb_right, &waveformdata_msb_right);
         Wav::write_binary(ofs, waveformdata_lsb_left);
         Wav::write_binary(ofs, waveformdata_msb_left);

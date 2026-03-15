@@ -51,50 +51,6 @@ auto locateSubjectAndAudioRow(const std::vector<std::size_t>& prefix_audio_row_o
     return {subject_index, audio_row};
 }
 
-void flattenAudioToRow(const nn::Tensor& audio_column_tensor, nn::Tensor& audio_row_tensor)
-{
-    for (size_t i = 0; i < static_cast<size_t>(audio_column_tensor.rows()); ++i)
-    {
-        audio_row_tensor.at(0, i) = audio_column_tensor.at(i, 0);
-    }
-}
-
-void flattenEegToRow(const nn::Tensor& eeg_matrix_tensor, nn::Tensor& eeg_row_tensor)
-{
-    size_t eeg_col = 0;
-    for (size_t r = 0; r < static_cast<size_t>(eeg_matrix_tensor.rows()); ++r)
-    {
-        for (size_t c = 0; c < static_cast<size_t>(eeg_matrix_tensor.cols()); ++c)
-        {
-            eeg_row_tensor.at(0, eeg_col++) = eeg_matrix_tensor.at(r, c);
-        }
-    }
-}
-
-void copyEegColumnsFromConcatenated(const nn::Tensor& concatenated_inputs,
-                                    nn::Tensor& eeg_only_inputs)
-{
-    for (size_t row = 0; row < static_cast<size_t>(concatenated_inputs.rows()); ++row)
-    {
-        for (size_t col = 0; col < EEG_FEATURES; ++col)
-        {
-            eeg_only_inputs.at(row, col) = concatenated_inputs.at(row, col);
-        }
-    }
-}
-
-void copyAudioColumnsFromConcatenated(const nn::Tensor& concatenated_inputs,
-                                      nn::Tensor& audio_only_inputs)
-{
-    for (size_t row = 0; row < static_cast<size_t>(concatenated_inputs.rows()); ++row)
-    {
-        for (size_t col = 0; col < AUDIO_FEATURES; ++col)
-        {
-            audio_only_inputs.at(row, col) = concatenated_inputs.at(row, EEG_FEATURES + col);
-        }
-    }
-}
-
 auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
                                         const nn::dataLoaders::AudioMatSession& audio_session,
                                         const nn::dataLoaders::EEGMatSession& eeg_session,
@@ -172,11 +128,8 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         readSynchronizedSampleFromSessions(subject, audio_session, eeg_session, audio_row);
 
     Protocol101117Sample sample;
-    sample.audio = nn::Tensor(1, raw.audio_tensor.rows());
-    flattenAudioToRow(raw.audio_tensor, sample.audio);
-
-    sample.eeg = nn::Tensor(1, raw.eeg_tensor.rows() * raw.eeg_tensor.cols());
-    flattenEegToRow(raw.eeg_tensor, sample.eeg);
+    sample.audio = flattenAudioColumnToRow(raw.audio_tensor);
+    sample.eeg = flattenEegMatrixToRow(raw.eeg_tensor);
 
     sample.targets =
         buildTargetTensor(raw.subject->subject_id, raw.eeg_labels, raw.eeg_index_label);
@@ -276,13 +229,11 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     }
     else if (input_mode_ == Protocol101117InputMode::EegOnly)
     {
-        inputs = nn::Tensor(indices.size(), EEG_FEATURES);
-        copyEegColumnsFromConcatenated(assembled_inputs, inputs);
+        inputs = extractEegFromConcatenatedRows(assembled_inputs);
     }
     else
     {
-        inputs = nn::Tensor(indices.size(), AUDIO_FEATURES);
-        copyAudioColumnsFromConcatenated(assembled_inputs, inputs);
+        inputs = extractAudioFromConcatenatedRows(assembled_inputs);
     }
 
     return {.inputs = std::move(inputs), .targets = std::move(targets)};
@@ -291,22 +242,6 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 [[nodiscard]] auto Protocol101117Dataset::subjects() const -> const std::vector<SubjectFiles>&
 {
     return subjects_;
-}
-
-auto Protocol101117Dataset::loadSampleByLocalIndex(size_t subject_index, size_t audio_row) const
-    -> Batch
-{
-    ensureSessions(subject_index);
-    const SubjectFiles& subject = subjects_.at(subject_index);
-    const auto& audio_session = *audio_sessions_.at(subject_index);
-    const auto& eeg_session = *eeg_sessions_.at(subject_index);
-    const RawSynchronizedSample raw =
-        readSynchronizedSampleFromSessions(subject, audio_session, eeg_session, audio_row);
-
-    nn::Tensor input = buildInputTensor(raw.eeg_tensor, raw.audio_tensor);
-    nn::Tensor target =
-        buildTargetTensor(raw.subject->subject_id, raw.eeg_labels, raw.eeg_index_label);
-    return {.inputs = std::move(input), .targets = std::move(target)};
 }
 
 void Protocol101117Dataset::ensureSessions(size_t subject_index) const

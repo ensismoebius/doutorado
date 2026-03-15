@@ -14,6 +14,7 @@
 #include <vector>    // For std::vector
 
 #include "nn/tensor/Tensor.hpp" // For Tensor
+#include "nn/wave/filter_operations.hpp"
 
 using std::size_t;
 using std::vector;
@@ -530,11 +531,8 @@ auto apply_window(const std::vector<double>& signal, const std::vector<double>& 
     {
         throw std::invalid_argument("Signal and window must have the same size");
     }
-    std::vector<double> result(signal.size());
-    for (size_t i = 0; i < signal.size(); ++i)
-    {
-        result[i] = signal[i] * window[i];
-    }
+    std::vector<double> result = signal;
+    applyWindow(result, window);
     return result;
 }
 

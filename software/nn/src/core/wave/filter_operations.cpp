@@ -17,7 +17,64 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/linearAlgebra/linear_algebra.hpp"
+namespace
+{
+
+void validateOddOrder(int order)
+{
+    if (order % 2 == 0)
+    {
+        throw std::runtime_error("Order MUST be an odd number!");
+    }
+}
+
+auto buildSincLowPassKernel(int order, double alpha) -> std::vector<double>
+{
+    std::vector<double> filter(order + 1);
+    const auto halfOrderSize = static_cast<double>(order) / 2.0;
+
+    for (int n = 0; n <= order; ++n)
+    {
+        filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
+    }
+
+    double minVal = filter[0];
+    double maxVal = filter[0];
+    for (double value : filter)
+    {
+        if (value < minVal)
+        {
+            minVal = value;
+        }
+        if (value > maxVal)
+        {
+            maxVal = value;
+        }
+    }
+
+    const double range = (maxVal == minVal) ? 1.0 : (maxVal - minVal);
+    for (double& value : filter)
+    {
+        value = (value - minVal) / range;
+    }
+    return filter;
+}
+
+auto calcOrthogonalVectorLocal(const std::vector<double>& vector) -> std::vector<double>
+{
+    std::vector<double> result(vector.size());
+    double multiplier = 1.0;
+
+    for (size_t i = 0; i < vector.size(); ++i)
+    {
+        result[i] = vector[vector.size() - 1 - i] * multiplier;
+        multiplier *= -1.0;
+    }
+
+    return result;
+}
+
+} // namespace
 
 auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass = false) -> double
 {
@@ -34,68 +91,29 @@ auto createAlpha(double samplingRate, double filterMaxFrequency, bool highPass =
 auto createLowPassFilter(int order, double samplingRate, double filterMaxFrequency)
     -> std::vector<double>
 {
-    // Order MUST be odd
-    if (order % 2 == 0)
-    {
-        throw std::runtime_error("Order MUST be an odd number!");
-    }
-
-    std::vector<double> filter(order + 1);
-
-    // Calculating the alpha
-    auto alpha = createAlpha(samplingRate, filterMaxFrequency);
-
-    auto halfOrderSize = (double) (order / 2.0);
-
-    for (int n = 0; n <= order; ++n)
-    {
-        filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
-    }
-
-    linearAlgebra::normalizeVectorToRange(filter, 0, 1);
-
-    return filter;
+    validateOddOrder(order);
+    const auto alpha = createAlpha(samplingRate, filterMaxFrequency);
+    return buildSincLowPassKernel(order, alpha);
 }
 
 auto createHighPassFilter(int order, double samplingRate, double filterStartFrequency)
     -> std::vector<double>
 {
-    // Order MUST be odd
-    if (order % 2 == 0)
-    {
-        throw std::runtime_error("Order MUST be an odd number!");
-    }
-
-    // Filter holder
-    std::vector<double> filter(order + 1);
+    validateOddOrder(order);
 
     // Calculating the alpha for high pass filter
-    double alpha = createAlpha(samplingRate, filterStartFrequency, true);
-
-    auto halfOrderSize = (double) (order / 2.0);
-
-    // Calculate low pass filter
-    for (int n = 0; n <= order; ++n)
-    {
-        filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
-    }
-
-    // normalizing data
-    linearAlgebra::normalizeVectorToRange(filter, 0, 1);
+    const double alpha = createAlpha(samplingRate, filterStartFrequency, true);
+    const auto filter = buildSincLowPassKernel(order, alpha);
 
     // Builds the orthogonal vector
     // and return the final result (high pass filter)
-    return linearAlgebra::calcOrthogonalVector(filter);
+    return calcOrthogonalVectorLocal(filter);
 }
 
 auto createStopBandFilter(int order, double samplingRate, double startFrequency,
                           double finalFrequency) -> std::vector<double>
 {
-    // Order MUST be odd
-    if (order % 2 == 0)
-    {
-        throw std::runtime_error("Order MUST be an odd number!");
-    }
+    validateOddOrder(order);
 
     auto lowPassMax = createLowPassFilter(order, samplingRate, finalFrequency);
     auto lowPassMin = createLowPassFilter(order, samplingRate, startFrequency);
@@ -111,11 +129,7 @@ auto createStopBandFilter(int order, double samplingRate, double startFrequency,
 auto bandStopFilter(int order, double samplingRate, double startFrequency, double finalFrequency)
     -> std::vector<double>
 {
-    // Order MUST be odd
-    if (order % 2 == 0)
-    {
-        throw std::runtime_error("Order MUST be an odd number!");
-    }
+    validateOddOrder(order);
 
     auto highPass = createHighPassFilter(order, samplingRate, startFrequency);
     auto lowPass = createLowPassFilter(order, samplingRate, finalFrequency);
