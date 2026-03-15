@@ -31,9 +31,9 @@ class Protocol101117Dataset : public Dataset
 {
    public:
     /** Create dataset with explicit input mode. */
-    explicit Protocol101117Dataset(std::vector<SubjectFiles> subjects,
-                                   Protocol101117InputMode input_mode =
-                                       Protocol101117InputMode::Concatenated);
+    explicit Protocol101117Dataset(
+        std::vector<SubjectFiles> subjects,
+        Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated);
 
     /** Set/get explicit input mode used by `get_item()` and `collate()`. */
     void set_input_mode(Protocol101117InputMode input_mode);

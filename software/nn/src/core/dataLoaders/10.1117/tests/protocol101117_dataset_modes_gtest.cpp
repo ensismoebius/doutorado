@@ -133,8 +133,7 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
 {
     auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
-    const auto sample =
-        dataset.get_sample(0, Protocol101117InputMode::Concatenated);
+    const auto sample = dataset.get_sample(0, Protocol101117InputMode::Concatenated);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
     EXPECT_EQ(sample.inputs.cols(),
