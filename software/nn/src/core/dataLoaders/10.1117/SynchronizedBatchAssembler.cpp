@@ -15,6 +15,7 @@ using nn::dataLoaders::schema101117::resolveEegRowIndex;
 using std::iota;
 using std::runtime_error;
 using std::size_t;
+using std::sort;
 using std::unique_ptr;
 using std::vector;
 
@@ -38,13 +39,13 @@ struct BatchTask
 // concrete `AudioRowsFlat` type in this translation unit.
 template <typename AudioRowsFlatT>
 static void buildTasksFromAudioRun(const AudioRowsFlatT& audio_rows_flat,
-                                   const std::vector<RowRequest>& requests, size_t pos,
-                                   size_t run_count, const SubjectFiles& subject,
+                                   const std::vector<RowRequest>& requests, size_t audio_run_pos,
+                                   size_t audio_run_count, const SubjectFiles& subject,
                                    std::vector<BatchTask>& tasks)
 {
-    for (size_t audio_index = 0; audio_index < run_count; ++audio_index)
+    for (size_t audio_index = 0; audio_index < audio_run_count; ++audio_index)
     {
-        const RowRequest& req = requests[pos + audio_index];
+        const RowRequest& req = requests[audio_run_pos + audio_index];
         const int audio_stimulus = audio_rows_flat.stimuli[audio_index];
         const int eeg_index_label = audio_rows_flat.eegIndices[audio_index];
         const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
@@ -136,60 +137,95 @@ static void processEegBlocksForTasks(
     }
 }
 
-// Assemble grouped requests by subject: for each subject we sort the
-// per-subject requests by local audio row, find contiguous runs of
-// audio rows, bulk-read audio, build tasks and process the matching
-// EEG blocks.
 } // namespace
 
-void SynchronizedBatchAssembler::assembleGrouped(
-    const std::vector<std::vector<RowRequest>>& grouped, const std::vector<SubjectFiles>& subjects,
-    const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions,
-    const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
-    nn::Tensor& inputs, nn::Tensor& targets)
+void SynchronizedBatchAssembler::assembleGrouped(                                         //
+    const std::vector<std::vector<RowRequest>>& grouped,                                  //
+    const std::vector<SubjectFiles>& subjects,                                            //
+    const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions, //
+    const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,     //
+    nn::Tensor& inputs, nn::Tensor& targets                                               //
+)
 {
     for (size_t subject_index = 0; subject_index < grouped.size(); ++subject_index)
     {
         const auto& group = grouped[subject_index];
-        if (group.empty())
-        {
-            continue;
-        }
+        if (group.empty()) continue;
 
         // Make a local copy of requests and sort by local_audio_row so
         // we can detect contiguous runs to bulk-read audio rows.
-        std::vector<RowRequest> requests = group;
-        std::sort(requests.begin(),
-                  requests.end(),
-                  [](const RowRequest& a, const RowRequest& b)
-                  { return a.local_audio_row < b.local_audio_row; });
+        vector<RowRequest> requests = group;
+        sort(requests.begin(),
+             requests.end(),
+             [](const RowRequest& a, const RowRequest& b)
+             { return a.local_audio_row < b.local_audio_row; });
 
-        size_t pos = 0;
-        while (pos < requests.size())
+        size_t audio_run_pos = 0;
+        while (audio_run_pos < requests.size())
         {
-            size_t run_end = pos + 1;
-            while (run_end < requests.size() &&
-                   requests[run_end].local_audio_row == requests[run_end - 1].local_audio_row + 1)
+            // Find contiguous run of local_audio_row values in the sorted requests
+            // so it can be bulk-read from disk in a single call. Note that the audio
+            // run may contain non-contiguous EEG rows, which will be handled later.
+            size_t audio_run_end = audio_run_pos + 1;
+            while (audio_run_end < requests.size() &&
+                   requests[audio_run_end].local_audio_row ==
+                       requests[audio_run_end - 1].local_audio_row + 1)
             {
-                ++run_end;
+                ++audio_run_end;
             }
 
-            const size_t run_count = run_end - pos;
-            const size_t run_start = requests[pos].local_audio_row;
+            // Load the contiguous audio rows for the audio run and build tasks for each
+            // row based on the loaded audio data. Tasks will contain the information
+            // needed to load and copy the matching EEG rows in the next step.
+            const size_t audio_run_count = audio_run_end - audio_run_pos;
+            const size_t audio_run_start = requests[audio_run_pos].local_audio_row;
 
-            const auto audio_rows_flat =
-                audio_sessions.at(subject_index)->readRowsFlat(run_start, run_count);
+            // Note: `readRowsFlat` returns a struct with flat vectors for stimuli and
+            // eeg index labels, which is more efficient to build tasks from. The concrete type of
+            // `audio_rows_flat` is hidden behind a template to avoid including the `AudioRowsFlat`
+            // type in this translation unit, since it's only used in the implementation of
+            // `buildTasksFromAudioRun` and `processEegBlocksForTasks`.
+            const auto audio_rows_flat = audio_sessions.at(subject_index)
+                                             ->readRowsFlat(      //
+                                                 audio_run_start, //
+                                                 audio_run_count  //
+                                             );
 
-            std::vector<BatchTask> tasks;
-            tasks.reserve(run_count);
+            // Build tasks for the audio run and process the matching EEG blocks to fill `inputs`
+            // and `targets`. This step will iterate over the tasks sorted by EEG row index, so
+            // contiguous EEG rows will be bulk-read from disk and copied to the right place in
+            // the batch tensors.
+            vector<BatchTask> tasks;
+            tasks.reserve(audio_run_count);
             const SubjectFiles& subject = subjects.at(subject_index);
 
-            buildTasksFromAudioRun(audio_rows_flat, requests, pos, run_count, subject, tasks);
+            // Load the audio rows for the run and build tasks for each row based on the loaded
+            // audio data. Tasks will contain the information needed to load and copy the matching
+            // EEG rows in the next step.
+            buildTasksFromAudioRun( //
+                audio_rows_flat,    //
+                requests,           //
+                audio_run_pos,      //
+                audio_run_count,    //
+                subject,            //
+                tasks               //
+            );
 
-            processEegBlocksForTasks(
-                subject_index, subject, eeg_sessions, audio_rows_flat, tasks, inputs, targets);
+            // Load and copy the matching EEG rows for the tasks: since tasks are sorted by EEG
+            // row index, contiguous EEG rows will be bulk-read from disk and copied to the
+            // right place in the batch tensors.
+            processEegBlocksForTasks( //
+                subject_index,        //
+                subject,              //
+                eeg_sessions,         //
+                audio_rows_flat,      //
+                tasks,                //
+                inputs,               //
+                targets               //
+            );
 
-            pos = run_end;
+            // Move to the next audio run.
+            audio_run_pos = audio_run_end;
         }
     }
 }

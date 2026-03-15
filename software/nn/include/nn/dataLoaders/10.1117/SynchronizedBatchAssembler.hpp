@@ -19,6 +19,30 @@ struct RowRequest
 class SynchronizedBatchAssembler
 {
    public:
+    /**
+     * Assemble a synchronized batch for grouped per-subject requests.
+     *
+     * For each subject this function:
+     *  - sorts the per-subject `RowRequest` values by local audio row;
+     *  - bulk-reads contiguous audio rows and builds per-row tasks from the
+     *    flat audio buffer (stimulus, eeg index label, resolved eeg_row);
+     *  - sorts the tasks by `eeg_row`, bulk-reads contiguous EEG blocks and
+     *    copies EEG+audio slices into `inputs` while filling `targets` metadata.
+     *
+     * This implementation optimizes disk I/O by reading contiguous ranges
+     * of rows from the audio and EEG MAT sessions instead of performing
+     * per-row reads.
+     *
+     * @param grouped       Per-subject vectors of `RowRequest` describing which
+     *                      batch rows and local audio rows to assemble.
+     * @param subjects      Vector of `SubjectFiles` (subject metadata and row indices).
+     * @param audio_sessions Per-subject `AudioMatSession` handles (opened session objects).
+     * @param eeg_sessions  Per-subject `EEGMatSession` handles (opened session objects).
+     * @param[out] inputs   Tensor (batch x features) that will be filled with EEG+audio rows.
+     * @param[out] targets  Tensor (batch x 5) that will be filled with metadata for each row.
+     * @throws std::runtime_error if a stimulus label mismatch is detected between
+     *                            audio and EEG data for a matched pair.
+     */
     static void assembleGrouped(
         const std::vector<std::vector<RowRequest>>& grouped,
         const std::vector<SubjectFiles>& subjects,
