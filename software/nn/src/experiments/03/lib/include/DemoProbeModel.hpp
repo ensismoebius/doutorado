@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -17,6 +18,14 @@ class DemoProbeModel
         constexpr std::size_t input_features =
             eeg_features + nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 
+        const bool has_concatenated_modalities = batch_inputs.cols() == input_features;
+        const bool has_only_eeg = batch_inputs.cols() == eeg_features;
+        if (!has_concatenated_modalities && !has_only_eeg)
+        {
+            throw std::runtime_error(
+                "DemoProbeModel expects either EEG-only or EEG+audio input columns.");
+        }
+
         nn::Tensor features(batch_inputs.rows(), 2);
 
         for (std::size_t r = 0; r < batch_inputs.rows(); ++r)
@@ -28,9 +37,12 @@ class DemoProbeModel
             }
 
             float audio_abs_sum = 0.0f;
-            for (std::size_t c = eeg_features; c < input_features; ++c)
+            if (has_concatenated_modalities)
             {
-                audio_abs_sum += std::abs(batch_inputs.at(r, c));
+                for (std::size_t c = eeg_features; c < input_features; ++c)
+                {
+                    audio_abs_sum += std::abs(batch_inputs.at(r, c));
+                }
             }
 
             features.at(r, 0) = eeg_abs_sum / static_cast<float>(eeg_features);

@@ -11,6 +11,7 @@
 #include "nn/dataLoaders/10.1117/SchemaIndexing.hpp"
 #include "nn/dataLoaders/10.1117/SynchronizedBatchAssembler.hpp"
 
+using nn::dataLoaders::schema101117::eegFeatureColumns;
 using nn::dataLoaders::schema101117::multimodalInputFeatureColumns;
 using nn::dataLoaders::schema101117::resolveEegRowIndex;
 using std::size_t;
@@ -19,11 +20,13 @@ namespace
 {
 
 constexpr size_t INPUT_FEATURES = multimodalInputFeatureColumns();
+constexpr size_t EEG_FEATURES = eegFeatureColumns();
 
 } // namespace
 
-Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects)
-    : subjects_(std::move(subjects))
+Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects,
+                                             bool concatenate_modalities)
+    : subjects_(std::move(subjects)), concatenate_modalities_(concatenate_modalities)
 {
     prefix_audio_row_offsets_.reserve(subjects_.size() + 1);
     prefix_audio_row_offsets_.emplace_back(0);
@@ -38,12 +41,19 @@ Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects)
     eeg_sessions_.resize(subjects_.size());
 }
 
-[[nodiscard]] auto Protocol101117Dataset::size() const -> size_t
+void Protocol101117Dataset::set_concatenate_modalities(bool concatenate_modalities)
 {
-    return prefix_audio_row_offsets_.empty() ? 0 : prefix_audio_row_offsets_.back();
+    concatenate_modalities_ = concatenate_modalities;
 }
 
-[[nodiscard]] auto Protocol101117Dataset::get_item(size_t idx) const -> Batch
+[[nodiscard]] auto Protocol101117Dataset::concatenate_modalities() const -> bool
+{
+    return concatenate_modalities_;
+}
+
+[[nodiscard]] auto Protocol101117Dataset::get_sample(size_t idx,
+                                                     std::optional<bool> concatenate_override) const
+    -> Protocol101117Sample
 {
     if (idx >= size())
     {
@@ -64,7 +74,69 @@ Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects)
     );
 
     const size_t audio_row = idx - prefix_audio_row_offsets_[subject_index];
-    return loadSampleByLocalIndex(subject_index, audio_row);
+
+    const SubjectFiles& subject = subjects_.at(subject_index);
+    ensureSessions(subject_index);
+
+    const auto [audio_tensor, audio_stimulus, eeg_index_label] =
+        audio_sessions_.at(subject_index)->readRow(audio_row);
+
+    const size_t eeg_row = resolveEegRowIndex(eeg_index_label, subject.eeg_rows);
+    const auto [    //
+        eeg_tensor, //
+        eeg_labels  //
+    ] = eeg_sessions_.at(subject_index)->readRow(eeg_row);
+
+    const int stimulus_label = eeg_labels[1];
+    if (audio_stimulus != stimulus_label)
+    {
+        throw std::runtime_error("Stimulus mismatch between audio and EEG for subject " +
+                                 subject.subject_name + " at audio row " +
+                                 std::to_string(audio_row));
+    }
+
+    Protocol101117Sample sample;
+    sample.audio = nn::Tensor(1, audio_tensor.rows());
+    for (size_t i = 0; i < static_cast<size_t>(audio_tensor.rows()); ++i)
+    {
+        sample.audio.at(0, i) = audio_tensor.at(i, 0);
+    }
+
+    sample.eeg = nn::Tensor(1, eeg_tensor.rows() * eeg_tensor.cols());
+    size_t eeg_col = 0;
+    for (size_t r = 0; r < static_cast<size_t>(eeg_tensor.rows()); ++r)
+    {
+        for (size_t c = 0; c < static_cast<size_t>(eeg_tensor.cols()); ++c)
+        {
+            sample.eeg.at(0, eeg_col++) = eeg_tensor.at(r, c);
+        }
+    }
+
+    sample.targets = buildTargetTensor(subject.subject_id, eeg_labels, eeg_index_label);
+    sample.concatenated = concatenate_override.value_or(concatenate_modalities_);
+
+    if (sample.concatenated)
+    {
+        sample.inputs = buildInputTensor(eeg_tensor, audio_tensor);
+    }
+    else
+    {
+        // In separated mode, keep EEG as primary input and expose audio in `sample.audio`.
+        sample.inputs = sample.eeg;
+    }
+
+    return sample;
+}
+
+[[nodiscard]] auto Protocol101117Dataset::size() const -> size_t
+{
+    return prefix_audio_row_offsets_.empty() ? 0 : prefix_audio_row_offsets_.back();
+}
+
+[[nodiscard]] auto Protocol101117Dataset::get_item(size_t idx) const -> Batch
+{
+    auto sample = get_sample(idx);
+    return {.inputs = std::move(sample.inputs), .targets = std::move(sample.targets)};
 }
 
 [[nodiscard]] auto Protocol101117Dataset::collate(const std::vector<std::size_t>& indices) const
@@ -75,7 +147,11 @@ Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects)
         return Dataset::collate(indices);
     }
 
-    nn::Tensor inputs(indices.size(), INPUT_FEATURES);
+    // The assembler always builds concatenated EEG+audio rows. If this dataset
+    // is configured for separated output, we slice only EEG columns afterwards
+    // without re-reading files.
+    nn::Tensor assembled_inputs(indices.size(), INPUT_FEATURES);
+    nn::Tensor inputs;
     nn::Tensor targets(indices.size(), 5);
 
     std::vector<std::vector<RowRequest>> grouped(subjects_.size());
@@ -106,7 +182,23 @@ Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects)
     }
 
     SynchronizedBatchAssembler::assembleGrouped(
-        grouped, subjects_, audio_sessions_, eeg_sessions_, inputs, targets);
+        grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
+
+    if (concatenate_modalities_)
+    {
+        inputs = std::move(assembled_inputs);
+    }
+    else
+    {
+        inputs = nn::Tensor(indices.size(), EEG_FEATURES);
+        for (size_t row = 0; row < indices.size(); ++row)
+        {
+            for (size_t col = 0; col < EEG_FEATURES; ++col)
+            {
+                inputs.at(row, col) = assembled_inputs.at(row, col);
+            }
+        }
+    }
 
     return {.inputs = std::move(inputs), .targets = std::move(targets)};
 }
