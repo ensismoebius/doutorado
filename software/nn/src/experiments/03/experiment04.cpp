@@ -11,7 +11,6 @@
 #include <memory>
 
 #include "lib/include/DemoProbeModel.hpp"
-#include "lib/include/SamplerOptionsFactory.hpp"
 #include "lib/include/batch_util.hpp"
 #include "lib/include/cli.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
@@ -44,22 +43,18 @@ auto main(int argc, char* argv[]) -> int
         .distributed_rank = 0,
         .distributed_shuffle = true,
         .distributed_drop_last = false,
+        .input_mode = Protocol101117InputMode::Concatenated,
     };
 
-    Config config{};
-    parseCliParams(argc, argv, config, default_config);
+    Config config = parseCliParams(argc, argv, default_config);
 
     try
     {
         auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
         auto dataset = make_shared<Protocol101117Dataset>(discovered);
-        // PyTorch-like mode toggle:
-        // - Protocol101117InputMode::Concatenated (EEG+audio)
-        // - Protocol101117InputMode::EegOnly
-        // - Protocol101117InputMode::AudioOnly
-        dataset->set_input_mode(Protocol101117InputMode::Concatenated);
+        dataset->set_input_mode(config.input_mode);
 
-        DataLoader loader(dataset, config.batch_size, makeSamplerOptions(config));
+        DataLoader loader(dataset, config.batch_size, config.sampler_options);
         DemoProbeModel model;
 
         cout << "Dataset root: " << config.dataset_root << '\n';

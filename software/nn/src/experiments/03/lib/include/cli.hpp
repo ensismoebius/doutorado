@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "CLI/CLI.hpp"
+#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/DataLoader.hpp"
 
 using CLI::App;
 using std::optional;
@@ -35,14 +37,20 @@ struct Config
     size_t distributed_rank = 0;
     bool distributed_shuffle = true;
     bool distributed_drop_last = false;
+
+    // Input modality used by Protocol101117Dataset.
+    Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated;
+
+    // Parsed and resolved sampler options for DataLoader construction.
+    DataLoader::DefaultSamplerOptions sampler_options{};
 };
 
 /**
- * @brief Parses command-line arguments and updates the configuration accordingly.
+ * @brief Parses command-line arguments and returns a fully populated configuration.
  *
  * @param argc Argument count from the command line.
  * @param argv Argument vector from the command line.
- * @param config Configuration structure to update.
  * @param default_config Default configuration structure.
+ * @return Parsed configuration including resolved sampler options.
  */
-void parseCliParams(int argc, char* argv[], Config& config, const Config& default_config);
+auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config;

@@ -23,6 +23,7 @@ namespace
 constexpr size_t INPUT_FEATURES = multimodalInputFeatureColumns();
 constexpr size_t EEG_FEATURES = eegFeatureColumns();
 constexpr size_t AUDIO_FEATURES = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+constexpr size_t STACKED_CONCAT_FEATURES = EEG_FEATURES * 2U;
 
 struct RawSynchronizedSample
 {
@@ -183,7 +184,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     if (sample.input_mode == Protocol101117InputMode::Concatenated)
     {
-        sample.inputs = buildInputTensor(raw.eeg_tensor, raw.audio_tensor);
+        sample.inputs = buildInputTensorFromFlattenedRows(sample.eeg, sample.audio);
     }
     else if (sample.input_mode == Protocol101117InputMode::EegOnly)
     {
@@ -253,7 +254,25 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     if (input_mode_ == Protocol101117InputMode::Concatenated)
     {
-        inputs = std::move(assembled_inputs);
+        inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
+
+        nn::Tensor eeg_row(1, EEG_FEATURES);
+        nn::Tensor audio_row(1, AUDIO_FEATURES);
+        for (size_t row = 0; row < indices.size(); ++row)
+        {
+            for (size_t col = 0; col < EEG_FEATURES; ++col)
+            {
+                eeg_row.at(0, col) = assembled_inputs.at(row, col);
+            }
+
+            for (size_t col = 0; col < AUDIO_FEATURES; ++col)
+            {
+                audio_row.at(0, col) = assembled_inputs.at(row, EEG_FEATURES + col);
+            }
+
+            const nn::Tensor stacked = buildInputTensorFromFlattenedRows(eeg_row, audio_row);
+            inputs.setBlock(row, 0, stacked);
+        }
     }
     else if (input_mode_ == Protocol101117InputMode::EegOnly)
     {

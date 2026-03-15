@@ -15,10 +15,9 @@ class DemoProbeModel
     {
         constexpr std::size_t eeg_features =
             nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
-        constexpr std::size_t input_features =
-            eeg_features + nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+        constexpr std::size_t stacked_concat_features = eeg_features * 2U;
 
-        const bool has_concatenated_modalities = batch_inputs.cols() == input_features;
+        const bool has_concatenated_modalities = batch_inputs.cols() == stacked_concat_features;
         const bool has_only_eeg = batch_inputs.cols() == eeg_features;
         if (!has_concatenated_modalities && !has_only_eeg)
         {
@@ -39,18 +38,22 @@ class DemoProbeModel
             float audio_abs_sum = 0.0f;
             if (has_concatenated_modalities)
             {
-                for (std::size_t c = eeg_features; c < input_features; ++c)
+                for (std::size_t c = 0; c < eeg_features; ++c)
                 {
                     audio_abs_sum += std::abs(batch_inputs.at(r, c));
+                }
+
+                eeg_abs_sum = 0.0f;
+                for (std::size_t c = 0; c < eeg_features; ++c)
+                {
+                    eeg_abs_sum += std::abs(batch_inputs.at(r, eeg_features + c));
                 }
             }
             // EEG-only mode keeps audio contribution at zero so output shape
             // remains identical across both input formats.
 
             features.at(r, 0) = eeg_abs_sum / static_cast<float>(eeg_features);
-            features.at(r, 1) =
-                audio_abs_sum /
-                static_cast<float>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples());
+            features.at(r, 1) = audio_abs_sum / static_cast<float>(eeg_features);
         }
 
         return features;

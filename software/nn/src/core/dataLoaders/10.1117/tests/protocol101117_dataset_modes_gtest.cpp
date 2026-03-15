@@ -3,6 +3,7 @@
 #include <matioCpp/MultiDimensionalArray.h>
 #include <unistd.h>
 
+#include <cmath>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -17,6 +18,9 @@
 
 namespace
 {
+constexpr std::size_t kStackedConcatFeatures =
+    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() * 2U;
+
 class Protocol101117DatasetModesTest : public ::testing::Test
 {
    protected:
@@ -136,9 +140,7 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
     const auto sample = dataset.get_sample(0, Protocol101117InputMode::Concatenated);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
-    EXPECT_EQ(sample.inputs.cols(),
-              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
-                               nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(sample.inputs.cols(), static_cast<int>(kStackedConcatFeatures));
 }
 
 TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
@@ -166,9 +168,7 @@ TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
 
     dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     const Batch concat_batch = dataset.get_item(0);
-    EXPECT_EQ(concat_batch.inputs.cols(),
-              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
-                               nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(concat_batch.inputs.cols(), static_cast<int>(kStackedConcatFeatures));
 
     dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
     const Batch audio_only_batch = dataset.get_item(0);
@@ -202,9 +202,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     const Batch concat_batch = dataset.collate({0U, 1U, 2U});
     EXPECT_EQ(concat_batch.inputs.rows(), 3);
-    EXPECT_EQ(concat_batch.inputs.cols(),
-              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
-                               nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(concat_batch.inputs.cols(), static_cast<int>(kStackedConcatFeatures));
     EXPECT_EQ(concat_batch.targets.rows(), 3);
     EXPECT_EQ(concat_batch.targets.cols(), 5);
 
@@ -217,17 +215,142 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     EXPECT_EQ(audio_only_batch.targets.cols(), 5);
 }
 
+TEST_F(Protocol101117DatasetModesTest,
+       ConcatenatedModeStacksAudioThenEegWithLinearResamplingAndPreservesTargets)
+{
+    const auto subject_dir = tmp_root_ / "S99";
+    std::filesystem::create_directories(subject_dir);
+    writeAlignedSubjectMats(subject_dir, 3U);
+
+    SubjectFiles only_subject{};
+    only_subject.subject_id = 99;
+    only_subject.subject_name = "S99";
+    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_rows = 3U;
+    only_subject.audio_rows = 3U;
+
+    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    const auto sample = dataset.get_sample(1U);
+
+    const std::size_t common_width =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+    const std::size_t audio_source_width =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+
+    ASSERT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
+    ASSERT_EQ(sample.inputs.rows(), 1);
+    ASSERT_EQ(sample.inputs.cols(), static_cast<int>(2U * common_width));
+    ASSERT_EQ(sample.audio.cols(), static_cast<int>(audio_source_width));
+    ASSERT_EQ(sample.eeg.cols(), static_cast<int>(common_width));
+
+    // Targets must remain untouched by the concatenation/stacking transform.
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 0), 99.0f); // subject id
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 1), 1.0f);  // modality
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 2), 2.0f);  // stimulus for row index 1
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 3), 1.0f);  // artifact
+    EXPECT_FLOAT_EQ(sample.targets.at(0, 4), 2.0f);  // eeg index label (1-based)
+
+    const auto expected_audio_resampled = [&](std::size_t target_idx)
+    {
+        const double scale =
+            static_cast<double>(audio_source_width - 1U) / static_cast<double>(common_width - 1U);
+        const double source_pos = static_cast<double>(target_idx) * scale;
+        const std::size_t left = static_cast<std::size_t>(std::floor(source_pos));
+        const std::size_t right = std::min(left + 1U, audio_source_width - 1U);
+        const double alpha = source_pos - static_cast<double>(left);
+
+        const double left_value = static_cast<double>(sample.audio.at(0, left));
+        const double right_value = static_cast<double>(sample.audio.at(0, right));
+        return static_cast<float>((1.0 - alpha) * left_value + alpha * right_value);
+    };
+
+    // Audio must occupy first row segment [0, common_width).
+    const std::array<std::size_t, 3> probe_indices = {
+        0UL,
+        common_width / 2UL,
+        common_width - 1UL,
+    };
+    for (const std::size_t idx : probe_indices)
+    {
+        EXPECT_NEAR(sample.inputs.at(0, idx), expected_audio_resampled(idx), 1e-3f);
+    }
+
+    // EEG must occupy second row segment [common_width, 2*common_width)
+    // and be equal to flattened EEG (resampling is identity here).
+    for (const std::size_t idx : probe_indices)
+    {
+        EXPECT_NEAR(sample.inputs.at(0, common_width + idx), sample.eeg.at(0, idx), 1e-6f);
+    }
+}
+
+TEST_F(Protocol101117DatasetModesTest,
+       CollateConcatenatedModePreservesStackOrderAndLinearResampling)
+{
+    const auto subject_dir = tmp_root_ / "S99";
+    std::filesystem::create_directories(subject_dir);
+    writeAlignedSubjectMats(subject_dir, 3U);
+
+    SubjectFiles only_subject{};
+    only_subject.subject_id = 99;
+    only_subject.subject_name = "S99";
+    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_rows = 3U;
+    only_subject.audio_rows = 3U;
+
+    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    const Batch batch = dataset.collate({0U, 1U, 2U});
+
+    const std::size_t common_width =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+    const std::size_t audio_source_width =
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+
+    ASSERT_EQ(batch.inputs.rows(), 3);
+    ASSERT_EQ(batch.inputs.cols(), static_cast<int>(2U * common_width));
+    ASSERT_EQ(batch.targets.rows(), 3);
+    ASSERT_EQ(batch.targets.cols(), 5);
+
+    // Validate labels for row 1 are preserved after collate transformation.
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 0), 99.0f);
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 1), 1.0f);
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 2), 2.0f);
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 3), 1.0f);
+    EXPECT_FLOAT_EQ(batch.targets.at(1, 4), 2.0f);
+
+    const std::array<std::size_t, 3> probe_indices = {
+        0UL,
+        common_width / 2UL,
+        common_width - 1UL,
+    };
+
+    // For row index 1 in writeAlignedSubjectMats: audio source is 20 + c.
+    // Linear interpolation on a ramp remains exact at sampled points.
+    const double scale =
+        static_cast<double>(audio_source_width - 1U) / static_cast<double>(common_width - 1U);
+    for (const std::size_t idx : probe_indices)
+    {
+        const double source_pos = static_cast<double>(idx) * scale;
+        const float expected_audio = static_cast<float>(20.0 + source_pos);
+        EXPECT_NEAR(batch.inputs.at(1, idx), expected_audio, 1e-3f);
+
+        // For row index 1 in writeAlignedSubjectMats: EEG flattened is 2000 + c.
+        const float expected_eeg = static_cast<float>(2000.0 + static_cast<double>(idx));
+        EXPECT_NEAR(batch.inputs.at(1, common_width + idx), expected_eeg, 1e-6f);
+    }
+}
+
 TEST(DemoProbeModelModesTest, AcceptsConcatenatedAndEegOnlyInputs)
 {
     constexpr std::size_t eeg_features =
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
-    constexpr std::size_t audio_features =
-        nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+    constexpr std::size_t stacked_concat_features = eeg_features * 2U;
 
     DemoProbeModel model;
 
-    nn::Tensor concatenated(1, eeg_features + audio_features);
-    for (std::size_t i = 0; i < eeg_features + audio_features; ++i)
+    nn::Tensor concatenated(1, stacked_concat_features);
+    for (std::size_t i = 0; i < stacked_concat_features; ++i)
     {
         concatenated.at(0, i) = 1.0f;
     }
