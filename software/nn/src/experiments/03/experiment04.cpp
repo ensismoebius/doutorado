@@ -53,6 +53,11 @@ auto main(int argc, char* argv[]) -> int
     {
         auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
         auto dataset = make_shared<Protocol101117Dataset>(discovered);
+        // PyTorch-like mode toggle:
+        // - Protocol101117InputMode::Concatenated (EEG+audio)
+        // - Protocol101117InputMode::EegOnly
+        // - Protocol101117InputMode::AudioOnly
+        dataset->set_input_mode(Protocol101117InputMode::Concatenated);
 
         DataLoader loader(dataset, config.batch_size, makeSamplerOptions(config));
         DemoProbeModel model;

@@ -44,6 +44,8 @@ class DemoProbeModel
                     audio_abs_sum += std::abs(batch_inputs.at(r, c));
                 }
             }
+            // EEG-only mode keeps audio contribution at zero so output shape
+            // remains identical across both input formats.
 
             features.at(r, 0) = eeg_abs_sum / static_cast<float>(eeg_features);
             features.at(r, 1) =

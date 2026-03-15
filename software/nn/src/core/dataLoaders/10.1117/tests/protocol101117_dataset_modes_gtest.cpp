@@ -102,12 +102,19 @@ TEST_F(Protocol101117DatasetModesTest, ConstructorAndSetterControlConcatenationM
 {
     auto dataset = Protocol101117Dataset(discoveredSubjects());
     EXPECT_TRUE(dataset.concatenate_modalities());
+    EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::Concatenated);
 
     dataset.set_concatenate_modalities(false);
     EXPECT_FALSE(dataset.concatenate_modalities());
+    EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::EegOnly);
 
     dataset.set_concatenate_modalities(true);
     EXPECT_TRUE(dataset.concatenate_modalities());
+    EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::Concatenated);
+
+    dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
+    EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::AudioOnly);
+    EXPECT_FALSE(dataset.concatenate_modalities());
 }
 
 TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfigured)
@@ -116,7 +123,7 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfi
 
     const auto sample = dataset.get_sample(0);
 
-    EXPECT_FALSE(sample.concatenated);
+    EXPECT_EQ(sample.input_mode, Protocol101117InputMode::EegOnly);
     EXPECT_EQ(sample.inputs.cols(),
               static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
     EXPECT_EQ(sample.eeg.cols(),
@@ -132,10 +139,25 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
 
     const auto sample = dataset.get_sample(0, true);
 
-    EXPECT_TRUE(sample.concatenated);
+    EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
     EXPECT_EQ(sample.inputs.cols(),
               static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
                                nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+}
+
+TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
+{
+    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::AudioOnly);
+
+    const auto sample = dataset.get_sample(0);
+
+    EXPECT_EQ(sample.input_mode, Protocol101117InputMode::AudioOnly);
+    EXPECT_EQ(sample.inputs.cols(),
+              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(sample.audio.cols(),
+              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(sample.eeg.cols(),
+              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
 }
 
 TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
@@ -151,6 +173,11 @@ TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
     EXPECT_EQ(concat_batch.inputs.cols(),
               static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns() +
                                nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+
+    dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
+    const Batch audio_only_batch = dataset.get_item(0);
+    EXPECT_EQ(audio_only_batch.inputs.cols(),
+              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
 }
 
 TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAlignedMapping)
@@ -184,6 +211,14 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
                                nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
     EXPECT_EQ(concat_batch.targets.rows(), 3);
     EXPECT_EQ(concat_batch.targets.cols(), 5);
+
+    dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
+    const Batch audio_only_batch = dataset.collate({0U, 1U, 2U});
+    EXPECT_EQ(audio_only_batch.inputs.rows(), 3);
+    EXPECT_EQ(audio_only_batch.inputs.cols(),
+              static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(audio_only_batch.targets.rows(), 3);
+    EXPECT_EQ(audio_only_batch.targets.cols(), 5);
 }
 
 TEST(DemoProbeModelModesTest, AcceptsConcatenatedAndEegOnlyInputs)

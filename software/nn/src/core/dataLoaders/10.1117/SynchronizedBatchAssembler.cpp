@@ -65,31 +65,32 @@ static void processEegBlocksForTasks(
     nn::Tensor& targets)
 {
     // Permutation of task indices used to sort tasks by `eeg_row`.
-    std::vector<std::size_t> order(tasks.size());
-    std::iota(order.begin(), order.end(), 0);
+    std::vector<std::size_t> eeg_sorted_task_indices(tasks.size());
+    std::iota(eeg_sorted_task_indices.begin(), eeg_sorted_task_indices.end(), 0);
 
     // Sort permutation by `eeg_row` so contiguous EEG rows can be
     // bulk-read from disk in a single call.
-    std::sort(order.begin(),
-              order.end(),
+    std::sort(eeg_sorted_task_indices.begin(),
+              eeg_sorted_task_indices.end(),
               [&tasks](std::size_t a, std::size_t b)
               { return tasks[a].eeg_row < tasks[b].eeg_row; });
 
     const size_t audioCols = ImaginedSpeechSchema_10_1117.audioSamples();
 
-    std::size_t op = 0;
-    while (op < order.size())
+    std::size_t eeg_block_pos = 0;
+    while (eeg_block_pos < eeg_sorted_task_indices.size())
     {
         // Find contiguous run of eeg_row values in the sorted tasks.
-        std::size_t op_end = op + 1;
-        while (op_end < order.size() &&
-               tasks[order[op_end]].eeg_row == tasks[order[op_end - 1]].eeg_row + 1)
+        std::size_t eeg_block_end = eeg_block_pos + 1;
+        while (eeg_block_end < eeg_sorted_task_indices.size() &&
+               tasks[eeg_sorted_task_indices[eeg_block_end]].eeg_row ==
+                   tasks[eeg_sorted_task_indices[eeg_block_end - 1]].eeg_row + 1)
         {
-            ++op_end;
+            ++eeg_block_end;
         }
 
-        const std::size_t eeg_run_start = tasks[order[op]].eeg_row;
-        const std::size_t eeg_run_count = op_end - op;
+        const std::size_t eeg_run_start = tasks[eeg_sorted_task_indices[eeg_block_pos]].eeg_row;
+        const std::size_t eeg_run_count = eeg_block_end - eeg_block_pos;
 
         const auto eeg_rows_flat =
             eeg_sessions.at(subject_index)->readRowsFlat(eeg_run_start, eeg_run_count);
@@ -102,7 +103,7 @@ static void processEegBlocksForTasks(
 
         for (size_t j = 0; j < eeg_run_count; ++j)
         {
-            const BatchTask& task = tasks[order[op + j]];
+            const BatchTask& task = tasks[eeg_sorted_task_indices[eeg_block_pos + j]];
             const size_t audioOffset = task.audio_index * audioCols;
             const size_t eegOffset = j * EEG_FEATURES;
             const auto& eeg_labels = eeg_rows_flat.labels[j];
@@ -133,7 +134,7 @@ static void processEegBlocksForTasks(
             targets.at(task.batch_row, 4) = static_cast<float>(task.eeg_index_label);
         }
 
-        op = op_end;
+        eeg_block_pos = eeg_block_end;
     }
 }
 
@@ -195,8 +196,8 @@ void SynchronizedBatchAssembler::assembleGrouped(                               
             // and `targets`. This step will iterate over the tasks sorted by EEG row index, so
             // contiguous EEG rows will be bulk-read from disk and copied to the right place in
             // the batch tensors.
-            vector<BatchTask> tasks;
-            tasks.reserve(audio_run_count);
+            vector<BatchTask> audio_to_eeg_tasks;
+            audio_to_eeg_tasks.reserve(audio_run_count);
             const SubjectFiles& subject = subjects.at(subject_index);
 
             // Load the audio rows for the run and build tasks for each row based on the loaded
@@ -208,7 +209,7 @@ void SynchronizedBatchAssembler::assembleGrouped(                               
                 audio_run_pos,      //
                 audio_run_count,    //
                 subject,            //
-                tasks               //
+                audio_to_eeg_tasks  //
             );
 
             // Load and copy the matching EEG rows for the tasks: since tasks are sorted by EEG
@@ -219,7 +220,7 @@ void SynchronizedBatchAssembler::assembleGrouped(                               
                 subject,              //
                 eeg_sessions,         //
                 audio_rows_flat,      //
-                tasks,                //
+                audio_to_eeg_tasks,   //
                 inputs,               //
                 targets               //
             );
