@@ -1,5 +1,5 @@
 /**
- * @file loadingData.cpp
+ * @file experiment04.cpp
  * @brief PyTorch-style loading/feeding demo for the 10.1117 EEG+Audio dataset.
  *
  * Pipeline implemented here:
