@@ -57,7 +57,22 @@ class Protocol101117Dataset : public Dataset
     [[nodiscard]] auto subjects() const -> const std::vector<SubjectFiles>&;
 
    private:
-    void ensureSessions(std::size_t subject_index) const;
+    /**
+     * Ensure the MAT session objects for the given subject are opened and
+     * initialized (lazy initialization).
+     *
+     * This function will create `AudioMatSession` and/or `EEGMatSession`
+     * instances for the subject at `subject_index` if they are not already
+     * present in the mutable session caches. It is intended to be called by
+     * reader paths (e.g. `get_sample` and `collate`) before accessing
+     * `audio_sessions_`/`eeg_sessions_`.
+     *
+     * Notes:
+     * - This performs I/O (opens .mat files) and may throw on file errors.
+     * - It is NOT thread-safe; callers must synchronize externally if used
+     *   from multiple threads.
+     */
+    void ensureSubjectMatSessionsInitialized(std::size_t subject_index) const;
 
     std::vector<SubjectFiles> subjects_;
     mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;

@@ -119,7 +119,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     const auto [subject_index, audio_row] =
         locateSubjectAndAudioRow(prefix_audio_row_offsets_, idx);
-    ensureSessions(subject_index);
+    ensureSubjectMatSessionsInitialized(subject_index);
 
     const SubjectFiles& subject = subjects_.at(subject_index);
     const auto& audio_session = *audio_sessions_.at(subject_index);
@@ -199,7 +199,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         {
             continue;
         }
-        ensureSessions(subject_index);
+        ensureSubjectMatSessionsInitialized(subject_index);
     }
 
     SynchronizedBatchAssembler::assembleGrouped(
@@ -244,7 +244,21 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     return subjects_;
 }
 
-void Protocol101117Dataset::ensureSessions(size_t subject_index) const
+/**
+ * Ensure the MAT session objects for the given subject are opened and
+ * initialized (lazy initialization).
+ *
+ * This function creates `AudioMatSession` and/or `EEGMatSession` instances
+ * for the subject at `subject_index` if they are not already present in the
+ * mutable session caches. It is intended to be called by reader paths
+ * (e.g. `get_sample` and `collate`) before accessing `audio_sessions_`/
+ * `eeg_sessions_`.
+ *
+ * Note: this performs I/O (opens .mat files) and may throw on file errors.
+ * It is NOT thread-safe; callers must synchronize externally if used from
+ * multiple threads.
+ */
+void Protocol101117Dataset::ensureSubjectMatSessionsInitialized(size_t subject_index) const
 {
     if (audio_sessions_.at(subject_index) && eeg_sessions_.at(subject_index))
     {
