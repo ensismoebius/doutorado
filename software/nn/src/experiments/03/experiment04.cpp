@@ -1,10 +1,9 @@
-/**
- * @file experiment04.cpp
- * @brief PyTorch-style loading/feeding demo for the 10.1117 EEG+Audio dataset.
- *
- * Pipeline implemented here:
- *   Subject directories (S01, S02, ...) -> Dataset -> DataLoader -> Batch -> Model
- */
+// FIXME - STOPPED HERE - This experiment is a bit of a "kitchen sink" for testing the new
+// BatchPrefetcher and related utilities. It should be refactored into more focused experiments that
+// test specific components in isolation, with clear assertions and expected outcomes. The current
+// version is more of an integration test that demonstrates the full pipeline from dataset discovery
+// to model inference, but it lacks specific checks and may be too complex for debugging individual
+// issues.
 
 #include <cstddef>
 #include <iostream>
