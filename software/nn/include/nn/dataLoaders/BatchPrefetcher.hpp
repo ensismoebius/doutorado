@@ -2,6 +2,7 @@
 #define NN_DATALOADERS_BATCHPREFETCHER_HPP
 
 #include <cstddef>
+#include <deque>
 #include <future>
 #include <optional>
 
@@ -10,7 +11,7 @@
 class BatchPrefetcher
 {
    public:
-    BatchPrefetcher(DataLoader& loader, std::size_t max_batches);
+    BatchPrefetcher(DataLoader& loader, std::size_t max_batches, std::size_t lookahead = 1);
 
     auto next() -> std::optional<Batch>;
     [[nodiscard]] auto hasNext() const -> bool;
@@ -21,7 +22,9 @@ class BatchPrefetcher
     DataLoader::Iterator end_;
     std::size_t max_batches_;
     std::size_t seen_batches_;
-    std::optional<std::future<Batch>> next_batch_future_;
+    std::size_t lookahead_;
+    DataLoader::Iterator schedule_cursor_;
+    std::deque<std::future<Batch>> next_batch_futures_;
 };
 
 #endif // NN_DATALOADERS_BATCHPREFETCHER_HPP

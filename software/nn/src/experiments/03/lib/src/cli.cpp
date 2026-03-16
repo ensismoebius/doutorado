@@ -41,6 +41,11 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::IsMember(input_mode_tokens, CLI::ignore_case))
         ->default_val(protocol101117InputModeToToken(default_config.input_mode));
 
+    app.add_option("--lookahead", config.lookahead, "Number of batches to prefetch in background")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.lookahead);
+
     app.add_option(
            "--seed", config.seed, "Deterministic seed for shuffling (ignored if --no-shuffle)")
         ->expected(1)

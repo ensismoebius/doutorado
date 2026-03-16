@@ -45,6 +45,7 @@ auto main(int argc, char* argv[]) -> int
         .distributed_shuffle = true,
         .distributed_drop_last = false,
         .input_mode = Protocol101117InputMode::Concatenated,
+        .lookahead = 4,
     };
 
     Config config = parseCliParams(argc, argv, default_config);
@@ -66,7 +67,7 @@ auto main(int argc, char* argv[]) -> int
         }
         cout << "Total synchronized samples: " << dataset->size() << "\n\n";
 
-        BatchPrefetcher prefetcher(loader, config.max_batches);
+        BatchPrefetcher prefetcher(loader, config.max_batches, config.lookahead);
 
         const size_t total_samples = dataset->size();
         const size_t total_batches = (total_samples + config.batch_size - 1) / config.batch_size;

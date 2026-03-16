@@ -2,37 +2,44 @@
 
 using std::async;
 
+using std::move;
+
+static void schedule_prefetch_if_needed(DataLoader::Iterator& schedule_cursor,
+                                        DataLoader::Iterator const& end, std::size_t lookahead,
+                                        std::size_t max_batches, std::size_t seen_batches,
+                                        std::deque<std::future<Batch>>& queue)
+{
+    while (queue.size() < static_cast<size_t>(lookahead) && schedule_cursor != end &&
+           (seen_batches + queue.size()) < max_batches)
+    {
+        auto snap = schedule_cursor;
+        queue.push_back(async(std::launch::async, [snap]() mutable { return *snap; }));
+        ++schedule_cursor;
+    }
+}
+
 BatchPrefetcher::BatchPrefetcher( //
     DataLoader& loader,           //
-    std::size_t max_batches       //
+    std::size_t max_batches,      //
+    std::size_t lookahead         //
     )
     : it_(loader.begin()),       //
       end_(loader.end()),        //
       max_batches_(max_batches), //
-      seen_batches_(0)           //
+      seen_batches_(0),          //
+      lookahead_(lookahead),     //
+      schedule_cursor_(it_)
 {
-    if (it_ != end_)
-    {
-        // Capture a copy of the current iterator for the async task. If we
-        // captured the member iterator (`it_`) by reference, the main thread
-        // might advance it before the async task dereferences it, producing
-        // the wrong batch or creating a data race. Making a local snapshot
-        // and capturing it by value guarantees the background task sees the
-        // exact iterator state intended at the time the prefetch was
-        // scheduled.
-        auto it_snapshot = it_;
-        next_batch_future_ = async(     //
-            std::launch::async,         //
-            [it_snapshot]() mutable {   //
-                return *it_snapshot;    //
-            }                           //
-        );
-    }
+    // Prime the prefetch queue up to `lookahead_` or until we hit EOF /
+    // max_batches_. We schedule using a separate cursor so `it_` remains the
+    // canonical iterator for the next-to-consume batch.
+    schedule_prefetch_if_needed(
+        schedule_cursor_, end_, lookahead_, max_batches_, seen_batches_, next_batch_futures_);
 }
 
 [[nodiscard]] auto BatchPrefetcher::hasNext() const -> bool
 {
-    return (it_ != end_) && (seen_batches_ < max_batches_) && next_batch_future_.has_value();
+    return (!next_batch_futures_.empty()) && (seen_batches_ < max_batches_);
 }
 
 auto BatchPrefetcher::next() -> std::optional<Batch>
@@ -42,30 +49,19 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
         return std::nullopt;
     }
 
-    Batch batch = next_batch_future_->get();
+    // Pop the oldest prefetched batch and obtain it.
+    auto fut = std::move(next_batch_futures_.front());
+    next_batch_futures_.pop_front();
+    Batch batch = fut.get();
 
+    // Advance the canonical iterator to reflect consumption.
     ++it_;
-    if (it_ != end_ && (seen_batches_ + 1) < max_batches_)
-    {
-        // Take a snapshot of the iterator and capture it by value for
-        // the async prefetch task so the produced Batch corresponds
-        // to the intended position even if the main thread advances
-        // `it_` concurrently.
-        auto it_snapshot = it_;
-        next_batch_future_ =
-            async(                          //
-                std::launch::async,         //
-                [it_snapshot]() mutable {   //
-                    return *it_snapshot;    //
-                }                           //
-            );
-    }
-    else
-    {
-        next_batch_future_.reset();
-    }
-
     ++seen_batches_;
+
+    // Refill the prefetch queue to maintain the lookahead.
+    schedule_prefetch_if_needed(
+        schedule_cursor_, end_, lookahead_, max_batches_, seen_batches_, next_batch_futures_);
+
     return batch;
 }
 

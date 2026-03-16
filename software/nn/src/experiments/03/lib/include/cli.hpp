@@ -41,6 +41,10 @@ struct Config
     // Input modality used by Protocol101117Dataset.
     Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated;
 
+    // Prefetch lookahead: number of batches to prefetch in background.
+    // Default is 1 to preserve prior behavior; experiments may increase this.
+    std::size_t lookahead = 1;
+
     // Parsed and resolved sampler options for DataLoader construction.
     DataLoader::DefaultSamplerOptions sampler_options{};
 };
