@@ -34,7 +34,7 @@ auto main(int argc, char* argv[]) -> int
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
         .batch_size = 5,
-        .max_batches = 1000,
+        .max_batches = 10,
         .shuffle = true,
         .seed = 42U,
         .sampler_type = "",
