@@ -3,14 +3,21 @@
 #include <cstddef>
 
 /**
- * Prints a concise progress summary to `std::cout`.
+ * Prints an in-place progress bar to `std::cout`.
+ *
+ * Effective totals are computed internally so capped runs (`max_batches`) can
+ * still reach 100%.
+ *
+ * - `dataset_total_samples`: total number of samples in the dataset
+ * - `batch_size`: configured batch size used by the loader
+ * - `max_batches`: run cap (upper limit on consumed batches)
  * - `seen_batches`: number of batches processed so far
- * - `total_batches`: total number of expected batches
  * - `processed_samples`: number of samples processed so far
- * - `total_samples`: total number of expected samples
  * - `done`: whether the process is complete
- * Print progress in-place using a carriage return. When `done` is true the
- * function prints a trailing newline to finish the line.
+ *
+ * When `done` is true the function prints a trailing newline to finish the
+ * progress line.
  */
-void printProgress(std::size_t seen_batches, std::size_t total_batches,
-                   std::size_t processed_samples, std::size_t total_samples, bool done = false);
+void printProgress(std::size_t dataset_total_samples, std::size_t batch_size,
+                   std::size_t max_batches, std::size_t seen_batches, std::size_t processed_samples,
+                   bool done = false);

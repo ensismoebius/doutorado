@@ -12,8 +12,8 @@
 
 #include "lib/include/DemoProbeModel.hpp"
 #include "lib/include/cli.hpp"
+#include "lib/include/dataset_info.hpp"
 #include "lib/include/progress.hpp"
-#include "nn/dataLoaders/10.1117/BatchTargetFormatter.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
@@ -34,7 +34,7 @@ auto main(int argc, char* argv[]) -> int
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
         .batch_size = 5,
-        .max_batches = 200,
+        .max_batches = 1000,
         .shuffle = true,
         .seed = 42U,
         .sampler_type = "",
@@ -59,18 +59,11 @@ auto main(int argc, char* argv[]) -> int
         DataLoader loader(dataset, config.batch_size, config.sampler_options);
         DemoProbeModel model;
 
-        cout << "Dataset root: " << config.dataset_root << '\n';
-        cout << "Subjects discovered: " << dataset->subjects().size() << '\n';
-        for (const auto& s : dataset->subjects())
-        {
-            cout << "  - " << s.subject_name << '\n';
-        }
-        cout << "Total synchronized samples: " << dataset->size() << "\n\n";
+        printDatasetSummary(*dataset, config.dataset_root);
 
         BatchPrefetcher prefetcher(loader, config.max_batches, config.lookahead);
 
-        const size_t total_samples = dataset->size();
-        const size_t total_batches = (total_samples + config.batch_size - 1) / config.batch_size;
+        const size_t dataset_total_samples = dataset->size();
         size_t processed_samples = 0;
 
         while (prefetcher.hasNext())
@@ -88,14 +81,23 @@ auto main(int argc, char* argv[]) -> int
             // Update processed samples and print progress (in-place)
             processed_samples += batch.inputs.rows();
             const size_t seen_batches = prefetcher.seenBatches();
-            printProgress(seen_batches, total_batches, processed_samples, total_samples, false);
+            printProgress(dataset_total_samples,
+                          config.batch_size,
+                          config.max_batches,
+                          seen_batches,
+                          processed_samples,
+                          false);
 
             // cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
         }
 
         // Finalize progress line
-        printProgress(
-            prefetcher.seenBatches(), total_batches, processed_samples, total_samples, true);
+        printProgress(dataset_total_samples,
+                      config.batch_size,
+                      config.max_batches,
+                      prefetcher.seenBatches(),
+                      processed_samples,
+                      true);
 
         if (prefetcher.seenBatches() == 0)
         {

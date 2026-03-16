@@ -4,6 +4,7 @@
 add_library(experiment04_lib STATIC
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
     ${SRC_DIR}/experiments/03/lib/src/progress.cpp
+    ${SRC_DIR}/experiments/03/lib/src/dataset_info.cpp
 )
 
 target_include_directories(experiment04_lib
