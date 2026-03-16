@@ -33,7 +33,7 @@ auto main(int argc, char* argv[]) -> int
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
         .batch_size = 4,
-        .max_batches = 10,
+        .max_batches = 200,
         .shuffle = true,
         .seed = 42U,
         .sampler_type = "",
@@ -50,8 +50,8 @@ auto main(int argc, char* argv[]) -> int
 
     try
     {
-        auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
-        auto dataset = make_shared<Protocol101117Dataset>(discovered);
+        const auto discovered = discoverSubjects(config.dataset_root, config.subject_regex_pattern);
+        const auto dataset = make_shared<Protocol101117Dataset>(discovered);
         dataset->set_input_mode(config.input_mode);
 
         DataLoader loader(dataset, config.batch_size, config.sampler_options);
