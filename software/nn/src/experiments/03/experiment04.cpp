@@ -12,6 +12,7 @@
 
 #include "lib/include/DemoProbeModel.hpp"
 #include "lib/include/cli.hpp"
+#include "lib/include/progress.hpp"
 #include "nn/dataLoaders/10.1117/BatchTargetFormatter.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
@@ -32,7 +33,7 @@ auto main(int argc, char* argv[]) -> int
             "/home/ensismoebius/Documentos"
             "/UNESP/doutorado/databases/"
             "BaseDeDatosHablaImaginada",
-        .batch_size = 4,
+        .batch_size = 5,
         .max_batches = 200,
         .shuffle = true,
         .seed = 42U,
@@ -67,6 +68,10 @@ auto main(int argc, char* argv[]) -> int
 
         BatchPrefetcher prefetcher(loader, config.max_batches);
 
+        const size_t total_samples = dataset->size();
+        const size_t total_batches = (total_samples + config.batch_size - 1) / config.batch_size;
+        size_t processed_samples = 0;
+
         while (prefetcher.hasNext())
         {
             auto maybe_batch = prefetcher.next();
@@ -79,8 +84,17 @@ auto main(int argc, char* argv[]) -> int
             nn::Tensor probe = model.forward(batch.inputs);
             (void) probe;
 
-            cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
+            // Update processed samples and print progress (in-place)
+            processed_samples += batch.inputs.rows();
+            const size_t seen_batches = prefetcher.seenBatches();
+            printProgress(seen_batches, total_batches, processed_samples, total_samples, false);
+
+            // cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
         }
+
+        // Finalize progress line
+        printProgress(
+            prefetcher.seenBatches(), total_batches, processed_samples, total_samples, true);
 
         if (prefetcher.seenBatches() == 0)
         {
