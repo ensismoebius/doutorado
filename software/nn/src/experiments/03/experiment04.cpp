@@ -11,8 +11,8 @@
 #include <memory>
 
 #include "lib/include/DemoProbeModel.hpp"
-#include "lib/include/batch_util.hpp"
 #include "lib/include/cli.hpp"
+#include "nn/dataLoaders/10.1117/BatchTargetFormatter.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
@@ -79,7 +79,7 @@ auto main(int argc, char* argv[]) -> int
             nn::Tensor probe = model.forward(batch.inputs);
             (void) probe;
 
-            printData(batch);
+            cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
         }
 
         if (prefetcher.seenBatches() == 0)
