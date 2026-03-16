@@ -46,11 +46,11 @@ struct Config
 };
 
 /**
- * @brief Parses command-line arguments and returns a fully populated configuration.
+ * Parses command-line arguments and returns a fully populated configuration.
  *
- * @param argc Argument count from the command line.
- * @param argv Argument vector from the command line.
- * @param default_config Default configuration structure.
- * @return Parsed configuration including resolved sampler options.
+ * - `argc` Argument count from the command line.
+ * - `argv` Argument vector from the command line.
+ * - `default_config` Default configuration structure.
+ * - `return` Parsed configuration including resolved sampler options.
  */
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config;

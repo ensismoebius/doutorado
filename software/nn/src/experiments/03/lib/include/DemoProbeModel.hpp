@@ -8,13 +8,14 @@
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 #include "nn/tensor/Tensor.hpp"
 
+using namespace nn::dataLoaders;
+
 class DemoProbeModel
 {
    public:
     [[nodiscard]] auto forward(const nn::Tensor& batch_inputs) const -> nn::Tensor
     {
-        constexpr std::size_t eeg_features =
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+        constexpr std::size_t eeg_features = ImaginedSpeechSchema_10_1117.eegSignalColumns();
         constexpr std::size_t stacked_concat_features = eeg_features * 2U;
 
         const bool has_concatenated_modalities = batch_inputs.cols() == stacked_concat_features;
