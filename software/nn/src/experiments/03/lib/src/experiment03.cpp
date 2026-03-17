@@ -1,9 +1,10 @@
-#include "experiment04.hpp"
+#include "experiment03.hpp"
 
 #include <iostream>
 
 #include "DemoProbeModel.hpp"
 #include "dataset_info.hpp"
+#include "experiment03.hpp"
 #include "nn/dataLoaders/10.1117/BatchTargetFormatter.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/SubjectDiscovery.hpp"
@@ -16,7 +17,7 @@ using std::cout;
 using std::exception;
 using std::make_shared;
 
-Experiment04::Experiment04(const Config& config) : config_(config)
+Experiment03::Experiment03(const Config& config) : config_(config)
 {
     // Initialize the demo probe model (no actual learning,
     // just a forward pass).
@@ -25,7 +26,7 @@ Experiment04::Experiment04(const Config& config) : config_(config)
     // after parsing CLI params and discovering subjects.
 }
 
-int Experiment04::run()
+int Experiment03::run()
 {
     try
     {

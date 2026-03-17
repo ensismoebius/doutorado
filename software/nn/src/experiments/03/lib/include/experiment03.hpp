@@ -6,10 +6,10 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 
-class Experiment04
+class Experiment03
 {
    public:
-    explicit Experiment04(const Config& config);
+    explicit Experiment03(const Config& config);
     // Run the experiment; returns 0 on success, non-zero on failure.
     int run();
 

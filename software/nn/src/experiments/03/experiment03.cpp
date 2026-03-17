@@ -5,12 +5,13 @@
 // to model inference, but it lacks specific checks and may be too complex for debugging individual
 // issues.
 
+#include "lib/include/experiment03.hpp"
+
 #include <cstddef>
 #include <iostream>
 #include <memory>
 
 #include "lib/include/cli.hpp"
-#include "lib/include/experiment03.hpp"
 #include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
 
 using std::cerr;
