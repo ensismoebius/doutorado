@@ -247,6 +247,59 @@ class TensorImpl
         return TensorImpl(backend_.matmul(other.backend_));
     }
 
+    // -----------------------------------------------------------------
+    // In-place mutating operations
+    // -----------------------------------------------------------------
+    void add_inplace(const TensorImpl& other)
+    {
+        backend_.add_inplace(other.backend_);
+    }
+    void subtract_inplace(const TensorImpl& other)
+    {
+        backend_.subtract_inplace(other.backend_);
+    }
+    void multiply_inplace(const TensorImpl& other)
+    {
+        backend_.multiply_inplace(other.backend_);
+    }
+    void divide_inplace(const TensorImpl& other)
+    {
+        backend_.divide_inplace(other.backend_);
+    }
+    void add_scalar_inplace(float scalar)
+    {
+        backend_.add_scalar_inplace(scalar);
+    }
+    void multiply_scalar_inplace(float scalar)
+    {
+        backend_.multiply_scalar_inplace(scalar);
+    }
+    void divide_scalar_inplace(float scalar)
+    {
+        backend_.divide_scalar_inplace(scalar);
+    }
+    void sqrt_inplace()
+    {
+        backend_.sqrt_inplace();
+    }
+    void square_inplace()
+    {
+        backend_.square_inplace();
+    }
+
+    auto exp() const -> TensorImpl
+    {
+        return TensorImpl(backend_.exp());
+    }
+    auto rowwise_sum() const -> TensorImpl
+    {
+        return TensorImpl(backend_.rowwise_sum());
+    }
+    auto matmul_transposed(const TensorImpl& other) const -> TensorImpl
+    {
+        return TensorImpl(backend_.matmul_transposed(other.backend_));
+    }
+
     auto transpose() const -> TensorImpl
     {
         return TensorImpl(backend_.transpose());

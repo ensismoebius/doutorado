@@ -166,6 +166,57 @@ class DeviceTensorBackend
     // Element-wise arithmetic (add/subtract/multiply).
     // - Implement device kernels for element-wise ops for performance.
     // - Ensure shape compatibility checks match `EigenTensorBackend` behaviour.
+
+    void add_inplace(const DeviceTensorBackend& other)
+    {
+        m_host.add_inplace(other.m_host);
+    }
+    void subtract_inplace(const DeviceTensorBackend& other)
+    {
+        m_host.subtract_inplace(other.m_host);
+    }
+    void multiply_inplace(const DeviceTensorBackend& other)
+    {
+        m_host.multiply_inplace(other.m_host);
+    }
+    void divide_inplace(const DeviceTensorBackend& other)
+    {
+        m_host.divide_inplace(other.m_host);
+    }
+    void add_scalar_inplace(float val)
+    {
+        m_host.add_scalar_inplace(val);
+    }
+    void multiply_scalar_inplace(float val)
+    {
+        m_host.multiply_scalar_inplace(val);
+    }
+    void divide_scalar_inplace(float val)
+    {
+        m_host.divide_scalar_inplace(val);
+    }
+    void sqrt_inplace()
+    {
+        m_host.sqrt_inplace();
+    }
+    void square_inplace()
+    {
+        m_host.square_inplace();
+    }
+
+    DeviceTensorBackend exp() const
+    {
+        return DeviceTensorBackend(m_host.exp());
+    }
+    DeviceTensorBackend rowwise_sum() const
+    {
+        return DeviceTensorBackend(m_host.rowwise_sum());
+    }
+    DeviceTensorBackend matmul_transposed(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.matmul_transposed(other.m_host));
+    }
+
     DeviceTensorBackend add(const DeviceTensorBackend& other) const
     {
         return DeviceTensorBackend(m_host.add(other.m_host));

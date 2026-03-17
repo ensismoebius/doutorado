@@ -66,16 +66,9 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
-            velocity[i] =
-                velocity[i].multiply_scalar(momentum).add(param.multiply_scalar(-learning_rate));
-            // Element-wise addition to param data
-            for (size_t row = 0; row < param.rows(); ++row)
-            {
-                for (size_t col = 0; col < param.cols(); ++col)
-                {
-                    param.at(row, col) = param.at(row, col) + velocity[i].at(row, col);
-                }
-            }
+            velocity[i].multiply_scalar_inplace(momentum);
+            velocity[i].add_inplace(param.multiply_scalar(-learning_rate));
+            param.add_inplace(velocity[i]);
         }
     }
 

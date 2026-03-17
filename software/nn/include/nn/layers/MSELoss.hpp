@@ -89,10 +89,10 @@ class MSELoss : public Module
         // Returns dL/d(prediction) for the *last* cached prediction.
         // The `prediction` argument is unused because `last_input` is cached in forward().
         // Compute gradient: 2 * (prediction - target) / num_elements
-        nn::Tensor diff = last_input_ - last_target_;
-
+        nn::Tensor grad = last_input_;
+        grad.subtract_inplace(last_target_);
         float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input_.size());
-        nn::Tensor grad = diff * factor;
+        grad.multiply_scalar_inplace(factor);
 
         // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
         float grad_check = grad.norm();
@@ -116,7 +116,7 @@ class MSELoss : public Module
         float grad_norm = grad.norm();
         if (grad_norm > MAX_GRADIENT_NORM) [[unlikely]]
         {
-            grad.multiply_scalar(MAX_GRADIENT_NORM / grad_norm);
+            grad.multiply_scalar_inplace(MAX_GRADIENT_NORM / grad_norm);
         }
 
         return grad;

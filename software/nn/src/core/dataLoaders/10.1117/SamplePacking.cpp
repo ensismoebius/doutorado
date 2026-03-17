@@ -131,47 +131,8 @@ auto mergeAudioAndEEGSignals(const nn::Tensor& eeg_matrix, const nn::Tensor& aud
     return audio_eeg_merged;
 }
 
-auto extractEegFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor
-{
-    const std::size_t eeg_cols = ImaginedSpeechSchema_10_1117.eegSignalColumns();
-    const std::size_t audio_cols = ImaginedSpeechSchema_10_1117.audioSamples();
-    if (assembled_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
-    {
-        throw std::runtime_error("Unexpected assembled input shape for EEG extraction.");
-    }
-
-    nn::Tensor eeg_only(assembled_inputs.rows(), eeg_cols);
-    for (std::size_t row = 0; row < static_cast<std::size_t>(assembled_inputs.rows()); ++row)
-    {
-        for (std::size_t col = 0; col < eeg_cols; ++col)
-        {
-            eeg_only.at(row, col) = assembled_inputs.at(row, col);
-        }
-    }
-
-    return eeg_only;
-}
-
-auto extractAudioFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor
-{
-    const std::size_t eeg_cols = ImaginedSpeechSchema_10_1117.eegSignalColumns();
-    const std::size_t audio_cols = ImaginedSpeechSchema_10_1117.audioSamples();
-    if (assembled_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
-    {
-        throw std::runtime_error("Unexpected assembled input shape for audio extraction.");
-    }
-
-    nn::Tensor audio_only(assembled_inputs.rows(), audio_cols);
-    for (std::size_t row = 0; row < static_cast<std::size_t>(assembled_inputs.rows()); ++row)
-    {
-        for (std::size_t col = 0; col < audio_cols; ++col)
-        {
-            audio_only.at(row, col) = assembled_inputs.at(row, eeg_cols + col);
-        }
-    }
-
-    return audio_only;
-}
+// extractEegFromAssembledRows and extractAudioFromAssembledRows removed;
+// dataset now performs these slices inline in `Protocol101117Dataset::collate`.
 
 auto buildInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor
 {

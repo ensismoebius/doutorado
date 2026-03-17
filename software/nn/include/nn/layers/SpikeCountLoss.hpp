@@ -52,7 +52,8 @@ class SpikeCountLoss : public Module
             last_input_ = input;
         }
         // pred and target: (n_samples, 1)
-        auto diff = last_input_.add(target_.multiply_scalar(-1.0F));
+        nn::Tensor diff = last_input_;
+        diff.subtract_inplace(target_);
         float sum_sq = 0.0f;
         for (size_t i = 0; i < diff.rows(); ++i)
         {
@@ -70,9 +71,10 @@ class SpikeCountLoss : public Module
     auto backward(const nn::Tensor& /*grad_output*/) -> nn::Tensor override
     {
         // Gradient: 2 * (prediction - target) / N
-        auto grad_data = last_input_.add(target_.multiply_scalar(-1.0f));
-        grad_data = grad_data.multiply_scalar(2.0f / static_cast<float>(last_input_.size()));
-        return nn::Tensor(grad_data);
+        nn::Tensor grad(last_input_);
+        grad.subtract_inplace(target_);
+        grad.multiply_scalar_inplace(2.0f / static_cast<float>(last_input_.size()));
+        return grad;
     }
 };
 

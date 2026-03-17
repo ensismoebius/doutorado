@@ -21,7 +21,7 @@ namespace
 {
 
 constexpr size_t INPUT_FEATURES = multimodalInputFeatureColumns();
-constexpr size_t EEG_FEATURES = eegFeatureColumns();
+
 constexpr size_t AUDIO_FEATURES = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 constexpr size_t STACKED_CONCAT_ROWS =
     nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels + 1U;
@@ -212,7 +212,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         // directly into `assembled_inputs` to avoid per-row reconstruction.
         assembled_inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
 
-        SynchronizedBatchAssembler::assembleGroupedStacked(
+        SynchronizedBatchAssembler::assembleGrouped(
             grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
 
         // Already flattened in stacked order: audio row first, then per-channel EEG rows.
@@ -220,16 +220,28 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     }
     else
     {
-        SynchronizedBatchAssembler::assembleGrouped(
-            grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
+        // For distinct fallback modes, we gather items individually and flatten them
+        // into rows, mirroring what the original flat assembler used to do.
+        const std::size_t flat_features =
+            (input_mode_ == Protocol101117InputMode::EegOnly)
+                ? nn::dataLoaders::schema101117::eegFeatureColumns()
+                : nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 
-        if (input_mode_ == Protocol101117InputMode::EegOnly)
+        inputs = nn::Tensor(indices.size(), flat_features);
+
+        for (std::size_t row_i = 0; row_i < indices.size(); ++row_i)
         {
-            inputs = extractEegFromAssembledRows(assembled_inputs);
-        }
-        else
-        {
-            inputs = extractAudioFromAssembledRows(assembled_inputs);
+            auto sample = get_sample(indices[row_i]);
+            targets.setBlock(row_i, 0, sample.targets);
+
+            std::size_t flat_c = 0;
+            for (int r = 0; r < sample.inputs.rows(); ++r)
+            {
+                for (int c = 0; c < sample.inputs.cols(); ++c)
+                {
+                    inputs.at(row_i, flat_c++) = sample.inputs.at(r, c);
+                }
+            }
         }
     }
 
@@ -272,5 +284,80 @@ void Protocol101117Dataset::ensureSubjectMatSessionsInitialized(size_t subject_i
     {
         eeg_sessions_.at(subject_index) =
             std::make_unique<nn::dataLoaders::EEGMatSession>(subject.eeg_mat_path);
+    }
+}
+
+void Protocol101117Dataset::collate_into(
+    const std::vector<std::size_t>& indices, Batch& batch) const
+{
+    if (indices.empty())
+    {
+        Dataset::collate_into(indices, batch);
+        return;
+    }
+
+    if (batch.targets.rows() != static_cast<nn::Index>(indices.size()) || batch.targets.cols() != 5)
+    {
+        batch.targets = nn::Tensor(indices.size(), 5);
+    }
+
+    std::vector<std::vector<RowRequest>> grouped(subjects_.size());
+    for (size_t row = 0; row < indices.size(); ++row)
+    {
+        const size_t idx = indices[row];
+        if (idx >= size())
+        {
+            throw std::out_of_range(
+                "Dataset index out of range in collate_into: " + std::to_string(idx));
+        }
+
+        const auto [subject_index, audio_row] =
+            locateSubjectAndAudioRow(prefix_audio_row_offsets_, idx);
+        grouped[subject_index].push_back(RowRequest{row, audio_row});
+    }
+
+    for (size_t subject_index = 0; subject_index < grouped.size(); ++subject_index)
+    {
+        if (grouped[subject_index].empty()) continue;
+        ensureSubjectMatSessionsInitialized(subject_index);
+    }
+
+    if (input_mode_ == Protocol101117InputMode::Concatenated)
+    {
+        if (batch.inputs.rows() != static_cast<nn::Index>(indices.size()) ||
+            batch.inputs.cols() != STACKED_CONCAT_FEATURES)
+        {
+            batch.inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
+        }
+        SynchronizedBatchAssembler::assembleGrouped(
+            grouped, subjects_, audio_sessions_, eeg_sessions_, batch.inputs, batch.targets);
+    }
+    else
+    {
+        const std::size_t flat_features =
+            (input_mode_ == Protocol101117InputMode::EegOnly)
+                ? nn::dataLoaders::schema101117::eegFeatureColumns()
+                : nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
+
+        if (batch.inputs.rows() != static_cast<nn::Index>(indices.size()) ||
+            batch.inputs.cols() != static_cast<nn::Index>(flat_features))
+        {
+            batch.inputs = nn::Tensor(indices.size(), flat_features);
+        }
+
+        for (std::size_t row_i = 0; row_i < indices.size(); ++row_i)
+        {
+            auto sample = get_sample(indices[row_i]);
+            batch.targets.setBlock(row_i, 0, sample.targets);
+
+            std::size_t flat_c = 0;
+            for (int r = 0; r < sample.inputs.rows(); ++r)
+            {
+                for (int c = 0; c < sample.inputs.cols(); ++c)
+                {
+                    batch.inputs.at(row_i, flat_c++) = sample.inputs.at(r, c);
+                }
+            }
+        }
     }
 }

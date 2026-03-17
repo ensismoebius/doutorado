@@ -23,7 +23,7 @@ class DataLoaderIterator
         std::size_t current_batch,
         std::shared_ptr<std::vector<std::size_t>> indices);
 
-    auto operator*() const -> Batch;
+    [[nodiscard]] auto operator*() const -> const Batch&;
     auto operator++() -> DataLoaderIterator&;
     auto operator!=(const DataLoaderIterator& other) const -> bool;
     auto operator==(const DataLoaderIterator& other) const -> bool;
@@ -32,6 +32,9 @@ class DataLoaderIterator
     DataLoader& loader_;
     std::size_t current_batch_;
     std::shared_ptr<std::vector<std::size_t>> indices_;
+    mutable Batch current_batch_data_;
+    mutable bool batch_valid_{false};
+    void fetch_batch() const;
 };
 
 #endif // NN_DATALOADERS_DATALOADERITERATOR_HPP

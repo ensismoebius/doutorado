@@ -320,6 +320,72 @@ class EigenTensorBackend
     }
 
     // Arithmetic ops: validate shape and throw std::invalid_argument on mismatch.
+
+    // In-place mutating operations
+    void add_inplace(const EigenTensorBackend& other)
+    {
+        if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for add_inplace");
+        m_data += other.m_data;
+    }
+    void subtract_inplace(const EigenTensorBackend& other)
+    {
+        if (m_shape != other.m_shape)
+            throw std::invalid_argument("Shape mismatch for subtract_inplace");
+        m_data -= other.m_data;
+    }
+    void multiply_inplace(const EigenTensorBackend& other)
+    {
+        if (m_shape != other.m_shape)
+            throw std::invalid_argument("Shape mismatch for multiply_inplace");
+        m_data.array() *= other.m_data.array();
+    }
+    void divide_inplace(const EigenTensorBackend& other)
+    {
+        if (m_shape != other.m_shape)
+            throw std::invalid_argument("Shape mismatch for divide_inplace");
+        m_data.array() /= other.m_data.array();
+    }
+    void add_scalar_inplace(float val)
+    {
+        m_data.array() += val;
+    }
+    void multiply_scalar_inplace(float val)
+    {
+        m_data *= val;
+    }
+    void divide_scalar_inplace(float val)
+    {
+        m_data /= val;
+    }
+    void sqrt_inplace()
+    {
+        m_data = m_data.array().sqrt();
+    }
+    void square_inplace()
+    {
+        m_data = m_data.array().square();
+    }
+
+    EigenTensorBackend exp() const
+    {
+        return EigenTensorBackend(m_data.array().exp());
+    }
+    EigenTensorBackend rowwise_sum() const
+    {
+        EigenTensorBackend res(m_data.rows(), 1);
+        res.m_data = m_data.rowwise().sum();
+        return res;
+    }
+    EigenTensorBackend matmul_transposed(const EigenTensorBackend& other) const
+    {
+        if (m_shape.size() != 2 || other.m_shape.size() != 2)
+            throw std::invalid_argument("matmul valid only for 2D tensors");
+        if (cols() != other.cols())
+            throw std::invalid_argument("Dimension mismatch for matmul_transposed");
+
+        return EigenTensorBackend(m_data * other.m_data.transpose());
+    }
+
     EigenTensorBackend add(const EigenTensorBackend& other) const
     {
         if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for add");

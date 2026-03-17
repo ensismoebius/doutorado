@@ -39,24 +39,12 @@ class SynchronizedBatchAssembler
      * @param audio_sessions Per-subject `AudioMatSession` handles (opened session objects).
      * @param eeg_sessions  Per-subject `EEGMatSession` handles (opened session objects).
      * @param[out] inputs   Tensor (batch x features) that will be filled with EEG+audio rows.
+     *                      Must be pre-allocated with cols == (1 + eeg_channels) * audioSamples().
      * @param[out] targets  Tensor (batch x 5) that will be filled with metadata for each row.
      * @throws std::runtime_error if a stimulus label mismatch is detected between
      *                            audio and EEG data for a matched pair.
      */
     static void assembleGrouped(const std::vector<std::vector<RowRequest>>& grouped,
-        const std::vector<SubjectFiles>& subjects,
-        const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions,
-        const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
-        nn::Tensor& inputs,
-        nn::Tensor& targets);
-
-    /**
-     * Assemble a grouped batch but emit stacked, channel-preserving flattened
-     * rows (audio row first, then per-channel EEG rows resampled to audio
-     * width) into `inputs`. The caller must allocate `inputs` with
-     * cols == (1 + eeg_channels) * audioSamples().
-     */
-    static void assembleGroupedStacked(const std::vector<std::vector<RowRequest>>& grouped,
         const std::vector<SubjectFiles>& subjects,
         const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions,
         const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,

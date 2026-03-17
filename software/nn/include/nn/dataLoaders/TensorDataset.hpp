@@ -52,6 +52,21 @@ class TensorDataset : public Dataset
         return {.inputs = in, .targets = tg};
     }
 
+    void collate_into(const std::vector<std::size_t>& indices, Batch& batch) const override
+    {
+        std::vector<int> idxs;
+        idxs.reserve(indices.size());
+        std::transform(indices.begin(),
+            indices.end(),
+            std::back_inserter(idxs),
+            [](std::size_t i) { return static_cast<int>(i); });
+
+        // Use slice directly and swap it into the batch.
+        // This still creates a new Tensor, but handles the override.
+        batch.inputs = inputs_.slice(std::span<const int>(idxs));
+        batch.targets = targets_.slice(std::span<const int>(idxs));
+    }
+
     auto collate(const std::vector<std::size_t>& indices) const -> Batch override
     {
         std::vector<int> idxs;
