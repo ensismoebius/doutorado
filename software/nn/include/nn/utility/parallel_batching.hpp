@@ -32,8 +32,9 @@
  * Optimizes batch creation through parallel shuffling and concatenation.
  */
 inline auto create_batches_parallel(const std::vector<nn::Tensor>& inputSamples,
-                                    const std::vector<nn::Tensor>& targets, const int batch_size,
-                                    const int num_threads = 8) -> std::vector<Batch>
+    const std::vector<nn::Tensor>& targets,
+    const int batch_size,
+    const int num_threads = 8) -> std::vector<Batch>
 {
     const int n_samples = static_cast<int>(inputSamples.size());
 
@@ -104,7 +105,9 @@ struct BatchBufferPool
     const size_t target_cols;
 
     BatchBufferPool(const std::vector<nn::Tensor>& inputSamples,
-                    const std::vector<nn::Tensor>& targets, int batch_size, int num_buffers)
+        const std::vector<nn::Tensor>& targets,
+        int batch_size,
+        int num_buffers)
         : batch_size(batch_size),
           input_rows(inputSamples[0].rows()),
           input_cols(inputSamples[0].cols()),
@@ -131,9 +134,11 @@ struct BatchBufferPool
  * @brief Creates batches using pre-allocated buffer pool for better memory efficiency
  */
 inline auto create_batches_with_pool(const std::vector<nn::Tensor>& inputSamples,
-                                     const std::vector<nn::Tensor>& targets, BatchBufferPool& pool,
-                                     const std::vector<int>& indices, int batch_start,
-                                     int buffer_idx) -> Batch
+    const std::vector<nn::Tensor>& targets,
+    BatchBufferPool& pool,
+    const std::vector<int>& indices,
+    int batch_start,
+    int buffer_idx) -> Batch
 {
     const int n_samples = static_cast<int>(inputSamples.size());
     const int actual_batch_size = std::min(pool.batch_size, n_samples - batch_start);

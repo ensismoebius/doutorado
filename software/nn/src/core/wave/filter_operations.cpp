@@ -110,8 +110,9 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
     return calcOrthogonalVectorLocal(filter);
 }
 
-auto createStopBandFilter(int order, double samplingRate, double startFrequency,
-                          double finalFrequency) -> std::vector<double>
+auto createStopBandFilter(
+    int order, double samplingRate, double startFrequency, double finalFrequency)
+    -> std::vector<double>
 {
     validateOddOrder(order);
 

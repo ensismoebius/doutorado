@@ -23,8 +23,8 @@ constexpr const char* kDefaultAudioPath = "/path/to/S01_Audio.mat";
 } // namespace
 
 // Normalization (using core implementation)
-void min_max_normalize(std::vector<std::vector<double>>& features,
-                       const std::vector<double>& range = {0.0, 1.0})
+void min_max_normalize(
+    std::vector<std::vector<double>>& features, const std::vector<double>& range = {0.0, 1.0})
 {
     linearAlgebra::minMaxNormalizeFeatures(features, range);
 }
@@ -60,11 +60,11 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
         }
 
         auto windows = extract_windows(eeg_samples,
-                                       audio_samples,
-                                       config.window_duration_sec,
-                                       config.overlap_sec,
-                                       config.eeg_sampling_rate,
-                                       config.audio_sampling_rate);
+            audio_samples,
+            config.window_duration_sec,
+            config.overlap_sec,
+            config.eeg_sampling_rate,
+            config.audio_sampling_rate);
         std::cout << "Extracted " << windows.size() << " windows" << std::endl;
 
         if (windows.empty())

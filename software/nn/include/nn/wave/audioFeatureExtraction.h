@@ -35,8 +35,8 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
     -> nn::Tensor;
 auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& loading_params)
     -> nn::Tensor;
-auto compute_deltas(const nn::Tensor& features,
-                    const LoadingAndProcessingParameters& loading_params) -> nn::Tensor;
+auto compute_deltas(
+    const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params) -> nn::Tensor;
 
 // Windowing functions
 auto hanning_window(int length) -> std::vector<double>;

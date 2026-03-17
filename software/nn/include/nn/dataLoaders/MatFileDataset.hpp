@@ -19,8 +19,9 @@
 class MatFileDataset : public TensorDataset
 {
    public:
-    MatFileDataset(const std::string& mat_path, const std::string& input_var_name,
-                   const std::string& target_var_name)
+    MatFileDataset(const std::string& mat_path,
+        const std::string& input_var_name,
+        const std::string& target_var_name)
     {
         auto inputs_mat = matioCpp::utils::load_named_variable_as_matrix(mat_path, input_var_name);
         auto targets_mat =

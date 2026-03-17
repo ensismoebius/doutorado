@@ -125,8 +125,8 @@ auto framing_and_window(const vector<float>& signal, FramingConfig& context)
     {
         window_function[i] = context.loading_params.hamming_window_config.alpha -
                              (context.loading_params.hamming_window_config.beta *
-                              cosf(2 * std::numbers::pi_v<float> * static_cast<float>(i) /
-                                   (static_cast<float>(context.frame_length) - 1))); // Hamming
+                                 cosf(2 * std::numbers::pi_v<float> * static_cast<float>(i) /
+                                      (static_cast<float>(context.frame_length) - 1))); // Hamming
     }
 
     // Apply window to each frame.
@@ -282,8 +282,8 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
 
     // Build triangular filters.
     for (int filter_index = 1;
-         filter_index <= context.loading_params.audio_params.number_of_filters;
-         ++filter_index)
+        filter_index <= context.loading_params.audio_params.number_of_filters;
+        ++filter_index)
     {
         // Previous bin index for current filter.
         const int previous_bin_index = bin_indices[filter_index - 1];
@@ -360,7 +360,7 @@ auto dot_power_filterbank(const nn::Tensor& power_spectrum, const PowerFilterban
                        context.filterbank(filter_index, bin_index);
             }
             sum = std::max(sum,
-                           context.loading_params.constants.min_log_energy); // Avoid log(0).
+                context.loading_params.constants.min_log_energy); // Avoid log(0).
             log_energies(frame_index, filter_index) = logf(sum);
         }
     }
@@ -386,23 +386,23 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
     const size_t number_of_filters = log_energies.cols();
 
     // Output matrix for cepstral coefficients.
-    nn::Tensor cepstral_coefficients((long) number_of_frames,
-                                     loading_params.audio_params.number_of_cepstrals);
+    nn::Tensor cepstral_coefficients(
+        (long) number_of_frames, loading_params.audio_params.number_of_cepstrals);
 
     // Compute cepstral coefficients for each frame.
     for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
     {
         // Compute cepstral terms for current frame.
         for (size_t cepstrum_index = 0;
-             cepstrum_index < loading_params.audio_params.number_of_cepstrals;
-             ++cepstrum_index)
+            cepstrum_index < loading_params.audio_params.number_of_cepstrals;
+            ++cepstrum_index)
         {
             // Accumulator for weighted DCT sum.
             float sum = 0.0F;
 
             // Compute current cepstral coefficient.
             for (long filter_index = 0; filter_index < static_cast<long>(number_of_filters);
-                 ++filter_index)
+                ++filter_index)
             {
                 // Weighted DCT-II accumulation.
                 sum += log_energies(    // Log energy
@@ -411,7 +411,7 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
                            ) *
                        cosf(std::numbers::pi_v<float> * static_cast<float>(cepstrum_index) *
                             (static_cast<float>(filter_index) +
-                             loading_params.dct_config.filter_index_offset) /
+                                loading_params.dct_config.filter_index_offset) /
                             static_cast<float>(number_of_filters) // Normalized filter index
                        );
             }
@@ -440,8 +440,8 @@ auto dct2(const nn::Tensor& log_energies, const LoadingAndProcessingParameters& 
  * @param loading_params Loading and processing parameters.
  * @return Matrix with delta coefficients.
  */
-auto compute_deltas(const nn::Tensor& features,
-                    const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
+auto compute_deltas(
+    const nn::Tensor& features, const LoadingAndProcessingParameters& loading_params) -> nn::Tensor
 {
     // Number of input frames.
     const long number_of_frames = features.rows();
@@ -480,7 +480,7 @@ auto compute_deltas(const nn::Tensor& features,
 
             // Build numerator for current feature delta.
             for (size_t delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
-                 ++delta_span)
+                ++delta_span)
             {
                 // Determine indices for c_{t+n} and c_{t-n} with boundary handling
                 size_t index_plus_n = frame_index + delta_span;
@@ -499,7 +499,7 @@ auto compute_deltas(const nn::Tensor& features,
                 // Temporal difference weighted by span distance.
                 numerator +=
                     static_cast<float>(delta_span) * (features(index_plus_n, feature_index) -
-                                                      features(index_minus_n, feature_index));
+                                                         features(index_minus_n, feature_index));
             }
 
             // Final delta value for frame/feature.

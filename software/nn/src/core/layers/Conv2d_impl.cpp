@@ -14,14 +14,20 @@ constexpr int COL2IM_SIZE = 512;
 
 // ============ Constructor ============
 
-Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch_size,
-               bool use_parallel)
+Conv2d::Conv2d(
+    int in_channels, int out_channels, int kernel_size, int max_batch_size, bool use_parallel)
     : Conv2d(in_channels, out_channels, kernel_size, 1, 0, 1, use_parallel, max_batch_size)
 {
 }
 
-Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding,
-               int dilation, bool use_parallel, int max_batch_size)
+Conv2d::Conv2d(int in_channels,
+    int out_channels,
+    int kernel_size,
+    int stride,
+    int padding,
+    int dilation,
+    bool use_parallel,
+    int max_batch_size)
     : in_channels_(in_channels),
       out_channels_(out_channels),
       kernel_size_(kernel_size),
@@ -33,14 +39,14 @@ Conv2d::Conv2d(int in_channels, int out_channels, int kernel_size, int stride, i
       weights_(
           nn::Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
       bias_(nn::Tensor(1, out_channels)), // Bias should be 1 x out_channels
-      im2col_buffer_(
-          std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
-                                       max_batch_size * MAX_IMAGE_SIZE * MAX_IMAGE_SIZE)),
+      im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
+          max_batch_size * MAX_IMAGE_SIZE * MAX_IMAGE_SIZE)),
       col2im_buffer_(
           std::make_unique<nn::Tensor>(max_batch_size, in_channels, COL2IM_SIZE, COL2IM_SIZE)),
-      grad_output_buffer_(std::make_unique<nn::Tensor>(max_batch_size, out_channels,
-                                                       DEFAULT_SIZE - kernel_size + 1,
-                                                       DEFAULT_SIZE - kernel_size + 1))
+      grad_output_buffer_(std::make_unique<nn::Tensor>(max_batch_size,
+          out_channels,
+          DEFAULT_SIZE - kernel_size + 1,
+          DEFAULT_SIZE - kernel_size + 1))
 {
     // Initialize weights with He initialization
     initialize_weights_he();
@@ -203,12 +209,12 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
     }
 
     im2col_optimized(input_cache_,
-                     im2col_buffer,
-                     batch_size,
-                     input_height,
-                     input_width,
-                     output_height,
-                     output_width);
+        im2col_buffer,
+        batch_size,
+        input_height,
+        input_width,
+        output_height,
+        output_width);
 
     // Use only the active part of the buffer
     auto im2col_active = im2col_buffer.block(0, 0, patch_rows, total_patch_cols);

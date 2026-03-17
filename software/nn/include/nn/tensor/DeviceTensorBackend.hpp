@@ -401,8 +401,8 @@ class DeviceTensorBackend
         // Copy device->host. No-op if device buffer absent.
         if (!m_on_device) return;
         std::copy(m_device.begin(),
-                  m_device.begin() + static_cast<size_t>(size()),
-                  m_host.mutable_data_ptr());
+            m_device.begin() + static_cast<size_t>(size()),
+            m_host.mutable_data_ptr());
         // Keep device buffer allocated for potential reuse.
     }
 
@@ -436,8 +436,8 @@ class DeviceTensorBackend
         if (!m_grad_on_device) return;
         auto& host_grad_ref = m_host.grad_ref();
         std::copy(m_device_grad.begin(),
-                  m_device_grad.begin() + static_cast<size_t>(size()),
-                  host_grad_ref.mutable_data_ptr());
+            m_device_grad.begin() + static_cast<size_t>(size()),
+            host_grad_ref.mutable_data_ptr());
     }
 
     bool is_grad_on_device() const

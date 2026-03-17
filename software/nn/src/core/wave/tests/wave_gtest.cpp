@@ -142,8 +142,8 @@ TEST(WavFileTest, WriteThenRead)
 namespace
 {
 int g_callback_calls = 0;
-void CountCallback(std::vector<double>& signal, size_t& signalLength, uint32_t samplingRate,
-                   std::string path)
+void CountCallback(
+    std::vector<double>& signal, size_t& signalLength, uint32_t samplingRate, std::string path)
 {
     (void) signal;
     (void) signalLength;
@@ -202,12 +202,11 @@ TEST(WavFileTest, Vector2DWriteSupportsMonoAndStereoAndValidatesInputs)
     EXPECT_FALSE(stereo_reader.get_data_left().empty());
     EXPECT_FALSE(stereo_reader.get_data_right().empty());
 
-    EXPECT_THROW(wav.write(stereo_path, std::vector<std::vector<float>>{}, 44100),
-                 std::runtime_error);
     EXPECT_THROW(
-        wav.write(stereo_path,
-                  std::vector<std::vector<float>>{{0.0F, 1.0F}, {0.0F, 1.0F}, {0.0F, 1.0F}},
-                  44100),
+        wav.write(stereo_path, std::vector<std::vector<float>>{}, 44100), std::runtime_error);
+    EXPECT_THROW(wav.write(stereo_path,
+                     std::vector<std::vector<float>>{{0.0F, 1.0F}, {0.0F, 1.0F}, {0.0F, 1.0F}},
+                     44100),
         std::runtime_error);
 }
 
@@ -302,8 +301,8 @@ TEST(WavFileTest, ReadEightBitBranchesViaHeaderPatching)
     EXPECT_FALSE(mono_reader.get_data().empty());
 
     writer.write(stereo_path,
-                 std::vector<std::vector<float>>{{0.1F, 0.2F, -0.3F}, {-0.1F, -0.2F, 0.3F}},
-                 sample_rate);
+        std::vector<std::vector<float>>{{0.1F, 0.2F, -0.3F}, {-0.1F, -0.2F, 0.3F}},
+        sample_rate);
     PatchU16At(stereo_path, 34, static_cast<uint16_t>(8));
     PatchU32At(stereo_path, 28, static_cast<uint32_t>(sample_rate * 2U));
     PatchU16At(stereo_path, 32, static_cast<uint16_t>(2));
@@ -341,8 +340,8 @@ TEST(WavFileTest, ClassicWriteRoundtripFromReadSixteenBitMonoAndStereo)
     Wav writer;
     writer.write(mono_in, std::vector<float>{0.05F, -0.1F, 0.2F}, 16000);
     writer.write(stereo_in,
-                 std::vector<std::vector<float>>{{0.1F, 0.2F, 0.3F}, {-0.1F, -0.2F, -0.3F}},
-                 16000);
+        std::vector<std::vector<float>>{{0.1F, 0.2F, 0.3F}, {-0.1F, -0.2F, -0.3F}},
+        16000);
 
     Wav mono_reader;
     ASSERT_NO_THROW(mono_reader.read(mono_in));
@@ -372,8 +371,8 @@ TEST(WavFileTest, ClassicWriteRoundtripFromReadEightBitMonoAndStereo)
     PatchU16At(mono_in, 32, static_cast<uint16_t>(1));
 
     writer.write(stereo_in,
-                 std::vector<std::vector<float>>{{0.1F, 0.2F, -0.3F}, {-0.1F, -0.2F, 0.3F}},
-                 sample_rate);
+        std::vector<std::vector<float>>{{0.1F, 0.2F, -0.3F}, {-0.1F, -0.2F, 0.3F}},
+        sample_rate);
     PatchU16At(stereo_in, 34, static_cast<uint16_t>(8));
     PatchU32At(stereo_in, 28, static_cast<uint32_t>(sample_rate * 2U));
     PatchU16At(stereo_in, 32, static_cast<uint16_t>(2));

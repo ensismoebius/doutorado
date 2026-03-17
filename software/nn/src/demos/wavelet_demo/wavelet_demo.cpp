@@ -52,8 +52,8 @@ void plot_signal(const std::vector<double>& signal)
     }
 }
 
-void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
-                                        std::span<const double> filter, int level_to_plot)
+void plot_dwt_decomposition_single_plot(
+    const std::vector<double>& signal, std::span<const double> filter, int level_to_plot)
 {
     try
     {
@@ -68,14 +68,15 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
         if (!approximation.empty())
         {
             std::transform(approximation.begin(),
-                           approximation.end(),
-                           std::back_inserter(combined_coefficients),
-                           [offset](double val) { return val + offset; });
+                approximation.end(),
+                std::back_inserter(combined_coefficients),
+                [offset](double val) { return val + offset; });
             if (approximation.size() > 1)
             { // Only calculate range if more than one element
-                offset += (*std::ranges::max_element(approximation.begin(), approximation.end()) -
-                           *std::ranges::min_element(approximation.begin(), approximation.end())) +
-                          0.1; // dynamic offset
+                offset +=
+                    (*std::ranges::max_element(approximation.begin(), approximation.end()) -
+                        *std::ranges::min_element(approximation.begin(), approximation.end())) +
+                    0.1; // dynamic offset
             }
         }
 
@@ -86,13 +87,13 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
             if (!details.empty())
             {
                 std::transform(details.begin(),
-                               details.end(),
-                               std::back_inserter(combined_coefficients),
-                               [offset](double val) { return val + offset; });
+                    details.end(),
+                    std::back_inserter(combined_coefficients),
+                    [offset](double val) { return val + offset; });
                 if (details.size() > 1)
                 {
                     offset += (*std::ranges::max_element(details.begin(), details.end()) -
-                               *std::ranges::min_element(details.begin(), details.end())) +
+                                  *std::ranges::min_element(details.begin(), details.end())) +
                               0.1; // dynamic offset
                 }
             }
@@ -108,8 +109,8 @@ void plot_dwt_decomposition_single_plot(const std::vector<double>& signal,
     }
 }
 
-void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
-                                         std::span<const double> filter, int level_to_plot)
+void plot_dwpt_decomposition_single_plot(
+    const std::vector<double>& signal, std::span<const double> filter, int level_to_plot)
 {
     try
     {
@@ -127,13 +128,13 @@ void plot_dwpt_decomposition_single_plot(const std::vector<double>& signal,
             if (!part.empty())
             {
                 std::transform(part.begin(),
-                               part.end(),
-                               std::back_inserter(combined_packets),
-                               [offset](double val) { return val + offset; });
+                    part.end(),
+                    std::back_inserter(combined_packets),
+                    [offset](double val) { return val + offset; });
                 if (part.size() > 1)
                 { // Only calculate range if more than one element
                     offset += (*std::ranges::max_element(part.begin(), part.end()) -
-                               *std::ranges::min_element(part.begin(), part.end())) +
+                                  *std::ranges::min_element(part.begin(), part.end())) +
                               0.1; // dynamic offset
                 }
             }

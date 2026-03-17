@@ -31,8 +31,8 @@ class EEGLoaderArticleSpecTest : public ::testing::Test
 
         std::filesystem::remove(eeg_file_);
 
-        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(eeg_file_,
-                                                                                      eeg_rows_);
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(
+            eeg_file_, eeg_rows_);
     }
 
     void TearDown() override

@@ -18,6 +18,9 @@
  * When `done` is true the function prints a trailing newline to finish the
  * progress line.
  */
-void printProgress(std::size_t dataset_total_samples, std::size_t batch_size,
-                   std::size_t max_batches, std::size_t seen_batches, std::size_t processed_samples,
-                   bool done = false);
+void printProgress(std::size_t dataset_total_samples,
+    std::size_t batch_size,
+    std::size_t max_batches,
+    std::size_t seen_batches,
+    std::size_t processed_samples,
+    bool done = false);

@@ -8,7 +8,9 @@ namespace codificacao
 
 float compute_adaptive_max_rate( //
     const nn::Tensor& signal,    //
-    float expected_spikes_per_step, float min_max_rate, float max_max_rate,
+    float expected_spikes_per_step,
+    float min_max_rate,
+    float max_max_rate,
     float epsilon //
 )
 {
@@ -26,7 +28,10 @@ float compute_adaptive_max_rate( //
 
 nn::Tensor encode_poisson(   //
     const nn::Tensor& frame, //
-    int time_steps, std::mt19937& random_engine, float max_rate, bool adaptive_rate,
+    int time_steps,
+    std::mt19937& random_engine,
+    float max_rate,
+    bool adaptive_rate,
     float expected_spikes_per_step //
 )
 {

@@ -4,8 +4,8 @@
 #include <random>
 #include <stdexcept>
 
-WeightedRandomSampler::WeightedRandomSampler(std::vector<double> weights, std::size_t num_samples,
-                                             std::optional<unsigned int> seed)
+WeightedRandomSampler::WeightedRandomSampler(
+    std::vector<double> weights, std::size_t num_samples, std::optional<unsigned int> seed)
     : weights_(std::move(weights)),
       num_samples_(num_samples),
       base_seed_(seed),

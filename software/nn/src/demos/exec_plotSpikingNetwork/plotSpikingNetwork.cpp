@@ -48,21 +48,21 @@ auto main() -> int
     auto [spike_inputs, _] = generate_autoencoder_spike_data(1, 1, n_steps, max_rate, time_step);
 
     // Setup 1 hidden LIF neuron and 1 output neuron (LIF)
-    Leaky hidden_neuron(time_step,   // dt
-                        resistence,  // R
-                        capacitance, // C
-                        v_threshold, // reset to zero or subtract threshold
-                        true,        // reset to zero
-                        0.0F,        // reset potential value
-                        std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
+    Leaky hidden_neuron(time_step,                   // dt
+        resistence,                                  // R
+        capacitance,                                 // C
+        v_threshold,                                 // reset to zero or subtract threshold
+        true,                                        // reset to zero
+        0.0F,                                        // reset potential value
+        std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
     );
-    Leaky output_neuron(time_step,   // dt
-                        resistence,  // R
-                        capacitance, // C
-                        v_threshold, // reset to zero or subtract threshold
-                        true,        // reset to zero
-                        0.0F,        // reset potential value
-                        std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
+    Leaky output_neuron(time_step,                   // dt
+        resistence,                                  // R
+        capacitance,                                 // C
+        v_threshold,                                 // reset to zero or subtract threshold
+        true,                                        // reset to zero
+        0.0F,                                        // reset potential value
+        std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
     );
 
     // Data for plotting
@@ -129,9 +129,9 @@ auto main() -> int
                 {
                     vector<float> y(input_spike_times.size(), 0.0F);
                     PlotScatter("Input",
-                                input_spike_times.data(),
-                                y.data(),
-                                (int) input_spike_times.size());
+                        input_spike_times.data(),
+                        y.data(),
+                        (int) input_spike_times.size());
                 }
 
                 // Hidden neuron
@@ -147,9 +147,9 @@ auto main() -> int
                 {
                     vector<float> y(hidden_spike_times.size(), 1.0F);
                     PlotScatter("Hidden",
-                                hidden_spike_times.data(),
-                                y.data(),
-                                (int) hidden_spike_times.size());
+                        hidden_spike_times.data(),
+                        y.data(),
+                        (int) hidden_spike_times.size());
                 }
 
                 // Output neuron
@@ -165,9 +165,9 @@ auto main() -> int
                 {
                     vector<float> y(output_spike_times.size(), 2.0F);
                     PlotScatter("Output",
-                                output_spike_times.data(),
-                                y.data(),
-                                (int) output_spike_times.size());
+                        output_spike_times.data(),
+                        y.data(),
+                        (int) output_spike_times.size());
                 }
 
                 EndPlot();

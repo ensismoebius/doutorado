@@ -114,18 +114,17 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsSequentialAndRandom)
     auto targets = make_sequential_tensor(10, 1);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
-    DataLoader seq_loader(
-        dataset,
+    DataLoader seq_loader(dataset,
         5,
         DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::Sequential});
     DataLoader rnd_loader_a(dataset,
-                            5,
-                            DataLoader::DefaultSamplerOptions{
-                                .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
+        5,
+        DataLoader::DefaultSamplerOptions{
+            .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
     DataLoader rnd_loader_b(dataset,
-                            5,
-                            DataLoader::DefaultSamplerOptions{
-                                .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
+        5,
+        DataLoader::DefaultSamplerOptions{
+            .type = DataLoader::DefaultSamplerType::Random, .seed = 77u});
 
     std::vector<int> seq_order;
     for (const auto& b : seq_loader)
@@ -168,11 +167,9 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)
     auto targets = make_sequential_tensor(8, 1);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
-    DataLoader weighted_loader(
-        dataset,
+    DataLoader weighted_loader(dataset,
         4,
-        DataLoader::DefaultSamplerOptions{
-            .type = DataLoader::DefaultSamplerType::WeightedRandom,
+        DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::WeightedRandom,
             .seed = 11u,
             .weights = std::vector<double>{0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0},
             .weighted_num_samples = 8});
@@ -188,15 +185,14 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)
     }
     EXPECT_EQ(weighted_rows, 8);
 
-    DataLoader dist_loader(
-        dataset,
+    DataLoader dist_loader(dataset,
         2,
         DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::Distributed,
-                                          .seed = 9u,
-                                          .num_replicas = 2,
-                                          .rank = 1,
-                                          .distributed_shuffle = false,
-                                          .distributed_drop_last = false});
+            .seed = 9u,
+            .num_replicas = 2,
+            .rank = 1,
+            .distributed_shuffle = false,
+            .distributed_drop_last = false});
 
     std::vector<int> dist_order;
     for (const auto& b : dist_loader)
@@ -235,10 +231,9 @@ TEST(DataLoaderMoreTest, ConcurrencySmokeTest)
             {
                 DataLoader loader(dataset, 7, true, static_cast<unsigned int>(100 + t));
                 int local = std::accumulate(loader.begin(),
-                                            loader.end(),
-                                            0,
-                                            [](int sum, const auto& b)
-                                            { return sum + static_cast<int>(b.inputs.rows()); });
+                    loader.end(),
+                    0,
+                    [](int sum, const auto& b) { return sum + static_cast<int>(b.inputs.rows()); });
                 total_batches.fetch_add(local, std::memory_order_relaxed);
             });
     }

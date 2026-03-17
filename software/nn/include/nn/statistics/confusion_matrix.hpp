@@ -148,8 +148,8 @@ double recall(ConfusionMatrix& matrix);
  * @param falsePositiveRates
  * @param falseNegativeRates
  */
-void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
-                  std::vector<double>& falseNegativeRates);
+void calculateEER(
+    double& eer, std::vector<double>& falsePositiveRates, std::vector<double>& falseNegativeRates);
 
 /**
  * Calculate the Equal Error Rate
@@ -158,8 +158,10 @@ void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
  * @param falsePositiveRates
  * @param falseNegativeRates
  */
-void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices, double& eer,
-                  std::vector<double>& falsePositiveRates, std::vector<double>& falseNegativeRates);
+void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices,
+    double& eer,
+    std::vector<double>& falsePositiveRates,
+    std::vector<double>& falseNegativeRates);
 
 } // namespace statistics
 

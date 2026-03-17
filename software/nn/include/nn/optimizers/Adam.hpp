@@ -47,8 +47,10 @@ struct Adam : public Optimizer
     // Inicializa o Adam com hiperparâmetros padrão recomendados na literatura.
     // learning_rate: taxa de aprendizado, decay_rate_moment1: decaimento do primeiro momento,
     // decay_rate_moment2: decaimento do segundo momento, epsilon: termo de estabilidade.
-    explicit Adam(float learning_rate_ = 0.001F, float decay_rate_moment1_ = 0.9F,
-                  float decay_rate_moment2_ = 0.999F, float epsilon_ = 1e-8F)
+    explicit Adam(float learning_rate_ = 0.001F,
+        float decay_rate_moment1_ = 0.9F,
+        float decay_rate_moment2_ = 0.999F,
+        float epsilon_ = 1e-8F)
         : learning_rate(learning_rate_),
           decay_rate_moment1(decay_rate_moment1_),
           decay_rate_moment2(decay_rate_moment2_),
@@ -129,10 +131,10 @@ struct Adam : public Optimizer
             // Corrige o viés das médias móveis
             float bias_correction1 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment1),
-                                                  static_cast<double>(time_step)));
+                                             static_cast<double>(time_step)));
             float bias_correction2 =
                 static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment2),
-                                                  static_cast<double>(time_step)));
+                                             static_cast<double>(time_step)));
             auto m_hat = moment1[i] / bias_correction1;
             auto v_hat = moment2[i] / bias_correction2;
 

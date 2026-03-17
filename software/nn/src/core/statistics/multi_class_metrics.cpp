@@ -23,8 +23,8 @@
 namespace statistics
 {
 
-ClassificationMetrics compute_classification_metrics(const std::vector<int>& true_labels,
-                                                     const std::vector<int>& pred_labels)
+ClassificationMetrics compute_classification_metrics(
+    const std::vector<int>& true_labels, const std::vector<int>& pred_labels)
 {
     if (true_labels.size() != pred_labels.size())
     {

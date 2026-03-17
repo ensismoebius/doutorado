@@ -302,20 +302,20 @@ auto main(int, char*[]) -> int
 
     // 1. Setup
     ModelConfig config{.input_dim = 100,
-                       .hidden_dims = {50, 40, 30, 20, 10},
-                       .bottleneck_dim = 10,
-                       .steps = 100,
-                       .dt = 0.001f,
-                       .R = 5.0f,
-                       .C = 1.0f,
-                       .thr = 0.01f,
-                       .lr = 0.001f,
-                       .epochs = 4000,
-                       .batch_size = 32};
+        .hidden_dims = {50, 40, 30, 20, 10},
+        .bottleneck_dim = 10,
+        .steps = 100,
+        .dt = 0.001f,
+        .R = 5.0f,
+        .C = 1.0f,
+        .thr = 0.01f,
+        .lr = 0.001f,
+        .epochs = 4000,
+        .batch_size = 32};
 
     SpikeAutoEncoder model(config);
-    model.initialize_weights("weights/encoder_spike_model_weights.npz",
-                             "weights/decoder_spike_model_weights.npz");
+    model.initialize_weights(
+        "weights/encoder_spike_model_weights.npz", "weights/decoder_spike_model_weights.npz");
 
     auto params = model.params();
     Adam optimizer(config.lr);

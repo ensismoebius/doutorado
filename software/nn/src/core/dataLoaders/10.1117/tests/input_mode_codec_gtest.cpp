@@ -6,16 +6,16 @@
 
 TEST(InputModeCodecTest, EnumToTokenUsesCanonicalNames)
 {
-    EXPECT_EQ(protocol101117InputModeToToken(Protocol101117InputMode::Concatenated),
-              "concatenated");
+    EXPECT_EQ(
+        protocol101117InputModeToToken(Protocol101117InputMode::Concatenated), "concatenated");
     EXPECT_EQ(protocol101117InputModeToToken(Protocol101117InputMode::EegOnly), "eeg-only");
     EXPECT_EQ(protocol101117InputModeToToken(Protocol101117InputMode::AudioOnly), "audio-only");
 }
 
 TEST(InputModeCodecTest, ParseTokenIsCaseInsensitive)
 {
-    EXPECT_EQ(parseProtocol101117InputModeToken("CONCATENATED"),
-              Protocol101117InputMode::Concatenated);
+    EXPECT_EQ(
+        parseProtocol101117InputModeToken("CONCATENATED"), Protocol101117InputMode::Concatenated);
     EXPECT_EQ(parseProtocol101117InputModeToken("Eeg-Only"), Protocol101117InputMode::EegOnly);
     EXPECT_EQ(parseProtocol101117InputModeToken("audio-only"), Protocol101117InputMode::AudioOnly);
 }

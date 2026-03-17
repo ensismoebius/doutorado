@@ -90,8 +90,9 @@ auto compute_accuracy(const nn::Tensor& logits, const std::vector<int>& labels) 
 }
 
 auto train_resnet_snn(const std::vector<std::vector<double>>& features,
-                      const std::vector<int>& labels, const Config& cfg, int num_classes)
-    -> TrainResult
+    const std::vector<int>& labels,
+    const Config& cfg,
+    int num_classes) -> TrainResult
 {
     const int input_dim = static_cast<int>(features.front().size());
     auto model = std::make_unique<SimpleResNet>(
@@ -133,15 +134,19 @@ auto train_resnet_snn(const std::vector<std::vector<double>>& features,
     double accuracy = compute_accuracy(final_logits, labels);
 
     return {accuracy,
-            std::move(model),
-            input_dim,
-            num_classes,
-            cfg.resnet_hidden_dim,
-            cfg.resnet_depth};
+        std::move(model),
+        input_dim,
+        num_classes,
+        cfg.resnet_hidden_dim,
+        cfg.resnet_depth};
 }
 
-auto save_results(const std::filesystem::path& path, double alpha, double beta, double g1,
-                  double g2, double accuracy) -> void
+auto save_results(const std::filesystem::path& path,
+    double alpha,
+    double beta,
+    double g1,
+    double g2,
+    double accuracy) -> void
 {
     std::ofstream file(path);
     if (!file)

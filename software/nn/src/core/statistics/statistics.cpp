@@ -27,9 +27,9 @@ auto variance(const std::vector<double>& data) -> double
     // Calculate the variance using std::accumulate
     double variance_val =
         std::accumulate(data.begin(),
-                        data.end(),
-                        0.0,
-                        [&](double acc, double val) { return acc + std::pow(val - mean, 2); }) /
+            data.end(),
+            0.0,
+            [&](double acc, double val) { return acc + std::pow(val - mean, 2); }) /
         static_cast<double>(data.size());
 
     return variance_val;
@@ -43,9 +43,9 @@ auto variance(const double* data, unsigned int length) -> double
     // Calculate the variance using std::accumulate
     double variance_val =
         std::accumulate(data,
-                        data + length,
-                        0.0,
-                        [&](double acc, double val) { return acc + std::pow(val - mean, 2); }) /
+            data + length,
+            0.0,
+            [&](double acc, double val) { return acc + std::pow(val - mean, 2); }) /
         static_cast<double>(length);
 
     return variance_val;

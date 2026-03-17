@@ -36,9 +36,11 @@ class MatFileDatasetTestFixture : public ::testing::Test
 
     // Helper to create a simple .mat file
     void create_mat_file(const std::vector<double>& inputs_data,
-                         const std::vector<size_t>& inputs_shape, const std::string& inputs_name,
-                         const std::vector<double>& targets_data,
-                         const std::vector<size_t>& targets_shape, const std::string& targets_name)
+        const std::vector<size_t>& inputs_shape,
+        const std::string& inputs_name,
+        const std::vector<double>& targets_data,
+        const std::vector<size_t>& targets_shape,
+        const std::string& targets_name)
     {
         File file = File::Create(test_filepath.string());
         MultiDimensionalArray<double> inputs(inputs_name, inputs_shape, inputs_data.data());
@@ -94,8 +96,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnFileDoesNotExist)
     // The file "test.mat" will not be created by create_mat_file,
     // so it should not exist.
     ASSERT_FALSE(std::filesystem::exists(test_filepath));
-    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
-                 std::runtime_error);
+    ASSERT_THROW(
+        MatFileDataset dataset(test_filepath.string(), "inputs", "targets"), std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnInputsVariableDoesNotExist)
@@ -106,8 +108,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnInputsVariableDoesNotExist)
     // No inputs data
     create_mat_file({}, {}, "non_existent_inputs", targets_raw, targets_shape, "targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
-                 std::runtime_error);
+    ASSERT_THROW(
+        MatFileDataset dataset(test_filepath.string(), "inputs", "targets"), std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnTargetsVariableDoesNotExist)
@@ -118,8 +120,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnTargetsVariableDoesNotExist)
     // No targets data
     create_mat_file(inputs_raw, inputs_shape, "inputs", {}, {}, "non_existent_targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
-                 std::runtime_error);
+    ASSERT_THROW(
+        MatFileDataset dataset(test_filepath.string(), "inputs", "targets"), std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, ThrowsOnMismatchedSampleCounts)
@@ -133,8 +135,8 @@ TEST_F(MatFileDatasetTestFixture, ThrowsOnMismatchedSampleCounts)
 
     create_mat_file(inputs_raw, inputs_shape, "inputs", targets_raw, targets_shape, "targets");
 
-    ASSERT_THROW(MatFileDataset dataset(test_filepath.string(), "inputs", "targets"),
-                 std::runtime_error);
+    ASSERT_THROW(
+        MatFileDataset dataset(test_filepath.string(), "inputs", "targets"), std::runtime_error);
 }
 
 TEST_F(MatFileDatasetTestFixture, GetItemOutOfBoundsThrows)

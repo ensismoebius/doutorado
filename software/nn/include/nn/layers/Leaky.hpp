@@ -108,14 +108,14 @@ struct Leaky : public Module
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    explicit Leaky(float time_step_ = 1.0F,         // time step
-                   float resistance_ = 1.0F,        // resistance
-                   float capacitance_ = 1.0F,       // capacitance
-                   float voltage_threshold_ = 1.0F, // voltage threshold
-                   bool reset_zero_ = true,         // reset to zero or subtract threshold
-                   float reset_potential_ = 0.0F,   // reset potential value
-                   std::shared_ptr<ISurrogateGradient> surrogate_grad =
-                       std::make_shared<ExponentialSurrogate>())
+    explicit Leaky(float time_step_ = 1.0F, // time step
+        float resistance_ = 1.0F,           // resistance
+        float capacitance_ = 1.0F,          // capacitance
+        float voltage_threshold_ = 1.0F,    // voltage threshold
+        bool reset_zero_ = true,            // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F,      // reset potential value
+        std::shared_ptr<ISurrogateGradient> surrogate_grad =
+            std::make_shared<ExponentialSurrogate>())
         : time_step(time_step_)
     {
         resistance = nn::Tensor(1, 1);

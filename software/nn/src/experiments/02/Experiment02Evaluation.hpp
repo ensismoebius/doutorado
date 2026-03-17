@@ -23,9 +23,9 @@ struct FoldResult
 };
 
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
-                                    const std::vector<int>& labels) -> ParaconsistentMetrics;
+    const std::vector<int>& labels) -> ParaconsistentMetrics;
 
 auto compute_classification_metrics(const std::vector<int>& true_labels,
-                                    const std::vector<int>& pred_labels) -> ClassificationMetrics;
+    const std::vector<int>& pred_labels) -> ClassificationMetrics;
 
 #endif // NN_EXPERIMENTS_02_EXPERIMENT02EVALUATION_HPP

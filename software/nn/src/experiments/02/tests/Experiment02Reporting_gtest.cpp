@@ -1,6 +1,5 @@
-#include "gtest/gtest.h"
-
 #include "../Experiment02Reporting.hpp"
+#include "gtest/gtest.h"
 
 TEST(Experiment02ReportingTest, AggregateFoldResultsHandlesEmptyInput)
 {

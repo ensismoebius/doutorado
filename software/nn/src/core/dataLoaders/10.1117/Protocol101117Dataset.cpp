@@ -35,7 +35,7 @@ struct RawSynchronizedSample
 };
 
 auto locateSubjectAndAudioRow(const std::vector<std::size_t>& prefix_audio_row_offsets,
-                              std::size_t idx) -> std::pair<std::size_t, std::size_t>
+    std::size_t idx) -> std::pair<std::size_t, std::size_t>
 {
     const auto upper_it = std::upper_bound( //
         prefix_audio_row_offsets.begin(),   //
@@ -52,9 +52,9 @@ auto locateSubjectAndAudioRow(const std::vector<std::size_t>& prefix_audio_row_o
 }
 
 auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
-                                        const nn::dataLoaders::AudioMatSession& audio_session,
-                                        const nn::dataLoaders::EEGMatSession& eeg_session,
-                                        size_t audio_row) -> RawSynchronizedSample
+    const nn::dataLoaders::AudioMatSession& audio_session,
+    const nn::dataLoaders::EEGMatSession& eeg_session,
+    size_t audio_row) -> RawSynchronizedSample
 {
     const auto [audio_tensor, audio_stimulus, eeg_index_label] = audio_session.readRow(audio_row);
 
@@ -73,16 +73,16 @@ auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
     }
 
     return {.audio_tensor = std::move(audio_tensor),
-            .eeg_tensor = std::move(eeg_tensor),
-            .eeg_labels = eeg_labels,
-            .eeg_index_label = eeg_index_label,
-            .subject = &subject};
+        .eeg_tensor = std::move(eeg_tensor),
+        .eeg_labels = eeg_labels,
+        .eeg_index_label = eeg_index_label,
+        .subject = &subject};
 }
 
 } // namespace
 
-Protocol101117Dataset::Protocol101117Dataset(std::vector<SubjectFiles> subjects,
-                                             Protocol101117InputMode input_mode)
+Protocol101117Dataset::Protocol101117Dataset(
+    std::vector<SubjectFiles> subjects, Protocol101117InputMode input_mode)
     : subjects_(std::move(subjects)), input_mode_(input_mode)
 {
     prefix_audio_row_offsets_.reserve(subjects_.size() + 1);
@@ -108,9 +108,8 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     return input_mode_;
 }
 
-[[nodiscard]] auto Protocol101117Dataset::get_sample(
-    size_t idx, std::optional<Protocol101117InputMode> input_mode_override) const
-    -> Protocol101117Sample
+[[nodiscard]] auto Protocol101117Dataset::get_sample(size_t idx,
+    std::optional<Protocol101117InputMode> input_mode_override) const -> Protocol101117Sample
 {
     if (idx >= size())
     {
@@ -184,8 +183,8 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         const size_t idx = indices[row];
         if (idx >= size())
         {
-            throw std::out_of_range("Dataset index out of range in collate: " +
-                                    std::to_string(idx));
+            throw std::out_of_range(
+                "Dataset index out of range in collate: " + std::to_string(idx));
         }
 
         const auto [subject_index, audio_row] =

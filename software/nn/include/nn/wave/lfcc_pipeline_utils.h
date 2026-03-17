@@ -13,8 +13,7 @@
 #include "nn/wave/audioTypes.h"
 
 auto load_and_process_audio(const std::string& audio_file_path,
-                            const LoadingAndProcessingParameters& loading_params)
-    -> std::vector<nn::Tensor>;
+    const LoadingAndProcessingParameters& loading_params) -> std::vector<nn::Tensor>;
 
 void process_subject(const SubjectInfo& subject);
 

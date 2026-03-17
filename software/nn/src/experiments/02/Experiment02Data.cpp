@@ -86,9 +86,11 @@ auto load_audio_data(const std::string& mat_path) -> std::vector<AudioSample>
 }
 
 auto extract_windows(const std::vector<EEGSample>& eeg_samples,
-                     const std::vector<AudioSample>& audio_samples, double window_duration_sec,
-                     double overlap_sec, int eeg_rate, int audio_rate)
-    -> std::vector<WindowedSample>
+    const std::vector<AudioSample>& audio_samples,
+    double window_duration_sec,
+    double overlap_sec,
+    int eeg_rate,
+    int audio_rate) -> std::vector<WindowedSample>
 {
     if (window_duration_sec <= 0.0)
     {
@@ -137,7 +139,7 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
         }
 
         for (int start_eeg = 0; start_eeg + eeg_window_samples <= kEegSamplesPerChannel;
-             start_eeg += eeg_step)
+            start_eeg += eeg_step)
         {
             int start_audio = start_eeg * audio_rate / eeg_rate;
             if (start_audio + audio_window_samples > static_cast<int>(audio->signal.size()))
@@ -179,8 +181,9 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
 }
 
 void generate_synthetic_samples(std::vector<EEGSample>& eeg_samples,
-                                std::vector<AudioSample>& audio_samples, int sample_count,
-                                int random_seed)
+    std::vector<AudioSample>& audio_samples,
+    int sample_count,
+    int random_seed)
 {
     eeg_samples.resize(sample_count);
     audio_samples.resize(sample_count);

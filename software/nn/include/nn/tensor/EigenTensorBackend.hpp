@@ -30,15 +30,15 @@ class EigenTensorBackend
     EigenTensorBackend() = default;
 
     explicit EigenTensorBackend(Index rows, Index cols)
-        : m_data(Eigen::MatrixXf::Zero(static_cast<Eigen::Index>(rows),
-                                       static_cast<Eigen::Index>(cols))),
+        : m_data(Eigen::MatrixXf::Zero(
+              static_cast<Eigen::Index>(rows), static_cast<Eigen::Index>(cols))),
           m_shape({rows, cols})
     {
     }
 
     explicit EigenTensorBackend(Index d1, Index d2, Index d3, Index d4)
-        : m_data(Eigen::MatrixXf::Zero(static_cast<Eigen::Index>(d1),
-                                       static_cast<Eigen::Index>(d2 * d3 * d4))),
+        : m_data(Eigen::MatrixXf::Zero(
+              static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(d2 * d3 * d4))),
           m_shape({d1, d2, d3, d4})
     {
     }
@@ -52,7 +52,7 @@ class EigenTensorBackend
         else if (shape.size() == 4)
         {
             m_data.resize(static_cast<Eigen::Index>(shape[0]),
-                          static_cast<Eigen::Index>(shape[1] * shape[2] * shape[3]));
+                static_cast<Eigen::Index>(shape[1] * shape[2] * shape[3]));
         }
         else
         {
@@ -130,8 +130,8 @@ class EigenTensorBackend
         std::mt19937 rng(std::random_device{}());
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(rows),
-                                                static_cast<Eigen::Index>(cols),
-                                                [&]() { return dist(rng); });
+            static_cast<Eigen::Index>(cols),
+            [&]() { return dist(rng); });
         return t;
     }
     // Random uniform [0,1) initializer using an external RNG for reproducibility.
@@ -140,8 +140,8 @@ class EigenTensorBackend
         EigenTensorBackend t(rows, cols);
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
         t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(rows),
-                                                static_cast<Eigen::Index>(cols),
-                                                [&]() { return dist(rng); });
+            static_cast<Eigen::Index>(cols),
+            [&]() { return dist(rng); });
         return t;
     }
 
@@ -637,9 +637,9 @@ class EigenTensorBackend
             throw std::out_of_range("Block indices out of range");
 
         return EigenTensorBackend(m_data.block(static_cast<Eigen::Index>(r),
-                                               static_cast<Eigen::Index>(c),
-                                               static_cast<Eigen::Index>(rows),
-                                               static_cast<Eigen::Index>(cols)));
+            static_cast<Eigen::Index>(c),
+            static_cast<Eigen::Index>(rows),
+            static_cast<Eigen::Index>(cols)));
     }
     // Overwrite a block; both tensors must be 2D and size-compatible.
     void setBlock(Index r, Index c, const EigenTensorBackend& other)
@@ -650,9 +650,9 @@ class EigenTensorBackend
             throw std::invalid_argument("Block indices out of range");
 
         m_data.block(static_cast<Eigen::Index>(r),
-                     static_cast<Eigen::Index>(c),
-                     static_cast<Eigen::Index>(other.rows()),
-                     static_cast<Eigen::Index>(other.cols())) = other.m_data;
+            static_cast<Eigen::Index>(c),
+            static_cast<Eigen::Index>(other.rows()),
+            static_cast<Eigen::Index>(other.cols())) = other.m_data;
     }
 
     // Slice returns a new backend with selected rows in the same column layout.

@@ -79,12 +79,16 @@ struct LeakyBPTT : public Module
         return {&resistance, &voltage_threshold};
     }
 
-    explicit LeakyBPTT(int time_steps_, float time_step_ = 1.0F, float resistance_ = 1.0F,
-                       float capacitance_ = 1.0F, float voltage_threshold_ = 1.0F,
-                       bool reset_zero_ = true, float reset_potential_ = 0.0F,
-                       bool readout_mode_ = false,
-                       std::shared_ptr<ISurrogateGradient> surrogate_grad =
-                           std::make_shared<ExponentialSurrogate>())
+    explicit LeakyBPTT(int time_steps_,
+        float time_step_ = 1.0F,
+        float resistance_ = 1.0F,
+        float capacitance_ = 1.0F,
+        float voltage_threshold_ = 1.0F,
+        bool reset_zero_ = true,
+        float reset_potential_ = 0.0F,
+        bool readout_mode_ = false,
+        std::shared_ptr<ISurrogateGradient> surrogate_grad =
+            std::make_shared<ExponentialSurrogate>())
         : time_step(time_step_), time_steps(time_steps_), readout_mode(readout_mode_)
     {
         resistance.at(0, 0) = resistance_;

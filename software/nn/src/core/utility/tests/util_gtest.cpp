@@ -214,7 +214,7 @@ TEST(UtilNumericalEdgeTest, ExtremeBatchSizes)
     auto large_batch = create_batches(input_samples, target_samples, 10);
     EXPECT_EQ(large_batch.size(), 1);
     EXPECT_EQ(large_batch[0].inputs.rows(),
-              1); // Should return all available samples
+        1); // Should return all available samples
 }
 
 TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)

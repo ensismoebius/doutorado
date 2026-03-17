@@ -55,16 +55,19 @@ class DataLoader
     // Backward-compatible constructor that maps to built-in samplers:
     // - do_shuffle=false: SequentialSampler
     // - do_shuffle=true:  RandomSampler(seed)
-    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size, bool do_shuffle = true,
-               std::optional<unsigned int> seed = std::nullopt);
+    DataLoader(std::shared_ptr<Dataset> dataset,
+        std::size_t batch_size,
+        bool do_shuffle = true,
+        std::optional<unsigned int> seed = std::nullopt);
 
     // Built-in sampler selector constructor.
-    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
-               DefaultSamplerOptions options);
+    DataLoader(
+        std::shared_ptr<Dataset> dataset, std::size_t batch_size, DefaultSamplerOptions options);
 
     // Preferred constructor: inject an arbitrary sampler implementation.
-    DataLoader(std::shared_ptr<Dataset> dataset, std::size_t batch_size,
-               std::unique_ptr<ISampler> sampler);
+    DataLoader(std::shared_ptr<Dataset> dataset,
+        std::size_t batch_size,
+        std::unique_ptr<ISampler> sampler);
 
     using Iterator = DataLoaderIterator;
 

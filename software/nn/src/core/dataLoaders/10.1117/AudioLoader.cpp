@@ -157,8 +157,8 @@ AudioMatSession::AudioMatSession(const std::string& filePath) : impl_(std::make_
     impl_->audioVar.reset(Mat_VarReadInfo(impl_->matFile.get(), AUDIO_MAT_VARIABLE_NAME.c_str()));
     if (!impl_->audioVar)
     {
-        throw std::runtime_error("AudioLoader: failed to read audio variable metadata from: " +
-                                 filePath);
+        throw std::runtime_error(
+            "AudioLoader: failed to read audio variable metadata from: " + filePath);
     }
 
     if (impl_->audioVar->rank != 2 ||

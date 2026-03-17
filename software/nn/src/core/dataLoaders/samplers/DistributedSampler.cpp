@@ -6,9 +6,12 @@
 #include <stdexcept>
 #include <vector>
 
-DistributedSampler::DistributedSampler(std::size_t dataset_size, std::size_t num_replicas,
-                                       std::size_t rank, bool shuffle, bool drop_last,
-                                       std::optional<unsigned int> seed)
+DistributedSampler::DistributedSampler(std::size_t dataset_size,
+    std::size_t num_replicas,
+    std::size_t rank,
+    bool shuffle,
+    bool drop_last,
+    std::optional<unsigned int> seed)
     : dataset_size_(dataset_size),
       num_replicas_(num_replicas),
       rank_(rank),
@@ -79,8 +82,8 @@ void DistributedSampler::sample_into(std::span<std::size_t> out)
             const std::size_t needed = total_size_ - global_indices.size();
             const std::size_t chunk = std::min(needed, dataset_size_);
             global_indices.insert(global_indices.end(),
-                                  global_indices.begin(),
-                                  global_indices.begin() + static_cast<std::ptrdiff_t>(chunk));
+                global_indices.begin(),
+                global_indices.begin() + static_cast<std::ptrdiff_t>(chunk));
         }
     }
     else

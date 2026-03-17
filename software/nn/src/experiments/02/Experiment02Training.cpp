@@ -23,8 +23,9 @@ constexpr float kLearningRate = 0.001F;
 } // namespace
 
 auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
-                             const std::vector<int>& labels, int k_folds, int random_seed)
-    -> std::vector<FoldResult>
+    const std::vector<int>& labels,
+    int k_folds,
+    int random_seed) -> std::vector<FoldResult>
 {
     auto fold_function = [&](const std::vector<std::vector<double>>& train_features,
                              const std::vector<int>& train_labels,

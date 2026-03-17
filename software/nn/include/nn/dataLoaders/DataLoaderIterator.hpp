@@ -19,8 +19,9 @@ class DataLoaderIterator
     using pointer = Batch*;
     using reference = Batch&;
 
-    DataLoaderIterator(DataLoader& loader, std::size_t current_batch,
-                       std::shared_ptr<std::vector<std::size_t>> indices);
+    DataLoaderIterator(DataLoader& loader,
+        std::size_t current_batch,
+        std::shared_ptr<std::vector<std::size_t>> indices);
 
     auto operator*() const -> Batch;
     auto operator++() -> DataLoaderIterator&;

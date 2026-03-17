@@ -24,8 +24,8 @@
 namespace phase00
 {
 
-auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, double duration_sec,
-                                           int overlap_percent, int sampling_rate)
+auto extract_wavelet_features_single_trial(
+    const nn::Tensor& signal_data, double duration_sec, int overlap_percent, int sampling_rate)
     -> std::vector<double>
 {
     static_cast<void>(duration_sec);
@@ -36,7 +36,7 @@ auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, double
 
     std::vector<double> all_channel_energies;
     for (int channel_row_idx = 0; channel_row_idx < static_cast<int>(signal_data.rows());
-         ++channel_row_idx)
+        ++channel_row_idx)
     {
         nn::Tensor channel_tensor = signal_data.row(channel_row_idx);
         std::vector<double> sig;
@@ -65,8 +65,8 @@ auto extract_wavelet_features_single_trial(const nn::Tensor& signal_data, double
     return all_channel_energies;
 }
 
-auto normalize_features(std::vector<std::vector<double>>& features,
-                        const std::vector<double>& range) -> void
+auto normalize_features(
+    std::vector<std::vector<double>>& features, const std::vector<double>& range) -> void
 {
     if (features.empty())
     {
@@ -93,7 +93,7 @@ auto normalize_features(std::vector<std::vector<double>>& features,
             if (max_vals[i] != min_vals[i])
             {
                 feat[i] = range[0] + (((feat[i] - min_vals[i]) / (max_vals[i] - min_vals[i])) *
-                                      (range[1] - range[0]));
+                                         (range[1] - range[0]));
             }
             else
             {
@@ -103,8 +103,8 @@ auto normalize_features(std::vector<std::vector<double>>& features,
     }
 }
 
-auto verify_normalization(const std::vector<std::vector<double>>& features,
-                          const std::vector<double>& range) -> bool
+auto verify_normalization(
+    const std::vector<std::vector<double>>& features, const std::vector<double>& range) -> bool
 {
     if (features.empty())
     {
@@ -128,8 +128,7 @@ auto verify_normalization(const std::vector<std::vector<double>>& features,
 }
 
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
-                                    const std::vector<int>& labels)
-    -> std::tuple<double, double, double, double>
+    const std::vector<int>& labels) -> std::tuple<double, double, double, double>
 {
     std::map<std::string, std::vector<std::vector<double>>> arrClasses;
 

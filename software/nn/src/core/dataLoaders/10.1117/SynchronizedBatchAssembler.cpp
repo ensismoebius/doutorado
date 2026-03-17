@@ -39,9 +39,11 @@ struct BatchTask
 // concrete `AudioRowsFlat` type in this translation unit.
 template <typename AudioRowsFlatT>
 static void buildTasksFromAudioRun(const AudioRowsFlatT& audio_rows_flat,
-                                   const std::vector<RowRequest>& requests, size_t audio_run_pos,
-                                   size_t audio_run_count, const SubjectFiles& subject,
-                                   std::vector<BatchTask>& tasks)
+    const std::vector<RowRequest>& requests,
+    size_t audio_run_pos,
+    size_t audio_run_count,
+    const SubjectFiles& subject,
+    std::vector<BatchTask>& tasks)
 {
     for (size_t audio_index = 0; audio_index < audio_run_count; ++audio_index)
     {
@@ -58,10 +60,12 @@ static void buildTasksFromAudioRun(const AudioRowsFlatT& audio_rows_flat,
 // Given the `tasks` built from an audio run, read contiguous EEG blocks,
 // copy EEG and audio slices into `inputs` and fill `targets` accordingly.
 template <typename AudioRowsFlatT>
-static void processEegBlocksForTasks(
-    size_t subject_index, const SubjectFiles& subject,
+static void processEegBlocksForTasks(size_t subject_index,
+    const SubjectFiles& subject,
     const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
-    const AudioRowsFlatT& audio_rows_flat, std::vector<BatchTask>& tasks, nn::Tensor& inputs,
+    const AudioRowsFlatT& audio_rows_flat,
+    std::vector<BatchTask>& tasks,
+    nn::Tensor& inputs,
     nn::Tensor& targets)
 {
     // Permutation of task indices used to sort tasks by `eeg_row`.
@@ -71,9 +75,8 @@ static void processEegBlocksForTasks(
     // Sort permutation by `eeg_row` so contiguous EEG rows can be
     // bulk-read from disk in a single call.
     std::sort(eeg_sorted_task_indices.begin(),
-              eeg_sorted_task_indices.end(),
-              [&tasks](std::size_t a, std::size_t b)
-              { return tasks[a].eeg_row < tasks[b].eeg_row; });
+        eeg_sorted_task_indices.end(),
+        [&tasks](std::size_t a, std::size_t b) { return tasks[a].eeg_row < tasks[b].eeg_row; });
 
     const size_t audioCols = ImaginedSpeechSchema_10_1117.audioSamples();
 
@@ -145,7 +148,8 @@ void SynchronizedBatchAssembler::assembleGrouped(                               
     const std::vector<SubjectFiles>& subjects,                                            //
     const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions, //
     const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,     //
-    nn::Tensor& inputs, nn::Tensor& targets                                               //
+    nn::Tensor& inputs,
+    nn::Tensor& targets //
 )
 {
     for (size_t subject_index = 0; subject_index < grouped.size(); ++subject_index)
@@ -157,9 +161,9 @@ void SynchronizedBatchAssembler::assembleGrouped(                               
         // we can detect contiguous runs to bulk-read audio rows.
         vector<RowRequest> requests = group;
         sort(requests.begin(),
-             requests.end(),
-             [](const RowRequest& a, const RowRequest& b)
-             { return a.local_audio_row < b.local_audio_row; });
+            requests.end(),
+            [](const RowRequest& a, const RowRequest& b)
+            { return a.local_audio_row < b.local_audio_row; });
 
         size_t audio_run_pos = 0;
         while (audio_run_pos < requests.size())

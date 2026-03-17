@@ -94,9 +94,13 @@ void Conv2d::compute_indices_once(int batch_size, int input_height, int input_wi
 // ============ Image-to-Column (im2col) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int batch_size,
-                              int input_height, int input_width, int output_height,
-                              int output_width) const
+void Conv2d::im2col_optimized(const nn::Tensor& input,
+    nn::Tensor& output,
+    int batch_size,
+    int input_height,
+    int input_width,
+    int output_height,
+    int output_width) const
 {
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
@@ -183,9 +187,12 @@ void Conv2d::im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int b
 // ============ Column-to-Image (col2im) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height,
-                              int input_width, int output_height, int output_width) const
-    -> nn::Tensor
+auto Conv2d::col2im_optimized(const nn::Tensor& cols,
+    int batch_size,
+    int input_height,
+    int input_width,
+    int output_height,
+    int output_width) const -> nn::Tensor
 {
     const int patch_cols_per_batch = output_height * output_width;
 
@@ -284,8 +291,8 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols, int batch_size, int input_
 // ============ Bias Addition ============
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Conv2d::add_bias_optimized(nn::Tensor& matrix, const nn::Tensor& bias,
-                                [[maybe_unused]] int num_cols) const
+void Conv2d::add_bias_optimized(
+    nn::Tensor& matrix, const nn::Tensor& bias, [[maybe_unused]] int num_cols) const
 {
     // Support bias stored either as (out_channels, 1) or as (1, out_channels)
     // Extract bias values into a temporary buffer
@@ -331,8 +338,9 @@ void Conv2d::add_bias_optimized(nn::Tensor& matrix, const nn::Tensor& bias,
 
 // ============ Output Reshaping ============
 
-auto Conv2d::reshape_output_optimized(const nn::Tensor& matrix, int batch_size, int output_height,
-                                      int output_width) const -> nn::Tensor
+auto Conv2d::reshape_output_optimized(
+    const nn::Tensor& matrix, int batch_size, int output_height, int output_width) const
+    -> nn::Tensor
 {
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);

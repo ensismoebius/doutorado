@@ -27,9 +27,8 @@ namespace matioCpp::utils
 // Load a named variable from a .mat file and return it as an nn::Tensor.
 // Returns std::nullopt on any error (file can't be opened, variable not
 // found, unsupported type, or dimension mismatch).
-[[nodiscard]] auto load_named_variable_as_matrix(const std::string& mat_path,
-                                                 const std::string& var_name)
-    -> std::optional<nn::Tensor>;
+[[nodiscard]] auto load_named_variable_as_matrix(
+    const std::string& mat_path, const std::string& var_name) -> std::optional<nn::Tensor>;
 
 // Return a list of top-level variable names available in the .mat file.
 // Returns an empty vector on error (file can't be opened or parsing failed).

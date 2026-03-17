@@ -162,8 +162,8 @@ double recall(const ConfusionMatrix& matrix)
  * @param falsePositiveRates
  * @param falseNegativeRates
  */
-void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
-                  std::vector<double>& falseNegativeRates)
+void calculateEER(
+    double& eer, std::vector<double>& falsePositiveRates, std::vector<double>& falseNegativeRates)
 {
     double minorDistance = std::numeric_limits<double>::max();
 
@@ -211,8 +211,10 @@ void calculateEER(double& eer, std::vector<double>& falsePositiveRates,
  * @param falsePositiveRates
  * @param falseNegativeRates
  */
-void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices, double& eer,
-                  std::vector<double>& falsePositiveRates, std::vector<double>& falseNegativeRates)
+void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices,
+    double& eer,
+    std::vector<double>& falsePositiveRates,
+    std::vector<double>& falseNegativeRates)
 {
     // Calculate all false positive and false negative rates
     falsePositiveRates.clear();
@@ -221,14 +223,14 @@ void calculateEER(std::vector<ConfusionMatrix>& confusionMatrices, double& eer,
     falseNegativeRates.reserve(confusionMatrices.size());
 
     std::transform(confusionMatrices.begin(),
-                   confusionMatrices.end(),
-                   std::back_inserter(falsePositiveRates),
-                   [](const ConfusionMatrix& cm) { return falsePositiveRate(cm); });
+        confusionMatrices.end(),
+        std::back_inserter(falsePositiveRates),
+        [](const ConfusionMatrix& cm) { return falsePositiveRate(cm); });
 
     std::transform(confusionMatrices.begin(),
-                   confusionMatrices.end(),
-                   std::back_inserter(falseNegativeRates),
-                   [](const ConfusionMatrix& cm) { return falseNegativeRate(cm); });
+        confusionMatrices.end(),
+        std::back_inserter(falseNegativeRates),
+        [](const ConfusionMatrix& cm) { return falseNegativeRate(cm); });
 
     calculateEER(eer, falsePositiveRates, falseNegativeRates);
 }

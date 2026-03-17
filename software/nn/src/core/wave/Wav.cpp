@@ -65,8 +65,11 @@ Wav::Wav()
     reset_metadata();
 }
 
-Wav::Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
-         size_t audioDataSize)
+Wav::Wav(uint32_t samplingRate,
+    uint16_t bitsPerSample,
+    uint16_t numOfChan,
+    const double* audioData,
+    size_t audioDataSize)
     : callbackFunction(nullptr)
 {
     initialize_headers(samplingRate, bitsPerSample, numOfChan, audioDataSize);
@@ -223,8 +226,8 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
     ofs.close();
 }
 
-void Wav::write(const std::string& _path, const std::vector<std::vector<float>>& inputData,
-                int samplingRate)
+void Wav::write(
+    const std::string& _path, const std::vector<std::vector<float>>& inputData, int samplingRate)
 {
     path = _path;
 
@@ -582,8 +585,8 @@ void Wav::reset_metadata()
     this->header = {};
 }
 
-void Wav::initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample,
-                             uint16_t numberOfChannels, size_t numSamples)
+void Wav::initialize_headers(
+    uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numberOfChannels, size_t numSamples)
 {
     this->header.riffChunkId = {'R', 'I', 'F', 'F'};
     this->header.waveFormat = {'W', 'A', 'V', 'E'};

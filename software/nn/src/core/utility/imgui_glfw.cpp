@@ -80,9 +80,9 @@ void ImGuiApp::prepare_frame()
     ImGui::SetNextWindowSize(ImVec2(frameWidth, frameHeight));
 
     ImGui::Begin("Fullscreen Window",
-                 nullptr,
-                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoCollapse);
+        nullptr,
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoCollapse);
 }
 
 void ImGuiApp::render_frame()

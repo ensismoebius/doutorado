@@ -43,8 +43,8 @@ TEST_F(AudioLoaderPropertyTest, AudioTensorShapeHoldsAcrossRandomValidDatasets)
         const std::size_t trials = trials_dist(rng);
         const auto audio_path = tmp_dir_ / ("audio_prop_" + std::to_string(round) + ".mat");
 
-        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(audio_path,
-                                                                                        trials);
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(
+            audio_path, trials);
 
         for (std::size_t i = 0; i < trials; ++i)
         {
@@ -67,8 +67,8 @@ TEST_F(AudioLoaderPropertyTest, LabelConsistencyAndCrossModalityIndexRangeHold)
     const auto audio_path = tmp_dir_ / "audio_cross.mat";
 
     nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(eeg_path, trials);
-    nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(audio_path,
-                                                                                    trials);
+    nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(
+        audio_path, trials);
 
     for (std::size_t i = 0; i < trials; ++i)
     {

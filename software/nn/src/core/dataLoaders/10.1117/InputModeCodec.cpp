@@ -10,9 +10,9 @@ namespace
 void toLowerAsciiInPlace(std::string& value)
 {
     std::transform(value.begin(),
-                   value.end(),
-                   value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        value.end(),
+        value.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 }
 
 } // namespace

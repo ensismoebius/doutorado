@@ -116,8 +116,8 @@ auto WaveletTransformResults::get_wavelet_transforms(int detailIndex) -> std::ve
  * @param maxFrequecy
  * @return the requested chunk
  */
-auto WaveletTransformResults::get_wavelet_packet_transforms(long startIndex, long endIndex,
-                                                            long maxFrequecy) -> std::vector<double>
+auto WaveletTransformResults::get_wavelet_packet_transforms(
+    long startIndex, long endIndex, long maxFrequecy) -> std::vector<double>
 {
     // Checks if endIndex < startIndex
     if (endIndex < startIndex)
@@ -163,9 +163,8 @@ auto WaveletTransformResults::get_wavelet_packet_amount_of_parts() const -> long
  * @param levelsOfTransformation : levels of transformation of the signal
  * @return the requested chunk
  */
-auto WaveletTransformResults::get_wavelet_packet_transforms(std::vector<double> transformedSignal,
-                                                            long partIndex,
-                                                            long levelsOfTransformation)
+auto WaveletTransformResults::get_wavelet_packet_transforms(
+    std::vector<double> transformedSignal, long partIndex, long levelsOfTransformation)
     -> std::vector<double>
 {
     // The partIndex must not access non existent parts of the transformation
@@ -185,8 +184,8 @@ auto WaveletTransformResults::get_wavelet_packet_transforms(std::vector<double> 
     long send = sstart + chunkSize;
 
     // Returns the data
-    return std::vector<double>(transformedSignal.begin() + sstart,
-                               transformedSignal.begin() + send);
+    return std::vector<double>(
+        transformedSignal.begin() + sstart, transformedSignal.begin() + send);
 }
 
 /**

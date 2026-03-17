@@ -18,8 +18,9 @@
 class Windowing
 {
    public:
-    static auto slidingWindow(const nn::Tensor& data, float window_size_sec, float overlap_ratio,
-                              int sampling_rate) -> std::vector<nn::Tensor>
+    static auto slidingWindow(
+        const nn::Tensor& data, float window_size_sec, float overlap_ratio, int sampling_rate)
+        -> std::vector<nn::Tensor>
     {
         std::vector<nn::Tensor> windows;
 
@@ -41,7 +42,7 @@ class Windowing
         }
 
         for (auto i = 0; i + window_size_samples <= static_cast<int>(data.cols());
-             i += step_size_samples) [[likely]]
+            i += step_size_samples) [[likely]]
         {
             // Create a new tensor for the window
             nn::Tensor window(static_cast<int>(data.rows()), window_size_samples);

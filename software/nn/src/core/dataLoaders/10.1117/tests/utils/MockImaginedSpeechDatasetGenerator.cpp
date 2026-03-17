@@ -20,8 +20,8 @@ constexpr double kNoiseSigma = 0.01;
 
 using std::size_t;
 
-auto effective_eeg_columns(const nn::dataLoaders::DatasetSchema& schema,
-                           EEGCorruptionOptions options) -> size_t
+auto effective_eeg_columns(
+    const nn::dataLoaders::DatasetSchema& schema, EEGCorruptionOptions options) -> size_t
 {
     size_t cols = schema.eegTotalColumns();
     if (options.wrong_column_count)
@@ -35,8 +35,8 @@ auto effective_eeg_columns(const nn::dataLoaders::DatasetSchema& schema,
     return cols;
 }
 
-auto effective_audio_columns(const nn::dataLoaders::DatasetSchema& schema,
-                             AudioCorruptionOptions options) -> size_t
+auto effective_audio_columns(
+    const nn::dataLoaders::DatasetSchema& schema, AudioCorruptionOptions options) -> size_t
 {
     size_t cols = schema.audioTotalColumns();
     if (options.wrong_column_count)
@@ -60,20 +60,20 @@ void ensure_parent_dir_exists(const std::filesystem::path& path)
 }
 } // namespace
 
-void MockImaginedSpeechDatasetGenerator::generateEEGMatFile(const std::filesystem::path& path,
-                                                            std::size_t trials)
+void MockImaginedSpeechDatasetGenerator::generateEEGMatFile(
+    const std::filesystem::path& path, std::size_t trials)
 {
     generateCorruptedEEGMatFile(path, trials, EEGCorruptionOptions{});
 }
 
-void MockImaginedSpeechDatasetGenerator::generateAudioMatFile(const std::filesystem::path& path,
-                                                              std::size_t trials)
+void MockImaginedSpeechDatasetGenerator::generateAudioMatFile(
+    const std::filesystem::path& path, std::size_t trials)
 {
     generateCorruptedAudioMatFile(path, trials, AudioCorruptionOptions{});
 }
 
-void MockImaginedSpeechDatasetGenerator::generateDataset(const std::filesystem::path& directory,
-                                                         std::size_t trials)
+void MockImaginedSpeechDatasetGenerator::generateDataset(
+    const std::filesystem::path& directory, std::size_t trials)
 {
     std::filesystem::create_directories(directory);
     generateEEGMatFile(directory / "eeg.mat", trials);

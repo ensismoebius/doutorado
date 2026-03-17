@@ -75,8 +75,8 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
     // All correct predictions
     std::vector<int> true_labels_all_correct = {0, 1, 2};
     std::vector<int> pred_labels_all_correct = {0, 1, 2};
-    auto metrics_perfect = statistics::compute_classification_metrics(true_labels_all_correct,
-                                                                      pred_labels_all_correct);
+    auto metrics_perfect = statistics::compute_classification_metrics(
+        true_labels_all_correct, pred_labels_all_correct);
     EXPECT_NEAR(metrics_perfect.accuracy, 1.0, 1e-6);
     EXPECT_NEAR(metrics_perfect.precision, 1.0, 1e-6);
     EXPECT_NEAR(metrics_perfect.recall, 1.0, 1e-6);
@@ -98,8 +98,8 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
     // Empty labels (should handle or throw)
     std::vector<int> empty_true;
     std::vector<int> empty_pred;
-    EXPECT_THROW(statistics::compute_classification_metrics(empty_true, empty_pred),
-                 std::runtime_error);
+    EXPECT_THROW(
+        statistics::compute_classification_metrics(empty_true, empty_pred), std::runtime_error);
 }
 
 TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
@@ -110,15 +110,14 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
     int k = 3;
     int seed = 42;
 
-    auto results = statistics::k_fold_cross_validation<double>(
-        features,
+    auto results = statistics::k_fold_cross_validation<double>(features,
         labels,
         k,
         seed,
         [](const std::vector<std::vector<double>>& train_feat,
-           const std::vector<int>& train_lab,
-           const std::vector<std::vector<double>>& test_feat,
-           const std::vector<int>& test_lab) -> double
+            const std::vector<int>& train_lab,
+            const std::vector<std::vector<double>>& test_feat,
+            const std::vector<int>& test_lab) -> double
         {
             // Dummy fold function: return accuracy
             int correct = 0;
@@ -145,45 +144,42 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidationEdgeCases)
     std::vector<int> labels = {0, 1};
 
     // k = 1 (leave-one-out like)
-    auto results_k1 = statistics::k_fold_cross_validation<double>(
-        features,
+    auto results_k1 = statistics::k_fold_cross_validation<double>(features,
         labels,
         1,
         42,
         [](const auto& train_feat,
-           const auto& train_lab,
-           const auto& test_feat,
-           const auto& test_lab) -> double
+            const auto& train_lab,
+            const auto& test_feat,
+            const auto& test_lab) -> double
         {
             return test_lab[0] == 0 ? 1.0 : 0.0; // Dummy
         });
     EXPECT_EQ(results_k1.size(), 1U);
 
     // k > n_samples (should handle)
-    auto results_k_large = statistics::k_fold_cross_validation<double>(
-        features,
+    auto results_k_large = statistics::k_fold_cross_validation<double>(features,
         labels,
         5,
         42,
         [](const auto& train_feat,
-           const auto& train_lab,
-           const auto& test_feat,
-           const auto& test_lab) -> double { return 0.5; });
+            const auto& train_lab,
+            const auto& test_feat,
+            const auto& test_lab) -> double { return 0.5; });
     EXPECT_EQ(results_k_large.size(), 5U);
 
     // Empty data (should throw)
     std::vector<std::vector<double>> empty_features;
     std::vector<int> empty_labels;
     EXPECT_THROW(statistics::k_fold_cross_validation<double>(empty_features,
-                                                             empty_labels,
-                                                             3,
-                                                             42,
-                                                             [](const auto& train_feat,
-                                                                const auto& train_lab,
-                                                                const auto& test_feat,
-                                                                const auto& test_lab) -> double
-                                                             { return 0.0; }),
-                 std::runtime_error);
+                     empty_labels,
+                     3,
+                     42,
+                     [](const auto& train_feat,
+                         const auto& train_lab,
+                         const auto& test_feat,
+                         const auto& test_lab) -> double { return 0.0; }),
+        std::runtime_error);
 }
 
 // Exception Testing for Statistics
@@ -199,7 +195,7 @@ TEST(StatisticsExceptionTest, MismatchedLabelsLengths)
     std::vector<int> true_labels = {0, 1, 2};
     std::vector<int> pred_labels = {0, 1}; // Different length
     EXPECT_THROW(statistics::compute_classification_metrics(true_labels, pred_labels),
-                 std::invalid_argument);
+        std::invalid_argument);
 }
 
 TEST(StatisticsExceptionTest, InvalidKFoldParameters)
@@ -209,27 +205,25 @@ TEST(StatisticsExceptionTest, InvalidKFoldParameters)
 
     // k = 0
     EXPECT_THROW(statistics::k_fold_cross_validation<double>(features,
-                                                             labels,
-                                                             0,
-                                                             42,
-                                                             [](const auto& train_feat,
-                                                                const auto& train_lab,
-                                                                const auto& test_feat,
-                                                                const auto& test_lab) -> double
-                                                             { return 0.0; }),
-                 std::invalid_argument);
+                     labels,
+                     0,
+                     42,
+                     [](const auto& train_feat,
+                         const auto& train_lab,
+                         const auto& test_feat,
+                         const auto& test_lab) -> double { return 0.0; }),
+        std::invalid_argument);
 
     // k > number of samples and k <= 0
     EXPECT_THROW(statistics::k_fold_cross_validation<double>(features,
-                                                             labels,
-                                                             -1,
-                                                             42,
-                                                             [](const auto& train_feat,
-                                                                const auto& train_lab,
-                                                                const auto& test_feat,
-                                                                const auto& test_lab) -> double
-                                                             { return 0.0; }),
-                 std::invalid_argument);
+                     labels,
+                     -1,
+                     42,
+                     [](const auto& train_feat,
+                         const auto& train_lab,
+                         const auto& test_feat,
+                         const auto& test_lab) -> double { return 0.0; }),
+        std::invalid_argument);
 }
 
 // Memory Stress Testing for Statistics
@@ -433,26 +427,24 @@ TEST(StatisticsComprehensiveTest, KFoldCrossValidationDeterminism)
     std::vector<int> labels = {0, 0, 1, 1, 2, 2};
 
     // Same seed should give same results
-    auto results1 = statistics::k_fold_cross_validation<double>(
-        features,
+    auto results1 = statistics::k_fold_cross_validation<double>(features,
         labels,
         3,
         123,
         [](const auto& train_feat,
-           const auto& train_lab,
-           const auto& test_feat,
-           const auto& test_lab) -> double
+            const auto& train_lab,
+            const auto& test_feat,
+            const auto& test_lab) -> double
         { return static_cast<double>(test_lab.size()) / (train_lab.size() + test_lab.size()); });
 
-    auto results2 = statistics::k_fold_cross_validation<double>(
-        features,
+    auto results2 = statistics::k_fold_cross_validation<double>(features,
         labels,
         3,
         123,
         [](const auto& train_feat,
-           const auto& train_lab,
-           const auto& test_feat,
-           const auto& test_lab) -> double
+            const auto& train_lab,
+            const auto& test_feat,
+            const auto& test_lab) -> double
         { return static_cast<double>(test_lab.size()) / (train_lab.size() + test_lab.size()); });
 
     EXPECT_EQ(results1.size(), results2.size());

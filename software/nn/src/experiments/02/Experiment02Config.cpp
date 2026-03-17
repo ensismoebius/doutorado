@@ -7,9 +7,29 @@
 // Get all available discrete wavelet families from core library
 auto get_available_wavelet_families() -> std::vector<std::string>
 {
-    return {"Haar",   "Daub4",  "Daub6",  "Daub8",  "Daub10", "Daub12", "Daub14", "Daub16",
-            "Daub18", "Daub20", "Daub22", "Daub24", "Daub26", "Daub28", "Daub30", "Daub32",
-            "Daub34", "Daub36", "Daub38", "Daub40", "Daub42", "Daub44", "Daub46"};
+    return {"Haar",
+        "Daub4",
+        "Daub6",
+        "Daub8",
+        "Daub10",
+        "Daub12",
+        "Daub14",
+        "Daub16",
+        "Daub18",
+        "Daub20",
+        "Daub22",
+        "Daub24",
+        "Daub26",
+        "Daub28",
+        "Daub30",
+        "Daub32",
+        "Daub34",
+        "Daub36",
+        "Daub38",
+        "Daub40",
+        "Daub42",
+        "Daub44",
+        "Daub46"};
 }
 
 // Load config from spec.yaml

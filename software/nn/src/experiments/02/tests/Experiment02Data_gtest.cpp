@@ -31,9 +31,9 @@ TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidOverlap)
     std::vector<AudioSample> audio_samples{make_audio_sample()};
 
     EXPECT_THROW((void) extract_windows(eeg_samples, audio_samples, 1.0, 1.0, 1000, 1000),
-                 std::invalid_argument);
+        std::invalid_argument);
     EXPECT_THROW((void) extract_windows(eeg_samples, audio_samples, 1.0, 1.1, 1000, 1000),
-                 std::invalid_argument);
+        std::invalid_argument);
 }
 
 TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidRatesOrWindow)
@@ -42,9 +42,9 @@ TEST(Experiment02DataTest, ExtractWindowsRejectsInvalidRatesOrWindow)
     std::vector<AudioSample> audio_samples{make_audio_sample()};
 
     EXPECT_THROW((void) extract_windows(eeg_samples, audio_samples, 1.0, 0.0, 0, 1000),
-                 std::invalid_argument);
+        std::invalid_argument);
     EXPECT_THROW((void) extract_windows(eeg_samples, audio_samples, 0.001, 0.0, 10, 10),
-                 std::invalid_argument);
+        std::invalid_argument);
 }
 
 TEST(Experiment02DataTest, ExtractWindowsProducesOutputForValidInput)

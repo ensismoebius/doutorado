@@ -8,7 +8,7 @@
 #include "nn/paraconsistent/paraconsistent.h"
 
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
-                                    const std::vector<int>& labels) -> ParaconsistentMetrics
+    const std::vector<int>& labels) -> ParaconsistentMetrics
 {
     if (features.empty() || labels.empty() || features.size() != labels.size() ||
         features.front().empty())
@@ -55,7 +55,7 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
 }
 
 auto compute_classification_metrics(const std::vector<int>& true_labels,
-                                    const std::vector<int>& pred_labels) -> ClassificationMetrics
+    const std::vector<int>& pred_labels) -> ClassificationMetrics
 {
     return statistics::compute_classification_metrics(true_labels, pred_labels);
 }

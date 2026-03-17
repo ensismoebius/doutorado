@@ -31,8 +31,7 @@ class Protocol101117Dataset : public Dataset
 {
    public:
     /** Create dataset with explicit input mode. */
-    explicit Protocol101117Dataset(
-        std::vector<SubjectFiles> subjects,
+    explicit Protocol101117Dataset(std::vector<SubjectFiles> subjects,
         Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated);
 
     /** Set/get explicit input mode used by `get_item()` and `collate()`. */
@@ -47,8 +46,8 @@ class Protocol101117Dataset : public Dataset
      *         input or separated EEG/audio tensors.
      */
     [[nodiscard]] auto get_sample(std::size_t idx,
-                                  std::optional<Protocol101117InputMode> input_mode_override =
-                                      std::nullopt) const -> Protocol101117Sample;
+        std::optional<Protocol101117InputMode> input_mode_override = std::nullopt) const
+        -> Protocol101117Sample;
 
     [[nodiscard]] auto size() const -> std::size_t override;
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override;

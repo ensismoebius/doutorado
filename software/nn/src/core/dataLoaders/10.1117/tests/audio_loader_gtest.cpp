@@ -101,7 +101,7 @@ TEST_F(AudioLoaderTest, ThrowsOnInvalidFile)
 TEST_F(AudioLoaderTest, ThrowsOnInvalidRowIndex)
 {
     EXPECT_THROW(nn::dataLoaders::loadAudioFromMat(testFile, kInvalidRowIndex), // Very large index
-                 std::runtime_error);
+        std::runtime_error);
 }
 
 TEST_F(AudioLoaderTest, SessionSupportsRowsFlatAndMetadata)

@@ -53,8 +53,9 @@ constexpr std::array<WaveletDispatchEntry, 23> kWaveletDispatch = {{
 }};
 } // namespace
 
-auto get_wavelet_coeffs(const std::string& wavelet_name, const std::vector<double>& signal,
-                        int max_level) -> wavelets::WaveletTransformResults
+auto get_wavelet_coeffs(
+    const std::string& wavelet_name, const std::vector<double>& signal, int max_level)
+    -> wavelets::WaveletTransformResults
 {
     if (signal.empty())
     {

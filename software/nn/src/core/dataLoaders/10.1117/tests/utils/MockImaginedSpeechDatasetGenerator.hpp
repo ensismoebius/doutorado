@@ -29,11 +29,11 @@ class MockImaginedSpeechDatasetGenerator
 
     static void generateDataset(const std::filesystem::path& directory, std::size_t trials);
 
-    static void generateCorruptedEEGMatFile(const std::filesystem::path& path, std::size_t trials,
-                                            EEGCorruptionOptions options);
+    static void generateCorruptedEEGMatFile(
+        const std::filesystem::path& path, std::size_t trials, EEGCorruptionOptions options);
 
-    static void generateCorruptedAudioMatFile(const std::filesystem::path& path, std::size_t trials,
-                                              AudioCorruptionOptions options);
+    static void generateCorruptedAudioMatFile(
+        const std::filesystem::path& path, std::size_t trials, AudioCorruptionOptions options);
 };
 
 } // namespace nn::dataLoaders::test

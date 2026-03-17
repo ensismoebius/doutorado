@@ -20,12 +20,12 @@ using namespace nn::core::wave; // Use the namespace for moved functions
 auto create_dummy_loading_params() -> LoadingAndProcessingParameters
 {
     AudioProcessingParams audio_params = {.target_sampling_rate = 16000,
-                                          .preemphasis_coefficient = 0.97,
-                                          .frame_duration_ms = 25.0,
-                                          .frame_shift_ms = 10.0,
-                                          .number_of_filters = 24,
-                                          .number_of_cepstrals = 19,
-                                          .delta_window_span = 2};
+        .preemphasis_coefficient = 0.97,
+        .frame_duration_ms = 25.0,
+        .frame_shift_ms = 10.0,
+        .number_of_filters = 24,
+        .number_of_cepstrals = 19,
+        .delta_window_span = 2};
 
     HammingWindowConfig hamming_window_config = {.alpha = 0.54F, .beta = 0.46F};
 
@@ -33,17 +33,16 @@ auto create_dummy_loading_params() -> LoadingAndProcessingParameters
 
     DeltaConfig delta_config = {.denominator_factor = 2.0F};
 
-    GeneralConstants constants = {
-        .ms_to_seconds_factor = 1000.0F,
+    GeneralConstants constants = {.ms_to_seconds_factor = 1000.0F,
         .min_log_energy = 1e-12F,
         .default_sampling_rate = 16000, // Should match target_sampling_rate for consistency
         .debug_frame_limit = 5};
 
     return {.audio_params = audio_params,
-            .hamming_window_config = hamming_window_config,
-            .dct_config = dct_config,
-            .delta_config = delta_config,
-            .constants = constants};
+        .hamming_window_config = hamming_window_config,
+        .dct_config = dct_config,
+        .delta_config = delta_config,
+        .constants = constants};
 }
 
 // Test fixture for common setup if needed
@@ -111,8 +110,8 @@ TEST_F(LfccPipelineUtilsTest, FramingAndWindow_Basic)
     dummy_loading_params.audio_params.frame_shift_ms = 5.0;     // 5ms -> 80 samples
 
     FramingConfig framing_context = {.frame_length = 0, // Will be calculated
-                                     .frame_step = 0,   // Will be calculated
-                                     .loading_params = dummy_loading_params};
+        .frame_step = 0,                                // Will be calculated
+        .loading_params = dummy_loading_params};
 
     auto frames = framing_and_window(signal, framing_context);
 
@@ -229,8 +228,8 @@ TEST_F(LfccPipelineUtilsTest, BuildLinearFilterbank_Basic)
     custom_loading_params.constants.default_sampling_rate = 16000;
 
     FilterbankConfig filterbank_context = {.filterbank = filterbank_test,
-                                           .center_frequencies = center_frequencies_test,
-                                           .loading_params = custom_loading_params};
+        .center_frequencies = center_frequencies_test,
+        .loading_params = custom_loading_params};
 
     build_linear_filterbank(fft_points, filterbank_context);
 
@@ -273,12 +272,12 @@ TEST_F(LfccPipelineUtilsTest, DotPowerFilterbank_Basic)
     custom_loading_params.constants.default_sampling_rate = 16000;
 
     FilterbankConfig filterbank_context = {.filterbank = filterbank_test,
-                                           .center_frequencies = center_frequencies_test,
-                                           .loading_params = custom_loading_params};
+        .center_frequencies = center_frequencies_test,
+        .loading_params = custom_loading_params};
     build_linear_filterbank(512, filterbank_context); // Build a real filterbank
 
-    PowerFilterbankConfig power_filterbank_context = {.filterbank = filterbank_test,
-                                                      .loading_params = custom_loading_params};
+    PowerFilterbankConfig power_filterbank_context = {
+        .filterbank = filterbank_test, .loading_params = custom_loading_params};
 
     nn::Tensor log_energies = dot_power_filterbank(power_spectrum, power_filterbank_context);
 
@@ -292,8 +291,8 @@ TEST_F(LfccPipelineUtilsTest, DotPowerFilterbank_Basic)
         for (int j = 0; j < log_energies.cols(); ++j)
         {
             ASSERT_GT(log_energies(i, j),
-                      logf(dummy_loading_params.constants.min_log_energy) -
-                          1.0); // Should be greater than min_log_energy after log
+                logf(dummy_loading_params.constants.min_log_energy) -
+                    1.0); // Should be greater than min_log_energy after log
         }
     }
 }

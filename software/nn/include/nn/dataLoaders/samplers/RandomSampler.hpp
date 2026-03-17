@@ -11,8 +11,8 @@
 class RandomSampler final : public ISampler
 {
    public:
-    explicit RandomSampler(std::size_t dataset_size,
-                           std::optional<unsigned int> seed = std::nullopt);
+    explicit RandomSampler(
+        std::size_t dataset_size, std::optional<unsigned int> seed = std::nullopt);
 
     [[nodiscard]] auto index_count() const noexcept -> std::size_t override;
     void set_epoch(std::size_t epoch) override;

@@ -24,9 +24,9 @@ struct NnSaver
         -> void
     {
         cnpy::npy_save(prefix + "_weights.npy",
-                       weights.data_ptr(),
-                       {static_cast<size_t>(weights.rows()), static_cast<size_t>(weights.cols())},
-                       "w");
+            weights.data_ptr(),
+            {static_cast<size_t>(weights.rows()), static_cast<size_t>(weights.cols())},
+            "w");
         cnpy::npy_save(
             prefix + "_bias.npy", bias.data_ptr(), {static_cast<size_t>(bias.size())}, "w");
     }

@@ -82,8 +82,8 @@ TEST(LinearAlgebraTest, TestDotProduct)
     // Test with spans (subranges)
     // a[0..1] = {1,2}, b[1..2] = {5,6}. 1*5 + 2*6 = 5 + 12 = 17
     EXPECT_NEAR(linearAlgebra::dotProduct(std::span(a).subspan(0, 2), std::span(b).subspan(1, 2)),
-                17.0,
-                1e-6);
+        17.0,
+        1e-6);
 }
 
 TEST(LinearAlgebraTest, TestCalcOrthogonalVector)

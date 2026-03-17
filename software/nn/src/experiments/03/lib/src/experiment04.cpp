@@ -83,20 +83,20 @@ int Experiment04::run()
             // of printed to console.
             cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
             printProgress(dataset_total_samples_,
-                          config_.batch_size,
-                          config_.max_batches,
-                          seen_batches_,
-                          processed_samples_,
-                          false);
+                config_.batch_size,
+                config_.max_batches,
+                seen_batches_,
+                processed_samples_,
+                false);
         }
 
         // Finalize progress line
         printProgress(dataset_total_samples_,
-                      config_.batch_size,
-                      config_.max_batches,
-                      prefetcher_->seenBatches(),
-                      processed_samples_,
-                      true);
+            config_.batch_size,
+            config_.max_batches,
+            prefetcher_->seenBatches(),
+            processed_samples_,
+            true);
 
         // Check if any batches were produced; if not, print a warning.
         if (prefetcher_->seenBatches() == 0)

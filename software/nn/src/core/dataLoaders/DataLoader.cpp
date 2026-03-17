@@ -59,11 +59,11 @@ auto make_default_sampler(                           //
         }
         case DataLoader::DefaultSamplerType::Distributed:
             return make_unique<DistributedSampler>(dataset_size,
-                                                   options.num_replicas,
-                                                   options.rank,
-                                                   options.distributed_shuffle,
-                                                   options.distributed_drop_last,
-                                                   options.seed);
+                options.num_replicas,
+                options.rank,
+                options.distributed_shuffle,
+                options.distributed_drop_last,
+                options.seed);
     }
 
     throw invalid_argument("DataLoader: unknown default sampler type.");
@@ -77,10 +77,11 @@ DataLoader::DataLoader(          //
     bool do_shuffle,             //
     optional<unsigned int> seed  //
     )
-    : DataLoader(dataset, batch_size,
-                 DefaultSamplerOptions{.type = do_shuffle ? DefaultSamplerType::Random
-                                                          : DefaultSamplerType::Sequential,
-                                       .seed = seed})
+    : DataLoader(dataset,
+          batch_size,
+          DefaultSamplerOptions{
+              .type = do_shuffle ? DefaultSamplerType::Random : DefaultSamplerType::Sequential,
+              .seed = seed})
 {
 }
 

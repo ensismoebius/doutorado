@@ -40,8 +40,8 @@ class AudioLoaderArticleSpecTest : public ::testing::Test
         std::filesystem::remove(eeg_file_);
 
         (void) schema;
-        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(eeg_file_,
-                                                                                      eeg_rows_);
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(
+            eeg_file_, eeg_rows_);
         nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(
             audio_file_, audio_rows_);
     }

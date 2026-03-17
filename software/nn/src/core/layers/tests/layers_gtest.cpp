@@ -113,12 +113,12 @@ TEST(LinearLayerTest, ForwardSimple)
 TEST(LeakyLayerTest, ForwardSpikeAndReset)
 {
     Leaky leaky(/*dt=*/1.0F,
-                /*R=*/5.0F,
-                /*C=*/1.0F,
-                /*V_thresh=*/2.0F,
-                /*reset_zero=*/true,
-                0.0F,
-                std::make_shared<ExponentialSurrogate>());
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/true,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
     nn::Tensor in_tensor(1, 1);
     in_tensor.at(0, 0) = 3.0F; // Acima do threshold
     nn::Tensor out{leaky.forward(in_tensor)};
@@ -132,12 +132,12 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
 TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 {
     Leaky leaky(/*dt=*/1.0F,
-                /*R=*/5.0F,
-                /*C=*/1.0F,
-                /*V_thresh=*/2.0F,
-                /*reset_zero=*/false,
-                0.0F,
-                std::make_shared<ExponentialSurrogate>());
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/false,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
     nn::Tensor in_tensor(1, 1);
     in_tensor.at(0, 0) = 3.0F; // Acima do threshold
     nn::Tensor out{leaky.forward(in_tensor)};
@@ -916,8 +916,7 @@ TEST(LayerExceptionTest, Conv2dInvalidInputs)
                                           // use_parallel=false
 
     // Test with input too small for kernel - proper 4D tensor (batch, channels, height, width)
-    nn::Tensor small_tensor(
-        1,
+    nn::Tensor small_tensor(1,
         1,
         1,
         1); // batch=1, channels=1, height=1, width=1 - too small for 3x3 kernel with no padding
@@ -977,7 +976,6 @@ TEST(LayerMemoryStressTest, LargeLinearLayer)
     EXPECT_EQ(grad_input.rows(), 1);
     EXPECT_EQ(grad_input.cols(), large_input);
 }
-
 
 TEST(LayerNumericalEdgeTest, GradientNumericalStability)
 {

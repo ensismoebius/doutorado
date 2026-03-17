@@ -35,8 +35,8 @@ using std::vector;
  * @param timeStep Time step size used to convert rate into a per-step spike probability.
  * @return {inputs_over_time, targets_over_time} where each is a length-T vector of (B,F) tensors.
  */
-auto generate_autoencoder_spike_data(int n_samples, int input_dim, int n_steps, float max_rate,
-                                     float timeStep)
+auto generate_autoencoder_spike_data(
+    int n_samples, int input_dim, int n_steps, float max_rate, float timeStep)
     -> tuple<vector<nn::Tensor>, vector<nn::Tensor>>;
 
 /**

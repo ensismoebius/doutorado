@@ -28,8 +28,8 @@ auto calculate_contradiction_degree_g2(double alpha, double betha) -> double
     return alpha + betha - 1;
 }
 
-static void normalizeFeatureVectors(double**& featureVectors, unsigned int vectorSize,
-                                    long subVectorsSize)
+static void normalizeFeatureVectors(
+    double**& featureVectors, unsigned int vectorSize, long subVectorsSize)
 {
     for (unsigned int vi = 0; vi < vectorSize; vi++)
     {
@@ -37,8 +37,8 @@ static void normalizeFeatureVectors(double**& featureVectors, unsigned int vecto
             {featureVectors[vi], static_cast<size_t>(subVectorsSize)});
     }
 }
-static void normalizeFeatureVectors(std::vector<std::vector<double>>& featureVectors,
-                                    unsigned int vectorSize)
+static void normalizeFeatureVectors(
+    std::vector<std::vector<double>>& featureVectors, unsigned int vectorSize)
 {
     for (unsigned int i = 0; i < vectorSize; i++)
     {
@@ -47,8 +47,9 @@ static void normalizeFeatureVectors(std::vector<std::vector<double>>& featureVec
 }
 
 void normalize_class_feature_vectors(unsigned int amountOfClasses,
-                                     unsigned int featureVectorsPerClass,
-                                     unsigned int featureVectorSize, double*** arrClasses)
+    unsigned int featureVectorsPerClass,
+    unsigned int featureVectorSize,
+    double*** arrClasses)
 {
     for (unsigned int i = 0; i < amountOfClasses; i++)
     {
@@ -57,9 +58,9 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses,
 }
 
 void normalize_class_feature_vectors(unsigned int amountOfClasses,
-                                     unsigned int featureVectorsPerClass,
-                                     unsigned int featureVectorSize,
-                                     std::vector<std::vector<std::vector<double>>>& arrClasses)
+    unsigned int featureVectorsPerClass,
+    unsigned int featureVectorSize,
+    std::vector<std::vector<std::vector<double>>>& arrClasses)
 {
     for (unsigned int i = 0; i < amountOfClasses; i++)
     {
@@ -67,8 +68,8 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses,
     }
 }
 
-void normalize_class_feature_vectors(
-    unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
+void normalize_class_feature_vectors(unsigned int amountOfClasses,
+    unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
     std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
 {
@@ -78,10 +79,10 @@ void normalize_class_feature_vectors(
     }
 }
 
-auto calculate_alpha(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                     unsigned int featureVectorSize,
-                     const std::map<std::string, std::vector<std::vector<double>>>& arrClasses)
-    -> double
+auto calculate_alpha(unsigned int amountOfClasses,
+    unsigned int featureVectorsPerClass,
+    unsigned int featureVectorSize,
+    const std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
 {
     std::map<std::string, std::vector<double>> arrLargestItems;
     std::map<std::string, std::vector<double>> arrSmallestItems;
@@ -104,7 +105,7 @@ auto calculate_alpha(unsigned int amountOfClasses, unsigned int featureVectorsPe
         for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
         {
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
-                 featureVectorIndex++)
+                featureVectorIndex++)
             {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
@@ -129,9 +130,10 @@ auto calculate_alpha(unsigned int amountOfClasses, unsigned int featureVectorsPe
     return alpha;
 }
 
-auto calculate_beta(unsigned int amountOfClasses, unsigned int featureVectorsPerClass,
-                    unsigned int featureVectorSize,
-                    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
+auto calculate_beta(unsigned int amountOfClasses,
+    unsigned int featureVectorsPerClass,
+    unsigned int featureVectorSize,
+    std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
 {
     double item;
     std::map<std::string, std::vector<double>> arrLargestItems;
@@ -151,7 +153,7 @@ auto calculate_beta(unsigned int amountOfClasses, unsigned int featureVectorsPer
         for (unsigned int itemIndex = 0; itemIndex < featureVectorSize; itemIndex++)
         {
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
-                 featureVectorIndex++)
+                featureVectorIndex++)
             {
                 item = clazz.second[featureVectorIndex][itemIndex];
 
@@ -183,9 +185,9 @@ auto calculate_beta(unsigned int amountOfClasses, unsigned int featureVectorsPer
 
                 for (unsigned int ii = 0; ii < featureVectorSize; ii++)
                 {
-                    if (inRange(arrClasses[clazz.first][fvi][ii],   // value
-                                arrSmallestItems[clazz2.first][ii], // lowerLimit
-                                arrLargestItems[clazz2.first][ii])  // upperLimit
+                    if (inRange(arrClasses[clazz.first][fvi][ii], // value
+                            arrSmallestItems[clazz2.first][ii],   // lowerLimit
+                            arrLargestItems[clazz2.first][ii])    // upperLimit
                     )
                     {
                         R++;

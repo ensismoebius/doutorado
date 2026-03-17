@@ -85,9 +85,8 @@ auto discoverSubjects(                       //
     }
 
     std::sort(subjects.begin(),
-              subjects.end(),
-              [](const SubjectFiles& a, const SubjectFiles& b)
-              { return a.subject_id < b.subject_id; });
+        subjects.end(),
+        [](const SubjectFiles& a, const SubjectFiles& b) { return a.subject_id < b.subject_id; });
 
     return subjects;
 }

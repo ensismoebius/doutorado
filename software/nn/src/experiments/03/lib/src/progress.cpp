@@ -5,9 +5,12 @@
 #include <iostream>
 #include <string>
 
-void printProgress(std::size_t dataset_total_samples, std::size_t batch_size,
-                   std::size_t max_batches, std::size_t seen_batches, std::size_t processed_samples,
-                   bool done)
+void printProgress(std::size_t dataset_total_samples,
+    std::size_t batch_size,
+    std::size_t max_batches,
+    std::size_t seen_batches,
+    std::size_t processed_samples,
+    bool done)
 {
     const std::size_t safe_batch_size = (batch_size == 0) ? 1 : batch_size;
     const std::size_t dataset_total_batches =

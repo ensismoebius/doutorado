@@ -77,12 +77,16 @@ class NetworkSerializer
     static constexpr const char* ARCHITECTURE_KEY = "__architecture__";
 
     // --- Save Handlers ---
-    static void _saveLinear(const shared_ptr<Linear>& layer, size_t index, string& arch_str,
-                            map<string, pair<vector<size_t>, const float*>>& params);
+    static void _saveLinear(const shared_ptr<Linear>& layer,
+        size_t index,
+        string& arch_str,
+        map<string, pair<vector<size_t>, const float*>>& params);
     static void _saveLeakyReLU(const shared_ptr<LeakyReLU>& layer, string& arch_str);
     static void _saveReLU(string& arch_str);
-    static void _saveLeaky(const shared_ptr<Leaky>& layer, size_t index, string& arch_str,
-                           map<string, pair<vector<size_t>, const float*>>& params);
+    static void _saveLeaky(const shared_ptr<Leaky>& layer,
+        size_t index,
+        string& arch_str,
+        map<string, pair<vector<size_t>, const float*>>& params);
 
     // --- Load Handlers ---
     static void _loadLinearParams(const shared_ptr<Linear>& layer, size_t index, const npz_t& data);
@@ -144,10 +148,10 @@ inline auto NetworkSerializer::saveNetwork(const Sequential& model, const string
 
         vector<char> arch_metadata_vec(arch_metadata_str.begin(), arch_metadata_str.end());
         npz_save(safe_filepath,
-                 ARCHITECTURE_KEY,
-                 arch_metadata_vec.data(),
-                 {arch_metadata_vec.size()},
-                 "w");
+            ARCHITECTURE_KEY,
+            arch_metadata_vec.data(),
+            {arch_metadata_vec.size()},
+            "w");
 
         for (auto const& [name, info] : parameters)
         {
@@ -164,14 +168,15 @@ inline auto NetworkSerializer::saveNetwork(const Sequential& model, const string
     }
 }
 
-inline void NetworkSerializer::_saveLinear(const shared_ptr<Linear>& layer, size_t index,
-                                           string& arch_str,
-                                           map<string, pair<vector<size_t>, const float*>>& params)
+inline void NetworkSerializer::_saveLinear(const shared_ptr<Linear>& layer,
+    size_t index,
+    string& arch_str,
+    map<string, pair<vector<size_t>, const float*>>& params)
 {
     arch_str +=
         "Linear:" + to_string(layer->in_features) + ":" + to_string(layer->out_features) + "\n";
-    params[to_string(index) + WEIGHTS_SUFFIX] = {{layer->weight.rows(), layer->weight.cols()},
-                                                 layer->weight.data_ptr()};
+    params[to_string(index) + WEIGHTS_SUFFIX] = {
+        {layer->weight.rows(), layer->weight.cols()}, layer->weight.data_ptr()};
     params[to_string(index) + BIAS_SUFFIX] = {{layer->bias.rows()}, layer->bias.data_ptr()};
 }
 
@@ -185,9 +190,10 @@ inline void NetworkSerializer::_saveReLU(string& arch_str)
     arch_str += "ReLU\n";
 }
 
-inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer, size_t index,
-                                          string& arch_str,
-                                          map<string, pair<vector<size_t>, const float*>>& params)
+inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
+    size_t index,
+    string& arch_str,
+    map<string, pair<vector<size_t>, const float*>>& params)
 {
     arch_str += "Leaky:" + to_string(layer->time_step) + ":" +
                 to_string(layer->resistance.at(0, 0)) + ":" + to_string(layer->capacitance) + ":" +
@@ -224,23 +230,23 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
         using LayerFactory = function<shared_ptr<Module>(const vector<string>&)>;
         const map<string, LayerFactory> layer_factories = {
             {"Linear",
-             [](const vector<string>& tokens) -> shared_ptr<Module>
-             { return make_shared<Linear>(stoi(tokens[1]), stoi(tokens[2])); }},
+                [](const vector<string>& tokens) -> shared_ptr<Module>
+                { return make_shared<Linear>(stoi(tokens[1]), stoi(tokens[2])); }},
             {"Leaky",
-             [](const vector<string>& tokens) -> shared_ptr<Module>
-             {
-                 return make_shared<Leaky>(stof(tokens[1]),
-                                           stof(tokens[2]),
-                                           stof(tokens[3]),
-                                           stof(tokens[4]),
-                                           tokens[5] == "1",
-                                           stof(tokens[6]));
-             }},
+                [](const vector<string>& tokens) -> shared_ptr<Module>
+                {
+                    return make_shared<Leaky>(stof(tokens[1]),
+                        stof(tokens[2]),
+                        stof(tokens[3]),
+                        stof(tokens[4]),
+                        tokens[5] == "1",
+                        stof(tokens[6]));
+                }},
             {"LeakyReLU",
-             [](const vector<string>& tokens) -> shared_ptr<Module>
-             { return make_shared<LeakyReLU>(stof(tokens[1])); }},
+                [](const vector<string>& tokens) -> shared_ptr<Module>
+                { return make_shared<LeakyReLU>(stof(tokens[1])); }},
             {"ReLU",
-             [](const vector<string>&) -> shared_ptr<Module> { return make_shared<ReLU>(); }}};
+                [](const vector<string>&) -> shared_ptr<Module> { return make_shared<ReLU>(); }}};
 
         model.layers.clear();
         stringstream arch_stream(arch_str);
@@ -293,8 +299,8 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
     }
 }
 
-inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer, size_t index,
-                                                 const npz_t& data)
+inline void NetworkSerializer::_loadLinearParams(
+    const shared_ptr<Linear>& layer, size_t index, const npz_t& data)
 {
     string weight_name = to_string(index) + WEIGHTS_SUFFIX;
     auto w_it = data.find(weight_name);
@@ -343,8 +349,8 @@ inline void NetworkSerializer::_loadLinearParams(const shared_ptr<Linear>& layer
     }
 }
 
-inline void NetworkSerializer::_loadLeakyParams(const std::shared_ptr<Leaky>& layer, size_t index,
-                                                const cnpy::npz_t& data)
+inline void NetworkSerializer::_loadLeakyParams(
+    const std::shared_ptr<Leaky>& layer, size_t index, const cnpy::npz_t& data)
 {
     std::string res_name = std::to_string(index) + ".resistance";
     auto r_it = data.find(res_name);
@@ -370,8 +376,8 @@ inline void NetworkSerializer::_loadLeakyParams(const std::shared_ptr<Leaky>& la
     auto vth_it = data.find(vth_name);
     if (vth_it == data.end())
     {
-        throw std::runtime_error("Voltage threshold array not found for module: " +
-                                 std::to_string(index));
+        throw std::runtime_error(
+            "Voltage threshold array not found for module: " + std::to_string(index));
     }
     const cnpy::NpyArray& arr_vth = vth_it->second;
     const float* vth_data = arr_vth.data<float>();

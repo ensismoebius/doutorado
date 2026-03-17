@@ -97,20 +97,20 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
 
             std::vector<double> eeg_features_single_trial =
                 extract_wavelet_features_single_trial(nn::Tensor(eeg_trial_data),
-                                                      cfg.duration_sec,
-                                                      cfg.overlap_percent,
-                                                      cfg.eeg_sampling_rate);
+                    cfg.duration_sec,
+                    cfg.overlap_percent,
+                    cfg.eeg_sampling_rate);
 
             std::vector<double> audio_features_single_trial =
                 extract_wavelet_features_single_trial(nn::Tensor(audio_trial_data),
-                                                      cfg.duration_sec,
-                                                      cfg.overlap_percent,
-                                                      cfg.sampling_rate);
+                    cfg.duration_sec,
+                    cfg.overlap_percent,
+                    cfg.sampling_rate);
 
             std::vector<double> combined_features_current_trial = eeg_features_single_trial;
             combined_features_current_trial.insert(combined_features_current_trial.end(),
-                                                   audio_features_single_trial.begin(),
-                                                   audio_features_single_trial.end());
+                audio_features_single_trial.begin(),
+                audio_features_single_trial.end());
 
             trials.push_back({std::move(combined_features_current_trial), eeg_label});
         }

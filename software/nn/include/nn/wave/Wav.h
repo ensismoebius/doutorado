@@ -124,8 +124,10 @@ class Wav
      * should match the specified signature, taking a vector of doubles (the audio
      * signal), a reference to the signal length, the sampling rate, and the file path.
      */
-    void (*callbackFunction)(std::vector<double>& signal, size_t& signalLength,
-                             uint32_t samplingRate, std::string path) = nullptr;
+    void (*callbackFunction)(std::vector<double>& signal,
+        size_t& signalLength,
+        uint32_t samplingRate,
+        std::string path) = nullptr;
 
     /**
      * @brief Helper function to read binary data from a stream.
@@ -169,7 +171,10 @@ class Wav
      * @param audioData
      * @param audioDataSize
      */
-    Wav(uint32_t samplingRate, uint16_t bitsPerSample, uint16_t numOfChan, const double* audioData,
+    Wav(uint32_t samplingRate,
+        uint16_t bitsPerSample,
+        uint16_t numOfChan,
+        const double* audioData,
         size_t audioDataSize);
 
     /**
@@ -203,8 +208,8 @@ class Wav
      * @param data The audio data to write.
      * @param samplingRate The sampling rate of the audio data.
      */
-    void write(const std::string& _path, const std::vector<std::vector<float>>& data,
-               int samplingRate);
+    void write(
+        const std::string& _path, const std::vector<std::vector<float>>& data, int samplingRate);
 
     /**
      * @brief Returns the path of file containing the signal
@@ -276,8 +281,10 @@ class Wav
      * @param numberOfChannels The number of audio channels (1 for mono, 2 for stereo).
      * @param numSamples The total number of samples.
      */
-    void initialize_headers(uint32_t samplingRate, uint16_t bitsPerSample,
-                            uint16_t numberOfChannels, size_t numSamples);
+    void initialize_headers(uint32_t samplingRate,
+        uint16_t bitsPerSample,
+        uint16_t numberOfChannels,
+        size_t numSamples);
     /**
      * @brief Reads the audio data from the WAV file based on the format.
      * @param ifs The input file stream to read from.

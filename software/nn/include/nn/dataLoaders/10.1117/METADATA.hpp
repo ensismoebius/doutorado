@@ -128,8 +128,7 @@ struct DatasetSchema
 // Concrete schema instance for the imagined speech database
 // ============================================================
 
-constexpr DatasetSchema ImaginedSpeechSchema_10_1117{
-    .duration_seconds = 4,
+constexpr DatasetSchema ImaginedSpeechSchema_10_1117{.duration_seconds = 4,
 
     // EEG parameters described in Section 2.3 (Data Collection)
     .eeg_sampling_rate = 1024,

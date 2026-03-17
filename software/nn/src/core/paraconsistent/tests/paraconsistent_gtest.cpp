@@ -18,8 +18,9 @@ unsigned int featureVectorsPerClass;
 std::map<std::string, std::vector<std::vector<double>>> arrClasses;
 
 void initializeClasses(std::map<std::string, std::vector<std::vector<double>>>& _arrClasses,
-                       unsigned int& _amountOfClasses, unsigned int& _featureVectorsPerClass,
-                       unsigned int& _featureVectorSize)
+    unsigned int& _amountOfClasses,
+    unsigned int& _featureVectorsPerClass,
+    unsigned int& _featureVectorSize)
 {
     // Setting up the quantities
     _amountOfClasses = 3;
@@ -33,7 +34,7 @@ void initializeClasses(std::map<std::string, std::vector<std::vector<double>>>& 
         std::vector<std::vector<double>> featureVectorSet(_featureVectorsPerClass);
 
         for (unsigned int featureVectorIndex = 0; featureVectorIndex < _featureVectorsPerClass;
-             ++featureVectorIndex)
+            ++featureVectorIndex)
         {
             std::vector<double> featureVector(_featureVectorSize);
 

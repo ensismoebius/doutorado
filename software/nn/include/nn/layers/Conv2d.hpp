@@ -66,8 +66,11 @@ class Conv2d : public Module
      * @param max_batch_size Maximum batch size for buffer pre-allocation (default: 64)
      * @param use_parallel Enable OpenMP parallelization (default: true)
      */
-    Conv2d(int in_channels, int out_channels, int kernel_size, int max_batch_size = 64,
-           bool use_parallel = true);
+    Conv2d(int in_channels,
+        int out_channels,
+        int kernel_size,
+        int max_batch_size = 64,
+        bool use_parallel = true);
 
     /**
      * @brief Constructor for Conv2d layer
@@ -80,8 +83,14 @@ class Conv2d : public Module
      * @param use_parallel Enable OpenMP parallelization (default: true)
      * @param max_batch_size Maximum batch size for buffer pre-allocation (default: 64)
      */
-    Conv2d(int in_channels, int out_channels, int kernel_size, int stride, int padding,
-           int dilation, bool use_parallel, int max_batch_size = 64);
+    Conv2d(int in_channels,
+        int out_channels,
+        int kernel_size,
+        int stride,
+        int padding,
+        int dilation,
+        bool use_parallel,
+        int max_batch_size = 64);
 
     /**
      * @brief Forward pass: compute convolution output
@@ -168,17 +177,25 @@ class Conv2d : public Module
      *
      * Rearranges image patches into columns for efficient matrix multiplication.
      */
-    void im2col_optimized(const nn::Tensor& input, nn::Tensor& output, int batch_size,
-                          int input_height, int input_width, int output_height,
-                          int output_width) const;
+    void im2col_optimized(const nn::Tensor& input,
+        nn::Tensor& output,
+        int batch_size,
+        int input_height,
+        int input_width,
+        int output_height,
+        int output_width) const;
 
     /**
      * @brief Convert column matrix back to image (col2im transformation)
      *
      * Reconstructs spatial dimensions from column format, accumulating overlapping patches.
      */
-    auto col2im_optimized(const nn::Tensor& cols, int batch_size, int input_height, int input_width,
-                          int output_height, int output_width) const -> nn::Tensor;
+    auto col2im_optimized(const nn::Tensor& cols,
+        int batch_size,
+        int input_height,
+        int input_width,
+        int output_height,
+        int output_width) const -> nn::Tensor;
 
     /**
      * @brief Add bias to output matrix with optimized broadcasting
@@ -188,8 +205,9 @@ class Conv2d : public Module
     /**
      * @brief Reshape output matrix to 4D tensor without data copy
      */
-    auto reshape_output_optimized(const nn::Tensor& matrix, int batch_size, int output_height,
-                                  int output_width) const -> nn::Tensor;
+    auto reshape_output_optimized(
+        const nn::Tensor& matrix, int batch_size, int output_height, int output_width) const
+        -> nn::Tensor;
 
     /**
      * @brief Initialize weights using He initialization for ReLU networks

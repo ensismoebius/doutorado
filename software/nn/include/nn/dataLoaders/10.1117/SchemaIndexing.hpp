@@ -48,8 +48,8 @@ inline auto resolveEegRowIndex(int eeg_index_label, std::size_t eeg_rows) -> std
         return static_cast<std::size_t>(eeg_index_label);
     }
 
-    throw std::runtime_error("Audio->EEG index label is out of range: " +
-                             std::to_string(eeg_index_label));
+    throw std::runtime_error(
+        "Audio->EEG index label is out of range: " + std::to_string(eeg_index_label));
 }
 
 } // namespace nn::dataLoaders::schema101117

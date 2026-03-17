@@ -30,8 +30,8 @@ inline auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, fl
     return t;
 }
 
-inline void rand_fill(nn::Tensor& t, float lower = -0.5F, float upper = 0.5F,
-                      unsigned int seed = nn::testing::SEED)
+inline void rand_fill(
+    nn::Tensor& t, float lower = -0.5F, float upper = 0.5F, unsigned int seed = nn::testing::SEED)
 {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<float> dist(lower, upper);
@@ -64,8 +64,8 @@ inline auto make_zeros_tensor(size_t rows, size_t cols) -> nn::Tensor
     return make_constant_tensor(rows, cols, 0.0F);
 }
 
-inline auto tensor_is_approx(const nn::Tensor& a, const nn::Tensor& b,
-                             float tolerance = nn::testing::TOL) -> bool
+inline auto tensor_is_approx(
+    const nn::Tensor& a, const nn::Tensor& b, float tolerance = nn::testing::TOL) -> bool
 {
     if (a.get_shape() != b.get_shape())
     {

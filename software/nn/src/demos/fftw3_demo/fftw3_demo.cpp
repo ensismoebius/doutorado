@@ -41,8 +41,9 @@ struct FFTWFreeDeleter
  * @param signal_length_out
  * @return std::unique_ptr<float, FFTWFreeDeleter>
  */
-auto generateSignal(double freq1, double freq2, size_t sample_rate, size_t duration_seconds,
-                    int& signal_length_out) -> std::unique_ptr<double, FFTWFreeDeleter>
+auto generateSignal(
+    double freq1, double freq2, size_t sample_rate, size_t duration_seconds, int& signal_length_out)
+    -> std::unique_ptr<double, FFTWFreeDeleter>
 {
     signal_length_out = static_cast<int>(duration_seconds * sample_rate);
     auto* in_raw = static_cast<double*>(fftw_malloc(sizeof(double) * signal_length_out));

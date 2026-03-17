@@ -7,9 +7,9 @@
 auto normalizeSamplerTypeToken(std::string token) -> std::string
 {
     std::transform(token.begin(),
-                   token.end(),
-                   token.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        token.end(),
+        token.begin(),
+        [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     return token;
 }
 

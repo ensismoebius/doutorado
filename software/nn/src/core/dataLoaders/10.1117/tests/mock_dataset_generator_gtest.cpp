@@ -78,6 +78,6 @@ TEST_F(MockDatasetGeneratorTest, CorruptedAudioMissingLabelsFailsLoader)
     nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateCorruptedAudioMatFile(
         audio_path, 2U, nn::dataLoaders::test::AudioCorruptionOptions{.missing_labels = true});
 
-    EXPECT_THROW((void) nn::dataLoaders::loadAudioFromMat(audio_path.string(), 0U),
-                 std::runtime_error);
+    EXPECT_THROW(
+        (void) nn::dataLoaders::loadAudioFromMat(audio_path.string(), 0U), std::runtime_error);
 }

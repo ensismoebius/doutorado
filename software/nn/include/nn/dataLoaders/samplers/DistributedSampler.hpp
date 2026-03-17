@@ -11,11 +11,12 @@
 class DistributedSampler final : public ISampler
 {
    public:
-    DistributedSampler(                                 //
-        std::size_t dataset_size,                       //
-        std::size_t num_replicas,                       //
-        std::size_t rank,                               //
-        bool shuffle = true, bool drop_last = false,    //
+    DistributedSampler(           //
+        std::size_t dataset_size, //
+        std::size_t num_replicas, //
+        std::size_t rank,         //
+        bool shuffle = true,
+        bool drop_last = false,                         //
         std::optional<unsigned int> seed = std::nullopt //
     );
 

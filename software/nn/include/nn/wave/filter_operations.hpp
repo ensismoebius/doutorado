@@ -61,8 +61,9 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
  * @param finalFrequency
  * @return bandpass filter coefficients
  */
-auto createStopBandFilter(int order, double samplingRate, double startFrequency,
-                          double finalFrequency) -> std::vector<double>;
+auto createStopBandFilter(
+    int order, double samplingRate, double startFrequency, double finalFrequency)
+    -> std::vector<double>;
 
 /**
  * Create bandstop filter

@@ -100,8 +100,9 @@ class WaveletTransformResults
      * signal
      * @return the requested chunk
      */
-    static auto get_wavelet_packet_transforms(std::vector<double> transformedSignal, long partIndex,
-                                              long levelsOfTransformation) -> std::vector<double>;
+    static auto get_wavelet_packet_transforms(
+        std::vector<double> transformedSignal, long partIndex, long levelsOfTransformation)
+        -> std::vector<double>;
 
     /**
      * Static version of @get_wavelet_packet_amount_of_parts()

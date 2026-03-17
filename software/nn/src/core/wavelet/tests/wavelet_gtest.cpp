@@ -358,7 +358,7 @@ TEST(WaveletOperationsTest, TestExtractSubbandEnergiesEdgeCases)
     // Empty signal (should handle or throw)
     std::vector<double> empty_signal;
     EXPECT_THROW(wavelets::malat(empty_signal, haarFilter, wavelets::PACKET_WAVELET, 1),
-                 std::invalid_argument);
+        std::invalid_argument);
 }
 
 } // namespace wavelets::test

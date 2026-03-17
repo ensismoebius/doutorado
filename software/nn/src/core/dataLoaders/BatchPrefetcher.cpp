@@ -42,8 +42,8 @@ void BatchPrefetcher::producerLoop()
             {
                 std::unique_lock<std::mutex> lock(mutex_);
                 cv_.wait(lock,
-                         [this]()
-                         { return stop_requested_ || prefetched_batches_.size() < lookahead_; });
+                    [this]()
+                    { return stop_requested_ || prefetched_batches_.size() < lookahead_; });
 
                 if (stop_requested_)
                 {
@@ -93,11 +93,11 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 {
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock,
-             [this]()
-             {
-                 return stop_requested_ || !prefetched_batches_.empty() || producer_done_ ||
-                        static_cast<bool>(producer_error_);
-             });
+        [this]()
+        {
+            return stop_requested_ || !prefetched_batches_.empty() || producer_done_ ||
+                   static_cast<bool>(producer_error_);
+        });
 
     if (producer_error_ != nullptr)
     {

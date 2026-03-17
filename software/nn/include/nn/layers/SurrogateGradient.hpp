@@ -32,16 +32,16 @@ class ISurrogateGradient
      * @param voltage_threshold Spike threshold V_th.
      * @return Tensor of same shape as v_mem_pre_spike containing surrogate derivatives.
      */
-    [[nodiscard]] virtual auto calculate(const nn::Tensor& v_mem_pre_spike,
-                                         float voltage_threshold) const -> nn::Tensor = 0;
+    [[nodiscard]] virtual auto calculate(
+        const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const -> nn::Tensor = 0;
 
     /**
      * @brief Scalar form of `calculate` for single values.
      *
      * This is useful for tight loops where allocating a full Tensor is unnecessary.
      */
-    [[nodiscard]] virtual auto calculate_scalar(float v_mem_pre_spike,
-                                                float voltage_threshold) const -> float = 0;
+    [[nodiscard]] virtual auto calculate_scalar(
+        float v_mem_pre_spike, float voltage_threshold) const -> float = 0;
 };
 
 // Exponential / SuperSpike surrogate gradient

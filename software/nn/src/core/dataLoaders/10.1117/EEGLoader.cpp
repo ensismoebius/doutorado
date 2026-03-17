@@ -210,7 +210,7 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
         readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
 
     nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
-                           nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
 
     const size_t samplesPerChannel =
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
@@ -285,8 +285,7 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
     for (size_t r = 0; r < rowCount; ++r)
     {
-        nn::Tensor eegChannels(
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+        nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
             nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
 
         for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
@@ -388,7 +387,7 @@ auto EEGLoader::readFirstNumericVariable() -> std::optional<MatVarUniquePtr>
 
     // Iterate variables looking for numeric matrix
     for (matvar_t* var = Mat_VarReadNextInfo(matFile_); var != nullptr;
-         var = Mat_VarReadNextInfo(matFile_))
+        var = Mat_VarReadNextInfo(matFile_))
     {
         if (var->class_type == MAT_C_DOUBLE && var->rank == 2)
         {

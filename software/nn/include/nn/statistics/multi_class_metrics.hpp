@@ -44,8 +44,8 @@ struct ClassificationMetrics
  * @param pred_labels vector of predicted class labels
  * @return ClassificationMetrics struct with computed metrics
  */
-ClassificationMetrics compute_classification_metrics(const std::vector<int>& true_labels,
-                                                     const std::vector<int>& pred_labels);
+ClassificationMetrics compute_classification_metrics(
+    const std::vector<int>& true_labels, const std::vector<int>& pred_labels);
 
 /**
  * Perform k-fold cross validation
@@ -59,8 +59,10 @@ ClassificationMetrics compute_classification_metrics(const std::vector<int>& tru
  */
 template <typename T, typename Func>
 std::vector<T> k_fold_cross_validation(const std::vector<std::vector<double>>& features,
-                                       const std::vector<int>& labels, int k, int random_seed,
-                                       Func fold_function)
+    const std::vector<int>& labels,
+    int k,
+    int random_seed,
+    Func fold_function)
 {
     int n_samples = features.size();
     std::vector<int> indices(n_samples);

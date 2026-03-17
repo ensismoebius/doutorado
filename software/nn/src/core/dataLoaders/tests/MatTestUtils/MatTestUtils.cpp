@@ -9,8 +9,11 @@
 
 namespace nn::dataLoaders::test
 {
-auto writeMatDouble(const std::string& filePath, const std::string& varName, size_t rows,
-                    size_t cols, const double* data) noexcept -> bool
+auto writeMatDouble(const std::string& filePath,
+    const std::string& varName,
+    size_t rows,
+    size_t cols,
+    const double* data) noexcept -> bool
 {
     mat_t* mat = Mat_CreateVer(filePath.c_str(), nullptr, MAT_FT_MAT5);
     if (mat == nullptr)
@@ -34,8 +37,11 @@ auto writeMatDouble(const std::string& filePath, const std::string& varName, siz
     return ok == 0;
 }
 
-auto writeMatFloat(const std::string& filePath, const std::string& varName, size_t rows,
-                   size_t cols, const float* data) noexcept -> bool
+auto writeMatFloat(const std::string& filePath,
+    const std::string& varName,
+    size_t rows,
+    size_t cols,
+    const float* data) noexcept -> bool
 {
     mat_t* mat = Mat_CreateVer(filePath.c_str(), nullptr, MAT_FT_MAT5);
     if (mat == nullptr)

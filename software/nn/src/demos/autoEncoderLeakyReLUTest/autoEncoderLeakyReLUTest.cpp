@@ -152,29 +152,29 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     auto mse_loss = std::make_shared<MSELoss>();
 
     Sequential encoders({encoder1,
-                         encoder_act1,
-                         encoder2,
-                         encoder_act2,
-                         encoder3,
-                         encoder_act3,
-                         encoder4,
-                         encoder_act4,
-                         encoder5,
-                         encoder_act5,
-                         encoder6,
-                         encoder_act6});
+        encoder_act1,
+        encoder2,
+        encoder_act2,
+        encoder3,
+        encoder_act3,
+        encoder4,
+        encoder_act4,
+        encoder5,
+        encoder_act5,
+        encoder6,
+        encoder_act6});
 
     Sequential decoders({decoder1,
-                         decoder_act1,
-                         decoder2,
-                         decoder_act2,
-                         decoder3,
-                         decoder_act3,
-                         decoder4,
-                         decoder_act4,
-                         decoder5,
-                         decoder_act5,
-                         decoder6});
+        decoder_act1,
+        decoder2,
+        decoder_act2,
+        decoder3,
+        decoder_act3,
+        decoder4,
+        decoder_act4,
+        decoder5,
+        decoder_act5,
+        decoder6});
 
     // ==== Initialization ====
 

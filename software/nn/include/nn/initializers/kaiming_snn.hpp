@@ -34,8 +34,8 @@
  *
  * @param layer The linear layer to initialize.
  */
-inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer,
-                                  std::optional<unsigned int> seed = std::nullopt) -> void
+inline auto kaimingSNNInitializer(
+    const std::shared_ptr<Linear>& layer, std::optional<unsigned int> seed = std::nullopt) -> void
 {
     // Kaiming/He uniform limit: sqrt(6 / fan_in)
     float const limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));

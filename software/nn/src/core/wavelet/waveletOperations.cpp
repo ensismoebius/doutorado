@@ -22,8 +22,10 @@
 namespace wavelets
 {
 
-auto malat(const std::vector<double>& signal, const std::span<const double>& lowpassfilter,
-           TransformMode mode, unsigned int level) -> WaveletTransformResults
+auto malat(const std::vector<double>& signal,
+    const std::span<const double>& lowpassfilter,
+    TransformMode mode,
+    unsigned int level) -> WaveletTransformResults
 {
     // The total number of items to process is the size of the input signal.
     // This variable will represent the effective size of the signal at the current processing
@@ -131,8 +133,8 @@ auto malat(const std::vector<double>& signal, const std::span<const double>& low
                     size_t idx_in_segment = t + f;
                     // Calculate circular index without modulo
                     size_t signal_idx = current_start + ((idx_in_segment >= current_sz)
-                                                             ? (idx_in_segment - current_sz)
-                                                             : idx_in_segment);
+                                                                ? (idx_in_segment - current_sz)
+                                                                : idx_in_segment);
                     lp_sum += results.transformedSignal[signal_idx] * lowpassfilter[f];
                     hp_sum += results.transformedSignal[signal_idx] * highpassfilter[f];
                 }

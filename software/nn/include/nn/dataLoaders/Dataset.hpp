@@ -36,7 +36,7 @@ class Dataset
             {
                 Batch first_item = get_item(0); // Get first item to determine column sizes
                 return {.inputs = nn::Tensor(0, first_item.inputs.cols()),
-                        .targets = nn::Tensor(0, first_item.targets.cols())};
+                    .targets = nn::Tensor(0, first_item.targets.cols())};
             }
             return Batch{}; // Empty dataset, return default Batch
         }

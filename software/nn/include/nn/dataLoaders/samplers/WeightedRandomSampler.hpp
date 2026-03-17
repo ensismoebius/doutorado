@@ -12,8 +12,9 @@
 class WeightedRandomSampler final : public ISampler
 {
    public:
-    WeightedRandomSampler(std::vector<double> weights, std::size_t num_samples,
-                          std::optional<unsigned int> seed = std::nullopt);
+    WeightedRandomSampler(std::vector<double> weights,
+        std::size_t num_samples,
+        std::optional<unsigned int> seed = std::nullopt);
 
     [[nodiscard]] auto index_count() const noexcept -> std::size_t override;
     void set_epoch(std::size_t epoch) override;

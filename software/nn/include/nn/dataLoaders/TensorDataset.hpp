@@ -57,11 +57,11 @@ class TensorDataset : public Dataset
         std::vector<int> idxs;
         idxs.reserve(indices.size());
         std::transform(indices.begin(),
-                       indices.end(),
-                       std::back_inserter(idxs),
-                       [](std::size_t i) { return static_cast<int>(i); });
+            indices.end(),
+            std::back_inserter(idxs),
+            [](std::size_t i) { return static_cast<int>(i); });
         return {.inputs = inputs_.slice(std::span<const int>(idxs)),
-                .targets = targets_.slice(std::span<const int>(idxs))};
+            .targets = targets_.slice(std::span<const int>(idxs))};
     }
 
     [[nodiscard]] auto size() const -> std::size_t override

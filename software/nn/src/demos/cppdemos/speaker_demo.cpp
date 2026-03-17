@@ -37,9 +37,15 @@ T arg_to(argparse::ArgumentParser& p, const std::string& name)
 // Forward declaration for the demo implementation in comandos.cpp
 namespace demo
 {
-void cmd_demo(double duration, int sample_rate, int window_size, int hop_size,
-              const std::string& wavelet, int num_bands, int steps_per_window, int depth,
-              const std::string& plot_output);
+void cmd_demo(double duration,
+    int sample_rate,
+    int window_size,
+    int hop_size,
+    const std::string& wavelet,
+    int num_bands,
+    int steps_per_window,
+    int depth,
+    const std::string& plot_output);
 }
 
 /**
@@ -218,14 +224,14 @@ int main(int argc, char** argv)
             try
             {
                 demo::cmd_demo(duration,
-                               sample_rate,
-                               window_size,
-                               hop_size,
-                               wavelet,
-                               num_bands,
-                               steps_per_window,
-                               depth,
-                               plot_output);
+                    sample_rate,
+                    window_size,
+                    hop_size,
+                    wavelet,
+                    num_bands,
+                    steps_per_window,
+                    depth,
+                    plot_output);
                 return 0;
             }
             catch (const std::exception& e)
@@ -268,8 +274,7 @@ int main(int argc, char** argv)
             auto& verify_parser = program.at<ArgumentParser>("verificar");
             std::string model_path = arg_to<std::string>(verify_parser, "--modelo");
             double threshold = arg_to<double>(verify_parser, "--limiar");
-            std::cout << "verificar: modelo=" << model_path << " limiar=" << threshold
-                      << std::endl;
+            std::cout << "verificar: modelo=" << model_path << " limiar=" << threshold << std::endl;
             return 0;
         }
 

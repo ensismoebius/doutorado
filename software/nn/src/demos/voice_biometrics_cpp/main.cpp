@@ -90,7 +90,7 @@ auto apply_windowing(const std::vector<double>& signal, const ExtractionConfig& 
 
     const auto window = generate_hann_window(cfg.window_size);
     for (int start = 0; start + cfg.window_size <= static_cast<int>(signal.size());
-         start += cfg.hop_size)
+        start += cfg.hop_size)
     {
         std::vector<double> segment(static_cast<size_t>(cfg.window_size));
         for (int i = 0; i < cfg.window_size; ++i)
@@ -144,9 +144,9 @@ auto compute_wpt_energy(const std::vector<double>& window, int num_bands, int wp
     padded_signal.resize(static_cast<size_t>(target_size), 0.0);
 
     auto transform = wavelets::malat(padded_signal,
-                                     std::span<const double>(haar.data(), haar.size()),
-                                     wavelets::TransformMode::PACKET_WAVELET,
-                                     static_cast<unsigned int>(wpt_level));
+        std::span<const double>(haar.data(), haar.size()),
+        wavelets::TransformMode::PACKET_WAVELET,
+        static_cast<unsigned int>(wpt_level));
     auto energies = wavelets::extract_subband_energies(transform, wpt_level);
     return interpolate_to_size(energies, num_bands);
 }
@@ -391,13 +391,13 @@ auto save_spikes_csv(const string& output_path, const vector<Tensor>& spikes) ->
     }
 }
 
-auto run_pipeline(                      //
-    const string& wav_path,             //
-    double synthetic_duration,          //
+auto run_pipeline(                          //
+    const string& wav_path,                 //
+    double synthetic_duration,              //
     const ExtractionConfig& extraction_cfg, //
-    const SnnConfig& snn_cfg,           //
-    unsigned int seed,                  //
-    const string& output_csv            //
+    const SnnConfig& snn_cfg,               //
+    unsigned int seed,                      //
+    const string& output_csv                //
     ) -> void
 {
     auto audio = load_audio_or_synthetic( //
@@ -435,13 +435,13 @@ auto run_pipeline(                      //
             input_tensor.at(0, j) = feat[static_cast<size_t>(j)];
         }
 
-        auto spikes_in = codificacao::encode_poisson(    //
-            input_tensor,                                //
-            snn_cfg.steps_per_window,                    //
-            rng,                                         //
-            -1.0F,                                       //
-            true,                                        //
-            snn_cfg.target_spikes_per_step               //
+        auto spikes_in = codificacao::encode_poisson( //
+            input_tensor,                             //
+            snn_cfg.steps_per_window,                 //
+            rng,                                      //
+            -1.0F,                                    //
+            true,                                     //
+            snn_cfg.target_spikes_per_step            //
         );
 
         Tensor accumulated(1, static_cast<Index>(feat.size()));

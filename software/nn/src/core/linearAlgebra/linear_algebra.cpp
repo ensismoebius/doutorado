@@ -278,8 +278,8 @@ void resizeCentered(std::vector<double>& vector, long newSize, double defaultVal
     }
 }
 
-void minMaxNormalizeFeatures(std::vector<std::vector<double>>& features,
-                             const std::vector<double>& range)
+void minMaxNormalizeFeatures(
+    std::vector<std::vector<double>>& features, const std::vector<double>& range)
 {
     if (features.empty() || range.size() != 2) return;
 

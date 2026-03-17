@@ -15,3 +15,5 @@ BinPackParameters: false
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowAllArgumentsOnNextLine: true
 AlwaysBreakAfterReturnType: None
+AlignAfterOpenBracket: DontAlign
+PenaltyBreakBeforeFirstCallParameter: 1

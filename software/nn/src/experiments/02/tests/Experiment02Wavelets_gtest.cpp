@@ -1,8 +1,7 @@
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "../Experiment02Wavelets.hpp"
+#include "gtest/gtest.h"
 
 TEST(Experiment02WaveletsTest, RejectsEmptySignal)
 {

@@ -42,8 +42,8 @@ TEST_F(EEGLoaderPropertyTest, TensorDimensionsAndFlatteningHoldAcrossRandomTrial
         const std::size_t trials = trials_dist(rng);
         const auto eeg_path = tmp_dir_ / ("eeg_prop_" + std::to_string(round) + ".mat");
 
-        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(eeg_path,
-                                                                                      trials);
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(
+            eeg_path, trials);
 
         for (std::size_t i = 0; i < trials; ++i)
         {

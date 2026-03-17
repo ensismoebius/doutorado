@@ -44,9 +44,10 @@ auto aggregate_fold_results(const std::vector<FoldResult>& fold_results) -> Aggr
     return aggregated;
 }
 
-auto write_wavelet_results_csv(const std::string& csv_path, const ExperimentConfig& config,
-                               const std::string& wavelet_name,
-                               const AggregatedFoldResults& aggregated) -> void
+auto write_wavelet_results_csv(const std::string& csv_path,
+    const ExperimentConfig& config,
+    const std::string& wavelet_name,
+    const AggregatedFoldResults& aggregated) -> void
 {
     std::ofstream csv_file(csv_path);
     if (!csv_file)

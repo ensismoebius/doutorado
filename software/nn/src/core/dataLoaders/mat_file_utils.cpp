@@ -33,8 +33,8 @@ namespace
 {
 auto to_tensor_from_eigen_matrix(const Eigen::MatrixXf& eigen_matrix) -> nn::Tensor
 {
-    nn::Tensor result(static_cast<size_t>(eigen_matrix.rows()),
-                      static_cast<size_t>(eigen_matrix.cols()));
+    nn::Tensor result(
+        static_cast<size_t>(eigen_matrix.rows()), static_cast<size_t>(eigen_matrix.cols()));
     std::copy_n(
         eigen_matrix.data(), static_cast<size_t>(eigen_matrix.size()), result.mutable_data_ptr());
     return result;
@@ -143,8 +143,8 @@ auto countMatRows(const std::string& matPath, const std::string& varName) -> std
     auto dims = get_variable_dimensions(matPath, varName);
     if (!dims)
     {
-        throw std::runtime_error("Failed to read dimensions for variable '" + varName + "' in " +
-                                 matPath);
+        throw std::runtime_error(
+            "Failed to read dimensions for variable '" + varName + "' in " + matPath);
     }
     return (*dims)[0];
 }

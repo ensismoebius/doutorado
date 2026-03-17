@@ -14,8 +14,9 @@
 
 #include "nn/tensor/Tensor.hpp"
 
-auto create_batches(std::span<const nn::Tensor> inputSamples, std::span<const nn::Tensor> targets,
-                    const int batch_size) -> std::vector<Batch>
+auto create_batches(std::span<const nn::Tensor> inputSamples,
+    std::span<const nn::Tensor> targets,
+    const int batch_size) -> std::vector<Batch>
 {
     if (batch_size <= 0)
     {

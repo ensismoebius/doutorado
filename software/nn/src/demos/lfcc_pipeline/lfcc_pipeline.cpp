@@ -39,9 +39,9 @@ static void perform(const std::string& base_path)
             if (std::filesystem::exists(audio_file_path) && std::filesystem::exists(eeg_file_path))
             {
                 const SubjectInfo subject = {.path = subject_path,
-                                             .name = subject_name,
-                                             .audio_file_path = audio_file_path,
-                                             .eeg_file_path = eeg_file_path};
+                    .name = subject_name,
+                    .audio_file_path = audio_file_path,
+                    .eeg_file_path = eeg_file_path};
                 process_subject(subject);
             }
         }
