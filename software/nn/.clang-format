@@ -11,3 +11,7 @@ AllowShortFunctionsOnASingleLine: Empty
 SpacesBeforeTrailingComments: 1
 SpaceBeforeParens: ControlStatements
 SpaceAfterCStyleCast: true
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowAllArgumentsOnNextLine: true
+AlwaysBreakAfterReturnType: None
