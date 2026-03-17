@@ -141,7 +141,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     if (sample.input_mode == Protocol101117InputMode::Concatenated)
     {
-        sample.inputs = buildStackedInputTensorFromRaw(raw.eeg_tensor, raw.audio_tensor);
+        sample.inputs = mergeAudioAndEEGSignals(raw.eeg_tensor, raw.audio_tensor);
     }
     else if (sample.input_mode == Protocol101117InputMode::EegOnly)
     {
@@ -178,9 +178,9 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     // The assembler always builds concatenated EEG+audio rows. If this dataset
     // is configured for separated output, we slice only EEG columns afterwards
     // without re-reading files.
-    nn::Tensor assembled_inputs(indices.size(), INPUT_FEATURES);
     nn::Tensor inputs;
     nn::Tensor targets(indices.size(), 5);
+    nn::Tensor assembled_inputs(indices.size(), INPUT_FEATURES);
 
     std::vector<std::vector<RowRequest>> grouped(subjects_.size());
     for (size_t row = 0; row < indices.size(); ++row)
@@ -206,55 +206,31 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         ensureSubjectMatSessionsInitialized(subject_index);
     }
 
-    SynchronizedBatchAssembler::assembleGrouped(
-        grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
-
     if (input_mode_ == Protocol101117InputMode::Concatenated)
     {
-        inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
+        // Request the assembler to emit stacked, resampled flattened rows
+        // directly into `assembled_inputs` to avoid per-row reconstruction.
+        assembled_inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
 
-        const size_t eeg_channels = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels;
-        const size_t eeg_samples_per_channel =
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+        SynchronizedBatchAssembler::assembleGroupedStacked(
+            grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
 
-        nn::Tensor eeg_matrix(eeg_channels, eeg_samples_per_channel);
-        nn::Tensor audio_column(AUDIO_FEATURES, 1);
-
-        for (size_t row = 0; row < indices.size(); ++row)
-        {
-            for (size_t ch = 0; ch < eeg_channels; ++ch)
-            {
-                const size_t eeg_row_offset = ch * eeg_samples_per_channel;
-                for (size_t sample_idx = 0; sample_idx < eeg_samples_per_channel; ++sample_idx)
-                {
-                    eeg_matrix.at(ch, sample_idx) =
-                        assembled_inputs.at(row, eeg_row_offset + sample_idx);
-                }
-            }
-
-            for (size_t col = 0; col < AUDIO_FEATURES; ++col)
-            {
-                audio_column.at(col, 0) = assembled_inputs.at(row, EEG_FEATURES + col);
-            }
-
-            const nn::Tensor stacked = buildStackedInputTensorFromRaw(eeg_matrix, audio_column);
-            for (size_t stacked_row = 0; stacked_row < STACKED_CONCAT_ROWS; ++stacked_row)
-            {
-                for (size_t col = 0; col < STACKED_CONCAT_COLS; ++col)
-                {
-                    const size_t flat_index = stacked_row * STACKED_CONCAT_COLS + col;
-                    inputs.at(row, flat_index) = stacked.at(stacked_row, col);
-                }
-            }
-        }
-    }
-    else if (input_mode_ == Protocol101117InputMode::EegOnly)
-    {
-        inputs = extractEegFromAssembledRows(assembled_inputs);
+        // Already flattened in stacked order: audio row first, then per-channel EEG rows.
+        inputs = std::move(assembled_inputs);
     }
     else
     {
-        inputs = extractAudioFromAssembledRows(assembled_inputs);
+        SynchronizedBatchAssembler::assembleGrouped(
+            grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
+
+        if (input_mode_ == Protocol101117InputMode::EegOnly)
+        {
+            inputs = extractEegFromAssembledRows(assembled_inputs);
+        }
+        else
+        {
+            inputs = extractAudioFromAssembledRows(assembled_inputs);
+        }
     }
 
     return {.inputs = std::move(inputs), .targets = std::move(targets)};

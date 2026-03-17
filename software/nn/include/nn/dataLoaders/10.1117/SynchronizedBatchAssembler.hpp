@@ -49,6 +49,19 @@ class SynchronizedBatchAssembler
         const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
         nn::Tensor& inputs,
         nn::Tensor& targets);
+
+    /**
+     * Assemble a grouped batch but emit stacked, channel-preserving flattened
+     * rows (audio row first, then per-channel EEG rows resampled to audio
+     * width) into `inputs`. The caller must allocate `inputs` with
+     * cols == (1 + eeg_channels) * audioSamples().
+     */
+    static void assembleGroupedStacked(const std::vector<std::vector<RowRequest>>& grouped,
+        const std::vector<SubjectFiles>& subjects,
+        const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions,
+        const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
+        nn::Tensor& inputs,
+        nn::Tensor& targets);
 };
 
 #endif // NN_DATALOADERS_10_1117_SYNCHRONIZEDBATCHASSEMBLER_HPP
