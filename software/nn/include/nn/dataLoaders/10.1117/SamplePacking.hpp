@@ -6,12 +6,12 @@
 #include "nn/tensor/Tensor.hpp"
 
 auto buildInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor;
-auto buildInputTensorFromFlattenedRows(const nn::Tensor& eeg_row, const nn::Tensor& audio_row)
+auto buildStackedInputTensorFromRaw(const nn::Tensor& eeg_matrix, const nn::Tensor& audio_column)
     -> nn::Tensor;
-auto flattenAudioColumnToRow(const nn::Tensor& audio_column) -> nn::Tensor;
-auto flattenEegMatrixToRow(const nn::Tensor& eeg_matrix) -> nn::Tensor;
-auto extractEegFromConcatenatedRows(const nn::Tensor& concatenated_inputs) -> nn::Tensor;
-auto extractAudioFromConcatenatedRows(const nn::Tensor& concatenated_inputs) -> nn::Tensor;
+auto buildLegacyAudioRow(const nn::Tensor& audio_column) -> nn::Tensor;
+auto buildLegacyEegRow(const nn::Tensor& eeg_matrix) -> nn::Tensor;
+auto extractEegFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor;
+auto extractAudioFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor;
 auto buildTargetTensor(int subject_id, const std::array<int, 3>& eeg_labels, int eeg_index_label)
     -> nn::Tensor;
 

@@ -23,7 +23,10 @@ namespace
 constexpr size_t INPUT_FEATURES = multimodalInputFeatureColumns();
 constexpr size_t EEG_FEATURES = eegFeatureColumns();
 constexpr size_t AUDIO_FEATURES = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
-constexpr size_t STACKED_CONCAT_FEATURES = EEG_FEATURES * 2U;
+constexpr size_t STACKED_CONCAT_ROWS =
+    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels + 1U;
+constexpr size_t STACKED_CONCAT_COLS = AUDIO_FEATURES;
+constexpr size_t STACKED_CONCAT_FEATURES = STACKED_CONCAT_ROWS * STACKED_CONCAT_COLS;
 
 struct RawSynchronizedSample
 {
@@ -118,17 +121,19 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     const auto [subject_index, audio_row] =
         locateSubjectAndAudioRow(prefix_audio_row_offsets_, idx);
+
     ensureSubjectMatSessionsInitialized(subject_index);
 
     const SubjectFiles& subject = subjects_.at(subject_index);
     const auto& audio_session = *audio_sessions_.at(subject_index);
     const auto& eeg_session = *eeg_sessions_.at(subject_index);
+
     const RawSynchronizedSample raw =
         readSynchronizedSampleFromSessions(subject, audio_session, eeg_session, audio_row);
 
     Protocol101117Sample sample;
-    sample.audio = flattenAudioColumnToRow(raw.audio_tensor);
-    sample.eeg = flattenEegMatrixToRow(raw.eeg_tensor);
+    sample.audio = buildLegacyAudioRow(raw.audio_tensor);
+    sample.eeg = buildLegacyEegRow(raw.eeg_tensor);
 
     sample.targets =
         buildTargetTensor(raw.subject->subject_id, raw.eeg_labels, raw.eeg_index_label);
@@ -136,7 +141,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
 
     if (sample.input_mode == Protocol101117InputMode::Concatenated)
     {
-        sample.inputs = buildInputTensorFromFlattenedRows(sample.eeg, sample.audio);
+        sample.inputs = buildStackedInputTensorFromRaw(raw.eeg_tensor, raw.audio_tensor);
     }
     else if (sample.input_mode == Protocol101117InputMode::EegOnly)
     {
@@ -208,31 +213,48 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     {
         inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
 
-        nn::Tensor eeg_row(1, EEG_FEATURES);
-        nn::Tensor audio_row(1, AUDIO_FEATURES);
+        const size_t eeg_channels = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels;
+        const size_t eeg_samples_per_channel =
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+
+        nn::Tensor eeg_matrix(eeg_channels, eeg_samples_per_channel);
+        nn::Tensor audio_column(AUDIO_FEATURES, 1);
+
         for (size_t row = 0; row < indices.size(); ++row)
         {
-            for (size_t col = 0; col < EEG_FEATURES; ++col)
+            for (size_t ch = 0; ch < eeg_channels; ++ch)
             {
-                eeg_row.at(0, col) = assembled_inputs.at(row, col);
+                const size_t eeg_row_offset = ch * eeg_samples_per_channel;
+                for (size_t sample_idx = 0; sample_idx < eeg_samples_per_channel; ++sample_idx)
+                {
+                    eeg_matrix.at(ch, sample_idx) =
+                        assembled_inputs.at(row, eeg_row_offset + sample_idx);
+                }
             }
 
             for (size_t col = 0; col < AUDIO_FEATURES; ++col)
             {
-                audio_row.at(0, col) = assembled_inputs.at(row, EEG_FEATURES + col);
+                audio_column.at(col, 0) = assembled_inputs.at(row, EEG_FEATURES + col);
             }
 
-            const nn::Tensor stacked = buildInputTensorFromFlattenedRows(eeg_row, audio_row);
-            inputs.setBlock(row, 0, stacked);
+            const nn::Tensor stacked = buildStackedInputTensorFromRaw(eeg_matrix, audio_column);
+            for (size_t stacked_row = 0; stacked_row < STACKED_CONCAT_ROWS; ++stacked_row)
+            {
+                for (size_t col = 0; col < STACKED_CONCAT_COLS; ++col)
+                {
+                    const size_t flat_index = stacked_row * STACKED_CONCAT_COLS + col;
+                    inputs.at(row, flat_index) = stacked.at(stacked_row, col);
+                }
+            }
         }
     }
     else if (input_mode_ == Protocol101117InputMode::EegOnly)
     {
-        inputs = extractEegFromConcatenatedRows(assembled_inputs);
+        inputs = extractEegFromAssembledRows(assembled_inputs);
     }
     else
     {
-        inputs = extractAudioFromConcatenatedRows(assembled_inputs);
+        inputs = extractAudioFromAssembledRows(assembled_inputs);
     }
 
     return {.inputs = std::move(inputs), .targets = std::move(targets)};

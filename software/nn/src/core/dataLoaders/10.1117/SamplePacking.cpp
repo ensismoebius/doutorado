@@ -58,56 +58,66 @@ auto linearResample(const std::vector<float>& source, std::size_t target_size) -
 
 } // namespace
 
-auto buildInputTensorFromFlattenedRows(const nn::Tensor& eeg_row, const nn::Tensor& audio_row)
+/**
+ * Builds a channel-preserving multimodal input tensor from raw EEG/audio tensors.
+ * Output row order is fixed as:
+ *   [audio; eeg_ch1; eeg_ch2; eeg_ch3; eeg_ch4; eeg_ch5; eeg_ch6]
+ */
+auto buildStackedInputTensorFromRaw(const nn::Tensor& eeg_matrix, const nn::Tensor& audio_column)
     -> nn::Tensor
 {
-    if (eeg_row.rows() != 1 ||
-        eeg_row.cols() != static_cast<int>(ImaginedSpeechSchema_10_1117.eegSignalColumns()))
-    {
-        throw std::runtime_error("Unexpected flattened EEG shape. Expected [1x24576].");
-    }
-
-    if (audio_row.rows() != 1 ||
-        audio_row.cols() != static_cast<int>(ImaginedSpeechSchema_10_1117.audioSamples()))
-    {
-        throw std::runtime_error("Unexpected flattened Audio shape. Expected [1x176400].");
-    }
-
-    const std::size_t common_width = ImaginedSpeechSchema_10_1117.eegSignalColumns();
-
-    std::vector<float> eeg_source(common_width, 0.0f);
-    for (std::size_t i = 0; i < common_width; ++i)
-    {
-        eeg_source[i] = eeg_row.at(0, i);
-    }
-
+    const std::size_t eeg_channels = ImaginedSpeechSchema_10_1117.eeg_channels;
+    const std::size_t eeg_channel_width = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
     const std::size_t audio_width = ImaginedSpeechSchema_10_1117.audioSamples();
+
+    if (eeg_matrix.rows() != static_cast<int>(eeg_channels) ||
+        eeg_matrix.cols() != static_cast<int>(eeg_channel_width))
+    {
+        throw std::runtime_error("Unexpected EEG shape. Expected [6x4096].");
+    }
+
+    if (audio_column.rows() != static_cast<int>(audio_width) || audio_column.cols() != 1)
+    {
+        throw std::runtime_error("Unexpected Audio shape. Expected [176400x1].");
+    }
+
     std::vector<float> audio_source(audio_width, 0.0f);
     for (std::size_t i = 0; i < audio_width; ++i)
     {
-        audio_source[i] = audio_row.at(0, i);
+        audio_source[i] = audio_column.at(i, 0);
     }
 
-    // Both modalities are projected to a common temporal grid (linear interpolation)
-    // and then stacked vertically as [audio; eeg] before flattening to row-major.
-    const std::vector<float> audio_resampled = linearResample(audio_source, common_width);
-    const std::vector<float> eeg_resampled = linearResample(eeg_source, common_width);
-
-    nn::Tensor input(1, common_width * 2U);
-    for (std::size_t i = 0; i < common_width; ++i)
+    nn::Tensor input(eeg_channels + 1U, audio_width);
+    const std::vector<float> audio_resampled = linearResample(audio_source, audio_width);
+    for (std::size_t i = 0; i < audio_width; ++i)
     {
         input.at(0, i) = audio_resampled[i];
-        input.at(0, common_width + i) = eeg_resampled[i];
+    }
+
+    for (std::size_t ch = 0; ch < eeg_channels; ++ch)
+    {
+        std::vector<float> eeg_channel_source(eeg_channel_width, 0.0f);
+        for (std::size_t i = 0; i < eeg_channel_width; ++i)
+        {
+            eeg_channel_source[i] = eeg_matrix.at(ch, i);
+        }
+
+        const std::vector<float> eeg_channel_resampled =
+            linearResample(eeg_channel_source, audio_width);
+        for (std::size_t i = 0; i < audio_width; ++i)
+        {
+            input.at(ch + 1U, i) = eeg_channel_resampled[i];
+        }
     }
 
     return input;
 }
 
-auto flattenAudioColumnToRow(const nn::Tensor& audio_column) -> nn::Tensor
+auto buildLegacyAudioRow(const nn::Tensor& audio_column) -> nn::Tensor
 {
     if (audio_column.cols() != 1)
     {
-        throw std::runtime_error("Unexpected audio shape for flatten. Expected [Nx1].");
+        throw std::runtime_error("Unexpected audio shape for row serialization. Expected [Nx1].");
     }
 
     nn::Tensor audio_row(1, audio_column.rows());
@@ -118,7 +128,7 @@ auto flattenAudioColumnToRow(const nn::Tensor& audio_column) -> nn::Tensor
     return audio_row;
 }
 
-auto flattenEegMatrixToRow(const nn::Tensor& eeg_matrix) -> nn::Tensor
+auto buildLegacyEegRow(const nn::Tensor& eeg_matrix) -> nn::Tensor
 {
     nn::Tensor eeg_row(1, eeg_matrix.rows() * eeg_matrix.cols());
     std::size_t eeg_col = 0;
@@ -132,42 +142,42 @@ auto flattenEegMatrixToRow(const nn::Tensor& eeg_matrix) -> nn::Tensor
     return eeg_row;
 }
 
-auto extractEegFromConcatenatedRows(const nn::Tensor& concatenated_inputs) -> nn::Tensor
+auto extractEegFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor
 {
     const std::size_t eeg_cols = ImaginedSpeechSchema_10_1117.eegSignalColumns();
     const std::size_t audio_cols = ImaginedSpeechSchema_10_1117.audioSamples();
-    if (concatenated_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
+    if (assembled_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
     {
-        throw std::runtime_error("Unexpected concatenated input shape for EEG extraction.");
+        throw std::runtime_error("Unexpected assembled input shape for EEG extraction.");
     }
 
-    nn::Tensor eeg_only(concatenated_inputs.rows(), eeg_cols);
-    for (std::size_t row = 0; row < static_cast<std::size_t>(concatenated_inputs.rows()); ++row)
+    nn::Tensor eeg_only(assembled_inputs.rows(), eeg_cols);
+    for (std::size_t row = 0; row < static_cast<std::size_t>(assembled_inputs.rows()); ++row)
     {
         for (std::size_t col = 0; col < eeg_cols; ++col)
         {
-            eeg_only.at(row, col) = concatenated_inputs.at(row, col);
+            eeg_only.at(row, col) = assembled_inputs.at(row, col);
         }
     }
 
     return eeg_only;
 }
 
-auto extractAudioFromConcatenatedRows(const nn::Tensor& concatenated_inputs) -> nn::Tensor
+auto extractAudioFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor
 {
     const std::size_t eeg_cols = ImaginedSpeechSchema_10_1117.eegSignalColumns();
     const std::size_t audio_cols = ImaginedSpeechSchema_10_1117.audioSamples();
-    if (concatenated_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
+    if (assembled_inputs.cols() != static_cast<int>(eeg_cols + audio_cols))
     {
-        throw std::runtime_error("Unexpected concatenated input shape for audio extraction.");
+        throw std::runtime_error("Unexpected assembled input shape for audio extraction.");
     }
 
-    nn::Tensor audio_only(concatenated_inputs.rows(), audio_cols);
-    for (std::size_t row = 0; row < static_cast<std::size_t>(concatenated_inputs.rows()); ++row)
+    nn::Tensor audio_only(assembled_inputs.rows(), audio_cols);
+    for (std::size_t row = 0; row < static_cast<std::size_t>(assembled_inputs.rows()); ++row)
     {
         for (std::size_t col = 0; col < audio_cols; ++col)
         {
-            audio_only.at(row, col) = concatenated_inputs.at(row, eeg_cols + col);
+            audio_only.at(row, col) = assembled_inputs.at(row, eeg_cols + col);
         }
     }
 
@@ -187,10 +197,7 @@ auto buildInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Ten
         throw std::runtime_error("Unexpected Audio shape. Expected [176400x1].");
     }
 
-    const nn::Tensor eeg_row = flattenEegMatrixToRow(eeg);
-    const nn::Tensor audio_row = flattenAudioColumnToRow(audio);
-
-    return buildInputTensorFromFlattenedRows(eeg_row, audio_row);
+    return buildStackedInputTensorFromRaw(eeg, audio);
 }
 
 auto buildTargetTensor(int subject_id, const std::array<int, 3>& eeg_labels, int eeg_index_label)
