@@ -65,8 +65,9 @@ class TensorImpl
     /// Default empty tensor.
     TensorImpl() = default;
 
-    /// Construct from explicit backend instance (Moved).
-    TensorImpl(Backend backend) : backend_(std::move(backend)) {}
+    /// Construct from explicit backend instance
+    explicit TensorImpl(const Backend& backend) : backend_(backend) {}
+    explicit TensorImpl(Backend&& backend) noexcept : backend_(std::move(backend)) {}
 
     /// Construct a 2-D tensor.
     TensorImpl(Index rows, Index cols) : backend_(rows, cols) {}
@@ -426,11 +427,11 @@ class TensorImpl
     // -----------------------------------------------------------------
     // Raw data access
     // -----------------------------------------------------------------
-    const float* data() const
+    const float* data() const noexcept
     {
         return data_ptr();
     }
-    float* mutable_data()
+    float* mutable_data() noexcept
     {
         return mutable_data_ptr();
     }
@@ -450,11 +451,11 @@ class TensorImpl
         return at(i, j);
     }
 
-    const float* data_ptr() const
+    const float* data_ptr() const noexcept
     {
         return backend_.data_ptr();
     }
-    float* mutable_data_ptr()
+    float* mutable_data_ptr() noexcept
     {
         return backend_.mutable_data_ptr();
     }
@@ -590,11 +591,11 @@ class TensorImpl
     auto operator<<(float value) -> CommaInitializer;
 
     /// Direct access to backend
-    auto get_backend() const -> const Backend&
+    auto get_backend() const noexcept -> const Backend&
     {
         return backend_;
     }
-    auto get_backend() -> Backend&
+    auto get_backend() noexcept -> Backend&
     {
         return backend_;
     }

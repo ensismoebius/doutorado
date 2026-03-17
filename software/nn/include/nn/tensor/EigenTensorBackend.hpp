@@ -760,7 +760,7 @@ class EigenTensorBackend
     // data_ptr(): pointer to contiguous host memory (row-major).
     // GPU backends should either return a host mirror pointer or nullptr and provide explicit
     // transfer APIs.
-    const float* data_ptr() const
+    const float* data_ptr() const noexcept
     {
         return m_data.data();
     }
