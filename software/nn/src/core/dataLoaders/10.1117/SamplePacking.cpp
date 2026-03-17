@@ -113,35 +113,6 @@ auto buildStackedInputTensorFromRaw(const nn::Tensor& eeg_matrix, const nn::Tens
     return input;
 }
 
-auto buildLegacyAudioRow(const nn::Tensor& audio_column) -> nn::Tensor
-{
-    if (audio_column.cols() != 1)
-    {
-        throw std::runtime_error("Unexpected audio shape for row serialization. Expected [Nx1].");
-    }
-
-    nn::Tensor audio_row(1, audio_column.rows());
-    for (std::size_t i = 0; i < static_cast<std::size_t>(audio_column.rows()); ++i)
-    {
-        audio_row.at(0, i) = audio_column.at(i, 0);
-    }
-    return audio_row;
-}
-
-auto buildLegacyEegRow(const nn::Tensor& eeg_matrix) -> nn::Tensor
-{
-    nn::Tensor eeg_row(1, eeg_matrix.rows() * eeg_matrix.cols());
-    std::size_t eeg_col = 0;
-    for (std::size_t row = 0; row < static_cast<std::size_t>(eeg_matrix.rows()); ++row)
-    {
-        for (std::size_t col = 0; col < static_cast<std::size_t>(eeg_matrix.cols()); ++col)
-        {
-            eeg_row.at(0, eeg_col++) = eeg_matrix.at(row, col);
-        }
-    }
-    return eeg_row;
-}
-
 auto extractEegFromAssembledRows(const nn::Tensor& assembled_inputs) -> nn::Tensor
 {
     const std::size_t eeg_cols = ImaginedSpeechSchema_10_1117.eegSignalColumns();

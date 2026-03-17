@@ -127,12 +127,17 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfi
     const auto sample = dataset.get_sample(0);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::EegOnly);
+    EXPECT_EQ(sample.inputs.rows(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels));
     EXPECT_EQ(sample.inputs.cols(),
-        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel()));
+    EXPECT_EQ(sample.eeg.rows(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels));
     EXPECT_EQ(sample.eeg.cols(),
-        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
-    EXPECT_EQ(sample.audio.cols(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel()));
+    EXPECT_EQ(sample.audio.rows(),
         static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(sample.audio.cols(), 1);
     EXPECT_EQ(sample.targets.cols(), 5);
 }
 
@@ -154,12 +159,16 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
     const auto sample = dataset.get_sample(0);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::AudioOnly);
-    EXPECT_EQ(sample.inputs.cols(),
+    EXPECT_EQ(sample.inputs.rows(),
         static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
-    EXPECT_EQ(sample.audio.cols(),
+    EXPECT_EQ(sample.inputs.cols(), 1);
+    EXPECT_EQ(sample.audio.rows(),
         static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(sample.audio.cols(), 1);
+    EXPECT_EQ(sample.eeg.rows(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels));
     EXPECT_EQ(sample.eeg.cols(),
-        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel()));
 }
 
 TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
@@ -167,8 +176,10 @@ TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
     auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const Batch item = dataset.get_item(0);
+    EXPECT_EQ(item.inputs.rows(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels));
     EXPECT_EQ(item.inputs.cols(),
-        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel()));
 
     dataset.set_input_mode(Protocol101117InputMode::Concatenated);
     const Batch concat_batch = dataset.get_item(0);
@@ -177,8 +188,9 @@ TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
 
     dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
     const Batch audio_only_batch = dataset.get_item(0);
-    EXPECT_EQ(audio_only_batch.inputs.cols(),
+    EXPECT_EQ(audio_only_batch.inputs.rows(),
         static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+    EXPECT_EQ(audio_only_batch.inputs.cols(), 1);
 }
 
 TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAlignedMapping)
@@ -247,8 +259,10 @@ TEST_F(Protocol101117DatasetModesTest,
     ASSERT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
     ASSERT_EQ(sample.inputs.rows(), static_cast<int>(kStackedConcatRows));
     ASSERT_EQ(sample.inputs.cols(), static_cast<int>(audio_source_width));
-    ASSERT_EQ(sample.audio.cols(), static_cast<int>(audio_source_width));
-    ASSERT_EQ(sample.eeg.cols(), static_cast<int>(eeg_channels * eeg_source_width));
+    ASSERT_EQ(sample.audio.rows(), static_cast<int>(audio_source_width));
+    ASSERT_EQ(sample.audio.cols(), 1);
+    ASSERT_EQ(sample.eeg.rows(), static_cast<int>(eeg_channels));
+    ASSERT_EQ(sample.eeg.cols(), static_cast<int>(eeg_source_width));
 
     // Targets must remain untouched by the concatenation/stacking transform.
     EXPECT_FLOAT_EQ(sample.targets.at(0, 0), 99.0f); // subject id
@@ -258,11 +272,10 @@ TEST_F(Protocol101117DatasetModesTest,
     EXPECT_FLOAT_EQ(sample.targets.at(0, 4), 2.0f);  // eeg index label (1-based)
 
     const auto expected_audio_resampled = [&](std::size_t target_idx)
-    { return sample.audio.at(0, target_idx); };
+    { return sample.audio.at(target_idx, 0); };
 
     const auto expected_eeg_resampled = [&](std::size_t channel, std::size_t target_idx)
     {
-        const std::size_t channel_offset = channel * eeg_source_width;
         const double scale = static_cast<double>(eeg_source_width - 1U) /
                              static_cast<double>(audio_source_width - 1U);
         const double source_pos = static_cast<double>(target_idx) * scale;
@@ -270,8 +283,8 @@ TEST_F(Protocol101117DatasetModesTest,
         const std::size_t right = std::min(left + 1U, eeg_source_width - 1U);
         const double alpha = source_pos - static_cast<double>(left);
 
-        const double left_value = static_cast<double>(sample.eeg.at(0, channel_offset + left));
-        const double right_value = static_cast<double>(sample.eeg.at(0, channel_offset + right));
+        const double left_value = static_cast<double>(sample.eeg.at(channel, left));
+        const double right_value = static_cast<double>(sample.eeg.at(channel, right));
         return static_cast<float>((1.0 - alpha) * left_value + alpha * right_value);
     };
 

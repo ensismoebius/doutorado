@@ -132,8 +132,8 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
         readSynchronizedSampleFromSessions(subject, audio_session, eeg_session, audio_row);
 
     Protocol101117Sample sample;
-    sample.audio = buildLegacyAudioRow(raw.audio_tensor);
-    sample.eeg = buildLegacyEegRow(raw.eeg_tensor);
+    sample.audio = raw.audio_tensor;
+    sample.eeg = raw.eeg_tensor;
 
     sample.targets =
         buildTargetTensor(raw.subject->subject_id, raw.eeg_labels, raw.eeg_index_label);
@@ -145,7 +145,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     }
     else if (sample.input_mode == Protocol101117InputMode::EegOnly)
     {
-        // In separated mode, keep EEG as primary input and expose audio in `sample.audio`.
+        // In separated mode, keep raw EEG matrix as primary input and expose raw audio.
         sample.inputs = sample.eeg;
     }
     else
