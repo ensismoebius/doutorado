@@ -8,49 +8,58 @@
 #include "nn/dataLoaders/10.1117/METADATA.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using std::size_t;
+using std::vector;
 
 namespace
 {
 
-auto linearResample(const std::vector<float>& source, std::size_t target_size) -> std::vector<float>
+template <typename ValueAt>
+auto linearResampleWithAccessor(std::size_t source_size, std::size_t target_size, ValueAt value_at)
+    -> std::vector<float>
 {
     if (target_size == 0)
     {
         return {};
     }
 
-    if (source.empty())
+    if (source_size == 0)
     {
         return std::vector<float>(target_size, 0.0f);
     }
 
-    if (source.size() == target_size)
+    if (source_size == target_size)
     {
-        return source;
+        std::vector<float> direct(target_size, 0.0f);
+        for (std::size_t i = 0; i < target_size; ++i)
+        {
+            direct[i] = value_at(i);
+        }
+        return direct;
     }
 
-    if (source.size() == 1)
+    if (source_size == 1)
     {
-        return std::vector<float>(target_size, source.front());
+        return std::vector<float>(target_size, value_at(0));
     }
 
     if (target_size == 1)
     {
-        return std::vector<float>{source.front()};
+        return std::vector<float>{value_at(0)};
     }
 
     std::vector<float> result(target_size, 0.0f);
     const double scale =
-        static_cast<double>(source.size() - 1U) / static_cast<double>(target_size - 1U);
+        static_cast<double>(source_size - 1U) / static_cast<double>(target_size - 1U);
 
     for (std::size_t i = 0; i < target_size; ++i)
     {
         const double source_pos = static_cast<double>(i) * scale;
         const std::size_t left = static_cast<std::size_t>(std::floor(source_pos));
-        const std::size_t right = std::min(left + 1U, source.size() - 1U);
+        const std::size_t right = std::min(left + 1U, source_size - 1U);
         const double alpha = source_pos - static_cast<double>(left);
-        result[i] = static_cast<float>((1.0 - alpha) * static_cast<double>(source[left]) +
-                                       alpha * static_cast<double>(source[right]));
+        result[i] = static_cast<float>((1.0 - alpha) * static_cast<double>(value_at(left)) +
+                                       alpha * static_cast<double>(value_at(right)));
     }
 
     return result;
@@ -66,9 +75,9 @@ auto linearResample(const std::vector<float>& source, std::size_t target_size) -
 auto buildStackedInputTensorFromRaw(const nn::Tensor& eeg_matrix, const nn::Tensor& audio_column)
     -> nn::Tensor
 {
-    const std::size_t eeg_channels = ImaginedSpeechSchema_10_1117.eeg_channels;
-    const std::size_t eeg_channel_width = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-    const std::size_t audio_width = ImaginedSpeechSchema_10_1117.audioSamples();
+    const size_t eeg_channels = ImaginedSpeechSchema_10_1117.eeg_channels;
+    const size_t eeg_channel_width = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+    const size_t audio_width = ImaginedSpeechSchema_10_1117.audioSamples();
 
     if (eeg_matrix.rows() != static_cast<int>(eeg_channels) ||
         eeg_matrix.cols() != static_cast<int>(eeg_channel_width))
@@ -81,30 +90,27 @@ auto buildStackedInputTensorFromRaw(const nn::Tensor& eeg_matrix, const nn::Tens
         throw std::runtime_error("Unexpected Audio shape. Expected [176400x1].");
     }
 
-    std::vector<float> audio_source(audio_width, 0.0f);
-    for (std::size_t i = 0; i < audio_width; ++i)
-    {
-        audio_source[i] = audio_column.at(i, 0);
-    }
-
     nn::Tensor input(eeg_channels + 1U, audio_width);
-    const std::vector<float> audio_resampled = linearResample(audio_source, audio_width);
-    for (std::size_t i = 0; i < audio_width; ++i)
+    const vector<float> audio_resampled = linearResampleWithAccessor( //
+        audio_width,                                                  //
+        audio_width,                                                  //
+        [&](size_t idx) { return audio_column.at(idx, 0); }           //
+    );
+
+    for (size_t i = 0; i < audio_width; ++i)
     {
         input.at(0, i) = audio_resampled[i];
     }
 
-    for (std::size_t ch = 0; ch < eeg_channels; ++ch)
+    for (size_t ch = 0; ch < eeg_channels; ++ch)
     {
-        std::vector<float> eeg_channel_source(eeg_channel_width, 0.0f);
-        for (std::size_t i = 0; i < eeg_channel_width; ++i)
-        {
-            eeg_channel_source[i] = eeg_matrix.at(ch, i);
-        }
+        const vector<float> eeg_channel_resampled = linearResampleWithAccessor( //
+            eeg_channel_width,                                                  //
+            audio_width,                                                        //
+            [&](size_t idx) { return eeg_matrix.at(ch, idx); }                  //
+        );
 
-        const std::vector<float> eeg_channel_resampled =
-            linearResample(eeg_channel_source, audio_width);
-        for (std::size_t i = 0; i < audio_width; ++i)
+        for (size_t i = 0; i < audio_width; ++i)
         {
             input.at(ch + 1U, i) = eeg_channel_resampled[i];
         }

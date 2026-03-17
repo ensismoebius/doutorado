@@ -83,10 +83,25 @@ void BatchPrefetcher::producerLoop()
 {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Keep reporting data availability while there are buffered batches or the
-    // producer can still produce more. If a producer-side exception happened,
-    // return true so next() can surface it deterministically.
-    return !prefetched_batches_.empty() || !producer_done_ || static_cast<bool>(producer_error_);
+    // If the producer failed, let next() surface the exception deterministically.
+    if (producer_error_)
+    {
+        return true;
+    }
+
+    if (!prefetched_batches_.empty())
+    {
+        return true;
+    }
+
+    // Avoid a race where producer hasn't marked done yet, but the max-batch
+    // budget is already exhausted and no more batches can ever be produced.
+    if (seen_batches_ + prefetched_batches_.size() >= max_batches_)
+    {
+        return false;
+    }
+
+    return !producer_done_;
 }
 
 auto BatchPrefetcher::next() -> std::optional<Batch>
