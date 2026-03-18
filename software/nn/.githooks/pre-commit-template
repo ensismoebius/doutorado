@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Copy this file to .git/hooks/pre-commit and make it executable to enable
+# the clang-format-on-staged-files hook locally.
+
+repo_root="$(git rev-parse --show-toplevel)"
+"$repo_root/scripts/clang-format-changed.sh"
+
+exit 0
