@@ -21,6 +21,13 @@
 message(STATUS "Compiler ID: ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
+# Prefer a faster linker when available to speed up incremental relinking.
+option(NN_ENABLE_FAST_LINKER "Enable mold/lld fast linker when available" ON)
+
+# Optional optimization for incremental builds: use OBJECT libraries for select
+# internal targets to reduce archive/relink overhead.
+option(NN_USE_OBJECT_LIBRARIES "Enable opt-in OBJECT libraries for selected internal targets" OFF)
+
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,6 +41,43 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 # Generate compile_commands.json for clangd, etc.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NN_ENABLE_FAST_LINKER)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        find_program(NN_MOLD_LINKER mold)
+        find_program(NN_LLD_LINKER NAMES ld.lld lld)
+
+        if(NN_MOLD_LINKER)
+            if(NOT CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_EXE_LINKER_FLAGS " -fuse-ld=mold")
+            endif()
+            if(NOT CMAKE_SHARED_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_SHARED_LINKER_FLAGS " -fuse-ld=mold")
+            endif()
+            if(NOT CMAKE_MODULE_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld=mold")
+            endif()
+            message(STATUS "Fast linker enabled: mold (${NN_MOLD_LINKER})")
+        elseif(NN_LLD_LINKER)
+            if(NOT CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_EXE_LINKER_FLAGS " -fuse-ld=lld")
+            endif()
+            if(NOT CMAKE_SHARED_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_SHARED_LINKER_FLAGS " -fuse-ld=lld")
+            endif()
+            if(NOT CMAKE_MODULE_LINKER_FLAGS MATCHES "(^| )-fuse-ld=")
+                string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld=lld")
+            endif()
+            message(STATUS "Fast linker enabled: lld (${NN_LLD_LINKER})")
+        else()
+            message(STATUS "Fast linker requested but mold/lld not found; using default linker")
+        endif()
+    else()
+        message(STATUS "Fast linker option is only supported for GNU/Clang toolchains")
+    endif()
+else()
+    message(STATUS "Fast linker disabled (NN_ENABLE_FAST_LINKER=OFF)")
+endif()
 
 # --- Common flags for all build types ---
 add_compile_options(

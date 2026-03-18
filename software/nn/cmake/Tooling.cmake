@@ -11,17 +11,26 @@
 
 # CMake/Tooling.cmake
 
+# Performance-oriented toggles for local development builds.
+option(NN_ENABLE_CCACHE "Enable ccache compiler launcher when available" ON)
+option(NN_ENABLE_CLANG_TIDY "Enable clang-tidy during compilation (can be much slower)" OFF)
+
 # --------------------------------------------------------------------------------
 # CCACHE Support
 # --------------------------------------------------------------------------------
 # Add this before the project() command for maximum effect
 find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    message(STATUS "ccache found, enabling for C/C++ compilation")
-    set(CMAKE_C_COMPILER_LAUNCHER ccache)
-    set(CMAKE_CXX_COMPILER_LAUNCHER ccache)
+if(NN_ENABLE_CCACHE)
+    if(CCACHE_FOUND)
+        message(STATUS "ccache found at ${CCACHE_FOUND}, enabling for C/C++ compilation")
+        set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_FOUND}")
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_FOUND}")
+        message(STATUS "Tip: run 'ccache -s' to verify cache hit rate and size")
+    else()
+        message(STATUS "ccache requested but not found, proceeding without it")
+    endif()
 else()
-    message(STATUS "ccache not found, proceeding without it")
+    message(STATUS "ccache disabled (NN_ENABLE_CCACHE=OFF)")
 endif()
 
 # --------------------------------------------------------------------------------
@@ -37,11 +46,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # --------------------------------------------------------------------------------
 # Clang-Tidy Integration
 # --------------------------------------------------------------------------------
-if(CLANG_TIDY_EXECUTABLE)
-    message(STATUS "clang-tidy found, enabling for C++ compilation")
-    set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy")
+if(NN_ENABLE_CLANG_TIDY)
+    if(CLANG_TIDY_EXECUTABLE)
+        message(STATUS "clang-tidy found at ${CLANG_TIDY_EXECUTABLE}, enabling for C++ compilation")
+        set(CMAKE_CXX_CLANG_TIDY "${CLANG_TIDY_EXECUTABLE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy")
+    else()
+        message(STATUS "clang-tidy requested but not found, proceeding without it")
+    endif()
 else()
-    message(STATUS "clang-tidy not found, proceeding without it")
+    message(STATUS "clang-tidy disabled (NN_ENABLE_CLANG_TIDY=OFF) for faster incremental builds")
 endif()
 
 # --------------------------------------------------------------------------------
