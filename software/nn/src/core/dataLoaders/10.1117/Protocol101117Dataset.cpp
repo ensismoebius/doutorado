@@ -210,12 +210,21 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     {
         // Request the assembler to emit stacked, resampled flattened rows
         // directly into `assembled_inputs` to avoid per-row reconstruction.
-        assembled_inputs = nn::Tensor(indices.size(), STACKED_CONCAT_FEATURES);
+        assembled_inputs = nn::Tensor( //
+            indices.size(),            //
+            STACKED_CONCAT_FEATURES    //
+        );
 
-        SynchronizedBatchAssembler::assembleGrouped(
-            grouped, subjects_, audio_sessions_, eeg_sessions_, assembled_inputs, targets);
+        SynchronizedBatchAssembler::assembleGrouped( //
+            grouped,                                 //
+            subjects_,                               //
+            audio_sessions_,                         //
+            eeg_sessions_,                           //
+            assembled_inputs,                        //
+            targets                                  //
+        );
 
-        // Already flattened in stacked order: audio row first, then per-channel EEG rows.
+        // Stacked order: audio row first, then per-channel EEG rows.
         inputs = std::move(assembled_inputs);
     }
     else
