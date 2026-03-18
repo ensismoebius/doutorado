@@ -19,5 +19,7 @@ target_link_libraries(layers
     PUBLIC tensor
 )
 
+nn_enable_target_pch(layers)
+
 add_subdirectory(tests)
 

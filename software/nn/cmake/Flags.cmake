@@ -28,6 +28,9 @@ option(NN_ENABLE_FAST_LINKER "Enable mold/lld fast linker when available" ON)
 # internal targets to reduce archive/relink overhead.
 option(NN_USE_OBJECT_LIBRARIES "Enable opt-in OBJECT libraries for selected internal targets" OFF)
 
+# Optional optimization for incremental builds: per-target precompiled headers.
+option(NN_ENABLE_PCH "Enable opt-in precompiled headers for selected targets" OFF)
+
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

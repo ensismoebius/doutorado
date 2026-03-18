@@ -27,5 +27,7 @@ target_link_libraries(dataLoaders_10_1117
         dataLoaders
 )
 
+nn_enable_target_pch(dataLoaders_10_1117)
+
 add_subdirectory(windowing)
 add_subdirectory(tests)

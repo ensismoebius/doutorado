@@ -35,6 +35,9 @@ include(cmake/DevAndAnalysisTargets.cmake)
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
 
+# Optional helpers for precompiled headers on selected targets
+include(cmake/PrecompiledHeaders.cmake)
+
 # Eigen hard-ban helper (compile-time poison + helper functions)
 include(cmake/EigenBan.cmake)
 
