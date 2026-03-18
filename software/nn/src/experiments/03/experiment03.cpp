@@ -1,10 +1,6 @@
-// FIXME - STOPPED HERE - This experiment is a bit of a "kitchen sink" for testing the new
-// BatchPrefetcher and related utilities. It should be refactored into more focused experiments that
-// test specific components in isolation, with clear assertions and expected outcomes. The current
-// version is more of an integration test that demonstrates the full pipeline from dataset discovery
-// to model inference, but it lacks specific checks and may be too complex for debugging individual
-// issues.
-
+// FIXME - STOPPED HERE - I have to use the Datasets recently implemented in the nn module, but I
+// need to adapt them to the current code structure. I also need to implement the training loop and
+// the model architecture for this experiment.
 #include "lib/include/experiment03.hpp"
 
 #include <cstddef>
