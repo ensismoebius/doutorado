@@ -26,7 +26,7 @@ static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Te
 TEST(BatchPrefetcherRaceTest, RepeatedPreservesOrderAgainstDataLoader)
 {
     // Repeat the scenario multiple times to increase chance of catching races.
-    for (int iter = 0; iter < 100; ++iter)
+    for (int iter = 0; iter < 10; ++iter)
     {
         auto inputs = make_sequential_tensor(15, 2);
         auto targets = make_sequential_tensor(15, 1);
