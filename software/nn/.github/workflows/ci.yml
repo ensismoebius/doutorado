@@ -155,7 +155,7 @@ jobs:
           cd build
           # Generate coverage data
           lcov --capture --directory . --output-file coverage.info --gcov-tool gcov
-          lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' --output-file coverage.filtered.info
+          lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' '*/BatchPrefetcher*' --output-file coverage.filtered.info
           genhtml coverage.filtered.info --output-directory coverage-report
           echo "Coverage report generated"
 

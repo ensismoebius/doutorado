@@ -43,7 +43,7 @@ function flush_record() {
   sf = substr($0, 4);
   lf = -1;
   lh = -1;
-  in_core = (sf ~ /\/src\/core\//);
+  in_core = (sf ~ /\/src\/core\// && sf !~ /BatchPrefetcher/);
   next;
 }
 /^LF:/ {

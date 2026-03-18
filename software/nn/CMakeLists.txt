@@ -35,6 +35,9 @@ include(cmake/DevAndAnalysisTargets.cmake)
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
 
+# Optional coverage helper (adds --coverage flags when NN_ENABLE_COVERAGE=ON)
+include(cmake/EnableCoverage.cmake)
+
 # Optional helpers for precompiled headers on selected targets
 include(cmake/PrecompiledHeaders.cmake)
 
