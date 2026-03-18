@@ -9,8 +9,8 @@
 #include <vector>
 
 #include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
-#include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 #include "nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp"
+#include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
 using nn::dataLoaders::schema101117::eegFeatureColumns;
 using nn::dataLoaders::schema101117::multimodalInputFeatureColumns;

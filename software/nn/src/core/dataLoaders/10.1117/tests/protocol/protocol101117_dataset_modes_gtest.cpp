@@ -10,9 +10,9 @@
 #include <vector>
 
 #include "experiments/03/lib/include/DemoProbeModel.hpp"
+#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "utils/MockImaginedSpeechDatasetGenerator.hpp"
 

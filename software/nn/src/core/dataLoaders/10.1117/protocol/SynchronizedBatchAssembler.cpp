@@ -6,8 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
