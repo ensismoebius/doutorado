@@ -79,3 +79,33 @@ To add a custom strategy:
 4. Inject it through `DataLoader(std::shared_ptr<Dataset>, std::size_t, std::unique_ptr<ISampler>)`.
 
 No `DataLoader` modification is needed for new sampling policies.
+
+## 10.1117 module layout (dataset code organization)
+
+The repository contains a dataset module for the 10.1117 paper. Sources and public headers were reorganized into focused subfolders to improve discoverability.
+
+- Source tree: `src/core/dataLoaders/10.1117/`
+	- `loaders/` — dataset-specific loaders (`AudioLoader.cpp`, `EEGLoader.cpp`)
+	- `schema/` — metadata and discovery helpers (`SubjectDiscovery.cpp`, `METADATA` helpers)
+	- `codec/` — codecs and formatters (`InputModeCodec.cpp`, `BatchTargetFormatter.cpp`)
+	- `protocol/` — dataset protocol and batching (`Protocol101117Dataset.cpp`, `SamplePacking.cpp`, `SynchronizedBatchAssembler.cpp`)
+	- `windowing/` — windowing datasets (already organized)
+
+- Public headers: `include/nn/dataLoaders/10.1117/` mirrors the same subfolders:
+	- `loaders/`, `schema/`, `codec/`, `protocol/`, `windowing/`
+
+All includes were updated to the new layout (for example `nn/dataLoaders/10.1117/Protocol101117Dataset.hpp` → `nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp`).
+
+If you add new dataset files, place sources under the appropriate subfolder in `src/core/dataLoaders/10.1117/` and update `src/core/dataLoaders/10.1117/CMakeLists.txt` to reference the new paths.
+
+## Quick build & test
+
+After changes, reconfigure and build, then run tests:
+
+```bash
+cmake -S . -B build
+cmake --build build -j$(nproc)
+ctest --test-dir build -j4 --output-on-failure
+```
+
+All dataset-related tests live under `src/core/dataLoaders/10.1117/tests/` and should pass after moves/edits.
