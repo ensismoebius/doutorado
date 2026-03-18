@@ -13,7 +13,7 @@
 #include <iostream>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/AudioLoader.h"
+#include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 #include "nn/wave/audioFeatureExtraction.h"
 
 using nn::dataLoaders::loadAudioFromMat;

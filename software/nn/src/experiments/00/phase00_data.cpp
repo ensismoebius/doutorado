@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/AudioLoader.h"
-#include "nn/dataLoaders/10.1117/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 #include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "phase00_features.hpp"

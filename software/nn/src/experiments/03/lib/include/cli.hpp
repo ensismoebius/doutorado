@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "CLI/CLI.hpp"
-#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 
 using CLI::App;

@@ -1,13 +1,13 @@
 add_library(dataLoaders_10_1117
     STATIC
-    AudioLoader.cpp
-    BatchTargetFormatter.cpp
-    EEGLoader.cpp
-    InputModeCodec.cpp
-    SubjectDiscovery.cpp
-    SamplePacking.cpp
-    SynchronizedBatchAssembler.cpp
-    Protocol101117Dataset.cpp
+    loaders/AudioLoader.cpp
+    loaders/EEGLoader.cpp
+    schema/SubjectDiscovery.cpp
+    codec/InputModeCodec.cpp
+    codec/BatchTargetFormatter.cpp
+    protocol/Protocol101117Dataset.cpp
+    protocol/SamplePacking.cpp
+    protocol/SynchronizedBatchAssembler.cpp
 )
 
 target_include_directories(dataLoaders_10_1117
@@ -27,4 +27,5 @@ target_link_libraries(dataLoaders_10_1117
         dataLoaders
 )
 
+add_subdirectory(windowing)
 add_subdirectory(tests)

@@ -9,18 +9,18 @@
 ## - Links against `dataLoaders_10_1117` and uses `MatTestUtilsLib` fixtures.
 ##
 add_executable(dataLoaders_10_1117_gtest
-	audio_loader_gtest.cpp
-	audio_loader_article_spec_gtest.cpp
+	loaders/audio_loader_gtest.cpp
+	loaders/audio_loader_article_spec_gtest.cpp
 	fuzz/audio_loader_property_tests.cpp
-    eeg_loader_gtest.cpp
-	eeg_loader_edge_gtest.cpp
-	eeg_loader_article_spec_gtest.cpp
+	loaders/eeg_loader_gtest.cpp
+	loaders/eeg_loader_edge_gtest.cpp
+	loaders/eeg_loader_article_spec_gtest.cpp
 	fuzz/eeg_loader_property_tests.cpp
-	dataset_schema_article_spec_gtest.cpp
-	batch_target_formatter_gtest.cpp
-	input_mode_codec_gtest.cpp
-	protocol101117_dataset_modes_gtest.cpp
-	mock_dataset_generator_gtest.cpp
+	schema/dataset_schema_article_spec_gtest.cpp
+	codec/batch_target_formatter_gtest.cpp
+	codec/input_mode_codec_gtest.cpp
+	protocol/protocol101117_dataset_modes_gtest.cpp
+	generators/mock_dataset_generator_gtest.cpp
 	utils/MockImaginedSpeechDatasetGenerator.cpp
 )
 
@@ -43,5 +43,6 @@ target_link_libraries(dataLoaders_10_1117_gtest
 
 include(GoogleTest)
 add_subdirectory(fuzz)
+add_subdirectory(windowing)
 configure_eigen_parallel_target(dataLoaders_10_1117_gtest)
 gtest_discover_tests(dataLoaders_10_1117_gtest)

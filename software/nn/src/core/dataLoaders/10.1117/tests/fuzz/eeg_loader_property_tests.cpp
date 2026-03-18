@@ -5,8 +5,8 @@
 #include <random>
 #include <string>
 
-#include "nn/dataLoaders/10.1117/EEGLoader.h"
-#include "nn/dataLoaders/10.1117/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "utils/MockImaginedSpeechDatasetGenerator.hpp"
 
 namespace

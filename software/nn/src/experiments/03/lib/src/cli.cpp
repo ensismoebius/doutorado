@@ -1,6 +1,6 @@
 #include "../include/cli.hpp"
 
-#include "nn/dataLoaders/10.1117/InputModeCodec.hpp"
+#include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
 #include "nn/dataLoaders/SamplerOptionResolution.hpp"
 
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config

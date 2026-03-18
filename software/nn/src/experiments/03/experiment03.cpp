@@ -12,7 +12,7 @@
 #include <memory>
 
 #include "lib/include/cli.hpp"
-#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 
 using std::cerr;
 using std::cout;

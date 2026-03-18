@@ -2,7 +2,7 @@
 
 #include "DemoProbeModel.hpp"
 #include "cli.hpp"
-#include "nn/dataLoaders/10.1117/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 

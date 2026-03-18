@@ -8,8 +8,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/NAMES.hpp"
+#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 
 namespace nn::dataLoaders::test
 {

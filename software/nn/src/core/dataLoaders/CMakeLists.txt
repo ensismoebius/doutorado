@@ -4,11 +4,11 @@ add_subdirectory(samplers)
 
 add_library(dataLoaders
     STATIC
-        mat_file_utils.cpp
-    SamplerOptionResolution.cpp
         DataLoader.cpp
-        DataLoaderIterator.cpp
+        mat_file_utils.cpp
         BatchPrefetcher.cpp
+        DataLoaderIterator.cpp
+        SamplerOptionResolution.cpp
 )
 
 target_include_directories(dataLoaders
