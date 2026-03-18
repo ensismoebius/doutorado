@@ -1,6 +1,7 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 
 #include <utility>
+#include <chrono>
 
 BatchPrefetcher::BatchPrefetcher( //
     DataLoader& loader,           //
@@ -92,6 +93,22 @@ void BatchPrefetcher::producerLoop()
     if (!prefetched_batches_.empty())
     {
         return true;
+    }
+
+    // If the producer hasn't yet produced a batch, wait a short time to avoid
+    // a race where `hasNext()` returns true but `next()` immediately finds
+    // the queue empty because the producer finished between the calls.
+    if (!producer_done_ && (seen_batches_ + prefetched_batches_.size() < max_batches_))
+    {
+        std::unique_lock<std::mutex> ul(mutex_, std::defer_lock);
+        ul.lock();
+        cv_.wait_for(ul, std::chrono::milliseconds(10),
+            [this]() { return !prefetched_batches_.empty() || producer_done_ || producer_error_; });
+
+        if (!prefetched_batches_.empty())
+        {
+            return true;
+        }
     }
 
     // Avoid a race where producer hasn't marked done yet, but the max-batch
