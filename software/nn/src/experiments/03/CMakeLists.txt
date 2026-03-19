@@ -24,10 +24,11 @@ target_link_libraries(experiment03_lib
     PUBLIC
         CLI11::CLI11
         dataLoaders_10_1117
+        dataLoaders_10_1117_windowing
         dataLoaders
         matioCpp
         z
-    Eigen3::Eigen
+        Eigen3::Eigen
 )
 
 nn_enable_target_pch(experiment03_lib)
@@ -50,6 +51,7 @@ target_link_libraries(experiment03
     Eigen3::Eigen
     cnpy-static
     dataLoaders_10_1117
+    dataLoaders_10_1117_windowing
     dataLoaders
     matioCpp
     z

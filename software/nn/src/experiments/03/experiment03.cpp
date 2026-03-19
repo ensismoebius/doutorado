@@ -34,6 +34,7 @@ const Config default_config{
     .distributed_shuffle = true,
     .distributed_drop_last = false,
     .input_mode = Protocol101117InputMode::Concatenated,
+    .dataset_type = Experiment03DatasetType::FusedWindow,
     .lookahead = 5,
 };
 

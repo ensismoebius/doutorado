@@ -8,10 +8,19 @@
 #include "CLI/CLI.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/windowing/WindowSpec.hpp"
 
 using CLI::App;
 using std::optional;
 using std::string;
+
+enum class Experiment03DatasetType
+{
+    Protocol,
+    EegWindow,
+    AudioWindow,
+    FusedWindow
+};
 
 struct Config
 {
@@ -40,6 +49,15 @@ struct Config
 
     // Input modality used by Protocol101117Dataset.
     Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated;
+
+    // Dataset variant used by experiment03.
+    Experiment03DatasetType dataset_type = Experiment03DatasetType::FusedWindow;
+
+    // Window specs used by windowing datasets.
+    nn::windowing::WindowSpec eeg_window_spec{
+        .window_size = 256, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_window_spec{
+        .window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
 
     // Prefetch lookahead: number of batches to prefetch in background.
     // Default is 1 to preserve prior behavior; experiments may increase this.

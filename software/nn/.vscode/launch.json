@@ -18,34 +18,7 @@
             "env": {
                 "ASAN_OPTIONS": "detect_leaks=0",
                 "LSAN_OPTIONS": "verbosity=1:log_threads=1"
-            },
-            "preLaunchTask": "CMake: build"
-        },
-        {
-            "name": "CMake: active target (GDB + Eigen printers)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${command:cmake.launchTargetPath}",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable GDB pretty-printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Load Eigen/STL pretty-printers",
-                    "text": "python import sys; sys.path.insert(0, '${workspaceFolder}/debug/gdb'); from printers import register_printers; register_printers(None)",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "CMake: build"
+            }
         },
         // ─────────────────────────────────────────────────────────────────
         // Experiment 03
@@ -62,34 +35,7 @@
             ],
             "env": {
                 "ASAN_OPTIONS": "detect_leaks=0"
-            },
-            "preLaunchTask": "CMake: build"
-        },
-        {
-            "name": "experiment03 (GDB + Eigen printers)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/03/experiment03",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable GDB pretty-printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Load Eigen/STL pretty-printers",
-                    "text": "python import sys; sys.path.insert(0, '${workspaceFolder}/debug/gdb'); from printers import register_printers; register_printers(None)",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "CMake: build"
+            }
         },
         // ─────────────────────────────────────────────────────────────────
         // Experiment 02
@@ -103,34 +49,7 @@
             "cwd": "${workspaceFolder}",
             "initCommands": [
                 "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "preLaunchTask": "CMake: build"
-        },
-        {
-            "name": "experiment_02 (GDB + Eigen printers)",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${command:cmake.buildDirectory}/src/experiments/02/experiment_02",
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "miDebuggerPath": "/usr/bin/gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable GDB pretty-printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                },
-                {
-                    "description": "Load Eigen/STL pretty-printers",
-                    "text": "python import sys; sys.path.insert(0, '${workspaceFolder}/debug/gdb'); from printers import register_printers; register_printers(None)",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "CMake: build"
+            ]
         },
         // ─────────────────────────────────────────────────────────────────
         // Experiment 00 (Phase00)
@@ -144,8 +63,7 @@
             "cwd": "${workspaceFolder}",
             "initCommands": [
                 "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "preLaunchTask": "CMake: build"
+            ]
         },
         // ─────────────────────────────────────────────────────────────────
         // Demos
@@ -159,8 +77,7 @@
             "cwd": "${workspaceFolder}",
             "initCommands": [
                 "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "preLaunchTask": "CMake: build"
+            ]
         },
         {
             "name": "wavelet_demo (lldb-dap)",
@@ -171,8 +88,7 @@
             "cwd": "${workspaceFolder}",
             "initCommands": [
                 "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "preLaunchTask": "CMake: build"
+            ]
         },
         {
             "name": "exec_lfcc_pipeline (lldb-dap)",
@@ -183,8 +99,7 @@
             "cwd": "${workspaceFolder}",
             "initCommands": [
                 "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
-            ],
-            "preLaunchTask": "CMake: build"
+            ]
         }
     ]
 }

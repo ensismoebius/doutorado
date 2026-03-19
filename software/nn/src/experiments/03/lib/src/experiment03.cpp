@@ -8,6 +8,9 @@
 #include "nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "progress.hpp"
@@ -37,10 +40,35 @@ int Experiment03::run()
         const auto discovered =
             discoverSubjects(config_.dataset_root, config_.subject_regex_pattern);
 
+        // Instantiate dataset based on configured type.
         // Dataset is shared_ptr so it can be easily passed to DataLoader
         // and persist across the experiment.
-        dataset_ = make_shared<Protocol101117Dataset>(discovered);
-        dataset_->set_input_mode(config_.input_mode);
+        switch (config_.dataset_type)
+        {
+            case Experiment03DatasetType::Protocol:
+            {
+                auto proto_dataset = make_shared<Protocol101117Dataset>(discovered);
+                proto_dataset->set_input_mode(config_.input_mode);
+                dataset_ = proto_dataset;
+                break;
+            }
+            case Experiment03DatasetType::EegWindow:
+            {
+                dataset_ = make_shared<EEGWindowDataset>(discovered, config_.eeg_window_spec);
+                break;
+            }
+            case Experiment03DatasetType::AudioWindow:
+            {
+                dataset_ = make_shared<AudioWindowDataset>(discovered, config_.audio_window_spec);
+                break;
+            }
+            case Experiment03DatasetType::FusedWindow:
+            {
+                dataset_ = make_shared<FusedWindowDataset>(
+                    discovered, config_.eeg_window_spec, config_.audio_window_spec);
+                break;
+            }
+        }
 
         // DataLoader is unique_ptr since it owns the iteration
         // state and should not be shared.
@@ -56,7 +84,17 @@ int Experiment03::run()
         dataset_total_samples_ = dataset_->size();
 
         // Print dataset summary before processing batches.
-        printDatasetSummary(*dataset_, config_.dataset_root);
+        // Protocol datasets have a specialized summary; windowing datasets print basic info.
+        if (config_.dataset_type == Experiment03DatasetType::Protocol)
+        {
+            auto* proto = dynamic_cast<Protocol101117Dataset*>(dataset_.get());
+            if (proto) printDatasetSummary(*proto, config_.dataset_root);
+        }
+        else
+        {
+            cout << "Dataset initialized with " << dataset_total_samples_ << " total samples."
+                 << std::endl;
+        }
 
         // Main loop: iterate over batches from the prefetcher, run the model.
         // Print progress is printed in-place.
@@ -79,10 +117,18 @@ int Experiment03::run()
             processed_samples_ += batch.inputs.rows();
             seen_batches_ = prefetcher_->seenBatches();
 
-            // Print batch targets for debugging; in a real experiment,
-            // this might be logged to a file or used for assertions instead
-            // of printed to console.
-            cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
+            // Print batch targets for debugging. Protocol datasets have a specific
+            // formatter; windowing datasets just print batch shape.
+            if (config_.dataset_type == Experiment03DatasetType::Protocol)
+            {
+                cout << nn::dataLoaders::formatProtocol101117BatchTargets(batch);
+            }
+            else
+            {
+                cout << "  [Batch shape: inputs=" << batch.inputs.rows() << "x"
+                     << batch.inputs.cols() << ", targets=" << batch.targets.rows() << "x"
+                     << batch.targets.cols() << "]" << std::endl;
+            }
             printProgress(dataset_total_samples_,
                 config_.batch_size,
                 config_.max_batches,

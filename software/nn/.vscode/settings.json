@@ -118,7 +118,7 @@
     // --------------------------------------------------
     "clangd.path": "/usr/bin/clangd",
     "clangd.arguments": [
-        "--compile-commands-dir=${workspaceFolder}/build",
+        "--compile-commands-dir=${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu",
         // -------------------------
         // Indexação mínima
         // -------------------------
@@ -181,7 +181,24 @@
             "LSAN_OPTIONS": "verbosity=1:log_threads=1"
         }
     },
-    "cmake.buildDirectory": "${workspaceFolder}/out/build/clang-22_1_1-x86_64-pc-linux-gnu",
+    "cmake.buildDirectory": "${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu",
+    "cmake.buildBeforeRun": false,
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "^(?!.*(?:/out/|/build/|/debug/)).*\\.(cpp|cc|cxx|hpp|hh|hxx|h)$",
+                "cmd": "cmake --build \"${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu\" -j$(nproc)",
+                "isAsync": true,
+                "silent": true
+            },
+            {
+                "match": "(^|/)(CMakeLists\\.txt|.*\\.cmake)$",
+                "cmd": "cmake --build \"${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu\" -j$(nproc)",
+                "isAsync": true,
+                "silent": true
+            }
+        ]
+    },
     "editor.quickSuggestions": {
         "other": "on",
         "comments": "on",

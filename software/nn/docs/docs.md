@@ -80,9 +80,269 @@ The pipeline supports end-to-end speaker identification/verification, from audio
 
 ---
 
-## 4. Experimental Pipeline and Reproducibility
+## 4. VS Code Setup and Development Environment
 
-### Phases
+A well-configured VS Code workspace ensures fast iteration, reliable debugging, and smooth builds. Follow this guide to set up your environment from scratch.
+
+### 4.1 Prerequisites
+
+- **Clang 20+** or **GCC 11+** (C++20 support)
+- **CMake 3.28+**
+- **LLDB 22+** (with DAP support)
+- **Python 3.8+** (for pretty-printers)
+
+Verify installations:
+```bash
+clang++ --version
+cmake --version
+lldb --version
+python3 --version
+```
+
+### 4.2 VS Code Extensions
+
+Install these extensions from the Marketplace:
+
+1. **CMake Tools** (by Microsoft) – Essential for CMake integration
+2. **C/C++** (by Microsoft) – Language support and IntelliSense
+3. **Clang-Format** (by xaver) – Code formatting
+4. **Clang-Tidy** (optional) – Static analysis integration
+5. **LLDB Debugger** (by Vadim Chugunov) – Enhanced LLDB integration
+6. **GitHub Copilot** (optional) – AI-assisted coding
+
+### 4.3 Workspace Settings
+
+Create or update `.vscode/settings.json` in your workspace root:
+
+```json
+{
+    // Clang compiler paths
+    "C_Cpp.default.compilerPath": "/usr/bin/clang++",
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.cppStandard": "c++20",
+
+    // CMake configuration
+    "cmake.buildDirectory": "${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu",
+    "cmake.buildBeforeRun": false,
+    "cmake.sourceDirectory": "${workspaceFolder}",
+
+    // Clangd (language server)
+    "clangd.path": "/usr/bin/clangd",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu",
+        "--background-index=true",
+        "--pch-storage=disk",
+        "--completion-style=detailed",
+        "--all-scopes-completion=true",
+        "--function-arg-placeholders=true",
+        "--header-insertion=iwyu",
+        "--header-insertion-decorators=true",
+        "--clang-tidy=true",
+        "--fallback-style=none",
+        "--log=info"
+    ],
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "Disabled",
+
+    // Debugging
+    "lldb.displayFormat": "auto",
+    "lldb.showDisassembly": "auto",
+    "lldb.dereferencePointers": true,
+    "lldb.consoleMode": "evaluate",
+
+    // Editor and UX
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "xaver.clang-format",
+    "[cpp]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
+    "editor.semanticHighlighting.enabled": true,
+    "editor.inlineSuggest.enabled": true,
+
+    // File exclusions (performance)
+    "files.exclude": {
+        "**/build": true,
+        "**/out": true,
+        "**/.git": true
+    },
+    "search.exclude": {
+        "**/out": true,
+        "**/build": true
+    }
+}
+```
+
+**Key settings explained:**
+- `cmake.buildBeforeRun: false` – Prevents forced rebuilds when debugging (avoids redundant compilation).
+- `clangd.arguments` with `--compile-commands-dir` – Must point to the active build directory containing `compile_commands.json`.
+- `C_Cpp.default.compileCommands` (or `.vscode/c_cpp_properties.json` `compileCommands`) – Keep this path aligned with clangd to avoid phantom diagnostics.
+- `C_Cpp.intelliSenseEngine: Disabled` – Uses clangd exclusively (faster, more accurate).
+
+### 4.4 CMake Configuration
+
+Ensure your `CMakePresets.json` has a clean, space-free build directory path:
+
+```json
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "Clang_20.1.8_x86_64-pc-linux-gnu",
+            "displayName": "Clang 20 (Debug)",
+            "binaryDir": "${sourceDir}/out/build/Clang_20.1.8_x86_64-pc-linux-gnu",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/Clang_20.1.8_x86_64-pc-linux-gnu",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "NN_ENABLE_PCH": "ON"
+            }
+        },
+        {
+            "name": "Clang-FastDebug",
+            "displayName": "Clang 20 - Fast Debug (PCH + Unity Build)",
+            "inherits": "Clang_20.1.8_x86_64-pc-linux-gnu",
+            "binaryDir": "${sourceDir}/out/build/clang-fastdebug",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/clang-fastdebug",
+                "NN_ENABLE_PCH": "ON",
+                "CMAKE_UNITY_BUILD": "ON",
+                "CMAKE_UNITY_BUILD_BATCH_SIZE": "8"
+            }
+        }
+    ]
+}
+```
+
+**Important:** Avoid spaces in preset names and build paths. Paths with spaces break Autotools-based dependencies like `nfft3`.
+
+### 4.5 Debug Configuration
+
+Create `.vscode/launch.json` to define debug targets:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CMake: active target (lldb-dap)",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${command:cmake.launchTargetPath}",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
+            ],
+            "env": {
+                "ASAN_OPTIONS": "detect_leaks=0",
+                "LSAN_OPTIONS": "verbosity=1:log_threads=1"
+            }
+        },
+        {
+            "name": "experiment03 (lldb-dap)",
+            "type": "lldb-dap",
+            "request": "launch",
+            "program": "${command:cmake.buildDirectory}/src/experiments/03/experiment03",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "initCommands": [
+                "command script import ${workspaceFolder}/debug/lldb/eigenlldb.py"
+            ]
+        }
+    ]
+}
+```
+
+**Key points:**
+- Use `lldb-dap` (Debug Adapter Protocol) instead of the legacy `lldb-mi`.
+- `initCommands` loads custom Eigen matrix pretty-printers for readable `Variable` inspection in the debugger.
+- No `preLaunchTask` forces rebuilds; instead, use CMake's incremental build system.
+- `${command:cmake.launchTargetPath}` refers to the target selected in the CMake toolbar.
+
+### 4.6 Debugging Workflow
+
+1. **Select a build target** in the CMake status bar (bottom right).
+2. **Set breakpoints** in your code (click left margin or press `Ctrl+K Ctrl+B`).
+3. **Press F5** to launch the selected debug configuration.
+4. **Step through** using F10 (step over), F11 (step into), Shift+F11 (step out).
+5. **Inspect variables** in the Debug panel; Eigen matrices display with custom formatting.
+
+**Debugging notes:**
+- Breakpoints may be unreliable if using the `Clang-FastDebug` preset (unity builds scramble line numbers). Switch to the standard preset for debugging.
+- If breakpoints fail after code changes, rebuild with `CMake: Build` (Ctrl+Shift+B) and try again.
+
+### 4.7 Building and Testing
+
+**Command shortcuts:**
+- **Build**: `Ctrl+Shift+B` (runs the active CMake preset's build)
+- **Run tests**: Run the test task or use `ctest --test-dir out/build/Clang_20.1.8_x86_64-pc-linux-gnu`
+- **Clean build**: Delete the `out/build` directory and reconfigure via CMake in VS Code.
+
+**Build optimization:**
+- Use the standard `Clang_20.1.8_x86_64-pc-linux-gnu` preset for normal development (incremental builds, reliable breakpoints).
+- Use `Clang-FastDebug` preset (with unity builds + PCH) only for full rebuilds when speed is critical.
+
+### 4.8 IntelliSense and Code Navigation
+
+**Verify IntelliSense is working:**
+1. Open any `.cpp` or `.hpp` file.
+2. Hover over a symbol (e.g., `Tensor`, `Linear`, `DataLoader`).
+3. You should see a tooltip with the symbol definition.
+4. Use `F12` (Go to Definition) and `Ctrl+Shift+O` (Outline) to navigate.
+
+**If IntelliSense is broken:**
+1. Check that `clangd` is running: look for "Clangd Server" in the Output panel (View > Output, select "Clangd Language Server").
+2. Ensure `cmake.buildDirectory` in settings.json matches your actual CMake build directory.
+3. Ensure both paths below point to the same existing file:
+    - `clangd.arguments` `--compile-commands-dir=...`
+    - `C_Cpp.default.compileCommands` or `.vscode/c_cpp_properties.json` `compileCommands`
+4. Run `CMake: Build` once to generate/update `compile_commands.json` in the active build directory.
+5. Reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window") and restart clangd.
+
+### 4.9 Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| **Breakpoints not hitting** | Rebuild the project; ensure Debug build type is active (not Release). For `Clang-FastDebug`, switch to the standard preset. |
+| **"Program not found" on debug launch** | Build the project first (`Ctrl+Shift+B`); check that the build directory matches `cmake.buildDirectory` in settings. |
+| **IntelliSense slow or missing** | Disable C/C++ extension IntelliSense; ensure `C_Cpp.intelliSenseEngine` is set to `Disabled`. Check clangd version (`clangd --version`). |
+| **Many non-existent C++ errors in VS Code** | Usually stale/mismatched compile commands. Verify clangd and C/C++ compile command paths both point to `out/build/Clang_20.1.8_x86_64-pc-linux-gnu/compile_commands.json`, then run "Developer: Reload Window" and "clangd: Restart language server". |
+| **CMake configuration fails** | Ensure Clang/Clang++ are in PATH. Delete `out/build` and reconfigure (`CMake: Configure`). |
+| **Build errors with nfft3** | Verify build path has no spaces. Update `CMakePresets.json` to use hardcoded no-space paths. |
+| **Debugging with LLDB hangs** | Check for mutex deadlocks in concurrent code. Exception handling in LLDB can be slow on large projects; try `thread list` to see if threads are blocked. |
+
+**Quick check (copy/paste):**
+
+```bash
+# 1) Confirm compile database exists
+ls -l out/build/Clang_20.1.8_x86_64-pc-linux-gnu/compile_commands.json
+
+# 2) Confirm clangd and C/C++ point to the same path
+grep -n "compile-commands-dir" .vscode/settings.json
+grep -n "compileCommands" .vscode/c_cpp_properties.json
+
+# 3) Rebuild compile database
+cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu -j$(nproc)
+```
+
+Then in VS Code:
+1. Run **Developer: Reload Window**.
+2. Run **clangd: Restart language server**.
+3. If stale diagnostics remain, run **C/C++: Reset IntelliSense Database**.
+
+### 4.10 Performance Tips
+
+1. **Use Precompiled Headers (PCH)**: Standard preset enables `NN_ENABLE_PCH=ON` by default. PCH is wired to 4 targets (`layers`, `dataLoaders_10_1117`, `waveCoreLib`, `experiment03_lib`).
+2. **Enable ccache**: CMake auto-detects and uses ccache if installed (`apt install ccache` on Debian/Ubuntu).
+3. **Use fast linker**: CMake auto-detects `mold` or `lld`; standard linker is used as fallback.
+4. **For iteration**: Use `Clang-FastDebug` preset (unity builds + PCH) for single changes; standard preset for clean builds.
+
+---
+
+## 5. Experimental Pipeline and Reproducibility
+
+### 5.1 Phases
 1. **Freezing & Infrastructure**: Fix window/overlap, normalization, classifier architecture, and config management.
 2. **Classical Feature Engineering**: Wavelet/WPT baseline, reproducibility, and paraconsistent metrics.
 3. **Spectral Scales**: Compare LFCC, MEL, BARK representations.
@@ -92,23 +352,23 @@ The pipeline supports end-to-end speaker identification/verification, from audio
 7. **Noise Robustness**: Inject noise, measure degradation, and compare clean vs. noisy signals.
 8. **Final Consolidation**: Comparative tables, paraconsistent plots, and state-of-the-art benchmarking.
 
-### Metrics
+### 5.2 Metrics
 - Paraconsistent (α, β, G1, G2), accuracy, F1-score, MACs, RTF.
 - Robustness, computational efficiency, and multimodal gain.
 
 ---
 
-## 5. Advanced Topics
+## 6. Advanced Topics
 
-### LeakyIntegrator Readout Layer
+### 6.1 LeakyIntegrator Readout Layer
 The LeakyIntegrator is a continuous-valued readout for SNNs, acting as a low-pass filter on spike trains. Use it as the final decoder layer for regression or reconstruction tasks, or for debugging gradient flow.
 
-### Multi-Pass Forward and Loss Modes
+### 6.2 Multi-Pass Forward and Loss Modes
 For SNNs with stochasticity (e.g., Poisson coding), aggregate outputs over multiple forward passes to reduce variance. Implement configurable loss modes (rate, Monte Carlo, temporal pooling, van Rossum, membrane, cosine, MSE vector) and always compute loss after aggregation. Ensure CLI/config compatibility and GPU safety.
 
 ---
 
-## 6. Engineering and Maintenance
+## 7. Engineering and Maintenance
 
 - Follow modular code structure and update documentation for new features.
 - Use static analysis and coverage tools before submitting changes.
@@ -117,7 +377,7 @@ For SNNs with stochasticity (e.g., Poisson coding), aggregate outputs over multi
 
 ---
 
-## 7. References
+## 8. References
 
 - Cohen, M. X. (2014). *Analyzing Neural Time Series Data*
 - O'Shaughnessy, D. (Speech Processing)

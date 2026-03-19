@@ -1,12 +1,45 @@
 #include "../include/cli.hpp"
 
+#include <stdexcept>
+
 #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
 #include "nn/dataLoaders/SamplerOptionResolution.hpp"
+
+namespace
+{
+auto datasetTypeToToken(Experiment03DatasetType dataset_type) -> std::string
+{
+    switch (dataset_type)
+    {
+        case Experiment03DatasetType::Protocol:
+            return "protocol";
+        case Experiment03DatasetType::EegWindow:
+            return "eeg-window";
+        case Experiment03DatasetType::AudioWindow:
+            return "audio-window";
+        case Experiment03DatasetType::FusedWindow:
+            return "fused-window";
+    }
+
+    return "protocol";
+}
+
+auto parseDatasetTypeToken(const std::string& token) -> Experiment03DatasetType
+{
+    if (token == "protocol") return Experiment03DatasetType::Protocol;
+    if (token == "eeg-window") return Experiment03DatasetType::EegWindow;
+    if (token == "audio-window") return Experiment03DatasetType::AudioWindow;
+    if (token == "fused-window") return Experiment03DatasetType::FusedWindow;
+
+    throw std::invalid_argument("Unsupported dataset type token: " + token);
+}
+} // namespace
 
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
 {
     Config config = default_config;
     std::string input_mode_token = protocol101117InputModeToToken(default_config.input_mode);
+    std::string dataset_type_token = datasetTypeToToken(default_config.dataset_type);
 
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
 
@@ -37,9 +70,45 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     app.add_option(          //
            "--input-mode",   //
            input_mode_token, //
-           "Dataset input mode: concatenated|eeg-only|audio-only")
+           "Dataset input mode (protocol only): concatenated|eeg-only|audio-only")
         ->check(CLI::IsMember(input_mode_tokens, CLI::ignore_case))
         ->default_val(protocol101117InputModeToToken(default_config.input_mode));
+
+    app.add_option(          //
+           "--dataset-type", //
+           dataset_type_token,
+           "Dataset variant: protocol|eeg-window|audio-window|fused-window")
+        ->check(CLI::IsMember(
+            {"protocol", "eeg-window", "audio-window", "fused-window"}, CLI::ignore_case))
+        ->default_val(datasetTypeToToken(default_config.dataset_type));
+
+    app.add_option("--eeg-window-size",
+           config.eeg_window_spec.window_size,
+           "EEG window size (samples) for eeg-window/fused-window datasets")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.eeg_window_spec.window_size);
+
+    app.add_option("--eeg-overlap",
+           config.eeg_window_spec.overlap,
+           "EEG overlap in [0,1) for eeg-window/fused-window datasets")
+        ->expected(1)
+        ->check(CLI::Range(0.0, 0.9999))
+        ->default_val(default_config.eeg_window_spec.overlap);
+
+    app.add_option("--audio-window-size",
+           config.audio_window_spec.window_size,
+           "Audio window size (samples) for audio-window/fused-window datasets")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.audio_window_spec.window_size);
+
+    app.add_option("--audio-overlap",
+           config.audio_window_spec.overlap,
+           "Audio overlap in [0,1) for audio-window/fused-window datasets")
+        ->expected(1)
+        ->check(CLI::Range(0.0, 0.9999))
+        ->default_val(default_config.audio_window_spec.overlap);
 
     app.add_option("--lookahead", config.lookahead, "Number of batches to prefetch in background")
         ->expected(1)
@@ -125,6 +194,8 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     config.sampler_type = normalizeSamplerTypeToken(config.sampler_type);
 
     config.input_mode = parseProtocol101117InputModeToken(input_mode_token);
+    dataset_type_token = CLI::detail::to_lower(dataset_type_token);
+    config.dataset_type = parseDatasetTypeToken(dataset_type_token);
 
     config.sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
         .sampler_type = config.sampler_type,

@@ -2,9 +2,9 @@
 
 #include "DemoProbeModel.hpp"
 #include "cli.hpp"
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/Dataset.hpp"
 
 class Experiment03
 {
@@ -17,10 +17,11 @@ class Experiment03
     Config config_;
     // Dataset and pipeline components are stored as members so they
     // persist across `run()` and can be inspected or reused.
+    // dataset_ uses base class pointer to support multiple dataset types.
     std::unique_ptr<DataLoader> loader_;
     std::unique_ptr<DemoProbeModel> model_;
     std::unique_ptr<BatchPrefetcher> prefetcher_;
-    std::shared_ptr<Protocol101117Dataset> dataset_;
+    std::shared_ptr<Dataset> dataset_;
 
     std::size_t seen_batches_ = 0;
     std::size_t processed_samples_ = 0;
