@@ -19,4 +19,6 @@ target_link_libraries(waveCoreLib
     PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f tensor dataLoaders_10_1117
 )
 
+nn_enable_target_pch(waveCoreLib)
+
 add_subdirectory(tests)

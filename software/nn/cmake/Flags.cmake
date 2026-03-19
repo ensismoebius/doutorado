@@ -29,7 +29,7 @@ option(NN_ENABLE_FAST_LINKER "Enable mold/lld fast linker when available" ON)
 option(NN_USE_OBJECT_LIBRARIES "Enable opt-in OBJECT libraries for selected internal targets" OFF)
 
 # Optional optimization for incremental builds: per-target precompiled headers.
-option(NN_ENABLE_PCH "Enable opt-in precompiled headers for selected targets" OFF)
+option(NN_ENABLE_PCH "Enable opt-in precompiled headers for selected targets" ON)
 
 # Set C++20 standard
 set(CMAKE_CXX_STANDARD 20)
@@ -96,13 +96,12 @@ add_compile_options(
 )
 
 # --- Debug-specific flags ---
+# Note: -g3 implies -g (level 3 is a superset); -fno-inline is a no-op at -O0.
 add_compile_options(
-    $<$<CONFIG:Debug>:-g>
     $<$<CONFIG:Debug>:-gdwarf-5>
     $<$<CONFIG:Debug>:-g3>
     $<$<CONFIG:Debug>:-ggdb>
     $<$<CONFIG:Debug>:-O0>
-    $<$<CONFIG:Debug>:-fno-inline>
     $<$<CONFIG:Debug>:-march=native>
 )
 

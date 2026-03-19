@@ -178,6 +178,7 @@
             "LSAN_OPTIONS": "verbosity=1:log_threads=1"
         }
     },
+    "cmake.buildDirectory": "${workspaceFolder}/out/build/clang-22_1_1-x86_64-pc-linux-gnu",
     "editor.quickSuggestions": {
         "other": "on",
         "comments": "on",

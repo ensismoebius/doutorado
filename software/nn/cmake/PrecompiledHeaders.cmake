@@ -28,6 +28,18 @@ function(nn_enable_target_pch target_name)
             <vector>
             <string>
             <memory>
+            <array>
+            <algorithm>
+            <functional>
+            <cstddef>
+            <cstdint>
+            <cmath>
+            <stdexcept>
+            <optional>
+            <numeric>
+            <utility>
+            <unordered_map>
+            <tuple>
     )
 
     message(STATUS "PCH enabled for target: ${target_name}")

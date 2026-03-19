@@ -30,6 +30,8 @@ target_link_libraries(experiment03_lib
     Eigen3::Eigen
 )
 
+nn_enable_target_pch(experiment03_lib)
+
 add_executable(experiment03
     ${SRC_DIR}/experiments/03/experiment03.cpp
 )
