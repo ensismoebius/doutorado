@@ -1,7 +1,7 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 
-#include <utility>
 #include <chrono>
+#include <utility>
 
 BatchPrefetcher::BatchPrefetcher( //
     DataLoader& loader,           //
@@ -82,7 +82,7 @@ void BatchPrefetcher::producerLoop()
 
 [[nodiscard]] auto BatchPrefetcher::hasNext() const -> bool
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
 
     // If the producer failed, let next() surface the exception deterministically.
     if (producer_error_)
@@ -100,9 +100,8 @@ void BatchPrefetcher::producerLoop()
     // the queue empty because the producer finished between the calls.
     if (!producer_done_ && (seen_batches_ + prefetched_batches_.size() < max_batches_))
     {
-        std::unique_lock<std::mutex> ul(mutex_, std::defer_lock);
-        ul.lock();
-        cv_.wait_for(ul, std::chrono::milliseconds(10),
+        cv_.wait_for(lock,
+            std::chrono::milliseconds(10),
             [this]() { return !prefetched_batches_.empty() || producer_done_ || producer_error_; });
 
         if (!prefetched_batches_.empty())
