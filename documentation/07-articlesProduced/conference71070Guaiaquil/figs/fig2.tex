@@ -1,0 +1,10 @@
+% TikZ pipeline figure (one-column width rendering via figure* placement)
+\begin{tikzpicture}[font=\scriptsize, >=latex, every node/.style={align=center}]
+  \node[draw, rounded corners, minimum width=22mm] (acq) at (-4,0) {Acquisition};
+  \node[draw, rounded corners, minimum width=26mm] (encode) at (-1.5,0) {Encoding\\(SNN) };
+  \node[draw, rounded corners, minimum width=22mm] (infer) at (1.5,0) {Inference\\/Fusion};
+  \node[draw, rounded corners, minimum width=26mm] (out) at (4,0) {Output\\(Reconstruction)};
+  \draw[->] (acq) -- (encode);
+  \draw[->] (encode) -- (infer);
+  \draw[->] (infer) -- (out);
+\end{tikzpicture}

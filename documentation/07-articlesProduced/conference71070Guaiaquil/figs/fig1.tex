@@ -1,0 +1,24 @@
+% Simple coordinate-based TikZ figure to avoid positioning library issues
+\begin{tikzpicture}[font=\scriptsize, >=latex, every node/.style={align=center}]
+  % coordinates chosen to fit ~\columnwidth and keep height small
+  \node[draw, rounded corners, minimum height=6mm, minimum width=20mm] (Ainput) at (-4.5,0.8) {Audio\\Input};
+  \node[draw, rounded corners, minimum height=6mm, minimum width=22mm] (Aenc) at (-2.5,0.8) {Audio\\Encoder};
+
+  \node[draw, rounded corners, minimum height=6mm, minimum width=20mm] (Einput) at (-4.5,-0.8) {EEG\\Input};
+  \node[draw, rounded corners, minimum height=6mm, minimum width=22mm] (EEG) at (-2.5,-0.8) {EEG\\Encoder};
+
+  \node[draw, rounded corners, minimum height=7mm, minimum width=20mm] (FUS) at (0,0) {Fusion};
+  \node[draw, rounded corners, minimum height=7mm, minimum width=20mm] (Z) at (2.5,0) {Latent\\Vector};
+  \node[draw, rounded corners, minimum height=7mm, minimum width=26mm] (Dec) at (5,0) {Decoder\\(symmetric)};
+
+  % arrows
+  \draw[->] (Ainput) -- (Aenc);
+  \draw[->] (Einput) -- (EEG);
+  \draw[->] (Aenc) -- (FUS);
+  \draw[->] (EEG) -- (FUS);
+  \draw[->] (FUS) -- (Z);
+  \draw[->] (Z) -- (Dec);
+
+  % note
+  \node[below=6mm of Dec, font=\scriptsize, anchor=north] (note) {Figure fits one column; minimal labels};
+\end{tikzpicture}
