@@ -6,6 +6,16 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/progress.cpp
     ${SRC_DIR}/experiments/03/lib/src/dataset_info.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
+    # ANN autoencoders
+    ${SRC_DIR}/experiments/03/lib/src/ProtocolAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/EegWindowAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/AudioWindowAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/FusedWindowAutoencoder.cpp
+    # SNN autoencoders
+    ${SRC_DIR}/experiments/03/lib/src/ProtocolSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/EegWindowSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/AudioWindowSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/FusedWindowSpikingAutoencoder.cpp
 )
 
 if(NN_USE_OBJECT_LIBRARIES)
@@ -55,4 +65,24 @@ target_link_libraries(experiment03
     dataLoaders
     matioCpp
     z
+)
+
+# ---------------------------------------------------------------------------
+# Autoencoder scaffold example executable
+# ---------------------------------------------------------------------------
+add_executable(autoencoder_scaffold_example
+    ${SRC_DIR}/experiments/03/autoencoder_scaffold_example.cpp
+)
+
+if(NN_USE_OBJECT_LIBRARIES)
+    target_sources(autoencoder_scaffold_example
+        PRIVATE
+            $<TARGET_OBJECTS:experiment03_lib>
+    )
+endif()
+
+target_link_libraries(autoencoder_scaffold_example
+    PRIVATE
+    experiment03_lib
+    Eigen3::Eigen
 )

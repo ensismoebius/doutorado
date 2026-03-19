@@ -61,7 +61,7 @@ struct LeakyIntegrator : public Leaky
         // 2. Calculate Decay Factor (beta)
         // beta = exp(-dt / RC)
         float const tau = resistance.at(0, 0) * capacitance;
-        float const beta = std::exp(-dt / tau);
+        float const beta = std::exp(-time_step / tau);
 
         // Note: if tau is extremely small, beta can underflow; callers should
         // keep (R,C,dt) in a numerically sensible range.
@@ -104,8 +104,8 @@ struct LeakyIntegrator : public Leaky
 
         if (tau > 1e-6) [[likely]]
         {
-            const float beta = std::exp(-dt / tau);
-            const float d_beta_dR = (beta * dt) / (C * R * R);
+            const float beta = std::exp(-time_step / tau);
+            const float d_beta_dR = (beta * time_step) / (C * R * R);
 
             // dL/dbeta = sum( dL/dV * V[t-1] )
             float dL_dbeta = grad_input.multiply(v_mem_t_minus_1).sum();
