@@ -113,7 +113,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     std::string input_mode_token = protocol101117InputModeToToken(default_config.input_mode);
     std::string dataset_type_token = datasetTypeToToken(default_config.dataset_type);
     std::string autoencoder_type_token = autoencoderTypeToToken(default_config.autoencoder_type);
-    std::string architecture_token = architectureToToken(default_config.ae_architecture);
+    std::string architecture_token = architectureToToken(default_config.autoencoder_architecture);
 
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
 
@@ -124,21 +124,22 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     app.add_option(                                                                     //
            "--subject",                                                                 //
-           config.subject_regex_pattern,                                                //
+           config.subject_filter_regex,                                                 //
            "Subject regex filter pattern (regex should contain a group for subject id)" //
            )
         ->expected(1)
-        ->default_val(default_config.subject_regex_pattern);
+        ->default_val(default_config.subject_filter_regex);
 
     app.add_option("--batch-size", config.batch_size, "Mini-batch size")
         ->expected(1)
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.batch_size);
 
-    app.add_option("--max-batches", config.max_batches, "Max batches to iterate in this demo")
+    app.add_option(
+           "--max-batches", config.max_batches_per_epoch, "Max batches to iterate in this demo")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.max_batches);
+        ->default_val(default_config.max_batches_per_epoch);
 
     const auto input_mode_tokens = supportedProtocol101117InputModeTokens();
     app.add_option(          //
@@ -173,126 +174,132 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
             CLI::ignore_case))
         ->default_val(autoencoderTypeToToken(default_config.autoencoder_type));
 
-    app.add_option("--ae-hidden-size", config.ae_hidden_size, "Autoencoder hidden layer width")
-        ->expected(1)
-        ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_hidden_size);
-
     app.add_option(
-           "--ae-latent-size", config.ae_latent_size, "Autoencoder latent (bottleneck) dimension")
+           "--ae-hidden-size", config.autoencoder_hidden_size, "Autoencoder hidden layer width")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_latent_size);
+        ->default_val(default_config.autoencoder_hidden_size);
 
-    app.add_option(
-           "--ae-depth", config.ae_depth, "Number of hidden layers in encoder/decoder (1–N)")
+    app.add_option("--ae-latent-size",
+           config.autoencoder_latent_size,
+           "Autoencoder latent (bottleneck) dimension")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_depth);
+        ->default_val(default_config.autoencoder_latent_size);
+
+    app.add_option("--ae-depth",
+           config.autoencoder_depth,
+           "Number of hidden layers in encoder/decoder (1–N)")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.autoencoder_depth);
 
     app.add_option("--ae-architecture",
            architecture_token,
            "Autoencoder design family: auto|residual-dense|dual-branch-fusion")
         ->check(CLI::IsMember({"auto", "residual-dense", "dual-branch-fusion"}, CLI::ignore_case))
-        ->default_val(architectureToToken(default_config.ae_architecture));
+        ->default_val(architectureToToken(default_config.autoencoder_architecture));
 
     app.add_option("--ae-branch-hidden-size",
-           config.ae_branch_hidden_size,
+           config.autoencoder_branch_hidden_size,
            "Multimodal branch projection width (0 = infer from hidden/latent sizes)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.ae_branch_hidden_size);
+        ->default_val(default_config.autoencoder_branch_hidden_size);
 
     app.add_option("--ae-fusion-hidden-size",
-           config.ae_fusion_hidden_size,
+           config.autoencoder_fusion_hidden_size,
            "Shared multimodal fusion width (0 = infer from hidden/latent sizes)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.ae_fusion_hidden_size);
+        ->default_val(default_config.autoencoder_fusion_hidden_size);
 
     app.add_option("--ae-residual-blocks",
-           config.ae_residual_blocks,
+           config.autoencoder_residual_blocks,
            "Residual blocks per dense stage for redesigned ANN builders")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.ae_residual_blocks);
+        ->default_val(default_config.autoencoder_residual_blocks);
 
     app.add_option("--ae-time-step",
-           config.ae_time_step,
+           config.autoencoder_time_step,
            "SNN neuron time step dt (also used as leaky beta scale)")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_time_step);
+        ->default_val(default_config.autoencoder_time_step);
 
-    app.add_option("--ae-resistance", config.ae_resistance, "SNN neuron membrane resistance R")
+    app.add_option(
+           "--ae-resistance", config.autoencoder_resistance, "SNN neuron membrane resistance R")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_resistance);
+        ->default_val(default_config.autoencoder_resistance);
 
-    app.add_option("--ae-capacitance", config.ae_capacitance, "SNN neuron membrane capacitance C")
+    app.add_option(
+           "--ae-capacitance", config.autoencoder_capacitance, "SNN neuron membrane capacitance C")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.ae_capacitance);
+        ->default_val(default_config.autoencoder_capacitance);
 
-    app.add_option("--lr", config.learning_rate, "Adam optimizer learning rate")
+    app.add_option("--lr", config.training_learning_rate, "Adam optimizer learning rate")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.learning_rate);
+        ->default_val(default_config.training_learning_rate);
 
-    app.add_option("--epochs", config.epochs, "Number of training epochs")
+    app.add_option("--epochs", config.training_epochs, "Number of training epochs")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.epochs);
+        ->default_val(default_config.training_epochs);
 
     app.add_option("--eeg-window-size",
-           config.eeg_window_spec.window_size,
+           config.eeg_window_config.window_size,
            "EEG window size (samples) for eeg-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.eeg_window_spec.window_size);
+        ->default_val(default_config.eeg_window_config.window_size);
 
     app.add_option("--eeg-overlap",
-           config.eeg_window_spec.overlap,
+           config.eeg_window_config.overlap,
            "EEG overlap in [0,1) for eeg-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::Range(0.0, 0.9999))
-        ->default_val(default_config.eeg_window_spec.overlap);
+        ->default_val(default_config.eeg_window_config.overlap);
 
     app.add_option("--audio-window-size",
-           config.audio_window_spec.window_size,
+           config.audio_window_config.window_size,
            "Audio window size (samples) for audio-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.audio_window_spec.window_size);
+        ->default_val(default_config.audio_window_config.window_size);
 
     app.add_option("--audio-overlap",
-           config.audio_window_spec.overlap,
+           config.audio_window_config.overlap,
            "Audio overlap in [0,1) for audio-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::Range(0.0, 0.9999))
-        ->default_val(default_config.audio_window_spec.overlap);
-
-    app.add_option("--lookahead", config.lookahead, "Number of batches to prefetch in background")
-        ->expected(1)
-        ->check(CLI::PositiveNumber)
-        ->default_val(default_config.lookahead);
+        ->default_val(default_config.audio_window_config.overlap);
 
     app.add_option(
-           "--seed", config.seed, "Deterministic seed for shuffling (ignored if --no-shuffle)")
+           "--lookahead", config.prefetch_lookahead, "Number of batches to prefetch in background")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.prefetch_lookahead);
+
+    app.add_option("--seed",
+           config.shuffle_seed,
+           "Deterministic seed for shuffling (ignored if --no-shuffle)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.seed.value_or(0U));
+        ->default_val(default_config.shuffle_seed.value_or(0U));
 
-    app.add_flag(                            //
-           "--shuffle,!--no-shuffle",        //
-           config.shuffle,                   //
-           "Shuffle samples before batching" //
-           )
-        ->default_val(default_config.shuffle);
+    app.add_flag(                     //
+           "--shuffle,!--no-shuffle", //
+           config.shuffle_samples,    //
+           "Shuffle samples before batching")
+        ->default_val(default_config.shuffle_samples);
 
     auto* sampler_type_option = app.add_option(                        //
         "--sampler-type",                                              //
-        config.sampler_type,                                           //
+        config.default_sampler_type,                                   //
         "Default sampler type: sequential|random|weighted|distributed" //
     );
     sampler_type_option->check(CLI::IsMember(                //
@@ -301,8 +308,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     // Empty string means "auto" (legacy shuffle/no-shuffle behavior).
     // Use default_str (display-only) so the IsMember validator is not applied to the default.
-    sampler_type_option->default_str(
-        default_config.sampler_type.empty() ? "(auto)" : default_config.sampler_type);
+    sampler_type_option->default_str(default_config.default_sampler_type.empty()
+                                         ? "(auto)"
+                                         : default_config.default_sampler_type);
 
     app.add_option( //
            "--sampler-weights",
@@ -313,36 +321,36 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     app.add_option( //
            "--weighted-num-samples",
-           config.weighted_num_samples,
+           config.weighted_sampler_num_samples,
            "Number of sampled indices per epoch for weighted sampler")
         ->check(CLI::PositiveNumber)
         ->default_str("(none)");
 
     app.add_option( //
            "--distributed-num-replicas",
-           config.distributed_num_replicas,
+           config.distributed_sampler_num_replicas,
            "Total number of distributed replicas")
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.distributed_num_replicas);
+        ->default_val(default_config.distributed_sampler_num_replicas);
 
     app.add_option( //
            "--distributed-rank",
-           config.distributed_rank,
+           config.distributed_sampler_rank,
            "Current distributed rank")
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.distributed_rank);
+        ->default_val(default_config.distributed_sampler_rank);
 
     app.add_flag( //
            "--distributed-shuffle,!--distributed-no-shuffle",
-           config.distributed_shuffle,
+           config.distributed_sampler_shuffle,
            "Shuffle globally before distributed partition")
-        ->default_val(default_config.distributed_shuffle);
+        ->default_val(default_config.distributed_sampler_shuffle);
 
     app.add_flag( //
            "--distributed-drop-last,!--distributed-no-drop-last",
-           config.distributed_drop_last,
+           config.distributed_sampler_drop_last,
            "Drop tail to make dataset divisible by replicas")
-        ->default_val(default_config.distributed_drop_last);
+        ->default_val(default_config.distributed_sampler_drop_last);
 
     try
     {
@@ -353,7 +361,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         app.exit(e);
     }
 
-    config.sampler_type = normalizeSamplerTypeToken(config.sampler_type);
+    config.default_sampler_type = normalizeSamplerTypeToken(config.default_sampler_type);
 
     config.input_mode = parseProtocol101117InputModeToken(input_mode_token);
     dataset_type_token = CLI::detail::to_lower(dataset_type_token);
@@ -361,18 +369,18 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     autoencoder_type_token = CLI::detail::to_lower(autoencoder_type_token);
     config.autoencoder_type = parseAutoencoderTypeToken(autoencoder_type_token);
     architecture_token = CLI::detail::to_lower(architecture_token);
-    config.ae_architecture = parseArchitectureToken(architecture_token);
+    config.autoencoder_architecture = parseArchitectureToken(architecture_token);
 
-    config.sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
-        .sampler_type = config.sampler_type,
-        .shuffle = config.shuffle,
-        .seed = config.seed,
+    config.resolved_sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
+        .sampler_type = config.default_sampler_type,
+        .shuffle = config.shuffle_samples,
+        .seed = config.shuffle_seed,
         .weights = config.sampler_weights,
-        .weighted_num_samples = config.weighted_num_samples,
-        .distributed_num_replicas = config.distributed_num_replicas,
-        .distributed_rank = config.distributed_rank,
-        .distributed_shuffle = config.distributed_shuffle,
-        .distributed_drop_last = config.distributed_drop_last,
+        .weighted_num_samples = config.weighted_sampler_num_samples,
+        .distributed_num_replicas = config.distributed_sampler_num_replicas,
+        .distributed_rank = config.distributed_sampler_rank,
+        .distributed_shuffle = config.distributed_sampler_shuffle,
+        .distributed_drop_last = config.distributed_sampler_drop_last,
     });
     return config;
 }

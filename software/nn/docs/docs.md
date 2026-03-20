@@ -402,6 +402,40 @@ experiment03 --help
 | `--distributed-shuffle` / `--distributed-no-shuffle` | flag | `true` | Global shuffle before distributing data across replicas |
 | `--distributed-drop-last` / `--distributed-no-drop-last` | flag | `false` | Drop the last uneven batch when dividing across replicas |
 
+#### Internal `Config` Naming (Code-Level)
+
+The CLI flags above are unchanged. Internally, `src/experiments/03/lib/include/cli.hpp`
+uses clearer field names in `Config`:
+
+| Old field | New field |
+|---|---|
+| `subject_regex_pattern` | `subject_filter_regex` |
+| `max_batches` | `max_batches_per_epoch` |
+| `shuffle` | `shuffle_samples` |
+| `seed` | `shuffle_seed` |
+| `sampler_type` | `default_sampler_type` |
+| `weighted_num_samples` | `weighted_sampler_num_samples` |
+| `distributed_num_replicas` | `distributed_sampler_num_replicas` |
+| `distributed_rank` | `distributed_sampler_rank` |
+| `distributed_shuffle` | `distributed_sampler_shuffle` |
+| `distributed_drop_last` | `distributed_sampler_drop_last` |
+| `ae_hidden_size` | `autoencoder_hidden_size` |
+| `ae_latent_size` | `autoencoder_latent_size` |
+| `ae_depth` | `autoencoder_depth` |
+| `ae_architecture` | `autoencoder_architecture` |
+| `ae_branch_hidden_size` | `autoencoder_branch_hidden_size` |
+| `ae_fusion_hidden_size` | `autoencoder_fusion_hidden_size` |
+| `ae_residual_blocks` | `autoencoder_residual_blocks` |
+| `ae_time_step` | `autoencoder_time_step` |
+| `ae_resistance` | `autoencoder_resistance` |
+| `ae_capacitance` | `autoencoder_capacitance` |
+| `learning_rate` | `training_learning_rate` |
+| `epochs` | `training_epochs` |
+| `eeg_window_spec` | `eeg_window_config` |
+| `audio_window_spec` | `audio_window_config` |
+| `lookahead` | `prefetch_lookahead` |
+| `sampler_options` | `resolved_sampler_options` |
+
 ---
 
 ### 5.3 Dataset Types

@@ -24,26 +24,26 @@ using std::make_shared;
 using std::size_t;
 
 const Config default_config{
-    .subject_regex_pattern = "^S(\\d+)$",
+    .subject_filter_regex = "^S(\\d+)$",
     .dataset_root =
         "/home/ensismoebius/Documentos"
         "/UNESP/doutorado/databases/"
         "BaseDeDatosHablaImaginada",
     .batch_size = 5,
-    .max_batches = 10,
-    .shuffle = true,
-    .seed = 42U,
-    .sampler_type = "",
+    .max_batches_per_epoch = 10,
+    .shuffle_samples = true,
+    .shuffle_seed = 42U,
+    .default_sampler_type = "",
     .sampler_weights = {},
-    .weighted_num_samples = std::nullopt,
-    .distributed_num_replicas = 1,
-    .distributed_rank = 0,
-    .distributed_shuffle = true,
-    .distributed_drop_last = false,
+    .weighted_sampler_num_samples = std::nullopt,
+    .distributed_sampler_num_replicas = 1,
+    .distributed_sampler_rank = 0,
+    .distributed_sampler_shuffle = true,
+    .distributed_sampler_drop_last = false,
     .input_mode = Protocol101117InputMode::Concatenated,
     .dataset_type = Experiment03DatasetType::FusedWindow,
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
-    .lookahead = 5,
+    .prefetch_lookahead = 5,
 };
 
 auto main(int argc, char* argv[]) -> int

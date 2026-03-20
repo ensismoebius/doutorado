@@ -1,5 +1,5 @@
 /**
- * @file autoencoder_scaffold_example.cpp
+ * @file src/demos/autoencoder/autoencoder_scaffold_example.cpp
  * @brief Minimal usage example for the experiment03 autoencoder scaffold models.
  *
  * This file shows how to construct each of the 8 autoencoder variants, run a

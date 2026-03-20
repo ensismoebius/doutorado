@@ -113,23 +113,23 @@ auto build_autoencoder_model(const Config& config, int input_features) -> std::u
 {
     AutoencoderConfig model_cfg{};
     model_cfg.input_features = input_features;
-    model_cfg.hidden_size = config.ae_hidden_size;
-    model_cfg.latent_size = config.ae_latent_size;
-    model_cfg.depth = config.ae_depth;
-    model_cfg.architecture = config.ae_architecture;
-    model_cfg.branch_hidden_size = config.ae_branch_hidden_size;
-    model_cfg.fusion_hidden_size = config.ae_fusion_hidden_size;
-    model_cfg.residual_blocks = config.ae_residual_blocks;
-    model_cfg.time_step = config.ae_time_step;
-    model_cfg.resistance = config.ae_resistance;
-    model_cfg.capacitance = config.ae_capacitance;
+    model_cfg.hidden_size = config.autoencoder_hidden_size;
+    model_cfg.latent_size = config.autoencoder_latent_size;
+    model_cfg.depth = config.autoencoder_depth;
+    model_cfg.architecture = config.autoencoder_architecture;
+    model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
+    model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;
+    model_cfg.residual_blocks = config.autoencoder_residual_blocks;
+    model_cfg.time_step = config.autoencoder_time_step;
+    model_cfg.resistance = config.autoencoder_resistance;
+    model_cfg.capacitance = config.autoencoder_capacitance;
 
     if (config.autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
         config.autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
     {
         model_cfg.eeg_features = static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
-                                 config.eeg_window_spec.window_size;
-        model_cfg.audio_features = config.audio_window_spec.window_size;
+                                 config.eeg_window_config.window_size;
+        model_cfg.audio_features = config.audio_window_config.window_size;
         if (model_cfg.architecture == AutoencoderArchitecture::Auto)
         {
             model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -206,7 +206,7 @@ int Experiment03::run()
 
         // Discover subjects and initialize dataset with specified input mode.
         const auto discovered =
-            discoverSubjects(config_.dataset_root, config_.subject_regex_pattern);
+            discoverSubjects(config_.dataset_root, config_.subject_filter_regex);
 
         // Instantiate dataset based on configured type.
         // Dataset is shared_ptr so it can be easily passed to DataLoader
@@ -222,18 +222,18 @@ int Experiment03::run()
             }
             case Experiment03DatasetType::EegWindow:
             {
-                dataset_ = make_shared<EEGWindowDataset>(discovered, config_.eeg_window_spec);
+                dataset_ = make_shared<EEGWindowDataset>(discovered, config_.eeg_window_config);
                 break;
             }
             case Experiment03DatasetType::AudioWindow:
             {
-                dataset_ = make_shared<AudioWindowDataset>(discovered, config_.audio_window_spec);
+                dataset_ = make_shared<AudioWindowDataset>(discovered, config_.audio_window_config);
                 break;
             }
             case Experiment03DatasetType::FusedWindow:
             {
                 dataset_ = make_shared<FusedWindowDataset>(
-                    discovered, config_.eeg_window_spec, config_.audio_window_spec);
+                    discovered, config_.eeg_window_config, config_.audio_window_config);
                 break;
             }
         }
@@ -247,9 +247,9 @@ int Experiment03::run()
                  << "'. Execution will continue using observed input feature size.\n";
         }
 
-        // DataLoader is reused across epochs; prefetcher is re-created per epoch.
+        // DataLoader is reused across training_epochs; prefetcher is re-created per epoch.
         loader_ =
-            std::make_unique<DataLoader>(dataset_, config_.batch_size, config_.sampler_options);
+            std::make_unique<DataLoader>(dataset_, config_.batch_size, config_.resolved_sampler_options);
 
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
@@ -267,14 +267,14 @@ int Experiment03::run()
                  << std::endl;
         }
 
-        // Training: iterate over all epochs, recreating the prefetcher each epoch so the
+        // Training: iterate over all training_epochs, recreating the prefetcher each epoch so the
         // DataLoader resets its iteration state for each pass over the data.
         MSELoss loss;
         std::unique_ptr<Adam> optimizer;
 
-        for (int epoch = 0; epoch < config_.epochs; ++epoch)
+        for (int epoch = 0; epoch < config_.training_epochs; ++epoch)
         {
-            cout << "\n=== Epoch " << (epoch + 1) << " / " << config_.epochs << " ===\n";
+            cout << "\n=== Epoch " << (epoch + 1) << " / " << config_.training_epochs << " ===\n";
 
             // Reset per-epoch counters.
             processed_samples_ = 0;
@@ -282,7 +282,7 @@ int Experiment03::run()
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
             prefetcher_ =
-                std::make_unique<BatchPrefetcher>(*loader_, config_.max_batches, config_.lookahead);
+                std::make_unique<BatchPrefetcher>(*loader_, config_.max_batches_per_epoch, config_.prefetch_lookahead);
 
             float epoch_loss_sum = 0.0F;
             int epoch_batches = 0;
@@ -299,7 +299,7 @@ int Experiment03::run()
                 {
                     model_ =
                         build_autoencoder_model(config_, static_cast<int>(batch.inputs.cols()));
-                    optimizer = std::make_unique<Adam>(config_.learning_rate);
+                    optimizer = std::make_unique<Adam>(config_.training_learning_rate);
                     auto init_p = model_->params();
                     optimizer->attach(std::span<nn::Tensor*>(init_p.data(), init_p.size()));
                 }
@@ -331,7 +331,7 @@ int Experiment03::run()
 
                 printProgress(dataset_total_samples_,
                     config_.batch_size,
-                    config_.max_batches,
+                    config_.max_batches_per_epoch,
                     seen_batches_,
                     processed_samples_,
                     false);
@@ -340,7 +340,7 @@ int Experiment03::run()
             // Finalize progress line for this epoch.
             printProgress(dataset_total_samples_,
                 config_.batch_size,
-                config_.max_batches,
+                config_.max_batches_per_epoch,
                 prefetcher_->seenBatches(),
                 processed_samples_,
                 true);
