@@ -383,8 +383,8 @@ experiment03 --help
 | `--ae-latent-size` | positive int | `32` | Dimensionality of the bottleneck (latent) vector |
 | `--ae-depth` | positive int | `2` | Number of hidden layer blocks in encoder (mirrored in decoder) |
 | `--ae-time-step` | positive float | `1.0` | SNN neuron time step `dt`; controls leaky decay β |
-| `--ae-resistance` | positive float | `1.0` | SNN membrane resistance R |
-| `--ae-capacitance` | positive float | `1.0` | SNN membrane capacitance C |
+| `--ae-resistance` | positive float | `1.0` | Initial SNN membrane resistance R (trainable during optimization in SNN models) |
+| `--ae-capacitance` | positive float | `1.0` | Initial SNN membrane capacitance C (trainable during optimization in SNN models) |
 | `--lr` | positive float | `0.001` | Adam optimizer learning rate |
 | `--epochs` | positive int | `1` | Number of full passes over the dataset |
 | `--eeg-window-size` | positive int | `256` | EEG window length in samples (windowing datasets) |
@@ -436,6 +436,16 @@ Eight variants are available, covering all four dataset modalities in both ANN a
 
 SNN decoders use the **LeakyIntegrator** (continuous membrane readout) rather than a spike emitter,
 which makes MSE reconstruction loss well-defined without any spike-to-rate decoding step.
+
+For SNN variants, the leaky dynamics follow:
+
+$$
+\beta = \exp\!\left(-\frac{dt}{R\,C}\right)
+$$
+
+where $R$ and $C$ are optimized as trainable scalar parameters (stored internally as $1\times1$
+tensors). To improve numerical stability, capacitance is clamped to a small positive value during
+forward/backward computations.
 
 ---
 
@@ -746,6 +756,14 @@ architecture is evaluated on different input spaces.
 
 ### 7.1 LeakyIntegrator Readout Layer
 The LeakyIntegrator is a continuous-valued readout for SNNs, acting as a low-pass filter on spike trains. Use it as the final decoder layer for regression or reconstruction tasks, or for debugging gradient flow.
+
+Current implementation details:
+- `Leaky` and `LeakyIntegrator` now train `resistance` and `capacitance` in addition to threshold
+    (for `Leaky`).
+- Gradients include both $\partial L/\partial R$ and $\partial L/\partial C$ through
+    $\beta = \exp(-dt/(RC))$.
+- Saved model checkpoints now include `capacitance` for `Leaky` layers. Loading remains backward
+    compatible with older checkpoints that do not contain this field.
 
 ### 7.2 Multi-Pass Forward and Loss Modes
 For SNNs with stochasticity (e.g., Poisson coding), aggregate outputs over multiple forward passes to reduce variance. Implement configurable loss modes (rate, Monte Carlo, temporal pooling, van Rossum, membrane, cosine, MSE vector) and always compute loss after aggregation. Ensure CLI/config compatibility and GPU safety.

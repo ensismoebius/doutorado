@@ -12,6 +12,7 @@
 #include "nn/initializers/xavier.hpp"
 #include "nn/layers/Conv2d.hpp"
 #include "nn/layers/Leaky.hpp"
+#include "nn/layers/LeakyIntegrator.hpp"
 #include "nn/layers/LeakyReLU.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/MSELoss.hpp"
@@ -145,6 +146,91 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
     ASSERT_FLOAT_EQ(out.at(0, 0), 1.0F);
     // v_mem deve ser reduzido pelo threshold
     ASSERT_FLOAT_EQ(leaky.v_mem.at(0, 0), 1.0F); // 3.0 - 2.0
+}
+
+TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
+{
+    Leaky leaky(/*dt=*/1.0F,
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/true,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
+
+    auto parameters = leaky.params();
+    ASSERT_EQ(parameters.size(), 3);
+    EXPECT_EQ(parameters[0], &leaky.resistance);
+    EXPECT_EQ(parameters[1], &leaky.voltage_threshold);
+    EXPECT_EQ(parameters[2], &leaky.capacitance);
+}
+
+TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
+{
+    Leaky leaky(/*dt=*/1.0F,
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/1.1F,
+        /*reset_zero=*/true,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor first_input(1, 1);
+    first_input.at(0, 0) = 1.0F;
+    [[maybe_unused]] nn::Tensor first_output = leaky.forward(first_input, true);
+
+    nn::Tensor second_input(1, 1);
+    second_input.at(0, 0) = 0.2F;
+    [[maybe_unused]] nn::Tensor second_output = leaky.forward(second_input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    [[maybe_unused]] nn::Tensor grad_input = leaky.backward(grad_output);
+
+    // Analytical expectation for this setup:
+    // dL/dC = dL/dbeta * dBeta/dC
+    // dL/dbeta = surrogate(v_pre, V_th) * v(t-1)
+    const float R = 5.0F;
+    const float C = 1.0F;
+    const float dt = 1.0F;
+    const float beta = std::exp(-dt / (R * C));
+    const float v_pre = beta * 1.0F + 0.2F;
+    const float v_th = 1.1F;
+    const float surrogate = std::exp(-std::abs(v_pre - v_th));
+    const float expected_d_beta_dC = (beta * dt) / (R * C * C);
+    const float expected_dL_dC = surrogate * 1.0F * expected_d_beta_dC;
+
+    EXPECT_NEAR(leaky.capacitance.grad().at(0, 0), expected_dL_dC, 1e-5F);
+}
+
+TEST(LeakyIntegratorLayerTest, BackwardComputesCapacitanceGradient)
+{
+    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/2.0F, /*C=*/3.0F);
+
+    nn::Tensor first_input(1, 1);
+    first_input.at(0, 0) = 2.0F;
+    [[maybe_unused]] nn::Tensor first_output = integrator.forward(first_input, true);
+
+    nn::Tensor second_input(1, 1);
+    second_input.at(0, 0) = 1.0F;
+    [[maybe_unused]] nn::Tensor second_output = integrator.forward(second_input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    nn::Tensor grad_input = integrator.backward(grad_output);
+
+    const float R = 2.0F;
+    const float C = 3.0F;
+    const float dt = 1.0F;
+    const float beta = std::exp(-dt / (R * C));
+
+    // dL/dbeta = sum(grad_output * v(t-1)) = 1 * 2.0
+    const float expected_dL_dbeta = 2.0F;
+    const float expected_d_beta_dC = (beta * dt) / (R * C * C);
+    const float expected_dL_dC = expected_dL_dbeta * expected_d_beta_dC;
+
+    EXPECT_NEAR(grad_input.at(0, 0), 1.0F, 1e-6F);
+    EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
 }
 
 // Teste para LeakyReLU

@@ -48,6 +48,10 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     std::string filename = temp_directory_path().string() + "/test_model_save_load.npz";
     ASSERT_TRUE(NetworkSerializer::saveNetwork(model, filename));
 
+    // Ensure new trainable parameter is persisted in checkpoint payload.
+    const cnpy::npz_t saved_data = cnpy::npz_load(filename);
+    EXPECT_NE(saved_data.find("2.capacitance"), saved_data.end());
+
     // Load into a new model
     Sequential loaded;
     ASSERT_TRUE(NetworkSerializer::loadNetwork(loaded, filename));
@@ -84,7 +88,7 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     auto loaded_leaky = std::dynamic_pointer_cast<Leaky>(loaded.layers[2]);
     ASSERT_TRUE(loaded_leaky);
     EXPECT_FLOAT_EQ(loaded_leaky->time_step, 1.0F);
-    EXPECT_FLOAT_EQ(loaded_leaky->capacitance, 3.0F);
+    EXPECT_FLOAT_EQ(loaded_leaky->capacitance.at(0, 0), 3.0F);
     EXPECT_FLOAT_EQ(loaded_leaky->reset_potential, 0.5F);
     EXPECT_TRUE(loaded_leaky->reset_zero);
     EXPECT_FLOAT_EQ(loaded_leaky->resistance.at(0, 0), 2.0F);

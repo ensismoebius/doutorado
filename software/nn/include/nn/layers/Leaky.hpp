@@ -53,6 +53,8 @@
  *
  * 3.  **Trainable**: It includes a `backward` pass that uses a surrogate
  *     gradient, making it possible to train the network using backpropagation.
+ *     Trainable parameters: `resistance`, `voltage_threshold`, and `capacitance`.
+ *     All three are exposed via `params()` and receive gradient updates.
  */
 struct Leaky : public Module
 {
@@ -66,7 +68,8 @@ struct Leaky : public Module
     nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
 
     /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
-    float capacitance = 1.0F;
+    /// Stored as a 1×1 trainable tensor so the optimizer can update it via backprop.
+    nn::Tensor capacitance = nn::Tensor::constant(1, 1, 1.0F);
 
     /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
     nn::Tensor voltage_threshold = nn::Tensor::constant(1, 1, 1.0F);
@@ -95,7 +98,7 @@ struct Leaky : public Module
     {
         // Parameters are stored as 1x1 tensors so optimizers can treat them like
         // any other trainable parameter.
-        return {&resistance, &voltage_threshold};
+        return {&resistance, &voltage_threshold, &capacitance};
     }
 
     /**
@@ -120,7 +123,8 @@ struct Leaky : public Module
     {
         resistance = nn::Tensor(1, 1);
         resistance.at(0, 0) = resistance_;
-        capacitance = capacitance_;
+        capacitance = nn::Tensor(1, 1);
+        capacitance.at(0, 0) = capacitance_;
         voltage_threshold = nn::Tensor(1, 1);
         voltage_threshold.at(0, 0) = voltage_threshold_;
         reset_zero = reset_zero_;
@@ -149,7 +153,9 @@ struct Leaky : public Module
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
         // Beta is the discrete-time decay factor derived from the continuous-time
         // decay equation, representing the "leaky" nature of the neuron.
-        float const tau = resistance(0, 0) * capacitance;
+        // Clamp capacitance to a small positive value to prevent tau = 0.
+        float const C = std::max(1e-6F, capacitance.at(0, 0));
+        float const tau = resistance.at(0, 0) * C;
         float const beta = std::exp(-time_step / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
@@ -278,7 +284,7 @@ struct Leaky : public Module
         // --- Gradient for resistance ---
         // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
         const float R = resistance.at(0, 0);
-        const float C = capacitance;
+        const float C = std::max(1e-6F, capacitance.at(0, 0));
         const float tau = R * C;
         if (tau > 1e-6) [[likely]]
         { // Avoid division by zero if R or C are zero
@@ -287,16 +293,28 @@ struct Leaky : public Module
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
             float dL_dbeta = grad_v_pre_mat.multiply(v_mem_t_minus_1).sum();
+
+            // --- Gradient for resistance ---
             const float dL_dR = dL_dbeta * d_beta_dR;
             nn::Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dR;
             resistance.set_grad(r_grad);
+
+            // --- Gradient for capacitance (symmetric to dL/dR) ---
+            // dBeta/dC = beta * dt / (R * C^2)
+            const float d_beta_dC = (beta * time_step) / (R * C * C);
+            nn::Tensor c_grad(1, 1);
+            c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
+            capacitance.set_grad(c_grad);
         }
         else
         {
             nn::Tensor r_grad(1, 1);
             r_grad.set_zero();
             resistance.set_grad(r_grad);
+            nn::Tensor c_grad(1, 1);
+            c_grad.set_zero();
+            capacitance.set_grad(c_grad);
         }
 
         // Apply the chain rule: the gradient flowing to the input (`grad_input`) is

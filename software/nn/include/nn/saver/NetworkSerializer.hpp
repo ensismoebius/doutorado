@@ -30,7 +30,7 @@
  *
  * Supported layers:
  * - `Linear` (weights + bias)
- * - `Leaky` (scalar 1x1 tensor params: resistance, voltage_threshold)
+ * - `Leaky` (scalar 1x1 tensor params: resistance, voltage_threshold, capacitance)
  * - `ReLU`, `LeakyReLU` (no parameters)
  *
  * Limitations / caveats:
@@ -196,7 +196,8 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
     map<string, pair<vector<size_t>, const float*>>& params)
 {
     arch_str += "Leaky:" + to_string(layer->time_step) + ":" +
-                to_string(layer->resistance.at(0, 0)) + ":" + to_string(layer->capacitance) + ":" +
+                to_string(layer->resistance.at(0, 0)) + ":" +
+                to_string(layer->capacitance.at(0, 0)) + ":" +
                 to_string(layer->voltage_threshold.at(0, 0)) + ":" +
                 (layer->reset_zero ? "1" : "0") + ":" + to_string(layer->reset_potential) + "\n";
     params[to_string(index) + ".resistance"] = {
@@ -204,6 +205,8 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
     params[to_string(index) + ".voltage_threshold"] = {
         {layer->voltage_threshold.rows(), layer->voltage_threshold.cols()},
         layer->voltage_threshold.data_ptr()};
+    params[to_string(index) + ".capacitance"] = {
+        {layer->capacitance.rows(), layer->capacitance.cols()}, layer->capacitance.data_ptr()};
 }
 
 // --- Load Implementations ---
@@ -390,6 +393,24 @@ inline void NetworkSerializer::_loadLeakyParams(
         for (size_t j = 0; j < vth_cols; ++j)
         {
             layer->voltage_threshold.at(i, j) = vth_data[i * vth_cols + j];
+        }
+    }
+
+    // Load capacitance (may be absent in older saves — fall back to current value)
+    std::string cap_name = std::to_string(index) + ".capacitance";
+    auto cap_it = data.find(cap_name);
+    if (cap_it != data.end())
+    {
+        const cnpy::NpyArray& arr_c = cap_it->second;
+        const float* c_data = arr_c.data<float>();
+        size_t c_rows = static_cast<size_t>(arr_c.shape[0]);
+        size_t c_cols = static_cast<size_t>(arr_c.shape[1]);
+        for (size_t i = 0; i < c_rows; ++i)
+        {
+            for (size_t j = 0; j < c_cols; ++j)
+            {
+                layer->capacitance.at(i, j) = c_data[i * c_cols + j];
+            }
         }
     }
 }

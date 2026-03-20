@@ -60,7 +60,9 @@ struct LeakyIntegrator : public Leaky
 
         // 2. Calculate Decay Factor (beta)
         // beta = exp(-dt / RC)
-        float const tau = resistance.at(0, 0) * capacitance;
+        // Clamp capacitance to prevent tau = 0.
+        float const C = std::max(1e-6F, capacitance.at(0, 0));
+        float const tau = resistance.at(0, 0) * C;
         float const beta = std::exp(-time_step / tau);
 
         // Note: if tau is extremely small, beta can underflow; callers should
@@ -99,7 +101,7 @@ struct LeakyIntegrator : public Leaky
         // dL/dR = dL/dV * dV/dbeta * dbeta/dR
         // dV/dbeta = V[t-1]
         const float R = resistance.at(0, 0);
-        const float C = capacitance;
+        const float C = std::max(1e-6F, capacitance.at(0, 0));
         const float tau = R * C;
 
         if (tau > 1e-6) [[likely]]
@@ -110,9 +112,17 @@ struct LeakyIntegrator : public Leaky
             // dL/dbeta = sum( dL/dV * V[t-1] )
             float dL_dbeta = grad_input.multiply(v_mem_t_minus_1).sum();
 
+            // --- Gradient for resistance ---
             nn::Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dbeta * d_beta_dR;
             resistance.set_grad(r_grad);
+
+            // --- Gradient for capacitance (symmetric to dL/dR) ---
+            // dBeta/dC = beta * dt / (R * C^2)
+            const float d_beta_dC = (beta * time_step) / (R * C * C);
+            nn::Tensor c_grad(1, 1);
+            c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
+            capacitance.set_grad(c_grad);
         }
         else
         {
@@ -121,6 +131,9 @@ struct LeakyIntegrator : public Leaky
             nn::Tensor r_grad(1, 1);
             r_grad.set_zero();
             resistance.set_grad(r_grad);
+            nn::Tensor c_grad(1, 1);
+            c_grad.set_zero();
+            capacitance.set_grad(c_grad);
         }
 
         return grad_input;
