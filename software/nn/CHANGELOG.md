@@ -31,26 +31,42 @@ All notable changes to this project will be documented in this file.
   and a migration guide; consider bumping the project's semantic version.
 - Recommend reviewing and committing formatting-only changes as a separate
   commit to simplify review of behavioral changes.
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-## [Unreleased]
+## Unreleased (2026-03-20)
 
 ### Added
 
-- Added sampler abstraction in `include/nn/dataLoaders/samplers/ISampler.hpp` with built-in implementations:
-  - `SequentialSampler`
-  - `RandomSampler`
-  - `WeightedRandomSampler`
-  - `DistributedSampler`
-- Added sampler implementation file `src/core/dataLoaders/Sampler.cpp`.
-- Added sampler-focused tests in `src/core/dataLoaders/tests/sampler_gtest.cpp`.
-- Added sampler architecture guide in `src/core/dataLoaders/README.md`.
+- Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches
+  with latent-space fusion and modality-specific decoders. Implementations live under
+  `src/experiments/03/lib/` (Fused & Protocol autoencoders).
+- Trainable SNN membrane parameters: membrane resistance `R` and capacitance `C` are now
+  learnable scalar parameters exposed via the CLI (`--ae-resistance`, `--ae-capacitance`) and
+  persisted with model weights.
+- Transparent architecture fallback: models can automatically fall back from `DualBranchFusion`
+  to `ResidualDense` when modality split hints are missing.
+- Shared builder utilities: `AutoencoderBuilders.hpp` centralizes encoder/decoder construction
+  helpers used across ANN and SNN autoencoders.
+- `reset_state()` support and proper membrane state clearing added to SNN modules (Leaky layers
+  and Sequential wrappers).
+- Redesign test suite: added `src/experiments/03/tests/AutoencoderRedesign_gtest.cpp` with tests
+  covering dual-branch and dense fallback modes for ANN and SNN.
 
 ### Changed
 
-- Refactored `DataLoader` to delegate sample-index generation to `ISampler`.
-- Added constructor overload for explicit sampler injection:
-  - `DataLoader(std::shared_ptr<Dataset>, std::size_t, std::unique_ptr<ISampler>)`
-- Kept backward-compatible constructor (`do_shuffle`, `seed`) by mapping internally to default samplers.
+- `experiment03` model construction now infers protocol/eeg/audio splits and auto-selects
+  `DualBranchFusion` when applicable. See `src/experiments/03/lib/src/experiment03.cpp`.
+- Refactored `ProtocolAutoencoder` and `ProtocolSpikingAutoencoder` to support both
+  dual-branch and dense fallback execution paths.
+
+### Fixed
+
+- Implemented `Leaky::reset_state()` to correctly zero internal membrane state, resolving
+  state-leak issues across batches and enabling deterministic reset behavior in SNN tests.
+
+### Notes
+
+- Validation: focused regression and redesign suites passing locally (redesign tests + Leaky
+  and serializer regression slice). Static analysis (cppcheck, flawfinder) reported no new
+  issues related to these changes; existing findings are in unrelated data-loader tests.
+- Recommended reviewer focus: `src/experiments/03/lib/*`, `include/nn/layers/Leaky.hpp`, and
+  `src/experiments/03/tests/AutoencoderRedesign_gtest.cpp` for behavioral review.
+

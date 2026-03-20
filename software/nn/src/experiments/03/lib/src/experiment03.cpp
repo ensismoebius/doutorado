@@ -135,6 +135,25 @@ auto build_autoencoder_model(const Config& config, int input_features) -> std::u
             model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
         }
     }
+    else if (config.autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
+             config.autoencoder_type == Experiment03AutoencoderType::ProtocolSnn)
+    {
+        if (config.input_mode == Protocol101117InputMode::Concatenated)
+        {
+            model_cfg.audio_features =
+                static_cast<int>(ImaginedSpeechSchema_10_1117.audioSamples());
+            model_cfg.eeg_features = static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
+                                     model_cfg.audio_features;
+            if (model_cfg.architecture == AutoencoderArchitecture::Auto)
+            {
+                model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
+            }
+        }
+        else if (model_cfg.architecture == AutoencoderArchitecture::Auto)
+        {
+            model_cfg.architecture = AutoencoderArchitecture::ResidualDense;
+        }
+    }
     else if (model_cfg.architecture == AutoencoderArchitecture::Auto)
     {
         model_cfg.architecture = AutoencoderArchitecture::ResidualDense;

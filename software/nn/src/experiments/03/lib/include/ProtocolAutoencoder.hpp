@@ -21,8 +21,20 @@
  */
 struct ProtocolAutoencoder : Module
 {
+    bool use_dual_branch_ = false;
+
     Sequential encoder_;
     Sequential decoder_;
+
+    Sequential eeg_encoder_;
+    Sequential audio_encoder_;
+    Sequential fusion_encoder_;
+    Sequential fusion_decoder_;
+    Sequential eeg_decoder_;
+    Sequential audio_decoder_;
+
+    int eeg_features_ = 0;
+    int audio_features_ = 0;
 
     explicit ProtocolAutoencoder(const AutoencoderConfig& cfg);
 

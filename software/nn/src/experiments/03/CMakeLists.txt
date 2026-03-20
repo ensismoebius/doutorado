@@ -86,3 +86,24 @@ target_link_libraries(autoencoder_scaffold_example
     experiment03_lib
     Eigen3::Eigen
 )
+
+add_executable(experiment03_redesign_gtest
+    ${SRC_DIR}/experiments/03/tests/AutoencoderRedesign_gtest.cpp
+)
+
+target_include_directories(experiment03_redesign_gtest
+    PRIVATE
+        ${SRC_DIR}/experiments/03/lib/include
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(experiment03_redesign_gtest
+    PRIVATE
+        experiment03_lib
+        google_test
+        Eigen3::Eigen
+)
+
+include(GoogleTest)
+gtest_discover_tests(experiment03_redesign_gtest)
+configure_eigen_parallel_target(experiment03_redesign_gtest)

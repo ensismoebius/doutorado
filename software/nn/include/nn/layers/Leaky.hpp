@@ -101,6 +101,22 @@ struct Leaky : public Module
         return {&resistance, &voltage_threshold, &capacitance};
     }
 
+    void reset_state() override
+    {
+        if (v_mem.size() > 0)
+        {
+            v_mem.setZero();
+        }
+        if (v_mem_pre_spike.size() > 0)
+        {
+            v_mem_pre_spike.setZero();
+        }
+        if (v_mem_t_minus_1.size() > 0)
+        {
+            v_mem_t_minus_1.setZero();
+        }
+    }
+
     /**
      * @brief Construct a new Leaky object
      *
