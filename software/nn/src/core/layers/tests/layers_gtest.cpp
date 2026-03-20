@@ -6,7 +6,6 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <random>
 
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/initializers/xavier.hpp"
