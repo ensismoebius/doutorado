@@ -34,6 +34,7 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
+#include "nn/tensor/EigenTensorBackend.hpp"
 #include "nn/utility/progress.hpp"
 
 using std::cerr;
@@ -42,6 +43,9 @@ using std::exception;
 using std::make_shared;
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using std::endl;
+using std::make_unique;
+using std::size_t;
 using std::unique_ptr;
 
 namespace
@@ -110,7 +114,8 @@ auto is_autoencoder_compatible(
     return false;
 }
 
-auto build_autoencoder_model(const Config& config, int input_features) -> std::unique_ptr<Module>
+auto build_autoencoder_model(const Config& config, nn::Index input_features)
+    -> std::unique_ptr<Module>
 {
     AutoencoderConfig model_cfg{};
     model_cfg.input_features = input_features;
@@ -163,21 +168,21 @@ auto build_autoencoder_model(const Config& config, int input_features) -> std::u
     switch (config.autoencoder_type)
     {
         case Experiment03AutoencoderType::ProtocolAnn:
-            return std::make_unique<ProtocolAutoencoder>(model_cfg);
+            return make_unique<ProtocolAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::EegWindowAnn:
-            return std::make_unique<EegWindowAutoencoder>(model_cfg);
+            return make_unique<EegWindowAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::AudioWindowAnn:
-            return std::make_unique<AudioWindowAutoencoder>(model_cfg);
+            return make_unique<AudioWindowAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::FusedWindowAnn:
-            return std::make_unique<FusedWindowAutoencoder>(model_cfg);
+            return make_unique<FusedWindowAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::ProtocolSnn:
-            return std::make_unique<ProtocolSpikingAutoencoder>(model_cfg);
+            return make_unique<ProtocolSpikingAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::EegWindowSnn:
-            return std::make_unique<EegWindowSpikingAutoencoder>(model_cfg);
+            return make_unique<EegWindowSpikingAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::AudioWindowSnn:
-            return std::make_unique<AudioWindowSpikingAutoencoder>(model_cfg);
+            return make_unique<AudioWindowSpikingAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::FusedWindowSnn:
-            return std::make_unique<FusedWindowSpikingAutoencoder>(model_cfg);
+            return make_unique<FusedWindowSpikingAutoencoder>(model_cfg);
     }
 
     throw std::runtime_error("Unsupported autoencoder type");
@@ -207,8 +212,10 @@ int Experiment03::run()
         ////////////////////////////
 
         // Discover subjects and initialize dataset with specified input mode.
-        const auto discovered =
-            discoverSubjects(config_.dataset_root, config_.subject_filter_regex);
+        const auto discovered = discoverSubjects( //
+            config_.dataset_root,                 //
+            config_.subject_filter_regex          //
+        );
 
         // Instantiate dataset based on configured type.
         // Dataset is shared_ptr so it can be easily passed to DataLoader
@@ -242,7 +249,7 @@ int Experiment03::run()
             }
         }
 
-        if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type))
+        if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type)) [[unlikely]]
         {
             cout << "Warning: selected dataset type '"
                  << dataset_type_to_string(config_.dataset_type)
@@ -252,8 +259,11 @@ int Experiment03::run()
         }
 
         // DataLoader is reused across training_epochs; prefetcher is re-created per epoch.
-        data_loader_ = std::make_unique<DataLoader>(
-            dataset_, config_.batch_size, config_.resolved_sampler_options);
+        data_loader_ = make_unique<DataLoader>( //
+            dataset_,                           //
+            config_.batch_size,                 //
+            config_.resolved_sampler_options    //
+        );
 
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
@@ -268,7 +278,7 @@ int Experiment03::run()
         else
         {
             cout << "Dataset initialized with " << dataset_total_samples_ << " total samples."
-                 << std::endl;
+                 << endl;
         }
 
         /////////////////////////////////
@@ -283,11 +293,11 @@ int Experiment03::run()
         // Training: iterate over all training_epochs.
         // Recreating the prefetcher each epoch so the DataLoader
         // resets its iteration state for each pass over the data.
-        for (int epoch = 0; epoch < config_.training_epochs; ++epoch)
+        for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
         {
             // Track cumulative loss and batch count for mean
             // loss reporting at the end of the epoch.
-            int epoch_batches = 0;
+            size_t epoch_batches = 0;
             float epoch_loss_sum = 0.0F;
 
             // Reset per-epoch counters.
@@ -295,19 +305,20 @@ int Experiment03::run()
             processed_samples_ = 0;
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
-            prefetcher_ = std::make_unique<BatchPrefetcher>( //
-                *data_loader_,                               //
-                config_.max_batches_per_epoch,               //
-                config_.prefetch_lookahead                   //
+            prefetcher_ = make_unique<BatchPrefetcher>( //
+                *data_loader_,                          //
+                config_.max_batches_per_epoch,          //
+                config_.prefetch_lookahead              //
             );
 
             // Iterate over batches produced by the prefetcher.
-            while (prefetcher_->hasNext())
+            while (prefetcher_->hasNext()) [[likely]]
             {
                 // Get next batch from prefetcher;
                 // break if no more batches are available.
                 auto maybe_batch = prefetcher_->next();
-                if (!maybe_batch.has_value()) break;
+                if (!maybe_batch.has_value()) [[unlikely]]
+                    break;
 
                 // Move batch out of optional;
                 // batch is now owned by this scope.
@@ -317,17 +328,16 @@ int Experiment03::run()
                 if (!model_) [[unlikely]]
                 {
                     // Build model based on observed input feature size and config.
-                    model_ = build_autoencoder_model(         //
-                        config_,                              //
-                        static_cast<int>(batch.inputs.cols()) //
+                    model_ = build_autoencoder_model( //
+                        config_,                      //
+                        batch.inputs.cols()           //
                     );
 
                     // Initialize optimizer with model parameters.
-                    optimizer = std::make_unique<Adam>(config_.training_learning_rate);
+                    optimizer = make_unique<Adam>(config_.training_learning_rate);
 
                     // Attach model parameters to optimizer.
-                    auto model_parameters = model_->params();
-                    optimizer->attach(model_parameters);
+                    optimizer->attach(model_->params());
                 }
 
                 // SNN models need membrane state reset between independent sequences (batches).
@@ -342,17 +352,17 @@ int Experiment03::run()
 
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
-                auto L = loss.forward(reconstruction, /*requires_grad=*/true);
-                auto dL = loss.backward(L);
+                auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
+                auto derivative_loss_value = loss.backward(loss_value);
 
                 // Backward pass + parameter update.
-                model_->backward(dL);
+                model_->backward(derivative_loss_value);
                 optimizer->step(params);
 
-                epoch_loss_sum += L.at(0, 0);
+                epoch_loss_sum += loss_value.at(0, 0);
                 ++epoch_batches;
 
-                processed_samples_ += static_cast<std::size_t>(batch.inputs.rows());
+                processed_samples_ += static_cast<size_t>(batch.inputs.rows());
                 seen_batches_ = prefetcher_->seenBatches();
 
                 printProgress(dataset_total_samples_,
@@ -361,19 +371,25 @@ int Experiment03::run()
                     seen_batches_,
                     processed_samples_,
                     false,
-                    static_cast<std::size_t>(epoch + 1),
-                    static_cast<std::size_t>(config_.training_epochs));
+                    epoch + 1,
+                    config_.training_epochs,
+                    static_cast<double>(loss_value.at(0, 0)));
             }
 
             // Finalize progress line for this epoch.
-            printProgress(dataset_total_samples_,
-                config_.batch_size,
-                config_.max_batches_per_epoch,
-                prefetcher_->seenBatches(),
-                processed_samples_,
-                true,
-                static_cast<std::size_t>(epoch + 1),
-                static_cast<std::size_t>(config_.training_epochs));
+            if (model_)
+            {
+                printProgress(dataset_total_samples_,
+                    config_.batch_size,
+                    config_.max_batches_per_epoch,
+                    prefetcher_->seenBatches(),
+                    processed_samples_,
+                    true,
+                    epoch + 1,
+                    config_.training_epochs,
+                    0.0,
+                    model_->params());
+            }
 
             const float mean_loss =
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;

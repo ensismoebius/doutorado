@@ -13,6 +13,8 @@
 #include <iostream>
 #include <string>
 
+#include "nn/tensor/Tensor.hpp"
+
 void printProgress(std::size_t dataset_total_samples,
     std::size_t batch_size,
     std::size_t max_batches,
@@ -20,7 +22,9 @@ void printProgress(std::size_t dataset_total_samples,
     std::size_t processed_samples,
     bool done,
     std::size_t current_epoch,
-    std::size_t total_epochs)
+    std::size_t total_epochs,
+    double current_loss,
+    std::span<nn::Tensor*> params)
 {
     const std::size_t safe_batch_size = (batch_size == 0) ? 1 : batch_size;
     const std::size_t dataset_total_batches =
@@ -63,9 +67,29 @@ void printProgress(std::size_t dataset_total_samples,
               << clamped_seen_batches << "/" << total_batches << "b, " << clamped_processed_samples
               << "/" << total_samples << "s)";
 
+    // Print current loss inline if it's a finite number.
+    if (std::isfinite(current_loss))
+    {
+        std::cout << "  loss: " << std::fixed << std::setprecision(6) << current_loss;
+    }
+
     if (done)
     {
         std::cout << '\n';
     }
     std::cout.flush();
+
+    // If finished and a non-empty params span is provided, print final parameter summaries.
+    if (done && !params.empty())
+    {
+        std::cout << "Final network parameters:\n";
+        for (std::size_t i = 0; i < params.size(); ++i)
+        {
+            nn::Tensor* p = params[i];
+            if (!p) continue;
+            std::cout << "  [" << i << "] " << p->rows() << "x" << p->cols()
+                      << " sum=" << std::fixed << std::setprecision(6) << p->sum() << '\n';
+        }
+        std::cout.flush();
+    }
 }

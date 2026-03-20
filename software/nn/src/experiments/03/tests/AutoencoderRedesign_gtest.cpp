@@ -100,8 +100,7 @@ TEST(Experiment03RedesignTest, FusedAnnForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }
 
 TEST(Experiment03RedesignTest, FusedSnnForwardBackwardAndParams)
@@ -119,8 +118,7 @@ TEST(Experiment03RedesignTest, FusedSnnForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }
 
 TEST(Experiment03RedesignTest, FusedSnnResetStateClearsMembranes)
@@ -162,8 +160,7 @@ TEST(Experiment03RedesignTest, ProtocolAnnDualBranchForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }
 
 TEST(Experiment03RedesignTest, ProtocolSnnDualBranchForwardBackwardAndParams)
@@ -183,8 +180,7 @@ TEST(Experiment03RedesignTest, ProtocolSnnDualBranchForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }
 
 TEST(Experiment03RedesignTest, ProtocolSnnDualBranchResetStateClearsMembranes)
@@ -237,8 +233,7 @@ TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }
 
 TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
@@ -270,6 +265,5 @@ TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 
-    auto parameters = model.params();
-    EXPECT_FALSE(parameters.empty());
+    EXPECT_FALSE(model.params().empty());
 }

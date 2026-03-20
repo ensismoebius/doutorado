@@ -93,7 +93,7 @@ struct Config
 
     // Training hyperparameters.
     float training_learning_rate = 0.001F;
-    int training_epochs = 1;
+    size_t training_epochs = 1;
 
     // Window specs used by windowing datasets.
     nn::windowing::WindowSpec eeg_window_config{
