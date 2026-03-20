@@ -14,8 +14,8 @@
 #include <string>
 #include <vector>
 
-#include "CLI/CLI.hpp"
 #include "AutoencoderConfig.hpp"
+#include "CLI/CLI.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/windowing/WindowSpec.hpp"

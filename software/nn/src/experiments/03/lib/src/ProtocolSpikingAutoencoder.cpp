@@ -12,8 +12,10 @@
 #include "AutoencoderBuilders.hpp"
 
 ProtocolSpikingAutoencoder::ProtocolSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(experiment03::autoencoders::build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size)),
-      decoder_(experiment03::autoencoders::build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size))
+    : encoder_(
+          experiment03::autoencoders::build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size)),
+      decoder_(
+          experiment03::autoencoders::build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size))
 {
 }
 

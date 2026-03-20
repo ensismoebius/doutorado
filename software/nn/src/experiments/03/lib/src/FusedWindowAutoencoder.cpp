@@ -14,12 +14,10 @@ FusedWindowAutoencoder::FusedWindowAutoencoder(const AutoencoderConfig& cfg)
           cfg, cfg.eeg_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
       audio_encoder_(experiment03::autoencoders::build_ann_encoder(
           cfg, cfg.audio_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
-      fusion_encoder_(experiment03::autoencoders::build_ann_encoder(cfg,
-          cfg.latent_size * 2,
-          experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
-      fusion_decoder_(experiment03::autoencoders::build_ann_decoder(cfg,
-          cfg.latent_size * 2,
-          experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
+      fusion_encoder_(experiment03::autoencoders::build_ann_encoder(
+          cfg, cfg.latent_size * 2, experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
+      fusion_decoder_(experiment03::autoencoders::build_ann_decoder(
+          cfg, cfg.latent_size * 2, experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
       eeg_decoder_(experiment03::autoencoders::build_ann_decoder(
           cfg, cfg.eeg_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
       audio_decoder_(experiment03::autoencoders::build_ann_decoder(
@@ -37,8 +35,7 @@ FusedWindowAutoencoder::FusedWindowAutoencoder(const AutoencoderConfig& cfg)
 auto FusedWindowAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
 {
     auto eeg = experiment03::autoencoders::slice_columns(input, 0, eeg_features_);
-    auto audio =
-        experiment03::autoencoders::slice_columns(input, eeg_features_, audio_features_);
+    auto audio = experiment03::autoencoders::slice_columns(input, eeg_features_, audio_features_);
 
     auto eeg_latent = eeg_encoder_.forward(eeg, requires_grad);
     auto audio_latent = audio_encoder_.forward(audio, requires_grad);

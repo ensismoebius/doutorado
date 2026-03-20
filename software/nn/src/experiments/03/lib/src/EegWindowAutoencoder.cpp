@@ -8,8 +8,10 @@
 #include "AutoencoderBuilders.hpp"
 
 EegWindowAutoencoder::EegWindowAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(experiment03::autoencoders::build_ann_encoder(cfg, cfg.input_features, cfg.hidden_size)),
-      decoder_(experiment03::autoencoders::build_ann_decoder(cfg, cfg.input_features, cfg.hidden_size))
+    : encoder_(
+          experiment03::autoencoders::build_ann_encoder(cfg, cfg.input_features, cfg.hidden_size)),
+      decoder_(
+          experiment03::autoencoders::build_ann_decoder(cfg, cfg.input_features, cfg.hidden_size))
 {
 }
 

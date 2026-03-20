@@ -193,8 +193,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     app.add_option("--ae-architecture",
            architecture_token,
            "Autoencoder design family: auto|residual-dense|dual-branch-fusion")
-        ->check(CLI::IsMember({"auto", "residual-dense", "dual-branch-fusion"},
-            CLI::ignore_case))
+        ->check(CLI::IsMember({"auto", "residual-dense", "dual-branch-fusion"}, CLI::ignore_case))
         ->default_val(architectureToToken(default_config.ae_architecture));
 
     app.add_option("--ae-branch-hidden-size",

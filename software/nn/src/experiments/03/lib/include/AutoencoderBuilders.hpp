@@ -140,13 +140,8 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
         current = width;
     }
 
-    append_snn_stage(encoder,
-        current,
-        cfg.latent_size,
-        cfg.time_step,
-        cfg.resistance,
-        cfg.capacitance,
-        false);
+    append_snn_stage(
+        encoder, current, cfg.latent_size, cfg.time_step, cfg.resistance, cfg.capacitance, false);
     return encoder;
 }
 
