@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "CLI/CLI.hpp"
+#include "AutoencoderConfig.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/windowing/WindowSpec.hpp"
@@ -81,6 +82,10 @@ struct Config
     int ae_hidden_size = 64;
     int ae_latent_size = 32;
     int ae_depth = 2;
+    AutoencoderArchitecture ae_architecture = AutoencoderArchitecture::Auto;
+    int ae_branch_hidden_size = 0;
+    int ae_fusion_hidden_size = 0;
+    int ae_residual_blocks = 1;
     float ae_time_step = 1.0F;
     float ae_resistance = 1.0F;
     float ae_capacitance = 1.0F;

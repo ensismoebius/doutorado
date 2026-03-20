@@ -5,50 +5,11 @@
 
 #include "EegWindowSpikingAutoencoder.hpp"
 
-#include <memory>
-#include <stdexcept>
-#include <vector>
-
-#include "nn/layers/Leaky.hpp"
-#include "nn/layers/LeakyIntegrator.hpp"
-#include "nn/layers/Linear.hpp"
-
-static auto build_snn_encoder(const AutoencoderConfig& cfg) -> Sequential
-{
-    if (cfg.depth < 1) throw std::invalid_argument("AutoencoderConfig::depth must be >= 1");
-
-    Sequential enc;
-    int in_size = cfg.input_features;
-    for (int d = 0; d < cfg.depth; ++d)
-    {
-        enc.add_module(std::make_shared<Linear>(in_size, cfg.hidden_size));
-        enc.add_module(std::make_shared<Leaky>(cfg.time_step, cfg.resistance, cfg.capacitance));
-        in_size = cfg.hidden_size;
-    }
-    enc.add_module(std::make_shared<Linear>(in_size, cfg.latent_size));
-    enc.add_module(std::make_shared<Leaky>(cfg.time_step, cfg.resistance, cfg.capacitance));
-    return enc;
-}
-
-static auto build_snn_decoder(const AutoencoderConfig& cfg) -> Sequential
-{
-    Sequential dec;
-    int in_size = cfg.latent_size;
-    for (int d = 0; d < cfg.depth; ++d)
-    {
-        dec.add_module(std::make_shared<Linear>(in_size, cfg.hidden_size));
-        dec.add_module(
-            std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
-        in_size = cfg.hidden_size;
-    }
-    dec.add_module(std::make_shared<Linear>(in_size, cfg.input_features));
-    dec.add_module(
-        std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
-    return dec;
-}
+#include "AutoencoderBuilders.hpp"
 
 EegWindowSpikingAutoencoder::EegWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : encoder_(build_snn_encoder(cfg)), decoder_(build_snn_decoder(cfg))
+    : encoder_(experiment03::autoencoders::build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size)),
+      decoder_(experiment03::autoencoders::build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size))
 {
 }
 
@@ -83,6 +44,6 @@ auto EegWindowSpikingAutoencoder::params() -> std::vector<nn::Tensor*>
 
 void EegWindowSpikingAutoencoder::reset_state()
 {
-    for (auto& layer : encoder_.layers) layer->reset_state();
-    for (auto& layer : decoder_.layers) layer->reset_state();
+    experiment03::autoencoders::reset_sequential_state(encoder_);
+    experiment03::autoencoders::reset_sequential_state(decoder_);
 }

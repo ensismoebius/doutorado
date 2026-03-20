@@ -92,6 +92,8 @@ int main()
     {
         AutoencoderConfig c = cfg;
         c.input_features = kFusedFeatures;
+        c.eeg_features = kEegFeatures;
+        c.audio_features = kAudioFeatures;
         FusedWindowAutoencoder model(c);
 
         // Caller concatenates EEG and audio feature tensors before passing in.
@@ -165,6 +167,8 @@ int main()
     {
         AutoencoderConfig c = cfg;
         c.input_features = kFusedFeatures;
+        c.eeg_features = kEegFeatures;
+        c.audio_features = kAudioFeatures;
         FusedWindowSpikingAutoencoder model(c);
 
         nn::Tensor x = nn::Tensor::rand(kBatch, kFusedFeatures);

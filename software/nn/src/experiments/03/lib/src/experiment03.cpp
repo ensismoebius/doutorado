@@ -25,6 +25,7 @@
 #include "dataset_info.hpp"
 #include "experiment03.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
 #include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
@@ -39,6 +40,8 @@ using std::cerr;
 using std::cout;
 using std::exception;
 using std::make_shared;
+
+using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 
 namespace
 {
@@ -113,9 +116,29 @@ auto build_autoencoder_model(const Config& config, int input_features) -> std::u
     model_cfg.hidden_size = config.ae_hidden_size;
     model_cfg.latent_size = config.ae_latent_size;
     model_cfg.depth = config.ae_depth;
+    model_cfg.architecture = config.ae_architecture;
+    model_cfg.branch_hidden_size = config.ae_branch_hidden_size;
+    model_cfg.fusion_hidden_size = config.ae_fusion_hidden_size;
+    model_cfg.residual_blocks = config.ae_residual_blocks;
     model_cfg.time_step = config.ae_time_step;
     model_cfg.resistance = config.ae_resistance;
     model_cfg.capacitance = config.ae_capacitance;
+
+    if (config.autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
+        config.autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
+    {
+        model_cfg.eeg_features = static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
+                                 config.eeg_window_spec.window_size;
+        model_cfg.audio_features = config.audio_window_spec.window_size;
+        if (model_cfg.architecture == AutoencoderArchitecture::Auto)
+        {
+            model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
+        }
+    }
+    else if (model_cfg.architecture == AutoencoderArchitecture::Auto)
+    {
+        model_cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    }
 
     switch (config.autoencoder_type)
     {

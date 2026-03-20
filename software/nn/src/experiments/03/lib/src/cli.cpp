@@ -81,6 +81,30 @@ auto parseAutoencoderTypeToken(const std::string& token) -> Experiment03Autoenco
 
     throw std::invalid_argument("Unsupported autoencoder type token: " + token);
 }
+
+auto architectureToToken(AutoencoderArchitecture architecture) -> std::string
+{
+    switch (architecture)
+    {
+        case AutoencoderArchitecture::Auto:
+            return "auto";
+        case AutoencoderArchitecture::ResidualDense:
+            return "residual-dense";
+        case AutoencoderArchitecture::DualBranchFusion:
+            return "dual-branch-fusion";
+    }
+
+    return "auto";
+}
+
+auto parseArchitectureToken(const std::string& token) -> AutoencoderArchitecture
+{
+    if (token == "auto") return AutoencoderArchitecture::Auto;
+    if (token == "residual-dense") return AutoencoderArchitecture::ResidualDense;
+    if (token == "dual-branch-fusion") return AutoencoderArchitecture::DualBranchFusion;
+
+    throw std::invalid_argument("Unsupported autoencoder architecture token: " + token);
+}
 } // namespace
 
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
@@ -89,6 +113,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     std::string input_mode_token = protocol101117InputModeToToken(default_config.input_mode);
     std::string dataset_type_token = datasetTypeToToken(default_config.dataset_type);
     std::string autoencoder_type_token = autoencoderTypeToToken(default_config.autoencoder_type);
+    std::string architecture_token = architectureToToken(default_config.ae_architecture);
 
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
 
@@ -164,6 +189,34 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->expected(1)
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.ae_depth);
+
+    app.add_option("--ae-architecture",
+           architecture_token,
+           "Autoencoder design family: auto|residual-dense|dual-branch-fusion")
+        ->check(CLI::IsMember({"auto", "residual-dense", "dual-branch-fusion"},
+            CLI::ignore_case))
+        ->default_val(architectureToToken(default_config.ae_architecture));
+
+    app.add_option("--ae-branch-hidden-size",
+           config.ae_branch_hidden_size,
+           "Multimodal branch projection width (0 = infer from hidden/latent sizes)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(default_config.ae_branch_hidden_size);
+
+    app.add_option("--ae-fusion-hidden-size",
+           config.ae_fusion_hidden_size,
+           "Shared multimodal fusion width (0 = infer from hidden/latent sizes)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(default_config.ae_fusion_hidden_size);
+
+    app.add_option("--ae-residual-blocks",
+           config.ae_residual_blocks,
+           "Residual blocks per dense stage for redesigned ANN builders")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(default_config.ae_residual_blocks);
 
     app.add_option("--ae-time-step",
            config.ae_time_step,
@@ -308,6 +361,8 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     config.dataset_type = parseDatasetTypeToken(dataset_type_token);
     autoencoder_type_token = CLI::detail::to_lower(autoencoder_type_token);
     config.autoencoder_type = parseAutoencoderTypeToken(autoencoder_type_token);
+    architecture_token = CLI::detail::to_lower(architecture_token);
+    config.ae_architecture = parseArchitectureToken(architecture_token);
 
     config.sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
         .sampler_type = config.sampler_type,
