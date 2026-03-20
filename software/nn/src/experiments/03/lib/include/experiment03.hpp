@@ -1,3 +1,12 @@
+/**
+ * @file src/experiments/03/lib/include/experiment03.hpp
+ * @brief Public experiment driver API for Experiment03.
+ *
+ * Declares the `Experiment03` class which orchestrates dataset discovery,
+ * data loading, model construction and training loop. Consumers should
+ * configure the experiment via the `Config` structure in `cli.hpp`.
+ */
+
 #pragma once
 
 #include "cli.hpp"

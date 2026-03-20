@@ -1,3 +1,12 @@
+/**
+ * @file src/experiments/03/lib/src/cli.cpp
+ * @brief CLI parsing and option handling for Experiment03.
+ *
+ * Uses CLI11 to declare and parse command-line options for the experiment
+ * binary. This file adapts values into the `Config` structure used by
+ * `Experiment03`.
+ */
+
 #include "../include/cli.hpp"
 
 #include <stdexcept>

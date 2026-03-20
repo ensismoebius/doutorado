@@ -1,3 +1,12 @@
+/**
+ * @file src/experiments/03/lib/src/ProtocolSpikingAutoencoder.cpp
+ * @brief Spiking autoencoder implementation for protocol-formatted inputs.
+ *
+ * Builds SNN encoder and decoder stacks using `Leaky` and
+ * `LeakyIntegrator` layers and exposes the `ProtocolSpikingAutoencoder`
+ * wrapper that conforms to the project's `Module` interface.
+ */
+
 #include "ProtocolSpikingAutoencoder.hpp"
 
 #include <memory>

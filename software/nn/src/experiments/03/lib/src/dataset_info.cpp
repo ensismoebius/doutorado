@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/dataset_info.cpp
+ * @brief Helpers to summarize dataset statistics for the Experiment03 demos.
+ */
+
 #include "dataset_info.hpp"
 
 #include <iomanip>

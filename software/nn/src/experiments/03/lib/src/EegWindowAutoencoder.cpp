@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/EegWindowAutoencoder.cpp
+ * @brief ANN implementation of the EEG window autoencoder.
+ */
+
 #include "EegWindowAutoencoder.hpp"
 
 #include <memory>

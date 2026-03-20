@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/AudioWindowAutoencoder.cpp
+ * @brief ANN implementation of the audio-window autoencoder.
+ */
+
 #include "AudioWindowAutoencoder.hpp"
 
 #include <memory>

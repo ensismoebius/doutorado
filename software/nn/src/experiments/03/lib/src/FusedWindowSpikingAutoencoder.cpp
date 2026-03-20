@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/FusedWindowSpikingAutoencoder.cpp
+ * @brief SNN variant of the fused EEG+audio window autoencoder.
+ */
+
 #include "FusedWindowSpikingAutoencoder.hpp"
 
 #include <memory>

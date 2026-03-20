@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/AudioWindowSpikingAutoencoder.cpp
+ * @brief Spiking autoencoder implementation for audio-window inputs.
+ */
+
 #include "AudioWindowSpikingAutoencoder.hpp"
 
 #include <memory>

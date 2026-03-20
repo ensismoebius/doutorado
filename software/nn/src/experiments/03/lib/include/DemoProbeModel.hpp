@@ -1,3 +1,12 @@
+/**
+ * @file src/experiments/03/lib/include/DemoProbeModel.hpp
+ * @brief Small probe model used by experiments to synthesize simple features.
+ *
+ * `DemoProbeModel` implements a tiny forward-only model that reduces EEG and
+ * audio inputs to a two-element feature vector suitable for quick sanity
+ * checks in demos and unit tests.
+ */
+
 #ifndef EXEC_LOADINGDATA_DEMOPROBEMODEL_HPP
 #define EXEC_LOADINGDATA_DEMOPROBEMODEL_HPP
 

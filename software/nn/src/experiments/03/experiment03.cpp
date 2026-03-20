@@ -1,6 +1,13 @@
-// FIXME - STOPPED HERE - I have to use the Datasets recently implemented in the nn module, but I
-// need to adapt them to the current code structure. I also need to implement the training loop and
-// the model architecture for this experiment.
+/**
+ * @file src/experiments/03/experiment03.cpp
+ * @brief Lightweight launcher for Experiment03 CLI.
+ *
+ * This translation unit implements the small main() wrapper used to parse CLI
+ * parameters and invoke the `Experiment03` driver. It is intentionally thin;
+ * the experiment implementation lives under `lib/src/` and the runtime
+ * configuration is declared in `lib/include/experiment03.hpp`.
+ */
+
 #include "lib/include/experiment03.hpp"
 
 #include <cstddef>

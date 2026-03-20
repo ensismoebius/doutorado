@@ -1,3 +1,11 @@
+/**
+ * @file src/experiments/03/lib/src/progress.cpp
+ * @brief Console progress helper used by Experiment03.
+ *
+ * Renders a compact progress bar and counters used by the experiment runtime to
+ * provide feedback while iterating over dataset batches.
+ */
+
 #include "../include/progress.hpp"
 
 #include <algorithm>

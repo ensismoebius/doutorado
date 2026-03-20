@@ -1,3 +1,8 @@
+/**
+ * @file src/experiments/03/lib/src/EegWindowSpikingAutoencoder.cpp
+ * @brief Spiking autoencoder implementation for EEG window inputs.
+ */
+
 #include "EegWindowSpikingAutoencoder.hpp"
 
 #include <memory>

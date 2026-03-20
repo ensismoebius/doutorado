@@ -1,3 +1,12 @@
+/**
+ * @file src/experiments/03/lib/src/experiment03.cpp
+ * @brief Core implementation of the Experiment03 driver.
+ *
+ * Contains experiment lifecycle management: dataset discovery, data loader and
+ * prefetcher setup, model construction and the training loop. Public-facing
+ * configuration lives in `lib/include/experiment03.hpp`.
+ */
+
 #include "experiment03.hpp"
 
 #include <iostream>
