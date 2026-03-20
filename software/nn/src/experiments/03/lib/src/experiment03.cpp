@@ -22,7 +22,7 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "dataset_info.hpp"
+#include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "experiment03.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
@@ -34,7 +34,7 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
-#include "progress.hpp"
+#include "nn/utility/progress.hpp"
 
 using std::cerr;
 using std::cout;

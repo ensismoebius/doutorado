@@ -3,7 +3,7 @@
  * @brief Helpers to summarize dataset statistics for the Experiment03 demos.
  */
 
-#include "dataset_info.hpp"
+#include "nn/dataLoaders/10.1117/dataset_info.hpp"
 
 #include <iomanip>
 #include <iostream>

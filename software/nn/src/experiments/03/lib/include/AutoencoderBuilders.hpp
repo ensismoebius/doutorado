@@ -5,7 +5,6 @@
 #include <initializer_list>
 #include <memory>
 #include <stdexcept>
-#include <utility>
 #include <vector>
 
 #include "AutoencoderConfig.hpp"

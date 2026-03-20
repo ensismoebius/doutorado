@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "experiments/03/lib/include/DemoProbeModel.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
@@ -381,51 +380,3 @@ TEST_F(
     }
 }
 
-TEST(DemoProbeModelModesTest, AcceptsConcatenatedAndEegOnlyInputs)
-{
-    constexpr std::size_t eeg_features =
-        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
-    constexpr std::size_t audio_features =
-        nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
-    constexpr std::size_t stacked_rows =
-        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels + 1U;
-    constexpr std::size_t stacked_concat_features = stacked_rows * audio_features;
-
-    DemoProbeModel model;
-
-    nn::Tensor concatenated(1, stacked_concat_features);
-    for (std::size_t i = 0; i < stacked_concat_features; ++i)
-    {
-        concatenated.at(0, i) = 1.0f;
-    }
-    nn::Tensor out_concat = model.forward(concatenated);
-    EXPECT_EQ(out_concat.rows(), 1);
-    EXPECT_EQ(out_concat.cols(), 2);
-    EXPECT_GT(out_concat.at(0, 1), 0.0f);
-
-    nn::Tensor stacked(stacked_rows, audio_features);
-    for (std::size_t r = 0; r < stacked_rows; ++r)
-    {
-        for (std::size_t c = 0; c < audio_features; ++c)
-        {
-            stacked.at(r, c) = 1.0f;
-        }
-    }
-    nn::Tensor out_stacked = model.forward(stacked);
-    EXPECT_EQ(out_stacked.rows(), 1);
-    EXPECT_EQ(out_stacked.cols(), 2);
-    EXPECT_GT(out_stacked.at(0, 1), 0.0f);
-
-    nn::Tensor eeg_only(1, eeg_features);
-    for (std::size_t i = 0; i < eeg_features; ++i)
-    {
-        eeg_only.at(0, i) = 1.0f;
-    }
-    nn::Tensor out_eeg = model.forward(eeg_only);
-    EXPECT_EQ(out_eeg.rows(), 1);
-    EXPECT_EQ(out_eeg.cols(), 2);
-    EXPECT_EQ(out_eeg.at(0, 1), 0.0f);
-
-    nn::Tensor invalid(1, 7);
-    EXPECT_THROW((void) model.forward(invalid), std::runtime_error);
-}

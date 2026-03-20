@@ -1,5 +1,6 @@
 add_library(dataLoaders_10_1117
     STATIC
+    dataset_info.cpp
     loaders/AudioLoader.cpp
     loaders/EEGLoader.cpp
     schema/SubjectDiscovery.cpp

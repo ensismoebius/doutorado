@@ -1,4 +1,4 @@
-# experiment04 — Dataset loading & demo runner
+# experiment03 — Dataset loading & demo runner
 
 Overview
 --------
@@ -14,7 +14,6 @@ The pipeline implemented by `experiment04`:
 - `Protocol101117Dataset` (synchronized audio + EEG samples)
 - `DataLoader` (batching + sampling)
 - `BatchPrefetcher` (producer thread, bounded queue)
-- `DemoProbeModel` (dummy model to exercise forward pass)
 
 Key features
 ------------
