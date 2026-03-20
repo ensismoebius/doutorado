@@ -39,6 +39,9 @@ struct Linear : public Module
     // Cached input needed to compute gradients during backward.
     // Only populated when `forward(..., requires_grad=true)`.
     nn::Tensor input_cache;
+    // Owned view of parameter pointers. Must point to member tensors so the span
+    // returned by `params()` remains valid for the lifetime of this object.
+    std::array<nn::Tensor*, 2> param_ptrs_{{&weight, &bias}};
 
     /**
      * @brief Inicializa pesos e bias com base no número de entradas e saídas
@@ -160,9 +163,9 @@ struct Linear : public Module
     /**
      * @brief Returns trainable parameters
      */
-    auto params() -> std::vector<nn::Tensor*> override
+    auto params() -> std::span<nn::Tensor*> override
     {
-        return {&weight, &bias};
+        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 };
 

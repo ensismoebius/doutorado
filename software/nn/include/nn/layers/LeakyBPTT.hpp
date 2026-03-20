@@ -71,12 +71,12 @@ struct LeakyBPTT : public Module
     float reset_potential = 0.0F;
 
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
+    // Persistent parameter pointer storage for returning spans.
+    std::array<nn::Tensor*, 2> param_ptrs_{{&resistance, &voltage_threshold}};
 
-    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
     {
-        // These are the trainable scalars exposed to optimizers.
-        // Note: time_step and capacitance are plain floats (not optimized here).
-        return {&resistance, &voltage_threshold};
+        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     explicit LeakyBPTT(int time_steps_,

@@ -63,3 +63,5 @@ target_link_libraries(experiment03
     matioCpp
     z
 )
+
+add_subdirectory(tests)

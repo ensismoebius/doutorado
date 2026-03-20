@@ -93,12 +93,12 @@ struct Leaky : public Module
 
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
+    // Persistent parameter pointer storage for returning spans.
+    std::array<nn::Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
 
-    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
     {
-        // Parameters are stored as 1x1 tensors so optimizers can treat them like
-        // any other trainable parameter.
-        return {&resistance, &voltage_threshold, &capacitance};
+        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     void reset_state() override

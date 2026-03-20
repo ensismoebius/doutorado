@@ -96,7 +96,7 @@ struct ResidualSNNBlock : public Module
         return grad + grad_out; // residual connection
     }
 
-    auto params() -> std::vector<Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
         return model.params();
     }
@@ -210,7 +210,7 @@ struct SnnModel : public Module
         }
     }
 
-    auto params() -> std::vector<Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
         return model.params();
     }

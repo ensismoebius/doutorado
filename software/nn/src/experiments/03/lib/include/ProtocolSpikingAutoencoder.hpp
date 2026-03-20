@@ -48,7 +48,8 @@ struct ProtocolSpikingAutoencoder : Module
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
 
-    auto params() -> std::vector<nn::Tensor*> override;
+    std::vector<nn::Tensor*> param_ptrs_;
+    auto params() -> std::span<nn::Tensor*> override;
 
     /// Reset all stateful (membrane potential) layers between sequences.
     void reset_state() override;

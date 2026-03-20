@@ -22,8 +22,8 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "experiment03.hpp"
+#include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
@@ -42,6 +42,7 @@ using std::exception;
 using std::make_shared;
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using std::unique_ptr;
 
 namespace
 {
@@ -201,8 +202,9 @@ int Experiment03::run()
 {
     try
     {
-        // Initialize processed samples count for progress tracking.
-        processed_samples_ = 0;
+        ////////////////////////////
+        // Dataset initialization //
+        ////////////////////////////
 
         // Discover subjects and initialize dataset with specified input mode.
         const auto discovered =
@@ -215,9 +217,9 @@ int Experiment03::run()
         {
             case Experiment03DatasetType::Protocol:
             {
-                auto proto_dataset = make_shared<Protocol101117Dataset>(discovered);
-                proto_dataset->set_input_mode(config_.input_mode);
-                dataset_ = proto_dataset;
+                auto protocol_dataset = make_shared<Protocol101117Dataset>(discovered);
+                protocol_dataset->set_input_mode(config_.input_mode);
+                dataset_ = protocol_dataset;
                 break;
             }
             case Experiment03DatasetType::EegWindow:
@@ -232,8 +234,10 @@ int Experiment03::run()
             }
             case Experiment03DatasetType::FusedWindow:
             {
-                dataset_ = make_shared<FusedWindowDataset>(
-                    discovered, config_.eeg_window_config, config_.audio_window_config);
+                dataset_ = make_shared<FusedWindowDataset>(discovered, //
+                    config_.eeg_window_config,                         //
+                    config_.audio_window_config                        //
+                );
                 break;
             }
         }
@@ -248,8 +252,8 @@ int Experiment03::run()
         }
 
         // DataLoader is reused across training_epochs; prefetcher is re-created per epoch.
-        loader_ =
-            std::make_unique<DataLoader>(dataset_, config_.batch_size, config_.resolved_sampler_options);
+        data_loader_ = std::make_unique<DataLoader>(
+            dataset_, config_.batch_size, config_.resolved_sampler_options);
 
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
@@ -258,8 +262,8 @@ int Experiment03::run()
         // Protocol datasets have a specialized summary; windowing datasets print basic info.
         if (config_.dataset_type == Experiment03DatasetType::Protocol)
         {
-            auto* proto = dynamic_cast<Protocol101117Dataset*>(dataset_.get());
-            if (proto) printDatasetSummary(*proto, config_.dataset_root);
+            auto* protocol_dataset = dynamic_cast<Protocol101117Dataset*>(dataset_.get());
+            if (protocol_dataset) printDatasetSummary(*protocol_dataset, config_.dataset_root);
         }
         else
         {
@@ -267,41 +271,68 @@ int Experiment03::run()
                  << std::endl;
         }
 
-        // Training: iterate over all training_epochs, recreating the prefetcher each epoch so the
-        // DataLoader resets its iteration state for each pass over the data.
-        MSELoss loss;
-        std::unique_ptr<Adam> optimizer;
+        /////////////////////////////////
+        // Training loop setup and run //
+        /////////////////////////////////
 
+        // Create loss function and optimizer (initialized later
+        // once model is created and parameters are known).
+        MSELoss loss;
+        unique_ptr<Adam> optimizer;
+
+        // Training: iterate over all training_epochs.
+        // Recreating the prefetcher each epoch so the DataLoader
+        // resets its iteration state for each pass over the data.
         for (int epoch = 0; epoch < config_.training_epochs; ++epoch)
         {
-            cout << "\n=== Epoch " << (epoch + 1) << " / " << config_.training_epochs << " ===\n";
+            // Track cumulative loss and batch count for mean
+            // loss reporting at the end of the epoch.
+            int epoch_batches = 0;
+            float epoch_loss_sum = 0.0F;
 
             // Reset per-epoch counters.
-            processed_samples_ = 0;
             seen_batches_ = 0;
+            processed_samples_ = 0;
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
-            prefetcher_ =
-                std::make_unique<BatchPrefetcher>(*loader_, config_.max_batches_per_epoch, config_.prefetch_lookahead);
+            prefetcher_ = std::make_unique<BatchPrefetcher>( //
+                *data_loader_,                               //
+                config_.max_batches_per_epoch,               //
+                config_.prefetch_lookahead                   //
+            );
 
-            float epoch_loss_sum = 0.0F;
-            int epoch_batches = 0;
-
+            // Iterate over batches produced by the prefetcher.
             while (prefetcher_->hasNext())
             {
+                // Get next batch from prefetcher;
+                // break if no more batches are available.
                 auto maybe_batch = prefetcher_->next();
                 if (!maybe_batch.has_value()) break;
 
-                Batch batch = std::move(maybe_batch.value());
+                // Move batch out of optional;
+                // batch is now owned by this scope.
+                const Batch batch = std::move(maybe_batch.value());
 
                 // Lazy model + optimizer init on the first batch observed.
-                if (!model_)
+                if (!model_) [[unlikely]]
                 {
-                    model_ =
-                        build_autoencoder_model(config_, static_cast<int>(batch.inputs.cols()));
+                    // Build model based on observed input feature size and config.
+                    model_ = build_autoencoder_model(         //
+                        config_,                              //
+                        static_cast<int>(batch.inputs.cols()) //
+                    );
+
+                    // Initialize optimizer with model parameters.
                     optimizer = std::make_unique<Adam>(config_.training_learning_rate);
-                    auto init_p = model_->params();
-                    optimizer->attach(std::span<nn::Tensor*>(init_p.data(), init_p.size()));
+
+                    // Attach model parameters to optimizer.
+                    auto model_parameters = model_->params();
+                    optimizer->attach(               //
+                        std::span<nn::Tensor*>(      //
+                            model_parameters.data(), //
+                            model_parameters.size()  //
+                            )                        //
+                    );
                 }
 
                 // SNN models need membrane state reset between independent sequences (batches).
@@ -334,7 +365,9 @@ int Experiment03::run()
                     config_.max_batches_per_epoch,
                     seen_batches_,
                     processed_samples_,
-                    false);
+                    false,
+                    static_cast<std::size_t>(epoch + 1),
+                    static_cast<std::size_t>(config_.training_epochs));
             }
 
             // Finalize progress line for this epoch.
@@ -343,7 +376,9 @@ int Experiment03::run()
                 config_.max_batches_per_epoch,
                 prefetcher_->seenBatches(),
                 processed_samples_,
-                true);
+                true,
+                static_cast<std::size_t>(epoch + 1),
+                static_cast<std::size_t>(config_.training_epochs));
 
             const float mean_loss =
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;

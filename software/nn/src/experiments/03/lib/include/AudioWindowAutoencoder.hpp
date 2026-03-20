@@ -29,7 +29,9 @@ struct AudioWindowAutoencoder : Module
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
     auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
 
-    auto params() -> std::vector<nn::Tensor*> override;
+    // Owned concatenation of encoder + decoder parameter pointers.
+    std::vector<nn::Tensor*> param_ptrs_;
+    auto params() -> std::span<nn::Tensor*> override;
 };
 
 #endif // EXPERIMENT03_AUDIO_WINDOW_AUTOENCODER_HPP

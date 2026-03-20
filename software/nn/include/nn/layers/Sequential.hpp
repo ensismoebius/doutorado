@@ -26,6 +26,9 @@ struct Sequential : Module
 {
     std::vector<std::shared_ptr<Module>> layers;
     std::vector<nn::Tensor> outputs; // Optional cache of intermediate activations (per layer).
+    // Owned concatenation of parameter pointers from child layers. This storage
+    // must remain valid while the returned span is used by callers.
+    std::vector<nn::Tensor*> param_ptrs_;
 
     Sequential() = default;
 
@@ -95,18 +98,15 @@ struct Sequential : Module
     }
 
     // Returns all trainable parameters (weights and biases) from all layers
-    [[nodiscard]] auto params() -> std::vector<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
     {
-        std::vector<nn::Tensor*> parameters;
-        parameters.reserve(layers.size() * 2); // Reserve space for weights and biases
-
+        param_ptrs_.clear();
         for (auto& layer : layers) [[likely]]
         {
-            // Concatenate per-layer params into one flat list for optimizers.
             auto layer_params = layer->params();
-            parameters.insert(parameters.end(), layer_params.begin(), layer_params.end());
+            param_ptrs_.insert(param_ptrs_.end(), layer_params.begin(), layer_params.end());
         }
-        return parameters;
+        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     // Set training mode for all layers

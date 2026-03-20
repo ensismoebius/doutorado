@@ -72,7 +72,7 @@ class SimpleResNet : public Module
         return model_->backward(grad_output);
     }
 
-    auto params() -> std::vector<nn::Tensor*> override
+    auto params() -> std::span<nn::Tensor*> override
     {
         return model_->params();
     }

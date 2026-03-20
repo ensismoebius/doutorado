@@ -18,7 +18,9 @@ void printProgress(std::size_t dataset_total_samples,
     std::size_t max_batches,
     std::size_t seen_batches,
     std::size_t processed_samples,
-    bool done)
+    bool done,
+    std::size_t current_epoch,
+    std::size_t total_epochs)
 {
     const std::size_t safe_batch_size = (batch_size == 0) ? 1 : batch_size;
     const std::size_t dataset_total_batches =
@@ -52,7 +54,12 @@ void printProgress(std::size_t dataset_total_samples,
     const int percent = static_cast<int>(ratio * 100.0);
 
     // Carriage return to overwrite the current console line, then flush.
-    std::cout << '\r' << "Progress: [" << bar << "] " << std::setw(3) << percent << "% ("
+    std::cout << '\r';
+    if (current_epoch > 0 && total_epochs > 0)
+    {
+        std::cout << "Epoch " << current_epoch << "/" << total_epochs << " ";
+    }
+    std::cout << "Progress: [" << bar << "] " << std::setw(3) << percent << "% ("
               << clamped_seen_batches << "/" << total_batches << "b, " << clamped_processed_samples
               << "/" << total_samples << "s)";
 

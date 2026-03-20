@@ -196,6 +196,7 @@ struct ResidualBlock : public Module
     std::shared_ptr<Leaky> lif1;
     std::shared_ptr<Linear> fc2;
     std::shared_ptr<Leaky> lif2;
+    std::vector<Tensor*> param_ptrs_;
 
     explicit ResidualBlock(int dim)
     {
@@ -223,16 +224,18 @@ struct ResidualBlock : public Module
         return gin.add(grad_out);
     }
 
-    auto params() -> std::vector<Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
+        param_ptrs_.clear();
         auto p = fc1->params();
+        param_ptrs_.insert(param_ptrs_.end(), p.begin(), p.end());
         auto p2 = fc2->params();
-        p.insert(p.end(), p2.begin(), p2.end());
+        param_ptrs_.insert(param_ptrs_.end(), p2.begin(), p2.end());
         auto sg1 = lif1->params();
+        param_ptrs_.insert(param_ptrs_.end(), sg1.begin(), sg1.end());
         auto sg2 = lif2->params();
-        p.insert(p.end(), sg1.begin(), sg1.end());
-        p.insert(p.end(), sg2.begin(), sg2.end());
-        return p;
+        param_ptrs_.insert(param_ptrs_.end(), sg2.begin(), sg2.end());
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     void reset_state() override
@@ -249,6 +252,7 @@ struct SnnModel : public Module
     std::vector<shared_ptr<ResidualBlock>> residual_blocks;
     std::shared_ptr<Linear> fc_out;
     std::shared_ptr<Leaky> lif_out;
+    std::vector<Tensor*> param_ptrs_;
 
     SnnModel(int input_size, int output_size, int depth, int hidden_size, unsigned int seed)
     {
@@ -302,21 +306,23 @@ struct SnnModel : public Module
         return fc_in->backward(g);
     }
 
-    auto params() -> std::vector<Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
+        param_ptrs_.clear();
         auto p = fc_in->params();
+        param_ptrs_.insert(param_ptrs_.end(), p.begin(), p.end());
         auto outp = fc_out->params();
-        p.insert(p.end(), outp.begin(), outp.end());
+        param_ptrs_.insert(param_ptrs_.end(), outp.begin(), outp.end());
         auto lifp = lif_in->params();
+        param_ptrs_.insert(param_ptrs_.end(), lifp.begin(), lifp.end());
         auto lifout = lif_out->params();
-        p.insert(p.end(), lifp.begin(), lifp.end());
-        p.insert(p.end(), lifout.begin(), lifout.end());
+        param_ptrs_.insert(param_ptrs_.end(), lifout.begin(), lifout.end());
         for (auto& b : residual_blocks)
         {
             auto bp = b->params();
-            p.insert(p.end(), bp.begin(), bp.end());
+            param_ptrs_.insert(param_ptrs_.end(), bp.begin(), bp.end());
         }
-        return p;
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     void reset_state() override

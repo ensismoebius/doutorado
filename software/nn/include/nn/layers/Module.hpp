@@ -92,14 +92,19 @@ struct Module
     virtual void reset_state() {};
 
     /**
-     * @brief Returns pointers to trainable parameters owned by this module.
+     * @brief Returns a non-owning view of trainable parameters owned by this module.
      *
-     * Parameters are returned as raw pointers so optimizers can update them in-place.
-     * Convention: if a module has no trainable parameters, it returns an empty vector.
+     * The returned `std::span` is a non-owning view and MUST reference storage
+     * that is owned by the `Module` (or by the caller). Implementations that
+     * previously returned freshly-constructed `std::vector<nn::Tensor*>` must
+     * instead expose storage (e.g. a persistent `std::vector<nn::Tensor*>` member)
+     * whose lifetime outlives the span.
+     *
+     * Convention: if a module has no trainable parameters, return an empty span.
      */
-    virtual auto params() -> std::vector<nn::Tensor*>
+    virtual auto params() -> std::span<nn::Tensor*>
     {
-        return {};
+        return std::span<nn::Tensor*>{};
     }
 
     /**

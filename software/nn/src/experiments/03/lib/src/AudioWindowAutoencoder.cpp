@@ -36,10 +36,12 @@ auto AudioWindowAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tens
     return encoder_.backward(grad);
 }
 
-auto AudioWindowAutoencoder::params() -> std::vector<nn::Tensor*>
+auto AudioWindowAutoencoder::params() -> std::span<nn::Tensor*>
 {
-    auto p = encoder_.params();
-    auto d = decoder_.params();
-    p.insert(p.end(), d.begin(), d.end());
-    return p;
+    param_ptrs_.clear();
+    auto ep = encoder_.params();
+    param_ptrs_.insert(param_ptrs_.end(), ep.begin(), ep.end());
+    auto dp = decoder_.params();
+    param_ptrs_.insert(param_ptrs_.end(), dp.begin(), dp.end());
+    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }
