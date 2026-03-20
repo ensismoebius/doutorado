@@ -67,6 +67,9 @@ class SpikeAutoEncoder : public Module
     Sequential encoder;
     Sequential decoder;
 
+    // Storage for non-owning return of `params()`
+    std::vector<nn::Tensor*> param_ptrs_;
+
     explicit SpikeAutoEncoder(const ModelConfig& cfg)
     {
         // --- Helper to create layers succinctly ---
@@ -142,13 +145,17 @@ class SpikeAutoEncoder : public Module
         return encoder.backward(grad_decoder);
     }
 
-    // Collect parameters
-    vector<nn::Tensor*> params() override
+    // Collect parameters (non-owning view). The returned span references storage
+    // owned by this module in `param_ptrs_` so callers must not outlive the
+    // module instance.
+    auto params() -> std::span<nn::Tensor*> override
     {
+        param_ptrs_.clear();
         auto p = encoder.params();
+        param_ptrs_.insert(param_ptrs_.end(), p.begin(), p.end());
         auto p_dec = decoder.params();
-        p.insert(p.end(), p_dec.begin(), p_dec.end());
-        return p;
+        param_ptrs_.insert(param_ptrs_.end(), p_dec.begin(), p_dec.end());
+        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     // Reset internal states (membrane potentials)
@@ -243,7 +250,7 @@ class SpikeAutoEncoder : public Module
 // =============================================================================
 // Utility: Gradient Clipping
 // =============================================================================
-void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
+void clip_gradients(std::span<nn::Tensor*> params, float max_norm)
 {
     // Global-norm gradient clipping (PyTorch-style):
     // - Compute ||g|| over all parameters.
@@ -275,8 +282,7 @@ void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
         // - We scale elementwise via a std::span over the contiguous buffer.
 
         // C++20 Ranges: Scale gradients
-        std::ranges::for_each( //
-            params,
+        std::ranges::for_each(params,
             [scale](auto* p)
             {
                 nn::Tensor g = p->grad();
@@ -286,8 +292,7 @@ void clip_gradients(const vector<nn::Tensor*>& params, float max_norm)
                     std::ranges::for_each(data, [scale](float& val) { val *= scale; });
                     p->set_grad(g);
                 }
-            } //
-        );
+            });
     }
 }
 

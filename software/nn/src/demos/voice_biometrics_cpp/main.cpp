@@ -144,7 +144,7 @@ auto compute_wpt_energy(const std::vector<double>& window, int num_bands, int wp
     padded_signal.resize(static_cast<size_t>(target_size), 0.0);
 
     auto transform = wavelets::malat(padded_signal,
-        std::span<const double>(haar.data(), haar.size()),
+        std::span<const double>(haar),
         wavelets::TransformMode::PACKET_WAVELET,
         static_cast<unsigned int>(wpt_level));
     auto energies = wavelets::extract_subband_energies(transform, wpt_level);

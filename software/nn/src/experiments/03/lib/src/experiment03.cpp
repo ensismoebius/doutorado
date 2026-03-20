@@ -327,12 +327,7 @@ int Experiment03::run()
 
                     // Attach model parameters to optimizer.
                     auto model_parameters = model_->params();
-                    optimizer->attach(               //
-                        std::span<nn::Tensor*>(      //
-                            model_parameters.data(), //
-                            model_parameters.size()  //
-                            )                        //
-                    );
+                    optimizer->attach(model_parameters);
                 }
 
                 // SNN models need membrane state reset between independent sequences (batches).
@@ -340,7 +335,7 @@ int Experiment03::run()
 
                 // === Training step ===
                 auto params = model_->params();
-                optimizer->zero_grad(std::span<nn::Tensor*>(params.data(), params.size()));
+                optimizer->zero_grad(params);
 
                 // Forward pass (unsupervised reconstruction: target == input).
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
@@ -352,7 +347,7 @@ int Experiment03::run()
 
                 // Backward pass + parameter update.
                 model_->backward(dL);
-                optimizer->step(std::span<nn::Tensor*>(params.data(), params.size()));
+                optimizer->step(params);
 
                 epoch_loss_sum += L.at(0, 0);
                 ++epoch_batches;

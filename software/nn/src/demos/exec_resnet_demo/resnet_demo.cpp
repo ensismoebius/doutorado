@@ -116,7 +116,7 @@ auto main() -> int
 
     // Loss and optimizer
     CrossEntropyLoss loss;
-    vector<nn::Tensor*> params = model.params();
+    auto params = model.params();
     Adam optimizer(0.001F);
     optimizer.attach(params);
 

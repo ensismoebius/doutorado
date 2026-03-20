@@ -209,8 +209,8 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
     // ==== Optimizer ====
     vector<nn::Tensor*> params;
-    vector<nn::Tensor*> encoder_params = encoders.params();
-    vector<nn::Tensor*> decoder_params = decoders.params();
+    auto encoder_params = encoders.params();
+    auto decoder_params = decoders.params();
 
     params.insert(params.end(), encoder_params.begin(), encoder_params.end());
     params.insert(params.end(), decoder_params.begin(), decoder_params.end());
