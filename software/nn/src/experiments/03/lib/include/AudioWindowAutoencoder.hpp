@@ -1,7 +1,6 @@
 #ifndef EXPERIMENT03_AUDIO_WINDOW_AUTOENCODER_HPP
 #define EXPERIMENT03_AUDIO_WINDOW_AUTOENCODER_HPP
 
-#include <memory>
 #include <vector>
 
 #include "AutoencoderConfig.hpp"

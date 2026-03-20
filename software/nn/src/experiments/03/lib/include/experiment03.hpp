@@ -1,10 +1,10 @@
 #pragma once
 
-#include "DemoProbeModel.hpp"
 #include "cli.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/Dataset.hpp"
+#include "nn/layers/Module.hpp"
 
 class Experiment03
 {
@@ -19,7 +19,7 @@ class Experiment03
     // persist across `run()` and can be inspected or reused.
     // dataset_ uses base class pointer to support multiple dataset types.
     std::unique_ptr<DataLoader> loader_;
-    std::unique_ptr<DemoProbeModel> model_;
+    std::unique_ptr<Module> model_;
     std::unique_ptr<BatchPrefetcher> prefetcher_;
     std::shared_ptr<Dataset> dataset_;
 

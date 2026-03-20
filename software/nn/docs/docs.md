@@ -340,9 +340,393 @@ Then in VS Code:
 
 ---
 
-## 5. Experimental Pipeline and Reproducibility
+## 5. `experiment03` Command-Line Interface — Full Tutorial
 
-### 5.1 Phases
+`experiment03` is the main training binary for the autoencoder pipeline. It accepts all
+hyperparameters and pipeline options at the command line, so no recompilation is needed to
+change datasets, model architecture, or training settings.
+
+### 5.1 Binary Location
+
+After building (`cmake --build … --target experiment03`), the binary is at:
+
+```
+out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03
+```
+
+For brevity, the examples below use `experiment03` as a short alias:
+
+```bash
+alias experiment03="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03"
+```
+
+---
+
+### 5.2 Complete Option Reference
+
+Run `--help` at any time to print the full option list with current defaults:
+
+```
+experiment03 --help
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--dataset-root` | path (existing dir) | _(set in code)_ | Root directory that contains one sub-folder per subject |
+| `--subject` | regex string | `^S(\d+)$` | Regex to filter subject folder names; the first capture group becomes the subject ID |
+| `--batch-size` | positive int | `5` | Number of samples per mini-batch |
+| `--max-batches` | positive int | `10` | Maximum number of batches consumed per epoch |
+| `--dataset-type` | enum | `fused-window` | Input modality: `protocol` · `eeg-window` · `audio-window` · `fused-window` |
+| `--input-mode` | enum | `concatenated` | For `protocol` only: `concatenated` · `eeg-only` · `audio-only` |
+| `--autoencoder` | enum | `fused-window-ann` | Model variant (see §5.4) |
+| `--ae-hidden-size` | positive int | `64` | Width of every hidden layer in encoder and decoder |
+| `--ae-latent-size` | positive int | `32` | Dimensionality of the bottleneck (latent) vector |
+| `--ae-depth` | positive int | `2` | Number of hidden layer blocks in encoder (mirrored in decoder) |
+| `--ae-time-step` | positive float | `1.0` | SNN neuron time step `dt`; controls leaky decay β |
+| `--ae-resistance` | positive float | `1.0` | SNN membrane resistance R |
+| `--ae-capacitance` | positive float | `1.0` | SNN membrane capacitance C |
+| `--lr` | positive float | `0.001` | Adam optimizer learning rate |
+| `--epochs` | positive int | `1` | Number of full passes over the dataset |
+| `--eeg-window-size` | positive int | `256` | EEG window length in samples (windowing datasets) |
+| `--eeg-overlap` | float [0, 1) | `0.5` | Fractional overlap between EEG windows |
+| `--audio-window-size` | positive int | `11025` | Audio window length in samples (windowing datasets) |
+| `--audio-overlap` | float [0, 1) | `0.5` | Fractional overlap between audio windows |
+| `--lookahead` | positive int | `5` | Number of batches to prefetch in background |
+| `--shuffle` / `--no-shuffle` | flag | `true` | Shuffle samples before batching |
+| `--seed` | non-negative int | `42` | Deterministic RNG seed for shuffling |
+| `--sampler-type` | enum | _(auto)_ | Override sampler: `sequential` · `random` · `weighted` · `distributed` |
+| `--sampler-weights` | float list | _(none)_ | Per-class weights for the weighted sampler (comma-separated) |
+| `--weighted-num-samples` | positive int | _(none)_ | How many samples to draw per epoch with the weighted sampler |
+| `--distributed-num-replicas` | positive int | `1` | Total number of distributed workers |
+| `--distributed-rank` | non-negative int | `0` | This worker's rank (0-indexed) |
+| `--distributed-shuffle` / `--distributed-no-shuffle` | flag | `true` | Global shuffle before distributing data across replicas |
+| `--distributed-drop-last` / `--distributed-no-drop-last` | flag | `false` | Drop the last uneven batch when dividing across replicas |
+
+---
+
+### 5.3 Dataset Types
+
+| Token | Description | Autoencoder family |
+|---|---|---|
+| `protocol` | Raw per-trial concatenated vectors from the 10.1117 protocol | `protocol-ann` / `protocol-snn` |
+| `eeg-window` | Sliding windows over EEG channels only | `eeg-window-ann` / `eeg-window-snn` |
+| `audio-window` | Sliding windows over audio only | `audio-window-ann` / `audio-window-snn` |
+| `fused-window` | Concatenated EEG window + audio window | `fused-window-ann` / `fused-window-snn` |
+
+> **Compatibility note:** if the dataset type and autoencoder family don't match (e.g., `protocol`
+> dataset with `fused-window-snn` model) the binary prints a warning and continues using the
+> observed input feature width. The warning is non-fatal to support cross-modality experiments.
+
+---
+
+### 5.4 Autoencoder Variants
+
+Eight variants are available, covering all four dataset modalities in both ANN and SNN flavours:
+
+| Token | Type | Architecture |
+|---|---|---|
+| `protocol-ann` | Dense ANN | `Linear→ReLU` × (depth+1 each side) |
+| `eeg-window-ann` | Dense ANN | same |
+| `audio-window-ann` | Dense ANN | same |
+| `fused-window-ann` | Dense ANN | same |
+| `protocol-snn` | Spiking | `Linear→Leaky(LIF)` encoder · `Linear→LeakyIntegrator` decoder |
+| `eeg-window-snn` | Spiking | same |
+| `audio-window-snn` | Spiking | same |
+| `fused-window-snn` | Spiking | same |
+
+SNN decoders use the **LeakyIntegrator** (continuous membrane readout) rather than a spike emitter,
+which makes MSE reconstruction loss well-defined without any spike-to-rate decoding step.
+
+---
+
+### 5.5 Examples
+
+#### 5.5.1 Minimal smoke test (no real data needed concept check)
+
+```bash
+# Uses all defaults: fused-window dataset, ANN autoencoder, 1 epoch, 10 batches.
+experiment03 \
+    --dataset-root /path/to/dataset \
+    --batch-size 8 \
+    --max-batches 5
+```
+
+This is the fastest way to confirm the pipeline runs without errors.
+
+---
+
+#### 5.5.2 Train the default ANN autoencoder for 20 epochs
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --batch-size 32 \
+    --max-batches 200 \
+    --epochs 20 \
+    --lr 0.001 \
+    --seed 42
+```
+
+- 32-sample batches, up to 200 batches per epoch, Adam lr = 0.001, deterministic seed 42.
+- Per-epoch mean reconstruction loss is printed at the end of each epoch.
+
+---
+
+#### 5.5.3 Train a spiking (SNN) autoencoder on fused EEG+audio windows
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --dataset-type fused-window \
+    --autoencoder fused-window-snn \
+    --eeg-window-size 256 \
+    --eeg-overlap 0.5 \
+    --audio-window-size 4096 \
+    --audio-overlap 0.25 \
+    --batch-size 16 \
+    --max-batches 300 \
+    --epochs 30 \
+    --lr 0.0005 \
+    --ae-hidden-size 128 \
+    --ae-latent-size 64 \
+    --ae-depth 3 \
+    --ae-time-step 0.5 \
+    --ae-resistance 2.0 \
+    --ae-capacitance 1.0
+```
+
+Key points:
+- `--ae-time-step 0.5` shortens the membrane time constant, producing faster spiking dynamics.
+- `--ae-depth 3` adds three hidden blocks per side (6 total), giving the SNN more representational
+  capacity.
+- `--ae-latent-size 64` doubles the bottleneck; useful when EEG+audio concatenation is large.
+
+---
+
+#### 5.5.4 EEG-only autoencoder (unimodal EEG experiment)
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --dataset-type eeg-window \
+    --autoencoder eeg-window-ann \
+    --eeg-window-size 512 \
+    --eeg-overlap 0.5 \
+    --batch-size 32 \
+    --max-batches 150 \
+    --epochs 10 \
+    --lr 0.001
+```
+
+---
+
+#### 5.5.5 Audio-only autoencoder (unimodal audio experiment)
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --dataset-type audio-window \
+    --autoencoder audio-window-ann \
+    --audio-window-size 8192 \
+    --audio-overlap 0.5 \
+    --batch-size 16 \
+    --max-batches 100 \
+    --epochs 10
+```
+
+---
+
+#### 5.5.6 Protocol dataset with raw concatenated vectors
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --dataset-type protocol \
+    --input-mode concatenated \
+    --autoencoder protocol-ann \
+    --batch-size 8 \
+    --max-batches 50 \
+    --epochs 5
+```
+
+Use `--input-mode eeg-only` or `--input-mode audio-only` to isolate a single modality while
+still using the original protocol format (no windowing applied).
+
+---
+
+#### 5.5.7 Filtered subject set
+
+```bash
+# Only process subjects whose folder names match "S01" through "S09".
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --subject "^S(0[1-9])$" \
+    --batch-size 16 \
+    --max-batches 50 \
+    --epochs 5
+```
+
+The `--subject` value is a C++ `std::regex` pattern. The first capture group is used as the
+subject identifier in logs.
+
+---
+
+#### 5.5.8 Deterministic reproducible run (fixed seed, sequential sampler)
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --no-shuffle \
+    --sampler-type sequential \
+    --seed 0 \
+    --batch-size 32 \
+    --max-batches 100 \
+    --epochs 3 \
+    --lr 0.001
+```
+
+Using `--sampler-type sequential` combined with `--no-shuffle` guarantees the same batch
+composition across runs, which is critical for reproducibility benchmarks.
+
+---
+
+#### 5.5.9 Weighted sampler to oversample rare classes
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --sampler-type weighted \
+    --sampler-weights 0.1,0.4,0.5 \
+    --weighted-num-samples 200 \
+    --batch-size 16 \
+    --max-batches 50 \
+    --epochs 5
+```
+
+`--sampler-weights` is a comma-separated list with one weight per class. Weights are normalized
+internally. `--weighted-num-samples` controls how many indices are drawn per epoch (independent of
+the total dataset size).
+
+---
+
+#### 5.5.10 Distributed training — rank 0 of 4 replicas
+
+```bash
+# Worker 0 of 4
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --sampler-type distributed \
+    --distributed-num-replicas 4 \
+    --distributed-rank 0 \
+    --distributed-shuffle \
+    --batch-size 32 \
+    --max-batches 100 \
+    --epochs 10
+```
+
+Run the same command on each host/process, incrementing `--distributed-rank` from 0 to 3.
+Each worker sees a non-overlapping shard of the dataset.
+
+---
+
+#### 5.5.11 Fast background prefetching for I/O-bound datasets
+
+```bash
+experiment03 \
+    --dataset-root /data/BaseDeDatosHablaImaginada \
+    --lookahead 8 \
+    --batch-size 64 \
+    --max-batches 500 \
+    --epochs 20
+```
+
+`--lookahead` controls how many batches are loaded by the background producer thread ahead of
+the training loop. Increase it when MAT-file I/O is the bottleneck; keep it at 1–2 if RAM is
+constrained.
+
+---
+
+#### 5.5.12 Architecture search — sweep latent size
+
+```bash
+for LATENT in 16 32 64 128; do
+  echo "=== latent=$LATENT ==="
+  experiment03 \
+      --dataset-root /data/BaseDeDatosHablaImaginada \
+      --autoencoder fused-window-ann \
+      --ae-latent-size $LATENT \
+      --ae-hidden-size 128 \
+      --ae-depth 2 \
+      --epochs 10 \
+      --max-batches 200 \
+      --seed 42
+done
+```
+
+A simple Bash loop lets you run a latent-dimension sweep without recompiling. Compare the
+per-epoch mean reconstruction loss printed at the end of each run.
+
+---
+
+#### 5.5.13 SNN physics parameter sweep
+
+```bash
+for DT in 0.1 0.5 1.0 2.0; do
+  experiment03 \
+      --dataset-root /data/BaseDeDatosHablaImaginada \
+      --autoencoder fused-window-snn \
+      --ae-time-step $DT \
+      --ae-resistance 1.0 \
+      --ae-capacitance 1.0 \
+      --epochs 5 \
+      --max-batches 100 \
+      --seed 42 2>&1 | tail -2
+done
+```
+
+---
+
+### 5.6 Interpreting the Output
+
+Each epoch produces output similar to:
+
+```
+=== Epoch 1 / 20 ===
+  [100%] 640 samples / est. 12800  |  batches: 20 / 200
+  mean reconstruction loss: 0.142713
+
+=== Epoch 2 / 20 ===
+  [100%] 640 samples / est. 12800  |  batches: 20 / 200
+  mean reconstruction loss: 0.101832
+…
+Training complete.
+```
+
+- **Mean reconstruction loss** is the MSE between the model's output and the original input,
+  averaged over all batches in the epoch.  A decreasing trend confirms the autoencoder is
+  learning to reconstruct the input signal.
+- If the loss is exactly `0.0` on the first epoch it usually means the dataset contains no `.mat`
+  files matching the subject regex — check `--dataset-root` and `--subject`.
+
+---
+
+### 5.7 Compatibility Matrix — Dataset × Autoencoder
+
+| Dataset `--dataset-type` | Recommended `--autoencoder` | Cross-modality allowed? |
+|---|---|---|
+| `protocol` | `protocol-ann` · `protocol-snn` | Yes (warning printed) |
+| `eeg-window` | `eeg-window-ann` · `eeg-window-snn` | Yes (warning printed) |
+| `audio-window` | `audio-window-ann` · `audio-window-snn` | Yes (warning printed) |
+| `fused-window` | `fused-window-ann` · `fused-window-snn` | Yes (warning printed) |
+
+Cross-modality combinations are intentionally allowed to support ablation studies where the same
+architecture is evaluated on different input spaces.
+
+---
+
+## 6. Experimental Pipeline and Reproducibility
+
+### 6.1 Phases
 1. **Freezing & Infrastructure**: Fix window/overlap, normalization, classifier architecture, and config management.
 2. **Classical Feature Engineering**: Wavelet/WPT baseline, reproducibility, and paraconsistent metrics.
 3. **Spectral Scales**: Compare LFCC, MEL, BARK representations.
@@ -352,23 +736,23 @@ Then in VS Code:
 7. **Noise Robustness**: Inject noise, measure degradation, and compare clean vs. noisy signals.
 8. **Final Consolidation**: Comparative tables, paraconsistent plots, and state-of-the-art benchmarking.
 
-### 5.2 Metrics
+### 6.2 Metrics
 - Paraconsistent (α, β, G1, G2), accuracy, F1-score, MACs, RTF.
 - Robustness, computational efficiency, and multimodal gain.
 
 ---
 
-## 6. Advanced Topics
+## 7. Advanced Topics
 
-### 6.1 LeakyIntegrator Readout Layer
+### 7.1 LeakyIntegrator Readout Layer
 The LeakyIntegrator is a continuous-valued readout for SNNs, acting as a low-pass filter on spike trains. Use it as the final decoder layer for regression or reconstruction tasks, or for debugging gradient flow.
 
-### 6.2 Multi-Pass Forward and Loss Modes
+### 7.2 Multi-Pass Forward and Loss Modes
 For SNNs with stochasticity (e.g., Poisson coding), aggregate outputs over multiple forward passes to reduce variance. Implement configurable loss modes (rate, Monte Carlo, temporal pooling, van Rossum, membrane, cosine, MSE vector) and always compute loss after aggregation. Ensure CLI/config compatibility and GPU safety.
 
 ---
 
-## 7. Engineering and Maintenance
+## 8. Engineering and Maintenance
 
 - Follow modular code structure and update documentation for new features.
 - Use static analysis and coverage tools before submitting changes.
@@ -377,7 +761,7 @@ For SNNs with stochasticity (e.g., Poisson coding), aggregate outputs over multi
 
 ---
 
-## 8. References
+## 9. References
 
 - Cohen, M. X. (2014). *Analyzing Neural Time Series Data*
 - O'Shaughnessy, D. (Speech Processing)

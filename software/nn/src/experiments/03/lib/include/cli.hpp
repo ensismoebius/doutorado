@@ -22,13 +22,25 @@ enum class Experiment03DatasetType
     FusedWindow
 };
 
+enum class Experiment03AutoencoderType
+{
+    ProtocolAnn,
+    EegWindowAnn,
+    AudioWindowAnn,
+    FusedWindowAnn,
+    ProtocolSnn,
+    EegWindowSnn,
+    AudioWindowSnn,
+    FusedWindowSnn
+};
+
 struct Config
 {
-    string subject_regex_pattern; // Subject Id
-    string dataset_root;          // Path containing subject dirs
+    string subject_regex_pattern = ""; // Subject Id
+    string dataset_root = "";          // Path containing subject dirs
 
-    size_t batch_size;  // Batch size for DataLoader
-    size_t max_batches; // Max batches to iterate
+    size_t batch_size = 32;   // Batch size for DataLoader
+    size_t max_batches = 100; // Max batches to iterate
 
     // Legacy controls (used when sampler_type is not provided)
     bool shuffle = true;         // Shuffle samples before batching?
@@ -52,6 +64,21 @@ struct Config
 
     // Dataset variant used by experiment03.
     Experiment03DatasetType dataset_type = Experiment03DatasetType::FusedWindow;
+
+    // Autoencoder variant used by experiment03.
+    Experiment03AutoencoderType autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+
+    // Autoencoder architecture hyperparameters.
+    int ae_hidden_size = 64;
+    int ae_latent_size = 32;
+    int ae_depth = 2;
+    float ae_time_step = 1.0F;
+    float ae_resistance = 1.0F;
+    float ae_capacitance = 1.0F;
+
+    // Training hyperparameters.
+    float learning_rate = 0.001F;
+    int epochs = 1;
 
     // Window specs used by windowing datasets.
     nn::windowing::WindowSpec eeg_window_spec{
