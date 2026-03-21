@@ -401,6 +401,10 @@ experiment03 --help
 | `--distributed-rank` | non-negative int | `0` | This worker's rank (0-indexed) |
 | `--distributed-shuffle` / `--distributed-no-shuffle` | flag | `true` | Global shuffle before distributing data across replicas |
 | `--distributed-drop-last` / `--distributed-no-drop-last` | flag | `false` | Drop the last uneven batch when dividing across replicas |
+| `--ae-input-features` | positive int | `_(auto)_` | Number of total concatenated input features provided to the autoencoder; when set this overrides inference from profile/dataset. |
+| `--ae-eeg-features` | positive int | `_(auto)_` | Number of EEG-only input features to use (overrides inferred EEG feature count). |
+| `--ae-audio-features` | positive int | `_(auto)_` | Number of audio-only input features to use (overrides inferred audio feature count). |
+| `--ae-layer-sizes` | int list | `_(auto / tapered)_` | Comma-separated list of encoder hidden-layer sizes (e.g. `128,64`). When provided this list is used directly for encoder widths and mirrored in the decoder; it takes precedence over `--ae-hidden-size` and `--ae-depth`. |
 
 #### Internal `Config` Naming (Code-Level)
 
@@ -425,6 +429,10 @@ uses clearer field names in `Config`:
 | `ae_architecture` | `autoencoder_architecture` |
 | `ae_branch_hidden_size` | `autoencoder_branch_hidden_size` |
 | `ae_fusion_hidden_size` | `autoencoder_fusion_hidden_size` |
+| `ae_input_features` | `autoencoder_input_features` |
+| `ae_eeg_features` | `autoencoder_eeg_features` |
+| `ae_audio_features` | `autoencoder_audio_features` |
+| `ae_layer_sizes` | `autoencoder_layer_sizes` |
 | `ae_residual_blocks` | `autoencoder_residual_blocks` |
 | `ae_time_step` | `autoencoder_time_step` |
 | `ae_resistance` | `autoencoder_resistance` |
@@ -435,6 +443,31 @@ uses clearer field names in `Config`:
 | `audio_window_spec` | `audio_window_config` |
 | `lookahead` | `prefetch_lookahead` |
 | `sampler_options` | `resolved_sampler_options` |
+
+**Profile JSON keys (autoencoder):**
+
+- **`autoencoder_input_features`**: integer — total number of concatenated input features (audio + EEG). When present the loader uses this value instead of inferring feature counts from dataset metadata.
+- **`autoencoder_eeg_features`**: integer — number of EEG features only; optional and used to override EEG feature inference.
+- **`autoencoder_audio_features`**: integer — number of audio features only; optional and used to override audio feature inference.
+- **`autoencoder_layer_sizes`** (aliases: `layer_sizes`, `hidden_layer_sizes`): array of integers — explicit encoder hidden-layer sizes (e.g., `[128,64]`). If provided this list is used directly and mirrored for the decoder; it takes precedence over tapered defaults computed from `autoencoder_hidden_size`/`autoencoder_depth`.
+
+These profile keys are accepted both when loading a named profile and when passing a full JSON profile path via `--profile /path/to/profile.json`.
+
+Example profile snippet (autoencoder settings):
+
+```json
+{
+    "name": "audio-window-ann-default",
+    "dataset_type": "audio-window",
+    "autoencoder_hidden_size": 64,
+    "autoencoder_latent_size": 32,
+    "autoencoder_depth": 2,
+    "autoencoder_input_features": 1600,
+    "autoencoder_audio_features": 1600,
+    "autoencoder_eeg_features": 0,
+    "autoencoder_layer_sizes": [128, 64]
+}
+```
 
 ---
 

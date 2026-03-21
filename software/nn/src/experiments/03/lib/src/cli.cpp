@@ -9,13 +9,50 @@
 
 #include "../include/cli.hpp"
 
+#include <cstdlib>
 #include <stdexcept>
 
+#include "../include/ProfileLoader.hpp"
 #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
 #include "nn/dataLoaders/SamplerOptionResolution.hpp"
 
 namespace
 {
+auto has_help_flag(int argc, char* argv[]) -> bool
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i] ? argv[i] : "";
+        if (arg == "-h" || arg == "--help" || arg == "--help-all")
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+auto parse_profile_name_from_argv(int argc, char* argv[], const std::string& fallback)
+    -> std::string
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i] ? argv[i] : "";
+        if (arg == "--profile" && i + 1 < argc && argv[i + 1])
+        {
+            return argv[i + 1];
+        }
+
+        const std::string prefix = "--profile=";
+        if (arg.rfind(prefix, 0) == 0)
+        {
+            return arg.substr(prefix.size());
+        }
+    }
+
+    return fallback;
+}
+
 auto datasetTypeToToken(Experiment03DatasetType dataset_type) -> std::string
 {
     switch (dataset_type)
@@ -110,12 +147,29 @@ auto parseArchitectureToken(const std::string& token) -> AutoencoderArchitecture
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
 {
     Config config = default_config;
-    std::string input_mode_token = protocol101117InputModeToToken(default_config.input_mode);
-    std::string dataset_type_token = datasetTypeToToken(default_config.dataset_type);
-    std::string autoencoder_type_token = autoencoderTypeToToken(default_config.autoencoder_type);
-    std::string architecture_token = architectureToToken(default_config.autoencoder_architecture);
+    std::string profile = parse_profile_name_from_argv(argc, argv, default_config.profile_name);
+
+    // Seed defaults from profile before registering CLI options so explicit
+    // command line flags still win over profile values.
+    if (!has_help_flag(argc, argv))
+    {
+        std::string profile_error;
+        if (!experiment03::load_profile_to_config(profile, config, profile_error))
+        {
+            throw std::runtime_error("Failed to load profile '" + profile + "': " + profile_error);
+        }
+    }
+
+    config.profile_name = profile;
+    std::string input_mode_token = protocol101117InputModeToToken(config.input_mode);
+    std::string dataset_type_token = datasetTypeToToken(config.dataset_type);
+    std::string autoencoder_type_token = autoencoderTypeToToken(config.autoencoder_type);
+    std::string architecture_token = architectureToToken(config.autoencoder_architecture);
 
     App app("PyTorch-style loader pipeline for 10.1117 EEG+Audio dataset.");
+
+    app.add_option("--profile", profile, "Configuration profile name (JSON file stem)")
+        ->default_val(config.profile_name);
 
     app.add_option("--dataset-root", config.dataset_root, "Path containing subjects dir")
         ->expected(1)
@@ -185,60 +239,89 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
            "Autoencoder latent (bottleneck) dimension")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.autoencoder_latent_size);
+        ->default_val(config.autoencoder_latent_size);
 
     app.add_option("--ae-depth",
            config.autoencoder_depth,
            "Number of hidden layers in encoder/decoder (1–N)")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.autoencoder_depth);
+        ->default_val(config.autoencoder_depth);
+
+    app.add_option("--ae-layer-sizes",
+           config.autoencoder_layer_sizes,
+           "Explicit hidden-layer widths (comma-separated). Overrides --ae-depth/--ae-hidden-size "
+           "tapering")
+        ->delimiter(',')
+        ->check(CLI::PositiveNumber)
+        ->default_str(config.autoencoder_layer_sizes.empty() ? "(auto)" : "(set)");
+
+    app.add_option("--ae-input-features",
+           config.autoencoder_input_features,
+           "Input feature count override (0 = infer from dataset batch)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(config.autoencoder_input_features);
+
+    app.add_option("--ae-eeg-features",
+           config.autoencoder_eeg_features,
+           "EEG feature count override for dual-branch models (0 = infer)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(config.autoencoder_eeg_features);
+
+    app.add_option("--ae-audio-features",
+           config.autoencoder_audio_features,
+           "Audio feature count override for dual-branch models (0 = infer)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_val(config.autoencoder_audio_features);
 
     app.add_option("--ae-architecture",
            architecture_token,
            "Autoencoder design family: auto|residual-dense|dual-branch-fusion")
         ->check(CLI::IsMember({"auto", "residual-dense", "dual-branch-fusion"}, CLI::ignore_case))
-        ->default_val(architectureToToken(default_config.autoencoder_architecture));
+        ->default_val(architectureToToken(config.autoencoder_architecture));
 
     app.add_option("--ae-branch-hidden-size",
            config.autoencoder_branch_hidden_size,
            "Multimodal branch projection width (0 = infer from hidden/latent sizes)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.autoencoder_branch_hidden_size);
+        ->default_val(config.autoencoder_branch_hidden_size);
 
     app.add_option("--ae-fusion-hidden-size",
            config.autoencoder_fusion_hidden_size,
            "Shared multimodal fusion width (0 = infer from hidden/latent sizes)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.autoencoder_fusion_hidden_size);
+        ->default_val(config.autoencoder_fusion_hidden_size);
 
     app.add_option("--ae-residual-blocks",
            config.autoencoder_residual_blocks,
            "Residual blocks per dense stage for redesigned ANN builders")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.autoencoder_residual_blocks);
+        ->default_val(config.autoencoder_residual_blocks);
 
     app.add_option("--ae-time-step",
            config.autoencoder_time_step,
            "SNN neuron time step dt (also used as leaky beta scale)")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.autoencoder_time_step);
+        ->default_val(config.autoencoder_time_step);
 
     app.add_option(
            "--ae-resistance", config.autoencoder_resistance, "SNN neuron membrane resistance R")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.autoencoder_resistance);
+        ->default_val(config.autoencoder_resistance);
 
     app.add_option(
            "--ae-capacitance", config.autoencoder_capacitance, "SNN neuron membrane capacitance C")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.autoencoder_capacitance);
+        ->default_val(config.autoencoder_capacitance);
 
     app.add_option("--lr", config.training_learning_rate, "Adam optimizer learning rate")
         ->expected(1)
@@ -358,8 +441,10 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     }
     catch (const CLI::ParseError& e)
     {
-        app.exit(e);
+        std::exit(app.exit(e));
     }
+
+    config.profile_name = profile;
 
     config.default_sampler_type = normalizeSamplerTypeToken(config.default_sampler_type);
 

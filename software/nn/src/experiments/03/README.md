@@ -1,19 +1,19 @@
-# experiment03 — Dataset loading & demo runner
+# experiment03 — Autoencoder training runner
 
 Overview
 --------
-`experiment04` is a small demonstration executable that implements a PyTorch-style
-data pipeline for the 10.1117 imagined-speech EEG+Audio dataset used in this
-repository. Its purpose is to show how `Protocol101117Dataset`, `DataLoader`, and
-the prefetcher interact, to exercise I/O, and to provide a convenient demo for
-downstream model development.
+`experiment03` is a training runner for ANN/SNN autoencoders over the 10.1117
+imagined-speech EEG+Audio dataset variants. It supports profile-based runtime
+configuration and writes a per-run JSON summary.
 
-The pipeline implemented by `experiment04`:
+The pipeline implemented by `experiment03`:
 
-- Subject directories (S01, S02, ...) discovered by filename regex
-- `Protocol101117Dataset` (synchronized audio + EEG samples)
-- `DataLoader` (batching + sampling)
-- `BatchPrefetcher` (producer thread, bounded queue)
+- Subject directories discovered by regex
+- Dataset selection: protocol, eeg-window, audio-window, fused-window
+- Autoencoder selection: ANN and SNN variants per dataset
+- `DataLoader` + `BatchPrefetcher` training pipeline
+- Profile loading from `src/experiments/03/profiles/*.json`
+- Result summary output to `src/experiments/03/results/*.json`
 
 Key features
 ------------
@@ -24,6 +24,17 @@ Key features
 - In-place single-line progress bar with correct handling when runs are capped
   by `--max-batches`.
 
+Profiles and results
+--------------------
+- Profiles: `src/experiments/03/profiles/<name>.json`
+- Results: `src/experiments/03/results/<timestamp>_<profile>.json`
+
+Result fields include:
+- `profile`, `dataset_type`, `autoencoder_type`
+- `exit_code`, `total_samples`, `processed_samples`, `seen_batches`
+- `epoch_mean_losses`
+- `error`
+
 Quick start — build and run
 --------------------------
 From the project root (where CMakeLists.txt lives):
@@ -33,15 +44,16 @@ mkdir -p build && cd build
 cmake -S .. -B . -DCMAKE_BUILD_TYPE=Debug
 cmake --build . -- -j$(nproc)
 
-# Run experiment04 with defaults
-./src/experiments/03/experiment04
+# Run experiment03 with defaults
+./src/experiments/03/experiment03
 
-# Example: small smoke run with lookahead 4, only 5 batches
-./src/experiments/03/experiment04 --dataset-root /path/to/dataset --max-batches 5 --lookahead 4
+# Example: lightweight fused ANN smoke run
+./src/experiments/03/experiment03 --profile fused-window-ann-lightweight --epochs 1 --max-batches 2
 ```
 
 Command-line options (high-level)
 ---------------------------------
+- `--profile NAME` — profile JSON stem (for example `default`, `lightweight`, `fused-window-snn-lightweight`).
 - `--dataset-root PATH` — dataset root folder containing subject dirs `S01/ S02/...`.
 - `--subject-regex PATTERN` — regex used to select subject directories (default `^S(\\d+)$`).
 - `--batch-size N` — batch size used by `DataLoader` (default 5).
@@ -105,7 +117,7 @@ Troubleshooting
 
 Extending or reusing
 --------------------
-- `experiment04` is intended as a demonstration and integration test. You can
+- `experiment03` is intended as a runnable training scaffold. You can
   reuse `Protocol101117Dataset` and `BatchPrefetcher` from other binaries to
   build full training or evaluation pipelines.
 - The repo contains unit tests for dataset modes and loader utilities under

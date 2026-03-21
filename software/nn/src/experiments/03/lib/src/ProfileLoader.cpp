@@ -1,0 +1,403 @@
+// ProfileLoader.cpp
+#include "ProfileLoader.hpp"
+
+#include <cctype>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+
+namespace experiment03
+{
+static std::string normalize(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (char c : s)
+    {
+        if (std::isalnum(static_cast<unsigned char>(c)))
+            out.push_back(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return out;
+}
+
+static bool map_dataset_type(const std::string& s, Config& cfg)
+{
+    auto n = normalize(s);
+    if (n.find("protocol") != std::string::npos)
+    {
+        cfg.dataset_type = Experiment03DatasetType::Protocol;
+        return true;
+    }
+    if (n.find("eeg") != std::string::npos)
+    {
+        cfg.dataset_type = Experiment03DatasetType::EegWindow;
+        return true;
+    }
+    if (n.find("audio") != std::string::npos)
+    {
+        cfg.dataset_type = Experiment03DatasetType::AudioWindow;
+        return true;
+    }
+    if (n.find("fused") != std::string::npos)
+    {
+        cfg.dataset_type = Experiment03DatasetType::FusedWindow;
+        return true;
+    }
+    return false;
+}
+
+static bool map_autoencoder_type(const std::string& s, Config& cfg)
+{
+    auto n = normalize(s);
+    bool is_snn = n.find("snn") != std::string::npos || n.find("spiking") != std::string::npos;
+    if (n.find("protocol") != std::string::npos)
+    {
+        cfg.autoencoder_type =
+            is_snn ? Experiment03AutoencoderType::ProtocolSnn : Experiment03AutoencoderType::ProtocolAnn;
+        return true;
+    }
+    if (n.find("eeg") != std::string::npos)
+    {
+        cfg.autoencoder_type =
+            is_snn ? Experiment03AutoencoderType::EegWindowSnn : Experiment03AutoencoderType::EegWindowAnn;
+        return true;
+    }
+    if (n.find("audio") != std::string::npos)
+    {
+        cfg.autoencoder_type =
+            is_snn ? Experiment03AutoencoderType::AudioWindowSnn : Experiment03AutoencoderType::AudioWindowAnn;
+        return true;
+    }
+    if (n.find("fused") != std::string::npos)
+    {
+        cfg.autoencoder_type =
+            is_snn ? Experiment03AutoencoderType::FusedWindowSnn : Experiment03AutoencoderType::FusedWindowAnn;
+        return true;
+    }
+    return false;
+}
+
+static auto read_file(const std::filesystem::path& path, std::string& out) -> bool
+{
+    std::ifstream ifs(path);
+    if (!ifs) return false;
+    std::ostringstream oss;
+    oss << ifs.rdbuf();
+    out = oss.str();
+    return true;
+}
+
+static auto find_key(const std::string& text, const std::string& key) -> std::size_t
+{
+    return text.find("\"" + key + "\"");
+}
+
+static auto skip_ws(const std::string& text, std::size_t pos) -> std::size_t
+{
+    while (pos < text.size() && std::isspace(static_cast<unsigned char>(text[pos]))) ++pos;
+    return pos;
+}
+
+static auto value_start(const std::string& text, const std::string& key, std::size_t& out_pos) -> bool
+{
+    const std::size_t key_pos = find_key(text, key);
+    if (key_pos == std::string::npos) return false;
+    std::size_t colon = text.find(':', key_pos);
+    if (colon == std::string::npos) return false;
+    out_pos = skip_ws(text, colon + 1);
+    return out_pos < text.size();
+}
+
+static auto parse_quoted(const std::string& text, std::size_t start, std::string& out) -> bool
+{
+    if (start >= text.size() || text[start] != '"') return false;
+    ++start;
+    std::string result;
+    for (std::size_t i = start; i < text.size(); ++i)
+    {
+        char c = text[i];
+        if (c == '\\')
+        {
+            if (i + 1 < text.size())
+            {
+                result.push_back(text[i + 1]);
+                ++i;
+            }
+            continue;
+        }
+        if (c == '"')
+        {
+            out = result;
+            return true;
+        }
+        result.push_back(c);
+    }
+    return false;
+}
+
+static auto parse_token(const std::string& text, std::size_t start, std::string& out) -> bool
+{
+    if (start >= text.size()) return false;
+    std::size_t end = start;
+    while (end < text.size() && text[end] != ',' && text[end] != '}' && text[end] != ']') ++end;
+    if (end == start) return false;
+    out = text.substr(start, end - start);
+    // trim
+    std::size_t b = 0;
+    while (b < out.size() && std::isspace(static_cast<unsigned char>(out[b]))) ++b;
+    std::size_t e = out.size();
+    while (e > b && std::isspace(static_cast<unsigned char>(out[e - 1]))) --e;
+    out = out.substr(b, e - b);
+    return !out.empty();
+}
+
+template <typename T>
+static auto parse_number(const std::string& text, const std::string& key, T& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    std::string token;
+    if (!parse_token(text, pos, token)) return false;
+    char* end = nullptr;
+    const double value = std::strtod(token.c_str(), &end);
+    if (end == token.c_str()) return false;
+    out = static_cast<T>(value);
+    return true;
+}
+
+static auto parse_bool(const std::string& text, const std::string& key, bool& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    std::string token;
+    if (!parse_token(text, pos, token)) return false;
+    const auto n = normalize(token);
+    if (n == "true")
+    {
+        out = true;
+        return true;
+    }
+    if (n == "false")
+    {
+        out = false;
+        return true;
+    }
+    return false;
+}
+
+static auto parse_string(const std::string& text, const std::string& key, std::string& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    return parse_quoted(text, pos, out);
+}
+
+static auto parse_array_numbers(
+    const std::string& text, const std::string& key, std::vector<double>& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    if (pos >= text.size() || text[pos] != '[') return false;
+    std::size_t end = text.find(']', pos);
+    if (end == std::string::npos) return false;
+    const std::string body = text.substr(pos + 1, end - pos - 1);
+
+    out.clear();
+    std::stringstream ss(body);
+    std::string item;
+    while (std::getline(ss, item, ','))
+    {
+        char* p = nullptr;
+        const double v = std::strtod(item.c_str(), &p);
+        if (p != item.c_str()) out.push_back(v);
+    }
+    return true;
+}
+
+static auto parse_array_ints(const std::string& text, const std::string& key, std::vector<int>& out)
+    -> bool
+{
+    std::vector<double> vals;
+    if (!parse_array_numbers(text, key, vals)) return false;
+    out.clear();
+    out.reserve(vals.size());
+    for (double v : vals)
+    {
+        out.push_back(static_cast<int>(v));
+    }
+    return true;
+}
+
+static auto parse_object(const std::string& text, const std::string& key, std::string& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    if (pos >= text.size() || text[pos] != '{') return false;
+
+    int depth = 0;
+    for (std::size_t i = pos; i < text.size(); ++i)
+    {
+        if (text[i] == '{') ++depth;
+        else if (text[i] == '}')
+        {
+            --depth;
+            if (depth == 0)
+            {
+                out = text.substr(pos, i - pos + 1);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+auto load_profile_to_config(const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
+{
+    namespace fs = std::filesystem;
+
+    const fs::path source_profiles_dir =
+        fs::path(__FILE__).parent_path().parent_path().parent_path() / "profiles";
+
+    const fs::path raw_profile_path(profile_name);
+    const bool looks_like_path = raw_profile_path.is_absolute() ||
+                                 profile_name.find('/') != std::string::npos ||
+                                 profile_name.find('\\') != std::string::npos;
+    const bool has_json_extension = raw_profile_path.extension() == ".json";
+
+    std::vector<fs::path> candidates = {
+        raw_profile_path,
+        source_profiles_dir / (profile_name + ".json"),
+        fs::path("src/experiments/03/profiles") / (profile_name + ".json"),
+        fs::current_path() / (profile_name + ".json"),
+        fs::path("profiles") / (profile_name + ".json")
+    };
+
+    if (!has_json_extension)
+    {
+        candidates.insert(candidates.begin() + 1, raw_profile_path.string() + ".json");
+    }
+
+    if (looks_like_path && has_json_extension)
+    {
+        // Also try path exactly as provided before profile-name fallbacks.
+        candidates.insert(candidates.begin(), raw_profile_path);
+    }
+
+    fs::path selected;
+    for (auto& p : candidates)
+    {
+        if (p.empty()) continue;
+        if (fs::exists(p))
+        {
+            selected = p;
+            break;
+        }
+    }
+
+    if (selected.empty())
+    {
+        out_error = "profile not found in known locations for '" + profile_name + "'";
+        return false;
+    }
+
+    std::string text;
+    if (!read_file(selected, text))
+    {
+        out_error = "failed to read profile: " + selected.string();
+        return false;
+    }
+
+    parse_number(text, "batch_size", out_config.batch_size);
+    parse_number(text, "max_batches_per_epoch", out_config.max_batches_per_epoch);
+    parse_bool(text, "shuffle_samples", out_config.shuffle_samples);
+    if (unsigned int shuffle_seed = 0U; parse_number(text, "shuffle_seed", shuffle_seed))
+    {
+        out_config.shuffle_seed = shuffle_seed;
+    }
+    parse_string(text, "default_sampler_type", out_config.default_sampler_type);
+
+    parse_array_numbers(text, "sampler_weights", out_config.sampler_weights);
+    if (out_config.sampler_weights.empty() && find_key(text, "sampler_weights") != std::string::npos)
+    {
+        // Preserve explicit empty list in profile file.
+        out_config.sampler_weights.clear();
+    }
+
+    if (std::size_t weighted_num_samples = 0;
+        parse_number(text, "weighted_sampler_num_samples", weighted_num_samples))
+    {
+        out_config.weighted_sampler_num_samples = weighted_num_samples;
+    }
+
+    parse_number(
+        text, "distributed_sampler_num_replicas", out_config.distributed_sampler_num_replicas);
+    parse_number(text, "distributed_sampler_rank", out_config.distributed_sampler_rank);
+    parse_bool(text, "distributed_sampler_shuffle", out_config.distributed_sampler_shuffle);
+    parse_bool(text, "distributed_sampler_drop_last", out_config.distributed_sampler_drop_last);
+
+    if (int input_mode = 0; parse_number(text, "input_mode", input_mode))
+    {
+        out_config.input_mode = static_cast<Protocol101117InputMode>(input_mode);
+    }
+
+    std::string str_value;
+    if (parse_string(text, "dataset_type", str_value)) map_dataset_type(str_value, out_config);
+    if (parse_string(text, "autoencoder_type", str_value))
+        map_autoencoder_type(str_value, out_config);
+
+    parse_number(text, "autoencoder_hidden_size", out_config.autoencoder_hidden_size);
+    parse_number(text, "autoencoder_latent_size", out_config.autoencoder_latent_size);
+    parse_number(text, "autoencoder_depth", out_config.autoencoder_depth);
+    parse_array_ints(text, "autoencoder_layer_sizes", out_config.autoencoder_layer_sizes);
+    parse_array_ints(text, "layer_sizes", out_config.autoencoder_layer_sizes);
+    parse_array_ints(text, "hidden_layer_sizes", out_config.autoencoder_layer_sizes);
+    parse_number(text, "autoencoder_input_features", out_config.autoencoder_input_features);
+    parse_number(text, "autoencoder_eeg_features", out_config.autoencoder_eeg_features);
+    parse_number(text, "autoencoder_audio_features", out_config.autoencoder_audio_features);
+
+    // Backward/short aliases for profile files.
+    parse_number(text, "input_features", out_config.autoencoder_input_features);
+    parse_number(text, "eeg_features", out_config.autoencoder_eeg_features);
+    parse_number(text, "audio_features", out_config.autoencoder_audio_features);
+    parse_number(text, "layers", out_config.autoencoder_depth);
+
+    if (int architecture = 0; parse_number(text, "autoencoder_architecture", architecture))
+    {
+        out_config.autoencoder_architecture = static_cast<AutoencoderArchitecture>(architecture);
+    }
+
+    parse_number(
+        text, "autoencoder_branch_hidden_size", out_config.autoencoder_branch_hidden_size);
+    parse_number(
+        text, "autoencoder_fusion_hidden_size", out_config.autoencoder_fusion_hidden_size);
+    parse_number(text, "autoencoder_residual_blocks", out_config.autoencoder_residual_blocks);
+    parse_number(text, "autoencoder_time_step", out_config.autoencoder_time_step);
+    parse_number(text, "autoencoder_resistance", out_config.autoencoder_resistance);
+    parse_number(text, "autoencoder_capacitance", out_config.autoencoder_capacitance);
+
+    parse_number(text, "training_learning_rate", out_config.training_learning_rate);
+    parse_number(text, "training_epochs", out_config.training_epochs);
+    parse_number(text, "prefetch_lookahead", out_config.prefetch_lookahead);
+
+    std::string eeg_object;
+    if (parse_object(text, "eeg_window_config", eeg_object))
+    {
+        parse_number(eeg_object, "window_size", out_config.eeg_window_config.window_size);
+        parse_number(eeg_object, "overlap", out_config.eeg_window_config.overlap);
+        parse_number(eeg_object, "sample_rate", out_config.eeg_window_config.sample_rate);
+    }
+
+    std::string audio_object;
+    if (parse_object(text, "audio_window_config", audio_object))
+    {
+        parse_number(audio_object, "window_size", out_config.audio_window_config.window_size);
+        parse_number(audio_object, "overlap", out_config.audio_window_config.overlap);
+        parse_number(audio_object, "sample_rate", out_config.audio_window_config.sample_rate);
+    }
+
+    out_error.clear();
+    return true;
+}
+
+} // namespace experiment03

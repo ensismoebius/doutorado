@@ -46,6 +46,8 @@ enum class Experiment03AutoencoderType
 
 struct Config
 {
+    string profile_name = "default"; // Name of profile used to seed defaults.
+
     string subject_filter_regex = ""; // Subject directory regex with an ID capture group
     string dataset_root = "";         // Path containing subject directories
 
@@ -83,6 +85,10 @@ struct Config
     int autoencoder_hidden_size = 64;
     int autoencoder_latent_size = 32;
     int autoencoder_depth = 2;
+    std::vector<int> autoencoder_layer_sizes; // Empty = infer with depth/hidden-size tapering
+    int autoencoder_input_features = 0;       // 0 = infer from dataset batch shape
+    int autoencoder_eeg_features = 0;         // 0 = infer from dataset/window config
+    int autoencoder_audio_features = 0;       // 0 = infer from dataset/window config
     AutoencoderArchitecture autoencoder_architecture = AutoencoderArchitecture::Auto;
     int autoencoder_branch_hidden_size = 0;
     int autoencoder_fusion_hidden_size = 0;

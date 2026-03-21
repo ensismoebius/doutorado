@@ -11,6 +11,8 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/FusedWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/ProtocolAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/ProtocolSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/ProfileLoader.cpp
+    ${SRC_DIR}/experiments/03/lib/src/ResultsWriter.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
 )
 
@@ -63,5 +65,16 @@ target_link_libraries(experiment03
     matioCpp
     z
 )
+
+file(GLOB EXPERIMENT03_PROFILE_JSON "${SRC_DIR}/experiments/03/profiles/*.json")
+if(EXPERIMENT03_PROFILE_JSON)
+    add_custom_command(TARGET experiment03 POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:experiment03>/profiles
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${EXPERIMENT03_PROFILE_JSON}
+            $<TARGET_FILE_DIR:experiment03>/profiles
+        VERBATIM
+    )
+endif()
 
 add_subdirectory(tests)

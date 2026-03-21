@@ -1,6 +1,8 @@
 #ifndef EXPERIMENT03_AUTOENCODER_CONFIG_HPP
 #define EXPERIMENT03_AUTOENCODER_CONFIG_HPP
 
+#include <vector>
+
 /**
  * @file AutoencoderConfig.hpp
  * @brief Shared configuration struct for experiment03 autoencoders.
@@ -18,10 +20,12 @@ enum class AutoencoderArchitecture
 
 struct AutoencoderConfig
 {
-    int input_features = 128; ///< Dimensionality of the raw input vector (modality-specific).
-    int hidden_size = 64;     ///< Width of intermediate hidden layers.
-    int latent_size = 32;     ///< Bottleneck dimensionality.
-    int depth = 1;            ///< Number of hidden layers on each side (>=1).
+    int input_features = 128;     ///< Dimensionality of the raw input vector (modality-specific).
+    int hidden_size = 64;         ///< Width of intermediate hidden layers.
+    int latent_size = 32;         ///< Bottleneck dimensionality.
+    int depth = 1;                ///< Number of hidden layers on each side (>=1).
+    std::vector<int> layer_sizes; ///< Optional explicit hidden-layer widths (overrides
+                                  ///< depth/hidden_size tapering).
 
     AutoencoderArchitecture architecture = AutoencoderArchitecture::Auto;
     int branch_hidden_size = 0; ///< Multimodal branch projection width. 0 = auto.

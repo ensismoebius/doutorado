@@ -21,6 +21,22 @@ namespace experiment03::autoencoders
 
 inline auto tapered_widths(const AutoencoderConfig& cfg, int base_hidden) -> std::vector<int>
 {
+    if (!cfg.layer_sizes.empty())
+    {
+        std::vector<int> widths;
+        widths.reserve(cfg.layer_sizes.size());
+        for (int w : cfg.layer_sizes)
+        {
+            if (w < 1)
+            {
+                throw std::invalid_argument(
+                    "AutoencoderConfig::layer_sizes must contain positive values");
+            }
+            widths.push_back(w);
+        }
+        return widths;
+    }
+
     if (cfg.depth < 1)
     {
         throw std::invalid_argument("AutoencoderConfig::depth must be >= 1");

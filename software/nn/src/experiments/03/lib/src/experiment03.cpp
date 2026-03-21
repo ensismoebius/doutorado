@@ -12,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "AudioWindowAutoencoder.hpp"
 #include "AudioWindowSpikingAutoencoder.hpp"
@@ -22,6 +23,7 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
+#include "ResultsWriter.hpp"
 #include "experiment03.hpp"
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
@@ -118,10 +120,12 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     -> std::unique_ptr<Module>
 {
     AutoencoderConfig model_cfg{};
-    model_cfg.input_features = input_features;
+    model_cfg.input_features =
+        config.autoencoder_input_features > 0 ? config.autoencoder_input_features : input_features;
     model_cfg.hidden_size = config.autoencoder_hidden_size;
     model_cfg.latent_size = config.autoencoder_latent_size;
     model_cfg.depth = config.autoencoder_depth;
+    model_cfg.layer_sizes = config.autoencoder_layer_sizes;
     model_cfg.architecture = config.autoencoder_architecture;
     model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
     model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;
@@ -133,9 +137,17 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     if (config.autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
         config.autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
     {
-        model_cfg.eeg_features = static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
-                                 config.eeg_window_config.window_size;
-        model_cfg.audio_features = config.audio_window_config.window_size;
+        const int inferred_eeg_features =
+            static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
+            config.eeg_window_config.window_size;
+        const int inferred_audio_features = config.audio_window_config.window_size;
+
+        model_cfg.eeg_features = config.autoencoder_eeg_features > 0
+                                     ? config.autoencoder_eeg_features
+                                     : inferred_eeg_features;
+        model_cfg.audio_features = config.autoencoder_audio_features > 0
+                                       ? config.autoencoder_audio_features
+                                       : inferred_audio_features;
         if (model_cfg.architecture == AutoencoderArchitecture::Auto)
         {
             model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -146,10 +158,18 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     {
         if (config.input_mode == Protocol101117InputMode::Concatenated)
         {
-            model_cfg.audio_features =
+            const int inferred_audio_features =
                 static_cast<int>(ImaginedSpeechSchema_10_1117.audioSamples());
-            model_cfg.eeg_features = static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
-                                     model_cfg.audio_features;
+            const int inferred_eeg_features =
+                static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
+                inferred_audio_features;
+
+            model_cfg.audio_features = config.autoencoder_audio_features > 0
+                                           ? config.autoencoder_audio_features
+                                           : inferred_audio_features;
+            model_cfg.eeg_features = config.autoencoder_eeg_features > 0
+                                         ? config.autoencoder_eeg_features
+                                         : inferred_eeg_features;
             if (model_cfg.architecture == AutoencoderArchitecture::Auto)
             {
                 model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
@@ -205,6 +225,8 @@ Experiment03::Experiment03(const Config& config) : config_(config)
 
 int Experiment03::run()
 {
+    std::vector<float> epoch_mean_losses;
+
     try
     {
         ////////////////////////////
@@ -299,6 +321,7 @@ int Experiment03::run()
             // loss reporting at the end of the epoch.
             size_t epoch_batches = 0;
             float epoch_loss_sum = 0.0F;
+            double last_batch_loss = 0.0;
 
             // Reset per-epoch counters.
             seen_batches_ = 0;
@@ -360,6 +383,7 @@ int Experiment03::run()
                 optimizer->step(params);
 
                 epoch_loss_sum += loss_value.at(0, 0);
+                last_batch_loss = static_cast<double>(loss_value.at(0, 0));
                 ++epoch_batches;
 
                 processed_samples_ += static_cast<size_t>(batch.inputs.rows());
@@ -387,12 +411,13 @@ int Experiment03::run()
                     true,
                     epoch + 1,
                     config_.training_epochs,
-                    0.0,
+                    last_batch_loss,
                     model_->params());
             }
 
             const float mean_loss =
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
+            epoch_mean_losses.push_back(mean_loss);
             cout << "  mean reconstruction loss: " << mean_loss << "\n";
         }
 
@@ -401,10 +426,44 @@ int Experiment03::run()
             cout << "No batches produced. Check dataset files and row counts.\n";
         }
 
+        std::string results_path;
+        std::string results_error;
+        experiment03::RunSummary summary{};
+        summary.profile_name = config_.profile_name;
+        summary.dataset_type = dataset_type_to_string(config_.dataset_type);
+        summary.autoencoder_type = autoencoder_type_to_string(config_.autoencoder_type);
+        summary.exit_code = 0;
+        summary.total_samples = dataset_total_samples_;
+        summary.processed_samples = processed_samples_;
+        summary.seen_batches = seen_batches_;
+        summary.epoch_mean_losses = epoch_mean_losses;
+        if (experiment03::write_run_summary_json(summary, results_path, results_error))
+        {
+            cout << "Run summary written to: " << results_path << "\n";
+        }
+        else
+        {
+            cerr << "Warning: failed to write run summary: " << results_error << "\n";
+        }
+
         cout << "Training complete.\n";
     }
     catch (const exception& e)
     {
+        std::string results_path;
+        std::string results_error;
+        experiment03::RunSummary summary{};
+        summary.profile_name = config_.profile_name;
+        summary.dataset_type = dataset_type_to_string(config_.dataset_type);
+        summary.autoencoder_type = autoencoder_type_to_string(config_.autoencoder_type);
+        summary.exit_code = 1;
+        summary.total_samples = dataset_total_samples_;
+        summary.processed_samples = processed_samples_;
+        summary.seen_batches = seen_batches_;
+        summary.epoch_mean_losses = epoch_mean_losses;
+        summary.error_message = e.what();
+        (void) experiment03::write_run_summary_json(summary, results_path, results_error);
+
         cerr << "Error: " << e.what() << '\n';
         return 1;
     }
