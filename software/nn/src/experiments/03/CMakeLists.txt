@@ -3,14 +3,14 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
-    ${SRC_DIR}/experiments/03/lib/src/AudioWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/AudioWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/EegWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/EegWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/FusedWindowAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/FusedWindowSpikingAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/ProtocolAutoencoder.cpp
-    ${SRC_DIR}/experiments/03/lib/src/ProtocolSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/AudioWindowAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/AudioWindowSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/EegWindowAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/EegWindowSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/FusedWindowAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/FusedWindowSpikingAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/ProtocolAutoencoder.cpp
+    ${SRC_DIR}/experiments/03/lib/autoencoder/src/ProtocolSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/ProfileLoader.cpp
     ${SRC_DIR}/experiments/03/lib/src/ResultsWriter.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
@@ -24,6 +24,7 @@ endif()
 
 target_include_directories(experiment03_lib
     PUBLIC
+        ${SRC_DIR}/experiments/03/lib/autoencoder/include
         ${SRC_DIR}/experiments/03/lib/include
     ${PROJECT_SOURCE_DIR}/include
 )
