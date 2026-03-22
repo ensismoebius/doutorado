@@ -47,11 +47,11 @@ TEST(DatasetCollate, CollatesMultipleIndicesInOrder)
     for (std::size_t r = 0; r < indices.size(); ++r)
     {
         float expected = static_cast<float>(indices[r]);
-        for (int c = 0; c < b.inputs.cols(); ++c)
+        for (nn::Index c = 0; c < b.inputs.cols(); ++c)
         {
             EXPECT_FLOAT_EQ(b.inputs.at(static_cast<nn::Index>(r), c), expected);
         }
-        for (int c = 0; c < b.targets.cols(); ++c)
+        for (nn::Index c = 0; c < b.targets.cols(); ++c)
         {
             EXPECT_FLOAT_EQ(b.targets.at(static_cast<nn::Index>(r), c), expected);
         }

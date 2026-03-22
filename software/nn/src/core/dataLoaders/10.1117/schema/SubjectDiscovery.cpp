@@ -17,10 +17,10 @@ using std::vector;
 
 using matioCpp::utils::countMatRows;
 
-using nn::dataLoaders::AUDIO_MAT_FILE_SUFFIX;
-using nn::dataLoaders::AUDIO_MAT_VARIABLE_NAME;
-using nn::dataLoaders::EEG_MAT_FILE_SUFFIX;
-using nn::dataLoaders::EEG_MAT_VARIABLE_NAME;
+using nn::dataLoaders::kAudioMatFileSuffix;
+using nn::dataLoaders::kAudioMatVariableName;
+using nn::dataLoaders::kEegMatFileSuffix;
+using nn::dataLoaders::kEegMatVariableName;
 
 auto discoverSubjects(                       //
     const std::string& root_dir,             //
@@ -58,8 +58,8 @@ auto discoverSubjects(                       //
 
         const int subject_id = std::stoi(regex_groups_matches[1].str());
 
-        const fs::path eeg_path = entry.path() / (dir_name + EEG_MAT_FILE_SUFFIX);
-        const fs::path audio_path = entry.path() / (dir_name + AUDIO_MAT_FILE_SUFFIX);
+        const fs::path eeg_path = entry.path() / (dir_name + kEegMatFileSuffix);
+        const fs::path audio_path = entry.path() / (dir_name + kAudioMatFileSuffix);
 
         if (!fs::exists(eeg_path) || !fs::exists(audio_path))
         {
@@ -71,8 +71,8 @@ auto discoverSubjects(                       //
         info.subject_name = dir_name;
         info.eeg_mat_path = eeg_path.string();
         info.audio_mat_path = audio_path.string();
-        info.eeg_rows = countMatRows(info.eeg_mat_path, EEG_MAT_VARIABLE_NAME);
-        info.audio_rows = countMatRows(info.audio_mat_path, AUDIO_MAT_VARIABLE_NAME);
+        info.eeg_rows = countMatRows(info.eeg_mat_path, kEegMatVariableName);
+        info.audio_rows = countMatRows(info.audio_mat_path, kAudioMatVariableName);
 
         subjects.emplace_back(std::move(info));
     }

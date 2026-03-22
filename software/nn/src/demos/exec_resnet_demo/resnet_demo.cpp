@@ -107,12 +107,12 @@ auto main() -> int
     Sequential model({fc_in, act, rb1, rb2, fc_out});
 
     // init weights
-    kaimingSNNInitializer(fc_in, nn::testing::SEED);
-    kaimingSNNInitializer(fc_out, nn::testing::SEED);
-    kaimingSNNInitializer(rb1->fc1, nn::testing::SEED);
-    kaimingSNNInitializer(rb1->fc2, nn::testing::SEED);
-    kaimingSNNInitializer(rb2->fc1, nn::testing::SEED);
-    kaimingSNNInitializer(rb2->fc2, nn::testing::SEED);
+    kaimingSNNInitializer(fc_in, nn::testing::kSeed);
+    kaimingSNNInitializer(fc_out, nn::testing::kSeed);
+    kaimingSNNInitializer(rb1->fc1, nn::testing::kSeed);
+    kaimingSNNInitializer(rb1->fc2, nn::testing::kSeed);
+    kaimingSNNInitializer(rb2->fc1, nn::testing::kSeed);
+    kaimingSNNInitializer(rb2->fc2, nn::testing::kSeed);
 
     // Loss and optimizer
     CrossEntropyLoss loss;

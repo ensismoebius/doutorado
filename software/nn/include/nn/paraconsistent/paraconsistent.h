@@ -25,22 +25,22 @@
  */
 
 /**
- * @brief Given the alfa and the betha calculates the certainty degree
+ * @brief Given alpha and beta, calculates the certainty degree.
  *
- * @param alpha
- * @param betha
- * @return double
+ * @param alpha Evidence in favor.
+ * @param beta Evidence against.
+ * @return Certainty degree g1.
  */
-auto calculate_certainty_degree_g1(double alpha, double betha) -> double;
+auto calculate_certainty_degree_g1(double alpha, double beta) -> double;
 
 /**
- * @brief Given the alfa and the betha calculates the contradiction degree
+ * @brief Given alpha and beta, calculates the contradiction degree.
  *
- * @param alpha
- * @param betha
- * @return double
+ * @param alpha Evidence in favor.
+ * @param beta Evidence against.
+ * @return Contradiction degree g2.
  */
-auto calculate_contradiction_degree_g2(double alpha, double betha) -> double;
+auto calculate_contradiction_degree_g2(double alpha, double beta) -> double;
 
 /**
  * @brief Calculates the alpha value

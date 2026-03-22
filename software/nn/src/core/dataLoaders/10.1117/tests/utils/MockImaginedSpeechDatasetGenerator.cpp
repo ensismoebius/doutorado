@@ -138,7 +138,7 @@ void MockImaginedSpeechDatasetGenerator::generateCorruptedEEGMatFile(
 
     auto file = matioCpp::File::Create(path.string());
     matioCpp::MultiDimensionalArray<double> eeg_matrix(
-        nn::dataLoaders::EEG_MAT_VARIABLE_NAME, {rows, cols}, data.data());
+        nn::dataLoaders::kEegMatVariableName, {rows, cols}, data.data());
     file.write(eeg_matrix);
     file.close();
 }
@@ -192,7 +192,7 @@ void MockImaginedSpeechDatasetGenerator::generateCorruptedAudioMatFile(
 
     auto file = matioCpp::File::Create(path.string());
     matioCpp::MultiDimensionalArray<double> audio_matrix(
-        nn::dataLoaders::AUDIO_MAT_VARIABLE_NAME, {rows, cols}, data.data());
+        nn::dataLoaders::kAudioMatVariableName, {rows, cols}, data.data());
     file.write(audio_matrix);
     file.close();
 }

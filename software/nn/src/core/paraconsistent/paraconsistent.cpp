@@ -19,15 +19,25 @@
 #include "nn/linearAlgebra/linear_algebra.hpp"
 #include "nn/utility/comparison.h"
 
-auto calculate_certainty_degree_g1(double alpha, double betha) -> double
+/**
+ * @brief Calculates certainty degree g1 from alpha and beta.
+ */
+auto calculate_certainty_degree_g1(double alpha, double beta) -> double
 {
-    return alpha - betha;
-}
-auto calculate_contradiction_degree_g2(double alpha, double betha) -> double
-{
-    return alpha + betha - 1;
+    return alpha - beta;
 }
 
+/**
+ * @brief Calculates contradiction degree g2 from alpha and beta.
+ */
+auto calculate_contradiction_degree_g2(double alpha, double beta) -> double
+{
+    return alpha + beta - 1;
+}
+
+/**
+ * @brief Normalizes each feature subvector from a raw pointer matrix to sum 1.
+ */
 static void normalizeFeatureVectors(
     double**& featureVectors, unsigned int vectorSize, long subVectorsSize)
 {
@@ -37,6 +47,10 @@ static void normalizeFeatureVectors(
             {featureVectors[vi], static_cast<size_t>(subVectorsSize)});
     }
 }
+
+/**
+ * @brief Normalizes each feature subvector from a nested vector container to sum 1.
+ */
 static void normalizeFeatureVectors(
     std::vector<std::vector<double>>& featureVectors, unsigned int vectorSize)
 {
@@ -46,6 +60,9 @@ static void normalizeFeatureVectors(
     }
 }
 
+/**
+ * @brief Normalizes all class feature vectors from a triple-pointer structure.
+ */
 void normalize_class_feature_vectors(unsigned int amountOfClasses,
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
@@ -57,6 +74,9 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses,
     }
 }
 
+/**
+ * @brief Normalizes all class feature vectors from nested vectors.
+ */
 void normalize_class_feature_vectors(unsigned int amountOfClasses,
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
@@ -68,6 +88,9 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses,
     }
 }
 
+/**
+ * @brief Normalizes all class feature vectors from a class-keyed map.
+ */
 void normalize_class_feature_vectors(unsigned int amountOfClasses,
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
@@ -79,6 +102,9 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses,
     }
 }
 
+/**
+ * @brief Computes alpha as the minimum average compactness across classes.
+ */
 auto calculate_alpha(unsigned int amountOfClasses,
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
@@ -130,6 +156,9 @@ auto calculate_alpha(unsigned int amountOfClasses,
     return alpha;
 }
 
+/**
+ * @brief Computes beta as the overlap ratio between classes in feature space.
+ */
 auto calculate_beta(unsigned int amountOfClasses,
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
@@ -197,7 +226,7 @@ auto calculate_beta(unsigned int amountOfClasses,
         }
     }
 
-    // Return betha
+    // Return beta overlap ratio.
     return R / (double) (amountOfClasses * (amountOfClasses - 1.0) * featureVectorsPerClass *
                          featureVectorSize);
 }

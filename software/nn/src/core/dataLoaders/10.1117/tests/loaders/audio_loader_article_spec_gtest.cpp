@@ -61,7 +61,7 @@ TEST_F(AudioLoaderArticleSpecTest, RawMatrixColumnCountMatchesSchema)
     mat_t* mat = Mat_Open(audio_file_.c_str(), MAT_ACC_RDONLY);
     ASSERT_NE(mat, nullptr);
 
-    matvar_t* var = Mat_VarRead(mat, nn::dataLoaders::AUDIO_MAT_VARIABLE_NAME.c_str());
+    matvar_t* var = Mat_VarRead(mat, nn::dataLoaders::kAudioMatVariableName.c_str());
     ASSERT_NE(var, nullptr);
 
     EXPECT_EQ(var->rank, 2);

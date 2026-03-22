@@ -26,10 +26,10 @@
 class MSELoss : public Module
 {
    private:
-    // Constants for numerical stability
-    static constexpr float MAX_VALUE_FACTOR = 2.0F;
-    static constexpr float MSE_GRADIENT_FACTOR = 2.0F;
-    static constexpr float MAX_GRADIENT_NORM = 1.0F;
+    // Constants for numerical stability in loss and gradient computations.
+    static constexpr float kMaxValueFactor = 2.0F;
+    static constexpr float kMseGradientFactor = 2.0F;
+    static constexpr float kMaxGradientNorm = 1.0F;
 
     nn::Tensor last_input_;
     nn::Tensor last_target_;
@@ -68,7 +68,7 @@ class MSELoss : public Module
         // Clip extremely large values to prevent overflow (but let NaN/Inf propagate)
         if (std::isfinite(mse))
         {
-            mse = std::min(mse, std::numeric_limits<float>::max() / MAX_VALUE_FACTOR);
+            mse = std::min(mse, std::numeric_limits<float>::max() / kMaxValueFactor);
         }
         nn::Tensor loss_tensor(1, 1);
         loss_tensor.at(0, 0) = mse;
@@ -91,7 +91,7 @@ class MSELoss : public Module
         // Compute gradient: 2 * (prediction - target) / num_elements
         nn::Tensor grad = last_input_;
         grad.subtract_inplace(last_target_);
-        float factor = MSE_GRADIENT_FACTOR / static_cast<float>(last_input_.size());
+        float factor = kMseGradientFactor / static_cast<float>(last_input_.size());
         grad.multiply_scalar_inplace(factor);
 
         // Check for invalid gradients using norm (if norm is NaN or Inf, gradients are invalid)
@@ -114,9 +114,9 @@ class MSELoss : public Module
 
         // Gradient clipping to prevent explosion
         float grad_norm = grad.norm();
-        if (grad_norm > MAX_GRADIENT_NORM) [[unlikely]]
+        if (grad_norm > kMaxGradientNorm) [[unlikely]]
         {
-            grad.multiply_scalar_inplace(MAX_GRADIENT_NORM / grad_norm);
+            grad.multiply_scalar_inplace(kMaxGradientNorm / grad_norm);
         }
 
         return grad;

@@ -195,11 +195,20 @@ auto malat(const std::vector<double>& signal,
     return results;
 }
 
+/**
+ * @brief Returns the next power of two greater than or equal to the input.
+ */
 auto get_next_power_of_two(double number) -> int
 {
     return static_cast<int>(std::pow(2, std::ceil(std::log2(number))));
 }
 
+/**
+ * @brief Extracts RMS energies for each subband from a transform result.
+ *
+ * For packet transforms this returns one value per packet part. For regular
+ * transforms this returns one value for approximation and one per detail band.
+ */
 auto extract_subband_energies(const WaveletTransformResults& transform, int level)
     -> std::vector<double>
 {

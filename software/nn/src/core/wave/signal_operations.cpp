@@ -18,6 +18,12 @@
 #include <stdexcept>
 #include <vector>
 
+/**
+ * @brief Computes the Average Magnitude Difference Function (AMDF) curve.
+ *
+ * The output has the same length as the input and stores per-lag
+ * accumulated absolute differences.
+ */
 auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
 {
     unsigned int resultIndex = -1;
@@ -35,6 +41,11 @@ auto amdf(const std::vector<long double>& vector) -> std::vector<long double>
     return result;
 }
 
+/**
+ * @brief Estimates the fundamental period from the AMDF curve minima.
+ *
+ * @throws std::invalid_argument when the input vector is empty.
+ */
 auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned int
 {
     if (vector.empty())
@@ -60,6 +71,9 @@ auto findFZeroPeriodSamples(const std::vector<long double>& vector) -> unsigned 
     return period;
 }
 
+/**
+ * @brief Scales the signal so the largest absolute sample maps to 32767.
+ */
 void doAFineAmplification(double* signal, int signalLength)
 {
     double highestSignal = 0;
@@ -80,6 +94,9 @@ void doAFineAmplification(double* signal, int signalLength)
     }
 }
 
+/**
+ * @brief Mutes the second half of the signal buffer in-place.
+ */
 void silentHalfOfTheSoundTrack(double* signal, int signalLength)
 {
     int middleSignalIndex = signalLength / 2;
@@ -90,6 +107,9 @@ void silentHalfOfTheSoundTrack(double* signal, int signalLength)
     }
 }
 
+/**
+ * @brief Applies a constant 0.5 gain to the entire signal buffer.
+ */
 void halfVolume(double* signal, int signalLength)
 {
     for (int i = 0; i < signalLength; ++i)
@@ -98,6 +118,9 @@ void halfVolume(double* signal, int signalLength)
     }
 }
 
+/**
+ * @brief Applies a simple delayed echo effect in-place.
+ */
 void addEchoes(double* signal, int signalLength)
 {
     // the "time" sound get to bounce and back

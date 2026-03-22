@@ -267,7 +267,7 @@ struct SnnModel : public Module
         fc_out = std::make_shared<Linear>(hidden_size, output_size);
         lif_out = std::make_shared<Leaky>();
 
-        const unsigned int base_seed = seed == 0 ? nn::testing::SEED : seed;
+        const unsigned int base_seed = seed == 0 ? nn::testing::kSeed : seed;
 
         kaimingSNNInitializer(fc_in, base_seed + 1U);
         kaimingSNNInitializer(fc_out, base_seed + 2U);
@@ -427,7 +427,7 @@ auto run_pipeline(                          //
         seed                                       //
     );
 
-    mt19937 rng(seed == 0 ? nn::testing::SEED : seed);
+    mt19937 rng(seed == 0 ? nn::testing::kSeed : seed);
 
     vector<Tensor> output_per_window;
     output_per_window.reserve(features.size());

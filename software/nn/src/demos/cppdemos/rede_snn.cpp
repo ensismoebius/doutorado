@@ -156,7 +156,7 @@ struct SnnModel : public Module
             // If top-level is a Linear
             if (auto linptr = std::dynamic_pointer_cast<Linear>(layer))
             {
-                kaimingSNNInitializer(linptr, nn::testing::SEED);
+                kaimingSNNInitializer(linptr, nn::testing::kSeed);
                 continue;
             }
 
@@ -167,7 +167,7 @@ struct SnnModel : public Module
                 {
                     if (auto sublin = std::dynamic_pointer_cast<Linear>(sub))
                     {
-                        kaimingSNNInitializer(sublin, nn::testing::SEED);
+                        kaimingSNNInitializer(sublin, nn::testing::kSeed);
                     }
                 }
             }
@@ -182,7 +182,7 @@ struct SnnModel : public Module
                     {
                         if (auto sublin = std::dynamic_pointer_cast<Linear>(sub))
                         {
-                            kaimingSNNInitializer(sublin, nn::testing::SEED);
+                            kaimingSNNInitializer(sublin, nn::testing::kSeed);
                         }
                     }
                 }

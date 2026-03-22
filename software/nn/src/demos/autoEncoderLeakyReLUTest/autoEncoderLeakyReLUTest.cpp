@@ -191,20 +191,20 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
                      "initialization\n";
 
         // Initialize encoder weights and biases
-        kaimingSNNInitializer(encoder1, nn::testing::SEED);
-        kaimingSNNInitializer(encoder2, nn::testing::SEED);
-        kaimingSNNInitializer(encoder3, nn::testing::SEED);
-        kaimingSNNInitializer(encoder4, nn::testing::SEED);
-        kaimingSNNInitializer(encoder5, nn::testing::SEED);
-        kaimingSNNInitializer(encoder6, nn::testing::SEED);
+        kaimingSNNInitializer(encoder1, nn::testing::kSeed);
+        kaimingSNNInitializer(encoder2, nn::testing::kSeed);
+        kaimingSNNInitializer(encoder3, nn::testing::kSeed);
+        kaimingSNNInitializer(encoder4, nn::testing::kSeed);
+        kaimingSNNInitializer(encoder5, nn::testing::kSeed);
+        kaimingSNNInitializer(encoder6, nn::testing::kSeed);
 
         // Initialize decoder weights and biases if no saved weights exist
-        kaimingSNNInitializer(decoder1, nn::testing::SEED);
-        kaimingSNNInitializer(decoder2, nn::testing::SEED);
-        kaimingSNNInitializer(decoder3, nn::testing::SEED);
-        kaimingSNNInitializer(decoder4, nn::testing::SEED);
-        kaimingSNNInitializer(decoder5, nn::testing::SEED);
-        kaimingSNNInitializer(decoder6, nn::testing::SEED);
+        kaimingSNNInitializer(decoder1, nn::testing::kSeed);
+        kaimingSNNInitializer(decoder2, nn::testing::kSeed);
+        kaimingSNNInitializer(decoder3, nn::testing::kSeed);
+        kaimingSNNInitializer(decoder4, nn::testing::kSeed);
+        kaimingSNNInitializer(decoder5, nn::testing::kSeed);
+        kaimingSNNInitializer(decoder6, nn::testing::kSeed);
     }
 
     // ==== Optimizer ====

@@ -182,7 +182,7 @@ class SpikeAutoEncoder : public Module
                 {
                     if (auto l = dynamic_pointer_cast<Linear>(layer))
                     {
-                        kaimingSNNInitializer(l, nn::testing::SEED);
+                        kaimingSNNInitializer(l, nn::testing::kSeed);
                         // Scale weights slightly to prevent explosion in deep SNNs
                         for (int i = 0; i < l->weight.rows(); ++i)
                             for (int j = 0; j < l->weight.cols(); ++j) l->weight.at(i, j) *= 0.01f;

@@ -35,9 +35,9 @@ auto formatProtocol101117BatchTargets(const Batch& batch) -> std::string
 
         out << "Sample " << i << ":\n";
         out << "  - Target subject ID: " << batch.targets.at(i, 0) << '\n';
-        out << "  - Target modality: " << labelOrUnknown(MODALITY_NAMES, modality) << '\n';
-        out << "  - Target stimulus: " << labelOrUnknown(ESTIMULUS_NAMES, stimulus) << '\n';
-        out << "  - Target artifact: " << labelOrUnknown(ARTIFACT_NAMES, artifact) << '\n';
+        out << "  - Target modality: " << labelOrUnknown(kModalityNames, modality) << '\n';
+        out << "  - Target stimulus: " << labelOrUnknown(kStimulusNames, stimulus) << '\n';
+        out << "  - Target artifact: " << labelOrUnknown(kArtifactNames, artifact) << '\n';
         out << "  - Target EEG index label: " << batch.targets.at(i, 4) << "\n\n";
     }
 

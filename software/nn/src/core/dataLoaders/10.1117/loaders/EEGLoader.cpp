@@ -177,7 +177,7 @@ EEGMatSession::EEGMatSession(const std::string& filePath) : impl_(std::make_uniq
         throw std::runtime_error("Failed to open MAT file: " + filePath);
     }
 
-    impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), EEG_MAT_VARIABLE_NAME.c_str()));
+    impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName.c_str()));
     if (!impl_->eegVar)
     {
         throw std::runtime_error("Failed to find EEG variable in MAT file: " + filePath);

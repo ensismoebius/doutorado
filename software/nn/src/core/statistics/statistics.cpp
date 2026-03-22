@@ -14,11 +14,13 @@
  */
 #include <cmath>
 #include <numeric>
-#include <utility>
 #include <vector>
 
 namespace statistics
 {
+/**
+ * @brief Computes population variance for a vector of values.
+ */
 auto variance(const std::vector<double>& data) -> double
 {
     // Calculate the mean using std::accumulate
@@ -35,6 +37,9 @@ auto variance(const std::vector<double>& data) -> double
     return variance_val;
 }
 
+/**
+ * @brief Computes population variance for a raw contiguous array.
+ */
 auto variance(const double* data, unsigned int length) -> double
 {
     // Calculate the mean using std::accumulate
@@ -51,11 +56,17 @@ auto variance(const double* data, unsigned int length) -> double
     return variance_val;
 }
 
+/**
+ * @brief Computes standard deviation for a vector of values.
+ */
 auto standardDeviation(const std::vector<double>& data) -> double
 {
     return std::sqrt(variance(data));
 }
 
+/**
+ * @brief Computes standard deviation for a raw contiguous array.
+ */
 auto standardDeviation(const double* data, unsigned int length) -> double
 {
     return std::sqrt(variance(data, length));

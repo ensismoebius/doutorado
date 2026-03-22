@@ -72,9 +72,9 @@ class NetworkSerializer
 
    private:
     // --- Constants ---
-    static constexpr const char* WEIGHTS_SUFFIX = ".weight";
-    static constexpr const char* BIAS_SUFFIX = ".bias";
-    static constexpr const char* ARCHITECTURE_KEY = "__architecture__";
+    static constexpr const char* kWeightsSuffix = ".weight";
+    static constexpr const char* kBiasSuffix = ".bias";
+    static constexpr const char* kArchitectureKey = "__architecture__";
 
     // --- Save Handlers ---
     static void _saveLinear(const shared_ptr<Linear>& layer,
@@ -148,7 +148,7 @@ inline auto NetworkSerializer::saveNetwork(const Sequential& model, const string
 
         vector<char> arch_metadata_vec(arch_metadata_str.begin(), arch_metadata_str.end());
         npz_save(safe_filepath,
-            ARCHITECTURE_KEY,
+            kArchitectureKey,
             arch_metadata_vec.data(),
             {arch_metadata_vec.size()},
             "w");
@@ -175,9 +175,9 @@ inline void NetworkSerializer::_saveLinear(const shared_ptr<Linear>& layer,
 {
     arch_str +=
         "Linear:" + to_string(layer->in_features) + ":" + to_string(layer->out_features) + "\n";
-    params[to_string(index) + WEIGHTS_SUFFIX] = {
+    params[to_string(index) + kWeightsSuffix] = {
         {layer->weight.rows(), layer->weight.cols()}, layer->weight.data_ptr()};
-    params[to_string(index) + BIAS_SUFFIX] = {{layer->bias.rows()}, layer->bias.data_ptr()};
+    params[to_string(index) + kBiasSuffix] = {{layer->bias.rows()}, layer->bias.data_ptr()};
 }
 
 inline void NetworkSerializer::_saveLeakyReLU(const shared_ptr<LeakyReLU>& layer, string& arch_str)
@@ -222,7 +222,7 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
 
         npz_t data = npz_load(safe_filepath);
 
-        auto arch_it = data.find(ARCHITECTURE_KEY);
+        auto arch_it = data.find(kArchitectureKey);
         if (arch_it == data.end())
         {
             throw runtime_error("Architecture metadata not found in file: " + safe_filepath);
@@ -305,7 +305,7 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
 inline void NetworkSerializer::_loadLinearParams(
     const shared_ptr<Linear>& layer, size_t index, const npz_t& data)
 {
-    string weight_name = to_string(index) + WEIGHTS_SUFFIX;
+    string weight_name = to_string(index) + kWeightsSuffix;
     auto w_it = data.find(weight_name);
     if (w_it == data.end())
     {
@@ -323,7 +323,7 @@ inline void NetworkSerializer::_loadLinearParams(
         }
     }
 
-    string bias_name = to_string(index) + BIAS_SUFFIX;
+    string bias_name = to_string(index) + kBiasSuffix;
     auto b_it = data.find(bias_name);
     if (b_it == data.end())
     {

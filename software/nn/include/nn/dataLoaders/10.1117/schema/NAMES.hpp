@@ -10,7 +10,7 @@ namespace nn::dataLoaders
  * and directions in Spanish and the words "Up", "Down", "Forward",
  * "Backward", "Right", "Left" in Spanish.
  */
-const std::map<int, std::string> ESTIMULUS_NAMES = {
+inline const std::map<int, std::string> kStimulusNames = {
     {1, "A"},         // Vowel "A"
     {2, "E"},         // Vowel "E"
     {3, "I"},         // Vowel "I"
@@ -24,23 +24,23 @@ const std::map<int, std::string> ESTIMULUS_NAMES = {
     {11, "Izquierda"} // "Left" in Spanish
 };
 
-const std::map<int, std::string> ARTIFACT_NAMES = {
+inline const std::map<int, std::string> kArtifactNames = {
     {1, "No blink"},
     {2, "Blink"},
 };
 
-const std::map<int, std::string> MODALITY_NAMES = {
+inline const std::map<int, std::string> kModalityNames = {
     {1, "Imagined"},
     {2, "Pronounced"},
 };
 
 // EEG channel names corresponding to the 6 channels in the dataset
-constexpr std::array<std::string, 6> EEG_CHANNELS_NAMES = {"F3", "F4", "C3", "C4", "P3", "P4"};
+inline const std::array<std::string, 6> kEegChannelNames = {"F3", "F4", "C3", "C4", "P3", "P4"};
 
-constexpr std::string EEG_MAT_FILE_SUFFIX = "_EEG.mat";
-constexpr std::string AUDIO_MAT_FILE_SUFFIX = "_Audio.mat";
+inline const std::string kEegMatFileSuffix = "_EEG.mat";
+inline const std::string kAudioMatFileSuffix = "_Audio.mat";
 
-constexpr std::string EEG_MAT_VARIABLE_NAME = "EEG";
-constexpr std::string AUDIO_MAT_VARIABLE_NAME = "Audio";
+inline const std::string kEegMatVariableName = "EEG";
+inline const std::string kAudioMatVariableName = "Audio";
 
 } // namespace nn::dataLoaders

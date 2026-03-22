@@ -101,6 +101,7 @@ Additional coding directives
 - Prefer the pipeline programming style: compose transformations and small, well-named steps into readable pipelines rather than long imperative blocks when it improves clarity and maintainability.
 - Name code objects intuitively and readably: choose descriptive, human-friendly names for functions, variables, classes, and structs so their purpose is immediately clear.
 - Document everything: every function, variable, class, or struct should include a clear, concise comment describing its purpose, behaviour, inputs, outputs, and any important invariants or side effects.
+- Do NOT add deprecated code tags when modifying the codebase: replace the symbol or object and refactor all references to point to the new symbol or object.
 
 Preserve custom directives
 -------------------------

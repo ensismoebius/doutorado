@@ -161,8 +161,8 @@ void cmd_demo(                      //
         m->add_module(l1);
         m->add_module(lk);
         m->add_module(l2);
-        kaimingSNNInitializer(l1, nn::testing::SEED);
-        kaimingSNNInitializer(l2, nn::testing::SEED);
+        kaimingSNNInitializer(l1, nn::testing::kSeed);
+        kaimingSNNInitializer(l2, nn::testing::kSeed);
         return m;
     };
 

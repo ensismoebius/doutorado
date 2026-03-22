@@ -11,10 +11,10 @@ namespace nn
 namespace testing
 {
 // Global seed used across tests and deterministic demos when requested.
-inline constexpr unsigned SEED = 42U;
+inline constexpr unsigned kSeed = 42U;
 
 // Default floating-point tolerance for tests.
-inline constexpr float TOL = 1e-6F;
+inline constexpr float kTol = 1e-6F;
 
 } // namespace testing
 } // namespace nn

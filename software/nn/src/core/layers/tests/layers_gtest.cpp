@@ -40,7 +40,7 @@ TEST(MSELossTest, ForwardAndBackward)
     ASSERT_NEAR(grad.at(1, 0), 0.0F, 1e-5F);
 }
 
-// Deterministic random fills for tests use test_helpers::rand_fill(..., nn::testing::SEED)
+// Deterministic random fills for tests use test_helpers::rand_fill(..., nn::testing::kSeed)
 
 // Teste para Sequential
 TEST(SequentialTest, ForwardAndBackward)
