@@ -20,6 +20,8 @@
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
+#include "nn/dataLoaders/ShardReader.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /*
@@ -158,6 +160,9 @@ struct EEGMatSession::Impl
     static constexpr size_t kRowCacheCapacity = 32;
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, std::array<int, 3>>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
+    bool is_shard = false;
+    std::unique_ptr<ShardReader> shard_reader;
+    std::filesystem::path shard_index_parent;
 };
 
 EEGMatSession::EEGMatSession(const std::string& filePath) : impl_(std::make_unique<Impl>())
@@ -165,33 +170,40 @@ EEGMatSession::EEGMatSession(const std::string& filePath) : impl_(std::make_uniq
     impl_->filePath = filePath;
 
     std::filesystem::path fpath(filePath);
-    if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath) ||
-        std::filesystem::is_symlink(fpath))
+    if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
     {
-        throw std::runtime_error("EEGLoader: invalid MAT file path: " + filePath);
+        throw std::runtime_error("EEGLoader: invalid file path: " + filePath);
+    }
+
+    if (fpath.extension() == ".json")
+    {
+        impl_->is_shard = true;
+        impl_->shard_reader = std::make_unique<ShardReader>(filePath);
+        impl_->shard_index_parent = fpath.parent_path();
+        return;
     }
 
     impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
     if (!impl_->matFile)
     {
-        throw std::runtime_error("Failed to open MAT file: " + filePath);
+        throw std::runtime_error("EEGLoader: failed to open MAT file: " + filePath);
     }
 
     impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName.c_str()));
     if (!impl_->eegVar)
     {
-        throw std::runtime_error("Failed to find EEG variable in MAT file: " + filePath);
+        throw std::runtime_error("EEGLoader: failed to read EEG variable metadata from: " + filePath);
     }
 
     if (impl_->eegVar->rank != 2 ||
         impl_->eegVar->dims[1] != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegTotalColumns())
     {
-        throw std::runtime_error("Invalid EEG matrix dimensions. Expected Nx24579");
+        throw std::runtime_error("EEGLoader: invalid matrix dimensions. Expected Nx24579");
     }
 
     if (impl_->eegVar->class_type != MAT_C_DOUBLE)
     {
-        throw std::runtime_error("Invalid EEG matrix data type. Expected double.");
+        throw std::runtime_error("EEGLoader: invalid matrix data type. Expected double.");
     }
 }
 
@@ -205,9 +217,26 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     {
         return it->second;
     }
-
-    std::vector<double> row_values =
-        readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
+    std::vector<double> row_values;
+    if (impl_->is_shard)
+    {
+        auto loc = impl_->shard_reader->locate_eeg_row(rowIndex);
+        if (!loc)
+        {
+            throw std::runtime_error("EEGLoader: shard row out of bounds");
+        }
+        auto shard_full = impl_->shard_index_parent / loc->shard_file;
+        auto data = impl_->shard_reader->read_row_from_shard(shard_full.string(), "EEG", loc->offset);
+        if (!data)
+        {
+            throw std::runtime_error("EEGLoader: failed to read shard row");
+        }
+        row_values = std::move(*data);
+    }
+    else
+    {
+        row_values = readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
+    }
 
     nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
@@ -278,39 +307,83 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
         return out;
     }
 
+    if (impl_->is_shard)
+    {
+        const size_t samplesPerChannel =
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const size_t global_row = startRow + r;
+            auto loc = impl_->shard_reader->locate_eeg_row(global_row);
+            if (!loc)
+            {
+                throw std::runtime_error("EEGLoader: shard row out of bounds (block read)");
+            }
+            auto shard_full = impl_->shard_index_parent / loc->shard_file;
+            auto data = impl_->shard_reader->read_row_from_shard(shard_full.string(), "EEG", loc->offset);
+            if (!data)
+            {
+                throw std::runtime_error("EEGLoader: failed to read shard row (block read)");
+            }
+            const std::vector<double>& rowVals = *data;
+
+            nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+                nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+            for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
+            {
+                for (size_t s = 0; s < samplesPerChannel; ++s)
+                {
+                    eegChannels.at(ch, s) = static_cast<float>(rowVals[eegSignalFlatColumn(ch, s)]);
+                }
+            }
+
+            const int modality = static_cast<int>(
+                rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn()]);
+            const int stimulus = static_cast<int>(
+                rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn()]);
+            const int artifact = static_cast<int>(
+                rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn()]);
+
+            std::tuple<nn::Tensor, std::array<int, 3>> sample{
+                std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+
+            const size_t rowIndex = startRow + r;
+            if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+            {
+                const size_t evict = impl_->rowCacheOrder.front();
+                impl_->rowCacheOrder.pop_front();
+                impl_->rowCache.erase(evict);
+            }
+            impl_->rowCache[rowIndex] = sample;
+            impl_->rowCacheOrder.push_back(rowIndex);
+            out.emplace_back(std::move(sample));
+        }
+
+        return out;
+    }
+
     const std::vector<double> block_values =
         readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);
-
     const size_t samplesPerChannel =
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
     for (size_t r = 0; r < rowCount; ++r)
     {
-        nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
-
+        nn::Tensor eegChannels(
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels, samplesPerChannel);
         for (size_t ch = 0; ch < nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels; ++ch)
         {
             for (size_t s = 0; s < samplesPerChannel; ++s)
             {
-                const size_t signal_col = (ch * samplesPerChannel) + s;
-                eegChannels.at(ch, s) =
-                    static_cast<float>(block_values[columnMajorIndex(signal_col, r, rowCount)]);
+                eegChannels.at(ch, s) = static_cast<float>(
+                    block_values[columnMajorIndex(eegSignalFlatColumn(ch, s), r, rowCount)]);
             }
         }
-
-        const size_t modality_column =
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn();
-        const size_t stimulus_column =
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn();
-        const size_t artifact_column =
-            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn();
-
-        int modality =
-            static_cast<int>(block_values[columnMajorIndex(modality_column, r, rowCount)]);
-        int stimulus =
-            static_cast<int>(block_values[columnMajorIndex(stimulus_column, r, rowCount)]);
-        int artifact =
-            static_cast<int>(block_values[columnMajorIndex(artifact_column, r, rowCount)]);
+        const int modality = static_cast<int>(block_values[columnMajorIndex(
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn(), r, rowCount)]);
+        const int stimulus = static_cast<int>(block_values[columnMajorIndex(
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn(), r, rowCount)]);
+        const int artifact = static_cast<int>(block_values[columnMajorIndex(
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn(), r, rowCount)]);
 
         std::tuple<nn::Tensor, std::array<int, 3>> sample{
             std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
@@ -324,10 +397,8 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
         }
         impl_->rowCache[rowIndex] = sample;
         impl_->rowCacheOrder.push_back(rowIndex);
-
         out.emplace_back(std::move(sample));
     }
-
     return out;
 }
 
@@ -339,6 +410,41 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
         return out;
     }
 
+    if (impl_->is_shard)
+    {
+        const size_t signalCols = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+        out.signals.resize(rowCount * signalCols);
+        out.labels.resize(rowCount);
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const size_t global_row = startRow + r;
+            auto loc = impl_->shard_reader->locate_eeg_row(global_row);
+            if (!loc)
+            {
+                throw std::runtime_error("EEGLoader: shard row out of bounds (flat read)");
+            }
+            auto shard_full = impl_->shard_index_parent / loc->shard_file;
+            auto data = impl_->shard_reader->read_row_from_shard(shard_full.string(), "EEG", loc->offset);
+            if (!data)
+            {
+                throw std::runtime_error("EEGLoader: failed to read shard row (flat read)");
+            }
+            const std::vector<double>& rowVals = *data;
+
+            for (size_t c = 0; c < signalCols; ++c)
+            {
+                out.signals[(r * signalCols) + c] = static_cast<float>(rowVals[c]);
+            }
+            out.labels[r] = std::array<int, 3>{
+                static_cast<int>(rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegModeColumn()]),
+                static_cast<int>(rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegStimulusColumn()]),
+                static_cast<int>(rowVals[nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegBlinkColumn()])};
+        }
+
+        return out;
+    }
+
+    // MAT-backed flat read
     const std::vector<double> block_values =
         readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);
 
@@ -370,6 +476,10 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
 
 auto EEGMatSession::rowCount() const -> size_t
 {
+    if (impl_->is_shard)
+    {
+        return static_cast<size_t>(matioCpp::utils::countShardRows(impl_->filePath, "eeg"));
+    }
     return impl_->eegVar ? impl_->eegVar->dims[0] : 0;
 }
 

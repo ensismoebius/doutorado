@@ -24,7 +24,8 @@ using nn::dataLoaders::kEegMatVariableName;
 
 auto discoverSubjects(                       //
     const std::string& root_dir,             //
-    const std::string& subject_regex_pattern //
+    const std::string& subject_regex_pattern, //
+    bool use_shards                           //
     ) -> std::vector<SubjectFiles>
 {
     regex selection_pattern(subject_regex_pattern);
@@ -58,10 +59,35 @@ auto discoverSubjects(                       //
 
         const int subject_id = std::stoi(regex_groups_matches[1].str());
 
-        const fs::path eeg_path = entry.path() / (dir_name + kEegMatFileSuffix);
-        const fs::path audio_path = entry.path() / (dir_name + kAudioMatFileSuffix);
+        const fs::path eeg_mat = entry.path() / (dir_name + kEegMatFileSuffix);
+        const fs::path audio_mat = entry.path() / (dir_name + kAudioMatFileSuffix);
+        const fs::path shard_index = entry.path() / (dir_name + std::string("_shards.json"));
 
-        if (!fs::exists(eeg_path) || !fs::exists(audio_path))
+        bool eeg_ok = fs::exists(eeg_mat);
+        bool audio_ok = fs::exists(audio_mat);
+        bool eeg_is_shard = false;
+        bool audio_is_shard = false;
+
+        fs::path eeg_path = eeg_mat;
+        fs::path audio_path = audio_mat;
+
+        if (use_shards && fs::exists(shard_index))
+        {
+            if (!eeg_ok)
+            {
+                eeg_ok = true;
+                eeg_is_shard = true;
+                eeg_path = shard_index;
+            }
+            if (!audio_ok)
+            {
+                audio_ok = true;
+                audio_is_shard = true;
+                audio_path = shard_index;
+            }
+        }
+
+        if (!eeg_ok || !audio_ok)
         {
             continue;
         }
@@ -71,8 +97,20 @@ auto discoverSubjects(                       //
         info.subject_name = dir_name;
         info.eeg_mat_path = eeg_path.string();
         info.audio_mat_path = audio_path.string();
-        info.eeg_rows = countMatRows(info.eeg_mat_path, kEegMatVariableName);
-        info.audio_rows = countMatRows(info.audio_mat_path, kAudioMatVariableName);
+
+        try
+        {
+            info.eeg_rows = eeg_is_shard
+                                ? matioCpp::utils::countShardRows(info.eeg_mat_path, "eeg")
+                                : countMatRows(info.eeg_mat_path, kEegMatVariableName);
+            info.audio_rows = audio_is_shard
+                                  ? matioCpp::utils::countShardRows(info.audio_mat_path, "audio")
+                                  : countMatRows(info.audio_mat_path, kAudioMatVariableName);
+        }
+        catch (const std::exception&)
+        {
+            continue;
+        }
 
         subjects.emplace_back(std::move(info));
     }

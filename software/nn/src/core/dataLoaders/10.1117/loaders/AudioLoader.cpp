@@ -21,6 +21,8 @@
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
+#include "nn/dataLoaders/ShardReader.hpp"
+#include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
@@ -136,6 +138,9 @@ struct AudioMatSession::Impl
     static constexpr size_t kRowCacheCapacity = 8;
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, int, int>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
+    bool is_shard = false;
+    std::unique_ptr<ShardReader> shard_reader;
+    std::filesystem::path shard_index_parent;
 };
 
 AudioMatSession::AudioMatSession(const std::string& filePath) : impl_(std::make_unique<Impl>())
@@ -145,7 +150,15 @@ AudioMatSession::AudioMatSession(const std::string& filePath) : impl_(std::make_
     std::filesystem::path fpath(filePath);
     if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
     {
-        throw std::runtime_error("AudioLoader: invalid MAT file path: " + filePath);
+        throw std::runtime_error("AudioLoader: invalid file path: " + filePath);
+    }
+
+    if (fpath.extension() == ".json")
+    {
+        impl_->is_shard = true;
+        impl_->shard_reader = std::make_unique<ShardReader>(filePath);
+        impl_->shard_index_parent = fpath.parent_path();
+        return;
     }
 
     impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
@@ -184,8 +197,26 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
         return it->second;
     }
 
-    const std::vector<double> rowValues =
-        readRowAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), rowIndex);
+    std::vector<double> rowValues;
+    if (impl_->is_shard)
+    {
+        auto loc = impl_->shard_reader->locate_audio_row(rowIndex);
+        if (!loc)
+        {
+            throw std::runtime_error("AudioLoader: shard row out of bounds");
+        }
+        auto shard_full = impl_->shard_index_parent / loc->shard_file;
+        auto data = impl_->shard_reader->read_row_from_shard(shard_full.string(), "Audio", loc->offset);
+        if (!data)
+        {
+            throw std::runtime_error("AudioLoader: failed to read shard row");
+        }
+        rowValues = std::move(*data);
+    }
+    else
+    {
+        rowValues = readRowAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), rowIndex);
+    }
 
     nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
     float* dst = audioSamples.mutable_data_ptr();
@@ -247,6 +278,54 @@ auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
         return out;
     }
 
+    if (impl_->is_shard)
+    {
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const size_t global_row = startRow + r;
+            auto loc = impl_->shard_reader->locate_audio_row(global_row);
+            if (!loc)
+            {
+                throw std::runtime_error("AudioLoader: shard row out of bounds (block read)");
+            }
+            auto shard_full = impl_->shard_index_parent / loc->shard_file;
+            auto data =
+                impl_->shard_reader->read_row_from_shard(shard_full.string(), "Audio", loc->offset);
+            if (!data)
+            {
+                throw std::runtime_error("AudioLoader: failed to read shard row (block read)");
+            }
+            const std::vector<double>& rowVals = *data;
+
+            nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
+            float* dst = audioSamples.mutable_data_ptr();
+            const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+            for (size_t i = 0; i < n; ++i)
+            {
+                dst[i] = static_cast<float>(rowVals[i]);
+            }
+
+            const int stimulus =
+                static_cast<int>(rowVals[ImaginedSpeechSchema_10_1117.audioStimulusColumn()]);
+            const int eegIndex =
+                static_cast<int>(rowVals[ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
+
+            std::tuple<nn::Tensor, int, int> sample{std::move(audioSamples), stimulus, eegIndex};
+
+            const size_t rowIndex = startRow + r;
+            if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+            {
+                const size_t evict = impl_->rowCacheOrder.front();
+                impl_->rowCacheOrder.pop_front();
+                impl_->rowCache.erase(evict);
+            }
+            impl_->rowCache[rowIndex] = sample;
+            impl_->rowCacheOrder.push_back(rowIndex);
+            out.emplace_back(std::move(sample));
+        }
+        return out;
+    }
+
     const std::vector<double> blockValues =
         readRowsAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), startRow, rowCount);
     for (size_t r = 0; r < rowCount; ++r)
@@ -290,6 +369,43 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
         return out;
     }
 
+    if (impl_->is_shard)
+    {
+        const size_t samplesPerRow = ImaginedSpeechSchema_10_1117.audioSamples();
+        out.samples.resize(rowCount * samplesPerRow);
+        out.stimuli.resize(rowCount);
+        out.eegIndices.resize(rowCount);
+
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const size_t global_row = startRow + r;
+            auto loc = impl_->shard_reader->locate_audio_row(global_row);
+            if (!loc)
+            {
+                throw std::runtime_error("AudioLoader: shard row out of bounds (flat read)");
+            }
+            auto shard_full = impl_->shard_index_parent / loc->shard_file;
+            auto data =
+                impl_->shard_reader->read_row_from_shard(shard_full.string(), "Audio", loc->offset);
+            if (!data)
+            {
+                throw std::runtime_error("AudioLoader: failed to read shard row (flat read)");
+            }
+            const auto& rowVals = *data;
+
+            for (size_t i = 0; i < samplesPerRow; ++i)
+            {
+                out.samples[(r * samplesPerRow) + i] = static_cast<float>(rowVals[i]);
+            }
+            out.stimuli[r] =
+                static_cast<int>(rowVals[ImaginedSpeechSchema_10_1117.audioStimulusColumn()]);
+            out.eegIndices[r] =
+                static_cast<int>(rowVals[ImaginedSpeechSchema_10_1117.audioEEGIndexColumn()]);
+        }
+
+        return out;
+    }
+
     const size_t samplesPerRow = ImaginedSpeechSchema_10_1117.audioSamples();
     const std::vector<double> blockValues =
         readRowsAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), startRow, rowCount);
@@ -317,6 +433,10 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
 
 auto AudioMatSession::rowCount() const -> size_t
 {
+    if (impl_->is_shard)
+    {
+        return static_cast<size_t>(matioCpp::utils::countShardRows(impl_->filePath, "audio"));
+    }
     return impl_->audioVar ? impl_->audioVar->dims[0] : 0;
 }
 

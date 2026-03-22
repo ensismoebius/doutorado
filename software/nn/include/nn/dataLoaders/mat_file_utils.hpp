@@ -42,5 +42,10 @@ namespace matioCpp::utils
 [[nodiscard]] auto countMatRows(const std::string& matPath, const std::string& varName)
     -> std::size_t;
 
+// Count total rows described by a shard index JSON (per-subject shards).
+// section should be 'audio' or 'eeg'.
+[[nodiscard]] auto countShardRows(const std::string& shardIndexPath, const std::string& section)
+    -> std::size_t;
+
 } // namespace matioCpp::utils
 #endif // NN_DATALOADERS_MAT_FILE_UTILS_HPP

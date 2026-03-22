@@ -1,21 +1,27 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 
 #include <chrono>
+#include <filesystem>
+#include <iostream>
 #include <utility>
 
 BatchPrefetcher::BatchPrefetcher( //
-    DataLoader& loader,           //
-    std::size_t max_batches,      //
-    std::size_t lookahead         //
-    )
+      DataLoader& loader,           //
+      std::size_t max_batches,      //
+            std::size_t lookahead,        //
+            bool use_shards,              //
+            const std::string& dataset_root)
     : it_(loader.begin()),
-      end_(loader.end()),
-      max_batches_(max_batches),
-      seen_batches_(0),
-      lookahead_(lookahead == 0 ? 1 : lookahead),
-      producer_done_(false),
-      stop_requested_(false),
-      producer_error_(nullptr)
+    end_(loader.end()),
+    loader_ptr_(&loader),
+        use_shards_(use_shards),
+        dataset_root_(dataset_root),
+    max_batches_(max_batches),
+    seen_batches_(0),
+    lookahead_(lookahead == 0 ? 1 : lookahead),
+    producer_done_(false),
+    stop_requested_(false),
+    producer_error_(nullptr)
 {
     // Construct the SPSC ring buffer with capacity=max_batches
     prefetched_ring_ = std::make_unique<SpscRingBuffer<Batch>>(max_batches_ > 0 ? max_batches_ : 1);
@@ -41,6 +47,35 @@ BatchPrefetcher::~BatchPrefetcher()
 
 void BatchPrefetcher::producerLoop()
 {
+    if (use_shards_ && !dataset_root_.empty())
+    {
+        try
+        {
+            for (auto& p : std::filesystem::recursive_directory_iterator(dataset_root_))
+            {
+                if (!p.is_regular_file())
+                {
+                    continue;
+                }
+                const auto fname = p.path().filename().string();
+                if (fname.size() >= 12 && fname.find("_shards.json") != std::string::npos)
+                {
+                    try
+                    {
+                        auto reader = std::make_unique<nn::dataLoaders::ShardReader>(p.path().string());
+                        reader->preopen_index_shards(p.path().parent_path().string());
+                        shard_readers_cache_.push_back(std::move(reader));
+                    }
+                    catch (...) {}
+                }
+            }
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "Warning: shard preopen traversal failed: " << ex.what() << '\n';
+        }
+    }
+
     try
     {
         while (it_ != end_)
@@ -177,6 +212,7 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
     cv_.notify_all();
 
     return ret;
+}
 
 [[nodiscard]] auto BatchPrefetcher::seenBatches() const -> std::size_t
 {

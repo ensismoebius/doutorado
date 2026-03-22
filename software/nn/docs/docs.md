@@ -392,6 +392,7 @@ experiment03 --help
 | `--audio-window-size` | positive int | `11025` | Audio window length in samples (windowing datasets) |
 | `--audio-overlap` | float [0, 1) | `0.5` | Fractional overlap between audio windows |
 | `--lookahead` | positive int | `5` | Number of batches to prefetch in background |
+| `--use-shards` | flag | `false` | Use precomputed per-subject NPZ shard files for dataset I/O |
 | `--shuffle` / `--no-shuffle` | flag | `true` | Shuffle samples before batching |
 | `--seed` | non-negative int | `42` | Deterministic RNG seed for shuffling |
 | `--sampler-type` | enum | _(auto)_ | Override sampler: `sequential` · `random` · `weighted` · `distributed` |
@@ -1046,6 +1047,26 @@ experiment03 \
 `--lookahead` controls how many batches are loaded by the background producer thread ahead of
 the training loop. Increase it when MAT-file I/O is the bottleneck; keep it at 1–2 if RAM is
 constrained.
+
+---
+
+#### 5.5.13 Precomputed NPZ shards (offline conversion)
+
+For large MAT-based datasets you can convert per-subject data into many small NPZ "shard"
+files ahead of time. This moves expensive MAT parsing offline and reduces producer-side CPU
+work during training. A convenience Python script is provided at
+`scripts/shard_dataset.py` which writes per-subject `.npz` shards and a `<SUBJECT>_shards.json`
+index. To enable runtime shard usage set the CLI flag `--use-shards` (profile key
+`use_shards`, default `false`).
+
+Example (generate shards once on a powerful machine):
+
+```
+python3 scripts/shard_dataset.py --dataset-root /data/BaseDeDatosHablaImaginada --shard-size 1000
+```
+
+When `--use-shards` is enabled the background prefetcher will preopen shard indexes and read
+rows from NPZ shards with lower per-sample parsing overhead.
 
 ---
 

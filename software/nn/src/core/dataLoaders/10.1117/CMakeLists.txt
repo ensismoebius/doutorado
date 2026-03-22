@@ -26,6 +26,7 @@ target_link_libraries(dataLoaders_10_1117
         matioCpp
         tensor
         dataLoaders
+    cnpy
 )
 
 nn_enable_target_pch(dataLoaders_10_1117)

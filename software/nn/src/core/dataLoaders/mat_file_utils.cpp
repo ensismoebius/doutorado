@@ -149,6 +149,44 @@ auto countMatRows(const std::string& matPath, const std::string& varName) -> std
     return (*dims)[0];
 }
 
+auto countShardRows(const std::string& shardIndexPath, const std::string& section) -> std::size_t
+{
+    std::string cmd = "python3 -c \"import json,sys; j=json.load(open('" + shardIndexPath +
+                      "')); s=0;\n"
+                      "for e in j.get('" +
+                      section + "', []): s += int(e.get('count',0)); print(s)\"";
+
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe)
+    {
+        throw std::runtime_error("Failed to spawn python to read shard index: " + shardIndexPath);
+    }
+
+    char buffer[128];
+    std::string result;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
+    {
+        result += buffer;
+    }
+    int rc = pclose(pipe);
+    if (rc != 0 || result.empty())
+    {
+        throw std::runtime_error(
+            "Failed to read shard index '" + section + "' from: " + shardIndexPath);
+    }
+
+    try
+    {
+        size_t rows = static_cast<size_t>(std::stoul(result));
+        return rows;
+    }
+    catch (const std::exception&)
+    {
+        throw std::runtime_error(
+            "Invalid output when reading shard index '" + section + "' from " + shardIndexPath);
+    }
+}
+
 auto get_variable_dimensions(const std::string& mat_path, const std::string& var_name)
     -> std::optional<std::vector<size_t>>
 {

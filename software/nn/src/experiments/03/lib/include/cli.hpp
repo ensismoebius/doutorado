@@ -110,6 +110,8 @@ struct Config
     // Number of batches to prefetch in background.
     // Default is 1 to preserve prior behavior; experiments may increase this.
     std::size_t prefetch_lookahead = 1;
+    // Use precomputed per-subject shard files for faster I/O when available.
+    bool use_shards = false;
 
     // Parsed and resolved sampler options for DataLoader construction.
     DataLoader::DefaultSamplerOptions resolved_sampler_options{};

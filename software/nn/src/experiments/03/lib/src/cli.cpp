@@ -367,6 +367,12 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.prefetch_lookahead);
 
+    app.add_flag(                       //
+           "--use-shards,!--no-use-shards", //
+           config.use_shards,           //
+            "Use precomputed per-subject shard files for dataset I/O when shard index files are present")
+        ->default_val(default_config.use_shards);
+
     app.add_option("--seed",
            config.shuffle_seed,
            "Deterministic seed for shuffling (ignored if --no-shuffle)")

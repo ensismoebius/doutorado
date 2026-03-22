@@ -255,7 +255,8 @@ int Experiment03::run()
         // Discover subjects and initialize dataset with specified input mode.
         const auto discovered = discoverSubjects( //
             config_.dataset_root,                 //
-            config_.subject_filter_regex          //
+            config_.subject_filter_regex,         //
+            config_.use_shards                    //
         );
 
         // Instantiate dataset using a small builder to keep selection logic
@@ -323,7 +324,9 @@ int Experiment03::run()
             prefetcher_ = make_unique<BatchPrefetcher>( //
                 *data_loader_,                          //
                 config_.max_batches_per_epoch,          //
-                config_.prefetch_lookahead              //
+                config_.prefetch_lookahead,             //
+                config_.use_shards,                     //
+                config_.dataset_root                    //
             );
 
             // Iterate over batches produced by the prefetcher.

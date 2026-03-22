@@ -7,6 +7,7 @@ add_library(dataLoaders
         DataLoader.cpp
         mat_file_utils.cpp
         BatchPrefetcher.cpp
+    ShardReader.cpp
         DataLoaderIterator.cpp
         SamplerOptionResolution.cpp
 )
@@ -22,9 +23,10 @@ target_include_directories(dataLoaders
 target_link_libraries(dataLoaders
     PRIVATE
         ${ZLIB_LIBRARIES}
+    cnpy
         dataLoaders_samplers
         Eigen3::Eigen
-        matioCpp
+    matioCpp
         tensor
 )
 

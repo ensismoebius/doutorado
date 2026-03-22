@@ -5,18 +5,25 @@
 #include <cstddef>
 #include <deque>
 #include <exception>
+#include <filesystem>
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <vector>
 
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/ShardReader.hpp"
 #include "nn/utility/BufferPool.hpp"
 #include "nn/utility/SpscRingBuffer.hpp"
 
 class BatchPrefetcher
 {
    public:
-    BatchPrefetcher(DataLoader& loader, std::size_t max_batches, std::size_t lookahead = 1);
+    BatchPrefetcher(DataLoader& loader,
+                    std::size_t max_batches,
+                    std::size_t lookahead = 1,
+                    bool use_shards = false,
+                    const std::string& dataset_root = "");
     ~BatchPrefetcher();
 
     auto next() -> std::optional<Batch>;
@@ -28,6 +35,10 @@ class BatchPrefetcher
 
     DataLoader::Iterator it_;
     DataLoader::Iterator end_;
+    DataLoader* loader_ptr_ = nullptr;
+    bool use_shards_ = false;
+    std::string dataset_root_;
+    std::vector<std::unique_ptr<nn::dataLoaders::ShardReader>> shard_readers_cache_;
     std::size_t max_batches_;
     std::atomic<std::size_t> seen_batches_;
     std::size_t lookahead_;
