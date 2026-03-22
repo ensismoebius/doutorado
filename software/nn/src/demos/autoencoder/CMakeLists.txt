@@ -13,8 +13,8 @@ target_link_libraries(autoencoder_scaffold_example
 target_include_directories(autoencoder_scaffold_example
     PRIVATE
         ${SRC_DIR}
-        ${SRC_DIR}/experiments/03/lib/autoencoder/include
         ${SRC_DIR}/experiments/03/lib/include
+    ${SRC_DIR}/experiments/03/lib/include/autoencoder
         ${PROJECT_SOURCE_DIR}/include
 )
 

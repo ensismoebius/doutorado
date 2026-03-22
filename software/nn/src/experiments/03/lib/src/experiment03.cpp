@@ -17,6 +17,7 @@
 #include "AudioWindowAutoencoder.hpp"
 #include "AudioWindowSpikingAutoencoder.hpp"
 #include "AutoencoderConfig.hpp"
+#include "DatasetBuilder.hpp"
 #include "EegWindowAutoencoder.hpp"
 #include "EegWindowSpikingAutoencoder.hpp"
 #include "FusedWindowAutoencoder.hpp"
@@ -29,9 +30,6 @@
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
-#include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/layers/MSELoss.hpp"
@@ -260,37 +258,10 @@ int Experiment03::run()
             config_.subject_filter_regex          //
         );
 
-        // Instantiate dataset based on configured type.
-        // Dataset is shared_ptr so it can be easily passed to DataLoader
-        // and persist across the experiment.
-        switch (config_.dataset_type)
-        {
-            case Experiment03DatasetType::Protocol:
-            {
-                auto protocol_dataset = make_shared<Protocol101117Dataset>(discovered);
-                protocol_dataset->set_input_mode(config_.input_mode);
-                dataset_ = protocol_dataset;
-                break;
-            }
-            case Experiment03DatasetType::EegWindow:
-            {
-                dataset_ = make_shared<EEGWindowDataset>(discovered, config_.eeg_window_config);
-                break;
-            }
-            case Experiment03DatasetType::AudioWindow:
-            {
-                dataset_ = make_shared<AudioWindowDataset>(discovered, config_.audio_window_config);
-                break;
-            }
-            case Experiment03DatasetType::FusedWindow:
-            {
-                dataset_ = make_shared<FusedWindowDataset>(discovered, //
-                    config_.eeg_window_config,                         //
-                    config_.audio_window_config                        //
-                );
-                break;
-            }
-        }
+        // Instantiate dataset using a small builder to keep selection logic
+        // centralized and easier to test.
+        dataset_ =
+            experiment03::DatasetBuilder().with_discovered(discovered).with_config(config_).build();
 
         if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type)) [[unlikely]]
         {

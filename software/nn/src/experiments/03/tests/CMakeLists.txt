@@ -1,6 +1,7 @@
 add_executable(experiment_03_autoencoder_redesign_gtest
     AutoencoderRedesign_gtest.cpp
     ProfileAndResults_gtest.cpp
+    DatasetBuilder_gtest.cpp
 )
 
 target_include_directories(experiment_03_autoencoder_redesign_gtest

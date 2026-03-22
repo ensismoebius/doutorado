@@ -20,6 +20,7 @@ add_executable(dataLoaders_gtest
 	matfile_vector_gtest.cpp
 	mat_file_gtest.cpp
     count_mat_rows_gtest.cpp
+    dataset_collate_gtest.cpp
 	# BatchPrefetcher tests removed (too slow for default runs)
 )
 
