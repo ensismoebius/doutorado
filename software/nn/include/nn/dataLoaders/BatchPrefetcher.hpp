@@ -10,6 +10,8 @@
 #include <thread>
 
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/utility/BufferPool.hpp"
+#include "nn/utility/SpscRingBuffer.hpp"
 
 class BatchPrefetcher
 {
@@ -27,12 +29,13 @@ class BatchPrefetcher
     DataLoader::Iterator it_;
     DataLoader::Iterator end_;
     std::size_t max_batches_;
-    std::size_t seen_batches_;
+    std::atomic<std::size_t> seen_batches_;
     std::size_t lookahead_;
 
     mutable std::mutex mutex_;
     mutable std::condition_variable cv_;
-    std::deque<Batch> prefetched_batches_;
+    std::unique_ptr<SpscRingBuffer<Batch>> prefetched_ring_;
+    std::unique_ptr<BufferPool<Batch>> prefetched_pool_;
     std::thread producer_thread_;
     bool producer_done_;
     bool stop_requested_;

@@ -24,6 +24,10 @@ class DataLoaderIterator
         std::shared_ptr<std::vector<std::size_t>> indices);
 
     [[nodiscard]] auto operator*() const -> const Batch&;
+    [[nodiscard]] auto move_batch() const -> Batch;
+    // Fill an externally provided Batch object with the next batch data.
+    // This avoids internal allocation/copy when a caller provides a reusable buffer.
+    void fill_batch(Batch& out) const;
     auto operator++() -> DataLoaderIterator&;
     auto operator!=(const DataLoaderIterator& other) const -> bool;
     auto operator==(const DataLoaderIterator& other) const -> bool;

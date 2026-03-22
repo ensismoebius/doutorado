@@ -55,6 +55,30 @@ auto DataLoaderIterator::operator*() const -> const Batch&
     return current_batch_data_;
 }
 
+auto DataLoaderIterator::move_batch() const -> Batch
+{
+    if (!batch_valid_) fetch_batch();
+    Batch out = std::move(current_batch_data_);
+    batch_valid_ = false;
+    return out;
+}
+
+void DataLoaderIterator::fill_batch(Batch& out) const
+{
+    size_t start_index = current_batch_ * loader_.batch_size_;
+    const auto& indices = *indices_;
+    size_t end_index = std::min(start_index + loader_.batch_size_, indices.size());
+
+    std::vector<size_t> idxs;
+    idxs.reserve(end_index - start_index);
+    for (size_t i = start_index; i < end_index; ++i)
+    {
+        idxs.emplace_back(indices.at(i));
+    }
+
+    loader_.dataset_->collate_into(idxs, out);
+}
+
 auto DataLoaderIterator::operator++() -> DataLoaderIterator&
 {
     ++current_batch_;

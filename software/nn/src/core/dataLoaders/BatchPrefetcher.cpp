@@ -17,6 +17,11 @@ BatchPrefetcher::BatchPrefetcher( //
       stop_requested_(false),
       producer_error_(nullptr)
 {
+    // Construct the SPSC ring buffer with capacity=max_batches
+    prefetched_ring_ = std::make_unique<SpscRingBuffer<Batch>>(max_batches_ > 0 ? max_batches_ : 1);
+    // Construct a buffer pool prefilled with lookahead buffers to reduce allocations
+    prefetched_pool_ = std::make_unique<BufferPool<Batch>>(lookahead_);
+
     producer_thread_ = std::thread([this]() { producerLoop(); });
 }
 
@@ -43,26 +48,32 @@ void BatchPrefetcher::producerLoop()
             {
                 std::unique_lock<std::mutex> lock(mutex_);
                 cv_.wait(lock,
-                    [this]()
-                    { return stop_requested_ || prefetched_batches_.size() < lookahead_; });
+                    [this]() { return stop_requested_ || prefetched_ring_->size() < lookahead_; });
 
                 if (stop_requested_)
                 {
                     break;
                 }
 
-                if (seen_batches_ + prefetched_batches_.size() >= max_batches_)
+                if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >= max_batches_)
                 {
                     break;
                 }
             }
 
-            Batch batch = *it_;
+            // Acquire a reusable buffer and ask iterator to fill it.
+            Batch batch = prefetched_pool_->acquire();
+            it_.fill_batch(batch);
             ++it_;
 
+            // Try to push into ring; if full, yield briefly and retry.
+            while (!prefetched_ring_->try_push(std::move(batch)))
             {
-                std::lock_guard<std::mutex> lock(mutex_);
-                prefetched_batches_.push_back(std::move(batch));
+                if (stop_requested_)
+                {
+                    break;
+                }
+                std::this_thread::yield();
             }
             cv_.notify_all();
         }
@@ -90,7 +101,7 @@ void BatchPrefetcher::producerLoop()
         return true;
     }
 
-    if (!prefetched_batches_.empty())
+    if (!prefetched_ring_->empty())
     {
         return true;
     }
@@ -98,13 +109,13 @@ void BatchPrefetcher::producerLoop()
     // If the producer hasn't yet produced a batch, wait a short time to avoid
     // a race where `hasNext()` returns true but `next()` immediately finds
     // the queue empty because the producer finished between the calls.
-    if (!producer_done_ && (seen_batches_ + prefetched_batches_.size() < max_batches_))
+    if (!producer_done_ && (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() < max_batches_))
     {
         cv_.wait_for(lock,
             std::chrono::milliseconds(10),
-            [this]() { return !prefetched_batches_.empty() || producer_done_ || producer_error_; });
+            [this]() { return !prefetched_ring_->empty() || producer_done_ || producer_error_; });
 
-        if (!prefetched_batches_.empty())
+        if (!prefetched_ring_->empty())
         {
             return true;
         }
@@ -112,7 +123,7 @@ void BatchPrefetcher::producerLoop()
 
     // Avoid a race where producer hasn't marked done yet, but the max-batch
     // budget is already exhausted and no more batches can ever be produced.
-    if (seen_batches_ + prefetched_batches_.size() >= max_batches_)
+    if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >= max_batches_)
     {
         return false;
     }
@@ -122,11 +133,24 @@ void BatchPrefetcher::producerLoop()
 
 auto BatchPrefetcher::next() -> std::optional<Batch>
 {
+    // Fast path: try to pop without locking. This avoids mutex contention
+    // when the ring already has data (common case).
+    Batch batch;
+    if (prefetched_ring_->try_pop(batch))
+    {
+        Batch ret = std::move(batch);
+        prefetched_pool_->release(std::move(batch));
+        seen_batches_.fetch_add(1, std::memory_order_relaxed);
+        cv_.notify_all();
+        return ret;
+    }
+
+    // Slow path: wait for producer to signal availability or completion.
     std::unique_lock<std::mutex> lock(mutex_);
     cv_.wait(lock,
         [this]()
         {
-            return stop_requested_ || !prefetched_batches_.empty() || producer_done_ ||
+            return stop_requested_ || !prefetched_ring_->empty() || producer_done_ ||
                    static_cast<bool>(producer_error_);
         });
 
@@ -135,22 +159,29 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
         std::rethrow_exception(producer_error_);
     }
 
-    if (prefetched_batches_.empty())
+    if (prefetched_ring_->empty())
     {
         return std::nullopt;
     }
 
-    Batch batch = std::move(prefetched_batches_.front());
-    prefetched_batches_.pop_front();
-    ++seen_batches_;
+    bool ok = prefetched_ring_->try_pop(batch);
+    if (!ok)
+    {
+        return std::nullopt;
+    }
+
+    Batch ret = std::move(batch);
+    prefetched_pool_->release(std::move(batch));
+    seen_batches_.fetch_add(1, std::memory_order_relaxed);
     lock.unlock();
     cv_.notify_all();
 
-    return batch;
+    return ret;
+
 }
 
 [[nodiscard]] auto BatchPrefetcher::seenBatches() const -> std::size_t
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return seen_batches_;
+    return static_cast<std::size_t>(seen_batches_.load(std::memory_order_relaxed));
 }
