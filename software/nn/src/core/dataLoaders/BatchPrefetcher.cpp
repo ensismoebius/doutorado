@@ -55,7 +55,7 @@ void BatchPrefetcher::producerLoop()
                     break;
                 }
 
-                if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >= max_batches_)
+                if (seen_batches_ + prefetched_ring_->size() >= max_batches_)
                 {
                     break;
                 }
@@ -178,10 +178,8 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 
     return ret;
 
-}
-
 [[nodiscard]] auto BatchPrefetcher::seenBatches() const -> std::size_t
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return static_cast<std::size_t>(seen_batches_.load(std::memory_order_relaxed));
+    return seen_batches_;
 }

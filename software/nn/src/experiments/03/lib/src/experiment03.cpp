@@ -326,18 +326,18 @@ int Experiment03::run()
                 config_.prefetch_lookahead              //
             );
 
-            // Iterate over batches produced by the prefetcher using a single
-            // `next()` call per iteration to avoid the hasNext()/next() race
-            // that can introduce extra blocking waits.
-            while (true)
+            // Iterate over batches produced by the prefetcher.
+            while (prefetcher_->hasNext()) [[likely]]
             {
-                // Get next batch from prefetcher; break if no more batches.
+                // Get next batch from prefetcher;
+                // break if no more batches are available.
                 auto maybe_batch = prefetcher_->next();
-                if (!maybe_batch.has_value())
+                if (!maybe_batch.has_value()) [[unlikely]]
                     break;
 
-                // Move batch out of optional; batch is now owned by this scope.
-                Batch batch = std::move(maybe_batch.value());
+                // Move batch out of optional;
+                // batch is now owned by this scope.
+                const Batch batch = std::move(maybe_batch.value());
 
                 // Lazy model + optimizer init on the first batch observed.
                 if (!model_) [[unlikely]]
