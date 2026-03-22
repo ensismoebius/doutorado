@@ -93,3 +93,16 @@ Experiment04-specific editing guidance
 - Keep `dataset_info`'s default fast estimate behavior; implement an explicit `--exact-summary` switch if exact row counts are required.
 
 If you want a deeper regeneration of this file (expanded API signatures, suggested tests, or a proposed `CHANGELOG.md` entry), tell me which focus you prefer (API, docs, tests, CI) and I'll produce it.
+
+Additional coding directives
+---------------------------
+- Avoid creating wrappers when unnecessary: prefer using the existing library code, classes, functions, properties, and other objects directly rather than introducing thin wrapper layers that increase indirection.
+- Use temporary variables only when strictly necessary: favour concise expressions and direct usage; introduce temporaries when they improve readability, prevent repeated work, or clarify lifetime semantics.
+- Prefer the pipeline programming style: compose transformations and small, well-named steps into readable pipelines rather than long imperative blocks when it improves clarity and maintainability.
+- Name code objects intuitively and readably: choose descriptive, human-friendly names for functions, variables, classes, and structs so their purpose is immediately clear.
+- Document everything: every function, variable, class, or struct should include a clear, concise comment describing its purpose, behaviour, inputs, outputs, and any important invariants or side effects.
+
+Preserve custom directives
+-------------------------
+- Do NOT remove or overwrite user-provided custom directives in this file. Automated edits must append or annotate but must not delete or rewrite existing custom sections unless explicitly requested by a human reviewer.
+- When updating this file programmatically, retain exact text of existing `Additional coding directives` and any user-supplied paragraphs; prefer adding new guidance as new paragraphs or bullet items.
