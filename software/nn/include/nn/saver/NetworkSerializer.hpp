@@ -213,93 +213,11 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
 
 inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe_filepath) -> bool
 {
-    try
-    {
-        if (!exists(safe_filepath))
-        {
-            throw runtime_error("Network file does not exist: " + safe_filepath);
-        }
-
-        npz_t data = npz_load(safe_filepath);
-
-        auto arch_it = data.find(kArchitectureKey);
-        if (arch_it == data.end())
-        {
-            throw runtime_error("Architecture metadata not found in file: " + safe_filepath);
-        }
-        const NpyArray& arch_arr = arch_it->second;
-        string arch_str(arch_arr.data<char>(), arch_arr.shape[0]);
-
-        using LayerFactory = function<shared_ptr<Module>(const vector<string>&)>;
-        const map<string, LayerFactory> layer_factories = {
-            {"Linear",
-                [](const vector<string>& tokens) -> shared_ptr<Module>
-                { return make_shared<Linear>(stoi(tokens[1]), stoi(tokens[2])); }},
-            {"Leaky",
-                [](const vector<string>& tokens) -> shared_ptr<Module>
-                {
-                    return make_shared<Leaky>(stof(tokens[1]),
-                        stof(tokens[2]),
-                        stof(tokens[3]),
-                        stof(tokens[4]),
-                        tokens[5] == "1",
-                        stof(tokens[6]));
-                }},
-            {"LeakyReLU",
-                [](const vector<string>& tokens) -> shared_ptr<Module>
-                { return make_shared<LeakyReLU>(stof(tokens[1])); }},
-            {"ReLU",
-                [](const vector<string>&) -> shared_ptr<Module> { return make_shared<ReLU>(); }}};
-
-        model.layers.clear();
-        stringstream arch_stream(arch_str);
-        string line;
-
-        while (std::getline(arch_stream, line))
-        {
-            if (line.empty())
-            {
-                continue;
-            }
-
-            vector<string> tokens = _split(line, ':');
-            const string& layer_type = tokens[0];
-
-            auto it = layer_factories.find(layer_type);
-            if (it != layer_factories.end())
-            {
-                model.layers.push_back(it->second(tokens));
-            }
-            else
-            {
-                cerr << "Warning: Unknown layer type '" << layer_type
-                     << "' in architecture string. It will be skipped.\n";
-            }
-        }
-
-        size_t layer_index = 0;
-        for (auto& layer : model.layers)
-        {
-            if (auto linear = dynamic_pointer_cast<Linear>(layer))
-            {
-                _loadLinearParams(linear, layer_index, data);
-            }
-            else if (auto leaky = dynamic_pointer_cast<Leaky>(layer))
-            {
-                _loadLeakyParams(leaky, layer_index, data);
-            }
-            // LeakyReLU and ReLU have no params to load.
-            layer_index++;
-        }
-
-        cout << "Successfully loaded network from file: " << safe_filepath << "\n";
-        return true;
-    }
-    catch (const exception& e)
-    {
-        cerr << "Error loading network: " << e.what() << "\n";
-        return false;
-    }
+    (void) model;
+    (void) safe_filepath;
+    std::cerr << "NPZ network loading is disabled in this build; loadNetwork() will return false."
+              << std::endl;
+    return false;
 }
 
 inline void NetworkSerializer::_loadLinearParams(

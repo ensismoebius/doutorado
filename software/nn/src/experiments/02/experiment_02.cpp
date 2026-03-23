@@ -14,10 +14,10 @@ auto main(int argc, char const* const* argv) -> int
 {
     try
     {
-        std::string spec_path = "../src/experiments/02/spec.yaml";
+        std::string spec_path = "../src/experiments/02/spec.json";
         if (!std::filesystem::exists(spec_path))
         {
-            spec_path = "src/experiments/02/spec.yaml";
+            spec_path = "src/experiments/02/spec.json";
         }
         if (argc > 1)
         {

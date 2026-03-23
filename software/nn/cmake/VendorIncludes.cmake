@@ -49,5 +49,8 @@ include(cmake/VendorMatplotlibCpp.cmake)
 # YAML-cpp integration
 include(cmake/VendorYaml.cmake)
 
+# nlohmann::json integration
+include(cmake/VendorJson.cmake)
+
 # Eigen parallelization settings
 include(cmake/VendorEigenParallel.cmake)

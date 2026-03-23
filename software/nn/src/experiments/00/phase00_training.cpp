@@ -12,11 +12,10 @@
 
 #include "phase00_training.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <vector>
 
@@ -160,24 +159,24 @@ auto save_results(const std::filesystem::path& path,
 
 auto save_torch_state(const std::filesystem::path& path, const TrainResult& trained) -> void
 {
-    YAML::Node root;
+    nlohmann::json root;
     root["phase"] = 0;
-    root["architecture"]["type"] = "SimpleResNet";
-    root["architecture"]["input_dim"] = trained.input_dim;
-    root["architecture"]["hidden_dim"] = trained.hidden_dim;
-    root["architecture"]["output_dim"] = trained.output_dim;
-    root["architecture"]["depth"] = trained.depth;
+    root["architecture"] = {
+        {"type", "SimpleResNet"},
+        {"input_dim", trained.input_dim},
+        {"hidden_dim", trained.hidden_dim},
+        {"output_dim", trained.output_dim},
+        {"depth", trained.depth},
+    };
 
-    YAML::Node state_dict(YAML::NodeType::Sequence);
+    nlohmann::json state_dict = nlohmann::json::array();
     auto params = trained.model->params();
     for (size_t idx = 0; idx < static_cast<size_t>(params.size()); ++idx)
     {
         const auto* param = params[idx];
-        YAML::Node param_node;
+        nlohmann::json param_node;
         param_node["name"] = "param_" + std::to_string(idx);
-        param_node["shape"] = YAML::Load("[]");
-        param_node["shape"].push_back(static_cast<int>(param->rows()));
-        param_node["shape"].push_back(static_cast<int>(param->cols()));
+        param_node["shape"] = {static_cast<int>(param->rows()), static_cast<int>(param->cols())};
 
         std::vector<float> flat;
         flat.reserve(param->size());
@@ -200,7 +199,7 @@ auto save_torch_state(const std::filesystem::path& path, const TrainResult& trai
     {
         throw std::runtime_error("Unable to open torch state file for writing");
     }
-    out << root;
+    out << root.dump(2);
 }
 
 } // namespace phase00

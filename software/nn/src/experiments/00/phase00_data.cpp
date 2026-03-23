@@ -32,7 +32,7 @@ namespace phase00
 auto default_config_path() -> std::filesystem::path
 {
     const std::filesystem::path here{__FILE__};
-    return here.parent_path().parent_path() / "config.yaml";
+    return here.parent_path().parent_path() / "config.json";
 }
 
 auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>

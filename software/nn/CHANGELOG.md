@@ -57,6 +57,13 @@ All notable changes to this project will be documented in this file.
 - Refactored `ProtocolAutoencoder` and `ProtocolSpikingAutoencoder` to support both
   dual-branch and dense fallback execution paths.
 
+- I/O and config formats: runtime ingestion of YAML and `.npz` (NumPy) files has been
+  disabled in this branch in favor of JSON configuration. The project now vendors
+  `nlohmann::json` and expects experiment configs as `.json` files (e.g. `spec.json`,
+  `config.json`). The `cnpy` library remains vendored for tooling and future use,
+  but runtime NPZ loading paths are guarded or disabled to avoid silent runtime
+  dependencies on `.npz` artifacts.
+
 ### Fixed
 
 - Implemented `Leaky::reset_state()` to correctly zero internal membrane state, resolving

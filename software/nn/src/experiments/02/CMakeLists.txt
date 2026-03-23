@@ -26,7 +26,7 @@ target_link_libraries(experiment_02
         linearAlgebra
         waveCoreLib
         Eigen3::Eigen
-        yaml-cpp
+        nlohmann_json::nlohmann_json
         OpenMP::OpenMP_CXX
 )
 

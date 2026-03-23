@@ -26,6 +26,6 @@ target_link_libraries(Phase00
         dataLoaders
         dataLoaders_10_1117  # Added to link the 10.1117 specific data loaders
         Eigen3::Eigen
-        yaml-cpp
+        nlohmann_json::nlohmann_json
         OpenMP::OpenMP_CXX
 )

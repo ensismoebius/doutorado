@@ -31,7 +31,7 @@ auto main(int argc, const char* argv[]) -> int
     }
     else
     {
-        std::cerr << "Usage: " << argv[0] << " [config.yaml]\n";
+        std::cerr << "Usage: " << argv[0] << " [config.json]\n";
         return 1;
     }
 

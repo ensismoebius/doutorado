@@ -5,30 +5,41 @@
 #include <iostream>
 #include <utility>
 
+using std::make_unique;
+
 BatchPrefetcher::BatchPrefetcher( //
-      DataLoader& loader,           //
-      std::size_t max_batches,      //
-            std::size_t lookahead,        //
-            bool use_shards,              //
-            const std::string& dataset_root)
+    DataLoader& loader,           //
+    std::size_t max_batches,      //
+    std::size_t lookahead,        //
+    bool use_shards,              //
+    const std::string& dataset_root,
+    std::size_t max_prefetch_ram_bytes)
     : it_(loader.begin()),
-    end_(loader.end()),
-    loader_ptr_(&loader),
-        use_shards_(use_shards),
-        dataset_root_(dataset_root),
-    max_batches_(max_batches),
-    seen_batches_(0),
-    lookahead_(lookahead == 0 ? 1 : lookahead),
-    producer_done_(false),
-    stop_requested_(false),
-    producer_error_(nullptr)
+      end_(loader.end()),
+      use_shards_(use_shards),
+      dataset_root_(dataset_root),
+      max_batches_(max_batches),
+      seen_batches_(0),
+      lookahead_(lookahead == 0 ? 1 : lookahead),
+      max_prefetch_ram_bytes_(max_prefetch_ram_bytes),
+      producer_done_(false),
+      stop_requested_(false),
+      producer_error_(nullptr)
 {
     // Construct the SPSC ring buffer with capacity=max_batches
-    prefetched_ring_ = std::make_unique<SpscRingBuffer<Batch>>(max_batches_ > 0 ? max_batches_ : 1);
+    prefetched_ring_ =
+        std::make_unique<HighPerfSpscQueue<PrefetchedBatch>>(max_batches_ > 0 ? max_batches_ : 1);
     // Construct a buffer pool prefilled with lookahead buffers to reduce allocations
     prefetched_pool_ = std::make_unique<BufferPool<Batch>>(lookahead_);
 
     producer_thread_ = std::thread([this]() { producerLoop(); });
+}
+
+auto BatchPrefetcher::estimate_batch_bytes(const Batch& batch) -> std::size_t
+{
+    const auto inputs_count = static_cast<std::size_t>(batch.inputs.size());
+    const auto targets_count = static_cast<std::size_t>(batch.targets.size());
+    return (inputs_count + targets_count) * sizeof(float);
 }
 
 BatchPrefetcher::~BatchPrefetcher()
@@ -47,69 +58,98 @@ BatchPrefetcher::~BatchPrefetcher()
 
 void BatchPrefetcher::producerLoop()
 {
-    if (use_shards_ && !dataset_root_.empty())
-    {
-        try
-        {
-            for (auto& p : std::filesystem::recursive_directory_iterator(dataset_root_))
-            {
-                if (!p.is_regular_file())
-                {
-                    continue;
-                }
-                const auto fname = p.path().filename().string();
-                if (fname.size() >= 12 && fname.find("_shards.json") != std::string::npos)
-                {
-                    try
-                    {
-                        auto reader = std::make_unique<nn::dataLoaders::ShardReader>(p.path().string());
-                        reader->preopen_index_shards(p.path().parent_path().string());
-                        shard_readers_cache_.push_back(std::move(reader));
-                    }
-                    catch (...) {}
-                }
-            }
-        }
-        catch (const std::exception& ex)
-        {
-            std::cerr << "Warning: shard preopen traversal failed: " << ex.what() << '\n';
-        }
-    }
+    (void) use_shards_; // shard mode removed; parameter ignored
 
     try
     {
         while (it_ != end_)
         {
-            {
-                std::unique_lock<std::mutex> lock(mutex_);
-                cv_.wait(lock,
-                    [this]() { return stop_requested_ || prefetched_ring_->size() < lookahead_; });
-
-                if (stop_requested_)
-                {
-                    break;
-                }
-
-                if (seen_batches_ + prefetched_ring_->size() >= max_batches_)
-                {
-                    break;
-                }
-            }
-
             // Acquire a reusable buffer and ask iterator to fill it.
             Batch batch = prefetched_pool_->acquire();
             it_.fill_batch(batch);
             ++it_;
+            const std::size_t batch_bytes = estimate_batch_bytes(batch);
+
+            {
+                std::unique_lock<std::mutex> lock(mutex_);
+                cv_.wait(lock,
+                    [this, batch_bytes]()
+                    {
+                        if (stop_requested_)
+                        {
+                            return true;
+                        }
+
+                        if (seen_batches_.load(std::memory_order_relaxed) +
+                                prefetched_ring_->size() >=
+                            max_batches_)
+                        {
+                            return true;
+                        }
+
+                        if (prefetched_ring_->size() >= lookahead_)
+                        {
+                            return false;
+                        }
+
+                        if (max_prefetch_ram_bytes_ == 0)
+                        {
+                            return true;
+                        }
+
+                        const std::size_t inflight =
+                            inflight_prefetch_bytes_.load(std::memory_order_relaxed);
+
+                        if (inflight + batch_bytes <= max_prefetch_ram_bytes_)
+                        {
+                            return true;
+                        }
+
+                        return inflight == 0 && prefetched_ring_->empty();
+                    });
+
+                if (stop_requested_ ||
+                    (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >=
+                        max_batches_))
+                {
+                    prefetched_pool_->release(std::move(batch));
+                    break;
+                }
+            }
+
+            inflight_prefetch_bytes_.fetch_add(batch_bytes, std::memory_order_relaxed);
+
+            PrefetchedBatch prefetched{std::move(batch), batch_bytes};
 
             // Try to push into ring; if full, yield briefly and retry.
-            while (!prefetched_ring_->try_push(std::move(batch)))
+            bool pushed = false;
+            while (true)
             {
+                if (prefetched_ring_->try_push(std::move(prefetched)))
+                {
+                    push_successes_.fetch_add(1, std::memory_order_relaxed);
+                    pushed = true;
+                    break;
+                }
+
+                push_retries_.fetch_add(1, std::memory_order_relaxed);
+
                 if (stop_requested_)
                 {
                     break;
                 }
                 std::this_thread::yield();
             }
+
+            if (!pushed)
+            {
+                inflight_prefetch_bytes_.fetch_sub(batch_bytes, std::memory_order_relaxed);
+                if (prefetched.batch.inputs.size() > 0 || prefetched.batch.targets.size() > 0)
+                {
+                    prefetched_pool_->release(std::move(prefetched.batch));
+                }
+            }
+
             cv_.notify_all();
         }
     }
@@ -144,7 +184,8 @@ void BatchPrefetcher::producerLoop()
     // If the producer hasn't yet produced a batch, wait a short time to avoid
     // a race where `hasNext()` returns true but `next()` immediately finds
     // the queue empty because the producer finished between the calls.
-    if (!producer_done_ && (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() < max_batches_))
+    if (!producer_done_ &&
+        (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() < max_batches_))
     {
         cv_.wait_for(lock,
             std::chrono::milliseconds(10),
@@ -170,11 +211,16 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 {
     // Fast path: try to pop without locking. This avoids mutex contention
     // when the ring already has data (common case).
-    Batch batch;
-    if (prefetched_ring_->try_pop(batch))
+    PrefetchedBatch prefetched;
+    if (prefetched_ring_->try_pop(prefetched))
     {
+        fast_path_hits_.fetch_add(1, std::memory_order_relaxed);
+        inflight_prefetch_bytes_.fetch_sub(prefetched.bytes, std::memory_order_relaxed);
+        Batch batch = std::move(prefetched.batch);
         Batch ret = std::move(batch);
-        prefetched_pool_->release(std::move(batch));
+        Batch spare{};
+        std::swap(spare, batch);
+        prefetched_pool_->release(std::move(spare));
         seen_batches_.fetch_add(1, std::memory_order_relaxed);
         cv_.notify_all();
         return ret;
@@ -199,14 +245,20 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
         return std::nullopt;
     }
 
-    bool ok = prefetched_ring_->try_pop(batch);
+    bool ok = prefetched_ring_->try_pop(prefetched);
     if (!ok)
     {
         return std::nullopt;
     }
 
+    slow_path_hits_.fetch_add(1, std::memory_order_relaxed);
+    inflight_prefetch_bytes_.fetch_sub(prefetched.bytes, std::memory_order_relaxed);
+
+    Batch batch = std::move(prefetched.batch);
     Batch ret = std::move(batch);
-    prefetched_pool_->release(std::move(batch));
+    Batch spare{};
+    std::swap(spare, batch);
+    prefetched_pool_->release(std::move(spare));
     seen_batches_.fetch_add(1, std::memory_order_relaxed);
     lock.unlock();
     cv_.notify_all();
@@ -218,4 +270,20 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 {
     std::lock_guard<std::mutex> lock(mutex_);
     return seen_batches_;
+}
+
+[[nodiscard]] auto BatchPrefetcher::diagnostics() const -> Diagnostics
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    Diagnostics d{};
+    d.fast_path_hits = fast_path_hits_.load(std::memory_order_relaxed);
+    d.slow_path_hits = slow_path_hits_.load(std::memory_order_relaxed);
+    d.push_successes = push_successes_.load(std::memory_order_relaxed);
+    d.push_retries = push_retries_.load(std::memory_order_relaxed);
+    d.inflight_prefetch_bytes = inflight_prefetch_bytes_.load(std::memory_order_relaxed);
+    d.ring_size = prefetched_ring_->size();
+    d.seen_batches = seen_batches_.load(std::memory_order_relaxed);
+    d.producer_done = producer_done_;
+    d.stop_requested = stop_requested_;
+    return d;
 }

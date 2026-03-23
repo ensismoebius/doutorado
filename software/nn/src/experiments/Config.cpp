@@ -11,24 +11,30 @@
 #include "Config.hpp"
 
 #include <cmath>
+#include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
+#include <sstream>
 
 auto Config::load(const std::string& path) -> std::optional<Config>
 {
-    YAML::Node node;
+    nlohmann::json node;
 
-    try
+    std::ifstream in(path);
+    if (!in)
     {
-        node = YAML::LoadFile(path);
-    }
-    catch (const YAML::BadFile& e)
-    {
-        std::cerr << "Config error (BadFile): " << e.what() << '\n';
+        std::cerr << "Config error (BadFile): Unable to open " << path << '\n';
         return std::nullopt;
     }
-    catch (const YAML::ParserException& e)
+    std::stringstream ss;
+    ss << in.rdbuf();
+    try
     {
-        std::cerr << "Config error (ParserException): " << e.what() << '\n';
+        node = nlohmann::json::parse(ss.str());
+    }
+    catch (const nlohmann::json::parse_error& e)
+    {
+        std::cerr << "Config error (ParseError): " << e.what() << '\n';
         return std::nullopt;
     }
 
@@ -42,8 +48,9 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         constexpr double kNormMax = 1.0;
 
         // -------------------- window --------------------
-        cfg.duration_sec = node["window"]["duration_sec"].as<double>();
-        cfg.overlap_percent = node["window"]["overlap_percent"].as<int>();
+        // -------------------- window --------------------
+        cfg.duration_sec = node.at("window").at("duration_sec").get<double>();
+        cfg.overlap_percent = node.at("window").at("overlap_percent").get<int>();
 
         if (cfg.overlap_percent < 0 || cfg.overlap_percent > 100)
         {
@@ -61,15 +68,16 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- normalization --------------------
-        cfg.range = node["normalization"]["range"].as<std::vector<double>>();
+        // -------------------- normalization --------------------
+        cfg.range = node.at("normalization").at("range").get<std::vector<double>>();
         if (cfg.range.size() != 2)
         {
             throw std::runtime_error("normalization.range must have exactly 2 elements");
         }
 
-        cfg.method = node["normalization"]["method"].as<std::string>();
+        cfg.method = node.at("normalization").at("method").get<std::string>();
         cfg.paraconsistent_prerequisite =
-            node["normalization"]["paraconsistent_prerequisite"].as<bool>();
+            node.at("normalization").at("paraconsistent_prerequisite").get<bool>();
 
         if (std::abs(cfg.range[0] - kNormMin) > 1e-6 || std::abs(cfg.range[1] - kNormMax) > 1e-6)
         {
@@ -88,11 +96,12 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- classifier --------------------
-        cfg.type = node["classifier"]["type"].as<std::string>();
-        cfg.implementation = node["classifier"]["implementation"].as<std::string>();
-        cfg.resnet_hidden_dim = node["classifier"]["hidden_dim"].as<int>();
-        cfg.resnet_depth = node["classifier"]["depth"].as<int>();
-        cfg.learning_rate = node["classifier"]["learning_rate"].as<float>();
+        // -------------------- classifier --------------------
+        cfg.type = node.at("classifier").at("type").get<std::string>();
+        cfg.implementation = node.at("classifier").at("implementation").get<std::string>();
+        cfg.resnet_hidden_dim = node.at("classifier").at("hidden_dim").get<int>();
+        cfg.resnet_depth = node.at("classifier").at("depth").get<int>();
+        cfg.learning_rate = node.at("classifier").at("learning_rate").get<float>();
 
         const bool type_ok = (cfg.type == "ResNet-SNN" || cfg.type == "ResNet");
         if (!type_ok)
@@ -106,9 +115,10 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- dataset --------------------
-        cfg.dataset_base_path = node["dataset"]["base_path"].as<std::string>();
-        cfg.sampling_rate = node["dataset"]["sampling_rate"].as<int>();
-        cfg.eeg_sampling_rate = node["dataset"]["eeg_sampling_rate"].as<int>();
+        // -------------------- dataset --------------------
+        cfg.dataset_base_path = node.at("dataset").at("base_path").get<std::string>();
+        cfg.sampling_rate = node.at("dataset").at("sampling_rate").get<int>();
+        cfg.eeg_sampling_rate = node.at("dataset").at("eeg_sampling_rate").get<int>();
 
         if (cfg.dataset_base_path.empty())
         {
@@ -121,8 +131,10 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- paraconsistent --------------------
-        cfg.enabled = node["paraconsistent"]["enabled"].as<bool>();
-        cfg.optimal_point = node["paraconsistent"]["optimal_point"].as<std::vector<double>>();
+        // -------------------- paraconsistent --------------------
+        cfg.enabled = node.at("paraconsistent").at("enabled").get<bool>();
+        cfg.optimal_point =
+            node.at("paraconsistent").at("optimal_point").get<std::vector<double>>();
 
         if (cfg.optimal_point.size() != 2)
         {
@@ -130,11 +142,12 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- experiment --------------------
-        cfg.seed = node["experiment"]["seed"].as<int>();
-        cfg.cross_validation = node["experiment"]["cross_validation"].as<bool>();
-        cfg.folds = node["experiment"]["folds"].as<int>();
-        cfg.batch_size = node["experiment"]["batch_size"].as<int>();
-        cfg.max_epochs = node["experiment"]["max_epochs"].as<int>();
+        // -------------------- experiment --------------------
+        cfg.seed = node.at("experiment").at("seed").get<int>();
+        cfg.cross_validation = node.at("experiment").at("cross_validation").get<bool>();
+        cfg.folds = node.at("experiment").at("folds").get<int>();
+        cfg.batch_size = node.at("experiment").at("batch_size").get<int>();
+        cfg.max_epochs = node.at("experiment").at("max_epochs").get<int>();
 
         if (cfg.seed < 0)
         {
@@ -167,9 +180,10 @@ auto Config::load(const std::string& path) -> std::optional<Config>
         }
 
         // -------------------- output --------------------
-        cfg.results_dir = node["output"]["results_dir"].as<std::string>();
-        cfg.metrics_file = node["output"]["metrics_file"].as<std::string>();
-        cfg.torch_state_file = node["output"]["torch_state_file"].as<std::string>();
+        // -------------------- output --------------------
+        cfg.results_dir = node.at("output").at("results_dir").get<std::string>();
+        cfg.metrics_file = node.at("output").at("metrics_file").get<std::string>();
+        cfg.torch_state_file = node.at("output").at("torch_state_file").get<std::string>();
 
         if (cfg.results_dir.empty() || cfg.metrics_file.empty() || cfg.torch_state_file.empty())
         {
@@ -178,13 +192,13 @@ auto Config::load(const std::string& path) -> std::optional<Config>
 
         return cfg;
     }
-    catch (const YAML::BadConversion& e)
+    catch (const nlohmann::json::type_error& e)
     {
-        std::cerr << "Config error (BadConversion): " << e.what() << '\n';
+        std::cerr << "Config error (TypeError): " << e.what() << '\n';
     }
-    catch (const YAML::InvalidNode& e)
+    catch (const std::out_of_range& e)
     {
-        std::cerr << "Config error (InvalidNode): " << e.what() << '\n';
+        std::cerr << "Config error (MissingKey): " << e.what() << '\n';
     }
     catch (const std::exception& e)
     {

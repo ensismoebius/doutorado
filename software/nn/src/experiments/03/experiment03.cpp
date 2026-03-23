@@ -45,6 +45,7 @@ const Config default_config{
     .dataset_type = Experiment03DatasetType::FusedWindow,
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
     .prefetch_lookahead = 5,
+    .prefetch_ram_cap_mb = 0,
 };
 
 auto main(int argc, char* argv[]) -> int

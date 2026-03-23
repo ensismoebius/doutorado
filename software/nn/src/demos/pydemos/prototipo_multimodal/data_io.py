@@ -50,29 +50,7 @@ def _as_2d_float32_eeg(x: np.ndarray) -> np.ndarray:
 
 
 def load_records_from_npz(npz_path: Path) -> list[RawRecord]:
-    pack = np.load(npz_path, allow_pickle=False)
-    audio = np.asarray(pack["audio"], dtype=np.float32)
-    eeg = np.asarray(pack["eeg"], dtype=np.float32)
-    speaker_ids = np.asarray(pack["speaker_id"], dtype=np.int64)
-    eeg_index = np.asarray(
-        pack.get("eeg_index", np.arange(audio.shape[0])), dtype=np.int64
-    )
-    sample_id = np.asarray(
-        pack.get("sample_id", np.arange(audio.shape[0])), dtype=np.int64
-    )
-
-    records: list[RawRecord] = []
-    for i in range(audio.shape[0]):
-        records.append(
-            RawRecord(
-                audio=_as_1d_float32(audio[i]),
-                eeg=_as_2d_float32_eeg(eeg[eeg_index[i]]),
-                speaker_id=int(speaker_ids[i]),
-                eeg_index=int(eeg_index[i]),
-                sample_id=int(sample_id[i]),
-            )
-        )
-    return records
+    raise RuntimeError("NPZ record ingestion has been removed from this build; use MAT or wav+csv inputs instead.")
 
 
 def load_records_from_mat(

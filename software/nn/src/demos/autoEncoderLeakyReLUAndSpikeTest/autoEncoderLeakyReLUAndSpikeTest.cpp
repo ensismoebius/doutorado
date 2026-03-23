@@ -8,8 +8,6 @@
  * - explicit notes about the project-specific shape conventions for time-flattened SNN input.
  */
 
-#include <cnpy.h>
-
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -201,49 +199,11 @@ class SpikeAutoEncoder : public Module
    private:
     bool load_weights_from_file(Sequential& seq, const string& file)
     {
-        if (!std::filesystem::exists(file)) return false;
-        try
-        {
-            cnpy::npz_t data = cnpy::npz_load(file);
-            // Weight-keying convention:
-            // - Keys are based on the *layer index* inside `Sequential::layers`.
-            // - Because `Sequential` interleaves [Linear, LeakyBPTT, Linear, ...], only the
-            //   indices corresponding to Linear layers are expected to have ".weight"/".bias".
-            //
-            // Pitfall: changing the architecture (inserting/removing layers) shifts indices and
-            // will break loading unless the NPZ files are regenerated.
-            for (size_t i = 0; i < seq.layers.size(); ++i)
-            {
-                if (auto lin = dynamic_pointer_cast<Linear>(seq.layers[i]))
-                {
-                    string key_prefix = std::to_string(i);
-                    string w_key = key_prefix + ".weight";
-                    string b_key = key_prefix + ".bias";
-
-                    if (data.count(w_key))
-                    {
-                        auto& arr = data[w_key];
-                        float* w_ptr = arr.data<float>();
-                        for (int r = 0; r < lin->weight.rows(); ++r)
-                            for (int c = 0; c < lin->weight.cols(); ++c)
-                                lin->weight.at(r, c) = w_ptr[r * lin->weight.cols() + c];
-                    }
-                    if (data.count(b_key))
-                    {
-                        auto& arr = data[b_key];
-                        float* b_ptr = arr.data<float>();
-                        for (int r = 0; r < lin->bias.rows(); ++r)
-                            for (int c = 0; c < lin->bias.cols(); ++c)
-                                lin->bias.at(r, c) = b_ptr[r * lin->bias.cols() + c];
-                    }
-                }
-            }
-            return true;
-        }
-        catch (...)
-        {
-            return false;
-        }
+        (void) seq;
+        (void) file;
+        std::cerr << "NPZ weight loading disabled in this build; using Kaiming init instead."
+                  << std::endl;
+        return false;
     }
 };
 

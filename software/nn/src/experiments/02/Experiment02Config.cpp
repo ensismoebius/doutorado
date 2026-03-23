@@ -1,8 +1,9 @@
 #include "Experiment02Config.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <cmath>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <sstream>
 
 // Get all available discrete wavelet families from core library
 auto get_available_wavelet_families() -> std::vector<std::string>
@@ -32,31 +33,49 @@ auto get_available_wavelet_families() -> std::vector<std::string>
         "Daub46"};
 }
 
-// Load config from spec.yaml
+// Load config from spec.json
 auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
 {
-    YAML::Node config = YAML::LoadFile(spec_path);
+    // read file + parse
+    std::ifstream in(spec_path);
+    if (!in)
+    {
+        throw std::runtime_error("Unable to open experiment spec: " + spec_path);
+    }
+    std::stringstream ss;
+    ss << in.rdbuf();
+    nlohmann::json config;
+    try
+    {
+        config = nlohmann::json::parse(ss.str());
+    }
+    catch (const nlohmann::json::parse_error& e)
+    {
+        throw std::runtime_error(std::string("Experiment spec parse error: ") + e.what());
+    }
 
     ExperimentConfig exp_config;
 
-    exp_config.id = config["experiment"]["id"].as<std::string>();
+    exp_config.id = config.at("experiment").at("id").get<std::string>();
 
     // Keep backward compatibility with both old and nested determinism layouts.
-    if (config["determinism"] && config["determinism"]["random_seed"])
+    if (config.contains("determinism") && config["determinism"].contains("random_seed"))
     {
-        exp_config.random_seed = config["determinism"]["random_seed"].as<int>();
+        exp_config.random_seed = config["determinism"]["random_seed"].get<int>();
     }
     else
     {
-        exp_config.random_seed = config["experiment"]["determinism"]["random_seed"].as<int>();
+        exp_config.random_seed =
+            config.at("experiment").at("determinism").at("random_seed").get<int>();
     }
 
-    exp_config.eeg_sampling_rate = config["data"]["sampling_rate"]["EEG"].as<int>();
-    exp_config.audio_sampling_rate = config["data"]["sampling_rate"]["Audio"].as<int>();
+    exp_config.eeg_sampling_rate = config.at("data").at("sampling_rate").at("EEG").get<int>();
+    exp_config.audio_sampling_rate = config.at("data").at("sampling_rate").at("Audio").get<int>();
 
     exp_config.window_duration_sec =
-        config["data"]["segmentation"]["window"]["duration_sec"].as<double>();
-    exp_config.overlap_sec = config["data"]["segmentation"]["window"]["overlap_sec"].as<double>();
+        config.at("data").at("segmentation").at("window").at("duration_sec").get<double>();
+    exp_config.overlap_sec =
+        config.at("data").at("segmentation").at("window").at("overlap_sec").get<double>();
 
     int window_samples =
         static_cast<int>(exp_config.window_duration_sec * exp_config.eeg_sampling_rate);
@@ -65,8 +84,9 @@ auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
     exp_config.wavelet_families = get_available_wavelet_families();
 
     exp_config.normalization_range = {0.0, 1.0};
-    exp_config.paraconsistent_enabled = config["paraconsistent_metrics"]["enabled"].as<bool>();
-    exp_config.k_folds = config["validation_protocol"]["k"].as<int>();
+    exp_config.paraconsistent_enabled =
+        config.at("paraconsistent_metrics").at("enabled").get<bool>();
+    exp_config.k_folds = config.at("validation_protocol").at("k").get<int>();
 
     return exp_config;
 }

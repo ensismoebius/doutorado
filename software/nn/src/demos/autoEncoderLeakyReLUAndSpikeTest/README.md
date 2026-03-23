@@ -265,6 +265,8 @@ The loader iterates over `Sequential::layers` and only loads weights for layers 
 
 Practical implication: if you change the ordering or insert/remove layers, old `.npz` files will silently stop matching the architecture.
 
+Note: runtime NPZ weight loading is disabled in this build; the demo will fall back to Kaiming initialization when NPZ files are absent or loading is unsupported. Use the provided conversion scripts for offline NPZ generation if needed.
+
 ---
 
 ## 9. Expected runtime behavior (what “working” looks like)

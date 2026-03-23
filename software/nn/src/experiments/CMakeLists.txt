@@ -15,9 +15,13 @@ target_include_directories(experiments_config
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json CONFIG REQUIRED)
+endif()
+
 target_link_libraries(experiments_config
     PUBLIC
-        yaml-cpp
+        nlohmann_json::nlohmann_json
 )
 
 # Add subdirectories for all experiments

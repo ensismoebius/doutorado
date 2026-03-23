@@ -10,8 +10,7 @@
 #ifndef EXPERIMENTS_CONFIG_HPP
 #define EXPERIMENTS_CONFIG_HPP
 
-#include <yaml-cpp/yaml.h>
-
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>

@@ -53,26 +53,26 @@ static bool map_autoencoder_type(const std::string& s, Config& cfg)
     bool is_snn = n.find("snn") != std::string::npos || n.find("spiking") != std::string::npos;
     if (n.find("protocol") != std::string::npos)
     {
-        cfg.autoencoder_type =
-            is_snn ? Experiment03AutoencoderType::ProtocolSnn : Experiment03AutoencoderType::ProtocolAnn;
+        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::ProtocolSnn
+                                      : Experiment03AutoencoderType::ProtocolAnn;
         return true;
     }
     if (n.find("eeg") != std::string::npos)
     {
-        cfg.autoencoder_type =
-            is_snn ? Experiment03AutoencoderType::EegWindowSnn : Experiment03AutoencoderType::EegWindowAnn;
+        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::EegWindowSnn
+                                      : Experiment03AutoencoderType::EegWindowAnn;
         return true;
     }
     if (n.find("audio") != std::string::npos)
     {
-        cfg.autoencoder_type =
-            is_snn ? Experiment03AutoencoderType::AudioWindowSnn : Experiment03AutoencoderType::AudioWindowAnn;
+        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::AudioWindowSnn
+                                      : Experiment03AutoencoderType::AudioWindowAnn;
         return true;
     }
     if (n.find("fused") != std::string::npos)
     {
-        cfg.autoencoder_type =
-            is_snn ? Experiment03AutoencoderType::FusedWindowSnn : Experiment03AutoencoderType::FusedWindowAnn;
+        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::FusedWindowSnn
+                                      : Experiment03AutoencoderType::FusedWindowAnn;
         return true;
     }
     return false;
@@ -99,7 +99,8 @@ static auto skip_ws(const std::string& text, std::size_t pos) -> std::size_t
     return pos;
 }
 
-static auto value_start(const std::string& text, const std::string& key, std::size_t& out_pos) -> bool
+static auto value_start(const std::string& text, const std::string& key, std::size_t& out_pos)
+    -> bool
 {
     const std::size_t key_pos = find_key(text, key);
     if (key_pos == std::string::npos) return false;
@@ -238,7 +239,8 @@ static auto parse_object(const std::string& text, const std::string& key, std::s
     int depth = 0;
     for (std::size_t i = pos; i < text.size(); ++i)
     {
-        if (text[i] == '{') ++depth;
+        if (text[i] == '{')
+            ++depth;
         else if (text[i] == '}')
         {
             --depth;
@@ -252,7 +254,8 @@ static auto parse_object(const std::string& text, const std::string& key, std::s
     return false;
 }
 
-auto load_profile_to_config(const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
+auto load_profile_to_config(
+    const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
 {
     namespace fs = std::filesystem;
 
@@ -265,13 +268,11 @@ auto load_profile_to_config(const std::string& profile_name, Config& out_config,
                                  profile_name.find('\\') != std::string::npos;
     const bool has_json_extension = raw_profile_path.extension() == ".json";
 
-    std::vector<fs::path> candidates = {
-        raw_profile_path,
+    std::vector<fs::path> candidates = {raw_profile_path,
         source_profiles_dir / (profile_name + ".json"),
         fs::path("src/experiments/03/profiles") / (profile_name + ".json"),
         fs::current_path() / (profile_name + ".json"),
-        fs::path("profiles") / (profile_name + ".json")
-    };
+        fs::path("profiles") / (profile_name + ".json")};
 
     if (!has_json_extension)
     {
@@ -318,7 +319,8 @@ auto load_profile_to_config(const std::string& profile_name, Config& out_config,
     parse_string(text, "default_sampler_type", out_config.default_sampler_type);
 
     parse_array_numbers(text, "sampler_weights", out_config.sampler_weights);
-    if (out_config.sampler_weights.empty() && find_key(text, "sampler_weights") != std::string::npos)
+    if (out_config.sampler_weights.empty() &&
+        find_key(text, "sampler_weights") != std::string::npos)
     {
         // Preserve explicit empty list in profile file.
         out_config.sampler_weights.clear();
@@ -367,10 +369,8 @@ auto load_profile_to_config(const std::string& profile_name, Config& out_config,
         out_config.autoencoder_architecture = static_cast<AutoencoderArchitecture>(architecture);
     }
 
-    parse_number(
-        text, "autoencoder_branch_hidden_size", out_config.autoencoder_branch_hidden_size);
-    parse_number(
-        text, "autoencoder_fusion_hidden_size", out_config.autoencoder_fusion_hidden_size);
+    parse_number(text, "autoencoder_branch_hidden_size", out_config.autoencoder_branch_hidden_size);
+    parse_number(text, "autoencoder_fusion_hidden_size", out_config.autoencoder_fusion_hidden_size);
     parse_number(text, "autoencoder_residual_blocks", out_config.autoencoder_residual_blocks);
     parse_number(text, "autoencoder_time_step", out_config.autoencoder_time_step);
     parse_number(text, "autoencoder_resistance", out_config.autoencoder_resistance);
@@ -379,6 +379,7 @@ auto load_profile_to_config(const std::string& profile_name, Config& out_config,
     parse_number(text, "training_learning_rate", out_config.training_learning_rate);
     parse_number(text, "training_epochs", out_config.training_epochs);
     parse_number(text, "prefetch_lookahead", out_config.prefetch_lookahead);
+    parse_number(text, "prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
 
     std::string eeg_object;
     if (parse_object(text, "eeg_window_config", eeg_object))

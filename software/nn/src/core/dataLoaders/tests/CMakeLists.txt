@@ -12,6 +12,7 @@
 ## Consolidated GoogleTest target for dataLoaders
 add_executable(dataLoaders_gtest
 	dataLoader_more_gtest.cpp
+	batch_prefetcher_gtest.cpp
 	matfile_utils_gtest.cpp
 	dataLoader_gtest.cpp
 	sampler_option_resolution_gtest.cpp

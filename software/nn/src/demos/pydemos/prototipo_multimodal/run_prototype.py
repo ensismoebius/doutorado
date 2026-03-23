@@ -72,13 +72,6 @@ def _set_random_seeds(seed_value: int) -> None:
 
 def _load_raw_records_from_config(config: PrototypeConfig) -> list[RawRecord]:
     """Load multimodal records according to the configured input format."""
-    if config.data.format == "npz":
-        candidate_files = sorted(config.data.data_root.glob("*.npz"))
-        if not candidate_files:
-            raise FileNotFoundError(
-                f"nenhum .npz encontrado em {config.data.data_root}"
-            )
-        return load_records_from_npz(candidate_files[0])
     if config.data.format == "mat":
         candidate_files = sorted(config.data.data_root.glob("*.mat"))
         if not candidate_files:
@@ -415,7 +408,7 @@ def parse_cli_arguments() -> argparse.Namespace:
     )
     argument_parser.add_argument("--data-root", type=Path, required=True)
     argument_parser.add_argument(
-        "--format", choices=["mat", "npz", "wav_csv"], default="npz"
+        "--format", choices=["mat", "wav_csv"], default="mat"
     )
     argument_parser.add_argument("--audio-orig-sr", type=int, default=44100)
     argument_parser.add_argument("--eeg-orig-sr", type=int, default=1000)

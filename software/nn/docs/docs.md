@@ -76,7 +76,7 @@ The pipeline supports end-to-end speaker identification/verification, from audio
 ### Key Engineering Laws
 - Always use core abstractions (tensor, layer, DataLoader, optimizer) for extensibility and testability.
 - No hidden global state; propagate errors explicitly; maintain deterministic seeding and ordering.
-- Vendor dependencies (Eigen, FFTW3, NFFT3, cnpy, matio, yaml-cpp, matplotlib-cpp, argparse, imgui/implot, GoogleTest) are managed via CMake and must be replaced only with equivalent, justified alternatives.
+- Vendor dependencies (Eigen, FFTW3, NFFT3, cnpy, matio, nlohmann_json, matplotlib-cpp, argparse, imgui/implot, GoogleTest) are managed via CMake and must be replaced only with equivalent, justified alternatives.
 
 ---
 
@@ -1056,8 +1056,7 @@ For large MAT-based datasets you can convert per-subject data into many small NP
 files ahead of time. This moves expensive MAT parsing offline and reduces producer-side CPU
 work during training. A convenience Python script is provided at
 `scripts/shard_dataset.py` which writes per-subject `.npz` shards and a `<SUBJECT>_shards.json`
-index. To enable runtime shard usage set the CLI flag `--use-shards` (profile key
-`use_shards`, default `false`).
+index.
 
 Example (generate shards once on a powerful machine):
 
@@ -1065,8 +1064,10 @@ Example (generate shards once on a powerful machine):
 python3 scripts/shard_dataset.py --dataset-root /data/BaseDeDatosHablaImaginada --shard-size 1000
 ```
 
-When `--use-shards` is enabled the background prefetcher will preopen shard indexes and read
-rows from NPZ shards with lower per-sample parsing overhead.
+Note: runtime ingestion of `.npz` shard files is disabled in this build; the CLI `--use-shards`
+flag is ignored. Use the MAT-based dataset flow or the offline shard generation scripts for
+preprocessing. CNpy remains vendored for tooling and potential future re-enablement of NPZ
+ingestion.
 
 ---
 
