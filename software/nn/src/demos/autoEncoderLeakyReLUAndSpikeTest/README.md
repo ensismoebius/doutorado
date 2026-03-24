@@ -242,30 +242,19 @@ This matches the common “scalar beta/threshold” setup in snnTorch examples. 
 
 ---
 
-## 8. Weight loading and initialization (reproducibility)
+### 8. Weight loading and initialization (reproducibility)
 
-The demo attempts to load weights from:
+Runtime NPZ weight loading is disabled in this build. At runtime the demo will not attempt to load `.npz` weight artifacts and will instead initialize weights deterministically using the Kaiming initializer. If you need to produce or consume offline NPZ artifacts for compatibility with other toolchains, use the conversion scripts in `scripts/` (for example `scripts/mat_to_npz.py`) to generate NPZ files outside of the runtime and treat them as offline artifacts.
 
-- `weights/encoder_spike_model_weights.npz`
-- `weights/decoder_spike_model_weights.npz`
+The demo initializes Linear layers using Kaiming initialization and then scales weights by `0.01` to reduce the risk of immediate saturation in deep SNN stacks.
 
-If loading fails, it initializes Linear layers using Kaiming initialization and then scales weights by `0.01`.
+If you re-enable NPZ loading in a future build, note these format assumptions (for tool-generated NPZ files):
 
-**Why the `0.01` scale matters:** with deep spiking stacks, large initial weights can push membrane potentials far above threshold, causing immediate saturation (everything spikes) and poor gradients.
+- The loader iterates over `Sequential::layers` and only loads weights for layers that can be `dynamic_pointer_cast<Linear>`.
+- Keys are derived from the **layer index in the Sequential container**, not from “linear layer number”. Because the sequence alternates `[Linear, LeakyBPTT, Linear, LeakyBPTT, ...]`, weights typically appear at even indices.
+- For an index `i`, files are expected to contain `"<i>.weight"` and `"<i>.bias"` entries.
 
-### 8.1 NPZ weight format assumptions
-
-The loader iterates over `Sequential::layers` and only loads weights for layers that can be `dynamic_pointer_cast<Linear>`.
-
-- Keys are derived from the **layer index in the Sequential container**, not from “linear layer number”.
-    For example, because the sequence alternates `[Linear, LeakyBPTT, Linear, LeakyBPTT, ...]`, weights typically appear at even indices.
-- For an index `i`, it expects:
-    - `"<i>.weight"`
-    - `"<i>.bias"`
-
-Practical implication: if you change the ordering or insert/remove layers, old `.npz` files will silently stop matching the architecture.
-
-Note: runtime NPZ weight loading is disabled in this build; the demo will fall back to Kaiming initialization when NPZ files are absent or loading is unsupported. Use the provided conversion scripts for offline NPZ generation if needed.
+Practical implication: if you change the ordering or insert/remove layers, old `.npz` files will stop matching the architecture. Prefer offline conversion scripts for reproducible artifact generation.
 
 ---
 

@@ -3,6 +3,9 @@
 
 ## Como rodar este demo
 
+> Note: runtime ingestion of `.npz` weight or shard files is disabled in this build. Python demos that produce `.npz` outputs (for offline analysis) still work, but any runtime loading of `.npz` artifacts is disabled — use `scripts/mat_to_npz.py` or other offline converters and treat `.npz` files as offline artifacts.
+
+
 Entre no diretório `pydemos` e execute:
 
 ```bash

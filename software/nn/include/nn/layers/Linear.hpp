@@ -49,11 +49,11 @@ struct Linear : public Module
      * @param in_features Número de entradas
      * @param out_features Número de saídas
      */
-    Linear(const int in_features, const int out_features)
-        : in_features(in_features),
-          out_features(out_features),
-          weight(nn::Tensor(out_features, in_features)),
-          bias(nn::Tensor(out_features, 1))
+        Linear(const int in_features_, const int out_features_)
+                : in_features(in_features_),
+                    out_features(out_features_),
+                    weight(nn::Tensor(out_features_, in_features_)),
+                    bias(nn::Tensor(out_features_, 1))
     {
     }
 
@@ -125,7 +125,7 @@ struct Linear : public Module
     auto backward(const nn::Tensor& grad_previous) -> nn::Tensor override
     {
         // Validate gradient dimensions
-        if (grad_previous.cols() != out_features)
+        if (grad_previous.cols() != static_cast<size_t>(out_features))
         {
             throw std::invalid_argument("Linear layer backward: gradient features (" +
                                         std::to_string(grad_previous.cols()) +

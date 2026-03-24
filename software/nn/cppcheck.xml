@@ -29,11 +29,14 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp" line="23" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp" line="24" column="2"/>
         </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp" line="25" column="2"/>
+        </error>
         <error id="unusedStructMember" severity="style" msg="struct member &apos;Impl::kRowCacheCapacity&apos; is never used." verbose="struct member &apos;Impl::kRowCacheCapacity&apos; is never used." cwe="563" file0="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp">
-            <location file="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp" line="136" column="29"/>
+            <location file="src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp" line="137" column="29"/>
             <symbol>Impl::kRowCacheCapacity</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/loaders/EEGLoader.h&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/loaders/EEGLoader.h&quot; not found.">
@@ -48,12 +51,19 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="22" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="23" column="2"/>
         </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="24" column="2"/>
+        </error>
         <error id="unusedStructMember" severity="style" msg="struct member &apos;Impl::kRowCacheCapacity&apos; is never used." verbose="struct member &apos;Impl::kRowCacheCapacity&apos; is never used." cwe="563" file0="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp">
-            <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="158" column="29"/>
+            <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="159" column="29"/>
             <symbol>Impl::kRowCacheCapacity</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;totalCols&apos; is assigned a value that is never used." verbose="Variable &apos;totalCols&apos; is assigned a value that is never used." cwe="563" file0="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp">
+            <location file="src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp" line="264" column="28"/>
+            <symbol>totalCols</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found.">
             <location file="src/core/dataLoaders/10.1117/protocol/Protocol101117Dataset.cpp" line="1" column="2"/>
@@ -250,6 +260,28 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found.">
             <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="1" column="2"/>
         </error>
+        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;batch&apos;." verbose="Access of moved variable &apos;batch&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="222" column="26" info="Access of moved variable &apos;batch&apos;."/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="220" column="21" info="Calling std::move(batch)"/>
+            <symbol>batch</symbol>
+        </error>
+        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;spare&apos;." verbose="Access of moved variable &apos;spare&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="223" column="45" info="Access of moved variable &apos;spare&apos;."/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="222" column="26" info="Assignment &apos;spare,batch&apos;, assigned value is &lt;Moved&gt;"/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="220" column="21" info="Calling std::move(batch)"/>
+            <symbol>spare</symbol>
+        </error>
+        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;batch&apos;." verbose="Access of moved variable &apos;batch&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="260" column="22" info="Access of moved variable &apos;batch&apos;."/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="258" column="17" info="Calling std::move(batch)"/>
+            <symbol>batch</symbol>
+        </error>
+        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;spare&apos;." verbose="Access of moved variable &apos;spare&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="261" column="41" info="Access of moved variable &apos;spare&apos;."/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="260" column="22" info="Assignment &apos;spare,batch&apos;, assigned value is &lt;Moved&gt;"/>
+            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="258" column="17" info="Calling std::move(batch)"/>
+            <symbol>spare</symbol>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
             <location file="src/core/dataLoaders/DataLoader.cpp" line="6" column="2"/>
         </error>
@@ -310,6 +342,18 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found.">
             <location file="src/core/dataLoaders/samplers/tests/sampler_gtest.cpp" line="9" column="2"/>
         </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
+            <location file="src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp" line="11" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp" line="12" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp" line="13" column="2"/>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/count_mat_rows_gtest.cpp" line="4" column="2"/>
         </error>
@@ -346,6 +390,9 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/Dataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/Dataset.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/dataset_collate_gtest.cpp" line="3" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/MatFileDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/MatFileDataset.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/mat_file_dataset_gtest.cpp" line="13" column="2"/>
@@ -471,11 +518,11 @@
             <location file="src/core/paraconsistent/paraconsistent.cpp" line="20" column="2"/>
         </error>
         <error id="variableScope" severity="style" msg="The scope of the variable &apos;item&apos; can be reduced." verbose="The scope of the variable &apos;item&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/core/paraconsistent/paraconsistent.cpp">
-            <location file="src/core/paraconsistent/paraconsistent.cpp" line="92" column="12"/>
+            <location file="src/core/paraconsistent/paraconsistent.cpp" line="118" column="12"/>
             <symbol>item</symbol>
         </error>
         <error id="variableScope" severity="style" msg="The scope of the variable &apos;item&apos; can be reduced." verbose="The scope of the variable &apos;item&apos; can be reduced. Warning: Be careful when fixing this message, especially when there are inner loops. Here is an example where cppcheck will write that the scope for &apos;i&apos; can be reduced:\012void f(int x)\012{\012    int i = 0;\012    if (x) {\012        // it&apos;s safe to move &apos;int i = 0;&apos; here\012        for (int n = 0; n &lt; 10; ++n) {\012            // it is possible but not safe to move &apos;int i = 0;&apos; here\012            do_something(&amp;i);\012        }\012    }\012}\012When you see this message it is always safe to reduce the variable scope 1 level." cwe="398" file0="src/core/paraconsistent/paraconsistent.cpp">
-            <location file="src/core/paraconsistent/paraconsistent.cpp" line="138" column="12"/>
+            <location file="src/core/paraconsistent/paraconsistent.cpp" line="167" column="12"/>
             <symbol>item</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/paraconsistent/paraconsistent.h&quot; not found." verbose="Include file: &quot;nn/paraconsistent/paraconsistent.h&quot; not found.">
@@ -531,6 +578,18 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/tensor/tests/tensor_gtest.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found.">
+            <location file="src/core/tools/prefetch_benchmark.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
+            <location file="src/core/tools/prefetch_benchmark.cpp" line="7" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+            <location file="src/core/tools/prefetch_benchmark.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/batching.hpp&quot; not found." verbose="Include file: &quot;nn/utility/batching.hpp&quot; not found.">
+            <location file="src/core/tools/prefetch_benchmark.cpp" line="9" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/batching.hpp&quot; not found." verbose="Include file: &quot;nn/utility/batching.hpp&quot; not found.">
             <location file="src/core/utility/batching.cpp" line="6" column="2"/>
@@ -661,49 +720,62 @@
             <location file="src/core/wavelet/waveletOperations.cpp" line="20" column="2"/>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/wavelet/waveletOperations.cpp">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="222" column="28"/>
+            <location file="src/core/wavelet/waveletOperations.cpp" line="231" column="28"/>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/wavelet/waveletOperations.cpp">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="242" column="28"/>
+            <location file="src/core/wavelet/waveletOperations.cpp" line="251" column="28"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="25" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="23" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found." verbose="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="26" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="24" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Linear.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Linear.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="27" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="25" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="28" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="26" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Sequential.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Sequential.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="29" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="27" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="30" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="28" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="31" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="29" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/testing.hpp&quot; not found." verbose="Include file: &quot;nn/testing.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="32" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="30" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found." verbose="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="33" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="31" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/reset.hpp&quot; not found." verbose="Include file: &quot;nn/utility/reset.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="34" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="32" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found." verbose="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="35" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="33" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="36" column="2"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="34" column="2"/>
+        </error>
+        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false" verbose="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false" cwe="570" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="35" info="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="35" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
+        </error>
+        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false" verbose="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false" cwe="570" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="80" info="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="80" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
+        </error>
+        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;!loaded&apos; is always true" verbose="Condition &apos;!loaded&apos; is always true" cwe="571" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="172" column="13" info="Condition &apos;!loaded&apos; is always true"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="55" info="Assignment &apos;loaded=load_weights_from_file(encoder,enc_path)&amp;&amp;load_weights_from_file(decoder,dec_path)&apos;, assigned value is 0"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="170" column="35" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="272" column="50"/>
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="232" column="50"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="21" column="2"/>
@@ -743,6 +815,12 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="33" column="2"/>
+        </error>
+        <error id="syntaxError" severity="error" msg="Unmatched &apos;}&apos;. Configuration: &apos;&apos;." verbose="Unmatched &apos;}&apos;. Configuration: &apos;&apos;." file0="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp">
+            <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="286" column="1"/>
+        </error>
+        <error id="syntaxError" severity="error" msg="Unmatched &apos;}&apos;. Configuration: &apos;DEBUG=DEBUG&apos;." verbose="Unmatched &apos;}&apos;. Configuration: &apos;DEBUG=DEBUG&apos;." file0="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp">
+            <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="286" column="1"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found.">
             <location file="src/demos/autoencoder/autoencoder_scaffold_example.cpp" line="15" column="2"/>
@@ -1014,10 +1092,10 @@
             <location file="src/experiments/00/phase00_features.cpp" line="181" column="20"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
-            <location file="src/experiments/00/phase00_training.cpp" line="23" column="2"/>
+            <location file="src/experiments/00/phase00_training.cpp" line="22" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
-            <location file="src/experiments/00/phase00_training.cpp" line="24" column="2"/>
+            <location file="src/experiments/00/phase00_training.cpp" line="23" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found.">
             <location file="src/experiments/02/Experiment02Data.cpp" line="9" column="2"/>
@@ -1122,64 +1200,76 @@
             <location file="src/experiments/03/lib/include/experiment03.hpp" line="16" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found.">
-            <location file="src/experiments/03/experiment03.cpp" line="18" column="2"/>
+            <location file="src/experiments/03/experiment03.cpp" line="19" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/AudioWindowAutoencoder.cpp" line="6" column="2"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;DatasetBuilder.hpp&quot; not found." verbose="Include file: &quot;DatasetBuilder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/DatasetBuilder.cpp" line="6" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/AudioWindowAutoencoder.cpp" line="8" column="2"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/DatasetBuilder.cpp" line="10" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AudioWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;AudioWindowSpikingAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/AudioWindowSpikingAutoencoder.cpp" line="6" column="2"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/DatasetBuilder.cpp" line="11" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/AudioWindowSpikingAutoencoder.cpp" line="8" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/EegWindowAutoencoder.cpp" line="6" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/EegWindowAutoencoder.cpp" line="8" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/EegWindowSpikingAutoencoder.cpp" line="6" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/EegWindowSpikingAutoencoder.cpp" line="8" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/FusedWindowAutoencoder.cpp" line="6" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/FusedWindowAutoencoder.cpp" line="10" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/FusedWindowSpikingAutoencoder.cpp" line="6" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/FusedWindowSpikingAutoencoder.cpp" line="10" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/ProtocolAutoencoder.cpp" line="6" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/ProtocolAutoencoder.cpp" line="8" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/ProtocolSpikingAutoencoder.cpp" line="10" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/autoencoder/src/ProtocolSpikingAutoencoder.cpp" line="12" column="2"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/DatasetBuilder.cpp" line="12" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;ProfileLoader.hpp&quot; not found." verbose="Include file: &quot;ProfileLoader.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="2" column="2"/>
         </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/experiments/03/lib/src/ProfileLoader.cpp">
-            <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="227" column="13"/>
+            <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="228" column="13"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;ResultsWriter.hpp&quot; not found." verbose="Include file: &quot;ResultsWriter.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/ResultsWriter.cpp" line="1" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;AudioWindowAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AudioWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;AudioWindowSpikingAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/ProtocolAutoencoder.cpp" line="6" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/ProtocolAutoencoder.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp" line="10" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderBuilders.hpp&quot; not found." verbose="Include file: &quot;AutoencoderBuilders.hpp&quot; not found.">
+            <location file="src/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp" line="12" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/codec/InputModeCodec.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/codec/InputModeCodec.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/cli.cpp" line="16" column="2"/>
@@ -1199,68 +1289,62 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderConfig.hpp&quot; not found." verbose="Include file: &quot;AutoencoderConfig.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="19" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;DatasetBuilder.hpp&quot; not found." verbose="Include file: &quot;DatasetBuilder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="20" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="21" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;EegWindowSpikingAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="22" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="23" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;FusedWindowSpikingAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="24" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="25" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;ResultsWriter.hpp&quot; not found." verbose="Include file: &quot;ResultsWriter.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found." verbose="Include file: &quot;ProtocolSpikingAutoencoder.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="26" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;experiment03.hpp&quot; not found." verbose="Include file: &quot;experiment03.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;ResultsWriter.hpp&quot; not found." verbose="Include file: &quot;ResultsWriter.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="27" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/dataset_info.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/dataset_info.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;experiment03.hpp&quot; not found." verbose="Include file: &quot;experiment03.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="28" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/dataset_info.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/dataset_info.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="29" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/METADATA.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/METADATA.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="30" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/METADATA.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/METADATA.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="31" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="32" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="33" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="34" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/BatchPrefetcher.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="35" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="36" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/EigenTensorBackend.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/EigenTensorBackend.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="37" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/src/experiment03.cpp" line="38" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/EigenTensorBackend.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/EigenTensorBackend.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/src/experiment03.cpp" line="39" column="2"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/progress.hpp&quot; not found." verbose="Include file: &quot;nn/utility/progress.hpp&quot; not found.">
-            <location file="src/experiments/03/lib/src/experiment03.cpp" line="40" column="2"/>
+            <location file="src/experiments/03/lib/src/experiment03.cpp" line="38" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;AutoencoderConfig.hpp&quot; not found." verbose="Include file: &quot;AutoencoderConfig.hpp&quot; not found.">
             <location file="src/experiments/03/tests/AutoencoderRedesign_gtest.cpp" line="11" column="2"/>
@@ -1286,6 +1370,12 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/experiments/03/tests/AutoencoderRedesign_gtest.cpp" line="18" column="2"/>
         </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;DatasetBuilder.hpp&quot; not found." verbose="Include file: &quot;DatasetBuilder.hpp&quot; not found.">
+            <location file="src/experiments/03/tests/DatasetBuilder_gtest.cpp" line="8" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;cli.hpp&quot; not found." verbose="Include file: &quot;cli.hpp&quot; not found.">
+            <location file="src/experiments/03/tests/DatasetBuilder_gtest.cpp" line="9" column="2"/>
+        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;ProfileLoader.hpp&quot; not found." verbose="Include file: &quot;ProfileLoader.hpp&quot; not found.">
             <location file="src/experiments/03/tests/ProfileAndResults_gtest.cpp" line="7" column="2"/>
         </error>
@@ -1299,7 +1389,7 @@
         </error>
         <error id="ctuOneDefinitionRuleViolation" severity="error" msg="The one definition rule is violated, different classes/structs have the same name &apos;Config&apos;" verbose="The one definition rule is violated, different classes/structs have the same name &apos;Config&apos;" cwe="758" file0="src/experiments/Config.cpp">
             <location file="src/experiments/03/lib/include/cli.hpp" line="47" column="1"/>
-            <location file="src/experiments/Config.hpp" line="25" column="1"/>
+            <location file="src/experiments/Config.hpp" line="24" column="1"/>
             <symbol>Config</symbol>
         </error>
         <error id="checkersReport" severity="information" msg="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)" verbose="Active checkers: There was critical errors (use --checkers-report=&lt;filename&gt; to see details)"/>

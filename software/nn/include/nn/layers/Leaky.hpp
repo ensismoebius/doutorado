@@ -159,8 +159,7 @@ struct Leaky : public Module
     auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
-        if (v_mem.rows() != static_cast<int>(input.rows()) ||
-            v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
+        if (v_mem.rows() != input.rows() || v_mem.cols() != input.cols()) [[unlikely]]
         {
             v_mem = nn::Tensor(input.rows(), input.cols());
             v_mem.setZero();
@@ -178,8 +177,8 @@ struct Leaky : public Module
         // NOTE: This check is redundant with the initialization above, but is
         // kept as-is for safety/clarity. If you refactor, ensure state semantics
         // remain identical.
-        if (v_mem.size() == 0 || v_mem.rows() != static_cast<int>(input.rows()) ||
-            v_mem.cols() != static_cast<int>(input.cols())) [[unlikely]]
+        if (v_mem.size() == 0 || v_mem.rows() != input.rows() ||
+            v_mem.cols() != input.cols()) [[unlikely]]
         {
             v_mem = nn::Tensor(input.rows(), input.cols());
             v_mem.setZero();

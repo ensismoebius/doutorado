@@ -37,7 +37,6 @@ from .config import DataConfig, OutputConfig, PrototypeConfig, TrainConfig
 from .data_io import (
     RawRecord,
     load_records_from_mat,
-    load_records_from_npz,
     load_records_from_wav_csv,
 )
 from .datasets import MultimodalWindowDataset, split_train_val_by_sample
@@ -365,18 +364,21 @@ def execute_prototype_pipeline(
 
     if config.output.save_features:
         # Save validation-set features for external analyses and plotting.
+        # Note: runtime NPZ ingestion is disabled in this build; these files are
+        # offline artifacts for external use. Use the `.npz.offline` suffix to
+        # clearly mark them as offline-only.
         np.savez(
-            output_directory / "features_ae.npz",
+            output_directory / "features_ae.npz.offline",
             x=validation_latent_features,
             y=validation_speaker_ids,
         )
         np.savez(
-            output_directory / "features_wavelet.npz",
+            output_directory / "features_wavelet.npz.offline",
             x=validation_wavelet_features,
             y=validation_speaker_ids,
         )
         np.savez(
-            output_directory / "features_combined.npz",
+            output_directory / "features_combined.npz.offline",
             x=validation_combined_features,
             y=validation_speaker_ids,
         )

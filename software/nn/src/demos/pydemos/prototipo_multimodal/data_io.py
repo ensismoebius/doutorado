@@ -1,4 +1,4 @@
-"""Ingestão de dados multimodais (.mat, .npz, wav+csv).
+"""Ingestão de dados multimodais (.mat, wav+csv).
 
 Contrato mínimo retornado por registro:
 - audio: np.ndarray shape (n_audio,)
@@ -50,7 +50,9 @@ def _as_2d_float32_eeg(x: np.ndarray) -> np.ndarray:
 
 
 def load_records_from_npz(npz_path: Path) -> list[RawRecord]:
-    raise RuntimeError("NPZ record ingestion has been removed from this build; use MAT or wav+csv inputs instead.")
+    raise RuntimeError(
+        "NPZ record ingestion has been removed from this build; use MAT or wav+csv inputs instead."
+    )
 
 
 def load_records_from_mat(

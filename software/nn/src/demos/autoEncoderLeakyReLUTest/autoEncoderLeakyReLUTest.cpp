@@ -96,10 +96,10 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
     constexpr int hidden_dim5 = 10;         // Fifth hidden layer dimension
     constexpr int bottleneck_dim = 5;       // bottleneck layer size
     constexpr int epochs = 100000; // Number of training epochs in which n_samples is presented
-    const string encoder_weights_file_path =
-        "weights/encoder_model_weights.npz"; // Model weights file
-    const string decoder_weights_file_path =
-        "weights/decoder_model_weights.npz"; // Model weights file
+    // Runtime NPZ weight loading is disabled in this build. Do not attempt
+    // to load .npz files at runtime; initialize weights deterministically instead.
+    const string encoder_weights_file_path = "";
+    const string decoder_weights_file_path = "";
 
     // Batch parameters
     constexpr int batch_size = 32; // Batch size for training
@@ -178,34 +178,30 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
     // ==== Initialization ====
 
-    // Try to load existing weights, if they exist
-    // otherwise initialize encoder and decoder weights and biases
-    // Try to load weights for both encoder and decoder networks
-    const bool loaded_weights =
-        NetworkSerializer::loadNetwork(encoders, encoder_weights_file_path) &&
-        NetworkSerializer::loadNetwork(decoders, decoder_weights_file_path);
 
-    if (!loaded_weights)
-    {
-        std::cerr << "Failed to load weights, initializing with Kaiming "
-                     "initialization\n";
+    // Do not attempt runtime NPZ loading; NetworkSerializer::loadNetwork()
+    // is intentionally disabled and will return false. Initialize weights
+    // deterministically via Kaiming initializer.
+    (void)encoder_weights_file_path;
+    (void)decoder_weights_file_path;
 
-        // Initialize encoder weights and biases
-        kaimingSNNInitializer(encoder1, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder2, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder3, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder4, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder5, nn::testing::kSeed);
-        kaimingSNNInitializer(encoder6, nn::testing::kSeed);
+    std::cerr << "Runtime NPZ weight loading is disabled; initializing with Kaiming initialization\n";
 
-        // Initialize decoder weights and biases if no saved weights exist
-        kaimingSNNInitializer(decoder1, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder2, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder3, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder4, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder5, nn::testing::kSeed);
-        kaimingSNNInitializer(decoder6, nn::testing::kSeed);
-    }
+    // Initialize encoder weights and biases
+    kaimingSNNInitializer(encoder1, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder2, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder3, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder4, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder5, nn::testing::kSeed);
+    kaimingSNNInitializer(encoder6, nn::testing::kSeed);
+
+    // Initialize decoder weights and biases
+    kaimingSNNInitializer(decoder1, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder2, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder3, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder4, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder5, nn::testing::kSeed);
+    kaimingSNNInitializer(decoder6, nn::testing::kSeed);
 
     // ==== Optimizer ====
     vector<nn::Tensor*> params;

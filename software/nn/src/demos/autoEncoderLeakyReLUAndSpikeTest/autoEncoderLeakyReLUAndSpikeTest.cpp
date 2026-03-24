@@ -279,8 +279,9 @@ auto main(int, char*[]) -> int
         .batch_size = 32};
 
     SpikeAutoEncoder model(config);
-    model.initialize_weights(
-        "weights/encoder_spike_model_weights.npz", "weights/decoder_spike_model_weights.npz");
+    // Runtime NPZ weight loading is disabled in this build. Pass empty paths
+    // to avoid referring to .npz at runtime; the model will use Kaiming init.
+    model.initialize_weights("", "");
 
     auto params = model.params();
     Adam optimizer(config.lr);
