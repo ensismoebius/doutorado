@@ -9,6 +9,7 @@
 #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 
 #include <matio.h>
+#include <sqlite3.h>
 
 #include <deque>
 #include <filesystem>
@@ -21,7 +22,6 @@
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
-#include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders
@@ -134,6 +134,9 @@ struct AudioMatSession::Impl
     std::string filePath;
     MatFilePtr matFile{nullptr};
     MatVarPtr audioVar{nullptr};
+    bool is_sqlite = false;
+    sqlite3* db = nullptr;
+    int subject_id = -1;
     static constexpr size_t kRowCacheCapacity = 8;
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, int, int>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
@@ -141,42 +144,75 @@ struct AudioMatSession::Impl
     // shard support removed: always use MAT files
 };
 
-AudioMatSession::AudioMatSession(const std::string& filePath) : impl_(std::make_unique<Impl>())
+AudioMatSession::AudioMatSession(const std::string& filePath, int subject_id)
+    : impl_(std::make_unique<Impl>())
 {
     impl_->filePath = filePath;
 
-    std::filesystem::path fpath(filePath);
-    if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
+    // Quick check: if filePath looks like a sqlite DB, try opening it.
+    try
     {
-        throw std::runtime_error("AudioLoader: invalid file path: " + filePath);
+        if (!filePath.empty() && filePath.size() > 7 &&
+            filePath.substr(filePath.size() - 7) == ".sqlite")
+        {
+            if (sqlite3_open_v2(filePath.c_str(), &impl_->db, SQLITE_OPEN_READONLY, nullptr) ==
+                SQLITE_OK)
+            {
+                impl_->is_sqlite = true;
+                impl_->subject_id = subject_id;
+            }
+            else if (impl_->db)
+            {
+                sqlite3_close(impl_->db);
+                impl_->db = nullptr;
+            }
+        }
     }
-
-    impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
-    if (!impl_->matFile)
-    {
-        throw std::runtime_error("AudioLoader: failed to open MAT file: " + filePath);
+    catch (...)
+    { /* fall back to MAT path below */
     }
-
-    impl_->audioVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kAudioMatVariableName.c_str()));
-    if (!impl_->audioVar)
+    if (!impl_->is_sqlite)
     {
-        throw std::runtime_error(
-            "AudioLoader: failed to read audio variable metadata from: " + filePath);
-    }
+        std::filesystem::path fpath(filePath);
+        if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
+        {
+            throw std::runtime_error("AudioLoader: invalid file path: " + filePath);
+        }
 
-    if (impl_->audioVar->rank != 2 ||
-        impl_->audioVar->dims[1] != ImaginedSpeechSchema_10_1117.audioTotalColumns())
-    {
-        throw std::runtime_error("AudioLoader: invalid matrix dimensions. Expected Mx176402");
-    }
+        impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
+        if (!impl_->matFile)
+        {
+            throw std::runtime_error("AudioLoader: failed to open MAT file: " + filePath);
+        }
 
-    if (impl_->audioVar->class_type != MAT_C_DOUBLE)
-    {
-        throw std::runtime_error("AudioLoader: invalid matrix data type. Expected double.");
+        impl_->audioVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kAudioMatVariableName.c_str()));
+        if (!impl_->audioVar)
+        {
+            throw std::runtime_error(
+                "AudioLoader: failed to read audio variable metadata from: " + filePath);
+        }
+
+        if (impl_->audioVar->rank != 2 ||
+            impl_->audioVar->dims[1] != ImaginedSpeechSchema_10_1117.audioTotalColumns())
+        {
+            throw std::runtime_error("AudioLoader: invalid matrix dimensions. Expected Mx176402");
+        }
+
+        if (impl_->audioVar->class_type != MAT_C_DOUBLE)
+        {
+            throw std::runtime_error("AudioLoader: invalid matrix data type. Expected double.");
+        }
     }
 }
 
-AudioMatSession::~AudioMatSession() = default;
+AudioMatSession::~AudioMatSession()
+{
+    if (impl_ && impl_->is_sqlite && impl_->db)
+    {
+        sqlite3_close(impl_->db);
+        impl_->db = nullptr;
+    }
+}
 AudioMatSession::AudioMatSession(AudioMatSession&&) noexcept = default;
 auto AudioMatSession::operator=(AudioMatSession&&) noexcept -> AudioMatSession& = default;
 
@@ -187,6 +223,85 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
         return it->second;
     }
 
+    if (impl_->is_sqlite)
+    {
+        // Query audio_samples joined with trial to get samples, stimulus_id and original_row (eeg
+        // index)
+        if (impl_->db == nullptr || impl_->subject_id < 0)
+        {
+            throw std::runtime_error("AudioLoader(SQL): DB not initialized with subject id");
+        }
+
+        const char* sql =
+            "SELECT a.samples, t.stimulus_id, t.original_row FROM audio_samples a JOIN trial t ON "
+            "a.trial_id = t.id WHERE a.audio_row = ? AND t.subject_id = ? LIMIT 1";
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("AudioLoader(SQL): failed to prepare statement");
+        }
+
+        if (sqlite3_bind_int64(stmt, 1, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK ||
+            sqlite3_bind_int(stmt, 2, impl_->subject_id) != SQLITE_OK)
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("AudioLoader(SQL): failed to bind parameters");
+        }
+
+        nn::Tensor audioSamples(ImaginedSpeechSchema_10_1117.audioSamples(), 1);
+        int stimulus = 0;
+        int eegIndex = -1;
+
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            const void* blob = sqlite3_column_blob(stmt, 0);
+            int bytes = sqlite3_column_bytes(stmt, 0);
+            const size_t expected_bytes =
+                ImaginedSpeechSchema_10_1117.audioSamples() * sizeof(double);
+            if (static_cast<size_t>(bytes) != expected_bytes)
+            {
+                sqlite3_finalize(stmt);
+                throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
+            }
+            const double* src = reinterpret_cast<const double*>(blob);
+            float* dst = audioSamples.mutable_data_ptr();
+            const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+            for (size_t i = 0; i < n; ++i)
+            {
+                dst[i] = static_cast<float>(src[i]);
+            }
+
+            // stimulus_id may be NULL
+            if (sqlite3_column_type(stmt, 1) != SQLITE_NULL)
+            {
+                stimulus = sqlite3_column_int(stmt, 1);
+            }
+            if (sqlite3_column_type(stmt, 2) != SQLITE_NULL)
+            {
+                eegIndex = static_cast<int>(sqlite3_column_int(stmt, 2));
+            }
+        }
+        else
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("AudioLoader(SQL): audio row not found for subject");
+        }
+
+        sqlite3_finalize(stmt);
+
+        std::tuple<nn::Tensor, int, int> result{std::move(audioSamples), stimulus, eegIndex};
+        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        {
+            const size_t evict = impl_->rowCacheOrder.front();
+            impl_->rowCacheOrder.pop_front();
+            impl_->rowCache.erase(evict);
+        }
+        impl_->rowCache[rowIndex] = result;
+        impl_->rowCacheOrder.push_back(rowIndex);
+        return result;
+    }
+
+    // MAT-backed path (existing behaviour)
     std::vector<double> rowValues;
     rowValues = readRowAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), rowIndex);
 
@@ -250,6 +365,17 @@ auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
         return out;
     }
 
+    if (impl_->is_sqlite)
+    {
+        std::vector<std::tuple<nn::Tensor, int, int>> out_sql;
+        out_sql.reserve(rowCount);
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            out_sql.push_back(readRow(startRow + r));
+        }
+        return out_sql;
+    }
+
     const std::vector<double> blockValues =
         readRowsAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), startRow, rowCount);
     for (size_t r = 0; r < rowCount; ++r)
@@ -294,12 +420,33 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
     }
 
     const size_t samplesPerRow = ImaginedSpeechSchema_10_1117.audioSamples();
-    const std::vector<double> blockValues =
-        readRowsAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), startRow, rowCount);
-
     out.samples.resize(rowCount * samplesPerRow);
     out.stimuli.resize(rowCount);
     out.eegIndices.resize(rowCount);
+
+    if (impl_->is_sqlite)
+    {
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const auto tup = readRow(startRow + r);
+            const auto& audio = std::get<0>(tup);
+            const int stim = std::get<1>(tup);
+            const int eegidx = std::get<2>(tup);
+            // copy audio samples
+            const size_t n = samplesPerRow;
+            const float* src = audio.data_ptr();
+            for (size_t i = 0; i < n; ++i)
+            {
+                out.samples[(r * samplesPerRow) + i] = src[i];
+            }
+            out.stimuli[r] = stim;
+            out.eegIndices[r] = eegidx;
+        }
+        return out;
+    }
+
+    const std::vector<double> blockValues =
+        readRowsAsDoubles(impl_->matFile.get(), impl_->audioVar.get(), startRow, rowCount);
 
     for (size_t r = 0; r < rowCount; ++r)
     {
@@ -320,6 +467,23 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
 
 auto AudioMatSession::rowCount() const -> size_t
 {
+    if (impl_->is_sqlite)
+    {
+        if (!impl_->db || impl_->subject_id < 0) return 0;
+        const char* sql =
+            "SELECT COUNT(*) FROM audio_samples a JOIN trial t ON a.trial_id = t.id WHERE "
+            "t.subject_id = ?";
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+        sqlite3_bind_int(stmt, 1, impl_->subject_id);
+        size_t count = 0;
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
+        }
+        sqlite3_finalize(stmt);
+        return count;
+    }
     return impl_->audioVar ? impl_->audioVar->dims[0] : 0;
 }
 

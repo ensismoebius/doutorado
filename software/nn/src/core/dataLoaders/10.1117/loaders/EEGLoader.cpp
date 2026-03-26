@@ -6,6 +6,7 @@
 #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 
 #include <matio.h>
+#include <sqlite3.h>
 
 #include <array>
 #include <deque>
@@ -160,45 +161,83 @@ struct EEGMatSession::Impl
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, std::array<int, 3>>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
     bool is_shard = false;
-    // shard support removed: always use MAT files
+    // sqlite support
+    bool is_sqlite = false;
+    sqlite3* db = nullptr;
+    int subject_id = -1;
 };
 
-EEGMatSession::EEGMatSession(const std::string& filePath) : impl_(std::make_unique<Impl>())
+EEGMatSession::EEGMatSession(const std::string& filePath, int subject_id)
+    : impl_(std::make_unique<Impl>())
 {
     impl_->filePath = filePath;
+    impl_->subject_id = subject_id;
 
-    std::filesystem::path fpath(filePath);
-    if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
+    // Detect sqlite DB path by extension and try opening read-only.
+    try
     {
-        throw std::runtime_error("EEGLoader: invalid file path: " + filePath);
+        if (!filePath.empty() && filePath.size() > 7 &&
+            filePath.substr(filePath.size() - 7) == ".sqlite")
+        {
+            if (sqlite3_open_v2(filePath.c_str(), &impl_->db, SQLITE_OPEN_READONLY, nullptr) ==
+                SQLITE_OK)
+            {
+                impl_->is_sqlite = true;
+            }
+            else if (impl_->db)
+            {
+                sqlite3_close(impl_->db);
+                impl_->db = nullptr;
+            }
+        }
+    }
+    catch (...)
+    { /* fall back to MAT below */
     }
 
-    impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
-    if (!impl_->matFile)
+    if (!impl_->is_sqlite)
     {
-        throw std::runtime_error("EEGLoader: failed to open MAT file: " + filePath);
-    }
+        std::filesystem::path fpath(filePath);
+        if (!std::filesystem::exists(fpath) || !std::filesystem::is_regular_file(fpath))
+        {
+            throw std::runtime_error("EEGLoader: invalid file path: " + filePath);
+        }
 
-    impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName.c_str()));
-    if (!impl_->eegVar)
-    {
-        throw std::runtime_error(
-            "EEGLoader: failed to read EEG variable metadata from: " + filePath);
-    }
+        impl_->matFile.reset(Mat_Open(filePath.c_str(), MAT_ACC_RDONLY));
+        if (!impl_->matFile)
+        {
+            throw std::runtime_error("EEGLoader: failed to open MAT file: " + filePath);
+        }
 
-    if (impl_->eegVar->rank != 2 ||
-        impl_->eegVar->dims[1] != nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegTotalColumns())
-    {
-        throw std::runtime_error("EEGLoader: invalid matrix dimensions. Expected Nx24579");
-    }
+        impl_->eegVar.reset(Mat_VarReadInfo(impl_->matFile.get(), kEegMatVariableName.c_str()));
+        if (!impl_->eegVar)
+        {
+            throw std::runtime_error(
+                "EEGLoader: failed to read EEG variable metadata from: " + filePath);
+        }
 
-    if (impl_->eegVar->class_type != MAT_C_DOUBLE)
-    {
-        throw std::runtime_error("EEGLoader: invalid matrix data type. Expected double.");
+        if (impl_->eegVar->rank != 2 ||
+            impl_->eegVar->dims[1] !=
+                nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegTotalColumns())
+        {
+            throw std::runtime_error("EEGLoader: invalid matrix dimensions. Expected Nx24579");
+        }
+
+        if (impl_->eegVar->class_type != MAT_C_DOUBLE)
+        {
+            throw std::runtime_error("EEGLoader: invalid matrix data type. Expected double.");
+        }
     }
 }
 
-EEGMatSession::~EEGMatSession() = default;
+EEGMatSession::~EEGMatSession()
+{
+    if (impl_ && impl_->is_sqlite && impl_->db)
+    {
+        sqlite3_close(impl_->db);
+        impl_->db = nullptr;
+    }
+}
 EEGMatSession::EEGMatSession(EEGMatSession&&) noexcept = default;
 auto EEGMatSession::operator=(EEGMatSession&&) noexcept -> EEGMatSession& = default;
 
@@ -208,6 +247,90 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     {
         return it->second;
     }
+
+    if (impl_->is_sqlite)
+    {
+        if (!impl_->db || impl_->subject_id < 0)
+        {
+            throw std::runtime_error("EEGLoader(SQL): DB not initialized with subject id");
+        }
+
+        const char* sql =
+            "SELECT e.F3, e.F4, e.C3, e.C4, e.P3, e.P4, e.blink, t.modality_id, t.stimulus_id FROM "
+            "eeg_samples e JOIN trial t ON e.trial_id = t.id WHERE t.subject_id = ? AND "
+            "t.original_row = ? LIMIT 1";
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
+        {
+            throw std::runtime_error("EEGLoader(SQL): failed to prepare statement");
+        }
+        if (sqlite3_bind_int(stmt, 1, impl_->subject_id) != SQLITE_OK ||
+            sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK)
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("EEGLoader(SQL): failed to bind parameters");
+        }
+
+        nn::Tensor eegChannels(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels,
+            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+
+        int modality = 0;
+        int stimulus = 0;
+        int artifact = 0;
+
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            // For each channel column (0..5) read blob of doubles
+            for (int ch = 0; ch < 6; ++ch)
+            {
+                const void* blob = sqlite3_column_blob(stmt, ch);
+                int bytes = sqlite3_column_bytes(stmt, ch);
+                const size_t expected_bytes =
+                    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel() *
+                    sizeof(double);
+                if (static_cast<size_t>(bytes) != expected_bytes)
+                {
+                    sqlite3_finalize(stmt);
+                    throw std::runtime_error("EEGLoader(SQL): unexpected eeg channel blob size");
+                }
+                const double* src = reinterpret_cast<const double*>(blob);
+                for (size_t s = 0;
+                    s < static_cast<size_t>(
+                            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+                    ++s)
+                {
+                    eegChannels.at(ch, s) = static_cast<float>(src[s]);
+                }
+            }
+
+            artifact = sqlite3_column_int(stmt, 6);
+            if (sqlite3_column_type(stmt, 7) != SQLITE_NULL) modality = sqlite3_column_int(stmt, 7);
+            if (sqlite3_column_type(stmt, 8) != SQLITE_NULL) stimulus = sqlite3_column_int(stmt, 8);
+        }
+        else
+        {
+            sqlite3_finalize(stmt);
+            throw std::runtime_error("EEGLoader(SQL): eeg row not found for subject");
+        }
+
+        sqlite3_finalize(stmt);
+
+        std::tuple<nn::Tensor, std::array<int, 3>> result{
+            std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
+
+        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        {
+            const size_t evict = impl_->rowCacheOrder.front();
+            impl_->rowCacheOrder.pop_front();
+            impl_->rowCache.erase(evict);
+        }
+        impl_->rowCache[rowIndex] = result;
+        impl_->rowCacheOrder.push_back(rowIndex);
+
+        return result;
+    }
+
+    // MAT-backed path
     std::vector<double> row_values;
     row_values = readMatRow(impl_->matFile.get(), impl_->eegVar.get(), rowIndex);
 
@@ -258,6 +381,17 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
 
     std::vector<std::tuple<nn::Tensor, std::array<int, 3>>> out;
     out.reserve(rowCount);
+
+    if (impl_->is_sqlite)
+    {
+        std::vector<std::tuple<nn::Tensor, std::array<int, 3>>> out;
+        out.reserve(rowCount);
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            out.emplace_back(readRow(startRow + r));
+        }
+        return out;
+    }
 
     const size_t samplesPerChannel =
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
@@ -312,6 +446,32 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
     {
         return out;
     }
+    if (impl_->is_sqlite)
+    {
+        const size_t signalCols = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns();
+        out.signals.resize(rowCount * signalCols);
+        out.labels.resize(rowCount);
+        for (size_t r = 0; r < rowCount; ++r)
+        {
+            const auto tup = readRow(startRow + r);
+            const auto& tensor = std::get<0>(tup);
+            const auto labels = std::get<1>(tup);
+            // copy flat signals
+            const size_t ch = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels;
+            const size_t samples =
+                nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+            for (size_t c = 0; c < ch; ++c)
+            {
+                for (size_t s = 0; s < samples; ++s)
+                {
+                    out.signals[(r * signalCols) + (c * samples) + s] = tensor.at(c, s);
+                }
+            }
+            out.labels[r] = labels;
+        }
+        return out;
+    }
+
     // MAT-backed flat read
     const std::vector<double> block_values =
         readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);
@@ -344,6 +504,23 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
 
 auto EEGMatSession::rowCount() const -> size_t
 {
+    if (impl_->is_sqlite)
+    {
+        if (!impl_->db || impl_->subject_id < 0) return 0;
+        const char* sql =
+            "SELECT COUNT(*) FROM trial WHERE subject_id = ? AND original_row IS NOT NULL";
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+        sqlite3_bind_int(stmt, 1, impl_->subject_id);
+        size_t count = 0;
+        if (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            count = static_cast<size_t>(sqlite3_column_int64(stmt, 0));
+        }
+        sqlite3_finalize(stmt);
+        return count;
+    }
+
     return impl_->eegVar ? impl_->eegVar->dims[0] : 0;
 }
 

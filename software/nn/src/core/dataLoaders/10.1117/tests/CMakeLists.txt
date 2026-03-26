@@ -15,6 +15,7 @@ add_executable(dataLoaders_10_1117_gtest
 	loaders/eeg_loader_gtest.cpp
 	loaders/eeg_loader_edge_gtest.cpp
 	loaders/eeg_loader_article_spec_gtest.cpp
+	loaders/sqlite_session_gtest.cpp
 	fuzz/eeg_loader_property_tests.cpp
 	schema/dataset_schema_article_spec_gtest.cpp
 	codec/batch_target_formatter_gtest.cpp

@@ -54,3 +54,6 @@ include(cmake/VendorJson.cmake)
 
 # Eigen parallelization settings
 include(cmake/VendorEigenParallel.cmake)
+
+# Optional vendored SQLite (if third_party/sqlite contains an amalgamation)
+include(cmake/VendorSqlite.cmake)

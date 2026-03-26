@@ -286,13 +286,32 @@ void Protocol101117Dataset::ensureSubjectMatSessionsInitialized(size_t subject_i
     const SubjectFiles& subject = subjects_.at(subject_index);
     if (!audio_sessions_.at(subject_index))
     {
-        audio_sessions_.at(subject_index) =
-            std::make_unique<nn::dataLoaders::AudioMatSession>(subject.audio_mat_path);
+        // Auto-detect sqlite DB: if the path ends with .sqlite, pass subject id
+        if (!subject.audio_mat_path.empty() && subject.audio_mat_path.size() > 7 &&
+            subject.audio_mat_path.substr(subject.audio_mat_path.size() - 7) == ".sqlite")
+        {
+            audio_sessions_.at(subject_index) = std::make_unique<nn::dataLoaders::AudioMatSession>(
+                subject.audio_mat_path, subject.subject_id);
+        }
+        else
+        {
+            audio_sessions_.at(subject_index) =
+                std::make_unique<nn::dataLoaders::AudioMatSession>(subject.audio_mat_path);
+        }
     }
     if (!eeg_sessions_.at(subject_index))
     {
-        eeg_sessions_.at(subject_index) =
-            std::make_unique<nn::dataLoaders::EEGMatSession>(subject.eeg_mat_path);
+        if (!subject.eeg_mat_path.empty() && subject.eeg_mat_path.size() > 7 &&
+            subject.eeg_mat_path.substr(subject.eeg_mat_path.size() - 7) == ".sqlite")
+        {
+            eeg_sessions_.at(subject_index) = std::make_unique<nn::dataLoaders::EEGMatSession>(
+                subject.eeg_mat_path, subject.subject_id);
+        }
+        else
+        {
+            eeg_sessions_.at(subject_index) =
+                std::make_unique<nn::dataLoaders::EEGMatSession>(subject.eeg_mat_path);
+        }
     }
 }
 

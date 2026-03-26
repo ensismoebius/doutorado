@@ -34,3 +34,5 @@ __pycache__/
 *.next
 *.npz
 software/nn/tags
+software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
+*.sqlite

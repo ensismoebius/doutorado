@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="2" failures="1" disabled="0" errors="0" time="0.019" timestamp="2026-03-26T17:27:22.933" name="AllTests">
+  <testsuite name="SqliteSession" tests="2" failures="1" disabled="0" skipped="0" errors="0" time="0.019" timestamp="2026-03-26T17:27:22.934">
+    <testcase name="AudioSessionMatchesBlobs" file="/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp" line="19" status="run" result="completed" time="0.012" timestamp="2026-03-26T17:27:22.934" classname="SqliteSession" />
+    <testcase name="EEGSessionMatchesBlobs" file="/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp" line="75" status="run" result="completed" time="0.006" timestamp="2026-03-26T17:27:22.946" classname="SqliteSession">
+      <failure message="/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp:137&#x0A;The difference between static_cast&lt;double&gt;(eeg_tensor.at(ch, i)) and src[i] is 1.8370293020097961e-06, which exceeds 1e-6, where&#x0A;static_cast&lt;double&gt;(eeg_tensor.at(ch, i)) evaluates to -36.276645660400391,&#x0A;src[i] evaluates to -36.276643823371089, and&#x0A;1e-6 evaluates to 9.9999999999999995e-07." type=""><![CDATA[/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp:137
+The difference between static_cast<double>(eeg_tensor.at(ch, i)) and src[i] is 1.8370293020097961e-06, which exceeds 1e-6, where
+static_cast<double>(eeg_tensor.at(ch, i)) evaluates to -36.276645660400391,
+src[i] evaluates to -36.276643823371089, and
+1e-6 evaluates to 9.9999999999999995e-07.]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>
