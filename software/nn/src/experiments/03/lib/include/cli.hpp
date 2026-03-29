@@ -112,6 +112,8 @@ struct Config
     std::size_t prefetch_lookahead = 1;
     // Maximum RAM in MB for prefetched batches (0 = unlimited).
     std::size_t prefetch_ram_cap_mb = 0;
+    // Use SQLite-backed BatchSource when true (requires --dataset-root).
+    bool use_sqlite = false;
     // Use precomputed per-subject shard files for faster I/O when available.
     // Note: shard detection is automatic; the legacy `use_shards` flag has been removed.
 

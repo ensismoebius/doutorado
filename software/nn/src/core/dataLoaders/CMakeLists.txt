@@ -7,6 +7,7 @@ add_library(dataLoaders
         DataLoader.cpp
         mat_file_utils.cpp
         BatchPrefetcher.cpp
+        SqliteBatchSource.cpp
         DataLoaderIterator.cpp
         SamplerOptionResolution.cpp
 )
