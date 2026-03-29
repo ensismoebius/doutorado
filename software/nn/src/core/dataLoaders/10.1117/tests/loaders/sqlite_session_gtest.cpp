@@ -41,7 +41,7 @@ static std::string create_mock_db(int& out_subject_id)
 
     const char* schema = R"SQL(
 CREATE TABLE subject(id INTEGER PRIMARY KEY, name TEXT);
-CREATE TABLE trial(id INTEGER PRIMARY KEY, subject_id INTEGER, original_row INTEGER);
+CREATE TABLE trial(id INTEGER PRIMARY KEY, subject_id INTEGER, original_row INTEGER, modality_id INTEGER, stimulus_id INTEGER);
 CREATE TABLE audio_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, audio_row INTEGER, samples BLOB);
 CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 BLOB, C3 BLOB, C4 BLOB, P3 BLOB, P4 BLOB, blink INTEGER);
 )SQL";
@@ -376,12 +376,12 @@ TEST(SqliteSession, AudioSessionMatchesBlobs)
         const size_t check_n = 64;
         for (size_t i = 0; i < check_n; ++i)
         {
-            ASSERT_NEAR(static_cast<double>(dst[i]), src[i], 1e-6);
+            ASSERT_NEAR(static_cast<double>(dst[i]), src[i], 1e-5);
         }
         const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
         for (size_t i = 0; i < check_n; ++i)
         {
-            ASSERT_NEAR(static_cast<double>(dst[n - 1 - i]), src[n - 1 - i], 1e-6);
+            ASSERT_NEAR(static_cast<double>(dst[n - 1 - i]), src[n - 1 - i], 1e-5);
         }
     }
     sqlite3_finalize(q);

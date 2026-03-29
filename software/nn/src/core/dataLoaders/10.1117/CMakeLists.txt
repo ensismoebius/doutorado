@@ -29,12 +29,14 @@ target_link_libraries(dataLoaders_10_1117
     cnpy
 )
 
-# Prefer vendored SQLite if available (VendorSqlite.cmake creates SQLite::SQLite3)
-if(TARGET SQLite::SQLite3)
-    target_link_libraries(dataLoaders_10_1117 PRIVATE SQLite::SQLite3)
-else()
-    target_link_libraries(dataLoaders_10_1117 PRIVATE sqlite3)
+# Prefer vendored or system SQLite. Use canonical `SQLite3::SQLite3` alias.
+if(NOT TARGET SQLite3::SQLite3)
+    message(FATAL_ERROR "Required CMake target 'SQLite3::SQLite3' not found.\n"
+            "Either enable vendored SQLite (configure with -DUSE_VENDORED_SQLITE=ON)\n"
+            "or install a CMake package that provides the SQLite3::SQLite3 target.")
 endif()
+
+target_link_libraries(dataLoaders_10_1117 PRIVATE SQLite3::SQLite3)
  
 
 nn_enable_target_pch(dataLoaders_10_1117)

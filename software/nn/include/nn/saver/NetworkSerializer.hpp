@@ -213,11 +213,87 @@ inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
 
 inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe_filepath) -> bool
 {
-    (void) model;
-    (void) safe_filepath;
-    std::cerr << "NPZ network loading is disabled in this build; loadNetwork() will return false."
-              << std::endl;
-    return false;
+    try
+    {
+        const auto data = npz_load(safe_filepath);
+
+        auto arch_it = data.find(kArchitectureKey);
+        if (arch_it == data.end())
+        {
+            std::cerr << "NetworkSerializer: architecture metadata missing in: " << safe_filepath
+                      << std::endl;
+            return false;
+        }
+
+        const NpyArray& arch_arr = arch_it->second;
+        const char* arch_ptr = reinterpret_cast<const char*>(arch_arr.data<char>());
+        size_t arch_len = static_cast<size_t>(arch_arr.shape[0]);
+        std::string arch_metadata(arch_ptr, arch_ptr + arch_len);
+
+        auto lines = _split(arch_metadata, '\n');
+        size_t layer_index = 0;
+        for (const auto& line : lines)
+        {
+            if (line.empty())
+            {
+                continue;
+            }
+            if (line.rfind("Linear:", 0) == 0)
+            {
+                auto parts = _split(line, ':');
+                if (parts.size() < 3) throw runtime_error("Malformed Linear metadata");
+                int in_f = stoi(parts[1]);
+                int out_f = stoi(parts[2]);
+                auto layer = make_shared<Linear>(in_f, out_f);
+                _loadLinearParams(layer, layer_index, data);
+                model.layers.push_back(layer);
+            }
+            else if (line.rfind("LeakyReLU:", 0) == 0)
+            {
+                auto parts = _split(line, ':');
+                float alpha = 0.01F;
+                if (parts.size() >= 2) alpha = stof(parts[1]);
+                auto layer = make_shared<LeakyReLU>(alpha);
+                model.layers.push_back(layer);
+            }
+            else if (line == "ReLU")
+            {
+                model.layers.push_back(make_shared<ReLU>());
+            }
+            else if (line.rfind("Leaky:", 0) == 0)
+            {
+                auto parts = _split(line, ':');
+                if (parts.size() < 7) throw runtime_error("Malformed Leaky metadata");
+                float time_step = stof(parts[1]);
+                float resistance = stof(parts[2]);
+                float capacitance = stof(parts[3]);
+                float voltage_threshold = stof(parts[4]);
+                bool reset_zero = (parts[5] == "1");
+                float reset_potential = stof(parts[6]);
+                auto layer = make_shared<Leaky>(time_step,
+                    resistance,
+                    capacitance,
+                    voltage_threshold,
+                    reset_zero,
+                    reset_potential);
+                _loadLeakyParams(layer, layer_index, data);
+                model.layers.push_back(layer);
+            }
+            else
+            {
+                // Unknown layer type: issue a warning but continue.
+                std::cerr << "NetworkSerializer: unknown layer metadata: '" << line << "'\n";
+            }
+            ++layer_index;
+        }
+
+        return true;
+    }
+    catch (const exception& e)
+    {
+        std::cerr << "NetworkSerializer::loadNetwork failed: " << e.what() << std::endl;
+        return false;
+    }
 }
 
 inline void NetworkSerializer::_loadLinearParams(

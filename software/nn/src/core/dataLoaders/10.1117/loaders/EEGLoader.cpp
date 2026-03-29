@@ -261,7 +261,10 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
         sqlite3_stmt* stmt = nullptr;
         if (sqlite3_prepare_v2(impl_->db, sql, -1, &stmt, nullptr) != SQLITE_OK)
         {
-            throw std::runtime_error("EEGLoader(SQL): failed to prepare statement");
+            const char* em = sqlite3_errmsg(impl_->db);
+            std::string msg = "EEGLoader(SQL): failed to prepare statement";
+            if (em) msg += std::string(": ") + em;
+            throw std::runtime_error(msg);
         }
         if (sqlite3_bind_int(stmt, 1, impl_->subject_id) != SQLITE_OK ||
             sqlite3_bind_int64(stmt, 2, static_cast<sqlite3_int64>(rowIndex)) != SQLITE_OK)

@@ -190,8 +190,9 @@ if(EXISTS ${SQLITE_SRC} AND EXISTS ${SQLITE_HDR})
         endif()
     endif()
 
-    # Prefer this target by providing an imported alias name used in targets
-    add_library(SQLite::SQLite3 ALIAS sqlite3_vendored)
+    # Prefer this target by providing the canonical imported alias name.
+    # New projects should use SQLite3::SQLite3.
+    add_library(SQLite3::SQLite3 ALIAS sqlite3_vendored)
 else()
     message(STATUS "USE_VENDORED_SQLITE=ON but ${SQLITE_SRC} not found; skip vendored sqlite")
 endif()
