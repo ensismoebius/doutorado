@@ -8,7 +8,6 @@
 #include <mutex>
 #include <optional>
 #include <thread>
-#include <vector>
 
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/utility/BufferPool.hpp"

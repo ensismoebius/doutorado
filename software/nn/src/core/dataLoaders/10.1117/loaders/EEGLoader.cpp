@@ -21,7 +21,6 @@
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
-#include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /*
@@ -384,13 +383,13 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
 
     if (impl_->is_sqlite)
     {
-        std::vector<std::tuple<nn::Tensor, std::array<int, 3>>> out;
-        out.reserve(rowCount);
+        std::vector<std::tuple<nn::Tensor, std::array<int, 3>>> _out;
+        _out.reserve(rowCount);
         for (size_t r = 0; r < rowCount; ++r)
         {
-            out.emplace_back(readRow(startRow + r));
+            _out.emplace_back(readRow(startRow + r));
         }
-        return out;
+        return _out;
     }
 
     const size_t samplesPerChannel =

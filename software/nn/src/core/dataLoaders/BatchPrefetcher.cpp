@@ -1,8 +1,6 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 
 #include <chrono>
-#include <filesystem>
-#include <iostream>
 #include <utility>
 
 using std::make_unique;
