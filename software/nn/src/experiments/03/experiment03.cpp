@@ -46,6 +46,7 @@ const Config default_config{
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
     .prefetch_lookahead = 5,
     .prefetch_ram_cap_mb = 0,
+    .use_sqlite = true,
 };
 
 auto main(int argc, char* argv[]) -> int
