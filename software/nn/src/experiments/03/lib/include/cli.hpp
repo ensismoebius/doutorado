@@ -113,7 +113,7 @@ struct Config
     // Maximum RAM in MB for prefetched batches (0 = unlimited).
     std::size_t prefetch_ram_cap_mb = 0;
     // Use precomputed per-subject shard files for faster I/O when available.
-    bool use_shards = false;
+    // Note: shard detection is automatic; the legacy `use_shards` flag has been removed.
 
     // Parsed and resolved sampler options for DataLoader construction.
     DataLoader::DefaultSamplerOptions resolved_sampler_options{};

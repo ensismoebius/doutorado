@@ -374,12 +374,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.prefetch_ram_cap_mb);
 
-    app.add_flag(                           //
-           "--use-shards,!--no-use-shards", //
-           config.use_shards,               //
-           "Use precomputed per-subject shard files for dataset I/O when shard index files are "
-           "present")
-        ->default_val(default_config.use_shards);
+    // Shard detection is automatic; legacy --use-shards flag removed.
 
     app.add_option("--seed",
            config.shuffle_seed,

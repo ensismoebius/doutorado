@@ -7,6 +7,7 @@ add_library(dataLoaders
         DataLoader.cpp
         mat_file_utils.cpp
         BatchPrefetcher.cpp
+    SqliteBatchSource.cpp
         DataLoaderIterator.cpp
         SamplerOptionResolution.cpp
 )
@@ -22,6 +23,7 @@ target_include_directories(dataLoaders
 target_link_libraries(dataLoaders
     PRIVATE
         ${ZLIB_LIBRARIES}
+        SQLite3::SQLite3
     cnpy
         dataLoaders_samplers
         Eigen3::Eigen

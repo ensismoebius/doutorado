@@ -32,6 +32,8 @@
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/DataLoaderBatchSource.hpp"
+#include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
@@ -42,6 +44,8 @@ using std::cout;
 using std::exception;
 using std::make_shared;
 
+using experiment03::DatasetBuilder;
+using experiment03::RunSummary;
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using std::endl;
 using std::make_unique;
@@ -222,7 +226,7 @@ auto build_run_summary(const Config& config,
     const std::vector<float>& epoch_mean_losses,
     const std::string& error_message = "") -> experiment03::RunSummary
 {
-    experiment03::RunSummary s{};
+    RunSummary s{};
     s.profile_name = config.profile_name;
     s.dataset_type = dataset_type_to_string(config.dataset_type);
     s.autoencoder_type = autoencoder_type_to_string(config.autoencoder_type);
@@ -255,14 +259,15 @@ int Experiment03::run()
         // Discover subjects and initialize dataset with specified input mode.
         const auto discovered = discoverSubjects( //
             config_.dataset_root,                 //
-            config_.subject_filter_regex,         //
-            config_.use_shards                    //
+            config_.subject_filter_regex          //
         );
 
         // Instantiate dataset using a small builder to keep selection logic
         // centralized and easier to test.
-        dataset_ =
-            experiment03::DatasetBuilder().with_discovered(discovered).with_config(config_).build();
+        dataset_ = DatasetBuilder()                 //
+                       .with_discovered(discovered) //
+                       .with_config(config_)        //
+                       .build();
 
         if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type)) [[unlikely]]
         {
@@ -321,17 +326,19 @@ int Experiment03::run()
             processed_samples_ = 0;
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
+            auto base_src = std::make_unique<DataLoaderBatchSource>(*data_loader_);
+            std::unique_ptr<IBatchSource> src = std::move(base_src);
+            if (!config_.dataset_root.empty())
+            {
+                src = std::make_unique<SqliteBatchSource>(config_.dataset_root, std::move(src));
+            }
+
             prefetcher_ = make_unique<BatchPrefetcher>(                //
-                *data_loader_,                                         //
+                std::move(src),                                        //
                 config_.max_batches_per_epoch,                         //
                 config_.prefetch_lookahead,                            //
-                config_.use_shards,                                    //
-                config_.dataset_root,                                  //
                 config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
             );
-
-            // Give the prefetcher a head start so the queue fills up!
-            std::this_thread::sleep_for(std::chrono::seconds(2));
 
             // Iterate over batches produced by the prefetcher.
             while (prefetcher_->hasNext()) [[likely]]
@@ -417,9 +424,8 @@ int Experiment03::run()
             if (prefetcher_)
             {
                 auto d = prefetcher_->diagnostics();
-                cout << "  Prefetcher fast path hits: " << d.fast_path_hits
-                     << " | slow path: " << d.slow_path_hits
-                     << " | push failures/retries: " << d.push_retries << "\n";
+                cout << "  Prefetcher ring size: " << d.ring_size
+                     << " | seen batches: " << d.seen_batches << "\n";
             }
 
             const float mean_loss =

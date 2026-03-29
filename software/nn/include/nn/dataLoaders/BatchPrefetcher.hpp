@@ -9,7 +9,7 @@
 #include <optional>
 #include <thread>
 
-#include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/IBatchSource.hpp"
 #include "nn/utility/BufferPool.hpp"
 #include "nn/utility/HighPerfSpscQueue.hpp"
 
@@ -18,10 +18,6 @@ class BatchPrefetcher
    public:
     struct Diagnostics
     {
-        std::size_t fast_path_hits = 0;
-        std::size_t slow_path_hits = 0;
-        std::size_t push_successes = 0;
-        std::size_t push_retries = 0;
         std::size_t inflight_prefetch_bytes = 0;
         std::size_t ring_size = 0;
         std::size_t seen_batches = 0;
@@ -29,11 +25,9 @@ class BatchPrefetcher
         bool stop_requested = false;
     };
 
-    BatchPrefetcher(DataLoader& loader,
+    BatchPrefetcher(std::unique_ptr<IBatchSource> source,
         std::size_t max_batches,
         std::size_t lookahead = 1,
-        bool use_shards = false,
-        const std::string& dataset_root = "",
         std::size_t max_prefetch_ram_bytes = 0);
     ~BatchPrefetcher();
 
@@ -53,21 +47,12 @@ class BatchPrefetcher
 
     void producerLoop();
 
-    DataLoader::Iterator it_;
-    DataLoader::Iterator end_;
-    bool use_shards_ = false;
-    std::string dataset_root_;
+    std::unique_ptr<IBatchSource> source_;
     std::size_t max_batches_;
     std::atomic<std::size_t> seen_batches_;
     std::size_t lookahead_;
     std::size_t max_prefetch_ram_bytes_;
     std::atomic<std::size_t> inflight_prefetch_bytes_{0};
-
-    // Lightweight diagnostics
-    std::atomic<std::size_t> fast_path_hits_{0};
-    std::atomic<std::size_t> slow_path_hits_{0};
-    std::atomic<std::size_t> push_successes_{0};
-    std::atomic<std::size_t> push_retries_{0};
 
     mutable std::mutex mutex_;
     mutable std::condition_variable cv_;

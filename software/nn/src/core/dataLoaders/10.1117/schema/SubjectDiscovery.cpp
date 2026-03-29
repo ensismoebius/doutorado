@@ -24,10 +24,9 @@ using nn::dataLoaders::kAudioMatVariableName;
 using nn::dataLoaders::kEegMatFileSuffix;
 using nn::dataLoaders::kEegMatVariableName;
 
-auto discoverSubjects(                        //
-    const std::string& root_dir,              //
-    const std::string& subject_regex_pattern, //
-    bool use_shards                           //
+auto discoverSubjects(                       //
+    const std::string& root_dir,             //
+    const std::string& subject_regex_pattern //
     ) -> std::vector<SubjectFiles>
 {
     regex selection_pattern(subject_regex_pattern);
@@ -140,7 +139,7 @@ auto discoverSubjects(                        //
         fs::path eeg_path = eeg_mat;
         fs::path audio_path = audio_mat;
 
-        if (use_shards && fs::exists(shard_index))
+        if (fs::exists(shard_index))
         {
             if (!eeg_ok)
             {

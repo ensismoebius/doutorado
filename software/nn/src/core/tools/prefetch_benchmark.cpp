@@ -1,10 +1,10 @@
 #include <chrono>
-#include <deque>
 #include <iostream>
 #include <memory>
 
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/DataLoaderBatchSource.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 
@@ -96,7 +96,7 @@ static void run_prefetcher(std::size_t dataset_size, std::size_t batch_size)
 
     const std::size_t max_batches = (dataset_size + batch_size - 1) / batch_size;
     // lookahead 4
-    BatchPrefetcher prefetcher(loader, max_batches, 4);
+    BatchPrefetcher prefetcher(std::make_unique<DataLoaderBatchSource>(loader), max_batches, 4);
 
     std::size_t batches = 0;
     std::size_t samples = 0;
