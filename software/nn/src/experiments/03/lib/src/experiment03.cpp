@@ -33,7 +33,6 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/DataLoaderBatchSource.hpp"
-#include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
