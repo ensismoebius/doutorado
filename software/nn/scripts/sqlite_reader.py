@@ -25,7 +25,8 @@ def connect(db_path):
     return sqlite3.connect(db_path)
 
 
-def _deserialize(blob, dtype=np.float64, count=None):
+def _deserialize(blob, dtype=np.float32, count=None):
+    # Stored blobs are float32 (4 bytes) to match C++ `float` storage.
     if blob is None:
         return None
     arr = np.frombuffer(blob, dtype=dtype)

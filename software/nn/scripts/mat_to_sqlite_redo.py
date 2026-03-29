@@ -168,7 +168,9 @@ def prepopulate_modalities_and_stimuli(conn, subject_list):
 
 
 def serialize_array(arr: np.ndarray) -> sqlite3.Binary:
-    a = np.asarray(arr, dtype=np.float64)
+    # Store numeric arrays as float32 to match C++ `float` (4 bytes)
+    # and reduce DB size compared to float64.
+    a = np.asarray(arr, dtype=np.float32)
     return sqlite3.Binary(a.tobytes())
 
 
