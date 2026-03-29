@@ -190,6 +190,9 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     switch (config.autoencoder_type)
     {
         case Experiment03AutoencoderType::ProtocolAnn:
+            cout << "DEBUG: building ProtocolAutoencoder with input_features="
+                 << model_cfg.input_features << " eeg_features=" << model_cfg.eeg_features
+                 << " audio_features=" << model_cfg.audio_features << "\n";
             return make_unique<ProtocolAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::EegWindowAnn:
             return make_unique<EegWindowAutoencoder>(model_cfg);
@@ -328,10 +331,6 @@ int Experiment03::run()
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
             auto base_src = std::make_unique<DataLoaderBatchSource>(*data_loader_);
             std::unique_ptr<IBatchSource> src = std::move(base_src);
-            if (!config_.dataset_root.empty())
-            {
-                src = std::make_unique<SqliteBatchSource>(config_.dataset_root, std::move(src));
-            }
 
             prefetcher_ = make_unique<BatchPrefetcher>(                //
                 std::move(src),                                        //
@@ -381,6 +380,10 @@ int Experiment03::run()
 
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
+                // Debug: log shapes to diagnose mean_squared_error shape mismatch
+                cout << "DEBUG: reconstruction shape: " << reconstruction.rows() << "x"
+                     << reconstruction.cols() << " | target shape: " << batch.inputs.rows() << "x"
+                     << batch.inputs.cols() << "\n";
                 auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
                 auto derivative_loss_value = loss.backward(loss_value);
 
