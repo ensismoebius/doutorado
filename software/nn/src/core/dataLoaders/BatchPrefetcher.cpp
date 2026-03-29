@@ -151,7 +151,7 @@ void BatchPrefetcher::producerLoop()
             }
 
             cv_.notify_all();
-         }
+        }
     }
     catch (...)
     {
@@ -269,7 +269,10 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 [[nodiscard]] auto BatchPrefetcher::seenBatches() const -> std::size_t
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    return seen_batches_;
+    // Return total batches produced so far: consumed (seen_batches_) plus
+    // those still present in the ring buffer. This matches callers that
+    // expect a view of progress including buffered batches.
+    return seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size();
 }
 
 [[nodiscard]] auto BatchPrefetcher::diagnostics() const -> Diagnostics
