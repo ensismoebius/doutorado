@@ -14,5 +14,6 @@ add_subdirectory(dataLoaders)
 add_subdirectory(initializers)
 add_subdirectory(linearAlgebra)
 add_subdirectory(paraconsistent)
+add_subdirectory(serialization/tests)
 add_subdirectory(tools)
 

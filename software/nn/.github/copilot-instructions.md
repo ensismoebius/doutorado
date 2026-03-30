@@ -39,12 +39,19 @@ Recent notable refactors (keep in mind)
 - `progress` — in-place, single-line progress helper centralizes effective-total logic and capping.
 - Formatter change — `.clang-format` updated to allow more aggressive breaking of long signatures and return types. New code should follow this style.
 
+Current project state
+- Recent additions: `include/nn/testing/tempfile.hpp` (TempFile RAII helper), `include/nn/logging/Logger.hpp`, and a consolidated `include/nn/io/StateIO.hpp`.
+- Tests & fixes: Added `src/core/serialization/tests/StateIO_gtest.cpp`; updated tests to be DB-independent and AddressSanitizer-clean; fixed `src/core/dataLoaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
+- API ergonomics: Introduced PyTorch-like ergonomics (e.g., `model.to(device)`, `optimizer.step()` / `optimizer.zero_grad()`, `state_dict()` / `load_state_dict()`), plus Adam + model state roundtrip tests.
+- Coverage & CI notes: An instrumented coverage build (`build-coverage`) is used for HTML reports. We observed `lcov/geninfo` "inconsistent: mismatched end line" errors caused by mismatches between gtest `TEST()` macro declaration lines and the compiled `TestBody()` DWARF ranges; the current pragmatic workflow is to perform a clean instrumented rebuild, run tests to regenerate `.gcda`, and use `lcov --ignore-errors inconsistent` plus selective `lcov --remove` filtering (e.g., `/usr/*`, `*/_deps/*`) when strict capture fails. Per-TU diagnostics are available for stricter investigations.
+
 How Copilot (and automation) should behave in this repo
 1. Search for existing public headers and utilities in `include/` and `src/core/` before adding new code.
 2. Prefer putting reusable experiment code under `src/experiments/<N>/lib` and exposing only necessary headers from `lib/include`.
 3. When adding sources, update the corresponding `src/experiments/<N>/CMakeLists.txt` to add them to the experiment library target.
 4. Add tests for non-trivial behavior changes under `src/core/*/tests` or `src/experiments/*/tests`.
 5. Run `clang-format -i` on all changed files before committing; CI will check formatting.
+6. When modifying code in any `src/core/<library>/` implementation directory, update the corresponding `src/core/<library>/README.md` to summarize the change, document API or CMake impacts, and add or update unit tests or examples as appropriate. If the change affects a public API, include a `CHANGELOG.md` entry describing the change and migration guidance.
 
 Threading, I/O, and safety constraints
 - MAT I/O: All direct `matio` reads must be serialized. Use `BatchPrefetcher` or other mediator to avoid concurrent reads. Do not introduce parallel `matio` access unless you provide an explicit session-management layer and tests.
@@ -63,6 +70,7 @@ Formatting, linting and CI
 Testing guidance
 - Add GTest unit tests for critical behaviors: MAT I/O, `DataLoader`, `BatchPrefetcher`, dataset indexing and sampler behavior.
 - Place tests near the code they validate (`src/core/.../tests` or `src/experiments/<N>/tests`).
+ - Require a unit test for every new function added: place the test alongside the code it validates, cover normal and edge cases, and document non-obvious behavior or invariants in the test name or a short comment.
 
 Commit, changelog and release
 - Include a `CHANGELOG.md` entry for any public API change or meaningful behavior change.
