@@ -1,3 +1,22 @@
+# dataLoaders
+
+Purpose
+- Implement dataset backends and batch sources used by experiments: MAT file loaders, SQLite-backed sources, windowing logic, and prefetching.
+
+Key Components
+- `DataLoader` / `BatchPrefetcher` — iteration and background prefetching primitives.
+- `SqliteBatchSource` — DB-backed sample provider (used for reproducible/ASan-clean tests).
+- `mat_file.*` — MAT file reading and helpers.
+
+How to use
+- Include the headers from `include/nn/dataLoaders`.
+- Construct a `DataLoader` with a dataset object and iterate to obtain batches.
+
+CMake
+- Target: `dataLoaders`
+
+Tests and Examples
+- Unit tests are under `src/core/dataLoaders/tests/` (GTest). Use them as usage examples.
 # DataLoader Sampling Architecture
 
 This module uses a sampler-driven architecture inspired by large ML frameworks while keeping a small C++20 core API.
