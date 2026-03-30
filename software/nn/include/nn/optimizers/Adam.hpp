@@ -67,10 +67,61 @@ struct Adam : public Optimizer
         }
     }
 
+    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    {
+        std::map<std::string, nn::Tensor> out;
+        // Save time_step as a 1x1 tensor
+        nn::Tensor t_time(1, 1);
+        t_time.at(0, 0) = static_cast<float>(time_step);
+        out["time_step"] = t_time;
+        // Save moment1 and moment2 as indexed entries
+        for (size_t i = 0; i < moment1.size(); ++i)
+        {
+            out["moment1." + std::to_string(i)] = moment1[i];
+        }
+        for (size_t i = 0; i < moment2.size(); ++i)
+        {
+            out["moment2." + std::to_string(i)] = moment2[i];
+        }
+        return out;
+    }
+
+    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    {
+        // time_step
+        auto it = sd.find("time_step");
+        if (it != sd.end())
+        {
+            const nn::Tensor& tt = it->second;
+            if (tt.rows() > 0 && tt.cols() > 0)
+            {
+                time_step = static_cast<int>(tt.at(0, 0));
+            }
+        }
+        // moments: look for keys moment1.N and moment2.N
+        for (const auto& kv : sd)
+        {
+            const std::string& k = kv.first;
+            if (k.rfind("moment1.", 0) == 0)
+            {
+                auto idx = static_cast<size_t>(std::stoul(k.substr(8)));
+                if (idx < moment1.size()) moment1[idx] = kv.second;
+            }
+            else if (k.rfind("moment2.", 0) == 0)
+            {
+                auto idx = static_cast<size_t>(std::stoul(k.substr(8)));
+                if (idx < moment2.size()) moment2[idx] = kv.second;
+            }
+        }
+    }
+
     // Inicializa os vetores moment1 e moment2 para cada parâmetro, com zeros do mesmo shape dos
     // gradientes. Deve ser chamado sempre que os parâmetros mudarem.
     void attach(std::span<nn::Tensor*> params) override
     {
+        // Store attached params in base for convenience no-arg step()/zero_grad().
+        Optimizer::attached_params_.assign(params.begin(), params.end());
+
         // Why attach(): Adam needs one moment1/moment2 tensor per parameter.
         // Pitfall: if `params` changes size/order, moment1/moment2 will no longer align.
         moment1.clear();

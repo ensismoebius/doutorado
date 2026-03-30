@@ -2,7 +2,6 @@
 
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -15,17 +14,7 @@ using std::string;
 
 namespace
 {
-void sqlite_debug_log(const std::string& s)
-{
-    try
-    {
-        std::ofstream f("/tmp/sqlite_debug.log", std::ios::app);
-        if (f) f << s << std::endl;
-    }
-    catch (...)
-    {
-    }
-}
+// Minimal internal diagnostics removed in non-debug builds to avoid noisy logs.
 } // namespace
 
 SqliteBatchSource::SqliteBatchSource(const string& db_root,
@@ -69,15 +58,71 @@ bool SqliteBatchSource::open_db()
         "INNER JOIN audio_samples a ON a.trial_id = t.id "
         "INNER JOIN eeg_samples e ON e.trial_id = t.id "
         "ORDER BY t.id LIMIT 1;";
-    sqlite3_prepare_v2(db_, pop_trial_sql, -1, &pop_trial_stmt_, nullptr);
+    int rc = sqlite3_prepare_v2(db_, pop_trial_sql, -1, &pop_trial_stmt_, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "SqliteBatchSource::open_db: prepare pop_trial_sql failed: "
+                  << sqlite3_errmsg(db_) << std::endl;
+        pop_trial_stmt_ = nullptr;
+        sqlite3_close(db_);
+        db_ = nullptr;
+        return false;
+    }
 
     const char* select_eeg_sql =
         "SELECT F3,F4,C3,C4,P3,P4,blink FROM eeg_samples WHERE trial_id = ? ORDER BY id;";
-    sqlite3_prepare_v2(db_, select_eeg_sql, -1, &select_eeg_stmt_, nullptr);
+    rc = sqlite3_prepare_v2(db_, select_eeg_sql, -1, &select_eeg_stmt_, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "SqliteBatchSource::open_db: prepare select_eeg_sql failed: "
+                  << sqlite3_errmsg(db_) << std::endl;
+        if (pop_trial_stmt_) sqlite3_finalize(pop_trial_stmt_);
+        pop_trial_stmt_ = nullptr;
+        sqlite3_close(db_);
+        db_ = nullptr;
+        select_eeg_stmt_ = nullptr;
+        return false;
+    }
 
     const char* select_audio_sql =
         "SELECT samples FROM audio_samples WHERE trial_id = ? ORDER BY audio_row;";
-    sqlite3_prepare_v2(db_, select_audio_sql, -1, &select_audio_stmt_, nullptr);
+    rc = sqlite3_prepare_v2(db_, select_audio_sql, -1, &select_audio_stmt_, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "SqliteBatchSource::open_db: prepare select_audio_sql failed: "
+                  << sqlite3_errmsg(db_) << std::endl;
+        if (pop_trial_stmt_) sqlite3_finalize(pop_trial_stmt_);
+        if (select_eeg_stmt_) sqlite3_finalize(select_eeg_stmt_);
+        pop_trial_stmt_ = nullptr;
+        select_eeg_stmt_ = nullptr;
+        select_audio_stmt_ = nullptr;
+        sqlite3_close(db_);
+        db_ = nullptr;
+        return false;
+    }
+
+    // Sanity: query how many joined trials exist and log for diagnostics.
+    {
+        sqlite3_stmt* chk = nullptr;
+        const char* chk_sql =
+            "SELECT COUNT(DISTINCT t.id) FROM trial t INNER JOIN audio_samples a ON a.trial_id = "
+            "t.id INNER JOIN eeg_samples e ON e.trial_id = t.id;";
+        int r2 = sqlite3_prepare_v2(db_, chk_sql, -1, &chk, nullptr);
+        if (r2 == SQLITE_OK && chk)
+        {
+            int s = sqlite3_step(chk);
+            if (s == SQLITE_ROW)
+            {
+                int joined = sqlite3_column_int(chk, 0);
+                std::ostringstream oss;
+                oss << "SqliteBatchSource::open_db: joined_trials=" << joined
+                    << " db_path=" << db_path_;
+                std::string msg = oss.str();
+                std::cerr << msg << std::endl;
+            }
+            sqlite3_finalize(chk);
+        }
+    }
 
     return true;
 }
@@ -113,23 +158,36 @@ void SqliteBatchSource::reset_epoch(std::size_t epoch)
 
 bool SqliteBatchSource::next(Batch& out)
 {
-    // Unconditional stdout trace to ensure producer-thread activity is visible
-    try
-    {
-        std::cout << "TRACE[SqliteBatchSource] next() called\n" << std::flush;
-    }
-    catch (...)
-    {
-    }
+    // Normal operation: no verbose tracing here (kept concise for production).
     // Try to consume an existing trial from the DB first.
     if (db_ && pop_trial_stmt_)
     {
         try
         {
-            int rc = sqlite3_step(pop_trial_stmt_);
+            // Prepare and step a transient pop_trial statement each call
+            const char* pop_trial_sql =
+                "SELECT DISTINCT t.id FROM trial t "
+                "INNER JOIN audio_samples a ON a.trial_id = t.id "
+                "INNER JOIN eeg_samples e ON e.trial_id = t.id "
+                "ORDER BY t.id LIMIT 1;";
+            sqlite3_stmt* local_pop = nullptr;
+            int prc = sqlite3_prepare_v2(db_, pop_trial_sql, -1, &local_pop, nullptr);
+            if (prc != SQLITE_OK || !local_pop)
+            {
+                std::ostringstream oss;
+                oss << "SqliteBatchSource::next: prepare(pop_trial) failed: "
+                    << sqlite3_errmsg(db_);
+                std::string s = oss.str();
+                std::cerr << s << std::endl;
+                if (local_pop) sqlite3_finalize(local_pop);
+                sqlite3_reset(pop_trial_stmt_);
+                return underlying_ ? underlying_->next(out) : false;
+            }
+
+            int rc = sqlite3_step(local_pop);
             if (rc == SQLITE_ROW)
             {
-                const int trial_id = sqlite3_column_int(pop_trial_stmt_, 0);
+                const int trial_id = sqlite3_column_int(local_pop, 0);
 
                 std::vector<float> eeg_accum;
                 std::vector<float> audio_accum;
@@ -170,8 +228,8 @@ bool SqliteBatchSource::next(Batch& out)
                 }
                 sqlite3_reset(select_audio_stmt_);
 
-                // Reset the pop-trial stmt for the next call
-                sqlite3_reset(pop_trial_stmt_);
+                // Finalize the transient pop stmt
+                sqlite3_finalize(local_pop);
 
                 // Build windowed/fused samples according to requested dataset_type_.
                 // For Protocol+Concatenated we keep the flattened trial semantics
@@ -183,7 +241,6 @@ bool SqliteBatchSource::next(Batch& out)
                 // Quick fallbacks: if no data, use underlying source.
                 if (eeg_accum.empty() && audio_accum.empty())
                 {
-                    sqlite_debug_log("SqliteBatchSource: empty trial blobs, fallback");
                     sqlite3_reset(pop_trial_stmt_);
                     return underlying_ ? underlying_->next(out) : false;
                 }
@@ -245,12 +302,28 @@ bool SqliteBatchSource::next(Batch& out)
                     {
                         case nn::dataLoaders::SqliteDatasetType::EegWindow:
                             windows = num_windows_eeg;
+                            if (windows <= 0 && per_channel_len > 0)
+                                windows = 1; // allow padded partial window
                             break;
                         case nn::dataLoaders::SqliteDatasetType::AudioWindow:
                             windows = num_windows_audio;
+                            if (windows <= 0 && audio_len > 0)
+                                windows = 1; // allow padded partial window
                             break;
                         case nn::dataLoaders::SqliteDatasetType::FusedWindow:
                             windows = std::min(num_windows_eeg, num_windows_audio);
+                            if (windows <= 0 && (num_windows_eeg > 0 || num_windows_audio > 0))
+                            {
+                                // If one modality has windows and the other is short, allow one
+                                // padded fused window
+                                windows = 1;
+                            }
+                            else if (windows <= 0 && (per_channel_len > 0 || audio_len > 0))
+                            {
+                                // Both modalities are short but present: produce one padded fused
+                                // window
+                                windows = 1;
+                            }
                             break;
                         default:
                             windows = 0;
@@ -260,7 +333,6 @@ bool SqliteBatchSource::next(Batch& out)
                     if (windows <= 0)
                     {
                         // Nothing to produce in windowed mode for this trial.
-                        sqlite_debug_log("SqliteBatchSource: no windows available, fallback");
                         sqlite3_reset(pop_trial_stmt_);
                         return underlying_ ? underlying_->next(out) : false;
                     }
@@ -376,24 +448,19 @@ bool SqliteBatchSource::next(Batch& out)
                     }
                 }
 
-                // Debug logging: print produced shapes/counts so we can diagnose
-                // shape-mismatch issues when running in SQLite-backed mode. Also
-                // append to a file so producer-thread logs are reliably captured.
-                {
-                    std::ostringstream oss;
-                    oss << "DEBUG[SqliteBatchSource] trial_id=" << trial_id
-                        << " eeg_count=" << eeg_accum.size()
-                        << " audio_count=" << audio_accum.size() << " inputs=" << out.inputs.rows()
-                        << "x" << out.inputs.cols() << " targets=" << out.targets.rows() << "x"
-                        << out.targets.cols();
-                    std::string s = oss.str();
-                    std::cerr << s << std::endl;
-                    sqlite_debug_log(s);
-                }
+                // Production: do not emit verbose debug logs here.
 
                 return true;
             }
-            // No trial available
+            // No trial available from transient pop stmt - log return code and fallback
+            {
+                std::ostringstream oss;
+                oss << "SqliteBatchSource::next: local_pop rc=" << rc << " (" << sqlite3_errstr(rc)
+                    << ") errmsg=" << (db_ ? sqlite3_errmsg(db_) : "(null db)");
+                std::string s = oss.str();
+                std::cerr << s << std::endl;
+            }
+            if (local_pop) sqlite3_finalize(local_pop);
             sqlite3_reset(pop_trial_stmt_);
         }
         catch (const std::exception& e)
@@ -416,9 +483,8 @@ bool SqliteBatchSource::next(Batch& out)
     }
 
     {
-        std::string s = "DEBUG[SqliteBatchSource] falling back to underlying source";
+        std::string s = "SqliteBatchSource: falling back to underlying source";
         std::cerr << s << std::endl;
-        sqlite_debug_log(s);
     }
     bool ok = underlying_->next(out);
     if (ok)
@@ -428,7 +494,6 @@ bool SqliteBatchSource::next(Batch& out)
             << out.inputs.cols() << " targets=" << out.targets.rows() << "x" << out.targets.cols();
         std::string s = oss.str();
         std::cerr << s << std::endl;
-        sqlite_debug_log(s);
     }
     return ok;
 }

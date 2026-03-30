@@ -109,6 +109,38 @@ struct Sequential : Module
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
+    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    {
+        std::map<std::string, nn::Tensor> out;
+        for (size_t i = 0; i < layers.size(); ++i)
+        {
+            auto d = layers[i]->state_dict();
+            for (const auto& kv : d)
+            {
+                out[std::to_string(i) + "." + kv.first] = kv.second;
+            }
+        }
+        return out;
+    }
+
+    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    {
+        // Dispatch keys of form "<idx>.<name>" to child modules
+        for (const auto& kv : sd)
+        {
+            const std::string& key = kv.first;
+            auto pos = key.find('.');
+            if (pos == std::string::npos) continue;
+            auto idx_str = key.substr(0, pos);
+            auto name = key.substr(pos + 1);
+            size_t idx = static_cast<size_t>(std::stoul(idx_str));
+            if (idx >= layers.size()) continue;
+            // Create a small map and call child load
+            std::map<std::string, nn::Tensor> child_map{{name, kv.second}};
+            layers[idx]->load_state_dict(child_map);
+        }
+    }
+
     // Set training mode for all layers
     void train(bool on) override
     {

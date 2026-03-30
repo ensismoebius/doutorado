@@ -2,6 +2,7 @@
 #define OPTIMIZER_HPP
 
 #include <span>
+#include <vector>
 
 #include "nn/tensor/Tensor.hpp"
 
@@ -64,9 +65,41 @@ struct Optimizer
     virtual auto step(std::span<nn::Tensor*> params) -> void = 0;
 
     /**
+     * Convenience no-arg overload: step using attached parameters (if any).
+     * Calls the `step(std::span<...>)` virtual and dispatches to concrete
+     * implementations.
+     */
+    virtual auto step() -> void
+    {
+        if (!attached_params_.empty())
+        {
+            step(std::span<nn::Tensor*>{attached_params_.data(), attached_params_.size()});
+        }
+        else
+        {
+            throw std::runtime_error("Optimizer::step() called with no attached parameters");
+        }
+    }
+
+    /**
      * @brief Set all parameter gradients to zero before the next backward pass.
      */
     virtual auto zero_grad(std::span<nn::Tensor*> params) -> void = 0;
+
+    /**
+     * Convenience no-arg overload for zeroing attached parameters' gradients.
+     */
+    virtual auto zero_grad() -> void
+    {
+        if (!attached_params_.empty())
+        {
+            zero_grad(std::span<nn::Tensor*>{attached_params_.data(), attached_params_.size()});
+        }
+        else
+        {
+            throw std::runtime_error("Optimizer::zero_grad() called with no attached parameters");
+        }
+    }
 
     /**
      * @brief Optional hook for optimizers that need per-parameter state.
@@ -75,7 +108,26 @@ struct Optimizer
      * Call this after building the model and before training.
      */
     virtual auto attach(std::span<nn::Tensor*> params) -> void {}
+
+    // Stored copy of the last attached parameters (optional). Concrete optimizers
+    // may still override `attach()` but should call `Optimizer::attach(params)`
+    // to preserve this storage for no-arg convenience methods.
+    std::vector<nn::Tensor*> attached_params_;
+
     virtual ~Optimizer() = default;
+    /**
+     * @brief Return optimizer internal state as a map of name->Tensor.
+     * Default: empty. Concrete optimizers may override to expose moments or counters.
+     */
+    virtual auto state_dict() const -> std::map<std::string, nn::Tensor>
+    {
+        return {};
+    }
+
+    /**
+     * @brief Load optimizer internal state from a map produced by `state_dict()`.
+     */
+    virtual void load_state_dict(const std::map<std::string, nn::Tensor>&) {}
 };
 
 #endif // OPTIMIZER_HPP

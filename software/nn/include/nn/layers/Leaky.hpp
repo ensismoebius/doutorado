@@ -101,6 +101,25 @@ struct Leaky : public Module
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
+    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    {
+        std::map<std::string, nn::Tensor> d;
+        d["resistance"] = resistance;
+        d["capacitance"] = capacitance;
+        d["voltage_threshold"] = voltage_threshold;
+        return d;
+    }
+
+    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    {
+        auto it = sd.find("resistance");
+        if (it != sd.end()) resistance = it->second;
+        it = sd.find("capacitance");
+        if (it != sd.end()) capacitance = it->second;
+        it = sd.find("voltage_threshold");
+        if (it != sd.end()) voltage_threshold = it->second;
+    }
+
     void reset_state() override
     {
         if (v_mem.size() > 0)
@@ -177,8 +196,8 @@ struct Leaky : public Module
         // NOTE: This check is redundant with the initialization above, but is
         // kept as-is for safety/clarity. If you refactor, ensure state semantics
         // remain identical.
-        if (v_mem.size() == 0 || v_mem.rows() != input.rows() ||
-            v_mem.cols() != input.cols()) [[unlikely]]
+        if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
+            [[unlikely]]
         {
             v_mem = nn::Tensor(input.rows(), input.cols());
             v_mem.setZero();

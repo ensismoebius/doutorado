@@ -90,6 +90,32 @@ TEST(SqliteBatchSourceWindowing, PaddingRepeatLastSample)
     const std::string dbpath = tmpdir + "/database.sqlite";
     create_test_db(dbpath);
 
+    // Sanity-check the DB we just created: ensure tables exist and have rows.
+    {
+        sqlite3* checkdb = nullptr;
+        ASSERT_EQ(SQLITE_OK, sqlite3_open(dbpath.c_str(), &checkdb));
+        sqlite3_stmt* st = nullptr;
+        sqlite3_prepare_v2(checkdb, "SELECT COUNT(*) FROM trial;", -1, &st, nullptr);
+        int rc = sqlite3_step(st);
+        ASSERT_EQ(rc, SQLITE_ROW);
+        int trials = sqlite3_column_int(st, 0);
+        sqlite3_finalize(st);
+        // Check join count
+        sqlite3_prepare_v2(checkdb,
+            "SELECT COUNT(DISTINCT t.id) FROM trial t INNER JOIN audio_samples a ON a.trial_id = "
+            "t.id INNER JOIN eeg_samples e ON e.trial_id = t.id;",
+            -1,
+            &st,
+            nullptr);
+        rc = sqlite3_step(st);
+        ASSERT_EQ(rc, SQLITE_ROW);
+        int joined = sqlite3_column_int(st, 0);
+        sqlite3_finalize(st);
+        sqlite3_close(checkdb);
+        ASSERT_GT(trials, 0);
+        ASSERT_GT(joined, 0);
+    }
+
     // underlying source is null (we expect SqliteBatchSource to produce batches)
     std::unique_ptr<IBatchSource> underlying = nullptr;
     nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};

@@ -1,6 +1,9 @@
 #ifndef MODULE_HPP
 #define MODULE_HPP
 
+#include <map>
+#include <string>
+
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -106,6 +109,26 @@ struct Module
     {
         return std::span<nn::Tensor*>{};
     }
+
+    /**
+     * @brief Return a map of parameter name -> Tensor for this module.
+     *
+     * Default implementation returns an empty map. Layers that expose named
+     * parameters (e.g., `Linear`) should override this to allow saving/loading
+     * state via `state_dict()` / `load_state_dict()`.
+     */
+    virtual auto state_dict() const -> std::map<std::string, nn::Tensor>
+    {
+        return {};
+    }
+
+    /**
+     * @brief Load parameters from a state dictionary produced by `state_dict()`.
+     *
+     * Default implementation is a no-op. Implementations should copy shapes and
+     * values from the provided tensors into their parameter members.
+     */
+    virtual void load_state_dict(const std::map<std::string, nn::Tensor>&) {}
 
     /**
      * @brief Destroy the Module object

@@ -49,11 +49,11 @@ struct Linear : public Module
      * @param in_features Número de entradas
      * @param out_features Número de saídas
      */
-        Linear(const int in_features_, const int out_features_)
-                : in_features(in_features_),
-                    out_features(out_features_),
-                    weight(nn::Tensor(out_features_, in_features_)),
-                    bias(nn::Tensor(out_features_, 1))
+    Linear(const int in_features_, const int out_features_)
+        : in_features(in_features_),
+          out_features(out_features_),
+          weight(nn::Tensor(out_features_, in_features_)),
+          bias(nn::Tensor(out_features_, 1))
     {
     }
 
@@ -166,6 +166,28 @@ struct Linear : public Module
     auto params() -> std::span<nn::Tensor*> override
     {
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    }
+
+    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    {
+        std::map<std::string, nn::Tensor> d;
+        d["weight"] = weight;
+        d["bias"] = bias;
+        return d;
+    }
+
+    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    {
+        auto itw = sd.find("weight");
+        if (itw != sd.end())
+        {
+            weight = itw->second;
+        }
+        auto itb = sd.find("bias");
+        if (itb != sd.end())
+        {
+            bias = itb->second;
+        }
     }
 };
 

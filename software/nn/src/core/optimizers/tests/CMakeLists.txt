@@ -10,6 +10,7 @@
 ##
 add_executable(optimizers_gtest 
     optimizers_gtest.cpp
+    state_io_gtest.cpp
 )
 
 target_link_libraries(optimizers_gtest 
