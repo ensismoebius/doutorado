@@ -67,7 +67,6 @@ auto dataset_type_to_string(Experiment03DatasetType dataset_type) -> const char*
         case Experiment03DatasetType::FusedWindow:
             return "fused-window";
     }
-
     return "unknown";
 }
 
@@ -288,8 +287,18 @@ int Experiment03::run()
             config_.resolved_sampler_options    //
         );
 
+        // Debug: print config flags that affect data sourcing
+        cout << "DEBUG[Experiment03] config.use_sqlite=" << (config_.use_sqlite ? "true" : "false")
+             << " dataset_type=" << dataset_type_to_string(config_.dataset_type) << "\n";
+
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
+
+        // Previously the code enforced that `--use-sqlite` only be used with
+        // the Protocol dataset type. The user requested sqlite support for
+        // all autoencoder/dataset types, so do not fail here — the
+        // SqliteBatchSource may still fall back to the underlying source if
+        // the DB cannot provide a compatible batch layout.
 
         // Print dataset summary before processing batches.
         // Protocol datasets have a specialized summary; windowing datasets print basic info.
@@ -314,6 +323,7 @@ int Experiment03::run()
         unique_ptr<Adam> optimizer;
 
         // Training: iterate over all training_epochs.
+        cout << "DEBUG[Experiment03] entering training loop\n";
         // Recreating the prefetcher each epoch so the DataLoader
         // resets its iteration state for each pass over the data.
         for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
@@ -332,12 +342,67 @@ int Experiment03::run()
             auto base_src = std::make_unique<DataLoaderBatchSource>(*data_loader_);
             std::unique_ptr<IBatchSource> src = std::move(base_src);
 
+            // Optionally wrap the loader with a SQLite-backed batch source.
+            if (config_.use_sqlite)
+            {
+                // Map experiment dataset enum to SqliteBatchSource internal enum.
+                nn::dataLoaders::SqliteDatasetType ds_type =
+                    nn::dataLoaders::SqliteDatasetType::Protocol;
+                switch (config_.dataset_type)
+                {
+                    case Experiment03DatasetType::Protocol:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::Protocol;
+                        break;
+                    case Experiment03DatasetType::EegWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::EegWindow;
+                        break;
+                    case Experiment03DatasetType::AudioWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::AudioWindow;
+                        break;
+                    case Experiment03DatasetType::FusedWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::FusedWindow;
+                        break;
+                }
+
+                src = std::make_unique<SqliteBatchSource>(config_.dataset_root,
+                    std::move(src),
+                    config_.batch_size,
+                    ds_type,
+                    config_.eeg_window_config,
+                    config_.audio_window_config,
+                    config_.input_mode);
+            }
+
+            // Immediate debug: which IBatchSource implementation are we using?
+            if (dynamic_cast<SqliteBatchSource*>(src.get()))
+            {
+                cout << "DEBUG[Experiment03] wrapped with SqliteBatchSource\n";
+            }
+            else
+            {
+                cout << "DEBUG[Experiment03] using underlying source (no sqlite)\n";
+            }
+
+            // Determine max batches for this epoch. A value of 0 in the
+            // configuration means "process the entire dataset for the
+            // epoch", so compute the number of batches from dataset size.
+            std::size_t epoch_max_batches = config_.max_batches_per_epoch;
+            if (epoch_max_batches == 0)
+            {
+                const std::size_t batches = dataset_total_samples_ / config_.batch_size;
+                epoch_max_batches = batches + (dataset_total_samples_ % config_.batch_size ? 1 : 0);
+            }
+
             prefetcher_ = make_unique<BatchPrefetcher>(                //
                 std::move(src),                                        //
-                config_.max_batches_per_epoch,                         //
+                epoch_max_batches,                                     //
                 config_.prefetch_lookahead,                            //
                 config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
             );
+
+            cout << "DEBUG[Experiment03] epoch_max_batches=" << epoch_max_batches
+                 << " use_sqlite=" << (config_.use_sqlite ? "true" : "false")
+                 << " dataset_type=" << dataset_type_to_string(config_.dataset_type) << "\n";
 
             // Iterate over batches produced by the prefetcher.
             while (prefetcher_->hasNext()) [[likely]]
@@ -352,6 +417,11 @@ int Experiment03::run()
                 // batch is now owned by this scope.
                 const Batch batch = std::move(maybe_batch.value());
 
+                // Debug: log the batch shapes produced by the source. This
+                // helps diagnose mismatches coming from SQLite-backed input.
+                cout << "DEBUG[experiment03] batch inputs: " << batch.inputs.rows() << "x"
+                     << batch.inputs.cols() << " | targets: " << batch.targets.rows() << "x"
+                     << batch.targets.cols() << std::endl;
                 // Lazy model + optimizer init on the first batch observed.
                 if (!model_) [[unlikely]]
                 {
@@ -378,12 +448,20 @@ int Experiment03::run()
                 // Forward pass (unsupervised reconstruction: target == input).
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
 
+                // Extra debug: print reconstruction and target shapes immediately
+                // before computing loss to diagnose shape mismatches.
+                cout << "DEBUG[experiment03] reconstruction: " << reconstruction.rows() << "x"
+                     << reconstruction.cols() << " | target: " << batch.inputs.rows() << "x"
+                     << batch.inputs.cols() << "\n";
+
+                // DEBUG: print reconstruction and target shapes to diagnose shape mismatch
+                cout << "DEBUG[experiment03] reconstruction: " << reconstruction.rows() << "x"
+                     << reconstruction.cols() << " | target: " << batch.inputs.rows() << "x"
+                     << batch.inputs.cols() << "\n";
+
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
-                // Debug: log shapes to diagnose mean_squared_error shape mismatch
-                cout << "DEBUG: reconstruction shape: " << reconstruction.rows() << "x"
-                     << reconstruction.cols() << " | target shape: " << batch.inputs.rows() << "x"
-                     << batch.inputs.cols() << "\n";
+
                 auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
                 auto derivative_loss_value = loss.backward(loss_value);
 

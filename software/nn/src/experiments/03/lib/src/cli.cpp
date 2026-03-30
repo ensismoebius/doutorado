@@ -374,7 +374,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.prefetch_ram_cap_mb);
 
-    app.add_flag("--use-sqlite", config.use_sqlite, "Use SQLite-backed batch source (requires --dataset-root)")
+    app.add_flag("--use-sqlite",
+           config.use_sqlite,
+           "Use SQLite-backed batch source (requires --dataset-root)")
         ->default_val(default_config.use_sqlite);
 
     // Shard detection is automatic; legacy --use-shards flag removed.

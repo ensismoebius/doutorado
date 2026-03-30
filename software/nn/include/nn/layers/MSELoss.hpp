@@ -62,7 +62,29 @@ class MSELoss : public Module
             last_input_ = input;
         }
 
-        // Use last_target set by set_target
+        // Use last_target set by set_target. Add debug logging to help
+        // diagnose shape mismatches observed when running with SQLite source.
+        try
+        {
+            // Log shapes to stderr and a temp file for easier capture.
+            std::cerr << "DEBUG[MSELoss] input=" << input.rows() << "x" << input.cols()
+                      << " target=" << last_target_.rows() << "x" << last_target_.cols()
+                      << std::endl;
+            try
+            {
+                std::ofstream f("/tmp/mse_debug.log", std::ios::app);
+                if (f)
+                    f << "DEBUG[MSELoss] input=" << input.rows() << "x" << input.cols()
+                      << " target=" << last_target_.rows() << "x" << last_target_.cols() << "\n";
+            }
+            catch (...)
+            {
+            }
+        }
+        catch (...)
+        {
+        }
+
         float mse = input.mean_squared_error(last_target_);
 
         // Clip extremely large values to prevent overflow (but let NaN/Inf propagate)

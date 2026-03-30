@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <utility>
 
 using std::make_unique;
@@ -155,8 +157,41 @@ void BatchPrefetcher::producerLoop()
     }
     catch (...)
     {
+        // Log the exception message (if available) to help debugging producer
+        // thread failures (e.g., dataset or source errors). Store the exception
+        // so main thread can rethrow it later.
+        auto ep = std::current_exception();
+        try
+        {
+            std::rethrow_exception(ep);
+        }
+        catch (const std::exception& ex)
+        {
+            std::cerr << "Producer thread exception: " << ex.what() << std::endl;
+            try
+            {
+                std::ofstream f("/tmp/prefetcher_debug.log", std::ios::app);
+                if (f) f << "Producer thread exception: " << ex.what() << std::endl;
+            }
+            catch (...)
+            {
+            }
+        }
+        catch (...)
+        {
+            std::cerr << "Producer thread exception: <non-std>" << std::endl;
+            try
+            {
+                std::ofstream f("/tmp/prefetcher_debug.log", std::ios::app);
+                if (f) f << "Producer thread exception: <non-std>" << std::endl;
+            }
+            catch (...)
+            {
+            }
+        }
+
         std::lock_guard<std::mutex> lock(mutex_);
-        producer_error_ = std::current_exception();
+        producer_error_ = ep;
     }
 
     {

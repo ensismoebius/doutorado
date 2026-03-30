@@ -3,6 +3,8 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <fstream>
+#include <iostream>
 #include <memory>
 #include <random>
 #include <span>
@@ -617,7 +619,25 @@ class EigenTensorBackend
     float mean_squared_error(const EigenTensorBackend& target) const
     {
         if (m_shape != target.m_shape)
+        {
+            std::cerr << "Shape mismatch in mean_squared_error: lhs=" << rows() << "x" << cols()
+                      << " rhs=" << target.rows() << "x" << target.cols() << std::endl;
+            // Also write a persistent diagnostic to help capture mismatches
+            // from threads or redirected outputs.
+            try
+            {
+                std::ofstream diag("/tmp/mse_diag.log", std::ios::app);
+                if (diag)
+                {
+                    diag << "MSE_SHAPE_MISMATCH lhs=" << rows() << "x" << cols()
+                         << " rhs=" << target.rows() << "x" << target.cols() << "\n";
+                }
+            }
+            catch (...)
+            {
+            }
             throw std::invalid_argument("Shape mismatch for mean_squared_error");
+        }
         return (m_data - target.m_data).squaredNorm() / static_cast<float>(m_data.size());
     }
 
