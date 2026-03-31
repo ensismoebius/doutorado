@@ -31,14 +31,14 @@ const Config default_config{
         "/home/ensismoebius/Documentos"
         "/UNESP/doutorado/databases/"
         "BaseDeDatosHablaImaginada",
-    .batch_size = 5,
+    .batch_size = 10,
     .max_batches_per_epoch = 10,
     .shuffle_samples = true,
     .shuffle_seed = 42U,
     .default_sampler_type = "",
     .sampler_weights = {},
     .weighted_sampler_num_samples = std::nullopt,
-    .distributed_sampler_num_replicas = 1,
+    .distributed_sampler_num_replicas = 4,
     .distributed_sampler_rank = 0,
     .distributed_sampler_shuffle = true,
     .distributed_sampler_drop_last = false,
