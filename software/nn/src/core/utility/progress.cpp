@@ -3,16 +3,23 @@
  * @brief Console progress helper used by Experiment03.
  *
  * Renders a compact progress bar and counters used by the experiment runtime to
- * provide feedback while iterating over dataset batches.
+ * provide feedback while iterating over dataset batches. This implementation
+ * reserves a fixed terminal area (6 log lines + 1 progress line) and redraws
+ * it in-place so the bottom progress bar remains stable.
  */
 
 #include "nn/utility/progress.hpp"
 
 #include <algorithm>
+#include <deque>
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
 #include <string>
+#include <vector>
 
+#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 void printProgress(std::size_t dataset_total_samples,
@@ -38,7 +45,6 @@ void printProgress(std::size_t dataset_total_samples,
     const std::size_t clamped_seen_batches = std::min(seen_batches, total_batches);
     const std::size_t clamped_processed_samples = std::min(processed_samples, total_samples);
 
-    // Use sample-based ratio for finer-grained progress when available.
     const double ratio =
         (total_samples == 0)
             ? 0.0
@@ -57,39 +63,82 @@ void printProgress(std::size_t dataset_total_samples,
 
     const int percent = static_cast<int>(ratio * 100.0);
 
-    // Carriage return to overwrite the current console line, then flush.
-    std::cout << '\r';
+    // Drain any new log lines and append into a small local 6-line history.
+    auto new_lines = nn::logging::Logger::instance().get_recent_lines(200);
+
+    std::streambuf* console_rb = nn::logging::Logger::instance().get_console_rdbuf();
+    std::unique_ptr<std::ostream> console_stream;
+    std::ostream* out = &std::cout;
+    if (console_rb)
+    {
+        console_stream = std::make_unique<std::ostream>(console_rb);
+        out = console_stream.get();
+    }
+
+    static bool reserved_initialized = false;
+    const int reserved_lines = 7; // 6 history lines + 1 progress line
+    const std::size_t history_lines = 6;
+    static std::deque<std::string> local_history;
+
+    for (auto& ln : new_lines)
+    {
+        local_history.push_back(ln);
+        if (local_history.size() > history_lines) local_history.pop_front();
+    }
+
+    // Build an ordered vector of exactly history_lines elements (pad top with empty lines).
+    std::vector<std::string> history;
+    size_t pad =
+        (history_lines > local_history.size()) ? (history_lines - local_history.size()) : 0;
+    history.reserve(history_lines);
+    for (size_t i = 0; i < pad; ++i) history.emplace_back();
+    for (auto& s : local_history) history.push_back(s);
+
+    // Compose progress status line
+    std::ostringstream status;
     if (current_epoch > 0 && total_epochs > 0)
     {
-        std::cout << "Epoch " << current_epoch << "/" << total_epochs << " ";
+        status << "Epoch " << current_epoch << "/" << total_epochs << " ";
     }
-    std::cout << "Progress: [" << bar << "] " << std::setw(3) << percent << "% ("
-              << clamped_seen_batches << "/" << total_batches << "b, " << clamped_processed_samples
-              << "/" << total_samples << "s)";
-
-    // Print current loss inline if it's a finite number.
+    status << "Progress: [" << bar << "] " << std::setw(3) << percent << "% ("
+           << clamped_seen_batches << "/" << total_batches << "b, " << clamped_processed_samples
+           << "/" << total_samples << "s)";
     if (std::isfinite(current_loss))
     {
-        std::cout << "  loss: " << std::fixed << std::setprecision(6) << current_loss;
+        status << "  loss: " << std::fixed << std::setprecision(6) << current_loss;
     }
 
-    if (done)
+    // Initialize reserved area once, then redraw it in-place on every update.
+    if (!reserved_initialized)
     {
-        std::cout << '\n';
+        for (int i = 0; i < reserved_lines; ++i) (*out) << '\n';
+        reserved_initialized = true;
     }
-    std::cout.flush();
+    else
+    {
+        (*out) << "\x1b[" << reserved_lines << "A";
+    }
+
+    // Clear and write each of the six history lines (oldest at top).
+    for (size_t i = 0; i < history_lines; ++i)
+    {
+        (*out) << "\x1b[2K" << history[i] << '\n';
+    }
+    // Clear and print progress on the final line.
+    (*out) << "\x1b[2K" << status.str() << '\n';
+    out->flush();
 
     // If finished and a non-empty params span is provided, print final parameter summaries.
     if (done && !params.empty())
     {
-        std::cout << "Final network parameters:\n";
+        (*out) << "Final network parameters:\n";
         for (std::size_t i = 0; i < params.size(); ++i)
         {
             nn::Tensor* p = params[i];
             if (!p) continue;
-            std::cout << "  [" << i << "] " << p->rows() << "x" << p->cols()
-                      << " sum=" << std::fixed << std::setprecision(6) << p->sum() << '\n';
+            (*out) << "  [" << i << "] " << p->rows() << "x" << p->cols() << " sum=" << std::fixed
+                   << std::setprecision(6) << p->sum() << '\n';
         }
-        std::cout.flush();
+        out->flush();
     }
 }

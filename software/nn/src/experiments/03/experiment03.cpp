@@ -17,6 +17,7 @@
 
 #include "lib/include/cli.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/logging/StreamRedirector.hpp"
 
 using std::cerr;
 using std::cout;
@@ -51,6 +52,8 @@ const Config default_config{
 
 auto main(int argc, char* argv[]) -> int
 {
+    // Redirect stdout/stderr into the Logger so logs are shown above progress.
+    nn::logging::StreamRedirector redirect(true, true);
     Config config = parseCliParams(argc, argv, default_config);
     Experiment03 experiment(config);
     return experiment.run();

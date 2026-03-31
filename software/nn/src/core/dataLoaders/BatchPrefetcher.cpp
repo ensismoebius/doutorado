@@ -6,6 +6,8 @@
 #include <iostream>
 #include <utility>
 
+#include "nn/logging/Logger.hpp"
+
 using std::make_unique;
 
 BatchPrefetcher::BatchPrefetcher(         //
@@ -167,27 +169,11 @@ void BatchPrefetcher::producerLoop()
         }
         catch (const std::exception& ex)
         {
-            std::cerr << "Producer thread exception: " << ex.what() << std::endl;
-            try
-            {
-                std::ofstream f("/tmp/prefetcher_debug.log", std::ios::app);
-                if (f) f << "Producer thread exception: " << ex.what() << std::endl;
-            }
-            catch (...)
-            {
-            }
+            NN_LOG_ERROR(std::string("Producer thread exception: ") + ex.what());
         }
         catch (...)
         {
-            std::cerr << "Producer thread exception: <non-std>" << std::endl;
-            try
-            {
-                std::ofstream f("/tmp/prefetcher_debug.log", std::ios::app);
-                if (f) f << "Producer thread exception: <non-std>" << std::endl;
-            }
-            catch (...)
-            {
-            }
+            NN_LOG_ERROR("Producer thread exception: <non-std>");
         }
 
         std::lock_guard<std::mutex> lock(mutex_);

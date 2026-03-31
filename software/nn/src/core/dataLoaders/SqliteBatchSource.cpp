@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 
+#include "nn/logging/Logger.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 
@@ -113,8 +114,7 @@ bool SqliteBatchSource::open_db()
                 std::ostringstream oss;
                 oss << "SqliteBatchSource::open_db: joined_trials=" << joined
                     << " db_path=" << db_path_;
-                std::string msg = oss.str();
-                std::cerr << msg << std::endl;
+                NN_LOG_INFO(oss.str());
             }
             sqlite3_finalize(chk);
         }
@@ -174,8 +174,7 @@ bool SqliteBatchSource::next(Batch& out)
                 std::ostringstream oss;
                 oss << "SqliteBatchSource::next: prepare(pop_trial) failed: "
                     << sqlite3_errmsg(db_);
-                std::string s = oss.str();
-                std::cerr << s << std::endl;
+                NN_LOG_ERROR(oss.str());
                 if (local_pop) sqlite3_finalize(local_pop);
                 if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
                 return false;
@@ -454,28 +453,25 @@ bool SqliteBatchSource::next(Batch& out)
                 std::ostringstream oss;
                 oss << "SqliteBatchSource::next: local_pop rc=" << rc << " (" << sqlite3_errstr(rc)
                     << ") errmsg=" << (db_ ? sqlite3_errmsg(db_) : "(null db)");
-                std::string s = oss.str();
-                std::cerr << s << std::endl;
+                NN_LOG_INFO(oss.str());
             }
             if (local_pop) sqlite3_finalize(local_pop);
             sqlite3_reset(pop_trial_stmt_);
         }
         catch (const std::exception& e)
         {
-            std::cerr << "EXCEPTION[SqliteBatchSource::next]: " << e.what() << std::endl;
-            // Reset statement to a known state and fall back to underlying source.
+            NN_LOG_ERROR(std::string("EXCEPTION[SqliteBatchSource::next]: ") + e.what());
             if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
         }
         catch (...)
         {
-            std::cerr << "EXCEPTION[SqliteBatchSource::next]: unknown" << std::endl;
+            NN_LOG_ERROR("EXCEPTION[SqliteBatchSource::next]: unknown");
             if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
         }
     }
 
     // DB-only source: no underlying fallback. If we reach here, signal
     // that no data could be produced from the DB.
-    std::string s = "SqliteBatchSource: no data available from DB";
-    std::cerr << s << std::endl;
+    NN_LOG_INFO("SqliteBatchSource: no data available from DB");
     return false;
 }

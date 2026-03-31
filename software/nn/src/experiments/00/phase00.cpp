@@ -14,12 +14,14 @@
 #include <iostream>
 
 #include "Config.hpp"
+#include "nn/logging/StreamRedirector.hpp"
 #include "phase00_data.hpp"
 #include "phase00_features.hpp"
 #include "phase00_training.hpp"
 
 auto main(int argc, const char* argv[]) -> int
 {
+    nn::logging::StreamRedirector redirect(true, true);
     std::filesystem::path config_path;
     if (argc == 1)
     {

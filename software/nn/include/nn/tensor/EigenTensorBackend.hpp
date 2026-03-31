@@ -11,6 +11,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "nn/logging/Logger.hpp"
+
 namespace nn
 {
 
@@ -620,22 +622,11 @@ class EigenTensorBackend
     {
         if (m_shape != target.m_shape)
         {
-            std::cerr << "Shape mismatch in mean_squared_error: lhs=" << rows() << "x" << cols()
-                      << " rhs=" << target.rows() << "x" << target.cols() << std::endl;
-            // Also write a persistent diagnostic to help capture mismatches
-            // from threads or redirected outputs.
-            try
-            {
-                std::ofstream diag("/tmp/mse_diag.log", std::ios::app);
-                if (diag)
-                {
-                    diag << "MSE_SHAPE_MISMATCH lhs=" << rows() << "x" << cols()
-                         << " rhs=" << target.rows() << "x" << target.cols() << "\n";
-                }
-            }
-            catch (...)
-            {
-            }
+            // Log an error with the mismatched shapes; avoid writing to /tmp.
+            std::ostringstream _oss;
+            _oss << "Shape mismatch in mean_squared_error: lhs=" << rows() << "x" << cols()
+                 << " rhs=" << target.rows() << "x" << target.cols();
+            NN_LOG_ERROR(_oss.str());
             throw std::invalid_argument("Shape mismatch for mean_squared_error");
         }
         return (m_data - target.m_data).squaredNorm() / static_cast<float>(m_data.size());

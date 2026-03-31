@@ -9,9 +9,11 @@
  */
 
 #include "Experiment02Pipeline.hpp"
+#include "nn/logging/StreamRedirector.hpp"
 
 auto main(int argc, char const* const* argv) -> int
 {
+    nn::logging::StreamRedirector redirect(true, true);
     try
     {
         std::string spec_path = "../src/experiments/02/spec.json";

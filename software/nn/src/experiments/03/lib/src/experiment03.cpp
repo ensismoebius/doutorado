@@ -34,12 +34,11 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/layers/MSELoss.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
 #include "nn/utility/progress.hpp"
 
-using std::cerr;
-using std::cout;
 using std::exception;
 using std::make_shared;
 
@@ -188,9 +187,6 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     switch (config.autoencoder_type)
     {
         case Experiment03AutoencoderType::ProtocolAnn:
-            cout << "DEBUG: building ProtocolAutoencoder with input_features="
-                 << model_cfg.input_features << " eeg_features=" << model_cfg.eeg_features
-                 << " audio_features=" << model_cfg.audio_features << "\n";
             return make_unique<ProtocolAutoencoder>(model_cfg);
         case Experiment03AutoencoderType::EegWindowAnn:
             return make_unique<EegWindowAutoencoder>(model_cfg);
@@ -272,11 +268,13 @@ int Experiment03::run()
 
         if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type)) [[unlikely]]
         {
-            cout << "Warning: selected dataset type '"
+            std::ostringstream _oss;
+            _oss << "Warning: selected dataset type '"
                  << dataset_type_to_string(config_.dataset_type)
                  << "' does not match selected autoencoder '"
                  << autoencoder_type_to_string(config_.autoencoder_type)
-                 << "'. Execution will continue using observed input feature size.\n";
+                 << "'. Execution will continue using observed input feature size.";
+            NN_LOG_WARN(_oss.str());
         }
 
         // DataLoader is reused across training_epochs; prefetcher is re-created per epoch.
@@ -286,18 +284,8 @@ int Experiment03::run()
             config_.resolved_sampler_options    //
         );
 
-        // Debug: print config flags that affect data sourcing
-        cout << "DEBUG[Experiment03] config.use_sqlite=" << (config_.use_sqlite ? "true" : "false")
-             << " dataset_type=" << dataset_type_to_string(config_.dataset_type) << "\n";
-
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
-
-        // Previously the code enforced that `--use-sqlite` only be used with
-        // the Protocol dataset type. The user requested sqlite support for
-        // all autoencoder/dataset types, so do not fail here — the
-        // SqliteBatchSource may still fall back to the underlying source if
-        // the DB cannot provide a compatible batch layout.
 
         // Print dataset summary before processing batches.
         // Protocol datasets have a specialized summary; windowing datasets print basic info.
@@ -308,8 +296,9 @@ int Experiment03::run()
         }
         else
         {
-            cout << "Dataset initialized with " << dataset_total_samples_ << " total samples."
-                 << endl;
+            std::ostringstream _oss;
+            _oss << "Dataset initialized with " << dataset_total_samples_ << " total samples.";
+            NN_LOG_INFO(_oss.str());
         }
 
         /////////////////////////////////
@@ -322,7 +311,6 @@ int Experiment03::run()
         unique_ptr<Adam> optimizer;
 
         // Training: iterate over all training_epochs.
-        cout << "DEBUG[Experiment03] entering training loop\n";
         // Recreating the prefetcher each epoch so the DataLoader
         // resets its iteration state for each pass over the data.
         for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
@@ -396,16 +384,6 @@ int Experiment03::run()
                     config_.input_mode);
             }
 
-            // Immediate debug: which IBatchSource implementation are we using?
-            if (dynamic_cast<SqliteBatchSource*>(src.get()))
-            {
-                cout << "DEBUG[Experiment03] wrapped with SqliteBatchSource\n";
-            }
-            else
-            {
-                cout << "DEBUG[Experiment03] using DataLoaderBatchSource\n";
-            }
-
             // Determine max batches for this epoch. A value of 0 in the
             // configuration means "process the entire dataset for the
             // epoch", so compute the number of batches from dataset size.
@@ -423,10 +401,6 @@ int Experiment03::run()
                 config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
             );
 
-            cout << "DEBUG[Experiment03] epoch_max_batches=" << epoch_max_batches
-                 << " use_sqlite=" << (config_.use_sqlite ? "true" : "false")
-                 << " dataset_type=" << dataset_type_to_string(config_.dataset_type) << "\n";
-
             // Iterate over batches produced by the prefetcher.
             while (prefetcher_->hasNext()) [[likely]]
             {
@@ -440,11 +414,6 @@ int Experiment03::run()
                 // batch is now owned by this scope.
                 const Batch batch = std::move(maybe_batch.value());
 
-                // Debug: log the batch shapes produced by the source. This
-                // helps diagnose mismatches coming from SQLite-backed input.
-                cout << "DEBUG[experiment03] batch inputs: " << batch.inputs.rows() << "x"
-                     << batch.inputs.cols() << " | targets: " << batch.targets.rows() << "x"
-                     << batch.targets.cols() << std::endl;
                 // Lazy model + optimizer init on the first batch observed.
                 if (!model_) [[unlikely]]
                 {
@@ -470,17 +439,6 @@ int Experiment03::run()
 
                 // Forward pass (unsupervised reconstruction: target == input).
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-
-                // Extra debug: print reconstruction and target shapes immediately
-                // before computing loss to diagnose shape mismatches.
-                cout << "DEBUG[experiment03] reconstruction: " << reconstruction.rows() << "x"
-                     << reconstruction.cols() << " | target: " << batch.inputs.rows() << "x"
-                     << batch.inputs.cols() << "\n";
-
-                // DEBUG: print reconstruction and target shapes to diagnose shape mismatch
-                cout << "DEBUG[experiment03] reconstruction: " << reconstruction.rows() << "x"
-                     << reconstruction.cols() << " | target: " << batch.inputs.rows() << "x"
-                     << batch.inputs.cols() << "\n";
 
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
@@ -528,19 +486,25 @@ int Experiment03::run()
             if (prefetcher_)
             {
                 auto d = prefetcher_->diagnostics();
-                cout << "  Prefetcher ring size: " << d.ring_size
-                     << " | seen batches: " << d.seen_batches << "\n";
+                std::ostringstream _oss;
+                _oss << "  Prefetcher ring size: " << d.ring_size
+                     << " | seen batches: " << d.seen_batches;
+                NN_LOG_INFO(_oss.str());
             }
 
             const float mean_loss =
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
             epoch_mean_losses.push_back(mean_loss);
-            cout << "  mean reconstruction loss: " << mean_loss << "\n";
+            {
+                std::ostringstream _oss;
+                _oss << "  mean reconstruction loss: " << mean_loss;
+                NN_LOG_INFO(_oss.str());
+            }
         }
 
         if (seen_batches_ == 0)
         {
-            cout << "No batches produced. Check dataset files and row counts.\n";
+            NN_LOG_WARN("No batches produced. Check dataset files and row counts.");
         }
 
         std::string results_path;
@@ -554,14 +518,14 @@ int Experiment03::run()
 
         if (experiment03::write_run_summary_json(summary, results_path, results_error))
         {
-            cout << "Run summary written to: " << results_path << "\n";
+            NN_LOG_INFO(std::string("Run summary written to: ") + results_path);
         }
         else
         {
-            cerr << "Warning: failed to write run summary: " << results_error << "\n";
+            NN_LOG_WARN(std::string("Warning: failed to write run summary: ") + results_error);
         }
 
-        cout << "Training complete.\n";
+        NN_LOG_INFO("Training complete.");
     }
     catch (const exception& e)
     {
@@ -576,7 +540,7 @@ int Experiment03::run()
             e.what());
         (void) experiment03::write_run_summary_json(summary, results_path, results_error);
 
-        cerr << "Error: " << e.what() << '\n';
+        NN_LOG_ERROR(std::string("Error: ") + e.what());
         return 1;
     }
 
