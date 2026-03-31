@@ -3,7 +3,6 @@
 
 #include <sqlite3.h>
 
-#include <memory>
 #include <string>
 
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"

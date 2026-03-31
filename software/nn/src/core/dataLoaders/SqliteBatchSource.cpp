@@ -3,10 +3,8 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 

@@ -3,7 +3,6 @@
 
 #include <filesystem>
 
-#include "nn/dataLoaders/IBatchSource.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/testing/SqliteTestHelpers.hpp"
 #include "nn/utility/batching.hpp"

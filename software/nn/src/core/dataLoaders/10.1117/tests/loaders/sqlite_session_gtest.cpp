@@ -5,7 +5,6 @@
 #include <sqlite3.h>
 
 #include <filesystem>
-#include <fstream>
 #include <string>
 #include <vector>
 
@@ -18,101 +17,7 @@ using namespace nn::dataLoaders;
 
 // Helper: create a temporary mock sqlite DB with two subjects and example
 // trials: audio-only, eeg-only, and both. Returns file path and first subject id.
-***End Patch
-
-      // Trial A -> audio_row 10
-      rc = sqlite3_bind_int(ins, 1, trial_ids[0]);
-rc = sqlite3_bind_int(ins, 2, 10);
-rc = sqlite3_bind_blob(
-    ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-rc = sqlite3_step(ins);
-if (rc != SQLITE_DONE)
-{
-    sqlite3_finalize(ins);
-    sqlite3_close(db);
-    throw std::runtime_error("step failed");
-}
-sqlite3_reset(ins);
-
-// Trial C -> audio_row 11
-rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
-rc = sqlite3_bind_int(ins, 2, 11);
-rc = sqlite3_bind_blob(
-    ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-rc = sqlite3_step(ins);
-if (rc != SQLITE_DONE)
-{
-    sqlite3_finalize(ins);
-    sqlite3_close(db);
-    throw std::runtime_error("step failed");
-}
-sqlite3_finalize(ins);
-
-// Insert eeg_samples for trial B and C (one row each)
-rc = sqlite3_prepare_v2(db,
-    "INSERT INTO eeg_samples(trial_id, F3, F4, C3, C4, P3, P4, blink) VALUES(?, ?, ?, ?, ?, ?, "
-    "?, ?)",
-    -1,
-    &ins,
-    nullptr);
-if (rc != SQLITE_OK)
-{
-    sqlite3_close(db);
-    throw std::runtime_error("prepare failed");
-}
-const size_t eeg_n = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-std::vector<double> chbuf(eeg_n);
-for (size_t i = 0; i < eeg_n; ++i) chbuf[i] = static_cast<double>(i) * 0.0001;
-
-// Trial B (eeg-only)
-rc = sqlite3_bind_int(ins, 1, trial_ids[1]);
-for (int c = 0; c < 6; ++c)
-{
-    rc = sqlite3_bind_blob(
-        ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind_blob failed");
-    }
-}
-rc = sqlite3_bind_int(ins, 8, 0);
-rc = sqlite3_step(ins);
-if (rc != SQLITE_DONE)
-{
-    sqlite3_finalize(ins);
-    sqlite3_close(db);
-    throw std::runtime_error("step failed");
-}
-sqlite3_reset(ins);
-
-// Trial C (both)
-rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
-for (int c = 0; c < 6; ++c)
-{
-    rc = sqlite3_bind_blob(
-        ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind_blob failed");
-    }
-}
-rc = sqlite3_bind_int(ins, 8, 1);
-rc = sqlite3_step(ins);
-if (rc != SQLITE_DONE)
-{
-    sqlite3_finalize(ins);
-    sqlite3_close(db);
-    throw std::runtime_error("step failed");
-}
-sqlite3_finalize(ins);
-
-sqlite3_close(db);
-return db_path;
-}
+// Use shared helpers in `nn::testing` instead of inline DB creation.
 
 TEST(SqliteSession, AudioSessionMatchesBlobs)
 {

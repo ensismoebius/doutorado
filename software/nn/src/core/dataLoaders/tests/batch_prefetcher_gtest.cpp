@@ -7,14 +7,11 @@
 #include <unistd.h>
 
 #include <chrono>
-#include <filesystem>
 #include <functional>
 #include <thread>
-#include <vector>
 
 #include "gtest/gtest.h"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/IBatchSource.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/dataLoaders/TensorDataset.hpp"
 #include "nn/testing/SqliteTestHelpers.hpp"
