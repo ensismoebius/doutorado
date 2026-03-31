@@ -12,330 +12,114 @@
 #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+#include "nn/testing/SqliteTestHelpers.hpp"
 
 using namespace nn::dataLoaders;
 
 // Helper: create a temporary mock sqlite DB with two subjects and example
 // trials: audio-only, eeg-only, and both. Returns file path and first subject id.
-static std::string create_mock_db(int& out_subject_id)
+***End Patch
+
+      // Trial A -> audio_row 10
+      rc = sqlite3_bind_int(ins, 1, trial_ids[0]);
+rc = sqlite3_bind_int(ins, 2, 10);
+rc = sqlite3_bind_blob(
+    ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
+rc = sqlite3_step(ins);
+if (rc != SQLITE_DONE)
 {
-    namespace fs = std::filesystem;
-    const auto tmp = fs::temp_directory_path();
-    // create unique filename using pid+timestamp
-    auto now = std::chrono::steady_clock::now().time_since_epoch().count();
-    std::string uid = std::to_string(getpid()) + "_" + std::to_string(now);
-    std::string db_filename = "mock_imagined_" + uid + ".sqlite";
-    std::string db_path = (tmp / fs::path(db_filename)).string();
-    // create empty file
-    std::ofstream ofs(db_path);
-    if (!ofs) throw std::runtime_error("failed to create temp db file");
-    ofs.close();
-
-    sqlite3* db = nullptr;
-    int rc =
-        sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        throw std::runtime_error("sqlite3_open_v2 failed: " + std::to_string(rc));
-    }
-
-    const char* schema = R"SQL(
-CREATE TABLE subject(id INTEGER PRIMARY KEY, name TEXT);
-CREATE TABLE trial(id INTEGER PRIMARY KEY, subject_id INTEGER, original_row INTEGER, modality_id INTEGER, stimulus_id INTEGER);
-CREATE TABLE audio_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, audio_row INTEGER, samples BLOB);
-CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 BLOB, C3 BLOB, C4 BLOB, P3 BLOB, P4 BLOB, blink INTEGER);
-)SQL";
-    char* errmsg = nullptr;
-    rc = sqlite3_exec(db, schema, nullptr, nullptr, &errmsg);
-    if (rc != SQLITE_OK)
-    {
-        std::string msg = errmsg ? errmsg : "sqlite3_exec failed";
-        if (errmsg) sqlite3_free(errmsg);
-        sqlite3_close(db);
-        throw std::runtime_error(msg);
-    }
-
-    // insert two subjects
-    sqlite3_stmt* ins = nullptr;
-    rc = sqlite3_prepare_v2(db, "INSERT INTO subject(name) VALUES(?)", -1, &ins, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    rc = sqlite3_bind_text(ins, 1, "subj_1", -1, SQLITE_STATIC);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
     sqlite3_finalize(ins);
-
-    rc = sqlite3_prepare_v2(db, "INSERT INTO subject(name) VALUES(?)", -1, &ins, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    rc = sqlite3_bind_text(ins, 1, "subj_2", -1, SQLITE_STATIC);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_finalize(ins);
-
-    // get first subject id
-    sqlite3_stmt* q = nullptr;
-    rc = sqlite3_prepare_v2(db, "SELECT id FROM subject ORDER BY id LIMIT 1", -1, &q, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    rc = sqlite3_step(q);
-    if (rc != SQLITE_ROW)
-    {
-        sqlite3_finalize(q);
-        sqlite3_close(db);
-        throw std::runtime_error("no subject row");
-    }
-    out_subject_id = sqlite3_column_int(q, 0);
-    sqlite3_finalize(q);
-
-    // Prepare inserts for trial, audio_samples, eeg_samples
-    rc = sqlite3_prepare_v2(
-        db, "INSERT INTO trial(subject_id, original_row) VALUES(?, ?)", -1, &ins, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-
-    // Trial A: audio-only (original_row NULL)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_bind_null(ins, 2);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_reset(ins);
-
-    // Trial B: eeg-only (original_row = 0)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_bind_int(ins, 2, 0);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_reset(ins);
-
-    // Trial C: both (original_row = 1)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_bind_int(ins, 2, 1);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_finalize(ins);
-
-    // Fetch trial ids
-    rc = sqlite3_prepare_v2(
-        db, "SELECT id, original_row FROM trial WHERE subject_id = ? ORDER BY id", -1, &q, nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    rc = sqlite3_bind_int(q, 1, out_subject_id);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_finalize(q);
-        sqlite3_close(db);
-        throw std::runtime_error("bind failed");
-    }
-    std::vector<int> trial_ids;
-    while ((rc = sqlite3_step(q)) == SQLITE_ROW)
-    {
-        trial_ids.push_back(sqlite3_column_int(q, 0));
-    }
-    sqlite3_finalize(q);
-
-    // Insert audio_samples for trial A and trial C
-    rc = sqlite3_prepare_v2(db,
-        "INSERT INTO audio_samples(trial_id, audio_row, samples) VALUES(?, ?, ?)",
-        -1,
-        &ins,
-        nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    // create audio blob (full length)
-    const size_t audio_n = ImaginedSpeechSchema_10_1117.audioSamples();
-    std::vector<double> audio_buf(audio_n);
-    for (size_t i = 0; i < audio_n; ++i) audio_buf[i] = static_cast<double>(i) * 0.001;
-
-    // Trial A -> audio_row 10
-    rc = sqlite3_bind_int(ins, 1, trial_ids[0]);
-    rc = sqlite3_bind_int(ins, 2, 10);
-    rc = sqlite3_bind_blob(
-        ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_reset(ins);
-
-    // Trial C -> audio_row 11
-    rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
-    rc = sqlite3_bind_int(ins, 2, 11);
-    rc = sqlite3_bind_blob(
-        ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_finalize(ins);
-
-    // Insert eeg_samples for trial B and C (one row each)
-    rc = sqlite3_prepare_v2(db,
-        "INSERT INTO eeg_samples(trial_id, F3, F4, C3, C4, P3, P4, blink) VALUES(?, ?, ?, ?, ?, ?, "
-        "?, ?)",
-        -1,
-        &ins,
-        nullptr);
-    if (rc != SQLITE_OK)
-    {
-        sqlite3_close(db);
-        throw std::runtime_error("prepare failed");
-    }
-    const size_t eeg_n = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-    std::vector<double> chbuf(eeg_n);
-    for (size_t i = 0; i < eeg_n; ++i) chbuf[i] = static_cast<double>(i) * 0.0001;
-
-    // Trial B (eeg-only)
-    rc = sqlite3_bind_int(ins, 1, trial_ids[1]);
-    for (int c = 0; c < 6; ++c)
-    {
-        rc = sqlite3_bind_blob(
-            ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-        if (rc != SQLITE_OK)
-        {
-            sqlite3_finalize(ins);
-            sqlite3_close(db);
-            throw std::runtime_error("bind_blob failed");
-        }
-    }
-    rc = sqlite3_bind_int(ins, 8, 0);
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_reset(ins);
-
-    // Trial C (both)
-    rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
-    for (int c = 0; c < 6; ++c)
-    {
-        rc = sqlite3_bind_blob(
-            ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-        if (rc != SQLITE_OK)
-        {
-            sqlite3_finalize(ins);
-            sqlite3_close(db);
-            throw std::runtime_error("bind_blob failed");
-        }
-    }
-    rc = sqlite3_bind_int(ins, 8, 1);
-    rc = sqlite3_step(ins);
-    if (rc != SQLITE_DONE)
-    {
-        sqlite3_finalize(ins);
-        sqlite3_close(db);
-        throw std::runtime_error("step failed");
-    }
-    sqlite3_finalize(ins);
-
     sqlite3_close(db);
-    return db_path;
+    throw std::runtime_error("step failed");
+}
+sqlite3_reset(ins);
+
+// Trial C -> audio_row 11
+rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
+rc = sqlite3_bind_int(ins, 2, 11);
+rc = sqlite3_bind_blob(
+    ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
+rc = sqlite3_step(ins);
+if (rc != SQLITE_DONE)
+{
+    sqlite3_finalize(ins);
+    sqlite3_close(db);
+    throw std::runtime_error("step failed");
+}
+sqlite3_finalize(ins);
+
+// Insert eeg_samples for trial B and C (one row each)
+rc = sqlite3_prepare_v2(db,
+    "INSERT INTO eeg_samples(trial_id, F3, F4, C3, C4, P3, P4, blink) VALUES(?, ?, ?, ?, ?, ?, "
+    "?, ?)",
+    -1,
+    &ins,
+    nullptr);
+if (rc != SQLITE_OK)
+{
+    sqlite3_close(db);
+    throw std::runtime_error("prepare failed");
+}
+const size_t eeg_n = ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+std::vector<double> chbuf(eeg_n);
+for (size_t i = 0; i < eeg_n; ++i) chbuf[i] = static_cast<double>(i) * 0.0001;
+
+// Trial B (eeg-only)
+rc = sqlite3_bind_int(ins, 1, trial_ids[1]);
+for (int c = 0; c < 6; ++c)
+{
+    rc = sqlite3_bind_blob(
+        ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
+    if (rc != SQLITE_OK)
+    {
+        sqlite3_finalize(ins);
+        sqlite3_close(db);
+        throw std::runtime_error("bind_blob failed");
+    }
+}
+rc = sqlite3_bind_int(ins, 8, 0);
+rc = sqlite3_step(ins);
+if (rc != SQLITE_DONE)
+{
+    sqlite3_finalize(ins);
+    sqlite3_close(db);
+    throw std::runtime_error("step failed");
+}
+sqlite3_reset(ins);
+
+// Trial C (both)
+rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
+for (int c = 0; c < 6; ++c)
+{
+    rc = sqlite3_bind_blob(
+        ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
+    if (rc != SQLITE_OK)
+    {
+        sqlite3_finalize(ins);
+        sqlite3_close(db);
+        throw std::runtime_error("bind_blob failed");
+    }
+}
+rc = sqlite3_bind_int(ins, 8, 1);
+rc = sqlite3_step(ins);
+if (rc != SQLITE_DONE)
+{
+    sqlite3_finalize(ins);
+    sqlite3_close(db);
+    throw std::runtime_error("step failed");
+}
+sqlite3_finalize(ins);
+
+sqlite3_close(db);
+return db_path;
 }
 
 TEST(SqliteSession, AudioSessionMatchesBlobs)
 {
     int subject_id = -1;
-    std::string db_path = create_mock_db(subject_id);
+    std::string db_path = nn::testing::create_mock_imagined_db(subject_id,
+        ImaginedSpeechSchema_10_1117.audioSamples(),
+        ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
     // open for direct checks
     sqlite3* db = nullptr;
     ASSERT_EQ(SQLITE_OK, sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr));
@@ -393,7 +177,9 @@ TEST(SqliteSession, AudioSessionMatchesBlobs)
 TEST(SqliteSession, EEGSessionMatchesBlobs)
 {
     int subject_id = -1;
-    std::string db_path = create_mock_db(subject_id);
+    std::string db_path = nn::testing::create_mock_imagined_db(subject_id,
+        ImaginedSpeechSchema_10_1117.audioSamples(),
+        ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
     sqlite3* db = nullptr;
     ASSERT_EQ(SQLITE_OK, sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr));
 

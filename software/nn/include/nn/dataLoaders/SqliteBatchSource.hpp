@@ -7,7 +7,6 @@
 #include <string>
 
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 
 namespace nn::dataLoaders
@@ -27,9 +26,10 @@ class SqliteBatchSource : public IBatchSource
 {
    public:
     // db_root: directory where database.sqlite will be created/opened
-    // underlying: source used to fetch new batches when DB is empty
+    // SqliteBatchSource is DB-only: it does not fall back to an underlying
+    // IBatchSource. If the DB cannot provide compatible batches `next()`
+    // returns false.
     SqliteBatchSource(const std::string& db_root,
-        std::unique_ptr<IBatchSource> underlying,
         std::size_t batch_size = 1,
         nn::dataLoaders::SqliteDatasetType dataset_type =
             nn::dataLoaders::SqliteDatasetType::Protocol,
@@ -45,7 +45,6 @@ class SqliteBatchSource : public IBatchSource
     bool open_db();
     void close_db();
 
-    std::unique_ptr<IBatchSource> underlying_;
     std::string db_path_;
     sqlite3* db_ = nullptr;
     sqlite3_stmt* pop_trial_stmt_ = nullptr;

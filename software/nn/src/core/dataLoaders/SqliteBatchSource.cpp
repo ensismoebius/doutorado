@@ -18,14 +18,12 @@ namespace
 } // namespace
 
 SqliteBatchSource::SqliteBatchSource(const string& db_root,
-    std::unique_ptr<IBatchSource> underlying,
     std::size_t batch_size,
     nn::dataLoaders::SqliteDatasetType dataset_type,
     const nn::windowing::WindowSpec& eeg_window,
     const nn::windowing::WindowSpec& audio_window,
     Protocol101117InputMode input_mode)
-    : underlying_(std::move(underlying)),
-      batch_size_(batch_size),
+    : batch_size_(batch_size),
       dataset_type_(dataset_type),
       eeg_window_(eeg_window),
       audio_window_(audio_window),
@@ -153,7 +151,8 @@ void SqliteBatchSource::close_db()
 
 void SqliteBatchSource::reset_epoch(std::size_t epoch)
 {
-    if (underlying_) underlying_->reset_epoch(epoch);
+    // No underlying source to reset for DB-only SqliteBatchSource.
+    (void) epoch;
 }
 
 bool SqliteBatchSource::next(Batch& out)
@@ -180,8 +179,8 @@ bool SqliteBatchSource::next(Batch& out)
                 std::string s = oss.str();
                 std::cerr << s << std::endl;
                 if (local_pop) sqlite3_finalize(local_pop);
-                sqlite3_reset(pop_trial_stmt_);
-                return underlying_ ? underlying_->next(out) : false;
+                if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
+                return false;
             }
 
             int rc = sqlite3_step(local_pop);
@@ -241,8 +240,8 @@ bool SqliteBatchSource::next(Batch& out)
                 // Quick fallbacks: if no data, use underlying source.
                 if (eeg_accum.empty() && audio_accum.empty())
                 {
-                    sqlite3_reset(pop_trial_stmt_);
-                    return underlying_ ? underlying_->next(out) : false;
+                    if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
+                    return false;
                 }
 
                 const int eeg_channels = 6; // schema: F3,F4,C3,C4,P3,P4
@@ -333,8 +332,8 @@ bool SqliteBatchSource::next(Batch& out)
                     if (windows <= 0)
                     {
                         // Nothing to produce in windowed mode for this trial.
-                        sqlite3_reset(pop_trial_stmt_);
-                        return underlying_ ? underlying_->next(out) : false;
+                        if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
+                        return false;
                     }
 
                     // Build all sample vectors for this trial.
@@ -476,24 +475,9 @@ bool SqliteBatchSource::next(Batch& out)
         }
     }
 
-    // Fall back to underlying source; log this event for visibility.
-    if (!underlying_)
-    {
-        return false;
-    }
-
-    {
-        std::string s = "SqliteBatchSource: falling back to underlying source";
-        std::cerr << s << std::endl;
-    }
-    bool ok = underlying_->next(out);
-    if (ok)
-    {
-        std::ostringstream oss;
-        oss << "DEBUG[SqliteBatchSource] fallback inputs=" << out.inputs.rows() << "x"
-            << out.inputs.cols() << " targets=" << out.targets.rows() << "x" << out.targets.cols();
-        std::string s = oss.str();
-        std::cerr << s << std::endl;
-    }
-    return ok;
+    // DB-only source: no underlying fallback. If we reach here, signal
+    // that no data could be produced from the DB.
+    std::string s = "SqliteBatchSource: no data available from DB";
+    std::cerr << s << std::endl;
+    return false;
 }

@@ -32,7 +32,6 @@
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
-#include "nn/dataLoaders/DataLoaderBatchSource.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
@@ -339,10 +338,9 @@ int Experiment03::run()
             processed_samples_ = 0;
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
-            auto base_src = std::make_unique<DataLoaderBatchSource>(*data_loader_);
-            std::unique_ptr<IBatchSource> src = std::move(base_src);
+            std::unique_ptr<IBatchSource> src;
 
-            // Optionally wrap the loader with a SQLite-backed batch source.
+            // Choose DB-backed or in-memory DataLoader-backed source.
             if (config_.use_sqlite)
             {
                 // Map experiment dataset enum to SqliteBatchSource internal enum.
@@ -363,9 +361,34 @@ int Experiment03::run()
                         ds_type = nn::dataLoaders::SqliteDatasetType::FusedWindow;
                         break;
                 }
-
                 src = std::make_unique<SqliteBatchSource>(config_.dataset_root,
-                    std::move(src),
+                    config_.batch_size,
+                    ds_type,
+                    config_.eeg_window_config,
+                    config_.audio_window_config,
+                    config_.input_mode);
+            }
+            else
+            {
+                // `DataLoaderSource` removed; enforce SQLite-only source.
+                nn::dataLoaders::SqliteDatasetType ds_type =
+                    nn::dataLoaders::SqliteDatasetType::Protocol;
+                switch (config_.dataset_type)
+                {
+                    case Experiment03DatasetType::Protocol:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::Protocol;
+                        break;
+                    case Experiment03DatasetType::EegWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::EegWindow;
+                        break;
+                    case Experiment03DatasetType::AudioWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::AudioWindow;
+                        break;
+                    case Experiment03DatasetType::FusedWindow:
+                        ds_type = nn::dataLoaders::SqliteDatasetType::FusedWindow;
+                        break;
+                }
+                src = std::make_unique<SqliteBatchSource>(config_.dataset_root,
                     config_.batch_size,
                     ds_type,
                     config_.eeg_window_config,
@@ -380,7 +403,7 @@ int Experiment03::run()
             }
             else
             {
-                cout << "DEBUG[Experiment03] using underlying source (no sqlite)\n";
+                cout << "DEBUG[Experiment03] using DataLoaderBatchSource\n";
             }
 
             // Determine max batches for this epoch. A value of 0 in the

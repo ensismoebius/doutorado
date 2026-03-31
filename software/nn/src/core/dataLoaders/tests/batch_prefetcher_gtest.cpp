@@ -3,15 +3,21 @@
  * @brief Targeted tests for BatchPrefetcher RAM-cap and fast-path behavior.
  */
 
+#include <sqlite3.h>
+#include <unistd.h>
+
 #include <chrono>
+#include <filesystem>
 #include <functional>
 #include <thread>
+#include <vector>
 
 #include "gtest/gtest.h"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/DataLoader.hpp"
-#include "nn/dataLoaders/DataLoaderBatchSource.hpp"
+#include "nn/dataLoaders/IBatchSource.hpp"
+#include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/dataLoaders/TensorDataset.hpp"
+#include "nn/testing/SqliteTestHelpers.hpp"
 
 static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Tensor
 {
@@ -42,15 +48,17 @@ static auto wait_until(const std::function<bool()>& predicate, std::chrono::mill
     return predicate();
 }
 
+// Use shared helpers from include/nn/testing/SqliteTestHelpers.hpp
+
 TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
 {
     auto inputs = make_sequential_tensor(4, 64);
     auto targets = make_sequential_tensor(4, 16);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
-    DataLoader loader(dataset, 4, false);
-
-    // Much smaller than one full batch to exercise the oversized fallback path.
-    BatchPrefetcher prefetcher(std::make_unique<DataLoaderBatchSource>(loader), 1, 1, 64);
+    const std::string db_root = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
+    nn::testing::create_simple_protocol_db(db_root, 64, 16);
+    auto src = std::make_unique<SqliteBatchSource>(db_root, 4);
+    BatchPrefetcher prefetcher(std::move(src), 1, 1, 64);
 
     ASSERT_TRUE(wait_until(
         [&]() { return prefetcher.diagnostics().ring_size >= 1; }, std::chrono::milliseconds(500)));
@@ -58,7 +66,8 @@ TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
     auto batch = prefetcher.next();
     ASSERT_TRUE(batch.has_value());
     EXPECT_EQ(batch->inputs.rows(), 4);
-    EXPECT_EQ(batch->inputs.cols(), 64);
+    // Protocol concatenated mode flattens 6 EEG channels: 6 * per-channel length
+    EXPECT_EQ(batch->inputs.cols(), 6 * 64);
     EXPECT_EQ(batch->targets.rows(), 4);
     EXPECT_EQ(batch->targets.cols(), 16);
 
@@ -71,12 +80,11 @@ TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)
     auto inputs = make_sequential_tensor(4, 32);
     auto targets = make_sequential_tensor(4, 8);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
-    DataLoader loader(dataset, 2, false);
-
-    // Exactly one 2-sample batch in bytes: (2*32 + 2*8) floats * 4 bytes.
+    const std::string db_root2 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
+    nn::testing::create_simple_protocol_db(db_root2, 32, 8);
     const std::size_t one_batch_cap_bytes = (2U * 32U + 2U * 8U) * sizeof(float);
-    BatchPrefetcher prefetcher(
-        std::make_unique<DataLoaderBatchSource>(loader), 2, 2, one_batch_cap_bytes);
+    auto src2 = std::make_unique<SqliteBatchSource>(db_root2, 2);
+    BatchPrefetcher prefetcher(std::move(src2), 2, 2, one_batch_cap_bytes);
 
     ASSERT_TRUE(wait_until(
         [&]() { return prefetcher.diagnostics().ring_size >= 1; }, std::chrono::milliseconds(500)));
@@ -100,9 +108,10 @@ TEST(BatchPrefetcherFastPathTest, BufferedBatchesHitFastPath)
     auto inputs = make_sequential_tensor(6, 24);
     auto targets = make_sequential_tensor(6, 4);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
-    DataLoader loader(dataset, 2, false);
-
-    BatchPrefetcher prefetcher(std::make_unique<DataLoaderBatchSource>(loader), 3, 3, 0);
+    const std::string db_root3 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
+    nn::testing::create_simple_protocol_db(db_root3, 24, 4);
+    auto src3 = std::make_unique<SqliteBatchSource>(db_root3, 2);
+    BatchPrefetcher prefetcher(std::move(src3), 3, 3, 0);
 
     ASSERT_TRUE(wait_until(
         [&]() { return prefetcher.diagnostics().ring_size >= 2; }, std::chrono::milliseconds(500)));
@@ -119,10 +128,12 @@ TEST(BatchPrefetcherFastPathTest, FastDominateSlowInSteadyState)
     auto inputs = make_sequential_tensor(20, 24);
     auto targets = make_sequential_tensor(20, 4);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
-    DataLoader loader(dataset, 2, false);
+    const std::string db_root4 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
+    nn::testing::create_simple_protocol_db(db_root4, 24, 4);
 
     // Provide plenty of lookahead to ensure fast paths are hit
-    BatchPrefetcher prefetcher(std::make_unique<DataLoaderBatchSource>(loader), 10, 5, 0);
+    auto src4 = std::make_unique<SqliteBatchSource>(db_root4, 2);
+    BatchPrefetcher prefetcher(std::move(src4), 10, 5, 0);
 
     // Let producer fill up the queue initially
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
