@@ -189,10 +189,11 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.batch_size);
 
-    app.add_option(
-           "--max-batches", config.max_batches_per_epoch, "Max batches to iterate in this demo")
+    app.add_option("--max-batches",
+           config.max_batches_per_epoch,
+           "Maximum batches per epoch (0 = consume the full dataset)")
         ->expected(1)
-        ->check(CLI::PositiveNumber)
+        ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.max_batches_per_epoch);
 
     const auto input_mode_tokens = supportedProtocol101117InputModeTokens();

@@ -1,132 +1,220 @@
-# experiment03 — Autoencoder training runner
+# experiment03 - Autoencoder training runner
 
 Overview
 --------
-`experiment03` is a training runner for ANN/SNN autoencoders over the 10.1117
-imagined-speech EEG+Audio dataset variants. It supports profile-based runtime
-configuration and writes a per-run JSON summary.
+`experiment03` trains ANN or SNN autoencoders against the 10.1117 imagined-speech EEG+Audio dataset.
+It supports two layers of configuration:
 
-The pipeline implemented by `experiment03`:
+- A launcher-level `default_config` in `src/experiments/03/experiment03.cpp`.
+- A profile JSON loaded from `src/experiments/03/profiles/*.json`.
+- Explicit CLI flags, which override both the launcher defaults and the selected profile.
 
-- Subject directories discovered by regex
-- Dataset selection: protocol, eeg-window, audio-window, fused-window
-- Autoencoder selection: ANN and SNN variants per dataset
-- `DataLoader` + `BatchPrefetcher` training pipeline
-- Profile loading from `src/experiments/03/profiles/*.json`
-- Result summary output to `src/experiments/03/results/*.json`
+Configuration precedence
+------------------------
+Runtime configuration is resolved in this order:
 
-Key features
-------------
-- Discover subjects automatically under a dataset root (subject directory names match a regex, default `^S(\\d+)$`).
-- Print a concise dataset summary showing per-subject counts and an estimated
-  number of audio rows that have corresponding EEG records.
-- Configurable batching and prefetching (`--batch-size`, `--max-batches`, `--lookahead`).
-- In-place single-line progress bar with correct handling when runs are capped
-  by `--max-batches`.
+1. `default_config` in `src/experiments/03/experiment03.cpp`
+2. `--profile <name>` or `--profile <path/to/file.json>`
+3. Explicit CLI flags such as `--batch-size`, `--epochs`, or `--ae-latent-size`
 
-Profiles and results
---------------------
-- Profiles: `src/experiments/03/profiles/<name>.json`
-- Results: `src/experiments/03/results/<timestamp>_<profile>.json`
+This means the experiment is configurable enough for multi-batch and multi-epoch training already, but the previous documentation was incomplete and one CLI contract was misleading.
 
-Result fields include:
-- `profile`, `dataset_type`, `autoencoder_type`
-- `exit_code`, `total_samples`, `processed_samples`, `seen_batches`
-- `epoch_mean_losses`
-- `error`
+Use `--help` to inspect the full option list without starting the experiment or touching the logger pipeline.
 
-Quick start — build and run
---------------------------
-From the project root (where CMakeLists.txt lives):
+Important behavior fixes
+------------------------
+- `--epochs N` controls how many full training passes are executed.
+- `--batch-size N` controls how many samples are packed into each optimization step.
+- `--max-batches N` limits batches per epoch.
+- `--max-batches 0` means: do not cap the epoch, iterate the full dataset.
 
+The runtime already supported `max_batches_per_epoch = 0`, but the CLI validator rejected `0`. That mismatch has now been fixed.
+
+What you can tune
+-----------------
+Dataset selection and discovery:
+- `--dataset-root <path>`: root folder containing subject directories.
+- `--subject <regex>`: regex used to pick subject folders.
+- `--dataset-type <protocol|eeg-window|audio-window|fused-window>`: which dataset representation to train on.
+- `--input-mode <concatenated|eeg-only|audio-only>`: protocol-dataset modality selection.
+
+Training loop controls:
+- `--batch-size <N>`: samples per optimization step.
+- `--epochs <N>`: number of epochs.
+- `--max-batches <N>`: batches per epoch; use `0` for full-dataset epochs.
+- `--lr <value>`: Adam learning rate.
+
+Input pipeline controls:
+- `--lookahead <N>`: background prefetch queue depth.
+- `--prefetch-ram-cap-mb <N>`: RAM limit for prefetched batches.
+- `--use-sqlite`: use the SQLite-backed batch source.
+
+Sampling controls:
+- `--shuffle` / `--no-shuffle`: legacy shuffle toggle.
+- `--seed <N>`: deterministic shuffle seed.
+- `--sampler-type <sequential|random|weighted|distributed>`: explicit sampler selection.
+- `--sampler-weights <w1,w2,...>`: weights for weighted sampling.
+- `--weighted-num-samples <N>`: samples drawn per epoch for weighted sampling.
+- `--distributed-num-replicas <N>`: total distributed partitions.
+- `--distributed-rank <N>`: current partition rank.
+- `--distributed-shuffle` / `--distributed-no-shuffle`: distributed shuffling.
+- `--distributed-drop-last` / `--distributed-no-drop-last`: divisibility behavior.
+
+Autoencoder controls:
+- `--autoencoder <token>`: ANN/SNN family to instantiate.
+- `--ae-hidden-size <N>`: default dense hidden width.
+- `--ae-latent-size <N>`: latent bottleneck width.
+- `--ae-depth <N>`: encoder/decoder depth.
+- `--ae-layer-sizes <a,b,c>`: explicit hidden-size schedule.
+- `--ae-input-features <N>`: manual input feature override.
+- `--ae-eeg-features <N>` and `--ae-audio-features <N>`: manual multimodal split overrides.
+- `--ae-architecture <auto|residual-dense|dual-branch-fusion>`: architecture family.
+- `--ae-branch-hidden-size <N>`: branch projection width.
+- `--ae-fusion-hidden-size <N>`: shared fusion width.
+- `--ae-residual-blocks <N>`: residual blocks per stage.
+- `--ae-time-step <value>`: SNN time step.
+- `--ae-resistance <value>`: SNN membrane resistance.
+- `--ae-capacitance <value>`: SNN membrane capacitance.
+
+Windowing controls:
+- `--eeg-window-size <N>` and `--eeg-overlap <ratio>`: EEG window configuration.
+- `--audio-window-size <N>` and `--audio-overlap <ratio>`: audio window configuration.
+
+How to think about batches and epochs
+-------------------------------------
+If you want genuine training runs instead of capped smoke tests, the most important knobs are:
+
+- `--epochs`: increase this above `1` for repeated training passes.
+- `--batch-size`: controls optimization granularity and throughput.
+- `--max-batches 0`: removes the artificial epoch cap and lets each epoch consume the full dataset.
+
+Typical patterns:
+
+Smoke test:
 ```bash
-mkdir -p build && cd build
-cmake -S .. -B . -DCMAKE_BUILD_TYPE=Debug
-cmake --build . -- -j$(nproc)
-
-# Run experiment03 with defaults
-./src/experiments/03/experiment03
-
-# Example: lightweight fused ANN smoke run
-./src/experiments/03/experiment03 --profile fused-window-ann-lightweight --epochs 1 --max-batches 2
+./src/experiments/03/experiment03 \
+  --profile fused-window-ann-lightweight \
+  --epochs 1 \
+  --max-batches 2
 ```
 
-Command-line options (high-level)
----------------------------------
-- `--profile NAME` — profile JSON stem (for example `default`, `lightweight`, `fused-window-snn-lightweight`).
-- `--dataset-root PATH` — dataset root folder containing subject dirs `S01/ S02/...`.
-- `--subject-regex PATTERN` — regex used to select subject directories (default `^S(\\d+)$`).
-- `--batch-size N` — batch size used by `DataLoader` (default 5).
-- `--max-batches N` — cap number of produced batches for demo runs (default 1000).
-- `--lookahead N` — prefetch queue depth (default 4). Larger values increase I/O overlap but may interact with I/O thread-safety of underlying MAT readers in some setups; the implementation uses a single producer thread to avoid concurrent MAT reads.
-- `--shuffle/--no-shuffle`, `--seed` — sampling options.
-- `--input-mode` — one of `Concatenated`, `EegOnly`, or `AudioOnly` (controls what `get_item()` returns).
+Full training epoch over the dataset:
+```bash
+./src/experiments/03/experiment03 \
+  --profile fused-window-ann-default \
+  --batch-size 128 \
+  --epochs 10 \
+  --max-batches 0
+```
 
-Data format and conventions
----------------------------
-This project expects the 10.1117 dataset layout (per-subject directories):
+Longer SNN training run:
+```bash
+./src/experiments/03/experiment03 \
+  --profile fused-window-snn-default \
+  --epochs 25 \
+  --max-batches 0 \
+  --ae-time-step 0.5 \
+  --ae-resistance 1.0 \
+  --ae-capacitance 1.0
+```
 
-    dataset_root/
-      S01/
-        S01_EEG.mat
-        S01_Audio.mat
-      S02/
-        S02_EEG.mat
-        S02_Audio.mat
-      ...
+Profiles
+--------
+Profiles live in `src/experiments/03/profiles/` and act as reusable starting points.
 
-- Each `SXX_EEG.mat` is expected to contain a matrix (rows = trials / captures,
-  columns = EEG signal samples + label columns). The repository provides utilities
-  and a schema describing exact column positions; the code validates expected
-  column counts at runtime.
-- Each `SXX_Audio.mat` contains audio rows as long vector samples plus label
-  columns (including an EEG index that maps this audio row to the corresponding
-  EEG row in the subject's EEG MAT).
+The profile loader accepts ordinary JSON and ignores unknown keys. That means you can document a profile inline by adding fields such as `_comment_profile` or `_comment_step_1`. This repo now includes a loadable example of that pattern in `sample-training-flow.json`.
 
-Important dataset specifics
----------------------------
-- The dataset code builds a `prefix_audio_row_offsets` table to map global
-  dataset indices to (subject, audio_row) pairs. `dataset.size()` returns the
-  total number of synchronized audio rows across all discovered subjects.
-- For performance and to avoid unsafe concurrent MAT I/O, the prefetcher uses a
-  single producer thread which reads dataset rows sequentially and pushes
-  `Batch` objects into a bounded queue. If you see `Stimulus mismatch` errors or
-  MAT-related crashes when using high lookahead values, reduce `--lookahead` to
-  1 while debugging file integrity.
-- The `printDatasetSummary` helper prints per-subject counts and an estimated
-  `AudioWithEEG` count (a fast conservative estimate equal to
-  `min(audio_rows, eeg_rows)` per subject). Computing the exact count requires
-  reading every audio MAT row and is therefore slower; the helper uses the
-  estimate by default for speed.
+Useful built-in examples:
+- `default.json`: generic baseline defaults.
+- `lightweight.json`: smaller/faster smoke-test baseline.
+- `fused-window-ann-default.json`: fused ANN baseline.
+- `fused-window-snn-default.json`: fused SNN baseline.
+- `protocol-ann-default.json`: protocol ANN baseline.
+- `protocol-snn-default.json`: protocol SNN baseline.
+- `sample-training-flow.json`: commented, loadable example that shows how to move from smoke tests to full training.
 
-Progress, logging and validation
--------------------------------
-- An in-place progress bar is printed to the console and correctly shows 100%
-  when `--max-batches` truncates the run early (it computes an effective
-  denominator).
-- If the run produces zero batches, the program prints a helpful message and
-  exits; check `dataset_root`, subject naming, and MAT file row counts.
+Profiles may set:
+- dataset type
+- autoencoder type
+- batch size
+- epoch count
+- learning rate
+- window configs
+- autoencoder widths/depth
+- prefetch settings
+
+CLI flags remain the final override, so a profile is a starting point, not a lock.
+
+Sample commented profile flow
+-----------------------------
+Use `sample-training-flow.json` when you want a self-documented baseline.
+
+Recommended progression:
+
+1. Start with the profile as-is for a short smoke run.
+2. Increase `--epochs` and set `--max-batches 0` once the pipeline is stable.
+3. Increase `--batch-size` only after checking RAM and throughput.
+4. Change dataset/autoencoder families after the training loop is already behaving correctly.
+
+Example:
+```bash
+./src/experiments/03/experiment03 \
+  --profile sample-training-flow \
+  --epochs 10 \
+  --max-batches 0 \
+  --batch-size 128
+```
+
+What the launcher defaults currently imply
+------------------------------------------
+The launcher in `src/experiments/03/experiment03.cpp` currently defaults to:
+
+- dataset root pointing at the local 10.1117 dataset path
+- fused-window dataset mode
+- fused-window ANN autoencoder
+- batch size `100`
+- epoch cap `100` batches
+- SQLite-backed input pipeline enabled
+- prefetch lookahead `20`
+
+These defaults are reasonable for a local training workstation, but they are still only defaults. The intended way to run alternate studies is:
+
+1. pick a profile close to the experiment you want
+2. override only the few parameters you want to sweep on the CLI
+
+Data layout expected by the runner
+----------------------------------
+The dataset root is expected to contain subject folders such as:
+
+```text
+dataset_root/
+  S01/
+    S01_EEG.mat
+    S01_Audio.mat
+  S02/
+    S02_EEG.mat
+    S02_Audio.mat
+```
+
+The protocol dataset path uses synchronized audio and EEG rows. Windowed dataset types derive sliding windows from those source signals using the configured EEG/audio window specs.
+
+Operational notes
+-----------------
+- The prefetcher uses a single producer thread to avoid unsafe concurrent MAT I/O.
+- Progress reporting uses the effective batch limit, so capped runs still report correct percentages.
+- Run summaries are written as JSON and include profile, dataset type, autoencoder type, exit code, processed samples, seen batches, and epoch mean losses.
 
 Troubleshooting
 ---------------
-- Stimulus mismatch errors: usually indicate misaligned audio/EEG labels or
-  corrupted MAT files. Run the dataset discovery and small `DataLoader` runs
-  with `--max-batches 1 --lookahead 1` to isolate the failing subject.
-- Memory/ASAN leaks during concurrent access: ensure you are running the
-  single-producer prefetcher (default) and try reducing `--lookahead`.
+- If training ends too quickly, check whether `--max-batches` is still capped to a small number.
+- If you expected multiple epochs, verify `--epochs` is greater than `1`.
+- If no batches are produced, verify `--dataset-root`, `--subject`, and dataset integrity.
+- If I/O becomes unstable during debugging, temporarily reduce `--lookahead` to `1`.
 
-Extending or reusing
---------------------
-- `experiment03` is intended as a runnable training scaffold. You can
-  reuse `Protocol101117Dataset` and `BatchPrefetcher` from other binaries to
-  build full training or evaluation pipelines.
-- The repo contains unit tests for dataset modes and loader utilities under
-  `src/core/dataLoaders/10.1117/tests` — run them with `ctest` from the build
-  directory.
-
-Contact / authorship
---------------------
-This README was generated as part of the experiment utilities in this repo.
-If you need the exact MAT variable schema or column indices, see the
-`nn/dataLoaders/10.1117` headers and the `ImaginedSpeechSchema_10_1117` object
-used throughout the code.
+Code pointers
+-------------
+- Launcher defaults: `src/experiments/03/experiment03.cpp`
+- CLI contract and `Config` fields: `src/experiments/03/lib/include/cli.hpp`
+- CLI parsing and overrides: `src/experiments/03/lib/src/cli.cpp`
+- Training loop: `src/experiments/03/lib/src/experiment03.cpp`
+- Profile loading: `src/experiments/03/lib/src/ProfileLoader.cpp`

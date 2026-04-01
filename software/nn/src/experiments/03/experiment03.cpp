@@ -26,13 +26,18 @@ using std::make_shared;
 using std::size_t;
 
 const Config default_config{
+    // Dataset discovery defaults.
     .subject_filter_regex = "^S(\\d+)$",
     .dataset_root =
         "/home/ensismoebius/Documentos"
         "/UNESP/doutorado/databases/"
         "BaseDeDatosHablaImaginada",
+
+    // Training throughput controls.
     .batch_size = 100,
     .max_batches_per_epoch = 100,
+
+    // Sampling behavior. Empty sampler type keeps the legacy shuffle/no-shuffle path.
     .shuffle_samples = true,
     .shuffle_seed = 42U,
     .default_sampler_type = "",
@@ -42,19 +47,25 @@ const Config default_config{
     .distributed_sampler_rank = 0,
     .distributed_sampler_shuffle = true,
     .distributed_sampler_drop_last = false,
+
+    // Dataset/model pairing defaults.
     .input_mode = Protocol101117InputMode::Concatenated,
     .dataset_type = Experiment03DatasetType::FusedWindow,
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
-    .prefetch_lookahead = 5,
+
+    // Background input pipeline controls.
+    .prefetch_lookahead = 20,
     .prefetch_ram_cap_mb = 1000,
     .use_sqlite = true,
 };
 
 auto main(int argc, char* argv[]) -> int
 {
-    // Redirect stdout/stderr into the Logger so logs are shown above progress.
-    nn::logging::StreamRedirector redirect(true, true);
     Config config = parseCliParams(argc, argv, default_config);
+
+    // Redirect stdout/stderr only after CLI parsing so --help and CLI validation
+    // messages remain visible on the real console.
+    nn::logging::StreamRedirector redirect(true, true);
     Experiment03 experiment(config);
     return experiment.run();
 }

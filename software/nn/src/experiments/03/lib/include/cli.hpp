@@ -51,8 +51,8 @@ struct Config
     string subject_filter_regex = ""; // Subject directory regex with an ID capture group
     string dataset_root = "";         // Path containing subject directories
 
-    size_t batch_size = 32;             // Batch size for DataLoader
-    size_t max_batches_per_epoch = 100; // Max batches to iterate per epoch
+    size_t batch_size = 32;             // Batch size for DataLoader and optimizer step granularity
+    size_t max_batches_per_epoch = 100; // 0 = consume the full dataset each epoch
 
     // Legacy controls (used when default_sampler_type is not provided)
     bool shuffle_samples = true; // Shuffle samples before batching?
@@ -98,8 +98,8 @@ struct Config
     float autoencoder_capacitance = 1.0F;
 
     // Training hyperparameters.
-    float training_learning_rate = 0.001F;
-    size_t training_epochs = 1;
+    float training_learning_rate = 0.001F; // Adam learning rate
+    size_t training_epochs = 1;            // Number of passes over the dataset
 
     // Window specs used by windowing datasets.
     nn::windowing::WindowSpec eeg_window_config{
@@ -108,7 +108,7 @@ struct Config
         .window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
 
     // Number of batches to prefetch in background.
-    // Default is 1 to preserve prior behavior; experiments may increase this.
+    // Increase this to overlap I/O with training when RAM allows.
     std::size_t prefetch_lookahead = 1;
     // Maximum RAM in MB for prefetched batches (0 = unlimited).
     std::size_t prefetch_ram_cap_mb = 0;
