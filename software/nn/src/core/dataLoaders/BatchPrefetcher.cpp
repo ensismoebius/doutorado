@@ -2,8 +2,6 @@
 
 #include <chrono>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 #include <utility>
 
 #include "nn/logging/Logger.hpp"

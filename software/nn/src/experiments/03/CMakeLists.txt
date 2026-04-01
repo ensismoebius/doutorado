@@ -44,6 +44,9 @@ target_link_libraries(experiment03_lib
 
 nn_enable_target_pch(experiment03_lib)
 
+# Enable Eigen parallelization with OpenMP
+configure_eigen_parallel_target(experiment03_lib)
+
 add_executable(experiment03
     ${SRC_DIR}/experiments/03/experiment03.cpp
 )
@@ -58,15 +61,19 @@ endif()
 # Link libraries
 target_link_libraries(experiment03
     PRIVATE
-    experiment03_lib
-    Eigen3::Eigen
-    cnpy-static
-    dataLoaders_10_1117
-    dataLoaders_10_1117_windowing
-    dataLoaders
-    matioCpp
-    z
+        experiment03_lib
+        Eigen3::Eigen
+        OpenMP::OpenMP_CXX
+        cnpy-static
+        dataLoaders_10_1117
+        dataLoaders_10_1117_windowing
+        dataLoaders
+        matioCpp
+        z
 )
+
+# Enable Eigen parallelization with OpenMP
+configure_eigen_parallel_target(experiment03)
 
 file(GLOB EXPERIMENT03_PROFILE_JSON "${SRC_DIR}/experiments/03/profiles/*.json")
 if(EXPERIMENT03_PROFILE_JSON)
