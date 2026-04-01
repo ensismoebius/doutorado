@@ -96,6 +96,14 @@ auto malat(const std::vector<double>& signal,
         // `tasks_for_next_level` stores new segments to be processed in the next iteration.
         // Optimization: Pre-allocated and cleared, reducing dynamic allocations.
         std::vector<Task> tasks_for_next_level;
+        if (mode == PACKET_WAVELET)
+        {
+            tasks_for_next_level.reserve(tasks.size() * 2);
+        }
+        else
+        {
+            tasks_for_next_level.reserve(tasks.size());
+        }
 
         // Process all segments (`tasks`) for the current level
         for (const auto& task : tasks)

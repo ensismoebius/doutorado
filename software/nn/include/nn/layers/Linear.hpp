@@ -100,15 +100,8 @@ struct Linear : public Module
         // Optimized linear transformation: y = x * W^T + b
         nn::Tensor result = input.matmul(weight.transpose());
 
-        // Manual broadcasting of bias across the batch.
-        // Pitfall: bias is stored as (out_features, 1), so indexing uses bias.at(j, 0).
-        for (size_t i = 0; i < result.rows(); ++i)
-        {
-            for (size_t j = 0; j < result.cols(); ++j)
-            {
-                result.at(i, j) += bias.at(j, 0);
-            }
-        }
+        // Vectorized bias add: broadcast (out_features,1) bias across all batch rows.
+        result.add_col_vector_to_rows_inplace(bias);
 
         return result;
     }

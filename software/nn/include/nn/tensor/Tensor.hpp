@@ -255,6 +255,10 @@ class TensorImpl
     {
         backend_.add_inplace(other.backend_);
     }
+    void add_col_vector_to_rows_inplace(const TensorImpl& col_vector)
+    {
+        backend_.add_col_vector_to_rows_inplace(col_vector.backend_);
+    }
     void subtract_inplace(const TensorImpl& other)
     {
         backend_.subtract_inplace(other.backend_);

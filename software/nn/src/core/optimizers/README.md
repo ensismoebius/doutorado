@@ -12,3 +12,13 @@ CMake Target
 
 Tests
 - See `src/core/optimizers/tests/` for examples of saving/loading state and expected numeric behavior.
+
+Recent updates
+- Optimizer thread-safety tests now use RAII (`std::unique_ptr`) for temporary parameter tensors while passing non-owning raw pointers to optimizer APIs.
+
+Optimization techniques and references
+- RAII-based temporary ownership in tests: deterministic cleanup and lower leak risk in exceptional paths, while preserving optimizer API contract on non-owning parameter spans (see [1], [2]).
+
+Bibliographic references
+- [1] Bjarne Stroustrup and Herb Sutter (eds.). C++ Core Guidelines (Resource Management and Ownership rules), ongoing.
+- [2] Scott Meyers. Effective Modern C++. O'Reilly, 2014.

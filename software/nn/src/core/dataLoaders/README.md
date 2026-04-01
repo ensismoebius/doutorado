@@ -17,6 +17,24 @@ CMake
 
 Tests and Examples
 - Unit tests are under `src/core/dataLoaders/tests/` (GTest). Use them as usage examples.
+
+Recent updates
+- `SqliteBatchSource` now pre-reserves trial accumulation buffers using per-trial SQLite blob-byte estimates before row decoding.
+- Window sample assembly now reserves per-window output capacity based on active window mode (`EegWindow`, `AudioWindow`, `FusedWindow`) to reduce hot-loop allocations.
+- `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.
+- `SqliteBatchSource::open_db()` failure diagnostics now use `NN_LOG_ERROR` instead of direct stderr writes.
+
+Optimization techniques and references
+- Trial buffer pre-reservation (`eeg_accum`, `audio_accum`): capacity planning from SQLite blob-size metadata to avoid geometric reallocation/copy churn in hot decode loops (see [1], [2]).
+- Per-window `samp.reserve(...)`: branch-aware preallocation to reduce allocator pressure and improve cache locality while assembling windows (see [1], [2]).
+- Iterator deduplication (`operator*` uses `fetch_batch`): remove redundant index-vector construction to reduce unnecessary per-batch work and memory traffic (see [3]).
+- Unified logger channel (`NN_LOG_ERROR`): consolidate diagnostics path for deterministic output capture and lower observability drift across runtime modes (see [4]).
+
+Bibliographic references
+- [1] Ulrich Drepper. What Every Programmer Should Know About Memory. Red Hat, 2007.
+- [2] Paul R. Wilson, Mark S. Johnstone, Michael Neely, and David Boles. Dynamic Storage Allocation: A Survey and Critical Review. IWMM, 1995.
+- [3] Robert C. Martin. Clean Code: A Handbook of Agile Software Craftsmanship. Prentice Hall, 2008.
+- [4] Martin Kleppmann. Designing Data-Intensive Applications. O'Reilly, 2017.
 # DataLoader Sampling Architecture
 
 This module uses a sampler-driven architecture inspired by large ML frameworks while keeping a small C++20 core API.

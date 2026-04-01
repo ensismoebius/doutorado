@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "core/utility/tests/test_helpers.hpp"
@@ -237,15 +238,19 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
 TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
 {
     const int num_params = 10;
+    std::vector<std::unique_ptr<nn::Tensor>> owned_params;
+    owned_params.reserve(num_params);
     std::vector<nn::Tensor*> params;
+    params.reserve(num_params);
 
     // Create multiple parameters
     for (int i = 0; i < num_params; ++i)
     {
-        auto* tensor = new nn::Tensor(10, 10);
+        auto tensor = std::make_unique<nn::Tensor>(10, 10);
         test_helpers::tensor_fill_with_value(*tensor, 1.0F);
         tensor->set_grad(test_helpers::make_constant_tensor(10, 10, 0.1F));
-        params.push_back(tensor);
+        params.push_back(tensor.get());
+        owned_params.push_back(std::move(tensor));
     }
 
     // Test multiple step operations (simulating concurrent access)
@@ -265,12 +270,6 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     for (auto* param : params)
     {
         EXPECT_TRUE(test_helpers::tensor_is_zero(param->grad()));
-    }
-
-    // Clean up
-    for (auto* param : params)
-    {
-        delete param;
     }
 }
 

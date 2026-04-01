@@ -40,17 +40,6 @@ void DataLoaderIterator::fetch_batch() const
 
 auto DataLoaderIterator::operator*() const -> const Batch&
 {
-    size_t start_index = current_batch_ * loader_.batch_size_;
-    const auto& indices = *indices_;
-    size_t end_index = std::min(start_index + loader_.batch_size_, indices.size());
-
-    vector<size_t> idxs;
-    idxs.reserve(end_index - start_index);
-    for (size_t i = start_index; i < end_index; ++i)
-    {
-        idxs.emplace_back(indices.at(i));
-    }
-
     if (!batch_valid_) fetch_batch();
     return current_batch_data_;
 }

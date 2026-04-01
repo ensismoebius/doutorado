@@ -3,7 +3,6 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <random>
@@ -394,6 +393,23 @@ class EigenTensorBackend
     {
         if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for add");
         return EigenTensorBackend(m_data + other.m_data);
+    }
+
+    // Add a column vector of shape (cols, 1) to every row of this 2D tensor.
+    // Useful for fused bias addition after GEMM in dense layers.
+    void add_col_vector_to_rows_inplace(const EigenTensorBackend& col_vector)
+    {
+        if (m_shape.size() != 2 || col_vector.m_shape.size() != 2)
+        {
+            throw std::invalid_argument("add_col_vector_to_rows_inplace valid only for 2D tensors");
+        }
+        if (col_vector.cols() != 1 || col_vector.rows() != cols())
+        {
+            throw std::invalid_argument(
+                "add_col_vector_to_rows_inplace expects bias shape (cols, 1)");
+        }
+
+        m_data.rowwise() += col_vector.m_data.col(0).transpose();
     }
 
     EigenTensorBackend subtract(const EigenTensorBackend& other) const

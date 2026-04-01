@@ -11,8 +11,8 @@
  */
 
 #include <filesystem>
-#include <iostream>
 
+#include "../../include/nn/logging/Logger.hpp"
 #include "Config.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 #include "phase00_data.hpp"
@@ -33,7 +33,7 @@ auto main(int argc, const char* argv[]) -> int
     }
     else
     {
-        std::cerr << "Usage: " << argv[0] << " [config.json]\n";
+        NN_LOG_ERROR(std::string("Usage: ") + argv[0] + " [config.json]");
         return 1;
     }
 
@@ -41,19 +41,19 @@ auto main(int argc, const char* argv[]) -> int
     auto cfg_opt = Config::load(config_path.string());
     if (!cfg_opt)
     {
-        std::cerr << "Failed to load config from " << config_path << "\n";
+        NN_LOG_ERROR(std::string("Failed to load config from ") + config_path.string());
         return 1;
     }
 
     // Extract config from optional
     const Config& cfg = cfg_opt.value();
 
-    std::cout << "PHASE 0: Frozen baseline (1.5 s window / 50% overlap / [0,1] normalization)\n";
-    std::cout << "Using config: " << config_path << "\n";
+    NN_LOG_INFO("PHASE 0: Frozen baseline (1.5 s window / 50% overlap / [0,1] normalization)");
+    NN_LOG_INFO(std::string("Using config: ") + config_path.string());
 
     if (!std::filesystem::exists(cfg.dataset_base_path))
     {
-        std::cerr << "Dataset base path does not exist: " << cfg.dataset_base_path << "\n";
+        NN_LOG_ERROR(std::string("Dataset base path does not exist: ") + cfg.dataset_base_path);
         return 1;
     }
 
@@ -61,7 +61,7 @@ auto main(int argc, const char* argv[]) -> int
 
     if (trials.empty())
     {
-        std::cerr << "No data processed for any subject. Exiting.\n";
+        NN_LOG_ERROR("No data processed for any subject. Exiting.");
         return 1;
     }
 
@@ -80,7 +80,7 @@ auto main(int argc, const char* argv[]) -> int
 
     if (!phase00::verify_normalization(all_combined_features, cfg.range))
     {
-        std::cerr << "Normalization check failed: values are outside [0, 1].\n";
+        NN_LOG_ERROR("Normalization check failed: values are outside [0, 1].");
         return 1;
     }
 
@@ -100,8 +100,8 @@ auto main(int argc, const char* argv[]) -> int
     phase00::save_results(metrics_path, alpha, beta, g1, g2, train_result.accuracy);
     phase00::save_torch_state(torch_state_path, train_result);
 
-    std::cout << "Experiment completed. Metrics: " << metrics_path
-              << " | torch state: " << torch_state_path << "\n";
+    NN_LOG_INFO(std::string("Experiment completed. Metrics: ") + metrics_path.string() +
+                " | torch state: " + torch_state_path.string());
 
     return 0;
 }

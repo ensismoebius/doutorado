@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "nn/logging/Logger.hpp"
+
 using std::floor;
 using std::pow;
 
@@ -156,7 +158,7 @@ void Wav::write(const std::string& _path)
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << path;
+        NN_LOG_ERROR("Cannot open file: " + path);
         throw std::runtime_error("Impossible to open the file!");
     }
 
@@ -199,7 +201,7 @@ void Wav::write(const std::string& _path, const std::vector<float>& inputData, i
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << path;
+        NN_LOG_ERROR("Cannot open file: " + path);
         throw std::runtime_error("Impossible to open the file!");
     }
 
@@ -236,7 +238,7 @@ void Wav::write(
 
     if (!ofs.is_open())
     {
-        std::cout << "Cannot open file: " << path;
+        NN_LOG_ERROR("Cannot open file: " + path);
         throw std::runtime_error("Impossible to open the file!");
     }
 

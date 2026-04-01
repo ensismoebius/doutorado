@@ -13,6 +13,7 @@ target_sources(experiments_config
 target_include_directories(experiments_config
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 if(NOT TARGET nlohmann_json::nlohmann_json)

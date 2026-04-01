@@ -63,8 +63,8 @@ void printProgress(std::size_t dataset_total_samples,
 
     const int percent = static_cast<int>(ratio * 100.0);
 
-    // Drain any new log lines and append into a small local 6-line history.
-    auto new_lines = nn::logging::Logger::instance().get_recent_lines(200);
+    // Drain newly emitted log lines to avoid reprocessing the same ring-buffer entries.
+    auto new_lines = nn::logging::Logger::instance().drain_recent_lines();
 
     std::streambuf* console_rb = nn::logging::Logger::instance().get_console_rdbuf();
     std::unique_ptr<std::ostream> console_stream;

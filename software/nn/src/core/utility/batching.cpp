@@ -43,20 +43,11 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
     std::ranges::shuffle(indices, gen);
 
     std::vector<Batch> batches;
+    batches.reserve((n_samples + batch_size - 1) / batch_size);
 
     for (int i = 0; i < n_samples; i += batch_size)
     {
         int actual_batch_size = std::min(batch_size, n_samples - i);
-
-        std::vector<nn::Tensor> x_batch_vec;
-        std::vector<nn::Tensor> y_batch_vec;
-
-        for (int j = 0; j < actual_batch_size; ++j)
-        {
-            int idx = indices[i + j];
-            x_batch_vec.push_back(inputSamples[idx]);
-            y_batch_vec.push_back(targets[idx]);
-        }
 
         // Get input and target dimensions from first sample
         int input_rows = inputSamples[0].rows();
@@ -70,8 +61,9 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
 
         for (int j = 0; j < actual_batch_size; ++j)
         {
-            x_batch.setBlock(j * input_rows, 0, x_batch_vec[j]);
-            y_batch.setBlock(j * target_rows, 0, y_batch_vec[j]);
+            int idx = indices[i + j];
+            x_batch.setBlock(j * input_rows, 0, inputSamples[idx]);
+            y_batch.setBlock(j * target_rows, 0, targets[idx]);
         }
 
         batches.push_back({x_batch, y_batch});

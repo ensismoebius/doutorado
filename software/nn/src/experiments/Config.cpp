@@ -12,9 +12,10 @@
 
 #include <cmath>
 #include <fstream>
-#include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
+
+#include "../../include/nn/logging/Logger.hpp"
 
 auto Config::load(const std::string& path) -> std::optional<Config>
 {
@@ -23,7 +24,7 @@ auto Config::load(const std::string& path) -> std::optional<Config>
     std::ifstream in(path);
     if (!in)
     {
-        std::cerr << "Config error (BadFile): Unable to open " << path << '\n';
+        NN_LOG_ERROR("Config error (BadFile): Unable to open " + path);
         return std::nullopt;
     }
     std::stringstream ss;
@@ -34,7 +35,7 @@ auto Config::load(const std::string& path) -> std::optional<Config>
     }
     catch (const nlohmann::json::parse_error& e)
     {
-        std::cerr << "Config error (ParseError): " << e.what() << '\n';
+        NN_LOG_ERROR(std::string("Config error (ParseError): ") + e.what());
         return std::nullopt;
     }
 
@@ -194,15 +195,15 @@ auto Config::load(const std::string& path) -> std::optional<Config>
     }
     catch (const nlohmann::json::type_error& e)
     {
-        std::cerr << "Config error (TypeError): " << e.what() << '\n';
+        NN_LOG_ERROR(std::string("Config error (TypeError): ") + e.what());
     }
     catch (const std::out_of_range& e)
     {
-        std::cerr << "Config error (MissingKey): " << e.what() << '\n';
+        NN_LOG_ERROR(std::string("Config error (MissingKey): ") + e.what());
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Config error (Validation): " << e.what() << '\n';
+        NN_LOG_ERROR(std::string("Config error (Validation): ") + e.what());
     }
 
     return std::nullopt;

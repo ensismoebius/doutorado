@@ -58,8 +58,8 @@ bool SqliteBatchSource::open_db()
     int rc = sqlite3_prepare_v2(db_, pop_trial_sql, -1, &pop_trial_stmt_, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "SqliteBatchSource::open_db: prepare pop_trial_sql failed: "
-                  << sqlite3_errmsg(db_) << std::endl;
+        NN_LOG_ERROR(std::string("SqliteBatchSource::open_db: prepare pop_trial_sql failed: ") +
+                     sqlite3_errmsg(db_));
         pop_trial_stmt_ = nullptr;
         sqlite3_close(db_);
         db_ = nullptr;
@@ -71,8 +71,8 @@ bool SqliteBatchSource::open_db()
     rc = sqlite3_prepare_v2(db_, select_eeg_sql, -1, &select_eeg_stmt_, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "SqliteBatchSource::open_db: prepare select_eeg_sql failed: "
-                  << sqlite3_errmsg(db_) << std::endl;
+        NN_LOG_ERROR(std::string("SqliteBatchSource::open_db: prepare select_eeg_sql failed: ") +
+                     sqlite3_errmsg(db_));
         if (pop_trial_stmt_) sqlite3_finalize(pop_trial_stmt_);
         pop_trial_stmt_ = nullptr;
         sqlite3_close(db_);
@@ -86,8 +86,8 @@ bool SqliteBatchSource::open_db()
     rc = sqlite3_prepare_v2(db_, select_audio_sql, -1, &select_audio_stmt_, nullptr);
     if (rc != SQLITE_OK)
     {
-        std::cerr << "SqliteBatchSource::open_db: prepare select_audio_sql failed: "
-                  << sqlite3_errmsg(db_) << std::endl;
+        NN_LOG_ERROR(std::string("SqliteBatchSource::open_db: prepare select_audio_sql failed: ") +
+                     sqlite3_errmsg(db_));
         if (pop_trial_stmt_) sqlite3_finalize(pop_trial_stmt_);
         if (select_eeg_stmt_) sqlite3_finalize(select_eeg_stmt_);
         pop_trial_stmt_ = nullptr;
@@ -187,6 +187,53 @@ bool SqliteBatchSource::next(Batch& out)
 
                 std::vector<float> eeg_accum;
                 std::vector<float> audio_accum;
+
+                // Reserve using trial-local blob byte estimates to reduce reallocations.
+                {
+                    sqlite3_stmt* eeg_size_stmt = nullptr;
+                    const char* eeg_size_sql =
+                        "SELECT COALESCE(SUM(COALESCE(length(F3),0)+COALESCE(length(F4),0)+"
+                        "COALESCE(length(C3),0)+COALESCE(length(C4),0)+COALESCE(length(P3),0)+"
+                        "COALESCE(length(P4),0)),0) "
+                        "FROM eeg_samples WHERE trial_id = ?;";
+                    if (sqlite3_prepare_v2(db_, eeg_size_sql, -1, &eeg_size_stmt, nullptr) ==
+                        SQLITE_OK)
+                    {
+                        sqlite3_bind_int(eeg_size_stmt, 1, trial_id);
+                        if (sqlite3_step(eeg_size_stmt) == SQLITE_ROW)
+                        {
+                            const sqlite3_int64 eeg_total_bytes =
+                                sqlite3_column_int64(eeg_size_stmt, 0);
+                            if (eeg_total_bytes > 0)
+                            {
+                                eeg_accum.reserve(
+                                    static_cast<size_t>(eeg_total_bytes) / sizeof(float));
+                            }
+                        }
+                    }
+                    if (eeg_size_stmt) sqlite3_finalize(eeg_size_stmt);
+
+                    sqlite3_stmt* audio_size_stmt = nullptr;
+                    const char* audio_size_sql =
+                        "SELECT COALESCE(SUM(COALESCE(length(samples),0)),0) "
+                        "FROM audio_samples WHERE trial_id = ?;";
+                    if (sqlite3_prepare_v2(db_, audio_size_sql, -1, &audio_size_stmt, nullptr) ==
+                        SQLITE_OK)
+                    {
+                        sqlite3_bind_int(audio_size_stmt, 1, trial_id);
+                        if (sqlite3_step(audio_size_stmt) == SQLITE_ROW)
+                        {
+                            const sqlite3_int64 audio_total_bytes =
+                                sqlite3_column_int64(audio_size_stmt, 0);
+                            if (audio_total_bytes > 0)
+                            {
+                                audio_accum.reserve(
+                                    static_cast<size_t>(audio_total_bytes) / sizeof(float));
+                            }
+                        }
+                    }
+                    if (audio_size_stmt) sqlite3_finalize(audio_size_stmt);
+                }
 
                 // Read eeg_samples rows for this trial
                 sqlite3_reset(select_eeg_stmt_);
@@ -339,10 +386,23 @@ bool SqliteBatchSource::next(Batch& out)
 
                     const int eeg_hop = eeg_window_.hop_size();
                     const int audio_hop = audio_window_.hop_size();
+                    const size_t eeg_sample_cols =
+                        (dataset_type_ == nn::dataLoaders::SqliteDatasetType::EegWindow ||
+                            dataset_type_ == nn::dataLoaders::SqliteDatasetType::FusedWindow)
+                            ? static_cast<size_t>(eeg_channels) *
+                                  static_cast<size_t>(eeg_window_.window_size)
+                            : 0;
+                    const size_t audio_sample_cols =
+                        (dataset_type_ == nn::dataLoaders::SqliteDatasetType::AudioWindow ||
+                            dataset_type_ == nn::dataLoaders::SqliteDatasetType::FusedWindow)
+                            ? static_cast<size_t>(audio_window_.window_size)
+                            : 0;
+                    const size_t expected_sample_cols = eeg_sample_cols + audio_sample_cols;
 
                     for (int w = 0; w < windows; ++w)
                     {
                         std::vector<float> samp;
+                        samp.reserve(expected_sample_cols);
                         if (dataset_type_ == nn::dataLoaders::SqliteDatasetType::EegWindow ||
                             dataset_type_ == nn::dataLoaders::SqliteDatasetType::FusedWindow)
                         {

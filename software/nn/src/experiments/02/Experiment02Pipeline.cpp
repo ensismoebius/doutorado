@@ -1,7 +1,6 @@
 #include "Experiment02Pipeline.hpp"
 
 #include <filesystem>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -11,6 +10,7 @@
 #include "Experiment02Training.hpp"
 #include "Experiment02Wavelets.hpp"
 #include "nn/linearAlgebra/linear_algebra.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/wavelet/waveletOperations.h"
 
 namespace fs = std::filesystem;
@@ -31,12 +31,12 @@ void min_max_normalize(
 
 auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 {
-    std::cout << "Starting experiment: " << config.id << std::endl;
+    NN_LOG_INFO(std::string("Starting experiment: ") + config.id);
     fs::create_directories(config.output_dir);
 
     for (const std::string& wavelet_name : config.wavelet_families)
     {
-        std::cout << "Processing wavelet: " << wavelet_name << std::endl;
+        NN_LOG_INFO(std::string("Processing wavelet: ") + wavelet_name);
 
         std::vector<EEGSample> eeg_samples;
         std::vector<AudioSample> audio_samples;
@@ -47,13 +47,13 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
             std::string audio_path = kDefaultAudioPath;
             eeg_samples = load_eeg_data(eeg_path);
             audio_samples = load_audio_data(audio_path);
-            std::cout << "Loaded " << eeg_samples.size() << " EEG samples and "
-                      << audio_samples.size() << " audio samples" << std::endl;
+            NN_LOG_INFO("Loaded " + std::to_string(eeg_samples.size()) + " EEG samples and " +
+                        std::to_string(audio_samples.size()) + " audio samples");
         }
         catch (const std::exception& e)
         {
-            std::cout << "Data loading failed: " << e.what() << std::endl;
-            std::cout << "Using synthetic data for demonstration" << std::endl;
+            NN_LOG_WARN(std::string("Data loading failed: ") + e.what());
+            NN_LOG_INFO("Using synthetic data for demonstration");
 
             generate_synthetic_samples(
                 eeg_samples, audio_samples, kSyntheticSampleCount, config.random_seed);
@@ -65,12 +65,11 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
             config.overlap_sec,
             config.eeg_sampling_rate,
             config.audio_sampling_rate);
-        std::cout << "Extracted " << windows.size() << " windows" << std::endl;
+        NN_LOG_INFO("Extracted " + std::to_string(windows.size()) + " windows");
 
         if (windows.empty())
         {
-            std::cout << "No valid windows for " << wavelet_name << "; skipping this wavelet."
-                      << std::endl;
+            NN_LOG_WARN("No valid windows for " + wavelet_name + "; skipping this wavelet.");
             continue;
         }
 
@@ -94,8 +93,7 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
 
         if (features.empty() || labels.empty())
         {
-            std::cout << "No features produced for " << wavelet_name << "; skipping this wavelet."
-                      << std::endl;
+            NN_LOG_WARN("No features produced for " + wavelet_name + "; skipping this wavelet.");
             continue;
         }
 
@@ -109,9 +107,10 @@ auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void
         std::string csv_path = config.output_dir + "/" + wavelet_name + "_results.csv";
         write_wavelet_results_csv(csv_path, config, wavelet_name, aggregated);
 
-        std::cout << "Completed " << wavelet_name << " - F1: " << aggregated.classification.f1_score
-                  << ", Alpha: " << aggregated.paraconsistent.alpha << std::endl;
+        NN_LOG_INFO("Completed " + wavelet_name +
+                    " - F1: " + std::to_string(aggregated.classification.f1_score) +
+                    ", Alpha: " + std::to_string(aggregated.paraconsistent.alpha));
     }
 
-    std::cout << "Experiment completed. Results saved to " << config.output_dir << std::endl;
+    NN_LOG_INFO(std::string("Experiment completed. Results saved to ") + config.output_dir);
 }
