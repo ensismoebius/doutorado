@@ -62,16 +62,23 @@ endif()
 # Link libraries
 target_link_libraries(experiment03
     PRIVATE
+        dataLoaders_10_1117_windowing
+        dataLoaders_10_1117
+        OpenMP::OpenMP_CXX
         experiment03_lib
         Eigen3::Eigen
-        OpenMP::OpenMP_CXX
         cnpy-static
-        dataLoaders_10_1117
-        dataLoaders_10_1117_windowing
         dataLoaders
         matioCpp
         z
 )
+
+# If AddressSanitizer was enabled for vendored libs (e.g. sqlite3_vendored),
+# ensure the executable links the ASan runtime too so vendor objects' ASan
+# references are satisfied at link time. Use generator expressions so flags
+# apply only to Debug where sanitizers are enabled globally.
+target_link_options(experiment03 PRIVATE -fsanitize=address)
+target_compile_options(experiment03 PRIVATE -fsanitize=address -fno-omit-frame-pointer)
 
 # Enable Eigen parallelization with OpenMP
 configure_eigen_parallel_target(experiment03)
