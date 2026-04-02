@@ -13,8 +13,11 @@
 #include <stdexcept>
 
 #include "../include/ProfileLoader.hpp"
+#include "CLI/CLI.hpp"
 #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
 #include "nn/dataLoaders/SamplerOptionResolution.hpp"
+
+using CLI::App;
 
 namespace
 {
@@ -161,7 +164,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     }
 
     config.profile_name = profile;
-    std::string input_mode_token = protocol101117InputModeToToken(config.input_mode);
+    std::string input_mode_token = protocol101117InputModeToToken(config.dataset_input_mode);
     std::string dataset_type_token = datasetTypeToToken(config.dataset_type);
     std::string autoencoder_type_token = autoencoderTypeToToken(config.autoencoder_type);
     std::string architecture_token = architectureToToken(config.autoencoder_architecture);
@@ -171,30 +174,30 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     app.add_option("--profile", profile, "Configuration profile name (JSON file stem)")
         ->default_val(config.profile_name);
 
-    app.add_option("--dataset-root", config.dataset_root, "Path containing subjects dir")
+    app.add_option("--dataset-root", config.dataset_root_path, "Path containing subjects dir")
         ->expected(1)
         ->check(CLI::ExistingDirectory)
-        ->default_val(default_config.dataset_root);
+        ->default_val(default_config.dataset_root_path);
 
     app.add_option(                                                                     //
            "--subject",                                                                 //
-           config.subject_filter_regex,                                                 //
+           config.dataset_subject_filter_regex,                                                 //
            "Subject regex filter pattern (regex should contain a group for subject id)" //
            )
         ->expected(1)
-        ->default_val(default_config.subject_filter_regex);
+        ->default_val(default_config.dataset_subject_filter_regex);
 
-    app.add_option("--batch-size", config.batch_size, "Mini-batch size")
+    app.add_option("--batch-size", config.training_batch_size, "Mini-batch size")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.batch_size);
+        ->default_val(default_config.training_batch_size);
 
     app.add_option("--max-batches",
-           config.max_batches_per_epoch,
+           config.training_max_batches_per_epoch,
            "Maximum batches per epoch (0 = consume the full dataset)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.max_batches_per_epoch);
+        ->default_val(default_config.training_max_batches_per_epoch);
 
     const auto input_mode_tokens = supportedProtocol101117InputModeTokens();
     app.add_option(          //
@@ -202,7 +205,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
            input_mode_token, //
            "Dataset input mode (protocol only): concatenated|eeg-only|audio-only")
         ->check(CLI::IsMember(input_mode_tokens, CLI::ignore_case))
-        ->default_val(protocol101117InputModeToToken(default_config.input_mode));
+        ->default_val(protocol101117InputModeToToken(default_config.dataset_input_mode));
 
     app.add_option(          //
            "--dataset-type", //
@@ -332,35 +335,35 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     app.add_option("--epochs", config.training_epochs, "Number of training epochs")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.training_epochs);
+        ->default_val(config.training_epochs);
 
     app.add_option("--eeg-window-size",
-           config.eeg_window_config.window_size,
+           config.window_eeg_config.window_size,
            "EEG window size (samples) for eeg-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.eeg_window_config.window_size);
+        ->default_val(default_config.window_eeg_config.window_size);
 
     app.add_option("--eeg-overlap",
-           config.eeg_window_config.overlap,
+           config.window_eeg_config.overlap,
            "EEG overlap in [0,1) for eeg-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::Range(0.0, 0.9999))
-        ->default_val(default_config.eeg_window_config.overlap);
+        ->default_val(default_config.window_eeg_config.overlap);
 
     app.add_option("--audio-window-size",
-           config.audio_window_config.window_size,
+           config.window_audio_config.window_size,
            "Audio window size (samples) for audio-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.audio_window_config.window_size);
+        ->default_val(default_config.window_audio_config.window_size);
 
     app.add_option("--audio-overlap",
-           config.audio_window_config.overlap,
+           config.window_audio_config.overlap,
            "Audio overlap in [0,1) for audio-window/fused-window datasets")
         ->expected(1)
         ->check(CLI::Range(0.0, 0.9999))
-        ->default_val(default_config.audio_window_config.overlap);
+        ->default_val(default_config.window_audio_config.overlap);
 
     app.add_option(
            "--lookahead", config.prefetch_lookahead, "Number of batches to prefetch in background")
@@ -375,29 +378,24 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.prefetch_ram_cap_mb);
 
-    app.add_flag("--use-sqlite",
-           config.use_sqlite,
-           "Use SQLite-backed batch source (requires --dataset-root)")
-        ->default_val(default_config.use_sqlite);
-
     // Shard detection is automatic; legacy --use-shards flag removed.
 
     app.add_option("--seed",
-           config.shuffle_seed,
+           config.sampler_shuffle_seed,
            "Deterministic seed for shuffling (ignored if --no-shuffle)")
         ->expected(1)
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.shuffle_seed.value_or(0U));
+        ->default_val(default_config.sampler_shuffle_seed.value_or(0U));
 
     app.add_flag(                     //
            "--shuffle,!--no-shuffle", //
-           config.shuffle_samples,    //
+           config.sampler_shuffle_samples,    //
            "Shuffle samples before batching")
-        ->default_val(default_config.shuffle_samples);
+        ->default_val(default_config.sampler_shuffle_samples);
 
     auto* sampler_type_option = app.add_option(                        //
         "--sampler-type",                                              //
-        config.default_sampler_type,                                   //
+        config.sampler_default_type,                                   //
         "Default sampler type: sequential|random|weighted|distributed" //
     );
     sampler_type_option->check(CLI::IsMember(                //
@@ -406,9 +404,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     // Empty string means "auto" (legacy shuffle/no-shuffle behavior).
     // Use default_str (display-only) so the IsMember validator is not applied to the default.
-    sampler_type_option->default_str(default_config.default_sampler_type.empty()
+    sampler_type_option->default_str(default_config.sampler_default_type.empty()
                                          ? "(auto)"
-                                         : default_config.default_sampler_type);
+                                         : default_config.sampler_default_type);
 
     app.add_option( //
            "--sampler-weights",
@@ -419,36 +417,36 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     app.add_option( //
            "--weighted-num-samples",
-           config.weighted_sampler_num_samples,
+           config.sampler_weighted_num_samples,
            "Number of sampled indices per epoch for weighted sampler")
         ->check(CLI::PositiveNumber)
         ->default_str("(none)");
 
     app.add_option( //
            "--distributed-num-replicas",
-           config.distributed_sampler_num_replicas,
+           config.sampler_distributed_num_replicas,
            "Total number of distributed replicas")
         ->check(CLI::PositiveNumber)
-        ->default_val(default_config.distributed_sampler_num_replicas);
+        ->default_val(default_config.sampler_distributed_num_replicas);
 
     app.add_option( //
            "--distributed-rank",
-           config.distributed_sampler_rank,
+           config.sampler_distributed_rank,
            "Current distributed rank")
         ->check(CLI::NonNegativeNumber)
-        ->default_val(default_config.distributed_sampler_rank);
+        ->default_val(default_config.sampler_distributed_rank);
 
     app.add_flag( //
            "--distributed-shuffle,!--distributed-no-shuffle",
-           config.distributed_sampler_shuffle,
+           config.sampler_distributed_shuffle,
            "Shuffle globally before distributed partition")
-        ->default_val(default_config.distributed_sampler_shuffle);
+        ->default_val(default_config.sampler_distributed_shuffle);
 
     app.add_flag( //
            "--distributed-drop-last,!--distributed-no-drop-last",
-           config.distributed_sampler_drop_last,
+           config.sampler_distributed_drop_last,
            "Drop tail to make dataset divisible by replicas")
-        ->default_val(default_config.distributed_sampler_drop_last);
+        ->default_val(default_config.sampler_distributed_drop_last);
 
     try
     {
@@ -461,9 +459,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     config.profile_name = profile;
 
-    config.default_sampler_type = normalizeSamplerTypeToken(config.default_sampler_type);
+    config.sampler_default_type = normalizeSamplerTypeToken(config.sampler_default_type);
 
-    config.input_mode = parseProtocol101117InputModeToken(input_mode_token);
+    config.dataset_input_mode = parseProtocol101117InputModeToken(input_mode_token);
     dataset_type_token = CLI::detail::to_lower(dataset_type_token);
     config.dataset_type = parseDatasetTypeToken(dataset_type_token);
     autoencoder_type_token = CLI::detail::to_lower(autoencoder_type_token);
@@ -471,16 +469,16 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     architecture_token = CLI::detail::to_lower(architecture_token);
     config.autoencoder_architecture = parseArchitectureToken(architecture_token);
 
-    config.resolved_sampler_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
-        .sampler_type = config.default_sampler_type,
-        .shuffle = config.shuffle_samples,
-        .seed = config.shuffle_seed,
+    config.sampler_resolved_options = resolveDefaultSamplerOptions(SamplerOptionSelection{
+        .sampler_type = config.sampler_default_type,
+        .shuffle = config.sampler_shuffle_samples,
+        .seed = config.sampler_shuffle_seed,
         .weights = config.sampler_weights,
-        .weighted_num_samples = config.weighted_sampler_num_samples,
-        .distributed_num_replicas = config.distributed_sampler_num_replicas,
-        .distributed_rank = config.distributed_sampler_rank,
-        .distributed_shuffle = config.distributed_sampler_shuffle,
-        .distributed_drop_last = config.distributed_sampler_drop_last,
+        .weighted_num_samples = config.sampler_weighted_num_samples,
+        .distributed_num_replicas = config.sampler_distributed_num_replicas,
+        .distributed_rank = config.sampler_distributed_rank,
+        .distributed_shuffle = config.sampler_distributed_shuffle,
+        .distributed_drop_last = config.sampler_distributed_drop_last,
     });
     return config;
 }

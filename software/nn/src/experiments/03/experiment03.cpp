@@ -27,36 +27,60 @@ using std::size_t;
 
 const Config default_config{
     // Dataset discovery defaults.
-    .subject_filter_regex = "^S(\\d+)$",
-    .dataset_root =
+    .dataset_subject_filter_regex = "^S(\\d+)$",
+    .dataset_root_path =
         "/home/ensismoebius/Documentos"
         "/UNESP/doutorado/databases/"
         "BaseDeDatosHablaImaginada",
 
     // Training throughput controls.
-    .batch_size = 100,
-    .max_batches_per_epoch = 100,
+    .training_batch_size = 100,
+    .training_max_batches_per_epoch = 100,
 
     // Sampling behavior. Empty sampler type keeps the legacy shuffle/no-shuffle path.
-    .shuffle_samples = true,
-    .shuffle_seed = 42U,
-    .default_sampler_type = "",
+    .sampler_shuffle_samples = true,
+    .sampler_shuffle_seed = 42U,
+    .sampler_default_type = "",
     .sampler_weights = {},
-    .weighted_sampler_num_samples = std::nullopt,
-    .distributed_sampler_num_replicas = 10,
-    .distributed_sampler_rank = 0,
-    .distributed_sampler_shuffle = true,
-    .distributed_sampler_drop_last = false,
+    .sampler_weighted_num_samples = std::nullopt,
+    .sampler_distributed_num_replicas = 10,
+    .sampler_distributed_rank = 0,
+    .sampler_distributed_shuffle = true,
+    .sampler_distributed_drop_last = false,
 
     // Dataset/model pairing defaults.
-    .input_mode = Protocol101117InputMode::Concatenated,
+    .dataset_input_mode = Protocol101117InputMode::Concatenated,
     .dataset_type = Experiment03DatasetType::FusedWindow,
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
 
+    // Autoencoder architecture hyperparameters.
+    .autoencoder_hidden_size = 64,
+    .autoencoder_latent_size = 32,
+    .autoencoder_depth = 2,
+    .autoencoder_layer_sizes = {},
+    .autoencoder_input_features = 0,
+    .autoencoder_eeg_features = 0,
+    .autoencoder_audio_features = 0,
+    .autoencoder_architecture = AutoencoderArchitecture::Auto,
+    .autoencoder_branch_hidden_size = 0,
+    .autoencoder_fusion_hidden_size = 0,
+    .autoencoder_residual_blocks = 1,
+    .autoencoder_time_step = 1.0F,
+    .autoencoder_resistance = 1.0F,
+    .autoencoder_capacitance = 1.0F,
+
+    // Training hyperparameters.
+    .training_learning_rate = 1e-3f,
+    .training_epochs = 10,
+
+    // Window specs used by windowing datasets.
+    .window_eeg_config = {.window_size = 256, .overlap = 0.5F, .sample_rate = 1024},
+    .window_audio_config = {.window_size = 11025, .overlap = 0.5F, .sample_rate = 44100},
+
     // Background input pipeline controls.
     .prefetch_lookahead = 20,
+
     .prefetch_ram_cap_mb = 1000,
-    .use_sqlite = true,
 };
 
 auto main(int argc, char* argv[]) -> int

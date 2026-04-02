@@ -309,14 +309,14 @@ auto load_profile_to_config(
         return false;
     }
 
-    parse_number(text, "batch_size", out_config.batch_size);
-    parse_number(text, "max_batches_per_epoch", out_config.max_batches_per_epoch);
-    parse_bool(text, "shuffle_samples", out_config.shuffle_samples);
-    if (unsigned int shuffle_seed = 0U; parse_number(text, "shuffle_seed", shuffle_seed))
+    parse_number(text, "training_batch_size", out_config.training_batch_size);
+    parse_number(text, "training_max_batches_per_epoch", out_config.training_max_batches_per_epoch);
+    parse_bool(text, "sampler_shuffle_samples", out_config.sampler_shuffle_samples);
+    if (unsigned int sampler_shuffle_seed = 0U; parse_number(text, "sampler_shuffle_seed", sampler_shuffle_seed))
     {
-        out_config.shuffle_seed = shuffle_seed;
+        out_config.sampler_shuffle_seed = sampler_shuffle_seed;
     }
-    parse_string(text, "default_sampler_type", out_config.default_sampler_type);
+    parse_string(text, "sampler_default_type", out_config.sampler_default_type);
 
     parse_array_numbers(text, "sampler_weights", out_config.sampler_weights);
     if (out_config.sampler_weights.empty() &&
@@ -327,20 +327,20 @@ auto load_profile_to_config(
     }
 
     if (std::size_t weighted_num_samples = 0;
-        parse_number(text, "weighted_sampler_num_samples", weighted_num_samples))
+        parse_number(text, "sampler_weighted_num_samples", weighted_num_samples))
     {
-        out_config.weighted_sampler_num_samples = weighted_num_samples;
+        out_config.sampler_weighted_num_samples = weighted_num_samples;
     }
 
     parse_number(
-        text, "distributed_sampler_num_replicas", out_config.distributed_sampler_num_replicas);
-    parse_number(text, "distributed_sampler_rank", out_config.distributed_sampler_rank);
-    parse_bool(text, "distributed_sampler_shuffle", out_config.distributed_sampler_shuffle);
-    parse_bool(text, "distributed_sampler_drop_last", out_config.distributed_sampler_drop_last);
+        text, "sampler_distributed_num_replicas", out_config.sampler_distributed_num_replicas);
+    parse_number(text, "sampler_distributed_rank", out_config.sampler_distributed_rank);
+    parse_bool(text, "sampler_distributed_shuffle", out_config.sampler_distributed_shuffle);
+    parse_bool(text, "sampler_distributed_drop_last", out_config.sampler_distributed_drop_last);
 
-    if (int input_mode = 0; parse_number(text, "input_mode", input_mode))
+    if (int dataset_input_mode = 0; parse_number(text, "dataset_input_mode", dataset_input_mode))
     {
-        out_config.input_mode = static_cast<Protocol101117InputMode>(input_mode);
+        out_config.dataset_input_mode = static_cast<Protocol101117InputMode>(dataset_input_mode);
     }
 
     std::string str_value;
@@ -382,19 +382,19 @@ auto load_profile_to_config(
     parse_number(text, "prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
 
     std::string eeg_object;
-    if (parse_object(text, "eeg_window_config", eeg_object))
+    if (parse_object(text, "window_eeg_config", eeg_object))
     {
-        parse_number(eeg_object, "window_size", out_config.eeg_window_config.window_size);
-        parse_number(eeg_object, "overlap", out_config.eeg_window_config.overlap);
-        parse_number(eeg_object, "sample_rate", out_config.eeg_window_config.sample_rate);
+        parse_number(eeg_object, "window_size", out_config.window_eeg_config.window_size);
+        parse_number(eeg_object, "overlap", out_config.window_eeg_config.overlap);
+        parse_number(eeg_object, "sample_rate", out_config.window_eeg_config.sample_rate);
     }
 
     std::string audio_object;
-    if (parse_object(text, "audio_window_config", audio_object))
+    if (parse_object(text, "window_audio_config", audio_object))
     {
-        parse_number(audio_object, "window_size", out_config.audio_window_config.window_size);
-        parse_number(audio_object, "overlap", out_config.audio_window_config.overlap);
-        parse_number(audio_object, "sample_rate", out_config.audio_window_config.sample_rate);
+        parse_number(audio_object, "window_size", out_config.window_audio_config.window_size);
+        parse_number(audio_object, "overlap", out_config.window_audio_config.overlap);
+        parse_number(audio_object, "sample_rate", out_config.window_audio_config.sample_rate);
     }
 
     out_error.clear();

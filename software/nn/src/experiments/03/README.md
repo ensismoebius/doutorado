@@ -47,7 +47,6 @@ Training loop controls:
 Input pipeline controls:
 - `--lookahead <N>`: background prefetch queue depth.
 - `--prefetch-ram-cap-mb <N>`: RAM limit for prefetched batches.
-- `--use-sqlite`: use the SQLite-backed batch source.
 
 Sampling controls:
 - `--shuffle` / `--no-shuffle`: legacy shuffle toggle.

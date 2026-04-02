@@ -53,74 +53,55 @@ using std::unique_ptr;
 
 namespace
 {
+auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
+    -> nn::dataLoaders::SqliteDatasetType
+{
+    switch (dataset_type)
+    {
+        case Experiment03DatasetType::Protocol:
+            return nn::dataLoaders::SqliteDatasetType::Protocol;
+        case Experiment03DatasetType::EegWindow:
+            return nn::dataLoaders::SqliteDatasetType::EegWindow;
+        case Experiment03DatasetType::AudioWindow:
+            return nn::dataLoaders::SqliteDatasetType::AudioWindow;
+        case Experiment03DatasetType::FusedWindow:
+            return nn::dataLoaders::SqliteDatasetType::FusedWindow;
+    }
+
+    return nn::dataLoaders::SqliteDatasetType::Protocol;
+}
+
+auto make_batch_source(const Config& config) -> std::unique_ptr<IBatchSource>
+{
+    // SQLite is the only backend enabled right now.
+    // Keep this factory as the single extension point for future database backends.
+    return std::make_unique<SqliteBatchSource>(config.dataset_root_path,
+        config.training_batch_size,
+        to_sqlite_dataset_type(config.dataset_type),
+        config.window_eeg_config,
+        config.window_audio_config,
+        config.dataset_input_mode);
+}
+
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
     -> std::unique_ptr<Module>
 {
     AutoencoderConfig model_cfg{};
     model_cfg.input_features =
-        config.autoencoder_input_features > 0 ? config.autoencoder_input_features : input_features;
+        config.effective_autoencoder_input_features(static_cast<int>(input_features));
     model_cfg.hidden_size = config.autoencoder_hidden_size;
     model_cfg.latent_size = config.autoencoder_latent_size;
     model_cfg.depth = config.autoencoder_depth;
     model_cfg.layer_sizes = config.autoencoder_layer_sizes;
-    model_cfg.architecture = config.autoencoder_architecture;
+    model_cfg.architecture = config.effective_autoencoder_architecture();
     model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
     model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;
     model_cfg.residual_blocks = config.autoencoder_residual_blocks;
     model_cfg.time_step = config.autoencoder_time_step;
     model_cfg.resistance = config.autoencoder_resistance;
     model_cfg.capacitance = config.autoencoder_capacitance;
-
-    if (config.autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
-        config.autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn)
-    {
-        const int inferred_eeg_features =
-            static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
-            config.eeg_window_config.window_size;
-        const int inferred_audio_features = config.audio_window_config.window_size;
-
-        model_cfg.eeg_features = config.autoencoder_eeg_features > 0
-                                     ? config.autoencoder_eeg_features
-                                     : inferred_eeg_features;
-        model_cfg.audio_features = config.autoencoder_audio_features > 0
-                                       ? config.autoencoder_audio_features
-                                       : inferred_audio_features;
-        if (model_cfg.architecture == AutoencoderArchitecture::Auto)
-        {
-            model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
-        }
-    }
-    else if (config.autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
-             config.autoencoder_type == Experiment03AutoencoderType::ProtocolSnn)
-    {
-        if (config.input_mode == Protocol101117InputMode::Concatenated)
-        {
-            const int inferred_audio_features =
-                static_cast<int>(ImaginedSpeechSchema_10_1117.audioSamples());
-            const int inferred_eeg_features =
-                static_cast<int>(ImaginedSpeechSchema_10_1117.eeg_channels) *
-                inferred_audio_features;
-
-            model_cfg.audio_features = config.autoencoder_audio_features > 0
-                                           ? config.autoencoder_audio_features
-                                           : inferred_audio_features;
-            model_cfg.eeg_features = config.autoencoder_eeg_features > 0
-                                         ? config.autoencoder_eeg_features
-                                         : inferred_eeg_features;
-            if (model_cfg.architecture == AutoencoderArchitecture::Auto)
-            {
-                model_cfg.architecture = AutoencoderArchitecture::DualBranchFusion;
-            }
-        }
-        else if (model_cfg.architecture == AutoencoderArchitecture::Auto)
-        {
-            model_cfg.architecture = AutoencoderArchitecture::ResidualDense;
-        }
-    }
-    else if (model_cfg.architecture == AutoencoderArchitecture::Auto)
-    {
-        model_cfg.architecture = AutoencoderArchitecture::ResidualDense;
-    }
+    model_cfg.eeg_features = config.effective_autoencoder_eeg_features();
+    model_cfg.audio_features = config.effective_autoencoder_audio_features();
 
     switch (config.autoencoder_type)
     {
@@ -165,8 +146,8 @@ int Experiment03::run()
 
         // Discover subjects and initialize dataset with specified input mode.
         const auto discovered = discoverSubjects( //
-            config_.dataset_root,                 //
-            config_.subject_filter_regex          //
+            config_.dataset_root_path,            //
+            config_.dataset_subject_filter_regex  //
         );
 
         // Instantiate dataset using a small builder to keep selection logic
@@ -190,8 +171,8 @@ int Experiment03::run()
         // DataLoader is reused across training_epochs; prefetcher is re-created per epoch.
         data_loader_ = make_unique<DataLoader>( //
             dataset_,                           //
-            config_.batch_size,                 //
-            config_.resolved_sampler_options    //
+            config_.training_batch_size,        //
+            config_.sampler_resolved_options    //
         );
 
         // Store total dataset size for progress tracking.
@@ -202,7 +183,7 @@ int Experiment03::run()
         if (config_.dataset_type == Experiment03DatasetType::Protocol)
         {
             auto* protocol_dataset = dynamic_cast<Protocol101117Dataset*>(dataset_.get());
-            if (protocol_dataset) printDatasetSummary(*protocol_dataset, config_.dataset_root);
+            if (protocol_dataset) printDatasetSummary(*protocol_dataset, config_.dataset_root_path);
         }
         else
         {
@@ -236,72 +217,17 @@ int Experiment03::run()
             processed_samples_ = 0;
 
             // Re-create prefetcher so it drives the DataLoader through a fresh pass.
-            std::unique_ptr<IBatchSource> src;
-
-            // Choose DB-backed or in-memory DataLoader-backed source.
-            if (config_.use_sqlite)
-            {
-                // Map experiment dataset enum to SqliteBatchSource internal enum.
-                nn::dataLoaders::SqliteDatasetType ds_type =
-                    nn::dataLoaders::SqliteDatasetType::Protocol;
-                switch (config_.dataset_type)
-                {
-                    case Experiment03DatasetType::Protocol:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::Protocol;
-                        break;
-                    case Experiment03DatasetType::EegWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::EegWindow;
-                        break;
-                    case Experiment03DatasetType::AudioWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::AudioWindow;
-                        break;
-                    case Experiment03DatasetType::FusedWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::FusedWindow;
-                        break;
-                }
-                src = std::make_unique<SqliteBatchSource>(config_.dataset_root,
-                    config_.batch_size,
-                    ds_type,
-                    config_.eeg_window_config,
-                    config_.audio_window_config,
-                    config_.input_mode);
-            }
-            else
-            {
-                // `DataLoaderSource` removed; enforce SQLite-only source.
-                nn::dataLoaders::SqliteDatasetType ds_type =
-                    nn::dataLoaders::SqliteDatasetType::Protocol;
-                switch (config_.dataset_type)
-                {
-                    case Experiment03DatasetType::Protocol:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::Protocol;
-                        break;
-                    case Experiment03DatasetType::EegWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::EegWindow;
-                        break;
-                    case Experiment03DatasetType::AudioWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::AudioWindow;
-                        break;
-                    case Experiment03DatasetType::FusedWindow:
-                        ds_type = nn::dataLoaders::SqliteDatasetType::FusedWindow;
-                        break;
-                }
-                src = std::make_unique<SqliteBatchSource>(config_.dataset_root,
-                    config_.batch_size,
-                    ds_type,
-                    config_.eeg_window_config,
-                    config_.audio_window_config,
-                    config_.input_mode);
-            }
+            std::unique_ptr<IBatchSource> src = make_batch_source(config_);
 
             // Determine max batches for this epoch. A value of 0 in the
             // configuration means "process the entire dataset for the
             // epoch", so compute the number of batches from dataset size.
-            std::size_t epoch_max_batches = config_.max_batches_per_epoch;
+            std::size_t epoch_max_batches = config_.training_max_batches_per_epoch;
             if (epoch_max_batches == 0)
             {
-                const std::size_t batches = dataset_total_samples_ / config_.batch_size;
-                epoch_max_batches = batches + (dataset_total_samples_ % config_.batch_size ? 1 : 0);
+                const std::size_t batches = dataset_total_samples_ / config_.training_batch_size;
+                epoch_max_batches =
+                    batches + (dataset_total_samples_ % config_.training_batch_size ? 1 : 0);
             }
 
             prefetcher_ = make_unique<BatchPrefetcher>(                //
@@ -368,8 +294,8 @@ int Experiment03::run()
                 seen_batches_ = prefetcher_->seenBatches();
 
                 printProgress(dataset_total_samples_,
-                    config_.batch_size,
-                    config_.max_batches_per_epoch,
+                    config_.training_batch_size,
+                    config_.training_max_batches_per_epoch,
                     seen_batches_,
                     processed_samples_,
                     false,
@@ -382,8 +308,8 @@ int Experiment03::run()
             if (model_)
             {
                 printProgress(dataset_total_samples_,
-                    config_.batch_size,
-                    config_.max_batches_per_epoch,
+                    config_.training_batch_size,
+                    config_.training_max_batches_per_epoch,
                     prefetcher_->seenBatches(),
                     processed_samples_,
                     true,
@@ -398,7 +324,8 @@ int Experiment03::run()
                 auto d = prefetcher_->diagnostics();
                 std::ostringstream _oss;
                 _oss << "  Prefetcher ring size: " << d.ring_size
-                     << " | seen batches: " << d.seen_batches;
+                     << " | seen batches: " << d.seen_batches
+                     << " | inflight_prefetch_bytes: " << d.inflight_prefetch_bytes;
                 NN_LOG_INFO(_oss.str());
             }
 

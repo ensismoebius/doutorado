@@ -22,16 +22,16 @@ auto DatasetBuilder::build() -> std::shared_ptr<Dataset>
         case Experiment03DatasetType::Protocol:
         {
             auto ds = std::make_shared<Protocol101117Dataset>(discovered_);
-            ds->set_input_mode(cfg_->input_mode);
+            ds->set_input_mode(cfg_->dataset_input_mode);
             return ds;
         }
         case Experiment03DatasetType::EegWindow:
-            return std::make_shared<EEGWindowDataset>(discovered_, cfg_->eeg_window_config);
+            return std::make_shared<EEGWindowDataset>(discovered_, cfg_->window_eeg_config);
         case Experiment03DatasetType::AudioWindow:
-            return std::make_shared<AudioWindowDataset>(discovered_, cfg_->audio_window_config);
+            return std::make_shared<AudioWindowDataset>(discovered_, cfg_->window_audio_config);
         case Experiment03DatasetType::FusedWindow:
             return std::make_shared<FusedWindowDataset>(
-                discovered_, cfg_->eeg_window_config, cfg_->audio_window_config);
+                discovered_, cfg_->window_eeg_config, cfg_->window_audio_config);
     }
 
     throw std::runtime_error("Unsupported dataset type");

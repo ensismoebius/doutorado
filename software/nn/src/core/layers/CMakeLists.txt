@@ -19,6 +19,8 @@ target_link_libraries(layers
     PUBLIC tensor
 )
 
+configure_eigen_parallel_target(layers)
+
 nn_enable_target_pch(layers)
 
 add_subdirectory(tests)

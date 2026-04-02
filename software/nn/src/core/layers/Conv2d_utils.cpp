@@ -105,11 +105,6 @@ void Conv2d::im2col_optimized(const nn::Tensor& input,
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
 
-    // Direct write access using mutable pointer
-    float* output_data = output.mutable_data_ptr();
-    // const float* input_data = input.data_ptr(); // Unused
-    // const int total_cols = batch_size * patch_cols_per_batch; // Unused
-
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
     if (use_parallel_ && parallel_heavy) [[likely]]
     {
@@ -138,8 +133,7 @@ void Conv2d::im2col_optimized(const nn::Tensor& input,
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            // output is (patch_rows, total_cols) in column-major (Eigen default)
-                            output_data[col_idx * patch_rows + elem_idx] = value;
+                            output.at(elem_idx, col_idx) = value;
                             elem_idx++;
                         }
                     }
@@ -173,8 +167,7 @@ void Conv2d::im2col_optimized(const nn::Tensor& input,
                             {
                                 value = input.at(b, ic, input_y, input_x);
                             }
-                            // output is (patch_rows, total_cols) in column-major (Eigen default)
-                            output_data[col_idx * patch_rows + elem_idx] = value;
+                            output.at(elem_idx, col_idx) = value;
                             elem_idx++;
                         }
                     }
@@ -294,16 +287,13 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols,
 void Conv2d::add_bias_optimized(
     nn::Tensor& matrix, const nn::Tensor& bias, [[maybe_unused]] int num_cols) const
 {
-    // Support bias stored either as (out_channels, 1) or as (1, out_channels)
-    // Extract bias values into a temporary buffer
-    const float* bias_data = bias.data_ptr();
+    // Support bias stored either as (out_channels, 1) or as (1, out_channels).
+    // Use element accessors to avoid layout assumptions about Tensor backend storage.
     const auto bias_size = (bias.rows() == matrix.rows() && bias.cols() >= 1) ? bias.rows()
                            : (bias.cols() == matrix.rows() && bias.rows() >= 1)
                                ? bias.cols()
                                : std::min(matrix.rows(), bias.size());
 
-    // Use direct pointer access for efficient bias addition
-    float* matrix_data = matrix.mutable_data_ptr();
     const auto n_rows = matrix.rows();
     const auto n_cols = matrix.cols();
 
@@ -314,10 +304,10 @@ void Conv2d::add_bias_optimized(
         for (nn::Index i = 0; i < n_rows; ++i)
         {
             const nn::Index bias_idx = (bias_size > 0) ? (i % bias_size) : 0;
-            const float bias_val = bias_data[bias_idx];
+            const float bias_val = (bias.rows() == 1) ? bias.at(0, bias_idx) : bias.at(bias_idx, 0);
             for (nn::Index j = 0; j < n_cols; ++j)
             {
-                matrix_data[i * n_cols + j] += bias_val;
+                matrix.at(i, j) += bias_val;
             }
         }
     }
@@ -327,10 +317,10 @@ void Conv2d::add_bias_optimized(
         for (nn::Index i = 0; i < n_rows; ++i)
         {
             const nn::Index bias_idx = (bias_size > 0) ? (i % bias_size) : 0;
-            const float bias_val = bias_data[bias_idx];
+            const float bias_val = (bias.rows() == 1) ? bias.at(0, bias_idx) : bias.at(bias_idx, 0);
             for (nn::Index j = 0; j < n_cols; ++j)
             {
-                matrix_data[i * n_cols + j] += bias_val;
+                matrix.at(i, j) += bias_val;
             }
         }
     }
