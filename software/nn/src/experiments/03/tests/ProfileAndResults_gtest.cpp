@@ -7,6 +7,8 @@
 #include "ProfileLoader.hpp"
 #include "ResultsWriter.hpp"
 
+using experiment03::Summary;
+
 TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
 {
     Config config{};
@@ -81,7 +83,7 @@ TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
 
 TEST(Experiment03ResultsWriterTest, WritesSummaryJson)
 {
-    experiment03::RunSummary summary{};
+    Summary summary{};
     summary.profile_name = "test-profile";
     summary.dataset_type = "fused-window";
     summary.autoencoder_type = "fused-window-ann";

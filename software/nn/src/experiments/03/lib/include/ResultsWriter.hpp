@@ -7,7 +7,7 @@
 
 namespace experiment03
 {
-struct RunSummary
+struct Summary
 {
     std::string profile_name;
     std::string dataset_type;
@@ -22,6 +22,6 @@ struct RunSummary
 
 // Write run summary to src/experiments/03/results or ./results when available.
 // Returns true on success and fills out_path; otherwise returns false and sets out_error.
-auto write_run_summary_json(const RunSummary& summary, std::string& out_path, std::string& out_error)
+auto write_run_summary_json(const Summary& summary, std::string& out_path, std::string& out_error)
     -> bool;
 } // namespace experiment03

@@ -13,6 +13,7 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/ProfileLoader.cpp
     ${SRC_DIR}/experiments/03/lib/src/ResultsWriter.cpp
+    ${SRC_DIR}/experiments/03/lib/src/RunSummaryBuilder.cpp
     ${SRC_DIR}/experiments/03/lib/src/DatasetBuilder.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
 )

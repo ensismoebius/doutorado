@@ -76,7 +76,7 @@ auto now_timestamp() -> std::string
 }
 } // namespace
 
-auto write_run_summary_json(const RunSummary& summary, std::string& out_path, std::string& out_error)
+auto write_run_summary_json(const Summary& summary, std::string& out_path, std::string& out_error)
     -> bool
 {
     namespace fs = std::filesystem;

@@ -25,6 +25,7 @@
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
 #include "ResultsWriter.hpp"
+#include "RunSummaryBuilder.hpp"
 #include "experiment03.hpp"
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
@@ -43,7 +44,7 @@ using std::exception;
 using std::make_shared;
 
 using experiment03::DatasetBuilder;
-using experiment03::RunSummary;
+using experiment03::Summary;
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using std::endl;
 using std::make_unique;
@@ -52,69 +53,6 @@ using std::unique_ptr;
 
 namespace
 {
-auto dataset_type_to_string(Experiment03DatasetType dataset_type) -> const char*
-{
-    switch (dataset_type)
-    {
-        case Experiment03DatasetType::Protocol:
-            return "protocol";
-        case Experiment03DatasetType::EegWindow:
-            return "eeg-window";
-        case Experiment03DatasetType::AudioWindow:
-            return "audio-window";
-        case Experiment03DatasetType::FusedWindow:
-            return "fused-window";
-    }
-    return "unknown";
-}
-
-auto autoencoder_type_to_string(Experiment03AutoencoderType autoencoder_type) -> const char*
-{
-    switch (autoencoder_type)
-    {
-        case Experiment03AutoencoderType::ProtocolAnn:
-            return "protocol-ann";
-        case Experiment03AutoencoderType::EegWindowAnn:
-            return "eeg-window-ann";
-        case Experiment03AutoencoderType::AudioWindowAnn:
-            return "audio-window-ann";
-        case Experiment03AutoencoderType::FusedWindowAnn:
-            return "fused-window-ann";
-        case Experiment03AutoencoderType::ProtocolSnn:
-            return "protocol-snn";
-        case Experiment03AutoencoderType::EegWindowSnn:
-            return "eeg-window-snn";
-        case Experiment03AutoencoderType::AudioWindowSnn:
-            return "audio-window-snn";
-        case Experiment03AutoencoderType::FusedWindowSnn:
-            return "fused-window-snn";
-    }
-
-    return "unknown";
-}
-
-auto is_autoencoder_compatible(
-    Experiment03DatasetType dataset_type, Experiment03AutoencoderType autoencoder_type) -> bool
-{
-    switch (dataset_type)
-    {
-        case Experiment03DatasetType::Protocol:
-            return autoencoder_type == Experiment03AutoencoderType::ProtocolAnn ||
-                   autoencoder_type == Experiment03AutoencoderType::ProtocolSnn;
-        case Experiment03DatasetType::EegWindow:
-            return autoencoder_type == Experiment03AutoencoderType::EegWindowAnn ||
-                   autoencoder_type == Experiment03AutoencoderType::EegWindowSnn;
-        case Experiment03DatasetType::AudioWindow:
-            return autoencoder_type == Experiment03AutoencoderType::AudioWindowAnn ||
-                   autoencoder_type == Experiment03AutoencoderType::AudioWindowSnn;
-        case Experiment03DatasetType::FusedWindow:
-            return autoencoder_type == Experiment03AutoencoderType::FusedWindowAnn ||
-                   autoencoder_type == Experiment03AutoencoderType::FusedWindowSnn;
-    }
-
-    return false;
-}
-
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
     -> std::unique_ptr<Module>
 {
@@ -207,34 +145,6 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     throw std::runtime_error("Unsupported autoencoder type");
 }
 
-auto is_snn_type(Experiment03AutoencoderType t) -> bool
-{
-    return t == Experiment03AutoencoderType::ProtocolSnn ||
-           t == Experiment03AutoencoderType::EegWindowSnn ||
-           t == Experiment03AutoencoderType::AudioWindowSnn ||
-           t == Experiment03AutoencoderType::FusedWindowSnn;
-}
-
-auto build_run_summary(const Config& config,
-    int exit_code,
-    size_t total_samples,
-    size_t processed_samples,
-    size_t seen_batches,
-    const std::vector<float>& epoch_mean_losses,
-    const std::string& error_message = "") -> experiment03::RunSummary
-{
-    RunSummary s{};
-    s.profile_name = config.profile_name;
-    s.dataset_type = dataset_type_to_string(config.dataset_type);
-    s.autoencoder_type = autoencoder_type_to_string(config.autoencoder_type);
-    s.exit_code = exit_code;
-    s.total_samples = total_samples;
-    s.processed_samples = processed_samples;
-    s.seen_batches = seen_batches;
-    s.epoch_mean_losses = epoch_mean_losses;
-    if (!error_message.empty()) s.error_message = error_message;
-    return s;
-}
 } // namespace
 
 Experiment03::Experiment03(const Config& config) : config_(config)
@@ -509,7 +419,7 @@ int Experiment03::run()
 
         std::string results_path;
         std::string results_error;
-        auto summary = build_run_summary(config_,
+        auto summary = experiment03::build_run_summary(config_,
             0,
             dataset_total_samples_,
             processed_samples_,
@@ -531,7 +441,7 @@ int Experiment03::run()
     {
         std::string results_path;
         std::string results_error;
-        auto summary = build_run_summary(config_,
+        auto summary = experiment03::build_run_summary(config_,
             1,
             dataset_total_samples_,
             processed_samples_,
