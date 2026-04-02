@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "ResultsWriter.hpp"
-#include "cli.hpp"
 
 namespace experiment03
 {

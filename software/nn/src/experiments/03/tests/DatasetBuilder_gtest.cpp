@@ -6,12 +6,14 @@
 #include <gtest/gtest.h>
 
 #include "DatasetBuilder.hpp"
-#include "cli.hpp"
 
 TEST(DatasetBuilder, BuildsEegWindowDatasetWithEmptyDiscovery)
 {
     Config cfg;
     cfg.dataset_type = Experiment03DatasetType::EegWindow;
+    cfg.window_eeg_config.window_size = 256;
+    cfg.window_eeg_config.overlap = 0.5F;
+    cfg.window_eeg_config.sample_rate = 1024;
 
     std::vector<SubjectFiles> discovered; // empty discovery
 

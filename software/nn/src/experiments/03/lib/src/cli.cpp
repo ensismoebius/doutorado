@@ -21,6 +21,8 @@ using CLI::App;
 
 namespace
 {
+constexpr std::string_view kDefaultProfileName = "default";
+
 auto has_help_flag(int argc, char* argv[]) -> bool
 {
     for (int i = 1; i < argc; ++i)
@@ -54,6 +56,11 @@ auto parse_profile_name_from_argv(int argc, char* argv[], const std::string& fal
     }
 
     return fallback;
+}
+
+auto resolve_profile_name(const std::string& profile_name) -> std::string
+{
+    return profile_name.empty() ? std::string(kDefaultProfileName) : profile_name;
 }
 
 auto datasetTypeToToken(Experiment03DatasetType dataset_type) -> std::string
@@ -150,7 +157,8 @@ auto parseArchitectureToken(const std::string& token) -> AutoencoderArchitecture
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
 {
     Config config = default_config;
-    std::string profile = parse_profile_name_from_argv(argc, argv, default_config.profile_name);
+    std::string profile =
+        resolve_profile_name(parse_profile_name_from_argv(argc, argv, default_config.profile_name));
 
     // Seed defaults from profile before registering CLI options so explicit
     // command line flags still win over profile values.
@@ -181,7 +189,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     app.add_option(                                                                     //
            "--subject",                                                                 //
-           config.dataset_subject_filter_regex,                                                 //
+           config.dataset_subject_filter_regex,                                         //
            "Subject regex filter pattern (regex should contain a group for subject id)" //
            )
         ->expected(1)
@@ -387,9 +395,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::NonNegativeNumber)
         ->default_val(default_config.sampler_shuffle_seed.value_or(0U));
 
-    app.add_flag(                     //
-           "--shuffle,!--no-shuffle", //
-           config.sampler_shuffle_samples,    //
+    app.add_flag(                          //
+           "--shuffle,!--no-shuffle",      //
+           config.sampler_shuffle_samples, //
            "Shuffle samples before batching")
         ->default_val(default_config.sampler_shuffle_samples);
 
