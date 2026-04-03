@@ -110,6 +110,7 @@ Additional coding directives
 - Name code objects intuitively and readably: choose descriptive, human-friendly names for functions, variables, classes, and structs so their purpose is immediately clear.
 - Document everything: every function, variable, class, or struct should include a clear, concise comment describing its purpose, behaviour, inputs, outputs, and any important invariants or side effects.
 - Do NOT add deprecated code tags when modifying the codebase: replace the symbol or object and refactor all references to point to the new symbol or object.
+- For OpenCL code, prefer modern APIs (e.g., `clCreateCommandQueueWithProperties`) with explicit compatibility fallbacks for older header/runtime combinations; when deprecation warnings appear, proactively migrate call sites and add targeted tests.
 
 Preserve custom directives
 -------------------------

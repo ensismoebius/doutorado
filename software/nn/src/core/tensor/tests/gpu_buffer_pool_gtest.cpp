@@ -44,10 +44,22 @@ class GPUBufferPoolTest : public ::testing::Test
         ASSERT_EQ(err, CL_SUCCESS);
         ASSERT_NE(context_, nullptr);
 
-        // Create command queue
+        // Create command queue.
+        // Prefer OpenCL 2.0+ API and keep a compile-time fallback for older headers.
+#if defined(CL_VERSION_2_0)
+        const cl_queue_properties queue_props[] = {
+            CL_QUEUE_PROPERTIES,
+            static_cast<cl_queue_properties>(0),
+            0,
+        };
+        queue_ = clCreateCommandQueueWithProperties(context_, device_, queue_props, &err);
+        ASSERT_EQ(err, CL_SUCCESS);
+        ASSERT_NE(queue_, nullptr);
+#else
         queue_ = clCreateCommandQueue(context_, device_, 0, &err);
         ASSERT_EQ(err, CL_SUCCESS);
         ASSERT_NE(queue_, nullptr);
+#endif
 
         pool_ = std::make_unique<GPUBufferPool>(context_, queue_);
     }

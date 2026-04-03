@@ -107,9 +107,20 @@ void OpenCLContext::initialize_device()
     m_context = clCreateContext(props, 1, &m_device, nullptr, nullptr, &err);
     check_cl_error(err, "clCreateContext");
 
-    // Create command queue with profiling enabled
+    // Create command queue with profiling enabled.
+    // Prefer OpenCL 2.0+ API and keep a compile-time fallback for older headers.
+#if defined(CL_VERSION_2_0)
+    const cl_queue_properties queue_props[] = {
+        CL_QUEUE_PROPERTIES,
+        static_cast<cl_queue_properties>(CL_QUEUE_PROFILING_ENABLE),
+        0,
+    };
+    m_queue = clCreateCommandQueueWithProperties(m_context, m_device, queue_props, &err);
+    check_cl_error(err, "clCreateCommandQueueWithProperties");
+#else
     m_queue = clCreateCommandQueue(m_context, m_device, CL_QUEUE_PROFILING_ENABLE, &err);
     check_cl_error(err, "clCreateCommandQueue");
+#endif
 
     m_is_available = true;
 }
