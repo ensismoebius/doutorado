@@ -24,3 +24,16 @@ find_package(SDL2 REQUIRED)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 pkg_check_modules(OPENBLAS REQUIRED openblas)
+
+# Find OpenCL (for GPU tensor backend)
+# Use FindOpenCL from CMake if available, otherwise try pkg-config
+find_package(OpenCL QUIET)
+if (NOT OpenCL_FOUND)
+    pkg_check_modules(OpenCL QUIET OpenCL)
+endif()
+
+if (OpenCL_FOUND)
+    message(STATUS "OpenCL found: ${OpenCL_LIBRARIES}")
+else()
+    message(WARNING "OpenCL not found; GPU tensor backend will not be available")
+endif()

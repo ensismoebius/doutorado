@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include "cli.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/Dataset.hpp"

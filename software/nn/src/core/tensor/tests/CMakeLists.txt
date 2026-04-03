@@ -46,6 +46,24 @@ target_include_directories(device_backend_gtest
 gtest_discover_tests(device_backend_gtest)
 configure_eigen_parallel_target(device_backend_gtest)
 
+add_executable(opencl_tensor_backend_gtest opencl_tensor_backend_gtest.cpp)
+
+target_link_libraries(opencl_tensor_backend_gtest
+    PRIVATE
+        google_test
+        Eigen3::Eigen
+        tensor
+)
+
+target_include_directories(opencl_tensor_backend_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${EIGEN3_INCLUDE_DIR}
+)
+
+gtest_discover_tests(opencl_tensor_backend_gtest)
+configure_eigen_parallel_target(opencl_tensor_backend_gtest)
+
 # Mock-backend focused tests (Eigen-free math, but Tensor header still requires Eigen include)
 # add_executable(tensor_mock_gtest 
 #     mock_backend_gtest.cpp
