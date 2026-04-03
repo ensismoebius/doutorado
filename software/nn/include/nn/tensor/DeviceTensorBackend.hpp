@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "EigenTensorBackend.hpp"
+#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 
 namespace nn
 {

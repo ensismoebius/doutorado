@@ -1,15 +1,15 @@
 /**
- * @file src/core/tensor/KernelManager.cpp
+ * @file src/core/tensor/opencl/KernelManager.cpp
  * @brief OpenCL kernel compilation and caching implementation.
  */
 
-#include "nn/tensor/KernelManager.hpp"
+#include "nn/tensor/opencl/KernelManager.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl
 {

@@ -15,7 +15,7 @@
 #include <vector>
 
 // EigenTensorBackend.hpp must be available in include path.
-#include "nn/tensor/EigenTensorBackend.hpp"
+#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 
 // -----------------------------------------------------------------------------
 // Lightweight Tensor wrapper (Templated)

@@ -25,9 +25,12 @@
 
 #include <memory>
 #include <random>
+#include <string>
+#include <string_view>
 #include <vector>
 
-#include "nn/tensor/GPUBufferPool.hpp"
+#include "nn/tensor/Tensor.hpp"
+#include "nn/tensor/opencl/GPUBufferPool.hpp"
 namespace nn
 {
 
@@ -46,6 +49,25 @@ class EigenTensorBackend;
 class OpenCLTensorBackend
 {
    public:
+    /**
+     * @brief RAII scope that keeps OpenCL runtime resources active for a caller scope.
+     *
+     * On destruction, performs backend-owned runtime shutdown.
+     */
+    struct RuntimeScope
+    {
+        std::string device_name;
+        bool active = false;
+
+        RuntimeScope() = default;
+        ~RuntimeScope();
+
+        RuntimeScope(const RuntimeScope&) = delete;
+        RuntimeScope& operator=(const RuntimeScope&) = delete;
+        RuntimeScope(RuntimeScope&& other) noexcept;
+        RuntimeScope& operator=(RuntimeScope&& other) noexcept;
+    };
+
     // -----------------------------------------------------------------
     // Constructors
     // -----------------------------------------------------------------
@@ -177,6 +199,42 @@ class OpenCLTensorBackend
      * @brief Zero out all accumulated gradients.
      */
     void zero_grad();
+
+    /**
+     * @brief Initialize OpenCL backend runtime facilities.
+     *
+     * Performs backend-owned startup checks (sanitizer/runtime availability),
+     * initializes the shared GPU buffer pool, configures profiling, and
+     * returns the active OpenCL device name.
+     *
+     * @param opencl_profiling_enabled Whether event profiling should be enabled.
+     * @return Device name reported by OpenCL runtime.
+     * @throws std::runtime_error when OpenCL cannot be used.
+     */
+    static std::string initialize_runtime_or_throw(bool opencl_profiling_enabled);
+
+    /**
+     * @brief Start backend runtime and return an RAII scope for shutdown.
+     *
+     * This is the preferred lifecycle API for callers that need deterministic
+     * runtime setup/teardown handled by the backend itself.
+     */
+    static RuntimeScope start_runtime_scope_or_throw(bool opencl_profiling_enabled);
+
+    /**
+     * @brief Verify that OpenCL execution is effectively active for a representative workload.
+     *
+     * Runs a small reconstruction-MSE probe fully through the OpenCL backend and, when
+     * available, checks GPU busy percentage growth from a sysfs node.
+     *
+     * @param prediction Reconstruction tensor produced by the model.
+     * @param target Ground-truth tensor used as reconstruction target.
+     * @param gpu_busy_percent_path Sysfs path for gpu_busy_percent probing.
+     * @throws std::runtime_error when OpenCL runtime is unavailable or probe indicates no activity.
+     */
+    static void verify_runtime_activity_or_throw(const Tensor& prediction,
+        const Tensor& target,
+        std::string_view gpu_busy_percent_path = "/sys/class/drm/card1/device/gpu_busy_percent");
 
     /**
      * @brief Initialize the static GPU buffer pool (call once at app startup).

@@ -1,11 +1,11 @@
 add_library(tensor STATIC
-	${CMAKE_CURRENT_SOURCE_DIR}/OpenCLContext.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/CLBuffer.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/DeviceMemory.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/KernelManager.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/OpenCLProfiling.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/GPUBufferPool.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/OpenCLTensorBackend.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLContext.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/CLBuffer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/DeviceMemory.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/KernelManager.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLProfiling.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/GPUBufferPool.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackend.cpp
 )
 
 target_include_directories(tensor PUBLIC

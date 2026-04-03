@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "nn/tensor/GPUBufferPool.hpp"
+#include "nn/tensor/opencl/GPUBufferPool.hpp"
 
 using namespace nn::tensor;
 

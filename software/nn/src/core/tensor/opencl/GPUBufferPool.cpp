@@ -3,7 +3,7 @@
  * @brief GPU device memory pool implementation.
  */
 
-#include "nn/tensor/GPUBufferPool.hpp"
+#include "nn/tensor/opencl/GPUBufferPool.hpp"
 
 #include <cassert>
 

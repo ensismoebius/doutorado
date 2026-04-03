@@ -33,6 +33,19 @@ All notable changes to this project will be documented in this file.
   commit to simplify review of behavioral changes.
 ## Unreleased (2026-03-20)
 
+### Changed (2026-04-03)
+
+- OpenCL backend initialization checks are now backend-owned via
+  `OpenCLTensorBackend::initialize_runtime_or_throw(bool)`. Experiment entry
+  points no longer perform sanitizer/runtime availability checks directly.
+- OpenCL runtime activity verification (GPU busy probe + reconstruction-MSE
+  workload) is now backend-owned via
+  `OpenCLTensorBackend::verify_runtime_activity_or_throw(...)`, reducing
+  OpenCL-specific code in `experiment03`.
+- OpenCL runtime init/shutdown lifecycle is now backend-owned through
+  `OpenCLTensorBackend::RuntimeScope` and
+  `OpenCLTensorBackend::start_runtime_scope_or_throw(...)`.
+
 ### Added
 
 - Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches

@@ -1,9 +1,9 @@
 /**
- * @file src/core/tensor/OpenCLProfiling.cpp
+ * @file src/core/tensor/opencl/OpenCLProfiling.cpp
  * @brief OpenCL profiling helper implementations.
  */
 
-#include "nn/tensor/OpenCLProfiling.hpp"
+#include "nn/tensor/opencl/OpenCLProfiling.hpp"
 
 #include <CL/cl.h>
 
@@ -11,7 +11,7 @@
 #include <cstdint>
 
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl::profiling
 {

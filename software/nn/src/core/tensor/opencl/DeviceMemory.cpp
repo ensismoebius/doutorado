@@ -1,15 +1,15 @@
 /**
- * @file src/core/tensor/DeviceMemory.cpp
+ * @file src/core/tensor/opencl/DeviceMemory.cpp
  * @brief GPU device memory management implementation.
  */
 
-#include "nn/tensor/DeviceMemory.hpp"
+#include "nn/tensor/opencl/DeviceMemory.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl
 {

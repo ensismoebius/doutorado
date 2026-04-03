@@ -1,26 +1,32 @@
 /**
- * @file src/core/tensor/OpenCLTensorBackend.cpp
+ * @file src/core/tensor/opencl/OpenCLTensorBackend.cpp
  * @brief OpenCL tensor backend implementation (Phase 1: CPU fallback).
  *
  * Phase 1 delegates all operations to EigenTensorBackend for correctness.
  * GPU implementations will be added incrementally as needed.
  */
 
-#include "nn/tensor/OpenCLTensorBackend.hpp"
+#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <chrono>
+#include <fstream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_set>
 
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/DeviceMemory.hpp"
-#include "nn/tensor/EigenTensorBackend.hpp"
-#include "nn/tensor/KernelManager.hpp"
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/eigen/EigenTensorBackend.hpp"
+#include "nn/tensor/opencl/DeviceMemory.hpp"
+#include "nn/tensor/opencl/KernelManager.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLProfiling.hpp"
 
 namespace nn
 {
@@ -38,6 +44,8 @@ void check_cl_error(cl_int err, const char* context)
 
 bool can_use_opencl()
 {
+    // OpenCL runtime is intentionally disabled under ASan to avoid false positives
+    // from third-party drivers while preserving CPU fallback semantics.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
     return false;
@@ -120,6 +128,52 @@ void copy_device_to_host(cl_command_queue queue,
                        queue, device_buffer, CL_TRUE, 0, bytes, host_data, 0, nullptr, nullptr),
         context);
 }
+
+auto read_gpu_busy_percent(std::string_view gpu_busy_percent_path) -> std::optional<int>
+{
+    std::ifstream input{std::string(gpu_busy_percent_path)};
+    if (!input.good())
+    {
+        return std::nullopt;
+    }
+
+    int value = 0;
+    input >> value;
+    if (input.fail())
+    {
+        return std::nullopt;
+    }
+
+    return value;
+}
+
+auto to_opencl_tensor(const nn::Tensor& source) -> nn::OpenCLTensorBackend
+{
+    nn::OpenCLTensorBackend result(source.get_shape());
+    for (Index i = 0; i < source.size(); ++i)
+    {
+        result.at(i) = source.at(i);
+    }
+    return result;
+}
+
+auto compute_opencl_reconstruction_mse(const nn::Tensor& prediction, const nn::Tensor& target)
+    -> float
+{
+    auto prediction_gpu = to_opencl_tensor(prediction);
+    auto target_gpu = to_opencl_tensor(target);
+    auto diff_gpu = prediction_gpu.add(target_gpu.multiply_scalar(-1.0F));
+    auto squared_gpu = diff_gpu.multiply(diff_gpu);
+    auto row_sums = squared_gpu.rowwise_sum();
+
+    float total = 0.0F;
+    for (Index i = 0; i < row_sums.size(); ++i)
+    {
+        total += row_sums.at(i);
+    }
+
+    return prediction.size() == 0 ? 0.0F : total / static_cast<float>(prediction.size());
+}
 } // namespace
 
 // Constructors
@@ -164,6 +218,35 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
 }
 
 OpenCLTensorBackend::~OpenCLTensorBackend() = default;
+
+OpenCLTensorBackend::RuntimeScope::~RuntimeScope()
+{
+    if (active)
+    {
+        OpenCLTensorBackend::shutdown_buffer_pool();
+    }
+}
+
+OpenCLTensorBackend::RuntimeScope::RuntimeScope(RuntimeScope&& other) noexcept
+    : device_name(std::move(other.device_name)), active(other.active)
+{
+    other.active = false;
+}
+
+auto OpenCLTensorBackend::RuntimeScope::operator=(RuntimeScope&& other) noexcept -> RuntimeScope&
+{
+    if (this != &other)
+    {
+        if (active)
+        {
+            OpenCLTensorBackend::shutdown_buffer_pool();
+        }
+        device_name = std::move(other.device_name);
+        active = other.active;
+        other.active = false;
+    }
+    return *this;
+}
 
 // Static Factories
 OpenCLTensorBackend OpenCLTensorBackend::zeros(Index rows, Index cols)
@@ -1437,6 +1520,88 @@ void OpenCLTensorBackend::init_buffer_pool(void* context, void* queue)
         g_buffer_pool = std::make_unique<tensor::GPUBufferPool>(
             static_cast<cl_context>(context), static_cast<cl_command_queue>(queue));
         NN_LOG_INFO("GPU buffer pool initialized");
+    }
+}
+
+std::string OpenCLTensorBackend::initialize_runtime_or_throw(bool opencl_profiling_enabled)
+{
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+    throw std::runtime_error(
+        "OpenCL backend initialization failed: AddressSanitizer-enabled build disables OpenCL "
+        "execution");
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+    throw std::runtime_error(
+        "OpenCL backend initialization failed: AddressSanitizer-enabled build disables OpenCL "
+        "execution");
+#endif
+
+    auto& opencl_context = opencl::OpenCLContext::instance();
+    if (!opencl_context.is_available())
+    {
+        throw std::runtime_error(
+            "OpenCL backend initialization failed: no OpenCL device/context is available");
+    }
+
+    OpenCLTensorBackend::init_buffer_pool(opencl_context.get_context(), opencl_context.get_queue());
+    opencl::profiling::set_enabled(opencl_profiling_enabled);
+    return opencl_context.get_device_name();
+}
+
+OpenCLTensorBackend::RuntimeScope OpenCLTensorBackend::start_runtime_scope_or_throw(
+    bool opencl_profiling_enabled)
+{
+    RuntimeScope scope;
+    scope.device_name = initialize_runtime_or_throw(opencl_profiling_enabled);
+    scope.active = true;
+    return scope;
+}
+
+void OpenCLTensorBackend::verify_runtime_activity_or_throw(
+    const Tensor& prediction, const Tensor& target, std::string_view gpu_busy_percent_path)
+{
+    auto& opencl_context = opencl::OpenCLContext::instance();
+    if (!opencl_context.is_available())
+    {
+        throw std::runtime_error(
+            "OpenCL device requested but no OpenCL device/context is available");
+    }
+
+    const std::optional<int> busy_before = read_gpu_busy_percent(gpu_busy_percent_path);
+    int peak_busy_percent = busy_before.value_or(0);
+    float gpu_probe_loss = 0.0F;
+
+    for (int iteration = 0; iteration < 8; ++iteration)
+    {
+        gpu_probe_loss = compute_opencl_reconstruction_mse(prediction, target);
+        opencl_context.flush();
+        if (const std::optional<int> busy_now = read_gpu_busy_percent(gpu_busy_percent_path))
+        {
+            peak_busy_percent = std::max(peak_busy_percent, *busy_now);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+    }
+
+    std::string status = std::string("OpenCL verification probe complete") +
+                         " | device=" + opencl_context.get_device_name() +
+                         " | gpu_probe_mse=" + std::to_string(gpu_probe_loss);
+    if (busy_before.has_value())
+    {
+        status += " | gpu_busy_before=" + std::to_string(*busy_before) +
+                  "% | gpu_busy_peak=" + std::to_string(peak_busy_percent) + "%";
+    }
+    else
+    {
+        status += " | gpu_busy_percent unavailable at " + std::string(gpu_busy_percent_path);
+    }
+    NN_LOG_INFO(status);
+
+    if (busy_before.has_value() && peak_busy_percent <= *busy_before)
+    {
+        throw std::runtime_error(
+            "OpenCL device requested but gpu_busy_percent did not increase during the GPU probe");
     }
 }
 

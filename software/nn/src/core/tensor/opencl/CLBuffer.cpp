@@ -1,14 +1,14 @@
 /**
- * @file src/core/tensor/CLBuffer.cpp
+ * @file src/core/tensor/opencl/CLBuffer.cpp
  * @brief GPU buffer management implementation.
  */
 
-#include "nn/tensor/CLBuffer.hpp"
+#include "nn/tensor/opencl/CLBuffer.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl
 {

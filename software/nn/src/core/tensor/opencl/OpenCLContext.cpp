@@ -1,9 +1,9 @@
 /**
- * @file src/core/tensor/OpenCLContext.cpp
+ * @file src/core/tensor/opencl/OpenCLContext.cpp
  * @brief OpenCL device and context management implementation.
  */
 
-#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 #include <cassert>
 #include <stdexcept>

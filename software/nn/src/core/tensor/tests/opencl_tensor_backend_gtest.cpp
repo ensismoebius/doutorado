@@ -7,9 +7,9 @@
 
 #include <cmath>
 
-#include "nn/tensor/OpenCLContext.hpp"
-#include "nn/tensor/OpenCLProfiling.hpp"
-#include "nn/tensor/OpenCLTensorBackend.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "nn/tensor/opencl/OpenCLProfiling.hpp"
+#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 
 namespace
 {
@@ -155,6 +155,27 @@ TEST(OpenCLProfilingTest, ToggleFlag)
     EXPECT_TRUE(nn::opencl::profiling::is_enabled());
     nn::opencl::profiling::set_enabled(false);
     EXPECT_FALSE(nn::opencl::profiling::is_enabled());
+}
+
+TEST(OpenCLTensorBackendTest, VerifyRuntimeActivityHandlesUnavailableProbePath)
+{
+    nn::Tensor prediction(1, 2);
+    nn::Tensor target(1, 2);
+    prediction.at(0, 0) = 1.0f;
+    prediction.at(0, 1) = 2.0f;
+    target.at(0, 0) = 1.5f;
+    target.at(0, 1) = 1.0f;
+
+    if (!nn::opencl::OpenCLContext::instance().is_available())
+    {
+        EXPECT_THROW(nn::OpenCLTensorBackend::verify_runtime_activity_or_throw(
+                         prediction, target, "/nonexistent/path/gpu_busy_percent"),
+            std::runtime_error);
+        return;
+    }
+
+    EXPECT_NO_THROW(nn::OpenCLTensorBackend::verify_runtime_activity_or_throw(
+        prediction, target, "/nonexistent/path/gpu_busy_percent"));
 }
 
 } // namespace
