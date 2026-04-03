@@ -3,6 +3,8 @@ add_library(tensor STATIC
 	${CMAKE_CURRENT_SOURCE_DIR}/CLBuffer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/DeviceMemory.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/KernelManager.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/OpenCLProfiling.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/GPUBufferPool.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/OpenCLTensorBackend.cpp
 )
 

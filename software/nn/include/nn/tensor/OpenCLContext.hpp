@@ -17,9 +17,7 @@
 
 #include <CL/cl.h>
 
-#include <memory>
 #include <string>
-#include <vector>
 
 namespace nn::opencl
 {
@@ -135,6 +133,35 @@ class OpenCLContext
      */
     void flush();
 
+    /**
+     * @brief Enable batch mode: defer queue synchronization after each kernel.
+     *
+     * When enabled, OpenCLTensorBackend operations skip per-kernel clFinish.
+     * Use with end_batch() to amortize synchronization overhead across
+     * multiple operations (e.g., one forward pass).
+     *
+     * Example:
+     *   OpenCLContext::instance().begin_batch();
+     *   output = layer1.forward(input);
+     *   output = layer2.forward(output);
+     *   // ... more layers
+     *   OpenCLContext::instance().end_batch();  // single GPU sync
+     */
+    static void begin_batch();
+
+    /**
+     * @brief End batch mode and synchronize the GPU.
+     *
+     * If batching is active, calls queue.flush() to wait for all pending operations.
+     * Safe to call even if batching wasn't active.
+     */
+    static void end_batch();
+
+    /**
+     * @brief Query current batch mode status.
+     */
+    static bool is_batching();
+
    private:
     OpenCLContext();
     ~OpenCLContext();
@@ -153,6 +180,9 @@ class OpenCLContext
     std::string m_platform_name;
     cl_uint m_compute_units = 0;
     cl_ulong m_local_memory_size = 0;
+
+    // Batch mode: defer queue synchronization across multiple operations
+    static bool s_batching;
 };
 
 } // namespace nn::opencl

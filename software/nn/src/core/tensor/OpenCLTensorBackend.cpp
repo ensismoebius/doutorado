@@ -9,7 +9,6 @@
 #include "nn/tensor/OpenCLTensorBackend.hpp"
 
 #include <cassert>
-#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -98,6 +97,28 @@ std::size_t round_up(std::size_t global, std::size_t local)
     }
     const std::size_t rem = global % local;
     return rem == 0 ? global : (global + (local - rem));
+}
+
+void copy_host_to_device(cl_command_queue queue,
+    cl_mem device_buffer,
+    const float* host_data,
+    std::size_t bytes,
+    const char* context)
+{
+    check_cl_error(clEnqueueWriteBuffer(
+                       queue, device_buffer, CL_TRUE, 0, bytes, host_data, 0, nullptr, nullptr),
+        context);
+}
+
+void copy_device_to_host(cl_command_queue queue,
+    cl_mem device_buffer,
+    float* host_data,
+    std::size_t bytes,
+    const char* context)
+{
+    check_cl_error(clEnqueueReadBuffer(
+                       queue, device_buffer, CL_TRUE, 0, bytes, host_data, 0, nullptr, nullptr),
+        context);
 }
 } // namespace
 
@@ -315,13 +336,65 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                 return empty;
             }
 
+            auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
-            opencl::DeviceMemory input_dev(n * sizeof(float));
-            opencl::DeviceMemory out_dev(n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(exp, in)");
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("exp_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                        "clSetKernelArg(exp, in)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(exp, out)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(exp, size)");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(exp)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(exp)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(exp, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
             input_dev.copy_to_device(m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("exp_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
             const cl_mem out_mem = out_dev.get_device_buffer();
@@ -385,16 +458,77 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
+            const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
-            opencl::DeviceMemory a_dev(n * sizeof(float));
-            opencl::DeviceMemory b_dev(n * sizeof(float));
-            opencl::DeviceMemory out_dev(n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto a_buf = pool->acquire(bytes);
+                auto b_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (a_buf && b_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        a_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(add, a)");
+                    copy_host_to_device(ctx.get_queue(),
+                        b_buf->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(add, b)");
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_kernel");
+                    const cl_mem a_mem = a_buf->buffer;
+                    const cl_mem b_mem = b_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                        "clSetKernelArg(add, a)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                        "clSetKernelArg(add, b)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(add, out)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(add, size)");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(add)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(add)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(add, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory a_dev(bytes);
+            opencl::DeviceMemory b_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
             a_dev.copy_to_device(m_backend->data_ptr());
             b_dev.copy_to_device(other.m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
             const cl_mem b_mem = b_dev.get_device_buffer();
@@ -453,16 +587,78 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
+            const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
-            opencl::DeviceMemory a_dev(n * sizeof(float));
-            opencl::DeviceMemory b_dev(n * sizeof(float));
-            opencl::DeviceMemory out_dev(n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto a_buf = pool->acquire(bytes);
+                auto b_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (a_buf && b_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        a_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(multiply, a)");
+                    copy_host_to_device(ctx.get_queue(),
+                        b_buf->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(multiply, b)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("multiply_kernel");
+                    const cl_mem a_mem = a_buf->buffer;
+                    const cl_mem b_mem = b_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                        "clSetKernelArg(multiply, a)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                        "clSetKernelArg(multiply, b)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(multiply, out)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(multiply, size)");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(multiply)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(multiply, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory a_dev(bytes);
+            opencl::DeviceMemory b_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
             a_dev.copy_to_device(m_backend->data_ptr());
             b_dev.copy_to_device(other.m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("multiply_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
             const cl_mem b_mem = b_dev.get_device_buffer();
@@ -517,14 +713,69 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
+            const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
-            opencl::DeviceMemory input_dev(n * sizeof(float));
-            opencl::DeviceMemory out_dev(n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(add_scalar, in)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("add_scalar_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                        "clSetKernelArg(add_scalar, in)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(add_scalar, out)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &val),
+                        "clSetKernelArg(add_scalar, scalar)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(add_scalar, size)");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(add_scalar)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(add_scalar)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(add_scalar, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
             input_dev.copy_to_device(m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("add_scalar_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
             const cl_mem out_mem = out_dev.get_device_buffer();
@@ -570,14 +821,69 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
+            const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
-            opencl::DeviceMemory input_dev(n * sizeof(float));
-            opencl::DeviceMemory out_dev(n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(multiply_scalar, in)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("multiply_scalar_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                        "clSetKernelArg(multiply_scalar, in)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(multiply_scalar, out)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &val),
+                        "clSetKernelArg(multiply_scalar, scalar)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(multiply_scalar, size)");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(multiply_scalar)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply_scalar)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(multiply_scalar, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
             input_dev.copy_to_device(m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel =
                 opencl::KernelManager::instance().get_kernel("multiply_scalar_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
@@ -637,16 +943,72 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const Index num_rows = rows();
             const Index num_cols = cols();
+            const std::size_t input_bytes = num_rows * num_cols * sizeof(float);
+            const std::size_t output_bytes = num_rows * sizeof(float);
 
             EigenTensorBackend out(num_rows, 1);
-            opencl::DeviceMemory input_dev(num_rows * num_cols * sizeof(float));
-            opencl::DeviceMemory out_dev(num_rows * sizeof(float));
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto input_buf = pool->acquire(input_bytes);
+                auto out_buf = pool->acquire(output_bytes);
+                if (input_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        input_bytes,
+                        "clEnqueueWriteBuffer(rowwise_sum, input)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("rowwise_sum_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+                    const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                        "clSetKernelArg(rowwise_sum, input)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(rowwise_sum, output)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                        "clSetKernelArg(rowwise_sum, rows)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                        "clSetKernelArg(rowwise_sum, cols)");
+
+                    const std::size_t global = static_cast<std::size_t>(num_rows);
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       nullptr,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(rowwise_sum)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(rowwise_sum)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        output_bytes,
+                        "clEnqueueReadBuffer(rowwise_sum, output)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(input_bytes);
+            opencl::DeviceMemory out_dev(output_bytes);
 
             input_dev.copy_to_device(m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("rowwise_sum_kernel");
             const cl_mem in_mem = input_dev.get_device_buffer();
             const cl_mem out_mem = out_dev.get_device_buffer();
@@ -701,19 +1063,88 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const Index m = rows();
             const Index k = cols();
             const Index n = other.cols();
 
+            const std::size_t a_bytes = m * k * sizeof(float);
+            const std::size_t b_bytes = k * n * sizeof(float);
+            const std::size_t c_bytes = m * n * sizeof(float);
             EigenTensorBackend out(m, n);
-            opencl::DeviceMemory a_dev(m * k * sizeof(float));
-            opencl::DeviceMemory b_dev(k * n * sizeof(float));
-            opencl::DeviceMemory out_dev(m * n * sizeof(float));
 
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto a_buf = pool->acquire(a_bytes);
+                auto b_buf = pool->acquire(b_bytes);
+                auto c_buf = pool->acquire(c_bytes);
+                if (a_buf && b_buf && c_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        a_buf->buffer,
+                        m_backend->data_ptr(),
+                        a_bytes,
+                        "clEnqueueWriteBuffer(matmul, a)");
+                    copy_host_to_device(ctx.get_queue(),
+                        b_buf->buffer,
+                        other.m_backend->data_ptr(),
+                        b_bytes,
+                        "clEnqueueWriteBuffer(matmul, b)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("matmul_kernel");
+                    const cl_mem a_mem = a_buf->buffer;
+                    const cl_mem b_mem = b_buf->buffer;
+                    const cl_mem c_mem = c_buf->buffer;
+                    const cl_uint m_u32 = static_cast<cl_uint>(m);
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+                    const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                        "clSetKernelArg(matmul, a)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                        "clSetKernelArg(matmul, b)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_mem),
+                        "clSetKernelArg(matmul, c)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &m_u32),
+                        "clSetKernelArg(matmul, m)");
+                    check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(matmul, n)");
+                    check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &k_u32),
+                        "clSetKernelArg(matmul, k)");
+
+                    const std::size_t global[2] = {m, n};
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       2,
+                                       nullptr,
+                                       global,
+                                       nullptr,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(matmul)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(matmul)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        c_buf->buffer,
+                        out.mutable_data_ptr(),
+                        c_bytes,
+                        "clEnqueueReadBuffer(matmul, c)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory a_dev(a_bytes);
+            opencl::DeviceMemory b_dev(b_bytes);
+            opencl::DeviceMemory out_dev(c_bytes);
             a_dev.copy_to_device(m_backend->data_ptr());
             b_dev.copy_to_device(other.m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("matmul_kernel");
             const cl_mem a_mem = a_dev.get_device_buffer();
             const cl_mem b_mem = b_dev.get_device_buffer();
@@ -778,16 +1209,71 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
     {
         try
         {
+            auto& ctx = opencl::OpenCLContext::instance();
             const Index in_rows = rows();
             const Index in_cols = cols();
+            const std::size_t bytes = in_rows * in_cols * sizeof(float);
 
             EigenTensorBackend out(in_cols, in_rows);
-            opencl::DeviceMemory in_dev(in_rows * in_cols * sizeof(float));
-            opencl::DeviceMemory out_dev(in_rows * in_cols * sizeof(float));
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto in_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (in_buf && out_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        in_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clEnqueueWriteBuffer(transpose, in)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("transpose_kernel");
+                    const cl_mem in_mem = in_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint rows_u32 = static_cast<cl_uint>(in_rows);
+                    const cl_uint cols_u32 = static_cast<cl_uint>(in_cols);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                        "clSetKernelArg(transpose, in)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                        "clSetKernelArg(transpose, out)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                        "clSetKernelArg(transpose, rows)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                        "clSetKernelArg(transpose, cols)");
+
+                    const std::size_t global[2] = {in_rows, in_cols};
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       2,
+                                       nullptr,
+                                       global,
+                                       nullptr,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(transpose)");
+                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(transpose)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clEnqueueReadBuffer(transpose, out)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory in_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
 
             in_dev.copy_to_device(m_backend->data_ptr());
 
-            auto& ctx = opencl::OpenCLContext::instance();
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel("transpose_kernel");
             const cl_mem in_mem = in_dev.get_device_buffer();
             const cl_mem out_mem = out_dev.get_device_buffer();
@@ -936,4 +1422,37 @@ void OpenCLTensorBackend::zero_grad()
     }
 }
 
+// Static GPU buffer pool management
+namespace
+{
+std::unique_ptr<tensor::GPUBufferPool> g_buffer_pool;
+std::mutex g_buffer_pool_mutex;
+} // namespace
+
+void OpenCLTensorBackend::init_buffer_pool(void* context, void* queue)
+{
+    std::lock_guard<std::mutex> lock(g_buffer_pool_mutex);
+    if (!g_buffer_pool && context && queue)
+    {
+        g_buffer_pool = std::make_unique<tensor::GPUBufferPool>(
+            static_cast<cl_context>(context), static_cast<cl_command_queue>(queue));
+        NN_LOG_INFO("GPU buffer pool initialized");
+    }
+}
+
+void OpenCLTensorBackend::shutdown_buffer_pool()
+{
+    std::lock_guard<std::mutex> lock(g_buffer_pool_mutex);
+    if (g_buffer_pool)
+    {
+        g_buffer_pool.reset();
+        NN_LOG_INFO("GPU buffer pool shut down");
+    }
+}
+
+tensor::GPUBufferPool* OpenCLTensorBackend::get_buffer_pool()
+{
+    std::lock_guard<std::mutex> lock(g_buffer_pool_mutex);
+    return g_buffer_pool.get();
+}
 } // namespace nn

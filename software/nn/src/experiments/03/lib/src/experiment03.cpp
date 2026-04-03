@@ -45,6 +45,7 @@
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
 #include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/OpenCLProfiling.hpp"
 #include "nn/tensor/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
@@ -274,6 +275,19 @@ int Experiment03::run()
     std::vector<float> epoch_mean_losses;
     bool opencl_usage_verified = false;
 
+    struct OpenCLBufferPoolScope
+    {
+        bool active = false;
+
+        ~OpenCLBufferPoolScope()
+        {
+            if (active)
+            {
+                nn::OpenCLTensorBackend::shutdown_buffer_pool();
+            }
+        }
+    } opencl_buffer_pool_scope;
+
     try
     {
         if (config_.device == "opencl")
@@ -292,6 +306,14 @@ int Experiment03::run()
                 throw runtime_error(
                     "Experiment03 requested --device opencl but no OpenCL device is available");
             }
+
+            nn::OpenCLTensorBackend::init_buffer_pool(
+                opencl_context.get_context(), opencl_context.get_queue());
+            opencl_buffer_pool_scope.active = true;
+
+            // Enable or disable OpenCL profiling per configuration before any
+            // kernel launches occur.
+            nn::opencl::profiling::set_enabled(config_.opencl_profiling_enabled);
 
             NN_LOG_INFO(string("Experiment03 device mode: opencl | OpenCL device: ") +
                         opencl_context.get_device_name());

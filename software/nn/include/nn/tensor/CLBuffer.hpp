@@ -11,7 +11,6 @@
 
 #include <CL/cl.h>
 
-#include <memory>
 #include <vector>
 
 namespace nn::opencl

@@ -8,7 +8,6 @@
 #include <cassert>
 #include <stdexcept>
 
-#include "nn/logging/Logger.hpp"
 #include "nn/tensor/OpenCLContext.hpp"
 
 namespace nn::opencl

@@ -27,8 +27,7 @@
 #include <random>
 #include <vector>
 
-#include "nn/logging/Logger.hpp"
-
+#include "nn/tensor/GPUBufferPool.hpp"
 namespace nn
 {
 
@@ -178,6 +177,23 @@ class OpenCLTensorBackend
      * @brief Zero out all accumulated gradients.
      */
     void zero_grad();
+
+    /**
+     * @brief Initialize the static GPU buffer pool (call once at app startup).
+     * @param context OpenCL context
+     * @param queue OpenCL command queue
+     */
+    static void init_buffer_pool(void* context, void* queue);
+
+    /**
+     * @brief Shutdown the static GPU buffer pool (call at app shutdown).
+     */
+    static void shutdown_buffer_pool();
+
+    /**
+     * @brief Get the static buffer pool instance (nullptr if not initialized).
+     */
+    static tensor::GPUBufferPool* get_buffer_pool();
 
    private:
     std::unique_ptr<EigenTensorBackend> m_backend;

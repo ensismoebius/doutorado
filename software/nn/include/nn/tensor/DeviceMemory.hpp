@@ -21,8 +21,6 @@
 #include <CL/cl.h>
 
 #include <cstring>
-#include <memory>
-#include <vector>
 
 namespace nn::opencl
 {

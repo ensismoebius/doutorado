@@ -64,6 +64,21 @@ target_include_directories(opencl_tensor_backend_gtest
 gtest_discover_tests(opencl_tensor_backend_gtest)
 configure_eigen_parallel_target(opencl_tensor_backend_gtest)
 
+add_executable(gpu_buffer_pool_gtest gpu_buffer_pool_gtest.cpp)
+
+target_link_libraries(gpu_buffer_pool_gtest
+    PRIVATE
+        google_test
+        tensor
+)
+
+target_include_directories(gpu_buffer_pool_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+gtest_discover_tests(gpu_buffer_pool_gtest)
+
 # Mock-backend focused tests (Eigen-free math, but Tensor header still requires Eigen include)
 # add_executable(tensor_mock_gtest 
 #     mock_backend_gtest.cpp

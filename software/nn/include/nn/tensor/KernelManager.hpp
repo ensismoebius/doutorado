@@ -18,9 +18,7 @@
 #include <CL/cl.h>
 
 #include <map>
-#include <memory>
 #include <string>
-#include <vector>
 
 namespace nn::opencl
 {

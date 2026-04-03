@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/OpenCLProfiling.hpp"
 #include "nn/tensor/OpenCLTensorBackend.hpp"
 
 namespace
@@ -145,6 +146,15 @@ TEST(OpenCLTensorBackendTest, RowwiseSumCorrectness)
     EXPECT_NEAR(single_col_sum.at(0, 0), 7.0f, 1e-5f);
     EXPECT_NEAR(single_col_sum.at(1, 0), -2.0f, 1e-5f);
     EXPECT_NEAR(single_col_sum.at(2, 0), 9.0f, 1e-5f);
+}
+
+TEST(OpenCLProfilingTest, ToggleFlag)
+{
+    // Ensure toggle APIs work without touching hardware kernels.
+    nn::opencl::profiling::set_enabled(true);
+    EXPECT_TRUE(nn::opencl::profiling::is_enabled());
+    nn::opencl::profiling::set_enabled(false);
+    EXPECT_FALSE(nn::opencl::profiling::is_enabled());
 }
 
 } // namespace

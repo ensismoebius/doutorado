@@ -173,4 +173,8 @@ struct Config
 
         return AutoencoderArchitecture::ResidualDense;
     }
+
+    // Enable OpenCL profiling instrumentation when running with OpenCL.
+    // Default: false (disabled).
+    bool opencl_profiling_enabled = false;
 };

@@ -207,6 +207,11 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::IsMember({"cpu", "opencl"}, CLI::ignore_case))
         ->default_val(default_device_token);
 
+    app.add_flag("--opencl-profiling",
+           config.opencl_profiling_enabled,
+           "Enable OpenCL kernel event profiling (debug, may slow execution)")
+        ->default_val(default_config.opencl_profiling_enabled);
+
     app.add_option("--dataset-root", config.dataset_root_path, "Path containing subjects dir")
         ->expected(1)
         ->check(CLI::ExistingDirectory)

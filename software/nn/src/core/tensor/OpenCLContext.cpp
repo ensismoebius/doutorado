@@ -6,7 +6,6 @@
 #include "nn/tensor/OpenCLContext.hpp"
 
 #include <cassert>
-#include <iostream>
 #include <stdexcept>
 
 #include "nn/logging/Logger.hpp"
@@ -147,6 +146,28 @@ void OpenCLContext::flush()
     {
         throw std::runtime_error("clFinish failed: " + std::to_string(err));
     }
+}
+
+// Static batch mode control
+bool OpenCLContext::s_batching = false;
+
+void OpenCLContext::begin_batch()
+{
+    s_batching = true;
+}
+
+void OpenCLContext::end_batch()
+{
+    if (s_batching)
+    {
+        OpenCLContext::instance().flush();
+        s_batching = false;
+    }
+}
+
+bool OpenCLContext::is_batching()
+{
+    return s_batching;
 }
 
 } // namespace nn::opencl
