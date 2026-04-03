@@ -11,8 +11,11 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <random>
 #include <stdexcept>
+#include <string>
+#include <unordered_set>
 
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/DeviceMemory.hpp"
@@ -45,6 +48,46 @@ bool can_use_opencl()
     return false;
 #endif
     return opencl::OpenCLContext::instance().is_available();
+}
+
+void warn_opencl_cpu_fallback_once(const std::string& operation, const std::string& reason)
+{
+    static std::mutex warned_mutex;
+    static std::unordered_set<std::string> warned_messages;
+
+    const std::string message =
+        "OPENCL BACKEND FALLING BACK TO CPU for " + operation + ": " + reason;
+    std::lock_guard<std::mutex> lock(warned_mutex);
+    if (warned_messages.insert(message).second)
+    {
+        NN_LOG_WARN(message);
+    }
+}
+
+bool can_use_opencl(const char* operation)
+{
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+    warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+    return false;
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+    warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+    return false;
+#endif
+    if (!can_use_opencl())
+    {
+        warn_opencl_cpu_fallback_once(operation, "OpenCL runtime or device is not available");
+        return false;
+    }
+    return true;
+}
+
+void warn_opencl_unimplemented_once(const char* operation)
+{
+    warn_opencl_cpu_fallback_once(
+        operation, "operation is not implemented on the OpenCL backend yet");
 }
 
 std::size_t round_up(std::size_t global, std::size_t local)
@@ -200,58 +243,68 @@ const float& OpenCLTensorBackend::at(const std::vector<Index>& indices) const
 // In-place operations
 void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
 {
+    warn_opencl_unimplemented_once("add_inplace");
     m_backend->add_inplace(*other.m_backend);
 }
 
 void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
 {
+    warn_opencl_unimplemented_once("subtract_inplace");
     m_backend->subtract_inplace(*other.m_backend);
 }
 
 void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
 {
+    warn_opencl_unimplemented_once("multiply_inplace");
     m_backend->multiply_inplace(*other.m_backend);
 }
 
 void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 {
+    warn_opencl_unimplemented_once("divide_inplace");
     m_backend->divide_inplace(*other.m_backend);
 }
 
 void OpenCLTensorBackend::add_scalar_inplace(float val)
 {
+    warn_opencl_unimplemented_once("add_scalar_inplace");
     m_backend->add_scalar_inplace(val);
 }
 
 void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 {
+    warn_opencl_unimplemented_once("multiply_scalar_inplace");
     m_backend->multiply_scalar_inplace(val);
 }
 
 void OpenCLTensorBackend::divide_scalar_inplace(float val)
 {
+    warn_opencl_unimplemented_once("divide_scalar_inplace");
     m_backend->divide_scalar_inplace(val);
 }
 
 void OpenCLTensorBackend::sqrt_inplace()
 {
+    warn_opencl_unimplemented_once("sqrt_inplace");
     m_backend->sqrt_inplace();
 }
 
 void OpenCLTensorBackend::square_inplace()
 {
+    warn_opencl_unimplemented_once("square_inplace");
     m_backend->square_inplace();
 }
 
 void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector)
 {
+    warn_opencl_unimplemented_once("add_col_vector_to_rows_inplace");
     m_backend->add_col_vector_to_rows_inplace(*col_vector.m_backend);
 }
 
 // Element-wise operations
 OpenCLTensorBackend OpenCLTensorBackend::exp() const
 {
-    if (can_use_opencl())
+    if (can_use_opencl("exp"))
     {
         try
         {
@@ -308,6 +361,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
 OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 {
+    warn_opencl_unimplemented_once("sqrt");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->sqrt());
     return t;
@@ -315,6 +369,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
 OpenCLTensorBackend OpenCLTensorBackend::square() const
 {
+    warn_opencl_unimplemented_once("square");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->square());
     return t;
@@ -322,7 +377,11 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
 
 OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) const
 {
-    if (can_use_opencl() && shape() == other.shape())
+    if (shape() != other.shape())
+    {
+        warn_opencl_cpu_fallback_once("add", "OpenCL path requires matching tensor shapes");
+    }
+    else if (can_use_opencl("add"))
     {
         try
         {
@@ -378,6 +437,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
 
 OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("subtract");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->subtract(*other.m_backend));
     return t;
@@ -385,7 +445,11 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& other) const
 {
-    if (can_use_opencl() && shape() == other.shape())
+    if (shape() != other.shape())
+    {
+        warn_opencl_cpu_fallback_once("multiply", "OpenCL path requires matching tensor shapes");
+    }
+    else if (can_use_opencl("multiply"))
     {
         try
         {
@@ -441,6 +505,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("divide");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->divide(*other.m_backend));
     return t;
@@ -448,7 +513,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 {
-    if (can_use_opencl())
+    if (can_use_opencl("add_scalar"))
     {
         try
         {
@@ -501,7 +566,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 {
-    if (can_use_opencl())
+    if (can_use_opencl("multiply_scalar"))
     {
         try
         {
@@ -555,6 +620,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 {
+    warn_opencl_unimplemented_once("divide_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->divide_scalar(val));
     return t;
@@ -563,6 +629,58 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 // Reduction
 OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
 {
+    if (shape().size() != 2)
+    {
+        warn_opencl_cpu_fallback_once("rowwise_sum", "OpenCL path requires rank-2 tensors");
+    }
+    else if (can_use_opencl("rowwise_sum"))
+    {
+        try
+        {
+            const Index num_rows = rows();
+            const Index num_cols = cols();
+
+            EigenTensorBackend out(num_rows, 1);
+            opencl::DeviceMemory input_dev(num_rows * num_cols * sizeof(float));
+            opencl::DeviceMemory out_dev(num_rows * sizeof(float));
+
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            auto& ctx = opencl::OpenCLContext::instance();
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("rowwise_sum_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+            const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                "clSetKernelArg(rowwise_sum, input)");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                "clSetKernelArg(rowwise_sum, output)");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                "clSetKernelArg(rowwise_sum, rows)");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                "clSetKernelArg(rowwise_sum, cols)");
+
+            const std::size_t global = static_cast<std::size_t>(num_rows);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, nullptr, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(rowwise_sum)");
+            check_cl_error(clFinish(ctx.get_queue()), "clFinish(rowwise_sum)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            NN_LOG_WARN(std::string("OpenCL rowwise_sum fallback to CPU: ") + e.what());
+        }
+    }
+
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->rowwise_sum());
     return t;
@@ -571,8 +689,15 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
 // Linear algebra
 OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other) const
 {
-    if (can_use_opencl() && shape().size() == 2 && other.shape().size() == 2 &&
-        cols() == other.rows())
+    if (shape().size() != 2 || other.shape().size() != 2)
+    {
+        warn_opencl_cpu_fallback_once("matmul", "OpenCL path requires rank-2 tensors");
+    }
+    else if (cols() != other.rows())
+    {
+        warn_opencl_cpu_fallback_once("matmul", "OpenCL path requires lhs.cols() == rhs.rows()");
+    }
+    else if (can_use_opencl("matmul"))
     {
         try
         {
@@ -636,6 +761,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("matmul_transposed");
     OpenCLTensorBackend t;
     t.m_backend =
         std::make_unique<EigenTensorBackend>(m_backend->matmul_transposed(*other.m_backend));
@@ -644,7 +770,11 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
 
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 {
-    if (can_use_opencl() && shape().size() == 2)
+    if (shape().size() != 2)
+    {
+        warn_opencl_cpu_fallback_once("transpose", "OpenCL path requires a rank-2 tensor");
+    }
+    else if (can_use_opencl("transpose"))
     {
         try
         {
@@ -700,6 +830,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 // Comparisons
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("compare_lt");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_lt(*other.m_backend));
     return t;
@@ -707,6 +838,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("compare_gt");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_gt(*other.m_backend));
     return t;
@@ -714,6 +846,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("compare_le");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_le(*other.m_backend));
     return t;
@@ -721,6 +854,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("compare_ge");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_ge(*other.m_backend));
     return t;
@@ -728,6 +862,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& other) const
 {
+    warn_opencl_unimplemented_once("compare_eq");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_eq(*other.m_backend));
     return t;
@@ -735,6 +870,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 {
+    warn_opencl_unimplemented_once("compare_lt_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_lt_scalar(value));
     return t;
@@ -742,6 +878,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 {
+    warn_opencl_unimplemented_once("compare_gt_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_gt_scalar(value));
     return t;
@@ -749,6 +886,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 {
+    warn_opencl_unimplemented_once("compare_le_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_le_scalar(value));
     return t;
@@ -756,6 +894,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 {
+    warn_opencl_unimplemented_once("compare_ge_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_ge_scalar(value));
     return t;
@@ -763,6 +902,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
 {
+    warn_opencl_unimplemented_once("compare_eq_scalar");
     OpenCLTensorBackend t;
     t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_eq_scalar(value));
     return t;

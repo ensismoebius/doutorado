@@ -6,6 +6,7 @@
 
 #include "ProfileLoader.hpp"
 #include "ResultsWriter.hpp"
+#include "cli.hpp"
 
 using experiment03::Summary;
 
@@ -79,6 +80,87 @@ TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_device_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"device\": \"cpu\"\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_TRUE(ok) << error;
+    EXPECT_EQ(config.device, "cpu");
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03CliTest, ParsesDeviceOverride)
+{
+    const auto dataset_root = std::filesystem::temp_directory_path();
+
+    Config defaults{};
+    defaults.profile_name = "";
+    defaults.device = "opencl";
+    defaults.dataset_subject_filter_regex = "^S(\\d+)$";
+    defaults.dataset_root_path = dataset_root.string();
+    defaults.training_batch_size = 10;
+    defaults.training_max_batches_per_epoch = 0;
+    defaults.sampler_shuffle_samples = true;
+    defaults.sampler_shuffle_seed = 42U;
+    defaults.sampler_default_type = "";
+    defaults.sampler_weights = {};
+    defaults.sampler_weighted_num_samples = std::nullopt;
+    defaults.sampler_distributed_num_replicas = 1;
+    defaults.sampler_distributed_rank = 0;
+    defaults.sampler_distributed_shuffle = true;
+    defaults.sampler_distributed_drop_last = false;
+    defaults.dataset_input_mode = Protocol101117InputMode::Concatenated;
+    defaults.dataset_type = Experiment03DatasetType::FusedWindow;
+    defaults.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+    defaults.autoencoder_hidden_size = 64;
+    defaults.autoencoder_latent_size = 32;
+    defaults.autoencoder_depth = 2;
+    defaults.autoencoder_layer_sizes = {};
+    defaults.autoencoder_input_features = 0;
+    defaults.autoencoder_eeg_features = 0;
+    defaults.autoencoder_audio_features = 0;
+    defaults.autoencoder_architecture = AutoencoderArchitecture::Auto;
+    defaults.autoencoder_branch_hidden_size = 0;
+    defaults.autoencoder_fusion_hidden_size = 0;
+    defaults.autoencoder_residual_blocks = 1;
+    defaults.autoencoder_time_step = 1.0F;
+    defaults.autoencoder_resistance = 1.0F;
+    defaults.autoencoder_capacitance = 1.0F;
+    defaults.training_learning_rate = 1e-2F;
+    defaults.training_epochs = 1;
+    defaults.window_eeg_config = {.window_size = 256, .overlap = 0.5F, .sample_rate = 1024};
+    defaults.window_audio_config = {.window_size = 11025, .overlap = 0.5F, .sample_rate = 44100};
+    defaults.prefetch_lookahead = 1;
+    defaults.prefetch_ram_cap_mb = 64;
+
+    std::string arg0 = "experiment03";
+    std::string arg1 = "--dataset-root";
+    std::string arg2 = dataset_root.string();
+    std::string arg3 = "--device";
+    std::string arg4 = "cpu";
+    char* argv[] = {arg0.data(), arg1.data(), arg2.data(), arg3.data(), arg4.data()};
+
+    const Config parsed = parseCliParams(5, argv, defaults);
+
+    EXPECT_EQ(parsed.device, "cpu");
 }
 
 TEST(Experiment03ResultsWriterTest, WritesSummaryJson)

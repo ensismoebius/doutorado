@@ -73,13 +73,6 @@ target_link_libraries(experiment03
         z
 )
 
-# If AddressSanitizer was enabled for vendored libs (e.g. sqlite3_vendored),
-# ensure the executable links the ASan runtime too so vendor objects' ASan
-# references are satisfied at link time. Use generator expressions so flags
-# apply only to Debug where sanitizers are enabled globally.
-target_link_options(experiment03 PRIVATE -fsanitize=address)
-target_compile_options(experiment03 PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-
 # Enable Eigen parallelization with OpenMP
 configure_eigen_parallel_target(experiment03)
 

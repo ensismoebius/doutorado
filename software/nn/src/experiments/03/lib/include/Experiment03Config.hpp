@@ -24,6 +24,8 @@ struct Config
 {
     string profile_name; // Name of profile used to seed defaults.
 
+    string device; // Execution device token: cpu|opencl
+
     string dataset_subject_filter_regex; // Subject directory regex with an ID capture group
     string dataset_root_path;            // Path containing subject directories
 

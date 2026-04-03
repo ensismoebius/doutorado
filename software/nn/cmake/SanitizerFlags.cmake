@@ -19,10 +19,18 @@
 
 # cmake/SanitizerFlags.cmake
 # Sanitazer is a tool to detect various kinds of bugs and undefined behavior
-# at runtime. This is used to ensure code quality during development, showing 
+# at runtime. This is used to ensure code quality during development, showing
 # issues such as memory errors, data races, and undefined behavior.
 # This file sets up the necessary compiler and linker flags to enable
 # sanitizers in Debug builds.
+
+option(NN_ENABLE_ASAN "Enable AddressSanitizer + UBSan for Debug builds" OFF)
+
+if (NOT NN_ENABLE_ASAN)
+    message(STATUS "Sanitizers disabled (NN_ENABLE_ASAN=OFF)")
+    return()
+endif()
+
 add_compile_options(
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
 )

@@ -311,8 +311,10 @@ auto load_profile_to_config(
 
     parse_number(text, "training_batch_size", out_config.training_batch_size);
     parse_number(text, "training_max_batches_per_epoch", out_config.training_max_batches_per_epoch);
+    parse_string(text, "device", out_config.device);
     parse_bool(text, "sampler_shuffle_samples", out_config.sampler_shuffle_samples);
-    if (unsigned int sampler_shuffle_seed = 0U; parse_number(text, "sampler_shuffle_seed", sampler_shuffle_seed))
+    if (unsigned int sampler_shuffle_seed = 0U;
+        parse_number(text, "sampler_shuffle_seed", sampler_shuffle_seed))
     {
         out_config.sampler_shuffle_seed = sampler_shuffle_seed;
     }

@@ -152,6 +152,17 @@ auto parseArchitectureToken(const std::string& token) -> AutoencoderArchitecture
 
     throw std::invalid_argument("Unsupported autoencoder architecture token: " + token);
 }
+
+auto deviceToToken(const std::string& token) -> std::string
+{
+    const auto normalized = CLI::detail::to_lower(token);
+    if (normalized == "cpu" || normalized == "opencl")
+    {
+        return normalized;
+    }
+
+    throw std::invalid_argument("Unsupported device token: " + token);
+}
 } // namespace
 
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
@@ -179,6 +190,9 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     }
 
     config.profile_name = profile;
+    const std::string default_device_token =
+        default_config.device.empty() ? "cpu" : deviceToToken(default_config.device);
+    std::string device_token = config.device.empty() ? default_device_token : config.device;
     std::string input_mode_token = protocol101117InputModeToToken(config.dataset_input_mode);
     std::string dataset_type_token = datasetTypeToToken(config.dataset_type);
     std::string autoencoder_type_token = autoencoderTypeToToken(config.autoencoder_type);
@@ -188,6 +202,10 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
 
     app.add_option("--profile", profile, "Configuration profile name (JSON file stem)")
         ->default_val(config.profile_name);
+
+    app.add_option("--device", device_token, "Execution device: cpu|opencl")
+        ->check(CLI::IsMember({"cpu", "opencl"}, CLI::ignore_case))
+        ->default_val(default_device_token);
 
     app.add_option("--dataset-root", config.dataset_root_path, "Path containing subjects dir")
         ->expected(1)
@@ -473,6 +491,7 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
     }
 
     config.profile_name = profile;
+    config.device = deviceToToken(device_token);
 
     config.sampler_default_type = normalizeSamplerTypeToken(config.sampler_default_type);
 

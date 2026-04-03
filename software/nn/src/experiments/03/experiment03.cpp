@@ -26,6 +26,8 @@ using std::make_shared;
 using std::size_t;
 
 const Config default_config{
+    .device = "opencl",
+
     // Dataset discovery defaults.
     .dataset_subject_filter_regex = "^S(\\d+)$",
     .dataset_root_path =
@@ -51,7 +53,7 @@ const Config default_config{
     // Dataset/model pairing defaults.
     .dataset_input_mode = Protocol101117InputMode::Concatenated,
     .dataset_type = Experiment03DatasetType::FusedWindow,
-    
+
     // Autoencoder architecture hyperparameters.
     .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
     .autoencoder_hidden_size = 64,

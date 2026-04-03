@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "Experiment03Config.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/Dataset.hpp"

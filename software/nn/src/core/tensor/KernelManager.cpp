@@ -138,34 +138,18 @@ __kernel void rowwise_sum_kernel(
     __global const float* input,
     __global float* output,
     const uint rows,
-    const uint cols,
-    __local float* local_sum
+    const uint cols
 ) {
     const uint row = get_global_id(0);
-    const uint local_col = get_local_id(0);
-    const uint local_size = get_local_size(0);
-    
+
     if (row >= rows) return;
-    
+
     float sum = 0.0f;
-    for (uint col = local_col; col < cols; col += local_size) {
-        sum += input[row * cols + col];
+    for (uint col = 0; col < cols; ++col) {
+        sum += input[row + col * rows];
     }
-    
-    local_sum[local_col] = sum;
-    barrier(CLK_LOCAL_MEM_FENCE);
-    
-    // Tree reduction
-    for (uint stride = local_size / 2; stride > 0; stride /= 2) {
-        if (local_col < stride) {
-            local_sum[local_col] += local_sum[local_col + stride];
-        }
-        barrier(CLK_LOCAL_MEM_FENCE);
-    }
-    
-    if (local_col == 0) {
-        output[row] = local_sum[0];
-    }
+
+    output[row] = sum;
 }
 )";
 

@@ -9,9 +9,15 @@
 
 #include "experiment03.hpp"
 
+#include <algorithm>
+#include <chrono>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
+#include <string_view>
+#include <thread>
 #include <vector>
 
 #include "AudioWindowAutoencoder.hpp"
@@ -38,6 +44,8 @@
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
+#include "nn/tensor/OpenCLContext.hpp"
+#include "nn/tensor/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
 
@@ -53,9 +61,12 @@ using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::SqliteDatasetType;
 using std::endl;
 using std::make_unique;
+using std::optional;
 using std::ostringstream;
+using std::runtime_error;
 using std::size_t;
 using std::string;
+using std::string_view;
 using std::unique_ptr;
 
 namespace
@@ -65,6 +76,9 @@ constexpr int kExitSuccess = 0;
 
 /// @brief Exit code indicating the experiment terminated with an error.
 constexpr int kExitFailure = 1;
+
+/// @brief Sysfs node used to verify real GPU activity on this workstation.
+constexpr string_view kGpuBusyPercentPath = "/sys/class/drm/card1/device/gpu_busy_percent";
 
 /**
  * @brief Helper to convert from experiment config dataset type to SqliteBatchSource dataset type.
@@ -87,6 +101,114 @@ auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type) -> SqliteDatas
     }
 
     return SqliteDatasetType::Protocol;
+}
+
+auto read_gpu_busy_percent(const string& gpu_busy_percent_path) -> optional<int>
+{
+    std::ifstream input(gpu_busy_percent_path);
+    if (!input.good())
+    {
+        return std::nullopt;
+    }
+
+    int value = 0;
+    input >> value;
+    if (input.fail())
+    {
+        return std::nullopt;
+    }
+
+    return value;
+}
+
+auto to_opencl_tensor(const nn::Tensor& source) -> nn::OpenCLTensorBackend
+{
+    nn::OpenCLTensorBackend result(source.get_shape());
+    for (Index i = 0; i < source.size(); ++i)
+    {
+        result.at(i) = source.at(i);
+    }
+    return result;
+}
+
+auto compute_opencl_reconstruction_mse(const nn::Tensor& prediction, const nn::Tensor& target)
+    -> float
+{
+    auto prediction_gpu = to_opencl_tensor(prediction);
+    auto target_gpu = to_opencl_tensor(target);
+    auto diff_gpu = prediction_gpu.add(target_gpu.multiply_scalar(-1.0F));
+    auto squared_gpu = diff_gpu.multiply(diff_gpu);
+    auto row_sums = squared_gpu.rowwise_sum();
+
+    float total = 0.0F;
+    for (Index i = 0; i < row_sums.size(); ++i)
+    {
+        total += row_sums.at(i);
+    }
+
+    return prediction.size() == 0 ? 0.0F : total / static_cast<float>(prediction.size());
+}
+
+auto opencl_execution_disabled_by_sanitizer() -> bool
+{
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+    return true;
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+    return true;
+#endif
+    return false;
+}
+
+void verify_opencl_usage_or_throw(const nn::Tensor& prediction, const nn::Tensor& target)
+{
+    auto& opencl_context = nn::opencl::OpenCLContext::instance();
+    if (!opencl_context.is_available())
+    {
+        throw std::runtime_error(
+            "OpenCL device requested but no OpenCL device/context is available");
+    }
+
+    const string gpu_busy_percent_path(kGpuBusyPercentPath);
+    const optional<int> busy_before = read_gpu_busy_percent(gpu_busy_percent_path);
+
+    int peak_busy_percent = busy_before.value_or(0);
+    float gpu_probe_loss = 0.0F;
+
+    for (int iteration = 0; iteration < 8; ++iteration)
+    {
+        gpu_probe_loss = compute_opencl_reconstruction_mse(prediction, target);
+        opencl_context.flush();
+        if (const optional<int> busy_now = read_gpu_busy_percent(gpu_busy_percent_path))
+        {
+            peak_busy_percent = std::max(peak_busy_percent, *busy_now);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(15));
+    }
+
+    std::ostringstream status;
+    status << "OpenCL verification probe complete"
+           << " | device=" << opencl_context.get_device_name()
+           << " | gpu_probe_mse=" << gpu_probe_loss;
+
+    if (busy_before.has_value())
+    {
+        status << " | gpu_busy_before=" << *busy_before << "%"
+               << " | gpu_busy_peak=" << peak_busy_percent << "%";
+    }
+    else
+    {
+        status << " | gpu_busy_percent unavailable at " << gpu_busy_percent_path;
+    }
+    NN_LOG_INFO(status.str());
+
+    if (busy_before.has_value() && peak_busy_percent <= *busy_before)
+    {
+        throw std::runtime_error(
+            "OpenCL device requested but gpu_busy_percent did not increase during the GPU probe");
+    }
 }
 
 /**
@@ -150,9 +272,35 @@ Experiment03::Experiment03(const Config& config) : config_(config)
 int Experiment03::run()
 {
     std::vector<float> epoch_mean_losses;
+    bool opencl_usage_verified = false;
 
     try
     {
+        if (config_.device == "opencl")
+        {
+            if (opencl_execution_disabled_by_sanitizer())
+            {
+                throw runtime_error(
+                    "Experiment03 requested --device opencl, but this build is "
+                    "AddressSanitizer-enabled and the OpenCL tensor execution path is disabled in "
+                    "sanitizer builds");
+            }
+
+            auto& opencl_context = nn::opencl::OpenCLContext::instance();
+            if (!opencl_context.is_available())
+            {
+                throw runtime_error(
+                    "Experiment03 requested --device opencl but no OpenCL device is available");
+            }
+
+            NN_LOG_INFO(string("Experiment03 device mode: opencl | OpenCL device: ") +
+                        opencl_context.get_device_name());
+        }
+        else
+        {
+            NN_LOG_INFO(string("Experiment03 device mode: ") + config_.device);
+        }
+
         ////////////////////////////
         // Dataset initialization //
         ////////////////////////////
@@ -306,6 +454,12 @@ int Experiment03::run()
                 // Forward pass (unsupervised reconstruction: target == input).
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
 
+                if (config_.device == "opencl" && !opencl_usage_verified) [[unlikely]]
+                {
+                    verify_opencl_usage_or_throw(reconstruction, batch.inputs);
+                    opencl_usage_verified = true;
+                }
+
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
 
@@ -372,6 +526,13 @@ int Experiment03::run()
         if (seen_batches_ == 0)
         {
             NN_LOG_WARN("No batches produced. Check dataset files and row counts.");
+        }
+
+        if (config_.device == "opencl" && !opencl_usage_verified)
+        {
+            throw std::runtime_error(
+                "Experiment03 requested --device opencl but no batch reached the OpenCL "
+                "verification path");
         }
 
         string results_path;

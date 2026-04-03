@@ -109,4 +109,42 @@ TEST(OpenCLTensorBackendTest, OpenCLAvailabilityDoesNotBreakOps)
     EXPECT_TRUE(available || !available);
 }
 
+TEST(OpenCLTensorBackendTest, RowwiseSumCorrectness)
+{
+    nn::OpenCLTensorBackend a(2, 3);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(0, 2) = 3.0f;
+    a.at(1, 0) = 4.0f;
+    a.at(1, 1) = 5.0f;
+    a.at(1, 2) = 6.0f;
+
+    auto sums = a.rowwise_sum();
+    EXPECT_EQ(sums.rows(), 2);
+    EXPECT_EQ(sums.cols(), 1);
+    EXPECT_NEAR(sums.at(0, 0), 6.0f, 1e-5f);
+    EXPECT_NEAR(sums.at(1, 0), 15.0f, 1e-5f);
+
+    nn::OpenCLTensorBackend single_row(1, 4);
+    single_row.at(0, 0) = -1.0f;
+    single_row.at(0, 1) = 0.5f;
+    single_row.at(0, 2) = 2.0f;
+    single_row.at(0, 3) = 3.5f;
+    auto single_row_sum = single_row.rowwise_sum();
+    EXPECT_EQ(single_row_sum.rows(), 1);
+    EXPECT_EQ(single_row_sum.cols(), 1);
+    EXPECT_NEAR(single_row_sum.at(0, 0), 5.0f, 1e-5f);
+
+    nn::OpenCLTensorBackend single_col(3, 1);
+    single_col.at(0, 0) = 7.0f;
+    single_col.at(1, 0) = -2.0f;
+    single_col.at(2, 0) = 9.0f;
+    auto single_col_sum = single_col.rowwise_sum();
+    EXPECT_EQ(single_col_sum.rows(), 3);
+    EXPECT_EQ(single_col_sum.cols(), 1);
+    EXPECT_NEAR(single_col_sum.at(0, 0), 7.0f, 1e-5f);
+    EXPECT_NEAR(single_col_sum.at(1, 0), -2.0f, 1e-5f);
+    EXPECT_NEAR(single_col_sum.at(2, 0), 9.0f, 1e-5f);
+}
+
 } // namespace
