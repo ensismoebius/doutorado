@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp
+ * @brief Protocol101117dataset.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_10_1117_PROTOCOL101117DATASET_HPP
 #define NN_DATALOADERS_10_1117_PROTOCOL101117DATASET_HPP
 

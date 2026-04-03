@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/SqliteBatchSource.hpp
+ * @brief Sqlitebatchsource.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_SQLITEBATCHSOURCE_HPP
 #define NN_DATALOADERS_SQLITEBATCHSOURCE_HPP
 

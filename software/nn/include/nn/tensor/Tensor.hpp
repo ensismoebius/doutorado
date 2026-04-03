@@ -1,10 +1,19 @@
-/**
- * @file Tensor.hpp
+#/**
+ * @file include/nn/tensor/Tensor.hpp
  * @brief Backend-driven tensor wrapper used throughout the project.
  *
- * This file is intentionally “dense”: it defines the core numeric container type.
- * The most common pitfall for new contributors is gradient ownership/aliasing.
- * Read the “Gradients (important gotcha)” block below before touching optimizers.
+ * **PHASE:** Core stable API — central value-type tensor wrapper parameterized by
+ * backend.
+ *
+ * **Key ideas:**
+ * - Backend-driven value type with zero-overhead abstraction.
+ * - `TensorImpl` is a value type; operations typically return new tensors.
+ * - Gradients are backend-managed; see backend `grad_ref()` semantics.
+ *
+ * **Contract:**
+ * - 2D mapping: rows/cols map to Eigen storage row/col (row-major logical).
+ * - 4D mapping: rows = d1; cols = d2 * d3 * d4.
+ * - Public APIs throw `std::invalid_argument` or `std::out_of_range` on misuse.
  */
 
 #ifndef TENSOR_HPP

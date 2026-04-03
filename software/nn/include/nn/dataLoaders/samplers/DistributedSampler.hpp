@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/samplers/DistributedSampler.hpp
+ * @brief Distributedsampler.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_DISTRIBUTED_SAMPLER_HPP
 #define NN_DATALOADERS_DISTRIBUTED_SAMPLER_HPP
 

@@ -2,17 +2,6 @@
  * @file include/nn/tensor/OpenCLTensorBackend.hpp
  * @brief OpenCL implementation of tensor backend.
  *
- * **PHASE 1 (MVP):** CPU fallback wrapper — delegates all operations to
- * Eigen backend. Validates API contract, tests, and build integration.
- *
- * **Future phases:** Implement GPU kernels (matmul, element-wise, etc.)
- * when performance measurements justify the complexity.
- *
- * **Hardware assumptions:**
- * - AMD Renoir APU (7 CUs, 64 KiB LDS, no UMA)
- * - Explicit buffer synchronization required
- * - Kernel launch overhead is critical
- *
  * **API contract:**
  * - Same interface and semantics as EigenTensorBackend
  * - Move/copy construction and assignment supported

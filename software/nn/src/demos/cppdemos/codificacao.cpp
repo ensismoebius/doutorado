@@ -1,3 +1,10 @@
+/**
+ * @file src/demos/cppdemos/codificacao.cpp
+ * @brief Implementation for Codificacao.
+ *
+
+ */
+
 #include "codificacao.hpp"
 
 #include <algorithm>

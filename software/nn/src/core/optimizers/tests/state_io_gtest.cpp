@@ -1,11 +1,18 @@
+/**
+ * @file src/core/optimizers/tests/state_io_gtest.cpp
+ * @brief Implementation for State io gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 
-#include "nn/testing/tempfile.hpp"
 #include <cstdio>
 
 #include "nn/io/StateIO.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/testing/tempfile.hpp"
 
 using namespace nn;
 
@@ -38,8 +45,7 @@ TEST(StateIOTest, SaveLoadSimpleStateDict)
         ASSERT_EQ(a.rows(), b.rows());
         ASSERT_EQ(a.cols(), b.cols());
         for (size_t i = 0; i < a.rows(); ++i)
-            for (size_t j = 0; j < a.cols(); ++j)
-                ASSERT_FLOAT_EQ(a.at(i, j), b.at(i, j));
+            for (size_t j = 0; j < a.cols(); ++j) ASSERT_FLOAT_EQ(a.at(i, j), b.at(i, j));
     }
 
     std::remove(tmp.c_str());

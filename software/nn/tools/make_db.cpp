@@ -1,3 +1,10 @@
+/**
+ * @file tools/make_db.cpp
+ * @brief Implementation for Make db.
+ *
+
+ */
+
 #include <iostream>
 #include <string>
 

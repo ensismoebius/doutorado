@@ -37,4 +37,4 @@ class DatasetBuilder
     const Config* cfg_ = nullptr;
 };
 
-} // namespace Experiment03
+} // namespace experiment03

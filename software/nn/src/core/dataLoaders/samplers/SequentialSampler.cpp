@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/samplers/SequentialSampler.cpp
+ * @brief Implementation for Sequentialsampler.
+ *
+
+ */
+
 #include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 
 #include <numeric>

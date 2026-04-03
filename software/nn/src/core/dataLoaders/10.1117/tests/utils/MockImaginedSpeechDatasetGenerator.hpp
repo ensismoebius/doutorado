@@ -1,3 +1,14 @@
+/**
+ * @file src/core/dataLoaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.hpp
+ * @brief Mockimaginedspeechdatasetgenerator.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <cstddef>

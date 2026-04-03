@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/samplers/DistributedSampler.cpp
+ * @brief Implementation for Distributedsampler.
+ *
+
+ */
+
 #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
 
 #include <algorithm>

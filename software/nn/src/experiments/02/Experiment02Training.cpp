@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Training.cpp
+ * @brief Implementation for Experiment02training.
+ *
+
+ */
+
 #include "Experiment02Training.hpp"
 
 #include <algorithm>

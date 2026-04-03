@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Config.cpp
+ * @brief Implementation for Experiment02config.
+ *
+
+ */
+
 #include "Experiment02Config.hpp"
 
 #include <cmath>

@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/BatchPrefetcher.hpp
+ * @brief Batchprefetcher.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_BATCHPREFETCHER_HPP
 #define NN_DATALOADERS_BATCHPREFETCHER_HPP
 

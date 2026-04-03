@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/IBatchSource.hpp
+ * @brief Ibatchsource.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_IBATCHSOURCE_HPP
 #define NN_DATALOADERS_IBATCHSOURCE_HPP
 

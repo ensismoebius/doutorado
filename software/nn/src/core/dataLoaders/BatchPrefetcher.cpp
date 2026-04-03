@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/BatchPrefetcher.cpp
+ * @brief Implementation for Batchprefetcher.
+ *
+
+ */
+
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 
 #include <chrono>

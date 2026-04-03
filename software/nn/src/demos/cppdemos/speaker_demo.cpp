@@ -1,3 +1,10 @@
+/**
+ * @file src/demos/cppdemos/speaker_demo.cpp
+ * @brief Implementation for Speaker demo.
+ *
+
+ */
+
 // Single, consistent CLI implementation using RAII to own subparsers.
 
 #include <argparse/argparse.hpp>

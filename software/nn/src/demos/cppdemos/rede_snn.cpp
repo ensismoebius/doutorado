@@ -1,3 +1,10 @@
+/**
+ * @file src/demos/cppdemos/rede_snn.cpp
+ * @brief Implementation for Rede snn.
+ *
+
+ */
+
 #include <random>
 #include <vector>
 

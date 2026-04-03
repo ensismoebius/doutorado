@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/tests/dataset_collate_gtest.cpp
+ * @brief Implementation for Dataset collate gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 
 #include "nn/dataLoaders/Dataset.hpp"
@@ -5,7 +12,7 @@
 // Minimal test dataset that returns single-row input/target tensors per index
 class TestDataset : public Dataset
 {
-  public:
+   public:
     explicit TestDataset(std::size_t n, std::size_t in_features, std::size_t tg_features)
         : n_(n), in_(in_features), tg_(tg_features)
     {
@@ -16,14 +23,19 @@ class TestDataset : public Dataset
         // Return inputs = [idx, idx, ...] single-row tensor, targets = [idx]
         nn::Tensor in(1, static_cast<nn::Index>(in_));
         nn::Tensor tg(1, static_cast<nn::Index>(tg_));
-        for (std::size_t c = 0; c < in_; ++c) in.at(0, static_cast<nn::Index>(c)) = static_cast<float>(idx);
-        for (std::size_t c = 0; c < tg_; ++c) tg.at(0, static_cast<nn::Index>(c)) = static_cast<float>(idx);
+        for (std::size_t c = 0; c < in_; ++c)
+            in.at(0, static_cast<nn::Index>(c)) = static_cast<float>(idx);
+        for (std::size_t c = 0; c < tg_; ++c)
+            tg.at(0, static_cast<nn::Index>(c)) = static_cast<float>(idx);
         return Batch{.inputs = std::move(in), .targets = std::move(tg)};
     }
 
-    auto size() const -> std::size_t override { return n_; }
+    auto size() const -> std::size_t override
+    {
+        return n_;
+    }
 
-  private:
+   private:
     std::size_t n_;
     std::size_t in_;
     std::size_t tg_;

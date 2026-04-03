@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/samplers/WeightedRandomSampler.hpp
+ * @brief Weightedrandomsampler.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_WEIGHTED_RANDOM_SAMPLER_HPP
 #define NN_DATALOADERS_WEIGHTED_RANDOM_SAMPLER_HPP
 

@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/serialization/StateIO.hpp
+ * @brief Stateio.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 // Single clean header-only implementation
 #pragma once
 

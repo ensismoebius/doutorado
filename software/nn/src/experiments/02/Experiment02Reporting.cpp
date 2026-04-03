@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Reporting.cpp
+ * @brief Implementation for Experiment02reporting.
+ *
+
+ */
+
 #include "Experiment02Reporting.hpp"
 
 #include <fstream>

@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/codec/InputModeCodec.cpp
+ * @brief Implementation for Inputmodecodec.
+ *
+
+ */
+
 #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
 
 #include <algorithm>

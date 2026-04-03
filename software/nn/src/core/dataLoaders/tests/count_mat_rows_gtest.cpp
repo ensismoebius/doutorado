@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/tests/count_mat_rows_gtest.cpp
+ * @brief Implementation for Count mat rows gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 
 #include "MatTestUtils/MatTestUtils.h"

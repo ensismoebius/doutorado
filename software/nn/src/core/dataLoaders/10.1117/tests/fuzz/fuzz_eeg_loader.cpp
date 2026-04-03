@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/tests/fuzz/fuzz_eeg_loader.cpp
+ * @brief Implementation for Fuzz eeg loader.
+ *
+
+ */
+
 #include <unistd.h>
 
 #include <cstddef>

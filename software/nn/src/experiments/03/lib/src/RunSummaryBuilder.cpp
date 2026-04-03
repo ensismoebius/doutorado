@@ -1,5 +1,11 @@
-#include "RunSummaryBuilder.hpp"
+/**
+ * @file src/experiments/03/lib/src/RunSummaryBuilder.cpp
+ * @brief Implementation for Runsummarybuilder.
+ *
 
+ */
+
+#include "RunSummaryBuilder.hpp"
 
 namespace experiment03
 {

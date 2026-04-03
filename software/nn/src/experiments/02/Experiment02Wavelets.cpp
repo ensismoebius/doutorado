@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Wavelets.cpp
+ * @brief Implementation for Experiment02wavelets.
+ *
+
+ */
+
 #include "Experiment02Wavelets.hpp"
 
 #include <array>

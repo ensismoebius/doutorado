@@ -1,3 +1,14 @@
+/**
+ * @file src/experiments/03/lib/include/RunSummaryBuilder.hpp
+ * @brief Runsummarybuilder.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <string>

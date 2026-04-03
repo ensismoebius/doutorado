@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.cpp
+ * @brief Implementation for Synchronizedbatchassembler.
+ *
+
+ */
+
 #include "nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp"
 
 #include <algorithm>

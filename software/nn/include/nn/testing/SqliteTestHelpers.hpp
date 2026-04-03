@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/testing/SqliteTestHelpers.hpp
+ * @brief Sqlitetesthelpers.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 // Shared test helpers for creating small SQLite protocol DBs for tests.
 #ifndef NN_TESTING_SQLITE_TEST_HELPERS_HPP
 #define NN_TESTING_SQLITE_TEST_HELPERS_HPP

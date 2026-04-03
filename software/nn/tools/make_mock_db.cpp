@@ -1,3 +1,10 @@
+/**
+ * @file tools/make_mock_db.cpp
+ * @brief Implementation for Make mock db.
+ *
+
+ */
+
 #include <iostream>
 #include <string>
 

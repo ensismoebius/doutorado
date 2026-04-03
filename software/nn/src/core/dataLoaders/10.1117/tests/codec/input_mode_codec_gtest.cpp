@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/tests/codec/input_mode_codec_gtest.cpp
+ * @brief Implementation for Input mode codec gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 
 #include <stdexcept>

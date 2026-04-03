@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Pipeline.cpp
+ * @brief Implementation for Experiment02pipeline.
+ *
+
+ */
+
 #include "Experiment02Pipeline.hpp"
 
 #include <filesystem>

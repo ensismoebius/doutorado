@@ -1,3 +1,14 @@
+/**
+ * @file src/experiments/03/lib/include/AutoencoderBuilders.hpp
+ * @brief Autoencoderbuilders.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef EXPERIMENT03_AUTOENCODER_BUILDERS_HPP
 #define EXPERIMENT03_AUTOENCODER_BUILDERS_HPP
 

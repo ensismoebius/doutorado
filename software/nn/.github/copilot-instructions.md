@@ -18,10 +18,10 @@ Core principles
 
 Project conventions (quick)
 - Language: C++20 (primary development on Linux). Keep APIs stable and documented.
-- Build: CMake + Ninja; out-of-tree builds under `build/`.
-- Tests: GoogleTest; run via `ctest` or ninja test targets.
-- Formatting: `.clang-format` in repo root; run `clang-format -i` before committing.
-- Linting: `clang-tidy` checks are available; run locally on large patches.
+- Build: CMake + Ninja;
+out - of - tree builds under `build /`.- Tests : GoogleTest;
+run via `ctest` or ninja test targets.- Formatting : `.clang - format` in repo root;
+run `clang - format - i` before committing.- Linting : `clang - tidy` checks are available; run locally on large patches.
 
 Where key code lives
 - Core library: `src/core/` (layers, tensor, optimizers, dataLoaders).
@@ -35,13 +35,15 @@ Highlights from `docs/` (authoritative):
 Recent notable refactors (keep in mind)
 - `Experiment04` — pipeline moved into `src/experiments/03/lib/include/experiment04.hpp` and `src/experiments/03/lib/src/experiment04.cpp`. Prefer extending this class rather than duplicating pipeline code in new mains.
 - `BatchPrefetcher` — reworked to a single-producer, bounded-queue design to serialize `matio` reads. Always construct with a `DataLoader&` and ensure the `DataLoader` outlives the prefetcher.
-- `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate; add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).
+- `dataset_info` — `printDatasetSummary` provides a fast `AudioWithEEG` estimate;
+add a guarded `--exact-summary` flag if you need exact counts (expensive I/O).
 - `progress` — in-place, single-line progress helper centralizes effective-total logic and capping.
 - Formatter change — `.clang-format` updated to allow more aggressive breaking of long signatures and return types. New code should follow this style.
 
 Current project state
 - Recent additions: `include/nn/testing/tempfile.hpp` (TempFile RAII helper), `include/nn/logging/Logger.hpp`, and a consolidated `include/nn/io/StateIO.hpp`.
-- Tests & fixes: Added `src/core/serialization/tests/StateIO_gtest.cpp`; updated tests to be DB-independent and AddressSanitizer-clean; fixed `src/core/dataLoaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
+- Tests & fixes: Added `src/core/serialization/tests/StateIO_gtest.cpp`;
+updated tests to be DB - independent and AddressSanitizer - clean; fixed `src/core/dataLoaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
 - API ergonomics: Introduced PyTorch-like ergonomics (e.g., `model.to(device)`, `optimizer.step()` / `optimizer.zero_grad()`, `state_dict()` / `load_state_dict()`), plus Adam + model state roundtrip tests.
 - Coverage & CI notes: An instrumented coverage build (`build-coverage`) is used for HTML reports. We observed `lcov/geninfo` "inconsistent: mismatched end line" errors caused by mismatches between gtest `TEST()` macro declaration lines and the compiled `TestBody()` DWARF ranges; the current pragmatic workflow is to perform a clean instrumented rebuild, run tests to regenerate `.gcda`, and use `lcov --ignore-errors inconsistent` plus selective `lcov --remove` filtering (e.g., `/usr/*`, `*/_deps/*`) when strict capture fails. Per-TU diagnostics are available for stricter investigations.
 
@@ -116,3 +118,22 @@ Preserve custom directives
 -------------------------
 - Do NOT remove or overwrite user-provided custom directives in this file. Automated edits must append or annotate but must not delete or rewrite existing custom sections unless explicitly requested by a human reviewer.
 - When updating this file programmatically, retain exact text of existing `Additional coding directives` and any user-supplied paragraphs; prefer adding new guidance as new paragraphs or bullet items.
+When updating this file programmatically, retain exact text of existing `Additional coding directives` and any user-supplied paragraphs; prefer adding new guidance as new paragraphs or bullet items.
+
+**Header Style: Canonical C++ API Header**
+
+Adopt `include/nn/tensor/opencl/OpenCLTensorBackend.hpp` as the canonical header style for all public and semi-public headers. Requirements:
+- File prologue: short description, PHASE notes (if applicable), hardware/assumption bullets when relevant.
+- Includes: minimal, ordered, and use workspace-style path (e.g., `nn/tensor/...`).
+- Public API grouping: group constructors, static factories, shape/accessors, operations, gradient management, and lifecycle sections with clear separators.
+- Per-method contract: one-line brief describing behavior, inputs, outputs, and thrown exceptions for public APIs.
+- RAII & lifecycle: explicitly document RAII resource types (e.g., `RuntimeScope`) and prefer RAII over explicit start/stop where possible.
+- Formatting & Validation: run `clang-format -i` and verify build/tests after edits.
+
+Validation checklist (apply to each edited header):
+- [ ] File prologue present and concise
+- [ ] API sections clearly separated with comments
+- [ ] Each public method has a short contract comment
+- [ ] RAII types documented where used
+- [ ] `clang-format` run and build passes
+

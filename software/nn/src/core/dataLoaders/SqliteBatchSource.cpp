@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/SqliteBatchSource.cpp
+ * @brief Implementation for Sqlitebatchsource.
+ *
+
+ */
+
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 
 #include <cstring>

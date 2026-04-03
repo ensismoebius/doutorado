@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/Experiment02Data.cpp
+ * @brief Implementation for Experiment02data.
+ *
+
+ */
+
 #include "Experiment02Data.hpp"
 
 #include <cstddef>

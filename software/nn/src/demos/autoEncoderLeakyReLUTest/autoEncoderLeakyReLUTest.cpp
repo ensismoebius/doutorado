@@ -178,14 +178,14 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 
     // ==== Initialization ====
 
-
     // Do not attempt runtime NPZ loading; NetworkSerializer::loadNetwork()
     // is intentionally disabled and will return false. Initialize weights
     // deterministically via Kaiming initializer.
-    (void)encoder_weights_file_path;
-    (void)decoder_weights_file_path;
+    (void) encoder_weights_file_path;
+    (void) decoder_weights_file_path;
 
-    std::cerr << "Runtime NPZ weight loading is disabled; initializing with Kaiming initialization\n";
+    std::cerr
+        << "Runtime NPZ weight loading is disabled; initializing with Kaiming initialization\n";
 
     // Initialize encoder weights and biases
     kaimingSNNInitializer(encoder1, nn::testing::kSeed);

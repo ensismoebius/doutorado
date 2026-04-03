@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/protocol/SamplePacking.cpp
+ * @brief Implementation for Samplepacking.
+ *
+
+ */
+
 #include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
 
 #include <cmath>

@@ -24,7 +24,7 @@
 # This file sets up the necessary compiler and linker flags to enable
 # sanitizers in Debug builds.
 
-option(NN_ENABLE_ASAN "Enable AddressSanitizer + UBSan for Debug builds" OFF)
+option(NN_ENABLE_ASAN "Enable AddressSanitizer + UBSSan for Debug and RelWithDebInfo builds" OFF)
 
 if (NOT NN_ENABLE_ASAN)
     message(STATUS "Sanitizers disabled (NN_ENABLE_ASAN=OFF)")
@@ -33,15 +33,20 @@ endif()
 
 add_compile_options(
     $<$<CONFIG:Debug>:-fno-omit-frame-pointer>
+    $<$<CONFIG:RelWithDebInfo>:-fno-omit-frame-pointer>
 )
 
 # Enable sanitizers for Debug builds when not using MSVC.
 # AddressSanitizer and UndefinedBehaviorSanitizer need both compile and
 # link flags so add them via generator expressions for Debug config.
 if (NOT MSVC)
+
+    # Apply sanitizers to Debug and RelWithDebInfo configurations to ensure
+    # consistent instrumentation when dependencies or subprojects are built
+    # with sanitizers enabled (some vendored projects may compile in RelWithDebInfo).
     add_compile_options(
-        $<$<CONFIG:Debug>:-fsanitize=address>
-        $<$<CONFIG:Debug>:-fsanitize=undefined>
+        $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fsanitize=address>
+        $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fsanitize=undefined>
     )
 
     # Ensure linker also receives sanitizer options. Use add_link_options when
@@ -50,11 +55,13 @@ if (NOT MSVC)
     # `cmake/Policies.cmake` so we don't need to test for it here.
     if (COMMAND add_link_options)
         add_link_options(
-            $<$<CONFIG:Debug>:-fsanitize=address>
-            $<$<CONFIG:Debug>:-fsanitize=undefined>
+            $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fsanitize=address>
+            $<$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>:-fsanitize=undefined>
         )
     else()
         set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
         set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -fsanitize=address -fsanitize=undefined")
+        set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize=undefined")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO "${CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize=undefined")
     endif()
 endif()

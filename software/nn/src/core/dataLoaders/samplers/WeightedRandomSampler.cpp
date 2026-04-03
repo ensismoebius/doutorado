@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/samplers/WeightedRandomSampler.cpp
+ * @brief Implementation for Weightedrandomsampler.
+ *
+
+ */
+
 #include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 #include <algorithm>

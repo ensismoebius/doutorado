@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/io/StateIO.hpp
+ * @brief Stateio.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 // Lightweight state dict binary IO helpers
 #pragma once
 
@@ -37,7 +48,8 @@ inline bool save_state_dict(const std::map<std::string, nn::Tensor>& sd, const s
         const float* data = t.data_ptr();
         if (rows * cols > 0)
         {
-            f.write(reinterpret_cast<const char*>(data), static_cast<std::streamsize>(rows * cols * sizeof(float)));
+            f.write(reinterpret_cast<const char*>(data),
+                static_cast<std::streamsize>(rows * cols * sizeof(float)));
         }
     }
     return f.good();
@@ -62,7 +74,8 @@ inline bool load_state_dict(std::map<std::string, nn::Tensor>& out, const std::s
         nn::Tensor t(static_cast<nn::Index>(rows), static_cast<nn::Index>(cols));
         if (rows * cols > 0)
         {
-            f.read(reinterpret_cast<char*>(t.mutable_data_ptr()), static_cast<std::streamsize>(rows * cols * sizeof(float)));
+            f.read(reinterpret_cast<char*>(t.mutable_data_ptr()),
+                static_cast<std::streamsize>(rows * cols * sizeof(float)));
         }
         out.emplace(key, std::move(t));
     }

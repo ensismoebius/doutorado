@@ -1,3 +1,10 @@
+/**
+ * @file src/core/serialization/StateIO.cpp
+ * @brief Implementation for Stateio.
+ *
+
+ */
+
 #include "nn/serialization/StateIO.hpp"
 
 #include <fstream>
@@ -28,8 +35,7 @@ bool save_state_dict(const std::map<std::string, nn::Tensor>& sd, const std::str
         f.write(reinterpret_cast<const char*>(&cols), sizeof(cols));
         const float* data = t.data_ptr();
         size_t count = static_cast<size_t>(rows) * static_cast<size_t>(cols);
-        if (count)
-            f.write(reinterpret_cast<const char*>(data), count * sizeof(float));
+        if (count) f.write(reinterpret_cast<const char*>(data), count * sizeof(float));
     }
     return f.good();
 }

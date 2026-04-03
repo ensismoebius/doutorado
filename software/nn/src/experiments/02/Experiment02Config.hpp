@@ -1,3 +1,14 @@
+/**
+ * @file src/experiments/02/Experiment02Config.hpp
+ * @brief Experiment02config.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_EXPERIMENTS_02_EXPERIMENT02CONFIG_HPP
 #define NN_EXPERIMENTS_02_EXPERIMENT02CONFIG_HPP
 

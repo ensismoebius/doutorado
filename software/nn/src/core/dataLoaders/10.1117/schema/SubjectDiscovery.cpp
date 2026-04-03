@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/schema/SubjectDiscovery.cpp
+ * @brief Implementation for Subjectdiscovery.
+ *
+
+ */
+
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 
 #include <sqlite3.h>

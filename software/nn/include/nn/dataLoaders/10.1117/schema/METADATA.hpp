@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/10.1117/schema/METADATA.hpp
+ * @brief Metadata.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <cstddef>

@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/tests/fuzz/eeg_loader_property_tests.cpp
+ * @brief Implementation for Eeg loader property tests.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 #include <unistd.h>
 

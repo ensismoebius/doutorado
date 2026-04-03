@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/dataLoaders/DataLoaderIterator.hpp
+ * @brief Dataloaderiterator.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_DATALOADERS_DATALOADERITERATOR_HPP
 #define NN_DATALOADERS_DATALOADERITERATOR_HPP
 

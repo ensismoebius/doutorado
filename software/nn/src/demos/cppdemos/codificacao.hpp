@@ -1,3 +1,14 @@
+/**
+ * @file src/demos/cppdemos/codificacao.hpp
+ * @brief Codificacao.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef DEMOS_CPPDEMOS_CODIFICACAO_HPP
 #define DEMOS_CPPDEMOS_CODIFICACAO_HPP
 

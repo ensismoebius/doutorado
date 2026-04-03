@@ -1,13 +1,25 @@
+/**
+ * @file include/nn/testing/tempfile.hpp
+ * @brief Tempfile.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #ifndef NN_TESTING_TEMPFILE_HPP
 #define NN_TESTING_TEMPFILE_HPP
 
-#include <string>
-#include <vector>
-#include <unistd.h>
 #include <fcntl.h>
+#include <unistd.h>
+
 #include <cstdio>
-#include <utility>
 #include <fstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace nn::testing
 {
@@ -33,8 +45,12 @@ inline std::string make_temp_file(const std::string& prefix = "nn_test_")
 // RAII TempFile: creates a temp file and removes it on destruction unless released.
 class TempFile
 {
-  public:
-    explicit TempFile(const std::string& prefix = "nn_test_") { path_ = make_temp_file(prefix); owned_ = !path_.empty(); }
+   public:
+    explicit TempFile(const std::string& prefix = "nn_test_")
+    {
+        path_ = make_temp_file(prefix);
+        owned_ = !path_.empty();
+    }
     ~TempFile()
     {
         if (owned_ && !path_.empty())
@@ -63,7 +79,10 @@ class TempFile
         return *this;
     }
 
-    const std::string& path() const { return path_; }
+    const std::string& path() const
+    {
+        return path_;
+    }
 
     // Release ownership; file will not be removed on destruction.
     std::string release()
@@ -82,7 +101,7 @@ class TempFile
         return ofs.good();
     }
 
-  private:
+   private:
     std::string path_;
     bool owned_ = false;
 };

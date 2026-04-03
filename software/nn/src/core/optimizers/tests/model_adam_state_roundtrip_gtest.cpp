@@ -1,7 +1,14 @@
+/**
+ * @file src/core/optimizers/tests/model_adam_state_roundtrip_gtest.cpp
+ * @brief Implementation for Model adam state roundtrip gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 
-#include "nn/layers/Sequential.hpp"
 #include "nn/layers/Linear.hpp"
+#include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/serialization/StateIO.hpp"
 #include "nn/testing/tempfile.hpp"
@@ -50,7 +57,8 @@ TEST(AdamModelState, SaveLoadModelAndOptimizerRoundtrip)
     auto loaded = nn::serialization::load_state_dict(tmp);
     ASSERT_EQ(loaded.size(), combined.size());
     // Check a few keys exist
-    ASSERT_TRUE(loaded.count("model.0.weight") || loaded.count("model.0.bias") || loaded.count("model.1.weight"));
+    ASSERT_TRUE(loaded.count("model.0.weight") || loaded.count("model.0.bias") ||
+                loaded.count("model.1.weight"));
     ASSERT_TRUE(loaded.count("optim.time_step"));
 
     std::remove(tmp.c_str());

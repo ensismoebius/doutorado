@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/DataLoaderIterator.cpp
+ * @brief Implementation for Dataloaderiterator.
+ *
+
+ */
+
 #include "nn/dataLoaders/DataLoaderIterator.hpp"
 
 #include <algorithm>

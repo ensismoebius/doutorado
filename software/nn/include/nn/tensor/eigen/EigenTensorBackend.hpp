@@ -1,3 +1,18 @@
+#/**
+ * @file include/nn/tensor/eigen/EigenTensorBackend.hpp
+ * @brief Eigen-backed host storage for tensors; maps N-D shapes to Eigen::MatrixXf.
+ *
+ * **Purpose:** Host-backed backend used as the CPU reference implementation.
+ *
+ * **Contract:**
+ * - Logical 2D and 4D shape mapping documented in `Tensor` prologue.
+ * - Methods throw `std::invalid_argument` / `std::out_of_range` for invalid shapes/indices.
+ *
+ * **Notes:**
+ * - Keep implementations numerically stable; avoid unnecessary temporaries.
+ * - Use Eigen vectorized expressions where possible for performance.
+ */
+
 #ifndef EIGEN_TENSOR_BACKEND_HPP
 #define EIGEN_TENSOR_BACKEND_HPP
 

@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/SamplerOptionResolution.cpp
+ * @brief Implementation for Sampleroptionresolution.
+ *
+
+ */
+
 #include "nn/dataLoaders/SamplerOptionResolution.hpp"
 
 #include <algorithm>

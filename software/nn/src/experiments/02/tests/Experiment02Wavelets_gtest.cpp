@@ -1,3 +1,10 @@
+/**
+ * @file src/experiments/02/tests/Experiment02Wavelets_gtest.cpp
+ * @brief Implementation for Experiment02wavelets gtest.
+ *
+
+ */
+
 #include <vector>
 
 #include "../Experiment02Wavelets.hpp"

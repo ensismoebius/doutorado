@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp
+ * @brief Implementation for Sqlite session gtest.
+ *
+
+ */
+
 // sqlite_session_gtest.cpp
 // Verify SQL-backed session reads match raw sqlite blobs for a few trials.
 

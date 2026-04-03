@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/logging/StreamRedirector.hpp
+ * @brief Streamredirector.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <iostream>

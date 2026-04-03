@@ -1,3 +1,10 @@
+/**
+ * @file src/demos/voice_biometrics_cpp/main.cpp
+ * @brief Implementation for Main.
+ *
+
+ */
+
 // Voice biometrics demo in C++ following system.md architecture: capture/load audio,
 // window + WPT energy, log-normalize, Poisson encode, stateful SNN forward, CSV output.
 

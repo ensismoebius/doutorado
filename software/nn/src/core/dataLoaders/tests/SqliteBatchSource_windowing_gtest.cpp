@@ -1,3 +1,10 @@
+/**
+ * @file src/core/dataLoaders/tests/SqliteBatchSource_windowing_gtest.cpp
+ * @brief Implementation for Sqlitebatchsource windowing gtest.
+ *
+
+ */
+
 #include <gtest/gtest.h>
 #include <sqlite3.h>
 

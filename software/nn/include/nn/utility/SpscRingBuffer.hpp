@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/utility/SpscRingBuffer.hpp
+ * @brief Spscringbuffer.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <atomic>

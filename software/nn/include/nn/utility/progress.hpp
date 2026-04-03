@@ -1,3 +1,14 @@
+/**
+ * @file include/nn/utility/progress.hpp
+ * @brief Progress.
+ *
+ *
+ *
+ * **Contract:**
+ * - Public APIs should document behavior, inputs, outputs, and exceptions.
+ * - Prefer RAII for resource lifecycle when applicable.
+ */
+
 #pragma once
 
 #include <cstddef>
