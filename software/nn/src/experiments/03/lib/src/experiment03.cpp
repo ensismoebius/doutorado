@@ -7,14 +7,13 @@
  * configuration lives in `lib/include/experiment03.hpp`.
  */
 
-#include "experiment03.hpp"
-
 #include <algorithm>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
 
+// Experiment-specific components
 #include "AudioWindowAutoencoder.hpp"
 #include "AudioWindowSpikingAutoencoder.hpp"
 #include "AutoencoderConfig.hpp"
@@ -28,6 +27,9 @@
 #include "ResultsWriter.hpp"
 #include "RunSummaryBuilder.hpp"
 #include "experiment03.hpp"
+#include "experiment03_helpers.hpp"
+
+// Core libraries
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
@@ -46,10 +48,14 @@
 using std::exception;
 using std::make_shared;
 
+using experiment03::build_autoencoder_model;
 using experiment03::build_run_summary;
 using experiment03::DatasetBuilder;
+using experiment03::initialize_device_runtime_or_throw;
 using experiment03::Summary;
+using experiment03::to_sqlite_dataset_type;
 using experiment03::write_run_summary_json;
+
 using nn::Index;
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::SqliteDatasetType;
@@ -65,106 +71,11 @@ namespace
 {
 /// @brief Exit code indicating successful experiment completion.
 constexpr int kExitSuccess = 0;
-
 /// @brief Exit code indicating the experiment terminated with an error.
 constexpr int kExitFailure = 1;
-
-/**
- * @brief Helper to convert from experiment config dataset type to SqliteBatchSource dataset type.
- *
- * @param dataset_type - Experiment03DatasetType specified in the experiment configuration.
- * @return SqliteDatasetType - Corresponding SqliteDatasetType for use with SqliteBatchSource.
- */
-auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type) -> SqliteDatasetType
-{
-    switch (dataset_type)
-    {
-        case Experiment03DatasetType::Protocol:
-            return SqliteDatasetType::Protocol;
-        case Experiment03DatasetType::EegWindow:
-            return SqliteDatasetType::EegWindow;
-        case Experiment03DatasetType::AudioWindow:
-            return SqliteDatasetType::AudioWindow;
-        case Experiment03DatasetType::FusedWindow:
-            return SqliteDatasetType::FusedWindow;
-    }
-
-    return SqliteDatasetType::Protocol;
-}
-
-/**
- * @brief Initialize OpenCL runtime facilities when requested, otherwise log device mode.
- *
- * This preserves existing behavior: sanitizer and device availability checks,
- * buffer-pool initialization, optional profiling toggle, and device-mode logging.
- */
-auto initialize_device_runtime_or_throw(const Config& config)
-    -> nn::OpenCLTensorBackend::RuntimeScope
-{
-    if (config.device != "opencl")
-    {
-        NN_LOG_INFO(string("Experiment03 device mode: ") + config.device);
-        return {};
-    }
-
-    auto runtime_scope =
-        nn::OpenCLTensorBackend::start_runtime_scope_or_throw(config.opencl_profiling_enabled);
-    NN_LOG_INFO(
-        string("Experiment03 device mode: opencl | OpenCL device: ") + runtime_scope.device_name);
-    return runtime_scope;
-}
-
-/**
- * @brief Build an autoencoder model based on the provided configurations.
- *
- * @param config - Experiment configuration containing model hyperparameters and type.
- * @param input_features - Number of input features, used to determine the input layer size.
- * @return unique_ptr<Module> - Constructed autoencoder model instance.
- */
-auto build_autoencoder_model(const Config& config, Index input_features) -> unique_ptr<Module>
-{
-    AutoencoderConfig model_cfg{};
-    model_cfg.input_features = config.effective_autoencoder_input_features( //
-        static_cast<int>(input_features)                                    //
-    );
-    model_cfg.hidden_size = config.autoencoder_hidden_size;
-    model_cfg.latent_size = config.autoencoder_latent_size;
-    model_cfg.depth = config.autoencoder_depth;
-    model_cfg.layer_sizes = config.autoencoder_layer_sizes;
-    model_cfg.architecture = config.effective_autoencoder_architecture();
-    model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
-    model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;
-    model_cfg.residual_blocks = config.autoencoder_residual_blocks;
-    model_cfg.time_step = config.autoencoder_time_step;
-    model_cfg.resistance = config.autoencoder_resistance;
-    model_cfg.capacitance = config.autoencoder_capacitance;
-    model_cfg.eeg_features = config.effective_autoencoder_eeg_features();
-    model_cfg.audio_features = config.effective_autoencoder_audio_features();
-
-    switch (config.autoencoder_type)
-    {
-        case Experiment03AutoencoderType::ProtocolAnn:
-            return make_unique<ProtocolAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::EegWindowAnn:
-            return make_unique<EegWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::AudioWindowAnn:
-            return make_unique<AudioWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::FusedWindowAnn:
-            return make_unique<FusedWindowAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::ProtocolSnn:
-            return make_unique<ProtocolSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::EegWindowSnn:
-            return make_unique<EegWindowSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::AudioWindowSnn:
-            return make_unique<AudioWindowSpikingAutoencoder>(model_cfg);
-        case Experiment03AutoencoderType::FusedWindowSnn:
-            return make_unique<FusedWindowSpikingAutoencoder>(model_cfg);
-    }
-
-    throw std::runtime_error("Unsupported autoencoder type");
-}
-
 } // namespace
+
+// internal helpers moved to experiment03_helpers.hpp / .cpp
 
 Experiment03::Experiment03(const Config& config) : config_(config)
 {
