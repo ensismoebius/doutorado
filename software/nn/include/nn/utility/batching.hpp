@@ -32,8 +32,12 @@ struct Batch
  * @param batch_size Tamanho de cada batch.
  * @return std::vector<Batch> Vetor de Batch, cada um contendo um par {x_batch, y_batch}.
  */
-auto create_batches(
-    std::span<const nn::Tensor> inputSamples, std::span<const nn::Tensor> targets, int batch_size)
-    -> std::vector<Batch>;
+auto create_batches(                          //
+    std::span<const nn::Tensor> inputSamples, //
+    std::span<const nn::Tensor> targets,      //
+    int batch_size                            //
+    ) -> std::vector<Batch>;
+
+auto batch_to_string(const Batch& batch) -> std::string;
 
 #endif // BATCHING_HPP

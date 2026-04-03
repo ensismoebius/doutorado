@@ -38,57 +38,70 @@
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/EigenTensorBackend.hpp"
+#include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
 
 using std::exception;
 using std::make_shared;
 
+using experiment03::build_run_summary;
 using experiment03::DatasetBuilder;
 using experiment03::Summary;
+using experiment03::write_run_summary_json;
+using nn::Index;
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+using nn::dataLoaders::SqliteDatasetType;
 using std::endl;
 using std::make_unique;
+using std::ostringstream;
 using std::size_t;
+using std::string;
 using std::unique_ptr;
 
 namespace
 {
-auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
-    -> nn::dataLoaders::SqliteDatasetType
+/// @brief Exit code indicating successful experiment completion.
+constexpr int kExitSuccess = 0;
+
+/// @brief Exit code indicating the experiment terminated with an error.
+constexpr int kExitFailure = 1;
+
+/**
+ * @brief Helper to convert from experiment config dataset type to SqliteBatchSource dataset type.
+ *
+ * @param dataset_type - Experiment03DatasetType specified in the experiment configuration.
+ * @return SqliteDatasetType - Corresponding SqliteDatasetType for use with SqliteBatchSource.
+ */
+auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type) -> SqliteDatasetType
 {
     switch (dataset_type)
     {
         case Experiment03DatasetType::Protocol:
-            return nn::dataLoaders::SqliteDatasetType::Protocol;
+            return SqliteDatasetType::Protocol;
         case Experiment03DatasetType::EegWindow:
-            return nn::dataLoaders::SqliteDatasetType::EegWindow;
+            return SqliteDatasetType::EegWindow;
         case Experiment03DatasetType::AudioWindow:
-            return nn::dataLoaders::SqliteDatasetType::AudioWindow;
+            return SqliteDatasetType::AudioWindow;
         case Experiment03DatasetType::FusedWindow:
-            return nn::dataLoaders::SqliteDatasetType::FusedWindow;
+            return SqliteDatasetType::FusedWindow;
     }
 
-    return nn::dataLoaders::SqliteDatasetType::Protocol;
+    return SqliteDatasetType::Protocol;
 }
 
-auto make_batch_source(const Config& config) -> std::unique_ptr<IBatchSource>
-{
-    // SQLite is the only backend enabled right now.
-    // Keep this factory as the single extension point for future database backends.
-    return std::make_unique<SqliteBatchSource>(config.dataset_root_path,
-        config.training_batch_size,
-        to_sqlite_dataset_type(config.dataset_type),
-        config.window_eeg_config,
-        config.window_audio_config,
-        config.dataset_input_mode);
-}
-
-auto build_autoencoder_model(const Config& config, nn::Index input_features)
-    -> std::unique_ptr<Module>
+/**
+ * @brief Build an autoencoder model based on the provided configurations.
+ *
+ * @param config - Experiment configuration containing model hyperparameters and type.
+ * @param input_features - Number of input features, used to determine the input layer size.
+ * @return unique_ptr<Module> - Constructed autoencoder model instance.
+ */
+auto build_autoencoder_model(const Config& config, Index input_features) -> unique_ptr<Module>
 {
     AutoencoderConfig model_cfg{};
-    model_cfg.input_features =
-        config.effective_autoencoder_input_features(static_cast<int>(input_features));
+    model_cfg.input_features = config.effective_autoencoder_input_features( //
+        static_cast<int>(input_features)                                    //
+    );
     model_cfg.hidden_size = config.autoencoder_hidden_size;
     model_cfg.latent_size = config.autoencoder_latent_size;
     model_cfg.depth = config.autoencoder_depth;
@@ -159,7 +172,7 @@ int Experiment03::run()
 
         if (!is_autoencoder_compatible(config_.dataset_type, config_.autoencoder_type)) [[unlikely]]
         {
-            std::ostringstream _oss;
+            ostringstream _oss;
             _oss << "Warning: selected dataset type '"
                  << dataset_type_to_string(config_.dataset_type)
                  << "' does not match selected autoencoder '"
@@ -216,8 +229,17 @@ int Experiment03::run()
             seen_batches_ = 0;
             processed_samples_ = 0;
 
-            // Re-create prefetcher so it drives the DataLoader through a fresh pass.
-            std::unique_ptr<IBatchSource> src = make_batch_source(config_);
+            // SQLite is the only backend enabled right now.
+            // But i will keep this factory as the single extension
+            // point for future database backends.
+            unique_ptr<IBatchSource> src = make_unique<SqliteBatchSource>( //
+                config_.dataset_root_path,                                 //
+                config_.training_batch_size,                               //
+                to_sqlite_dataset_type(config_.dataset_type),              //
+                config_.window_eeg_config,                                 //
+                config_.window_audio_config,                               //
+                config_.dataset_input_mode                                 //
+            );
 
             // Determine max batches for this epoch. A value of 0 in the
             // configuration means "process the entire dataset for the
@@ -243,6 +265,14 @@ int Experiment03::run()
                 // Get next batch from prefetcher;
                 // break if no more batches are available.
                 auto maybe_batch = prefetcher_->next();
+
+                // Log batch shape info for debugging.
+                // This will be especially useful if the dataset
+                // produces no batches due to misconfiguration or
+                // data issues, as it will show "no batch" instead of
+                // silently skipping the training loop with zero batches seen.
+                NN_LOG_INFO(batch_to_string(maybe_batch.value()));
+
                 if (!maybe_batch.has_value()) [[unlikely]]
                     break;
 
@@ -322,7 +352,7 @@ int Experiment03::run()
             if (prefetcher_)
             {
                 auto d = prefetcher_->diagnostics();
-                std::ostringstream _oss;
+                ostringstream _oss;
                 _oss << "  Prefetcher ring size: " << d.ring_size
                      << " | seen batches: " << d.seen_batches
                      << " | inflight_prefetch_bytes: " << d.inflight_prefetch_bytes;
@@ -333,7 +363,7 @@ int Experiment03::run()
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
             epoch_mean_losses.push_back(mean_loss);
             {
-                std::ostringstream _oss;
+                ostringstream _oss;
                 _oss << "  mean reconstruction loss: " << mean_loss;
                 NN_LOG_INFO(_oss.str());
             }
@@ -344,42 +374,46 @@ int Experiment03::run()
             NN_LOG_WARN("No batches produced. Check dataset files and row counts.");
         }
 
-        std::string results_path;
-        std::string results_error;
-        auto summary = experiment03::build_run_summary(config_,
-            0,
-            dataset_total_samples_,
-            processed_samples_,
-            seen_batches_,
-            epoch_mean_losses);
+        string results_path;
+        string results_error;
+        auto summary = build_run_summary( //
+            config_,                      //
+            kExitSuccess,                 //
+            dataset_total_samples_,       //
+            processed_samples_,           //
+            seen_batches_,                //
+            epoch_mean_losses             //
+        );
 
-        if (experiment03::write_run_summary_json(summary, results_path, results_error))
+        if (write_run_summary_json(summary, results_path, results_error))
         {
-            NN_LOG_INFO(std::string("Run summary written to: ") + results_path);
+            NN_LOG_INFO(string("Run summary written to: ") + results_path);
         }
         else
         {
-            NN_LOG_WARN(std::string("Warning: failed to write run summary: ") + results_error);
+            NN_LOG_WARN(string("Warning: failed to write run summary: ") + results_error);
         }
 
         NN_LOG_INFO("Training complete.");
     }
     catch (const exception& e)
     {
-        std::string results_path;
-        std::string results_error;
-        auto summary = experiment03::build_run_summary(config_,
-            1,
-            dataset_total_samples_,
-            processed_samples_,
-            seen_batches_,
-            epoch_mean_losses,
-            e.what());
-        (void) experiment03::write_run_summary_json(summary, results_path, results_error);
+        string results_path;
+        string results_error;
+        auto summary = build_run_summary( //
+            config_,                      //
+            kExitFailure,                 //
+            dataset_total_samples_,       //
+            processed_samples_,           //
+            seen_batches_,                //
+            epoch_mean_losses,            //
+            e.what()                      //
+        );
+        (void) write_run_summary_json(summary, results_path, results_error);
 
-        NN_LOG_ERROR(std::string("Error: ") + e.what());
-        return 1;
+        NN_LOG_ERROR(string("Error: ") + e.what());
+        return kExitFailure;
     }
 
-    return 0;
+    return kExitSuccess;
 }

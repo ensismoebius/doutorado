@@ -71,3 +71,16 @@ auto create_batches(std::span<const nn::Tensor> inputSamples,
 
     return batches;
 }
+
+auto batch_to_string(const Batch& batch) -> std::string
+{
+    std::ostringstream oss;
+    const int input_samples = batch.inputs.rows();
+    const int input_sample_size = batch.inputs.cols();
+    const int target_samples = batch.targets.rows();
+    const int target_sample_size = batch.targets.cols();
+
+    oss << "Batch(inputs: samples=" << input_samples << ", sample_size=" << input_sample_size
+        << "; targets: samples=" << target_samples << ", sample_size=" << target_sample_size << ")";
+    return oss.str();
+}

@@ -157,12 +157,19 @@ auto parseArchitectureToken(const std::string& token) -> AutoencoderArchitecture
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config
 {
     Config config = default_config;
-    std::string profile =
-        resolve_profile_name(parse_profile_name_from_argv(argc, argv, default_config.profile_name));
+    const bool launched_without_arguments = (argc <= 1);
+    const bool has_help = has_help_flag(argc, argv);
+
+    std::string profile = parse_profile_name_from_argv(argc, argv, default_config.profile_name);
+    if (!launched_without_arguments)
+    {
+        profile = resolve_profile_name(profile);
+    }
 
     // Seed defaults from profile before registering CLI options so explicit
     // command line flags still win over profile values.
-    if (!has_help_flag(argc, argv))
+    // For zero-argument launches, keep `default_config` as the single source of defaults.
+    if (!has_help && !launched_without_arguments)
     {
         std::string profile_error;
         if (!experiment03::load_profile_to_config(profile, config, profile_error))

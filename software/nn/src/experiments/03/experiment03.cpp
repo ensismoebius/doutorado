@@ -34,8 +34,8 @@ const Config default_config{
         "BaseDeDatosHablaImaginada",
 
     // Training throughput controls.
-    .training_batch_size = 100,
-    .training_max_batches_per_epoch = 100,
+    .training_batch_size = 10,
+    .training_max_batches_per_epoch = 5000,
 
     // Sampling behavior. Empty sampler type keeps the legacy shuffle/no-shuffle path.
     .sampler_shuffle_samples = true,
@@ -51,9 +51,9 @@ const Config default_config{
     // Dataset/model pairing defaults.
     .dataset_input_mode = Protocol101117InputMode::Concatenated,
     .dataset_type = Experiment03DatasetType::FusedWindow,
-    .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
-
+    
     // Autoencoder architecture hyperparameters.
+    .autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn,
     .autoencoder_hidden_size = 64,
     .autoencoder_latent_size = 32,
     .autoencoder_depth = 2,
@@ -70,7 +70,7 @@ const Config default_config{
     .autoencoder_capacitance = 1.0F,
 
     // Training hyperparameters.
-    .training_learning_rate = 1e-3f,
+    .training_learning_rate = 1e-2f,
     .training_epochs = 10,
 
     // Window specs used by windowing datasets.
