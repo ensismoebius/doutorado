@@ -1,0 +1,52 @@
+{
+    "version": 8,
+    "configurePresets": [
+        {
+            "name": "Clang_20.1.8_x86_64-pc-linux-gnu",
+            "displayName": "Clang 20.1.8 x86_64-pc-linux-gnu",
+            "description": "Using compilers: C = /usr/bin/clang, CXX = /usr/bin/clang++",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "max-performance",
+            "displayName": "Max Performance (O3 + LTO + march=native)",
+            "description": "Configure for maximal runtime performance (O3, LTO, march=native).",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -march=native -flto -DNDEBUG -pipe",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -march=native -flto -DNDEBUG -pipe",
+                "OpenMP_C_FLAGS": "-fopenmp",
+                "OpenMP_C_LIB_NAMES": "gomp",
+                "NN_ENABLE_FAST_LINKER": "OFF",
+                "OpenMP_C_FOUND": "TRUE",
+                "OpenMP_CXX_FLAGS": "-fopenmp",
+                "OpenMP_CXX_LIB_NAMES": "gomp",
+                "OpenMP_CXX_FOUND": "TRUE",
+                "OpenMP_gomp_LIBRARY": "/usr/lib/libgomp.so",
+                "OpenMP_libomp_LIBRARY": "/usr/lib/libomp.so",
+                "OpenMP_FOUND": "TRUE",
+                "Threads_FOUND": "TRUE",
+                "CMAKE_THREAD_LIBS_INIT": "-lpthread",
+                "THREADS_PTHREAD_ARG": "-pthread",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "max-performance",
+            "displayName": "Build (max-performance)",
+            "configurePreset": "max-performance"
+        }
+    ]
+}
