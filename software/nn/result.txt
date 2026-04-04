@@ -1,0 +1,822 @@
+[  0%] Running clang-tidy static analysis...
+[100%] Running cppcheck static analysis on project sources...
+[  0%] Running flawfinder security analysis...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/codec/BatchTargetFormatter.cpp ...
+1/191 files checked 0% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/codec/InputModeCodec.cpp ...
+2/191 files checked 0% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/dataset_info.cpp ...
+3/191 files checked 0% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp ...
+4/191 files checked 2% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp ...
+5/191 files checked 4% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/Protocol101117Dataset.cpp ...
+6/191 files checked 5% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/SamplePacking.cpp ...
+7/191 files checked 5% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.cpp ...
+8/191 files checked 6% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/schema/SubjectDiscovery.cpp ...
+9/191 files checked 7% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/codec/batch_target_formatter_gtest.cpp ...
+10/191 files checked 7% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/codec/input_mode_codec_gtest.cpp ...
+11/191 files checked 7% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/audio_loader_property_tests.cpp ...
+12/191 files checked 8% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/eeg_loader_property_tests.cpp ...
+13/191 files checked 8% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/fuzz_audio_loader.cpp ...
+14/191 files checked 8% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/fuzz_eeg_loader.cpp ...
+15/191 files checked 8% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/generators/mock_dataset_generator_gtest.cpp ...
+16/191 files checked 9% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/audio_loader_article_spec_gtest.cpp ...
+17/191 files checked 9% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/audio_loader_gtest.cpp ...
+18/191 files checked 10% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_article_spec_gtest.cpp ...
+19/191 files checked 10% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_edge_gtest.cpp ...
+20/191 files checked 10% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_gtest.cpp ...
+21/191 files checked 11% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp ...
+22/191 files checked 12% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp ...
+[100%] Built target analysis-flawfinder
+23/191 files checked 13% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/schema/dataset_schema_article_spec_gtest.cpp ...
+24/191 files checked 13% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.cpp ...
+25/191 files checked 14% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.hpp ...
+26/191 files checked 14% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/windowing/windowing_gtest.cpp ...
+27/191 files checked 15% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/AudioWindowDataset.cpp ...
+28/191 files checked 15% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/EEGWindowDataset.cpp ...
+29/191 files checked 16% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/FusedWindowDataset.cpp ...
+30/191 files checked 17% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/BatchPrefetcher.cpp ...
+31/191 files checked 18% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/DataLoader.cpp ...
+32/191 files checked 18% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/DataLoaderIterator.cpp ...
+33/191 files checked 18% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/SamplerOptionResolution.cpp ...
+34/191 files checked 19% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/SqliteBatchSource.cpp ...
+35/191 files checked 21% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/mat_file.cpp ...
+36/191 files checked 21% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/mat_file_utils.cpp ...
+37/191 files checked 22% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/DistributedSampler.cpp ...
+38/191 files checked 22% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/RandomSampler.cpp ...
+39/191 files checked 22% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/SequentialSampler.cpp ...
+40/191 files checked 22% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/WeightedRandomSampler.cpp ...
+41/191 files checked 23% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/tests/sampler_gtest.cpp ...
+42/191 files checked 23% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/MatTestUtils/MatTestUtils.cpp ...
+43/191 files checked 23% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/MatTestUtils/MatTestUtils.h ...
+44/191 files checked 23% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/SqliteBatchSource_windowing_gtest.cpp ...
+45/191 files checked 23% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp ...
+46/191 files checked 24% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/count_mat_rows_gtest.cpp ...
+47/191 files checked 24% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataLoader_gtest.cpp ...
+48/191 files checked 25% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataLoader_more_gtest.cpp ...
+49/191 files checked 26% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataset_collate_gtest.cpp ...
+50/191 files checked 26% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/mat_file_dataset_gtest.cpp ...
+51/191 files checked 27% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/mat_file_gtest.cpp ...
+52/191 files checked 27% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_row_vector_gtest.cpp ...
+53/191 files checked 27% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_utils_gtest.cpp ...
+54/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_vector_gtest.cpp ...
+55/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/sampler_gtest.cpp ...
+56/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/sampler_option_resolution_gtest.cpp ...
+57/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/state_io_gtest.cpp ...
+58/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/initializers/tests/initializers_gtest.cpp ...
+59/191 files checked 28% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/Conv2d_impl.cpp ...
+60/191 files checked 29% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/Conv2d_utils.cpp ...
+61/191 files checked 31% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/dummy.cpp ...
+62/191 files checked 31% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/tests/layers_gtest.cpp ...
+63/191 files checked 35% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/linearAlgebra/linear_algebra.cpp ...
+64/191 files checked 36% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/linearAlgebra/tests/linearAlgebra_gtest.cpp ...
+65/191 files checked 36% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/model_adam_state_roundtrip_gtest.cpp ...
+66/191 files checked 36% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/optimizers_gtest.cpp ...
+67/191 files checked 38% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/state_io_gtest.cpp ...
+68/191 files checked 38% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/paraconsistent/paraconsistent.cpp ...
+69/191 files checked 39% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/paraconsistent/tests/paraconsistent_gtest.cpp ...
+70/191 files checked 39% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/saver/tests/NetworkSerializer_gtest.cpp ...
+71/191 files checked 40% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/saver/tests/StateIO_gtest.cpp ...
+72/191 files checked 40% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/serialization/StateIO.cpp ...
+73/191 files checked 40% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/serialization/tests/StateIO_gtest.cpp ...
+74/191 files checked 40% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/confusion_matrix.cpp ...
+75/191 files checked 41% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/multi_class_metrics.cpp ...
+76/191 files checked 41% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/statistics.cpp ...
+77/191 files checked 41% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/tests/confusionMatrix_gtest.cpp ...
+78/191 files checked 41% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/tests/statistics_gtest.cpp ...
+79/191 files checked 43% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/CLBuffer.cpp ...
+80/191 files checked 43% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/DeviceMemory.cpp ...
+81/191 files checked 44% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/GPUBufferPool.cpp ...
+82/191 files checked 44% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/KernelManager.cpp ...
+83/191 files checked 45% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLContext.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLContext.cpp: CL_VERSION_2_0=CL_VERSION_2_0...
+84/191 files checked 45% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLProfiling.cpp ...
+85/191 files checked 46% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp: __SANITIZE_ADDRESS__=__SANITIZE_ADDRESS__...
+86/191 files checked 51% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/device_backend_gtest.cpp ...
+87/191 files checked 52% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/gpu_buffer_pool_gtest.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/gpu_buffer_pool_gtest.cpp: CL_VERSION_2_0=CL_VERSION_2_0...
+88/191 files checked 52% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/opencl_tensor_backend_gtest.cpp ...
+89/191 files checked 53% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/tensor_gtest.cpp ...
+90/191 files checked 54% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/batching.cpp ...
+91/191 files checked 55% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/comparison.cpp ...
+92/191 files checked 55% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/imgui_glfw.cpp ...
+93/191 files checked 55% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/progress.cpp ...
+94/191 files checked 56% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/synthetic_spike_data.cpp ...
+95/191 files checked 56% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/tests/test_helpers.hpp ...
+96/191 files checked 56% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/tests/util_gtest.cpp ...
+97/191 files checked 58% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/vectorizationCheck.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/vectorizationCheck.cpp: EIGEN_VECTORIZE_AVX=EIGEN_VECTORIZE_AVX...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/vectorizationCheck.cpp: EIGEN_VECTORIZE_FMA=EIGEN_VECTORIZE_FMA...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/vectorizationCheck.cpp: EIGEN_VECTORIZE_SSE4_2=EIGEN_VECTORIZE_SSE4_2...
+98/191 files checked 58% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp ...
+99/191 files checked 60% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/audioFeatureExtraction.cpp ...
+100/191 files checked 61% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/demo/create_wav_demo.cpp ...
+101/191 files checked 62% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/filter_operations.cpp ...
+102/191 files checked 62% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/lfcc_pipeline_utils.cpp ...
+103/191 files checked 62% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/signal_operations.cpp ...
+104/191 files checked 63% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/tests/wave_gtest.cpp ...
+105/191 files checked 64% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/WaveletTransformResults.cpp ...
+106/191 files checked 65% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/tests/wavelet_gtest.cpp ...
+107/191 files checked 66% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/waveletOperations.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/waveletOperations.cpp: _OPENMP=_OPENMP...
+108/191 files checked 67% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp ...
+109/191 files checked 68% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp: DEBUG=DEBUG...
+110/191 files checked 69% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoencoder/autoencoder_scaffold_example.cpp ...
+111/191 files checked 70% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/codificacao.cpp ...
+112/191 files checked 70% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/codificacao.hpp ...
+113/191 files checked 70% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/comandos.cpp ...
+114/191 files checked 71% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/rede_snn.cpp ...
+115/191 files checked 72% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/speaker_demo.cpp ...
+116/191 files checked 73% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp ...
+117/191 files checked 74% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/exec_resnet_demo/resnet_demo.cpp ...
+118/191 files checked 74% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/fftw3_demo/fftw3_demo.cpp ...
+119/191 files checked 75% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/lfcc_pipeline/lfcc_pipeline.cpp ...
+120/191 files checked 75% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/lfcc_pipeline/tests/lfcc_pipeline_utils_gtest.cpp ...
+121/191 files checked 76% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/voice_biometrics_cpp/main.cpp ...
+122/191 files checked 78% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/demos/wavelet_demo/wavelet_demo.cpp ...
+123/191 files checked 78% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00.cpp ...
+124/191 files checked 79% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_data.cpp ...
+125/191 files checked 79% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_data.hpp ...
+126/191 files checked 79% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_features.cpp ...
+127/191 files checked 80% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_features.hpp ...
+128/191 files checked 80% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_training.cpp ...
+129/191 files checked 80% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_training.hpp ...
+130/191 files checked 81% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/01/phase01.cpp ...
+131/191 files checked 81% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Config.cpp ...
+132/191 files checked 81% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Config.hpp ...
+133/191 files checked 81% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Data.cpp ...
+134/191 files checked 82% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Data.hpp ...
+135/191 files checked 82% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Evaluation.cpp ...
+136/191 files checked 82% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Evaluation.hpp ...
+137/191 files checked 82% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Pipeline.cpp ...
+138/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Pipeline.hpp ...
+139/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Reporting.cpp ...
+140/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Reporting.hpp ...
+141/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Training.cpp ...
+142/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Training.hpp ...
+143/191 files checked 83% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Wavelets.cpp ...
+144/191 files checked 84% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Wavelets.hpp ...
+145/191 files checked 84% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/experiment_02.cpp ...
+146/191 files checked 84% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/tests/Experiment02Data_gtest.cpp ...
+147/191 files checked 84% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/tests/Experiment02Reporting_gtest.cpp ...
+148/191 files checked 84% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/tests/Experiment02Wavelets_gtest.cpp ...
+149/191 files checked 85% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/experiment03.cpp ...
+150/191 files checked 85% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/AutoencoderBuilders.hpp ...
+151/191 files checked 86% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/AutoencoderConfig.hpp ...
+152/191 files checked 86% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/DatasetBuilder.hpp ...
+153/191 files checked 86% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/Experiment03AutoencoderType.hpp ...
+154/191 files checked 86% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/Experiment03Config.hpp ...
+155/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/Experiment03DatasetType.hpp ...
+156/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/ProfileLoader.hpp ...
+157/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/ResultsWriter.hpp ...
+158/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/RunSummaryBuilder.hpp ...
+159/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/AudioWindowAutoencoder.hpp ...
+160/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/AudioWindowSpikingAutoencoder.hpp ...
+161/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/AutoencoderBuilders.hpp ...
+162/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/EegWindowAutoencoder.hpp ...
+163/191 files checked 87% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/EegWindowSpikingAutoencoder.hpp ...
+164/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/FusedWindowAutoencoder.hpp ...
+165/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/FusedWindowSpikingAutoencoder.hpp ...
+166/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/ProtocolAutoencoder.hpp ...
+167/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/autoencoder/ProtocolSpikingAutoencoder.hpp ...
+168/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/cli.hpp ...
+169/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/experiment03.hpp ...
+170/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/experiment03_helpers.hpp ...
+171/191 files checked 88% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/DatasetBuilder.cpp ...
+172/191 files checked 89% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/ProfileLoader.cpp ...
+173/191 files checked 90% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/ResultsWriter.cpp ...
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/ResultsWriter.cpp: _WIN32=_WIN32...
+174/191 files checked 90% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/RunSummaryBuilder.cpp ...
+175/191 files checked 90% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp ...
+176/191 files checked 91% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp ...
+177/191 files checked 91% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp ...
+178/191 files checked 91% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp ...
+179/191 files checked 91% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp ...
+180/191 files checked 92% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp ...
+181/191 files checked 92% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/ProtocolAutoencoder.cpp ...
+182/191 files checked 93% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp ...
+183/191 files checked 93% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/cli.cpp ...
+184/191 files checked 95% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/experiment03.cpp ...
+185/191 files checked 97% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/experiment03_helpers.cpp ...
+186/191 files checked 97% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/AutoencoderRedesign_gtest.cpp ...
+187/191 files checked 98% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/DatasetBuilder_gtest.cpp ...
+188/191 files checked 98% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/ProfileAndResults_gtest.cpp ...
+189/191 files checked 99% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/Config.cpp ...
+190/191 files checked 99% done
+Checking /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/Config.hpp ...
+191/191 files checked 100% done
+[100%] Built target analysis-cppcheck
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/codec/BatchTargetFormatter.cpp:8:10: error: 'nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/codec/InputModeCodec.cpp:8:10: error: 'nn/dataLoaders/10.1117/codec/InputModeCodec.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/dataset_info.cpp:6:10: error: 'nn/dataLoaders/10.1117/dataset_info.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/dataLoaders/10.1117/dataset_info.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/loaders/AudioLoader.cpp:9:10: error: 'nn/dataLoaders/10.1117/loaders/AudioLoader.h' file not found [clang-diagnostic-error]
+    9 | #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/loaders/EEGLoader.cpp:6:10: error: 'nn/dataLoaders/10.1117/loaders/EEGLoader.h' file not found [clang-diagnostic-error]
+    6 | #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/Protocol101117Dataset.cpp:8:10: error: 'nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/SamplePacking.cpp:8:10: error: 'nn/dataLoaders/10.1117/protocol/SamplePacking.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.cpp:8:10: error: 'nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/schema/SubjectDiscovery.cpp:8:10: error: 'nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/codec/batch_target_formatter_gtest.cpp:10:10: error: 'nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/codec/input_mode_codec_gtest.cpp:12:10: error: 'nn/dataLoaders/10.1117/codec/InputModeCodec.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/audio_loader_property_tests.cpp:15:10: error: 'nn/dataLoaders/10.1117/loaders/AudioLoader.h' file not found [clang-diagnostic-error]
+   15 | #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/eeg_loader_property_tests.cpp:15:10: error: 'nn/dataLoaders/10.1117/loaders/EEGLoader.h' file not found [clang-diagnostic-error]
+   15 | #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/fuzz_audio_loader.cpp:17:10: error: 'nn/dataLoaders/10.1117/loaders/AudioLoader.h' file not found [clang-diagnostic-error]
+   17 | #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/fuzz/fuzz_eeg_loader.cpp:17:10: error: 'nn/dataLoaders/10.1117/loaders/EEGLoader.h' file not found [clang-diagnostic-error]
+   17 | #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/generators/mock_dataset_generator_gtest.cpp:12:10: error: 'nn/dataLoaders/10.1117/loaders/AudioLoader.h' file not found [clang-diagnostic-error]
+   12 | #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/audio_loader_article_spec_gtest.cpp:7:10: error: 'matio.h' file not found [clang-diagnostic-error]
+    7 | #include <matio.h>
+      |          ^~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/audio_loader_gtest.cpp:7:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    7 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_article_spec_gtest.cpp:7:10: error: 'matio.h' file not found [clang-diagnostic-error]
+    7 | #include <matio.h>
+      |          ^~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_edge_gtest.cpp:12:10: error: '../../tests/MatTestUtils/MatTestUtils.h' file not found [clang-diagnostic-error]
+   12 | #include "../../tests/MatTestUtils/MatTestUtils.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/eeg_loader_gtest.cpp:13:10: error: '../../tests/MatTestUtils/MatTestUtils.h' file not found [clang-diagnostic-error]
+   13 | #include "../../tests/MatTestUtils/MatTestUtils.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/loaders/sqlite_session_gtest.cpp:18:10: error: 'nn/dataLoaders/10.1117/loaders/AudioLoader.h' file not found [clang-diagnostic-error]
+   18 | #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp:9:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    9 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/schema/dataset_schema_article_spec_gtest.cpp:8:10: error: 'nn/dataLoaders/10.1117/schema/METADATA.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/utils/MockImaginedSpeechDatasetGenerator.cpp:10:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+   10 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/windowing/windowing_gtest.cpp:17:10: error: 'nn/windowing/WindowSpec.hpp' file not found [clang-diagnostic-error]
+   17 | #include "nn/windowing/WindowSpec.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/AudioWindowDataset.cpp:12:10: error: 'nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/EEGWindowDataset.cpp:13:10: error: 'nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp' file not found [clang-diagnostic-error]
+   13 | #include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/windowing/FusedWindowDataset.cpp:16:10: error: 'nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp' file not found [clang-diagnostic-error]
+   16 | #include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/BatchPrefetcher.cpp:8:10: error: 'nn/dataLoaders/BatchPrefetcher.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/BatchPrefetcher.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/DataLoader.cpp:6:10: error: 'nn/dataLoaders/DataLoader.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/dataLoaders/DataLoader.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/DataLoaderIterator.cpp:8:10: error: 'nn/dataLoaders/DataLoaderIterator.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/DataLoaderIterator.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/SamplerOptionResolution.cpp:8:10: error: 'nn/dataLoaders/SamplerOptionResolution.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/SamplerOptionResolution.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/SqliteBatchSource.cpp:8:10: error: 'nn/dataLoaders/SqliteBatchSource.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/SqliteBatchSource.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/mat_file.cpp:6:10: error: 'nn/dataLoaders/mat_file.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/dataLoaders/mat_file.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/mat_file_utils.cpp:6:10: error: 'nn/dataLoaders/mat_file_utils.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/dataLoaders/mat_file_utils.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/DistributedSampler.cpp:8:10: error: 'nn/dataLoaders/samplers/DistributedSampler.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/RandomSampler.cpp:8:10: error: 'nn/dataLoaders/samplers/RandomSampler.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/samplers/RandomSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/SequentialSampler.cpp:8:10: error: 'nn/dataLoaders/samplers/SequentialSampler.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/WeightedRandomSampler.cpp:8:10: error: 'nn/dataLoaders/samplers/WeightedRandomSampler.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/samplers/tests/sampler_gtest.cpp:13:10: error: 'nn/dataLoaders/samplers/DistributedSampler.hpp' file not found [clang-diagnostic-error]
+   13 | #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/MatTestUtils/MatTestUtils.h:9:10: error: 'matio.h' file not found [clang-diagnostic-error]
+    9 | #include <matio.h>
+      |          ^~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/SqliteBatchSource_windowing_gtest.cpp:13:10: error: 'nn/dataLoaders/SqliteBatchSource.hpp' file not found [clang-diagnostic-error]
+   13 | #include "nn/dataLoaders/SqliteBatchSource.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/batch_prefetcher_gtest.cpp:14:10: error: 'nn/dataLoaders/BatchPrefetcher.hpp' file not found [clang-diagnostic-error]
+   14 | #include "nn/dataLoaders/BatchPrefetcher.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataLoader_gtest.cpp:9:10: error: 'nn/dataLoaders/DataLoader.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/dataLoaders/DataLoader.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataLoader_more_gtest.cpp:9:10: error: 'nn/dataLoaders/DataLoader.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/dataLoaders/DataLoader.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/dataset_collate_gtest.cpp:10:10: error: 'nn/dataLoaders/Dataset.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/dataLoaders/Dataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/mat_file_dataset_gtest.cpp:7:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    7 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_row_vector_gtest.cpp:7:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    7 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_utils_gtest.cpp:7:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    7 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/matfile_vector_gtest.cpp:7:10: error: 'matioCpp/File.h' file not found [clang-diagnostic-error]
+    7 | #include <matioCpp/File.h>
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/sampler_gtest.cpp:13:10: error: 'nn/dataLoaders/samplers/DistributedSampler.hpp' file not found [clang-diagnostic-error]
+   13 | #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/sampler_option_resolution_gtest.cpp:12:10: error: 'nn/dataLoaders/SamplerOptionResolution.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/dataLoaders/SamplerOptionResolution.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/tests/state_io_gtest.cpp:12:10: error: 'nn/serialization/StateIO.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/serialization/StateIO.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/initializers/tests/initializers_gtest.cpp:8:10: error: 'nn/initializers/kaiming_snn.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/initializers/kaiming_snn.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/Conv2d_impl.cpp:9:10: error: 'nn/layers/Conv2d.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/layers/Conv2d.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/Conv2d_utils.cpp:6:10: error: 'nn/layers/Conv2d.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/layers/Conv2d.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/layers/tests/layers_gtest.cpp:10:10: error: 'core/utility/tests/test_helpers.hpp' file not found [clang-diagnostic-error]
+   10 | #include "core/utility/tests/test_helpers.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/linearAlgebra/linear_algebra.cpp:16:10: error: 'nn/linearAlgebra/linear_algebra.hpp' file not found [clang-diagnostic-error]
+   16 | #include "nn/linearAlgebra/linear_algebra.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/linearAlgebra/tests/linearAlgebra_gtest.cpp:7:10: error: 'nn/linearAlgebra/linear_algebra.hpp' file not found [clang-diagnostic-error]
+    7 | #include "nn/linearAlgebra/linear_algebra.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/model_adam_state_roundtrip_gtest.cpp:10:10: error: 'nn/layers/Linear.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/layers/Linear.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/optimizers_gtest.cpp:12:10: error: 'core/utility/tests/test_helpers.hpp' file not found [clang-diagnostic-error]
+   12 | #include "core/utility/tests/test_helpers.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/optimizers/tests/state_io_gtest.cpp:12:10: error: 'nn/io/StateIO.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/io/StateIO.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/paraconsistent/paraconsistent.cpp:19:10: error: 'nn/linearAlgebra/linear_algebra.hpp' file not found [clang-diagnostic-error]
+   19 | #include "nn/linearAlgebra/linear_algebra.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/paraconsistent/tests/paraconsistent_gtest.cpp:13:10: error: 'nn/paraconsistent/paraconsistent.h' file not found [clang-diagnostic-error]
+   13 | #include "nn/paraconsistent/paraconsistent.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/saver/tests/NetworkSerializer_gtest.cpp:9:10: error: 'nn/layers/Leaky.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/layers/Leaky.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/saver/tests/StateIO_gtest.cpp:12:10: error: 'nn/serialization/StateIO.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/serialization/StateIO.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/serialization/StateIO.cpp:8:10: error: 'nn/serialization/StateIO.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/serialization/StateIO.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/serialization/tests/StateIO_gtest.cpp:10:10: error: 'nn/serialization/StateIO.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/serialization/StateIO.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/confusion_matrix.cpp:16:10: error: 'nn/statistics/confusion_matrix.hpp' file not found [clang-diagnostic-error]
+   16 | #include "nn/statistics/confusion_matrix.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/multi_class_metrics.cpp:15:10: error: 'nn/statistics/multi_class_metrics.hpp' file not found [clang-diagnostic-error]
+   15 | #include "nn/statistics/multi_class_metrics.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/tests/confusionMatrix_gtest.cpp:8:10: error: 'nn/statistics/confusion_matrix.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/statistics/confusion_matrix.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/statistics/tests/statistics_gtest.cpp:8:10: error: 'nn/statistics/multi_class_metrics.hpp' file not found [clang-diagnostic-error]
+    8 | #include "nn/statistics/multi_class_metrics.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/CLBuffer.cpp:6:10: error: 'nn/tensor/opencl/CLBuffer.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/CLBuffer.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/DeviceMemory.cpp:6:10: error: 'nn/tensor/opencl/DeviceMemory.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/DeviceMemory.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/GPUBufferPool.cpp:6:10: error: 'nn/tensor/opencl/GPUBufferPool.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/GPUBufferPool.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/KernelManager.cpp:6:10: error: 'nn/tensor/opencl/KernelManager.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/KernelManager.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLContext.cpp:6:10: error: 'nn/tensor/opencl/OpenCLContext.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/OpenCLContext.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLProfiling.cpp:6:10: error: 'nn/tensor/opencl/OpenCLProfiling.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/tensor/opencl/OpenCLProfiling.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp:9:10: error: 'nn/tensor/opencl/OpenCLTensorBackend.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/device_backend_gtest.cpp:9:10: error: 'nn/tensor/DeviceTensorBackend.hpp' file not found [clang-diagnostic-error]
+    9 | #include "nn/tensor/DeviceTensorBackend.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/gpu_buffer_pool_gtest.cpp:11:10: error: 'nn/tensor/opencl/GPUBufferPool.hpp' file not found [clang-diagnostic-error]
+   11 | #include "nn/tensor/opencl/GPUBufferPool.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/opencl_tensor_backend_gtest.cpp:10:10: error: 'nn/tensor/opencl/OpenCLContext.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/tensor/opencl/OpenCLContext.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/tests/tensor_gtest.cpp:10:10: error: 'nn/tensor/Tensor.hpp' file not found [clang-diagnostic-error]
+   10 | #include "nn/tensor/Tensor.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/batching.cpp:6:10: error: 'nn/utility/batching.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/utility/batching.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/imgui_glfw.cpp:6:10: error: 'nn/utility/imgui_glfw.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/utility/imgui_glfw.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/progress.cpp:11:10: error: 'nn/utility/progress.hpp' file not found [clang-diagnostic-error]
+   11 | #include "nn/utility/progress.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/synthetic_spike_data.cpp:6:10: error: 'nn/utility/synthetic_spike_data.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/utility/synthetic_spike_data.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/tests/util_gtest.cpp:12:10: error: 'core/utility/tests/test_helpers.hpp' file not found [clang-diagnostic-error]
+   12 | #include "core/utility/tests/test_helpers.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/utility/vectorizationCheck.cpp:6:10: error: 'nn/utility/vectorizationCheck.hpp' file not found [clang-diagnostic-error]
+    6 | #include "nn/utility/vectorizationCheck.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/Wav.cpp:17:10: error: 'nn/wave/Wav.h' file not found [clang-diagnostic-error]
+   17 | #include "nn/wave/Wav.h"
+      |          ^~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/audioFeatureExtraction.cpp:6:10: error: 'nn/wave/audioFeatureExtraction.h' file not found [clang-diagnostic-error]
+    6 | #include "nn/wave/audioFeatureExtraction.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/demo/create_wav_demo.cpp:11:10: error: '../Wav.h' file not found [clang-diagnostic-error]
+   11 | #include "../Wav.h"
+      |          ^~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/lfcc_pipeline_utils.cpp:8:10: error: 'nn/wave/lfcc_pipeline_utils.h' file not found [clang-diagnostic-error]
+    8 | #include "nn/wave/lfcc_pipeline_utils.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wave/tests/wave_gtest.cpp:13:10: error: 'nn/wave/Wav.h' file not found [clang-diagnostic-error]
+   13 | #include "nn/wave/Wav.h"
+      |          ^~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/WaveletTransformResults.cpp:15:10: error: 'nn/wavelet/WaveletTransformResults.h' file not found [clang-diagnostic-error]
+   15 | #include "nn/wavelet/WaveletTransformResults.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/tests/wavelet_gtest.cpp:7:10: error: 'nn/wavelet/Types.h' file not found [clang-diagnostic-error]
+    7 | #include "nn/wavelet/Types.h"
+      |          ^~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/core/wavelet/waveletOperations.cpp:6:10: error: 'nn/wavelet/waveletOperations.h' file not found [clang-diagnostic-error]
+    6 | #include "nn/wavelet/waveletOperations.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp:22:10: error: 'nn/initializers/kaiming_snn.hpp' file not found [clang-diagnostic-error]
+   22 | #include "nn/initializers/kaiming_snn.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp:21:10: error: 'nn/initializers/kaiming_snn.hpp' file not found [clang-diagnostic-error]
+   21 | #include "nn/initializers/kaiming_snn.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/autoencoder/autoencoder_scaffold_example.cpp:15:10: error: 'AudioWindowAutoencoder.hpp' file not found [clang-diagnostic-error]
+   15 | #include "AudioWindowAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/codificacao.hpp:18:10: error: 'nn/tensor/Tensor.hpp' file not found [clang-diagnostic-error]
+   18 | #include "nn/tensor/Tensor.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/rede_snn.cpp:11:10: error: 'nn/initializers/kaiming_snn.hpp' file not found [clang-diagnostic-error]
+   11 | #include "nn/initializers/kaiming_snn.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/cppdemos/speaker_demo.cpp:10:10: error: 'argparse/argparse.hpp' file not found [clang-diagnostic-error]
+   10 | #include <argparse/argparse.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp:17:10: error: 'imgui.h' file not found [clang-diagnostic-error]
+   17 | #include "imgui.h"
+      |          ^~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/exec_resnet_demo/resnet_demo.cpp:14:10: error: 'nn/dataLoaders/mat_file_utils.hpp' file not found [clang-diagnostic-error]
+   14 | #include "nn/dataLoaders/mat_file_utils.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/fftw3_demo/fftw3_demo.cpp:16:10: error: 'matplotlibcpp.h' file not found [clang-diagnostic-error]
+   16 | #include "matplotlibcpp.h"
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/lfcc_pipeline/lfcc_pipeline.cpp:12:10: error: 'nn/wave/audioTypes.h' file not found [clang-diagnostic-error]
+   12 | #include "nn/wave/audioTypes.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/lfcc_pipeline/tests/lfcc_pipeline_utils_gtest.cpp:13:10: error: 'nn/tensor/Tensor.hpp' file not found [clang-diagnostic-error]
+   13 | #include "nn/tensor/Tensor.hpp"             // For Tensor
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/voice_biometrics_cpp/main.cpp:12:10: error: 'argparse/argparse.hpp' file not found [clang-diagnostic-error]
+   12 | #include <argparse/argparse.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/demos/wavelet_demo/wavelet_demo.cpp:16:10: error: 'matplotlibcpp.h' file not found [clang-diagnostic-error]
+   16 | #include "matplotlibcpp.h"
+      |          ^~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00.cpp:15:10: error: '../../include/nn/logging/Logger.hpp' file not found [clang-diagnostic-error]
+   15 | #include "../../include/nn/logging/Logger.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_data.hpp:12:10: error: 'Config.hpp' file not found [clang-diagnostic-error]
+   12 | #include "Config.hpp"
+      |          ^~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_features.hpp:12:10: error: 'nn/tensor/Tensor.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/tensor/Tensor.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/00/phase00_training.hpp:13:10: error: 'Config.hpp' file not found [clang-diagnostic-error]
+   13 | #include "Config.hpp"
+      |          ^~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Config.cpp:12:10: error: 'nlohmann/json.hpp' file not found [clang-diagnostic-error]
+   12 | #include <nlohmann/json.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Data.cpp:16:10: error: 'nn/dataLoaders/mat_file_utils.hpp' file not found [clang-diagnostic-error]
+   16 | #include "nn/dataLoaders/mat_file_utils.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Evaluation.hpp:17:10: error: 'nn/statistics/multi_class_metrics.hpp' file not found [clang-diagnostic-error]
+   17 | #include "nn/statistics/multi_class_metrics.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Wavelets.hpp:18:10: error: 'nn/wavelet/waveletOperations.h' file not found [clang-diagnostic-error]
+   18 | #include "nn/wavelet/waveletOperations.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/experiment_02.cpp:12:10: error: 'nn/logging/StreamRedirector.hpp' file not found [clang-diagnostic-error]
+   12 | #include "nn/logging/StreamRedirector.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Evaluation.hpp:17:10: error: 'nn/statistics/multi_class_metrics.hpp' file not found [clang-diagnostic-error]
+   17 | #include "nn/statistics/multi_class_metrics.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/02/Experiment02Wavelets.hpp:18:10: error: 'nn/wavelet/waveletOperations.h' file not found [clang-diagnostic-error]
+   18 | #include "nn/wavelet/waveletOperations.h"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/Experiment03Config.hpp:15:10: error: 'nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp' file not found [clang-diagnostic-error]
+   15 | #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/include/Experiment03Config.hpp:15:10: error: 'nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp' file not found [clang-diagnostic-error]
+   15 | #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/DatasetBuilder.cpp:6:10: error: 'DatasetBuilder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "DatasetBuilder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/ProfileLoader.cpp:9:10: error: 'ProfileLoader.hpp' file not found [clang-diagnostic-error]
+    9 | #include "ProfileLoader.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/ResultsWriter.cpp:8:10: error: 'ResultsWriter.hpp' file not found [clang-diagnostic-error]
+    8 | #include "ResultsWriter.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/RunSummaryBuilder.cpp:8:10: error: 'RunSummaryBuilder.hpp' file not found [clang-diagnostic-error]
+    8 | #include "RunSummaryBuilder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp:6:10: error: 'AudioWindowAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "AudioWindowAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp:6:10: error: 'AudioWindowSpikingAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "AudioWindowSpikingAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp:6:10: error: 'EegWindowAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "EegWindowAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/EegWindowSpikingAutoencoder.cpp:6:10: error: 'EegWindowSpikingAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "EegWindowSpikingAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp:6:10: error: 'FusedWindowAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "FusedWindowAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/FusedWindowSpikingAutoencoder.cpp:6:10: error: 'FusedWindowSpikingAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "FusedWindowSpikingAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/ProtocolAutoencoder.cpp:6:10: error: 'ProtocolAutoencoder.hpp' file not found [clang-diagnostic-error]
+    6 | #include "ProtocolAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/ProtocolSpikingAutoencoder.cpp:10:10: error: 'ProtocolSpikingAutoencoder.hpp' file not found [clang-diagnostic-error]
+   10 | #include "ProtocolSpikingAutoencoder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/experiment03.cpp:16:10: error: 'DatasetBuilder.hpp' file not found [clang-diagnostic-error]
+   16 | #include "DatasetBuilder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/experiment03_helpers.cpp:6:10: error: 'experiment03_helpers.hpp' file not found [clang-diagnostic-error]
+    6 | #include "experiment03_helpers.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/AutoencoderRedesign_gtest.cpp:11:10: error: 'AutoencoderConfig.hpp' file not found [clang-diagnostic-error]
+   11 | #include "AutoencoderConfig.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/DatasetBuilder_gtest.cpp:8:10: error: 'DatasetBuilder.hpp' file not found [clang-diagnostic-error]
+    8 | #include "DatasetBuilder.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/tests/ProfileAndResults_gtest.cpp:14:10: error: 'ProfileLoader.hpp' file not found [clang-diagnostic-error]
+   14 | #include "ProfileLoader.hpp"
+      |          ^~~~~~~~~~~~~~~~~~~
+/home/ensismoebius/Repos/doutorado/software/nn/src/experiments/Config.hpp:13:10: error: 'nlohmann/json.hpp' file not found [clang-diagnostic-error]
+   13 | #include <nlohmann/json.hpp>
+      |          ^~~~~~~~~~~~~~~~~~~

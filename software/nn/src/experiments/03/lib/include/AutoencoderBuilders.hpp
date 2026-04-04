@@ -192,12 +192,13 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     return decoder;
 }
 
-inline auto slice_columns(const nn::Tensor& input, int col_offset, int col_count) -> nn::Tensor
+inline auto slice_columns(const nn::Tensor& input, nn::Index col_offset, nn::Index col_count)
+    -> nn::Tensor
 {
     nn::Tensor slice(input.rows(), col_count);
-    for (int row = 0; row < input.rows(); ++row)
+    for (nn::Index row = 0; row < input.rows(); ++row)
     {
-        for (int col = 0; col < col_count; ++col)
+        for (nn::Index col = 0; col < col_count; ++col)
         {
             slice.at(row, col) = input.at(row, col_offset + col);
         }
@@ -213,13 +214,13 @@ inline auto concat_columns(const nn::Tensor& left, const nn::Tensor& right) -> n
     }
 
     nn::Tensor joined(left.rows(), left.cols() + right.cols());
-    for (int row = 0; row < joined.rows(); ++row)
+    for (nn::Index row = 0; row < joined.rows(); ++row)
     {
-        for (int col = 0; col < left.cols(); ++col)
+        for (nn::Index col = 0; col < left.cols(); ++col)
         {
             joined.at(row, col) = left.at(row, col);
         }
-        for (int col = 0; col < right.cols(); ++col)
+        for (nn::Index col = 0; col < right.cols(); ++col)
         {
             joined.at(row, left.cols() + col) = right.at(row, col);
         }

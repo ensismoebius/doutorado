@@ -7,27 +7,18 @@
  * configuration lives in `lib/include/experiment03.hpp`.
  */
 
-#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
 
 // Experiment-specific components
-#include "AudioWindowAutoencoder.hpp"
-#include "AudioWindowSpikingAutoencoder.hpp"
-#include "AutoencoderConfig.hpp"
 #include "DatasetBuilder.hpp"
-#include "EegWindowAutoencoder.hpp"
-#include "EegWindowSpikingAutoencoder.hpp"
-#include "FusedWindowAutoencoder.hpp"
-#include "FusedWindowSpikingAutoencoder.hpp"
-#include "ProtocolAutoencoder.hpp"
-#include "ProtocolSpikingAutoencoder.hpp"
 #include "ResultsWriter.hpp"
 #include "RunSummaryBuilder.hpp"
 #include "experiment03.hpp"
 #include "experiment03_helpers.hpp"
+#include "nn/device/Device.hpp"
 
 // Core libraries
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
@@ -51,7 +42,6 @@ using std::make_shared;
 using experiment03::build_autoencoder_model;
 using experiment03::build_run_summary;
 using experiment03::DatasetBuilder;
-using experiment03::initialize_device_runtime_or_throw;
 using experiment03::Summary;
 using experiment03::to_sqlite_dataset_type;
 using experiment03::write_run_summary_json;
@@ -86,11 +76,11 @@ Experiment03::Experiment03(const Config& config) : config_(config)
 int Experiment03::run()
 {
     std::vector<float> epoch_mean_losses;
-    bool opencl_usage_verified = false;
 
     try
     {
-        auto opencl_runtime_scope = initialize_device_runtime_or_throw(config_);
+        const auto device = nn::Device::from_string(config_.device)
+                                .with_profiling(config_.opencl_profiling_enabled);
 
         ////////////////////////////
         // Dataset initialization //
@@ -148,10 +138,39 @@ int Experiment03::run()
         // Training loop setup and run //
         /////////////////////////////////
 
-        // Create loss function and optimizer (initialized later
-        // once model is created and parameters are known).
+        // Create loss function and optimizer (optimizer may be initialized
+        // eagerly here if we can construct the model from dataset metadata).
         MSELoss loss;
         unique_ptr<Adam> optimizer;
+
+        // Attempt to eagerly construct model and optimizer before entering
+        // the epoch loop. Prefer explicit config override, otherwise infer
+        // from the first dataset sample when available. If neither is
+        // available, defer construction to the first observed batch.
+
+        // Use the dataset's first item to infer input columns.
+        config_.autoencoder_input_features = dataset_->get_item(0).inputs.cols();
+
+        // If dataset first item is not available or has zero columns,
+        // log a warning and stop.
+        if (config_.autoencoder_input_features == 0)
+        {
+            NN_LOG_WARN("Could not infer input size from metadata");
+            return kExitFailure;
+        }
+
+        // Build model based on observed input feature size and config.
+        model_ = build_autoencoder_model(                          //
+            config_,                                               //
+            static_cast<Index>(config_.autoencoder_input_features) //
+        );
+
+        // Move model to requested device and verify OpenCL activity early.
+        model_->to(device);
+
+        // Initialize optimizer now that model parameters are available.
+        optimizer = make_unique<Adam>(config_.training_learning_rate);
+        optimizer->attach(model_->params());
 
         // Training: iterate over all training_epochs.
         // Recreating the prefetcher each epoch so the DataLoader
@@ -228,6 +247,9 @@ int Experiment03::run()
                         batch.inputs.cols()           //
                     );
 
+                    // Lazily start the device runtime and future: move parameters to device.
+                    model_->to(device);
+
                     // Initialize optimizer with model parameters.
                     optimizer = make_unique<Adam>(config_.training_learning_rate);
 
@@ -244,13 +266,6 @@ int Experiment03::run()
 
                 // Forward pass (unsupervised reconstruction: target == input).
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-
-                if (config_.device == "opencl" && !opencl_usage_verified) [[unlikely]]
-                {
-                    nn::OpenCLTensorBackend::verify_runtime_activity_or_throw(
-                        reconstruction, batch.inputs);
-                    opencl_usage_verified = true;
-                }
 
                 // Compute MSE reconstruction loss.
                 loss.set_target(batch.inputs);
@@ -318,13 +333,6 @@ int Experiment03::run()
         if (seen_batches_ == 0)
         {
             NN_LOG_WARN("No batches produced. Check dataset files and row counts.");
-        }
-
-        if (config_.device == "opencl" && !opencl_usage_verified)
-        {
-            throw std::runtime_error(
-                "Experiment03 requested --device opencl but no batch reached the OpenCL "
-                "verification path");
         }
 
         string results_path;

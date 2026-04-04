@@ -397,7 +397,6 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
 
     const size_t samplesPerChannel =
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
-    const size_t totalCols = impl_->eegVar->dims[1];
 
     const std::vector<double> blockValues =
         readMatRows(impl_->matFile.get(), impl_->eegVar.get(), startRow, rowCount);

@@ -35,6 +35,10 @@ option(NN_ENABLE_PCH "Enable opt-in precompiled headers for selected targets" ON
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Build shared libraries and executables with position independent code
+# to allow linking static objects into shared libraries on x86_64.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Prevent vendored subprojects from enabling their own tests during configure
 # so we don't require test frameworks for third-party code while configuring.
 set(BUILD_TESTING OFF CACHE BOOL "Disable building tests in subprojects" FORCE)

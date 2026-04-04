@@ -15,7 +15,6 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "nn/logging/Logger.hpp"
 
 namespace experiment03
 {
@@ -36,22 +35,6 @@ auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
     }
 
     return nn::dataLoaders::SqliteDatasetType::Protocol;
-}
-
-auto initialize_device_runtime_or_throw(const Config& config)
-    -> nn::OpenCLTensorBackend::RuntimeScope
-{
-    if (config.device != "opencl")
-    {
-        NN_LOG_INFO(std::string("Experiment03 device mode: ") + config.device);
-        return {};
-    }
-
-    auto runtime_scope =
-        nn::OpenCLTensorBackend::start_runtime_scope_or_throw(config.opencl_profiling_enabled);
-    NN_LOG_INFO(std::string("Experiment03 device mode: opencl | OpenCL device: ") +
-                runtime_scope.device_name);
-    return runtime_scope;
 }
 
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
