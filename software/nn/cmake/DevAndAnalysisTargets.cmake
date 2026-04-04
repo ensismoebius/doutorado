@@ -119,6 +119,7 @@ if(CLANG_TIDY_EXECUTABLE)
     add_custom_target(analysis-clang-tidy
         COMMAND ${CLANG_TIDY_EXECUTABLE}
             --config-file=${CMAKE_SOURCE_DIR}/.clang-tidy
+            -p ${CMAKE_BINARY_DIR}
             ${CLANG_TIDY_SOURCES}
         COMMENT "Running clang-tidy static analysis..."
         USES_TERMINAL
