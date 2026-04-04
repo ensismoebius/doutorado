@@ -47,11 +47,17 @@ target_link_libraries(google_test
 # Suppress warnings and clang-tidy for GTest targets
 if(TARGET gtest)
     target_compile_options(gtest PRIVATE -w)
+    # Disable LTO for vendored gtest to avoid LTO + fast-linker issues
+    target_compile_options(gtest PRIVATE -fno-lto)
+    set_property(TARGET gtest PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
     set_target_properties(gtest PROPERTIES CXX_CLANG_TIDY "")
 endif()
 
 if(TARGET gtest_main)
     target_compile_options(gtest_main PRIVATE -w)
+    # Disable LTO for vendored gtest_main to avoid LTO + fast-linker issues
+    target_compile_options(gtest_main PRIVATE -fno-lto)
+    set_property(TARGET gtest_main PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
     set_target_properties(gtest_main PROPERTIES CXX_CLANG_TIDY "")
 endif()
 

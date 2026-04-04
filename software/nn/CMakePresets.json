@@ -40,6 +40,38 @@
                 "CMAKE_C_COMPILER_LAUNCHER": "ccache",
                 "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
             }
+        },
+        {
+            "name": "pgo-generate",
+            "displayName": "PGO - Generate Profile",
+            "description": "Configure an instrumented build to generate PGO data (profile).",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -march=native -fprofile-generate -DNDEBUG -pipe",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -march=native -fprofile-generate -DNDEBUG -pipe",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+                "NN_ENABLE_FAST_LINKER": "OFF"
+            }
+        },
+        {
+            "name": "pgo-use",
+            "displayName": "PGO - Use Profile",
+            "description": "Configure final build that uses generated PGO data (profile-use).",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON",
+                "CMAKE_C_FLAGS_RELEASE": "-O3 -march=native -fprofile-use -fprofile-correction -flto -DNDEBUG -pipe",
+                "CMAKE_CXX_FLAGS_RELEASE": "-O3 -march=native -fprofile-use -fprofile-correction -flto -DNDEBUG -pipe",
+                "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                "CMAKE_CXX_COMPILER_LAUNCHER": "ccache",
+                "NN_ENABLE_FAST_LINKER": "OFF"
+            }
         }
     ],
     "buildPresets": [
@@ -47,6 +79,16 @@
             "name": "max-performance",
             "displayName": "Build (max-performance)",
             "configurePreset": "max-performance"
+        },
+        {
+            "name": "pgo-generate",
+            "displayName": "Build (pgo-generate)",
+            "configurePreset": "pgo-generate"
+        },
+        {
+            "name": "pgo-use",
+            "displayName": "Build (pgo-use)",
+            "configurePreset": "pgo-use"
         }
     ]
 }

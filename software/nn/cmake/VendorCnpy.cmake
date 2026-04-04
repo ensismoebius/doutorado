@@ -30,12 +30,19 @@ FetchContent_MakeAvailable(cnpy)
 
 target_include_directories(cnpy INTERFACE SYSTEM "$<BUILD_INTERFACE:${cnpy_SOURCE_DIR}>")
 target_compile_options(cnpy PRIVATE -w)
+target_compile_options(cnpy PRIVATE -fno-lto)
 target_compile_options(cnpy-static PRIVATE -w)
+target_compile_options(cnpy-static PRIVATE -fno-lto)
 
 # Disable clang-tidy for this vendor
 if(TARGET cnpy)
+    # Disable LTO for vendored cnpy to avoid LTO + fast-linker issues
+    target_compile_options(cnpy PRIVATE -fno-lto)
+    set_property(TARGET cnpy PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
     set_target_properties(cnpy PROPERTIES CXX_CLANG_TIDY "")
 endif()
 if(TARGET cnpy-static)
+    target_compile_options(cnpy-static PRIVATE -fno-lto)
+    set_property(TARGET cnpy-static PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
     set_target_properties(cnpy-static PROPERTIES CXX_CLANG_TIDY "")
 endif()

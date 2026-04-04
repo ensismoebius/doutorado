@@ -17,6 +17,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
@@ -40,6 +41,18 @@ void write_eeg_window(const nn::Tensor& eeg,
     int out_row,
     int col_offset)
 {
+    // Bounds checks to avoid silent buffer overruns that can corrupt nearby stack
+    const int out_rows = static_cast<int>(out.rows());
+    const int out_cols = static_cast<int>(out.cols());
+    const int eeg_cols = static_cast<int>(eeg.cols());
+
+    if (out_row < 0 || out_row >= out_rows)
+        throw std::out_of_range("write_eeg_window: out_row out of range");
+    if (window_start < 0 || (window_start + eeg_ws) > eeg_cols)
+        throw std::out_of_range("write_eeg_window: eeg window out of range");
+    if (col_offset < 0 || (col_offset + kEegChannels * eeg_ws) > out_cols)
+        throw std::out_of_range("write_eeg_window: output columns out of range");
+
     for (int c = 0; c < kEegChannels; ++c)
     {
         for (int t = 0; t < eeg_ws; ++t)
@@ -58,6 +71,17 @@ void write_audio_window(const nn::Tensor& audio,
     int out_row,
     int col_offset)
 {
+    const int out_rows = static_cast<int>(out.rows());
+    const int out_cols = static_cast<int>(out.cols());
+    const int audio_rows = static_cast<int>(audio.rows());
+
+    if (out_row < 0 || out_row >= out_rows)
+        throw std::out_of_range("write_audio_window: out_row out of range");
+    if (window_start < 0 || (window_start + audio_ws) > audio_rows)
+        throw std::out_of_range("write_audio_window: audio window out of range");
+    if (col_offset < 0 || (col_offset + audio_ws) > out_cols)
+        throw std::out_of_range("write_audio_window: output columns out of range");
+
     for (int t = 0; t < audio_ws; ++t)
     {
         out.at(out_row, col_offset + t) = audio.at(window_start + t, 0);
@@ -157,11 +181,16 @@ auto FusedWindowDataset::get_item(std::size_t idx) const -> Batch
     const auto& sub = subjects_[wi.subject_idx];
 
     // Read audio row — also retrieves eeg_index_label for cross-modal sync.
-    const auto [audio_tensor, stimulus, eeg_index_label] = audio_session.readRow(wi.audio_row);
+    auto audio_row_tuple = audio_session.readRow(wi.audio_row);
+    nn::Tensor audio_tensor = std::move(std::get<0>(audio_row_tuple));
+    const int stimulus = std::get<1>(audio_row_tuple);
+    const int eeg_index_label = std::get<2>(audio_row_tuple);
 
     // Resolve matching EEG row.
     const std::size_t eeg_row = resolveEegRowIndex(eeg_index_label, sub.eeg_rows);
-    const auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
+    auto eeg_row_tuple = eeg_session.readRow(eeg_row);
+    nn::Tensor eeg_tensor = std::move(std::get<0>(eeg_row_tuple));
+    const auto eeg_labels = std::get<1>(eeg_row_tuple);
 
     // Compute sample offsets for window k.
     const int eeg_start = wi.window_k * eeg_spec_.hop_size();
@@ -223,9 +252,15 @@ void FusedWindowDataset::collate_into(const std::vector<std::size_t>& indices, B
         const auto& eeg_session = *eeg_sessions_[wi.subject_idx];
         const auto& sub = subjects_[wi.subject_idx];
 
-        const auto [audio_tensor, stimulus, eeg_index_label] = audio_session.readRow(wi.audio_row);
+        auto audio_row_tuple = audio_session.readRow(wi.audio_row);
+        nn::Tensor audio_tensor = std::move(std::get<0>(audio_row_tuple));
+        const int stimulus = std::get<1>(audio_row_tuple);
+        const int eeg_index_label = std::get<2>(audio_row_tuple);
+
         const std::size_t eeg_row = resolveEegRowIndex(eeg_index_label, sub.eeg_rows);
-        const auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
+        auto eeg_row_tuple = eeg_session.readRow(eeg_row);
+        nn::Tensor eeg_tensor = std::move(std::get<0>(eeg_row_tuple));
+        const auto eeg_labels = std::get<1>(eeg_row_tuple);
 
         const int eeg_start = wi.window_k * eeg_spec_.hop_size();
         const int audio_start = wi.window_k * audio_spec_.hop_size();

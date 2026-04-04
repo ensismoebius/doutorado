@@ -20,8 +20,13 @@
 # Disable vendored matio's own tests by default (safe for most builds)
 set(MATIO_BUILD_TESTS OFF CACHE BOOL "Disable building tests in vendored matio" FORCE)
 
+# Disable vendored matio's command-line tools when vendoring to avoid
+# building example/tool binaries that can fail under LTO + fast-linker.
+set(MATIO_BUILD_TOOLS OFF CACHE BOOL "Disable building matio tools" FORCE)
+
 # Create empty test CMakeLists
 file(WRITE "${CMAKE_BINARY_DIR}/matio_disable_tests.cmake" "## tests disabled\n")
+file(WRITE "${CMAKE_BINARY_DIR}/matio_disable_tools.cmake" "## tools disabled\n")
 
 include(FetchContent)
 
@@ -33,9 +38,8 @@ FetchContent_Declare(
 
     # Overwrite the test.cmake file to disable tests
     PATCH_COMMAND
-        ${CMAKE_COMMAND} -E copy
-            "${CMAKE_BINARY_DIR}/matio_disable_tests.cmake"
-            "<SOURCE_DIR>/cmake/test.cmake"
+      /bin/sh -c
+        "${CMAKE_COMMAND} -E copy '${CMAKE_BINARY_DIR}/matio_disable_tests.cmake' '<SOURCE_DIR>/cmake/test.cmake' && ${CMAKE_COMMAND} -E copy '${CMAKE_BINARY_DIR}/matio_disable_tools.cmake' '<SOURCE_DIR>/cmake/tools.cmake'"
 )
 
 FetchContent_MakeAvailable(matio)
@@ -71,7 +75,11 @@ target_include_directories(matio SYSTEM
 )
 target_compile_options(matio PRIVATE -w)
 if(TARGET matio)
-    set_target_properties(matio PROPERTIES CXX_CLANG_TIDY "")
+  # Disable LTO for vendored matio to avoid LTO + fast-linker (lld/mold)
+  # version-script symbol assignment issues when building with LTO.
+  target_compile_options(matio PRIVATE -fno-lto)
+  set_property(TARGET matio PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
+  set_target_properties(matio PROPERTIES CXX_CLANG_TIDY "")
 endif()
 
 

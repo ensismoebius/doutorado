@@ -76,6 +76,28 @@ if(NN_ENABLE_FAST_LINKER)
                 string(APPEND CMAKE_MODULE_LINKER_FLAGS " -fuse-ld=lld")
             endif()
             message(STATUS "Fast linker enabled: lld (${NN_LLD_LINKER})")
+            # If using GCC, try to instruct lld to load GCC's liblto plugin so
+            # it can properly process GCC-produced LTO objects. This helps when
+            # combining -flto with lld on GNU toolchains.
+            if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+                execute_process(
+                    COMMAND ${CMAKE_C_COMPILER} -print-file-name=liblto_plugin.so
+                    OUTPUT_VARIABLE _nn_gcc_lto_plugin
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                )
+                if(_nn_gcc_lto_plugin AND EXISTS "${_nn_gcc_lto_plugin}")
+                    if(NOT CMAKE_EXE_LINKER_FLAGS MATCHES "(^| )-Wl,-plugin,")
+                        string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,-plugin,${_nn_gcc_lto_plugin}")
+                    endif()
+                    if(NOT CMAKE_SHARED_LINKER_FLAGS MATCHES "(^| )-Wl,-plugin,")
+                        string(APPEND CMAKE_SHARED_LINKER_FLAGS " -Wl,-plugin,${_nn_gcc_lto_plugin}")
+                    endif()
+                    if(NOT CMAKE_MODULE_LINKER_FLAGS MATCHES "(^| )-Wl,-plugin,")
+                        string(APPEND CMAKE_MODULE_LINKER_FLAGS " -Wl,-plugin,${_nn_gcc_lto_plugin}")
+                    endif()
+                    message(STATUS "Configured lld to load GCC LTO plugin: ${_nn_gcc_lto_plugin}")
+                endif()
+            endif()
         else()
             message(STATUS "Fast linker requested but mold/lld not found; using default linker")
         endif()

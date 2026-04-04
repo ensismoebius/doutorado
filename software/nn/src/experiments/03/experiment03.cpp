@@ -37,7 +37,7 @@ const Config default_config{
 
     // Training throughput controls.
     .training_batch_size = 10,
-    .training_max_batches_per_epoch = 5000,
+    .training_max_batches_per_epoch = 50,
 
     // Sampling behavior. Empty sampler type keeps the legacy shuffle/no-shuffle path.
     .sampler_shuffle_samples = true,
@@ -72,8 +72,8 @@ const Config default_config{
     .autoencoder_capacitance = 1.0F,
 
     // Training hyperparameters.
-    .training_learning_rate = 1e-2f,
-    .training_epochs = 10,
+    .training_learning_rate = 1e-3f,
+    .training_epochs = 2,
 
     // Window specs used by windowing datasets.
     .window_eeg_config = {.window_size = 256, .overlap = 0.5F, .sample_rate = 1024},
