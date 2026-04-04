@@ -20,8 +20,8 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
             t.at(static_cast<size_t>(i), static_cast<size_t>(j)) = static_cast<float>((i * D) + j);
         }
     }
-    return t;
-}
+    return t; // LCOV_EXCL_LINE
+} // LCOV_EXCL_LINE
 
 TEST(DataLoaderMoreTest, CollateProducesCorrectShapesAndValues)
 {
@@ -171,7 +171,8 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)
         4,
         DataLoader::DefaultSamplerOptions{.type = DataLoader::DefaultSamplerType::WeightedRandom,
             .seed = 11u,
-            .weights = std::vector<double>{0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+            .weights =
+                std::vector<double>{0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0}, // LCOV_EXCL_LINE
             .weighted_num_samples = 8});
 
     int weighted_rows = 0;

@@ -40,3 +40,9 @@ TEST(InputModeCodecTest, UnknownTokenThrows)
 {
     EXPECT_THROW((void) parseProtocol101117InputModeToken("other"), std::runtime_error);
 }
+
+TEST(InputModeCodecTest, InvalidEnumToTokenThrows)
+{
+    const auto invalid = static_cast<Protocol101117InputMode>(999);
+    EXPECT_THROW((void) protocol101117InputModeToToken(invalid), std::runtime_error);
+}

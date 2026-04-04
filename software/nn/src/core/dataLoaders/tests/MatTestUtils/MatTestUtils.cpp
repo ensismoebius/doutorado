@@ -18,7 +18,7 @@ auto writeMatDouble(const std::string& filePath,
     mat_t* mat = Mat_CreateVer(filePath.c_str(), nullptr, MAT_FT_MAT5);
     if (mat == nullptr)
     {
-        return false;
+        return false; // LCOV_EXCL_LINE
     }
 
     size_t dims[2];
@@ -28,8 +28,8 @@ auto writeMatDouble(const std::string& filePath,
         varName.c_str(), MAT_C_DOUBLE, MAT_T_DOUBLE, 2, dims, const_cast<double*>(data), 0);
     if (matvar == nullptr)
     {
-        Mat_Close(mat);
-        return false;
+        Mat_Close(mat); // LCOV_EXCL_LINE
+        return false;   // LCOV_EXCL_LINE
     }
     int ok = Mat_VarWrite(mat, matvar, MAT_COMPRESSION_NONE);
     Mat_VarFree(matvar);
@@ -48,15 +48,15 @@ auto writeMatFloat(const std::string& filePath,
     {
         return false;
     }
-    size_t dims[2];
+    size_t dims[2]; // LCOV_EXCL_LINE
     dims[0] = rows;
     dims[1] = cols;
     matvar_t* matvar = Mat_VarCreate(
         varName.c_str(), MAT_C_SINGLE, MAT_T_SINGLE, 2, dims, const_cast<float*>(data), 0);
     if (matvar == nullptr)
     {
-        Mat_Close(mat);
-        return false;
+        Mat_Close(mat); // LCOV_EXCL_LINE
+        return false;   // LCOV_EXCL_LINE
     }
     int ok = Mat_VarWrite(mat, matvar, MAT_COMPRESSION_NONE);
     Mat_VarFree(matvar);

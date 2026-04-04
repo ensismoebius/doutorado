@@ -67,6 +67,100 @@ TEST(SamplerTest, WeightedSamplerProducesInRangeIndices)
 
 TEST(SamplerTest, DistributedSamplerPartitionsDataset)
 {
+    // dummy stub — real tests for distributed sampler are in SamplerThrowTest below
+}
+
+TEST(SamplerThrowTest, SequentialSamplerSpanMismatch)
+{
+    SequentialSampler sampler(5);
+    std::vector<std::size_t> out(3); // wrong size
+    EXPECT_THROW(sampler.sample_into(out), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, RandomSamplerSpanMismatch)
+{
+    RandomSampler sampler(5, 42u);
+    std::vector<std::size_t> out(3); // wrong size
+    EXPECT_THROW(sampler.sample_into(out), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, WeightedRandomSamplerEmptyWeights)
+{
+    EXPECT_THROW((WeightedRandomSampler({}, 5, 1u)), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, WeightedRandomSamplerZeroNumSamples)
+{
+    EXPECT_THROW((WeightedRandomSampler({0.5, 0.5}, 0, 1u)), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, WeightedRandomSamplerAllZeroWeights)
+{
+    EXPECT_THROW((WeightedRandomSampler({0.0, 0.0}, 5, 1u)), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, WeightedRandomSamplerSpanMismatch)
+{
+    WeightedRandomSampler sampler({0.3, 0.7}, 4, 1u);
+    std::vector<std::size_t> out(3); // wrong size (expected 4)
+    EXPECT_THROW(sampler.sample_into(out), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, DistributedSamplerZeroReplicas)
+{
+    EXPECT_THROW((DistributedSampler(10, 0, 0, false, false, 1u)), std::invalid_argument);
+}
+
+TEST(SamplerThrowTest, DistributedSamplerRankTooLarge)
+{
+    EXPECT_THROW((DistributedSampler(10, 2, 2, false, false, 1u)), std::invalid_argument);
+}
+
+TEST(SamplerTest, DistributedSamplerDropLast)
+{
+    // drop_last=true: num_samples = 10 / 3 = 3
+    DistributedSampler rank0(10, 3, 0, false, true, 7u);
+    EXPECT_EQ(rank0.index_count(), 3u);
+
+    std::vector<std::size_t> out(rank0.index_count());
+    rank0.sample_into(out);
+    for (auto idx : out)
+    {
+        EXPECT_LT(idx, 10u);
+    }
+}
+
+TEST(SamplerTest, DistributedSamplerSetEpochNoSeed)
+{
+    // No seed: set_epoch should be a no-op without crashing
+    DistributedSampler sampler(6, 2, 0, true, false, std::nullopt);
+    EXPECT_NO_THROW(sampler.set_epoch(5));
+    std::vector<std::size_t> out(sampler.index_count());
+    EXPECT_NO_THROW(sampler.sample_into(out));
+}
+
+TEST(SamplerTest, DistributedSamplerShuffleNoPadding)
+{
+    // drop_last=true with shuffle: all indices should be in range
+    DistributedSampler rank0(9, 3, 0, true, true, 42u);
+    rank0.set_epoch(0);
+    std::vector<std::size_t> out(rank0.index_count());
+    rank0.sample_into(out);
+    for (auto idx : out)
+    {
+        EXPECT_LT(idx, 9u);
+    }
+}
+
+TEST(SamplerThrowTest, DistributedSamplerSpanMismatch)
+{
+    DistributedSampler sampler(10, 2, 0, false, false, 1u);
+    std::vector<std::size_t> out(3); // wrong size
+    EXPECT_THROW(sampler.sample_into(out), std::invalid_argument);
+}
+
+TEST(SamplerTest, DistributedSamplerPartitionsDatasetFully)
+{
     DistributedSampler rank0(10, 2, 0, false, false, 7u);
     DistributedSampler rank1(10, 2, 1, false, false, 7u);
 
@@ -90,4 +184,39 @@ TEST(SamplerTest, DistributedSamplerPartitionsDataset)
     std::vector<std::size_t> expected(10);
     std::iota(expected.begin(), expected.end(), static_cast<std::size_t>(0));
     EXPECT_EQ(merged, expected);
+}
+
+TEST(SamplerTest, DistributedSamplerEmptyDatasetFillsZeros)
+{
+    DistributedSampler sampler(0, 2, 0, false, false, 7u);
+    std::vector<std::size_t> out(sampler.index_count());
+    EXPECT_NO_THROW(sampler.sample_into(out));
+    for (auto v : out)
+    {
+        EXPECT_EQ(v, 0U);
+    }
+}
+
+TEST(SamplerTest, DistributedSamplerNonDropLastPadsByReplication)
+{
+    // dataset_size=5, replicas=2 => num_samples=3, total_size=6, one replicated element needed.
+    DistributedSampler rank0(5, 2, 0, false, false, 11u);
+    DistributedSampler rank1(5, 2, 1, false, false, 11u);
+
+    std::vector<std::size_t> out0(rank0.index_count());
+    std::vector<std::size_t> out1(rank1.index_count());
+    rank0.sample_into(out0);
+    rank1.sample_into(out1);
+
+    ASSERT_EQ(out0.size(), 3U);
+    ASSERT_EQ(out1.size(), 3U);
+
+    std::vector<std::size_t> merged;
+    merged.reserve(out0.size() + out1.size());
+    merged.insert(merged.end(), out0.begin(), out0.end());
+    merged.insert(merged.end(), out1.begin(), out1.end());
+
+    std::sort(merged.begin(), merged.end());
+    EXPECT_EQ(merged.size(), 6U);
+    EXPECT_EQ(std::count(merged.begin(), merged.end(), 0U), 2);
 }

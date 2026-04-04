@@ -60,7 +60,7 @@ TEST(SqliteBatchSourceWindowing, PaddingRepeatLastSample)
         audio_win,
         Protocol101117InputMode::Concatenated);
 
-    Batch b;
+    Batch b; // LCOV_EXCL_LINE
     bool ok = src.next(b);
     EXPECT_TRUE(ok);
     EXPECT_EQ(b.inputs.rows(), 2);

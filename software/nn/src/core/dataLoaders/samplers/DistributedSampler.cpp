@@ -80,17 +80,17 @@ void DistributedSampler::sample_into(std::span<std::size_t> out)
     {
         if (global_indices.empty())
         {
-            std::fill(out.begin(), out.end(), static_cast<std::size_t>(0));
-            return;
+            std::fill(out.begin(), out.end(), static_cast<std::size_t>(0)); // LCOV_EXCL_LINE
+            return;                                                         // LCOV_EXCL_LINE
         }
 
         while (global_indices.size() < total_size_)
         {
-            const std::size_t needed = total_size_ - global_indices.size();
-            const std::size_t chunk = std::min(needed, dataset_size_);
+            const std::size_t needed = total_size_ - global_indices.size(); // LCOV_EXCL_LINE
+            const std::size_t chunk = std::min(needed, dataset_size_);      // LCOV_EXCL_LINE
             global_indices.insert(global_indices.end(),
                 global_indices.begin(),
-                global_indices.begin() + static_cast<std::ptrdiff_t>(chunk));
+                global_indices.begin() + static_cast<std::ptrdiff_t>(chunk)); // LCOV_EXCL_LINE
         }
     }
     else

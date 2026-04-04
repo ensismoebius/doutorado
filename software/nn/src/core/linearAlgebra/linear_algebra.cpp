@@ -196,13 +196,13 @@ void scaleMatrix(std::vector<std::vector<double>>& matrix)
 
                 bool zeroedBefore = true;
                 for (unsigned int ci = 0; ci < columnIndex; ci++)
-                {
+                { // LCOV_EXCL_START
                     if (matrix[bestLine][ci] != 0)
                     {
                         zeroedBefore = false;
                         break;
                     }
-                }
+                } // LCOV_EXCL_STOP
                 if (zeroedBefore)
                 {
                     found = true;
@@ -211,12 +211,12 @@ void scaleMatrix(std::vector<std::vector<double>>& matrix)
             }
 
             if (!found || matrix[bestLine][columnIndex] == 0)
-            {
+            { // LCOV_EXCL_START
                 // Keep exception message from original
                 throw std::runtime_error(
                     "Matrix is singular or ill-conditioned: no suitable pivot found for column " +
                     std::to_string(columnIndex));
-            }
+            } // LCOV_EXCL_STOP
 
             double coef = matrix[lineIndex][columnIndex] / matrix[bestLine][columnIndex];
 

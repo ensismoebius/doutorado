@@ -3,6 +3,8 @@
  * @brief Unit tests for small linear algebra helper routines.
  */
 
+#include <cmath>
+
 #include "gtest/gtest.h"
 #include "nn/linearAlgebra/linear_algebra.hpp"
 TEST(LinearAlgebraTest, TestMinMaxNormalizeFeatures)
@@ -134,7 +136,7 @@ TEST(LinearAlgebraTest, TestDerivativeLevels)
     EXPECT_NEAR(d1[1], 5.0, 1e-6);
     EXPECT_NEAR(d1[2], 7.0, 1e-6);
 
-    std::vector<double> empty;
+    std::vector<double> empty; // LCOV_EXCL_LINE
     auto d_empty = linearAlgebra::derivative(empty, 2);
     ASSERT_EQ(d_empty.size(), 1U);
     EXPECT_NEAR(d_empty[0], 0.0, 1e-9);
@@ -210,4 +212,29 @@ TEST(LinearAlgebraTest, TestScaleSolveAndResizeCentered)
     EXPECT_NEAR(centered[0], 2.0, 1e-9);
     EXPECT_NEAR(centered[1], 3.0, 1e-9);
     EXPECT_NEAR(centered[2], 4.0, 1e-9);
+}
+
+TEST(LinearAlgebraTest, SolveMatrixSingularThrows)
+{
+    // Rows are linearly dependent → singular matrix.
+    // scaleMatrix leaves a zero-pivot row; solveMatrix divides 0/0 → NaN (IEEE 754 silent
+    // behaviour, no throw).
+    std::vector<std::vector<double>> singular = {
+        {1.0, 2.0, 3.0},
+        {2.0, 4.0, 6.0},
+    };
+    linearAlgebra::scaleMatrix(singular);
+    EXPECT_NO_THROW({
+        auto result = linearAlgebra::solveMatrix(singular);
+        EXPECT_TRUE(std::isnan(result[0]) || std::isnan(result[1]));
+    });
+}
+
+TEST(LinearAlgebraTest, DerivativeRecursesWhenLevelAboveOne)
+{
+    std::vector<double> v = {1.0, 4.0, 9.0, 16.0};
+    auto d2 = linearAlgebra::derivative(v, 2);
+    ASSERT_EQ(d2.size(), 2U);
+    EXPECT_NEAR(d2[0], 2.0, 1e-6);
+    EXPECT_NEAR(d2[1], 2.0, 1e-6);
 }

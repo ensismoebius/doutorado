@@ -13,7 +13,16 @@
  */
 
 #include <gtest/gtest.h>
+#include <unistd.h>
 
+#include <filesystem>
+
+#include "../utils/MockImaginedSpeechDatasetGenerator.hpp"
+#include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
+#include "nn/utility/batching.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 #include "nn/windowing/WindowingEngine.hpp"
 
@@ -199,4 +208,219 @@ TEST(WindowingEngineTest, SameSyncWindowCountForMatchedSpecs)
     EXPECT_GT(audio_n, 0);
     // The minimum (used by FusedWindowDataset as windows_per_pair) should be > 0.
     EXPECT_GT(std::min(eeg_n, audio_n), 0);
+}
+
+// ---------------------------------------------------------------------------
+// AudioWindowDataset tests (no MAT files required)
+// ---------------------------------------------------------------------------
+
+TEST(AudioWindowDatasetTest, EmptySubjectsYieldsSizeZero)
+{
+    // window_size=100, which is well within 176400 samples → validates OK
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    AudioWindowDataset ds({} /* empty subjects */, spec);
+    EXPECT_EQ(ds.size(), 0u);
+}
+
+TEST(AudioWindowDatasetTest, GetItemThrowsWhenEmpty)
+{
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    AudioWindowDataset ds({}, spec);
+    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+}
+
+TEST(AudioWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)
+{
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    AudioWindowDataset ds({}, spec);
+    Batch batch;
+    ds.collate_into({}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 0);
+    EXPECT_EQ(batch.targets.rows(), 0);
+}
+
+TEST(AudioWindowDatasetTest, WindowTooLargeThrows)
+{
+    // 176400 is kAudioSamples; use 176401 to exceed it and trigger the throw
+    nn::windowing::WindowSpec spec{.window_size = 176401, .overlap = 0.0f, .sample_rate = 44100};
+    EXPECT_THROW(AudioWindowDataset({}, spec), std::invalid_argument);
+}
+
+// ---------------------------------------------------------------------------
+// EEGWindowDataset tests (no MAT files required)
+// ---------------------------------------------------------------------------
+
+TEST(EEGWindowDatasetTest, EmptySubjectsYieldsSizeZero)
+{
+    // kEegSamplesPerChannel = 4096; use window_size=100
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    EEGWindowDataset ds({}, spec);
+    EXPECT_EQ(ds.size(), 0u);
+}
+
+TEST(EEGWindowDatasetTest, GetItemThrowsWhenEmpty)
+{
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    EEGWindowDataset ds({}, spec);
+    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+}
+
+TEST(EEGWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)
+{
+    nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    EEGWindowDataset ds({}, spec);
+    Batch batch;
+    ds.collate_into({}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 0);
+    EXPECT_EQ(batch.targets.rows(), 0);
+}
+
+TEST(EEGWindowDatasetTest, WindowTooLargeThrows)
+{
+    // 4096 is kEegSamplesPerChannel; use 4097 to exceed it
+    nn::windowing::WindowSpec spec{.window_size = 4097, .overlap = 0.0f, .sample_rate = 1024};
+    EXPECT_THROW(EEGWindowDataset({}, spec), std::invalid_argument);
+}
+
+// ---------------------------------------------------------------------------
+// FusedWindowDataset tests (no MAT files required)
+// ---------------------------------------------------------------------------
+
+TEST(FusedWindowDatasetTest, EmptySubjectsYieldsSizeZero)
+{
+    nn::windowing::WindowSpec eeg_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    FusedWindowDataset ds({}, eeg_spec, audio_spec);
+    EXPECT_EQ(ds.size(), 0u);
+}
+
+TEST(FusedWindowDatasetTest, GetItemThrowsWhenEmpty)
+{
+    nn::windowing::WindowSpec eeg_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    FusedWindowDataset ds({}, eeg_spec, audio_spec);
+    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+}
+
+TEST(FusedWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)
+{
+    nn::windowing::WindowSpec eeg_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    FusedWindowDataset ds({}, eeg_spec, audio_spec);
+    Batch batch;
+    ds.collate_into({}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 0);
+    EXPECT_EQ(batch.targets.rows(), 0);
+}
+
+TEST(FusedWindowDatasetTest, EEGWindowTooLargeThrows)
+{
+    // eeg window exceeds 4096 → eeg_n = 0 → throw
+    nn::windowing::WindowSpec eeg_spec{.window_size = 4097, .overlap = 0.0f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
+    EXPECT_THROW(FusedWindowDataset({}, eeg_spec, audio_spec), std::invalid_argument);
+}
+
+TEST(FusedWindowDatasetTest, AudioWindowTooLargeThrows)
+{
+    // audio window exceeds 176400 → audio_n = 0 → throw
+    nn::windowing::WindowSpec eeg_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{
+        .window_size = 176401, .overlap = 0.0f, .sample_rate = 44100};
+    EXPECT_THROW(FusedWindowDataset({}, eeg_spec, audio_spec), std::invalid_argument);
+}
+
+namespace
+{
+class WindowingDatasetIntegrationTest : public ::testing::Test
+{
+   protected:
+    std::filesystem::path tmp_dir;
+    SubjectFiles subject;
+
+    void SetUp() override
+    {
+        tmp_dir =
+            std::filesystem::temp_directory_path() / ("windowing_ds_" + std::to_string(getpid()));
+        std::filesystem::remove_all(tmp_dir);
+        std::filesystem::create_directories(tmp_dir);
+
+        const auto eeg = tmp_dir / "S01_EEG.mat";
+        const auto audio = tmp_dir / "S01_Audio.mat";
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateEEGMatFile(eeg, 2U);
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateAudioMatFile(audio, 2U);
+
+        subject.subject_id = 1;
+        subject.subject_name = "S01";
+        subject.eeg_mat_path = eeg.string();
+        subject.audio_mat_path = audio.string();
+        subject.eeg_rows = 2U;
+        subject.audio_rows = 2U;
+    }
+
+    void TearDown() override
+    {
+        std::filesystem::remove_all(tmp_dir);
+    }
+};
+} // namespace
+
+TEST_F(WindowingDatasetIntegrationTest, AudioWindowDatasetLoadsAndCollates)
+{
+    nn::windowing::WindowSpec spec{.window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
+    AudioWindowDataset ds({subject}, spec);
+    ASSERT_GT(ds.size(), 0U);
+
+    const Batch item = ds.get_item(0);
+    EXPECT_EQ(item.inputs.rows(), 1);
+    EXPECT_EQ(item.inputs.cols(), 11025);
+    EXPECT_EQ(item.targets.cols(), 2);
+
+    Batch b;
+    ds.collate_into({0, 1}, b);
+    EXPECT_EQ(b.inputs.rows(), 2);
+    EXPECT_EQ(b.inputs.cols(), 11025);
+    EXPECT_EQ(b.targets.rows(), 2);
+    EXPECT_EQ(b.targets.cols(), 2);
+}
+
+TEST_F(WindowingDatasetIntegrationTest, EEGWindowDatasetLoadsAndCollates)
+{
+    nn::windowing::WindowSpec spec{.window_size = 256, .overlap = 0.5f, .sample_rate = 1024};
+    EEGWindowDataset ds({subject}, spec);
+    ASSERT_GT(ds.size(), 0U);
+
+    const Batch item = ds.get_item(0);
+    EXPECT_EQ(item.inputs.rows(), 1);
+    EXPECT_EQ(item.inputs.cols(), 6 * 256);
+    EXPECT_EQ(item.targets.cols(), 3);
+
+    Batch b;
+    ds.collate_into({0, 1}, b);
+    EXPECT_EQ(b.inputs.rows(), 2);
+    EXPECT_EQ(b.inputs.cols(), 6 * 256);
+    EXPECT_EQ(b.targets.rows(), 2);
+    EXPECT_EQ(b.targets.cols(), 3);
+}
+
+TEST_F(WindowingDatasetIntegrationTest, FusedWindowDatasetLoadsAndCollates)
+{
+    nn::windowing::WindowSpec eeg_spec{.window_size = 256, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_spec{
+        .window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
+
+    FusedWindowDataset ds({subject}, eeg_spec, audio_spec);
+    ASSERT_GT(ds.size(), 0U);
+
+    const Batch item = ds.get_item(0);
+    EXPECT_EQ(item.inputs.rows(), 1);
+    EXPECT_EQ(item.inputs.cols(), (6 * 256) + 11025);
+    EXPECT_EQ(item.targets.cols(), 5);
+
+    Batch b;
+    ds.collate_into({0, 1}, b);
+    EXPECT_EQ(b.inputs.rows(), 2);
+    EXPECT_EQ(b.inputs.cols(), (6 * 256) + 11025);
+    EXPECT_EQ(b.targets.rows(), 2);
+    EXPECT_EQ(b.targets.cols(), 5);
 }

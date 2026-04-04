@@ -6,6 +6,7 @@
 #include <CL/cl.h>
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <vector>
 
 #include "nn/tensor/opencl/GPUBufferPool.hpp"
@@ -135,4 +136,17 @@ TEST_F(GPUBufferPoolTest, PoolClear)
     pool_->clear();
     auto [total2, num2, avail2] = pool_->get_stats();
     EXPECT_EQ(num2, 0);
+}
+
+TEST_F(GPUBufferPoolTest, RoundsLargeRequestsTo64KBBuckets)
+{
+    auto handle = pool_->acquire(5000);
+    ASSERT_TRUE(handle);
+    EXPECT_EQ(handle->size_bytes, 65536);
+}
+
+TEST_F(GPUBufferPoolTest, OversizedAllocationReturnsInvalidHandle)
+{
+    auto handle = pool_->acquire(std::numeric_limits<size_t>::max() / 2);
+    EXPECT_FALSE(handle);
 }

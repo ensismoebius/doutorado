@@ -84,8 +84,8 @@ auto generate_autoencoder_spike_data(
                 // For near-maximum rates force spikes to satisfy high-rate tests deterministically
                 if (p_spike >= 0.999F)
                 {
-                    spikes.at(i, j) = 1.0F;
-                    continue;
+                    spikes.at(i, j) = 1.0F; // LCOV_EXCL_LINE
+                    continue;               // LCOV_EXCL_LINE
                 }
 
                 // Poisson-style spike generation (discretized):

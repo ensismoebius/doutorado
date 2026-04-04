@@ -8,11 +8,14 @@
 // ProfileLoader.cpp
 #include "ProfileLoader.hpp"
 
+#include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 
 namespace experiment03
 {
@@ -261,6 +264,194 @@ static auto parse_object(const std::string& text, const std::string& key, std::s
     return false;
 }
 
+static auto parse_json_string_at(
+    const std::string& text, std::size_t start, std::string& out, std::size_t& end_pos) -> bool
+{
+    if (start >= text.size() || text[start] != '"') return false;
+
+    std::string result;
+    bool escaped = false;
+    for (std::size_t i = start + 1; i < text.size(); ++i)
+    {
+        const char c = text[i];
+        if (escaped)
+        {
+            result.push_back(c);
+            escaped = false;
+            continue;
+        }
+        if (c == '\\')
+        {
+            escaped = true;
+            continue;
+        }
+        if (c == '"')
+        {
+            out = std::move(result);
+            end_pos = i;
+            return true;
+        }
+        result.push_back(c);
+    }
+
+    return false;
+}
+
+static auto collect_top_level_keys(const std::string& text) -> std::vector<std::string>
+{
+    std::vector<std::string> keys;
+    int depth = 0;
+    bool in_string = false;
+    bool escaped = false;
+    bool expecting_key = false;
+
+    for (std::size_t i = 0; i < text.size(); ++i)
+    {
+        const char c = text[i];
+
+        if (in_string)
+        {
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+            if (c == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+            if (c == '"')
+            {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if (c == '"')
+        {
+            if (depth == 1 && expecting_key)
+            {
+                std::string key;
+                std::size_t end_pos = i;
+                if (!parse_json_string_at(text, i, key, end_pos))
+                {
+                    return keys;
+                }
+                keys.push_back(std::move(key));
+                i = end_pos;
+                expecting_key = false;
+            }
+            else
+            {
+                in_string = true;
+            }
+            continue;
+        }
+
+        if (c == '{')
+        {
+            ++depth;
+            if (depth == 1) expecting_key = true;
+            continue;
+        }
+
+        if (c == '}')
+        {
+            if (depth == 1) expecting_key = false;
+            if (depth > 0) --depth;
+            continue;
+        }
+
+        if (depth == 1 && c == ',')
+        {
+            expecting_key = true;
+        }
+    }
+
+    return keys;
+}
+
+static auto is_known_profile_key(const std::string& key) -> bool
+{
+    if (key.rfind("_comment", 0) == 0) return true;
+
+    static constexpr std::array<std::string_view, 43> kKnownKeys = {
+        "training_batch_size",
+        "training_max_batches_per_epoch",
+        "device",
+        "dataset_subject_filter_regex",
+        "dataset_root_path",
+        "sampler_shuffle_samples",
+        "sampler_shuffle_seed",
+        "sampler_default_type",
+        "sampler_weights",
+        "sampler_weighted_num_samples",
+        "sampler_distributed_num_replicas",
+        "sampler_distributed_rank",
+        "sampler_distributed_shuffle",
+        "sampler_distributed_drop_last",
+        "dataset_input_mode",
+        "dataset_type",
+        "autoencoder_type",
+        "autoencoder_hidden_size",
+        "autoencoder_latent_size",
+        "autoencoder_depth",
+        "autoencoder_layer_sizes",
+        "layer_sizes",
+        "hidden_layer_sizes",
+        "autoencoder_input_features",
+        "autoencoder_eeg_features",
+        "autoencoder_audio_features",
+        "input_features",
+        "eeg_features",
+        "audio_features",
+        "layers",
+        "autoencoder_architecture",
+        "autoencoder_branch_hidden_size",
+        "autoencoder_fusion_hidden_size",
+        "autoencoder_residual_blocks",
+        "autoencoder_time_step",
+        "autoencoder_resistance",
+        "autoencoder_capacitance",
+        "training_learning_rate",
+        "training_epochs",
+        "prefetch_lookahead",
+        "prefetch_ram_cap_mb",
+        "window_eeg_config",
+        "window_audio_config",
+    };
+
+    return std::find(kKnownKeys.begin(), kKnownKeys.end(), key) != kKnownKeys.end();
+}
+
+static auto validate_known_profile_keys(const std::string& text, std::string& out_error) -> bool
+{
+    auto top_level_keys = collect_top_level_keys(text);
+    std::vector<std::string> unknown_keys;
+    unknown_keys.reserve(top_level_keys.size());
+
+    for (const auto& key : top_level_keys)
+    {
+        if (!is_known_profile_key(key)) unknown_keys.push_back(key);
+    }
+
+    if (unknown_keys.empty()) return true;
+
+    std::sort(unknown_keys.begin(), unknown_keys.end());
+    unknown_keys.erase(std::unique(unknown_keys.begin(), unknown_keys.end()), unknown_keys.end());
+
+    std::ostringstream oss;
+    oss << "unknown profile key(s): ";
+    for (std::size_t i = 0; i < unknown_keys.size(); ++i)
+    {
+        if (i > 0) oss << ", ";
+        oss << unknown_keys[i];
+    }
+    out_error = oss.str();
+    return false;
+}
+
 auto load_profile_to_config(
     const std::string& profile_name, Config& out_config, std::string& out_error) -> bool
 {
@@ -316,9 +507,16 @@ auto load_profile_to_config(
         return false;
     }
 
+    if (!validate_known_profile_keys(text, out_error))
+    {
+        return false;
+    }
+
     parse_number(text, "training_batch_size", out_config.training_batch_size);
     parse_number(text, "training_max_batches_per_epoch", out_config.training_max_batches_per_epoch);
     parse_string(text, "device", out_config.device);
+    parse_string(text, "dataset_subject_filter_regex", out_config.dataset_subject_filter_regex);
+    parse_string(text, "dataset_root_path", out_config.dataset_root_path);
     parse_bool(text, "sampler_shuffle_samples", out_config.sampler_shuffle_samples);
     if (unsigned int sampler_shuffle_seed = 0U;
         parse_number(text, "sampler_shuffle_seed", sampler_shuffle_seed))

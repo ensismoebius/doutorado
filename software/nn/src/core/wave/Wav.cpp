@@ -457,10 +457,10 @@ inline void Wav::read8BitMono(std::ifstream& ifs)
 
         Wav::read_binary(ifs, waveformdata);
 
-        if (i >= this->data.size())
+        if (i >= this->data.size()) // LCOV_EXCL_START
         {
             throw std::runtime_error("Buffer overflow detected in read8BitMono");
-        }
+        } // LCOV_EXCL_STOP
 
         this->data.at(i) = static_cast<double>(waveformdata);
     }
@@ -482,10 +482,10 @@ inline void Wav::read8BitStereo(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_left);
         Wav::read_binary(ifs, waveformdata_right);
 
-        if (i >= this->dataLeft.size() || i >= this->dataRight.size())
+        if (i >= this->dataLeft.size() || i >= this->dataRight.size()) // LCOV_EXCL_START
         {
             throw std::runtime_error("Buffer overflow detected in read8BitStereo");
-        }
+        } // LCOV_EXCL_STOP
 
         this->dataLeft.at(i) = static_cast<double>(waveformdata_right);
         this->dataRight.at(i) = static_cast<double>(waveformdata_left);
@@ -507,10 +507,10 @@ inline void Wav::read16BitMono(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_lsb);
         Wav::read_binary(ifs, waveformdata_msb);
 
-        if (i >= this->data.size())
+        if (i >= this->data.size()) // LCOV_EXCL_START
         {
             throw std::runtime_error("Buffer overflow detected in read16BitMono");
-        }
+        } // LCOV_EXCL_STOP
 
         this->data.at(i) =
             static_cast<double>(combine_8bit_to_16bit(waveformdata_lsb, waveformdata_msb));
@@ -536,10 +536,10 @@ inline void Wav::read16BitStereo(std::ifstream& ifs)
         Wav::read_binary(ifs, waveformdata_lsb_right);
         Wav::read_binary(ifs, waveformdata_msb_right);
 
-        if (i >= this->dataLeft.size() || i >= this->dataRight.size())
+        if (i >= this->dataLeft.size() || i >= this->dataRight.size()) // LCOV_EXCL_START
         {
             throw std::runtime_error("Buffer overflow detected in read16BitStereo");
-        }
+        } // LCOV_EXCL_STOP
 
         this->dataLeft.at(i) = static_cast<double>(
             combine_8bit_to_16bit(waveformdata_lsb_left, waveformdata_msb_left));

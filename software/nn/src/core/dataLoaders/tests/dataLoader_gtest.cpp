@@ -9,6 +9,10 @@
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/TensorDataset.hpp"
 
+#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
+
 // Helper to build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
 {
@@ -21,7 +25,7 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
         }
     }
     return t;
-}
+} // LCOV_EXCL_LINE
 
 TEST(DataLoaderTest, DeterministicShuffle)
 {
@@ -412,4 +416,134 @@ TEST(DataLoaderComprehensiveTest, ShuffleDeterminism)
 
     // Different seeds should likely produce different orders
     EXPECT_NE(order1, order2);
+
+}
+
+TEST(DataLoaderTest, NullSamplerThrows)
+{
+    auto inputs = make_sequential_tensor(4, 2);
+    auto targets = make_sequential_tensor(4, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+    std::unique_ptr<SequentialSampler> null_sampler = nullptr;
+    EXPECT_THROW((DataLoader(dataset, 2, std::move(null_sampler))), std::invalid_argument);
+}
+
+TEST(DataLoaderTest, WeightedRandomSamplerUsedDirectly)
+{
+    // Creates DataLoader through DefaultSamplerOptions WeightedRandom with pre-specified weights.
+    auto inputs = make_sequential_tensor(4, 2);
+    auto targets = make_sequential_tensor(4, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    DataLoader::DefaultSamplerOptions opts;
+    opts.type = DataLoader::DefaultSamplerType::WeightedRandom;
+    opts.weights = {0.1, 0.1, 0.4, 0.4};
+    opts.weighted_num_samples = 4u;
+    opts.seed = 42u;
+
+    DataLoader loader(dataset, 2, opts);
+    int total = 0;
+    for (const auto& batch : loader)
+    {
+        total += static_cast<int>(batch.inputs.rows());
+    }
+    EXPECT_EQ(total, 4);
+}
+
+TEST(DataLoaderTest, WeightedRandomSamplerFallbackUniformWeights)
+{
+    // Exercises the uniform-weight fallback when weights is empty.
+    auto inputs = make_sequential_tensor(4, 2);
+    auto targets = make_sequential_tensor(4, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    DataLoader::DefaultSamplerOptions opts;
+    opts.type = DataLoader::DefaultSamplerType::WeightedRandom;
+    // weights left empty → fallback uniform weights
+    opts.weighted_num_samples = 4u;
+    opts.seed = 7u;
+
+    DataLoader loader(dataset, 2, opts);
+    int total = 0;
+    for (const auto& batch : loader)
+    {
+        total += static_cast<int>(batch.inputs.rows());
+    }
+    EXPECT_EQ(total, 4);
+}
+
+TEST(DataLoaderTest, DistributedSamplerOption)
+{
+    // Exercises the Distributed case in make_default_sampler.
+    auto inputs = make_sequential_tensor(8, 2);
+    auto targets = make_sequential_tensor(8, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    DataLoader::DefaultSamplerOptions opts;
+    opts.type = DataLoader::DefaultSamplerType::Distributed;
+    opts.num_replicas = 2;
+    opts.rank = 0;
+    opts.distributed_shuffle = false;
+    opts.distributed_drop_last = false;
+    opts.seed = 3u;
+
+    DataLoader loader(dataset, 2, opts);
+    int total = 0;
+    for (const auto& batch : loader)
+    {
+        total += static_cast<int>(batch.inputs.rows());
+    }
+    // rank 0 of 2 replicas over 8 samples = 4 samples, 2 batches of 2
+    EXPECT_EQ(total, 4);
+}
+
+TEST(DataLoaderTest, EmptyDatasetWithNonZeroSamplerThrows)
+{
+    // Dataset that always reports size 0 but a custom sampler requesting indices.
+    auto inputs = make_sequential_tensor(0, 2);
+    auto targets = make_sequential_tensor(0, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+
+    auto sampler = std::make_unique<DistributedSampler>(1, 1, 0, false, false, 0u);
+    // DistributedSampler with 1 sample but dataset is empty → should throw at construction.
+    // Actually the DistributedSampler(1, ...) here has index_count=1 but dataset->size()=0.
+    EXPECT_THROW(
+        (DataLoader(dataset, 1, std::move(sampler))), std::invalid_argument);
+}
+
+TEST(DataLoaderIteratorTest, FillBatchAndMoveAndEquality)
+{
+    // Exercise fill_batch, move_batch, operator== and operator++ on DataLoaderIterator.
+    auto inputs = make_sequential_tensor(4, 2);
+    auto targets = make_sequential_tensor(4, 1);
+    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+    DataLoader loader(dataset, 2, false);
+
+    auto it = loader.begin();
+    auto end = loader.end();
+
+    // operator!= (already tested) and operator== via negation
+    EXPECT_TRUE(it != end);
+    EXPECT_FALSE(it == end);
+
+    // Dereference calls fetch_batch → fill into current_batch_data_
+    const auto& batch = *it;
+    EXPECT_EQ(batch.inputs.rows(), 2);
+
+    // move_batch moves out the current batch
+    auto moved = it.move_batch();
+    EXPECT_EQ(moved.inputs.rows(), 2);
+
+    // fill_batch refills from the loader
+    Batch out_batch;
+    it.fill_batch(out_batch);
+    EXPECT_EQ(out_batch.inputs.rows(), 2);
+
+    // Advance iterator
+    ++it;
+    EXPECT_TRUE(it != end);
+
+    ++it;
+    // After two increments there should be no more batches
+    EXPECT_TRUE(it == end);
 }

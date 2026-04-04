@@ -28,6 +28,9 @@ TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
     EXPECT_EQ(config.autoencoder_hidden_size, 64);
     EXPECT_EQ(config.autoencoder_latent_size, 32);
     EXPECT_EQ(config.autoencoder_depth, 2);
+    EXPECT_EQ(config.dataset_subject_filter_regex, "^S(\\d+)$");
+    EXPECT_EQ(config.dataset_root_path,
+              "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada");
 }
 
 TEST(Experiment03ProfilesTest, LoadsProfileFromAbsolutePath)
@@ -109,6 +112,34 @@ TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
 
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.device, "cpu");
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_unknown_key_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"dataset_type\": \"audio-window\",\n"
+               "  \"autoencoder_type\": \"audio-window-ann\",\n"
+               "  \"batch_size\": 32\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
+    EXPECT_NE(error.find("batch_size"), std::string::npos);
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);

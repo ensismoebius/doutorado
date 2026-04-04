@@ -1266,3 +1266,50 @@ TEST(LayerComprehensiveTest, SurrogateGradientRange)
     // Gradient at threshold (0) should be positive
     EXPECT_GT(grad_at_zero, 0.0F);
 }
+
+TEST(Conv2dTest, ForwardThrowsOnNon4DInput)
+{
+    Conv2d conv(1, 1, 3);
+    // 2D tensor (shape size != 4) — must throw invalid_argument
+    nn::Tensor input_2d(std::vector<size_t>{4, 4});
+    EXPECT_THROW(conv.forward(input_2d), std::invalid_argument);
+
+    // 3D tensor (shape size != 4) — must also throw
+    nn::Tensor input_3d(std::vector<size_t>{1, 4, 4});
+    EXPECT_THROW(conv.forward(input_3d), std::invalid_argument);
+}
+
+TEST(Conv2dTest, ForwardThrowsOnWrongInputChannels)
+{
+    Conv2d conv(1, 1, 3); // expects 1 input channel
+    // 4D tensor with 2 input channels — must throw; shape {batch, channels, H, W}
+    nn::Tensor input_wrong_ch(std::vector<size_t>{1, 2, 8, 8});
+    EXPECT_THROW(conv.forward(input_wrong_ch), std::invalid_argument);
+}
+
+TEST(Conv2dTest, ReusesCachedIndicesAndBuffersOnRepeatedShape)
+{
+    Conv2d conv(1, 1, 2);
+
+    nn::Tensor input(std::vector<size_t>{1, 1, 3, 3});
+    for (int y = 0; y < 3; ++y)
+    {
+        for (int x = 0; x < 3; ++x)
+        {
+            input.at(0, 0, y, x) = static_cast<float>((y * 3) + x + 1);
+        }
+    }
+
+    nn::Tensor grad_out(std::vector<size_t>{1, 1, 2, 2});
+    grad_out.set_ones();
+
+    auto out1 = conv.forward(input);
+    auto in_grad1 = conv.backward(grad_out);
+    auto out2 = conv.forward(input);
+    auto in_grad2 = conv.backward(grad_out);
+
+    ASSERT_EQ(out1.get_shape(), out2.get_shape());
+    ASSERT_EQ(in_grad1.get_shape(), in_grad2.get_shape());
+    EXPECT_TRUE(std::isfinite(out2.at(0, 0, 0, 0)));
+    EXPECT_TRUE(std::isfinite(in_grad2.at(0, 0, 1, 1)));
+}

@@ -62,3 +62,19 @@ TEST(SamplerOptionResolutionTest, UnknownSamplerThrows)
     selection.sampler_type = "unsupported";
     EXPECT_THROW((void) resolveDefaultSamplerOptions(selection), std::runtime_error);
 }
+
+TEST(SamplerOptionResolutionTest, SequentialSamplerType)
+{
+    SamplerOptionSelection selection{};
+    selection.sampler_type = "sequential";
+    const auto options = resolveDefaultSamplerOptions(selection);
+    EXPECT_EQ(options.type, DataLoader::DefaultSamplerType::Sequential);
+}
+
+TEST(SamplerOptionResolutionTest, RandomSamplerType)
+{
+    SamplerOptionSelection selection{};
+    selection.sampler_type = "random";
+    const auto options = resolveDefaultSamplerOptions(selection);
+    EXPECT_EQ(options.type, DataLoader::DefaultSamplerType::Random);
+}

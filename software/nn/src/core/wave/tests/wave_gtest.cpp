@@ -441,3 +441,15 @@ TEST(AudioFeatureExtractionTest, TestApplyWindowEdgeCases)
     std::vector<double> window = {0.5};
     EXPECT_THROW(nn::core::wave::apply_window(signal, window), std::invalid_argument);
 }
+
+TEST(SimpleSignalOperationsTest, AddEchoesLongSignalTriggersEchoBranch)
+{
+    // addEchoes only applies the echo when i > bouncingTime-1 (100000).
+    // Use a signal of length 100002 so the last two samples exercise the echo path.
+    constexpr int kLen = 100002;
+    std::vector<double> sig(kLen, 1.0);
+    addEchoes(sig.data(), kLen);
+    // Samples at index >= 100000 should have been modified (average with delayed copy)
+    EXPECT_NE(sig[100000], 1.0); // echo branch was executed
+    EXPECT_NE(sig[100001], 1.0);
+}

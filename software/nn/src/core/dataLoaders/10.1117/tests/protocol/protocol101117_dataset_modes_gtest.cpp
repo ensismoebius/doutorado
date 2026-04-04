@@ -14,12 +14,15 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 #include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "nn/testing/SqliteTestHelpers.hpp"
 #include "utils/MockImaginedSpeechDatasetGenerator.hpp"
 
 namespace
@@ -103,6 +106,48 @@ class Protocol101117DatasetModesTest : public ::testing::Test
 
         matioCpp::File audio_file =
             matioCpp::File::Create((subject_dir / "S99_Audio.mat").string());
+        matioCpp::MultiDimensionalArray<double> audio_matrix(
+            nn::dataLoaders::kAudioMatVariableName, {audio_rows, audio_cols}, audio_data.data());
+        audio_file.write(audio_matrix);
+        audio_file.close();
+    }
+
+    static void writeMismatchedStimulusSubjectMats(const std::filesystem::path& subject_dir)
+    {
+        const auto& schema = nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+        const std::size_t eeg_rows = 1;
+        const std::size_t eeg_cols = schema.eegTotalColumns();
+        const std::size_t audio_rows = 1;
+        const std::size_t audio_cols = schema.audioTotalColumns();
+
+        std::vector<double> eeg_data(eeg_rows * eeg_cols, 0.0);
+        std::vector<double> audio_data(audio_rows * audio_cols, 0.0);
+
+        for (std::size_t c = 0; c < schema.eegSignalColumns(); ++c)
+        {
+            eeg_data[c * eeg_rows] = static_cast<double>(1000U + c);
+        }
+        for (std::size_t c = 0; c < schema.audioSamples(); ++c)
+        {
+            audio_data[c * audio_rows] = static_cast<double>(10U + c);
+        }
+
+        eeg_data[schema.eegModeColumn() * eeg_rows] = 1.0;
+        eeg_data[schema.eegStimulusColumn() * eeg_rows] = 1.0;
+        eeg_data[schema.eegBlinkColumn() * eeg_rows] = 0.0;
+
+        // Intentionally mismatch audio stimulus label against EEG stimulus label.
+        audio_data[schema.audioStimulusColumn() * audio_rows] = 2.0;
+        audio_data[schema.audioEEGIndexColumn() * audio_rows] = 1.0;
+
+        matioCpp::File eeg_file = matioCpp::File::Create((subject_dir / "S77_EEG.mat").string());
+        matioCpp::MultiDimensionalArray<double> eeg_matrix(
+            nn::dataLoaders::kEegMatVariableName, {eeg_rows, eeg_cols}, eeg_data.data());
+        eeg_file.write(eeg_matrix);
+        eeg_file.close();
+
+        matioCpp::File audio_file =
+            matioCpp::File::Create((subject_dir / "S77_Audio.mat").string());
         matioCpp::MultiDimensionalArray<double> audio_matrix(
             nn::dataLoaders::kAudioMatVariableName, {audio_rows, audio_cols}, audio_data.data());
         audio_file.write(audio_matrix);
@@ -385,4 +430,140 @@ TEST_F(
                 batch.inputs.at(1, block_offset + idx), expected_eeg_resampled(ch, idx), 1e-3f);
         }
     }
+}
+
+TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputAndTargetContracts)
+{
+    const auto& schema = nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+
+    nn::Tensor eeg(schema.eeg_channels, schema.eegSamplesPerChannel());
+    nn::Tensor audio(schema.audioSamples(), 1);
+    eeg.setZero();
+    audio.setZero();
+
+    const auto merged = buildInputTensor(eeg, audio);
+    EXPECT_EQ(merged.rows(), static_cast<int>(schema.eeg_channels + 1U));
+    EXPECT_EQ(merged.cols(), static_cast<int>(schema.audioSamples()));
+
+    const auto target = buildTargetTensor(7, {1, 2, 3}, 9);
+    ASSERT_EQ(target.rows(), 1);
+    ASSERT_EQ(target.cols(), 5);
+    EXPECT_EQ(target.at(0, 0), 7.0F);
+    EXPECT_EQ(target.at(0, 1), 1.0F);
+    EXPECT_EQ(target.at(0, 2), 2.0F);
+    EXPECT_EQ(target.at(0, 3), 3.0F);
+    EXPECT_EQ(target.at(0, 4), 9.0F);
+}
+
+TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputThrowsOnWrongShapes)
+{
+    const auto& schema = nn::dataLoaders::ImaginedSpeechSchema_10_1117;
+    nn::Tensor good_eeg(schema.eeg_channels, schema.eegSamplesPerChannel());
+    nn::Tensor good_audio(schema.audioSamples(), 1);
+
+    nn::Tensor bad_eeg(schema.eeg_channels - 1U, schema.eegSamplesPerChannel());
+    EXPECT_THROW((void) buildInputTensor(bad_eeg, good_audio), std::runtime_error);
+
+    nn::Tensor bad_audio(schema.audioSamples(), 2);
+    EXPECT_THROW((void) buildInputTensor(good_eeg, bad_audio), std::runtime_error);
+}
+
+TEST_F(Protocol101117DatasetModesTest, GetSampleAndCollateRejectOutOfRangeIndexes)
+{
+    Protocol101117Dataset dataset(discoveredSubjects(), Protocol101117InputMode::Concatenated);
+
+    ASSERT_GT(dataset.size(), 0U);
+    EXPECT_THROW((void) dataset.get_sample(dataset.size()), std::out_of_range);
+    EXPECT_THROW((void) dataset.collate({dataset.size()}), std::out_of_range);
+
+    Batch batch;
+    EXPECT_THROW(dataset.collate_into({dataset.size()}, batch), std::out_of_range);
+}
+
+TEST_F(Protocol101117DatasetModesTest, CollateIntoResizesBatchBuffersPerMode)
+{
+    const auto subject_dir = tmp_root_ / "S99";
+    std::filesystem::create_directories(subject_dir);
+    writeAlignedSubjectMats(subject_dir, 3U);
+
+    SubjectFiles only_subject{};
+    only_subject.subject_id = 99;
+    only_subject.subject_name = "S99";
+    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_rows = 3U;
+    only_subject.audio_rows = 3U;
+
+    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    Batch batch;
+
+    dataset.collate_into({0U, 1U}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 2);
+    EXPECT_EQ(batch.inputs.cols(), static_cast<int>(kStackedConcatFeatures));
+    EXPECT_EQ(batch.targets.rows(), 2);
+    EXPECT_EQ(batch.targets.cols(), 5);
+
+    dataset.set_input_mode(Protocol101117InputMode::EegOnly);
+    dataset.collate_into({0U, 1U}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 2);
+    EXPECT_EQ(batch.inputs.cols(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSignalColumns()));
+
+    dataset.set_input_mode(Protocol101117InputMode::AudioOnly);
+    dataset.collate_into({0U, 1U}, batch);
+    EXPECT_EQ(batch.inputs.rows(), 2);
+    EXPECT_EQ(batch.inputs.cols(),
+        static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples()));
+
+    // Protocol get_item returns non-row-shaped inputs, so empty base collate_into
+    // delegates to a reshape path that can throw for pre-sized buffers.
+    EXPECT_THROW(dataset.collate_into({}, batch), std::exception);
+}
+
+TEST_F(Protocol101117DatasetModesTest, SqliteBackedSubjectsInitializeSessionsAndReadSamples)
+{
+    int subject_id = -1;
+    const std::string db_path = nn::testing::create_mock_imagined_db(
+        subject_id,
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(),
+        nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
+
+    SubjectFiles subject{};
+    subject.subject_id = subject_id;
+    subject.subject_name = "sqlite_subject";
+    subject.audio_mat_path = db_path;
+    subject.eeg_mat_path = db_path;
+    // Mock DB stores rows at audio_row={10,11}; use a range that includes them.
+    subject.audio_rows = 12U;
+    subject.eeg_rows = 2U;
+
+    Protocol101117Dataset dataset({subject}, Protocol101117InputMode::Concatenated);
+    const auto sample = dataset.get_sample(11U);
+
+    EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
+    EXPECT_EQ(sample.inputs.rows(), static_cast<int>(kStackedConcatRows));
+    EXPECT_EQ(sample.inputs.cols(), static_cast<int>(kStackedConcatCols));
+    EXPECT_EQ(sample.targets.rows(), 1);
+    EXPECT_EQ(sample.targets.cols(), 5);
+
+    std::filesystem::remove(db_path);
+}
+
+TEST_F(Protocol101117DatasetModesTest, GetSampleThrowsWhenStimulusLabelsAreMismatched)
+{
+    const auto subject_dir = tmp_root_ / "S77";
+    std::filesystem::create_directories(subject_dir);
+    writeMismatchedStimulusSubjectMats(subject_dir);
+
+    SubjectFiles only_subject{};
+    only_subject.subject_id = 77;
+    only_subject.subject_name = "S77";
+    only_subject.eeg_mat_path = (subject_dir / "S77_EEG.mat").string();
+    only_subject.audio_mat_path = (subject_dir / "S77_Audio.mat").string();
+    only_subject.eeg_rows = 1U;
+    only_subject.audio_rows = 1U;
+
+    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+
+    EXPECT_THROW((void) dataset.get_sample(0U), std::runtime_error);
 }

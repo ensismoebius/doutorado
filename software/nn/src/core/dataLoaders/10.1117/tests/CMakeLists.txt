@@ -18,6 +18,7 @@ add_executable(dataLoaders_10_1117_gtest
 	loaders/sqlite_session_gtest.cpp
 	fuzz/eeg_loader_property_tests.cpp
 	schema/dataset_schema_article_spec_gtest.cpp
+	schema/subject_discovery_gtest.cpp
 	codec/batch_target_formatter_gtest.cpp
 	codec/input_mode_codec_gtest.cpp
 	protocol/protocol101117_dataset_modes_gtest.cpp

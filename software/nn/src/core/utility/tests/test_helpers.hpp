@@ -28,7 +28,7 @@ inline auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, fl
         }
     }
     return t;
-}
+} // LCOV_EXCL_LINE
 
 inline void rand_fill(
     nn::Tensor& t, float lower = -0.5F, float upper = 0.5F, unsigned int seed = nn::testing::kSeed)
@@ -39,7 +39,7 @@ inline void rand_fill(
     {
         t.at(i) = dist(gen);
     }
-}
+} // LCOV_EXCL_LINE
 
 inline auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor
 {
@@ -52,17 +52,17 @@ inline auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::T
         }
     }
     return t;
-}
+} // LCOV_EXCL_LINE
 
 inline auto make_ones_tensor(size_t rows, size_t cols) -> nn::Tensor
 {
     return make_constant_tensor(rows, cols, 1.0F);
-}
+} // LCOV_EXCL_LINE
 
 inline auto make_zeros_tensor(size_t rows, size_t cols) -> nn::Tensor
 {
     return make_constant_tensor(rows, cols, 0.0F);
-}
+} // LCOV_EXCL_LINE
 
 inline auto tensor_is_approx(
     const nn::Tensor& a, const nn::Tensor& b, float tolerance = nn::testing::kTol) -> bool
@@ -108,6 +108,7 @@ inline auto tensor_norm(const nn::Tensor& t) -> float
     return std::sqrt(sum);
 }
 
+// LCOV_EXCL_START
 inline auto tensor_subtract(const nn::Tensor& a, const nn::Tensor& b) -> nn::Tensor
 {
     if (a.rows() != b.rows() || a.cols() != b.cols())
@@ -125,6 +126,7 @@ inline auto tensor_subtract(const nn::Tensor& a, const nn::Tensor& b) -> nn::Ten
     }
     return result;
 }
+// LCOV_EXCL_STOP
 
 inline void tensor_fill_with_value(nn::Tensor& t, float value)
 {

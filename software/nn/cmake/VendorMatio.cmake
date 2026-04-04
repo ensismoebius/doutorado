@@ -40,6 +40,30 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(matio)
 
+# Some distro HDF5 CMake packages can export an absolute soname path that no
+# longer exists after package upgrades (for example: libhdf5.so.X.Y.Z exact
+# patch level). When that happens, linking matio fails even though libhdf5 is
+# installed. Detect this case and fall back to linker-name resolution.
+if(TARGET MATIO::HDF5)
+  get_target_property(_nn_matio_hdf5_links MATIO::HDF5 INTERFACE_LINK_LIBRARIES)
+  set(_nn_matio_hdf5_has_missing_abs_path OFF)
+  foreach(_nn_link_item IN LISTS _nn_matio_hdf5_links)
+    if(IS_ABSOLUTE "${_nn_link_item}" AND
+       _nn_link_item MATCHES "libhdf5\\.so" AND
+       NOT EXISTS "${_nn_link_item}")
+      set(_nn_matio_hdf5_has_missing_abs_path ON)
+      break()
+    endif()
+  endforeach()
+
+  if(_nn_matio_hdf5_has_missing_abs_path)
+    message(WARNING
+      "Detected stale absolute HDF5 soname path from MATIO::HDF5; "
+      "falling back to linker-name resolution (-lhdf5).")
+    set_property(TARGET MATIO::HDF5 PROPERTY INTERFACE_LINK_LIBRARIES hdf5)
+  endif()
+endif()
+
 target_include_directories(matio SYSTEM
   PUBLIC
     "${matio_SOURCE_DIR}/src"

@@ -90,6 +90,14 @@ TEST(WaveletTransformResultsTest, TestMaxItems)
     EXPECT_THROW(results.get_wavelet_transforms(-1), std::runtime_error);
 }
 
+TEST(WaveletTransformResultsTest, GetWaveletTransformsDetailAboveLevelsThrows)
+{
+    WaveletTransformResults results;
+    results.levelsOfTransformation = 1;
+    results.transformedSignal = {1.0, 2.0, 3.0, 4.0};
+    EXPECT_THROW(results.get_wavelet_transforms(2), std::runtime_error);
+}
+
 TEST(WaveletOperationsTest, TestMalatHaarCorrectness)
 {
     // Test with a simple signal where we know the expected output
@@ -362,3 +370,90 @@ TEST(WaveletOperationsTest, TestExtractSubbandEnergiesEdgeCases)
 }
 
 } // namespace wavelets::test
+
+TEST(WaveletOperationsTest, MalatLevelZeroReturnsSignalUnchanged)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    std::vector<double> signal = {1.0, 2.0, 3.0, 4.0};
+    auto result = wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 0);
+    EXPECT_EQ(result.levelsOfTransformation, 0U);
+    EXPECT_EQ(result.transformedSignal, signal);
+    EXPECT_FALSE(result.packet);
+}
+
+TEST(WaveletOperationsTest, MalatLevelZeroPacketMarksPacketFlag)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    std::vector<double> signal = {1.0, 2.0, 3.0, 4.0};
+    auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 0);
+    EXPECT_EQ(result.levelsOfTransformation, 0U);
+    EXPECT_TRUE(result.packet);
+    EXPECT_EQ(result.transformedSignal, signal);
+}
+
+TEST(WaveletOperationsTest, MalatLevelExceedsMaxThrows)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    std::vector<double> signal(8, 1.0); // max_levels = log2(8) = 3
+    EXPECT_THROW(
+        wavelets::malat(signal, haarFilter, wavelets::REGULAR_WAVELET, 4), std::invalid_argument);
+}
+
+TEST(WaveletTransformResultsTest, PacketMethodsOnNonPacketResultThrows)
+{
+    wavelets::WaveletTransformResults res(8);
+    res.transformedSignal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    res.levelsOfTransformation = 2;
+    res.packet = false; // non-packet
+    EXPECT_THROW(res.get_wavelet_packet_amount_of_parts(), std::runtime_error);
+    EXPECT_THROW(res.get_wavelet_packet_transforms(0, 1, 2), std::runtime_error);
+}
+
+TEST(WaveletTransformResultsTest, PacketTransform3ArgInstanceMethod)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    std::vector<double> signal(8, 1.0);
+    auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 2);
+    ASSERT_TRUE(result.packet);
+    // get_wavelet_packet_amount_of_parts() instance method
+    EXPECT_EQ(result.get_wavelet_packet_amount_of_parts(), 4L);
+    // get_wavelet_packet_transforms(start, end, maxFreq)
+    auto chunk = result.get_wavelet_packet_transforms(0, 1, 4);
+    EXPECT_EQ(chunk.size(), 1U); // chunkSize = amount_of_parts/maxFrequency = 4/4 = 1
+}
+
+TEST(WaveletTransformResultsTest, PacketTransform3ArgInstanceEndBeforeStartThrows)
+{
+    constexpr auto haarFilter = wavelets::get_wavelet<wavelets::Haar>();
+    std::vector<double> signal(8, 1.0);
+    auto result = wavelets::malat(signal, haarFilter, wavelets::PACKET_WAVELET, 2);
+    // endIndex < startIndex must throw
+    EXPECT_THROW(result.get_wavelet_packet_transforms(2, 1, 4), std::runtime_error);
+}
+
+TEST(WaveletTransformResultsTest, PacketTransformStaticOverloadValid)
+{
+    std::vector<double> sig = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    // 2 levels → 4 parts
+    auto part = wavelets::WaveletTransformResults::get_wavelet_packet_transforms(sig, 0, 2);
+    EXPECT_EQ(part.size(), 2U); // chunkSize = 8/4 = 2
+}
+
+TEST(WaveletTransformResultsTest, PacketTransformStaticOverloadOutOfRangeThrows)
+{
+    std::vector<double> sig = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+    // 2 levels → 4 parts, requesting part index 5 must throw
+    EXPECT_THROW(wavelets::WaveletTransformResults::get_wavelet_packet_transforms(sig, 5, 2),
+        std::runtime_error);
+}
+
+TEST(WaveletOperationsTest, PacketModeCarriesTooSmallSegmentsForLongFilters)
+{
+    // Daub8 has a longer filter; with level=3 and size=8, later subsegments are too short and
+    // must follow the carry-over branch without crashing.
+    constexpr auto daub8Filter = wavelets::get_wavelet<wavelets::Daub8>();
+    std::vector<double> signal(8, 1.0);
+    auto result = wavelets::malat(signal, daub8Filter, wavelets::PACKET_WAVELET, 3);
+    EXPECT_EQ(result.levelsOfTransformation, 3U);
+    EXPECT_EQ(result.transformedSignal.size(), signal.size());
+}

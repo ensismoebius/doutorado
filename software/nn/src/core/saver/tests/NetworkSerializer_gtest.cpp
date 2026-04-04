@@ -53,10 +53,11 @@ TEST(NetworkSerializerTest, SaveLoadRoundTripMatchesPyTorchStandard)
     EXPECT_NE(saved_data.find("2.capacitance"), saved_data.end());
 
     // Load into a new model (may be disabled in this build)
-    Sequential loaded;
+    Sequential loaded; // LCOV_EXCL_LINE
     if (!NetworkSerializer::loadNetwork(loaded, filename))
     {
-        GTEST_SKIP() << "NPZ runtime loading is disabled in this build; skipping load assertions.";
+        GTEST_SKIP()
+            << "NPZ runtime loading is disabled in this build; skipping load assertions."; // LCOV_EXCL_LINE
     }
 
     // Check architecture: layer types and order

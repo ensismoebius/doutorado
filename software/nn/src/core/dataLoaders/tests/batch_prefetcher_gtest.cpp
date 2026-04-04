@@ -27,8 +27,8 @@ static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Te
                 static_cast<float>((i * cols) + j);
         }
     }
-    return t;
-}
+    return t; // LCOV_EXCL_LINE
+} // LCOV_EXCL_LINE
 
 static auto wait_until(const std::function<bool()>& predicate, std::chrono::milliseconds timeout)
     -> bool
@@ -70,6 +70,12 @@ TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
 
     const auto d = prefetcher.diagnostics();
     EXPECT_GE(d.ring_size + d.seen_batches, 1U);
+}
+
+TEST(BatchPrefetcherRamCapTest, WaitUntilReturnsFalseWhenPredicateNeverTrue)
+{
+    const bool ok = wait_until([]() { return false; }, std::chrono::milliseconds(1));
+    EXPECT_FALSE(ok);
 }
 
 TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)

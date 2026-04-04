@@ -69,3 +69,9 @@ TEST(DatasetCollate, CollatesMultipleIndicesInOrder)
         }
     }
 }
+
+TEST(DatasetCollate, SizeReportsConfiguredLength)
+{
+    TestDataset ds(7, 3, 2);
+    EXPECT_EQ(ds.size(), 7U);
+}

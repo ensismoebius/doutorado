@@ -7,7 +7,10 @@
 ##
 ## No MAT file fixtures are required for these tests.
 ##
-add_executable(windowing_gtest windowing_gtest.cpp)
+add_executable(windowing_gtest
+    windowing_gtest.cpp
+    ../utils/MockImaginedSpeechDatasetGenerator.cpp
+)
 
 target_include_directories(windowing_gtest
     PRIVATE

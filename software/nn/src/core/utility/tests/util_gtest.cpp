@@ -12,6 +12,7 @@
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
+#include "nn/utility/comparison.h"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
 
@@ -22,8 +23,9 @@ auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upp
     -> nn::Tensor
 {
     return test_helpers::make_random_tensor(rows, cols, lower, upper);
-}
+} // LCOV_EXCL_LINE
 
+// LCOV_EXCL_START
 [[maybe_unused]] auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor
 {
     nn::Tensor t(rows, cols);
@@ -36,6 +38,7 @@ auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upp
     }
     return t;
 }
+// LCOV_EXCL_STOP
 
 auto make_tensor_from_values(size_t rows, size_t cols, const std::initializer_list<float>& values)
     -> nn::Tensor
@@ -448,4 +451,84 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
     {
         EXPECT_GT(spikes, 0);
     }
+}
+
+TEST(UtilComparisonTest, InRangeThrowsWhenLowerGreaterThanUpper)
+{
+    EXPECT_THROW((inRange(0.5L, 1.0L, 0.0L)), std::invalid_argument);
+}
+
+TEST(UtilComparisonTest, InRangeReturnsTrueForValueInBounds)
+{
+    EXPECT_TRUE(inRange(0.5L, 0.0L, 1.0L));
+    EXPECT_TRUE(inRange(0.0L, 0.0L, 1.0L));
+    EXPECT_TRUE(inRange(1.0L, 0.0L, 1.0L));
+    EXPECT_FALSE(inRange(-0.1L, 0.0L, 1.0L));
+    EXPECT_FALSE(inRange(1.1L, 0.0L, 1.0L));
+}
+
+TEST(UtilBatchingTest, BatchToStringFormat)
+{
+    Batch batch;
+    batch.inputs = nn::Tensor(3, 4);
+    batch.targets = nn::Tensor(3, 2);
+    const auto s = batch_to_string(batch);
+    EXPECT_FALSE(s.empty());
+    EXPECT_NE(s.find("3"), std::string::npos);
+    EXPECT_NE(s.find("4"), std::string::npos);
+    EXPECT_NE(s.find("2"), std::string::npos);
+}
+
+TEST(UtilSpikeDataTest, GenerateOnesProducesAllSpikes)
+{
+    const int n_samples = 3;
+    const int input_dim = 4;
+    const int n_steps = 5;
+
+    auto [inputs, targets] = generate_autoencoder_spike_data_of_ones(n_samples, input_dim, n_steps);
+    ASSERT_EQ(static_cast<int>(inputs.size()), n_steps);
+    ASSERT_EQ(static_cast<int>(targets.size()), n_steps);
+    for (const auto& t : inputs)
+    {
+        EXPECT_EQ(t.rows(), n_samples);
+        EXPECT_EQ(t.cols(), input_dim);
+        for (int i = 0; i < n_samples; ++i)
+        {
+            for (int j = 0; j < input_dim; ++j)
+            {
+                EXPECT_FLOAT_EQ(t.at(i, j), 1.0F);
+            }
+        }
+    }
+}
+
+TEST(UtilHelpersTest, MakeConstantAndTensorFromValues)
+{
+    auto c = make_constant_tensor(2, 3, 2.5F);
+    ASSERT_EQ(c.rows(), 2);
+    ASSERT_EQ(c.cols(), 3);
+    EXPECT_FLOAT_EQ(c.at(1, 2), 2.5F);
+
+    auto t = make_tensor_from_values(2, 2, {1.0F, 2.0F, 3.0F, 4.0F});
+    EXPECT_FLOAT_EQ(t.at(0, 0), 1.0F);
+    EXPECT_FLOAT_EQ(t.at(1, 1), 4.0F);
+}
+
+TEST(UtilHelpersTest, MakeTensorFromValuesThrowsOnSizeMismatch)
+{
+    EXPECT_THROW((void) make_tensor_from_values(2, 2, {1.0F, 2.0F, 3.0F}), std::invalid_argument);
+}
+
+TEST(UtilHelpersTest, TestHelpersApproxAndSubtractBranches)
+{
+    auto a = test_helpers::make_constant_tensor(2, 2, 1.0F);
+    auto b = test_helpers::make_constant_tensor(3, 1, 1.0F);
+    EXPECT_FALSE(test_helpers::tensor_is_approx(a, b));
+
+    auto c = test_helpers::make_constant_tensor(2, 2, 3.0F);
+    auto d = test_helpers::make_constant_tensor(2, 2, 1.0F);
+    auto sub = test_helpers::tensor_subtract(c, d);
+    EXPECT_FLOAT_EQ(sub.at(0, 0), 2.0F);
+
+    EXPECT_THROW((void) test_helpers::tensor_subtract(a, b), std::invalid_argument);
 }

@@ -81,3 +81,37 @@ TEST_F(MockDatasetGeneratorTest, CorruptedAudioMissingLabelsFailsLoader)
     EXPECT_THROW(
         (void) nn::dataLoaders::loadAudioFromMat(audio_path.string(), 0U), std::runtime_error);
 }
+
+TEST_F(MockDatasetGeneratorTest, CorruptedEEGMissingLabelsFailsLoader)
+{
+    const auto eeg_path = tmp_dir_ / "eeg_missing_labels.mat";
+
+    nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateCorruptedEEGMatFile(
+        eeg_path, 2U, nn::dataLoaders::test::EEGCorruptionOptions{.missing_labels = true});
+
+    EXPECT_THROW((void) nn::dataLoaders::loadEEGFromMat(eeg_path.string(), 0U), std::runtime_error);
+}
+
+TEST_F(MockDatasetGeneratorTest, CorruptedAudioWrongColumnsFailsLoader)
+{
+    const auto audio_path = tmp_dir_ / "audio_wrong_cols.mat";
+
+    nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateCorruptedAudioMatFile(
+        audio_path, 2U, nn::dataLoaders::test::AudioCorruptionOptions{.wrong_column_count = true});
+
+    EXPECT_THROW(
+        (void) nn::dataLoaders::loadAudioFromMat(audio_path.string(), 0U), std::runtime_error);
+}
+
+TEST_F(MockDatasetGeneratorTest, ZeroTrialsThrowsForCorruptedGenerators)
+{
+    EXPECT_THROW(
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateCorruptedEEGMatFile(
+            tmp_dir_ / "eeg_zero.mat", 0U, nn::dataLoaders::test::EEGCorruptionOptions{}),
+        std::invalid_argument);
+
+    EXPECT_THROW(
+        nn::dataLoaders::test::MockImaginedSpeechDatasetGenerator::generateCorruptedAudioMatFile(
+            tmp_dir_ / "audio_zero.mat", 0U, nn::dataLoaders::test::AudioCorruptionOptions{}),
+        std::invalid_argument);
+}

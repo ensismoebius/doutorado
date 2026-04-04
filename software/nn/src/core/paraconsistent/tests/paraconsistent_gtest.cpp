@@ -116,3 +116,36 @@ TEST(paraconsistentTest, contradictionDegree_G2)
 
     ASSERT_NEAR(contradictionDegree_G2, -0.025, 0.0001);
 }
+
+TEST(paraconsistentTest, NormalizeMapOverload)
+{
+    // map overload: normalize feature vectors stored in a map of class-name -> matrix
+    std::map<std::string, std::vector<std::vector<double>>> classes;
+    classes["A"] = {{1.0, 3.0}, {2.0, 2.0}};
+    classes["B"] = {{4.0, 0.0}, {1.0, 1.0}};
+    normalize_class_feature_vectors(2, 2, 2, classes);
+    // Each row of each class should sum to 1.0
+    for (auto& [name, vecs] : classes)
+    {
+        for (auto& row : vecs)
+        {
+            double s = row[0] + row[1];
+            EXPECT_NEAR(s, 1.0, 1e-9);
+        }
+    }
+}
+
+TEST(paraconsistentTest, CalculateBetaOverlappingClasses)
+{
+    // Build two classes whose ranges overlap so inRange() returns true and R++ is exercised
+    unsigned int numClasses = 2;
+    unsigned int vecPerClass = 2;
+    unsigned int vecSize = 1;
+    std::map<std::string, std::vector<std::vector<double>>> overlapping;
+    overlapping["c1"] = {{0.5}, {0.6}};
+    overlapping["c2"] = {{0.4}, {0.7}};
+    // c1 range: [0.5, 0.6], c2 range: [0.4, 0.7] — c1 values overlap with c2 range
+    double beta = calculate_beta(numClasses, vecPerClass, vecSize, overlapping);
+    EXPECT_GE(beta, 0.0);
+    EXPECT_LE(beta, 1.0);
+}
