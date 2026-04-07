@@ -3,6 +3,84 @@
 	"tasks": [
 		{
 			"label": "cppcheck (aggressive)",
+			"type": "shell",
+			"command": "cppcheck",
+			"args": [
+				"--enable=all",
+				"--check-level=exhaustive",
+				"--std=c++20",
+				"--platform=native",
+				"--suppress=missingIncludeSystem",
+				"--suppress=unusedFunction",
+				"--xml",
+				"--output-file=cppcheck.xml",
+				"src/"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": false,
+				"clear": false
+			},
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"runOptions": {
+				"runInBackground": false
+			},
+			"terminal": {
+				"kind": "external"
+			}
+		},
+		{
+			"label": "cppcheck (src-only)",
+			"type": "shell",
+			"command": "cppcheck",
+			"args": [
+				"--enable=all",
+				"--check-level=exhaustive",
+				"--std=c++20",
+				"--platform=native",
+				"--suppress=missingIncludeSystem",
+				"--suppress=unusedFunction",
+				"--xml",
+				"--output-file=cppcheck_src.xml",
+				"--exclude=build/_deps",
+				"src/"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"showReuseMessage": false,
+				"clear": false
+			},
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"runOptions": {
+				"runInBackground": false
+			},
+			"terminal": {
+				"kind": "external"
+			}
+		}
+	]
+}
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cppcheck (aggressive)",
 			"type": "process",
 			"command": "cppcheck",
 			"args": [

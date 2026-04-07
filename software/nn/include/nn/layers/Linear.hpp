@@ -19,17 +19,6 @@
  * - Bias:   (out_features, 1) and is broadcast across the batch.
  * - Output: (batch, out_features)
  */
-
-/**
- * @brief Camada Linear (ou camada totalmente conectada)
- * Implementa uma camada linear que aplica a transformação afim:
- * saída = entrada * W^T + b
- *
- * Onde:
- * - entrada é o tensor de entrada
- * - weight é a matriz de pesos
- * - bias é o vetor de bias
- */
 struct Linear : public Module
 {
     int in_features;   // número de entradas (features de entrada do tensor)
@@ -55,6 +44,8 @@ struct Linear : public Module
           weight(nn::Tensor(out_features_, in_features_)),
           bias(nn::Tensor(out_features_, 1))
     {
+        // Leave parameter initialization to dedicated initializers (xavier/kaiming)
+        // so callers can provide deterministic seeds and sampler policy.
     }
 
 #ifdef DEBUG

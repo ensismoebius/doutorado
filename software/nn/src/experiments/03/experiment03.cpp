@@ -73,7 +73,7 @@ const Config default_config{
 
     // Training hyperparameters.
     .training_learning_rate = 1e-3f,
-    .training_epochs = 2,
+    .training_epochs = 20,
 
     // Window specs used by windowing datasets.
     .window_eeg_config = {.window_size = 256, .overlap = 0.5F, .sample_rate = 1024},

@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
+#include "nn/initializers/kaiming_snn.hpp"
+#include "nn/initializers/xavier.hpp"
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/LeakyIntegrator.hpp"
 #include "nn/layers/Linear.hpp"
@@ -87,7 +89,30 @@ inline auto resolved_fusion_hidden_size(const AutoencoderConfig& cfg) -> int
 
 inline void append_ann_stage(Sequential& seq, int input_size, int output_size, int residual_blocks)
 {
-    seq.add_module(std::make_shared<Linear>(input_size, output_size));
+    auto linear = std::make_shared<Linear>(input_size, output_size);
+    xavierInitializer(input_size, output_size, linear->weight, linear->bias, std::nullopt, "");
+    seq.add_module(linear);
+    seq.add_module(std::make_shared<ReLU>());
+    for (int i = 0; i < residual_blocks; ++i)
+    {
+        seq.add_module(std::make_shared<ResidualBlock>(output_size));
+    }
+}
+
+inline void append_ann_stage(const AutoencoderConfig& cfg,
+    Sequential& seq,
+    int input_size,
+    int output_size,
+    int residual_blocks)
+{
+    auto linear = std::make_shared<Linear>(input_size, output_size);
+    xavierInitializer(input_size,
+        output_size,
+        linear->weight,
+        linear->bias,
+        cfg.initializer_seed,
+        cfg.initializer_sampler_type);
+    seq.add_module(linear);
     seq.add_module(std::make_shared<ReLU>());
     for (int i = 0; i < residual_blocks; ++i)
     {
@@ -105,11 +130,18 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
     const int residual_blocks = std::max(0, cfg.residual_blocks);
     for (int width : widths)
     {
-        append_ann_stage(encoder, current, width, residual_blocks);
+        append_ann_stage(cfg, encoder, current, width, residual_blocks);
         current = width;
     }
 
-    encoder.add_module(std::make_shared<Linear>(current, cfg.latent_size));
+    auto latent_linear = std::make_shared<Linear>(current, cfg.latent_size);
+    xavierInitializer(current,
+        cfg.latent_size,
+        latent_linear->weight,
+        latent_linear->bias,
+        cfg.initializer_seed,
+        cfg.initializer_sampler_type);
+    encoder.add_module(latent_linear);
     encoder.add_module(std::make_shared<ReLU>());
     return encoder;
 }
@@ -125,11 +157,18 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
     const int residual_blocks = std::max(0, cfg.residual_blocks);
     for (int width : widths)
     {
-        append_ann_stage(decoder, current, width, residual_blocks);
+        append_ann_stage(cfg, decoder, current, width, residual_blocks);
         current = width;
     }
 
-    decoder.add_module(std::make_shared<Linear>(current, output_size));
+    auto output_linear = std::make_shared<Linear>(current, output_size);
+    xavierInitializer(current,
+        output_size,
+        output_linear->weight,
+        output_linear->bias,
+        cfg.initializer_seed,
+        cfg.initializer_sampler_type);
+    decoder.add_module(output_linear);
     return decoder;
 }
 
@@ -141,7 +180,31 @@ inline void append_snn_stage(Sequential& seq,
     float capacitance,
     bool readout)
 {
-    seq.add_module(std::make_shared<Linear>(input_size, output_size));
+    auto linear = std::make_shared<Linear>(input_size, output_size);
+    kaimingSNNInitializer(linear, std::nullopt, "");
+    seq.add_module(linear);
+    if (readout)
+    {
+        seq.add_module(std::make_shared<LeakyIntegrator>(time_step, resistance, capacitance));
+    }
+    else
+    {
+        seq.add_module(std::make_shared<Leaky>(time_step, resistance, capacitance));
+    }
+}
+
+inline void append_snn_stage(const AutoencoderConfig& cfg,
+    Sequential& seq,
+    int input_size,
+    int output_size,
+    float time_step,
+    float resistance,
+    float capacitance,
+    bool readout)
+{
+    auto linear = std::make_shared<Linear>(input_size, output_size);
+    kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+    seq.add_module(linear);
     if (readout)
     {
         seq.add_module(std::make_shared<LeakyIntegrator>(time_step, resistance, capacitance));
@@ -162,12 +225,18 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
     for (int width : widths)
     {
         append_snn_stage(
-            encoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, false);
+            cfg, encoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, false);
         current = width;
     }
 
-    append_snn_stage(
-        encoder, current, cfg.latent_size, cfg.time_step, cfg.resistance, cfg.capacitance, false);
+    append_snn_stage(cfg,
+        encoder,
+        current,
+        cfg.latent_size,
+        cfg.time_step,
+        cfg.resistance,
+        cfg.capacitance,
+        false);
     return encoder;
 }
 
@@ -182,11 +251,13 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     for (int width : widths)
     {
         append_snn_stage(
-            decoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, true);
+            cfg, decoder, current, width, cfg.time_step, cfg.resistance, cfg.capacitance, true);
         current = width;
     }
 
-    decoder.add_module(std::make_shared<Linear>(current, output_size));
+    auto output_linear = std::make_shared<Linear>(current, output_size);
+    kaimingSNNInitializer(output_linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+    decoder.add_module(output_linear);
     decoder.add_module(
         std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
     return decoder;

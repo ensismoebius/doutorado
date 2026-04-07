@@ -56,6 +56,8 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     model_cfg.capacitance = config.autoencoder_capacitance;
     model_cfg.eeg_features = config.effective_autoencoder_eeg_features();
     model_cfg.audio_features = config.effective_autoencoder_audio_features();
+    model_cfg.initializer_seed = config.sampler_shuffle_seed;
+    model_cfg.initializer_sampler_type = config.sampler_default_type;
 
     switch (config.autoencoder_type)
     {

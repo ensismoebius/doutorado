@@ -1,4 +1,10 @@
+#pragma once
+
+#include <cmath>
+#include <functional>
+#include <optional>
 #include <random>
+#include <string>
 
 #include "nn/tensor/Tensor.hpp"
 
@@ -29,8 +35,12 @@
  * @param bias         Reference to the tensor where the bias vector will be stored.
  *                     Must be pre-allocated as a 1D tensor of shape (out_features).
  */
-inline auto xavierInitializer(
-    int in_features, int out_features, nn::Tensor& weights, nn::Tensor& bias) -> void
+inline auto xavierInitializer(int in_features,
+    int out_features,
+    nn::Tensor& weights,
+    nn::Tensor& bias,
+    std::optional<unsigned int> seed = std::nullopt,
+    const std::string& sampler_default_type = "") -> void
 {
     // Handle zero dimensions gracefully
     if (in_features == 0 || out_features == 0)
@@ -39,11 +49,13 @@ inline auto xavierInitializer(
     }
 
     // Check dimensions match expected shape
-    if (weights.rows() != out_features || weights.cols() != in_features)
+    if (weights.rows() != static_cast<nn::Index>(out_features) ||
+        weights.cols() != static_cast<nn::Index>(in_features))
     {
         return;
     }
-    if (bias.rows() != out_features || bias.cols() != 1)
+    if (bias.rows() != static_cast<nn::Index>(out_features) ||
+        bias.cols() != static_cast<nn::Index>(1))
     {
         return;
     }
@@ -54,21 +66,29 @@ inline auto xavierInitializer(
     // Uniform distribution in [-limit, +limit]
     std::uniform_real_distribution dist(-limit, limit);
 
-    // Mersenne Twister PRNG seeded with a random device
-    std::mt19937 gen(std::random_device{}());
-
-    // Initialize weights with random values from the uniform distribution
-    for (int i = 0; i < out_features; ++i)
+    // Seed policy: when a seed is provided, fold sampler_default_type into the final seed
+    // so runs are deterministic yet sampler-aware. Without a seed, use random_device.
+    std::mt19937 gen;
+    if (seed.has_value())
     {
-        for (int j = 0; j < in_features; ++j)
-        {
-            weights(i, j) = dist(gen);
-        }
+        const unsigned int sampler_hash =
+            static_cast<unsigned int>(std::hash<std::string>{}(sampler_default_type));
+        const unsigned int mixed_seed =
+            *seed ^ (sampler_hash + 0x9e3779b9U + (*seed << 6U) + (*seed >> 2U));
+        gen.seed(mixed_seed);
+    }
+    else
+    {
+        gen.seed(static_cast<unsigned int>(std::random_device{}()));
     }
 
-    // Initialize biases with random values from the same distribution
-    for (int i = 0; i < out_features; ++i)
-    {
-        bias(i, 0) = dist(gen);
-    }
+    // Use Tensor helpers instead of manual element-wise loops.
+    weights = nn::Tensor::rand(               //
+        static_cast<nn::Index>(out_features), //
+        static_cast<nn::Index>(in_features),  //
+        gen                                   //
+        )
+                  .multiply_scalar(2.0F * limit)
+                  .add_scalar(-limit);
+    bias.fill(0.0F);
 }

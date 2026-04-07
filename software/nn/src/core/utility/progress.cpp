@@ -11,6 +11,7 @@
 #include "nn/utility/progress.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <iomanip>
 #include <iostream>
@@ -136,8 +137,19 @@ void printProgress(std::size_t dataset_total_samples,
         {
             nn::Tensor* p = params[i];
             if (!p) continue;
-            (*out) << "  [" << i << "] " << p->rows() << "x" << p->cols() << " sum=" << std::fixed
-                   << std::setprecision(6) << p->sum() << '\n';
+
+            double sum_abs = 0.0;
+            for (nn::Index idx = 0; idx < p->size(); ++idx)
+            {
+                sum_abs += std::fabs(static_cast<double>(p->at(idx)));
+            }
+            const double mean_abs =
+                (p->size() == 0) ? 0.0 : (sum_abs / static_cast<double>(p->size()));
+
+            (*out) << "  [" << i << "] " << p->rows() << "x" << p->cols()
+                   << " sum=" << std::scientific << std::setprecision(6)
+                   << static_cast<double>(p->sum()) << " norm=" << static_cast<double>(p->norm())
+                   << " mean_abs=" << mean_abs << '\n';
         }
         out->flush();
     }

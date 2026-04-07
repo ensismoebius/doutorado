@@ -1,6 +1,8 @@
 #ifndef EXPERIMENT03_AUTOENCODER_CONFIG_HPP
 #define EXPERIMENT03_AUTOENCODER_CONFIG_HPP
 
+#include <optional>
+#include <string>
 #include <vector>
 
 /**
@@ -40,6 +42,10 @@ struct AutoencoderConfig
     float time_step = 1.0F;   ///< Simulation time step passed to Leaky/LeakyIntegrator.
     float resistance = 1.0F;  ///< Membrane resistance.
     float capacitance = 1.0F; ///< Membrane capacitance.
+
+    // Initializer controls propagated from sampler options for reproducibility.
+    std::optional<unsigned int> initializer_seed = std::nullopt;
+    std::string initializer_sampler_type;
 };
 
 #endif // EXPERIMENT03_AUTOENCODER_CONFIG_HPP
