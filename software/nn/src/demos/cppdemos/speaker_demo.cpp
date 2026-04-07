@@ -15,6 +15,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "nn/logging/Logger.hpp"
+
 using argparse::ArgumentParser;
 using std::string;
 
@@ -212,7 +214,7 @@ int main(int argc, char** argv)
         }
         catch (const std::exception& err)
         {
-            std::cerr << err.what() << std::endl;
+            NN_LOG_ERROR(std::string("Argument parse error: ") + err.what());
             return 1;
         }
 
@@ -245,7 +247,7 @@ int main(int argc, char** argv)
             }
             catch (const std::exception& e)
             {
-                std::cerr << "demo failed: " << e.what() << std::endl;
+                NN_LOG_ERROR(std::string("Demo failed: ") + e.what());
                 return 2;
             }
         }
@@ -256,8 +258,8 @@ int main(int argc, char** argv)
             std::string data_dir =
                 arg_to<string>(program.at<ArgumentParser>("capturar"), "--diretorio-dados");
             double duration = arg_to<double>(program.at<ArgumentParser>("capturar"), "--duracao");
-            std::cout << "capturar: pessoa=" << person << " dir=" << data_dir
-                      << " duracao=" << duration << std::endl;
+            NN_LOG_INFO("capturar: pessoa=" + person + " dir=" + data_dir +
+                        " duracao=" + std::to_string(duration));
             return 0;
         }
 
@@ -266,7 +268,7 @@ int main(int argc, char** argv)
             auto& train_parser = program.at<ArgumentParser>("treinar");
             std::string data_dir = arg_to<std::string>(train_parser, "--diretorio-dados");
             int epochs = static_cast<int>(arg_to<int>(train_parser, "--epocas"));
-            std::cout << "treinar: dados=" << data_dir << " epocas=" << epochs << std::endl;
+            NN_LOG_INFO("treinar: dados=" + data_dir + " epocas=" + std::to_string(epochs));
             return 0;
         }
 
@@ -274,7 +276,7 @@ int main(int argc, char** argv)
         {
             auto& identify_parser = program.at<ArgumentParser>("identificar");
             std::string model_path = arg_to<std::string>(identify_parser, "--modelo");
-            std::cout << "identificar: modelo=" << model_path << std::endl;
+            NN_LOG_INFO("identificar: modelo=" + model_path);
             return 0;
         }
 
@@ -283,7 +285,7 @@ int main(int argc, char** argv)
             auto& verify_parser = program.at<ArgumentParser>("verificar");
             std::string model_path = arg_to<std::string>(verify_parser, "--modelo");
             double threshold = arg_to<double>(verify_parser, "--limiar");
-            std::cout << "verificar: modelo=" << model_path << " limiar=" << threshold << std::endl;
+            NN_LOG_INFO("verificar: modelo=" + model_path + " limiar=" + std::to_string(threshold));
             return 0;
         }
 
@@ -291,7 +293,7 @@ int main(int argc, char** argv)
         {
             auto& evaluate_parser = program.at<ArgumentParser>("avaliar");
             bool verbose = arg_to<bool>(evaluate_parser, "--verbose");
-            std::cout << "avaliar: verbose=" << (verbose ? "true" : "false") << std::endl;
+            NN_LOG_INFO("avaliar: verbose=" + std::string(verbose ? "true" : "false"));
             return 0;
         }
 
@@ -300,7 +302,7 @@ int main(int argc, char** argv)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Unhandled exception: " << e.what() << std::endl;
+        NN_LOG_ERROR(std::string("Unhandled exception: ") + e.what());
         return 1;
     }
 }

@@ -1,10 +1,10 @@
 #ifndef NN_LAYERS_MAXPOOL2D_HPP
 #define NN_LAYERS_MAXPOOL2D_HPP
 
-#include <iostream>
 #include <vector>
 
 #include "nn/layers/Module.hpp"
+#include "nn/logging/Logger.hpp"
 #include "tensor/Tensor.hpp"
 
 /**
@@ -42,7 +42,7 @@ class MaxPool2d : public Module
         // provide a separate data structure.
         if (shape.size() != 4) [[unlikely]]
         {
-            std::cerr << "MaxPool2d: input is not 4-D (no-op).\n";
+            NN_LOG_WARN("MaxPool2d: input is not 4-D (no-op)");
             return input;
         }
 

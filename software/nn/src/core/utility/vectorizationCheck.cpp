@@ -6,23 +6,24 @@
 #include "nn/utility/vectorizationCheck.hpp"
 
 #include <Eigen/Dense>
-#include <iostream>
+
+#include "nn/logging/Logger.hpp"
 
 void printVectorizationSupport()
 {
-    std::cout << "Eigen vectorization: ";
+    std::string info = "Eigen vectorization: ";
 
 #ifdef EIGEN_VECTORIZE_AVX
-    std::cout << "AVX ";
+    info += "AVX ";
 #endif
 
 #ifdef EIGEN_VECTORIZE_SSE4_2
-    std::cout << "SSE4.2 ";
+    info += "SSE4.2 ";
 #endif
 
 #ifdef EIGEN_VECTORIZE_FMA
-    std::cout << "FMA ";
+    info += "FMA ";
 #endif
 
-    std::cout << '\n' << '\n';
+    NN_LOG_INFO(info);
 }

@@ -25,6 +25,7 @@
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 #include "nn/wave/Wav.h"
@@ -534,7 +535,7 @@ int main(int argc, char** argv)
         }
         catch (const exception& e)
         {
-            std::cerr << e.what() << "\n";
+            NN_LOG_ERROR(std::string("Argument parse error: ") + e.what());
             return 1;
         }
 
@@ -560,12 +561,12 @@ int main(int argc, char** argv)
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Erro: " << e.what() << "\n";
+        NN_LOG_ERROR(std::string("Error: ") + e.what());
         return 2;
     }
     catch (...)
     {
-        std::cerr << "Unknown error occurred." << std::endl;
+        NN_LOG_ERROR("Unknown error occurred");
         return 1;
     }
 }

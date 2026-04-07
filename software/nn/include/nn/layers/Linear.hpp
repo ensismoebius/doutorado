@@ -2,6 +2,7 @@
 #define LINEAR_CPP
 
 #include "nn/layers/Module.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -49,13 +50,14 @@ struct Linear : public Module
     }
 
 #ifdef DEBUG
-    // If DEBUG is defined then show the debug information
     auto debug(const nn::Tensor& input) -> void
     {
-        std::cout << "Linear layer forward:" << "\n";
-        std::cout << "Input dims: " << input.rows() << "x" << input.cols() << "\n";
-        std::cout << "Weight dims: " << weight.rows() << "x" << weight.cols() << "\n";
-        std::cout << "Bias dims: " << bias.rows() << "x" << bias.cols() << "\n";
+        std::ostringstream oss;
+        oss << "Linear layer forward:" << "\n"
+            << "Input dims: " << input.rows() << "x" << input.cols() << "\n"
+            << "Weight dims: " << weight.rows() << "x" << weight.cols() << "\n"
+            << "Bias dims: " << bias.rows() << "x" << bias.cols() << "\n";
+        NN_LOG_INFO(oss.str());
     }
 #endif
 

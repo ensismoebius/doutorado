@@ -5,6 +5,8 @@
 
 #include "nn/utility/imgui_glfw.hpp"
 
+#include "nn/logging/Logger.hpp"
+
 ImGuiApp::ImGuiApp(const std::string& title, int width, int height)
     : window(nullptr), title(title), width(width), height(height)
 {
@@ -17,7 +19,7 @@ ImGuiApp::~ImGuiApp()
 
 void ImGuiApp::glfw_error_callback(int error, const char* description)
 {
-    fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+    NN_LOG_ERROR("GLFW Error " + std::to_string(error) + ": " + std::string(description));
 }
 
 bool ImGuiApp::initialize_glfw()
@@ -25,7 +27,7 @@ bool ImGuiApp::initialize_glfw()
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+        NN_LOG_ERROR("Failed to initialize GLFW");
         return false;
     }
 
@@ -38,7 +40,7 @@ bool ImGuiApp::initialize_glfw()
     window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window)
     {
-        std::cerr << "Failed to create GLFW window" << std::endl;
+        NN_LOG_ERROR("Failed to create GLFW window");
         glfwTerminate();
         return false;
     }
@@ -58,7 +60,7 @@ bool ImGuiApp::initialize_imgui()
 
     if (!ImGui_ImplGlfw_InitForOpenGL(window, true) || !ImGui_ImplOpenGL3_Init(glsl_version))
     {
-        std::cerr << "Failed to initialize ImGui" << std::endl;
+        NN_LOG_ERROR("Failed to initialize ImGui");
         return false;
     }
 

@@ -18,6 +18,7 @@
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/ReLU.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -220,8 +221,7 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
         auto arch_it = data.find(kArchitectureKey);
         if (arch_it == data.end())
         {
-            std::cerr << "NetworkSerializer: architecture metadata missing in: " << safe_filepath
-                      << std::endl;
+            NN_LOG_ERROR("NetworkSerializer: architecture metadata missing in: " + safe_filepath);
             return false;
         }
 
@@ -281,8 +281,7 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
             }
             else
             {
-                // Unknown layer type: issue a warning but continue.
-                std::cerr << "NetworkSerializer: unknown layer metadata: '" << line << "'\n";
+                NN_LOG_WARN("NetworkSerializer: unknown layer metadata: '" + line + "'");
             }
             ++layer_index;
         }
@@ -291,7 +290,7 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
     }
     catch (const exception& e)
     {
-        std::cerr << "NetworkSerializer::loadNetwork failed: " << e.what() << std::endl;
+        NN_LOG_ERROR("NetworkSerializer::loadNetwork failed: " + std::string(e.what()));
         return false;
     }
 }

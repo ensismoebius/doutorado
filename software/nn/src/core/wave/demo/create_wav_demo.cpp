@@ -10,6 +10,7 @@
 
 #include "../Wav.h"
 #include "../filter_operations.hpp"
+#include "nn/logging/Logger.hpp"
 
 using std::sin;
 
@@ -33,7 +34,8 @@ auto main() -> int
     // This is used for nothing but to test the createAlpha function
     double alpha = createAlpha(sampleRate, 2000.0);
 
-    std::printf("Alpha value for 2000 Hz cutoff at 44100 Hz sample rate: %f\n", alpha);
+    NN_LOG_INFO(
+        "Alpha value for " + std::to_string(alpha) + " for 2000 Hz cutoff at 44100 Hz sample rate");
 
     wavFile.write(filePath, data, static_cast<int>(sampleRate));
     wavFile.read(filePath); // flawfinder: ignore
@@ -43,7 +45,7 @@ auto main() -> int
     // Simple verification
     if (readData.size() != data.size())
     {
-        std::printf("Test failed: Data size mismatch!\n");
+        NN_LOG_ERROR("Test failed: Data size mismatch!");
         return 1;
     }
     return 0;
