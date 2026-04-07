@@ -181,16 +181,15 @@ auto FusedWindowDataset::get_item(std::size_t idx) const -> Batch
     const auto& sub = subjects_[wi.subject_idx];
 
     // Read audio row — also retrieves eeg_index_label for cross-modal sync.
-    auto audio_row_tuple = audio_session.readRow(wi.audio_row);
-    nn::Tensor audio_tensor = std::move(std::get<0>(audio_row_tuple));
-    const int stimulus = std::get<1>(audio_row_tuple);
-    const int eeg_index_label = std::get<2>(audio_row_tuple);
+    // Structured binding with guaranteed copy elision: the returned tuple
+    // is constructed directly in the hidden binding variable — no separate
+    // copy or move of nn::Tensor occurs, and there is only one object to
+    // destroy. This is the correct zero-copy, double-free-safe pattern.
+    auto [audio_tensor, stimulus, eeg_index_label] = audio_session.readRow(wi.audio_row);
 
     // Resolve matching EEG row.
     const std::size_t eeg_row = resolveEegRowIndex(eeg_index_label, sub.eeg_rows);
-    auto eeg_row_tuple = eeg_session.readRow(eeg_row);
-    nn::Tensor eeg_tensor = std::move(std::get<0>(eeg_row_tuple));
-    const auto eeg_labels = std::get<1>(eeg_row_tuple);
+    auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
 
     // Compute sample offsets for window k.
     const int eeg_start = wi.window_k * eeg_spec_.hop_size();
@@ -252,27 +251,32 @@ void FusedWindowDataset::collate_into(const std::vector<std::size_t>& indices, B
         const auto& eeg_session = *eeg_sessions_[wi.subject_idx];
         const auto& sub = subjects_[wi.subject_idx];
 
-        auto audio_row_tuple = audio_session.readRow(wi.audio_row);
-        nn::Tensor audio_tensor = std::move(std::get<0>(audio_row_tuple));
-        const int stimulus = std::get<1>(audio_row_tuple);
-        const int eeg_index_label = std::get<2>(audio_row_tuple);
+        auto [audio_tensor, stimulus, eeg_index_label] = audio_session.readRow(wi.audio_row);
 
         const std::size_t eeg_row = resolveEegRowIndex(eeg_index_label, sub.eeg_rows);
-        auto eeg_row_tuple = eeg_session.readRow(eeg_row);
-        nn::Tensor eeg_tensor = std::move(std::get<0>(eeg_row_tuple));
-        const auto eeg_labels = std::get<1>(eeg_row_tuple);
+        auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
 
         const int eeg_start = wi.window_k * eeg_spec_.hop_size();
         const int audio_start = wi.window_k * audio_spec_.hop_size();
         const int row = static_cast<int>(i);
 
-        write_eeg_window(eeg_tensor, eeg_start, eeg_spec_.window_size, batch.inputs, row, 0);
-        write_audio_window(audio_tensor,
-            audio_start,
-            audio_spec_.window_size,
-            batch.inputs,
-            row,
-            kEegChannels * eeg_spec_.window_size);
+        write_eeg_window(          //
+            eeg_tensor,            //
+            eeg_start,             //
+            eeg_spec_.window_size, //
+            batch.inputs,          //
+            row,                   //
+            0                      //
+        );
+
+        write_audio_window(                      //
+            audio_tensor,                        //
+            audio_start,                         //
+            audio_spec_.window_size,             //
+            batch.inputs,                        //
+            row,                                 //
+            kEegChannels * eeg_spec_.window_size //
+        );
 
         batch.targets.at(row, 0) = static_cast<float>(sub.subject_id);
         batch.targets.at(row, 1) = static_cast<float>(eeg_labels[0]);
