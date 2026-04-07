@@ -1,6 +1,7 @@
 #ifndef SGD_MINIMAL_HPP
 #define SGD_MINIMAL_HPP
 
+#include <algorithm>
 #include <span>
 #include <stdexcept>
 
@@ -67,14 +68,14 @@ struct SGDMinimal : public Optimizer
     }
     void attach(std::span<nn::Tensor*> params) override
     {
-        for (auto* param : params)
+        // cppcheck-suppress useStlAlgorithm
+        const bool has_null = std::any_of(
+            params.begin(), params.end(), [](const auto* param) { return param == nullptr; });
+        if (has_null)
         {
-            if (param == nullptr)
-            {
-                throw std::invalid_argument("Cannot attach null parameter to optimizer");
-            }
-            // SGDMinimal doesn't need to store parameters as step/zero_grad take them as arguments
+            throw std::invalid_argument("Cannot attach null parameter to optimizer");
         }
+        // SGDMinimal doesn't need to store parameters as step/zero_grad take them as arguments
     }
 };
 

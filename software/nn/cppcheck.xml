@@ -289,28 +289,6 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/logging/Logger.hpp&quot; not found." verbose="Include file: &quot;nn/logging/Logger.hpp&quot; not found.">
             <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="14" column="2"/>
         </error>
-        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;batch&apos;." verbose="Access of moved variable &apos;batch&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="247" column="26" info="Access of moved variable &apos;batch&apos;."/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="245" column="21" info="Calling std::move(batch)"/>
-            <symbol>batch</symbol>
-        </error>
-        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;spare&apos;." verbose="Access of moved variable &apos;spare&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="248" column="45" info="Access of moved variable &apos;spare&apos;."/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="247" column="26" info="Assignment &apos;spare,batch&apos;, assigned value is &lt;Moved&gt;"/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="245" column="21" info="Calling std::move(batch)"/>
-            <symbol>spare</symbol>
-        </error>
-        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;batch&apos;." verbose="Access of moved variable &apos;batch&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="286" column="22" info="Access of moved variable &apos;batch&apos;."/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="284" column="17" info="Calling std::move(batch)"/>
-            <symbol>batch</symbol>
-        </error>
-        <error id="accessMoved" severity="warning" msg="Access of moved variable &apos;spare&apos;." verbose="Access of moved variable &apos;spare&apos;." cwe="672" file0="src/core/dataLoaders/BatchPrefetcher.cpp">
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="287" column="41" info="Access of moved variable &apos;spare&apos;."/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="286" column="22" info="Assignment &apos;spare,batch&apos;, assigned value is &lt;Moved&gt;"/>
-            <location file="src/core/dataLoaders/BatchPrefetcher.cpp" line="284" column="17" info="Calling std::move(batch)"/>
-            <symbol>spare</symbol>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
             <location file="src/core/dataLoaders/DataLoader.cpp" line="6" column="2"/>
         </error>
@@ -415,43 +393,22 @@
             <symbol>data</symbol>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="8" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="9" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="10" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/SequentialSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/SequentialSampler.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/DataLoader.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="11" column="2"/>
+        </error>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/TensorDataset.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="12" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/DistributedSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/DistributedSampler.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="13" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/SequentialSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/SequentialSampler.hpp&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="14" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="351" column="20"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="358" column="21"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="410" column="16"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="414" column="16"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="448" column="15"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="470" column="15"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/dataLoaders/tests/dataLoader_gtest.cpp">
-            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="494" column="15"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/samplers/WeightedRandomSampler.hpp&quot; not found.">
+            <location file="src/core/dataLoaders/tests/dataLoader_gtest.cpp" line="15" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;gtest/gtest.h&quot; not found." verbose="Include file: &quot;gtest/gtest.h&quot; not found.">
             <location file="src/core/dataLoaders/tests/dataLoader_more_gtest.cpp" line="8" column="2"/>
@@ -687,9 +644,6 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/statistics/multi_class_metrics.cpp" line="21" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/statistics/multi_class_metrics.cpp">
-            <location file="src/core/statistics/multi_class_metrics.cpp" line="38" column="19"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/statistics/confusion_matrix.hpp&quot; not found." verbose="Include file: &quot;nn/statistics/confusion_matrix.hpp&quot; not found.">
             <location file="src/core/statistics/tests/confusionMatrix_gtest.cpp" line="8" column="2"/>
         </error>
@@ -829,34 +783,22 @@
             <location file="src/core/utility/synthetic_spike_data.cpp" line="11" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;core/utility/tests/test_helpers.hpp&quot; not found." verbose="Include file: &quot;core/utility/tests/test_helpers.hpp&quot; not found.">
-            <location file="src/core/utility/tests/util_gtest.cpp" line="12" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="13" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/batching.hpp&quot; not found." verbose="Include file: &quot;nn/utility/batching.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="14" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/comparison.h&quot; not found." verbose="Include file: &quot;nn/utility/comparison.h&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/batching.hpp&quot; not found." verbose="Include file: &quot;nn/utility/batching.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="15" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found." verbose="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/comparison.h&quot; not found." verbose="Include file: &quot;nn/utility/comparison.h&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="16" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found." verbose="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found.">
             <location file="src/core/utility/tests/util_gtest.cpp" line="17" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/utility/tests/util_gtest.cpp">
-            <location file="src/core/utility/tests/util_gtest.cpp" line="238" column="26"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/utility/tests/util_gtest.cpp">
-            <location file="src/core/utility/tests/util_gtest.cpp" line="251" column="27"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/utility/tests/util_gtest.cpp">
-            <location file="src/core/utility/tests/util_gtest.cpp" line="433" column="22"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/utility/tests/util_gtest.cpp">
-            <location file="src/core/utility/tests/util_gtest.cpp" line="446" column="29"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
+            <location file="src/core/utility/tests/util_gtest.cpp" line="18" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
             <location file="src/core/utility/vectorizationCheck.cpp" line="6" column="2"/>
@@ -881,9 +823,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;../filter_operations.hpp&quot; not found." verbose="Include file: &quot;../filter_operations.hpp&quot; not found.">
             <location file="src/core/wave/demo/create_wav_demo.cpp" line="12" column="2"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/core/wave/filter_operations.cpp">
-            <location file="src/core/wave/filter_operations.cpp" line="58" column="15"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wave/lfcc_pipeline_utils.h&quot; not found." verbose="Include file: &quot;nn/wave/lfcc_pipeline_utils.h&quot; not found.">
             <location file="src/core/wave/lfcc_pipeline_utils.cpp" line="8" column="2"/>
@@ -936,68 +875,46 @@
             <location file="src/core/wavelet/waveletOperations.cpp" line="6" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/linearAlgebra/linear_algebra.hpp&quot; not found." verbose="Include file: &quot;nn/linearAlgebra/linear_algebra.hpp&quot; not found.">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="19" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/WaveletTransformResults.h&quot; not found." verbose="Include file: &quot;nn/wavelet/WaveletTransformResults.h&quot; not found.">
             <location file="src/core/wavelet/waveletOperations.cpp" line="20" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/wavelet/waveletOperations.cpp">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="240" column="28"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/core/wavelet/waveletOperations.cpp">
-            <location file="src/core/wavelet/waveletOperations.cpp" line="260" column="28"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/WaveletTransformResults.h&quot; not found." verbose="Include file: &quot;nn/wavelet/WaveletTransformResults.h&quot; not found.">
+            <location file="src/core/wavelet/waveletOperations.cpp" line="21" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found.">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="22" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found." verbose="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="23" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Linear.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Linear.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found." verbose="Include file: &quot;nn/layers/LeakyBPTT.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="24" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Linear.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Linear.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="25" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Sequential.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Sequential.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="26" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/Sequential.hpp&quot; not found." verbose="Include file: &quot;nn/layers/Sequential.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="27" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found." verbose="Include file: &quot;nn/optimizers/Adam.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="28" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/testing.hpp&quot; not found." verbose="Include file: &quot;nn/testing.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="29" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found." verbose="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/testing.hpp&quot; not found." verbose="Include file: &quot;nn/testing.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="30" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/reset.hpp&quot; not found." verbose="Include file: &quot;nn/utility/reset.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found." verbose="Include file: &quot;nn/utility/EigenParallel.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="31" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found." verbose="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/reset.hpp&quot; not found." verbose="Include file: &quot;nn/utility/reset.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="32" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found." verbose="Include file: &quot;nn/utility/synthetic_spike_data.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="33" column="2"/>
         </error>
-        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false" verbose="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false" cwe="570" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="35" info="Condition &apos;load_weights_from_file(encoder,enc_path)&apos; is always false"/>
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="35" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
-        </error>
-        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false" verbose="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false" cwe="570" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="80" info="Condition &apos;load_weights_from_file(decoder,dec_path)&apos; is always false"/>
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="80" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
-        </error>
-        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;!loaded&apos; is always true" verbose="Condition &apos;!loaded&apos; is always true" cwe="571" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="171" column="13" info="Condition &apos;!loaded&apos; is always true"/>
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="55" info="Assignment &apos;loaded=load_weights_from_file(encoder,enc_path)&amp;&amp;load_weights_from_file(decoder,dec_path)&apos;, assigned value is 0"/>
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="169" column="35" info="Calling function &apos;load_weights_from_file&apos; returns 0"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp">
-            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="231" column="50"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found." verbose="Include file: &quot;nn/utility/vectorizationCheck.hpp&quot; not found.">
+            <location file="src/demos/autoEncoderLeakyReLUAndSpikeTest/autoEncoderLeakyReLUAndSpikeTest.cpp" line="34" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found." verbose="Include file: &quot;nn/initializers/kaiming_snn.hpp&quot; not found.">
             <location file="src/demos/autoEncoderLeakyReLUTest/autoEncoderLeakyReLUTest.cpp" line="21" column="2"/>
@@ -1247,9 +1164,6 @@
             <location file="src/demos/voice_biometrics_cpp/main.cpp" line="267" column="9"/>
             <symbol>lif_in</symbol>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/demos/voice_biometrics_cpp/main.cpp">
-            <location file="src/demos/voice_biometrics_cpp/main.cpp" line="178" column="11"/>
-        </error>
         <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/demos/voice_biometrics_cpp/main.cpp">
             <location file="src/demos/voice_biometrics_cpp/main.cpp" line="310" column="15"/>
         </error>
@@ -1310,9 +1224,6 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found.">
             <location file="src/experiments/00/phase00_features.cpp" line="22" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/experiments/00/phase00_features.cpp">
-            <location file="src/experiments/00/phase00_features.cpp" line="181" column="20"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found." verbose="Include file: &quot;nn/layers/MSELoss.hpp&quot; not found.">
             <location file="src/experiments/00/phase00_training.cpp" line="22" column="2"/>
         </error>
@@ -1320,34 +1231,19 @@
             <location file="src/experiments/00/phase00_training.cpp" line="23" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found." verbose="Include file: &quot;nn/dataLoaders/mat_file_utils.hpp&quot; not found.">
-            <location file="src/experiments/02/Experiment02Data.cpp" line="16" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/experiments/02/Experiment02Data.cpp" line="17" column="2"/>
         </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wave/audioFeatureExtraction.h&quot; not found." verbose="Include file: &quot;nn/wave/audioFeatureExtraction.h&quot; not found.">
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found." verbose="Include file: &quot;nn/tensor/Tensor.hpp&quot; not found.">
             <location file="src/experiments/02/Experiment02Data.cpp" line="18" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::find_if algorithm instead of a raw loop." verbose="Consider using std::find_if algorithm instead of a raw loop." cwe="398" file0="src/experiments/02/Experiment02Data.cpp">
-            <location file="src/experiments/02/Experiment02Data.cpp" line="138" column="13"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::fill or std::generate algorithm instead of a raw loop." verbose="Consider using std::fill or std::generate algorithm instead of a raw loop." cwe="398" file0="src/experiments/02/Experiment02Data.cpp">
-            <location file="src/experiments/02/Experiment02Data.cpp" line="209" column="23"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::fill or std::generate algorithm instead of a raw loop." verbose="Consider using std::fill or std::generate algorithm instead of a raw loop." cwe="398" file0="src/experiments/02/Experiment02Data.cpp">
-            <location file="src/experiments/02/Experiment02Data.cpp" line="221" column="19"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wave/audioFeatureExtraction.h&quot; not found." verbose="Include file: &quot;nn/wave/audioFeatureExtraction.h&quot; not found.">
+            <location file="src/experiments/02/Experiment02Data.cpp" line="19" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/statistics/multi_class_metrics.hpp&quot; not found." verbose="Include file: &quot;nn/statistics/multi_class_metrics.hpp&quot; not found.">
             <location file="src/experiments/02/Experiment02Evaluation.hpp" line="17" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/paraconsistent/paraconsistent.h&quot; not found." verbose="Include file: &quot;nn/paraconsistent/paraconsistent.h&quot; not found.">
             <location file="src/experiments/02/Experiment02Evaluation.cpp" line="15" column="2"/>
-        </error>
-        <error id="knownConditionTrueFalse" severity="style" msg="Condition &apos;n_classes==0&apos; is always false" verbose="Condition &apos;n_classes==0&apos; is always false" cwe="570" file0="src/experiments/02/Experiment02Evaluation.cpp">
-            <location file="src/experiments/02/Experiment02Evaluation.cpp" line="47" column="19" info="Condition &apos;n_classes==0&apos; is always false"/>
-            <location file="src/experiments/02/Experiment02Evaluation.cpp" line="40" column="43" info="Assuming container is not empty"/>
-            <location file="src/experiments/02/Experiment02Evaluation.cpp" line="38" column="55" info="Assignment &apos;n_classes=class_features.size()&apos;, assigned value is greater than 0"/>
-            <location file="src/experiments/02/Experiment02Evaluation.cpp" line="33" column="29" info="Assuming that condition &apos;class_features.empty()&apos; is not redundant"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found.">
             <location file="src/experiments/02/Experiment02Wavelets.hpp" line="18" column="2"/>
@@ -1379,17 +1275,11 @@
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/batching.hpp&quot; not found." verbose="Include file: &quot;nn/utility/batching.hpp&quot; not found.">
             <location file="src/experiments/02/Experiment02Training.cpp" line="20" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/experiments/02/Experiment02Training.cpp">
-            <location file="src/experiments/02/Experiment02Training.cpp" line="54" column="46"/>
-        </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/Types.h&quot; not found." verbose="Include file: &quot;nn/wavelet/Types.h&quot; not found.">
-            <location file="src/experiments/02/Experiment02Wavelets.cpp" line="15" column="2"/>
-        </error>
-        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found.">
             <location file="src/experiments/02/Experiment02Wavelets.cpp" line="16" column="2"/>
         </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::find_if algorithm instead of a raw loop." verbose="Consider using std::find_if algorithm instead of a raw loop." cwe="398" file0="src/experiments/02/Experiment02Wavelets.cpp">
-            <location file="src/experiments/02/Experiment02Wavelets.cpp" line="82" column="9"/>
+        <error id="missingInclude" severity="information" msg="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found." verbose="Include file: &quot;nn/wavelet/waveletOperations.h&quot; not found.">
+            <location file="src/experiments/02/Experiment02Wavelets.cpp" line="17" column="2"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/logging/StreamRedirector.hpp&quot; not found." verbose="Include file: &quot;nn/logging/StreamRedirector.hpp&quot; not found.">
             <location file="src/experiments/02/experiment_02.cpp" line="12" column="2"/>
@@ -1447,12 +1337,6 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;ProfileLoader.hpp&quot; not found." verbose="Include file: &quot;ProfileLoader.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="9" column="2"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/experiments/03/lib/src/ProfileLoader.cpp">
-            <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="238" column="13"/>
-        </error>
-        <error id="useStlAlgorithm" severity="style" msg="Consider using std::copy_if algorithm instead of a raw loop." verbose="Consider using std::copy_if algorithm instead of a raw loop." cwe="398" file0="src/experiments/03/lib/src/ProfileLoader.cpp">
-            <location file="src/experiments/03/lib/src/ProfileLoader.cpp" line="436" column="53"/>
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;ResultsWriter.hpp&quot; not found." verbose="Include file: &quot;ResultsWriter.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/ResultsWriter.cpp" line="8" column="2"/>
@@ -1576,6 +1460,11 @@
         </error>
         <error id="missingInclude" severity="information" msg="Include file: &quot;nn/utility/progress.hpp&quot; not found." verbose="Include file: &quot;nn/utility/progress.hpp&quot; not found.">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="37" column="2"/>
+        </error>
+        <error id="shadowVariable" severity="style" msg="Local variable &apos;_oss&apos; shadows outer variable" verbose="Local variable &apos;_oss&apos; shadows outer variable" cwe="398" file0="src/experiments/03/lib/src/experiment03.cpp">
+            <location file="src/experiments/03/lib/src/experiment03.cpp" line="324" column="31" info="Shadow variable"/>
+            <location file="src/experiments/03/lib/src/experiment03.cpp" line="314" column="27" info="Shadowed declaration"/>
+            <symbol>_oss</symbol>
         </error>
         <error id="clarifyCalculation" severity="style" msg="Clarify calculation precedence for &apos;%&apos; and &apos;?&apos;." verbose="Suspicious calculation. Please use parentheses to clarify the code. The code &apos;&apos;a%b?c:d&apos;&apos; should be written as either &apos;&apos;(a%b)?c:d&apos;&apos; or &apos;&apos;a%(b?c:d)&apos;&apos;." cwe="783" file0="src/experiments/03/lib/src/experiment03.cpp">
             <location file="src/experiments/03/lib/src/experiment03.cpp" line="210" column="85"/>

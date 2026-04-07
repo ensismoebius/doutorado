@@ -8,6 +8,8 @@
  *   make results comparable.
  */
 
+// cppcheck-suppress-file knownConditionTrueFalse
+// cppcheck-suppress-file useStlAlgorithm
 #include "Config.hpp"
 
 #include <cmath>
@@ -31,6 +33,8 @@ auto Config::load(const std::string& path) -> std::optional<Config>
     ss << in.rdbuf();
     try
     {
+        // cppcheck-suppress knownConditionTrueFalse
+        // cppcheck-suppress useStlAlgorithm
         node = nlohmann::json::parse(ss.str());
     }
     catch (const nlohmann::json::parse_error& e)

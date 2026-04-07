@@ -50,8 +50,8 @@ auto k_fold_cross_validation(const std::vector<std::vector<double>>& features,
         ParaconsistentMetrics para_metrics =
             compute_paraconsistent_metrics(train_features, train_labels);
 
-        int class_count = 0;
-        for (int label : labels) class_count = std::max(class_count, label + 1);
+        const int class_count =
+            labels.empty() ? 0 : (*std::max_element(labels.begin(), labels.end()) + 1);
 
         SNNResNet model(train_features[0].size(), kHiddenSize, class_count);
         Adam optimizer(kLearningRate);

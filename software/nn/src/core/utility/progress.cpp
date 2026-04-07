@@ -15,6 +15,7 @@
 #include <deque>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -92,8 +93,8 @@ void printProgress(std::size_t dataset_total_samples,
     size_t pad =
         (history_lines > local_history.size()) ? (history_lines - local_history.size()) : 0;
     history.reserve(history_lines);
-    for (size_t i = 0; i < pad; ++i) history.emplace_back();
-    for (auto& s : local_history) history.push_back(s);
+    history.resize(pad);
+    std::copy(local_history.begin(), local_history.end(), std::back_inserter(history));
 
     // Compose progress status line
     std::ostringstream status;

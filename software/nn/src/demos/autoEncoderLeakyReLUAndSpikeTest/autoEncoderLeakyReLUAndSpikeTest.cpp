@@ -14,6 +14,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <ranges>
 #include <span>
 #include <string>
@@ -165,34 +166,27 @@ class SpikeAutoEncoder : public Module
     // Initialize or Load Weights
     void initialize_weights(const string& enc_path, const string& dec_path)
     {
-        bool loaded =
-            load_weights_from_file(encoder, enc_path) && load_weights_from_file(decoder, dec_path);
+        (void) load_weights_from_file(encoder, enc_path);
+        (void) load_weights_from_file(decoder, dec_path);
 
-        if (!loaded)
+        cout << "Weights not found. Using Kaiming initialization.\n";
+        // Initialize Linear layers manually
+        // Iterate and apply kaimingSNNInitializer
+        auto init_seq = [](Sequential& seq)
         {
-            cout << "Weights not found. Using Kaiming initialization.\n";
-            // Initialize Linear layers manually
-            // Iterate and apply kaimingSNNInitializer
-            auto init_seq = [](Sequential& seq)
+            for (auto& layer : seq.layers)
             {
-                for (auto& layer : seq.layers)
+                if (auto l = dynamic_pointer_cast<Linear>(layer))
                 {
-                    if (auto l = dynamic_pointer_cast<Linear>(layer))
-                    {
-                        kaimingSNNInitializer(l, nn::testing::kSeed);
-                        // Scale weights slightly to prevent explosion in deep SNNs
-                        for (int i = 0; i < l->weight.rows(); ++i)
-                            for (int j = 0; j < l->weight.cols(); ++j) l->weight.at(i, j) *= 0.01f;
-                    }
+                    kaimingSNNInitializer(l, nn::testing::kSeed);
+                    // Scale weights slightly to prevent explosion in deep SNNs
+                    for (int i = 0; i < l->weight.rows(); ++i)
+                        for (int j = 0; j < l->weight.cols(); ++j) l->weight.at(i, j) *= 0.01f;
                 }
-            };
-            init_seq(encoder);
-            init_seq(decoder);
-        }
-        else
-        {
-            cout << "Weights loaded successfully.\n";
-        }
+            }
+        };
+        init_seq(encoder);
+        init_seq(decoder);
     }
 
    private:
@@ -227,8 +221,7 @@ void clip_gradients(std::span<nn::Tensor*> params, float max_norm)
                                         return n * n;
                                     });
 
-    float total_norm_sq = 0.0f;
-    for (float n_sq : param_norms) total_norm_sq += n_sq;
+    const float total_norm_sq = std::accumulate(param_norms.begin(), param_norms.end(), 0.0f);
 
     float total_norm = std::sqrt(total_norm_sq);
 

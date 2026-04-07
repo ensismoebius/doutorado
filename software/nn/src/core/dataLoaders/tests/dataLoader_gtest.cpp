@@ -3,14 +3,15 @@
  * @brief Unit tests for the `DataLoader` iterator/shuffle behavior.
  */
 
+#include <algorithm>
 #include <iterator>
+#include <numeric>
 
 #include "gtest/gtest.h"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/TensorDataset.hpp"
-
-#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 #include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 // Helper to build a Tensor with sequential rows (N x D)
@@ -346,17 +347,17 @@ TEST(DataLoaderComprehensiveTest, IteratorReset)
 
     // First pass
     std::vector<float> first_pass;
-    for (const auto& batch : loader)
-    {
-        first_pass.push_back(batch.inputs.at(0, 0));
-    }
+    std::transform(loader.begin(),
+        loader.end(),
+        std::back_inserter(first_pass),
+        [](const auto& batch) { return batch.inputs.at(0, 0); });
 
     // Second pass should be identical (no shuffle)
     std::vector<float> second_pass;
-    for (const auto& batch : loader)
-    {
-        second_pass.push_back(batch.inputs.at(0, 0));
-    }
+    std::transform(loader.begin(),
+        loader.end(),
+        std::back_inserter(second_pass),
+        [](const auto& batch) { return batch.inputs.at(0, 0); });
 
     EXPECT_EQ(first_pass, second_pass);
 }
@@ -405,18 +406,17 @@ TEST(DataLoaderComprehensiveTest, ShuffleDeterminism)
     DataLoader loader2(dataset, 4, true, 456U);
 
     std::vector<float> order1, order2;
-    for (const auto& batch : loader1)
-    {
-        order1.push_back(batch.inputs.at(0, 0));
-    }
-    for (const auto& batch : loader2)
-    {
-        order2.push_back(batch.inputs.at(0, 0));
-    }
+    std::transform(loader1.begin(),
+        loader1.end(),
+        std::back_inserter(order1),
+        [](const auto& batch) { return batch.inputs.at(0, 0); });
+    std::transform(loader2.begin(),
+        loader2.end(),
+        std::back_inserter(order2),
+        [](const auto& batch) { return batch.inputs.at(0, 0); });
 
     // Different seeds should likely produce different orders
     EXPECT_NE(order1, order2);
-
 }
 
 TEST(DataLoaderTest, NullSamplerThrows)
@@ -442,11 +442,10 @@ TEST(DataLoaderTest, WeightedRandomSamplerUsedDirectly)
     opts.seed = 42u;
 
     DataLoader loader(dataset, 2, opts);
-    int total = 0;
-    for (const auto& batch : loader)
-    {
-        total += static_cast<int>(batch.inputs.rows());
-    }
+    const int total = std::accumulate(loader.begin(),
+        loader.end(),
+        0,
+        [](int acc, const auto& batch) { return acc + static_cast<int>(batch.inputs.rows()); });
     EXPECT_EQ(total, 4);
 }
 
@@ -464,11 +463,10 @@ TEST(DataLoaderTest, WeightedRandomSamplerFallbackUniformWeights)
     opts.seed = 7u;
 
     DataLoader loader(dataset, 2, opts);
-    int total = 0;
-    for (const auto& batch : loader)
-    {
-        total += static_cast<int>(batch.inputs.rows());
-    }
+    const int total = std::accumulate(loader.begin(),
+        loader.end(),
+        0,
+        [](int acc, const auto& batch) { return acc + static_cast<int>(batch.inputs.rows()); });
     EXPECT_EQ(total, 4);
 }
 
@@ -488,11 +486,10 @@ TEST(DataLoaderTest, DistributedSamplerOption)
     opts.seed = 3u;
 
     DataLoader loader(dataset, 2, opts);
-    int total = 0;
-    for (const auto& batch : loader)
-    {
-        total += static_cast<int>(batch.inputs.rows());
-    }
+    const int total = std::accumulate(loader.begin(),
+        loader.end(),
+        0,
+        [](int acc, const auto& batch) { return acc + static_cast<int>(batch.inputs.rows()); });
     // rank 0 of 2 replicas over 8 samples = 4 samples, 2 batches of 2
     EXPECT_EQ(total, 4);
 }
@@ -507,8 +504,7 @@ TEST(DataLoaderTest, EmptyDatasetWithNonZeroSamplerThrows)
     auto sampler = std::make_unique<DistributedSampler>(1, 1, 0, false, false, 0u);
     // DistributedSampler with 1 sample but dataset is empty → should throw at construction.
     // Actually the DistributedSampler(1, ...) here has index_count=1 but dataset->size()=0.
-    EXPECT_THROW(
-        (DataLoader(dataset, 1, std::move(sampler))), std::invalid_argument);
+    EXPECT_THROW((DataLoader(dataset, 1, std::move(sampler))), std::invalid_argument);
 }
 
 TEST(DataLoaderIteratorTest, FillBatchAndMoveAndEquality)

@@ -85,10 +85,10 @@ DataLoader::DataLoader(          //
 {
 }
 
-DataLoader::DataLoader(           //
-    shared_ptr<Dataset> dataset,  //
-    size_t batch_size,            //
-    DefaultSamplerOptions options //
+DataLoader::DataLoader(                  //
+    shared_ptr<Dataset> dataset,         //
+    size_t batch_size,                   //
+    const DefaultSamplerOptions& options //
     )
     : DataLoader(                            //
           dataset,                           //

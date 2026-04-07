@@ -154,17 +154,14 @@ struct Leaky : public Module
         float reset_potential_ = 0.0F,      // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>())
-        : time_step(time_step_)
+        : time_step(time_step_),
+          resistance(nn::Tensor::constant(1, 1, resistance_)),
+          capacitance(nn::Tensor::constant(1, 1, capacitance_)),
+          voltage_threshold(nn::Tensor::constant(1, 1, voltage_threshold_)),
+          reset_zero(reset_zero_),
+          reset_potential(reset_potential_),
+          surrogate_gradient(std::move(surrogate_grad))
     {
-        resistance = nn::Tensor(1, 1);
-        resistance.at(0, 0) = resistance_;
-        capacitance = nn::Tensor(1, 1);
-        capacitance.at(0, 0) = capacitance_;
-        voltage_threshold = nn::Tensor(1, 1);
-        voltage_threshold.at(0, 0) = voltage_threshold_;
-        reset_zero = reset_zero_;
-        reset_potential = reset_potential_;
-        surrogate_gradient = std::move(surrogate_grad);
     }
 
     /**

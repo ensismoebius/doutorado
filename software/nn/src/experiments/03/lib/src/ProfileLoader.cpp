@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 #include <string_view>
 
@@ -233,10 +234,10 @@ static auto parse_array_ints(const std::string& text, const std::string& key, st
     if (!parse_array_numbers(text, key, vals)) return false;
     out.clear();
     out.reserve(vals.size());
-    for (double v : vals)
-    {
-        out.push_back(static_cast<int>(v));
-    }
+    std::transform(vals.begin(),
+        vals.end(),
+        std::back_inserter(out),
+        [](double v) { return static_cast<int>(v); });
     return true;
 }
 
@@ -431,10 +432,10 @@ static auto validate_known_profile_keys(const std::string& text, std::string& ou
     std::vector<std::string> unknown_keys;
     unknown_keys.reserve(top_level_keys.size());
 
-    for (const auto& key : top_level_keys)
-    {
-        if (!is_known_profile_key(key)) unknown_keys.push_back(key);
-    }
+    std::copy_if(top_level_keys.begin(),
+        top_level_keys.end(),
+        std::back_inserter(unknown_keys),
+        [](const auto& key) { return !is_known_profile_key(key); });
 
     if (unknown_keys.empty()) return true;
 

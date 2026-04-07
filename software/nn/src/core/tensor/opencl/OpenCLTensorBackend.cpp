@@ -73,13 +73,11 @@ void warn_opencl_cpu_fallback_once(const std::string& operation, const std::stri
 
 bool can_use_opencl(const char* operation)
 {
-#if defined(__has_feature)
-#if __has_feature(address_sanitizer)
+#if defined(__SANITIZE_ADDRESS__)
     warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
     return false;
-#endif
-#endif
-#if defined(__SANITIZE_ADDRESS__)
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer)
     warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
     return false;
 #endif
@@ -89,6 +87,14 @@ bool can_use_opencl(const char* operation)
         return false;
     }
     return true;
+#else
+    if (!can_use_opencl())
+    {
+        warn_opencl_cpu_fallback_once(operation, "OpenCL runtime or device is not available");
+        return false;
+    }
+    return true;
+#endif
 }
 
 void warn_opencl_unimplemented_once(const char* operation)

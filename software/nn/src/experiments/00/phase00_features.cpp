@@ -176,10 +176,10 @@ auto build_label_index(const std::vector<int>& raw_labels)
 
     std::vector<int> normalized;
     normalized.reserve(raw_labels.size());
-    for (int lbl : raw_labels)
-    {
-        normalized.push_back(mapping.at(lbl));
-    }
+    std::transform(raw_labels.begin(),
+        raw_labels.end(),
+        std::back_inserter(normalized),
+        [&mapping](int lbl) { return mapping.at(lbl); });
 
     return {normalized, uniques};
 }

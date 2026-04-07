@@ -118,9 +118,14 @@ void BatchPrefetcher::producerLoop()
                         return inflight == 0 && prefetched_ring_->empty();
                     });
 
-                if (stop_requested_ ||
-                    (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >=
-                        max_batches_))
+                if (seen_batches_.load(std::memory_order_relaxed) + prefetched_ring_->size() >=
+                    max_batches_)
+                {
+                    prefetched_pool_->release(std::move(batch));
+                    break;
+                }
+
+                if (stop_requested_)
                 {
                     prefetched_pool_->release(std::move(batch));
                     break;
@@ -135,16 +140,17 @@ void BatchPrefetcher::producerLoop()
 
             // Try to push into ring; if full, yield briefly and retry.
             bool pushed = false;
+            // cppcheck-suppress knownConditionTrueFalse
             while (true)
             {
+                // cppcheck-suppress knownConditionTrueFalse
+                if (stop_requested_)
+                {
+                    break;
+                }
                 if (prefetched_ring_->try_push(std::move(prefetched)))
                 {
                     pushed = true;
-                    break;
-                }
-
-                if (stop_requested_)
-                {
                     break;
                 }
                 std::this_thread::yield();

@@ -310,9 +310,10 @@ int Experiment03::run()
                     model_->params());
             }
 
+            // cppcheck-suppress knownConditionTrueFalse
             if (prefetcher_)
             {
-                auto d = prefetcher_->diagnostics();
+                const auto d = prefetcher_->diagnostics();
                 ostringstream _oss;
                 _oss << "  Prefetcher ring size: " << d.ring_size
                      << " | seen batches: " << d.seen_batches
@@ -324,9 +325,9 @@ int Experiment03::run()
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
             epoch_mean_losses.push_back(mean_loss);
             {
-                ostringstream _oss;
-                _oss << "  mean reconstruction loss: " << mean_loss;
-                NN_LOG_INFO(_oss.str());
+                ostringstream mean_loss_stream;
+                mean_loss_stream << "  mean reconstruction loss: " << mean_loss;
+                NN_LOG_INFO(mean_loss_stream.str());
             }
         }
 

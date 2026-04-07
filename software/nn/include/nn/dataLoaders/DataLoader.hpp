@@ -61,8 +61,9 @@ class DataLoader
         std::optional<unsigned int> seed = std::nullopt);
 
     // Built-in sampler selector constructor.
-    DataLoader(
-        std::shared_ptr<Dataset> dataset, std::size_t batch_size, DefaultSamplerOptions options);
+    DataLoader(std::shared_ptr<Dataset> dataset,
+        std::size_t batch_size,
+        const DefaultSamplerOptions& options);
 
     // Preferred constructor: inject an arbitrary sampler implementation.
     DataLoader(std::shared_ptr<Dataset> dataset,

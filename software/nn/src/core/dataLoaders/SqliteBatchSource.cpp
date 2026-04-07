@@ -29,13 +29,13 @@ SqliteBatchSource::SqliteBatchSource(const string& db_root,
     const nn::windowing::WindowSpec& eeg_window,
     const nn::windowing::WindowSpec& audio_window,
     Protocol101117InputMode input_mode)
-    : batch_size_(batch_size),
+    : db_path_((std::filesystem::path(db_root) / "database.sqlite").string()),
+      batch_size_(batch_size),
       dataset_type_(dataset_type),
       eeg_window_(eeg_window),
       audio_window_(audio_window),
       input_mode_(input_mode)
 {
-    db_path_ = (std::filesystem::path(db_root) / "database.sqlite").string();
     open_db();
 }
 
@@ -528,12 +528,12 @@ bool SqliteBatchSource::next(Batch& out)
         catch (const std::exception& e)
         {
             NN_LOG_ERROR(std::string("EXCEPTION[SqliteBatchSource::next]: ") + e.what());
-            if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
+            sqlite3_reset(pop_trial_stmt_);
         }
         catch (...)
         {
             NN_LOG_ERROR("EXCEPTION[SqliteBatchSource::next]: unknown");
-            if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
+            sqlite3_reset(pop_trial_stmt_);
         }
     }
 

@@ -196,16 +196,10 @@ auto rfft_power(const vector<vector<float>>& frames, int fft_points) -> nn::Tens
         const size_t copy_length = std::min(frame_length, fft_points_size_t);
 
         // Copy current frame into FFT input buffer.
-        for (size_t i = 0; i < copy_length; ++i)
-        {
-            fftw_input[i] = frames[frame_index][i];
-        }
+        std::copy_n(frames[frame_index].begin(), copy_length, fftw_input);
 
         // Zero-pad when frame is shorter than FFT size.
-        for (size_t i = copy_length; i < fft_points_size_t; ++i)
-        {
-            fftw_input[i] = 0.0F;
-        }
+        std::fill(fftw_input + copy_length, fftw_input + fft_points_size_t, 0.0F);
 
         // Execute FFT.
         fftwf_execute(fftw_plan);

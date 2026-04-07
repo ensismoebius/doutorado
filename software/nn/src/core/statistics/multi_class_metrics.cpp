@@ -32,10 +32,12 @@ ClassificationMetrics compute_classification_metrics(
     }
 
     int n_samples = true_labels.size();
-    int n_classes = 0;
-    for (int label : true_labels)
+    const int n_classes =
+        true_labels.empty() ? 0 : (*std::max_element(true_labels.begin(), true_labels.end()) + 1);
+
+    if (n_classes == 0)
     {
-        n_classes = std::max(n_classes, label + 1);
+        return ClassificationMetrics{};
     }
 
     // Confusion matrix - using float for now (consider IntTensor for integer precision)

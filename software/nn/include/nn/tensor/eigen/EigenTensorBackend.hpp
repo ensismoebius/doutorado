@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <random>
 #include <span>
 #include <stdexcept>
@@ -75,8 +76,11 @@ class EigenTensorBackend
         else
         {
             // Flat fallback
-            Eigen::Index total = 1;
-            for (auto s : shape) total *= static_cast<Eigen::Index>(s);
+            // cppcheck-suppress useStlAlgorithm
+            const Eigen::Index total = std::accumulate(shape.begin(),
+                shape.end(),
+                static_cast<Eigen::Index>(1),
+                [](Eigen::Index acc, Index s) { return acc * static_cast<Eigen::Index>(s); });
             m_data.resize(total, 1);
         }
         m_data.setZero();
@@ -182,8 +186,11 @@ class EigenTensorBackend
         // - If the underlying matrix dimensions change, we allocate new storage and
         //   copy elements in the backend's linear order (Eigen's `.data()` order).
         Eigen::Index current_size = m_data.size();
-        Eigen::Index new_size = 1;
-        for (auto s : new_shape) new_size *= static_cast<Eigen::Index>(s);
+        // cppcheck-suppress useStlAlgorithm
+        const Eigen::Index new_size = std::accumulate(new_shape.begin(),
+            new_shape.end(),
+            static_cast<Eigen::Index>(1),
+            [](Eigen::Index acc, Index s) { return acc * static_cast<Eigen::Index>(s); });
 
         if (current_size != new_size) throw std::invalid_argument("Reshape total size mismatch");
 

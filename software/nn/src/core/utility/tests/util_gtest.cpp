@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <numeric>
 #include <random>
 #include <set>
 
@@ -232,11 +233,10 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.001F, 1.0F);
     auto low_rate_spikes = std::get<0>(low_rate_result);
     // auto _ = std::get<1>(low_rate_result); // unused
-    int total_low_spikes = 0;
-    for (const auto& spikes : low_rate_spikes)
-    {
-        total_low_spikes += static_cast<int>(spikes.sum());
-    }
+    const int total_low_spikes = std::accumulate(low_rate_spikes.begin(),
+        low_rate_spikes.end(),
+        0,
+        [](int acc, const auto& spikes) { return acc + static_cast<int>(spikes.sum()); });
     // Expected ~0.25 spikes (250 * 0.001), allow reasonable statistical variation
     EXPECT_LE(total_low_spikes, 10);
 
@@ -245,11 +245,10 @@ TEST(UtilNumericalEdgeTest, SpikeDataEdgeRates)
         generate_autoencoder_spike_data(n_samples, input_dim, n_steps, 0.999F, 1.0F);
     auto high_rate_spikes = std::get<0>(high_rate_result);
     // auto _ = std::get<1>(high_rate_result); // unused
-    int total_high_spikes = 0;
-    for (const auto& spikes : high_rate_spikes)
-    {
-        total_high_spikes += static_cast<int>(spikes.sum());
-    }
+    const int total_high_spikes = std::accumulate(high_rate_spikes.begin(),
+        high_rate_spikes.end(),
+        0,
+        [](int acc, const auto& spikes) { return acc + static_cast<int>(spikes.sum()); });
     // Expected ~249.75 spikes (250 * 0.999), allow reasonable statistical variation
     EXPECT_GE(total_high_spikes, total_events - 10);
 }
@@ -425,13 +424,11 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
     // auto _ = std::get<1>(result); // unused
 
     // Calculate overall firing rate
-    int total_spikes = 0;
+    const int total_spikes = std::accumulate(spike_trains.begin(),
+        spike_trains.end(),
+        0,
+        [](int acc, const auto& spikes) { return acc + static_cast<int>(spikes.sum()); });
     int total_possible = n_samples * input_dim * n_steps;
-
-    for (const auto& spikes : spike_trains)
-    {
-        total_spikes += static_cast<int>(spikes.sum());
-    }
 
     float actual_rate = static_cast<float>(total_spikes) / total_possible;
 
@@ -441,10 +438,10 @@ TEST(UtilComprehensiveTest, SpikeDataStatisticalProperties)
 
     // Test temporal consistency - spikes should be somewhat evenly distributed
     std::vector<int> spikes_per_timestep;
-    for (const auto& spikes : spike_trains)
-    {
-        spikes_per_timestep.push_back(static_cast<int>(spikes.sum()));
-    }
+    std::transform(spike_trains.begin(),
+        spike_trains.end(),
+        std::back_inserter(spikes_per_timestep),
+        [](const auto& spikes) { return static_cast<int>(spikes.sum()); });
 
     // Check that no timestep has zero spikes (for reasonable rate)
     for (int spikes : spikes_per_timestep)

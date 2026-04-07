@@ -2,6 +2,7 @@
  * @file wave_gtest.cpp
  * @brief Unit tests for wave utilities (WAV I/O, filtering, simple feature extraction).
  */
+// cppcheck-suppress-file passedByValueCallback
 
 #include <filesystem>
 #include <fstream>
@@ -142,6 +143,8 @@ TEST(WavFileTest, WriteThenRead)
 namespace
 {
 int g_callback_calls = 0;
+// cppcheck-suppress passedByValueCallback
+// cppcheck-suppress passedByValue
 void CountCallback(
     std::vector<double>& signal, size_t& signalLength, uint32_t samplingRate, std::string path)
 {
@@ -322,6 +325,8 @@ TEST(WavFileTest, ClassicApiRejectsUnsupportedFormatOnWriteAndProcess)
     Wav bad(16000, 24, 1, raw.data(), raw.size());
     EXPECT_THROW(bad.write(wav_path), std::runtime_error);
 
+    // cppcheck-suppress passedByValueCallback
+    // cppcheck-suppress passedByValue
     bad.set_callback_function(&CountCallback);
     EXPECT_THROW(bad.process(), std::runtime_error);
 }

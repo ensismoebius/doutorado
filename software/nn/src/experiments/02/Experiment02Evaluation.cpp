@@ -30,21 +30,16 @@ auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& feat
         class_features[class_key].push_back(features[i]);
     }
 
-    if (class_features.empty())
-    {
-        return ParaconsistentMetrics{};
-    }
-
-    const unsigned int n_classes = class_features.size();
+    const unsigned int n_classes = static_cast<unsigned int>(class_features.size());
     unsigned int n_samples_per_class = class_features.begin()->second.size();
     for (const auto& [_, class_samples] : class_features)
     {
         n_samples_per_class = std::min<unsigned int>(
             n_samples_per_class, static_cast<unsigned int>(class_samples.size()));
     }
-    const unsigned int feature_dim = features[0].size();
+    const unsigned int feature_dim = static_cast<unsigned int>(features.front().size());
 
-    if (n_classes == 0 || n_samples_per_class == 0 || feature_dim == 0)
+    if (n_samples_per_class == 0 || feature_dim == 0)
     {
         return ParaconsistentMetrics{};
     }

@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <limits>
 #include <memory>
 #include <vector>
@@ -259,18 +260,16 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     {
         ASSERT_NO_THROW(sgd.step(params));
         // Gradients should be preserved between steps
-        for (auto* param : params)
-        {
-            EXPECT_FALSE(test_helpers::tensor_is_zero(param->grad()));
-        }
+        EXPECT_TRUE(std::all_of(params.begin(),
+            params.end(),
+            [](const auto* param) { return !test_helpers::tensor_is_zero(param->grad()); }));
     }
 
     // Test zero_grad operations
     ASSERT_NO_THROW(sgd.zero_grad(params));
-    for (auto* param : params)
-    {
-        EXPECT_TRUE(test_helpers::tensor_is_zero(param->grad()));
-    }
+    EXPECT_TRUE(std::all_of(params.begin(),
+        params.end(),
+        [](const auto* param) { return test_helpers::tensor_is_zero(param->grad()); }));
 }
 
 TEST(OptimizerThreadSafetyTest, AdamInternalState)

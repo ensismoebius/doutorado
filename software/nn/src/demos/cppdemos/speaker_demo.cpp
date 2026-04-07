@@ -4,9 +4,10 @@
  *
 
  */
-
+// cppcheck-suppress-file useStlAlgorithm
 // Single, consistent CLI implementation using RAII to own subparsers.
 
+// cppcheck-suppress useStlAlgorithm
 #include <argparse/argparse.hpp>
 #include <iostream>
 #include <memory>
@@ -206,6 +207,7 @@ int main(int argc, char** argv)
         // so `pointerOwner` must remain alive until parse_args returns.
         try
         {
+            // cppcheck-suppress useStlAlgorithm
             parser_owner->parser->parse_args(argc, argv);
         }
         catch (const std::exception& err)

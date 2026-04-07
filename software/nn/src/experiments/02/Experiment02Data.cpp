@@ -7,6 +7,7 @@
 
 #include "Experiment02Data.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <random>
 #include <stdexcept>
@@ -131,15 +132,10 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
     {
         const auto& eeg = eeg_samples[eeg_idx];
 
-        const AudioSample* audio = nullptr;
-        for (const auto& a : audio_samples)
-        {
-            if (a.eeg_index == static_cast<int>(eeg_idx))
-            {
-                audio = &a;
-                break;
-            }
-        }
+        const auto audio_it = std::find_if(audio_samples.begin(),
+            audio_samples.end(),
+            [eeg_idx](const auto& a) { return a.eeg_index == static_cast<int>(eeg_idx); });
+        const AudioSample* audio = (audio_it != audio_samples.end()) ? &(*audio_it) : nullptr;
         if (!audio || eeg.artifacts != kNoArtifactsFlag)
         {
             continue;
@@ -170,15 +166,21 @@ auto extract_windows(const std::vector<EEGSample>& eeg_samples,
                 window.audio_window.push_back(audio->signal[s]);
             }
 
-            for (std::size_t i = 0; i < window.eeg_window.size(); ++i)
-            {
-                window.eeg_window[i] *= hanning_eeg[i % eeg_window_samples];
-            }
+            std::transform(window.eeg_window.begin(),
+                window.eeg_window.end(),
+                window.eeg_window.begin(),
+                [idx = std::size_t{0}, eeg_window_samples, &hanning_eeg](double value) mutable
+                {
+                    const double weighted = value * hanning_eeg[idx % eeg_window_samples];
+                    ++idx;
+                    return weighted;
+                });
 
-            for (std::size_t i = 0; i < window.audio_window.size(); ++i)
-            {
-                window.audio_window[i] *= hanning_audio[i];
-            }
+            std::transform(window.audio_window.begin(),
+                window.audio_window.end(),
+                hanning_audio.begin(),
+                window.audio_window.begin(),
+                [](double sample, double hann) { return sample * hann; });
 
             windows.push_back(window);
         }
@@ -204,10 +206,8 @@ void generate_synthetic_samples(std::vector<EEGSample>& eeg_samples,
         eeg_sample.channels.resize(kEegChannelCount, std::vector<double>(kEegSamplesPerChannel));
         for (auto& channel : eeg_sample.channels)
         {
-            for (double& value : channel)
-            {
-                value = gaussian_dist(random_engine);
-            }
+            std::generate(
+                channel.begin(), channel.end(), [&]() { return gaussian_dist(random_engine); });
         }
         eeg_sample.modality = 1;
         eeg_sample.stimulus = (sample_index % 5) + 1;
@@ -216,10 +216,9 @@ void generate_synthetic_samples(std::vector<EEGSample>& eeg_samples,
 
         AudioSample audio_sample;
         audio_sample.signal.resize(kAudioSamplesPerRow);
-        for (double& value : audio_sample.signal)
-        {
-            value = gaussian_dist(random_engine);
-        }
+        std::generate(audio_sample.signal.begin(),
+            audio_sample.signal.end(),
+            [&]() { return gaussian_dist(random_engine); });
         audio_sample.stimulus = eeg_sample.stimulus;
         audio_sample.eeg_index = sample_index;
         audio_samples[sample_index] = audio_sample;

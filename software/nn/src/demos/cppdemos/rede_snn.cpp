@@ -82,13 +82,13 @@ struct ResidualSNNBlock : public Module
     Sequential model;
 
     explicit ResidualSNNBlock(const ModelConfig& cfg)
+        : model(Sequential({
+              lin(cfg.hidden_size, cfg.hidden_size),
+              leaky(cfg),
+              lin(cfg.hidden_size, cfg.hidden_size),
+              leaky(cfg),
+          }))
     {
-        model = Sequential({
-            lin(cfg.hidden_size, cfg.hidden_size),
-            leaky(cfg),
-            lin(cfg.hidden_size, cfg.hidden_size),
-            leaky(cfg),
-        });
     }
 
     auto forward(const Tensor& x, bool requires_grad = true) -> Tensor override
@@ -120,17 +120,16 @@ struct SnnModel : public Module
     Sequential model;
 
     explicit SnnModel(const ModelConfig& cfg)
+        : model(Sequential({
+              lin(cfg.input_size, cfg.hidden_size),
+              leaky(cfg),
+              make_shared<ResidualSNNBlock>(cfg),
+              make_shared<ResidualSNNBlock>(cfg),
+              make_shared<ResidualSNNBlock>(cfg),
+              lin(cfg.hidden_size, cfg.output_size),
+              leaky(cfg, true),
+          }))
     {
-        model = Sequential({
-            lin(cfg.input_size, cfg.hidden_size),
-            leaky(cfg),
-            make_shared<ResidualSNNBlock>(cfg),
-            make_shared<ResidualSNNBlock>(cfg),
-            make_shared<ResidualSNNBlock>(cfg),
-            lin(cfg.hidden_size, cfg.output_size),
-            leaky(cfg, true),
-        });
-
         // Initialize RNG
         std::mt19937 rng(42);
 

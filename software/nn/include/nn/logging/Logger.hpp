@@ -12,11 +12,13 @@
 #ifndef NN_LOGGER_HPP
 #define NN_LOGGER_HPP
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <deque>
 #include <iomanip>
 #include <iostream>
+#include <iterator>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -98,7 +100,7 @@ class Logger
         std::lock_guard<std::mutex> g(mu_);
         std::vector<std::string> out;
         out.reserve(recent_lines_.size());
-        for (auto& s : recent_lines_) out.push_back(s);
+        std::copy(recent_lines_.begin(), recent_lines_.end(), std::back_inserter(out));
         recent_lines_.clear();
         return out;
     }

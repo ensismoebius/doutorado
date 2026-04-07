@@ -13,6 +13,7 @@
  *
  */
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -38,25 +39,15 @@ auto buildSincLowPassKernel(int order, double alpha) -> std::vector<double>
         filter[n] = sin(alpha * (n - halfOrderSize)) / (M_PI * (n - halfOrderSize));
     }
 
-    double minVal = filter[0];
-    double maxVal = filter[0];
-    for (double value : filter)
-    {
-        if (value < minVal)
-        {
-            minVal = value;
-        }
-        if (value > maxVal)
-        {
-            maxVal = value;
-        }
-    }
+    const auto [min_it, max_it] = std::minmax_element(filter.begin(), filter.end());
+    const double minVal = *min_it;
+    const double maxVal = *max_it;
 
     const double range = (maxVal == minVal) ? 1.0 : (maxVal - minVal);
-    for (double& value : filter)
-    {
-        value = (value - minVal) / range;
-    }
+    std::transform(filter.begin(),
+        filter.end(),
+        filter.begin(),
+        [minVal, range](double value) { return (value - minVal) / range; });
     return filter;
 }
 

@@ -7,6 +7,7 @@
 
 #include "Experiment02Wavelets.hpp"
 
+#include <algorithm>
 #include <array>
 #include <stdexcept>
 #include <string>
@@ -76,12 +77,14 @@ auto get_wavelet_coeffs(
         padded_signal.resize(static_cast<std::size_t>(padded_size), 0.0);
     }
 
-    for (const auto& dispatch_entry : kWaveletDispatch)
+    const auto dispatch_it = std::find_if(kWaveletDispatch.begin(),
+        kWaveletDispatch.end(),
+        [&wavelet_name](const auto& dispatch_entry)
+        { return wavelet_name == dispatch_entry.wavelet_name; });
+
+    if (dispatch_it != kWaveletDispatch.end())
     {
-        if (wavelet_name == dispatch_entry.wavelet_name)
-        {
-            return dispatch_entry.transform_fn(padded_signal, max_level);
-        }
+        return dispatch_it->transform_fn(padded_signal, max_level);
     }
 
     return compute_packet_transform<wavelets::Haar>(padded_signal, max_level);

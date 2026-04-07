@@ -47,9 +47,8 @@ class TempFile
 {
    public:
     explicit TempFile(const std::string& prefix = "nn_test_")
+        : path_(make_temp_file(prefix)), owned_(!path_.empty())
     {
-        path_ = make_temp_file(prefix);
-        owned_ = !path_.empty();
     }
     ~TempFile()
     {

@@ -7,6 +7,7 @@
 
 #include <bit> // For std::bit_width (C++20)
 #include <cmath>
+#include <numeric>
 #include <span>
 #include <sstream>
 #include <stdexcept>
@@ -234,11 +235,8 @@ auto extract_subband_energies(const WaveletTransformResults& transform, int leve
 
             if (!part.empty())
             {
-                double energy = 0.0;
-                for (double coeff : part)
-                {
-                    energy += coeff * coeff;
-                }
+                const double energy =
+                    std::inner_product(part.begin(), part.end(), part.begin(), 0.0);
                 energies.push_back(std::sqrt(energy)); // RMS energy
             }
         }
@@ -254,11 +252,8 @@ auto extract_subband_energies(const WaveletTransformResults& transform, int leve
 
             if (!part.empty())
             {
-                double energy = 0.0;
-                for (double coeff : part)
-                {
-                    energy += coeff * coeff;
-                }
+                const double energy =
+                    std::inner_product(part.begin(), part.end(), part.begin(), 0.0);
                 energies.push_back(std::sqrt(energy)); // RMS energy
             }
         }

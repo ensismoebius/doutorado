@@ -173,10 +173,10 @@ auto preprocess_energy(const std::vector<float>& energy) -> std::vector<float>
         std::fill(out.begin(), out.end(), 0.0F);
         return out;
     }
-    for (auto& v : out)
-    {
-        v = std::clamp(v / max_value, 0.0F, 1.0F);
-    }
+    std::transform(out.begin(),
+        out.end(),
+        out.begin(),
+        [max_value](float v) { return std::clamp(v / max_value, 0.0F, 1.0F); });
     return out;
 }
 
@@ -206,11 +206,11 @@ struct ResidualBlock : public Module
     std::vector<Tensor*> param_ptrs_;
 
     explicit ResidualBlock(int dim)
+        : fc1(std::make_shared<Linear>(dim, dim)),
+          lif1(std::make_shared<Leaky>()),
+          fc2(std::make_shared<Linear>(dim, dim)),
+          lif2(std::make_shared<Leaky>())
     {
-        fc1 = std::make_shared<Linear>(dim, dim);
-        lif1 = std::make_shared<Leaky>();
-        fc2 = std::make_shared<Linear>(dim, dim);
-        lif2 = std::make_shared<Leaky>();
     }
 
     auto forward(const Tensor& x, bool requires_grad) -> Tensor override
@@ -262,17 +262,15 @@ struct SnnModel : public Module
     std::vector<Tensor*> param_ptrs_;
 
     SnnModel(int input_size, int output_size, int depth, int hidden_size, unsigned int seed)
+        : fc_in(std::make_shared<Linear>(input_size, hidden_size)),
+          lif_in(std::make_shared<Leaky>()),
+          fc_out(std::make_shared<Linear>(hidden_size, output_size)),
+          lif_out(std::make_shared<Leaky>())
     {
-        fc_in = std::make_shared<Linear>(input_size, hidden_size);
-        lif_in = std::make_shared<Leaky>();
-
         for (int i = 0; i < depth; ++i)
         {
             residual_blocks.push_back(std::make_shared<ResidualBlock>(hidden_size));
         }
-
-        fc_out = std::make_shared<Linear>(hidden_size, output_size);
-        lif_out = std::make_shared<Leaky>();
 
         const unsigned int base_seed = seed == 0 ? nn::testing::kSeed : seed;
 
@@ -305,10 +303,9 @@ struct SnnModel : public Module
     {
         auto g = lif_out->backward(grad_out);
         g = fc_out->backward(g);
-        for (auto it = residual_blocks.rbegin(); it != residual_blocks.rend(); ++it)
-        {
-            g = (*it)->backward(g);
-        }
+        std::for_each(residual_blocks.rbegin(),
+            residual_blocks.rend(),
+            [&g](const auto& block) { g = block->backward(g); });
         g = lif_in->backward(g);
         return fc_in->backward(g);
     }
@@ -324,11 +321,13 @@ struct SnnModel : public Module
         param_ptrs_.insert(param_ptrs_.end(), lifp.begin(), lifp.end());
         auto lifout = lif_out->params();
         param_ptrs_.insert(param_ptrs_.end(), lifout.begin(), lifout.end());
-        for (auto& b : residual_blocks)
-        {
-            auto bp = b->params();
-            param_ptrs_.insert(param_ptrs_.end(), bp.begin(), bp.end());
-        }
+        std::for_each(residual_blocks.begin(),
+            residual_blocks.end(),
+            [this](auto& b)
+            {
+                auto bp = b->params();
+                param_ptrs_.insert(param_ptrs_.end(), bp.begin(), bp.end());
+            });
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
