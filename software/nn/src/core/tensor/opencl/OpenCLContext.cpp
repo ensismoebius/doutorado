@@ -149,7 +149,7 @@ void OpenCLContext::query_device_info()
     NN_LOG_INFO(log);
 }
 
-void OpenCLContext::flush()
+void OpenCLContext::flush() const
 {
     if (!m_is_available) return;
     cl_int err = clFinish(m_queue);

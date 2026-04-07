@@ -131,7 +131,7 @@ class OpenCLContext
      * Blocks until all enqueued commands complete. Use judiciously to avoid
      * serializing GPU/CPU work; prefer batching operations before a single flush.
      */
-    void flush();
+    void flush() const;
 
     /**
      * @brief Enable batch mode: defer queue synchronization after each kernel.

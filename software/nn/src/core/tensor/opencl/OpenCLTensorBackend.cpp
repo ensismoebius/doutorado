@@ -419,7 +419,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                 return empty;
             }
 
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
 
@@ -541,7 +541,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
@@ -670,7 +670,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
@@ -796,7 +796,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
@@ -904,7 +904,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
             EigenTensorBackend out(shape());
@@ -1026,7 +1026,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const Index num_rows = rows();
             const Index num_cols = cols();
             const std::size_t input_bytes = num_rows * num_cols * sizeof(float);
@@ -1146,7 +1146,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const Index m = rows();
             const Index k = cols();
             const Index n = other.cols();
@@ -1292,7 +1292,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
     {
         try
         {
-            auto& ctx = opencl::OpenCLContext::instance();
+            const auto& ctx = opencl::OpenCLContext::instance();
             const Index in_rows = rows();
             const Index in_cols = cols();
             const std::size_t bytes = in_rows * in_cols * sizeof(float);
@@ -1538,7 +1538,7 @@ std::string OpenCLTensorBackend::initialize_runtime_or_throw(bool opencl_profili
         "execution");
 #endif
 
-    auto& opencl_context = opencl::OpenCLContext::instance();
+    const auto& opencl_context = opencl::OpenCLContext::instance();
     if (!opencl_context.is_available())
     {
         throw std::runtime_error(
@@ -1562,7 +1562,7 @@ OpenCLTensorBackend::RuntimeScope OpenCLTensorBackend::start_runtime_scope_or_th
 void OpenCLTensorBackend::verify_runtime_activity_or_throw(
     const Tensor& prediction, const Tensor& target, std::string_view gpu_busy_percent_path)
 {
-    auto& opencl_context = opencl::OpenCLContext::instance();
+    const auto& opencl_context = opencl::OpenCLContext::instance();
     if (!opencl_context.is_available())
     {
         throw std::runtime_error(

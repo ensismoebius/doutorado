@@ -260,102 +260,115 @@ void clip_gradients(std::span<nn::Tensor*> params, float max_norm)
 // =============================================================================
 auto main(int, char*[]) -> int
 {
-    util::initializeEigenParallel();
-    printVectorizationSupport();
-    cout << fixed << scientific << setprecision(4);
-
-    // 1. Setup
-    ModelConfig config{.input_dim = 100,
-        .hidden_dims = {50, 40, 30, 20, 10},
-        .bottleneck_dim = 10,
-        .steps = 100,
-        .dt = 0.001f,
-        .R = 5.0f,
-        .C = 1.0f,
-        .thr = 0.01f,
-        .lr = 0.001f,
-        .epochs = 4000,
-        .batch_size = 32};
-
-    SpikeAutoEncoder model(config);
-    // Runtime NPZ weight loading is disabled in this build. Pass empty paths
-    // to avoid referring to .npz at runtime; the model will use Kaiming init.
-    model.initialize_weights("", "");
-
-    auto params = model.params();
-    Adam optimizer(config.lr);
-    optimizer.attach(params);
-    auto criterion = make_shared<MSELoss>();
-
-    // 2. Data Generation
-    // Data layout note:
-    // - `generate_autoencoder_spike_data_*` returns a vector of length T.
-    // - Each entry is a tensor of shape (B, F).
-    // - `LeakyBPTT` expects a single flattened tensor of shape (T*B, F), time-major.
-    //   So we stack time on the row axis: row = t*B + b.
-    //
-    // Demo note:
-    // - `config.batch_size` is not used in this particular demo: we use `n_samples` as B.
-    //   (Kept in config because the same model structure can be used with a DataLoader.)
-    int n_samples = 10;
-    auto [input_seq, _] =
-        generate_autoencoder_spike_data_of_ones(n_samples, config.input_dim, config.steps);
-
-    nn::Tensor inputs(n_samples * config.steps, config.input_dim);
-
-    // C++20 Ranges: Nested loops for data flattening
-    for (int t : std::views::iota(0, config.steps))
+    try
     {
-        for (int i : std::views::iota(0, n_samples))
+        util::initializeEigenParallel();
+        printVectorizationSupport();
+        cout << fixed << scientific << setprecision(4);
+
+        // 1. Setup
+        ModelConfig config{.input_dim = 100,
+            .hidden_dims = {50, 40, 30, 20, 10},
+            .bottleneck_dim = 10,
+            .steps = 100,
+            .dt = 0.001f,
+            .R = 5.0f,
+            .C = 1.0f,
+            .thr = 0.01f,
+            .lr = 0.001f,
+            .epochs = 4000,
+            .batch_size = 32};
+
+        SpikeAutoEncoder model(config);
+        // Runtime NPZ weight loading is disabled in this build. Pass empty paths
+        // to avoid referring to .npz at runtime; the model will use Kaiming init.
+        model.initialize_weights("", "");
+
+        auto params = model.params();
+        Adam optimizer(config.lr);
+        optimizer.attach(params);
+        auto criterion = make_shared<MSELoss>();
+
+        // 2. Data Generation
+        // Data layout note:
+        // - `generate_autoencoder_spike_data_*` returns a vector of length T.
+        // - Each entry is a tensor of shape (B, F).
+        // - `LeakyBPTT` expects a single flattened tensor of shape (T*B, F), time-major.
+        //   So we stack time on the row axis: row = t*B + b.
+        //
+        // Demo note:
+        // - `config.batch_size` is not used in this particular demo: we use `n_samples` as B.
+        //   (Kept in config because the same model structure can be used with a DataLoader.)
+        int n_samples = 10;
+        auto [input_seq, _] =
+            generate_autoencoder_spike_data_of_ones(n_samples, config.input_dim, config.steps);
+
+        nn::Tensor inputs(n_samples * config.steps, config.input_dim);
+
+        // C++20 Ranges: Nested loops for data flattening
+        for (int t : std::views::iota(0, config.steps))
         {
-            for (int j : std::views::iota(0, config.input_dim))
+            for (int i : std::views::iota(0, n_samples))
             {
-                inputs.at(t * n_samples + i, j) = input_seq[t].at(i, j);
+                for (int j : std::views::iota(0, config.input_dim))
+                {
+                    inputs.at(t * n_samples + i, j) = input_seq[t].at(i, j);
+                }
             }
         }
-    }
 
-    // 3. Training Loop
-    ofstream log_file("cpp_loss_log.txt");
-    cout << "Starting training...\n";
+        // 3. Training Loop
+        ofstream log_file("cpp_loss_log.txt");
+        cout << "Starting training...\n";
 
-    for (int epoch : std::views::iota(0, config.epochs))
-    {
-        // Typical training step structure:
-        // 1) zero gradients
-        // 2) reset spiking state (membrane potentials) at sequence boundaries
-        // 3) forward + loss
-        // 4) backward
-        // 5) optional gradient clipping
-        // 6) optimizer step
-
-        // Zero Grad
-        optimizer.zero_grad(params);
-        model.reset_states();
-
-        // Forward
-        // Autoencoder target = input: learn to reconstruct the spike train.
-        criterion->set_target(inputs);
-        nn::Tensor recon = model.forward(inputs);
-        nn::Tensor loss_val = criterion->forward(recon);
-
-        // Backward
-        // `criterion->backward(recon)` returns dL/d(recon).
-        nn::Tensor grad_loss = criterion->backward(recon);
-        model.backward(grad_loss);
-
-        // Clip & Step
-        clip_gradients(params, 1.0f);
-        optimizer.step(params);
-
-        // Log
-        float current_loss = loss_val.at(0, 0);
-        log_file << epoch << "," << current_loss << "\n";
-        if (epoch % 10 == 0 || epoch == config.epochs - 1)
+        for (int epoch : std::views::iota(0, config.epochs))
         {
-            cout << "Epoch " << epoch << " | Loss: " << current_loss << "\r" << flush;
+            // Typical training step structure:
+            // 1) zero gradients
+            // 2) reset spiking state (membrane potentials) at sequence boundaries
+            // 3) forward + loss
+            // 4) backward
+            // 5) optional gradient clipping
+            // 6) optimizer step
+
+            // Zero Grad
+            optimizer.zero_grad(params);
+            model.reset_states();
+
+            // Forward
+            // Autoencoder target = input: learn to reconstruct the spike train.
+            criterion->set_target(inputs);
+            nn::Tensor recon = model.forward(inputs);
+            nn::Tensor loss_val = criterion->forward(recon);
+
+            // Backward
+            // `criterion->backward(recon)` returns dL/d(recon).
+            nn::Tensor grad_loss = criterion->backward(recon);
+            model.backward(grad_loss);
+
+            // Clip & Step
+            clip_gradients(params, 1.0f);
+            optimizer.step(params);
+
+            // Log
+            float current_loss = loss_val.at(0, 0);
+            log_file << epoch << "," << current_loss << "\n";
+            if (epoch % 10 == 0 || epoch == config.epochs - 1)
+            {
+                cout << "Epoch " << epoch << " | Loss: " << current_loss << "\r" << flush;
+            }
         }
+        cout << "\nTraining finished.\n";
+        return 0;
     }
-    cout << "\nTraining finished.\n";
-    return 0;
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown error occurred." << std::endl;
+        return 1;
+    }
 }

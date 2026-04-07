@@ -477,91 +477,96 @@ auto run_pipeline(                          //
 
 int main(int argc, char** argv)
 {
-    ArgumentParser parser("voice_biometrics_cpp");
-    parser.add_description("Pipeline WPT -> log-normalizacao -> codificacao Poisson -> SNN.");
-
-    parser
-        .add_argument("--entrada-wav") //
-        .default_value(string(""))     //
-        .help("WAV de entrada (opcional)");
-
-    parser
-        .add_argument("--saida-csv")                    //
-        .default_value(string("resultado_spikes.csv")); //
-
-    parser
-        .add_argument("--duracao")                    //
-        .default_value(1.0)                           //
-        .help("Duracao sintetica se nao houver WAV"); //
-
-    parser
-        .add_argument("--taxa-amostragem") //
-        .default_value(44100)              //
-        .help("Taxa alvo (Hz)");           //
-
-    parser
-        .add_argument("--tamanho-janela") //
-        .default_value(512);              //
-
-    parser
-        .add_argument("--tamanho-passo") //
-        .default_value(256);             //
-
-    parser
-        .add_argument("--num-bandas") //
-        .default_value(100);          //
-
-    parser
-        .add_argument("--passos-por-janela") //
-        .default_value(10);                  //
-
-    parser
-        .add_argument("--profundidade") //
-        .default_value(3);              //
-
-    parser
-        .add_argument("--hidden") //
-        .default_value(128);      //
-
-    parser
-        .add_argument("--seed") //
-        .default_value(42u);    //
-
     try
     {
-        parser.parse_args(argc, argv);
-    }
-    catch (const exception& e)
-    {
-        std::cerr << e.what() << "\n";
-        return 1;
-    }
+        ArgumentParser parser("voice_biometrics_cpp");
+        parser.add_description("Pipeline WPT -> log-normalizacao -> codificacao Poisson -> SNN.");
 
-    ExtractionConfig extraction_cfg;
-    extraction_cfg.sample_rate = parser.get<int>("--taxa-amostragem");
-    extraction_cfg.window_size = parser.get<int>("--tamanho-janela");
-    extraction_cfg.hop_size = parser.get<int>("--tamanho-passo");
-    extraction_cfg.num_bands = parser.get<int>("--num-bandas");
+        parser
+            .add_argument("--entrada-wav") //
+            .default_value(string(""))     //
+            .help("WAV de entrada (opcional)");
 
-    SnnConfig snn_cfg;
-    snn_cfg.steps_per_window = parser.get<int>("--passos-por-janela");
-    snn_cfg.depth = parser.get<int>("--profundidade");
-    snn_cfg.hidden_size = parser.get<int>("--hidden");
+        parser
+            .add_argument("--saida-csv")                    //
+            .default_value(string("resultado_spikes.csv")); //
 
-    auto seed = parser.get<unsigned int>("--seed");
-    auto input_wav = parser.get<std::string>("--entrada-wav");
-    auto output_csv = parser.get<std::string>("--saida-csv");
-    auto duration = parser.get<double>("--duracao");
+        parser
+            .add_argument("--duracao")                    //
+            .default_value(1.0)                           //
+            .help("Duracao sintetica se nao houver WAV"); //
 
-    try
-    {
+        parser
+            .add_argument("--taxa-amostragem") //
+            .default_value(44100)              //
+            .help("Taxa alvo (Hz)");           //
+
+        parser
+            .add_argument("--tamanho-janela") //
+            .default_value(512);              //
+
+        parser
+            .add_argument("--tamanho-passo") //
+            .default_value(256);             //
+
+        parser
+            .add_argument("--num-bandas") //
+            .default_value(100);          //
+
+        parser
+            .add_argument("--passos-por-janela") //
+            .default_value(10);                  //
+
+        parser
+            .add_argument("--profundidade") //
+            .default_value(3);              //
+
+        parser
+            .add_argument("--hidden") //
+            .default_value(128);      //
+
+        parser
+            .add_argument("--seed") //
+            .default_value(42u);    //
+
+        try
+        {
+            parser.parse_args(argc, argv);
+        }
+        catch (const exception& e)
+        {
+            std::cerr << e.what() << "\n";
+            return 1;
+        }
+
+        ExtractionConfig extraction_cfg;
+        extraction_cfg.sample_rate = parser.get<int>("--taxa-amostragem");
+        extraction_cfg.window_size = parser.get<int>("--tamanho-janela");
+        extraction_cfg.hop_size = parser.get<int>("--tamanho-passo");
+        extraction_cfg.num_bands = parser.get<int>("--num-bandas");
+
+        SnnConfig snn_cfg;
+        snn_cfg.steps_per_window = parser.get<int>("--passos-por-janela");
+        snn_cfg.depth = parser.get<int>("--profundidade");
+        snn_cfg.hidden_size = parser.get<int>("--hidden");
+
+        auto seed = parser.get<unsigned int>("--seed");
+        auto input_wav = parser.get<std::string>("--entrada-wav");
+        auto output_csv = parser.get<std::string>("--saida-csv");
+        auto duration = parser.get<double>("--duracao");
+
         run_pipeline(input_wav, duration, extraction_cfg, snn_cfg, seed, output_csv);
+
+        return 0;
     }
     catch (const std::exception& e)
     {
         std::cerr << "Erro: " << e.what() << "\n";
         return 2;
     }
-
-    return 0;
+    catch (...)
+    {
+        std::cerr << "Unknown error occurred." << std::endl;
+        return 1;
+    }
 }

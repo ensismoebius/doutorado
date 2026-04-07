@@ -241,11 +241,11 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
     if (prefetched_ring_->try_pop(prefetched))
     {
         inflight_prefetch_bytes_.fetch_sub(prefetched.bytes, std::memory_order_relaxed);
-        Batch batch = std::move(prefetched.batch);
-        Batch ret = std::move(batch);
-        Batch spare{};
-        std::swap(spare, batch);
-        prefetched_pool_->release(std::move(spare));
+
+        // Take ownership of the produced batch to return to the caller.
+        // Return an empty buffer to the pool for reuse.
+        Batch ret = std::move(prefetched.batch);
+        prefetched_pool_->release(Batch{});
         seen_batches_.fetch_add(1, std::memory_order_relaxed);
         cv_.notify_all();
         return ret;
@@ -280,11 +280,9 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
     (void) 0;
     inflight_prefetch_bytes_.fetch_sub(prefetched.bytes, std::memory_order_relaxed);
 
-    Batch batch = std::move(prefetched.batch);
-    Batch ret = std::move(batch);
-    Batch spare{};
-    std::swap(spare, batch);
-    prefetched_pool_->release(std::move(spare));
+    // Move the stored batch out and return an empty buffer to the pool.
+    Batch ret = std::move(prefetched.batch);
+    prefetched_pool_->release(Batch{});
     seen_batches_.fetch_add(1, std::memory_order_relaxed);
     lock.unlock();
     cv_.notify_all();
@@ -305,11 +303,6 @@ auto BatchPrefetcher::next() -> std::optional<Batch>
 {
     std::lock_guard<std::mutex> lock(mutex_);
     Diagnostics d{};
-    d.inflight_prefetch_bytes = inflight_prefetch_bytes_.load(std::memory_order_relaxed);
-    d.ring_size = prefetched_ring_->size();
-    d.seen_batches = seen_batches_.load(std::memory_order_relaxed);
-    d.producer_done = producer_done_;
-    d.stop_requested = stop_requested_;
     d.inflight_prefetch_bytes = inflight_prefetch_bytes_.load(std::memory_order_relaxed);
     d.ring_size = prefetched_ring_->size();
     d.seen_batches = seen_batches_.load(std::memory_order_relaxed);
