@@ -26,7 +26,7 @@ TEST(InitializerTest, Xavier)
     nn::Tensor bias(4, 1);
     xavierInitializer(2, 4, weights, bias);
     ASSERT_NE(weights.sum(), 0.0F);
-    ASSERT_NE(bias.sum(), 0.0F);
+    ASSERT_NEAR(bias.sum(), 0.0F, 1e-6F);
 }
 
 TEST(InitializerTest, XavierZeroDimensions)

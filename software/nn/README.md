@@ -1,96 +1,209 @@
 # nn
 
-## STL Commands Used In This Project
+## C++ STL APIs Used In This Project
 
-This section lists the commands used for static tooling, linting, build validation, testing, and coverage in this repository.
+This list is generated from direct std:: symbol usage across src/ and include/.
 
-### CMake + Build
+### Containers and Views
 
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DNN_ENABLE_CLANG_TIDY=ON
-cmake --build build -j$(nproc)
-```
+- std::array
+- std::deque
+- std::map
+- std::optional
+- std::pair
+- std::set
+- std::span
+- std::string
+- std::string_view
+- std::tuple
+- std::unordered_map
+- std::unordered_set
+- std::vector
+- std::views
 
-### Ninja Analysis Targets
+### Smart Pointers and Memory
 
-```bash
-cd build
-ninja analysis-cppcheck
-ninja analysis-clang-tidy
-ninja analysis-flawfinder
-ninja analysis-all
-```
+- std::addressof
+- std::dynamic_pointer_cast
+- std::make_shared
+- std::make_unique
+- std::shared_ptr
+- std::unique_ptr
+- std::malloc
+- std::free
+- std::memcpy
 
-### Cppcheck
+### Algorithms and Numeric
 
-```bash
-cppcheck src/ --enable=warning,style,performance --suppress=missingIncludeSystem --std=c++20 --xml --output-file=cppcheck-test-report.xml
+- std::accumulate
+- std::all_of
+- std::any_of
+- std::back_inserter
+- std::clamp
+- std::copy
+- std::copy_if
+- std::copy_n
+- std::count
+- std::distance
+- std::equal
+- std::fill
+- std::find
+- std::find_if
+- std::for_each
+- std::generate
+- std::inner_product
+- std::iota
+- std::max
+- std::max_element
+- std::min
+- std::min_element
+- std::minmax_element
+- std::move
+- std::ranges
+- std::reduce
+- std::remove
+- std::reverse
+- std::shuffle
+- std::sort
+- std::swap
+- std::transform
+- std::transform_reduce
+- std::unique
+- std::upper_bound
 
-cppcheck src/ \
-  --enable=all \
-  --check-level=exhaustive \
-  --std=c++20 \
-  --platform=native \
-  --suppress=missingIncludeSystem \
-  --suppress=unusedFunction \
-  --quiet \
-  --xml \
-  --output-file=cppcheck.xml
-```
+### Math Functions and Constants
 
-### Clang-Tidy
+- std::abs
+- std::acos
+- std::bit_width
+- std::ceil
+- std::cos
+- std::exp
+- std::fabs
+- std::floor
+- std::isfinite
+- std::isinf
+- std::isnan
+- std::llround
+- std::log
+- std::log1pf
+- std::log2
+- std::numbers
+- std::pow
+- std::round
+- std::sin
+- std::sqrt
 
-```bash
-clang-tidy --config-file=.clang-tidy -p build src/core/myfile.cpp
-```
+### Strings, Streams, and Formatting
 
-### Flawfinder
+- std::cerr
+- std::cout
+- std::endl
+- std::fixed
+- std::flush
+- std::fstream
+- std::getline
+- std::ifstream
+- std::ios
+- std::istream
+- std::istreambuf_iterator
+- std::left
+- std::ofstream
+- std::ostream
+- std::ostringstream
+- std::printf
+- std::put_time
+- std::right
+- std::scientific
+- std::setprecision
+- std::setw
+- std::smatch
+- std::stod
+- std::stof
+- std::stoi
+- std::stoul
+- std::streambuf
+- std::streamoff
+- std::streamsize
+- std::stringstream
+- std::strtod
+- std::to_string
 
-```bash
-flawfinder --minlevel=1 --columns --singleline src/
-```
+### Filesystem and Regex
 
-### Static Analysis Validation Script
+- std::filesystem
+- std::regex
+- std::regex_match
 
-```bash
-python3 scripts/validate_static_analysis.py --list-approved
-python3 scripts/validate_static_analysis.py --report build/cppcheck-report.xml
-python3 scripts/validate_static_analysis.py --report cppcheck-test-report.xml
-```
+### Random
 
-### Tests
+- std::discrete_distribution
+- std::mt19937
+- std::normal_distribution
+- std::random_device
+- std::uniform_int_distribution
+- std::uniform_real_distribution
 
-```bash
-cd build
-ctest --output-on-failure -j$(nproc)
-ctest --output-on-failure -j$(nproc) --timeout 300
-```
+### Concurrency and Atomics
 
-### Coverage
+- std::atomic
+- std::call_once
+- std::condition_variable
+- std::lock_guard
+- std::memory_order_acquire
+- std::memory_order_relaxed
+- std::memory_order_release
+- std::mutex
+- std::once_flag
+- std::this_thread
+- std::thread
+- std::unique_lock
 
-```bash
-cd build
-lcov --capture --directory . --output-file coverage.info --gcov-tool gcov
-lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' '*/BatchPrefetcher*' --output-file coverage.filtered.info
-genhtml coverage.filtered.info --output-directory coverage-report
-bash ../scripts/check_core_coverage_gate.sh coverage.filtered.info
-```
+### Types and Utilities
 
-### Profiling
+- std::chrono
+- std::current_exception
+- std::error_code
+- std::exception
+- std::exception_ptr
+- std::exit
+- std::function
+- std::get
+- std::hash
+- std::initializer_list
+- std::input_iterator_tag
+- std::invalid_argument
+- std::is_same_v
+- std::nullopt
+- std::numeric_limits
+- std::out_of_range
+- std::ptrdiff_t
+- std::rethrow_exception
+- std::runtime_error
+- std::size_t
+- std::tie
+- std::tm
+- std::uint8_t
+- std::uint16_t
+- std::uint32_t
 
-```bash
-valgrind --tool=callgrind --callgrind-out-file=callgrind.<exe>.out <exe> --gtest_filter='*Basic*'
-```
+### Character Classification and Conversion
 
-### Useful Inspection Commands
+- std::isalnum
+- std::isspace
+- std::tolower
 
-```bash
-grep 'file0="src/' cppcheck_lowrisk_current_inline.xml | grep -E 'id="(knownConditionTrueFalse|useStlAlgorithm|useInitializationList|passedByValue)"' | wc -l
-head -50 cppcheck-test-report.xml | grep -E 'error|location' | head -20
-```
+### C stdio Wrappers Used With std:: Namespace
+
+- std::fclose
+- std::fopen
+- std::fwrite
 
 ## Notes
 
-- CI uses the same analysis flow defined in .github/workflows/ci.yml.
-- The approved static-analysis allowlist is maintained in scripts/validate_static_analysis.py.
+- This is an API usage inventory, not a recommendation list.
+- The list can be regenerated with:
+
+```bash
+rg -o --no-filename "std::[A-Za-z_][A-Za-z0-9_]*" src include | sort -u
+```
