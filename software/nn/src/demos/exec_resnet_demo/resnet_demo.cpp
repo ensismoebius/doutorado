@@ -18,6 +18,7 @@
 #include "nn/layers/ReLU.hpp"
 #include "nn/layers/ResidualBlock.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
@@ -29,7 +30,7 @@ auto main() -> int
 {
     try
     {
-        cout << "ResNet demo: load .mat, train small ResNet-like MLP" << '\n';
+        NN_LOG_INFO("ResNet demo: load .mat, train small ResNet-like MLP");
 
         const string mat_path =
             "/home/ensismoebius/Documentos/UNESP/"
@@ -39,31 +40,28 @@ auto main() -> int
         const string var_name = "Audio";
 
         auto var_names = matioCpp::utils::list_variable_names(mat_path);
-        std::cout << "Variables in '" << mat_path << "': ";
         if (var_names.empty())
         {
-            std::cout << "(file could not be opened)\n";
+            NN_LOG_WARN("Variables in '" + mat_path + "': (file could not be opened)");
         }
         else
         {
-            for (const auto& n : var_names)
-            {
-                std::cout << n << " ";
-            }
-            std::cout << "\n";
+            std::string vars;
+            for (const auto& n : var_names) vars += n + " ";
+            NN_LOG_INFO("Variables in '" + mat_path + "': " + vars);
         }
 
         auto mat_opt = matioCpp::utils::load_named_variable_as_matrix(mat_path, var_name);
         if (!mat_opt)
         {
-            cerr << "Failed to load variable '" << var_name << "' from " << mat_path << '\n';
+            NN_LOG_ERROR("Failed to load variable '" + var_name + "' from " + mat_path);
             return 1;
         }
 
         nn::Tensor mat = std::move(*mat_opt);
         if (mat.cols() < 2)
         {
-            cerr << "Matrix must have at least 2 columns (features + label)" << '\n';
+            NN_LOG_ERROR("Matrix must have at least 2 columns (features + label)");
             return 1;
         }
 

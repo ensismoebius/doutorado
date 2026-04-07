@@ -7,10 +7,10 @@
 
 #include <gtest/gtest.h>
 
+#include "nn/io/StateIO.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Sequential.hpp"
 #include "nn/optimizers/Adam.hpp"
-#include "nn/serialization/StateIO.hpp"
 #include "nn/testing/tempfile.hpp"
 
 using namespace nn;
@@ -52,9 +52,9 @@ TEST(AdamModelState, SaveLoadModelAndOptimizerRoundtrip)
 
     const std::string tmp = nn::testing::make_temp_file("model_adam_");
     ASSERT_FALSE(tmp.empty());
-    ASSERT_TRUE(nn::serialization::save_state_dict(combined, tmp));
+    ASSERT_TRUE(nn::io::save_state_dict(combined, tmp));
 
-    auto loaded = nn::serialization::load_state_dict(tmp);
+    auto loaded = nn::io::load_state_dict(tmp);
     ASSERT_EQ(loaded.size(), combined.size());
     // Check a few keys exist
     ASSERT_TRUE(loaded.count("model.0.weight") || loaded.count("model.0.bias") ||

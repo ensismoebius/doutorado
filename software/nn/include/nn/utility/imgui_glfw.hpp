@@ -1,5 +1,5 @@
-#ifndef IMGUI_GLFW_H
-#define IMGUI_GLFW_H
+#ifndef NN_UTILITY_IMGUI_GLFW_HPP
+#define NN_UTILITY_IMGUI_GLFW_HPP
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>

@@ -1,5 +1,5 @@
-#ifndef LIF_HPP
-#define LIF_HPP
+#ifndef NN_LAYERS_LEAKY_HPP
+#define NN_LAYERS_LEAKY_HPP
 
 #include <cmath>
 #include <memory>
@@ -356,4 +356,4 @@ struct Leaky : public Module
     }
 };
 
-#endif // LIF_HPP
+#endif // NN_LAYERS_LEAKY_HPP

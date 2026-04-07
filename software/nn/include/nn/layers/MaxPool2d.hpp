@@ -5,7 +5,7 @@
 
 #include "nn/layers/Module.hpp"
 #include "nn/logging/Logger.hpp"
-#include "tensor/Tensor.hpp"
+#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file MaxPool2d.hpp

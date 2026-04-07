@@ -1,5 +1,5 @@
-#ifndef SGD_MINIMAL_HPP
-#define SGD_MINIMAL_HPP
+#ifndef NN_OPTIMIZERS_SGD_MINIMAL_HPP
+#define NN_OPTIMIZERS_SGD_MINIMAL_HPP
 
 #include <algorithm>
 #include <span>
@@ -79,4 +79,4 @@ struct SGDMinimal : public Optimizer
     }
 };
 
-#endif // SGD_MINIMAL_HPP
+#endif // NN_OPTIMIZERS_SGD_MINIMAL_HPP

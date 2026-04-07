@@ -9,7 +9,7 @@
 
 #include <cstdio>
 
-#include "nn/serialization/StateIO.hpp"
+#include "nn/io/StateIO.hpp"
 #include "nn/testing/tempfile.hpp"
 
 TEST(StateIO, RoundtripMap)
@@ -25,10 +25,10 @@ TEST(StateIO, RoundtripMap)
 
     const std::string tmp = nn::testing::make_temp_file("stateio_");
     ASSERT_FALSE(tmp.empty());
-    bool ok = nn::serialization::save_state_dict(m, tmp);
+    bool ok = nn::io::save_state_dict(m, tmp);
     ASSERT_TRUE(ok);
 
-    auto loaded = nn::serialization::load_state_dict(tmp);
+    auto loaded = nn::io::load_state_dict(tmp);
     ASSERT_EQ(loaded.size(), m.size());
     ASSERT_TRUE(loaded.count("weights"));
     ASSERT_TRUE(loaded.count("scalar"));

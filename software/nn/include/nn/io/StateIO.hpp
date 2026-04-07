@@ -21,6 +21,7 @@
 
 namespace nn::io
 {
+using StateDict = std::map<std::string, nn::Tensor>;
 // Save a state dictionary to a binary file. Format:
 // uint32_t num_entries
 // for each entry:
@@ -80,6 +81,13 @@ inline bool load_state_dict(std::map<std::string, nn::Tensor>& out, const std::s
         out.emplace(key, std::move(t));
     }
     return f.good();
+}
+
+inline StateDict load_state_dict(const std::string& path)
+{
+    StateDict out;
+    load_state_dict(out, path);
+    return out;
 }
 
 } // namespace nn::io

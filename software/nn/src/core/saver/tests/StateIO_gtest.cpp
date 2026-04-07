@@ -9,9 +9,10 @@
 
 #include <filesystem>
 
-#include "nn/serialization/StateIO.hpp"
+#include "nn/io/StateIO.hpp"
 
-using namespace nn::serialization;
+using StateDict = nn::io::StateDict;
+using namespace nn::io;
 
 TEST(StateIO, RoundtripSaveLoad)
 {

@@ -19,6 +19,7 @@
 #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 #include "nn/dataLoaders/mat_file_utils.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "phase00_features.hpp"
 
@@ -61,7 +62,7 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
 
         if (!eeg_dims_opt || eeg_dims_opt->empty() || !audio_dims_opt || audio_dims_opt->empty())
         {
-            std::cerr << "Failed to get dimensions for " << subject_name << ". Skipping.\n";
+            NN_LOG_ERROR("Failed to get dimensions for " + subject_name + ". Skipping.");
             continue;
         }
 
@@ -70,20 +71,20 @@ auto aggregate_trials(const Config& cfg) -> std::vector<TrialData>
 
         if (num_eeg_trials == 0 || num_audio_trials == 0)
         {
-            std::cerr << "No trials found for " << subject_name << ". Skipping.\n";
+            NN_LOG_WARN("No trials found for " + subject_name + ". Skipping.");
             continue;
         }
 
         if (num_eeg_trials != num_audio_trials)
         {
-            std::cerr << "Mismatch in number of trials for " << subject_name
-                      << ". EEG: " << num_eeg_trials << ", Audio: " << num_audio_trials
-                      << ". Skipping.\n";
+            NN_LOG_WARN("Mismatch in number of trials for " + subject_name +
+                        ". EEG: " + std::to_string(num_eeg_trials) +
+                        ", Audio: " + std::to_string(num_audio_trials) + ". Skipping.");
             continue;
         }
 
-        std::cout << "Processing subject " << subject_name << " with " << num_eeg_trials
-                  << " trials...\n";
+        NN_LOG_INFO("Processing subject " + subject_name + " with " +
+                    std::to_string(num_eeg_trials) + " trials...");
 
         for (size_t trial_idx = 0; trial_idx < num_eeg_trials; ++trial_idx)
         {
