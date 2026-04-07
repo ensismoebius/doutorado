@@ -1,5 +1,5 @@
-#ifndef SGD_HPP
-#define SGD_HPP
+#ifndef NN_OPTIMIZERS_SGD_HPP
+#define NN_OPTIMIZERS_SGD_HPP
 
 #include <span>
 #include <stdexcept>
@@ -66,8 +66,9 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
+            nn::Tensor grad = param.grad();
             velocity[i].multiply_scalar_inplace(momentum);
-            velocity[i].add_inplace(param.multiply_scalar(-learning_rate));
+            velocity[i].add_inplace(grad.multiply_scalar(-learning_rate));
             param.add_inplace(velocity[i]);
         }
     }

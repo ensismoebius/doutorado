@@ -9,8 +9,8 @@
  * - Prefer RAII for resource lifecycle when applicable.
  */
 
-// Lightweight state dict binary IO helpers
-#pragma once
+#ifndef NN_IO_STATEIO_HPP
+#define NN_IO_STATEIO_HPP
 
 #include <cstdint>
 #include <fstream>
@@ -83,3 +83,5 @@ inline bool load_state_dict(std::map<std::string, nn::Tensor>& out, const std::s
 }
 
 } // namespace nn::io
+
+#endif // NN_IO_STATEIO_HPP

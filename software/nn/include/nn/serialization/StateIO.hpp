@@ -9,8 +9,8 @@
  * - Prefer RAII for resource lifecycle when applicable.
  */
 
-// Single clean header-only implementation
-#pragma once
+#ifndef NN_SERIALIZATION_STATEIO_HPP
+#define NN_SERIALIZATION_STATEIO_HPP
 
 #include <cstdint>
 #include <fstream>
@@ -82,3 +82,5 @@ inline StateDict load_state_dict(const std::string& path)
 }
 
 } // namespace nn::serialization
+
+#endif // NN_SERIALIZATION_STATEIO_HPP

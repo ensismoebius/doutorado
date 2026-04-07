@@ -406,9 +406,9 @@ TEST(UtilComprehensiveTest, BatchContentVerification)
 TEST(UtilComprehensiveTest, VectorizationCheckOutput)
 {
     // Test that vectorization check doesn't crash and produces output
-    testing::internal::CaptureStdout();
+    testing::internal::CaptureStderr();
     ASSERT_NO_THROW(printVectorizationSupport());
-    std::string output = testing::internal::GetCapturedStdout();
+    std::string output = testing::internal::GetCapturedStderr();
     EXPECT_FALSE(output.empty());
 }
 

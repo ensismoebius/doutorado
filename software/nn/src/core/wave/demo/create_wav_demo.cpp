@@ -4,7 +4,6 @@
  */
 
 #include <cmath>
-#include <cstdio>
 #include <filesystem>
 #include <string>
 
