@@ -53,22 +53,25 @@ TEST(SqliteBatchSourceWindowing, PaddingRepeatLastSample)
     nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
     nn::windowing::WindowSpec audio_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 44100};
 
-    SqliteBatchSource src(tmpdir,
-        2,
-        nn::dataLoaders::SqliteDatasetType::FusedWindow,
-        eeg_win,
-        audio_win,
-        Protocol101117InputMode::Concatenated);
+    {
+        SqliteBatchSource src(tmpdir,
+            2,
+            nn::dataLoaders::SqliteDatasetType::FusedWindow,
+            eeg_win,
+            audio_win,
+            Protocol101117InputMode::Concatenated);
 
-    Batch b; // LCOV_EXCL_LINE
-    bool ok = src.next(b);
-    EXPECT_TRUE(ok);
-    EXPECT_EQ(b.inputs.rows(), 2);
-    EXPECT_EQ(b.targets.rows(), 2);
-    EXPECT_GT(b.inputs.cols(), 0);
-    EXPECT_GT(b.targets.cols(), 0);
+        Batch b; // LCOV_EXCL_LINE
+        bool ok = src.next(b);
+        EXPECT_TRUE(ok);
+        EXPECT_EQ(b.inputs.rows(), 2);
+        EXPECT_EQ(b.targets.rows(), 2);
+        EXPECT_GT(b.inputs.cols(), 0);
+        EXPECT_GT(b.targets.cols(), 0);
+    }
 
-    // Clean up
-    std::filesystem::remove(dbpath);
-    std::filesystem::remove(tmpdir);
+    // Clean up recursively in case SQLite leaves aux files (journal/wal/shm).
+    std::error_code ec;
+    std::filesystem::remove_all(tmpdir, ec);
+    EXPECT_FALSE(std::filesystem::exists(tmpdir));
 }
