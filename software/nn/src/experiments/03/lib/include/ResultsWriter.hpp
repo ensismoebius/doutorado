@@ -23,6 +23,12 @@ struct Summary
     std::string profile_name;
     std::string dataset_type;
     std::string autoencoder_type;
+    std::string optimizer_type;
+    float optimizer_learning_rate = 0.0F;
+    float optimizer_momentum = 0.0F;
+    float optimizer_adam_beta1 = 0.0F;
+    float optimizer_adam_beta2 = 0.0F;
+    float optimizer_adam_epsilon = 0.0F;
     int exit_code = 0;
     std::size_t total_samples = 0;
     std::size_t processed_samples = 0;

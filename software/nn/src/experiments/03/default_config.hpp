@@ -47,7 +47,12 @@ const Config default_config{
     .autoencoder_capacitance = 1.0F,
 
     // Training hyperparameters.
+    .training_optimizer_type = "adam",
     .training_learning_rate = 1e-4f,
+    .training_optimizer_momentum = 0.0F,
+    .training_optimizer_adam_beta1 = 0.9F,
+    .training_optimizer_adam_beta2 = 0.999F,
+    .training_optimizer_adam_epsilon = 1e-8F,
     .training_epochs = 2,
 
     // Window specs used by windowing datasets.

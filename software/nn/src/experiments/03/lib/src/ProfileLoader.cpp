@@ -377,7 +377,7 @@ static auto is_known_profile_key(const std::string& key) -> bool
 {
     if (key.rfind("_comment", 0) == 0) return true;
 
-    static constexpr std::array<std::string_view, 43> kKnownKeys = {
+    static constexpr std::array<std::string_view, 48> kKnownKeys = {
         "training_batch_size",
         "training_max_batches_per_epoch",
         "device",
@@ -415,7 +415,12 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "autoencoder_time_step",
         "autoencoder_resistance",
         "autoencoder_capacitance",
+        "training_optimizer_type",
         "training_learning_rate",
+        "training_optimizer_momentum",
+        "training_adam_beta1",
+        "training_adam_beta2",
+        "training_adam_epsilon",
         "training_epochs",
         "prefetch_lookahead",
         "prefetch_ram_cap_mb",
@@ -584,7 +589,12 @@ auto load_profile_to_config(
     parse_number(text, "autoencoder_resistance", out_config.autoencoder_resistance);
     parse_number(text, "autoencoder_capacitance", out_config.autoencoder_capacitance);
 
+    parse_string(text, "training_optimizer_type", out_config.training_optimizer_type);
     parse_number(text, "training_learning_rate", out_config.training_learning_rate);
+    parse_number(text, "training_optimizer_momentum", out_config.training_optimizer_momentum);
+    parse_number(text, "training_adam_beta1", out_config.training_optimizer_adam_beta1);
+    parse_number(text, "training_adam_beta2", out_config.training_optimizer_adam_beta2);
+    parse_number(text, "training_adam_epsilon", out_config.training_optimizer_adam_epsilon);
     parse_number(text, "training_epochs", out_config.training_epochs);
     parse_number(text, "prefetch_lookahead", out_config.prefetch_lookahead);
     parse_number(text, "prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);

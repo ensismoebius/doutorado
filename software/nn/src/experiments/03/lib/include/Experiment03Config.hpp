@@ -76,8 +76,13 @@ struct Config
     float autoencoder_capacitance;
 
     // Training hyperparameters.
-    float training_learning_rate; // Adam learning rate
-    size_t training_epochs;       // Number of passes over the dataset
+    string training_optimizer_type;        // Optimizer token: adam|sgd
+    float training_learning_rate;          // Shared optimizer learning rate
+    float training_optimizer_momentum;     // SGD momentum term
+    float training_optimizer_adam_beta1;   // Adam first-moment decay
+    float training_optimizer_adam_beta2;   // Adam second-moment decay
+    float training_optimizer_adam_epsilon; // Adam numerical stability epsilon
+    size_t training_epochs;                // Number of passes over the dataset
 
     // Window specs used by windowing datasets.
     nn::windowing::WindowSpec window_eeg_config;

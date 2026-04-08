@@ -18,7 +18,6 @@
 #include "RunSummaryBuilder.hpp"
 #include "experiment03.hpp"
 #include "experiment03_helpers.hpp"
-#include "nn/device/Device.hpp"
 
 // Core libraries
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
@@ -28,17 +27,17 @@
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
+#include "nn/device/Device.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/logging/Logger.hpp"
-#include "nn/optimizers/Adam.hpp"
+#include "nn/optimizers/Optimizer.hpp"
+#include "nn/optimizers/OptimizerFactory.hpp"
 #include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
 
-using std::exception;
-using std::make_shared;
-
+// Local using declarations for experiment components.
 using experiment03::build_autoencoder_model;
 using experiment03::build_run_summary;
 using experiment03::DatasetBuilder;
@@ -46,10 +45,17 @@ using experiment03::Summary;
 using experiment03::to_sqlite_dataset_type;
 using experiment03::write_run_summary_json;
 
+// Core nn namespaces
+using nn::Device;
 using nn::Index;
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::SqliteDatasetType;
+using nn::optimizers::OptimizerFactory;
+
+// Standard library namespaces
 using std::endl;
+using std::exception;
+using std::make_shared;
 using std::make_unique;
 using std::ostringstream;
 using std::runtime_error;
@@ -76,18 +82,21 @@ Experiment03::Experiment03(const Config& config) : config_(config)
 
 int Experiment03::run()
 {
+    /// Mean losses for each epoch, used for final reporting in the run summary.
     vector<float> epoch_mean_losses;
 
     try
     {
-        const auto device = nn::Device::from_string(config_.device)
-                                .with_profiling(config_.opencl_profiling_enabled);
+        /// Initialize device early to catch any configuration
+        /// or runtime errors before starting the training loop.
+        const auto device =
+            Device::from_string(config_.device).with_profiling(config_.opencl_profiling_enabled);
 
         ////////////////////////////
         // Dataset initialization //
         ////////////////////////////
 
-        // Discover subjects and initialize dataset with specified input mode.
+        /// Discover subjects and initialize dataset with specified input mode.
         const auto discovered = discoverSubjects( //
             config_.dataset_root_path,            //
             config_.dataset_subject_filter_regex  //
@@ -142,7 +151,14 @@ int Experiment03::run()
         // Create loss function and optimizer (optimizer may be initialized
         // eagerly here if we can construct the model from dataset metadata).
         MSELoss loss;
-        unique_ptr<Adam> optimizer;
+        unique_ptr<Optimizer> optimizer = OptimizerFactory::create( //
+            config_.training_optimizer_type,                        //
+            config_.training_learning_rate,                         //
+            config_.training_optimizer_momentum,                    //
+            config_.training_optimizer_adam_beta1,                  //
+            config_.training_optimizer_adam_beta2,                  //
+            config_.training_optimizer_adam_epsilon                 //
+        );
 
         // Attempt to eagerly construct model and optimizer before entering
         // the epoch loop. Prefer explicit config override, otherwise infer
@@ -169,8 +185,7 @@ int Experiment03::run()
         // Move model to requested device and verify OpenCL activity early.
         model_->to(device);
 
-        // Initialize optimizer now that model parameters are available.
-        optimizer = make_unique<Adam>(config_.training_learning_rate);
+        // Attach model parameters to optimizer.
         optimizer->attach(model_->params());
 
         // Training: iterate over all training_epochs.
@@ -252,7 +267,13 @@ int Experiment03::run()
                     model_->to(device);
 
                     // Initialize optimizer with model parameters.
-                    optimizer = make_unique<Adam>(config_.training_learning_rate);
+                    optimizer =
+                        nn::optimizers::OptimizerFactory::create(config_.training_optimizer_type,
+                            config_.training_learning_rate,
+                            config_.training_optimizer_momentum,
+                            config_.training_optimizer_adam_beta1,
+                            config_.training_optimizer_adam_beta2,
+                            config_.training_optimizer_adam_epsilon);
 
                     // Attach model parameters to optimizer.
                     optimizer->attach(model_->params());

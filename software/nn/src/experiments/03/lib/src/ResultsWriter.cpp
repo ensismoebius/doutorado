@@ -119,6 +119,14 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     ofs << "  \"profile\": \"" << escape_json(summary.profile_name) << "\",\n";
     ofs << "  \"dataset_type\": \"" << escape_json(summary.dataset_type) << "\",\n";
     ofs << "  \"autoencoder_type\": \"" << escape_json(summary.autoencoder_type) << "\",\n";
+    ofs << "  \"optimizer\": {\n";
+    ofs << "    \"type\": \"" << escape_json(summary.optimizer_type) << "\",\n";
+    ofs << "    \"learning_rate\": " << summary.optimizer_learning_rate << ",\n";
+    ofs << "    \"momentum\": " << summary.optimizer_momentum << ",\n";
+    ofs << "    \"adam_beta1\": " << summary.optimizer_adam_beta1 << ",\n";
+    ofs << "    \"adam_beta2\": " << summary.optimizer_adam_beta2 << ",\n";
+    ofs << "    \"adam_epsilon\": " << summary.optimizer_adam_epsilon << "\n";
+    ofs << "  },\n";
     ofs << "  \"exit_code\": " << summary.exit_code << ",\n";
     ofs << "  \"total_samples\": " << summary.total_samples << ",\n";
     ofs << "  \"processed_samples\": " << summary.processed_samples << ",\n";

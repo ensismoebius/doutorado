@@ -12,6 +12,7 @@
 
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/optimizers/Adam.hpp"
+#include "nn/optimizers/OptimizerFactory.hpp"
 #include "nn/optimizers/SGD.hpp"
 #include "nn/optimizers/SGDMinimal.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -142,6 +143,49 @@ TEST(OptimizerExceptionTest, NullParameters)
 
     SGD sgd_momentum(0.01F);
     ASSERT_THROW(sgd_momentum.attach(params_with_null), std::invalid_argument);
+}
+
+TEST(OptimizerFactoryTest, CreatesAdamOptimizer)
+{
+    nn::optimizers::OptimizerFactoryConfig cfg;
+    cfg.type = "adam";
+    cfg.learning_rate = 1e-3F;
+    cfg.adam_beta1 = 0.9F;
+    cfg.adam_beta2 = 0.999F;
+    cfg.adam_epsilon = 1e-8F;
+
+    auto optimizer = nn::optimizers::OptimizerFactory::create(cfg);
+    ASSERT_NE(optimizer, nullptr);
+    EXPECT_NE(dynamic_cast<Adam*>(optimizer.get()), nullptr);
+}
+
+TEST(OptimizerFactoryTest, CreatesSgdOptimizerCaseInsensitive)
+{
+    nn::optimizers::OptimizerFactoryConfig cfg;
+    cfg.type = "SGD";
+    cfg.learning_rate = 1e-2F;
+    cfg.momentum = 0.5F;
+
+    auto optimizer = nn::optimizers::OptimizerFactory::create(cfg);
+    ASSERT_NE(optimizer, nullptr);
+    EXPECT_NE(dynamic_cast<SGD*>(optimizer.get()), nullptr);
+}
+
+TEST(OptimizerFactoryTest, ThrowsOnUnknownType)
+{
+    nn::optimizers::OptimizerFactoryConfig cfg;
+    cfg.type = "unknown";
+    cfg.learning_rate = 1e-3F;
+
+    EXPECT_THROW((void) nn::optimizers::OptimizerFactory::create(cfg), std::runtime_error);
+}
+
+TEST(OptimizerFactoryTest, DirectOverloadCreatesAdam)
+{
+    auto optimizer =
+        nn::optimizers::OptimizerFactory::create("adam", 1e-3F, 0.0F, 0.9F, 0.999F, 1e-8F);
+    ASSERT_NE(optimizer, nullptr);
+    EXPECT_NE(dynamic_cast<Adam*>(optimizer.get()), nullptr);
 }
 
 // Numerical Edge Cases for Optimizers

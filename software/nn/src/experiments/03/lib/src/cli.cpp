@@ -365,10 +365,35 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->check(CLI::PositiveNumber)
         ->default_val(config.autoencoder_capacitance);
 
-    app.add_option("--lr", config.training_learning_rate, "Adam optimizer learning rate")
+    app.add_option("--optimizer", config.training_optimizer_type, "Optimizer type: adam or sgd")
+        ->expected(1)
+        ->check(CLI::IsMember({"adam", "sgd"}, CLI::ignore_case))
+        ->default_val(default_config.training_optimizer_type);
+
+    app.add_option("--lr", config.training_learning_rate, "Optimizer learning rate")
         ->expected(1)
         ->check(CLI::PositiveNumber)
         ->default_val(default_config.training_learning_rate);
+
+    app.add_option("--optimizer-momentum", config.training_optimizer_momentum, "SGD momentum term")
+        ->expected(1)
+        ->check(CLI::Range(0.0, 1.0))
+        ->default_val(default_config.training_optimizer_momentum);
+
+    app.add_option("--adam-beta1", config.training_optimizer_adam_beta1, "Adam beta1 decay")
+        ->expected(1)
+        ->check(CLI::Range(0.0, 1.0))
+        ->default_val(default_config.training_optimizer_adam_beta1);
+
+    app.add_option("--adam-beta2", config.training_optimizer_adam_beta2, "Adam beta2 decay")
+        ->expected(1)
+        ->check(CLI::Range(0.0, 1.0))
+        ->default_val(default_config.training_optimizer_adam_beta2);
+
+    app.add_option("--adam-epsilon", config.training_optimizer_adam_epsilon, "Adam epsilon")
+        ->expected(1)
+        ->check(CLI::PositiveNumber)
+        ->default_val(default_config.training_optimizer_adam_epsilon);
 
     app.add_option("--epochs", config.training_epochs, "Number of training epochs")
         ->expected(1)
