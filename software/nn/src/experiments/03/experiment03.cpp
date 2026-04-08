@@ -27,7 +27,6 @@ using std::size_t;
 auto main(int argc, char* argv[]) -> int
 {
     Config config = parseCliParams(argc, argv, default_config);
-
     StreamRedirector redirect(true, true);
     Experiment03 experiment(config);
     return experiment.run();
