@@ -7,8 +7,6 @@
  * the experiment implementation lives under `lib/src/` and the runtime
  * configuration is declared in `lib/include/experiment03.hpp`.
  */
-// FIXME - I want to run all autoencoders and compare its
-// results, test shards and make sure autoencoders are workign properly
 #include "lib/include/experiment03.hpp"
 
 #include <cstddef>
