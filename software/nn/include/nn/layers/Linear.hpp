@@ -2,7 +2,6 @@
 #define NN_LAYERS_LINEAR_HPP
 
 #include "nn/layers/Module.hpp"
-#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
