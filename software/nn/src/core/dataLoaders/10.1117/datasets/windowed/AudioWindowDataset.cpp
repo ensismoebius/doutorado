@@ -14,6 +14,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
@@ -162,4 +163,16 @@ void AudioWindowDataset::collate_into(const std::vector<std::size_t>& indices, B
         batch.targets.at(static_cast<nn::Index>(i), 0) = static_cast<float>(stimulus);
         batch.targets.at(static_cast<nn::Index>(i), 1) = static_cast<float>(eeg_index_label);
     }
+}
+
+void AudioWindowDataset::print(IDatasetPrinter& printer) const
+{
+    auto* windowing_printer = dynamic_cast<WindowingDatasetPrinter*>(&printer);
+    if (windowing_printer)
+    {
+        windowing_printer->print_audio_window(*this);
+        return;
+    }
+
+    printer.print_generic(*this);
 }

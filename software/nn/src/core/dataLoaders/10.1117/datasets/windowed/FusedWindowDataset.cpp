@@ -19,6 +19,7 @@
 #include <string>
 #include <tuple>
 
+#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
@@ -284,4 +285,16 @@ void FusedWindowDataset::collate_into(const std::vector<std::size_t>& indices, B
         batch.targets.at(row, 3) = static_cast<float>(eeg_labels[2]);
         batch.targets.at(row, 4) = static_cast<float>(eeg_index_label);
     }
+}
+
+void FusedWindowDataset::print(IDatasetPrinter& printer) const
+{
+    auto* windowing_printer = dynamic_cast<WindowingDatasetPrinter*>(&printer);
+    if (windowing_printer)
+    {
+        windowing_printer->print_fused_window(*this);
+        return;
+    }
+
+    printer.print_generic(*this);
 }

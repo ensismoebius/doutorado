@@ -26,6 +26,7 @@
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/IDatasetPrinter.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/device/Device.hpp"
 #include "nn/layers/MSELoss.hpp"
@@ -130,23 +131,17 @@ int Experiment03::run()
         // Store total dataset size for progress tracking.
         dataset_total_samples_ = dataset_->size();
 
-        // Print dataset summary before processing batches.
-        // Protocol datasets have a specialized summary; windowing datasets print basic info.
-        if (config_.dataset_type == Experiment03DatasetType::Protocol)
-        {
-            auto* const protocol_dataset = dynamic_cast<Dataset101117*>(dataset_.get());
-            if (protocol_dataset)
-            {
-                Dataset101117Printer printer(config_.dataset_root_path);
-                protocol_dataset->print(printer);
-            }
-        }
-        else
-        {
-            std::string dataset_type_label = dataset_type_to_string(config_.dataset_type);
-            WindowingDatasetPrinter printer(dataset_type_label);
-            dataset_->print(printer);
-        }
+        // Create a printer for the dataset type to log dataset summary information.
+        auto printer = config_.dataset_type == Experiment03DatasetType::Protocol        //
+                           ? static_cast<IDatasetPrinter*>(                             //
+                                 new Dataset101117Printer(config_.dataset_root_path)    //
+                                 )                                                      //
+                           : static_cast<IDatasetPrinter*>(new WindowingDatasetPrinter( //
+                                 dataset_type_to_string(config_.dataset_type))          //
+                             );                                                         //
+
+        // Print dataset summary using the appropriate printer strategy.
+        dataset_->print(*printer);
 
         /////////////////////////////////
         // Training loop setup and run //

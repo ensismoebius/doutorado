@@ -15,6 +15,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/windowing/WindowingEngine.hpp"
 
@@ -189,4 +190,16 @@ void EEGWindowDataset::collate_into(const std::vector<std::size_t>& indices, Bat
         batch.targets.at(static_cast<nn::Index>(i), 1) = static_cast<float>(eeg_labels[1]);
         batch.targets.at(static_cast<nn::Index>(i), 2) = static_cast<float>(eeg_labels[2]);
     }
+}
+
+void EEGWindowDataset::print(IDatasetPrinter& printer) const
+{
+    auto* windowing_printer = dynamic_cast<WindowingDatasetPrinter*>(&printer);
+    if (windowing_printer)
+    {
+        windowing_printer->print_eeg_window(*this);
+        return;
+    }
+
+    printer.print_generic(*this);
 }

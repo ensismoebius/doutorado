@@ -22,6 +22,7 @@ class EEGWindowDataset : public Dataset
     [[nodiscard]] auto size() const -> std::size_t override;
     [[nodiscard]] auto get_item(std::size_t idx) const -> Batch override;
     void collate_into(const std::vector<std::size_t>& indices, Batch& batch) const override;
+    void print(IDatasetPrinter& printer) const override;
 
     [[nodiscard]] auto spec() const noexcept -> const nn::windowing::WindowSpec&
     {

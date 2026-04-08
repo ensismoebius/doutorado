@@ -23,6 +23,7 @@ Recent updates
 - Window sample assembly now reserves per-window output capacity based on active window mode (`EegWindow`, `AudioWindow`, `FusedWindow`) to reduce hot-loop allocations.
 - `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.
 - `SqliteBatchSource::open_db()` failure diagnostics now use `NN_LOG_ERROR` instead of direct stderr writes.
+- Windowed datasets now implement type-specific `print(IDatasetPrinter&)` dispatch and `WindowingDatasetPrinter` outputs detailed modality-aware summaries (window specs, hop/overlap, per-row window factors, and feature counts) instead of only generic totals.
 
 Optimization techniques and references
 - Trial buffer pre-reservation (`eeg_accum`, `audio_accum`): capacity planning from SQLite blob-size metadata to avoid geometric reallocation/copy churn in hot decode loops (see [1], [2]).
