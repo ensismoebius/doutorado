@@ -27,10 +27,10 @@ class Experiment03
     // Dataset and pipeline components are stored as members so they
     // persist across `run()` and can be inspected or reused.
     // dataset_ uses base class pointer to support multiple dataset types.
-    std::unique_ptr<DataLoader> data_loader_;
-    std::unique_ptr<Module> model_;
     std::unique_ptr<BatchPrefetcher> prefetcher_;
+    std::unique_ptr<DataLoader> data_loader_;
     std::shared_ptr<Dataset> dataset_;
+    std::unique_ptr<Module> model_;
 
     std::size_t seen_batches_ = 0;
     std::size_t processed_samples_ = 0;

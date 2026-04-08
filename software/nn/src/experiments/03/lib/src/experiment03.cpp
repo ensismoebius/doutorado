@@ -56,6 +56,7 @@ using std::runtime_error;
 using std::size_t;
 using std::string;
 using std::unique_ptr;
+using std::vector;
 
 namespace
 {
@@ -75,7 +76,7 @@ Experiment03::Experiment03(const Config& config) : config_(config)
 
 int Experiment03::run()
 {
-    std::vector<float> epoch_mean_losses;
+    vector<float> epoch_mean_losses;
 
     try
     {
@@ -202,10 +203,10 @@ int Experiment03::run()
             // Determine max batches for this epoch. A value of 0 in the
             // configuration means "process the entire dataset for the
             // epoch", so compute the number of batches from dataset size.
-            std::size_t epoch_max_batches = config_.training_max_batches_per_epoch;
+            size_t epoch_max_batches = config_.training_max_batches_per_epoch;
             if (epoch_max_batches == 0)
             {
-                const std::size_t batches = dataset_total_samples_ / config_.training_batch_size;
+                const size_t batches = dataset_total_samples_ / config_.training_batch_size;
                 epoch_max_batches =
                     batches + (dataset_total_samples_ % config_.training_batch_size ? 1 : 0);
             }
