@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/dataset_info.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
 #include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
 #include "nn/dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
@@ -29,7 +29,6 @@ namespace
 {
 
 constexpr size_t INPUT_FEATURES = multimodalInputFeatureColumns();
-
 constexpr size_t AUDIO_FEATURES = nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 constexpr size_t STACKED_CONCAT_ROWS =
     nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels + 1U;
@@ -92,8 +91,7 @@ auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
 
 } // namespace
 
-Dataset101117::Dataset101117(
-    std::vector<SubjectFiles> subjects, Protocol101117InputMode input_mode)
+Dataset101117::Dataset101117(std::vector<SubjectFiles> subjects, Protocol101117InputMode input_mode)
     : subjects_(std::move(subjects)), input_mode_(input_mode)
 {
     prefix_audio_row_offsets_.reserve(subjects_.size() + 1);
@@ -175,8 +173,7 @@ void Dataset101117::set_input_mode(Protocol101117InputMode input_mode)
     return {.inputs = std::move(sample.inputs), .targets = std::move(sample.targets)};
 }
 
-[[nodiscard]] auto Dataset101117::collate(const std::vector<std::size_t>& indices) const
-    -> Batch
+[[nodiscard]] auto Dataset101117::collate(const std::vector<std::size_t>& indices) const -> Batch
 {
     if (indices.empty())
     {
@@ -338,8 +335,7 @@ void Dataset101117::ensureSubjectMatSessionsInitialized(size_t subject_index) co
     }
 }
 
-void Dataset101117::collate_into(
-    const std::vector<std::size_t>& indices, Batch& batch) const
+void Dataset101117::collate_into(const std::vector<std::size_t>& indices, Batch& batch) const
 {
     if (indices.empty())
     {

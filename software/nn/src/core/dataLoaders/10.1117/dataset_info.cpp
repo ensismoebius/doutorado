@@ -3,15 +3,15 @@
  * @brief Helpers to summarize dataset statistics for the Experiment03 demos.
  */
 
-#include "nn/dataLoaders/10.1117/dataset_info.hpp"
-
 #include <iomanip>
 #include <iostream>
 
 #include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
 #include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
 #include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
 #include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 
 using std::cout;
 using std::endl;

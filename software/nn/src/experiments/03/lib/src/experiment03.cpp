@@ -20,8 +20,8 @@
 #include "experiment03_helpers.hpp"
 
 // Core libraries
-#include "nn/dataLoaders/10.1117/dataset_info.hpp"
-#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
@@ -132,13 +132,14 @@ int Experiment03::run()
         dataset_total_samples_ = dataset_->size();
 
         // Create a printer for the dataset type to log dataset summary information.
-        auto printer = config_.dataset_type == Experiment03DatasetType::Protocol        //
-                           ? static_cast<IDatasetPrinter*>(                             //
-                                 new Dataset101117Printer(config_.dataset_root_path)    //
-                                 )                                                      //
-                           : static_cast<IDatasetPrinter*>(new WindowingDatasetPrinter( //
-                                 dataset_type_to_string(config_.dataset_type))          //
-                             );                                                         //
+        auto printer =
+            config_.dataset_type == Experiment03DatasetType::Protocol                           //
+                ? static_cast<IDatasetPrinter*>(                                                //
+                      new Dataset101117Printer(config_.dataset_root_path)                       //
+                      )                                                                         //
+                : static_cast<IDatasetPrinter*>(                                                //
+                      new WindowingDatasetPrinter(dataset_type_to_string(config_.dataset_type)) //
+                  );                                                                            //
 
         // Print dataset summary using the appropriate printer strategy.
         dataset_->print(*printer);
