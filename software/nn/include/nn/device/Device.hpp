@@ -21,19 +21,13 @@
 
 namespace nn
 {
+
 enum class DeviceType
 {
     CPU,
     OPENCL,
 };
 
-/**
- * @brief Lightweight device descriptor (value type, PyTorch-like).
- *
- * Carries the device type, an identifier string, and optional per-device
- * settings. Created via `from_string()` and passed to `Module::to()` or
- * `DeviceRuntime::ensure_runtime()`.
- */
 struct Device
 {
     DeviceType type = DeviceType::CPU; ///< Resolved device type.
@@ -89,26 +83,7 @@ struct Device
  */
 struct DeviceRuntime
 {
-    /**
-     * @brief Lazily initialise the device runtime (thread-safe, idempotent).
-     *
-     * For OpenCL: starts the runtime and buffer pool on the first call, using
-     * the `profiling_enabled` flag from `device`.  For CPU: always a no-op.
-     *
-     * @throws std::runtime_error when OpenCL initialisation fails.
-     */
-    static void ensure_runtime(const Device& device)
-    {
-        if (!device.is_opencl()) return;
-        static std::once_flag s_flag;
-        static std::optional<nn::OpenCLTensorBackend::RuntimeScope> s_scope;
-        std::call_once(s_flag,
-            [&device]
-            {
-                s_scope =
-                    nn::OpenCLTensorBackend::start_runtime_scope_or_throw(device.profiling_enabled);
-            });
-    }
+    static void ensure_runtime(const Device& device);
 };
 
 } // namespace nn

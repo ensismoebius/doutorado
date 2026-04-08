@@ -6,6 +6,7 @@ add_library(tensor STATIC
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLProfiling.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/GPUBufferPool.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLTensorBackend.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/opencl/DeviceRuntime.cpp
 )
 
 target_include_directories(tensor PUBLIC

@@ -265,6 +265,11 @@ int Experiment03::run()
                 optimizer->zero_grad(params);
 
                 // Forward pass (unsupervised reconstruction: target == input).
+                // Note: For OpenCL, the per-operation CPU->GPU copy happens inside each tensor
+                // operation. The codebase's Module::forward accepts nn::Tensor (EigenBackend)
+                // so explicit GPU transfer would require API changes to support polymorphic
+                // tensor backends. The current implementation handles this via the OpenCL
+                // backend's internal copy_to_device() calls within each operation.
                 auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
 
                 // Compute MSE reconstruction loss.

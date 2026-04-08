@@ -18,7 +18,9 @@
 #include <string_view>
 #include <vector>
 
+#include "nn/device/Device.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/GPUBufferPool.hpp"
 namespace nn
 {
@@ -65,6 +67,11 @@ class OpenCLTensorBackend
     explicit OpenCLTensorBackend(Index rows, Index cols);
     explicit OpenCLTensorBackend(Index d1, Index d2, Index d3, Index d4);
     explicit OpenCLTensorBackend(const std::vector<Index>& shape);
+
+    // Construct from shape on a specific device (GPU)
+    // Initializes GPU memory directly if OpenCL is available
+    explicit OpenCLTensorBackend(const std::vector<Index>& shape, const Device& device);
+    explicit OpenCLTensorBackend(Index rows, Index cols, const Device& device);
 
     // Copy/Move construction: delegate to Eigen backend
     OpenCLTensorBackend(const OpenCLTensorBackend& other);
@@ -242,9 +249,52 @@ class OpenCLTensorBackend
      */
     static tensor::GPUBufferPool* get_buffer_pool();
 
+    // Check if this tensor has GPU memory allocated
+    bool has_gpu_memory() const
+    {
+        return m_has_gpu_memory;
+    }
+
+    // Get the GPU buffer if available (for internal use)
+    tensor::GPUBuffer* gpu_buffer()
+    {
+        return m_gpu_buffer.get();
+    }
+
+    // Synchronize pending GPU operations before CPU access
+    void sync_gpu() const;
+
+    // Check if there are pending GPU operations
+    bool has_pending_gpu_ops() const
+    {
+        return m_pending_events_count > 0;
+    }
+
+    // Record pending GPU operation (for lazy synchronization)
+    void record_pending_gpu_op(cl_event evt)
+    {
+        if (m_pending_events_count < max_pending_events && evt)
+        {
+            m_pending_events[m_pending_events_count++] = evt;
+        }
+        else if (evt)
+        {
+            clReleaseEvent(evt);
+        }
+    }
+
+    static constexpr size_t max_pending_events = 16;
+
+    // Helper to allocate persistent GPU buffer (internal use)
+    void try_allocate_gpu_buffer(Index size);
+
    private:
     std::unique_ptr<EigenTensorBackend> m_backend;
     std::unique_ptr<OpenCLTensorBackend> m_grad_backend;
+    std::unique_ptr<tensor::GPUBuffer> m_gpu_buffer;
+    bool m_has_gpu_memory = false;
+    mutable cl_event m_pending_events[max_pending_events];
+    mutable size_t m_pending_events_count = 0;
 };
 
 } // namespace nn

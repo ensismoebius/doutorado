@@ -90,6 +90,28 @@ __kernel void multiply_kernel(
     C[idx] = A[idx] * B[idx];
 }
 
+__kernel void subtract_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] - B[idx];
+}
+
+__kernel void divide_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] / (B[idx] + 1e-8f);
+}
+
 __kernel void exp_kernel(
     __global const float* input,
     __global float* output,
@@ -107,7 +129,17 @@ __kernel void sqrt_kernel(
 ) {
     const uint idx = get_global_id(0);
     if (idx >= size) return;
-    output[idx] = sqrt(input[idx]);
+    output[idx] = sqrt(max(input[idx], 0.0f));
+}
+
+__kernel void square_kernel(
+    __global const float* input,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] * input[idx];
 }
 
 __kernel void add_scalar_kernel(
@@ -131,6 +163,228 @@ __kernel void multiply_scalar_kernel(
     if (idx >= size) return;
     output[idx] = input[idx] * scalar;
 }
+
+__kernel void divide_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float scalar,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] / (scalar + 1e-8f);
+}
+
+__kernel void add_inplace_kernel(
+    __global float* A,
+    __global const float* B,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    A[idx] = A[idx] + B[idx];
+}
+
+__kernel void subtract_inplace_kernel(
+    __global float* A,
+    __global const float* B,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    A[idx] = A[idx] - B[idx];
+}
+
+__kernel void multiply_inplace_kernel(
+    __global float* A,
+    __global const float* B,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    A[idx] = A[idx] * B[idx];
+}
+
+__kernel void divide_inplace_kernel(
+    __global float* A,
+    __global const float* B,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    A[idx] = A[idx] / (B[idx] + 1e-8f);
+}
+
+__kernel void add_scalar_inplace_kernel(
+    __global float* data,
+    const float scalar,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = data[idx] + scalar;
+}
+
+__kernel void multiply_scalar_inplace_kernel(
+    __global float* data,
+    const float scalar,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = data[idx] * scalar;
+}
+
+__kernel void divide_scalar_inplace_kernel(
+    __global float* data,
+    const float scalar,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = data[idx] / (scalar + 1e-8f);
+}
+
+__kernel void sqrt_inplace_kernel(
+    __global float* data,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = sqrt(max(data[idx], 0.0f));
+}
+
+__kernel void square_inplace_kernel(
+    __global float* data,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = data[idx] * data[idx];
+}
+
+__kernel void add_col_vector_to_rows_kernel(
+    __global float* data,
+    __global const float* col_vector,
+    const uint rows,
+    const uint cols
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= rows * cols) return;
+    const uint row = idx % rows;
+    const uint col = idx / rows;
+    data[idx] = data[idx] + col_vector[row];
+}
+
+__kernel void compare_lt_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] < B[idx] ? 1.0f : 0.0f;
+}
+
+__kernel void compare_gt_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] > B[idx] ? 1.0f : 0.0f;
+}
+
+__kernel void compare_le_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] <= B[idx] ? 1.0f : 0.0f;
+}
+
+__kernel void compare_ge_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = A[idx] >= B[idx] ? 1.0f : 0.0f;
+}
+
+__kernel void compare_eq_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    C[idx] = fabs(A[idx] - B[idx]) < 1e-6f ? 1.0f : 0.0f;
+}
+
+__kernel void compare_lt_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] < value ? 1.0f : 0.0f;
+}
+
+__kernel void compare_gt_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] > value ? 1.0f : 0.0f;
+}
+
+__kernel void compare_le_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] <= value ? 1.0f : 0.0f;
+}
+
+__kernel void compare_ge_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] >= value ? 1.0f : 0.0f;
+}
+
+__kernel void compare_eq_scalar_kernel(
+    __global const float* input,
+    __global float* output,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = fabs(input[idx] - value) < 1e-6f ? 1.0f : 0.0f;
+}
 )";
 
 static constexpr const char* KERNEL_SOURCE_REDUCTIONS = R"(
@@ -150,6 +404,33 @@ __kernel void rowwise_sum_kernel(
     }
 
     output[row] = sum;
+}
+)";
+
+static constexpr const char* KERNEL_SOURCE_FUSED = R"(
+__kernel void mul_add_kernel(
+    __global const float* a,
+    __global const float* b,
+    __global const float* c,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = a[idx] * b[idx] + c[idx];
+}
+
+__kernel void mul_add_sigmoid_kernel(
+    __global const float* a,
+    __global const float* b,
+    __global const float* c,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float val = a[idx] * b[idx] + c[idx];
+    output[idx] = 1.0f / (1.0f + exp(-val));
 }
 )";
 
@@ -182,6 +463,10 @@ std::string KernelManager::get_kernel_source(const std::string& program_name) co
     else if (program_name == "reductions")
     {
         return KERNEL_SOURCE_REDUCTIONS;
+    }
+    else if (program_name == "fused")
+    {
+        return KERNEL_SOURCE_FUSED;
     }
     else
     {
@@ -266,6 +551,10 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
     else if (kernel_name.find("rowwise_sum") != std::string::npos)
     {
         program_name = "reductions";
+    }
+    else if (kernel_name.find("mul_add") != std::string::npos)
+    {
+        program_name = "fused";
     }
     else
     {

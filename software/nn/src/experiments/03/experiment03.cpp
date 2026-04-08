@@ -83,7 +83,7 @@ const Config default_config{
     .prefetch_lookahead = 20,
 
     .prefetch_ram_cap_mb = 1000,
-    .opencl_profiling_enabled = false,
+    .opencl_profiling_enabled = true,
 };
 
 auto main(int argc, char* argv[]) -> int

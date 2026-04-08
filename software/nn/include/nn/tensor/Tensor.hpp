@@ -23,6 +23,12 @@
 #include <span>
 #include <vector>
 
+// Forward declare Device to avoid circular include
+namespace nn
+{
+struct Device;
+}
+
 // EigenTensorBackend.hpp must be available in include path.
 #include "nn/tensor/eigen/EigenTensorBackend.hpp"
 
