@@ -1,6 +1,7 @@
 #ifndef OPTIMIZER_HPP
 #define OPTIMIZER_HPP
 
+#include <map>
 #include <span>
 #include <vector>
 

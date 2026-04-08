@@ -1,8 +1,6 @@
 #ifndef ADAM_HPP
 #define ADAM_HPP
 
-#include <cmath>
-#include <span>
 #include <stdexcept>
 
 #include "nn/optimizers/Optimizer.hpp"

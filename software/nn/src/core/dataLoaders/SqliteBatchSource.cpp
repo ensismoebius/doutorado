@@ -52,6 +52,13 @@ bool SqliteBatchSource::open_db()
         return false;
     }
 
+    // Performance optimizations for faster I/O
+    sqlite3_exec(db_, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA synchronous=NORMAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA cache_size=10000;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db_, "PRAGMA mmap_size=268435456;", nullptr, nullptr, nullptr); // 256MB
+    sqlite3_exec(db_, "PRAGMA temp_store=MEMORY;", nullptr, nullptr, nullptr);
+
     // Prepare statements that operate on the provided schema.
     // Select only trials that have both audio and eeg rows. Use DISTINCT
     // because joining with audio_samples and eeg_samples may produce

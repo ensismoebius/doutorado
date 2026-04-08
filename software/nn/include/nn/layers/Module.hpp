@@ -7,7 +7,6 @@
 
 #include "nn/device/Device.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 
 /**
  * @file Module.hpp

@@ -13,11 +13,8 @@
 
 #pragma once
 
-#include <mutex>
-#include <optional>
 #include <string>
 
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 
 namespace nn
 {

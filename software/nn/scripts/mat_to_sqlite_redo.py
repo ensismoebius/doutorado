@@ -93,7 +93,7 @@ def create_schema(conn):
         FOREIGN KEY(stimulus_id) REFERENCES stimulus(id)
     );
     """)
-    # eeg_samples: per-trial, per-channel blobs
+    # eeg_samples: per-trial, per-channel blobs - NO COMPRESSION for faster I/O
     c.execute("""
     CREATE TABLE IF NOT EXISTS eeg_samples (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +108,7 @@ def create_schema(conn):
         FOREIGN KEY(trial_id) REFERENCES trial(id)
     );
     """)
-    # audio_samples
+    # audio_samples - NO COMPRESSION for faster I/O
     c.execute("""
     CREATE TABLE IF NOT EXISTS audio_samples (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -118,6 +118,11 @@ def create_schema(conn):
         FOREIGN KEY(trial_id) REFERENCES trial(id)
     );
     """)
+    # Disable SQLite compression for this database
+    c.execute("PRAGMA journal_mode=WAL;")
+    c.execute("PRAGMA synchronous=NORMAL;")
+    c.execute("PRAGMA cache_size=10000;")
+    c.execute("PRAGMA mmap_size=268435456;")  # 256MB memory-mapped I/O
     # simple indexes
     c.execute("CREATE INDEX IF NOT EXISTS idx_trial_subject ON trial(subject_id);")
     c.execute("CREATE INDEX IF NOT EXISTS idx_eeg_trial ON eeg_samples(trial_id);")
