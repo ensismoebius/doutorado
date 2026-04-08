@@ -2,7 +2,6 @@ file(GLOB PROTOCOL_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/datasets/raw/*.cpp)
 
 add_library(dataLoaders_10_1117
     STATIC
-    dataset_info.cpp
     loaders/AudioLoader.cpp
     loaders/EEGLoader.cpp
     schema/SubjectDiscovery.cpp
@@ -47,6 +46,7 @@ add_library(dataLoaders_10_1117_windowing
         datasets/windowed/EEGWindowDataset.cpp
         datasets/windowed/AudioWindowDataset.cpp
         datasets/windowed/FusedWindowDataset.cpp
+    datasets/windowed/WindowingDatasetPrinter.cpp
 )
 
 target_include_directories(dataLoaders_10_1117_windowing
