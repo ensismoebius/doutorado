@@ -2,10 +2,12 @@
 #define MODULE_HPP
 
 #include <map>
+#include <span>
 #include <string>
 
 #include "nn/device/Device.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 
 /**
  * @file Module.hpp
@@ -68,6 +70,24 @@ struct Module
      * expected to produce meaningful gradients for the module parameters.
      */
     virtual auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor = 0;
+
+    /**
+     * @brief Templated forward pass for backend-polymorphic execution.
+     *
+     * This allows forwarding tensors with different backends (Eigen, OpenCL, etc.)
+     * without CPU->GPU copies. The default implementation converts to nn::Tensor
+     * (Eigen backend). Override for GPU-native implementations.
+     *
+     * @tparam Backend Tensor backend type (e.g., EigenTensorBackend, OpenCLTensorBackend)
+     * @param input Input tensor with any backend
+     * @param requires_grad Enable gradient caching
+     * @return Output tensor (default returns Eigen backend)
+     */
+    template <typename Backend>
+    auto forward(nn::TensorImpl<Backend>& input, bool requires_grad = true) -> nn::Tensor
+    {
+        return forward(static_cast<const nn::Tensor&>(input), requires_grad);
+    }
 
     /**
      * @brief Backward pass: propagates gradient from module output to module input.

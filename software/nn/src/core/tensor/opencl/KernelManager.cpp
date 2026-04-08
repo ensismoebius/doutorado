@@ -432,6 +432,70 @@ __kernel void mul_add_sigmoid_kernel(
     float val = a[idx] * b[idx] + c[idx];
     output[idx] = 1.0f / (1.0f + exp(-val));
 }
+
+__kernel void relu_kernel(
+    __global const float* input,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = fmax(input[idx], 0.0f);
+}
+
+__kernel void relu_inplace_kernel(
+    __global float* data,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = fmax(data[idx], 0.0f);
+}
+
+__kernel void add_bias_kernel(
+    __global const float* input,
+    __global const float* bias,
+    __global float* output,
+    const uint rows,
+    const uint cols
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= rows * cols) return;
+    const uint row = idx % rows;
+    output[idx] = input[idx] + bias[row];
+}
+
+__kernel void matmul_add_bias_kernel(
+    __global const float* a,
+    __global const float* b,
+    __global const float* bias,
+    __global float* output,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0) / N;
+    const uint col = get_global_id(0) % N;
+    if (row >= M || col >= N) return;
+    
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        sum += a[row * K + i] * b[i * N + col];
+    }
+    output[row * N + col] = sum + bias[col];
+}
+
+__kernel void gelu_kernel(
+    __global const float* input,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float x = input[idx];
+    float cdf = 0.5f * (1.0f + tanh(0.7978845608f * (x + 0.044715f * x * x * x)));
+    output[idx] = x * cdf;
+}
 )";
 
 KernelManager& KernelManager::instance()
