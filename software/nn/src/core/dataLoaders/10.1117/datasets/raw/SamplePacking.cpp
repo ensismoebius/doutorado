@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -139,7 +139,7 @@ auto mergeAudioAndEEGSignals(const nn::Tensor& eeg_matrix, const nn::Tensor& aud
 }
 
 // extractEegFromAssembledRows and extractAudioFromAssembledRows removed;
-// dataset now performs these slices inline in `Protocol101117Dataset::collate`.
+// dataset now performs these slices inline in `Dataset101117::collate`.
 
 auto buildInputTensor(const nn::Tensor& eeg, const nn::Tensor& audio) -> nn::Tensor
 {

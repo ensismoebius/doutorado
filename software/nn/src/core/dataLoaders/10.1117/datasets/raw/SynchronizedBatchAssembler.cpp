@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
@@ -125,7 +125,8 @@ static void processEegBlocksForTasks(size_t subject_index,
             const int stimulus_label = eeg_labels[1];
             if (task.audio_stimulus != stimulus_label)
             {
-                throw runtime_error("Stimulus mismatch between audio and EEG in collate"); // LCOV_EXCL_LINE
+                throw runtime_error(
+                    "Stimulus mismatch between audio and EEG in collate"); // LCOV_EXCL_LINE
             }
 
             // Rebuild per-channel EEG matrix from flat signals.

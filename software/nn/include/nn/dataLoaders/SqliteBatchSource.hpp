@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 
 namespace nn::dataLoaders

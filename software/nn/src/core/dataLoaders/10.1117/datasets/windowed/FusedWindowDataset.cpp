@@ -13,7 +13,7 @@
  *   where W = eeg_window_size, M = audio_window_size.
  */
 
-#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
 #include <stdexcept>
 #include <string>

@@ -1,11 +1,11 @@
 /**
- * @file src/core/dataLoaders/10.1117/protocol/Protocol101117Dataset.cpp
+ * @file src/core/dataLoaders/10.1117/protocol/Dataset101117.cpp
  * @brief Implementation for Protocol101117dataset.
  *
 
  */
 
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 
 #include <algorithm>
 #include <array>
@@ -15,8 +15,9 @@
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
-#include "nn/dataLoaders/10.1117/protocol/SynchronizedBatchAssembler.hpp"
+#include "nn/dataLoaders/10.1117/dataset_info.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp"
 #include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
 using nn::dataLoaders::schema101117::eegFeatureColumns;
@@ -91,7 +92,7 @@ auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
 
 } // namespace
 
-Protocol101117Dataset::Protocol101117Dataset(
+Dataset101117::Dataset101117(
     std::vector<SubjectFiles> subjects, Protocol101117InputMode input_mode)
     : subjects_(std::move(subjects)), input_mode_(input_mode)
 {
@@ -108,17 +109,17 @@ Protocol101117Dataset::Protocol101117Dataset(
     eeg_sessions_.resize(subjects_.size());
 }
 
-void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
+void Dataset101117::set_input_mode(Protocol101117InputMode input_mode)
 {
     input_mode_ = input_mode;
 }
 
-[[nodiscard]] auto Protocol101117Dataset::input_mode() const -> Protocol101117InputMode
+[[nodiscard]] auto Dataset101117::input_mode() const -> Protocol101117InputMode
 {
     return input_mode_;
 }
 
-[[nodiscard]] auto Protocol101117Dataset::get_sample(size_t idx,
+[[nodiscard]] auto Dataset101117::get_sample(size_t idx,
     std::optional<Protocol101117InputMode> input_mode_override) const -> Protocol101117Sample
 {
     if (idx >= size())
@@ -163,18 +164,18 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     return sample;
 }
 
-[[nodiscard]] auto Protocol101117Dataset::size() const -> size_t
+[[nodiscard]] auto Dataset101117::size() const -> size_t
 {
     return prefix_audio_row_offsets_.empty() ? 0 : prefix_audio_row_offsets_.back();
 }
 
-[[nodiscard]] auto Protocol101117Dataset::get_item(size_t idx) const -> Batch
+[[nodiscard]] auto Dataset101117::get_item(size_t idx) const -> Batch
 {
     auto sample = get_sample(idx);
     return {.inputs = std::move(sample.inputs), .targets = std::move(sample.targets)};
 }
 
-[[nodiscard]] auto Protocol101117Dataset::collate(const std::vector<std::size_t>& indices) const
+[[nodiscard]] auto Dataset101117::collate(const std::vector<std::size_t>& indices) const
     -> Batch
 {
     if (indices.empty())
@@ -264,9 +265,24 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
     return {.inputs = std::move(inputs), .targets = std::move(targets)};
 }
 
-[[nodiscard]] auto Protocol101117Dataset::subjects() const -> const std::vector<SubjectFiles>&
+[[nodiscard]] auto Dataset101117::subjects() const -> const std::vector<SubjectFiles>&
 {
     return subjects_;
+}
+
+void Dataset101117::print(IDatasetPrinter& printer) const
+{
+    // Attempt to cast and call specific printer method for Dataset101117
+    auto* protocol_printer = dynamic_cast<Dataset101117Printer*>(&printer);
+    if (protocol_printer)
+    {
+        protocol_printer->print_protocol101117(*this);
+    }
+    else
+    {
+        // Fall back to generic printing
+        printer.print_generic(*this);
+    }
 }
 
 /**
@@ -283,7 +299,7 @@ void Protocol101117Dataset::set_input_mode(Protocol101117InputMode input_mode)
  * It is NOT thread-safe; callers must synchronize externally if used from
  * multiple threads.
  */
-void Protocol101117Dataset::ensureSubjectMatSessionsInitialized(size_t subject_index) const
+void Dataset101117::ensureSubjectMatSessionsInitialized(size_t subject_index) const
 {
     if (audio_sessions_.at(subject_index) && eeg_sessions_.at(subject_index))
     {
@@ -322,7 +338,7 @@ void Protocol101117Dataset::ensureSubjectMatSessionsInitialized(size_t subject_i
     }
 }
 
-void Protocol101117Dataset::collate_into(
+void Dataset101117::collate_into(
     const std::vector<std::size_t>& indices, Batch& batch) const
 {
     if (indices.empty())

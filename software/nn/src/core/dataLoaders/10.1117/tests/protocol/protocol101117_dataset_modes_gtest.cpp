@@ -13,12 +13,12 @@
 #include <cmath>
 #include <filesystem>
 #include <optional>
-#include <string>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
-#include "nn/dataLoaders/10.1117/protocol/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
@@ -33,7 +33,7 @@ constexpr std::size_t kStackedConcatCols =
     nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples();
 constexpr std::size_t kStackedConcatFeatures = kStackedConcatRows * kStackedConcatCols;
 
-class Protocol101117DatasetModesTest : public ::testing::Test
+class Dataset101117ModesTest : public ::testing::Test
 {
    protected:
     std::filesystem::path tmp_root_;
@@ -156,9 +156,9 @@ class Protocol101117DatasetModesTest : public ::testing::Test
 };
 } // namespace
 
-TEST_F(Protocol101117DatasetModesTest, ConstructorAndSetterControlConcatenationMode)
+TEST_F(Dataset101117ModesTest, ConstructorAndSetterControlConcatenationMode)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects());
+    auto dataset = Dataset101117(discoveredSubjects());
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::Concatenated);
 
     dataset.set_input_mode(Protocol101117InputMode::EegOnly);
@@ -171,9 +171,9 @@ TEST_F(Protocol101117DatasetModesTest, ConstructorAndSetterControlConcatenationM
     EXPECT_EQ(dataset.input_mode(), Protocol101117InputMode::AudioOnly);
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfigured)
+TEST_F(Dataset101117ModesTest, GetSampleReturnsSeparatedTensorsWhenConfigured)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
+    auto dataset = Dataset101117(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const auto sample = dataset.get_sample(0);
 
@@ -192,9 +192,9 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsSeparatedTensorsWhenConfi
     EXPECT_EQ(sample.targets.cols(), 5);
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
+TEST_F(Dataset101117ModesTest, GetSampleOverrideCanReturnConcatenated)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
+    auto dataset = Dataset101117(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const auto sample = dataset.get_sample(0, Protocol101117InputMode::Concatenated);
 
@@ -203,9 +203,9 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleOverrideCanReturnConcatenated)
     EXPECT_EQ(sample.inputs.cols(), static_cast<int>(kStackedConcatCols));
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
+TEST_F(Dataset101117ModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::AudioOnly);
+    auto dataset = Dataset101117(discoveredSubjects(), Protocol101117InputMode::AudioOnly);
 
     const auto sample = dataset.get_sample(0);
 
@@ -222,9 +222,9 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleReturnsAudioOnlyWhenConfigured)
         static_cast<int>(nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel()));
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
+TEST_F(Dataset101117ModesTest, GetItemFollowsModeConfiguration)
 {
-    auto dataset = Protocol101117Dataset(discoveredSubjects(), Protocol101117InputMode::EegOnly);
+    auto dataset = Dataset101117(discoveredSubjects(), Protocol101117InputMode::EegOnly);
 
     const Batch item = dataset.get_item(0);
     EXPECT_EQ(item.inputs.rows(),
@@ -244,7 +244,7 @@ TEST_F(Protocol101117DatasetModesTest, GetItemFollowsModeConfiguration)
     EXPECT_EQ(audio_only_batch.inputs.cols(), 1);
 }
 
-TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAlignedMapping)
+TEST_F(Dataset101117ModesTest, CollateFollowsModeConfigurationWithAlignedMapping)
 {
     const auto subject_dir = tmp_root_ / "S99";
     std::filesystem::create_directories(subject_dir);
@@ -258,7 +258,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
-    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::EegOnly);
+    Dataset101117 dataset({only_subject}, Protocol101117InputMode::EegOnly);
 
     const Batch eeg_only_batch = dataset.collate({0U, 1U, 2U});
     EXPECT_EQ(eeg_only_batch.inputs.rows(), 3);
@@ -283,7 +283,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateFollowsModeConfigurationWithAligne
     EXPECT_EQ(audio_only_batch.targets.cols(), 5);
 }
 
-TEST_F(Protocol101117DatasetModesTest,
+TEST_F(Dataset101117ModesTest,
     ConcatenatedModeStacksAudioThenEegWithLinearResamplingAndPreservesTargets)
 {
     const auto subject_dir = tmp_root_ / "S99";
@@ -298,7 +298,7 @@ TEST_F(Protocol101117DatasetModesTest,
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
-    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset({only_subject}, Protocol101117InputMode::Concatenated);
     const auto sample = dataset.get_sample(1U);
 
     const std::size_t eeg_channels = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels;
@@ -361,7 +361,7 @@ TEST_F(Protocol101117DatasetModesTest,
 }
 
 TEST_F(
-    Protocol101117DatasetModesTest, CollateConcatenatedModePreservesStackOrderAndLinearResampling)
+    Dataset101117ModesTest, CollateConcatenatedModePreservesStackOrderAndLinearResampling)
 {
     const auto subject_dir = tmp_root_ / "S99";
     std::filesystem::create_directories(subject_dir);
@@ -375,7 +375,7 @@ TEST_F(
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
-    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset({only_subject}, Protocol101117InputMode::Concatenated);
     const Batch batch = dataset.collate({0U, 1U, 2U});
 
     const std::size_t eeg_channels = nn::dataLoaders::ImaginedSpeechSchema_10_1117.eeg_channels;
@@ -432,7 +432,7 @@ TEST_F(
     }
 }
 
-TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputAndTargetContracts)
+TEST_F(Dataset101117ModesTest, SamplePackingBuildInputAndTargetContracts)
 {
     const auto& schema = nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 
@@ -455,7 +455,7 @@ TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputAndTargetContracts
     EXPECT_EQ(target.at(0, 4), 9.0F);
 }
 
-TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputThrowsOnWrongShapes)
+TEST_F(Dataset101117ModesTest, SamplePackingBuildInputThrowsOnWrongShapes)
 {
     const auto& schema = nn::dataLoaders::ImaginedSpeechSchema_10_1117;
     nn::Tensor good_eeg(schema.eeg_channels, schema.eegSamplesPerChannel());
@@ -468,9 +468,9 @@ TEST_F(Protocol101117DatasetModesTest, SamplePackingBuildInputThrowsOnWrongShape
     EXPECT_THROW((void) buildInputTensor(good_eeg, bad_audio), std::runtime_error);
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetSampleAndCollateRejectOutOfRangeIndexes)
+TEST_F(Dataset101117ModesTest, GetSampleAndCollateRejectOutOfRangeIndexes)
 {
-    Protocol101117Dataset dataset(discoveredSubjects(), Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset(discoveredSubjects(), Protocol101117InputMode::Concatenated);
 
     ASSERT_GT(dataset.size(), 0U);
     EXPECT_THROW((void) dataset.get_sample(dataset.size()), std::out_of_range);
@@ -480,7 +480,7 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleAndCollateRejectOutOfRangeIndexe
     EXPECT_THROW(dataset.collate_into({dataset.size()}, batch), std::out_of_range);
 }
 
-TEST_F(Protocol101117DatasetModesTest, CollateIntoResizesBatchBuffersPerMode)
+TEST_F(Dataset101117ModesTest, CollateIntoResizesBatchBuffersPerMode)
 {
     const auto subject_dir = tmp_root_ / "S99";
     std::filesystem::create_directories(subject_dir);
@@ -494,7 +494,7 @@ TEST_F(Protocol101117DatasetModesTest, CollateIntoResizesBatchBuffersPerMode)
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
-    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset({only_subject}, Protocol101117InputMode::Concatenated);
     Batch batch;
 
     dataset.collate_into({0U, 1U}, batch);
@@ -520,11 +520,10 @@ TEST_F(Protocol101117DatasetModesTest, CollateIntoResizesBatchBuffersPerMode)
     EXPECT_THROW(dataset.collate_into({}, batch), std::exception);
 }
 
-TEST_F(Protocol101117DatasetModesTest, SqliteBackedSubjectsInitializeSessionsAndReadSamples)
+TEST_F(Dataset101117ModesTest, SqliteBackedSubjectsInitializeSessionsAndReadSamples)
 {
     int subject_id = -1;
-    const std::string db_path = nn::testing::create_mock_imagined_db(
-        subject_id,
+    const std::string db_path = nn::testing::create_mock_imagined_db(subject_id,
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.audioSamples(),
         nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
 
@@ -537,7 +536,7 @@ TEST_F(Protocol101117DatasetModesTest, SqliteBackedSubjectsInitializeSessionsAnd
     subject.audio_rows = 12U;
     subject.eeg_rows = 2U;
 
-    Protocol101117Dataset dataset({subject}, Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset({subject}, Protocol101117InputMode::Concatenated);
     const auto sample = dataset.get_sample(11U);
 
     EXPECT_EQ(sample.input_mode, Protocol101117InputMode::Concatenated);
@@ -549,7 +548,7 @@ TEST_F(Protocol101117DatasetModesTest, SqliteBackedSubjectsInitializeSessionsAnd
     std::filesystem::remove(db_path);
 }
 
-TEST_F(Protocol101117DatasetModesTest, GetSampleThrowsWhenStimulusLabelsAreMismatched)
+TEST_F(Dataset101117ModesTest, GetSampleThrowsWhenStimulusLabelsAreMismatched)
 {
     const auto subject_dir = tmp_root_ / "S77";
     std::filesystem::create_directories(subject_dir);
@@ -563,7 +562,7 @@ TEST_F(Protocol101117DatasetModesTest, GetSampleThrowsWhenStimulusLabelsAreMisma
     only_subject.eeg_rows = 1U;
     only_subject.audio_rows = 1U;
 
-    Protocol101117Dataset dataset({only_subject}, Protocol101117InputMode::Concatenated);
+    Dataset101117 dataset({only_subject}, Protocol101117InputMode::Concatenated);
 
     EXPECT_THROW((void) dataset.get_sample(0U), std::runtime_error);
 }

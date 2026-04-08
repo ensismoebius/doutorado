@@ -12,7 +12,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "Experiment03AutoencoderType.hpp"
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/windowing/WindowSpec.hpp"
@@ -50,7 +50,7 @@ struct Config
     bool sampler_distributed_shuffle;
     bool sampler_distributed_drop_last;
 
-    // Input modality used by Protocol101117Dataset.
+    // Input modality used by Dataset101117.
     Protocol101117InputMode dataset_input_mode;
 
     // Dataset variant used by experiment03.

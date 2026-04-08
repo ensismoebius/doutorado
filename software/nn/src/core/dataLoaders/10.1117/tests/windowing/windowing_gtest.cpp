@@ -18,10 +18,10 @@
 #include <filesystem>
 
 #include "../utils/MockImaginedSpeechDatasetGenerator.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
-#include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 #include "nn/windowing/WindowingEngine.hpp"

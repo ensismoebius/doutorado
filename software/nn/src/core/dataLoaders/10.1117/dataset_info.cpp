@@ -8,12 +8,12 @@
 #include <iomanip>
 #include <iostream>
 
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 
 using std::cout;
 using std::endl;
 
-void printDatasetSummary(const Protocol101117Dataset& dataset, const std::string& dataset_root)
+void printDatasetSummary(const Dataset101117& dataset, const std::string& dataset_root)
 {
     cout << "Dataset root: " << dataset_root << '\n';
 
@@ -62,4 +62,40 @@ void printDatasetSummary(const Protocol101117Dataset& dataset, const std::string
 
     cout << '\n' << "Total synchronized samples: " << dataset.size() << '\n';
     cout << "Total audio rows with matching EEG (estimate): " << total_audio_with_eeg << "\n\n";
+}
+
+// ============================================================================
+// Dataset101117Printer Implementation
+// ============================================================================
+
+Dataset101117Printer::Dataset101117Printer(const std::string& dataset_root)
+    : dataset_root_(dataset_root)
+{
+}
+
+void Dataset101117Printer::print_generic(const Dataset& dataset)
+{
+    // Default generic printer: print basic dataset info
+    cout << "Generic dataset with " << dataset.size() << " samples." << '\n';
+}
+
+void Dataset101117Printer::print_protocol101117(const Dataset101117& dataset)
+{
+    printDatasetSummary(dataset, dataset_root_);
+}
+
+// ============================================================================
+// WindowingDatasetPrinter Implementation
+// ============================================================================
+
+WindowingDatasetPrinter::WindowingDatasetPrinter(const std::string& context) : context_(context) {}
+
+void WindowingDatasetPrinter::print_generic(const Dataset& dataset)
+{
+    cout << "Dataset initialized with " << dataset.size() << " total samples.";
+    if (!context_.empty())
+    {
+        cout << " (" << context_ << ")";
+    }
+    cout << '\n';
 }

@@ -131,7 +131,25 @@ The repository contains a dataset module for the 10.1117 paper. Sources and publ
 - Public headers: `include/nn/dataLoaders/10.1117/` mirrors the same subfolders:
 	- `loaders/`, `schema/`, `codec/`, `protocol/`, `windowing/`
 
-All includes were updated to the new layout (for example `nn/dataLoaders/10.1117/Protocol101117Dataset.hpp` → `nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp`).
+Public headers reorganization
+- Recently the protocol and windowing public headers were moved under a
+	`datasets/` subfolder to better group dataset variants and dataset-specific
+	utilities. New public header paths include, for example:
+
+	- `nn/dataLoaders/10.1117/datasets/raw/Protocol101117Dataset.hpp`
+	- `nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp`
+
+	Dataset printer classes were extracted into dedicated headers under the
+	same `datasets/` tree (e.g. `Protocol101117DatasetPrinter.hpp`,
+	`WindowingDatasetPrinter.hpp`).
+
+Migration notes
+ - The repository's sources and tests have been updated to reference the new
+	`datasets/` locations (now using `raw` and `windowed` subtrees). Old
+	forwarding headers were removed and the header contents moved in-place;
+	if you maintain external code that included the older paths, update
+	includes accordingly to `nn/dataLoaders/10.1117/datasets/raw/...` or
+	`nn/dataLoaders/10.1117/datasets/windowed/...`.
 
 If you add new dataset files, place sources under the appropriate subfolder in `src/core/dataLoaders/10.1117/` and update `src/core/dataLoaders/10.1117/CMakeLists.txt` to reference the new paths.
 

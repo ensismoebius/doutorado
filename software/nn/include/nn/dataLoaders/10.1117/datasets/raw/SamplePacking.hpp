@@ -1,12 +1,6 @@
 /**
- * @file include/nn/dataLoaders/10.1117/protocol/SamplePacking.hpp
- * @brief Samplepacking.
- *
- *
- *
- * **Contract:**
- * - Public APIs should document behavior, inputs, outputs, and exceptions.
- * - Prefer RAII for resource lifecycle when applicable.
+ * @file include/nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp
+ * @brief Samplepacking (migrated into datasets/raw layout).
  */
 
 #ifndef NN_DATALOADERS_10_1117_SAMPLEPACKING_HPP

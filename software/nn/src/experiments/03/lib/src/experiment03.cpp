@@ -21,7 +21,7 @@
 
 // Core libraries
 #include "nn/dataLoaders/10.1117/dataset_info.hpp"
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
@@ -134,14 +134,18 @@ int Experiment03::run()
         // Protocol datasets have a specialized summary; windowing datasets print basic info.
         if (config_.dataset_type == Experiment03DatasetType::Protocol)
         {
-            auto* protocol_dataset = dynamic_cast<Protocol101117Dataset*>(dataset_.get());
-            if (protocol_dataset) printDatasetSummary(*protocol_dataset, config_.dataset_root_path);
+            auto* const protocol_dataset = dynamic_cast<Dataset101117*>(dataset_.get());
+            if (protocol_dataset)
+            {
+                Dataset101117Printer printer(config_.dataset_root_path);
+                protocol_dataset->print(printer);
+            }
         }
         else
         {
-            std::ostringstream _oss;
-            _oss << "Dataset initialized with " << dataset_total_samples_ << " total samples.";
-            NN_LOG_INFO(_oss.str());
+            std::string dataset_type_label = dataset_type_to_string(config_.dataset_type);
+            WindowingDatasetPrinter printer(dataset_type_label);
+            dataset_->print(printer);
         }
 
         /////////////////////////////////

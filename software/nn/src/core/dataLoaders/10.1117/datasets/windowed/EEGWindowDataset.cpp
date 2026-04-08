@@ -10,7 +10,7 @@
  *   for c in [0, eeg_channels), t in [0, window_size).
  */
 
-#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
 
 #include <stdexcept>
 #include <string>

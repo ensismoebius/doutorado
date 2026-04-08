@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "nn/dataLoaders/IDatasetPrinter.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 
@@ -114,6 +115,19 @@ class Dataset
         }
 
         return {.inputs = std::move(inputs), .targets = std::move(targets)};
+    }
+
+    /**
+     * Print dataset summary using the provided printer strategy.
+     *
+     * Subclasses should override this to delegate to the appropriate printer method.
+     * Default implementation calls `print_generic()` on the printer.
+     *
+     * @param printer The printer strategy to use for formatting output.
+     */
+    virtual void print(IDatasetPrinter& printer) const
+    {
+        printer.print_generic(*this);
     }
 
     [[nodiscard]] virtual auto size() const -> std::size_t = 0;

@@ -7,9 +7,9 @@
 
 #include <stdexcept>
 
-#include "nn/dataLoaders/10.1117/windowing/AudioWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/EEGWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/windowing/FusedWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
 namespace experiment03
 {
@@ -21,7 +21,7 @@ auto DatasetBuilder::build() -> std::shared_ptr<Dataset>
     {
         case Experiment03DatasetType::Protocol:
         {
-            auto ds = std::make_shared<Protocol101117Dataset>(discovered_);
+            auto ds = std::make_shared<Dataset101117>(discovered_);
             ds->set_input_mode(cfg_->dataset_input_mode);
             return ds;
         }

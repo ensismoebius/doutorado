@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/protocol/Protocol101117Dataset.hpp"
+#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 
 /**
  * @brief Converts Protocol101117InputMode enum to canonical token.
