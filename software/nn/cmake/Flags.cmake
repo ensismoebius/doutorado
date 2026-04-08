@@ -26,7 +26,7 @@ option(NN_ENABLE_FAST_LINKER "Enable mold/lld fast linker when available" ON)
 
 # Optional optimization for incremental builds: use OBJECT libraries for select
 # internal targets to reduce archive/relink overhead.
-option(NN_USE_OBJECT_LIBRARIES "Enable opt-in OBJECT libraries for selected internal targets" OFF)
+option(NN_USE_OBJECT_LIBRARIES "Enable opt-in OBJECT libraries for selected internal targets" ON)
 
 # Optional optimization for incremental builds: per-target precompiled headers.
 option(NN_ENABLE_PCH "Enable opt-in precompiled headers for selected targets" ON)
