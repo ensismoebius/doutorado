@@ -132,14 +132,19 @@ int Experiment03::run()
         dataset_total_samples_ = dataset_->size();
 
         // Create a printer for the dataset type to log dataset summary information.
-        auto printer =
-            config_.dataset_type == Experiment03DatasetType::Protocol                           //
-                ? static_cast<IDatasetPrinter*>(                                                //
-                      new Dataset101117Printer(config_.dataset_root_path)                       //
-                      )                                                                         //
-                : static_cast<IDatasetPrinter*>(                                                //
-                      new WindowingDatasetPrinter(dataset_type_to_string(config_.dataset_type)) //
-                  );                                                                            //
+        unique_ptr<IDatasetPrinter> printer;
+        if (config_.dataset_type == Experiment03DatasetType::Protocol)
+        {
+            printer = make_unique<Dataset101117Printer>( //
+                config_.dataset_root_path                //
+            );                                           //
+        }
+        else
+        {
+            printer = make_unique<WindowingDatasetPrinter>(  //
+                dataset_type_to_string(config_.dataset_type) //
+            );                                               //
+        }
 
         // Print dataset summary using the appropriate printer strategy.
         dataset_->print(*printer);
@@ -182,7 +187,8 @@ int Experiment03::run()
             static_cast<Index>(config_.autoencoder_input_features) //
         );
 
-        // Move model to requested device and verify OpenCL activity early.
+        // Move model to requested device and verify gpu acceleration
+        // activity early, if any.
         model_->to(device);
 
         // Attach model parameters to optimizer.
@@ -280,14 +286,17 @@ int Experiment03::run()
                 }
 
                 // SNN models need membrane state reset between independent sequences (batches).
-                if (is_snn_type(config_.autoencoder_type)) model_->reset_state();
+                if (is_snn_type(config_.autoencoder_type))
+                {
+                    model_->reset_state();
+                }
 
                 // === Training step ===
                 auto params = model_->params();
                 optimizer->zero_grad(params);
 
                 // Forward pass (unsupervised reconstruction: target == input).
-                // Note: For OpenCL, the per-operation CPU->GPU copy happens inside each tensor
+                // Note: For GPU, the per-operation CPU->GPU copy happens inside each tensor
                 // operation. The codebase's Module::forward accepts nn::Tensor (EigenBackend)
                 // so explicit GPU transfer would require API changes to support polymorphic
                 // tensor backends. The current implementation handles this via the OpenCL
@@ -323,7 +332,7 @@ int Experiment03::run()
             }
 
             // Finalize progress line for this epoch.
-            if (model_)
+            if (model_) [[likely]]
             {
                 printProgress(dataset_total_samples_,
                     config_.training_batch_size,
@@ -337,28 +346,16 @@ int Experiment03::run()
                     model_->params());
             }
 
-            // cppcheck-suppress knownConditionTrueFalse
-            if (prefetcher_)
-            {
-                const auto d = prefetcher_->diagnostics();
-                ostringstream _oss;
-                _oss << "  Prefetcher ring size: " << d.ring_size
-                     << " | seen batches: " << d.seen_batches
-                     << " | inflight_prefetch_bytes: " << d.inflight_prefetch_bytes;
-                NN_LOG_INFO(_oss.str());
-            }
-
             const float mean_loss =
                 epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
             epoch_mean_losses.push_back(mean_loss);
-            {
-                ostringstream mean_loss_stream;
-                mean_loss_stream << "  mean reconstruction loss: " << mean_loss;
-                NN_LOG_INFO(mean_loss_stream.str());
-            }
+
+            ostringstream mean_loss_stream;
+            mean_loss_stream << "  mean reconstruction loss: " << mean_loss;
+            NN_LOG_INFO(mean_loss_stream.str());
         }
 
-        if (seen_batches_ == 0)
+        if (seen_batches_ == 0) [[unlikely]]
         {
             NN_LOG_WARN("No batches produced. Check dataset files and row counts.");
         }
@@ -374,7 +371,7 @@ int Experiment03::run()
             epoch_mean_losses             //
         );
 
-        if (write_run_summary_json(summary, results_path, results_error))
+        if (write_run_summary_json(summary, results_path, results_error)) [[likely]]
         {
             NN_LOG_INFO(string("Run summary written to: ") + results_path);
         }

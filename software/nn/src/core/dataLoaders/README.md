@@ -24,6 +24,7 @@ Recent updates
 - `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.
 - `SqliteBatchSource::open_db()` failure diagnostics now use `NN_LOG_ERROR` instead of direct stderr writes.
 - Windowed datasets now implement type-specific `print(IDatasetPrinter&)` dispatch and `WindowingDatasetPrinter` outputs detailed modality-aware summaries (window specs, hop/overlap, per-row window factors, and feature counts) instead of only generic totals.
+- Printer implementations were split from `src/core/dataLoaders/10.1117/dataset_info.cpp` into dedicated translation units: `datasets/raw/Dataset101117Printer.cpp` and `datasets/windowed/WindowingDatasetPrinter.cpp`.
 
 Optimization techniques and references
 - Trial buffer pre-reservation (`eeg_accum`, `audio_accum`): capacity planning from SQLite blob-size metadata to avoid geometric reallocation/copy churn in hot decode loops (see [1], [2]).
@@ -126,23 +127,38 @@ The repository contains a dataset module for the 10.1117 paper. Sources and publ
 	- `loaders/` — dataset-specific loaders (`AudioLoader.cpp`, `EEGLoader.cpp`)
 	- `schema/` — metadata and discovery helpers (`SubjectDiscovery.cpp`, `METADATA` helpers)
 	- `codec/` — codecs and formatters (`InputModeCodec.cpp`, `BatchTargetFormatter.cpp`)
-	- `protocol/` — dataset protocol and batching (`Protocol101117Dataset.cpp`, `SamplePacking.cpp`, `SynchronizedBatchAssembler.cpp`)
-	- `windowing/` — windowing datasets (already organized)
+	- `datasets/raw/` — protocol/raw dataset and raw batching helpers (`Dataset101117.cpp`, `SamplePacking.cpp`, `SynchronizedBatchAssembler.cpp`, `Dataset101117Printer.cpp`)
+	- `datasets/windowed/` — windowed datasets and printer (`AudioWindowDataset.cpp`, `EEGWindowDataset.cpp`, `FusedWindowDataset.cpp`, `WindowingDatasetPrinter.cpp`)
 
-- Public headers: `include/nn/dataLoaders/10.1117/` mirrors the same subfolders:
-	- `loaders/`, `schema/`, `codec/`, `protocol/`, `windowing/`
+- Public headers: `include/nn/dataLoaders/10.1117/` mirrors this layout:
+	- `loaders/`, `schema/`, `codec/`, `datasets/raw/`, `datasets/windowed/`
+
+The current public headers present in the repository include (examples):
+
+- [include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp](include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp)
+- [include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp](include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp)
+- [include/nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp](include/nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp)
+- [include/nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp](include/nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp)
+- [include/nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp](include/nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp)
+- [include/nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp](include/nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp)
+
+Note: legacy `WindowedDatasetPrinter.hpp` has been removed; use `WindowingDatasetPrinter.hpp` for modality-aware summaries.
 
 Public headers reorganization
 - Recently the protocol and windowing public headers were moved under a
 	`datasets/` subfolder to better group dataset variants and dataset-specific
 	utilities. New public header paths include, for example:
 
-	- `nn/dataLoaders/10.1117/datasets/raw/Protocol101117Dataset.hpp`
+	- `nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp`
+	- `nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp`
 	- `nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp`
+	- `nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp`
 
 	Dataset printer classes were extracted into dedicated headers under the
-	same `datasets/` tree (e.g. `Protocol101117DatasetPrinter.hpp`,
-	`WindowingDatasetPrinter.hpp`).
+	same `datasets/` tree (e.g. `Dataset101117Printer.hpp`,
+	`WindowingDatasetPrinter.hpp`) and now compile from dedicated translation
+	units (`datasets/raw/Dataset101117Printer.cpp` and
+	`datasets/windowed/WindowingDatasetPrinter.cpp`).
 
 Migration notes
  - The repository's sources and tests have been updated to reference the new
