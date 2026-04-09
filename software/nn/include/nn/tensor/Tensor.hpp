@@ -27,7 +27,8 @@
 namespace nn
 {
 struct Device;
-}
+class OpenCLTensorBackend;
+} // namespace nn
 
 // EigenTensorBackend.hpp must be available in include path.
 #include "nn/tensor/eigen/EigenTensorBackend.hpp"
@@ -83,6 +84,16 @@ class TensorImpl
     /// Construct from explicit backend instance
     explicit TensorImpl(const Backend& backend) : backend_(backend) {}
     explicit TensorImpl(Backend&& backend) noexcept : backend_(std::move(backend)) {}
+
+    /// Construct from a tensor backed by a different backend via element-wise copy.
+    template <typename OtherBackend>
+    explicit TensorImpl(const TensorImpl<OtherBackend>& other) : backend_(other.get_shape())
+    {
+        for (Index i = 0; i < other.size(); ++i)
+        {
+            at(i) = other.at(i);
+        }
+    }
 
     /// Construct a 2-D tensor.
     TensorImpl(Index rows, Index cols) : backend_(rows, cols) {}
@@ -609,6 +620,12 @@ class TensorImpl
     class CommaInitializer;
     auto operator<<(float value) -> CommaInitializer;
 
+    template <typename TargetBackend>
+    auto to_backend() const -> TensorImpl<TargetBackend>
+    {
+        return TensorImpl<TargetBackend>(*this);
+    }
+
     /// Direct access to backend
     auto get_backend() const noexcept -> const Backend&
     {
@@ -625,6 +642,7 @@ class TensorImpl
 
 // Default type alias
 using Tensor = TensorImpl<EigenTensorBackend>;
+using OpenCLTensor = TensorImpl<OpenCLTensorBackend>;
 
 // -----------------------------------------------------------------------------
 // CommaInitializer Implementation

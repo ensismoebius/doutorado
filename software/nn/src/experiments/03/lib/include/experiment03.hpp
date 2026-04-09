@@ -30,7 +30,7 @@ class Experiment03
     std::unique_ptr<BatchPrefetcher> prefetcher_;
     std::unique_ptr<DataLoader> data_loader_;
     std::shared_ptr<Dataset> dataset_;
-    std::unique_ptr<Module> model_;
+    std::unique_ptr<Module<nn::EigenTensorBackend>> model_;
 
     std::size_t seen_batches_ = 0;
     std::size_t processed_samples_ = 0;

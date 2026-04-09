@@ -27,7 +27,8 @@ namespace nn::utility
  *
  * @param net The module to reset.
  */
-inline void reset(Module& net)
+template <typename Backend>
+inline void reset(Module<Backend>& net)
 {
     // Delegates to the module's virtual reset_state().
     // Sequential containers typically forward the reset into child layers.

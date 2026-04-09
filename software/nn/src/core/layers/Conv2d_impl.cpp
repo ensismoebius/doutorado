@@ -14,13 +14,15 @@ constexpr int COL2IM_SIZE = 512;
 
 // ============ Constructor ============
 
-Conv2d::Conv2d(
+template <typename Backend>
+Conv2dImpl<Backend>::Conv2dImpl(
     int in_channels, int out_channels, int kernel_size, int max_batch_size, bool use_parallel)
-    : Conv2d(in_channels, out_channels, kernel_size, 1, 0, 1, use_parallel, max_batch_size)
+    : Conv2dImpl<Backend>(in_channels, out_channels, kernel_size, 1, 0, 1, use_parallel, max_batch_size)
 {
 }
 
-Conv2d::Conv2d(int in_channels,
+template <typename Backend>
+Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
     int out_channels,
     int kernel_size,
     int stride,
@@ -57,7 +59,8 @@ Conv2d::Conv2d(int in_channels,
 
 // ============ Forward & Backward Passes ============
 
-auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+template <typename Backend>
+auto Conv2dImpl<Backend>::forward(const typename Conv2dImpl<Backend>::Tensor& input, bool requires_grad) -> typename Conv2dImpl<Backend>::Tensor
 {
     // Validate input tensor shape
     const auto& shape = input.get_shape();
@@ -144,7 +147,8 @@ auto Conv2d::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
+template <typename Backend>
+auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& grad_output) -> typename Conv2dImpl<Backend>::Tensor
 {
     const auto batch_size = static_cast<int>(input_cache_.get_shape()[0]);
     const auto input_height = static_cast<int>(input_cache_.get_shape()[2]);
@@ -238,51 +242,60 @@ auto Conv2d::backward(const nn::Tensor& grad_output) -> nn::Tensor
 
 // ============ Getters ============
 
-auto Conv2d::get_weights() const -> const nn::Tensor&
+template <typename Backend>
+auto Conv2dImpl<Backend>::get_weights() const -> const typename Conv2dImpl<Backend>::Tensor&
 {
     return weights_;
 }
 
-auto Conv2d::get_weights() -> nn::Tensor&
+template <typename Backend>
+auto Conv2dImpl<Backend>::get_weights() -> typename Conv2dImpl<Backend>::Tensor&
 {
     return weights_;
 }
 
-auto Conv2d::get_bias() const -> const nn::Tensor&
+template <typename Backend>
+auto Conv2dImpl<Backend>::get_bias() const -> const typename Conv2dImpl<Backend>::Tensor&
 {
     return bias_;
 }
 
-auto Conv2d::get_bias() -> nn::Tensor&
+template <typename Backend>
+auto Conv2dImpl<Backend>::get_bias() -> typename Conv2dImpl<Backend>::Tensor&
 {
     return bias_;
 }
 
 // ============ Setters ============
 
-void Conv2d::set_weights(const nn::Tensor& weights)
+template <typename Backend>
+void Conv2dImpl<Backend>::set_weights(const typename Conv2dImpl<Backend>::Tensor& weights)
 {
     weights_ = weights;
 }
 
-void Conv2d::set_bias(const nn::Tensor& bias)
+template <typename Backend>
+void Conv2dImpl<Backend>::set_bias(const typename Conv2dImpl<Backend>::Tensor& bias)
 {
     bias_ = bias;
 }
 
-bool Conv2d::is_parallel_enabled() const
+template <typename Backend>
+bool Conv2dImpl<Backend>::is_parallel_enabled() const
 {
     return use_parallel_;
 }
 
-void Conv2d::set_parallel_enabled(bool enabled)
+template <typename Backend>
+void Conv2dImpl<Backend>::set_parallel_enabled(bool enabled)
 {
     use_parallel_ = enabled;
 }
 
 // ============ Initialization ============
 
-void Conv2d::initialize_weights_he()
+template <typename Backend>
+void Conv2dImpl<Backend>::initialize_weights_he()
 {
     const int fan_in = in_channels_ * kernel_size_ * kernel_size_;
     const float stddev = std::sqrt(2.0F / static_cast<float>(fan_in));
@@ -307,3 +320,8 @@ void Conv2d::initialize_weights_he()
         bias_data[i] = 0.01F;
     }
 }
+
+// Explicit instantiation: generate code for the Eigen (CPU) backend only.
+// A GPU backend implementation would add its own explicit instantiation here or in a
+// separate translation unit after providing the required algorithm specialisation.
+template class Conv2dImpl<nn::EigenTensorBackend>;

@@ -1,9 +1,9 @@
 /**
  * @file src/core/tensor/opencl/OpenCLTensorBackend.cpp
- * @brief OpenCL tensor backend implementation (Phase 1: CPU fallback).
+ * @brief OpenCL-only tensor backend implementation.
  *
- * Phase 1 delegates all operations to EigenTensorBackend for correctness.
- * GPU implementations will be added incrementally as needed.
+ * Tensor metadata and host synchronization staging are managed locally,
+ * while math operations execute through OpenCL kernels only.
  */
 
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
@@ -14,6 +14,7 @@
 #include <fstream>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -22,7 +23,6 @@
 #include <unordered_set>
 
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/DeviceMemory.hpp"
 #include "nn/tensor/opencl/KernelManager.hpp"
 #include "nn/tensor/opencl/OpenCLContext.hpp"
@@ -30,6 +30,193 @@
 
 namespace nn
 {
+
+class OpenCLHostStorage
+{
+   public:
+    OpenCLHostStorage() = default;
+
+    explicit OpenCLHostStorage(Index rows, Index cols)
+        : m_shape({rows, cols}), m_data(rows * cols, 0.0F)
+    {
+    }
+
+    explicit OpenCLHostStorage(Index d1, Index d2, Index d3, Index d4)
+        : m_shape({d1, d2, d3, d4}), m_data(d1 * d2 * d3 * d4, 0.0F)
+    {
+    }
+
+    explicit OpenCLHostStorage(const std::vector<Index>& shape)
+        : m_shape(shape), m_data(total_size(shape), 0.0F)
+    {
+    }
+
+    const std::vector<Index>& shape() const
+    {
+        return m_shape;
+    }
+
+    void reshape(const std::vector<Index>& new_shape)
+    {
+        if (total_size(new_shape) != size())
+        {
+            throw std::invalid_argument("Reshape total size mismatch");
+        }
+        m_shape = new_shape;
+    }
+
+    Index rows() const
+    {
+        return m_shape.empty() ? 0 : m_shape[0];
+    }
+
+    Index cols() const
+    {
+        return m_shape.size() < 2 ? 1 : m_shape[1];
+    }
+
+    Index size() const
+    {
+        return m_data.size();
+    }
+
+    float* mutable_data_ptr()
+    {
+        return m_data.data();
+    }
+
+    const float* data_ptr() const
+    {
+        return m_data.data();
+    }
+
+    void fill(float value)
+    {
+        std::fill(m_data.begin(), m_data.end(), value);
+    }
+
+    float& at(Index i)
+    {
+        if (i >= size())
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        return m_data[i];
+    }
+
+    const float& at(Index i) const
+    {
+        if (i >= size())
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        return m_data[i];
+    }
+
+    float& at(Index row, Index col)
+    {
+        return m_data[offset_2d(row, col)];
+    }
+
+    const float& at(Index row, Index col) const
+    {
+        return m_data[offset_2d(row, col)];
+    }
+
+    float& at(Index d1, Index d2, Index d3, Index d4)
+    {
+        return m_data[offset_4d(d1, d2, d3, d4)];
+    }
+
+    const float& at(Index d1, Index d2, Index d3, Index d4) const
+    {
+        return m_data[offset_4d(d1, d2, d3, d4)];
+    }
+
+    float& at(const std::vector<Index>& indices)
+    {
+        return m_data[offset_nd(indices)];
+    }
+
+    const float& at(const std::vector<Index>& indices) const
+    {
+        return m_data[offset_nd(indices)];
+    }
+
+   private:
+    static Index total_size(const std::vector<Index>& shape)
+    {
+        return std::accumulate(shape.begin(),
+            shape.end(),
+            static_cast<Index>(1),
+            [](Index acc, Index dim) { return acc * dim; });
+    }
+
+    Index offset_2d(Index row, Index col) const
+    {
+        if (m_shape.size() != 2)
+        {
+            throw std::invalid_argument("at(row, col) is only valid for 2D tensors");
+        }
+        if (row >= m_shape[0] || col >= m_shape[1])
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        return row + (col * m_shape[0]);
+    }
+
+    Index offset_4d(Index d1, Index d2, Index d3, Index d4) const
+    {
+        if (m_shape.size() != 4)
+        {
+            throw std::invalid_argument("at(d1, d2, d3, d4) is only valid for 4D tensors");
+        }
+        if (d1 >= m_shape[0] || d2 >= m_shape[1] || d3 >= m_shape[2] || d4 >= m_shape[3])
+        {
+            throw std::out_of_range("Index out of range");
+        }
+
+        const Index col_idx = (d2 * (m_shape[2] * m_shape[3])) + (d3 * m_shape[3]) + d4;
+        return d1 + (col_idx * m_shape[0]);
+    }
+
+    Index offset_nd(const std::vector<Index>& indices) const
+    {
+        if (indices.size() != m_shape.size())
+        {
+            throw std::invalid_argument("Indices dimension mismatch");
+        }
+
+        if (indices.size() == 1)
+        {
+            return indices[0];
+        }
+        if (indices.size() == 2)
+        {
+            return offset_2d(indices[0], indices[1]);
+        }
+        if (indices.size() == 4)
+        {
+            return offset_4d(indices[0], indices[1], indices[2], indices[3]);
+        }
+
+        Index flat_idx = 0;
+        Index stride = 1;
+        for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
+        {
+            if (indices[static_cast<std::size_t>(i)] >= m_shape[static_cast<std::size_t>(i)])
+            {
+                throw std::out_of_range("Index out of range");
+            }
+            flat_idx += indices[static_cast<std::size_t>(i)] * stride;
+            stride *= m_shape[static_cast<std::size_t>(i)];
+        }
+        return flat_idx;
+    }
+
+    std::vector<Index> m_shape;
+    std::vector<float> m_data;
+};
 
 namespace
 {
@@ -143,8 +330,7 @@ void warn_opencl_cpu_fallback_once(const std::string& operation, const std::stri
     static std::mutex warned_mutex;
     static std::unordered_set<std::string> warned_messages;
 
-    const std::string message =
-        "OPENCL BACKEND FALLING BACK TO CPU for " + operation + ": " + reason;
+    const std::string message = "OPENCL BACKEND CANNOT EXECUTE " + operation + ": " + reason;
     std::lock_guard<std::mutex> lock(warned_mutex);
     if (warned_messages.insert(message).second)
     {
@@ -178,10 +364,9 @@ bool can_use_opencl(const char* operation)
 #endif
 }
 
-void warn_opencl_unimplemented_once(const char* operation)
+[[noreturn]] void throw_opencl_only_failure(const std::string& operation, const std::string& reason)
 {
-    warn_opencl_cpu_fallback_once(
-        operation, "operation is not implemented on the OpenCL backend yet");
+    throw std::runtime_error("OpenCL-only backend failure in " + operation + ": " + reason);
 }
 
 std::size_t round_up(std::size_t global, std::size_t local)
@@ -314,34 +499,6 @@ void copy_device_to_host_async(cl_command_queue queue,
     }
 }
 
-inline void enqueue_kernel_with_event(cl_command_queue queue,
-    cl_kernel kernel,
-    std::size_t global_size,
-    std::size_t local_size,
-    cl_event wait_event,
-    cl_event* out_event)
-{
-    if (wait_event)
-    {
-        check_cl_error(
-            clEnqueueNDRangeKernel(
-                queue, kernel, 1, nullptr, &global_size, &local_size, 1, &wait_event, out_event),
-            "enqueue_kernel_with_event");
-    }
-    else
-    {
-        check_cl_error(
-            clEnqueueNDRangeKernel(
-                queue, kernel, 1, nullptr, &global_size, &local_size, 0, nullptr, out_event),
-            "enqueue_kernel_with_event");
-    }
-}
-
-void flush_pending_events(cl_command_queue queue)
-{
-    EventTracker::instance().flush_all(queue);
-}
-
 auto read_gpu_busy_percent(std::string_view gpu_busy_percent_path) -> std::optional<int>
 {
     std::ifstream input{std::string(gpu_busy_percent_path)};
@@ -391,19 +548,19 @@ auto compute_opencl_reconstruction_mse(const nn::Tensor& prediction, const nn::T
 
 // Constructors
 OpenCLTensorBackend::OpenCLTensorBackend(Index rows, Index cols)
-    : m_backend(std::make_unique<EigenTensorBackend>(rows, cols))
+    : m_backend(std::make_unique<OpenCLHostStorage>(rows, cols))
 {
     try_allocate_gpu_buffer(rows * cols);
 }
 
 OpenCLTensorBackend::OpenCLTensorBackend(Index d1, Index d2, Index d3, Index d4)
-    : m_backend(std::make_unique<EigenTensorBackend>(d1, d2, d3, d4))
+    : m_backend(std::make_unique<OpenCLHostStorage>(d1, d2, d3, d4))
 {
     try_allocate_gpu_buffer(d1 * d2 * d3 * d4);
 }
 
 OpenCLTensorBackend::OpenCLTensorBackend(const std::vector<Index>& shape)
-    : m_backend(std::make_unique<EigenTensorBackend>(shape))
+    : m_backend(std::make_unique<OpenCLHostStorage>(shape))
 {
     Index total = 1;
     for (auto dim : shape) total *= dim;
@@ -412,9 +569,10 @@ OpenCLTensorBackend::OpenCLTensorBackend(const std::vector<Index>& shape)
 
 OpenCLTensorBackend::OpenCLTensorBackend(const OpenCLTensorBackend& other)
 {
+    other.sync_gpu();
     if (other.m_backend)
     {
-        m_backend = std::make_unique<EigenTensorBackend>(*other.m_backend);
+        m_backend = std::make_unique<OpenCLHostStorage>(*other.m_backend);
     }
     if (other.m_grad_backend)
     {
@@ -426,8 +584,9 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
 {
     if (this != &other)
     {
+        other.sync_gpu();
         m_backend =
-            other.m_backend ? std::make_unique<EigenTensorBackend>(*other.m_backend) : nullptr;
+            other.m_backend ? std::make_unique<OpenCLHostStorage>(*other.m_backend) : nullptr;
         m_grad_backend = other.m_grad_backend
                              ? std::make_unique<OpenCLTensorBackend>(*other.m_grad_backend)
                              : nullptr;
@@ -470,28 +629,37 @@ auto OpenCLTensorBackend::RuntimeScope::operator=(RuntimeScope&& other) noexcept
 OpenCLTensorBackend OpenCLTensorBackend::zeros(Index rows, Index cols)
 {
     OpenCLTensorBackend t(rows, cols);
-    *t.m_backend = EigenTensorBackend::zeros(rows, cols);
+    t.m_backend->fill(0.0F);
     return t;
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::ones(Index rows, Index cols)
 {
     OpenCLTensorBackend t(rows, cols);
-    *t.m_backend = EigenTensorBackend::ones(rows, cols);
+    t.m_backend->fill(1.0F);
     return t;
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::random(Index rows, Index cols)
 {
     OpenCLTensorBackend t(rows, cols);
-    *t.m_backend = EigenTensorBackend::random(rows, cols);
+    std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<float> dist(0.0F, 1.0F);
+    for (Index i = 0; i < t.size(); ++i)
+    {
+        t.m_backend->at(i) = dist(rng);
+    }
     return t;
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::random(Index rows, Index cols, std::mt19937& rng)
 {
     OpenCLTensorBackend t(rows, cols);
-    *t.m_backend = EigenTensorBackend::random(rows, cols, rng);
+    std::uniform_real_distribution<float> dist(0.0F, 1.0F);
+    for (Index i = 0; i < t.size(); ++i)
+    {
+        t.m_backend->at(i) = dist(rng);
+    }
     return t;
 }
 
@@ -524,47 +692,57 @@ Index OpenCLTensorBackend::size() const
 // N-D access
 float& OpenCLTensorBackend::at(Index i)
 {
+    sync_gpu();
     return m_backend->at(i);
 }
 
 const float& OpenCLTensorBackend::at(Index i) const
 {
+    sync_gpu();
     return m_backend->at(i);
 }
 
 float& OpenCLTensorBackend::at(Index row, Index col)
 {
+    sync_gpu();
     return m_backend->at(row, col);
 }
 
 const float& OpenCLTensorBackend::at(Index row, Index col) const
 {
+    sync_gpu();
     return m_backend->at(row, col);
 }
 
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
 {
+    sync_gpu();
     return m_backend->at(d1, d2, d3, d4);
 }
 
 const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4) const
 {
+    sync_gpu();
     return m_backend->at(d1, d2, d3, d4);
 }
 
 float& OpenCLTensorBackend::at(const std::vector<Index>& indices)
 {
+    sync_gpu();
     return m_backend->at(indices);
 }
 
 const float& OpenCLTensorBackend::at(const std::vector<Index>& indices) const
 {
+    sync_gpu();
     return m_backend->at(indices);
 }
 
 // In-place operations
 void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
 {
+    sync_gpu();
+    other.sync_gpu();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("add_inplace", "OpenCL path requires matching tensor shapes");
@@ -683,9 +861,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -717,14 +893,16 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL add_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("add_inplace", e.what());
         }
     }
-    m_backend->add_inplace(*other.m_backend);
+    throw_opencl_only_failure("add_inplace", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
 {
+    sync_gpu();
+    other.sync_gpu();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once(
@@ -844,9 +1022,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -879,14 +1055,17 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL subtract_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("subtract_inplace", e.what());
         }
     }
-    m_backend->subtract_inplace(*other.m_backend);
+    throw_opencl_only_failure(
+        "subtract_inplace", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
 {
+    sync_gpu();
+    other.sync_gpu();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once(
@@ -1006,9 +1185,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1041,14 +1218,17 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL multiply_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("multiply_inplace", e.what());
         }
     }
-    m_backend->multiply_inplace(*other.m_backend);
+    throw_opencl_only_failure(
+        "multiply_inplace", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 {
+    sync_gpu();
+    other.sync_gpu();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once(
@@ -1168,9 +1348,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1203,14 +1381,16 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL divide_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("divide_inplace", e.what());
         }
     }
-    m_backend->divide_inplace(*other.m_backend);
+    throw_opencl_only_failure(
+        "divide_inplace", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 void OpenCLTensorBackend::add_scalar_inplace(float val)
 {
+    sync_gpu();
     if (can_use_opencl("add_scalar_inplace"))
     {
         try
@@ -1288,9 +1468,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1322,14 +1500,15 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL add_scalar_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("add_scalar_inplace", e.what());
         }
     }
-    m_backend->add_scalar_inplace(val);
+    throw_opencl_only_failure("add_scalar_inplace", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 {
+    sync_gpu();
     if (can_use_opencl("multiply_scalar_inplace"))
     {
         try
@@ -1407,9 +1586,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1442,14 +1619,15 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL multiply_scalar_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("multiply_scalar_inplace", e.what());
         }
     }
-    m_backend->multiply_scalar_inplace(val);
+    throw_opencl_only_failure("multiply_scalar_inplace", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::divide_scalar_inplace(float val)
 {
+    sync_gpu();
     if (can_use_opencl("divide_scalar_inplace"))
     {
         try
@@ -1527,9 +1705,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1561,14 +1737,15 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL divide_scalar_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("divide_scalar_inplace", e.what());
         }
     }
-    m_backend->divide_scalar_inplace(val);
+    throw_opencl_only_failure("divide_scalar_inplace", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::sqrt_inplace()
 {
+    sync_gpu();
     if (can_use_opencl("sqrt_inplace"))
     {
         try
@@ -1644,9 +1821,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1674,14 +1849,15 @@ void OpenCLTensorBackend::sqrt_inplace()
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL sqrt_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("sqrt_inplace", e.what());
         }
     }
-    m_backend->sqrt_inplace();
+    throw_opencl_only_failure("sqrt_inplace", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::square_inplace()
 {
+    sync_gpu();
     if (can_use_opencl("square_inplace"))
     {
         try
@@ -1757,9 +1933,7 @@ void OpenCLTensorBackend::square_inplace()
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1788,23 +1962,25 @@ void OpenCLTensorBackend::square_inplace()
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL square_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("square_inplace", e.what());
         }
     }
-    m_backend->square_inplace();
+    throw_opencl_only_failure("square_inplace", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector)
 {
+    sync_gpu();
+    col_vector.sync_gpu();
     if (shape().size() != 2 || col_vector.shape().size() != 2)
     {
         warn_opencl_cpu_fallback_once(
             "add_col_vector_to_rows_inplace", "OpenCL path requires rank-2 tensors");
     }
-    else if (rows() != col_vector.rows() || col_vector.cols() != 1)
+    else if (cols() != col_vector.rows() || col_vector.cols() != 1)
     {
         warn_opencl_cpu_fallback_once(
-            "add_col_vector_to_rows_inplace", "OpenCL path requires col_vector to be (rows x 1)");
+            "add_col_vector_to_rows_inplace", "OpenCL path requires col_vector to be (cols x 1)");
     }
     else if (can_use_opencl("add_col_vector_to_rows_inplace"))
     {
@@ -1816,7 +1992,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
             const auto n = size();
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
-            const std::size_t col_bytes = num_rows * sizeof(float);
+            const std::size_t col_bytes = num_cols * sizeof(float);
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -1926,9 +2102,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
+                    record_pending_gpu_op(d2h_evt);
                     return;
                 }
             }
@@ -1967,16 +2141,17 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(
-                std::string("OpenCL add_col_vector_to_rows_inplace fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("add_col_vector_to_rows_inplace", e.what());
         }
     }
-    m_backend->add_col_vector_to_rows_inplace(*col_vector.m_backend);
+    throw_opencl_only_failure(
+        "add_col_vector_to_rows_inplace", "OpenCL runtime unavailable or tensor shape is invalid");
 }
 
 // Element-wise operations
 OpenCLTensorBackend OpenCLTensorBackend::exp() const
 {
+    sync_gpu();
     if (can_use_opencl("exp"))
     {
         try
@@ -1990,7 +2165,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
             const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2058,12 +2233,10 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
                     return t;
                 }
             }
@@ -2095,22 +2268,21 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL exp fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("exp", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->exp());
-    return t;
+    throw_opencl_only_failure("exp", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 {
+    sync_gpu();
     if (can_use_opencl("sqrt"))
     {
         try
@@ -2124,7 +2296,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
             const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2192,12 +2364,10 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
                     return t;
                 }
             }
@@ -2229,22 +2399,21 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL sqrt fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("sqrt", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->sqrt());
-    return t;
+    throw_opencl_only_failure("sqrt", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::square() const
 {
+    sync_gpu();
     if (can_use_opencl("square"))
     {
         try
@@ -2258,7 +2427,7 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
 
             const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2327,12 +2496,10 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
                         &d2h_evt);
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
-                    if (d2h_evt) clReleaseEvent(d2h_evt);
-
-                    flush_pending_events(ctx.get_queue());
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
                     return t;
                 }
             }
@@ -2364,18 +2531,16 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL square fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("square", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->square());
-    return t;
+    throw_opencl_only_failure("square", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) const
@@ -2391,7 +2556,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2448,7 +2613,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                         "clEnqueueReadBuffer(add, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -2485,18 +2650,16 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL add fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("add", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->add(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("add", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& other) const
@@ -2512,7 +2675,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2570,7 +2733,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                         "clEnqueueReadBuffer(subtract, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -2607,18 +2770,16 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL subtract fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("subtract", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->subtract(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("subtract", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& other) const
@@ -2634,7 +2795,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2692,7 +2853,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                         "clEnqueueReadBuffer(multiply, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -2729,18 +2890,16 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL multiply fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("multiply", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->multiply(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("multiply", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other) const
@@ -2756,7 +2915,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2814,7 +2973,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                         "clEnqueueReadBuffer(divide, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -2851,18 +3010,16 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL divide fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("divide", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->divide(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("divide", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
@@ -2874,7 +3031,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2925,7 +3082,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
                         "clEnqueueReadBuffer(add_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -2959,18 +3116,16 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL add_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("add_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->add_scalar(val));
-    return t;
+    throw_opencl_only_failure("add_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
@@ -2982,7 +3137,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3033,7 +3188,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
                         "clEnqueueReadBuffer(multiply_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3068,18 +3223,16 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL multiply_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("multiply_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->multiply_scalar(val));
-    return t;
+    throw_opencl_only_failure("multiply_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
@@ -3091,7 +3244,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3142,7 +3295,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
                         "clEnqueueReadBuffer(divide_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3176,18 +3329,16 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL divide_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("divide_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->divide_scalar(val));
-    return t;
+    throw_opencl_only_failure("divide_scalar", "OpenCL runtime unavailable");
 }
 
 // Reduction
@@ -3207,7 +3358,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
             const std::size_t input_bytes = num_rows * num_cols * sizeof(float);
             const std::size_t output_bytes = num_rows * sizeof(float);
 
-            EigenTensorBackend out(num_rows, 1);
+            OpenCLHostStorage out(num_rows, 1);
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -3257,7 +3408,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
                         "clEnqueueReadBuffer(rowwise_sum, output)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3292,18 +3443,17 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL rowwise_sum fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("rowwise_sum", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->rowwise_sum());
-    return t;
+    throw_opencl_only_failure(
+        "rowwise_sum", "OpenCL runtime unavailable or tensor rank is invalid");
 }
 
 // Linear algebra
@@ -3329,7 +3479,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
             const std::size_t a_bytes = m * k * sizeof(float);
             const std::size_t b_bytes = k * n * sizeof(float);
             const std::size_t c_bytes = m * n * sizeof(float);
-            EigenTensorBackend out(m, n);
+            OpenCLHostStorage out(m, n);
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3392,7 +3542,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                         "clEnqueueReadBuffer(matmul, c)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3434,27 +3584,22 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL matmul fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("matmul", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->matmul(*other.m_backend));
-    return t;
+    throw_opencl_only_failure(
+        "matmul", "OpenCL runtime unavailable or matrix dimensions are invalid");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBackend& other) const
 {
-    warn_opencl_unimplemented_once("matmul_transposed");
-    OpenCLTensorBackend t;
-    t.m_backend =
-        std::make_unique<EigenTensorBackend>(m_backend->matmul_transposed(*other.m_backend));
-    return t;
+    return matmul(other.transpose());
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
@@ -3472,7 +3617,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
             const Index in_cols = cols();
             const std::size_t bytes = in_rows * in_cols * sizeof(float);
 
-            EigenTensorBackend out(in_cols, in_rows);
+            OpenCLHostStorage out(in_cols, in_rows);
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -3522,7 +3667,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                         "clEnqueueReadBuffer(transpose, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3557,18 +3702,16 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL transpose fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("transpose", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->transpose());
-    return t;
+    throw_opencl_only_failure("transpose", "OpenCL runtime unavailable or tensor rank is invalid");
 }
 
 // Comparisons
@@ -3585,7 +3728,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3643,7 +3786,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
                         "clEnqueueReadBuffer(compare_lt, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3680,18 +3823,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_lt fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_lt", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_lt(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("compare_lt", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& other) const
@@ -3707,7 +3848,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3765,7 +3906,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
                         "clEnqueueReadBuffer(compare_gt, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3802,18 +3943,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_gt fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_gt", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_gt(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("compare_gt", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& other) const
@@ -3829,7 +3968,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3887,7 +4026,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
                         "clEnqueueReadBuffer(compare_le, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -3924,18 +4063,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_le fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_le", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_le(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("compare_le", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& other) const
@@ -3951,7 +4088,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4009,7 +4146,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
                         "clEnqueueReadBuffer(compare_ge, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4046,18 +4183,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_ge fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_ge", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_ge(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("compare_ge", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& other) const
@@ -4073,7 +4208,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4131,7 +4266,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
                         "clEnqueueReadBuffer(compare_eq, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4168,18 +4303,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_eq fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_eq", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_eq(*other.m_backend));
-    return t;
+    throw_opencl_only_failure("compare_eq", "OpenCL runtime unavailable or tensor shape mismatch");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
@@ -4191,7 +4324,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4242,7 +4375,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
                         "clEnqueueReadBuffer(compare_lt_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4277,18 +4410,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_lt_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_lt_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_lt_scalar(value));
-    return t;
+    throw_opencl_only_failure("compare_lt_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
@@ -4300,7 +4431,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4351,7 +4482,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
                         "clEnqueueReadBuffer(compare_gt_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4386,18 +4517,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_gt_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_gt_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_gt_scalar(value));
-    return t;
+    throw_opencl_only_failure("compare_gt_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
@@ -4409,7 +4538,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4460,7 +4589,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
                         "clEnqueueReadBuffer(compare_le_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4495,18 +4624,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_le_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_le_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_le_scalar(value));
-    return t;
+    throw_opencl_only_failure("compare_le_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
@@ -4518,7 +4645,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4569,7 +4696,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
                         "clEnqueueReadBuffer(compare_ge_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4604,18 +4731,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_ge_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_ge_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_ge_scalar(value));
-    return t;
+    throw_opencl_only_failure("compare_ge_scalar", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
@@ -4627,7 +4752,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
             const auto& ctx = opencl::OpenCLContext::instance();
             const auto n = size();
             const std::size_t bytes = n * sizeof(float);
-            EigenTensorBackend out(shape());
+            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -4678,7 +4803,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
                         "clEnqueueReadBuffer(compare_eq_scalar, out)");
 
                     OpenCLTensorBackend t;
-                    t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                     return t;
                 }
             }
@@ -4713,18 +4838,16 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
             out_dev.copy_from_device(out.mutable_data_ptr());
 
             OpenCLTensorBackend t;
-            t.m_backend = std::make_unique<EigenTensorBackend>(std::move(out));
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
             return t;
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("OpenCL compare_eq_scalar fallback to CPU: ") + e.what());
+            throw_opencl_only_failure("compare_eq_scalar", e.what());
         }
     }
 
-    OpenCLTensorBackend t;
-    t.m_backend = std::make_unique<EigenTensorBackend>(m_backend->compare_eq_scalar(value));
-    return t;
+    throw_opencl_only_failure("compare_eq_scalar", "OpenCL runtime unavailable");
 }
 
 // Gradient management
@@ -4733,7 +4856,7 @@ OpenCLTensorBackend& OpenCLTensorBackend::grad_ref()
     if (!m_grad_backend)
     {
         m_grad_backend = std::make_unique<OpenCLTensorBackend>(shape());
-        m_grad_backend->m_backend = std::make_unique<EigenTensorBackend>(shape());
+        m_grad_backend->m_backend = std::make_unique<OpenCLHostStorage>(shape());
     }
     return *m_grad_backend;
 }
@@ -4751,7 +4874,7 @@ void OpenCLTensorBackend::zero_grad()
 {
     if (m_grad_backend)
     {
-        *m_grad_backend->m_backend = EigenTensorBackend::zeros(rows(), cols());
+        m_grad_backend->m_backend->fill(0.0F);
     }
 }
 

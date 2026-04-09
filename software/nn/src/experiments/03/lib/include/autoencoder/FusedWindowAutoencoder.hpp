@@ -5,7 +5,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "nn/layers/Module.hpp"
-#include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -20,7 +20,7 @@
  *   Encoder: Linear(input_features → hidden) → ReLU → [×depth] → Linear(hidden → latent) → ReLU
  *   Decoder: Linear(latent → hidden) → ReLU → [×depth] → Linear(hidden → input_features)
  */
-struct FusedWindowAutoencoder : Module
+struct FusedWindowAutoencoder : Module<nn::EigenTensorBackend>
 {
     Sequential eeg_encoder_;
     Sequential audio_encoder_;

@@ -16,39 +16,33 @@
  *   incoming gradients elementwise.
  * - Like the other small activations in this repo, it assumes a 2D tensor layout
  *   (rows x cols) and does not manage a computation graph.
+ *
+ * Backend polymorphism:
+ * - `ReLUImpl<Backend>` works with any backend tensor type that implements `relu()`,
+ *   `operator>`, and `multiply()`.
+ * - The convenience alias `ReLU = ReLUImpl<EigenBackend>` (in `nn/layers/eigen/Layers.hpp`)
+ * preserves backward compatibility with all existing call sites.
  */
-
-struct ReLU : public Module
+template <typename Backend>
+struct ReLUImpl : public Module<Backend>
 {
-    nn::Tensor relu_grad; // usado para backward
+    using Tensor = nn::TensorImpl<Backend>;
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    Tensor relu_grad; // cached mask used in the backward pass
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        // Guarda o gradiente da entrada atual para usar na fase de backward only if gradients
-        // required
         if (requires_grad)
         {
-            // relu_grad stores which elements were > 0 (for gradient computation)
-            // Create a tensor and populate with mask values
-            relu_grad = nn::Tensor(input.rows(), input.cols());
-            for (size_t i = 0; i < input.rows(); ++i)
-            {
-                for (size_t j = 0; j < input.cols(); ++j)
-                {
-                    relu_grad.at(i, j) = (input.at(i, j) > 0.0f) ? 1.0f : 0.0f;
-                }
-            }
+            // Build gradient mask with backend-vectorized compare.
+            relu_grad = input > 0.0f;
         }
-
-        // Calcula a ativação usando Tensor method
         return input.relu();
     }
 
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
-        // Element-wise multiplication of grad_output with relu_grad mask
-        auto grad_input = grad_output.multiply(relu_grad);
-        return grad_input;
+        return grad_output.multiply(relu_grad);
     }
 };
 

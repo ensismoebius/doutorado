@@ -24,6 +24,6 @@ auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
 
 // Build an autoencoder `Module` instance according to experiment `Config`.
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
-    -> std::unique_ptr<Module>;
+    -> std::unique_ptr<Module<nn::EigenTensorBackend>>;
 
 } // namespace experiment03

@@ -14,6 +14,7 @@
 
 #include "nn/layers/CrossEntropyLoss.hpp"
 #include "nn/layers/SimpleResNet.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/statistics/multi_class_metrics.hpp"
 #include "nn/tensor/Tensor.hpp"

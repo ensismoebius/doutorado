@@ -14,20 +14,23 @@
  * - This layer is *stateless* besides the cached mask.
  */
 
-struct LeakyReLU : public Module
+template <typename Backend>
+struct LeakyReLUImpl : public Module<Backend>
 {
+    /// Tensor type for the active compute backend.
+    using Tensor = typename Module<Backend>::Tensor;
     float alpha; // negative slope
-    nn::Tensor leaky_grad;
+    Tensor leaky_grad;
 
-    explicit LeakyReLU(float alpha_ = 0.01F) : alpha(alpha_) {}
+    explicit LeakyReLUImpl(float alpha_ = 0.01F) : alpha(alpha_) {}
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // Cache the gradient for the backward pass only if gradients required
         if (requires_grad)
         {
             // Create gradient mask: 1 for positive values, alpha for negative values
-            leaky_grad = nn::Tensor(input.rows(), input.cols());
+            leaky_grad = Tensor(input.rows(), input.cols());
             for (size_t i = 0; i < input.rows(); ++i)
             {
                 for (size_t j = 0; j < input.cols(); ++j)
@@ -41,7 +44,7 @@ struct LeakyReLU : public Module
         return input.leaky_relu(alpha);
     }
 
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // Element-wise multiplication of grad_output with leaky_grad mask
         auto grad_input = grad_output.multiply(leaky_grad);

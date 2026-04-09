@@ -36,7 +36,8 @@
  *
  * @param layer The linear layer to initialize.
  */
-inline auto kaimingSNNInitializer(const std::shared_ptr<Linear>& layer,
+template <typename Backend>
+inline auto kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
     std::optional<unsigned int> seed = std::nullopt,
     const std::string& sampler_default_type = "") -> void
 {

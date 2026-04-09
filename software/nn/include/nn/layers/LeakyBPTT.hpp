@@ -42,26 +42,29 @@
  * It unrolls the simulation over `time_steps`, maintaining state across the sequence,
  * and computes accurate gradients through time during the backward pass.
  */
-struct LeakyBPTT : public Module
+template <typename Backend>
+struct LeakyBPTTImpl : public Module<Backend>
 {
    public:
+    /// Tensor type for the active compute backend.
+    using Tensor = typename Module<Backend>::Tensor;
+
     /// @brief The simulation time step (time_step).
     float time_step = 1.0F;
 
     /// @brief Membrane resistance (R).
-    nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
+    Tensor resistance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Membrane capacitance (C).
     float capacitance = 1.0F;
 
     /// @brief Voltage threshold.
-    nn::Tensor voltage_threshold = nn::Tensor::constant(1, 1, 1.0F);
+    Tensor voltage_threshold = Tensor::constant(1, 1, 1.0F);
 
     // State management
-    nn::Tensor v_mem;         ///< Persistent state after last processed time step (shape: B x F)
-    nn::Tensor v_mem_history; ///< Cached pre-reset membrane values for BPTT (shape: (T*B) x F)
-    nn::Tensor
-        spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
+    Tensor v_mem;         ///< Persistent state after last processed time step (shape: B x F)
+    Tensor v_mem_history; ///< Cached pre-reset membrane values for BPTT (shape: (T*B) x F)
+    Tensor spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
 
     // Configuration
     int time_steps; ///< Number of time steps in the input sequence
@@ -79,7 +82,7 @@ struct LeakyBPTT : public Module
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    explicit LeakyBPTT(int time_steps_,
+    explicit LeakyBPTTImpl(int time_steps_,
         float time_step_ = 1.0F,
         float resistance_ = 1.0F,
         float capacitance_ = 1.0F,
@@ -103,10 +106,10 @@ struct LeakyBPTT : public Module
     {
         // Clearing v_mem means the next forward() will re-initialize state to zeros.
         // This matches the common “reset hidden state between sequences” pattern.
-        v_mem = nn::Tensor(); // Clear state
+        v_mem = Tensor(); // Clear state
     }
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // Infer Batch Size
         int total_rows = input.rows();
@@ -120,17 +123,17 @@ struct LeakyBPTT : public Module
         // Initialize state if needed
         if (v_mem.rows() != batch_size || v_mem.cols() != features)
         {
-            v_mem = nn::Tensor(batch_size, features);
+            v_mem = Tensor(batch_size, features);
             v_mem.setZero();
         }
 
         // Prepare Output and History
-        nn::Tensor output(total_rows, features);
+        Tensor output(total_rows, features);
         if (requires_grad)
         {
             // We cache v_pre (the membrane after decay+input, before spike/reset) for each time.
-            // Backward() reads this cache as its “pre-activation” for surrogate gradients.
-            v_mem_history = nn::Tensor(total_rows, features);
+            // Backward() reads this cache as its "pre-activation" for surrogate gradients.
+            v_mem_history = Tensor(total_rows, features);
         }
 
         float const tau = resistance.at(0, 0) * capacitance;
@@ -200,15 +203,15 @@ struct LeakyBPTT : public Module
         return output;
     }
 
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // Grad Output: (Time*Batch, Feat)
         int total_rows = grad_output.rows();
         int batch_size = total_rows / time_steps;
         int features = grad_output.cols();
 
-        nn::Tensor grad_input(total_rows, features);
-        nn::Tensor grad_next_state(batch_size, features); // dL / dv[t+1] (recurrence accumulator)
+        Tensor grad_input(total_rows, features);
+        Tensor grad_next_state(batch_size, features); // dL / dv[t+1] (recurrence accumulator)
         grad_next_state.setZero();
 
         float const tau = resistance.at(0, 0) * capacitance;
@@ -311,11 +314,11 @@ struct LeakyBPTT : public Module
         }
 
         // Set Params Grads
-        nn::Tensor vth_grad(1, 1);
+        Tensor vth_grad(1, 1);
         vth_grad.at(0, 0) = dL_dVth_sum;
         voltage_threshold.set_grad(vth_grad);
 
-        nn::Tensor r_grad(1, 1);
+        Tensor r_grad(1, 1);
         r_grad.at(0, 0) = dL_dR_sum;
         resistance.set_grad(r_grad);
 

@@ -9,7 +9,8 @@
 #include "nn/tensor/Tensor.hpp"
 
 // Forward declaration
-class Conv2d;
+template <typename Backend>
+class Conv2dImpl;
 
 /**
  * @file Conv2d_utils.hpp
@@ -27,7 +28,7 @@ class Conv2d;
  *   hot loops, at the cost of memory.
  */
 
-namespace Conv2dImpl
+namespace Conv2dUtils
 {
 /**
  * @struct PatchIndices
@@ -62,6 +63,6 @@ using IndexCache =
 // - The cached value contains the patch extraction mapping for those dimensions.
 // - Thread safety is handled on the Conv2d side (mutex around cache updates).
 
-} // namespace Conv2dImpl
+} // namespace Conv2dUtils
 
 #endif // NN_LAYERS_CONV2D_UTILS_HPP

@@ -15,6 +15,7 @@
 #include "ProtocolSpikingAutoencoder.hpp"
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace

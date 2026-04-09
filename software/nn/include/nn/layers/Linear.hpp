@@ -18,34 +18,50 @@
  * - Weight: (out_features, in_features)
  * - Bias:   (out_features, 1) and is broadcast across the batch.
  * - Output: (batch, out_features)
+ *
+ * Backend polymorphism:
+ * - `LinearImpl<Backend>` works with any backend tensor type.
+ * - Parameters (`weight`, `bias`) are always stored as CPU-resident `nn::Tensor` so that
+ *   existing CPU optimizers continue to work without modification.
+ * - For non-Eigen backends the parameters are converted to the active backend at the start
+ *   of each forward/backward pass; this conversion is zero-cost when Backend == Eigen since
+ *   both types alias the same underlying storage.
+ * - Concrete aliases (e.g. `Linear = LinearImpl<EigenBackend>`) live in
+ *   `nn/layers/eigen/Layers.hpp`.
  */
-struct Linear : public Module
+template <typename Backend>
+struct LinearImpl : public Module<Backend>
 {
-    int in_features;   // número de entradas (features de entrada do tensor)
-    int out_features;  // número de saídas (neurônios ou unidades na camada)
-    nn::Tensor weight; // matriz de pesos com dimensão [out_features x in_features]
-    nn::Tensor bias;   // vetor de bias com dimensão [out_features]
-    // Cached input needed to compute gradients during backward.
-    // Only populated when `forward(..., requires_grad=true)`.
+    /// Tensor type for the active compute backend.
+    using Tensor = nn::TensorImpl<Backend>;
+
+    int in_features;  // number of input features
+    int out_features; // number of output neurons
+    /// Weight matrix [out_features × in_features] — always CPU-resident for optimizer compat.
+    nn::Tensor weight;
+    /// Bias vector [out_features × 1] — always CPU-resident for optimizer compat.
+    nn::Tensor bias;
+    /// CPU-side cached input; populated when `forward(..., requires_grad=true)`.
     nn::Tensor input_cache;
     // Owned view of parameter pointers. Must point to member tensors so the span
     // returned by `params()` remains valid for the lifetime of this object.
     std::array<nn::Tensor*, 2> param_ptrs_{{&weight, &bias}};
 
     /**
-     * @brief Inicializa pesos e bias com base no número de entradas e saídas
+     * @brief Construct the layer and allocate uninitialized weight/bias storage.
      *
-     * @param in_features Número de entradas
-     * @param out_features Número de saídas
+     * @param in_features_  Number of input features.
+     * @param out_features_ Number of output neurons.
+     *
+     * Leave parameter initialization to dedicated initializers (xavier/kaiming)
+     * so callers can provide deterministic seeds and sampler policy.
      */
-    Linear(const int in_features_, const int out_features_)
+    LinearImpl(const int in_features_, const int out_features_)
         : in_features(in_features_),
           out_features(out_features_),
           weight(nn::Tensor(out_features_, in_features_)),
           bias(nn::Tensor(out_features_, 1))
     {
-        // Leave parameter initialization to dedicated initializers (xavier/kaiming)
-        // so callers can provide deterministic seeds and sampler policy.
     }
 
 #ifdef DEBUG
@@ -61,15 +77,18 @@ struct Linear : public Module
 #endif
 
     /**
-     * @brief Realiza a propagação direta (forward pass) da
-     * entrada pela camada linear.
-     * Aplica a transformação afim: saída = entrada * W^T + b
-     * @param input Tensor de saída [batch_size x out_features]
-     * @return Tensor de saída [batch_size x out_features]
+     * @brief Forward pass: y = x W^T + b.
+     *
+     * CPU-resident parameters are converted to the active backend on each call.
+     * For the Eigen backend this conversion is a same-type copy (zero semantic
+     * overhead); for other backends it performs an explicit transfer.
+     *
+     * @param input  [batch × in_features]
+     * @param requires_grad  Cache input for backward when true.
+     * @return [batch × out_features]
      */
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        // Validate input dimensions
         if (static_cast<int>(input.cols()) != in_features)
         {
             throw std::invalid_argument(
@@ -77,39 +96,35 @@ struct Linear : public Module
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
-        // Cache input for backward pass only if gradients are required.
-        // This is the standard memory/performance trade-off used in autodiff systems.
         if (requires_grad)
         {
-            input_cache = input; // salva para o backward
+            // Store a CPU copy so the CPU optimizer can compute gradients.
+            input_cache = nn::Tensor(input);
         }
 
 #ifdef DEBUG
-        // If DEBUG is defined then show the debug information
-        debug(input);
+        debug(nn::Tensor(input));
 #endif
 
-        // Optimized linear transformation: y = x * W^T + b
-        nn::Tensor result = input.matmul(weight.transpose());
-
-        // Vectorized bias add: broadcast (out_features,1) bias across all batch rows.
-        result.add_col_vector_to_rows_inplace(bias);
-
+        // Convert CPU parameters to the active backend, then compute y = x W^T + b.
+        Tensor weight_t(weight);
+        Tensor bias_t(bias);
+        Tensor result = input.matmul(weight_t.transpose());
+        result.add_col_vector_to_rows_inplace(bias_t);
         return result;
     }
 
     /**
-     * @brief Realiza a propagação reversa (backward pass) da derivada da perda
-     * em relação à saída da camada.Calcula os gradientes da perda em relação aos
-     * pesos, bias e à entrada da camada
+     * @brief Backward pass: compute parameter gradients and return the input gradient.
      *
-     * @param grad_previous gradiente da perda em relação à saída da camada [batch_size x
-     * out_features]
-     * @return gradiente da perda em relação à entrada da camada [batch_size x in_features]
+     * Parameter gradients are stored as CPU `nn::Tensor` (via `set_grad`) so that
+     * CPU optimizers can consume them without backend awareness.
+     *
+     * @param grad_previous  [batch × out_features] gradient of the loss w.r.t. output.
+     * @return [batch × in_features] gradient of the loss w.r.t. input.
      */
-    auto backward(const nn::Tensor& grad_previous) -> nn::Tensor override
+    auto backward(const Tensor& grad_previous) -> Tensor override
     {
-        // Validate gradient dimensions
         if (grad_previous.cols() != static_cast<size_t>(out_features))
         {
             throw std::invalid_argument("Linear layer backward: gradient features (" +
@@ -118,36 +133,21 @@ struct Linear : public Module
                                         std::to_string(out_features) + ")");
         }
 
-        // Weight gradient (matrix calculus): dL/dW = (dL/dY)^T · X
-        // where:
-        //   X = input_cache (batch, in_features)
-        //   dL/dY = grad_previous (batch, out_features)
-        nn::Tensor grad_weight = grad_previous.transpose().matmul(input_cache);
-
-        weight.set_grad(grad_weight);
-
-        // Bias gradient: sum over the batch dimension.
-        // dL/db[j] = sum_i dL/dY[i,j]
-        nn::Tensor grad_bias(out_features, 1);
-        for (size_t j = 0; j < grad_previous.cols(); ++j)
-        {
-            float sum = 0.0f;
-            for (size_t i = 0; i < grad_previous.rows(); ++i)
-            {
-                sum += grad_previous.at(i, j);
-            }
-            grad_bias.at(j, 0) = sum;
-        }
-        bias.set_grad(grad_bias);
-
-        // Input gradient: dL/dX = dL/dY · W
-        auto grad_input_tensor = grad_previous.matmul(weight);
-        return grad_input_tensor;
+        // Lift CPU cache and parameters into the active backend, compute gradients,
+        // then download them back to CPU tensors for the optimizer.
+        Tensor input_t(input_cache);
+        Tensor weight_t(weight);
+        // dL/dW = (dL/dY)^T · X
+        Tensor grad_weight = grad_previous.transpose().matmul(input_t);
+        weight.set_grad(nn::Tensor(grad_weight));
+        // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
+        Tensor grad_bias = grad_previous.transpose().rowwise_sum();
+        bias.set_grad(nn::Tensor(grad_bias));
+        // dL/dX = dL/dY · W
+        return grad_previous.matmul(weight_t);
     }
 
-    /**
-     * @brief Returns trainable parameters
-     */
+    /// Returns the two CPU-resident trainable parameters (weight, bias).
     auto params() -> std::span<nn::Tensor*> override
     {
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
@@ -176,4 +176,4 @@ struct Linear : public Module
     }
 };
 
-#endif
+#endif // NN_LAYERS_LINEAR_HPP

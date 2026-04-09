@@ -20,10 +20,22 @@
  *
  * Design note:
  * - The library keeps the interface intentionally minimal to make experiments readable.
- * - Optimizers operate on raw pointers returned by `params()`.
+ * - Optimizers operate on raw pointers returned by `params()`. Parameters are always
+ *   stored as CPU-resident `nn::Tensor` regardless of `Backend` so that existing
+ *   optimizers keep working without modification.
+ *
+ * Backend polymorphism:
+ * - `Module` is templated on `Backend` (no default — callers must name it explicitly).
+ * - `forward()` and `backward()` operate on `TensorImpl<Backend>`, making the
+ *   interface agnostic to any specific backend (Eigen, OpenCL, CUDA, …).
+ * - Adding a new backend never requires new virtual methods; instantiate
+ *   `Module<NewBackend>` and derive from it instead.
  */
+template <typename Backend>
 struct Module
 {
+    /// Tensor type for this module's compute backend.
+    using Tensor = nn::TensorImpl<Backend>;
     Module() = default;
 
     /**
@@ -59,44 +71,26 @@ struct Module
     /**
      * @brief Forward pass: computes the module output given an input tensor.
      *
-     * @param input Input activations (shape depends on the module).
-     * @param requires_grad When true, the module is allowed to cache any state needed
-     *        for backpropagation (e.g., inputs, membrane histories). When false, the
-     *        module should avoid caching to reduce memory.
-     * @return Output activations.
+     * @param input Input activations in the module's backend tensor type.
+     * @param requires_grad When true, the module caches any state needed for
+     *        backpropagation. When false, caching is skipped to reduce memory.
+     * @return Output activations in the same backend tensor type.
      *
      * Invariant: if `requires_grad` is true, a subsequent call to `backward()` is
      * expected to produce meaningful gradients for the module parameters.
      */
-    virtual auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor = 0;
-
-    /**
-     * @brief Templated forward pass for backend-polymorphic execution.
-     *
-     * This allows forwarding tensors with different backends (Eigen, OpenCL, etc.)
-     * without CPU->GPU copies. The default implementation converts to nn::Tensor
-     * (Eigen backend). Override for GPU-native implementations.
-     *
-     * @tparam Backend Tensor backend type (e.g., EigenTensorBackend, OpenCLTensorBackend)
-     * @param input Input tensor with any backend
-     * @param requires_grad Enable gradient caching
-     * @return Output tensor (default returns Eigen backend)
-     */
-    template <typename Backend>
-    auto forward(nn::TensorImpl<Backend>& input, bool requires_grad = true) -> nn::Tensor
-    {
-        return forward(static_cast<const nn::Tensor&>(input), requires_grad);
-    }
+    virtual auto forward(const Tensor& input, bool requires_grad = true) -> Tensor = 0;
 
     /**
      * @brief Backward pass: propagates gradient from module output to module input.
      *
-     * @param grad_output Gradient of the loss with respect to this module's output.
-     * @return Gradient of the loss with respect to this module's input.
+     * @param grad_output Gradient of the loss w.r.t. this module's output, in the
+     *        same backend tensor type as used by `forward()`.
+     * @return Gradient of the loss w.r.t. this module's input.
      *
      * Expected usage: `backward()` is called in reverse topological order of the model.
      */
-    virtual auto backward(const nn::Tensor& grad_output) -> nn::Tensor = 0;
+    virtual auto backward(const Tensor& grad_output) -> Tensor = 0;
 
     /**
      * @brief Sets the module in training mode.

@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "nn/layers/MSELoss.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 
 namespace phase00

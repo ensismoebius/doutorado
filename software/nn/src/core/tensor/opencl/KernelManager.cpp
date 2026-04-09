@@ -271,9 +271,8 @@ __kernel void add_col_vector_to_rows_kernel(
 ) {
     const uint idx = get_global_id(0);
     if (idx >= rows * cols) return;
-    const uint row = idx % rows;
     const uint col = idx / rows;
-    data[idx] = data[idx] + col_vector[row];
+    data[idx] = data[idx] + col_vector[col];
 }
 
 __kernel void compare_lt_kernel(
@@ -606,9 +605,13 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
         program_name = "linear_algebra";
     }
     else if (kernel_name.find("add") != std::string::npos ||
+             kernel_name.find("subtract") != std::string::npos ||
              kernel_name.find("multiply") != std::string::npos ||
+             kernel_name.find("divide") != std::string::npos ||
              kernel_name.find("exp") != std::string::npos ||
-             kernel_name.find("sqrt") != std::string::npos)
+             kernel_name.find("sqrt") != std::string::npos ||
+             kernel_name.find("square") != std::string::npos ||
+             kernel_name.find("compare") != std::string::npos)
     {
         program_name = "element_wise";
     }

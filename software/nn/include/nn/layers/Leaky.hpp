@@ -56,23 +56,27 @@
  *     Trainable parameters: `resistance`, `voltage_threshold`, and `capacitance`.
  *     All three are exposed via `params()` and receive gradient updates.
  */
-struct Leaky : public Module
+template <typename Backend>
+struct LeakyImpl : public Module<Backend>
 {
    public:
+    /// Tensor type for the active compute backend.
+    using Tensor = typename Module<Backend>::Tensor;
+
     // --- Parameters for LIF neuron dynamics ---
 
     /// @brief The simulation time step (time_step).
     float time_step = 1.0F;
 
     /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
-    nn::Tensor resistance = nn::Tensor::constant(1, 1, 1.0F);
+    Tensor resistance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
     /// Stored as a 1×1 trainable tensor so the optimizer can update it via backprop.
-    nn::Tensor capacitance = nn::Tensor::constant(1, 1, 1.0F);
+    Tensor capacitance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief If the membrane potential exceeds this value, the neuron fires a spike.
-    nn::Tensor voltage_threshold = nn::Tensor::constant(1, 1, 1.0F);
+    Tensor voltage_threshold = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Controls the reset mechanism after a spike.
     bool reset_zero = true;
@@ -83,13 +87,13 @@ struct Leaky : public Module
     // Persistent membrane potential (stateful, snnTorch-like)
 
     /// @brief Caches the membrane potential *before* spike/reset for the backward pass.
-    nn::Tensor v_mem_pre_spike;
+    Tensor v_mem_pre_spike;
 
     /// @brief The core state of the neuron layer. Each element is one neuron's potential.
-    nn::Tensor v_mem;
+    Tensor v_mem;
 
     /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
-    nn::Tensor v_mem_t_minus_1;
+    Tensor v_mem_t_minus_1;
 
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
@@ -146,18 +150,18 @@ struct Leaky : public Module
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    explicit Leaky(float time_step_ = 1.0F, // time step
-        float resistance_ = 1.0F,           // resistance
-        float capacitance_ = 1.0F,          // capacitance
-        float voltage_threshold_ = 1.0F,    // voltage threshold
-        bool reset_zero_ = true,            // reset to zero or subtract threshold
-        float reset_potential_ = 0.0F,      // reset potential value
+    explicit LeakyImpl(float time_step_ = 1.0F, // time step
+        float resistance_ = 1.0F,               // resistance
+        float capacitance_ = 1.0F,              // capacitance
+        float voltage_threshold_ = 1.0F,        // voltage threshold
+        bool reset_zero_ = true,                // reset to zero or subtract threshold
+        float reset_potential_ = 0.0F,          // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>())
         : time_step(time_step_),
-          resistance(nn::Tensor::constant(1, 1, resistance_)),
-          capacitance(nn::Tensor::constant(1, 1, capacitance_)),
-          voltage_threshold(nn::Tensor::constant(1, 1, voltage_threshold_)),
+          resistance(Tensor::constant(1, 1, resistance_)),
+          capacitance(Tensor::constant(1, 1, capacitance_)),
+          voltage_threshold(Tensor::constant(1, 1, voltage_threshold_)),
           reset_zero(reset_zero_),
           reset_potential(reset_potential_),
           surrogate_gradient(std::move(surrogate_grad))
@@ -172,12 +176,12 @@ struct Leaky : public Module
      * discrete-time LIF neuron equation.
      * @param input The input current for this time step.
      */
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
         if (v_mem.rows() != input.rows() || v_mem.cols() != input.cols()) [[unlikely]]
         {
-            v_mem = nn::Tensor(input.rows(), input.cols());
+            v_mem = Tensor(input.rows(), input.cols());
             v_mem.setZero();
         }
 
@@ -196,7 +200,7 @@ struct Leaky : public Module
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
             [[unlikely]]
         {
-            v_mem = nn::Tensor(input.rows(), input.cols());
+            v_mem = Tensor(input.rows(), input.cols());
             v_mem.setZero();
         }
 
@@ -235,7 +239,7 @@ struct Leaky : public Module
         // gradients for training.
         // Implementation note: this uses explicit loops rather than a vectorized
         // compare operation; for large tensors this can become a hotspot.
-        nn::Tensor output(input.rows(), input.cols());
+        Tensor output(input.rows(), input.cols());
         float threshold_val = voltage_threshold.at(0, 0);
         for (size_t i = 0; i < v_mem.rows(); ++i)
         {
@@ -294,7 +298,7 @@ struct Leaky : public Module
      * @param grad_output Gradient from the next layer
      * @return Tensor Gradient w.r.t. input
      */
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // --- Surrogate Gradient Calculation ---
         const auto surrogate_grad =
@@ -302,13 +306,13 @@ struct Leaky : public Module
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.
-        nn::Tensor grad_v_pre_mat = grad_output.multiply(surrogate_grad);
+        Tensor grad_v_pre_mat = grad_output.multiply(surrogate_grad);
 
         // --- Gradient for voltage_threshold ---
         // dL/dV_th = dL/ds * ds/dV_th = dL/ds * (-ds/dv_pre) = - (dL/ds * ds/dv_pre) =
         // -grad_v_pre Since V_th is a scalar, we sum the gradients from all neurons.
         float dL_dVth = -grad_v_pre_mat.sum();
-        nn::Tensor vth_grad(1, 1);
+        Tensor vth_grad(1, 1);
         vth_grad.at(0, 0) = dL_dVth;
         voltage_threshold.set_grad(vth_grad);
 
@@ -327,23 +331,23 @@ struct Leaky : public Module
 
             // --- Gradient for resistance ---
             const float dL_dR = dL_dbeta * d_beta_dR;
-            nn::Tensor r_grad(1, 1);
+            Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dR;
             resistance.set_grad(r_grad);
 
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
             const float d_beta_dC = (beta * time_step) / (R * C * C);
-            nn::Tensor c_grad(1, 1);
+            Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             capacitance.set_grad(c_grad);
         }
         else
         {
-            nn::Tensor r_grad(1, 1);
+            Tensor r_grad(1, 1);
             r_grad.set_zero();
             resistance.set_grad(r_grad);
-            nn::Tensor c_grad(1, 1);
+            Tensor c_grad(1, 1);
             c_grad.set_zero();
             capacitance.set_grad(c_grad);
         }

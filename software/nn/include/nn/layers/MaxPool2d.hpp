@@ -25,12 +25,15 @@
  *   conventions and add a corresponding `backward()`.
  */
 
-class MaxPool2d : public Module
+template <typename Backend>
+class MaxPool2dImpl : public Module<Backend>
 {
-   public:
-    MaxPool2d(int kernel, int stride_val) : kernel_size_(kernel), stride_(stride_val) {}
+    using Tensor = typename Module<Backend>::Tensor;
 
-    auto forward(const nn::Tensor& input) -> nn::Tensor override
+   public:
+    MaxPool2dImpl(int kernel, int stride_val) : kernel_size_(kernel), stride_(stride_val) {}
+
+    auto forward(const Tensor& input) -> Tensor override
     {
         const auto shape = input.get_shape();
 

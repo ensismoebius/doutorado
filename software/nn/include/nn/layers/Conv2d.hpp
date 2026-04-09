@@ -30,8 +30,11 @@
  * For implementation details, see Conv2d_impl.cpp and Conv2d_utils.cpp.
  */
 
-class Conv2d : public Module
+template <typename Backend>
+class Conv2dImpl : public Module<Backend>
 {
+    using Tensor = typename Module<Backend>::Tensor;
+
    private:
     // ============ Layer Parameters ============
     int in_channels_;
@@ -43,17 +46,17 @@ class Conv2d : public Module
     int max_batch_size_;
     bool use_parallel_;
 
-    nn::Tensor weights_;
-    nn::Tensor bias_;
-    nn::Tensor input_cache_;
+    Tensor weights_;
+    Tensor bias_;
+    Tensor input_cache_;
 
     // ============ Pre-allocated Buffers ============
-    std::unique_ptr<nn::Tensor> im2col_buffer_;
-    std::unique_ptr<nn::Tensor> col2im_buffer_;
-    std::unique_ptr<nn::Tensor> grad_output_buffer_;
+    std::unique_ptr<Tensor> im2col_buffer_;
+    std::unique_ptr<Tensor> col2im_buffer_;
+    std::unique_ptr<Tensor> grad_output_buffer_;
 
     // ============ Index Caching ============
-    mutable Conv2dImpl::IndexCache index_cache_;
+    mutable Conv2dUtils::IndexCache index_cache_;
     mutable bool indices_computed_ = false;
     mutable std::mutex cache_mutex_;
 
@@ -66,7 +69,7 @@ class Conv2d : public Module
      * @param max_batch_size Maximum batch size for buffer pre-allocation (default: 64)
      * @param use_parallel Enable OpenMP parallelization (default: true)
      */
-    Conv2d(int in_channels,
+    Conv2dImpl(int in_channels,
         int out_channels,
         int kernel_size,
         int max_batch_size = 64,
@@ -83,7 +86,7 @@ class Conv2d : public Module
      * @param use_parallel Enable OpenMP parallelization (default: true)
      * @param max_batch_size Maximum batch size for buffer pre-allocation (default: 64)
      */
-    Conv2d(int in_channels,
+    Conv2dImpl(int in_channels,
         int out_channels,
         int kernel_size,
         int stride,
@@ -98,14 +101,14 @@ class Conv2d : public Module
      * @param requires_grad Whether gradients will be computed (default: true)
      * @return Output tensor with shape (batch, out_channels, out_height, out_width)
      */
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
 
     /**
      * @brief Backward pass: compute gradients
      * @param grad_output Gradient of loss w.r.t. output
      * @return Gradient of loss w.r.t. input
      */
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
 
     // ============ Getters ============
 
@@ -113,34 +116,34 @@ class Conv2d : public Module
      * @brief
      *
      */
-    [[nodiscard]] auto get_weights() const -> const nn::Tensor&;
+    [[nodiscard]] auto get_weights() const -> const Tensor&;
 
     /**
      * @brief Get mutable reference to weight parameters
      */
-    auto get_weights() -> nn::Tensor&;
+    auto get_weights() -> Tensor&;
 
     /**
      * @brief Get const reference to bias parameters
      */
-    [[nodiscard]] const nn::Tensor& get_bias() const;
+    [[nodiscard]] const Tensor& get_bias() const;
 
     /**
      * @brief Get mutable reference to bias parameters
      */
-    auto get_bias() -> nn::Tensor&;
+    auto get_bias() -> Tensor&;
 
     // ============ Setters ============
 
     /**
      * @brief Set weight parameters
      */
-    void set_weights(const nn::Tensor& weights);
+    void set_weights(const Tensor& weights);
 
     /**
      * @brief Set bias parameters
      */
-    void set_bias(const nn::Tensor& bias);
+    void set_bias(const Tensor& bias);
 
     /**
      * @brief Query if parallelization is enabled
@@ -159,13 +162,13 @@ class Conv2d : public Module
      * @brief Get or compute precomputed indices for given input dimensions
      */
     auto get_or_compute_indices(int batch_size, int input_height, int input_width) const
-        -> const std::vector<Conv2dImpl::PatchIndices>&;
+        -> const std::vector<Conv2dUtils::PatchIndices>&;
 
     /**
      * @brief Precompute all im2col/col2im indices for efficient reuse
      */
     auto compute_indices(int batch_size, int input_height, int input_width) const
-        -> std::vector<Conv2dImpl::PatchIndices>;
+        -> std::vector<Conv2dUtils::PatchIndices>;
 
     /**
      * @brief Ensure indices are computed for given dimensions (one-time initialization)
@@ -177,8 +180,8 @@ class Conv2d : public Module
      *
      * Rearranges image patches into columns for efficient matrix multiplication.
      */
-    void im2col_optimized(const nn::Tensor& input,
-        nn::Tensor& output,
+    void im2col_optimized(const Tensor& input,
+        Tensor& output,
         int batch_size,
         int input_height,
         int input_width,
@@ -190,24 +193,23 @@ class Conv2d : public Module
      *
      * Reconstructs spatial dimensions from column format, accumulating overlapping patches.
      */
-    auto col2im_optimized(const nn::Tensor& cols,
+    auto col2im_optimized(const Tensor& cols,
         int batch_size,
         int input_height,
         int input_width,
         int output_height,
-        int output_width) const -> nn::Tensor;
+        int output_width) const -> Tensor;
 
     /**
      * @brief Add bias to output matrix with optimized broadcasting
      */
-    void add_bias_optimized(nn::Tensor& matrix, const nn::Tensor& bias, int num_cols) const;
+    void add_bias_optimized(Tensor& matrix, const Tensor& bias, int num_cols) const;
 
     /**
      * @brief Reshape output matrix to 4D tensor without data copy
      */
     auto reshape_output_optimized(
-        const nn::Tensor& matrix, int batch_size, int output_height, int output_width) const
-        -> nn::Tensor;
+        const Tensor& matrix, int batch_size, int output_height, int output_width) const -> Tensor;
 
     /**
      * @brief Initialize weights using He initialization for ReLU networks

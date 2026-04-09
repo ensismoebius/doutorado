@@ -10,6 +10,7 @@
 #include "nn/io/StateIO.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/testing/tempfile.hpp"
 

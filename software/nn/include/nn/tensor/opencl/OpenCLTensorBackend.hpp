@@ -1,12 +1,12 @@
 /**
  * @file include/nn/tensor/OpenCLTensorBackend.hpp
- * @brief OpenCL implementation of tensor backend.
+ * @brief OpenCL-only implementation of the tensor backend.
  *
  * **API contract:**
- * - Same interface and semantics as EigenTensorBackend
+ * - Same public interface as the CPU tensor backend
  * - Move/copy construction and assignment supported
  * - Lazy gradient allocation (on grad_ref access)
- * - Row-major storage order
+ * - OpenCL kernels are the only execution path for tensor operations
  */
 
 #ifndef OPENCL_TENSOR_BACKEND_HPP
@@ -20,22 +20,19 @@
 
 #include "nn/device/Device.hpp"
 #include "nn/tensor/Tensor.hpp"
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/GPUBufferPool.hpp"
 namespace nn
 {
 
 using Index = std::size_t;
 
-// Forward-declare Eigen backend for Phase 1 fallback
-class EigenTensorBackend;
+class OpenCLHostStorage;
 
 /**
- * @brief OpenCL tensor backend (Phase 1: CPU fallback).
+ * @brief OpenCL tensor backend with OpenCL-owned execution and host staging storage.
  *
- * Currently delegates all operations to EigenTensorBackend for correctness.
- * GPU implementations will be added incrementally in later phases
- * when performance targets are met.
+ * Host-side tensor metadata and synchronization staging are managed locally,
+ * but all math operations execute through OpenCL kernels only.
  */
 class OpenCLTensorBackend
 {
@@ -73,7 +70,7 @@ class OpenCLTensorBackend
     explicit OpenCLTensorBackend(const std::vector<Index>& shape, const Device& device);
     explicit OpenCLTensorBackend(Index rows, Index cols, const Device& device);
 
-    // Copy/Move construction: delegate to Eigen backend
+    // Copy/Move construction
     OpenCLTensorBackend(const OpenCLTensorBackend& other);
     OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept = default;
 
@@ -101,7 +98,7 @@ class OpenCLTensorBackend
     Index cols() const;
     Index size() const;
 
-    // N-D access operators (delegates to Eigen backend)
+    // N-D access operators (requires synchronization from pending OpenCL work)
     float& at(Index i);
     const float& at(Index i) const;
     float& at(Index row, Index col);
@@ -289,7 +286,7 @@ class OpenCLTensorBackend
     void try_allocate_gpu_buffer(Index size);
 
    private:
-    std::unique_ptr<EigenTensorBackend> m_backend;
+    std::unique_ptr<OpenCLHostStorage> m_backend;
     std::unique_ptr<OpenCLTensorBackend> m_grad_backend;
     std::unique_ptr<tensor::GPUBuffer> m_gpu_buffer;
     bool m_has_gpu_memory = false;

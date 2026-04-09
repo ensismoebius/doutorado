@@ -26,33 +26,36 @@
  *   callers should prefer `requires_grad=true` during training.
  */
 
-class SpikeCountLoss : public Module
+template <typename Backend>
+class SpikeCountLossImpl : public Module<Backend>
 {
+    using Tensor = typename Module<Backend>::Tensor;
+
    private:
-    nn::Tensor target_;
-    nn::Tensor last_input_;
+    Tensor target_;
+    Tensor last_input_;
     bool training_ = true;
 
    public:
-    SpikeCountLoss() = default;
+    SpikeCountLossImpl() = default;
 
     void train(bool on) override
     {
         training_ = on;
     }
 
-    void set_target(const nn::Tensor& t)
+    void set_target(const Tensor& t)
     {
         target_ = t;
     }
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         if (training_ && requires_grad)
         {
             last_input_ = input;
         }
         // pred and target: (n_samples, 1)
-        nn::Tensor diff = last_input_;
+        Tensor diff = last_input_;
         diff.subtract_inplace(target_);
         float sum_sq = 0.0f;
         for (size_t i = 0; i < diff.rows(); ++i)
@@ -64,14 +67,14 @@ class SpikeCountLoss : public Module
             }
         }
         float loss = sum_sq / static_cast<float>(diff.size());
-        nn::Tensor loss_tensor(1, 1);
+        Tensor loss_tensor(1, 1);
         loss_tensor.at(0, 0) = loss;
         return loss_tensor;
     }
-    auto backward(const nn::Tensor& /*grad_output*/) -> nn::Tensor override
+    auto backward(const Tensor& /*grad_output*/) -> Tensor override
     {
         // Gradient: 2 * (prediction - target) / N
-        nn::Tensor grad(last_input_);
+        Tensor grad(last_input_);
         grad.subtract_inplace(target_);
         grad.multiply_scalar_inplace(2.0f / static_cast<float>(last_input_.size()));
         return grad;

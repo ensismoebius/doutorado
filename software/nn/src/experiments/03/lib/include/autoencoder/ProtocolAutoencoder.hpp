@@ -5,7 +5,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "nn/layers/Module.hpp"
-#include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -19,7 +19,7 @@
  * Use `encode()` and `decode()` to run each half independently.
  * `forward()` chains both halves (reconstruction).
  */
-struct ProtocolAutoencoder : Module
+struct ProtocolAutoencoder : Module<nn::EigenTensorBackend>
 {
     bool use_dual_branch_ = false;
 

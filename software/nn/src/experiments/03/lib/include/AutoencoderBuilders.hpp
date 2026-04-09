@@ -27,6 +27,7 @@
 #include "nn/layers/ReLU.hpp"
 #include "nn/layers/ResidualBlock.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace experiment03::autoencoders
@@ -266,15 +267,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
 inline auto slice_columns(const nn::Tensor& input, nn::Index col_offset, nn::Index col_count)
     -> nn::Tensor
 {
-    nn::Tensor slice(input.rows(), col_count);
-    for (nn::Index row = 0; row < input.rows(); ++row)
-    {
-        for (nn::Index col = 0; col < col_count; ++col)
-        {
-            slice.at(row, col) = input.at(row, col_offset + col);
-        }
-    }
-    return slice;
+    return input.block(0, col_offset, input.rows(), col_count);
 }
 
 inline auto concat_columns(const nn::Tensor& left, const nn::Tensor& right) -> nn::Tensor
@@ -285,17 +278,8 @@ inline auto concat_columns(const nn::Tensor& left, const nn::Tensor& right) -> n
     }
 
     nn::Tensor joined(left.rows(), left.cols() + right.cols());
-    for (nn::Index row = 0; row < joined.rows(); ++row)
-    {
-        for (nn::Index col = 0; col < left.cols(); ++col)
-        {
-            joined.at(row, col) = left.at(row, col);
-        }
-        for (nn::Index col = 0; col < right.cols(); ++col)
-        {
-            joined.at(row, left.cols() + col) = right.at(row, col);
-        }
-    }
+    joined.setBlock(0, 0, left);
+    joined.setBlock(0, left.cols(), right);
     return joined;
 }
 

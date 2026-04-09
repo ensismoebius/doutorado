@@ -19,6 +19,7 @@
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 #include "nn/wave/Wav.h"

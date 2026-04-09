@@ -25,27 +25,30 @@
  * - There is no internal checking that targets are valid one-hot vectors.
  */
 
-class CrossEntropyLoss : public Module
+template <typename Backend>
+class CrossEntropyLossImpl : public Module<Backend>
 {
+    using Tensor = typename Module<Backend>::Tensor;
+
    public:
     // store last softmax output for backward
-    nn::Tensor last_probs;
-    nn::Tensor last_targets; // one-hot targets
+    Tensor last_probs;
+    Tensor last_targets; // one-hot targets
 
     // Targets should be passed via set_target as Tensor (N x C) one-hot matrix.
     // (If you store class indices instead, you must convert to one-hot before using
     // this implementation.)
-    void set_target(const nn::Tensor& target)
+    void set_target(const Tensor& target)
     {
         last_targets = target;
     }
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         const auto& x = input;
 
         // Numeric-stable softmax: find max per row
-        nn::Tensor max_per_row(x.rows(), 1);
+        Tensor max_per_row(x.rows(), 1);
         for (size_t i = 0; i < x.rows(); ++i)
         {
             float max_val = x.at(i, 0);
@@ -57,7 +60,7 @@ class CrossEntropyLoss : public Module
         }
 
         // Shift and exponentiate
-        nn::Tensor exps(x.rows(), x.cols());
+        Tensor exps(x.rows(), x.cols());
         for (size_t i = 0; i < x.rows(); ++i)
         {
             for (size_t j = 0; j < x.cols(); ++j)
@@ -67,7 +70,7 @@ class CrossEntropyLoss : public Module
         }
 
         // Sum per row
-        nn::Tensor sums(x.rows(), 1);
+        Tensor sums(x.rows(), 1);
         for (size_t i = 0; i < x.rows(); ++i)
         {
             float sum = 0.0f;
@@ -79,7 +82,7 @@ class CrossEntropyLoss : public Module
         }
 
         // Normalize: probs[i,j] = exps[i,j] / sums[i]
-        nn::Tensor probs(x.rows(), x.cols());
+        Tensor probs(x.rows(), x.cols());
         for (size_t i = 0; i < x.rows(); ++i)
         {
             for (size_t j = 0; j < x.cols(); ++j)
@@ -108,15 +111,15 @@ class CrossEntropyLoss : public Module
         }
         float loss = loss_sum / static_cast<float>(x.rows());
 
-        nn::Tensor loss_tensor(1, 1);
+        Tensor loss_tensor(1, 1);
         loss_tensor.at(0, 0) = loss;
         return loss_tensor;
     }
 
-    auto backward(const nn::Tensor& /*unused*/) -> nn::Tensor override
+    auto backward(const Tensor& /*unused*/) -> Tensor override
     {
         // Gradient of loss wrt logits: (probs - targets) / N
-        nn::Tensor grad(last_probs.rows(), last_probs.cols());
+        Tensor grad(last_probs.rows(), last_probs.cols());
         float scale = 1.0f / static_cast<float>(last_probs.rows());
         for (size_t i = 0; i < last_probs.rows(); ++i)
         {

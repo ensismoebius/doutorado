@@ -25,6 +25,7 @@
 #include "nn/layers/Leaky.hpp"
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Module.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
@@ -36,6 +37,7 @@ using ::Linear;
 using argparse::ArgumentParser;
 using nn::Index;
 using nn::Tensor;
+using ModuleEigen = Module<nn::EigenTensorBackend>;
 using std::cout;
 using std::exception;
 using std::llround;
@@ -198,7 +200,7 @@ auto build_features(const std::vector<double>& audio, ExtractionConfig cfg)
 
 // --- SNN model (Linear + Leaky with optional residual blocks) ---
 
-struct ResidualBlock : public Module
+struct ResidualSnnBlock : public ModuleEigen
 {
     std::shared_ptr<Linear> fc1;
     std::shared_ptr<Leaky> lif1;
@@ -206,7 +208,7 @@ struct ResidualBlock : public Module
     std::shared_ptr<Leaky> lif2;
     std::vector<Tensor*> param_ptrs_;
 
-    explicit ResidualBlock(int dim)
+    explicit ResidualSnnBlock(int dim)
         : fc1(std::make_shared<Linear>(dim, dim)),
           lif1(std::make_shared<Leaky>()),
           fc2(std::make_shared<Linear>(dim, dim)),
@@ -253,11 +255,11 @@ struct ResidualBlock : public Module
     }
 };
 
-struct SnnModel : public Module
+struct SnnModel : public ModuleEigen
 {
     std::shared_ptr<Linear> fc_in;
     std::shared_ptr<Leaky> lif_in;
-    std::vector<shared_ptr<ResidualBlock>> residual_blocks;
+    std::vector<shared_ptr<ResidualSnnBlock>> residual_blocks;
     std::shared_ptr<Linear> fc_out;
     std::shared_ptr<Leaky> lif_out;
     std::vector<Tensor*> param_ptrs_;
@@ -270,7 +272,7 @@ struct SnnModel : public Module
     {
         for (int i = 0; i < depth; ++i)
         {
-            residual_blocks.push_back(std::make_shared<ResidualBlock>(hidden_size));
+            residual_blocks.push_back(std::make_shared<ResidualSnnBlock>(hidden_size));
         }
 
         const unsigned int base_seed = seed == 0 ? nn::testing::kSeed : seed;

@@ -18,6 +18,7 @@
 #include "nn/layers/ReLU.hpp"
 #include "nn/layers/ResidualBlock.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"

@@ -5,7 +5,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "nn/layers/Module.hpp"
-#include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -16,7 +16,7 @@
  *   Encoder: Linear(input → hidden) → Leaky → [×depth] → Linear(hidden → latent) → Leaky
  *   Decoder: Linear(latent → hidden) → LeakyIntegrator → [×depth] → Linear(hidden → input)
  */
-struct EegWindowSpikingAutoencoder : Module
+struct EegWindowSpikingAutoencoder : Module<nn::EigenTensorBackend>
 {
     Sequential encoder_;
     Sequential decoder_;

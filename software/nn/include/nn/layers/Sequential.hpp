@@ -19,30 +19,43 @@
  * How it fits:
  * - Higher-level models (autoencoders, ResNets, etc.) typically own one or more `Sequential`s
  *   and delegate `forward()` / `backward()` to them.
+ *
+ * Backend polymorphism:
+ * - `SequentialImpl<Backend>` works with any backend tensor type.
+ * - The convenience alias `Sequential = SequentialImpl<EigenBackend>` (in
+ * `nn/layers/eigen/Layers.hpp`) preserves backward compatibility with all existing call sites.
  */
 
-// A PyTorch-like Sequential container for C++
-struct Sequential : Module
+/// Backend-parameterized Sequential container. All layers in the container must share
+/// the same `Backend`; use a cross-backend bridge node for mixed-backend pipelines.
+template <typename Backend>
+struct SequentialImpl : Module<Backend>
 {
-    std::vector<std::shared_ptr<Module>> layers;
-    std::vector<nn::Tensor> outputs; // Optional cache of intermediate activations (per layer).
+    using Tensor = typename Module<Backend>::Tensor;
+
+    std::vector<std::shared_ptr<Module<Backend>>> layers;
+    /// Optional cache of intermediate activations (per layer) for debugging/visualization.
+    std::vector<Tensor> outputs;
     // Owned concatenation of parameter pointers from child layers. This storage
     // must remain valid while the returned span is used by callers.
     std::vector<nn::Tensor*> param_ptrs_;
 
-    Sequential() = default;
+    SequentialImpl() = default;
 
     // PyTorch-like constructor: Sequential({layer1, layer2, ...})
-    Sequential(std::initializer_list<std::shared_ptr<Module>> init_layers) : layers(init_layers) {}
+    SequentialImpl(std::initializer_list<std::shared_ptr<Module<Backend>>> init_layers)
+        : layers(init_layers)
+    {
+    }
 
     // Constructor from a vector of layers
-    explicit Sequential(const std::vector<std::shared_ptr<Module>>& init_layers)
+    explicit SequentialImpl(const std::vector<std::shared_ptr<Module<Backend>>>& init_layers)
         : layers(init_layers)
     {
     }
 
     // Add a layer (PyTorch: .add_module)
-    void add_module(const std::shared_ptr<Module>& module)
+    void add_module(const std::shared_ptr<Module<Backend>>& module)
     {
         layers.push_back(module);
     }
@@ -58,7 +71,7 @@ struct Sequential : Module
     }
 
     // Forward pass
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         if (layers.empty())
         {
@@ -69,7 +82,7 @@ struct Sequential : Module
         // Note: this cache is not strictly required for backprop because each layer may
         // manage its own caches; it is primarily a convenience.
         outputs.clear();
-        nn::Tensor temp_input = input;
+        Tensor temp_input = input;
         for (auto& layer : layers) [[likely]]
         {
             temp_input = layer->forward(temp_input, requires_grad);
@@ -79,11 +92,10 @@ struct Sequential : Module
     }
 
     // Backward pass
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // Reverse-order gradient propagation (chain rule).
-        // Each layer is responsible for producing gradients for its own parameters.
-        nn::Tensor grad = grad_output;
+        Tensor grad = grad_output;
         for (size_t i = layers.size(); i-- > 0;) [[likely]]
         {
             grad = layers[i]->backward(grad);

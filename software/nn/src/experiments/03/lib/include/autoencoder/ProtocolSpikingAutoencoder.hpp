@@ -5,7 +5,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "nn/layers/Module.hpp"
-#include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -20,7 +20,7 @@
  * continuous membrane potentials.  Call `reset_state()` between independent
  * sequences/trials to zero all membrane potentials.
  */
-struct ProtocolSpikingAutoencoder : Module
+struct ProtocolSpikingAutoencoder : Module<nn::EigenTensorBackend>
 {
     bool use_dual_branch_ = false;
 

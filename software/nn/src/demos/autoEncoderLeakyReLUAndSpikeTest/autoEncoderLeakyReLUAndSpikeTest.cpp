@@ -25,6 +25,7 @@
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
@@ -34,6 +35,7 @@
 #include "nn/utility/vectorizationCheck.hpp"
 
 using namespace std;
+using ModuleEigen = Module<nn::EigenTensorBackend>;
 
 namespace
 {
@@ -59,7 +61,7 @@ struct ModelConfig
 // =============================================================================
 // SNN Encoder-Decoder Model (PyTorch/snntorch style)
 // =============================================================================
-class SpikeAutoEncoder : public Module
+class SpikeAutoEncoder : public ModuleEigen
 {
    public:
     Sequential encoder;
@@ -71,10 +73,10 @@ class SpikeAutoEncoder : public Module
     explicit SpikeAutoEncoder(const ModelConfig& cfg)
     {
         // --- Helper to create layers succinctly ---
-        auto lin = [](int in, int out) -> std::shared_ptr<Module>
+        auto lin = [](int in, int out) -> std::shared_ptr<ModuleEigen>
         { return make_shared<Linear>(in, out); };
 
-        auto leaky = [&](bool readout = false) -> std::shared_ptr<Module>
+        auto leaky = [&](bool readout = false) -> std::shared_ptr<ModuleEigen>
         {
             // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
             // (time-major flatten). This demo flattens the per-step tensors that way.

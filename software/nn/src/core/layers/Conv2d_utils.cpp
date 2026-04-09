@@ -7,8 +7,9 @@
 
 // ============ Index Caching & Computation ============
 
-auto Conv2d::get_or_compute_indices(int batch_size, int input_height, int input_width) const
-    -> const std::vector<Conv2dImpl::PatchIndices>&
+template <typename Backend>
+auto Conv2dImpl<Backend>::get_or_compute_indices(int batch_size, int input_height, int input_width) const
+    -> const std::vector<Conv2dUtils::PatchIndices>&
 {
     auto key = std::make_tuple(batch_size, input_height, input_width);
 
@@ -28,8 +29,9 @@ auto Conv2d::get_or_compute_indices(int batch_size, int input_height, int input_
     return index_cache_[key] = std::move(indices);
 } // LCOV_EXCL_LINE
 
-auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) const
-    -> std::vector<Conv2dImpl::PatchIndices>
+template <typename Backend>
+auto Conv2dImpl<Backend>::compute_indices(int batch_size, int input_height, int input_width) const
+    -> std::vector<Conv2dUtils::PatchIndices>
 {
     const int dilated_kernel_size = dilation_ * (kernel_size_ - 1) + 1;
     const int output_height = (input_height + 2 * padding_ - dilated_kernel_size) / stride_ + 1;
@@ -37,7 +39,7 @@ auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) 
     const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int total_patches = batch_size * output_height * output_width; // Use actual batch_size
 
-    std::vector<Conv2dImpl::PatchIndices> indices(total_patches);
+    std::vector<Conv2dUtils::PatchIndices> indices(total_patches);
 
 // Precompute all indices
 #pragma omp parallel for collapse(2) if (use_parallel_)
@@ -82,7 +84,8 @@ auto Conv2d::compute_indices(int batch_size, int input_height, int input_width) 
     return indices;
 } // LCOV_EXCL_LINE
 
-void Conv2d::compute_indices_once(int batch_size, int input_height, int input_width) const
+template <typename Backend>
+void Conv2dImpl<Backend>::compute_indices_once(int batch_size, int input_height, int input_width) const
 {
     if (!indices_computed_) [[unlikely]]
     {
@@ -94,8 +97,9 @@ void Conv2d::compute_indices_once(int batch_size, int input_height, int input_wi
 // ============ Image-to-Column (im2col) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-void Conv2d::im2col_optimized(const nn::Tensor& input,
-    nn::Tensor& output,
+template <typename Backend>
+void Conv2dImpl<Backend>::im2col_optimized(const typename Conv2dImpl<Backend>::Tensor& input,
+    typename Conv2dImpl<Backend>::Tensor& output,
     int batch_size,
     int input_height,
     int input_width,
@@ -180,12 +184,13 @@ void Conv2d::im2col_optimized(const nn::Tensor& input,
 // ============ Column-to-Image (col2im) Transformation ============
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-auto Conv2d::col2im_optimized(const nn::Tensor& cols,
+template <typename Backend>
+auto Conv2dImpl<Backend>::col2im_optimized(const typename Conv2dImpl<Backend>::Tensor& cols,
     int batch_size,
     int input_height,
     int input_width,
     int output_height,
-    int output_width) const -> nn::Tensor
+    int output_width) const -> typename Conv2dImpl<Backend>::Tensor
 {
     const int patch_cols_per_batch = output_height * output_width;
 
@@ -284,8 +289,9 @@ auto Conv2d::col2im_optimized(const nn::Tensor& cols,
 // ============ Bias Addition ============
 
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-void Conv2d::add_bias_optimized(
-    nn::Tensor& matrix, const nn::Tensor& bias, [[maybe_unused]] int num_cols) const
+template <typename Backend>
+void Conv2dImpl<Backend>::add_bias_optimized(
+    typename Conv2dImpl<Backend>::Tensor& matrix, const typename Conv2dImpl<Backend>::Tensor& bias, [[maybe_unused]] int num_cols) const
 {
     // Support bias stored either as (out_channels, 1) or as (1, out_channels).
     // Use element accessors to avoid layout assumptions about Tensor backend storage.
@@ -328,9 +334,10 @@ void Conv2d::add_bias_optimized(
 
 // ============ Output Reshaping ============
 
-auto Conv2d::reshape_output_optimized(
-    const nn::Tensor& matrix, int batch_size, int output_height, int output_width) const
-    -> nn::Tensor
+template <typename Backend>
+auto Conv2dImpl<Backend>::reshape_output_optimized(
+    const typename Conv2dImpl<Backend>::Tensor& matrix, int batch_size, int output_height, int output_width) const
+    -> typename Conv2dImpl<Backend>::Tensor
 {
     // Create output tensor with correct shape
     nn::Tensor output(batch_size, out_channels_, output_height, output_width);
@@ -381,3 +388,6 @@ auto Conv2d::reshape_output_optimized(
     return output;
 }
 // LCOV_EXCL_STOP
+
+// Explicit instantiation: generate code for the Eigen (CPU) backend only.
+template class Conv2dImpl<nn::EigenTensorBackend>;

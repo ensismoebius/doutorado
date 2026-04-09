@@ -21,6 +21,7 @@
 #include "nn/layers/SimpleResNet.hpp"
 #include "nn/layers/SpikeCountLoss.hpp"
 #include "nn/layers/SurrogateGradient.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)

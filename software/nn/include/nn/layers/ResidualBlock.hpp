@@ -20,46 +20,48 @@
 // This is the classic residual pattern from ResNets adapted to a 2D tensor
 // convention (N x D). The skip connection improves gradient flow in deeper
 // networks by providing an identity path.
-struct ResidualBlock : public Module
+template <typename Backend>
+struct ResidualBlockImpl : public Module<Backend>
 {
-    std::shared_ptr<Linear> fc1;
-    std::shared_ptr<ReLU> act1;
-    std::shared_ptr<Linear> fc2;
+    using Tensor = typename Module<Backend>::Tensor;
+    std::shared_ptr<LinearImpl<Backend>> fc1;
+    std::shared_ptr<ReLUImpl<Backend>> act1;
+    std::shared_ptr<LinearImpl<Backend>> fc2;
 
-    explicit ResidualBlock(int features)
-        : fc1(std::make_shared<Linear>(features, features)),
-          act1(std::make_shared<ReLU>()),
-          fc2(std::make_shared<Linear>(features, features))
+    explicit ResidualBlockImpl(int features)
+        : fc1(std::make_shared<LinearImpl<Backend>>(features, features)),
+          act1(std::make_shared<ReLUImpl<Backend>>()),
+          fc2(std::make_shared<LinearImpl<Backend>>(features, features))
     {
     }
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        nn::Tensor out = fc1->forward(input, requires_grad);
+        Tensor out = fc1->forward(input, requires_grad);
         out = act1->forward(out, requires_grad);
         out = fc2->forward(out, requires_grad);
 
         // Add skip connection: assume input and out shapes match (N x D)
         // (No projection layer is provided here; callers must ensure feature dims match.)
-        nn::Tensor res(out.rows(), out.cols());
+        Tensor res(out.rows(), out.cols());
         res = out.add(input);
         return res;
     }
 
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // Backprop through addition: gradient passes to both paths
         // grad w.r.t. fc2 output is grad_output
-        nn::Tensor grad_fc2 = fc2->backward(grad_output);
+        Tensor grad_fc2 = fc2->backward(grad_output);
 
         // grad through ReLU and fc1: first compute grad for that branch
-        nn::Tensor grad_act = act1->backward(grad_fc2);
-        nn::Tensor grad_fc1 = fc1->backward(grad_act);
+        Tensor grad_act = act1->backward(grad_fc2);
+        Tensor grad_fc1 = fc1->backward(grad_act);
 
         // Total gradient w.r.t. input is grad from main branch (grad_fc2 propagated through fc2->)
         // + grad from skip (identity)
         // This mirrors: d(x + f(x))/dx = I + df/dx.
-        nn::Tensor total(grad_fc1.rows(), grad_fc1.cols());
+        Tensor total(grad_fc1.rows(), grad_fc1.cols());
         total = grad_fc1.add(grad_output);
         return total;
     }

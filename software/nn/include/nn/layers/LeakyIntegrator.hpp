@@ -36,34 +36,41 @@
  *   through directly (dV/dInput = 1). The recurrent dependency dV[t]/dV[t-1] = beta
  *   is typically captured via BPTT (or truncated BPTT approximations).
  */
-struct LeakyIntegrator : public Leaky
+template <typename Backend>
+struct LeakyIntegratorImpl : public LeakyImpl<Backend>
 {
+    /// Tensor type for the active compute backend.
+    using Tensor = typename LeakyImpl<Backend>::Tensor;
+
     /**
      * @brief Construct a new Leaky Integrator
      * @param dt_ Time step
      * @param R_ Resistance
      * @param C_ Capacitance
      */
-    LeakyIntegrator(float dt_, float R_, float C_) : Leaky(dt_, R_, C_, 0.0f, false, 0.0f) {}
+    LeakyIntegratorImpl(float dt_, float R_, float C_)
+        : LeakyImpl<Backend>(dt_, R_, C_, 0.0f, false, 0.0f)
+    {
+    }
 
     /**
      * @brief Continuous forward pass (Integrate without Fire/Reset)
      */
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // 1. Resize/Init State (if batch size changed or first run)
-        if (v_mem.rows() != input.rows() || v_mem.cols() != input.cols()) [[unlikely]]
+        if (this->v_mem.rows() != input.rows() || this->v_mem.cols() != input.cols()) [[unlikely]]
         {
-            v_mem = nn::Tensor(input.rows(), input.cols());
-            v_mem.setZero();
+            this->v_mem = Tensor(input.rows(), input.cols());
+            this->v_mem.setZero();
         }
 
         // 2. Calculate Decay Factor (beta)
         // beta = exp(-dt / RC)
         // Clamp capacitance to prevent tau = 0.
-        float const C = std::max(1e-6F, capacitance.at(0, 0));
-        float const tau = resistance.at(0, 0) * C;
-        float const beta = std::exp(-time_step / tau);
+        float const C = std::max(1e-6F, this->capacitance.at(0, 0));
+        float const tau = this->resistance.at(0, 0) * C;
+        float const beta = std::exp(-this->time_step / tau);
 
         // Note: if tau is extremely small, beta can underflow; callers should
         // keep (R,C,dt) in a numerically sensible range.
@@ -71,21 +78,21 @@ struct LeakyIntegrator : public Leaky
         // 3. Cache state for gradient calculation (dL/dR depends on previous voltage)
         if (requires_grad)
         {
-            v_mem_t_minus_1 = v_mem;
+            this->v_mem_t_minus_1 = this->v_mem;
         }
 
         // 4. Update Dynamics: V[t] = beta * V[t-1] + Input[t]
-        v_mem = v_mem.multiply_scalar(beta).add(input);
+        this->v_mem = this->v_mem.multiply_scalar(beta).add(input);
 
         // Output is the membrane potential itself (Continuous)
-        return v_mem;
+        return this->v_mem;
     }
 
     /**
      * @brief Backward pass for continuous integration.
      * @param grad_output Gradient of loss w.r.t the output (which is v_mem)
      */
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override
+    auto backward(const Tensor& grad_output) -> Tensor override
     {
         // dL/dOutput = grad_output
         // Output = V_mem
@@ -95,45 +102,45 @@ struct LeakyIntegrator : public Leaky
         // V[t] = beta*V[t-1] + Input[t]
         // dV[t]/dInput[t] = 1
         // Thus, dL/dInput = dL/dV * 1
-        nn::Tensor grad_input = grad_output;
+        Tensor grad_input = grad_output;
 
         // 2. Gradient w.r.t Resistance (Parameter Update)
         // dL/dR = dL/dV * dV/dbeta * dbeta/dR
         // dV/dbeta = V[t-1]
-        const float R = resistance.at(0, 0);
-        const float C = std::max(1e-6F, capacitance.at(0, 0));
+        const float R = this->resistance.at(0, 0);
+        const float C = std::max(1e-6F, this->capacitance.at(0, 0));
         const float tau = R * C;
 
         if (tau > 1e-6) [[likely]]
         {
-            const float beta = std::exp(-time_step / tau);
-            const float d_beta_dR = (beta * time_step) / (C * R * R);
+            const float beta = std::exp(-this->time_step / tau);
+            const float d_beta_dR = (beta * this->time_step) / (C * R * R);
 
             // dL/dbeta = sum( dL/dV * V[t-1] )
-            float dL_dbeta = grad_input.multiply(v_mem_t_minus_1).sum();
+            float dL_dbeta = grad_input.multiply(this->v_mem_t_minus_1).sum();
 
             // --- Gradient for resistance ---
-            nn::Tensor r_grad(1, 1);
+            Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dbeta * d_beta_dR;
-            resistance.set_grad(r_grad);
+            this->resistance.set_grad(nn::Tensor(r_grad));
 
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
-            const float d_beta_dC = (beta * time_step) / (R * C * C);
-            nn::Tensor c_grad(1, 1);
+            const float d_beta_dC = (beta * this->time_step) / (R * C * C);
+            Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
-            capacitance.set_grad(c_grad);
+            this->capacitance.set_grad(nn::Tensor(c_grad));
         }
         else
         {
             // Degenerate tau (R or C near zero): treat d(beta)/dR as 0 and keep
             // resistance gradient well-defined.
-            nn::Tensor r_grad(1, 1);
+            Tensor r_grad(1, 1);
             r_grad.set_zero();
-            resistance.set_grad(r_grad);
-            nn::Tensor c_grad(1, 1);
+            this->resistance.set_grad(nn::Tensor(r_grad));
+            Tensor c_grad(1, 1);
             c_grad.set_zero();
-            capacitance.set_grad(c_grad);
+            this->capacitance.set_grad(nn::Tensor(c_grad));
         }
 
         return grad_input;

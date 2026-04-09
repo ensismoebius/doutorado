@@ -13,11 +13,13 @@
 #include "nn/layers/Linear.hpp"
 #include "nn/layers/Module.hpp"
 #include "nn/layers/Sequential.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 
 using nn::Index;
 using nn::Tensor;
+using ModuleEigen = Module<nn::EigenTensorBackend>;
 using std::make_shared;
 using std::shared_ptr;
 using std::vector;
@@ -48,13 +50,13 @@ struct ModelConfig
 // =============================================================================
 
 /** Create a Linear layer */
-auto lin(int in, int out) -> std::shared_ptr<Module>
+auto lin(int in, int out) -> std::shared_ptr<ModuleEigen>
 {
     return make_shared<Linear>(in, out);
 };
 
 /** Create a LeakyBPTT layer */
-auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<Module>
+auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<ModuleEigen>
 {
     // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
     // (time-major flatten). This demo flattens the per-step tensors that way.
@@ -76,7 +78,7 @@ auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<Modu
 // =============================================================================
 // Residual SNN Block: Linear -> Leaky -> Linear -> Leaky + skip connection
 // =============================================================================
-struct ResidualSNNBlock : public Module
+struct ResidualSNNBlock : public ModuleEigen
 {
    public:
     Sequential model;
@@ -114,7 +116,7 @@ struct ResidualSNNBlock : public Module
     }
 };
 
-struct SnnModel : public Module
+struct SnnModel : public ModuleEigen
 {
    public:
     Sequential model;

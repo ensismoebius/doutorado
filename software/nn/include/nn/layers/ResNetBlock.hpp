@@ -20,17 +20,20 @@
  *   (padding/stride choices) or a 1x1 conv projection.
  */
 
-class ResNetBlock : public Module
+template <typename Backend>
+class ResNetBlockImpl : public Module<Backend>
 {
+    using Tensor = typename Module<Backend>::Tensor;
+
    public:
-    ResNetBlock(int in_channels, int out_channels)
+    ResNetBlockImpl(int in_channels, int out_channels)
         : conv1_(in_channels, out_channels, 3), relu_(), conv2_(out_channels, out_channels, 3)
     {
     }
 
-    nn::Tensor forward(const nn::Tensor& input, bool requires_grad = true) override
+    Tensor forward(const Tensor& input, bool requires_grad = true) override
     {
-        nn::Tensor output = conv1_.forward(input, requires_grad);
+        Tensor output = conv1_.forward(input, requires_grad);
         output = relu_.forward(output, requires_grad);
         output = conv2_.forward(output, requires_grad);
 
@@ -45,7 +48,7 @@ class ResNetBlock : public Module
         else
         {
             // Create zero matrix matching output underlying data and copy overlapping region
-            nn::Tensor aligned(output.rows(), output.cols());
+            Tensor aligned(output.rows(), output.cols());
             aligned.setZero();
 
             const auto& in_mat = input;
@@ -64,9 +67,9 @@ class ResNetBlock : public Module
     }
 
    private:
-    Conv2d conv1_;
-    ReLU relu_;
-    Conv2d conv2_;
+    Conv2dImpl<Backend> conv1_;
+    ReLUImpl<Backend> relu_;
+    Conv2dImpl<Backend> conv2_;
 };
 
 #endif // NN_LAYERS_RESNETBLOCK_HPP
