@@ -4,7 +4,6 @@
 #include <cmath>
 #include <memory>
 #include <utility>
-#include <vector>
 
 #include "nn/layers/Module.hpp"
 #include "nn/layers/SurrogateGradient.hpp"

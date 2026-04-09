@@ -13,11 +13,6 @@
 
 #include "nn/dataLoaders/mat_file_utils.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/CrossEntropyLoss.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/ReLU.hpp"
-#include "nn/layers/ResidualBlock.hpp"
-#include "nn/layers/Sequential.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"

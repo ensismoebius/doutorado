@@ -2,7 +2,6 @@
 #define NN_LAYERS_SPIKECOUNTLOSS_HPP
 
 #include "nn/layers/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file SpikeCountLoss.hpp

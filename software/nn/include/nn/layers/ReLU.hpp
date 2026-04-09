@@ -1,7 +1,6 @@
 #ifndef RELU_HPP
 #define RELU_HPP
 
-#include <cstddef>
 
 #include "nn/layers/Module.hpp"
 #include "nn/tensor/Tensor.hpp"

@@ -7,10 +7,6 @@
 
 #include "gtest/gtest.h"
 #include "nn/layers/Leaky.hpp"
-#include "nn/layers/LeakyReLU.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/ReLU.hpp"
-#include "nn/layers/Sequential.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/saver/NetworkSerializer.hpp"
 

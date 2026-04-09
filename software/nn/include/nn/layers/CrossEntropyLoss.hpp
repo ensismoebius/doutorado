@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include "nn/layers/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file CrossEntropyLoss.hpp

@@ -7,7 +7,6 @@
 
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/initializers/xavier.hpp"
-#include "nn/layers/Linear.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 

@@ -29,7 +29,6 @@
 #include "nn/dataLoaders/IDatasetPrinter.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 #include "nn/device/Device.hpp"
-#include "nn/layers/MSELoss.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Optimizer.hpp"

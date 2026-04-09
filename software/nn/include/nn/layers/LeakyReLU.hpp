@@ -2,7 +2,6 @@
 #define LEAKYRELU_HPP
 
 #include "nn/layers/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file LeakyReLU.hpp

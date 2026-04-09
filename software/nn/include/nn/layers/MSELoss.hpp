@@ -2,13 +2,11 @@
 #define MSELOSS_HPP
 
 #include <cmath>
-#include <iostream>
 #include <limits>
 #include <sstream>
 
 #include "nn/layers/Module.hpp"
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file MSELoss.hpp

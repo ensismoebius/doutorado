@@ -8,18 +8,9 @@
 #include <memory>
 
 #include "core/utility/tests/test_helpers.hpp"
-#include "nn/initializers/xavier.hpp"
 #include "nn/layers/Conv2d.hpp"
 #include "nn/layers/Leaky.hpp"
-#include "nn/layers/LeakyIntegrator.hpp"
-#include "nn/layers/LeakyReLU.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/MSELoss.hpp"
-#include "nn/layers/ReLU.hpp"
 #include "nn/layers/Regularization.hpp"
-#include "nn/layers/Sequential.hpp"
-#include "nn/layers/SimpleResNet.hpp"
-#include "nn/layers/SpikeCountLoss.hpp"
 #include "nn/layers/SurrogateGradient.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"

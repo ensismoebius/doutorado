@@ -11,7 +11,6 @@
 
 #include "nn/layers/Conv2d_utils.hpp"
 #include "nn/layers/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file Conv2d.hpp

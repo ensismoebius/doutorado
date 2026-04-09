@@ -1,11 +1,9 @@
 #ifndef NN_LAYERS_MAXPOOL2D_HPP
 #define NN_LAYERS_MAXPOOL2D_HPP
 
-#include <vector>
 
 #include "nn/layers/Module.hpp"
 #include "nn/logging/Logger.hpp"
-#include "nn/tensor/Tensor.hpp"
 
 /**
  * @file MaxPool2d.hpp

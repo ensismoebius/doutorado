@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "Config.hpp"
-#include "nn/layers/SimpleResNet.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 

@@ -22,8 +22,6 @@
 
 #include "codificacao.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Leaky.hpp"
-#include "nn/layers/Linear.hpp"
 #include "nn/layers/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"

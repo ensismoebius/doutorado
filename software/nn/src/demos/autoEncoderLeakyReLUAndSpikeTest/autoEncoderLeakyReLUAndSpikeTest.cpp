@@ -21,10 +21,6 @@
 #include <vector>
 
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/LeakyBPTT.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/MSELoss.hpp"
-#include "nn/layers/Sequential.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"

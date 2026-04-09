@@ -1,12 +1,9 @@
 #ifndef NN_LAYERS_CONV2D_UTILS_HPP
 #define NN_LAYERS_CONV2D_UTILS_HPP
 
-#include <memory>
-#include <mutex>
 #include <unordered_map>
 #include <vector>
 
-#include "nn/tensor/Tensor.hpp"
 
 // Forward declaration
 template <typename Backend>
