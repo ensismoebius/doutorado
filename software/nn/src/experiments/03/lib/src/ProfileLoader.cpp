@@ -17,6 +17,7 @@
 #include <iterator>
 #include <sstream>
 #include <string_view>
+#include <unordered_set>
 
 namespace experiment03
 {
@@ -496,7 +497,7 @@ static auto is_known_profile_key(const std::string& key) -> bool
 {
     if (key.rfind("_comment", 0) == 0) return true;
 
-    static const std::vector<std::string_view> kKnownKeys = {
+    static const std::unordered_set<std::string> kKnownKeys = {
         "training_batch_size",
         "training_max_batches_per_epoch",
         "program_device",
@@ -553,7 +554,7 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "program_opencl_profiling_enabled",
     };
 
-    return std::find(kKnownKeys.begin(), kKnownKeys.end(), key) != kKnownKeys.end();
+    return kKnownKeys.contains(key);
 }
 
 static auto validate_known_profile_keys(const std::string& text, std::string& out_error) -> bool
