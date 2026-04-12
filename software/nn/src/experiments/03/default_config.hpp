@@ -65,6 +65,7 @@ const Config default_config{
     .prefetch_ram_cap_mb = 1000,
 
     // K-Fold cross-validation.
+    .kfold_enabled = true,
     .kfold_n_splits = 5,
     .kfold_shuffle = true,
     .kfold_seed = std::nullopt,

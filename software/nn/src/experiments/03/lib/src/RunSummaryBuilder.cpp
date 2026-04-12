@@ -37,7 +37,7 @@ auto build_run_summary(const Config& config,
     s.processed_samples = processed_samples;
     s.seen_batches = seen_batches;
     s.epoch_mean_losses = epoch_mean_losses;
-    s.kfold_n_splits = config.kfold_n_splits;
+    s.kfold_n_splits = config.kfold_enabled ? config.kfold_n_splits : 0;
     s.fold_epoch_val_losses = fold_epoch_val_losses;
     s.fold_mean_val_losses = fold_mean_val_losses;
     s.mean_val_loss = mean_val_loss;

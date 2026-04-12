@@ -512,10 +512,16 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->default_val(default_config.sampler_distributed_drop_last);
 
     // K-Fold cross-validation options.
+    app.add_flag( //
+           "--kfold,!--no-kfold",
+           config.kfold_enabled,
+           "Enable k-fold cross-validation mode")
+        ->default_val(default_config.kfold_enabled);
+
     app.add_option(          //
            "--kfold-splits", //
            config.kfold_n_splits,
-           "Number of folds k for k-fold cross-validation (requires --kfold; minimum 2)")
+           "Number of folds k for k-fold cross-validation (minimum 2 when k-fold is enabled)")
         ->expected(1)
         ->check(CLI::Range(2, 100))
         ->default_val(default_config.kfold_n_splits);
