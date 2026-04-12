@@ -143,30 +143,27 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidationEdgeCases)
     std::vector<std::vector<double>> features = {{1.0}, {2.0}};
     std::vector<int> labels = {0, 1};
 
-    // k = 1 (leave-one-out like)
-    auto results_k1 = statistics::k_fold_cross_validation<double>(features,
-        labels,
-        1,
-        42,
-        [](const auto& train_feat,
-            const auto& train_lab,
-            const auto& test_feat,
-            const auto& test_lab) -> double
-        {
-            return test_lab[0] == 0 ? 1.0 : 0.0; // Dummy
-        });
-    EXPECT_EQ(results_k1.size(), 1U);
+    // k = 1 is invalid for KFold
+    EXPECT_THROW(statistics::k_fold_cross_validation<double>(features,
+                     labels,
+                     1,
+                     42,
+                     [](const auto& train_feat,
+                         const auto& train_lab,
+                         const auto& test_feat,
+                         const auto& test_lab) -> double { return 0.0; }),
+        std::invalid_argument);
 
-    // k > n_samples (should handle)
-    auto results_k_large = statistics::k_fold_cross_validation<double>(features,
-        labels,
-        5,
-        42,
-        [](const auto& train_feat,
-            const auto& train_lab,
-            const auto& test_feat,
-            const auto& test_lab) -> double { return 0.5; });
-    EXPECT_EQ(results_k_large.size(), 5U);
+    // k > n_samples is invalid
+    EXPECT_THROW(statistics::k_fold_cross_validation<double>(features,
+                     labels,
+                     5,
+                     42,
+                     [](const auto& train_feat,
+                         const auto& train_lab,
+                         const auto& test_feat,
+                         const auto& test_lab) -> double { return 0.5; }),
+        std::invalid_argument);
 
     // Empty data (should throw)
     std::vector<std::vector<double>> empty_features;

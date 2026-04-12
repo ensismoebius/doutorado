@@ -2,9 +2,13 @@
 #define SRC_CORE_STATISTICS_MULTICLASSMETRICS_H_
 
 #include <algorithm>
+#include <cstdint>
 #include <numeric>
 #include <random>
+#include <stdexcept>
 #include <vector>
+
+#include "nn/statistics/kfold.hpp"
 
 namespace statistics
 {
@@ -64,39 +68,47 @@ std::vector<T> k_fold_cross_validation(const std::vector<std::vector<double>>& f
     int random_seed,
     Func fold_function)
 {
-    int n_samples = features.size();
-    std::vector<int> indices(n_samples);
-    std::iota(indices.begin(), indices.end(), 0);
-
-    // Shuffle indices
-    std::mt19937 rng(random_seed);
-    std::shuffle(indices.begin(), indices.end(), rng);
-
-    int fold_size = n_samples / k;
-    std::vector<T> results;
-
-    for (int fold = 0; fold < k; ++fold)
+    if (features.empty() || labels.empty())
     {
-        // Split data
+        throw std::runtime_error("features and labels must be non-empty");
+    }
+    if (features.size() != labels.size())
+    {
+        throw std::invalid_argument("features and labels must have the same size");
+    }
+    if (k <= 0)
+    {
+        throw std::invalid_argument("k must be > 0");
+    }
+
+    KFold splitter(static_cast<std::size_t>(k), true, static_cast<std::uint32_t>(random_seed));
+    const std::vector<FoldSplit> folds = splitter.split(features.size());
+
+    std::vector<T> results;
+    results.reserve(folds.size());
+
+    for (const auto& fold : folds)
+    {
         std::vector<std::vector<double>> train_features, test_features;
         std::vector<int> train_labels, test_labels;
 
-        for (int i = 0; i < n_samples; ++i)
+        train_features.reserve(fold.train_indices.size());
+        train_labels.reserve(fold.train_indices.size());
+        test_features.reserve(fold.test_indices.size());
+        test_labels.reserve(fold.test_indices.size());
+
+        for (const std::size_t idx : fold.train_indices)
         {
-            int idx = indices[i];
-            if (i >= fold * fold_size && i < (fold + 1) * fold_size)
-            {
-                test_features.push_back(features[idx]);
-                test_labels.push_back(labels[idx]);
-            }
-            else
-            {
-                train_features.push_back(features[idx]);
-                train_labels.push_back(labels[idx]);
-            }
+            train_features.push_back(features[idx]);
+            train_labels.push_back(labels[idx]);
         }
 
-        // Run fold function
+        for (const std::size_t idx : fold.test_indices)
+        {
+            test_features.push_back(features[idx]);
+            test_labels.push_back(labels[idx]);
+        }
+
         T result = fold_function(train_features, train_labels, test_features, test_labels);
         results.push_back(result);
     }

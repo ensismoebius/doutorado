@@ -26,5 +26,17 @@ target_link_libraries(confusionMatrix_gtest
         statistics
         google_test
 )
+
+add_executable(kfold_gtest
+    kfold_gtest.cpp
+)
+
+target_link_libraries(kfold_gtest
+    PRIVATE
+        statistics
+        google_test
+)
+
 gtest_discover_tests(statistics_gtest)
 gtest_discover_tests(confusionMatrix_gtest)
+gtest_discover_tests(kfold_gtest)

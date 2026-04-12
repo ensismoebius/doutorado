@@ -4,6 +4,7 @@ add_library(statistics
     statistics.cpp
     confusion_matrix.cpp
     multi_class_metrics.cpp
+    kfold.cpp
 )
 
 target_include_directories(statistics 
@@ -18,3 +19,5 @@ target_link_libraries(statistics
         Eigen3::Eigen
         tensor
 )
+
+add_subdirectory(tests)
