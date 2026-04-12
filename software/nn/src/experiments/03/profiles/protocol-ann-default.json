@@ -1,0 +1,46 @@
+{
+  "window_audio_config": {
+    "overlap": 0.5,
+    "sample_rate": 44100,
+    "window_size": 11025
+  },
+  "neural_network_audio_features": 0,
+  "neural_network_depth": 2,
+  "neural_network_eeg_features": 0,
+  "neural_network_hidden_size": 64,
+  "neural_network_input_features": 0,
+  "neural_network_latent_size": 32,
+  "neural_network_layer_sizes": [
+    64,
+    64
+  ],
+  "neural_network_type": "protocol-ann",
+  "training_batch_size": 32,
+  "dataset_type": "protocol",
+  "window_eeg_config": {
+    "overlap": 0.5,
+    "sample_rate": 1024,
+    "window_size": 256
+  },
+  "training_max_batches_per_epoch": 100,
+  "program_prefetch_lookahead": 5,
+  "training_epochs": 1,
+  "training_learning_rate": 0.001,
+  "dataset_subject_filter_regex": "^S(\\d+)$",
+  "dataset_root_path": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada",
+  "training_optimizer_type": "adam",
+  "training_loss_type": "mse",
+  "training_lr_plateau_enabled": true,
+  "training_lr_plateau_factor": 0.5,
+  "training_lr_plateau_patience": 3,
+  "training_lr_plateau_min_delta": 0.000001,
+  "validation_modality_diagnostics_enabled": true,
+  "neural_network_layer": [
+    "encoder:linear:64:relu",
+    "encoder:linear:64:relu",
+    "encoder:linear:latent:relu",
+    "decoder:linear:64:relu",
+    "decoder:linear:64:relu",
+    "decoder:linear:output:identity"
+  ]
+}
