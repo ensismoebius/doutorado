@@ -7,6 +7,8 @@
 
 #include "RunSummaryBuilder.hpp"
 
+#include "Experiment03Config.hpp"
+
 namespace experiment03
 {
 auto build_run_summary(const Config& config,

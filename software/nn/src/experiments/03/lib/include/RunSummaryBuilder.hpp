@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 
+#include "Experiment03Config.hpp"
 #include "ResultsWriter.hpp"
 
 namespace experiment03

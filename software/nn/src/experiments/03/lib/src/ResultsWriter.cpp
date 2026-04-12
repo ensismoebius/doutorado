@@ -6,6 +6,7 @@
  */
 
 #include "ResultsWriter.hpp"
+#include "cli.hpp"
 
 #include <cctype>
 #include <chrono>
