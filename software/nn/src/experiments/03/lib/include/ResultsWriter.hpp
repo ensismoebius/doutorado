@@ -32,8 +32,7 @@ struct Summary
     std::size_t processed_samples = 0;
     std::size_t seen_batches = 0;
     std::vector<float> epoch_mean_losses;
-    // K-fold cross-validation results. Empty when kfold is disabled.
-    bool kfold_enabled = false;
+    // K-fold cross-validation results.
     std::size_t kfold_n_splits = 0;
     std::vector<float> fold_val_losses; // Per-fold validation mean reconstruction loss.
     std::string error_message;

@@ -35,7 +35,6 @@ auto build_run_summary(const Config& config,
     s.processed_samples = processed_samples;
     s.seen_batches = seen_batches;
     s.epoch_mean_losses = epoch_mean_losses;
-    s.kfold_enabled = config.kfold_enabled;
     s.kfold_n_splits = config.kfold_n_splits;
     s.fold_val_losses = fold_val_losses;
     if (!error_message.empty()) s.error_message = error_message;

@@ -141,7 +141,6 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     }
     ofs << "],\n";
     ofs << "  \"kfold\": {\n";
-    ofs << "    \"enabled\": " << (summary.kfold_enabled ? "true" : "false") << ",\n";
     ofs << "    \"n_splits\": " << summary.kfold_n_splits << ",\n";
     ofs << "    \"fold_val_losses\": [";
     for (std::size_t i = 0; i < summary.fold_val_losses.size(); ++i)

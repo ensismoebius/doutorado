@@ -198,295 +198,125 @@ int Experiment03::run()
         // Attach model parameters to optimizer.
         optimizer->attach(model_->params());
 
-        if (config_.kfold_enabled)
+        /////////////////////////////////////////////////////////////////////
+        // K-Fold cross-validation training path.
+        // Splits the dataset into kfold_n_splits folds; for each fold:
+        //   1. Trains a fresh model on the training subset for training_epochs.
+        //   2. Evaluates reconstruction loss on the held-out test subset.
+        // Results are reported per-fold and included in the run summary.
+        /////////////////////////////////////////////////////////////////////
+
+        const auto folds = statistics::KFold( //
+            config_.kfold_n_splits,           //
+            config_.kfold_shuffle,            //
+            config_.kfold_seed.value_or(0U)   //
+            )
+                               .split(dataset_total_samples_);
+
+        for (size_t fold_idx = 0; fold_idx < folds.size(); ++fold_idx)
         {
-            /////////////////////////////////////////////////////////////////////
-            // K-Fold cross-validation training path.
-            // Splits the dataset into kfold_n_splits folds; for each fold:
-            //   1. Trains a fresh model on the training subset for training_epochs.
-            //   2. Evaluates reconstruction loss on the held-out test subset.
-            // Results are reported per-fold and included in the run summary.
-            /////////////////////////////////////////////////////////////////////
+            const auto& fold = folds[fold_idx];
 
-            const auto folds = statistics::KFold( //
-                config_.kfold_n_splits,           //
-                config_.kfold_shuffle,            //
-                config_.kfold_seed.value_or(0U)   //
-                )
-                                   .split(dataset_total_samples_);
+            ostringstream fold_header;
+            fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << folds.size()
+                        << "  train=" << fold.train_indices.size()
+                        << "  val=" << fold.test_indices.size() << " ===";
+            NN_LOG_INFO(fold_header.str());
 
-            for (size_t fold_idx = 0; fold_idx < folds.size(); ++fold_idx)
-            {
-                const auto& fold = folds[fold_idx];
+            // Fresh model and optimizer for every fold to avoid weight leakage.
+            model_ = build_autoencoder_model(                          //
+                config_,                                               //
+                static_cast<Index>(config_.autoencoder_input_features) //
+            );
+            model_->to(device);
 
-                ostringstream fold_header;
-                fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << folds.size()
-                            << "  train=" << fold.train_indices.size()
-                            << "  val=" << fold.test_indices.size() << " ===";
-                NN_LOG_INFO(fold_header.str());
+            unique_ptr<Optimizer> fold_optimizer = OptimizerFactory::create( //
+                config_.training_optimizer_type,                             //
+                config_.training_learning_rate,                              //
+                config_.training_optimizer_momentum,                         //
+                config_.training_optimizer_adam_beta1,                       //
+                config_.training_optimizer_adam_beta2,                       //
+                config_.training_optimizer_adam_epsilon                      //
+            );
+            fold_optimizer->attach(model_->params());
 
-                // Fresh model and optimizer for every fold to avoid weight leakage.
-                model_ = build_autoencoder_model(                          //
-                    config_,                                               //
-                    static_cast<Index>(config_.autoencoder_input_features) //
-                );
-                model_->to(device);
-
-                unique_ptr<Optimizer> fold_optimizer = OptimizerFactory::create( //
-                    config_.training_optimizer_type,                             //
-                    config_.training_learning_rate,                              //
-                    config_.training_optimizer_momentum,                         //
-                    config_.training_optimizer_adam_beta1,                       //
-                    config_.training_optimizer_adam_beta2,                       //
-                    config_.training_optimizer_adam_epsilon                      //
-                );
-                fold_optimizer->attach(model_->params());
-
-                // Train for training_epochs on the training subset.
-                for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
-                {
-                    DataLoader train_loader( //
-                        dataset_,            //
-                        config_.training_batch_size,
-                        make_unique<SubsetSampler>(fold.train_indices) //
-                    );
-
-                    size_t epoch_batches = 0;
-                    float epoch_loss_sum = 0.0F;
-
-                    for (auto& batch : train_loader)
-                    {
-                        if (is_snn_type(config_.autoencoder_type))
-                        {
-                            model_->reset_state();
-                        }
-
-                        auto params = model_->params();
-                        fold_optimizer->zero_grad(params);
-
-                        auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-                        loss.set_target(batch.inputs);
-                        auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
-                        auto d_loss = loss.backward(loss_value);
-                        model_->backward(d_loss);
-                        fold_optimizer->step(params);
-
-                        epoch_loss_sum += loss_value.at(0, 0);
-                        ++epoch_batches;
-                        processed_samples_ += static_cast<size_t>(batch.inputs.rows());
-                        ++seen_batches_;
-                    }
-
-                    const float mean_loss = epoch_batches > 0
-                                                ? epoch_loss_sum / static_cast<float>(epoch_batches)
-                                                : 0.0F;
-                    epoch_mean_losses.push_back(mean_loss);
-
-                    ostringstream fold_epoch_log;
-                    fold_epoch_log << "  fold " << (fold_idx + 1) << " epoch " << (epoch + 1) << "/"
-                                   << config_.training_epochs
-                                   << "  mean reconstruction loss: " << mean_loss;
-                    NN_LOG_INFO(fold_epoch_log.str());
-                }
-
-                // Evaluate reconstruction loss on the held-out test subset (no backprop).
-                DataLoader val_loader( //
-                    dataset_,          //
-                    config_.training_batch_size,
-                    make_unique<SubsetSampler>(fold.test_indices) //
-                );
-
-                float val_loss_sum = 0.0F;
-                size_t val_batches = 0;
-
-                for (auto& batch : val_loader)
-                {
-                    if (is_snn_type(config_.autoencoder_type))
-                    {
-                        model_->reset_state();
-                    }
-
-                    auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/false);
-                    loss.set_target(batch.inputs);
-                    auto loss_value = loss.forward(reconstruction, /*requires_grad=*/false);
-                    val_loss_sum += loss_value.at(0, 0);
-                    ++val_batches;
-                }
-
-                const float fold_val_loss =
-                    val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
-                fold_val_losses.push_back(fold_val_loss);
-
-                ostringstream fold_val_log;
-                fold_val_log << "  fold " << (fold_idx + 1) << " val loss: " << fold_val_loss;
-                NN_LOG_INFO(fold_val_log.str());
-            }
-        }
-        else
-        {
-            /////////////////////////////////////////////////////////////////////
-            // Standard single-pass epoch training loop (k-fold disabled).
-            // Re-creates the BatchPrefetcher each epoch so the SQLite source
-            // resets its iteration state for each pass over the full dataset.
-            /////////////////////////////////////////////////////////////////////
-
+            // Train for training_epochs on the training subset.
             for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
             {
-                // Track cumulative loss and batch count for mean
-                // loss reporting at the end of the epoch.
+                DataLoader train_loader( //
+                    dataset_,            //
+                    config_.training_batch_size,
+                    make_unique<SubsetSampler>(fold.train_indices) //
+                );
+
                 size_t epoch_batches = 0;
                 float epoch_loss_sum = 0.0F;
-                double last_batch_loss = 0.0;
 
-                // Reset per-epoch counters.
-                seen_batches_ = 0;
-                processed_samples_ = 0;
-
-                // SQLite is the only backend enabled right now.
-                // But i will keep this factory as the single extension
-                // point for future database backends.
-                unique_ptr<IBatchSource> src = make_unique<SqliteBatchSource>( //
-                    config_.dataset_root_path,                                 //
-                    config_.training_batch_size,                               //
-                    to_sqlite_dataset_type(config_.dataset_type),              //
-                    config_.window_eeg_config,                                 //
-                    config_.window_audio_config,                               //
-                    config_.dataset_input_mode                                 //
-                );
-
-                // Determine max batches for this epoch. A value of 0 in the
-                // configuration means "process the entire dataset for the
-                // epoch", so compute the number of batches from dataset size.
-                size_t epoch_max_batches = config_.training_max_batches_per_epoch;
-                if (epoch_max_batches == 0)
+                for (auto& batch : train_loader)
                 {
-                    const size_t batches = dataset_total_samples_ / config_.training_batch_size;
-                    epoch_max_batches =
-                        batches + (dataset_total_samples_ % config_.training_batch_size ? 1 : 0);
-                }
-
-                prefetcher_ = make_unique<BatchPrefetcher>(                //
-                    std::move(src),                                        //
-                    epoch_max_batches,                                     //
-                    config_.prefetch_lookahead,                            //
-                    config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
-                );
-
-                // Iterate over batches produced by the prefetcher.
-                while (prefetcher_->hasNext()) [[likely]]
-                {
-                    // Get next batch from prefetcher;
-                    // break if no more batches are available.
-                    auto maybe_batch = prefetcher_->next();
-
-                    // Log batch shape info for debugging.
-                    // This will be especially useful if the dataset
-                    // produces no batches due to misconfiguration or
-                    // data issues, as it will show "no batch" instead of
-                    // silently skipping the training loop with zero batches seen.
-                    NN_LOG_INFO(batch_to_string(maybe_batch.value()));
-
-                    if (!maybe_batch.has_value()) [[unlikely]]
-                        break;
-
-                    // Move batch out of optional;
-                    // batch is now owned by this scope.
-                    const Batch batch = std::move(maybe_batch.value());
-
-                    // Lazy model + optimizer init on the first batch observed.
-                    if (!model_) [[unlikely]]
-                    {
-                        // Build model based on observed input feature size and config.
-                        model_ = build_autoencoder_model( //
-                            config_,                      //
-                            batch.inputs.cols()           //
-                        );
-
-                        // Lazily start the device runtime and future: move parameters to device.
-                        model_->to(device);
-
-                        // Initialize optimizer with model parameters.
-                        optimizer = nn::optimizers::OptimizerFactory::create(
-                            config_.training_optimizer_type,
-                            config_.training_learning_rate,
-                            config_.training_optimizer_momentum,
-                            config_.training_optimizer_adam_beta1,
-                            config_.training_optimizer_adam_beta2,
-                            config_.training_optimizer_adam_epsilon);
-
-                        // Attach model parameters to optimizer.
-                        optimizer->attach(model_->params());
-                    }
-
-                    // SNN models need membrane state reset between independent sequences (batches).
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();
                     }
 
-                    // === Training step ===
                     auto params = model_->params();
-                    optimizer->zero_grad(params);
+                    fold_optimizer->zero_grad(params);
 
-                    // Forward pass (unsupervised reconstruction: target == input).
-                    // Note: For GPU, the per-operation CPU->GPU copy happens inside each tensor
-                    // operation. The codebase's Module::forward accepts nn::Tensor (EigenBackend)
-                    // so explicit GPU transfer would require API changes to support polymorphic
-                    // tensor backends. The current implementation handles this via the OpenCL
-                    // backend's internal copy_to_device() calls within each operation.
                     auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-
-                    // Compute MSE reconstruction loss.
                     loss.set_target(batch.inputs);
-
                     auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
-                    auto derivative_loss_value = loss.backward(loss_value);
-
-                    // Backward pass + parameter update.
-                    model_->backward(derivative_loss_value);
-                    optimizer->step(params);
+                    auto d_loss = loss.backward(loss_value);
+                    model_->backward(d_loss);
+                    fold_optimizer->step(params);
 
                     epoch_loss_sum += loss_value.at(0, 0);
-                    last_batch_loss = static_cast<double>(loss_value.at(0, 0));
                     ++epoch_batches;
-
                     processed_samples_ += static_cast<size_t>(batch.inputs.rows());
-                    seen_batches_ = prefetcher_->seenBatches();
-
-                    printProgress(dataset_total_samples_,
-                        config_.training_batch_size,
-                        config_.training_max_batches_per_epoch,
-                        seen_batches_,
-                        processed_samples_,
-                        false,
-                        epoch + 1,
-                        config_.training_epochs,
-                        static_cast<double>(loss_value.at(0, 0)));
-                }
-
-                // Finalize progress line for this epoch.
-                if (model_) [[likely]]
-                {
-                    printProgress(dataset_total_samples_,
-                        config_.training_batch_size,
-                        config_.training_max_batches_per_epoch,
-                        prefetcher_->seenBatches(),
-                        processed_samples_,
-                        true,
-                        epoch + 1,
-                        config_.training_epochs,
-                        last_batch_loss,
-                        model_->params());
+                    ++seen_batches_;
                 }
 
                 const float mean_loss =
                     epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
                 epoch_mean_losses.push_back(mean_loss);
 
-                ostringstream mean_loss_stream;
-                mean_loss_stream << "  mean reconstruction loss: " << mean_loss;
-                NN_LOG_INFO(mean_loss_stream.str());
+                ostringstream fold_epoch_log;
+                fold_epoch_log << "  fold " << (fold_idx + 1) << " epoch " << (epoch + 1) << "/"
+                               << config_.training_epochs
+                               << "  mean reconstruction loss: " << mean_loss;
+                NN_LOG_INFO(fold_epoch_log.str());
             }
+
+            // Evaluate reconstruction loss on the held-out test subset (no backprop).
+            DataLoader val_loader( //
+                dataset_,          //
+                config_.training_batch_size,
+                make_unique<SubsetSampler>(fold.test_indices) //
+            );
+
+            float val_loss_sum = 0.0F;
+            size_t val_batches = 0;
+
+            for (auto& batch : val_loader)
+            {
+                if (is_snn_type(config_.autoencoder_type))
+                {
+                    model_->reset_state();
+                }
+
+                auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/false);
+                loss.set_target(batch.inputs);
+                auto loss_value = loss.forward(reconstruction, /*requires_grad=*/false);
+                val_loss_sum += loss_value.at(0, 0);
+                ++val_batches;
+            }
+
+            const float fold_val_loss =
+                val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
+            fold_val_losses.push_back(fold_val_loss);
+
+            ostringstream fold_val_log;
+            fold_val_log << "  fold " << (fold_idx + 1) << " val loss: " << fold_val_loss;
+            NN_LOG_INFO(fold_val_log.str());
         }
 
         if (seen_batches_ == 0) [[unlikely]]

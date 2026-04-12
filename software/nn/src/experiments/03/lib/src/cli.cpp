@@ -512,12 +512,6 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
         ->default_val(default_config.sampler_distributed_drop_last);
 
     // K-Fold cross-validation options.
-    app.add_flag(                 //
-           "--kfold,!--no-kfold", //
-           config.kfold_enabled,  //
-           "Enable k-fold cross-validation training (trains and validates k separate models)")
-        ->default_val(default_config.kfold_enabled);
-
     app.add_option(          //
            "--kfold-splits", //
            config.kfold_n_splits,
