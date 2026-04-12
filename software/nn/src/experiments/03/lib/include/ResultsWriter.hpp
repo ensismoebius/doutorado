@@ -31,10 +31,16 @@ struct Summary
     std::size_t total_samples = 0;
     std::size_t processed_samples = 0;
     std::size_t seen_batches = 0;
+    /// Per-epoch mean training losses across all folds (concatenated in fold order).
     std::vector<float> epoch_mean_losses;
     // K-fold cross-validation results.
     std::size_t kfold_n_splits = 0;
-    std::vector<float> fold_val_losses; // Per-fold validation mean reconstruction loss.
+    /// Per-fold, per-epoch validation mean reconstruction losses: [fold_idx][epoch_idx].
+    std::vector<std::vector<float>> fold_epoch_val_losses;
+    /// Mean validation loss for each fold (average over all epochs within that fold).
+    std::vector<float> fold_mean_val_losses;
+    /// Grand mean validation loss across all folds (average of fold_mean_val_losses).
+    float mean_val_loss = 0.0F;
     std::string error_message;
 };
 

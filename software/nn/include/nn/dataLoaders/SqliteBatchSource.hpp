@@ -14,6 +14,7 @@
 
 #include <sqlite3.h>
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,7 @@ class SqliteBatchSource : public IBatchSource
     void reset_epoch(std::size_t epoch) override;
 
    private:
+    bool emit_pending_window_batch(Batch& out);
     bool open_db();
     void close_db();
 
@@ -71,6 +73,8 @@ class SqliteBatchSource : public IBatchSource
     std::vector<int> selected_trial_ids_filter_{};
     std::vector<int> trial_ids_{};
     std::size_t next_trial_index_ = 0;
+    std::vector<std::vector<float>> pending_window_samples_{};
+    std::size_t next_pending_sample_index_ = 0;
 };
 
 #endif // NN_DATALOADERS_SQLITEBATCHSOURCE_HPP

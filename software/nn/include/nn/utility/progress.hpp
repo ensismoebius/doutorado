@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <limits>
 #include <span>
+#include <string_view>
 
 #include "nn/tensor/Tensor.hpp"
 
@@ -33,6 +34,7 @@
  * - `total_epochs`: optional total number of epochs to display
  * - `current_loss`: optional current loss value to display inline (defaults to NaN)
  * - `params`: optional span of `nn::Tensor*` to print final parameter summaries when `done` is true
+ * - `context`: optional short prefix label (e.g., `Fold 2/5`) shown before epoch/progress
  *
  * When `done` is true the function prints a trailing newline to finish the
  * progress line.
@@ -46,4 +48,5 @@ void printProgress(std::size_t dataset_total_samples,
     std::size_t current_epoch = 0,
     std::size_t total_epochs = 0,
     double current_loss = std::numeric_limits<double>::quiet_NaN(),
-    std::span<nn::Tensor*> params = std::span<nn::Tensor*>{});
+    std::span<nn::Tensor*> params = std::span<nn::Tensor*>{},
+    std::string_view context = {});

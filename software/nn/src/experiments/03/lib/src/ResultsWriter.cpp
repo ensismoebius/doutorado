@@ -142,13 +142,28 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     ofs << "],\n";
     ofs << "  \"kfold\": {\n";
     ofs << "    \"n_splits\": " << summary.kfold_n_splits << ",\n";
-    ofs << "    \"fold_val_losses\": [";
-    for (std::size_t i = 0; i < summary.fold_val_losses.size(); ++i)
+    ofs << "    \"fold_epoch_val_losses\": [";
+    for (std::size_t fi = 0; fi < summary.fold_epoch_val_losses.size(); ++fi)
+    {
+        if (fi > 0) ofs << ", ";
+        ofs << "[";
+        const auto& fold_losses = summary.fold_epoch_val_losses[fi];
+        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
+        {
+            if (ei > 0) ofs << ", ";
+            ofs << fold_losses[ei];
+        }
+        ofs << "]";
+    }
+    ofs << "],\n";
+    ofs << "    \"fold_mean_val_losses\": [";
+    for (std::size_t i = 0; i < summary.fold_mean_val_losses.size(); ++i)
     {
         if (i > 0) ofs << ", ";
-        ofs << summary.fold_val_losses[i];
+        ofs << summary.fold_mean_val_losses[i];
     }
-    ofs << "]\n";
+    ofs << "],\n";
+    ofs << "    \"mean_val_loss\": " << summary.mean_val_loss << "\n";
     ofs << "  },\n";
     ofs << "  \"error\": \"" << escape_json(summary.error_message) << "\"\n";
     ofs << "}\n";

@@ -7,6 +7,7 @@
 
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
@@ -213,6 +214,50 @@ void SqliteBatchSource::reset_epoch(std::size_t epoch)
     // Restart deterministic trial iteration from the first selected id.
     (void) epoch;
     next_trial_index_ = 0;
+    pending_window_samples_.clear();
+    next_pending_sample_index_ = 0;
+}
+
+bool SqliteBatchSource::emit_pending_window_batch(Batch& out)
+{
+    if (next_pending_sample_index_ >= pending_window_samples_.size())
+    {
+        pending_window_samples_.clear();
+        next_pending_sample_index_ = 0;
+        return false;
+    }
+
+    const size_t sample_cols = pending_window_samples_[next_pending_sample_index_].size();
+    const size_t remaining = pending_window_samples_.size() - next_pending_sample_index_;
+    const size_t rows = std::min(batch_size_, remaining);
+
+    out.inputs = nn::Tensor(rows, sample_cols);
+    out.targets = nn::Tensor(rows, sample_cols);
+
+    for (std::size_t row = 0; row < rows; ++row)
+    {
+        const auto& sample = pending_window_samples_[next_pending_sample_index_ + row];
+        if (sample.empty())
+        {
+            continue;
+        }
+
+        std::memcpy(out.inputs.mutable_data_ptr() + row * sample_cols,
+            sample.data(),
+            sample_cols * sizeof(float));
+        std::memcpy(out.targets.mutable_data_ptr() + row * sample_cols,
+            sample.data(),
+            sample_cols * sizeof(float));
+    }
+
+    next_pending_sample_index_ += rows;
+    if (next_pending_sample_index_ >= pending_window_samples_.size())
+    {
+        pending_window_samples_.clear();
+        next_pending_sample_index_ = 0;
+    }
+
+    return true;
 }
 
 bool SqliteBatchSource::next(Batch& out)
@@ -223,14 +268,15 @@ bool SqliteBatchSource::next(Batch& out)
     {
         try
         {
-            if (next_trial_index_ >= trial_ids_.size())
+            if (emit_pending_window_batch(out))
             {
-                return false;
+                return true;
             }
 
-            const int trial_id = trial_ids_[next_trial_index_++];
-            int rc = SQLITE_ROW;
+            while (next_trial_index_ < trial_ids_.size())
             {
+                const int trial_id = trial_ids_[next_trial_index_++];
+                int rc = SQLITE_ROW;
                 std::vector<float> eeg_accum;
                 std::vector<float> audio_accum;
 
@@ -280,7 +326,7 @@ bool SqliteBatchSource::next(Batch& out)
                 // Quick fallbacks: if no data, use underlying source.
                 if (eeg_accum.empty() && audio_accum.empty())
                 {
-                    return false;
+                    continue;
                 }
 
                 const int eeg_channels = 6; // schema: F3,F4,C3,C4,P3,P4
@@ -371,7 +417,7 @@ bool SqliteBatchSource::next(Batch& out)
                     if (windows <= 0)
                     {
                         // Nothing to produce in windowed mode for this trial.
-                        return false;
+                        continue;
                     }
 
                     // Build all sample vectors for this trial.
@@ -481,31 +527,22 @@ bool SqliteBatchSource::next(Batch& out)
                         samples.push_back(std::move(samp));
                     }
 
-                    // Determine sample vector size and create output tensors.
-                    const size_t sample_cols = samples.empty() ? 0 : samples[0].size();
-                    out.inputs = nn::Tensor(batch_size_, sample_cols);
-                    out.targets = nn::Tensor(batch_size_, sample_cols);
-
-                    // Fill batch rows by cycling through generated samples.
-                    for (std::size_t r = 0; r < batch_size_; ++r)
+                    pending_window_samples_ = std::move(samples);
+                    next_pending_sample_index_ = 0;
+                    if (emit_pending_window_batch(out))
                     {
-                        const auto& svec = samples[r % samples.size()];
-                        if (!svec.empty())
-                        {
-                            std::memcpy(out.inputs.mutable_data_ptr() + r * sample_cols,
-                                svec.data(),
-                                sample_cols * sizeof(float));
-                            std::memcpy(out.targets.mutable_data_ptr() + r * sample_cols,
-                                svec.data(),
-                                sample_cols * sizeof(float));
-                        }
+                        return true;
                     }
+
+                    continue;
                 }
 
                 // Production: do not emit verbose debug logs here.
 
                 return true;
             }
+
+            return false;
         }
         catch (const std::exception& e)
         {

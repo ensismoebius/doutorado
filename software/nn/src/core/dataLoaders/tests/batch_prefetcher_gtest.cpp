@@ -47,6 +47,22 @@ static auto wait_until(const std::function<bool()>& predicate, std::chrono::mill
 
 // Use shared helpers from include/nn/testing/SqliteTestHelpers.hpp
 
+namespace
+{
+auto make_small_windowed_source(const std::string& db_root, std::size_t batch_size)
+    -> std::unique_ptr<SqliteBatchSource>
+{
+    nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
+    nn::windowing::WindowSpec audio_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 44100};
+    return std::make_unique<SqliteBatchSource>(db_root,
+        batch_size,
+        nn::dataLoaders::SqliteDatasetType::FusedWindow,
+        eeg_win,
+        audio_win,
+        Protocol101117InputMode::Concatenated);
+}
+} // namespace
+
 TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
 {
     auto inputs = make_sequential_tensor(4, 64);
@@ -84,9 +100,9 @@ TEST(BatchPrefetcherRamCapTest, OneBatchCapAllowsSequentialProgress)
     auto targets = make_sequential_tensor(4, 8);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root2 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
-    nn::testing::create_simple_protocol_db(db_root2, 32, 8);
-    const std::size_t one_batch_cap_bytes = (2U * 32U + 2U * 8U) * sizeof(float);
-    auto src2 = std::make_unique<SqliteBatchSource>(db_root2, 2);
+    nn::testing::create_simple_protocol_db(db_root2, 8, 8);
+    const std::size_t one_batch_cap_bytes = (2U * 28U + 2U * 28U) * sizeof(float);
+    auto src2 = make_small_windowed_source(db_root2, 2);
     BatchPrefetcher prefetcher(std::move(src2), 2, 2, one_batch_cap_bytes);
 
     ASSERT_TRUE(wait_until(
@@ -112,8 +128,8 @@ TEST(BatchPrefetcherFastPathTest, BufferedBatchesHitFastPath)
     auto targets = make_sequential_tensor(6, 4);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root3 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
-    nn::testing::create_simple_protocol_db(db_root3, 24, 4);
-    auto src3 = std::make_unique<SqliteBatchSource>(db_root3, 2);
+    nn::testing::create_simple_protocol_db(db_root3, 12, 12);
+    auto src3 = make_small_windowed_source(db_root3, 2);
     BatchPrefetcher prefetcher(std::move(src3), 3, 3, 0);
 
     ASSERT_TRUE(wait_until(
@@ -132,10 +148,10 @@ TEST(BatchPrefetcherFastPathTest, FastDominateSlowInSteadyState)
     auto targets = make_sequential_tensor(20, 4);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root4 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
-    nn::testing::create_simple_protocol_db(db_root4, 24, 4);
+    nn::testing::create_simple_protocol_db(db_root4, 12, 12);
 
     // Provide plenty of lookahead to ensure fast paths are hit
-    auto src4 = std::make_unique<SqliteBatchSource>(db_root4, 2);
+    auto src4 = make_small_windowed_source(db_root4, 2);
     BatchPrefetcher prefetcher(std::move(src4), 10, 5, 0);
 
     // Let producer fill up the queue initially

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <stdexcept>
 #include <vector>
 
@@ -73,17 +74,14 @@ constexpr int kExitSuccess = 0;
 /// @brief Exit code indicating the experiment terminated with an error.
 constexpr int kExitFailure = 1;
 
-auto effective_fold_max_batches(size_t configured_max_batches, size_t trial_count, size_t n_splits)
-    -> size_t
+auto effective_fold_max_batches(size_t configured_max_batches, size_t available_batches) -> size_t
 {
     if (configured_max_batches == 0)
     {
-        return std::max<size_t>(1, trial_count);
+        return std::max<size_t>(1, available_batches);
     }
 
-    const size_t splits = std::max<size_t>(1, n_splits);
-    const size_t per_fold_budget = (configured_max_batches + splits - 1) / splits;
-    return std::max<size_t>(1, std::min(per_fold_budget, trial_count));
+    return std::max<size_t>(1, std::min(configured_max_batches, available_batches));
 }
 } // namespace
 
@@ -99,8 +97,12 @@ int Experiment03::run()
 {
     /// Mean losses for each epoch, used for final reporting in the run summary.
     vector<float> epoch_mean_losses;
-    /// Per-fold validation losses collected for k-fold reporting.
-    vector<float> fold_val_losses;
+    /// Per-fold, per-epoch validation losses: [fold_idx][epoch_idx].
+    vector<vector<float>> fold_epoch_val_losses;
+    /// Mean validation loss per fold (mean over all epochs within that fold).
+    vector<float> fold_mean_val_losses;
+    /// Grand mean validation loss across all folds.
+    float mean_val_loss = 0.0F;
 
     try
     {
@@ -230,16 +232,54 @@ int Experiment03::run()
         seen_batches_ = 0;
         processed_samples_ = 0;
 
+        struct FoldRuntimePlan
+        {
+            experiment03::TrialFoldSelection selection;
+            size_t train_epoch_max_batches = 0;
+            size_t val_max_batches = 0;
+        };
+
+        vector<FoldRuntimePlan> fold_plans;
+        fold_plans.reserve(fold_selector.fold_count());
+
+        size_t global_training_total_batches = 0;
         for (size_t fold_idx = 0; fold_idx < fold_selector.fold_count(); ++fold_idx)
         {
-            const auto selection = fold_selector.selection_for_fold(fold_idx);
+            auto selection = fold_selector.selection_for_fold(fold_idx);
+            const size_t train_epoch_max_batches = effective_fold_max_batches(
+                config_.training_max_batches_per_epoch, selection.train_trial_ids.size());
+            const size_t val_max_batches = effective_fold_max_batches(
+                config_.training_max_batches_per_epoch, selection.val_trial_ids.size());
+
+            global_training_total_batches += train_epoch_max_batches * config_.training_epochs;
+            fold_plans.push_back(
+                FoldRuntimePlan{std::move(selection), train_epoch_max_batches, val_max_batches});
+        }
+
+        const size_t global_training_total_samples =
+            global_training_total_batches * config_.training_batch_size;
+        const size_t global_total_epochs = fold_selector.fold_count() * config_.training_epochs;
+
+        size_t global_training_seen_batches = 0;
+        size_t global_training_processed_samples = 0;
+
+        // Pre-allocate one inner vector per fold to receive per-epoch val losses.
+        fold_epoch_val_losses.resize(fold_selector.fold_count());
+
+        for (size_t fold_idx = 0; fold_idx < fold_selector.fold_count(); ++fold_idx)
+        {
+            const auto& selection = fold_plans[fold_idx].selection;
             const auto& train_trial_ids = selection.train_trial_ids;
             const auto& val_trial_ids = selection.val_trial_ids;
+            const string fold_progress_context = string("Fold ") + std::to_string(fold_idx + 1) +
+                                                 "/" + std::to_string(fold_selector.fold_count());
 
             ostringstream fold_header;
             fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << fold_selector.fold_count()
                         << "  train_trials=" << train_trial_ids.size()
-                        << "  val_trials=" << val_trial_ids.size() << " ===";
+                        << "  val_trials=" << val_trial_ids.size() << "  train_epoch_max_batches="
+                        << fold_plans[fold_idx].train_epoch_max_batches
+                        << "  val_max_batches=" << fold_plans[fold_idx].val_max_batches << " ===";
             NN_LOG_INFO(fold_header.str());
 
             // Fresh model and optimizer for every fold to avoid weight leakage.
@@ -272,10 +312,7 @@ int Experiment03::run()
                     train_trial_ids                                                  //
                 );
 
-                const size_t train_epoch_max_batches =
-                    effective_fold_max_batches(config_.training_max_batches_per_epoch,
-                        train_trial_ids.size(),
-                        config_.kfold_n_splits);
+                const size_t train_epoch_max_batches = fold_plans[fold_idx].train_epoch_max_batches;
 
                 prefetcher_ = make_unique<BatchPrefetcher>(                //
                     std::move(train_src),                                  //
@@ -286,6 +323,8 @@ int Experiment03::run()
 
                 size_t epoch_batches = 0;
                 float epoch_loss_sum = 0.0F;
+                double last_batch_loss = 0.0;
+                const size_t global_epoch_index = fold_idx * config_.training_epochs + epoch + 1;
 
                 while (prefetcher_->hasNext())
                 {
@@ -312,77 +351,122 @@ int Experiment03::run()
                     fold_optimizer->step(params);
 
                     epoch_loss_sum += loss_value.at(0, 0);
+                    last_batch_loss = static_cast<double>(loss_value.at(0, 0));
                     ++epoch_batches;
                     processed_samples_ += static_cast<size_t>(batch.inputs.rows());
                     ++seen_batches_;
+                    global_training_processed_samples += static_cast<size_t>(batch.inputs.rows());
+                    ++global_training_seen_batches;
+
+                    printProgress(global_training_total_samples,
+                        config_.training_batch_size,
+                        global_training_total_batches,
+                        global_training_seen_batches,
+                        global_training_processed_samples,
+                        false,
+                        global_epoch_index,
+                        global_total_epochs,
+                        last_batch_loss,
+                        std::span<nn::Tensor*>{},
+                        fold_progress_context);
                 }
 
-                const float mean_loss =
+                if (model_) [[likely]]
+                {
+                    const bool global_done = (fold_idx + 1 == fold_selector.fold_count()) &&
+                                             (epoch + 1 == config_.training_epochs);
+
+                    printProgress(global_training_total_samples,
+                        config_.training_batch_size,
+                        global_training_total_batches,
+                        global_training_seen_batches,
+                        global_training_processed_samples,
+                        global_done,
+                        global_epoch_index,
+                        global_total_epochs,
+                        last_batch_loss,
+                        global_done ? model_->params() : std::span<nn::Tensor*>{},
+                        fold_progress_context);
+                }
+
+                const float mean_train_loss =
                     epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
-                epoch_mean_losses.push_back(mean_loss);
+                epoch_mean_losses.push_back(mean_train_loss);
+
+                // Validate this epoch on the held-out validation subset (no backprop).
+                unique_ptr<IBatchSource> val_src = make_unique<SqliteBatchSource>( //
+                    config_.dataset_root_path,                                     //
+                    config_.training_batch_size,                                   //
+                    to_sqlite_dataset_type(config_.dataset_type),                  //
+                    config_.window_eeg_config,                                     //
+                    config_.window_audio_config,                                   //
+                    config_.dataset_input_mode,                                    //
+                    val_trial_ids                                                  //
+                );
+                auto val_prefetcher = make_unique<BatchPrefetcher>(        //
+                    std::move(val_src),                                    //
+                    fold_plans[fold_idx].val_max_batches,                  //
+                    config_.prefetch_lookahead,                            //
+                    config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
+                );
+                float val_loss_sum = 0.0F;
+                size_t val_batches = 0;
+                while (val_prefetcher->hasNext())
+                {
+                    auto maybe_val_batch = val_prefetcher->next();
+                    if (!maybe_val_batch.has_value())
+                    {
+                        break;
+                    }
+                    const Batch val_batch = std::move(maybe_val_batch.value());
+                    if (is_snn_type(config_.autoencoder_type))
+                    {
+                        model_->reset_state();
+                    }
+                    auto val_reconstruction =
+                        model_->forward(val_batch.inputs, /*requires_grad=*/false);
+                    loss.set_target(val_batch.inputs);
+                    auto val_loss_value = loss.forward(val_reconstruction, /*requires_grad=*/false);
+                    val_loss_sum += val_loss_value.at(0, 0);
+                    ++val_batches;
+                }
+                const float epoch_val_loss =
+                    val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
+                fold_epoch_val_losses[fold_idx].push_back(epoch_val_loss);
 
                 ostringstream fold_epoch_log;
-                fold_epoch_log << "  fold " << (fold_idx + 1) << " epoch " << (epoch + 1) << "/"
-                               << config_.training_epochs
-                               << "  mean reconstruction loss: " << mean_loss;
+                fold_epoch_log << "  fold " << (fold_idx + 1) << "/" << fold_selector.fold_count()
+                               << " epoch " << (epoch + 1) << "/" << config_.training_epochs
+                               << "  train loss: " << mean_train_loss
+                               << "  val loss: " << epoch_val_loss;
                 NN_LOG_INFO(fold_epoch_log.str());
             }
 
-            // Evaluate reconstruction loss on the held-out test subset (no backprop).
-            unique_ptr<IBatchSource> val_src = make_unique<SqliteBatchSource>( //
-                config_.dataset_root_path,                                     //
-                config_.training_batch_size,                                   //
-                to_sqlite_dataset_type(config_.dataset_type),                  //
-                config_.window_eeg_config,                                     //
-                config_.window_audio_config,                                   //
-                config_.dataset_input_mode,                                    //
-                val_trial_ids                                                  //
-            );
+            // Compute mean val loss for this fold from all per-epoch val losses.
+            const auto& fold_val_epochs = fold_epoch_val_losses[fold_idx];
+            const float fold_mean_val =
+                fold_val_epochs.empty()
+                    ? 0.0F
+                    : std::accumulate(fold_val_epochs.begin(), fold_val_epochs.end(), 0.0F) /
+                          static_cast<float>(fold_val_epochs.size());
+            fold_mean_val_losses.push_back(fold_mean_val);
 
-            const size_t val_max_batches =
-                effective_fold_max_batches(config_.training_max_batches_per_epoch,
-                    val_trial_ids.size(),
-                    config_.kfold_n_splits);
-
-            prefetcher_ = make_unique<BatchPrefetcher>(                //
-                std::move(val_src),                                    //
-                val_max_batches,                                       //
-                config_.prefetch_lookahead,                            //
-                config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
-            );
-
-            float val_loss_sum = 0.0F;
-            size_t val_batches = 0;
-
-            while (prefetcher_->hasNext())
-            {
-                auto maybe_batch = prefetcher_->next();
-                if (!maybe_batch.has_value())
-                {
-                    break;
-                }
-                const Batch batch = std::move(maybe_batch.value());
-
-                if (is_snn_type(config_.autoencoder_type))
-                {
-                    model_->reset_state();
-                }
-
-                auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/false);
-                loss.set_target(batch.inputs);
-                auto loss_value = loss.forward(reconstruction, /*requires_grad=*/false);
-                val_loss_sum += loss_value.at(0, 0);
-                ++val_batches;
-            }
-
-            const float fold_val_loss =
-                val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
-            fold_val_losses.push_back(fold_val_loss);
-
-            ostringstream fold_val_log;
-            fold_val_log << "  fold " << (fold_idx + 1) << " val loss: " << fold_val_loss;
-            NN_LOG_INFO(fold_val_log.str());
+            ostringstream fold_summary_log;
+            fold_summary_log << "  fold " << (fold_idx + 1) << "/" << fold_selector.fold_count()
+                             << " complete: mean val loss = " << fold_mean_val;
+            NN_LOG_INFO(fold_summary_log.str());
         }
+
+        // Compute grand mean validation loss across all folds.
+        mean_val_loss =
+            fold_mean_val_losses.empty()
+                ? 0.0F
+                : std::accumulate(fold_mean_val_losses.begin(), fold_mean_val_losses.end(), 0.0F) /
+                      static_cast<float>(fold_mean_val_losses.size());
+
+        ostringstream kfold_summary_log;
+        kfold_summary_log << "K-Fold complete: grand mean val loss = " << mean_val_loss;
+        NN_LOG_INFO(kfold_summary_log.str());
 
         if (seen_batches_ == 0) [[unlikely]]
         {
@@ -398,7 +482,9 @@ int Experiment03::run()
             processed_samples_,           //
             seen_batches_,                //
             epoch_mean_losses,            //
-            fold_val_losses               //
+            fold_epoch_val_losses,        //
+            fold_mean_val_losses,         //
+            mean_val_loss                 //
         );
 
         if (write_run_summary_json(summary, results_path, results_error)) [[likely]]
@@ -423,7 +509,9 @@ int Experiment03::run()
             processed_samples_,           //
             seen_batches_,                //
             epoch_mean_losses,            //
-            fold_val_losses,              //
+            fold_epoch_val_losses,        //
+            fold_mean_val_losses,         //
+            mean_val_loss,                //
             e.what()                      //
         );
         (void) write_run_summary_json(summary, results_path, results_error);

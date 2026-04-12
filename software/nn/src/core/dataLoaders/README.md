@@ -20,6 +20,7 @@ Tests and Examples
 
 Recent updates
 - `SqliteBatchSource` now supports optional selected trial-id filtering and deterministic trial cursor iteration, enabling fold-specific fast prefetch pipelines.
+- Windowed `SqliteBatchSource` batches now stream all generated windows across successive `next()` calls instead of collapsing one trial into a single repeated batch; this keeps the SQLite fast path aligned with windowed dataset sample semantics.
 - `SqliteBatchSource::next()` no longer runs per-trial reserve-size SQL probes in the hot path; this reduces query overhead during training.
 - Window sample assembly now reserves per-window output capacity based on active window mode (`EegWindow`, `AudioWindow`, `FusedWindow`) to reduce hot-loop allocations.
 - `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.

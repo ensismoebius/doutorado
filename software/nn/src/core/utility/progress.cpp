@@ -33,7 +33,8 @@ void printProgress(std::size_t dataset_total_samples,
     std::size_t current_epoch,
     std::size_t total_epochs,
     double current_loss,
-    std::span<nn::Tensor*> params)
+    std::span<nn::Tensor*> params,
+    std::string_view context)
 {
     const std::size_t safe_batch_size = (batch_size == 0) ? 1 : batch_size;
     const std::size_t dataset_total_batches =
@@ -98,6 +99,10 @@ void printProgress(std::size_t dataset_total_samples,
 
     // Compose progress status line
     std::ostringstream status;
+    if (!context.empty())
+    {
+        status << context << " ";
+    }
     if (current_epoch > 0 && total_epochs > 0)
     {
         status << "Epoch " << current_epoch << "/" << total_epochs << " ";

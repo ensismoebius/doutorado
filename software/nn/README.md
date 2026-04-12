@@ -207,3 +207,16 @@ This list is generated from direct std:: symbol usage across src/ and include/.
 ```bash
 rg -o --no-filename "std::[A-Za-z_][A-Za-z0-9_]*" src include | sort -u
 ```
+--
+```
+for fold in K folds:
+    reset model + optimizer        ← fresh weights each fold
+    for epoch in training_epochs:
+        TRAIN on train_trial_ids   ← backprop + optimizer step
+        VALIDATE on val_trial_ids  ← forward only, no grad
+        log "fold X/K  epoch Y/E  train loss: A  val loss: B"
+    compute fold_mean_val = mean over epoch val losses
+    log "fold X/K complete: mean val loss = Z"
+grand mean_val_loss = mean over fold_mean_val_losses
+log "K-Fold complete: grand mean val loss = Z"
+```
