@@ -61,29 +61,44 @@ static bool map_dataset_type(const std::string& s, Config& cfg)
 static bool map_autoencoder_type(const std::string& s, Config& cfg)
 {
     auto n = normalize(s);
-    bool is_snn = n.find("snn") != std::string::npos || n.find("spiking") != std::string::npos;
-    if (n.find("protocol") != std::string::npos)
+    if (n == "protocolann")
     {
-        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::ProtocolSnn
-                                      : Experiment03AutoencoderType::ProtocolAnn;
+        cfg.autoencoder_type = Experiment03AutoencoderType::ProtocolAnn;
         return true;
     }
-    if (n.find("eeg") != std::string::npos)
+    if (n == "protocolsnn")
     {
-        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::EegWindowSnn
-                                      : Experiment03AutoencoderType::EegWindowAnn;
+        cfg.autoencoder_type = Experiment03AutoencoderType::ProtocolSnn;
         return true;
     }
-    if (n.find("audio") != std::string::npos)
+    if (n == "eegwindowann")
     {
-        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::AudioWindowSnn
-                                      : Experiment03AutoencoderType::AudioWindowAnn;
+        cfg.autoencoder_type = Experiment03AutoencoderType::EegWindowAnn;
         return true;
     }
-    if (n.find("fused") != std::string::npos)
+    if (n == "eegwindowsnn")
     {
-        cfg.autoencoder_type = is_snn ? Experiment03AutoencoderType::FusedWindowSnn
-                                      : Experiment03AutoencoderType::FusedWindowAnn;
+        cfg.autoencoder_type = Experiment03AutoencoderType::EegWindowSnn;
+        return true;
+    }
+    if (n == "audiowindowann")
+    {
+        cfg.autoencoder_type = Experiment03AutoencoderType::AudioWindowAnn;
+        return true;
+    }
+    if (n == "audiowindowsnn")
+    {
+        cfg.autoencoder_type = Experiment03AutoencoderType::AudioWindowSnn;
+        return true;
+    }
+    if (n == "fusedwindowann")
+    {
+        cfg.autoencoder_type = Experiment03AutoencoderType::FusedWindowAnn;
+        return true;
+    }
+    if (n == "fusedwindowsnn")
+    {
+        cfg.autoencoder_type = Experiment03AutoencoderType::FusedWindowSnn;
         return true;
     }
     return false;
@@ -269,6 +284,69 @@ static auto parse_array_strings(
     return false;
 }
 
+static auto parse_neural_network_layers(
+    const std::string& text, Config& out_config, std::string& out_error) -> bool
+{
+    std::vector<std::string> entries;
+    if (!parse_array_strings(text, "neural_network_layer", entries)) return true;
+
+    out_config.autoencoder_encoder_layer_spec.clear();
+    out_config.autoencoder_decoder_layer_spec.clear();
+    out_config.autoencoder_branch_encoder_layer_spec.clear();
+    out_config.autoencoder_branch_decoder_layer_spec.clear();
+    out_config.autoencoder_fusion_encoder_layer_spec.clear();
+    out_config.autoencoder_fusion_decoder_layer_spec.clear();
+
+    for (const auto& entry : entries)
+    {
+        const auto separator = entry.find(':');
+        if (separator == std::string::npos || separator == 0 || separator + 1 >= entry.size())
+        {
+            out_error = "neural_network_layer entry must use 'section:layer_spec': " + entry;
+            return false;
+        }
+
+        const auto section = entry.substr(0, separator);
+        const auto layer_spec = entry.substr(separator + 1);
+
+        if (section == "encoder")
+        {
+            out_config.autoencoder_encoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+        if (section == "decoder")
+        {
+            out_config.autoencoder_decoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+        if (section == "branch_encoder")
+        {
+            out_config.autoencoder_branch_encoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+        if (section == "branch_decoder")
+        {
+            out_config.autoencoder_branch_decoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+        if (section == "fusion_encoder")
+        {
+            out_config.autoencoder_fusion_encoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+        if (section == "fusion_decoder")
+        {
+            out_config.autoencoder_fusion_decoder_layer_spec.push_back(layer_spec);
+            continue;
+        }
+
+        out_error = "unsupported neural_network_layer section: " + section;
+        return false;
+    }
+
+    return true;
+}
+
 static auto parse_object(const std::string& text, const std::string& key, std::string& out) -> bool
 {
     std::size_t pos = 0;
@@ -418,10 +496,10 @@ static auto is_known_profile_key(const std::string& key) -> bool
 {
     if (key.rfind("_comment", 0) == 0) return true;
 
-    static constexpr std::array<std::string_view, 66> kKnownKeys = {
+    static const std::vector<std::string_view> kKnownKeys = {
         "training_batch_size",
         "training_max_batches_per_epoch",
-        "device",
+        "program_device",
         "dataset_subject_filter_regex",
         "dataset_root_path",
         "sampler_shuffle_samples",
@@ -435,33 +513,22 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "sampler_distributed_drop_last",
         "dataset_input_mode",
         "dataset_type",
-        "autoencoder_type",
-        "autoencoder_hidden_size",
-        "autoencoder_latent_size",
-        "autoencoder_depth",
-        "autoencoder_layer_sizes",
-        "autoencoder_encoder_layer_spec",
-        "autoencoder_decoder_layer_spec",
-        "autoencoder_branch_encoder_layer_spec",
-        "autoencoder_branch_decoder_layer_spec",
-        "autoencoder_fusion_encoder_layer_spec",
-        "autoencoder_fusion_decoder_layer_spec",
-        "layer_sizes",
-        "hidden_layer_sizes",
-        "autoencoder_input_features",
-        "autoencoder_eeg_features",
-        "autoencoder_audio_features",
-        "input_features",
-        "eeg_features",
-        "audio_features",
-        "layers",
-        "autoencoder_architecture",
-        "autoencoder_branch_hidden_size",
-        "autoencoder_fusion_hidden_size",
-        "autoencoder_residual_blocks",
-        "autoencoder_time_step",
-        "autoencoder_resistance",
-        "autoencoder_capacitance",
+        "neural_network_type",
+        "neural_network_hidden_size",
+        "neural_network_latent_size",
+        "neural_network_depth",
+        "neural_network_layer_sizes",
+        "neural_network_layer",
+        "neural_network_input_features",
+        "neural_network_eeg_features",
+        "neural_network_audio_features",
+        "neural_network_architecture",
+        "neural_network_branch_hidden_size",
+        "neural_network_fusion_hidden_size",
+        "neural_network_residual_blocks",
+        "neural_network_time_step",
+        "neural_network_resistance",
+        "neural_network_capacitance",
         "training_optimizer_type",
         "training_learning_rate",
         "training_optimizer_momentum",
@@ -475,15 +542,15 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "training_lr_plateau_patience",
         "training_lr_plateau_min_delta",
         "validation_modality_diagnostics_enabled",
-        "prefetch_lookahead",
-        "prefetch_ram_cap_mb",
+        "program_prefetch_lookahead",
+        "program_prefetch_ram_cap_mb",
         "window_eeg_config",
         "window_audio_config",
         "kfold_enabled",
         "kfold_n_splits",
         "kfold_shuffle",
         "kfold_seed",
-        "opencl_profiling_enabled",
+        "program_opencl_profiling_enabled",
     };
 
     return std::find(kKnownKeys.begin(), kKnownKeys.end(), key) != kKnownKeys.end();
@@ -578,7 +645,7 @@ auto load_profile_to_config(
 
     parse_number(text, "training_batch_size", out_config.training_batch_size);
     parse_number(text, "training_max_batches_per_epoch", out_config.training_max_batches_per_epoch);
-    parse_string(text, "device", out_config.device);
+    parse_string(text, "program_device", out_config.device);
     parse_string(text, "dataset_subject_filter_regex", out_config.dataset_subject_filter_regex);
     parse_string(text, "dataset_root_path", out_config.dataset_root_path);
     parse_bool(text, "sampler_shuffle_samples", out_config.sampler_shuffle_samples);
@@ -616,52 +683,37 @@ auto load_profile_to_config(
 
     std::string str_value;
     if (parse_string(text, "dataset_type", str_value)) map_dataset_type(str_value, out_config);
-    if (parse_string(text, "autoencoder_type", str_value))
-        map_autoencoder_type(str_value, out_config);
+    if (parse_string(text, "neural_network_type", str_value) &&
+        !map_autoencoder_type(str_value, out_config))
+    {
+        out_error = "unsupported neural_network_type: " + str_value;
+        return false;
+    }
 
-    parse_number(text, "autoencoder_hidden_size", out_config.autoencoder_hidden_size);
-    parse_number(text, "autoencoder_latent_size", out_config.autoencoder_latent_size);
-    parse_number(text, "autoencoder_depth", out_config.autoencoder_depth);
-    parse_array_ints(text, "autoencoder_layer_sizes", out_config.autoencoder_layer_sizes);
-    parse_array_strings(
-        text, "autoencoder_encoder_layer_spec", out_config.autoencoder_encoder_layer_spec);
-    parse_array_strings(
-        text, "autoencoder_decoder_layer_spec", out_config.autoencoder_decoder_layer_spec);
-    parse_array_strings(text,
-        "autoencoder_branch_encoder_layer_spec",
-        out_config.autoencoder_branch_encoder_layer_spec);
-    parse_array_strings(text,
-        "autoencoder_branch_decoder_layer_spec",
-        out_config.autoencoder_branch_decoder_layer_spec);
-    parse_array_strings(text,
-        "autoencoder_fusion_encoder_layer_spec",
-        out_config.autoencoder_fusion_encoder_layer_spec);
-    parse_array_strings(text,
-        "autoencoder_fusion_decoder_layer_spec",
-        out_config.autoencoder_fusion_decoder_layer_spec);
-    parse_array_ints(text, "layer_sizes", out_config.autoencoder_layer_sizes);
-    parse_array_ints(text, "hidden_layer_sizes", out_config.autoencoder_layer_sizes);
-    parse_number(text, "autoencoder_input_features", out_config.autoencoder_input_features);
-    parse_number(text, "autoencoder_eeg_features", out_config.autoencoder_eeg_features);
-    parse_number(text, "autoencoder_audio_features", out_config.autoencoder_audio_features);
-
-    // Backward/short aliases for profile files.
-    parse_number(text, "input_features", out_config.autoencoder_input_features);
-    parse_number(text, "eeg_features", out_config.autoencoder_eeg_features);
-    parse_number(text, "audio_features", out_config.autoencoder_audio_features);
-    parse_number(text, "layers", out_config.autoencoder_depth);
-
-    if (int architecture = 0; parse_number(text, "autoencoder_architecture", architecture))
+    parse_number(text, "neural_network_hidden_size", out_config.autoencoder_hidden_size);
+    parse_number(text, "neural_network_latent_size", out_config.autoencoder_latent_size);
+    parse_number(text, "neural_network_depth", out_config.autoencoder_depth);
+    parse_array_ints(text, "neural_network_layer_sizes", out_config.autoencoder_layer_sizes);
+    if (!parse_neural_network_layers(text, out_config, out_error))
+    {
+        return false;
+    }
+    parse_number(text, "neural_network_input_features", out_config.autoencoder_input_features);
+    parse_number(text, "neural_network_eeg_features", out_config.autoencoder_eeg_features);
+    parse_number(text, "neural_network_audio_features", out_config.autoencoder_audio_features);
+    if (int architecture = 0; parse_number(text, "neural_network_architecture", architecture))
     {
         out_config.autoencoder_architecture = static_cast<AutoencoderArchitecture>(architecture);
     }
 
-    parse_number(text, "autoencoder_branch_hidden_size", out_config.autoencoder_branch_hidden_size);
-    parse_number(text, "autoencoder_fusion_hidden_size", out_config.autoencoder_fusion_hidden_size);
-    parse_number(text, "autoencoder_residual_blocks", out_config.autoencoder_residual_blocks);
-    parse_number(text, "autoencoder_time_step", out_config.autoencoder_time_step);
-    parse_number(text, "autoencoder_resistance", out_config.autoencoder_resistance);
-    parse_number(text, "autoencoder_capacitance", out_config.autoencoder_capacitance);
+    parse_number(
+        text, "neural_network_branch_hidden_size", out_config.autoencoder_branch_hidden_size);
+    parse_number(
+        text, "neural_network_fusion_hidden_size", out_config.autoencoder_fusion_hidden_size);
+    parse_number(text, "neural_network_residual_blocks", out_config.autoencoder_residual_blocks);
+    parse_number(text, "neural_network_time_step", out_config.autoencoder_time_step);
+    parse_number(text, "neural_network_resistance", out_config.autoencoder_resistance);
+    parse_number(text, "neural_network_capacitance", out_config.autoencoder_capacitance);
 
     parse_string(text, "training_optimizer_type", out_config.training_optimizer_type);
     parse_number(text, "training_learning_rate", out_config.training_learning_rate);
@@ -678,8 +730,8 @@ auto load_profile_to_config(
     parse_bool(text,
         "validation_modality_diagnostics_enabled",
         out_config.validation_modality_diagnostics_enabled);
-    parse_number(text, "prefetch_lookahead", out_config.prefetch_lookahead);
-    parse_number(text, "prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
+    parse_number(text, "program_prefetch_lookahead", out_config.prefetch_lookahead);
+    parse_number(text, "program_prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
     parse_bool(text, "kfold_enabled", out_config.kfold_enabled);
     parse_number(text, "kfold_n_splits", out_config.kfold_n_splits);
     parse_bool(text, "kfold_shuffle", out_config.kfold_shuffle);
@@ -687,7 +739,7 @@ auto load_profile_to_config(
     {
         out_config.kfold_seed = kfold_seed;
     }
-    parse_bool(text, "opencl_profiling_enabled", out_config.opencl_profiling_enabled);
+    parse_bool(text, "program_opencl_profiling_enabled", out_config.opencl_profiling_enabled);
 
     std::string eeg_object;
     if (parse_object(text, "window_eeg_config", eeg_object))

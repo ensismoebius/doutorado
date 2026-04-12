@@ -1,8 +1,8 @@
-# experiment03 - Autoencoder training runner
+# experiment03 - Neural Network training runner
 
 Overview
 --------
-`experiment03` trains ANN or SNN autoencoders against the 10.1117 imagined-speech EEG+Audio dataset.
+`experiment03` trains ANN or SNN neural networks against the 10.1117 imagined-speech EEG+Audio dataset.
 It is profile-driven and supports two layers of profile configuration:
 
 - A base profile JSON loaded from `src/experiments/03/profiles/default.json`.
@@ -29,7 +29,7 @@ How to run
 Run with a profile name (from `src/experiments/03/profiles`) or an explicit JSON path:
 
 ```bash
-./src/experiments/03/experiment03 --profile fused-window-ann-default
+./src/experiments/03/experiment03 --profile default
 ```
 
 ```bash
@@ -48,7 +48,7 @@ Typical patterns:
 
 Smoke test profile example:
 ```bash
-./src/experiments/03/experiment03 --profile fused-window-ann-lightweight
+./src/experiments/03/experiment03 --profile lightweight
 ```
 
 Full training epoch over the dataset:
@@ -65,12 +65,11 @@ Profiles
 --------
 Profiles live in `src/experiments/03/profiles/` and act as reusable starting points.
 
-The profile loader accepts ordinary JSON and ignores unknown keys. That means you can document a profile inline by adding fields such as `_comment_profile` or `_comment_step_1`. This repo now includes a loadable example of that pattern in `sample-training-flow.json`.
+The profile loader accepts ordinary JSON plus `_comment_*` metadata fields. Any other unknown key is rejected at load time. This repo includes a loadable example of inline documentation in `sample-training-flow.json`.
 
 Useful built-in examples:
 - `default.json`: generic baseline defaults.
 - `lightweight.json`: smaller/faster smoke-test baseline.
-- `fused-window-ann-default.json`: fused ANN baseline.
 - `fused-window-snn-default.json`: fused SNN baseline.
 - `protocol-ann-default.json`: protocol ANN baseline.
 - `protocol-snn-default.json`: protocol SNN baseline.
@@ -78,35 +77,49 @@ Useful built-in examples:
 
 Profiles may set:
 - dataset type
-- autoencoder type
+- neural network type
 - explicit encoder/decoder layer specs
-- explicit branch/fusion layer specs for fused autoencoders
+- explicit branch/fusion layer specs for fused neural networks
 - batch size
 - epoch count
 - optimizer type
 - loss type
 - learning rate
 - window configs
-- autoencoder widths/depth
+- neural network widths/depth
 - prefetch settings
 
 Declarative profile fields
 -------------------------
-Profiles are now the authoritative place to describe the autoencoder structure and training policy.
+Profiles are now the authoritative place to describe neural-network structure and training policy.
 
-Core architecture fields:
-- `autoencoder_encoder_layer_spec`: ordered encoder stages, e.g. `"linear:64:relu"`, `"linear:latent:relu"`.
-- `autoencoder_decoder_layer_spec`: ordered decoder stages, e.g. `"linear:64:relu"`, `"linear:output:identity"`.
-- `autoencoder_branch_encoder_layer_spec`: fused-model branch encoder stages.
-- `autoencoder_branch_decoder_layer_spec`: fused-model branch decoder stages.
-- `autoencoder_fusion_encoder_layer_spec`: fused-model fusion encoder stages.
-- `autoencoder_fusion_decoder_layer_spec`: fused-model fusion decoder stages.
+Core architecture field:
+- `neural_network_layer`: ordered declarative stages using `section:layer_spec` entries.
+
+Supported sections:
+- `encoder`
+- `decoder`
+- `branch_encoder`
+- `branch_decoder`
+- `fusion_encoder`
+- `fusion_decoder`
 
 Supported layer spec tokens:
-- layer type: `linear`
+- modules: `linear`, `residual`, `residual_block`, activation-only entries
 - width tokens: integer width, `latent`, `output`, `branch_hidden`, `fusion_hidden`
 - ANN activations: `relu`, `leaky_relu`, `identity`
 - SNN activations: `leaky`, `leaky_integrator`, `identity`
+
+Supported grammar:
+- `linear:<width>:<activation>`
+- Broader module grammar:
+  - `linear:<width>`
+  - `<activation>` (activation-only stage)
+  - `residual` or `residual:<N>` (repeat residual block `N` times)
+
+Examples:
+- `"linear:64:relu"`
+- `"linear:64"`, `"relu"`, `"residual:2"`, `"linear:latent"`, `"identity"`
 
 Core training fields:
 - `training_optimizer_type`: currently `adam` or `sgd`
@@ -121,18 +134,16 @@ Core training fields:
 Minimal ANN example:
 ```json
 {
-  "autoencoder_type": "fused-window-ann",
+  "neural_network_type": "fused-window-ann",
   "training_optimizer_type": "adam",
   "training_loss_type": "mse",
-  "autoencoder_encoder_layer_spec": [
-    "linear:64:relu",
-    "linear:64:relu",
-    "linear:latent:relu"
-  ],
-  "autoencoder_decoder_layer_spec": [
-    "linear:64:relu",
-    "linear:64:relu",
-    "linear:output:identity"
+  "neural_network_layer": [
+    "encoder:linear:64:relu",
+    "encoder:linear:64:relu",
+    "encoder:linear:latent:relu",
+    "decoder:linear:64:relu",
+    "decoder:linear:64:relu",
+    "decoder:linear:output:identity"
   ]
 }
 ```
@@ -148,7 +159,7 @@ Recommended progression:
 1. Start with the profile as-is for a short smoke run.
 2. Increase `training_epochs` and set `training_max_batches_per_epoch` to `0` once the pipeline is stable.
 3. Increase `training_batch_size` only after checking RAM and throughput.
-4. Change dataset/autoencoder families after the training loop is already behaving correctly.
+4. Change dataset/neural-network families after the training loop is already behaving correctly.
 
 Example:
 ```bash
@@ -182,14 +193,14 @@ Operational notes
 -----------------
 - The prefetcher uses a single producer thread to avoid unsafe concurrent MAT I/O.
 - Progress reporting uses the effective batch limit, so capped runs still report correct percentages.
-- Run summaries are written as JSON and include profile, dataset type, autoencoder type, exit code, processed samples, seen batches, and epoch mean losses.
+- Run summaries are written as JSON and include profile, dataset type, neural-network type, exit code, processed samples, seen batches, and epoch mean losses.
 
 Troubleshooting
 ---------------
 - If training ends too quickly, check whether `training_max_batches_per_epoch` is capped to a small number.
 - If you expected multiple epochs, verify `training_epochs` is greater than `1`.
 - If no batches are produced, verify `dataset_root_path`, `dataset_subject_filter_regex`, and dataset integrity.
-- If I/O becomes unstable during debugging, temporarily reduce `prefetch_lookahead` to `1`.
+- If I/O becomes unstable during debugging, temporarily reduce `program_prefetch_lookahead` to `1`.
 
 Code pointers
 -------------

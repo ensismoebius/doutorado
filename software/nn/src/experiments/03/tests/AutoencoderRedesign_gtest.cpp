@@ -268,3 +268,77 @@ TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackForwardBackwardAndParams)
 
     EXPECT_FALSE(model.params().empty());
 }
+
+TEST(Experiment03RedesignTest, ProtocolAnnDenseFallbackSupportsBroaderLayerGrammar)
+{
+    AutoencoderConfig cfg;
+    cfg.input_features = 14;
+    cfg.hidden_size = 16;
+    cfg.latent_size = 4;
+    cfg.depth = 2;
+    cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    cfg.encoder_layer_spec = {
+        "linear:32",
+        "relu",
+        "residual:2",
+        "linear:latent",
+        "identity",
+    };
+    cfg.decoder_layer_spec = {
+        "linear:32",
+        "leaky_relu",
+        "residual",
+        "linear:output",
+        "identity",
+    };
+
+    ProtocolAutoencoder model(cfg);
+
+    nn::Tensor input = nn::Tensor::rand(3, cfg.input_features);
+    nn::Tensor reconstruction = model.forward(input, true);
+    EXPECT_EQ(reconstruction.rows(), input.rows());
+    EXPECT_EQ(reconstruction.cols(), input.cols());
+
+    nn::Tensor grad_output = nn::Tensor::ones(input.rows(), input.cols());
+    nn::Tensor grad_input = model.backward(grad_output);
+    EXPECT_EQ(grad_input.rows(), input.rows());
+    EXPECT_EQ(grad_input.cols(), input.cols());
+}
+
+TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayerGrammar)
+{
+    AutoencoderConfig cfg;
+    cfg.input_features = 14;
+    cfg.hidden_size = 16;
+    cfg.latent_size = 4;
+    cfg.depth = 2;
+    cfg.architecture = AutoencoderArchitecture::ResidualDense;
+    cfg.time_step = 1.0F;
+    cfg.resistance = 1.0F;
+    cfg.capacitance = 1.0F;
+    cfg.encoder_layer_spec = {
+        "linear:32",
+        "leaky",
+        "residual",
+        "linear:latent",
+        "identity",
+    };
+    cfg.decoder_layer_spec = {
+        "linear:32",
+        "leaky_integrator",
+        "linear:output",
+        "identity",
+    };
+
+    ProtocolSpikingAutoencoder model(cfg);
+
+    nn::Tensor input = nn::Tensor::rand(2, cfg.input_features);
+    nn::Tensor reconstruction = model.forward(input, true);
+    EXPECT_EQ(reconstruction.rows(), input.rows());
+    EXPECT_EQ(reconstruction.cols(), input.cols());
+
+    nn::Tensor grad_output = nn::Tensor::ones(input.rows(), input.cols());
+    nn::Tensor grad_input = model.backward(grad_output);
+    EXPECT_EQ(grad_input.rows(), input.rows());
+    EXPECT_EQ(grad_input.cols(), input.cols());
+}

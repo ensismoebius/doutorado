@@ -43,8 +43,8 @@ TEST(Experiment03ProfilesTest, LoadsProfileFromAbsolutePath)
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
                "  \"dataset_type\": \"audio-window\",\n"
-               "  \"autoencoder_type\": \"audio-window-ann\",\n"
-               "  \"autoencoder_hidden_size\": 64\n"
+               "  \"neural_network_type\": \"audio-window-ann\",\n"
+               "  \"neural_network_hidden_size\": 64\n"
                "}\n";
     }
 
@@ -70,10 +70,10 @@ TEST(Experiment03ProfilesTest, LoadsInputAndLayerOverrides)
         std::ofstream ofs(profile_path);
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
-               "  \"autoencoder_input_features\": 777,\n"
-               "  \"eeg_features\": 333,\n"
-               "  \"audio_features\": 444,\n"
-               "  \"layers\": 5\n"
+               "  \"neural_network_input_features\": 777,\n"
+               "  \"neural_network_eeg_features\": 333,\n"
+               "  \"neural_network_audio_features\": 444,\n"
+               "  \"neural_network_depth\": 5\n"
                "}\n";
     }
 
@@ -101,7 +101,7 @@ TEST(Experiment03ProfilesTest, LoadsDeviceOverride)
         std::ofstream ofs(profile_path);
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
-               "  \"device\": \"cpu\"\n"
+               "  \"program_device\": \"cpu\"\n"
                "}\n";
     }
 
@@ -127,7 +127,7 @@ TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
                "  \"dataset_type\": \"audio-window\",\n"
-               "  \"autoencoder_type\": \"audio-window-ann\",\n"
+               "  \"neural_network_type\": \"audio-window-ann\",\n"
                "  \"batch_size\": 32\n"
                "}\n";
     }
@@ -145,6 +145,33 @@ TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
     std::filesystem::remove(profile_path, ec);
 }
 
+TEST(Experiment03ProfilesTest, RejectsLegacyProfileKeys)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_legacy_key_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"dataset_type\": \"audio-window\",\n"
+               "  \"autoencoder_type\": \"audio-window-ann\"\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
+    EXPECT_NE(error.find("autoencoder_type"), std::string::npos);
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
 TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
 {
     const auto dataset_root = std::filesystem::temp_directory_path();
@@ -155,7 +182,7 @@ TEST(Experiment03CliTest, LoadsDeviceFromSelectedProfile)
         std::ofstream ofs(profile_path);
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
-               "  \"device\": \"cpu\"\n"
+               "  \"program_device\": \"cpu\"\n"
                "}\n";
     }
 
@@ -255,12 +282,14 @@ TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
         std::ofstream ofs(profile_path);
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
-               "  \"autoencoder_encoder_layer_spec\": [\"linear:64:relu\", "
-               "\"linear:latent:identity\"],\n"
-               "  \"autoencoder_decoder_layer_spec\": [\"linear:64:relu\", "
-               "\"linear:output:identity\"],\n"
-               "  \"autoencoder_branch_encoder_layer_spec\": [\"linear:branch_hidden:relu\"],\n"
-               "  \"autoencoder_fusion_decoder_layer_spec\": [\"linear:output:identity\"],\n"
+               "  \"neural_network_layer\": [\n"
+               "    \"encoder:linear:64:relu\",\n"
+               "    \"encoder:linear:latent:identity\",\n"
+               "    \"decoder:linear:64:relu\",\n"
+               "    \"decoder:linear:output:identity\",\n"
+               "    \"branch_encoder:linear:branch_hidden:relu\",\n"
+               "    \"fusion_decoder:linear:output:identity\"\n"
+               "  ],\n"
                "  \"training_optimizer_type\": \"sgd\",\n"
                "  \"training_loss_type\": \"mae\",\n"
                "  \"training_lr_plateau_enabled\": true,\n"
@@ -293,6 +322,111 @@ TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
     EXPECT_EQ(config.training_lr_plateau_patience, 4U);
     EXPECT_FLOAT_EQ(config.training_lr_plateau_min_delta, 0.0005F);
     EXPECT_TRUE(config.validation_modality_diagnostics_enabled);
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, RejectsSplitLayerSpecKeys)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_split_layer_keys_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"neural_network_decoder_layer_spec\": [\"linear:output:identity\"]\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
+    EXPECT_NE(error.find("neural_network_decoder_layer_spec"), std::string::npos);
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_family_alias_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"dataset_type\": \"audio-window\",\n"
+               "  \"neural_network_family\": \"snn\"\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
+    EXPECT_NE(error.find("neural_network_family"), std::string::npos);
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, RejectsShortNeuralNetworkTypeAlias)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_type_alias_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"dataset_type\": \"protocol\",\n"
+               "  \"neural_network_type\": \"ann\"\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unsupported neural_network_type"), std::string::npos);
+
+    std::error_code ec;
+    std::filesystem::remove(profile_path, ec);
+}
+
+TEST(Experiment03ProfilesTest, RejectsUnsupportedAutoencoderType)
+{
+    const std::filesystem::path profile_path =
+        std::filesystem::temp_directory_path() / "experiment03_profile_bad_type_test.json";
+
+    {
+        std::ofstream ofs(profile_path);
+        ASSERT_TRUE(ofs.good());
+        ofs << "{\n"
+               "  \"dataset_type\": \"fused-window\",\n"
+               "  \"neural_network_type\": \"transformer-snn\"\n"
+               "}\n";
+    }
+
+    Config config{};
+    std::string error;
+
+    const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
+
+    ASSERT_FALSE(ok);
+    EXPECT_NE(error.find("unsupported neural_network_type"), std::string::npos);
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -383,7 +517,7 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
                "  \"dataset_type\": \"audio-window\",\n"
-               "  \"autoencoder_type\": \"fused-window-snn\",\n"
+               "  \"neural_network_type\": \"fused-window-snn\",\n"
                "  \"dataset_input_mode\": 1,\n"
                "  \"training_optimizer_type\": \"sgd\",\n"
                "  \"training_loss_type\": \"mae\",\n"
@@ -394,8 +528,8 @@ TEST(Experiment03CliTest, PreservesProfileSeededValuesWhenNotOverridden)
                "  \"training_lr_plateau_patience\": 6,\n"
                "  \"training_lr_plateau_min_delta\": 0.0001,\n"
                "  \"validation_modality_diagnostics_enabled\": true,\n"
-               "  \"prefetch_lookahead\": 3,\n"
-               "  \"prefetch_ram_cap_mb\": 96\n"
+               "  \"program_prefetch_lookahead\": 3,\n"
+               "  \"program_prefetch_ram_cap_mb\": 96\n"
                "}\n";
     }
 
@@ -490,7 +624,7 @@ TEST(Experiment03CliTest, RejectsMissingSamplerSeed)
         ASSERT_TRUE(ofs.good());
         ofs << "{\n"
                "  \"dataset_type\": \"fused-window\",\n"
-               "  \"autoencoder_type\": \"fused-window-ann\",\n"
+               "  \"neural_network_type\": \"fused-window-ann\",\n"
                "  \"sampler_shuffle_samples\": true\n"
                "}\n";
     }

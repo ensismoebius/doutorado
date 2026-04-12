@@ -38,6 +38,90 @@ struct LayerStageSpec
     std::string activation_type;
 };
 
+enum class LayerSpecKind
+{
+    Linear,
+    Activation,
+    Residual,
+};
+
+struct ParsedLayerSpec
+{
+    LayerSpecKind kind;
+    std::string width_token;
+    std::string activation_type;
+    int repeat = 1;
+};
+
+inline auto split_spec_tokens(const std::string& spec) -> std::vector<std::string>
+{
+    std::vector<std::string> tokens;
+    std::stringstream ss(spec);
+    std::string token;
+    while (std::getline(ss, token, ':'))
+    {
+        if (!token.empty()) tokens.push_back(token);
+    }
+    return tokens;
+}
+
+inline auto parse_layer_module_spec(const std::string& spec) -> ParsedLayerSpec
+{
+    const auto tokens = split_spec_tokens(spec);
+    if (tokens.empty())
+    {
+        throw std::invalid_argument("Layer spec cannot be empty");
+    }
+
+    const std::string& head = tokens[0];
+    if (head == "linear")
+    {
+        if (tokens.size() < 2 || tokens.size() > 3)
+        {
+            throw std::invalid_argument(
+                "Linear layer spec must be 'linear:width' or 'linear:width:activation': " + spec);
+        }
+
+        ParsedLayerSpec parsed{LayerSpecKind::Linear, tokens[1], "", 1};
+        if (tokens.size() == 3) parsed.activation_type = tokens[2];
+        return parsed;
+    }
+
+    if (head == "residual" || head == "residual_block")
+    {
+        int repeat = 1;
+        if (tokens.size() == 2)
+        {
+            try
+            {
+                repeat = std::stoi(tokens[1]);
+            }
+            catch (const std::exception&)
+            {
+                throw std::invalid_argument("Residual layer repeat must be an integer: " + spec);
+            }
+            if (repeat < 1)
+            {
+                throw std::invalid_argument("Residual layer repeat must be >= 1: " + spec);
+            }
+        }
+        else if (tokens.size() > 2)
+        {
+            throw std::invalid_argument(
+                "Residual layer spec must be 'residual' or 'residual:N': " + spec);
+        }
+
+        return ParsedLayerSpec{LayerSpecKind::Residual, "", "", repeat};
+    }
+
+    if (tokens.size() != 1)
+    {
+        throw std::invalid_argument("Activation spec must be a single token: " + spec);
+    }
+
+    return ParsedLayerSpec{LayerSpecKind::Activation, "", head, 1};
+}
+
 inline auto parse_layer_stage_spec(const std::string& spec) -> LayerStageSpec
 {
     std::stringstream ss(spec);
@@ -79,6 +163,11 @@ inline auto resolve_width_token(
 
 inline void append_ann_activation(Sequential& seq, const std::string& activation_type)
 {
+    if (activation_type.empty())
+    {
+        return;
+    }
+
     if (activation_type == "relu")
     {
         seq.add_module(std::make_shared<ReLU>());
@@ -117,6 +206,37 @@ inline void append_snn_activation(
     }
 
     throw std::invalid_argument("Unsupported SNN activation type: " + activation_type);
+}
+
+inline void append_residual_blocks(Sequential& seq, int features, int repeat)
+{
+    for (int i = 0; i < repeat; ++i)
+    {
+        seq.add_module(std::make_shared<ResidualBlock>(features));
+    }
+}
+
+inline void append_activation_by_mode(const AutoencoderConfig& cfg,
+    Sequential& seq,
+    const std::string& activation_type,
+    bool snn_mode)
+{
+    if (activation_type.empty()) return;
+
+    if (!snn_mode)
+    {
+        append_ann_activation(seq, activation_type);
+        return;
+    }
+
+    if (activation_type == "leaky" || activation_type == "leaky_integrator" ||
+        activation_type == "identity")
+    {
+        append_snn_activation(cfg, seq, activation_type);
+        return;
+    }
+
+    append_ann_activation(seq, activation_type);
 }
 
 inline auto tapered_widths(const AutoencoderConfig& cfg, int base_hidden) -> std::vector<int>
@@ -216,22 +336,29 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
         int current = input_size;
         for (const auto& entry : cfg.encoder_layer_spec)
         {
-            const auto stage = parse_layer_stage_spec(entry);
-            if (stage.layer_type != "linear")
+            const auto stage = parse_layer_module_spec(entry);
+            if (stage.kind == LayerSpecKind::Linear)
             {
-                throw std::invalid_argument("ANN encoder currently supports only linear stages");
+                const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
+                auto linear = std::make_shared<Linear>(current, output_size);
+                xavierInitializer(current,
+                    output_size,
+                    linear->weight,
+                    linear->bias,
+                    cfg.initializer_seed,
+                    cfg.initializer_sampler_type);
+                encoder.add_module(linear);
+                append_ann_activation(encoder, stage.activation_type);
+                current = output_size;
             }
-            const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
-            auto linear = std::make_shared<Linear>(current, output_size);
-            xavierInitializer(current,
-                output_size,
-                linear->weight,
-                linear->bias,
-                cfg.initializer_seed,
-                cfg.initializer_sampler_type);
-            encoder.add_module(linear);
-            append_ann_activation(encoder, stage.activation_type);
-            current = output_size;
+            else if (stage.kind == LayerSpecKind::Activation)
+            {
+                append_ann_activation(encoder, stage.activation_type);
+            }
+            else
+            {
+                append_residual_blocks(encoder, current, stage.repeat);
+            }
         }
         return encoder;
     }
@@ -268,22 +395,29 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
         int current = cfg.latent_size;
         for (const auto& entry : cfg.decoder_layer_spec)
         {
-            const auto stage = parse_layer_stage_spec(entry);
-            if (stage.layer_type != "linear")
+            const auto stage = parse_layer_module_spec(entry);
+            if (stage.kind == LayerSpecKind::Linear)
             {
-                throw std::invalid_argument("ANN decoder currently supports only linear stages");
+                const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
+                auto linear = std::make_shared<Linear>(current, stage_output);
+                xavierInitializer(current,
+                    stage_output,
+                    linear->weight,
+                    linear->bias,
+                    cfg.initializer_seed,
+                    cfg.initializer_sampler_type);
+                decoder.add_module(linear);
+                append_ann_activation(decoder, stage.activation_type);
+                current = stage_output;
             }
-            const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
-            auto linear = std::make_shared<Linear>(current, stage_output);
-            xavierInitializer(current,
-                stage_output,
-                linear->weight,
-                linear->bias,
-                cfg.initializer_seed,
-                cfg.initializer_sampler_type);
-            decoder.add_module(linear);
-            append_ann_activation(decoder, stage.activation_type);
-            current = stage_output;
+            else if (stage.kind == LayerSpecKind::Activation)
+            {
+                append_ann_activation(decoder, stage.activation_type);
+            }
+            else
+            {
+                append_residual_blocks(decoder, current, stage.repeat);
+            }
         }
         return decoder;
     }
@@ -363,17 +497,24 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
         int current = input_size;
         for (const auto& entry : cfg.encoder_layer_spec)
         {
-            const auto stage = parse_layer_stage_spec(entry);
-            if (stage.layer_type != "linear")
+            const auto stage = parse_layer_module_spec(entry);
+            if (stage.kind == LayerSpecKind::Linear)
             {
-                throw std::invalid_argument("SNN encoder currently supports only linear stages");
+                const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
+                auto linear = std::make_shared<Linear>(current, output_size);
+                kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+                encoder.add_module(linear);
+                append_activation_by_mode(cfg, encoder, stage.activation_type, true);
+                current = output_size;
             }
-            const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
-            auto linear = std::make_shared<Linear>(current, output_size);
-            kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
-            encoder.add_module(linear);
-            append_snn_activation(cfg, encoder, stage.activation_type);
-            current = output_size;
+            else if (stage.kind == LayerSpecKind::Activation)
+            {
+                append_activation_by_mode(cfg, encoder, stage.activation_type, true);
+            }
+            else
+            {
+                append_residual_blocks(encoder, current, stage.repeat);
+            }
         }
         return encoder;
     }
@@ -409,17 +550,24 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
         int current = cfg.latent_size;
         for (const auto& entry : cfg.decoder_layer_spec)
         {
-            const auto stage = parse_layer_stage_spec(entry);
-            if (stage.layer_type != "linear")
+            const auto stage = parse_layer_module_spec(entry);
+            if (stage.kind == LayerSpecKind::Linear)
             {
-                throw std::invalid_argument("SNN decoder currently supports only linear stages");
+                const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
+                auto linear = std::make_shared<Linear>(current, stage_output);
+                kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+                decoder.add_module(linear);
+                append_activation_by_mode(cfg, decoder, stage.activation_type, true);
+                current = stage_output;
             }
-            const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
-            auto linear = std::make_shared<Linear>(current, stage_output);
-            kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
-            decoder.add_module(linear);
-            append_snn_activation(cfg, decoder, stage.activation_type);
-            current = stage_output;
+            else if (stage.kind == LayerSpecKind::Activation)
+            {
+                append_activation_by_mode(cfg, decoder, stage.activation_type, true);
+            }
+            else
+            {
+                append_residual_blocks(decoder, current, stage.repeat);
+            }
         }
         return decoder;
     }
