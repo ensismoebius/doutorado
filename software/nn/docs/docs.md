@@ -340,21 +340,14 @@ Then in VS Code:
 
 ---
 
-## 5. `experiment03` Command-Line Interface — Full Tutorial
+## 5. `experiment03` Configuration — Profile-First Usage
 
-`experiment03` is the main training binary for the autoencoder pipeline. It accepts all
-hyperparameters and pipeline options at the command line, so no recompilation is needed to
-change datasets, model architecture, or training settings.
+`experiment03` now accepts a single runtime flag: `--profile <path/to/profile.json>`.
+All hyperparameters and runtime options are loaded from the provided JSON profile; the CLI no longer accepts per-run hyperparameter overrides. Use the sample profile at `src/experiments/03/profiles/sample-training-flow.json` as a baseline.
 
 ### 5.1 Binary Location
 
-After building (`cmake --build … --target experiment03`), the binary is at:
-
-```
-out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03
-```
-
-For brevity, the examples below use `experiment03` as a short alias:
+After building (`cmake --build … --target experiment03`), the binary is at the usual build output path. For brevity, examples below use `experiment03` as a short alias.
 
 ```bash
 alias experiment03="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03"
@@ -362,42 +355,42 @@ alias experiment03="./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments
 
 ---
 
-### 5.2 Complete Option Reference
+### 5.2 Profile Field Reference
 
-Run `--help` at any time to print the full option list with current defaults:
+Run the binary with a profile file to start training:
 
+```bash
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
-experiment03 --help
-```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--dataset-root` | path (existing dir) | _(set in code)_ | Root directory that contains one sub-folder per subject |
-| `--subject` | regex string | `^S(\d+)$` | Regex to filter subject folder names; the first capture group becomes the subject ID |
-| `--batch-size` | positive int | `5` | Number of samples per mini-batch |
-| `--max-batches` | positive int | `10` | Maximum number of batches consumed per epoch |
-| `--dataset-type` | enum | `fused-window` | Input modality: `protocol` · `eeg-window` · `audio-window` · `fused-window` |
-| `--input-mode` | enum | `concatenated` | For `protocol` only: `concatenated` · `eeg-only` · `audio-only` |
-| `--autoencoder` | enum | `fused-window-ann` | Model variant (see §5.4) |
-| `--ae-hidden-size` | positive int | `64` | Width of every hidden layer in encoder and decoder |
-| `--ae-latent-size` | positive int | `32` | Dimensionality of the bottleneck (latent) vector |
-| `--ae-depth` | positive int | `2` | Number of hidden layer blocks in encoder (mirrored in decoder) |
-| `--ae-time-step` | positive float | `1.0` | SNN neuron time step `dt`; controls leaky decay β |
-| `--ae-resistance` | positive float | `1.0` | Initial SNN membrane resistance R (trainable during optimization in SNN models) |
-| `--ae-capacitance` | positive float | `1.0` | Initial SNN membrane capacitance C (trainable during optimization in SNN models) |
-| `--lr` | positive float | `0.001` | Adam optimizer learning rate |
-| `--epochs` | positive int | `1` | Number of full passes over the dataset |
-| `--eeg-window-size` | positive int | `256` | EEG window length in samples (windowing datasets) |
-| `--eeg-overlap` | float [0, 1) | `0.5` | Fractional overlap between EEG windows |
-| `--audio-window-size` | positive int | `11025` | Audio window length in samples (windowing datasets) |
-| `--audio-overlap` | float [0, 1) | `0.5` | Fractional overlap between audio windows |
-| `--lookahead` | positive int | `5` | Number of batches to prefetch in background |
-| `--use-shards` | flag | `false` | Use precomputed per-subject NPZ shard files for dataset I/O |
-| `--shuffle` / `--no-shuffle` | flag | `true` | Shuffle samples before batching |
-| `--seed` | non-negative int | `42` | Deterministic RNG seed for shuffling |
-| `--sampler-type` | enum | _(auto)_ | Override sampler: `sequential` · `random` · `weighted` · `distributed` |
-| `--sampler-weights` | float list | _(none)_ | Per-class weights for the weighted sampler (comma-separated) |
-| `--weighted-num-samples` | positive int | _(none)_ | How many samples to draw per epoch with the weighted sampler |
+Below are frequently used profile fields and their meanings (use dot-separated JSON keys):
+
+| Profile Field | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `training.batch_size` | positive int | 5 | Number of samples per mini-batch |
+| `training.max_batches` | positive int | 10 | Maximum number of batches consumed per epoch |
+| `dataset.type` | enum | `fused-window` | Input modality: `protocol` · `eeg-window` · `audio-window` · `fused-window` |
+| `dataset.input_mode` | enum | `concatenated` | For `protocol` only: `concatenated` · `eeg-only` · `audio-only` |
+| `autoencoder.variant` | enum | `fused-window-ann` | Model variant (see §5.4) |
+| `autoencoder.hidden_size` | positive int | 64 | Width of hidden layers in encoder/decoder |
+| `autoencoder.latent_size` | positive int | 32 | Dimensionality of the bottleneck vector |
+| `autoencoder.depth` | positive int | 2 | Number of hidden layer blocks in encoder (mirrored in decoder) |
+| `snn.dt` | positive float | 1.0 | SNN neuron time step `dt` |
+| `snn.resistance` | positive float | 1.0 | Initial SNN membrane resistance R (trainable in SNN models) |
+| `snn.capacitance` | positive float | 1.0 | Initial SNN membrane capacitance C (trainable in SNN models) |
+| `training.lr` | positive float | 0.001 | Adam optimizer learning rate |
+| `training.epochs` | positive int | 1 | Number of full passes over the dataset |
+| `dataset.eeg_window_size` | positive int | 256 | EEG window length in samples |
+| `dataset.eeg_overlap` | float [0,1) | 0.5 | Fractional overlap between EEG windows |
+| `dataset.audio_window_size` | positive int | 11025 | Audio window length in samples |
+| `dataset.audio_overlap` | float [0,1) | 0.5 | Fractional overlap between audio windows |
+| `runtime.lookahead` | positive int | 5 | Number of batches to prefetch |
+| `runtime.use_shards` | bool | false | Use precomputed per-subject shard files for dataset I/O |
+| `training.shuffle` | bool | true | Shuffle samples before batching |
+| `training.seed` | non-negative int | 42 | Deterministic RNG seed (set in profile to enforce RNG policy) |
+| `sampler.type` | enum | (auto) | `sequential` · `random` · `weighted` · `distributed` |
+| `sampler.weights` | float list | (none) | Per-class weights for the weighted sampler |
+| `sampler.weighted_num_samples` | positive int | (none) | How many samples to draw per epoch with the weighted sampler |
 | `--distributed-num-replicas` | positive int | `1` | Total number of distributed workers |
 | `--distributed-rank` | non-negative int | `0` | This worker's rank (0-indexed) |
 | `--distributed-shuffle` / `--distributed-no-shuffle` | flag | `true` | Global shuffle before distributing data across replicas |
@@ -522,11 +515,8 @@ forward/backward computations.
 #### 5.5.1 Minimal smoke test (no real data needed concept check)
 
 ```bash
-# Uses all defaults: fused-window dataset, ANN autoencoder, 1 epoch, 10 batches.
-experiment03 \
-    --dataset-root /path/to/dataset \
-    --batch-size 8 \
-    --max-batches 5
+# Uses a small smoke profile. Edit `src/experiments/03/profiles/sample-training-flow.json` for fields.
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 This is the fastest way to confirm the pipeline runs without errors.
@@ -536,13 +526,7 @@ This is the fastest way to confirm the pipeline runs without errors.
 #### 5.5.2 Train the default ANN autoencoder for 20 epochs
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --batch-size 32 \
-    --max-batches 200 \
-    --epochs 20 \
-    --lr 0.001 \
-    --seed 42
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 - 32-sample batches, up to 200 batches per epoch, Adam lr = 0.001, deterministic seed 42.
@@ -553,47 +537,21 @@ experiment03 \
 #### 5.5.3 Train a spiking (SNN) autoencoder on fused EEG+audio windows
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --dataset-type fused-window \
-    --autoencoder fused-window-snn \
-    --eeg-window-size 256 \
-    --eeg-overlap 0.5 \
-    --audio-window-size 4096 \
-    --audio-overlap 0.25 \
-    --batch-size 16 \
-    --max-batches 300 \
-    --epochs 30 \
-    --lr 0.0005 \
-    --ae-hidden-size 128 \
-    --ae-latent-size 64 \
-    --ae-depth 3 \
-    --ae-time-step 0.5 \
-    --ae-resistance 2.0 \
-    --ae-capacitance 1.0
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 Key points:
-- `--ae-time-step 0.5` shortens the membrane time constant, producing faster spiking dynamics.
-- `--ae-depth 3` adds three hidden blocks per side (6 total), giving the SNN more representational
-  capacity.
-- `--ae-latent-size 64` doubles the bottleneck; useful when EEG+audio concatenation is large.
+- `snn.dt = 0.5` shortens the membrane time constant, producing faster spiking dynamics.
+- `autoencoder.depth = 3` adds three hidden blocks per side (6 total), giving the SNN more representational
+    capacity.
+- `autoencoder.latent_size = 64` doubles the bottleneck; useful when EEG+audio concatenation is large.
 
 ---
 
 #### 5.5.4 EEG-only autoencoder (unimodal EEG experiment)
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --dataset-type eeg-window \
-    --autoencoder eeg-window-ann \
-    --eeg-window-size 512 \
-    --eeg-overlap 0.5 \
-    --batch-size 32 \
-    --max-batches 150 \
-    --epochs 10 \
-    --lr 0.001
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 ---
@@ -601,15 +559,7 @@ experiment03 \
 #### 5.5.5 Audio-only autoencoder (unimodal audio experiment)
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --dataset-type audio-window \
-    --autoencoder audio-window-ann \
-    --audio-window-size 8192 \
-    --audio-overlap 0.5 \
-    --batch-size 16 \
-    --max-batches 100 \
-    --epochs 10
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 ---
@@ -617,14 +567,7 @@ experiment03 \
 #### 5.5.6 Protocol dataset with raw concatenated vectors
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --dataset-type protocol \
-    --input-mode concatenated \
-    --autoencoder protocol-ann \
-    --batch-size 8 \
-    --max-batches 50 \
-    --epochs 5
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 Use `--input-mode eeg-only` or `--input-mode audio-only` to isolate a single modality while
@@ -636,12 +579,7 @@ still using the original protocol format (no windowing applied).
 
 ```bash
 # Only process subjects whose folder names match "S01" through "S09".
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --subject "^S(0[1-9])$" \
-    --batch-size 16 \
-    --max-batches 50 \
-    --epochs 5
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 The `--subject` value is a C++ `std::regex` pattern. The first capture group is used as the
@@ -652,15 +590,7 @@ subject identifier in logs.
 #### 5.5.8 Deterministic reproducible run (fixed seed, sequential sampler)
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --no-shuffle \
-    --sampler-type sequential \
-    --seed 0 \
-    --batch-size 32 \
-    --max-batches 100 \
-    --epochs 3 \
-    --lr 0.001
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 Using `--sampler-type sequential` combined with `--no-shuffle` guarantees the same batch
@@ -775,39 +705,25 @@ $$
 
 - **R** (resistance): Controls how much the neuron "resists" incoming current. Higher R → longer time constant → slower decay.
 - **C** (capacitance): Adjusts the effective integration window. Higher C → longer time constant → slower dynamics.
-- **dt** (time step): Fixed during a run (via `--ae-time-step`), but the product `R·C` modulates the effective timescale.
+- **dt** (time step): Fixed during a run (set in the profile via `snn.dt`), but the product `R·C` modulates the effective timescale.
 
 ### 7.3 Training Behavior
 
 During training:
-- Both R and C are **initialized** to values specified by `--ae-resistance` and `--ae-capacitance`.
+- Both R and C are **initialized** to values specified by profile fields `snn.resistance` and `snn.capacitance`.
 - Gradients are computed w.r.t. both R and C during backprop (using automatic differentiation).
 - Both parameters are **clamped** to small positive values (e.g., ≥ 0.01) to maintain numerical stability.
 - The optimizer (Adam) updates R and C along with all other layer weights.
 
 **Recommended starting values:**
-- `--ae-resistance 1.0` and `--ae-capacitance 1.0` (neutral baseline)
+- `snn.resistance = 1.0` and `snn.capacitance = 1.0` (neutral baseline)
 - Increase to 2.0–5.0 for slower, longer-term integration
 - Decrease to 0.1–0.5 for faster, short-timescale spiking
 
 ### 7.4 Example: Training an SNN with Adaptive Membrane Time Constants
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --dataset-type fused-window \
-    --autoencoder fused-window-snn \
-    --batch-size 16 \
-    --max-batches 200 \
-    --epochs 50 \
-    --lr 0.0005 \
-    --ae-hidden-size 128 \
-    --ae-latent-size 64 \
-    --ae-depth 3 \
-    --ae-time-step 0.5 \
-    --ae-resistance 1.0 \
-    --ae-capacitance 1.0 \
-    --seed 42
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 During training:
@@ -997,14 +913,7 @@ The EEG and audio fusion pipeline is grounded in multimodal speaker verification
 #### 5.5.9 Weighted sampler to oversample rare classes
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --sampler-type weighted \
-    --sampler-weights 0.1,0.4,0.5 \
-    --weighted-num-samples 200 \
-    --batch-size 16 \
-    --max-batches 50 \
-    --epochs 5
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 `--sampler-weights` is a comma-separated list with one weight per class. Weights are normalized
@@ -1016,16 +925,8 @@ the total dataset size).
 #### 5.5.10 Distributed training — rank 0 of 4 replicas
 
 ```bash
-# Worker 0 of 4
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --sampler-type distributed \
-    --distributed-num-replicas 4 \
-    --distributed-rank 0 \
-    --distributed-shuffle \
-    --batch-size 32 \
-    --max-batches 100 \
-    --epochs 10
+# Worker 0 of 4 (use a per-worker profile to set `distributed.rank` and `distributed.num_replicas`)
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 Run the same command on each host/process, incrementing `--distributed-rank` from 0 to 3.
@@ -1036,12 +937,7 @@ Each worker sees a non-overlapping shard of the dataset.
 #### 5.5.11 Fast background prefetching for I/O-bound datasets
 
 ```bash
-experiment03 \
-    --dataset-root /data/BaseDeDatosHablaImaginada \
-    --lookahead 8 \
-    --batch-size 64 \
-    --max-batches 500 \
-    --epochs 20
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 `--lookahead` controls how many batches are loaded by the background producer thread ahead of
@@ -1074,18 +970,9 @@ ingestion.
 #### 5.5.12 Architecture search — sweep latent size
 
 ```bash
-for LATENT in 16 32 64 128; do
-  echo "=== latent=$LATENT ==="
-  experiment03 \
-      --dataset-root /data/BaseDeDatosHablaImaginada \
-      --autoencoder fused-window-ann \
-      --ae-latent-size $LATENT \
-      --ae-hidden-size 128 \
-      --ae-depth 2 \
-      --epochs 10 \
-      --max-batches 200 \
-      --seed 42
-done
+# Use a small driver script that writes per-run profile JSON files with different `autoencoder.latent_size` values,
+# then invoke `experiment03 --profile <that_profile.json>` for each run.
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 A simple Bash loop lets you run a latent-dimension sweep without recompiling. Compare the
@@ -1096,17 +983,8 @@ per-epoch mean reconstruction loss printed at the end of each run.
 #### 5.5.13 SNN physics parameter sweep
 
 ```bash
-for DT in 0.1 0.5 1.0 2.0; do
-  experiment03 \
-      --dataset-root /data/BaseDeDatosHablaImaginada \
-      --autoencoder fused-window-snn \
-      --ae-time-step $DT \
-      --ae-resistance 1.0 \
-      --ae-capacitance 1.0 \
-      --epochs 5 \
-      --max-batches 100 \
-      --seed 42 2>&1 | tail -2
-done
+# For parameter sweeps, generate per-run profile JSONs with different `snn.dt`, then run:
+experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
 ```
 
 ---

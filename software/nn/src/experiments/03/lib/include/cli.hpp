@@ -16,7 +16,7 @@
  *
  * - `argc` Argument count from the command line.
  * - `argv` Argument vector from the command line.
- * - `default_config` Default configuration structure.
+ * - `default_config` Base configuration structure (typically seeded from `default` profile).
  * - `return` Parsed configuration including resolved sampler options.
  */
 auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Config;

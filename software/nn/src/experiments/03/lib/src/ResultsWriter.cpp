@@ -121,13 +121,15 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     ofs << "  \"profile\": \"" << escape_json(summary.profile_name) << "\",\n";
     ofs << "  \"dataset_type\": \"" << escape_json(summary.dataset_type) << "\",\n";
     ofs << "  \"autoencoder_type\": \"" << escape_json(summary.autoencoder_type) << "\",\n";
+    ofs << "  \"loss_type\": \"" << escape_json(summary.loss_type) << "\",\n";
     ofs << "  \"optimizer\": {\n";
     ofs << "    \"type\": \"" << escape_json(summary.optimizer_type) << "\",\n";
     ofs << "    \"learning_rate\": " << summary.optimizer_learning_rate << ",\n";
     ofs << "    \"momentum\": " << summary.optimizer_momentum << ",\n";
     ofs << "    \"adam_beta1\": " << summary.optimizer_adam_beta1 << ",\n";
     ofs << "    \"adam_beta2\": " << summary.optimizer_adam_beta2 << ",\n";
-    ofs << "    \"adam_epsilon\": " << summary.optimizer_adam_epsilon << "\n";
+    ofs << "    \"adam_epsilon\": " << summary.optimizer_adam_epsilon << ",\n";
+    ofs << "    \"final_learning_rate\": " << summary.optimizer_final_learning_rate << "\n";
     ofs << "  },\n";
     ofs << "  \"exit_code\": " << summary.exit_code << ",\n";
     ofs << "  \"total_samples\": " << summary.total_samples << ",\n";
@@ -148,6 +150,34 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
         if (fi > 0) ofs << ", ";
         ofs << "[";
         const auto& fold_losses = summary.fold_epoch_val_losses[fi];
+        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
+        {
+            if (ei > 0) ofs << ", ";
+            ofs << fold_losses[ei];
+        }
+        ofs << "]";
+    }
+    ofs << "],\n";
+    ofs << "    \"fold_epoch_val_eeg_losses\": [";
+    for (std::size_t fi = 0; fi < summary.fold_epoch_val_eeg_losses.size(); ++fi)
+    {
+        if (fi > 0) ofs << ", ";
+        ofs << "[";
+        const auto& fold_losses = summary.fold_epoch_val_eeg_losses[fi];
+        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
+        {
+            if (ei > 0) ofs << ", ";
+            ofs << fold_losses[ei];
+        }
+        ofs << "]";
+    }
+    ofs << "],\n";
+    ofs << "    \"fold_epoch_val_audio_losses\": [";
+    for (std::size_t fi = 0; fi < summary.fold_epoch_val_audio_losses.size(); ++fi)
+    {
+        if (fi > 0) ofs << ", ";
+        ofs << "[";
+        const auto& fold_losses = summary.fold_epoch_val_audio_losses[fi];
         for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
         {
             if (ei > 0) ofs << ", ";

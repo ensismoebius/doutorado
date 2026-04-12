@@ -3,118 +3,62 @@
 Overview
 --------
 `experiment03` trains ANN or SNN autoencoders against the 10.1117 imagined-speech EEG+Audio dataset.
-It supports two layers of configuration:
+It is profile-driven and supports two layers of profile configuration:
 
-- A launcher-level `default_config` in `src/experiments/03/experiment03.cpp`.
-- A profile JSON loaded from `src/experiments/03/profiles/*.json`.
-- Explicit CLI flags, which override both the launcher defaults and the selected profile.
+- A base profile JSON loaded from `src/experiments/03/profiles/default.json`.
+- A selected profile JSON loaded from `src/experiments/03/profiles/*.json`.
 
 Configuration precedence
 ------------------------
 Runtime configuration is resolved in this order:
 
-1. `default_config` in `src/experiments/03/experiment03.cpp`
+1. `default` profile in `src/experiments/03/profiles/default.json`
 2. `--profile <name>` or `--profile <path/to/file.json>`
-3. Explicit CLI flags such as `--batch-size`, `--epochs`, or `--ae-latent-size`
 
-This means the experiment is configurable enough for multi-batch and multi-epoch training already, but the previous documentation was incomplete and one CLI contract was misleading.
+All runtime behavior must be defined by profile fields. CLI accepts only `--profile` (plus help flags).
 
 Use `--help` to inspect the full option list without starting the experiment or touching the logger pipeline.
 
-Important behavior fixes
-------------------------
-- `--epochs N` controls how many full training passes are executed.
-- `--batch-size N` controls how many samples are packed into each optimization step.
-- `--max-batches N` limits batches per epoch.
-- `--max-batches 0` means: do not cap the epoch, iterate the full dataset.
+Determinism policy
+------------------
+- `sampler_shuffle_seed` must be defined by profile, otherwise startup fails.
+- If `kfold_enabled=true` and `kfold_shuffle=true`, `kfold_seed` must be defined, otherwise startup fails.
 
-The runtime already supported `max_batches_per_epoch = 0`, but the CLI validator rejected `0`. That mismatch has now been fixed.
+How to run
+----------
+Run with a profile name (from `src/experiments/03/profiles`) or an explicit JSON path:
 
-What you can tune
------------------
-Dataset selection and discovery:
-- `--dataset-root <path>`: root folder containing subject directories.
-- `--subject <regex>`: regex used to pick subject folders.
-- `--dataset-type <protocol|eeg-window|audio-window|fused-window>`: which dataset representation to train on.
-- `--input-mode <concatenated|eeg-only|audio-only>`: protocol-dataset modality selection.
+```bash
+./src/experiments/03/experiment03 --profile fused-window-ann-default
+```
 
-Training loop controls:
-- `--batch-size <N>`: samples per optimization step.
-- `--epochs <N>`: number of epochs.
-- `--max-batches <N>`: batches per epoch; use `0` for full-dataset epochs.
-- `--lr <value>`: Adam learning rate.
-
-Input pipeline controls:
-- `--lookahead <N>`: background prefetch queue depth.
-- `--prefetch-ram-cap-mb <N>`: RAM limit for prefetched batches.
-
-Sampling controls:
-- `--shuffle` / `--no-shuffle`: legacy shuffle toggle.
-- `--seed <N>`: deterministic shuffle seed.
-- `--sampler-type <sequential|random|weighted|distributed>`: explicit sampler selection.
-- `--sampler-weights <w1,w2,...>`: weights for weighted sampling.
-- `--weighted-num-samples <N>`: samples drawn per epoch for weighted sampling.
-- `--distributed-num-replicas <N>`: total distributed partitions.
-- `--distributed-rank <N>`: current partition rank.
-- `--distributed-shuffle` / `--distributed-no-shuffle`: distributed shuffling.
-- `--distributed-drop-last` / `--distributed-no-drop-last`: divisibility behavior.
-
-Autoencoder controls:
-- `--autoencoder <token>`: ANN/SNN family to instantiate.
-- `--ae-hidden-size <N>`: default dense hidden width.
-- `--ae-latent-size <N>`: latent bottleneck width.
-- `--ae-depth <N>`: encoder/decoder depth.
-- `--ae-layer-sizes <a,b,c>`: explicit hidden-size schedule.
-- `--ae-input-features <N>`: manual input feature override.
-- `--ae-eeg-features <N>` and `--ae-audio-features <N>`: manual multimodal split overrides.
-- `--ae-architecture <auto|residual-dense|dual-branch-fusion>`: architecture family.
-- `--ae-branch-hidden-size <N>`: branch projection width.
-- `--ae-fusion-hidden-size <N>`: shared fusion width.
-- `--ae-residual-blocks <N>`: residual blocks per stage.
-- `--ae-time-step <value>`: SNN time step.
-- `--ae-resistance <value>`: SNN membrane resistance.
-- `--ae-capacitance <value>`: SNN membrane capacitance.
-
-Windowing controls:
-- `--eeg-window-size <N>` and `--eeg-overlap <ratio>`: EEG window configuration.
-- `--audio-window-size <N>` and `--audio-overlap <ratio>`: audio window configuration.
+```bash
+./src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json
+```
 
 How to think about batches and epochs
 -------------------------------------
-If you want genuine training runs instead of capped smoke tests, the most important knobs are:
+If you want genuine training runs instead of capped smoke tests, the most important profile fields are:
 
-- `--epochs`: increase this above `1` for repeated training passes.
-- `--batch-size`: controls optimization granularity and throughput.
-- `--max-batches 0`: removes the artificial epoch cap and lets each epoch consume the full dataset.
+- `training_epochs`: increase this above `1` for repeated training passes.
+- `training_batch_size`: controls optimization granularity and throughput.
+- `training_max_batches_per_epoch = 0`: removes the artificial epoch cap and lets each epoch consume the full dataset.
 
 Typical patterns:
 
-Smoke test:
+Smoke test profile example:
 ```bash
-./src/experiments/03/experiment03 \
-  --profile fused-window-ann-lightweight \
-  --epochs 1 \
-  --max-batches 2
+./src/experiments/03/experiment03 --profile fused-window-ann-lightweight
 ```
 
 Full training epoch over the dataset:
 ```bash
-./src/experiments/03/experiment03 \
-  --profile fused-window-ann-default \
-  --batch-size 128 \
-  --epochs 10 \
-  --max-batches 0
+./src/experiments/03/experiment03 --profile sample-training-flow
 ```
 
 Longer SNN training run:
 ```bash
-./src/experiments/03/experiment03 \
-  --profile fused-window-snn-default \
-  --epochs 25 \
-  --max-batches 0 \
-  --ae-time-step 0.5 \
-  --ae-resistance 1.0 \
-  --ae-capacitance 1.0
+./src/experiments/03/experiment03 --profile fused-window-snn-default
 ```
 
 Profiles
@@ -135,14 +79,65 @@ Useful built-in examples:
 Profiles may set:
 - dataset type
 - autoencoder type
+- explicit encoder/decoder layer specs
+- explicit branch/fusion layer specs for fused autoencoders
 - batch size
 - epoch count
+- optimizer type
+- loss type
 - learning rate
 - window configs
 - autoencoder widths/depth
 - prefetch settings
 
-CLI flags remain the final override, so a profile is a starting point, not a lock.
+Declarative profile fields
+-------------------------
+Profiles are now the authoritative place to describe the autoencoder structure and training policy.
+
+Core architecture fields:
+- `autoencoder_encoder_layer_spec`: ordered encoder stages, e.g. `"linear:64:relu"`, `"linear:latent:relu"`.
+- `autoencoder_decoder_layer_spec`: ordered decoder stages, e.g. `"linear:64:relu"`, `"linear:output:identity"`.
+- `autoencoder_branch_encoder_layer_spec`: fused-model branch encoder stages.
+- `autoencoder_branch_decoder_layer_spec`: fused-model branch decoder stages.
+- `autoencoder_fusion_encoder_layer_spec`: fused-model fusion encoder stages.
+- `autoencoder_fusion_decoder_layer_spec`: fused-model fusion decoder stages.
+
+Supported layer spec tokens:
+- layer type: `linear`
+- width tokens: integer width, `latent`, `output`, `branch_hidden`, `fusion_hidden`
+- ANN activations: `relu`, `leaky_relu`, `identity`
+- SNN activations: `leaky`, `leaky_integrator`, `identity`
+
+Core training fields:
+- `training_optimizer_type`: currently `adam` or `sgd`
+- `training_loss_type`: currently `mse` or `mae`
+- `training_learning_rate`
+- `training_lr_plateau_enabled`
+- `training_lr_plateau_factor`
+- `training_lr_plateau_patience`
+- `training_lr_plateau_min_delta`
+- `validation_modality_diagnostics_enabled`
+
+Minimal ANN example:
+```json
+{
+  "autoencoder_type": "fused-window-ann",
+  "training_optimizer_type": "adam",
+  "training_loss_type": "mse",
+  "autoencoder_encoder_layer_spec": [
+    "linear:64:relu",
+    "linear:64:relu",
+    "linear:latent:relu"
+  ],
+  "autoencoder_decoder_layer_spec": [
+    "linear:64:relu",
+    "linear:64:relu",
+    "linear:output:identity"
+  ]
+}
+```
+
+Profiles are authoritative; there are no per-parameter CLI overrides.
 
 Sample commented profile flow
 -----------------------------
@@ -151,35 +146,21 @@ Use `sample-training-flow.json` when you want a self-documented baseline.
 Recommended progression:
 
 1. Start with the profile as-is for a short smoke run.
-2. Increase `--epochs` and set `--max-batches 0` once the pipeline is stable.
-3. Increase `--batch-size` only after checking RAM and throughput.
+2. Increase `training_epochs` and set `training_max_batches_per_epoch` to `0` once the pipeline is stable.
+3. Increase `training_batch_size` only after checking RAM and throughput.
 4. Change dataset/autoencoder families after the training loop is already behaving correctly.
 
 Example:
 ```bash
-./src/experiments/03/experiment03 \
-  --profile sample-training-flow \
-  --epochs 10 \
-  --max-batches 0 \
-  --batch-size 128
+./src/experiments/03/experiment03 --profile sample-training-flow
 ```
 
-What the launcher defaults currently imply
-------------------------------------------
-The launcher in `src/experiments/03/experiment03.cpp` currently defaults to:
+Default profile baseline
+------------------------
+When `--profile` is omitted, the launcher resolves to the `default` profile.
+Baseline behavior should be edited in `src/experiments/03/profiles/default.json`.
 
-- dataset root pointing at the local 10.1117 dataset path
-- fused-window dataset mode
-- fused-window ANN autoencoder
-- batch size `100`
-- epoch cap `100` batches
-- SQLite-backed input pipeline enabled
-- prefetch lookahead `20`
-
-These defaults are reasonable for a local training workstation, but they are still only defaults. The intended way to run alternate studies is:
-
-1. pick a profile close to the experiment you want
-2. override only the few parameters you want to sweep on the CLI
+- For reproducibility, create a dedicated profile file for each sweep or study.
 
 Data layout expected by the runner
 ----------------------------------
@@ -205,10 +186,10 @@ Operational notes
 
 Troubleshooting
 ---------------
-- If training ends too quickly, check whether `--max-batches` is still capped to a small number.
-- If you expected multiple epochs, verify `--epochs` is greater than `1`.
-- If no batches are produced, verify `--dataset-root`, `--subject`, and dataset integrity.
-- If I/O becomes unstable during debugging, temporarily reduce `--lookahead` to `1`.
+- If training ends too quickly, check whether `training_max_batches_per_epoch` is capped to a small number.
+- If you expected multiple epochs, verify `training_epochs` is greater than `1`.
+- If no batches are produced, verify `dataset_root_path`, `dataset_subject_filter_regex`, and dataset integrity.
+- If I/O becomes unstable during debugging, temporarily reduce `prefetch_lookahead` to `1`.
 
 Code pointers
 -------------
@@ -217,3 +198,51 @@ Code pointers
 - CLI parsing and overrides: `src/experiments/03/lib/src/cli.cpp`
 - Training loop: `src/experiments/03/lib/src/experiment03.cpp`
 - Profile loading: `src/experiments/03/lib/src/ProfileLoader.cpp`
+
+References
+----------
+This experiment builds upon established autoencoder and multimodal learning literature:
+
+### Foundational Autoencoder Theory
+- **[Vincent et al., 2010]** Pascal Vincent, Hugo Larochelle, Yoshua Bengio, and Pierre-Antoine Manzagol.
+  "Stacked Denoising Autoencoders: Learning Useful Representations in a Deep Network with a Local Denoising Criterion."
+  *Journal of Machine Learning Research*, vol. 11, pp. 3371–3408.
+  https://www.jmlr.org/papers/v11/vincent10a.html
+  - Key insight: Denoising criterion (input corrupted, output clean) guides learning of robust, transferable representations.
+
+### Variational Autoencoders (VAE)
+- **[Kingma & Welling, 2013]** Diederik P. Kingma and Max Welling.
+  "Auto-Encoding Variational Bayes."
+  *arXiv*:1312.6114, 2013.
+  https://arxiv.org/abs/1312.6114
+  - Key insight: Reparameterization trick enables efficient variational inference; KL divergence regularizes latent space.
+
+- **[Burgess et al., 2018]** Christopher P. Burgess, Irina Higgins, Anurag Saxe, and Alexander A. Lerch.
+  "Understanding Disentangling in β-VAE."
+  *arXiv*:1804.03599, 2018.
+  https://arxiv.org/abs/1804.03599
+  - Key insight: β-annealing enables progressive information capacity growth, preventing KL collapse while learning disentangled representations.
+
+### Multimodal Learning
+- **[Baltrušaitis et al., 2017]** Tadas Baltrušaitis, Chaitanya Ahuja, and Louis-Philippe Morency.
+  "Multimodal Machine Learning: A Survey and Taxonomy."
+  *arXiv*:1705.09406, 2017.
+  https://arxiv.org/abs/1705.09406
+  - Key findings: Early fusion (feature-level) and late fusion (decision-level) strategies; co-learning across modalities improves generalization.
+
+### Optimization Best Practices
+- **[PyTorch Team, 2024]** "Optimization Loop."
+  PyTorch Official Tutorials.
+  https://pytorch.org/tutorials/beginner/basics/optimization_tutorial.html
+  - Key practices: Adam optimizer with learning-rate scheduling (ReduceLROnPlateau), early stopping, per-epoch validation loops.
+
+### Recommended Configuration Strategy
+When tuning autoencoders on multimodal EEG+Audio data:
+
+1. **Loss function:** Plain MSE is baseline; combine 0.7×MSE + 0.3×L1 for robustness and reduced overfitting.
+2. **Denoising:** Add input corruption (EEG: Gaussian noise σ∈[0.01,0.03], Audio: temporal masking) to harden reconstruction.
+3. **Latent dimensionality:** Sweep {16, 24, 32} to find compression sweet spot; larger bottlenecks improve reconstruction, risk overfitting.
+4. **Regularization:** For VAE objectives, use β-annealing; start β=0.1, progressively increase to 1.0 over first 5–10 epochs.
+5. **Multimodal strategy:** Prefer dual-branch (per-modality encoder + late fusion) over naive concatenation; enables independent scaling.
+6. **Optimization:** Adam (lr=1e-4), ReduceLROnPlateau (factor=0.5, patience=3–5), early stopping (patience 8–10 on validation loss).
+7. **Tracking:** Report train/validation per epoch; decompose losses by modality to diagnose imbalance.

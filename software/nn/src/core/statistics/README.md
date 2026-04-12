@@ -17,3 +17,7 @@ K-Fold API
 
 Tests
 - See unit tests under `src/core/statistics/tests/` for usage and expected outputs.
+
+Recent behavior notes
+- `variance(...)` now validates inputs and throws on empty data (or zero-length raw arrays).
+- `compute_classification_metrics(...)` now throws `std::invalid_argument` for mismatched label vector sizes and `std::runtime_error` for empty label vectors.

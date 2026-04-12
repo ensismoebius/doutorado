@@ -10,18 +10,78 @@
 #include "AutoencoderBuilders.hpp"
 
 FusedWindowSpikingAutoencoder::FusedWindowSpikingAutoencoder(const AutoencoderConfig& cfg)
-    : eeg_encoder_(experiment03::autoencoders::build_snn_encoder(
-          cfg, cfg.eeg_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
-      audio_encoder_(experiment03::autoencoders::build_snn_encoder(
-          cfg, cfg.audio_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
-      fusion_encoder_(experiment03::autoencoders::build_snn_encoder(
-          cfg, cfg.latent_size * 2, experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
-      fusion_decoder_(experiment03::autoencoders::build_snn_decoder(
-          cfg, cfg.latent_size * 2, experiment03::autoencoders::resolved_fusion_hidden_size(cfg))),
-      eeg_decoder_(experiment03::autoencoders::build_snn_decoder(
-          cfg, cfg.eeg_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
-      audio_decoder_(experiment03::autoencoders::build_snn_decoder(
-          cfg, cfg.audio_features, experiment03::autoencoders::resolved_branch_hidden_size(cfg))),
+    : eeg_encoder_(
+          [&cfg]()
+          {
+              auto branch_cfg = cfg;
+              if (!cfg.branch_encoder_layer_spec.empty())
+              {
+                  branch_cfg.encoder_layer_spec = cfg.branch_encoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_encoder(branch_cfg,
+                  cfg.eeg_features,
+                  experiment03::autoencoders::resolved_branch_hidden_size(cfg));
+          }()),
+      audio_encoder_(
+          [&cfg]()
+          {
+              auto branch_cfg = cfg;
+              if (!cfg.branch_encoder_layer_spec.empty())
+              {
+                  branch_cfg.encoder_layer_spec = cfg.branch_encoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_encoder(branch_cfg,
+                  cfg.audio_features,
+                  experiment03::autoencoders::resolved_branch_hidden_size(cfg));
+          }()),
+      fusion_encoder_(
+          [&cfg]()
+          {
+              auto fusion_cfg = cfg;
+              if (!cfg.fusion_encoder_layer_spec.empty())
+              {
+                  fusion_cfg.encoder_layer_spec = cfg.fusion_encoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_encoder(fusion_cfg,
+                  cfg.latent_size * 2,
+                  experiment03::autoencoders::resolved_fusion_hidden_size(cfg));
+          }()),
+      fusion_decoder_(
+          [&cfg]()
+          {
+              auto fusion_cfg = cfg;
+              if (!cfg.fusion_decoder_layer_spec.empty())
+              {
+                  fusion_cfg.decoder_layer_spec = cfg.fusion_decoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_decoder(fusion_cfg,
+                  cfg.latent_size * 2,
+                  experiment03::autoencoders::resolved_fusion_hidden_size(cfg));
+          }()),
+      eeg_decoder_(
+          [&cfg]()
+          {
+              auto branch_cfg = cfg;
+              if (!cfg.branch_decoder_layer_spec.empty())
+              {
+                  branch_cfg.decoder_layer_spec = cfg.branch_decoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_decoder(branch_cfg,
+                  cfg.eeg_features,
+                  experiment03::autoencoders::resolved_branch_hidden_size(cfg));
+          }()),
+      audio_decoder_(
+          [&cfg]()
+          {
+              auto branch_cfg = cfg;
+              if (!cfg.branch_decoder_layer_spec.empty())
+              {
+                  branch_cfg.decoder_layer_spec = cfg.branch_decoder_layer_spec;
+              }
+              return experiment03::autoencoders::build_snn_decoder(branch_cfg,
+                  cfg.audio_features,
+                  experiment03::autoencoders::resolved_branch_hidden_size(cfg));
+          }()),
       eeg_features_(cfg.eeg_features),
       audio_features_(cfg.audio_features)
 {

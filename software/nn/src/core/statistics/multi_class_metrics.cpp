@@ -28,17 +28,15 @@ ClassificationMetrics compute_classification_metrics(
 {
     if (true_labels.size() != pred_labels.size())
     {
-        throw std::runtime_error("Label vectors must have same size");
+        throw std::invalid_argument("Label vectors must have same size");
+    }
+    if (true_labels.empty())
+    {
+        throw std::runtime_error("Label vectors must be non-empty");
     }
 
     int n_samples = true_labels.size();
-    const int n_classes =
-        true_labels.empty() ? 0 : (*std::max_element(true_labels.begin(), true_labels.end()) + 1);
-
-    if (n_classes == 0)
-    {
-        return ClassificationMetrics{};
-    }
+    const int n_classes = *std::max_element(true_labels.begin(), true_labels.end()) + 1;
 
     // Confusion matrix - using float for now (consider IntTensor for integer precision)
     nn::Tensor cm(n_classes, n_classes);

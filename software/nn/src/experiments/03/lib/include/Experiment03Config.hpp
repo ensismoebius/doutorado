@@ -64,9 +64,15 @@ struct Config
     int autoencoder_latent_size;
     int autoencoder_depth;
     std::vector<int> autoencoder_layer_sizes; // Empty = infer with depth/hidden-size tapering
-    int autoencoder_input_features;           // 0 = infer from dataset batch shape
-    int autoencoder_eeg_features;             // 0 = infer from dataset/window config
-    int autoencoder_audio_features;           // 0 = infer from dataset/window config
+    std::vector<std::string> autoencoder_encoder_layer_spec;
+    std::vector<std::string> autoencoder_decoder_layer_spec;
+    std::vector<std::string> autoencoder_branch_encoder_layer_spec;
+    std::vector<std::string> autoencoder_branch_decoder_layer_spec;
+    std::vector<std::string> autoencoder_fusion_encoder_layer_spec;
+    std::vector<std::string> autoencoder_fusion_decoder_layer_spec;
+    int autoencoder_input_features; // 0 = infer from dataset batch shape
+    int autoencoder_eeg_features;   // 0 = infer from dataset/window config
+    int autoencoder_audio_features; // 0 = infer from dataset/window config
     AutoencoderArchitecture autoencoder_architecture;
     int autoencoder_branch_hidden_size;
     int autoencoder_fusion_hidden_size;
@@ -82,7 +88,14 @@ struct Config
     float training_optimizer_adam_beta1;   // Adam first-moment decay
     float training_optimizer_adam_beta2;   // Adam second-moment decay
     float training_optimizer_adam_epsilon; // Adam numerical stability epsilon
+    string training_loss_type;             // Reconstruction loss token: mse|mae
     size_t training_epochs;                // Number of passes over the dataset
+    bool training_lr_plateau_enabled;      // Enable ReduceLROnPlateau scheduler
+    float training_lr_plateau_factor;      // Multiplicative LR decay factor
+    size_t training_lr_plateau_patience;   // Epochs without improvement before decaying LR
+    float training_lr_plateau_min_delta;   // Minimum validation improvement to reset patience
+
+    bool validation_modality_diagnostics_enabled; // Report EEG/Audio validation losses per epoch
 
     // Window specs used by windowing datasets.
     nn::windowing::WindowSpec window_eeg_config;

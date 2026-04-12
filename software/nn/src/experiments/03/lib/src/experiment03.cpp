@@ -9,9 +9,11 @@
 
 #include <algorithm>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 // Experiment-specific components
@@ -33,8 +35,10 @@
 #include "nn/device/Device.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
+#include "nn/optimizers/Adam.hpp"
 #include "nn/optimizers/Optimizer.hpp"
 #include "nn/optimizers/OptimizerFactory.hpp"
+#include "nn/optimizers/SGD.hpp"
 #include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
@@ -83,6 +87,188 @@ auto effective_fold_max_batches(size_t configured_max_batches, size_t available_
 
     return std::max<size_t>(1, std::min(configured_max_batches, available_batches));
 }
+
+struct ReduceLROnPlateauState
+{
+    float best_val_loss = std::numeric_limits<float>::infinity();
+    size_t bad_epochs = 0;
+};
+
+auto optimizer_learning_rate_ptr(Optimizer& optimizer) -> float*
+{
+    if (auto* adam = dynamic_cast<Adam*>(&optimizer))
+    {
+        return &adam->learning_rate;
+    }
+    if (auto* sgd = dynamic_cast<SGD*>(&optimizer))
+    {
+        return &sgd->learning_rate;
+    }
+    return nullptr;
+}
+
+auto apply_reduce_lr_on_plateau(
+    Optimizer& optimizer, const Config& config, ReduceLROnPlateauState& state, float epoch_val_loss)
+    -> float
+{
+    float* learning_rate = optimizer_learning_rate_ptr(optimizer);
+    if (learning_rate == nullptr || !config.training_lr_plateau_enabled)
+    {
+        return learning_rate != nullptr ? *learning_rate : config.training_learning_rate;
+    }
+
+    const bool improved =
+        epoch_val_loss <
+        (state.best_val_loss - std::max(0.0F, config.training_lr_plateau_min_delta));
+    if (improved)
+    {
+        state.best_val_loss = epoch_val_loss;
+        state.bad_epochs = 0;
+        return *learning_rate;
+    }
+
+    ++state.bad_epochs;
+    if (state.bad_epochs < std::max<size_t>(1, config.training_lr_plateau_patience))
+    {
+        return *learning_rate;
+    }
+
+    const float factor = std::clamp(config.training_lr_plateau_factor, 0.0F, 1.0F);
+    const float new_lr = std::max(1e-8F, (*learning_rate) * factor);
+    if (new_lr < *learning_rate)
+    {
+        ostringstream lr_log;
+        lr_log << "ReduceLROnPlateau: val loss plateau detected, lr " << *learning_rate << " -> "
+               << new_lr;
+        NN_LOG_INFO(lr_log.str());
+        *learning_rate = new_lr;
+    }
+    state.bad_epochs = 0;
+    return *learning_rate;
+}
+
+auto modality_val_losses_from_batch(const Batch& val_batch,
+    const nn::Tensor& val_reconstruction,
+    size_t eeg_features,
+    size_t audio_features) -> std::pair<float, float>
+{
+    if (eeg_features == 0 || audio_features == 0)
+    {
+        return {0.0F, 0.0F};
+    }
+    const size_t total_features = eeg_features + audio_features;
+    if (static_cast<size_t>(val_batch.inputs.cols()) < total_features ||
+        static_cast<size_t>(val_reconstruction.cols()) < total_features)
+    {
+        return {0.0F, 0.0F};
+    }
+
+    const auto eeg_target =
+        val_batch.inputs.block(0, 0, val_batch.inputs.rows(), static_cast<Index>(eeg_features));
+    const auto eeg_pred =
+        val_reconstruction.block(0, 0, val_reconstruction.rows(), static_cast<Index>(eeg_features));
+
+    const auto audio_target = val_batch.inputs.block(0,
+        static_cast<Index>(eeg_features),
+        val_batch.inputs.rows(),
+        static_cast<Index>(audio_features));
+    const auto audio_pred = val_reconstruction.block(0,
+        static_cast<Index>(eeg_features),
+        val_reconstruction.rows(),
+        static_cast<Index>(audio_features));
+
+    return {eeg_pred.mean_squared_error(eeg_target), audio_pred.mean_squared_error(audio_target)};
+}
+
+class MAELoss final : public Module<nn::EigenTensorBackend>
+{
+   public:
+    using Tensor = Module<nn::EigenTensorBackend>::Tensor;
+
+    void set_target(const Tensor& target)
+    {
+        target_ = target;
+        target_set_ = true;
+    }
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
+    {
+        if (!target_set_)
+        {
+            throw std::runtime_error("MAELoss: target has not been set. Call set_target() first.");
+        }
+        if (requires_grad)
+        {
+            last_input_ = input;
+        }
+        Tensor diff = input - target_;
+        Tensor loss_tensor(1, 1);
+        loss_tensor.at(0, 0) = diff.abs().mean();
+        return loss_tensor;
+    }
+
+    auto backward(const Tensor& /*grad_output*/) -> Tensor override
+    {
+        Tensor grad(last_input_.rows(), last_input_.cols());
+        const float factor = 1.0F / static_cast<float>(std::max<Index>(1, last_input_.size()));
+        for (Index i = 0; i < last_input_.rows(); ++i)
+        {
+            for (Index j = 0; j < last_input_.cols(); ++j)
+            {
+                const float diff = last_input_.at(i, j) - target_.at(i, j);
+                grad.at(i, j) = diff > 0.0F ? factor : (diff < 0.0F ? -factor : 0.0F);
+            }
+        }
+        return grad;
+    }
+
+   private:
+    Tensor last_input_;
+    Tensor target_;
+    bool target_set_ = false;
+};
+
+class ReconstructionLoss
+{
+   public:
+    explicit ReconstructionLoss(const std::string& loss_type)
+    {
+        const std::string normalized = loss_type.empty() ? "mse" : loss_type;
+        if (normalized == "mse")
+        {
+            mse_ = std::make_unique<MSELoss>();
+            return;
+        }
+        if (normalized == "mae")
+        {
+            mae_ = std::make_unique<MAELoss>();
+            return;
+        }
+        throw std::invalid_argument("Unsupported training_loss_type: " + loss_type);
+    }
+
+    auto set_target(const nn::Tensor& target) -> void
+    {
+        if (mse_) mse_->set_target(target);
+        if (mae_) mae_->set_target(target);
+    }
+
+    auto forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+    {
+        if (mse_) return mse_->forward(input, requires_grad);
+        return mae_->forward(input, requires_grad);
+    }
+
+    auto backward(const nn::Tensor& grad_output) -> nn::Tensor
+    {
+        if (mse_) return mse_->backward(grad_output);
+        return mae_->backward(grad_output);
+    }
+
+   private:
+    std::unique_ptr<MSELoss> mse_;
+    std::unique_ptr<MAELoss> mae_;
+};
 } // namespace
 
 // internal helpers moved to experiment03_helpers.hpp / .cpp
@@ -99,6 +285,10 @@ int Experiment03::run()
     vector<float> epoch_mean_losses;
     /// Per-fold, per-epoch validation losses: [fold_idx][epoch_idx].
     vector<vector<float>> fold_epoch_val_losses;
+    /// Per-fold, per-epoch EEG validation reconstruction losses.
+    vector<vector<float>> fold_epoch_val_eeg_losses;
+    /// Per-fold, per-epoch Audio validation reconstruction losses.
+    vector<vector<float>> fold_epoch_val_audio_losses;
     /// Mean validation loss per fold (mean over all epochs within that fold).
     vector<float> fold_mean_val_losses;
     /// Grand mean validation loss across all folds.
@@ -173,7 +363,7 @@ int Experiment03::run()
 
         // Create loss function and optimizer (optimizer may be initialized
         // eagerly here if we can construct the model from dataset metadata).
-        MSELoss loss;
+        ReconstructionLoss loss(config_.training_loss_type);
         unique_ptr<Optimizer> optimizer = OptimizerFactory::create( //
             config_.training_optimizer_type,                        //
             config_.training_learning_rate,                         //
@@ -267,6 +457,8 @@ int Experiment03::run()
 
             // Pre-allocate one inner vector per fold to receive per-epoch val losses.
             fold_epoch_val_losses.resize(fold_selector.fold_count());
+            fold_epoch_val_eeg_losses.resize(fold_selector.fold_count());
+            fold_epoch_val_audio_losses.resize(fold_selector.fold_count());
 
             for (size_t fold_idx = 0; fold_idx < fold_selector.fold_count(); ++fold_idx)
             {
@@ -303,6 +495,7 @@ int Experiment03::run()
                     config_.training_optimizer_adam_epsilon                      //
                 );
                 fold_optimizer->attach(model_->params());
+                ReduceLROnPlateauState fold_lr_state{};
 
                 // Train for training_epochs on the training subset.
                 for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
@@ -420,6 +613,12 @@ int Experiment03::run()
                     );
                     float val_loss_sum = 0.0F;
                     size_t val_batches = 0;
+                    float val_eeg_loss_sum = 0.0F;
+                    float val_audio_loss_sum = 0.0F;
+                    const size_t eeg_features = static_cast<size_t>(
+                        std::max(0, config_.effective_autoencoder_eeg_features()));
+                    const size_t audio_features = static_cast<size_t>(
+                        std::max(0, config_.effective_autoencoder_audio_features()));
                     while (val_prefetcher->hasNext())
                     {
                         auto maybe_val_batch = val_prefetcher->next();
@@ -438,17 +637,41 @@ int Experiment03::run()
                         auto val_loss_value =
                             loss.forward(val_reconstruction, /*requires_grad=*/false);
                         val_loss_sum += val_loss_value.at(0, 0);
+                        if (config_.validation_modality_diagnostics_enabled)
+                        {
+                            const auto [batch_eeg_loss, batch_audio_loss] =
+                                modality_val_losses_from_batch(
+                                    val_batch, val_reconstruction, eeg_features, audio_features);
+                            val_eeg_loss_sum += batch_eeg_loss;
+                            val_audio_loss_sum += batch_audio_loss;
+                        }
                         ++val_batches;
                     }
                     const float epoch_val_loss =
                         val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
+                    const float epoch_val_eeg_loss =
+                        val_batches > 0 ? val_eeg_loss_sum / static_cast<float>(val_batches) : 0.0F;
+                    const float epoch_val_audio_loss =
+                        val_batches > 0 ? val_audio_loss_sum / static_cast<float>(val_batches)
+                                        : 0.0F;
                     fold_epoch_val_losses[fold_idx].push_back(epoch_val_loss);
+                    fold_epoch_val_eeg_losses[fold_idx].push_back(epoch_val_eeg_loss);
+                    fold_epoch_val_audio_losses[fold_idx].push_back(epoch_val_audio_loss);
+
+                    const float current_lr = apply_reduce_lr_on_plateau(
+                        *fold_optimizer, config_, fold_lr_state, epoch_val_loss);
 
                     ostringstream fold_epoch_log;
                     fold_epoch_log << "  fold " << (fold_idx + 1) << "/"
                                    << fold_selector.fold_count() << " epoch " << (epoch + 1) << "/"
                                    << config_.training_epochs << "  train loss: " << mean_train_loss
                                    << "  val loss: " << epoch_val_loss;
+                    if (config_.validation_modality_diagnostics_enabled)
+                    {
+                        fold_epoch_log << "  val_eeg: " << epoch_val_eeg_loss
+                                       << "  val_audio: " << epoch_val_audio_loss;
+                    }
+                    fold_epoch_log << "  lr: " << current_lr;
                     NN_LOG_INFO(fold_epoch_log.str());
                 }
 
@@ -486,6 +709,9 @@ int Experiment03::run()
             // Reuse k-fold summary fields with a single logical fold in no-kfold mode
             // so downstream comparisons can consume the same JSON schema.
             fold_epoch_val_losses.assign(1, {});
+            fold_epoch_val_eeg_losses.assign(1, {});
+            fold_epoch_val_audio_losses.assign(1, {});
+            ReduceLROnPlateauState lr_state{};
 
             const size_t epoch_max_batches =
                 config_.training_max_batches_per_epoch == 0
@@ -598,6 +824,12 @@ int Experiment03::run()
                 );
                 float val_loss_sum = 0.0F;
                 size_t val_batches = 0;
+                float val_eeg_loss_sum = 0.0F;
+                float val_audio_loss_sum = 0.0F;
+                const size_t eeg_features =
+                    static_cast<size_t>(std::max(0, config_.effective_autoencoder_eeg_features()));
+                const size_t audio_features = static_cast<size_t>(
+                    std::max(0, config_.effective_autoencoder_audio_features()));
                 while (val_prefetcher->hasNext())
                 {
                     auto maybe_val_batch = val_prefetcher->next();
@@ -615,15 +847,38 @@ int Experiment03::run()
                     loss.set_target(val_batch.inputs);
                     auto val_loss_value = loss.forward(val_reconstruction, /*requires_grad=*/false);
                     val_loss_sum += val_loss_value.at(0, 0);
+                    if (config_.validation_modality_diagnostics_enabled)
+                    {
+                        const auto [batch_eeg_loss, batch_audio_loss] =
+                            modality_val_losses_from_batch(
+                                val_batch, val_reconstruction, eeg_features, audio_features);
+                        val_eeg_loss_sum += batch_eeg_loss;
+                        val_audio_loss_sum += batch_audio_loss;
+                    }
                     ++val_batches;
                 }
                 const float epoch_val_loss =
                     val_batches > 0 ? val_loss_sum / static_cast<float>(val_batches) : 0.0F;
+                const float epoch_val_eeg_loss =
+                    val_batches > 0 ? val_eeg_loss_sum / static_cast<float>(val_batches) : 0.0F;
+                const float epoch_val_audio_loss =
+                    val_batches > 0 ? val_audio_loss_sum / static_cast<float>(val_batches) : 0.0F;
                 fold_epoch_val_losses[0].push_back(epoch_val_loss);
+                fold_epoch_val_eeg_losses[0].push_back(epoch_val_eeg_loss);
+                fold_epoch_val_audio_losses[0].push_back(epoch_val_audio_loss);
+
+                const float current_lr =
+                    apply_reduce_lr_on_plateau(*optimizer, config_, lr_state, epoch_val_loss);
 
                 ostringstream epoch_log;
                 epoch_log << "epoch " << (epoch + 1) << "/" << config_.training_epochs
                           << " train loss: " << mean_train_loss << "  val loss: " << epoch_val_loss;
+                if (config_.validation_modality_diagnostics_enabled)
+                {
+                    epoch_log << "  val_eeg: " << epoch_val_eeg_loss
+                              << "  val_audio: " << epoch_val_audio_loss;
+                }
+                epoch_log << "  lr: " << current_lr;
                 NN_LOG_INFO(epoch_log.str());
             }
 
@@ -657,8 +912,13 @@ int Experiment03::run()
             seen_batches_,                //
             epoch_mean_losses,            //
             fold_epoch_val_losses,        //
+            fold_epoch_val_eeg_losses,    //
+            fold_epoch_val_audio_losses,  //
             fold_mean_val_losses,         //
-            mean_val_loss                 //
+            mean_val_loss,                //
+            optimizer_learning_rate_ptr(*optimizer) != nullptr
+                ? *optimizer_learning_rate_ptr(*optimizer)
+                : config_.training_learning_rate //
         );
 
         if (write_run_summary_json(summary, results_path, results_error)) [[likely]]
@@ -676,17 +936,20 @@ int Experiment03::run()
     {
         string results_path;
         string results_error;
-        auto summary = build_run_summary( //
-            config_,                      //
-            kExitFailure,                 //
-            dataset_total_samples_,       //
-            processed_samples_,           //
-            seen_batches_,                //
-            epoch_mean_losses,            //
-            fold_epoch_val_losses,        //
-            fold_mean_val_losses,         //
-            mean_val_loss,                //
-            e.what()                      //
+        auto summary = build_run_summary(   //
+            config_,                        //
+            kExitFailure,                   //
+            dataset_total_samples_,         //
+            processed_samples_,             //
+            seen_batches_,                  //
+            epoch_mean_losses,              //
+            fold_epoch_val_losses,          //
+            fold_epoch_val_eeg_losses,      //
+            fold_epoch_val_audio_losses,    //
+            fold_mean_val_losses,           //
+            mean_val_loss,                  //
+            config_.training_learning_rate, //
+            e.what()                        //
         );
         (void) write_run_summary_json(summary, results_path, results_error);
 

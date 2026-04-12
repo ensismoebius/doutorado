@@ -126,7 +126,7 @@ All other tests pass. Now let me investigate what's wrong with the OpenCL tests.
 **Input:**
 ```json
 {
-  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.2; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 10 --epochs 1 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
+  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.2; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
   "description": "Test experiment03 with GPU",
   "timeout": 120000
 }
@@ -693,7 +693,7 @@ All 439 tests pass. Now let me run the experiment to verify GPU usage.
 **Input:**
 ```json
 {
-  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.15; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 15 --epochs 1 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
+  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.15; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
   "description": "Test experiment with GPU monitoring",
   "timeout": 120000
 }
@@ -2801,7 +2801,7 @@ Let me profile the experiment03 with valgrind to find the bottlenecks. I'll use 
 **Input:**
 ```json
 {
-  "command": "cd /home/ensismoebius/Repos/doutorado/software/nn && valgrind --tool=callgrind --callgrind-out-file=callgrind.out /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 2>&1 | tail -30",
+  "command": "cd /home/ensismoebius/Repos/doutorado/software/nn && valgrind --tool=callgrind --callgrind-out-file=callgrind.out /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json 2>&1 | tail -30",
   "description": "Profile with valgrind callgrind",
   "timeout": 300000
 }
@@ -2831,7 +2831,7 @@ The user wants me to profile the execution using valgrind/callgrind to find the 
 **Input:**
 ```json
 {
-  "command": "cd /home/ensismoebius/Repos/doutorado/software/nn && valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 2>&1 | tail -20",
+  "command": "cd /home/ensismoebius/Repos/doutorado/software/nn && valgrind --tool=callgrind --dump-instr=yes --collect-jumps=yes /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json 2>&1 | tail -20",
   "description": "Profile with callgrind",
   "timeout": 300000
 }
@@ -2890,7 +2890,7 @@ D1 cache:
 LL cache: 
 Timerange: Basic block 0 - 2079599461
 Trigger: Program termination
-Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 (PID 655227, part 1)
+Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json (PID 655227, part 1)
 Events recorded:  Ir
 Events shown:     Ir
 Event sort order: Ir
@@ -2947,7 +2947,7 @@ D1 cache:
 LL cache: 
 Timerange: Basic block 0 - 2079599461
 Trigger: Program termination
-Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 (PID 655227, part 1)
+Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json (PID 655227, part 1)
 Events recorded:  Ir
 Events shown:     Ir
 Event sort order: Ir
@@ -3033,7 +3033,7 @@ The zlib compression is dominating the profile - this is coming from SQLite data
 
 **Output:**
 ```
-Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 (PID 655227, part 1)
+Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json (PID 655227, part 1)
 
 ```
 
@@ -3067,7 +3067,7 @@ D1 cache:
 LL cache: 
 Timerange: Basic block 0 - 2079599461
 Trigger: Program termination
-Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 1 --epochs 1 (PID 655227, part 1)
+Profiled target:  /home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json (PID 655227, part 1)
 Events recorded:  Ir
 Events shown:     Ir
 Event sort order: Ir
@@ -4886,7 +4886,7 @@ The failing test seems to be an unrelated issue with directory cleanup (filesyst
 **Input:**
 ```json
 {
-  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.2; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --max-batches 10 --epochs 1 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
+  "command": "echo \"Starting GPU monitoring...\" && (while true; do cat /sys/class/drm/card1/device/gpu_busy_percent 2>/dev/null || echo \"N/A\"; sleep 0.2; done) &\nMONITOR_PID=$!\nsleep 1\n/home/ensismoebius/Repos/doutorado/software/nn/build/src/experiments/03/experiment03 --profile src/experiments/03/profiles/sample-training-flow.json 2>&1 | tail -10\nkill $MONITOR_PID 2>/dev/null",
   "description": "Test performance after optimizations",
   "timeout": 120000
 }

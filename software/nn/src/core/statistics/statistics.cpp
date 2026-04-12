@@ -14,6 +14,7 @@
  */
 #include <cmath>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 namespace statistics
@@ -23,6 +24,11 @@ namespace statistics
  */
 auto variance(const std::vector<double>& data) -> double
 {
+    if (data.empty())
+    {
+        throw std::runtime_error("variance requires non-empty data");
+    }
+
     // Calculate the mean using std::accumulate
     double mean = std::accumulate(data.begin(), data.end(), 0.0) / static_cast<double>(data.size());
 
@@ -42,6 +48,15 @@ auto variance(const std::vector<double>& data) -> double
  */
 auto variance(const double* data, unsigned int length) -> double
 {
+    if (data == nullptr)
+    {
+        throw std::invalid_argument("variance requires non-null data pointer");
+    }
+    if (length == 0)
+    {
+        throw std::runtime_error("variance requires length > 0");
+    }
+
     // Calculate the mean using std::accumulate
     double mean = std::accumulate(data, data + length, 0.0) / static_cast<double>(length);
 

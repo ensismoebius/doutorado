@@ -43,10 +43,17 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     AutoencoderConfig model_cfg{};
     model_cfg.input_features =
         config.effective_autoencoder_input_features(static_cast<int>(input_features));
+    model_cfg.loss_type = config.training_loss_type;
     model_cfg.hidden_size = config.autoencoder_hidden_size;
     model_cfg.latent_size = config.autoencoder_latent_size;
     model_cfg.depth = config.autoencoder_depth;
     model_cfg.layer_sizes = config.autoencoder_layer_sizes;
+    model_cfg.encoder_layer_spec = config.autoencoder_encoder_layer_spec;
+    model_cfg.decoder_layer_spec = config.autoencoder_decoder_layer_spec;
+    model_cfg.branch_encoder_layer_spec = config.autoencoder_branch_encoder_layer_spec;
+    model_cfg.branch_decoder_layer_spec = config.autoencoder_branch_decoder_layer_spec;
+    model_cfg.fusion_encoder_layer_spec = config.autoencoder_fusion_encoder_layer_spec;
+    model_cfg.fusion_decoder_layer_spec = config.autoencoder_fusion_decoder_layer_spec;
     model_cfg.architecture = config.effective_autoencoder_architecture();
     model_cfg.branch_hidden_size = config.autoencoder_branch_hidden_size;
     model_cfg.fusion_hidden_size = config.autoencoder_fusion_hidden_size;

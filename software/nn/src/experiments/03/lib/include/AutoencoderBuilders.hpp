@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <initializer_list>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 
@@ -26,6 +27,97 @@
 
 namespace experiment03::autoencoders
 {
+
+inline auto resolved_branch_hidden_size(const AutoencoderConfig& cfg) -> int;
+inline auto resolved_fusion_hidden_size(const AutoencoderConfig& cfg) -> int;
+
+struct LayerStageSpec
+{
+    std::string layer_type;
+    std::string width_token;
+    std::string activation_type;
+};
+
+inline auto parse_layer_stage_spec(const std::string& spec) -> LayerStageSpec
+{
+    std::stringstream ss(spec);
+    std::string layer_type;
+    std::string width_token;
+    std::string activation_type;
+    if (!std::getline(ss, layer_type, ':') || !std::getline(ss, width_token, ':') ||
+        !std::getline(ss, activation_type, ':'))
+    {
+        throw std::invalid_argument(
+            "Layer spec must use 'layer_type:width_token:activation_type': " + spec);
+    }
+    return {layer_type, width_token, activation_type};
+}
+
+inline auto resolve_width_token(
+    const AutoencoderConfig& cfg, const std::string& width_token, int fallback_output) -> int
+{
+    if (width_token == "hidden") return cfg.hidden_size;
+    if (width_token == "latent") return cfg.latent_size;
+    if (width_token == "output") return fallback_output;
+    if (width_token == "branch_hidden") return resolved_branch_hidden_size(cfg);
+    if (width_token == "fusion_hidden") return resolved_fusion_hidden_size(cfg);
+
+    try
+    {
+        const int width = std::stoi(width_token);
+        if (width < 1)
+        {
+            throw std::invalid_argument("Layer width token must resolve to a positive integer");
+        }
+        return width;
+    }
+    catch (const std::exception&)
+    {
+        throw std::invalid_argument("Unsupported width token in layer spec: " + width_token);
+    }
+}
+
+inline void append_ann_activation(Sequential& seq, const std::string& activation_type)
+{
+    if (activation_type == "relu")
+    {
+        seq.add_module(std::make_shared<ReLU>());
+        return;
+    }
+    if (activation_type == "leaky_relu")
+    {
+        seq.add_module(std::make_shared<LeakyReLU>());
+        return;
+    }
+    if (activation_type == "identity")
+    {
+        return;
+    }
+
+    throw std::invalid_argument("Unsupported ANN activation type: " + activation_type);
+}
+
+inline void append_snn_activation(
+    const AutoencoderConfig& cfg, Sequential& seq, const std::string& activation_type)
+{
+    if (activation_type == "leaky")
+    {
+        seq.add_module(std::make_shared<Leaky>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        return;
+    }
+    if (activation_type == "leaky_integrator")
+    {
+        seq.add_module(
+            std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        return;
+    }
+    if (activation_type == "identity")
+    {
+        return;
+    }
+
+    throw std::invalid_argument("Unsupported SNN activation type: " + activation_type);
+}
 
 inline auto tapered_widths(const AutoencoderConfig& cfg, int base_hidden) -> std::vector<int>
 {
@@ -118,6 +210,32 @@ inline void append_ann_stage(const AutoencoderConfig& cfg,
 inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int hidden_size)
     -> Sequential
 {
+    if (!cfg.encoder_layer_spec.empty())
+    {
+        Sequential encoder;
+        int current = input_size;
+        for (const auto& entry : cfg.encoder_layer_spec)
+        {
+            const auto stage = parse_layer_stage_spec(entry);
+            if (stage.layer_type != "linear")
+            {
+                throw std::invalid_argument("ANN encoder currently supports only linear stages");
+            }
+            const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
+            auto linear = std::make_shared<Linear>(current, output_size);
+            xavierInitializer(current,
+                output_size,
+                linear->weight,
+                linear->bias,
+                cfg.initializer_seed,
+                cfg.initializer_sampler_type);
+            encoder.add_module(linear);
+            append_ann_activation(encoder, stage.activation_type);
+            current = output_size;
+        }
+        return encoder;
+    }
+
     Sequential encoder;
     const auto widths = tapered_widths(cfg, hidden_size);
 
@@ -144,6 +262,32 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
 inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int hidden_size)
     -> Sequential
 {
+    if (!cfg.decoder_layer_spec.empty())
+    {
+        Sequential decoder;
+        int current = cfg.latent_size;
+        for (const auto& entry : cfg.decoder_layer_spec)
+        {
+            const auto stage = parse_layer_stage_spec(entry);
+            if (stage.layer_type != "linear")
+            {
+                throw std::invalid_argument("ANN decoder currently supports only linear stages");
+            }
+            const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
+            auto linear = std::make_shared<Linear>(current, stage_output);
+            xavierInitializer(current,
+                stage_output,
+                linear->weight,
+                linear->bias,
+                cfg.initializer_seed,
+                cfg.initializer_sampler_type);
+            decoder.add_module(linear);
+            append_ann_activation(decoder, stage.activation_type);
+            current = stage_output;
+        }
+        return decoder;
+    }
+
     Sequential decoder;
     auto widths = tapered_widths(cfg, hidden_size);
     std::reverse(widths.begin(), widths.end());
@@ -213,6 +357,27 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
 inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int hidden_size)
     -> Sequential
 {
+    if (!cfg.encoder_layer_spec.empty())
+    {
+        Sequential encoder;
+        int current = input_size;
+        for (const auto& entry : cfg.encoder_layer_spec)
+        {
+            const auto stage = parse_layer_stage_spec(entry);
+            if (stage.layer_type != "linear")
+            {
+                throw std::invalid_argument("SNN encoder currently supports only linear stages");
+            }
+            const int output_size = resolve_width_token(cfg, stage.width_token, hidden_size);
+            auto linear = std::make_shared<Linear>(current, output_size);
+            kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+            encoder.add_module(linear);
+            append_snn_activation(cfg, encoder, stage.activation_type);
+            current = output_size;
+        }
+        return encoder;
+    }
+
     Sequential encoder;
     const auto widths = tapered_widths(cfg, hidden_size);
 
@@ -238,6 +403,27 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
 inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int hidden_size)
     -> Sequential
 {
+    if (!cfg.decoder_layer_spec.empty())
+    {
+        Sequential decoder;
+        int current = cfg.latent_size;
+        for (const auto& entry : cfg.decoder_layer_spec)
+        {
+            const auto stage = parse_layer_stage_spec(entry);
+            if (stage.layer_type != "linear")
+            {
+                throw std::invalid_argument("SNN decoder currently supports only linear stages");
+            }
+            const int stage_output = resolve_width_token(cfg, stage.width_token, output_size);
+            auto linear = std::make_shared<Linear>(current, stage_output);
+            kaimingSNNInitializer(linear, cfg.initializer_seed, cfg.initializer_sampler_type);
+            decoder.add_module(linear);
+            append_snn_activation(cfg, decoder, stage.activation_type);
+            current = stage_output;
+        }
+        return decoder;
+    }
+
     Sequential decoder;
     auto widths = tapered_widths(cfg, hidden_size);
     std::reverse(widths.begin(), widths.end());

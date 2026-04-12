@@ -51,8 +51,8 @@ All notable changes to this project will be documented in this file.
 - Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches
   with latent-space fusion and modality-specific decoders. Implementations live under
   `src/experiments/03/lib/` (Fused & Protocol autoencoders).
-- Trainable SNN membrane parameters: membrane resistance `R` and capacitance `C` are now
-  learnable scalar parameters exposed via the CLI (`--ae-resistance`, `--ae-capacitance`) and
+  - Trainable SNN membrane parameters: membrane resistance `R` and capacitance `C` are now
+  learnable scalar parameters exposed via profile fields (`ae.resistance`, `ae.capacitance`) and
   persisted with model weights.
 - Transparent architecture fallback: models can automatically fall back from `DualBranchFusion`
   to `ResidualDense` when modality split hints are missing.

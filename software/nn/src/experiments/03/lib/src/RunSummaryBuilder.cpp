@@ -18,8 +18,11 @@ auto build_run_summary(const Config& config,
     size_t seen_batches,
     const std::vector<float>& epoch_mean_losses,
     const std::vector<std::vector<float>>& fold_epoch_val_losses,
+    const std::vector<std::vector<float>>& fold_epoch_val_eeg_losses,
+    const std::vector<std::vector<float>>& fold_epoch_val_audio_losses,
     const std::vector<float>& fold_mean_val_losses,
     float mean_val_loss,
+    float optimizer_final_learning_rate,
     const std::string& error_message) -> Summary
 {
     Summary s{};
@@ -27,11 +30,13 @@ auto build_run_summary(const Config& config,
     s.dataset_type = dataset_type_to_string(config.dataset_type);
     s.autoencoder_type = autoencoder_type_to_string(config.autoencoder_type);
     s.optimizer_type = config.training_optimizer_type;
+    s.loss_type = config.training_loss_type;
     s.optimizer_learning_rate = config.training_learning_rate;
     s.optimizer_momentum = config.training_optimizer_momentum;
     s.optimizer_adam_beta1 = config.training_optimizer_adam_beta1;
     s.optimizer_adam_beta2 = config.training_optimizer_adam_beta2;
     s.optimizer_adam_epsilon = config.training_optimizer_adam_epsilon;
+    s.optimizer_final_learning_rate = optimizer_final_learning_rate;
     s.exit_code = exit_code;
     s.total_samples = total_samples;
     s.processed_samples = processed_samples;
@@ -39,6 +44,8 @@ auto build_run_summary(const Config& config,
     s.epoch_mean_losses = epoch_mean_losses;
     s.kfold_n_splits = config.kfold_enabled ? config.kfold_n_splits : 0;
     s.fold_epoch_val_losses = fold_epoch_val_losses;
+    s.fold_epoch_val_eeg_losses = fold_epoch_val_eeg_losses;
+    s.fold_epoch_val_audio_losses = fold_epoch_val_audio_losses;
     s.fold_mean_val_losses = fold_mean_val_losses;
     s.mean_val_loss = mean_val_loss;
     if (!error_message.empty()) s.error_message = error_message;

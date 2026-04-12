@@ -241,6 +241,34 @@ static auto parse_array_ints(const std::string& text, const std::string& key, st
     return true;
 }
 
+static auto parse_array_strings(
+    const std::string& text, const std::string& key, std::vector<std::string>& out) -> bool
+{
+    std::size_t pos = 0;
+    if (!value_start(text, key, pos)) return false;
+    if (pos >= text.size() || text[pos] != '[') return false;
+
+    std::size_t i = pos + 1;
+    out.clear();
+    while (i < text.size())
+    {
+        i = skip_ws(text, i);
+        if (i >= text.size()) return false;
+        if (text[i] == ']')
+        {
+            return true;
+        }
+        std::string value;
+        if (!parse_quoted(text, i, value)) return false;
+        out.push_back(std::move(value));
+        i = text.find_first_of(",]", i + 1);
+        if (i == std::string::npos) return false;
+        if (text[i] == ']') return true;
+        ++i;
+    }
+    return false;
+}
+
 static auto parse_object(const std::string& text, const std::string& key, std::string& out) -> bool
 {
     std::size_t pos = 0;
@@ -301,7 +329,8 @@ static auto parse_json_string_at(
 static auto collect_top_level_keys(const std::string& text) -> std::vector<std::string>
 {
     std::vector<std::string> keys;
-    int depth = 0;
+    int object_depth = 0;
+    int array_depth = 0;
     bool in_string = false;
     bool escaped = false;
     bool expecting_key = false;
@@ -331,7 +360,7 @@ static auto collect_top_level_keys(const std::string& text) -> std::vector<std::
 
         if (c == '"')
         {
-            if (depth == 1 && expecting_key)
+            if (object_depth == 1 && array_depth == 0 && expecting_key)
             {
                 std::string key;
                 std::size_t end_pos = i;
@@ -352,19 +381,31 @@ static auto collect_top_level_keys(const std::string& text) -> std::vector<std::
 
         if (c == '{')
         {
-            ++depth;
-            if (depth == 1) expecting_key = true;
+            ++object_depth;
+            if (object_depth == 1 && array_depth == 0) expecting_key = true;
             continue;
         }
 
         if (c == '}')
         {
-            if (depth == 1) expecting_key = false;
-            if (depth > 0) --depth;
+            if (object_depth == 1 && array_depth == 0) expecting_key = false;
+            if (object_depth > 0) --object_depth;
             continue;
         }
 
-        if (depth == 1 && c == ',')
+        if (c == '[')
+        {
+            ++array_depth;
+            continue;
+        }
+
+        if (c == ']')
+        {
+            if (array_depth > 0) --array_depth;
+            continue;
+        }
+
+        if (object_depth == 1 && array_depth == 0 && c == ',')
         {
             expecting_key = true;
         }
@@ -377,7 +418,7 @@ static auto is_known_profile_key(const std::string& key) -> bool
 {
     if (key.rfind("_comment", 0) == 0) return true;
 
-    static constexpr std::array<std::string_view, 48> kKnownKeys = {
+    static constexpr std::array<std::string_view, 66> kKnownKeys = {
         "training_batch_size",
         "training_max_batches_per_epoch",
         "device",
@@ -399,6 +440,12 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "autoencoder_latent_size",
         "autoencoder_depth",
         "autoencoder_layer_sizes",
+        "autoencoder_encoder_layer_spec",
+        "autoencoder_decoder_layer_spec",
+        "autoencoder_branch_encoder_layer_spec",
+        "autoencoder_branch_decoder_layer_spec",
+        "autoencoder_fusion_encoder_layer_spec",
+        "autoencoder_fusion_decoder_layer_spec",
         "layer_sizes",
         "hidden_layer_sizes",
         "autoencoder_input_features",
@@ -421,11 +468,22 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "training_adam_beta1",
         "training_adam_beta2",
         "training_adam_epsilon",
+        "training_loss_type",
         "training_epochs",
+        "training_lr_plateau_enabled",
+        "training_lr_plateau_factor",
+        "training_lr_plateau_patience",
+        "training_lr_plateau_min_delta",
+        "validation_modality_diagnostics_enabled",
         "prefetch_lookahead",
         "prefetch_ram_cap_mb",
         "window_eeg_config",
         "window_audio_config",
+        "kfold_enabled",
+        "kfold_n_splits",
+        "kfold_shuffle",
+        "kfold_seed",
+        "opencl_profiling_enabled",
     };
 
     return std::find(kKnownKeys.begin(), kKnownKeys.end(), key) != kKnownKeys.end();
@@ -565,6 +623,22 @@ auto load_profile_to_config(
     parse_number(text, "autoencoder_latent_size", out_config.autoencoder_latent_size);
     parse_number(text, "autoencoder_depth", out_config.autoencoder_depth);
     parse_array_ints(text, "autoencoder_layer_sizes", out_config.autoencoder_layer_sizes);
+    parse_array_strings(
+        text, "autoencoder_encoder_layer_spec", out_config.autoencoder_encoder_layer_spec);
+    parse_array_strings(
+        text, "autoencoder_decoder_layer_spec", out_config.autoencoder_decoder_layer_spec);
+    parse_array_strings(text,
+        "autoencoder_branch_encoder_layer_spec",
+        out_config.autoencoder_branch_encoder_layer_spec);
+    parse_array_strings(text,
+        "autoencoder_branch_decoder_layer_spec",
+        out_config.autoencoder_branch_decoder_layer_spec);
+    parse_array_strings(text,
+        "autoencoder_fusion_encoder_layer_spec",
+        out_config.autoencoder_fusion_encoder_layer_spec);
+    parse_array_strings(text,
+        "autoencoder_fusion_decoder_layer_spec",
+        out_config.autoencoder_fusion_decoder_layer_spec);
     parse_array_ints(text, "layer_sizes", out_config.autoencoder_layer_sizes);
     parse_array_ints(text, "hidden_layer_sizes", out_config.autoencoder_layer_sizes);
     parse_number(text, "autoencoder_input_features", out_config.autoencoder_input_features);
@@ -595,9 +669,25 @@ auto load_profile_to_config(
     parse_number(text, "training_adam_beta1", out_config.training_optimizer_adam_beta1);
     parse_number(text, "training_adam_beta2", out_config.training_optimizer_adam_beta2);
     parse_number(text, "training_adam_epsilon", out_config.training_optimizer_adam_epsilon);
+    parse_string(text, "training_loss_type", out_config.training_loss_type);
     parse_number(text, "training_epochs", out_config.training_epochs);
+    parse_bool(text, "training_lr_plateau_enabled", out_config.training_lr_plateau_enabled);
+    parse_number(text, "training_lr_plateau_factor", out_config.training_lr_plateau_factor);
+    parse_number(text, "training_lr_plateau_patience", out_config.training_lr_plateau_patience);
+    parse_number(text, "training_lr_plateau_min_delta", out_config.training_lr_plateau_min_delta);
+    parse_bool(text,
+        "validation_modality_diagnostics_enabled",
+        out_config.validation_modality_diagnostics_enabled);
     parse_number(text, "prefetch_lookahead", out_config.prefetch_lookahead);
     parse_number(text, "prefetch_ram_cap_mb", out_config.prefetch_ram_cap_mb);
+    parse_bool(text, "kfold_enabled", out_config.kfold_enabled);
+    parse_number(text, "kfold_n_splits", out_config.kfold_n_splits);
+    parse_bool(text, "kfold_shuffle", out_config.kfold_shuffle);
+    if (unsigned int kfold_seed = 0U; parse_number(text, "kfold_seed", kfold_seed))
+    {
+        out_config.kfold_seed = kfold_seed;
+    }
+    parse_bool(text, "opencl_profiling_enabled", out_config.opencl_profiling_enabled);
 
     std::string eeg_object;
     if (parse_object(text, "window_eeg_config", eeg_object))

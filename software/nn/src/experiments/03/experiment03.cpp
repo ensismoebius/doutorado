@@ -13,7 +13,7 @@
 #include <iostream>
 #include <memory>
 
-#include "default_config.hpp"
+#include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 
@@ -26,7 +26,15 @@ using std::size_t;
 
 auto main(int argc, char* argv[]) -> int
 {
-    Config config = parseCliParams(argc, argv, default_config);
+    Config profile_defaults{};
+    std::string profile_error;
+    if (!experiment03::load_profile_to_config("default", profile_defaults, profile_error))
+    {
+        cerr << "Failed to load default profile: " << profile_error << '\n';
+        return 1;
+    }
+
+    Config config = parseCliParams(argc, argv, profile_defaults);
     StreamRedirector redirect(true, true);
     Experiment03 experiment(config);
     return experiment.run();
