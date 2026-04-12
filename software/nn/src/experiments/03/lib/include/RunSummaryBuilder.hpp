@@ -25,6 +25,7 @@ auto build_run_summary(const Config& config,
     size_t processed_samples,
     size_t seen_batches,
     const std::vector<float>& epoch_mean_losses,
+    const std::vector<float>& fold_val_losses = {},
     const std::string& error_message = "") -> Summary;
 
 } // namespace experiment03

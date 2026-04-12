@@ -42,6 +42,7 @@ target_link_libraries(experiment03_lib
         matioCpp
         z
         Eigen3::Eigen
+        statistics
 )
 
 nn_enable_target_pch(experiment03_lib)

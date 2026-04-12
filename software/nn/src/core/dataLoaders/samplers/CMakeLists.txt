@@ -4,6 +4,7 @@ add_library(dataLoaders_samplers
         SequentialSampler.cpp
         DistributedSampler.cpp
         WeightedRandomSampler.cpp
+        SubsetSampler.cpp
 )
 
 target_include_directories(dataLoaders_samplers

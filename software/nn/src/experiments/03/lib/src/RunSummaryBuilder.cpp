@@ -17,6 +17,7 @@ auto build_run_summary(const Config& config,
     size_t processed_samples,
     size_t seen_batches,
     const std::vector<float>& epoch_mean_losses,
+    const std::vector<float>& fold_val_losses,
     const std::string& error_message) -> Summary
 {
     Summary s{};
@@ -34,6 +35,9 @@ auto build_run_summary(const Config& config,
     s.processed_samples = processed_samples;
     s.seen_batches = seen_batches;
     s.epoch_mean_losses = epoch_mean_losses;
+    s.kfold_enabled = config.kfold_enabled;
+    s.kfold_n_splits = config.kfold_n_splits;
+    s.fold_val_losses = fold_val_losses;
     if (!error_message.empty()) s.error_message = error_message;
     return s;
 }

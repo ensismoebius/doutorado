@@ -6,7 +6,6 @@
  */
 
 #include "ResultsWriter.hpp"
-#include "cli.hpp"
 
 #include <cctype>
 #include <chrono>
@@ -14,6 +13,8 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+
+#include "cli.hpp"
 
 namespace experiment03
 {
@@ -139,6 +140,17 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
         ofs << summary.epoch_mean_losses[i];
     }
     ofs << "],\n";
+    ofs << "  \"kfold\": {\n";
+    ofs << "    \"enabled\": " << (summary.kfold_enabled ? "true" : "false") << ",\n";
+    ofs << "    \"n_splits\": " << summary.kfold_n_splits << ",\n";
+    ofs << "    \"fold_val_losses\": [";
+    for (std::size_t i = 0; i < summary.fold_val_losses.size(); ++i)
+    {
+        if (i > 0) ofs << ", ";
+        ofs << summary.fold_val_losses[i];
+    }
+    ofs << "]\n";
+    ofs << "  },\n";
     ofs << "  \"error\": \"" << escape_json(summary.error_message) << "\"\n";
     ofs << "}\n";
 

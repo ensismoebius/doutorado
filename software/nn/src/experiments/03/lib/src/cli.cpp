@@ -511,6 +511,37 @@ auto parseCliParams(int argc, char* argv[], const Config& default_config) -> Con
            "Drop tail to make dataset divisible by replicas")
         ->default_val(default_config.sampler_distributed_drop_last);
 
+    // K-Fold cross-validation options.
+    app.add_flag(                 //
+           "--kfold,!--no-kfold", //
+           config.kfold_enabled,  //
+           "Enable k-fold cross-validation training (trains and validates k separate models)")
+        ->default_val(default_config.kfold_enabled);
+
+    app.add_option(          //
+           "--kfold-splits", //
+           config.kfold_n_splits,
+           "Number of folds k for k-fold cross-validation (requires --kfold; minimum 2)")
+        ->expected(1)
+        ->check(CLI::Range(2, 100))
+        ->default_val(default_config.kfold_n_splits);
+
+    app.add_flag( //
+           "--kfold-shuffle,!--kfold-no-shuffle",
+           config.kfold_shuffle,
+           "Shuffle dataset indices before assigning to folds")
+        ->default_val(default_config.kfold_shuffle);
+
+    app.add_option(        //
+           "--kfold-seed", //
+           config.kfold_seed,
+           "Deterministic seed for fold shuffling (ignored if --kfold-no-shuffle)")
+        ->expected(1)
+        ->check(CLI::NonNegativeNumber)
+        ->default_str(default_config.kfold_seed.has_value()
+                          ? std::to_string(default_config.kfold_seed.value())
+                          : "(none)");
+
     try
     {
         app.parse(argc, argv);

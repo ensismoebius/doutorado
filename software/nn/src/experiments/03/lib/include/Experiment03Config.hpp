@@ -99,6 +99,12 @@ struct Config
     // Parsed and resolved sampler options for DataLoader construction.
     DataLoader::DefaultSamplerOptions sampler_resolved_options;
 
+    // K-Fold cross-validation settings.
+    bool kfold_enabled;                // Enable k-fold cross-validation training.
+    size_t kfold_n_splits;             // Number of folds (k); minimum 2.
+    bool kfold_shuffle;                // Shuffle indices before fold assignment.
+    optional<unsigned int> kfold_seed; // Optional RNG seed for reproducible shuffling.
+
     // Returns effective input feature count, using inferred dataset shape when override is unset.
     auto effective_autoencoder_input_features(int observed_input_features) const -> int
     {
