@@ -22,6 +22,7 @@ target_link_libraries(tensor PUBLIC
 if(OpenCL_FOUND)
 	target_link_libraries(tensor PUBLIC ${OpenCL_LIBRARIES})
 	target_include_directories(tensor PRIVATE ${OpenCL_INCLUDE_DIRS})
+	target_compile_definitions(tensor PUBLIC CL_TARGET_OPENCL_VERSION=200)
 endif()
 
 add_subdirectory(tests)

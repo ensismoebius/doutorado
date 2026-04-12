@@ -34,12 +34,12 @@ void ensurePacketTransform(bool packet)
 
 } // namespace
 
-WaveletTransformResults::WaveletTransformResults(long maxItems)
+WaveletTransformResults::WaveletTransformResults(long max_items)
 {
-    this->maxItems = maxItems;
-    if (maxItems > 0)
+    this->maxItems = max_items;
+    if (max_items > 0)
     {
-        this->transformedSignal.resize(maxItems);
+        this->transformedSignal.resize(static_cast<std::size_t>(max_items));
     }
 }
 
@@ -59,7 +59,8 @@ auto WaveletTransformResults::get_wavelet_transforms(int detailIndex) -> std::ve
     }
 
     // Check maxItems limit if set
-    if (this->maxItems > 0 && this->transformedSignal.size() > this->maxItems)
+    if (this->maxItems > 0 &&
+        this->transformedSignal.size() > static_cast<std::size_t>(this->maxItems))
     {
         throw std::runtime_error("Signal exceeds maximum size limit");
     }

@@ -114,7 +114,8 @@ auto Conv2dImpl<Backend>::forward(const typename Conv2dImpl<Backend>::Tensor& in
 
     // Resize buffer if needed (rare after initial preallocation)
     const bool need_resize =
-        (im2col_buffer_->rows() < patch_rows || im2col_buffer_->cols() < total_patch_cols);
+        (im2col_buffer_->rows() < static_cast<nn::Index>(patch_rows) ||
+            im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols));
     if (need_resize) [[unlikely]]
     {
         im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
@@ -207,7 +208,8 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
 
     // 3. Get im2col of cached input
     auto& im2col_buffer = *im2col_buffer_;
-    if (im2col_buffer.rows() < patch_rows || im2col_buffer.cols() < total_patch_cols)
+    if (im2col_buffer.rows() < static_cast<nn::Index>(patch_rows) ||
+        im2col_buffer.cols() < static_cast<nn::Index>(total_patch_cols))
     {
         im2col_buffer = nn::Tensor(patch_rows, total_patch_cols);
     }

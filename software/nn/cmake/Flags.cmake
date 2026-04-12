@@ -113,12 +113,13 @@ add_compile_options(
     -Wall
     -Wpedantic
     -Wshadow
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-sign-compare>
     -fdiagnostics-color=always
     -fdiagnostics-show-option
-    -Wpessimizing-move
-    -Wredundant-move
-    -Wno-user-defined-literals
-    -Wno-unknown-warning-option
+    $<$<COMPILE_LANGUAGE:CXX>:-Wpessimizing-move>
+    $<$<COMPILE_LANGUAGE:CXX>:-Wredundant-move>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-Wno-user-defined-literals>
+    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-Wno-unknown-warning-option>
 )
 
 # --- Debug-specific flags ---

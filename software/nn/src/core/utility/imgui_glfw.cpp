@@ -7,8 +7,8 @@
 
 #include "nn/logging/Logger.hpp"
 
-ImGuiApp::ImGuiApp(const std::string& title, int width, int height)
-    : window(nullptr), title(title), width(width), height(height)
+ImGuiApp::ImGuiApp(const std::string& window_title, int window_width, int window_height)
+    : window(nullptr), title(window_title), width(window_width), height(window_height)
 {
 }
 

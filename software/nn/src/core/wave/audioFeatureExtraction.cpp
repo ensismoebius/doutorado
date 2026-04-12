@@ -447,6 +447,9 @@ auto compute_deltas(
 
     // Feature vector dimensionality.
     const size_t number_of_features = features.cols();
+    const std::size_t number_of_frames_u = static_cast<std::size_t>(number_of_frames);
+    const std::size_t delta_window_span_u =
+        static_cast<std::size_t>(loading_params.audio_params.delta_window_span);
 
     // Precomputed denominator for delta formula.
     float denominator = 0.0F;
@@ -464,7 +467,7 @@ auto compute_deltas(
     denominator *= loading_params.delta_config.denominator_factor;
 
     // Compute deltas per frame and feature.
-    for (size_t frame_index = 0; frame_index < number_of_frames; ++frame_index)
+    for (size_t frame_index = 0; frame_index < number_of_frames_u; ++frame_index)
     {
         // Iterate over feature dimensions.
         for (size_t feature_index = 0; feature_index < number_of_features; ++feature_index)
@@ -473,7 +476,7 @@ auto compute_deltas(
             float numerator = 0.0F;
 
             // Build numerator for current feature delta.
-            for (size_t delta_span = 1; delta_span <= loading_params.audio_params.delta_window_span;
+            for (size_t delta_span = 1; delta_span <= delta_window_span_u;
                 ++delta_span)
             {
                 // Determine indices for c_{t+n} and c_{t-n} with boundary handling

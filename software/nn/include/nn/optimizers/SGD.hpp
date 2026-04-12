@@ -29,7 +29,8 @@ struct SGD : public Optimizer
 
     std::vector<nn::Tensor> velocity;
 
-    explicit SGD(float lr = 0.01F, float momentum = 0.0F) : learning_rate(lr), momentum(momentum)
+    explicit SGD(float lr = 0.01F, float momentum_value = 0.0F)
+        : learning_rate(lr), momentum(momentum_value)
     {
         if (lr <= 0.0F)
         {

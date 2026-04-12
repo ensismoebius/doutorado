@@ -249,9 +249,11 @@ void Dataset101117::set_input_mode(Protocol101117InputMode input_mode)
             targets.setBlock(row_i, 0, sample.targets);
 
             std::size_t flat_c = 0;
-            for (int r = 0; r < sample.inputs.rows(); ++r)
+            const nn::Index rows = static_cast<nn::Index>(sample.inputs.rows());
+            const nn::Index cols = static_cast<nn::Index>(sample.inputs.cols());
+            for (nn::Index r = 0; r < rows; ++r)
             {
-                for (int c = 0; c < sample.inputs.cols(); ++c)
+                for (nn::Index c = 0; c < cols; ++c)
                 {
                     inputs.at(row_i, flat_c++) = sample.inputs.at(r, c);
                 }
@@ -398,9 +400,11 @@ void Dataset101117::collate_into(const std::vector<std::size_t>& indices, Batch&
             batch.targets.setBlock(row_i, 0, sample.targets);
 
             std::size_t flat_c = 0;
-            for (int r = 0; r < sample.inputs.rows(); ++r)
+            const nn::Index rows = static_cast<nn::Index>(sample.inputs.rows());
+            const nn::Index cols = static_cast<nn::Index>(sample.inputs.cols());
+            for (nn::Index r = 0; r < rows; ++r)
             {
-                for (int c = 0; c < sample.inputs.cols(); ++c)
+                for (nn::Index c = 0; c < cols; ++c)
                 {
                     batch.inputs.at(row_i, flat_c++) = sample.inputs.at(r, c);
                 }

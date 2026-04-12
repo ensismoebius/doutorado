@@ -41,11 +41,12 @@ TEST(StateIOTest, SaveLoadSimpleStateDict)
         auto it = loaded.find(kv.first);
         ASSERT_NE(it, loaded.end());
         const Tensor& a = kv.second;
-        const Tensor& b = it->second;
-        ASSERT_EQ(a.rows(), b.rows());
-        ASSERT_EQ(a.cols(), b.cols());
+        const Tensor& loaded_tensor = it->second;
+        ASSERT_EQ(a.rows(), loaded_tensor.rows());
+        ASSERT_EQ(a.cols(), loaded_tensor.cols());
         for (size_t i = 0; i < a.rows(); ++i)
-            for (size_t j = 0; j < a.cols(); ++j) ASSERT_FLOAT_EQ(a.at(i, j), b.at(i, j));
+            for (size_t j = 0; j < a.cols(); ++j)
+                ASSERT_FLOAT_EQ(a.at(i, j), loaded_tensor.at(i, j));
     }
 
     std::remove(tmp.c_str());
@@ -77,9 +78,9 @@ TEST(StateIOTest, AdamStateDictRoundtrip)
         auto it = loaded.find(kv.first);
         ASSERT_NE(it, loaded.end());
         const Tensor& a = kv.second;
-        const Tensor& b = it->second;
-        ASSERT_EQ(a.rows(), b.rows());
-        ASSERT_EQ(a.cols(), b.cols());
+        const Tensor& loaded_tensor = it->second;
+        ASSERT_EQ(a.rows(), loaded_tensor.rows());
+        ASSERT_EQ(a.cols(), loaded_tensor.cols());
     }
 
     std::remove(tmp.c_str());

@@ -226,7 +226,7 @@ TEST(AudioWindowDatasetTest, GetItemThrowsWhenEmpty)
 {
     nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
     AudioWindowDataset ds({}, spec);
-    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+    EXPECT_THROW((void) ds.get_item(0), std::out_of_range);
 }
 
 TEST(AudioWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)
@@ -262,7 +262,7 @@ TEST(EEGWindowDatasetTest, GetItemThrowsWhenEmpty)
 {
     nn::windowing::WindowSpec spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
     EEGWindowDataset ds({}, spec);
-    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+    EXPECT_THROW((void) ds.get_item(0), std::out_of_range);
 }
 
 TEST(EEGWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)
@@ -299,7 +299,7 @@ TEST(FusedWindowDatasetTest, GetItemThrowsWhenEmpty)
     nn::windowing::WindowSpec eeg_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 1024};
     nn::windowing::WindowSpec audio_spec{.window_size = 100, .overlap = 0.5f, .sample_rate = 44100};
     FusedWindowDataset ds({}, eeg_spec, audio_spec);
-    EXPECT_THROW(ds.get_item(0), std::out_of_range);
+    EXPECT_THROW((void) ds.get_item(0), std::out_of_range);
 }
 
 TEST(FusedWindowDatasetTest, CollateEmptyIndicesProducesEmptyBatch)

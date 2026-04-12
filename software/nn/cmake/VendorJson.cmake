@@ -27,3 +27,16 @@ FetchContent_MakeAvailable(nlohmann_json)
 # target should check `if(TARGET nlohmann_json::nlohmann_json)` and
 # link against it. Suppressing warnings or clang-tidy on alias
 # targets is not portable, so we avoid modifying the target.
+
+# Create a wrapper interface library to suppress deprecation warnings
+# for third-party code. Targets that use nlohmann_json should link
+# against this wrapper instead of the raw target.
+add_library(nlohmann_json_wrapper INTERFACE)
+target_link_libraries(nlohmann_json_wrapper
+    INTERFACE
+        nlohmann_json::nlohmann_json
+)
+target_compile_options(nlohmann_json_wrapper
+    INTERFACE
+    $<$<CXX_COMPILER_ID:Clang>:-Wno-deprecated-literal-operator>
+)

@@ -405,7 +405,7 @@ TEST(WaveletTransformResultsTest, PacketMethodsOnNonPacketResultThrows)
     res.transformedSignal = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
     res.levelsOfTransformation = 2;
     res.packet = false; // non-packet
-    EXPECT_THROW(res.get_wavelet_packet_amount_of_parts(), std::runtime_error);
+    EXPECT_THROW((void) res.get_wavelet_packet_amount_of_parts(), std::runtime_error);
     EXPECT_THROW(res.get_wavelet_packet_transforms(0, 1, 2), std::runtime_error);
 }
 

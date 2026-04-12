@@ -61,9 +61,22 @@ void WeightedRandomSampler::sample_into(std::span<std::size_t> out)
         throw std::invalid_argument("WeightedRandomSampler: output span size mismatch.");
     }
 
-    std::discrete_distribution<std::size_t> distribution(weights_.begin(), weights_.end());
+    std::vector<double> cumulative_weights;
+    cumulative_weights.reserve(weights_.size());
+    double total_weight = 0.0;
+    for (double w : weights_)
+    {
+        total_weight += w;
+        cumulative_weights.push_back(total_weight);
+    }
+
+    std::uniform_real_distribution<double> distribution(0.0, total_weight);
     for (std::size_t i = 0; i < num_samples_; ++i)
     {
-        out[i] = distribution(rng_);
+        const double pick = distribution(rng_);
+        auto it = std::upper_bound(cumulative_weights.begin(), cumulative_weights.end(), pick);
+        out[i] = it == cumulative_weights.end()
+                     ? (cumulative_weights.size() - 1)
+                     : static_cast<std::size_t>(std::distance(cumulative_weights.begin(), it));
     }
 }

@@ -22,8 +22,9 @@ endif()
 
 target_link_libraries(experiments_config
     PUBLIC
-        nlohmann_json::nlohmann_json
+        nlohmann_json_wrapper
 )
+
 
 # Add subdirectories for all experiments
 add_subdirectory(00)

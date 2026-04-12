@@ -435,9 +435,13 @@ bool SqliteBatchSource::next(Batch& out)
                                 else
                                 {
                                     // out-of-bounds: repeat last available sample to pad
+                                    const size_t eeg_start_index =
+                                        eeg_start >= 0 ? static_cast<size_t>(eeg_start) : 0;
+                                    const size_t per_channel_len_u =
+                                        static_cast<size_t>(per_channel_len);
                                     const size_t available =
-                                        per_channel_len > static_cast<size_t>(eeg_start)
-                                            ? static_cast<size_t>(per_channel_len - eeg_start)
+                                        eeg_start >= 0 && eeg_start_index < per_channel_len_u
+                                            ? (per_channel_len_u - eeg_start_index)
                                             : 0;
                                     if (available > 0)
                                     {

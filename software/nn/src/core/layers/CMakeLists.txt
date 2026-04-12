@@ -19,6 +19,11 @@ target_link_libraries(layers
     PUBLIC tensor
 )
 
+# Avoid LTO-related unresolved template member symbols from split Conv2d TUs.
+set_property(TARGET layers PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
+target_compile_options(layers PRIVATE -fno-lto)
+target_link_options(layers PRIVATE -fno-lto)
+
 configure_eigen_parallel_target(layers)
 
 nn_enable_target_pch(layers)

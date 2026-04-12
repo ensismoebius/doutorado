@@ -283,7 +283,12 @@ class AsyncTransferManager
         if (evt)
         {
             cl_event wait_evt = evt;
+#if defined(CL_VERSION_1_2)
+            check_cl_error(
+                clEnqueueBarrierWithWaitList(queue, 1, &wait_evt, nullptr), "wait_for_event");
+#else
             check_cl_error(clEnqueueWaitForEvents(queue, 1, &wait_evt), "wait_for_event");
+#endif
             clReleaseEvent(evt);
         }
     }
@@ -292,8 +297,13 @@ class AsyncTransferManager
     {
         if (num_events > 0 && events)
         {
+#if defined(CL_VERSION_1_2)
+            check_cl_error(clEnqueueBarrierWithWaitList(queue, num_events, events, nullptr),
+                "wait_and_release_events");
+#else
             check_cl_error(
                 clEnqueueWaitForEvents(queue, num_events, events), "wait_and_release_events");
+#endif
             for (cl_uint i = 0; i < num_events; ++i)
             {
                 if (events[i]) clReleaseEvent(events[i]);
@@ -419,9 +429,16 @@ class EventTracker
             {
                 cl_events.push_back(pe.event);
             }
+#if defined(CL_VERSION_1_2)
+            check_cl_error(
+                clEnqueueBarrierWithWaitList(
+                    queue, static_cast<cl_uint>(cl_events.size()), cl_events.data(), nullptr),
+                "flush_all");
+#else
             check_cl_error(clEnqueueWaitForEvents(
                                queue, static_cast<cl_uint>(cl_events.size()), cl_events.data()),
                 "flush_all");
+#endif
             for (auto evt : cl_events)
             {
                 if (evt) clReleaseEvent(evt);

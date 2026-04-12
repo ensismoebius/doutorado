@@ -106,7 +106,6 @@ void Conv2dImpl<Backend>::im2col_optimized(const typename Conv2dImpl<Backend>::T
     int output_height,
     int output_width) const
 {
-    const int patch_rows = in_channels_ * kernel_size_ * kernel_size_;
     const int patch_cols_per_batch = output_height * output_width;
 
     const bool parallel_heavy = (batch_size * patch_cols_per_batch > 1000);
@@ -196,8 +195,9 @@ auto Conv2dImpl<Backend>::col2im_optimized(const typename Conv2dImpl<Backend>::T
 
     // Use pre-allocated buffer
     auto& result = *col2im_buffer_;
-    if (result.get_shape()[0] != batch_size || result.get_shape()[2] != input_height ||
-        result.get_shape()[3] != input_width)
+    if (result.get_shape()[0] != static_cast<std::size_t>(batch_size) ||
+        result.get_shape()[2] != static_cast<std::size_t>(input_height) ||
+        result.get_shape()[3] != static_cast<std::size_t>(input_width))
     {
         result = nn::Tensor(batch_size, in_channels_, input_height, input_width);
         result.setZero();

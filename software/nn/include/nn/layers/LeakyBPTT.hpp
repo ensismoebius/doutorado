@@ -118,9 +118,11 @@ struct LeakyBPTTImpl : public Module<Backend>
         }
         int batch_size = total_rows / time_steps;
         int features = input.cols();
+        const nn::Index batch_size_idx = static_cast<nn::Index>(batch_size);
+        const nn::Index features_idx = static_cast<nn::Index>(features);
 
         // Initialize state if needed
-        if (v_mem.rows() != batch_size || v_mem.cols() != features)
+        if (v_mem.rows() != batch_size_idx || v_mem.cols() != features_idx)
         {
             v_mem = Tensor(batch_size, features);
             v_mem.setZero();
