@@ -19,10 +19,12 @@ Tests and Examples
 - Unit tests are under `src/core/dataLoaders/tests/` (GTest). Use them as usage examples.
 
 Recent updates
-- `SqliteBatchSource` now pre-reserves trial accumulation buffers using per-trial SQLite blob-byte estimates before row decoding.
+- `SqliteBatchSource` now supports optional selected trial-id filtering and deterministic trial cursor iteration, enabling fold-specific fast prefetch pipelines.
+- `SqliteBatchSource::next()` no longer runs per-trial reserve-size SQL probes in the hot path; this reduces query overhead during training.
 - Window sample assembly now reserves per-window output capacity based on active window mode (`EegWindow`, `AudioWindow`, `FusedWindow`) to reduce hot-loop allocations.
 - `DataLoaderIterator::operator*()` now reuses the cached `fetch_batch()` path and no longer rebuilds per-batch index vectors redundantly.
 - `SqliteBatchSource::open_db()` failure diagnostics now use `NN_LOG_ERROR` instead of direct stderr writes.
+- Added `FoldSampler` (`include/nn/dataLoaders/samplers/FoldSampler.hpp`) to expose train/validation indices from one `statistics::FoldSplit` through the standard `ISampler` interface.
 - Windowed datasets now implement type-specific `print(IDatasetPrinter&)` dispatch and `WindowingDatasetPrinter` outputs detailed modality-aware summaries (window specs, hop/overlap, per-row window factors, and feature counts) instead of only generic totals.
 - Printer implementations were split from `src/core/dataLoaders/10.1117/dataset_info.cpp` into dedicated translation units: `datasets/raw/Dataset101117Printer.cpp` and `datasets/windowed/WindowingDatasetPrinter.cpp`.
 
@@ -69,11 +71,13 @@ Using `sample_into(std::span<...>)` avoids hidden allocations inside samplers an
 - Built-in sampler headers:
 	- `include/nn/dataLoaders/samplers/SequentialSampler.hpp`
 	- `include/nn/dataLoaders/samplers/RandomSampler.hpp`
+	- `include/nn/dataLoaders/samplers/FoldSampler.hpp`
 	- `include/nn/dataLoaders/samplers/WeightedRandomSampler.hpp`
 	- `include/nn/dataLoaders/samplers/DistributedSampler.hpp`
 - Implementations:
 	- `src/core/dataLoaders/samplers/SequentialSampler.cpp`
 	- `src/core/dataLoaders/samplers/RandomSampler.cpp`
+	- `src/core/dataLoaders/samplers/FoldSampler.cpp`
 	- `src/core/dataLoaders/samplers/WeightedRandomSampler.cpp`
 	- `src/core/dataLoaders/samplers/DistributedSampler.cpp`
 
@@ -81,6 +85,7 @@ Using `sample_into(std::span<...>)` avoids hidden allocations inside samplers an
 
 - `SequentialSampler(dataset_size)`: emits `[0, 1, ..., N-1]`.
 - `RandomSampler(dataset_size, seed)`: emits a full permutation, deterministic per epoch when seeded.
+- `FoldSampler(split, partition)`: emits either train or validation indices from a single fold split.
 - `WeightedRandomSampler(weights, num_samples, seed)`: draws with replacement using `std::discrete_distribution`.
 - `DistributedSampler(dataset_size, num_replicas, rank, shuffle, drop_last, seed)`: shard-aware sampler for multi-worker training.
 

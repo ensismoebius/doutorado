@@ -7,6 +7,7 @@
  * configuration lives in `lib/include/experiment03.hpp`.
  */
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -16,6 +17,7 @@
 #include "DatasetBuilder.hpp"
 #include "ResultsWriter.hpp"
 #include "RunSummaryBuilder.hpp"
+#include "TrialFoldSelector.hpp"
 #include "experiment03.hpp"
 #include "experiment03_helpers.hpp"
 
@@ -25,16 +27,13 @@
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 #include "nn/dataLoaders/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/DataLoader.hpp"
 #include "nn/dataLoaders/IDatasetPrinter.hpp"
 #include "nn/dataLoaders/SqliteBatchSource.hpp"
-#include "nn/dataLoaders/samplers/SubsetSampler.hpp"
 #include "nn/device/Device.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Optimizer.hpp"
 #include "nn/optimizers/OptimizerFactory.hpp"
-#include "nn/statistics/kfold.hpp"
 #include "nn/tensor/eigen/EigenTensorBackend.hpp"
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
@@ -73,6 +72,19 @@ namespace
 constexpr int kExitSuccess = 0;
 /// @brief Exit code indicating the experiment terminated with an error.
 constexpr int kExitFailure = 1;
+
+auto effective_fold_max_batches(size_t configured_max_batches, size_t trial_count, size_t n_splits)
+    -> size_t
+{
+    if (configured_max_batches == 0)
+    {
+        return std::max<size_t>(1, trial_count);
+    }
+
+    const size_t splits = std::max<size_t>(1, n_splits);
+    const size_t per_fold_budget = (configured_max_batches + splits - 1) / splits;
+    return std::max<size_t>(1, std::min(per_fold_budget, trial_count));
+}
 } // namespace
 
 // internal helpers moved to experiment03_helpers.hpp / .cpp
@@ -87,7 +99,7 @@ int Experiment03::run()
 {
     /// Mean losses for each epoch, used for final reporting in the run summary.
     vector<float> epoch_mean_losses;
-    /// Per-fold validation losses; non-empty only when kfold_enabled is true.
+    /// Per-fold validation losses collected for k-fold reporting.
     vector<float> fold_val_losses;
 
     try
@@ -206,21 +218,28 @@ int Experiment03::run()
         // Results are reported per-fold and included in the run summary.
         /////////////////////////////////////////////////////////////////////
 
-        const auto folds = statistics::KFold( //
-            config_.kfold_n_splits,           //
-            config_.kfold_shuffle,            //
-            config_.kfold_seed.value_or(0U)   //
-            )
-                               .split(dataset_total_samples_);
+        // Build fold selections from SQLite trial ids. This keeps fold
+        // orchestration outside the training loop while preserving the
+        // SqliteBatchSource + BatchPrefetcher fast path.
+        const auto fold_selector =
+            experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
+                config_.kfold_n_splits,
+                config_.kfold_shuffle,
+                config_.kfold_seed);
 
-        for (size_t fold_idx = 0; fold_idx < folds.size(); ++fold_idx)
+        seen_batches_ = 0;
+        processed_samples_ = 0;
+
+        for (size_t fold_idx = 0; fold_idx < fold_selector.fold_count(); ++fold_idx)
         {
-            const auto& fold = folds[fold_idx];
+            const auto selection = fold_selector.selection_for_fold(fold_idx);
+            const auto& train_trial_ids = selection.train_trial_ids;
+            const auto& val_trial_ids = selection.val_trial_ids;
 
             ostringstream fold_header;
-            fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << folds.size()
-                        << "  train=" << fold.train_indices.size()
-                        << "  val=" << fold.test_indices.size() << " ===";
+            fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << fold_selector.fold_count()
+                        << "  train_trials=" << train_trial_ids.size()
+                        << "  val_trials=" << val_trial_ids.size() << " ===";
             NN_LOG_INFO(fold_header.str());
 
             // Fresh model and optimizer for every fold to avoid weight leakage.
@@ -243,17 +262,40 @@ int Experiment03::run()
             // Train for training_epochs on the training subset.
             for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
             {
-                DataLoader train_loader( //
-                    dataset_,            //
-                    config_.training_batch_size,
-                    make_unique<SubsetSampler>(fold.train_indices) //
+                unique_ptr<IBatchSource> train_src = make_unique<SqliteBatchSource>( //
+                    config_.dataset_root_path,                                       //
+                    config_.training_batch_size,                                     //
+                    to_sqlite_dataset_type(config_.dataset_type),                    //
+                    config_.window_eeg_config,                                       //
+                    config_.window_audio_config,                                     //
+                    config_.dataset_input_mode,                                      //
+                    train_trial_ids                                                  //
+                );
+
+                const size_t train_epoch_max_batches =
+                    effective_fold_max_batches(config_.training_max_batches_per_epoch,
+                        train_trial_ids.size(),
+                        config_.kfold_n_splits);
+
+                prefetcher_ = make_unique<BatchPrefetcher>(                //
+                    std::move(train_src),                                  //
+                    train_epoch_max_batches,                               //
+                    config_.prefetch_lookahead,                            //
+                    config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
                 );
 
                 size_t epoch_batches = 0;
                 float epoch_loss_sum = 0.0F;
 
-                for (auto& batch : train_loader)
+                while (prefetcher_->hasNext())
                 {
+                    auto maybe_batch = prefetcher_->next();
+                    if (!maybe_batch.has_value())
+                    {
+                        break;
+                    }
+                    const Batch batch = std::move(maybe_batch.value());
+
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();
@@ -287,17 +329,40 @@ int Experiment03::run()
             }
 
             // Evaluate reconstruction loss on the held-out test subset (no backprop).
-            DataLoader val_loader( //
-                dataset_,          //
-                config_.training_batch_size,
-                make_unique<SubsetSampler>(fold.test_indices) //
+            unique_ptr<IBatchSource> val_src = make_unique<SqliteBatchSource>( //
+                config_.dataset_root_path,                                     //
+                config_.training_batch_size,                                   //
+                to_sqlite_dataset_type(config_.dataset_type),                  //
+                config_.window_eeg_config,                                     //
+                config_.window_audio_config,                                   //
+                config_.dataset_input_mode,                                    //
+                val_trial_ids                                                  //
+            );
+
+            const size_t val_max_batches =
+                effective_fold_max_batches(config_.training_max_batches_per_epoch,
+                    val_trial_ids.size(),
+                    config_.kfold_n_splits);
+
+            prefetcher_ = make_unique<BatchPrefetcher>(                //
+                std::move(val_src),                                    //
+                val_max_batches,                                       //
+                config_.prefetch_lookahead,                            //
+                config_.prefetch_ram_cap_mb * std::size_t{1024 * 1024} //
             );
 
             float val_loss_sum = 0.0F;
             size_t val_batches = 0;
 
-            for (auto& batch : val_loader)
+            while (prefetcher_->hasNext())
             {
+                auto maybe_batch = prefetcher_->next();
+                if (!maybe_batch.has_value())
+                {
+                    break;
+                }
+                const Batch batch = std::move(maybe_batch.value());
+
                 if (is_snn_type(config_.autoencoder_type))
                 {
                     model_->reset_state();

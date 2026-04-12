@@ -2,6 +2,7 @@ add_library(dataLoaders_samplers
     STATIC
         RandomSampler.cpp
         SequentialSampler.cpp
+    FoldSampler.cpp
         DistributedSampler.cpp
         WeightedRandomSampler.cpp
         SubsetSampler.cpp

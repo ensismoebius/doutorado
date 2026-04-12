@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
+#include "nn/dataLoaders/samplers/FoldSampler.hpp"
 #include "nn/dataLoaders/samplers/RandomSampler.hpp"
 #include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 #include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
@@ -195,6 +196,36 @@ TEST(SamplerTest, DistributedSamplerEmptyDatasetFillsZeros)
     {
         EXPECT_EQ(v, 0U);
     }
+}
+
+TEST(SamplerTest, FoldSamplerTrainPartition)
+{
+    const statistics::FoldSplit split{
+        .train_indices = {0, 2, 4, 6},
+        .test_indices = {1, 3, 5},
+    };
+
+    FoldSampler sampler(split, FoldPartition::Train);
+    std::vector<std::size_t> out(sampler.index_count());
+    sampler.sample_into(out);
+
+    const std::vector<std::size_t> expected = {0, 2, 4, 6};
+    EXPECT_EQ(out, expected);
+}
+
+TEST(SamplerTest, FoldSamplerValidationPartition)
+{
+    const statistics::FoldSplit split{
+        .train_indices = {0, 2, 4, 6},
+        .test_indices = {1, 3, 5},
+    };
+
+    FoldSampler sampler(split, FoldPartition::Validation);
+    std::vector<std::size_t> out(sampler.index_count());
+    sampler.sample_into(out);
+
+    const std::vector<std::size_t> expected = {1, 3, 5};
+    EXPECT_EQ(out, expected);
 }
 
 TEST(SamplerTest, DistributedSamplerNonDropLastPadsByReplication)

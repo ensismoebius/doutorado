@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <unordered_set>
 #include <vector>
 
 #include "nn/logging/Logger.hpp"
@@ -28,13 +29,15 @@ SqliteBatchSource::SqliteBatchSource(const string& db_root,
     nn::dataLoaders::SqliteDatasetType dataset_type,
     const nn::windowing::WindowSpec& eeg_window,
     const nn::windowing::WindowSpec& audio_window,
-    Protocol101117InputMode input_mode)
+    Protocol101117InputMode input_mode,
+    std::vector<int> selected_trial_ids)
     : db_path_((std::filesystem::path(db_root) / "database.sqlite").string()),
       batch_size_(batch_size),
       dataset_type_(dataset_type),
       eeg_window_(eeg_window),
       audio_window_(audio_window),
-      input_mode_(input_mode)
+      input_mode_(input_mode),
+      selected_trial_ids_filter_(std::move(selected_trial_ids))
 {
     open_db();
 }
@@ -134,6 +137,50 @@ bool SqliteBatchSource::open_db()
         }
     }
 
+    // Build a deterministic trial-id sequence to iterate in next().
+    // When a k-fold subset filter is provided, keep only matching ids
+    // while preserving DB ordering.
+    {
+        trial_ids_.clear();
+        sqlite3_stmt* trials_stmt = nullptr;
+        const char* trials_sql =
+            "SELECT DISTINCT t.id FROM trial t "
+            "INNER JOIN audio_samples a ON a.trial_id = t.id "
+            "INNER JOIN eeg_samples e ON e.trial_id = t.id "
+            "ORDER BY t.id;";
+
+        if (sqlite3_prepare_v2(db_, trials_sql, -1, &trials_stmt, nullptr) == SQLITE_OK &&
+            trials_stmt)
+        {
+            if (!selected_trial_ids_filter_.empty())
+            {
+                std::unordered_set<int> allowed(
+                    selected_trial_ids_filter_.begin(), selected_trial_ids_filter_.end());
+                while (sqlite3_step(trials_stmt) == SQLITE_ROW)
+                {
+                    const int trial_id = sqlite3_column_int(trials_stmt, 0);
+                    if (allowed.contains(trial_id))
+                    {
+                        trial_ids_.push_back(trial_id);
+                    }
+                }
+            }
+            else
+            {
+                while (sqlite3_step(trials_stmt) == SQLITE_ROW)
+                {
+                    trial_ids_.push_back(sqlite3_column_int(trials_stmt, 0));
+                }
+            }
+        }
+
+        if (trials_stmt)
+        {
+            sqlite3_finalize(trials_stmt);
+        }
+        next_trial_index_ = 0;
+    }
+
     return true;
 }
 
@@ -163,91 +210,29 @@ void SqliteBatchSource::close_db()
 
 void SqliteBatchSource::reset_epoch(std::size_t epoch)
 {
-    // No underlying source to reset for DB-only SqliteBatchSource.
+    // Restart deterministic trial iteration from the first selected id.
     (void) epoch;
+    next_trial_index_ = 0;
 }
 
 bool SqliteBatchSource::next(Batch& out)
 {
     // Normal operation: no verbose tracing here (kept concise for production).
     // Try to consume an existing trial from the DB first.
-    if (db_ && pop_trial_stmt_)
+    if (db_)
     {
         try
         {
-            // Prepare and step a transient pop_trial statement each call
-            const char* pop_trial_sql =
-                "SELECT DISTINCT t.id FROM trial t "
-                "INNER JOIN audio_samples a ON a.trial_id = t.id "
-                "INNER JOIN eeg_samples e ON e.trial_id = t.id "
-                "ORDER BY t.id LIMIT 1;";
-            sqlite3_stmt* local_pop = nullptr;
-            int prc = sqlite3_prepare_v2(db_, pop_trial_sql, -1, &local_pop, nullptr);
-            if (prc != SQLITE_OK || !local_pop)
+            if (next_trial_index_ >= trial_ids_.size())
             {
-                std::ostringstream oss;
-                oss << "SqliteBatchSource::next: prepare(pop_trial) failed: "
-                    << sqlite3_errmsg(db_);
-                NN_LOG_ERROR(oss.str());
-                if (local_pop) sqlite3_finalize(local_pop);
-                if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
                 return false;
             }
 
-            int rc = sqlite3_step(local_pop);
-            if (rc == SQLITE_ROW)
+            const int trial_id = trial_ids_[next_trial_index_++];
+            int rc = SQLITE_ROW;
             {
-                const int trial_id = sqlite3_column_int(local_pop, 0);
-
                 std::vector<float> eeg_accum;
                 std::vector<float> audio_accum;
-
-                // Reserve using trial-local blob byte estimates to reduce reallocations.
-                {
-                    sqlite3_stmt* eeg_size_stmt = nullptr;
-                    const char* eeg_size_sql =
-                        "SELECT COALESCE(SUM(COALESCE(length(F3),0)+COALESCE(length(F4),0)+"
-                        "COALESCE(length(C3),0)+COALESCE(length(C4),0)+COALESCE(length(P3),0)+"
-                        "COALESCE(length(P4),0)),0) "
-                        "FROM eeg_samples WHERE trial_id = ?;";
-                    if (sqlite3_prepare_v2(db_, eeg_size_sql, -1, &eeg_size_stmt, nullptr) ==
-                        SQLITE_OK)
-                    {
-                        sqlite3_bind_int(eeg_size_stmt, 1, trial_id);
-                        if (sqlite3_step(eeg_size_stmt) == SQLITE_ROW)
-                        {
-                            const sqlite3_int64 eeg_total_bytes =
-                                sqlite3_column_int64(eeg_size_stmt, 0);
-                            if (eeg_total_bytes > 0)
-                            {
-                                eeg_accum.reserve(
-                                    static_cast<size_t>(eeg_total_bytes) / sizeof(float));
-                            }
-                        }
-                    }
-                    if (eeg_size_stmt) sqlite3_finalize(eeg_size_stmt);
-
-                    sqlite3_stmt* audio_size_stmt = nullptr;
-                    const char* audio_size_sql =
-                        "SELECT COALESCE(SUM(COALESCE(length(samples),0)),0) "
-                        "FROM audio_samples WHERE trial_id = ?;";
-                    if (sqlite3_prepare_v2(db_, audio_size_sql, -1, &audio_size_stmt, nullptr) ==
-                        SQLITE_OK)
-                    {
-                        sqlite3_bind_int(audio_size_stmt, 1, trial_id);
-                        if (sqlite3_step(audio_size_stmt) == SQLITE_ROW)
-                        {
-                            const sqlite3_int64 audio_total_bytes =
-                                sqlite3_column_int64(audio_size_stmt, 0);
-                            if (audio_total_bytes > 0)
-                            {
-                                audio_accum.reserve(
-                                    static_cast<size_t>(audio_total_bytes) / sizeof(float));
-                            }
-                        }
-                    }
-                    if (audio_size_stmt) sqlite3_finalize(audio_size_stmt);
-                }
 
                 // Read eeg_samples rows for this trial
                 sqlite3_reset(select_eeg_stmt_);
@@ -285,9 +270,6 @@ bool SqliteBatchSource::next(Batch& out)
                 }
                 sqlite3_reset(select_audio_stmt_);
 
-                // Finalize the transient pop stmt
-                sqlite3_finalize(local_pop);
-
                 // Build windowed/fused samples according to requested dataset_type_.
                 // For Protocol+Concatenated we keep the flattened trial semantics
                 // (replicate full trial). For windowing datasets, extract aligned
@@ -298,7 +280,6 @@ bool SqliteBatchSource::next(Batch& out)
                 // Quick fallbacks: if no data, use underlying source.
                 if (eeg_accum.empty() && audio_accum.empty())
                 {
-                    if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
                     return false;
                 }
 
@@ -390,7 +371,6 @@ bool SqliteBatchSource::next(Batch& out)
                     if (windows <= 0)
                     {
                         // Nothing to produce in windowed mode for this trial.
-                        if (pop_trial_stmt_) sqlite3_reset(pop_trial_stmt_);
                         return false;
                     }
 
@@ -526,25 +506,14 @@ bool SqliteBatchSource::next(Batch& out)
 
                 return true;
             }
-            // No trial available from transient pop stmt - log return code and fallback
-            {
-                std::ostringstream oss;
-                oss << "SqliteBatchSource::next: local_pop rc=" << rc << " (" << sqlite3_errstr(rc)
-                    << ") errmsg=" << (db_ ? sqlite3_errmsg(db_) : "(null db)");
-                NN_LOG_INFO(oss.str());
-            }
-            if (local_pop) sqlite3_finalize(local_pop);
-            sqlite3_reset(pop_trial_stmt_);
         }
         catch (const std::exception& e)
         {
             NN_LOG_ERROR(std::string("EXCEPTION[SqliteBatchSource::next]: ") + e.what());
-            sqlite3_reset(pop_trial_stmt_);
         }
         catch (...)
         {
             NN_LOG_ERROR("EXCEPTION[SqliteBatchSource::next]: unknown");
-            sqlite3_reset(pop_trial_stmt_);
         }
     }
 

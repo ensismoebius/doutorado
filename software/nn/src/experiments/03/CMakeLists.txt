@@ -15,6 +15,7 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/ResultsWriter.cpp
     ${SRC_DIR}/experiments/03/lib/src/RunSummaryBuilder.cpp
     ${SRC_DIR}/experiments/03/lib/src/DatasetBuilder.cpp
+    ${SRC_DIR}/experiments/03/lib/src/TrialFoldSelector.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03_helpers.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
 )

@@ -15,6 +15,7 @@
 #include <sqlite3.h>
 
 #include <string>
+#include <vector>
 
 #include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "nn/windowing/WindowSpec.hpp"
@@ -45,7 +46,8 @@ class SqliteBatchSource : public IBatchSource
             nn::dataLoaders::SqliteDatasetType::Protocol,
         const nn::windowing::WindowSpec& eeg_window = nn::windowing::WindowSpec{},
         const nn::windowing::WindowSpec& audio_window = nn::windowing::WindowSpec{},
-        Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated);
+        Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated,
+        std::vector<int> selected_trial_ids = {});
     ~SqliteBatchSource() override;
 
     bool next(Batch& out) override;
@@ -66,6 +68,9 @@ class SqliteBatchSource : public IBatchSource
     nn::windowing::WindowSpec eeg_window_{};
     nn::windowing::WindowSpec audio_window_{};
     Protocol101117InputMode input_mode_ = Protocol101117InputMode::Concatenated;
+    std::vector<int> selected_trial_ids_filter_{};
+    std::vector<int> trial_ids_{};
+    std::size_t next_trial_index_ = 0;
 };
 
 #endif // NN_DATALOADERS_SQLITEBATCHSOURCE_HPP
