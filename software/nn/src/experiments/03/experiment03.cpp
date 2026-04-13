@@ -10,19 +10,39 @@
 #include "lib/include/experiment03.hpp"
 
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <string_view>
 
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
+#include "nn/logging/Logger.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 
+using nn::logging::Level;
+using nn::logging::Logger;
 using nn::logging::StreamRedirector;
 using std::cerr;
 using std::cout;
 using std::exception;
 using std::make_shared;
 using std::size_t;
+
+namespace
+{
+auto parse_log_level_from_env() -> Level
+{
+    const char* value = std::getenv("NN_EXPERIMENT03_LOG_LEVEL");
+    if (value == nullptr) return Level::Info;
+
+    const std::string_view level{value};
+    if (level == "error") return Level::Error;
+    if (level == "warn" || level == "warning") return Level::Warn;
+    if (level == "debug") return Level::Debug;
+    return Level::Info;
+}
+} // namespace
 
 auto main(int argc, char* argv[]) -> int
 {
@@ -35,6 +55,7 @@ auto main(int argc, char* argv[]) -> int
     }
 
     Config config = parseCliParams(argc, argv, profile_defaults);
+    Logger::instance().set_level(parse_log_level_from_env());
     StreamRedirector redirect(true, true);
     Experiment03 experiment(config);
     return experiment.run();

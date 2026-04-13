@@ -14,6 +14,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/windowing/WindowSpec.hpp"
@@ -334,34 +336,98 @@ bool SqliteBatchSource::next(Batch& out)
                 if (dataset_type_ == nn::dataLoaders::SqliteDatasetType::Protocol &&
                     input_mode_ == Protocol101117InputMode::Concatenated)
                 {
-                    // Keep previous behavior: flattened trial replicated.
-                    const int in_cols = static_cast<int>(eeg_accum.size());
-                    const int tgt_cols = static_cast<int>(audio_accum.size());
+                    // Protocol+Concatenated mode: match Dataset101117's stacked format.
+                    // Each trial produces (7, 176400) when merged&resampled (audio + 6 EEG).
+                    // Multiple trials are stacked vertically to fill batch_size.
+                    // Example: batch_size=2 trials → (14, 176400) output.
 
-                    out.inputs =
-                        nn::Tensor(static_cast<size_t>(batch_size_), static_cast<size_t>(in_cols));
-                    if (!eeg_accum.empty())
+                    try
                     {
-                        for (std::size_t r = 0; r < batch_size_; ++r)
+                        if (eeg_accum.empty() || audio_accum.empty())
                         {
-                            std::memcpy(
-                                out.inputs.mutable_data_ptr() + r * static_cast<size_t>(in_cols),
-                                eeg_accum.data(),
-                                static_cast<size_t>(in_cols) * sizeof(float));
+                            continue; // Skip trials with incomplete data
+                        }
+
+                        // EEG data is accumulated as [ch0_t0, ch1_t0, ..., ch5_t0, ch0_t1, ...]
+                        // i.e., (samples_per_channel * channels) floats interleaved per timestep.
+                        // Need to reshape to (channels, samples_per_channel) for
+                        // mergeAudioAndEEGSignals.
+
+                        if (eeg_accum.size() % eeg_channels != 0)
+                        {
+                            NN_LOG_WARN(
+                                "SqliteBatchSource Protocol: EEG size not divisible by "
+                                "channel count; skipping trial");
+                            continue;
+                        }
+
+                        const size_t eeg_per_channel = eeg_accum.size() / eeg_channels;
+                        nn::Tensor eeg_matrix(static_cast<size_t>(eeg_channels),
+                            static_cast<size_t>(eeg_per_channel));
+
+                        // Transpose from channel-interleaved to channel-separated layout.
+                        // Input: eeg_accum[ch0_t0, ch1_t0, ..., ch5_t0, ch0_t1, ...]
+                        // Output matrix[ch, t] = eeg_accum[t * channels + ch]
+                        for (size_t t = 0; t < eeg_per_channel; ++t)
+                        {
+                            for (size_t ch = 0; ch < eeg_channels; ++ch)
+                            {
+                                eeg_matrix.at(ch, t) = eeg_accum[t * eeg_channels + ch];
+                            }
+                        }
+
+                        // Build audio vector: (audio_samples, 1)
+                        nn::Tensor audio_vector(audio_accum.size(), 1);
+                        for (size_t i = 0; i < audio_accum.size(); ++i)
+                        {
+                            audio_vector.at(i, 0) = audio_accum[i];
+                        }
+
+                        // Stack and resample to produce (7, 176400)
+                        nn::Tensor stacked_resampled =
+                            mergeAudioAndEEGSignals(eeg_matrix, audio_vector);
+
+                        // Accumulate row-by-row into pending samples for batching.
+                        // Each row of the stacked result becomes a pending sample.
+                        if (pending_window_samples_.empty())
+                        {
+                            pending_window_samples_.resize(stacked_resampled.rows());
+                            for (size_t row = 0; row < stacked_resampled.rows(); ++row)
+                            {
+                                pending_window_samples_[row].resize(stacked_resampled.cols());
+                                for (size_t col = 0; col < stacked_resampled.cols(); ++col)
+                                {
+                                    pending_window_samples_[row][col] =
+                                        stacked_resampled.at(row, col);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Append rows from this trial
+                            for (size_t row = 0; row < stacked_resampled.rows(); ++row)
+                            {
+                                std::vector<float> row_data(stacked_resampled.cols());
+                                for (size_t col = 0; col < stacked_resampled.cols(); ++col)
+                                {
+                                    row_data[col] = stacked_resampled.at(row, col);
+                                }
+                                pending_window_samples_.push_back(std::move(row_data));
+                            }
+                        }
+
+                        // Check if we have enough rows to emit a batch
+                        if (pending_window_samples_.size() >= batch_size_)
+                        {
+                            return emit_pending_window_batch(out);
                         }
                     }
-
-                    out.targets =
-                        nn::Tensor(static_cast<size_t>(batch_size_), static_cast<size_t>(tgt_cols));
-                    if (!audio_accum.empty())
+                    catch (const std::exception& e)
                     {
-                        for (std::size_t r = 0; r < batch_size_; ++r)
-                        {
-                            std::memcpy(
-                                out.targets.mutable_data_ptr() + r * static_cast<size_t>(tgt_cols),
-                                audio_accum.data(),
-                                static_cast<size_t>(tgt_cols) * sizeof(float));
-                        }
+                        NN_LOG_WARN(std::string("SqliteBatchSource Protocol: stacking/resampling "
+                                                "failed: ") +
+                                    e.what() + "; skipping trial");
+                        continue;
                     }
                 }
                 else

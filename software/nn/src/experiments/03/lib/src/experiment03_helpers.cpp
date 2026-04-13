@@ -119,6 +119,8 @@ auto fit_input_transform(
     using nn::transforms::FusedModalityTransform;
 
     std::shared_ptr<AudioMeanStdNormalize> audio_norm;
+    bool observed_fused_layout = false;
+    bool observed_layout_mismatch = false;
     if (has_audio)
     {
         audio_norm = std::make_shared<AudioMeanStdNormalize>();
@@ -152,10 +154,19 @@ auto fit_input_transform(
             }
 
             const Batch& fitting_batch = maybe.value();
-            audio_norm->accumulate(has_eeg
-                                       ? fitting_batch.inputs.block(
-                                             0, eeg_cols, fitting_batch.inputs.rows(), audio_cols)
-                                       : fitting_batch.inputs);
+            const nn::Index cols = fitting_batch.inputs.cols();
+            const nn::Index required_fused_cols = eeg_cols + audio_cols;
+            if (has_eeg && cols >= required_fused_cols)
+            {
+                observed_fused_layout = true;
+                audio_norm->accumulate(fitting_batch.inputs.block(
+                    0, eeg_cols, fitting_batch.inputs.rows(), audio_cols));
+            }
+            else
+            {
+                observed_layout_mismatch = has_eeg && has_audio;
+                audio_norm->accumulate(fitting_batch.inputs);
+            }
         }
 
         try
@@ -172,10 +183,22 @@ auto fit_input_transform(
     }
 
     auto eeg_zscore = has_eeg ? std::make_shared<EEGWindowZScore>() : nullptr;
-    if (has_eeg && has_audio)
+    if (has_eeg && has_audio && observed_fused_layout && !observed_layout_mismatch)
     {
         return std::make_shared<FusedModalityTransform>(
             eeg_cols, audio_cols, eeg_zscore, audio_norm);
+    }
+
+    if (observed_layout_mismatch)
+    {
+        NN_LOG_WARN(
+            "Input normalization fallback: configured EEG/audio split does not match "
+            "observed batch shape; using full-vector mean-std normalization.");
+    }
+
+    if (audio_norm)
+    {
+        return std::static_pointer_cast<nn::transforms::ITransform>(audio_norm);
     }
 
     return has_eeg ? std::static_pointer_cast<nn::transforms::ITransform>(eeg_zscore)

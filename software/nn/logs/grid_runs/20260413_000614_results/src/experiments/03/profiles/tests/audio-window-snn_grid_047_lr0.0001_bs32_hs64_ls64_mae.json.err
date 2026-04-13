@@ -1,0 +1,37 @@
+
+
+
+
+
+
+
+[2K2026-04-13 00:16:56 INFO:    Platform: rusticl
+  Device: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+  Compute Units: 7
+  Local Memory: 64 KiB
+[2K2026-04-13 00:16:56 INFO:  OpenCL backend initialized: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+[2K2026-04-13 00:16:56 INFO:  GPU buffer pool initialized
+[2K2026-04-13 00:16:57 INFO:  K-Fold disabled: running single training loop.
+[2K2026-04-13 00:16:57 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2K2026-04-13 00:16:58 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2KEpoch 1/8 Progress: [>                                       ]   0% (1/240b, 31/7680s)  loss: 0.762197
+[7A[2K2026-04-13 00:16:56 INFO:    Platform: rusticl
+  Device: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+  Compute Units: 7
+  Local Memory: 64 KiB
+[2K2026-04-13 00:16:56 INFO:  OpenCL backend initialized: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+[2K2026-04-13 00:16:56 INFO:  GPU buffer pool initialized
+[2K2026-04-13 00:16:57 INFO:  K-Fold disabled: running single training loop.
+[2K2026-04-13 00:16:57 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2K2026-04-13 00:16:58 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2KEpoch 1/8 Progress: [>                                       ]   0% (2/240b, 62/7680s)  loss: 0.745180
+[7A[2K2026-04-13 00:16:56 INFO:    Platform: rusticl
+  Device: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+  Compute Units: 7
+  Local Memory: 64 KiB
+[2K2026-04-13 00:16:56 INFO:  OpenCL backend initialized: AMD Radeon Graphics (radeonsi, renoir, ACO, DRM 3.64, 6.19.11-arch1-1)
+[2K2026-04-13 00:16:56 INFO:  GPU buffer pool initialized
+[2K2026-04-13 00:16:57 INFO:  K-Fold disabled: running single training loop.
+[2K2026-04-13 00:16:57 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2K2026-04-13 00:16:58 INFO:  SqliteBatchSource::open_db: joined_trials=1972 db_path=/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada/database.sqlite
+[2KEpoch 1/8 Progress: [>                                       ]   1% (3/240b, 93/7680s)  loss: 0.650260
