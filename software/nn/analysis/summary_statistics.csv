@@ -1,11 +1,13 @@
-Total Profiles,147
-Successful,147
-Failed,0
-Success Rate %,100.000000
-Best Mean Val Loss,0.707069
-Worst Mean Val Loss,1.014480
-Avg Mean Val Loss,0.856382
-Median Mean Val Loss,0.954851
-StdDev Mean Val Loss,0.128992
-audio-window - Best,0.707069
-audio-window - Count,147
+Total Profiles,754
+Successful,562
+Failed,192
+Success Rate %,74.535809
+Best Mean Val Loss,0.704623
+Worst Mean Val Loss,1.015340
+Avg Mean Val Loss,0.854936
+Median Mean Val Loss,0.868075
+StdDev Mean Val Loss,0.128942
+audio-window - Best,0.704623
+audio-window - Count,526
+eeg-window - Best,0.753174
+eeg-window - Count,36
