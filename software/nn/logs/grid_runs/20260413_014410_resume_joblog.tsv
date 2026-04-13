@@ -128,3 +128,4 @@ Seq	Host	Starttime	JobRuntime	Send	Receive	Exitval	Signal	Command
 128	:	1776057865.014	   199.495	0	0	0	0	./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile src/experiments/03/profiles/tests/audio-window-snn_grid_168_lr0.0005_bs16_hs64_ls16_mse.json
 127	:	1776057862.170	   222.276	0	0	0	0	./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile src/experiments/03/profiles/tests/audio-window-snn_grid_167_lr0.0005_bs16_hs32_ls64_mae.json
 130	:	1776057896.962	   198.840	0	0	0	0	./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile src/experiments/03/profiles/tests/audio-window-snn_grid_170_lr0.0005_bs16_hs64_ls32_mse.json
+129	:	1776057888.359	   220.440	0	0	0	0	./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile src/experiments/03/profiles/tests/audio-window-snn_grid_169_lr0.0005_bs16_hs64_ls16_mae.json
