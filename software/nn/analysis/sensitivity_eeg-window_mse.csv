@@ -1,9 +1,0 @@
-Hyperparameter,Value,Avg Val Loss,Best Val Loss,Count
-Learning Rate,0.0001,0.998947,0.998010,6
-Learning Rate,0.0003,1.004193,1.001530,6
-Learning Rate,0.0005,1.004840,1.003110,6
-Batch Size,8,1.002049,0.999958,6
-Batch Size,16,1.004760,0.998010,6
-Batch Size,32,1.001171,0.998873,6
-Hidden Size,32,1.002660,0.998010,18
-Latent Size,16,1.002660,0.998010,18
