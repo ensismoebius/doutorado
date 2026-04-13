@@ -9,9 +9,11 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any
 import csv
+import argparse
 from dataclasses import dataclass
 from collections import defaultdict
 import statistics
+import re
 
 
 @dataclass
@@ -25,6 +27,9 @@ class GridResult:
     batch_size: int
     hidden_size: int
     latent_size: int
+    max_batches_per_epoch: int
+    configured_epochs: int
+    lr_plateau_enabled: int
     final_train_loss: float
     final_val_loss: float
     mean_val_loss: float
@@ -41,7 +46,6 @@ class GridResult:
         
         # Extract filename components
         filename = json_path.stem
-        parts = filename.split('_')
         
         # Parse profile name to extract hyperparameters
         profile_data = data.get('profile_name', filename)
@@ -81,14 +85,55 @@ class GridResult:
             mean_val_loss = final_val_loss
             best_val_loss = final_val_loss
     
-        # Extract BS, HS, LS from profile path
+        # Extract BS, HS, LS, MB, EP, LP from profile path / profile name
         profile_path = data.get('profile', '')
+        profile_text = profile_path or profile_data or filename
         bs = 8  # Default, will extract from filename
         hs = 32  # Default, will extract from filename
         ls = 16  # Default, will extract from filename
+        mb = 0
+        ep = 0
+        lp = 0
+
+        # Parse tokens embedded in generated profile filenames, e.g.:
+        # ..._lr0.0001_bs16_hs32_ls32_mae_mb32_ep10_lp1.json
+        token_patterns = {
+            'lr': r'_lr([0-9]+(?:\.[0-9]+)?)',
+            'bs': r'_bs(\d+)',
+            'hs': r'_hs(\d+)',
+            'ls': r'_ls(\d+)',
+            'mb': r'_mb(\d+)',
+            'ep': r'_ep(\d+)',
+            'lp': r'_lp([01])',
+        }
+
+        parsed_lr = None
+        for key, pattern in token_patterns.items():
+            match = re.search(pattern, profile_text)
+            if not match:
+                continue
+            value = match.group(1)
+            if key == 'lr':
+                parsed_lr = float(value)
+            elif key == 'bs':
+                bs = int(value)
+            elif key == 'hs':
+                hs = int(value)
+            elif key == 'ls':
+                ls = int(value)
+            elif key == 'mb':
+                mb = int(value)
+            elif key == 'ep':
+                ep = int(value)
+            elif key == 'lp':
+                lp = int(value)
+
+        # Prefer profile-encoded LR when available to keep config visible even for failed runs.
+        if parsed_lr is not None:
+            lr = parsed_lr
     
-        # Parse from profile filename (format: modality_grid_idx_lrX_bsX_hsX_lsX_loss.json)
-        if 'bs' in profile_path:
+        # Fallback parsing for older filename variants.
+        if 'bs' in profile_path and not re.search(r'_bs\d+', profile_text):
             try:
                 for part in profile_path.split('_'):
                     if part.startswith('bs'):
@@ -109,6 +154,9 @@ class GridResult:
             batch_size=bs,
             hidden_size=hs,
             latent_size=ls,
+            max_batches_per_epoch=mb,
+            configured_epochs=ep,
+            lr_plateau_enabled=lp,
             final_train_loss=final_train_loss,
             final_val_loss=final_val_loss,
             mean_val_loss=mean_val_loss,
@@ -151,7 +199,7 @@ def generate_master_table(results: List[GridResult], output_path: Path) -> None:
         
         # Header
         writer.writerow([
-            'Rank', 'Profile', 'Modality', 'Loss Type', 'LR', 'BS', 'HS', 'LS',
+            'Rank', 'Profile', 'Modality', 'Loss Type', 'LR', 'BS', 'HS', 'LS', 'MB', 'Configured Epochs', 'LR Plateau',
             'Final Train Loss', 'Final Val Loss', 'Mean Val Loss', 'Best Val Loss',
             'Epochs', 'Status', 'Error'
         ])
@@ -170,6 +218,9 @@ def generate_master_table(results: List[GridResult], output_path: Path) -> None:
                 result.batch_size,
                 result.hidden_size,
                 result.latent_size,
+                result.max_batches_per_epoch,
+                result.configured_epochs,
+                result.lr_plateau_enabled,
                 f"{result.final_train_loss:.6f}" if result.exit_code == 0 else 'N/A',
                 f"{result.final_val_loss:.6f}" if result.exit_code == 0 else 'N/A',
                 f"{result.mean_val_loss:.6f}" if result.exit_code == 0 else 'N/A',
@@ -194,7 +245,7 @@ def generate_modality_comparison(results: List[GridResult], output_dir: Path) ->
         with open(output_path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([
-                'Rank', 'Loss Type', 'LR', 'BS', 'HS', 'LS',
+                'Rank', 'Loss Type', 'LR', 'BS', 'HS', 'LS', 'MB', 'Configured Epochs', 'LR Plateau',
                 'Final Train Loss', 'Mean Val Loss', 'Best Val Loss', 'Epochs'
             ])
             
@@ -208,6 +259,9 @@ def generate_modality_comparison(results: List[GridResult], output_dir: Path) ->
                     result.batch_size,
                     result.hidden_size,
                     result.latent_size,
+                    result.max_batches_per_epoch,
+                    result.configured_epochs,
+                    result.lr_plateau_enabled,
                     f"{result.final_train_loss:.6f}",
                     f"{result.mean_val_loss:.6f}",
                     f"{result.best_val_loss:.6f}",
@@ -304,8 +358,23 @@ def generate_summary_stats(results: List[GridResult], output_path: Path) -> None
 
 def main():
     """Main analysis pipeline."""
-    results_dir = Path('src/experiments/03/results')
-    output_dir = Path('analysis')
+    parser = argparse.ArgumentParser(
+        description='Analyze SNN grid results and generate comparison CSV tables.'
+    )
+    parser.add_argument(
+        '--results-dir',
+        default='results',
+        help='Directory containing result JSON files (default: results)',
+    )
+    parser.add_argument(
+        '--output-dir',
+        default='analysis',
+        help='Directory where analysis CSV files are written (default: analysis)',
+    )
+    args = parser.parse_args()
+
+    results_dir = Path(args.results_dir)
+    output_dir = Path(args.output_dir)
     output_dir.mkdir(exist_ok=True)
     
     print("Loading grid results...")

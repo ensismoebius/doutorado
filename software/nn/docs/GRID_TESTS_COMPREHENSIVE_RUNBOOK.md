@@ -13,7 +13,7 @@ cd <path_to_nn_project_root>
 export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1 NN_EXPERIMENT03_LOG_LEVEL=warn
 run_id="$(date +%Y%m%d_%H%M%S)" && mkdir -p logs/grid_runs
 parallel -j 12 --timeout 600 --joblog "logs/grid_runs/${run_id}_joblog.tsv" "./out/build/Clang_20.1.8_x86_64-pc-linux-gnu/src/experiments/03/experiment03 --profile {}" ::: src/experiments/03/profiles/snnAutoEncodersProfiles/*.json && touch "logs/grid_runs/${run_id}_DONE"
-python3 scripts/analyze_grid_results.py
+python3 src/experiments/03/scripts/analyze_grid_results.py
 ```
 
 Immediate validation:
@@ -146,13 +146,13 @@ Notes:
 Run analysis at any time (partial) or after completion (full):
 
 ```bash
-python3 scripts/analyze_grid_results.py
+python3 src/experiments/03/scripts/analyze_grid_results.py
 ```
 
 Optional wrapper:
 
 ```bash
-bash scripts/run_analysis.sh
+bash src/experiments/03/scripts/run_analysis.sh
 ```
 
 No external Python dependencies required (stdlib only).
@@ -267,7 +267,7 @@ Recommended finalization steps:
 test -f logs/grid_runs/<RUN_ID>_DONE && echo "Run done"
 
 # 2) Regenerate all tables
-python3 scripts/analyze_grid_results.py
+python3 src/experiments/03/scripts/analyze_grid_results.py
 
 # 3) Inspect key output
 head -21 analysis/master_comparison.csv | column -t -s,
@@ -323,7 +323,7 @@ Best practice checklist:
 - Run profiles with 600s timeout.
 - Monitor progress via results count and joblog.
 - Wait for DONE marker.
-- Run python3 scripts/analyze_grid_results.py.
+- Run python3 src/experiments/03/scripts/analyze_grid_results.py.
 - Inspect master_comparison.csv.
 - Archive analysis outputs.
 
