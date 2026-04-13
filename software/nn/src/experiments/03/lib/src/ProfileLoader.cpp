@@ -542,6 +542,7 @@ static auto is_known_profile_key(const std::string& key) -> bool
         "training_lr_plateau_factor",
         "training_lr_plateau_patience",
         "training_lr_plateau_min_delta",
+        "training_normalize_inputs",
         "validation_modality_diagnostics_enabled",
         "program_prefetch_lookahead",
         "program_prefetch_ram_cap_mb",
@@ -728,6 +729,7 @@ auto load_profile_to_config(
     parse_number(text, "training_lr_plateau_factor", out_config.training_lr_plateau_factor);
     parse_number(text, "training_lr_plateau_patience", out_config.training_lr_plateau_patience);
     parse_number(text, "training_lr_plateau_min_delta", out_config.training_lr_plateau_min_delta);
+    parse_bool(text, "training_normalize_inputs", out_config.training_normalize_inputs);
     parse_bool(text,
         "validation_modality_diagnostics_enabled",
         out_config.validation_modality_diagnostics_enabled);

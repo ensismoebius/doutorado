@@ -9,6 +9,7 @@
   "neural_network_eeg_features": 0,
   "neural_network_hidden_size": 64,
   "neural_network_input_features": 0,
+  "training_normalize_inputs": true,
   "neural_network_latent_size": 32,
   "neural_network_layer_sizes": [
     64,

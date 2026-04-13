@@ -5,6 +5,8 @@
 
 #include "experiment03_helpers.hpp"
 
+#include <algorithm>
+#include <memory>
 #include <stdexcept>
 
 #include "AudioWindowAutoencoder.hpp"
@@ -15,6 +17,8 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
+#include "nn/dataLoaders/BatchPrefetcher.hpp"
+#include "nn/logging/Logger.hpp"
 
 namespace experiment03
 {
@@ -87,6 +91,175 @@ auto build_autoencoder_model(const Config& config, nn::Index input_features)
     }
 
     throw std::runtime_error("Unsupported autoencoder type");
+}
+
+auto fit_input_transform(
+    const Config& config, size_t max_batches, const std::vector<int>* trial_ids)
+    -> std::shared_ptr<nn::transforms::ITransform>
+{
+    if (!config.training_normalize_inputs)
+    {
+        return nullptr;
+    }
+
+    const auto eeg_cols =
+        static_cast<nn::Index>(std::max(0, config.effective_autoencoder_eeg_features()));
+    const auto audio_cols =
+        static_cast<nn::Index>(std::max(0, config.effective_autoencoder_audio_features()));
+    const bool has_eeg = eeg_cols > 0;
+    const bool has_audio = audio_cols > 0;
+
+    if (!has_eeg && !has_audio)
+    {
+        return nullptr;
+    }
+
+    using nn::transforms::AudioMeanStdNormalize;
+    using nn::transforms::EEGWindowZScore;
+    using nn::transforms::FusedModalityTransform;
+
+    std::shared_ptr<AudioMeanStdNormalize> audio_norm;
+    if (has_audio)
+    {
+        audio_norm = std::make_shared<AudioMeanStdNormalize>();
+
+        std::unique_ptr<IBatchSource> fitting_src =
+            trial_ids ? std::make_unique<SqliteBatchSource>(config.dataset_root_path,
+                            config.training_batch_size,
+                            to_sqlite_dataset_type(config.dataset_type),
+                            config.window_eeg_config,
+                            config.window_audio_config,
+                            config.dataset_input_mode,
+                            *trial_ids)
+                      : std::make_unique<SqliteBatchSource>(config.dataset_root_path,
+                            config.training_batch_size,
+                            to_sqlite_dataset_type(config.dataset_type),
+                            config.window_eeg_config,
+                            config.window_audio_config,
+                            config.dataset_input_mode);
+
+        auto fitting_prefetcher = std::make_unique<BatchPrefetcher>(std::move(fitting_src),
+            max_batches,
+            config.prefetch_lookahead,
+            config.prefetch_ram_cap_mb * std::size_t{1024 * 1024});
+
+        while (fitting_prefetcher->hasNext())
+        {
+            auto maybe = fitting_prefetcher->next();
+            if (!maybe.has_value())
+            {
+                break;
+            }
+
+            const Batch& fitting_batch = maybe.value();
+            audio_norm->accumulate(has_eeg
+                                       ? fitting_batch.inputs.block(
+                                             0, eeg_cols, fitting_batch.inputs.rows(), audio_cols)
+                                       : fitting_batch.inputs);
+        }
+
+        try
+        {
+            audio_norm->finalize();
+        }
+        catch (const std::runtime_error& e)
+        {
+            NN_LOG_WARN(std::string{"AudioMeanStdNormalize: fitting scan empty; "
+                                    "audio normalization disabled. Reason: "} +
+                        e.what());
+            audio_norm.reset();
+        }
+    }
+
+    auto eeg_zscore = has_eeg ? std::make_shared<EEGWindowZScore>() : nullptr;
+    if (has_eeg && has_audio)
+    {
+        return std::make_shared<FusedModalityTransform>(
+            eeg_cols, audio_cols, eeg_zscore, audio_norm);
+    }
+
+    return has_eeg ? std::static_pointer_cast<nn::transforms::ITransform>(eeg_zscore)
+                   : std::static_pointer_cast<nn::transforms::ITransform>(audio_norm);
+}
+
+auto modality_val_losses_from_batch(const nn::Tensor& val_inputs,
+    const nn::Tensor& val_reconstruction,
+    size_t eeg_features,
+    size_t audio_features) -> std::pair<float, float>
+{
+    if (eeg_features == 0 || audio_features == 0)
+    {
+        return {0.0F, 0.0F};
+    }
+
+    const size_t total_features = eeg_features + audio_features;
+    if (static_cast<size_t>(val_inputs.cols()) < total_features ||
+        static_cast<size_t>(val_reconstruction.cols()) < total_features)
+    {
+        return {0.0F, 0.0F};
+    }
+
+    const auto eeg_target =
+        val_inputs.block(0, 0, val_inputs.rows(), static_cast<nn::Index>(eeg_features));
+    const auto eeg_pred = val_reconstruction.block(
+        0, 0, val_reconstruction.rows(), static_cast<nn::Index>(eeg_features));
+
+    const auto audio_target = val_inputs.block(0,
+        static_cast<nn::Index>(eeg_features),
+        val_inputs.rows(),
+        static_cast<nn::Index>(audio_features));
+    const auto audio_pred = val_reconstruction.block(0,
+        static_cast<nn::Index>(eeg_features),
+        val_reconstruction.rows(),
+        static_cast<nn::Index>(audio_features));
+
+    return {eeg_pred.mean_squared_error(eeg_target), audio_pred.mean_squared_error(audio_target)};
+}
+
+ReconstructionLoss::ReconstructionLoss(const std::string& loss_type)
+{
+    const std::string normalized = loss_type.empty() ? "mse" : loss_type;
+    if (normalized == "mse")
+    {
+        mse_ = std::make_unique<MSELoss>();
+        return;
+    }
+    if (normalized == "mae")
+    {
+        mae_ = std::make_unique<MAELoss>();
+        return;
+    }
+    throw std::invalid_argument("Unsupported training_loss_type: " + loss_type);
+}
+
+auto ReconstructionLoss::set_target(const nn::Tensor& target) -> void
+{
+    if (mse_)
+    {
+        mse_->set_target(target);
+    }
+    if (mae_)
+    {
+        mae_->set_target(target);
+    }
+}
+
+auto ReconstructionLoss::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+{
+    if (mse_)
+    {
+        return mse_->forward(input, requires_grad);
+    }
+    return mae_->forward(input, requires_grad);
+}
+
+auto ReconstructionLoss::backward(const nn::Tensor& grad_output) -> nn::Tensor
+{
+    if (mse_)
+    {
+        return mse_->backward(grad_output);
+    }
+    return mae_->backward(grad_output);
 }
 
 } // namespace experiment03

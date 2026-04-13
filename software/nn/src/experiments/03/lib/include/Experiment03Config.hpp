@@ -94,6 +94,8 @@ struct Config
     float training_lr_plateau_factor;      // Multiplicative LR decay factor
     size_t training_lr_plateau_patience;   // Epochs without improvement before decaying LR
     float training_lr_plateau_min_delta;   // Minimum validation improvement to reset patience
+    bool training_normalize_inputs = true; // Enable per-modality input normalization (audio:
+                                           // column-wise mean-std; EEG: per-window z-score)
 
     bool validation_modality_diagnostics_enabled; // Report EEG/Audio validation losses per epoch
 

@@ -13,6 +13,7 @@
   "training_epochs": 2,
   "training_learning_rate": 0.001,
   "sampler_shuffle_samples": true,
+  "training_normalize_inputs": true,
   "sampler_shuffle_seed": 42,
   "sampler_default_type": "random",
   "neural_network_hidden_size": 64,

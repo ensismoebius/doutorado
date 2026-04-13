@@ -48,6 +48,9 @@
 using experiment03::build_autoencoder_model;
 using experiment03::build_run_summary;
 using experiment03::DatasetBuilder;
+using experiment03::fit_input_transform;
+using experiment03::modality_val_losses_from_batch;
+using experiment03::ReconstructionLoss;
 using experiment03::Summary;
 using experiment03::to_sqlite_dataset_type;
 using experiment03::write_run_summary_json;
@@ -147,128 +150,20 @@ auto apply_reduce_lr_on_plateau(
     return *learning_rate;
 }
 
-auto modality_val_losses_from_batch(const Batch& val_batch,
-    const nn::Tensor& val_reconstruction,
-    size_t eeg_features,
-    size_t audio_features) -> std::pair<float, float>
-{
-    if (eeg_features == 0 || audio_features == 0)
-    {
-        return {0.0F, 0.0F};
-    }
-    const size_t total_features = eeg_features + audio_features;
-    if (static_cast<size_t>(val_batch.inputs.cols()) < total_features ||
-        static_cast<size_t>(val_reconstruction.cols()) < total_features)
-    {
-        return {0.0F, 0.0F};
-    }
-
-    const auto eeg_target =
-        val_batch.inputs.block(0, 0, val_batch.inputs.rows(), static_cast<Index>(eeg_features));
-    const auto eeg_pred =
-        val_reconstruction.block(0, 0, val_reconstruction.rows(), static_cast<Index>(eeg_features));
-
-    const auto audio_target = val_batch.inputs.block(0,
-        static_cast<Index>(eeg_features),
-        val_batch.inputs.rows(),
-        static_cast<Index>(audio_features));
-    const auto audio_pred = val_reconstruction.block(0,
-        static_cast<Index>(eeg_features),
-        val_reconstruction.rows(),
-        static_cast<Index>(audio_features));
-
-    return {eeg_pred.mean_squared_error(eeg_target), audio_pred.mean_squared_error(audio_target)};
-}
-
-class MAELoss final : public Module<nn::EigenTensorBackend>
-{
-   public:
-    using Tensor = Module<nn::EigenTensorBackend>::Tensor;
-
-    void set_target(const Tensor& target)
-    {
-        target_ = target;
-        target_set_ = true;
-    }
-
-    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
-    {
-        if (!target_set_)
-        {
-            throw std::runtime_error("MAELoss: target has not been set. Call set_target() first.");
-        }
-        if (requires_grad)
-        {
-            last_input_ = input;
-        }
-        Tensor diff = input - target_;
-        Tensor loss_tensor(1, 1);
-        loss_tensor.at(0, 0) = diff.abs().mean();
-        return loss_tensor;
-    }
-
-    auto backward(const Tensor& /*grad_output*/) -> Tensor override
-    {
-        Tensor grad(last_input_.rows(), last_input_.cols());
-        const float factor = 1.0F / static_cast<float>(std::max<Index>(1, last_input_.size()));
-        for (Index i = 0; i < last_input_.rows(); ++i)
-        {
-            for (Index j = 0; j < last_input_.cols(); ++j)
-            {
-                const float diff = last_input_.at(i, j) - target_.at(i, j);
-                grad.at(i, j) = diff > 0.0F ? factor : (diff < 0.0F ? -factor : 0.0F);
-            }
-        }
-        return grad;
-    }
-
-   private:
-    Tensor last_input_;
-    Tensor target_;
-    bool target_set_ = false;
-};
-
-class ReconstructionLoss
-{
-   public:
-    explicit ReconstructionLoss(const std::string& loss_type)
-    {
-        const std::string normalized = loss_type.empty() ? "mse" : loss_type;
-        if (normalized == "mse")
-        {
-            mse_ = std::make_unique<MSELoss>();
-            return;
-        }
-        if (normalized == "mae")
-        {
-            mae_ = std::make_unique<MAELoss>();
-            return;
-        }
-        throw std::invalid_argument("Unsupported training_loss_type: " + loss_type);
-    }
-
-    auto set_target(const nn::Tensor& target) -> void
-    {
-        if (mse_) mse_->set_target(target);
-        if (mae_) mae_->set_target(target);
-    }
-
-    auto forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
-    {
-        if (mse_) return mse_->forward(input, requires_grad);
-        return mae_->forward(input, requires_grad);
-    }
-
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor
-    {
-        if (mse_) return mse_->backward(grad_output);
-        return mae_->backward(grad_output);
-    }
-
-   private:
-    std::unique_ptr<MSELoss> mse_;
-    std::unique_ptr<MAELoss> mae_;
-};
+/**
+ * Perform a single scan over training batches to fit AudioMeanStdNormalize
+ * and assemble the modality-aware input transform pipeline.
+ *
+ * Normalization strategy:
+ *  - Audio: column-wise mean-std normalization (Simonyan & Zisserman, 2014).
+ *  - EEG:   per-window z-score (Lotte et al., 2018); stateless.
+ *  - Fused: FusedModalityTransform dispatching each modality independently.
+ *
+ * @param config       Experiment configuration; consults training_normalize_inputs.
+ * @param max_batches  Scan budget (number of batches to consume for fitting).
+ * @param trial_ids    Pointer to trial-ID filter; nullptr = use all trials.
+ * @return Fitted transform pipeline, or nullptr when disabled or not applicable.
+ */
 } // namespace
 
 // internal helpers moved to experiment03_helpers.hpp / .cpp
@@ -497,6 +392,10 @@ int Experiment03::run()
                 fold_optimizer->attach(model_->params());
                 ReduceLROnPlateauState fold_lr_state{};
 
+                // Fit per-modality input normalizer on this fold's training split.
+                auto input_transform = fit_input_transform(
+                    config_, fold_plans[fold_idx].train_epoch_max_batches, &train_trial_ids);
+
                 // Train for training_epochs on the training subset.
                 for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
                 {
@@ -534,6 +433,8 @@ int Experiment03::run()
                             break;
                         }
                         const Batch batch = std::move(maybe_batch.value());
+                        const nn::Tensor inputs =
+                            input_transform ? (*input_transform)(batch.inputs) : batch.inputs;
 
                         if (is_snn_type(config_.autoencoder_type))
                         {
@@ -543,8 +444,8 @@ int Experiment03::run()
                         auto params = model_->params();
                         fold_optimizer->zero_grad(params);
 
-                        auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-                        loss.set_target(batch.inputs);
+                        auto reconstruction = model_->forward(inputs, /*requires_grad=*/true);
+                        loss.set_target(inputs);
                         auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
                         auto d_loss = loss.backward(loss_value);
                         model_->backward(d_loss);
@@ -627,13 +528,16 @@ int Experiment03::run()
                             break;
                         }
                         const Batch val_batch = std::move(maybe_val_batch.value());
+                        const nn::Tensor val_inputs = input_transform
+                                                          ? (*input_transform)(val_batch.inputs)
+                                                          : val_batch.inputs;
                         if (is_snn_type(config_.autoencoder_type))
                         {
                             model_->reset_state();
                         }
                         auto val_reconstruction =
-                            model_->forward(val_batch.inputs, /*requires_grad=*/false);
-                        loss.set_target(val_batch.inputs);
+                            model_->forward(val_inputs, /*requires_grad=*/false);
+                        loss.set_target(val_inputs);
                         auto val_loss_value =
                             loss.forward(val_reconstruction, /*requires_grad=*/false);
                         val_loss_sum += val_loss_value.at(0, 0);
@@ -641,7 +545,7 @@ int Experiment03::run()
                         {
                             const auto [batch_eeg_loss, batch_audio_loss] =
                                 modality_val_losses_from_batch(
-                                    val_batch, val_reconstruction, eeg_features, audio_features);
+                                    val_inputs, val_reconstruction, eeg_features, audio_features);
                             val_eeg_loss_sum += batch_eeg_loss;
                             val_audio_loss_sum += batch_audio_loss;
                         }
@@ -724,6 +628,9 @@ int Experiment03::run()
             const size_t total_training_samples =
                 total_training_batches * config_.training_batch_size;
 
+            // Fit per-modality input normalizer on the full training corpus.
+            auto input_transform = fit_input_transform(config_, epoch_max_batches, nullptr);
+
             for (size_t epoch = 0; epoch < config_.training_epochs; ++epoch)
             {
                 unique_ptr<IBatchSource> src = make_unique<SqliteBatchSource>( //
@@ -755,6 +662,8 @@ int Experiment03::run()
                     }
 
                     const Batch batch = std::move(maybe_batch.value());
+                    const nn::Tensor inputs =
+                        input_transform ? (*input_transform)(batch.inputs) : batch.inputs;
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();
@@ -763,8 +672,8 @@ int Experiment03::run()
                     auto params = model_->params();
                     optimizer->zero_grad(params);
 
-                    auto reconstruction = model_->forward(batch.inputs, /*requires_grad=*/true);
-                    loss.set_target(batch.inputs);
+                    auto reconstruction = model_->forward(inputs, /*requires_grad=*/true);
+                    loss.set_target(inputs);
                     auto loss_value = loss.forward(reconstruction, /*requires_grad=*/true);
                     auto d_loss = loss.backward(loss_value);
                     model_->backward(d_loss);
@@ -838,20 +747,21 @@ int Experiment03::run()
                         break;
                     }
                     const Batch val_batch = std::move(maybe_val_batch.value());
+                    const nn::Tensor val_inputs =
+                        input_transform ? (*input_transform)(val_batch.inputs) : val_batch.inputs;
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();
                     }
-                    auto val_reconstruction =
-                        model_->forward(val_batch.inputs, /*requires_grad=*/false);
-                    loss.set_target(val_batch.inputs);
+                    auto val_reconstruction = model_->forward(val_inputs, /*requires_grad=*/false);
+                    loss.set_target(val_inputs);
                     auto val_loss_value = loss.forward(val_reconstruction, /*requires_grad=*/false);
                     val_loss_sum += val_loss_value.at(0, 0);
                     if (config_.validation_modality_diagnostics_enabled)
                     {
                         const auto [batch_eeg_loss, batch_audio_loss] =
                             modality_val_losses_from_batch(
-                                val_batch, val_reconstruction, eeg_features, audio_features);
+                                val_inputs, val_reconstruction, eeg_features, audio_features);
                         val_eeg_loss_sum += batch_eeg_loss;
                         val_audio_loss_sum += batch_audio_loss;
                     }

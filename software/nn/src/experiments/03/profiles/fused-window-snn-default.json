@@ -34,6 +34,7 @@
   "training_lr_plateau_factor": 0.5,
   "training_lr_plateau_patience": 3,
   "training_lr_plateau_min_delta": 0.000001,
+  "training_normalize_inputs": true,
   "validation_modality_diagnostics_enabled": true,
   "neural_network_layer": [
     "encoder:linear:64:leaky",

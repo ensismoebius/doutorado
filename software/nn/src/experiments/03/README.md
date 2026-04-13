@@ -257,3 +257,35 @@ When tuning autoencoders on multimodal EEG+Audio data:
 5. **Multimodal strategy:** Prefer dual-branch (per-modality encoder + late fusion) over naive concatenation; enables independent scaling.
 6. **Optimization:** Adam (lr=1e-4), ReduceLROnPlateau (factor=0.5, patience=3–5), early stopping (patience 8–10 on validation loss).
 7. **Tracking:** Report train/validation per epoch; decompose losses by modality to diagnose imbalance.
+
+### Input Normalization
+
+`experiment03` applies a modality-aware input normalization pipeline before every forward pass, modelled after `torchvision.transforms.Compose`.
+
+| Modality | Method | Statistics | Profile key |
+|----------|--------------------------------------|------------|------------------------------|
+| Audio | Column-wise mean-std normalization | Fitted on training split (one scan before epoch 1) | `training_normalize_inputs` |
+| EEG | Per-window z-score | Computed per row at inference time (stateless) | `training_normalize_inputs` |
+| Fused | `FusedModalityTransform` (both above) | As above | `training_normalize_inputs` |
+
+Set `"training_normalize_inputs": false` in a profile to disable normalization.
+
+Implementation lives in `include/nn/utility/Transforms.hpp` (`nn::transforms` namespace):
+- `AudioMeanStdNormalize` — two-stage: accumulate → finalize → apply.
+- `EEGWindowZScore` — stateless per-row z-score.
+- `FusedModalityTransform` — dispatches to per-modality transforms by column range.
+- `Compose` — chains any sequence of `ITransform` instances.
+
+#### References
+
+- **[Simonyan & Zisserman, 2014]** Karen Simonyan and Andrew Zisserman.
+  "Very Deep Convolutional Networks for Large-Scale Image Recognition."
+  *arXiv*:1409.1556, 2014.
+  https://arxiv.org/abs/1409.1556
+  - Key insight: Per-channel mean subtraction and variance normalization of input features stabilizes training and accelerates convergence.
+
+- **[Lotte et al., 2018]** Fabien Lotte, Laurent Bougrain, Andrzej Cichocki, Maureen Clerc, Marco Congedo, Alain Rakotomamonjy, and Florian Yger.
+  "A review of classification algorithms for EEG-based brain-computer interfaces: a 10 year update."
+  *Journal of Neural Engineering*, 15(3), 031005, 2018.
+  https://doi.org/10.1088/1741-2552/aab2f2
+  - Key insight: Window-based z-score normalization removes DC offset and equalizes per-trial amplitude variance, reducing inter-session and inter-subject amplitude drift.

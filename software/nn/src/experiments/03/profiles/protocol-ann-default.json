@@ -26,6 +26,7 @@
   "program_prefetch_lookahead": 5,
   "training_epochs": 1,
   "training_learning_rate": 0.001,
+  "training_normalize_inputs": true,
   "dataset_subject_filter_regex": "^S(\\d+)$",
   "dataset_root_path": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada",
   "training_optimizer_type": "adam",

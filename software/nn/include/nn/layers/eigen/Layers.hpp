@@ -28,6 +28,7 @@
 #include "nn/layers/LeakyIntegrator.hpp"
 #include "nn/layers/LeakyReLU.hpp"
 #include "nn/layers/Linear.hpp"
+#include "nn/layers/MAELoss.hpp"
 #include "nn/layers/MSELoss.hpp"
 #include "nn/layers/MaxPool2d.hpp"
 #include "nn/layers/ReLU.hpp"
@@ -65,6 +66,9 @@ using MaxPool2d = MaxPool2dImpl<nn::EigenTensorBackend>;
 
 /// Mean-squared-error loss on the Eigen backend.
 using MSELoss = MSELossImpl<nn::EigenTensorBackend>;
+
+/// Mean-absolute-error loss on the Eigen backend.
+using MAELoss = MAELossImpl<nn::EigenTensorBackend>;
 
 /// Cross-entropy loss on the Eigen backend.
 using CrossEntropyLoss = CrossEntropyLossImpl<nn::EigenTensorBackend>;

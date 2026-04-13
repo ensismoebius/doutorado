@@ -5,8 +5,9 @@
 ## - `util_gtest`: tests for batching, synthetic spike generators, and misc helpers.
 ##
 # Add util_gtest
-add_executable(util_gtest 
-    util_gtest.cpp 
+add_executable(util_gtest
+    util_gtest.cpp
+    transforms_gtest.cpp
 )
 target_link_libraries(util_gtest 
     PRIVATE 
