@@ -3,6 +3,21 @@
 Purpose
 - Neural network layer implementations (convolutions, activations, and helpers) and small layer utilities.
 
+Layout
+- Public headers are now organized by category under `include/nn/layers/`:
+	- `base/`: module/container primitives (`Module`, `Sequential`)
+	- `dense/`: dense layers (`Linear`)
+	- `activations/`: activation layers (`ReLU`, `LeakyReLU`)
+	- `convolution/`: convolution/pooling layers (`Conv2d`, `Conv2d_utils`, `MaxPool2d`)
+	- `losses/`: objective layers (`MSELoss`, `MAELoss`, `CrossEntropyLoss`, `SpikeCountLoss`)
+	- `regularization/`: regularization helpers (`Regularization`)
+	- `residual/`: residual architecture blocks (`ResidualBlock`, `ResNetBlock`, `SimpleResNet`)
+	- `spiking/`: spiking neuron and surrogate-gradient layers (`Leaky`, `LeakyIntegrator`, `LeakyBPTT`, `SurrogateGradient`)
+- Layer implementation TUs are organized by category under `src/core/layers/`:
+	- `convolution/Conv2d_impl.cpp`
+	- `convolution/Conv2d_utils.cpp`
+	- `misc/dummy.cpp`
+
 Usage
 - Include layer headers from `include/nn/layers` and construct layer objects as part of your `Module`/`Sequential` models.
 

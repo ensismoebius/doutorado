@@ -32,7 +32,7 @@ GPUBufferPool::~GPUBufferPool()
     clReleaseContext(context_);
 }
 
-size_t GPUBufferPool::get_pool_size(size_t requested) const
+size_t GPUBufferPool::get_pool_size(size_t requested)
 {
     // Round up to nearest power of 2, min 64 bytes
     if (requested <= 64) return 64;

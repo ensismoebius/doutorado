@@ -9,6 +9,9 @@ Goal
 - Keep experiments inside hard RAM budgets.
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: HARD_BUDGET
   DO: Treat memory budget as a hard constraint.
   AVOID: Optimizing first and budgeting later.

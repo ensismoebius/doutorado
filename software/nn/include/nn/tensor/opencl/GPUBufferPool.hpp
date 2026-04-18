@@ -159,7 +159,7 @@ class GPUBufferPool
     // Buffers organized by size ranges: 64B, 256B, 1KB, 4KB, etc.
     std::unordered_map<size_t, std::deque<GPUBuffer>> pools_;
 
-    size_t get_pool_size(size_t requested) const;
+    static size_t get_pool_size(size_t requested);
 };
 
 } // namespace nn::tensor

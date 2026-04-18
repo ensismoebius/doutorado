@@ -125,6 +125,23 @@ inline std::string create_mock_imagined_db(
         throw std::runtime_error("sqlite3_open_v2 failed: " + std::to_string(rc));
     }
 
+    const auto ensure_ok = [&](const int code, const char* what)
+    {
+        if (code != SQLITE_OK)
+        {
+            sqlite3_close(db);
+            throw std::runtime_error(std::string(what) + ": " + std::to_string(code));
+        }
+    };
+    const auto ensure_done = [&](const int code, const char* what)
+    {
+        if (code != SQLITE_DONE)
+        {
+            sqlite3_close(db);
+            throw std::runtime_error(std::string(what) + ": " + std::to_string(code));
+        }
+    };
+
     const char* schema = R"SQL(
 CREATE TABLE subject(id INTEGER PRIMARY KEY, name TEXT);
 CREATE TABLE trial(id INTEGER PRIMARY KEY, subject_id INTEGER, original_row INTEGER, modality_id INTEGER, stimulus_id INTEGER);
@@ -149,8 +166,8 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
         sqlite3_close(db);
         throw std::runtime_error("prepare failed");
     }
-    rc = sqlite3_bind_text(ins, 1, "subj_1", -1, SQLITE_STATIC);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_text(ins, 1, "subj_1", -1, SQLITE_STATIC), "bind subj_1");
+    ensure_done(sqlite3_step(ins), "step subj_1");
     sqlite3_finalize(ins);
 
     rc = sqlite3_prepare_v2(db, "INSERT INTO subject(name) VALUES(?)", -1, &ins, nullptr);
@@ -159,8 +176,8 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
         sqlite3_close(db);
         throw std::runtime_error("prepare failed");
     }
-    rc = sqlite3_bind_text(ins, 1, "subj_2", -1, SQLITE_STATIC);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_text(ins, 1, "subj_2", -1, SQLITE_STATIC), "bind subj_2");
+    ensure_done(sqlite3_step(ins), "step subj_2");
     sqlite3_finalize(ins);
 
     // get first subject id
@@ -191,21 +208,21 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
     }
 
     // Trial A: audio-only (original_row NULL)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    rc = sqlite3_bind_null(ins, 2);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 1, out_subject_id), "bind trial A subject_id");
+    ensure_ok(sqlite3_bind_null(ins, 2), "bind trial A original_row");
+    ensure_done(sqlite3_step(ins), "step trial A");
     sqlite3_reset(ins);
 
     // Trial B: eeg-only (original_row = 0)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    rc = sqlite3_bind_int(ins, 2, 0);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 1, out_subject_id), "bind trial B subject_id");
+    ensure_ok(sqlite3_bind_int(ins, 2, 0), "bind trial B original_row");
+    ensure_done(sqlite3_step(ins), "step trial B");
     sqlite3_reset(ins);
 
     // Trial C: both (original_row = 1)
-    rc = sqlite3_bind_int(ins, 1, out_subject_id);
-    rc = sqlite3_bind_int(ins, 2, 1);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 1, out_subject_id), "bind trial C subject_id");
+    ensure_ok(sqlite3_bind_int(ins, 2, 1), "bind trial C original_row");
+    ensure_done(sqlite3_step(ins), "step trial C");
     sqlite3_finalize(ins);
 
     // fetch trial ids
@@ -216,7 +233,7 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
         sqlite3_close(db);
         throw std::runtime_error("prepare failed");
     }
-    rc = sqlite3_bind_int(q, 1, out_subject_id);
+    ensure_ok(sqlite3_bind_int(q, 1, out_subject_id), "bind trial query subject_id");
     std::vector<int> trial_ids;
     while ((rc = sqlite3_step(q)) == SQLITE_ROW)
     {
@@ -240,19 +257,27 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
     for (std::size_t i = 0; i < audio_n; ++i) audio_buf[i] = static_cast<double>(i) * 0.001;
 
     // Trial A -> audio_row 10
-    rc = sqlite3_bind_int(ins, 1, trial_ids[0]);
-    rc = sqlite3_bind_int(ins, 2, 10);
-    rc = sqlite3_bind_blob(
-        ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[0]), "bind audio A trial_id");
+    ensure_ok(sqlite3_bind_int(ins, 2, 10), "bind audio A row");
+    ensure_ok(sqlite3_bind_blob(ins,
+                  3,
+                  audio_buf.data(),
+                  static_cast<int>(audio_n * sizeof(double)),
+                  SQLITE_TRANSIENT),
+        "bind audio A samples");
+    ensure_done(sqlite3_step(ins), "step audio A");
     sqlite3_reset(ins);
 
     // Trial C -> audio_row 11
-    rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
-    rc = sqlite3_bind_int(ins, 2, 11);
-    rc = sqlite3_bind_blob(
-        ins, 3, audio_buf.data(), static_cast<int>(audio_n * sizeof(double)), SQLITE_TRANSIENT);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[2]), "bind audio C trial_id");
+    ensure_ok(sqlite3_bind_int(ins, 2, 11), "bind audio C row");
+    ensure_ok(sqlite3_bind_blob(ins,
+                  3,
+                  audio_buf.data(),
+                  static_cast<int>(audio_n * sizeof(double)),
+                  SQLITE_TRANSIENT),
+        "bind audio C samples");
+    ensure_done(sqlite3_step(ins), "step audio C");
     sqlite3_finalize(ins);
 
     // insert eeg_samples for trial B and C (one row each)
@@ -272,37 +297,37 @@ CREATE TABLE eeg_samples(id INTEGER PRIMARY KEY, trial_id INTEGER, F3 BLOB, F4 B
     for (std::size_t i = 0; i < eeg_n; ++i) chbuf[i] = static_cast<double>(i) * 0.0001;
 
     // Trial B (eeg-only)
-    rc = sqlite3_bind_int(ins, 1, trial_ids[1]);
+    ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[1]), "bind eeg B trial_id");
     for (int c = 0; c < 6; ++c)
     {
-        rc = sqlite3_bind_blob(
+        const int bind_rc = sqlite3_bind_blob(
             ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-        if (rc != SQLITE_OK)
+        if (bind_rc != SQLITE_OK)
         {
             sqlite3_finalize(ins);
             sqlite3_close(db);
             throw std::runtime_error("bind_blob failed");
         }
     }
-    rc = sqlite3_bind_int(ins, 8, 0);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 8, 0), "bind eeg B blink");
+    ensure_done(sqlite3_step(ins), "step eeg B");
     sqlite3_reset(ins);
 
     // Trial C (both)
-    rc = sqlite3_bind_int(ins, 1, trial_ids[2]);
+    ensure_ok(sqlite3_bind_int(ins, 1, trial_ids[2]), "bind eeg C trial_id");
     for (int c = 0; c < 6; ++c)
     {
-        rc = sqlite3_bind_blob(
+        const int bind_rc = sqlite3_bind_blob(
             ins, 2 + c, chbuf.data(), static_cast<int>(eeg_n * sizeof(double)), SQLITE_TRANSIENT);
-        if (rc != SQLITE_OK)
+        if (bind_rc != SQLITE_OK)
         {
             sqlite3_finalize(ins);
             sqlite3_close(db);
             throw std::runtime_error("bind_blob failed");
         }
     }
-    rc = sqlite3_bind_int(ins, 8, 1);
-    rc = sqlite3_step(ins);
+    ensure_ok(sqlite3_bind_int(ins, 8, 1), "bind eeg C blink");
+    ensure_done(sqlite3_step(ins), "step eeg C");
     sqlite3_finalize(ins);
 
     sqlite3_close(db);

@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/mat_file_utils.hpp"
+#include "nn/dataLoaders/io/mat_file_utils.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/wave/audioFeatureExtraction.h"
 

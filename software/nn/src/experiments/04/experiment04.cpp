@@ -26,28 +26,21 @@
  */
 
 #include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <memory>
-#include <numeric>
-#include <optional>
 #include <random>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
 // Experiment04 components
-#include "Experiment04Config.hpp"
-#include "LSTMAutoencoder.hpp"
-#include "Trainer.hpp"
+#include "lib/include/Experiment04Config.hpp"
+#include "lib/include/LSTMAutoencoder.hpp"
+#include "lib/include/Trainer.hpp"
 
 // Core framework
-#include "nn/layers/eigen/Layers.hpp"
-#include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 // JSON for results
@@ -91,7 +84,7 @@ void print_usage(const char* prog)
               << "  --help                   Print this message\n";
 }
 
-CliOptions parse_cli(int argc, char* argv[])
+CliOptions parse_cli(const int argc, char* const* const argv)
 {
     CliOptions opts;
     for (int i = 1; i < argc; ++i)

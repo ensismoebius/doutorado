@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/dataLoaders/Dataset.hpp"
+#include "nn/dataLoaders/datasets/Dataset.hpp"
 
 // Minimal test dataset that returns single-row input/target tensors per index
 class TestDataset : public Dataset

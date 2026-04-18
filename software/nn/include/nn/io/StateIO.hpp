@@ -46,9 +46,9 @@ inline bool save_state_dict(const std::map<std::string, nn::Tensor>& sd, const s
         uint64_t cols = static_cast<uint64_t>(t.cols());
         f.write(reinterpret_cast<const char*>(&rows), sizeof(rows));
         f.write(reinterpret_cast<const char*>(&cols), sizeof(cols));
-        const float* data = t.data_ptr();
         if (rows * cols > 0)
         {
+            const float* data = t.data_ptr();
             f.write(reinterpret_cast<const char*>(data),
                 static_cast<std::streamsize>(rows * cols * sizeof(float)));
         }

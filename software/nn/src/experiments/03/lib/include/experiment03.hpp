@@ -10,10 +10,10 @@
 #pragma once
 
 #include "Experiment03Config.hpp"
-#include "nn/dataLoaders/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/DataLoader.hpp"
-#include "nn/dataLoaders/Dataset.hpp"
-#include "nn/layers/Module.hpp"
+#include "nn/dataLoaders/datasets/Dataset.hpp"
+#include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
+#include "nn/dataLoaders/runtime/DataLoader.hpp"
+#include "nn/layers/base/Module.hpp"
 
 class Experiment03
 {

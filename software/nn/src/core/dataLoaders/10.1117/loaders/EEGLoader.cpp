@@ -51,6 +51,8 @@ using MatVarUniquePtr = std::unique_ptr<matvar_t, void (*)(matvar_t*)>;
 
 namespace
 {
+constexpr size_t kRowCacheCapacity = 16;
+
 struct MatFileCloser
 {
     void operator()(mat_t* f) const
@@ -156,10 +158,8 @@ struct EEGMatSession::Impl
     std::string filePath;
     SessionMatFilePtr matFile{nullptr};
     SessionMatVarPtr eegVar{nullptr};
-    static constexpr size_t kRowCacheCapacity = 32;
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, std::array<int, 3>>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
-    bool is_shard = false;
     // sqlite support
     bool is_sqlite = false;
     sqlite3* db = nullptr;
@@ -320,7 +320,7 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
         std::tuple<nn::Tensor, std::array<int, 3>> result{
             std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
 
-        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        if (impl_->rowCache.size() >= kRowCacheCapacity)
         {
             const size_t evict = impl_->rowCacheOrder.front();
             impl_->rowCacheOrder.pop_front();
@@ -361,7 +361,7 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     std::tuple<nn::Tensor, std::array<int, 3>> result{
         std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
 
-    if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+    if (impl_->rowCache.size() >= kRowCacheCapacity)
     {
         const size_t evict = impl_->rowCacheOrder.front();
         impl_->rowCacheOrder.pop_front();
@@ -426,7 +426,7 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
             std::move(eegChannels), std::array<int, 3>{modality, stimulus, artifact}};
 
         const size_t rowIndex = startRow + r;
-        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        if (impl_->rowCache.size() >= kRowCacheCapacity)
         {
             const size_t evict = impl_->rowCacheOrder.front();
             impl_->rowCacheOrder.pop_front();

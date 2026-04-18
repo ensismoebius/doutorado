@@ -14,7 +14,7 @@
 #include "Experiment03AutoencoderType.hpp"
 #include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/DataLoader.hpp"
+#include "nn/dataLoaders/runtime/DataLoader.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 
 using std::optional;

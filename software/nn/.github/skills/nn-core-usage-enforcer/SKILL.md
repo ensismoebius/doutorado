@@ -9,6 +9,9 @@ Goal
 - Keep new work aligned with existing `nn` core contracts.
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: CORE_REUSE
   DO: Use existing `Tensor`, `Layer`, `Sequential`, and core modules.
   AVOID: Reimplementing core abstractions.

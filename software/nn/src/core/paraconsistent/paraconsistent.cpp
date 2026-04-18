@@ -120,7 +120,6 @@ auto calculate_alpha(unsigned int amountOfClasses,
 
     double alpha = std::numeric_limits<double>::max();
     double temp = 0;
-    double item;
 
     // initializes the vectors
     for (const auto& clazz : arrClasses)
@@ -138,7 +137,7 @@ auto calculate_alpha(unsigned int amountOfClasses,
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
                 featureVectorIndex++)
             {
-                item = clazz.second[featureVectorIndex][itemIndex];
+                const double item = clazz.second[featureVectorIndex][itemIndex];
 
                 arrLargestItems[clazz.first][itemIndex] =
                     std::max(item, arrLargestItems[clazz.first][itemIndex]);
@@ -169,7 +168,6 @@ auto calculate_beta(unsigned int amountOfClasses,
     unsigned int featureVectorSize,
     std::map<std::string, std::vector<std::vector<double>>>& arrClasses) -> double
 {
-    double item;
     std::map<std::string, std::vector<double>> arrLargestItems;
     std::map<std::string, std::vector<double>> arrSmallestItems;
 
@@ -189,7 +187,7 @@ auto calculate_beta(unsigned int amountOfClasses,
             for (unsigned int featureVectorIndex = 0; featureVectorIndex < featureVectorsPerClass;
                 featureVectorIndex++)
             {
-                item = clazz.second[featureVectorIndex][itemIndex];
+                const double item = clazz.second[featureVectorIndex][itemIndex];
 
                 arrLargestItems[clazz.first][itemIndex] =
                     std::max(item, arrLargestItems[clazz.first][itemIndex]);

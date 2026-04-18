@@ -127,9 +127,9 @@ TEST(paraconsistentTest, NormalizeMapOverload)
     // Each row of each class should sum to 1.0
     for (auto& [name, vecs] : classes)
     {
-        for (auto& row : vecs)
+        for (const auto& row : vecs)
         {
-            double s = row[0] + row[1];
+            const double s = row[0] + row[1];
             EXPECT_NEAR(s, 1.0, 1e-9);
         }
     }

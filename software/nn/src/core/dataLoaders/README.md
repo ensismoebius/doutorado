@@ -3,6 +3,24 @@
 Purpose
 - Implement dataset backends and batch sources used by experiments: MAT file loaders, SQLite-backed sources, windowing logic, and prefetching.
 
+Layout
+- Public headers under `include/nn/dataLoaders/` are organized by category:
+	- `runtime/`: orchestration and iteration (`DataLoader`, `DataLoaderIterator`, `BatchPrefetcher`)
+	- `interfaces/`: abstract contracts (`IBatchSource`, `IDatasetPrinter`, `IMatLoader`)
+	- `datasets/`: generic dataset models (`Dataset`, `TensorDataset`, `MatFileDataset`)
+	- `io/`: MAT-file I/O utilities and flags (`mat_file`, `mat_file_utils`, `MatFileFlags`)
+	- `options/`: sampler and shard option helpers (`SamplerOptionResolution`, `ShardIndex`)
+	- `sources/`: concrete batch sources (`SqliteBatchSource`)
+	- Existing specialized modules remain in place: `samplers/` and `10.1117/`.
+- Core source files under `src/core/dataLoaders/` are now organized by category:
+	- `runtime/DataLoader.cpp`
+	- `runtime/DataLoaderIterator.cpp`
+	- `runtime/BatchPrefetcher.cpp`
+	- `io/mat_file.cpp`
+	- `io/mat_file_utils.cpp`
+	- `options/SamplerOptionResolution.cpp`
+	- `sources/SqliteBatchSource.cpp`
+
 Key Components
 - `DataLoader` / `BatchPrefetcher` — iteration and background prefetching primitives.
 - `SqliteBatchSource` — DB-backed sample provider (used for reproducible/ASan-clean tests).

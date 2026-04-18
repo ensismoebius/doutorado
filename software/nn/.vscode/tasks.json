@@ -1,134 +1,84 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "cppcheck (aggressive)",
-			"type": "shell",
-			"command": "cppcheck",
-			"args": [
-				"--enable=all",
-				"--check-level=exhaustive",
-				"--std=c++20",
-				"--platform=native",
-				"--suppress=missingIncludeSystem",
-				"--suppress=unusedFunction",
-				"--xml",
-				"--output-file=cppcheck.xml",
-				"src/"
-			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": false
-			},
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"runOptions": {
-				"runInBackground": false
-			},
-			"terminal": {
-				"kind": "external"
-			}
-		},
-		{
-			"label": "cppcheck (src-only)",
-			"type": "shell",
-			"command": "cppcheck",
-			"args": [
-				"--enable=all",
-				"--check-level=exhaustive",
-				"--std=c++20",
-				"--platform=native",
-				"--suppress=missingIncludeSystem",
-				"--suppress=unusedFunction",
-				"--xml",
-				"--output-file=cppcheck_src.xml",
-				"--exclude=build/_deps",
-				"src/"
-			],
-			"options": {
-				"cwd": "${workspaceFolder}"
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared",
-				"showReuseMessage": false,
-				"clear": false
-			},
-			"problemMatcher": [],
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			},
-			"runOptions": {
-				"runInBackground": false
-			},
-			"terminal": {
-				"kind": "external"
-			}
-		}
-	]
-}
-{
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"label": "cppcheck (aggressive)",
-			"type": "process",
-			"command": "cppcheck",
-			"args": [
-				"--enable=all",
-				"--check-level=exhaustive",
-				"--std=c++20",
-				"--platform=native",
-				"--suppress=missingIncludeSystem",
-				"--suppress=unusedFunction",
-				"--quiet",
-				"--xml",
-				"--output-file=cppcheck.xml",
-				"src/"
-			]
-		},
-		{
-			"label": "flawfinder (security)",
-			"type": "process",
-			"command": "flawfinder",
-			"args": [
-				"--minlevel=1",
-				"--columns",
-				"--singleline",
-				"src/"
-			],
-			"problemMatcher": {
-				"owner": "flawfinder",
-				"pattern": {
-					"regexp": "^(.*):(\\d+):(\\d+):\\s+\\[(\\d+)\\]\\s+(.*)$",
-					"file": 1,
-					"line": 2,
-					"column": 3,
-					"message": 5
-				}
-			}
-		},
-		{
-			"label": "analise_codebase",
-			"dependsOn": [
-				"cppcheck (aggressive)",
-				"flawfinder (security)",
-				"CMake: build"
-			],
-			"dependsOrder": "sequence",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
-	]
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cppcheck (aggressive)",
+      "type": "shell",
+      "command": "cppcheck",
+      "args": [
+        "--enable=all",
+        "--check-level=exhaustive",
+        "--std=c++20",
+        "--platform=native",
+        "--suppress=missingIncludeSystem",
+        "--suppress=missingInclude",
+        "--suppress=unusedFunction",
+        "--xml",
+        "--output-file=cppcheck.xml",
+        "-Iinclude",
+        "-Isrc",
+        "src/"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "runOptions": {
+        "runInBackground": false
+      },
+      "terminal": {
+        "kind": "external"
+      }
+    },
+    {
+      "label": "cppcheck (src-only)",
+      "type": "shell",
+      "command": "cppcheck",
+      "args": [
+        "--enable=all",
+        "--check-level=exhaustive",
+        "--std=c++20",
+        "--platform=native",
+        "--suppress=missingIncludeSystem",
+        "--suppress=missingInclude",
+        "--suppress=unusedFunction",
+        "--xml",
+        "--output-file=cppcheck_src.xml",
+        "-Iinclude",
+        "-Isrc",
+        "-ibuild/_deps",
+        "src/"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "runOptions": {
+        "runInBackground": false
+      },
+      "terminal": {
+        "kind": "external"
+      }
+    }
+  ]
 }

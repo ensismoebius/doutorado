@@ -6,11 +6,11 @@ add_executable(exec_lfcc_pipeline
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGDMinimal.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/Adam.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGD.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/Sequential.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/Linear.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/ReLU.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/LeakyReLU.hpp
-    ${SRC_DIR}/core/dataLoaders/mat_file.cpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/base/Sequential.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/dense/Linear.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/ReLU.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/LeakyReLU.hpp
+    ${SRC_DIR}/core/dataLoaders/io/mat_file.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline.cpp
 )

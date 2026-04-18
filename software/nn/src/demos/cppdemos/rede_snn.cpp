@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Module.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"

@@ -7,11 +7,11 @@ add_executable(plotSpikingNetwork
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGDMinimal.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/Adam.hpp
     ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGD.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/Sequential.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/Linear.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/Leaky.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/ReLU.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/LeakyReLU.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/base/Sequential.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/dense/Linear.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/spiking/Leaky.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/ReLU.hpp
+    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/LeakyReLU.hpp
     ${SRC_DIR}/core/utility/imgui_glfw.cpp
     ${SRC_DIR}/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp
 )

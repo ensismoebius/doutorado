@@ -13,11 +13,11 @@
 #include <string>
 #include <vector>
 
-#include "nn/layers/Leaky.hpp"
-#include "nn/layers/LeakyReLU.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/ReLU.hpp"
-#include "nn/layers/Sequential.hpp"
+#include "nn/layers/activations/LeakyReLU.hpp"
+#include "nn/layers/activations/ReLU.hpp"
+#include "nn/layers/base/Sequential.hpp"
+#include "nn/layers/dense/Linear.hpp"
+#include "nn/layers/spiking/Leaky.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 

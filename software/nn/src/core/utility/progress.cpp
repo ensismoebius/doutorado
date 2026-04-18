@@ -83,7 +83,7 @@ void printProgress(std::size_t dataset_total_samples,
     const std::size_t history_lines = 6;
     static std::deque<std::string> local_history;
 
-    for (auto& ln : new_lines)
+    for (const auto& ln : new_lines)
     {
         local_history.push_back(ln);
         if (local_history.size() > history_lines) local_history.pop_front();
@@ -91,7 +91,7 @@ void printProgress(std::size_t dataset_total_samples,
 
     // Build an ordered vector of exactly history_lines elements (pad top with empty lines).
     std::vector<std::string> history;
-    size_t pad =
+    const size_t pad =
         (history_lines > local_history.size()) ? (history_lines - local_history.size()) : 0;
     history.reserve(history_lines);
     history.resize(pad);

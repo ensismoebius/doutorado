@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/IMatLoader.hpp"
+#include "nn/dataLoaders/interfaces/IMatLoader.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::dataLoaders

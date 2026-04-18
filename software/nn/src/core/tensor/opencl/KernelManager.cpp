@@ -513,7 +513,7 @@ KernelManager::~KernelManager()
     release_all();
 }
 
-std::string KernelManager::get_kernel_source(const std::string& program_name) const
+std::string KernelManager::get_kernel_source(const std::string& program_name)
 {
     if (program_name == "linear_algebra")
     {

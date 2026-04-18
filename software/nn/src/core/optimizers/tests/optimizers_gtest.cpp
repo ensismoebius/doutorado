@@ -53,7 +53,7 @@ class OptimizerTest : public ::testing::Test
     }
 
     // Helper to check if a tensor's data has changed from initial
-    bool has_data_changed(const nn::Tensor& tensor, const nn::Tensor& initial_data) const
+    static bool has_data_changed(const nn::Tensor& tensor, const nn::Tensor& initial_data)
     {
         return !test_helpers::tensor_is_approx(tensor, initial_data);
     }

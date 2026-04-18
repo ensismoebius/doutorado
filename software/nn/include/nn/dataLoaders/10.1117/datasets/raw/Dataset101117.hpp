@@ -14,7 +14,7 @@
 #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
-#include "nn/dataLoaders/Dataset.hpp"
+#include "nn/dataLoaders/datasets/Dataset.hpp"
 
 enum class Protocol101117InputMode
 {
@@ -35,7 +35,7 @@ struct Protocol101117Sample
 class Dataset101117 : public Dataset
 {
    public:
-    explicit Dataset101117(                                                //
+    explicit Dataset101117(                                                        //
         std::vector<SubjectFiles> subjects,                                        //
         Protocol101117InputMode input_mode = Protocol101117InputMode::Concatenated //
     );

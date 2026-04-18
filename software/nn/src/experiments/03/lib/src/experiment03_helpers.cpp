@@ -17,7 +17,7 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "nn/dataLoaders/BatchPrefetcher.hpp"
+#include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
 #include "nn/logging/Logger.hpp"
 
 namespace experiment03

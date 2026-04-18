@@ -9,6 +9,9 @@ Goal
 - Preserve repository modularity and discoverability.
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: EXPERIMENT_LAYOUT
   DO: Place reusable experiment code under `src/experiments/<id>/lib/include` and `src/experiments/<id>/lib/src`.
   AVOID: Mixing reusable code into ad-hoc mains.

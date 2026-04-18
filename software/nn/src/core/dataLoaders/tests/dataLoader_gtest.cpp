@@ -8,8 +8,8 @@
 #include <numeric>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/DataLoader.hpp"
-#include "nn/dataLoaders/TensorDataset.hpp"
+#include "nn/dataLoaders/datasets/TensorDataset.hpp"
+#include "nn/dataLoaders/runtime/DataLoader.hpp"
 #include "nn/dataLoaders/samplers/DistributedSampler.hpp"
 #include "nn/dataLoaders/samplers/SequentialSampler.hpp"
 

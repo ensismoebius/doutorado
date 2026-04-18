@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <memory>
 #include <mutex>
@@ -238,7 +239,7 @@ class AsyncTransferManager
         return mgr;
     }
 
-    cl_event copy_host_to_device_async(
+    static cl_event copy_host_to_device_async(
         cl_command_queue queue, cl_mem device_buffer, const float* host_data, std::size_t bytes)
     {
         cl_event evt = nullptr;
@@ -252,7 +253,7 @@ class AsyncTransferManager
         return evt;
     }
 
-    cl_event copy_device_to_host_async(
+    static cl_event copy_device_to_host_async(
         cl_command_queue queue, cl_mem device_buffer, float* host_data, std::size_t bytes)
     {
         cl_event evt = nullptr;
@@ -266,7 +267,7 @@ class AsyncTransferManager
         return evt;
     }
 
-    void enqueue_kernel(cl_command_queue queue,
+    static void enqueue_kernel(cl_command_queue queue,
         cl_kernel kernel,
         std::size_t global_size,
         std::size_t local_size,
@@ -311,7 +312,7 @@ class AsyncTransferManager
         }
     }
 
-    void sync_queue(cl_command_queue queue)
+    static void sync_queue(cl_command_queue queue)
     {
         check_cl_error(clFinish(queue), "sync_queue");
     }
@@ -320,19 +321,28 @@ class AsyncTransferManager
     AsyncTransferManager() = default;
 };
 
-bool can_use_opencl()
+static bool can_use_opencl()
 {
     // OpenCL runtime is intentionally disabled under ASan to avoid false positives
     // from third-party drivers while preserving CPU fallback semantics.
 #if defined(__has_feature)
 #if __has_feature(address_sanitizer)
-    return false;
+    const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
+    if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
+    {
+        return false;
+    }
 #endif
 #endif
-#if defined(__SANITIZE_ADDRESS__)
-    return false;
+#if defined(__SANITIZE_ADDRESS__) && ((__SANITIZE_ADDRESS__ + 0) == 1)
+    const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
+    if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
+    {
+        return false;
+    }
 #endif
-    return opencl::OpenCLContext::instance().is_available();
+    volatile bool runtime_available = opencl::OpenCLContext::instance().is_available();
+    return runtime_available;
 }
 
 void warn_opencl_cpu_fallback_once(const std::string& operation, const std::string& reason)
@@ -348,16 +358,25 @@ void warn_opencl_cpu_fallback_once(const std::string& operation, const std::stri
     }
 }
 
-bool can_use_opencl(const char* operation)
+static bool can_use_opencl(const char* operation)
 {
-#if defined(__SANITIZE_ADDRESS__)
-    warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
-    return false;
+#if defined(__SANITIZE_ADDRESS__) && ((__SANITIZE_ADDRESS__ + 0) == 1)
+    const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
+    if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
+    {
+        warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+        return false;
+    }
 #elif defined(__has_feature)
 #if __has_feature(address_sanitizer)
-    warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
-    return false;
+    const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
+    if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
+    {
+        warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+        return false;
+    }
 #endif
+    // cppcheck-suppress knownConditionTrueFalse
     if (!can_use_opencl())
     {
         warn_opencl_cpu_fallback_once(operation, "OpenCL runtime or device is not available");
@@ -365,6 +384,7 @@ bool can_use_opencl(const char* operation)
     }
     return true;
 #else
+    // cppcheck-suppress knownConditionTrueFalse
     if (!can_use_opencl())
     {
         warn_opencl_cpu_fallback_once(operation, "OpenCL runtime or device is not available");
@@ -392,7 +412,6 @@ std::size_t round_up(std::size_t global, std::size_t local)
 struct PendingEvent
 {
     cl_event event;
-    std::string context;
 };
 
 class EventTracker
@@ -404,12 +423,12 @@ class EventTracker
         return tracker;
     }
 
-    void add_pending_event(cl_event evt, std::string context)
+    void add_pending_event(cl_event evt)
     {
         if (evt)
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_pending_events.push_back({evt, std::move(context)});
+            m_pending_events.push_back({evt});
         }
     }
 
@@ -425,10 +444,8 @@ class EventTracker
         {
             std::vector<cl_event> cl_events;
             cl_events.reserve(events.size());
-            for (auto& pe : events)
-            {
-                cl_events.push_back(pe.event);
-            }
+            std::transform(events.begin(), events.end(), std::back_inserter(cl_events),
+                [](const PendingEvent& pe) { return pe.event; });
 #if defined(CL_VERSION_1_2)
             check_cl_error(
                 clEnqueueBarrierWithWaitList(
@@ -579,8 +596,8 @@ OpenCLTensorBackend::OpenCLTensorBackend(Index d1, Index d2, Index d3, Index d4)
 OpenCLTensorBackend::OpenCLTensorBackend(const std::vector<Index>& shape)
     : m_backend(std::make_unique<OpenCLHostStorage>(shape))
 {
-    Index total = 1;
-    for (auto dim : shape) total *= dim;
+    const Index total =
+        std::accumulate(shape.begin(), shape.end(), static_cast<Index>(1), std::multiplies<>{});
     try_allocate_gpu_buffer(total);
 }
 
@@ -764,6 +781,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
     {
         warn_opencl_cpu_fallback_once("add_inplace", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("add_inplace"))
     {
         try
@@ -925,6 +943,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
         warn_opencl_cpu_fallback_once(
             "subtract_inplace", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("subtract_inplace"))
     {
         try
@@ -1088,6 +1107,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
         warn_opencl_cpu_fallback_once(
             "multiply_inplace", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("multiply_inplace"))
     {
         try
@@ -1251,6 +1271,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
         warn_opencl_cpu_fallback_once(
             "divide_inplace", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("divide_inplace"))
     {
         try
@@ -1408,6 +1429,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 void OpenCLTensorBackend::add_scalar_inplace(float val)
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("add_scalar_inplace"))
     {
         try
@@ -1526,6 +1548,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
 void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("multiply_scalar_inplace"))
     {
         try
@@ -1645,6 +1668,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 void OpenCLTensorBackend::divide_scalar_inplace(float val)
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("divide_scalar_inplace"))
     {
         try
@@ -1763,6 +1787,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
 void OpenCLTensorBackend::sqrt_inplace()
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sqrt_inplace"))
     {
         try
@@ -1875,6 +1900,7 @@ void OpenCLTensorBackend::sqrt_inplace()
 void OpenCLTensorBackend::square_inplace()
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("square_inplace"))
     {
         try
@@ -1999,6 +2025,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
         warn_opencl_cpu_fallback_once(
             "add_col_vector_to_rows_inplace", "OpenCL path requires col_vector to be (cols x 1)");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("add_col_vector_to_rows_inplace"))
     {
         try
@@ -2169,6 +2196,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
 OpenCLTensorBackend OpenCLTensorBackend::exp() const
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("exp"))
     {
         try
@@ -2300,6 +2328,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sqrt"))
     {
         try
@@ -2431,6 +2460,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 OpenCLTensorBackend OpenCLTensorBackend::square() const
 {
     sync_gpu();
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("square"))
     {
         try
@@ -2566,6 +2596,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
     {
         warn_opencl_cpu_fallback_once("add", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("add"))
     {
         try
@@ -2685,6 +2716,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
     {
         warn_opencl_cpu_fallback_once("subtract", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("subtract"))
     {
         try
@@ -2805,6 +2837,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
     {
         warn_opencl_cpu_fallback_once("multiply", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("multiply"))
     {
         try
@@ -2925,6 +2958,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
     {
         warn_opencl_cpu_fallback_once("divide", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("divide"))
     {
         try
@@ -3041,6 +3075,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("add_scalar"))
     {
         try
@@ -3147,6 +3182,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("multiply_scalar"))
     {
         try
@@ -3254,6 +3290,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("divide_scalar"))
     {
         try
@@ -3365,6 +3402,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
     {
         warn_opencl_cpu_fallback_once("rowwise_sum", "OpenCL path requires rank-2 tensors");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("rowwise_sum"))
     {
         try
@@ -3484,6 +3522,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
     {
         warn_opencl_cpu_fallback_once("matmul", "OpenCL path requires lhs.cols() == rhs.rows()");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("matmul"))
     {
         try
@@ -3625,6 +3664,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
     {
         warn_opencl_cpu_fallback_once("transpose", "OpenCL path requires a rank-2 tensor");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("transpose"))
     {
         try
@@ -3738,6 +3778,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
     {
         warn_opencl_cpu_fallback_once("compare_lt", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_lt"))
     {
         try
@@ -3858,6 +3899,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
     {
         warn_opencl_cpu_fallback_once("compare_gt", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_gt"))
     {
         try
@@ -3978,6 +4020,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
     {
         warn_opencl_cpu_fallback_once("compare_le", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_le"))
     {
         try
@@ -4098,6 +4141,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
     {
         warn_opencl_cpu_fallback_once("compare_ge", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_ge"))
     {
         try
@@ -4218,6 +4262,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
     {
         warn_opencl_cpu_fallback_once("compare_eq", "OpenCL path requires matching tensor shapes");
     }
+    // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_eq"))
     {
         try
@@ -4334,6 +4379,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_lt_scalar"))
     {
         try
@@ -4441,6 +4487,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_gt_scalar"))
     {
         try
@@ -4548,6 +4595,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_le_scalar"))
     {
         try
@@ -4655,6 +4703,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_ge_scalar"))
     {
         try
@@ -4762,6 +4811,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
 {
+    // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_eq_scalar"))
     {
         try
@@ -5015,7 +5065,7 @@ void OpenCLTensorBackend::sync_gpu() const
 {
     if (m_pending_events_count > 0)
     {
-        auto& ctx = opencl::OpenCLContext::instance();
+        const auto& ctx = opencl::OpenCLContext::instance();
         AsyncTransferManager::instance().wait_and_release_events(
             ctx.get_queue(), m_pending_events, static_cast<cl_uint>(m_pending_events_count));
         m_pending_events_count = 0;
@@ -5025,6 +5075,7 @@ void OpenCLTensorBackend::sync_gpu() const
 void OpenCLTensorBackend::try_allocate_gpu_buffer(Index size)
 {
     if (size == 0) return;
+    // cppcheck-suppress knownConditionTrueFalse
     if (!can_use_opencl("constructor")) return;
 
     try

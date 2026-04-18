@@ -188,7 +188,7 @@ class SpikeAutoEncoder : public ModuleEigen
     }
 
    private:
-    bool load_weights_from_file(Sequential& seq, const string& file)
+    static bool load_weights_from_file(Sequential& seq, const string& file)
     {
         (void) seq;
         (void) file;

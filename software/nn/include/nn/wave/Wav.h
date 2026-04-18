@@ -127,7 +127,7 @@ class Wav
     void (*callbackFunction)(std::vector<double>& signal,
         size_t& signalLength,
         uint32_t samplingRate,
-        std::string path) = nullptr;
+        const std::string& path) = nullptr;
 
     /**
      * @brief Helper function to read binary data from a stream.
@@ -244,7 +244,7 @@ class Wav
             std::vector<double>& signal, //
             size_t& signalLength,        //
             uint32_t samplingRate,       //
-            std::string path             //
+            const std::string& path      //
             )                            // callback function
     );
 

@@ -9,7 +9,7 @@
 
 #include <stdexcept>
 
-#include "nn/dataLoaders/SamplerOptionResolution.hpp"
+#include "nn/dataLoaders/options/SamplerOptionResolution.hpp"
 
 TEST(SamplerOptionResolutionTest, EmptySamplerTypeUsesLegacyShuffleBehavior)
 {

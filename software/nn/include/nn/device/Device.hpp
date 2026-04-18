@@ -15,7 +15,6 @@
 
 #include <string>
 
-
 namespace nn
 {
 
@@ -61,7 +60,7 @@ struct Device
     {
         return type == DeviceType::OPENCL;
     }
-    std::string to_string() const
+    const std::string& to_string() const
     {
         return id;
     }

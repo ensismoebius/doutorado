@@ -15,6 +15,9 @@ Evidence
 - Overall confidence: A-
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: MEASURE_FIRST
   DO: Profile before optimization.
   AVOID: Premature micro-optimization.

@@ -15,7 +15,7 @@
 #include <random>
 #include <string>
 
-#include "nn/layers/Linear.hpp"
+#include "nn/layers/dense/Linear.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**

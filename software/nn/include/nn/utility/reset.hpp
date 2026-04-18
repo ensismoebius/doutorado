@@ -1,7 +1,7 @@
 #ifndef RESET_STATE_HPP
 #define RESET_STATE_HPP
 
-#include "nn/layers/Module.hpp"
+#include "nn/layers/base/Module.hpp"
 
 namespace nn::utility
 {

@@ -10,7 +10,7 @@
 
 #include <filesystem>
 
-#include "nn/dataLoaders/SqliteBatchSource.hpp"
+#include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
 #include "nn/testing/SqliteTestHelpers.hpp"
 #include "nn/utility/batching.hpp"
 

@@ -11,7 +11,7 @@
 
 #include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
 #include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
-#include "nn/dataLoaders/Dataset.hpp"
+#include "nn/dataLoaders/datasets/Dataset.hpp"
 #include "nn/windowing/WindowSpec.hpp"
 
 class EEGWindowDataset : public Dataset

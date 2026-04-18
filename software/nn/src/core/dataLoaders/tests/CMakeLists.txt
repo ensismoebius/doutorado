@@ -40,6 +40,7 @@ target_link_libraries(dataLoaders_gtest
 		${ZLIB_LIBRARIES} 
 		matioCpp
         dataLoaders # Link to the new library
+        dataLoaders_10_1117
         MatTestUtilsLib
         tensor
 )

@@ -11,9 +11,9 @@
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/SqliteBatchSource.hpp"
-#include "nn/dataLoaders/TensorDataset.hpp"
+#include "nn/dataLoaders/datasets/TensorDataset.hpp"
+#include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
+#include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
 #include "nn/testing/SqliteTestHelpers.hpp"
 
 static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Tensor
@@ -146,7 +146,8 @@ TEST(BatchPrefetcherFastPathTest, FastDominateSlowInSteadyState)
 {
     auto inputs = make_sequential_tensor(20, 24);
     auto targets = make_sequential_tensor(20, 4);
-    auto dataset = std::make_shared<TensorDataset>(inputs, targets);
+    auto source_dataset = std::make_shared<TensorDataset>(inputs, targets);
+    (void) source_dataset;
     const std::string db_root4 = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
     nn::testing::create_simple_protocol_db(db_root4, 12, 12);
 

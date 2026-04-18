@@ -28,7 +28,7 @@ CLBuffer::CLBuffer(size_t size_elements) : m_size_elements(size_elements)
 {
     m_host_copy.resize(size_elements, 0.0f);
 
-    OpenCLContext& ctx = OpenCLContext::instance();
+    const auto& ctx = OpenCLContext::instance();
     if (!ctx.is_available())
     {
         m_gpu_buffer = nullptr;

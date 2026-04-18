@@ -9,6 +9,9 @@ Goal
 - Find the right file/symbol fast, with reproducible search steps.
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: SEARCH_NARROWLY
   DO: Start in `src/`, `include/`, `cmake/`, `scripts/`.
   AVOID: `build/`, `_deps/`, generated outputs unless requested.

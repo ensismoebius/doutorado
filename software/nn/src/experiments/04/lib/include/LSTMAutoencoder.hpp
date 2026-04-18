@@ -31,8 +31,8 @@
 #include <vector>
 
 #include "LSTMLayer.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/Module.hpp"
+#include "nn/layers/base/Module.hpp"
+#include "nn/layers/dense/Linear.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 

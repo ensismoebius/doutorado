@@ -84,7 +84,7 @@ class KernelManager
 
     // Kernel source code for various operations
     // Embedded as strings to avoid file I/O
-    std::string get_kernel_source(const std::string& program_name) const;
+    static std::string get_kernel_source(const std::string& program_name);
 
     // Cache: program_name -> compiled cl_program
     std::map<std::string, cl_program> m_programs;

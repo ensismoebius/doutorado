@@ -102,7 +102,7 @@ class TensorImpl
     TensorImpl(Index dim1, Index d2, Index d3, Index d4) : backend_(dim1, d2, d3, d4) {}
 
     /// Construct from shape vector.
-    TensorImpl(const std::vector<Index>& shape) : backend_(shape) {}
+    explicit TensorImpl(const std::vector<Index>& shape) : backend_(shape) {}
 
     /// Create a tensor filled with `value`.
     static auto constant(Index rows, Index cols, float value) -> TensorImpl
@@ -609,7 +609,7 @@ class TensorImpl
     }
 
     template <typename vector_type>
-    [[nodiscard]] auto toVector() const -> std::vector<vector_type>
+    [[nodiscard]] static auto toVector() -> std::vector<vector_type>
     {
         return {};
     } // Placeholder

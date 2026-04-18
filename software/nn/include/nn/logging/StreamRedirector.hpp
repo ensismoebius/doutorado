@@ -25,7 +25,7 @@ namespace nn::logging
 class StreamToLoggerBuf : public std::streambuf
 {
    public:
-    StreamToLoggerBuf(Level lev) : level_(lev) {}
+    explicit StreamToLoggerBuf(Level lev) : level_(lev) {}
 
    protected:
     int_type overflow(int_type ch) override
@@ -62,7 +62,7 @@ class StreamToLoggerBuf : public std::streambuf
 class StreamRedirector
 {
    public:
-    StreamRedirector(bool redirect_stdout = true, bool redirect_stderr = true)
+    explicit StreamRedirector(bool redirect_stdout = true, bool redirect_stderr = true)
     {
         if (redirect_stdout)
         {

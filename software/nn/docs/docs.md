@@ -61,9 +61,9 @@ This framework provides a high-performance, modern C++20 implementation for SNNs
 ### Example Usage
 ```cpp
 #include "nn/tensor/Tensor.hpp"
-#include "nn/layers/Linear.hpp"
-#include "nn/layers/Leaky.hpp"
-#include "nn/layers/LeakyIntegrator.hpp"
+#include "nn/layers/dense/Linear.hpp"
+#include "nn/layers/spiking/Leaky.hpp"
+#include "nn/layers/spiking/LeakyIntegrator.hpp"
 // ...
 ```
 

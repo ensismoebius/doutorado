@@ -32,7 +32,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/layers/Module.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace experiment04
@@ -239,7 +239,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
                 x_t.matmul(W_.transpose()).add(h.matmul(U_.transpose())).add(b_.transpose());
 
             // Slice gate pre-activations (each [1 × H])
-            Tensor pre_i = pre.block(0, 0 * hidden_size_, 1, hidden_size_);
+            Tensor pre_i = pre.block(0, 0, 1, hidden_size_);
             Tensor pre_f = pre.block(0, 1 * hidden_size_, 1, hidden_size_);
             Tensor pre_o = pre.block(0, 2 * hidden_size_, 1, hidden_size_);
             Tensor pre_g = pre.block(0, 3 * hidden_size_, 1, hidden_size_);

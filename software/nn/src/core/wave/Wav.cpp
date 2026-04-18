@@ -316,7 +316,7 @@ void Wav::set_callback_function(     //
         std::vector<double>& signal, //
         size_t& signalLength,        //
         uint32_t samplingRate,       //
-        std::string path             //
+    const std::string& path      //
         )                            // callback function
 )
 {

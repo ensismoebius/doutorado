@@ -30,6 +30,8 @@ using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::schema101117::columnMajorIndex;
 namespace
 {
+constexpr size_t kRowCacheCapacity = 16;
+
 struct MatFileCloser
 {
     void operator()(mat_t* file) const
@@ -137,10 +139,8 @@ struct AudioMatSession::Impl
     bool is_sqlite = false;
     sqlite3* db = nullptr;
     int subject_id = -1;
-    static constexpr size_t kRowCacheCapacity = 8;
     mutable std::unordered_map<size_t, std::tuple<nn::Tensor, int, int>> rowCache;
     mutable std::deque<size_t> rowCacheOrder;
-    bool is_shard = false;
     // shard support removed: always use MAT files
 };
 
@@ -290,7 +290,7 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
         sqlite3_finalize(stmt);
 
         std::tuple<nn::Tensor, int, int> result{std::move(audioSamples), stimulus, eegIndex};
-        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        if (impl_->rowCache.size() >= kRowCacheCapacity)
         {
             const size_t evict = impl_->rowCacheOrder.front();
             impl_->rowCacheOrder.pop_front();
@@ -321,7 +321,7 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
 
     std::tuple<nn::Tensor, int, int> result{std::move(audioSamples), stimulus, eegIndex};
 
-    if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+    if (impl_->rowCache.size() >= kRowCacheCapacity)
     {
         const size_t evict = impl_->rowCacheOrder.front();
         impl_->rowCacheOrder.pop_front();
@@ -396,7 +396,7 @@ auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
         std::tuple<nn::Tensor, int, int> sample{std::move(audioSamples), stimulus, eegIndex};
 
         const size_t rowIndex = startRow + r;
-        if (impl_->rowCache.size() >= Impl::kRowCacheCapacity)
+        if (impl_->rowCache.size() >= kRowCacheCapacity)
         {
             const size_t evict = impl_->rowCacheOrder.front();
             impl_->rowCacheOrder.pop_front();

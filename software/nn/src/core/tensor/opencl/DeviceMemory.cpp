@@ -144,6 +144,11 @@ void DeviceMemory::copy_from_device(void* out_host_data) const
 
 void DeviceMemory::sync() const
 {
+    if (m_device_buffer == nullptr)
+    {
+        return;
+    }
+
     const auto& ctx = OpenCLContext::instance();
     if (!ctx.is_available())
     {

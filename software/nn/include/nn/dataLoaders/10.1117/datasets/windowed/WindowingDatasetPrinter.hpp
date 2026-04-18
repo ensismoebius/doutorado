@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "nn/dataLoaders/IDatasetPrinter.hpp"
+#include "nn/dataLoaders/interfaces/IDatasetPrinter.hpp"
 
 class Dataset;
 class AudioWindowDataset;

@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "MatTestUtils/MatTestUtils.h"
-#include "nn/dataLoaders/mat_file_utils.hpp"
+#include "nn/dataLoaders/io/mat_file_utils.hpp"
 
 using matioCpp::utils::countMatRows;
 
@@ -21,7 +21,7 @@ TEST(CountMatRowsTest, CreatesFixtureAndReadsRowCount)
     const std::string varName = "A";
     const size_t rows = 3;
     const size_t cols = 2;
-    double data[6] = {1, 2, 3, 4, 5, 6};
+    const double data[6] = {1, 2, 3, 4, 5, 6};
 
     bool wrote = nn::dataLoaders::test::writeMatDouble(tmpPath, varName, rows, cols, data);
     ASSERT_TRUE(wrote) << "Failed to write MAT fixture: " << tmpPath;

@@ -146,7 +146,10 @@ int g_callback_calls = 0;
 // cppcheck-suppress passedByValueCallback
 // cppcheck-suppress passedByValue
 void CountCallback(
-    std::vector<double>& signal, size_t& signalLength, uint32_t samplingRate, std::string path)
+    std::vector<double>& signal,
+    size_t& signalLength,
+    uint32_t samplingRate,
+    const std::string& path)
 {
     (void) signal;
     (void) signalLength;

@@ -22,7 +22,7 @@
 
 #include "codificacao.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Module.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -280,7 +280,7 @@ struct SnnModel : public ModuleEigen
 
         unsigned int offset = 3U;
 
-        for (auto& b : residual_blocks)
+        for (const auto& b : residual_blocks)
         {
             kaimingSNNInitializer(b->fc1, base_seed + offset);
             kaimingSNNInitializer(b->fc2, base_seed + offset + 1U);

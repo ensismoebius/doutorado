@@ -9,6 +9,9 @@ Goal
 - Keep CLI interfaces deterministic and safe.
 
 Rules
+- RULE: NO_LEGACY_FORWARDERS
+  DO: Migrate call sites to canonical headers and update include paths directly.
+  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: HELP_IS_PURE
   DO: Make `--help` exit immediately with status 0.
   AVOID: Side effects on help output.
