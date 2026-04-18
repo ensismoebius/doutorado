@@ -69,7 +69,7 @@ TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
     auto targets = make_sequential_tensor(4, 16);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
     const std::string db_root = nn::testing::make_temp_db_path_unique("nn_batch_prefetch_test");
-    nn::testing::create_simple_protocol_db(db_root, 64, 16);
+    nn::testing::create_simple_protocol_db(db_root, 4096, 176400);
     auto src = std::make_unique<SqliteBatchSource>(db_root, 4);
     BatchPrefetcher prefetcher(std::move(src), 1, 1, 64);
 
@@ -79,10 +79,10 @@ TEST(BatchPrefetcherRamCapTest, OversizedBatchStillMakesProgress)
     auto batch = prefetcher.next();
     ASSERT_TRUE(batch.has_value());
     EXPECT_EQ(batch->inputs.rows(), 4);
-    // Protocol concatenated mode flattens 6 EEG channels: 6 * per-channel length
-    EXPECT_EQ(batch->inputs.cols(), 6 * 64);
+    // Protocol+Concatenated now emits stacked-and-resampled rows at width 176400.
+    EXPECT_EQ(batch->inputs.cols(), 176400);
     EXPECT_EQ(batch->targets.rows(), 4);
-    EXPECT_EQ(batch->targets.cols(), 16);
+    EXPECT_EQ(batch->targets.cols(), 176400);
 
     const auto d = prefetcher.diagnostics();
     EXPECT_GE(d.ring_size + d.seen_batches, 1U);

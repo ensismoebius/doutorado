@@ -303,7 +303,7 @@ struct LeakyBPTTImpl : public Module<Backend>
                         if (reset_zero)
                         {
                             // Exact local derivative for v_post = v_pre + s*(V_reset - v_pre)
-                            dvpost_dvpre = 1.0F - spike + surr * (reset_potential - v_pre);
+                            dvpost_dvpre = 1.0F - spike;
                             // ds/dVth = -surr
                             dvpost_dVth = surr * (v_pre - reset_potential);
                         }
