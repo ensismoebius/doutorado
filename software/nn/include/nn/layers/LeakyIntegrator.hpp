@@ -1,6 +1,7 @@
 #ifndef LEAKY_INTEGRATOR_HPP
 #define LEAKY_INTEGRATOR_HPP
 
+#include <algorithm>
 #include <cmath>
 
 #include "nn/layers/Leaky.hpp"
@@ -67,9 +68,13 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
 
         // 2. Calculate Decay Factor (beta)
         // beta = exp(-dt / RC)
-        // Clamp capacitance to prevent tau = 0.
-        float const C = std::max(1e-6F, this->capacitance.at(0, 0));
-        float const tau = this->resistance.at(0, 0) * C;
+        // Clamp R and C to keep tau strictly positive and beta numerically stable.
+        // Rationale: readout layers hit the same optimizer dynamics as spiking layers;
+        // this avoids NaN/Inf when raw membrane parameters cross non-positive values.
+        constexpr float kMinPositiveParam = 1e-6F;
+        float const R = std::max(kMinPositiveParam, this->resistance.at(0, 0));
+        float const C = std::max(kMinPositiveParam, this->capacitance.at(0, 0));
+        float const tau = R * C;
         float const beta = std::exp(-this->time_step / tau);
 
         // Note: if tau is extremely small, beta can underflow; callers should
@@ -107,14 +112,19 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
         // 2. Gradient w.r.t Resistance (Parameter Update)
         // dL/dR = dL/dV * dV/dbeta * dbeta/dR
         // dV/dbeta = V[t-1]
-        const float R = this->resistance.at(0, 0);
-        const float C = std::max(1e-6F, this->capacitance.at(0, 0));
+        constexpr float kMinPositiveParam = 1e-6F;
+        const float raw_R = this->resistance.at(0, 0);
+        const float raw_C = this->capacitance.at(0, 0);
+        const float R = std::max(kMinPositiveParam, raw_R);
+        const float C = std::max(kMinPositiveParam, raw_C);
         const float tau = R * C;
 
-        if (tau > 1e-6) [[likely]]
+        if (tau > 1e-12F) [[likely]]
         {
             const float beta = std::exp(-this->time_step / tau);
-            const float d_beta_dR = (beta * this->time_step) / (C * R * R);
+            // Match clamp behavior in backward: block d(beta)/dR once raw_R is clamped.
+            const float d_beta_dR =
+                (raw_R > kMinPositiveParam) ? (beta * this->time_step) / (C * R * R) : 0.0F;
 
             // dL/dbeta = sum( dL/dV * V[t-1] )
             float dL_dbeta = grad_input.multiply(this->v_mem_t_minus_1).sum();
@@ -126,7 +136,9 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
 
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
-            const float d_beta_dC = (beta * this->time_step) / (R * C * C);
+            // Symmetric clamp-boundary handling for capacitance gradient.
+            const float d_beta_dC =
+                (raw_C > kMinPositiveParam) ? (beta * this->time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             this->capacitance.set_grad(nn::Tensor(c_grad));

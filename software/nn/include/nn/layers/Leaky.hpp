@@ -1,6 +1,7 @@
 #ifndef NN_LAYERS_LEAKY_HPP
 #define NN_LAYERS_LEAKY_HPP
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <utility>
@@ -188,9 +189,13 @@ struct LeakyImpl : public Module<Backend>
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
         // Beta is the discrete-time decay factor derived from the continuous-time
         // decay equation, representing the "leaky" nature of the neuron.
-        // Clamp capacitance to a small positive value to prevent tau = 0.
-        float const C = std::max(1e-6F, capacitance.at(0, 0));
-        float const tau = resistance.at(0, 0) * C;
+        // Clamp R and C to keep tau strictly positive and beta numerically stable.
+        // Rationale: during training, optimizers can temporarily drive raw R/C <= 0;
+        // this guard prevents invalid tau and unstable exp() behavior in forward pass.
+        constexpr float kMinPositiveParam = 1e-6F;
+        float const R = std::max(kMinPositiveParam, resistance.at(0, 0));
+        float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
+        float const tau = R * C;
         float const beta = std::exp(-time_step / tau);
 
         // snnTorch-like: persistent v_mem, decay, and reset on spike
@@ -318,13 +323,19 @@ struct LeakyImpl : public Module<Backend>
 
         // --- Gradient for resistance ---
         // dL/dR = dL/dv_pre * dv_pre/dR, where dv_pre/dR = v(t-1) * d(beta)/dR
-        const float R = resistance.at(0, 0);
-        const float C = std::max(1e-6F, capacitance.at(0, 0));
+        constexpr float kMinPositiveParam = 1e-6F;
+        const float raw_R = resistance.at(0, 0);
+        const float raw_C = capacitance.at(0, 0);
+        const float R = std::max(kMinPositiveParam, raw_R);
+        const float C = std::max(kMinPositiveParam, raw_C);
         const float tau = R * C;
-        if (tau > 1e-6) [[likely]]
+        if (tau > 1e-12F) [[likely]]
         { // Avoid division by zero if R or C are zero
             const float beta = std::exp(-time_step / tau);
-            const float d_beta_dR = (beta * time_step) / (C * R * R);
+            // Keep gradient consistent with clamp-at-use semantics: once raw_R is in the
+            // clamped region, do not backprop through the clamped surrogate expression.
+            const float d_beta_dR =
+                (raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0F;
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
             float dL_dbeta = grad_v_pre_mat.multiply(v_mem_t_minus_1).sum();
@@ -337,7 +348,10 @@ struct LeakyImpl : public Module<Backend>
 
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
-            const float d_beta_dC = (beta * time_step) / (R * C * C);
+            // Same clamp-boundary rule for C: avoid artificial gradient amplification when
+            // the raw value is below the positive-stability floor.
+            const float d_beta_dC =
+                (raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             capacitance.set_grad(c_grad);

@@ -16,6 +16,9 @@ Recent updates
 - `Linear::forward` now performs bias addition through a backend-level rowwise vectorized path instead of nested scalar loops.
 - `Conv2d` crash fixes: aligned Eigen/OpenMP compile definitions for the `layers` library with its test target using `configure_eigen_parallel_target(layers)` to prevent cross-target Eigen ABI mismatches that caused invalid frees in Conv2d tests.
 - `Conv2d::im2col_optimized` now writes via tensor accessors instead of manual raw-pointer indexing, reducing risk of storage-layout-dependent corruption.
+- SNN neuron safety: `Leaky` and `LeakyIntegrator` now evaluate decay using positive-clamped effective `R`/`C` values to keep `tau`/`beta` numerically stable when raw parameters approach non-positive regions.
+- `LeakyBPTT` updates: capacitance is now trainable and exposed in `params()`, and backward pass gradients were aligned with forward semantics (readout-mode recurrence consistency plus explicit threshold/reset-path contributions).
+- Surrogate gradient constructors now validate hyperparameters and reject non-positive `sharpness`/`window` values.
 
 Optimization techniques and references
 - GEMM + vectorized bias epilogue: preserve matrix-multiply fast path and apply broadcast bias with backend rowwise operation to reduce scalar-loop overhead and improve SIMD utilization (see [1], [2]).

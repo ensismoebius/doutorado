@@ -33,6 +33,23 @@ All notable changes to this project will be documented in this file.
   commit to simplify review of behavioral changes.
 ## Unreleased (2026-03-20)
 
+### Fixed (2026-04-16)
+
+- SNN stability: `Leaky` and `LeakyIntegrator` now clamp effective membrane
+  parameters (`R`, `C`) to positive minima during dynamics/gradient evaluation so
+  `tau = R*C` and `beta = exp(-dt/tau)` remain numerically stable when optimizers
+  push raw parameters toward non-positive values.
+- `LeakyBPTT` backward consistency:
+  - readout mode now computes resistance/capacitance gradients from the same
+    non-spiking recurrence used in forward mode (no spike/reset reconstruction path).
+  - threshold gradient now includes explicit direct and recurrent reset-path terms
+    instead of the previous simplified accumulator.
+  - capacitance is now a trainable parameter (`Tensor`) exposed by `params()` and
+    updated in backward pass (aligned with `Leaky`/`LeakyIntegrator`).
+- Surrogate safety: `ExponentialSurrogate` and `BoxcarSurrogate` now validate
+  constructor hyperparameters and throw `std::invalid_argument` for non-positive
+  `sharpness` / `window` to prevent divide-by-zero and degenerate gradients.
+
 ### Changed (2026-04-03)
 
 - OpenCL backend initialization checks are now backend-owned via

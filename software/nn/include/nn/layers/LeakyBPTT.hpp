@@ -1,6 +1,7 @@
 #ifndef LEAKY_BPTT_HPP
 #define LEAKY_BPTT_HPP
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <utility>
@@ -32,8 +33,24 @@
  * - The backward() here is intentionally “manual BPTT”: it iterates time in reverse and
  *   propagates gradients through the recurrence `v[t] = beta * v[t-1] + input[t]`.
  * - Because spiking includes a hard threshold + reset, the gradient uses a surrogate
- *   derivative for the spike event and simplified/approximate handling of the reset.
- */
+ *   derivative for the spike event and simplified/approximate handling of the reset. *
+ * Convergence fixes (summary for onboarding):
+ * 1. R/C forward clamp — raw resistance/capacitance is clamped to kMinPositiveParam (1e-6)
+ *    before computing tau=R*C and beta=exp(-dt/tau). Prevents NaN/Inf when optimizers
+ *    drive parameters non-positive.
+ * 2. R/C backward guard — d_beta_dR and d_beta_dC are set to 0 when the raw parameter
+ *    is in the clamped region, keeping gradients consistent with the forward clamp.
+ * 3. v_post_history — caches the exact post-reset state v[t] after each forward step.
+ *    BPTT uses this (not the pre-reset v_pre) for dL/dR and dL/dC, eliminating
+ *    systematic bias from reconstructing state at backward time.
+ * 4. Full threshold gradient — dL/dVth accumulates both the direct spike term
+ *    (-grad_out * surr) and the recurrent reset-path term (grad_from_next * beta *
+ *    dvpost_dVth), covering both hard-reset (dvpost_dVth = surr*(v_pre - V_reset))
+ *    and soft-reset (dvpost_dVth = -spike + Vth*surr) branches.
+ * 5. Readout-mode isolation — when readout_mode=true the forward pass emits v_mem
+ *    directly with no spike/reset, and backward treats dynamics as purely continuous
+ *    (grad_v_pre = grad_out + grad_from_next * beta), preventing cross-contamination
+ *    from the spiking branch. */
 /**
  * @brief Leaky Integrate-and-Fire (LIF) layer with Full Backpropagation Through Time (BPTT).
  *
@@ -55,7 +72,7 @@ struct LeakyBPTTImpl : public Module<Backend>
     Tensor resistance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Membrane capacitance (C).
-    float capacitance = 1.0F;
+    Tensor capacitance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Voltage threshold.
     Tensor voltage_threshold = Tensor::constant(1, 1, 1.0F);
@@ -63,6 +80,9 @@ struct LeakyBPTTImpl : public Module<Backend>
     // State management
     Tensor v_mem;         ///< Persistent state after last processed time step (shape: B x F)
     Tensor v_mem_history; ///< Cached pre-reset membrane values for BPTT (shape: (T*B) x F)
+    // Added to avoid backward-time reconstruction drift: gradients for beta (and thus R/C)
+    // must use the exact previous post-reset state seen in forward.
+    Tensor v_post_history; ///< Cached post-reset membrane values for exact recurrence derivatives.
     Tensor spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
 
     // Configuration
@@ -74,7 +94,7 @@ struct LeakyBPTTImpl : public Module<Backend>
 
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
     // Persistent parameter pointer storage for returning spans.
-    std::array<nn::Tensor*, 2> param_ptrs_{{&resistance, &voltage_threshold}};
+    std::array<nn::Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
 
     [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
     {
@@ -94,7 +114,7 @@ struct LeakyBPTTImpl : public Module<Backend>
         : time_step(time_step_), time_steps(time_steps_), readout_mode(readout_mode_)
     {
         resistance.at(0, 0) = resistance_;
-        capacitance = capacitance_;
+        capacitance.at(0, 0) = capacitance_;
         voltage_threshold.at(0, 0) = voltage_threshold_;
         reset_zero = reset_zero_;
         reset_potential = reset_potential_;
@@ -135,9 +155,13 @@ struct LeakyBPTTImpl : public Module<Backend>
             // We cache v_pre (the membrane after decay+input, before spike/reset) for each time.
             // Backward() reads this cache as its "pre-activation" for surrogate gradients.
             v_mem_history = Tensor(total_rows, features);
+            v_post_history = Tensor(total_rows, features);
         }
 
-        float const tau = resistance.at(0, 0) * capacitance;
+        constexpr float kMinPositiveParam = 1e-6F;
+        float const R = std::max(kMinPositiveParam, resistance.at(0, 0));
+        float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
+        float const tau = R * C;
         float const beta = std::exp(-time_step / tau);
         float threshold_val = voltage_threshold.at(0, 0);
 
@@ -197,6 +221,10 @@ struct LeakyBPTTImpl : public Module<Backend>
 
                     // Update State
                     v_mem.at(b, f) = v;
+                    if (requires_grad)
+                    {
+                        v_post_history.at(offset + b, f) = v;
+                    }
                 }
             }
         }
@@ -215,17 +243,23 @@ struct LeakyBPTTImpl : public Module<Backend>
         Tensor grad_next_state(batch_size, features); // dL / dv[t+1] (recurrence accumulator)
         grad_next_state.setZero();
 
-        float const tau = resistance.at(0, 0) * capacitance;
+        constexpr float kMinPositiveParam = 1e-6F;
+        float const raw_R = resistance.at(0, 0);
+        float const raw_C = capacitance.at(0, 0);
+        float const R = std::max(kMinPositiveParam, raw_R);
+        float const C = std::max(kMinPositiveParam, raw_C);
+        float const tau = R * C;
         float const beta = std::exp(-time_step / tau);
         float threshold_val = voltage_threshold.at(0, 0);
 
         // Accumulators for params
         float dL_dVth_sum = 0.0f;
         float dL_dR_sum = 0.0f;
+        float dL_dC_sum = 0.0f;
         float d_beta_dR =
-            (tau > 1e-6)
-                ? (beta * time_step) / (capacitance * resistance.at(0, 0) * resistance.at(0, 0))
-                : 0.0f;
+            (tau > 1e-12F && raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0f;
+        float d_beta_dC =
+            (tau > 1e-12F && raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0f;
         // Note: d_beta_dR is derived from beta = exp(-time_step/(R*C)).
         // This implementation uses a scalar R and C shared across all neurons.
 
@@ -252,33 +286,41 @@ struct LeakyBPTTImpl : public Module<Backend>
 
                     if (readout_mode)
                     {
-                        // dL/dV = grad_out
-                        // No surrogate.
-                        // d(next)/d(curr) = beta. (No reset).
+                        // Readout-mode consistency fix: treat dynamics as purely continuous.
+                        // No spike/reset path is allowed to leak into this branch.
+                        // dL/dV = grad_out, and recurrence Jacobian is beta.
                         grad_v_pre = grad_out + grad_from_next * beta;
                     }
                     else
                     {
                         // Surrogate dS/dv
                         float surr = surrogate_gradient->calculate_scalar(v_pre, threshold_val);
+                        float spike = (v_pre > threshold_val) ? 1.0F : 0.0F;
+                        float dvpost_dVth = 0.0F;
 
                         // Term 2: From Next State v[t+1] (Recurrent)
-                        // ...
 
                         if (reset_zero)
                         {
-                            // Approximation: hard reset is non-differentiable; treat as identity
-                            // for the purpose of propagating gradients through the state.
-                            dvpost_dvpre = 1.0f;
+                            // Exact local derivative for v_post = v_pre + s*(V_reset - v_pre)
+                            dvpost_dvpre = 1.0F - spike + surr * (reset_potential - v_pre);
+                            // ds/dVth = -surr
+                            dvpost_dVth = surr * (v_pre - reset_potential);
                         }
                         else
                         {
-                            // Subtraction: v - S*th
-                            // d = 1 - surr * th
+                            // Soft reset: v_post = v_pre - s*Vth
                             dvpost_dvpre = 1.0f - surr * threshold_val;
+                            // d(v_pre - s*Vth)/dVth = -s - Vth*ds/dVth
+                            dvpost_dVth = -spike + threshold_val * surr;
                         }
 
                         grad_v_pre = grad_out * surr + grad_from_next * beta * dvpost_dvpre;
+
+                        // dL/dVth includes both direct spike term and recurrent reset-path term.
+                        // This replaced the previous simplified accumulator that biased Vth
+                        // updates.
+                        dL_dVth_sum += (-grad_out * surr) + (grad_from_next * beta * dvpost_dVth);
                     }
 
                     // Store dL/dI = grad_v_pre * 1
@@ -287,29 +329,14 @@ struct LeakyBPTTImpl : public Module<Backend>
                     // Update grad_next_state for t-1
                     grad_next_state.at(b, f) = grad_v_pre;
 
-                    // Params Gradients
-                    dL_dVth_sum += -grad_v_pre; // Simplified
-                    // Note: threshold gradient is simplified here. A more complete treatment
-                    // would include how V_th influences spike/reset and therefore the state.
-
-                    // R: dL/dR = dL/dbeta * dbeta/dR + ...
-                    // approximation for resistance gradient:
+                    // dL/dbeta = dL/dv_pre * dv_pre/dbeta = dL/dv_pre * v_post[t-1]
                     float v_prev_post = 0.0f;
                     if (t > 0)
                     {
-                        // We reconstruct an approximate post-reset previous state using cached
-                        // v_pre (and re-applying the spike decision). This keeps backward
-                        // self-contained without storing a full spike history.
-                        float vp = v_mem_history.at((t - 1) * batch_size + b, f);
-                        float s_p = (vp > threshold_val) ? 1.0f : 0.0f;
-                        if (reset_zero && s_p > 0.5f)
-                            v_prev_post = reset_potential;
-                        else if (!reset_zero)
-                            v_prev_post = vp - s_p * threshold_val;
-                        else
-                            v_prev_post = vp;
+                        v_prev_post = v_post_history.at((t - 1) * batch_size + b, f);
                     }
                     dL_dR_sum += grad_v_pre * v_prev_post * d_beta_dR;
+                    dL_dC_sum += grad_v_pre * v_prev_post * d_beta_dC;
                 }
             }
         }
@@ -322,6 +349,10 @@ struct LeakyBPTTImpl : public Module<Backend>
         Tensor r_grad(1, 1);
         r_grad.at(0, 0) = dL_dR_sum;
         resistance.set_grad(r_grad);
+
+        Tensor c_grad(1, 1);
+        c_grad.at(0, 0) = dL_dC_sum;
+        capacitance.set_grad(c_grad);
 
         return grad_input;
     }

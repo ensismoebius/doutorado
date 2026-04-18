@@ -10,6 +10,7 @@
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/layers/Conv2d.hpp"
 #include "nn/layers/Leaky.hpp"
+#include "nn/layers/LeakyBPTT.hpp"
 #include "nn/layers/Regularization.hpp"
 #include "nn/layers/SurrogateGradient.hpp"
 #include "nn/layers/eigen/Layers.hpp"
@@ -194,6 +195,55 @@ TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
     EXPECT_NEAR(leaky.capacitance.grad().at(0, 0), expected_dL_dC, 1e-5F);
 }
 
+TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
+{
+    Leaky leaky(/*dt=*/1.0F,
+        /*R=*/-2.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/100.0F,
+        /*reset_zero=*/true,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor input(1, 1);
+    input.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto out = leaky.forward(input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = leaky.backward(grad_output);
+
+    EXPECT_TRUE(std::isfinite(leaky.v_mem.at(0, 0)));
+    EXPECT_TRUE(std::isfinite(leaky.resistance.grad().at(0, 0)));
+    EXPECT_TRUE(std::isfinite(leaky.capacitance.grad().at(0, 0)));
+}
+
+TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
+{
+    Leaky leaky(/*dt=*/1.0F,
+        /*R=*/-2.0F,
+        /*C=*/-3.0F,
+        /*V_thresh=*/100.0F,
+        /*reset_zero=*/true,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor first_input(1, 1);
+    first_input.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto first_out = leaky.forward(first_input, true);
+
+    nn::Tensor second_input(1, 1);
+    second_input.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto second_out = leaky.forward(second_input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = leaky.backward(grad_output);
+
+    EXPECT_NEAR(leaky.resistance.grad().at(0, 0), 0.0F, 1e-7F);
+    EXPECT_NEAR(leaky.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
+}
+
 TEST(LeakyIntegratorLayerTest, BackwardComputesCapacitanceGradient)
 {
     LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/2.0F, /*C=*/3.0F);
@@ -222,6 +272,248 @@ TEST(LeakyIntegratorLayerTest, BackwardComputesCapacitanceGradient)
 
     EXPECT_NEAR(grad_input.at(0, 0), 1.0F, 1e-6F);
     EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
+}
+
+TEST(LeakyIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
+{
+    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/3.0F);
+
+    nn::Tensor input(1, 1);
+    input.at(0, 0) = 2.0F;
+    [[maybe_unused]] auto out = integrator.forward(input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = integrator.backward(grad_output);
+
+    EXPECT_TRUE(std::isfinite(integrator.v_mem.at(0, 0)));
+    EXPECT_TRUE(std::isfinite(integrator.resistance.grad().at(0, 0)));
+    EXPECT_TRUE(std::isfinite(integrator.capacitance.grad().at(0, 0)));
+}
+
+TEST(LeakyIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
+{
+    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/-3.0F);
+
+    nn::Tensor first_input(1, 1);
+    first_input.at(0, 0) = 2.0F;
+    [[maybe_unused]] auto first_out = integrator.forward(first_input, true);
+
+    nn::Tensor second_input(1, 1);
+    second_input.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto second_out = integrator.forward(second_input, true);
+
+    nn::Tensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = integrator.backward(grad_output);
+
+    EXPECT_NEAR(integrator.resistance.grad().at(0, 0), 0.0F, 1e-7F);
+    EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
+}
+
+TEST(LeakyBPTTLayerTest, ParamsExposeTrainableCapacitance)
+{
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/2.0F,
+        /*capacitance=*/3.0F,
+        /*voltage_threshold=*/1.0F);
+
+    auto parameters = leaky_bptt.params();
+    ASSERT_EQ(parameters.size(), 3);
+    EXPECT_EQ(parameters[0], &leaky_bptt.resistance);
+    EXPECT_EQ(parameters[1], &leaky_bptt.voltage_threshold);
+    EXPECT_EQ(parameters[2], &leaky_bptt.capacitance);
+}
+
+TEST(LeakyBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
+{
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/2.0F,
+        /*capacitance=*/3.0F,
+        /*voltage_threshold=*/100.0F,
+        /*reset_zero=*/true,
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/true,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 2.0F;
+    input.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto out = leaky_bptt.forward(input, true);
+
+    nn::Tensor grad_output(2, 1);
+    grad_output.at(0, 0) = 1.0F;
+    grad_output.at(1, 0) = 1.0F;
+    const nn::Tensor grad_input = leaky_bptt.backward(grad_output);
+
+    const float beta = std::exp(-1.0F / (2.0F * 3.0F));
+    EXPECT_NEAR(grad_input.at(0, 0), 1.0F + beta, 1e-6F);
+    EXPECT_NEAR(grad_input.at(1, 0), 1.0F, 1e-6F);
+
+    // In readout mode with high threshold, no spikes occur and the backward approximation
+    // reduces to a simple dL/dR term from t=1 only: grad_v_pre(1) * v_pre(0) * d_beta/dR.
+    const float d_beta_dR = (beta * 1.0F) / (3.0F * 2.0F * 2.0F);
+    const float expected_dL_dR = 1.0F * 2.0F * d_beta_dR;
+    EXPECT_NEAR(leaky_bptt.resistance.grad().at(0, 0), expected_dL_dR, 1e-6F);
+
+    const float d_beta_dC = (beta * 1.0F) / (2.0F * 3.0F * 3.0F);
+    const float expected_dL_dC = 1.0F * 2.0F * d_beta_dC;
+    EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
+
+    EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), 0.0F, 1e-6F);
+}
+
+TEST(LeakyBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
+{
+    // Large boxcar window keeps surrogate derivative at 1 over this test's voltage range.
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/2.0F,
+        /*capacitance=*/3.0F,
+        /*voltage_threshold=*/100.0F,
+        /*reset_zero=*/true,
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/false,
+        std::make_shared<BoxcarSurrogate>(1e6F));
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 2.0F;
+    input.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto out = leaky_bptt.forward(input, true);
+
+    nn::Tensor grad_output(2, 1);
+    grad_output.at(0, 0) = 1.0F;
+    grad_output.at(1, 0) = 1.0F;
+    const nn::Tensor grad_input = leaky_bptt.backward(grad_output);
+
+    const float beta = std::exp(-1.0F / (2.0F * 3.0F));
+    EXPECT_NEAR(grad_input.at(0, 0), 1.0F + beta, 1e-6F);
+    EXPECT_NEAR(grad_input.at(1, 0), 1.0F, 1e-6F);
+
+    const float expected_dL_dVth = -2.0F + 2.0F * beta;
+    EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), expected_dL_dVth, 1e-6F);
+
+    const float d_beta_dR = (beta * 1.0F) / (3.0F * 2.0F * 2.0F);
+    const float expected_dL_dR = 1.0F * 2.0F * d_beta_dR;
+    EXPECT_NEAR(leaky_bptt.resistance.grad().at(0, 0), expected_dL_dR, 1e-6F);
+
+    const float d_beta_dC = (beta * 1.0F) / (2.0F * 3.0F * 3.0F);
+    const float expected_dL_dC = 1.0F * 2.0F * d_beta_dC;
+    EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
+}
+
+TEST(LeakyBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
+{
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/2.0F,
+        /*capacitance=*/3.0F,
+        /*voltage_threshold=*/0.1F,
+        /*reset_zero=*/true,
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/true,
+        std::make_shared<BoxcarSurrogate>(1e6F));
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 5.0F;
+    input.at(1, 0) = 5.0F;
+    [[maybe_unused]] auto out = leaky_bptt.forward(input, true);
+
+    nn::Tensor grad_output(2, 1);
+    grad_output.at(0, 0) = 1.0F;
+    grad_output.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = leaky_bptt.backward(grad_output);
+
+    EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), 0.0F, 1e-6F);
+}
+
+TEST(LeakyBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
+{
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/-2.0F,
+        /*capacitance=*/-3.0F,
+        /*voltage_threshold=*/0.5F,
+        /*reset_zero=*/true,
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/true,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 1.0F;
+    input.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto out = leaky_bptt.forward(input, true);
+
+    nn::Tensor grad_output(2, 1);
+    grad_output.at(0, 0) = 1.0F;
+    grad_output.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = leaky_bptt.backward(grad_output);
+
+    EXPECT_TRUE(std::isfinite(leaky_bptt.resistance.grad().at(0, 0)));
+    EXPECT_TRUE(std::isfinite(leaky_bptt.capacitance.grad().at(0, 0)));
+    EXPECT_NEAR(leaky_bptt.resistance.grad().at(0, 0), 0.0F, 1e-7F);
+    EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
+}
+
+TEST(LeakyBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
+{
+    // Locks the soft-reset branch (reset_zero=false) threshold gradient against an analytic
+    // derivation. This ensures the dvpost_dVth = (-spike + Vth*surr) term and the recurrent
+    // reset-path accumulation both contribute correctly.
+    //
+    // Setup: R=2, C=3, dt=1, Vth=0.5, inputs=[2.0, 1.0], T=2, B=1.
+    // BoxcarSurrogate with enormous window guarantees surr=1 everywhere.
+    //
+    // Forward:
+    //   beta = exp(-1/6)
+    //   t=0: v_pre[0]=2.0, spike=1, v_post[0]=2.0-0.5=1.5
+    //   t=1: v_pre[1]=1.5*beta+1.0, spike=1, v_post[1]=v_pre[1]-0.5
+    //
+    // Backward (surr=1, spike=1, dvpost_dvpre=1-1*0.5=0.5, dvpost_dVth=-1+0.5*1=-0.5):
+    //   t=1: grad_v_pre[1]=1.0, dL_dVth += -1.0
+    //   t=0: grad_v_pre[0]=1.0+0.5*beta, dL_dVth += -1.0 + beta*(-0.5)
+    //   total dL_dVth = -2.0 - 0.5*beta
+    //
+    // R/C gradients use v_post_history[0]=1.5:
+    //   dL_dR = 1.5 * (beta/12)   [d_beta_dR = beta/(R^2*C) = beta/12]
+    //   dL_dC = 1.5 * (beta/18)   [d_beta_dC = beta/(R*C^2) = beta/18]
+    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+        /*time_step=*/1.0F,
+        /*resistance=*/2.0F,
+        /*capacitance=*/3.0F,
+        /*voltage_threshold=*/0.5F,
+        /*reset_zero=*/false, // soft reset
+        /*reset_potential=*/0.0F,
+        /*readout_mode=*/false,
+        std::make_shared<BoxcarSurrogate>(1e6F));
+
+    nn::Tensor input(2, 1);
+    input.at(0, 0) = 2.0F;
+    input.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto out = leaky_bptt.forward(input, true);
+
+    nn::Tensor grad_output(2, 1);
+    grad_output.at(0, 0) = 1.0F;
+    grad_output.at(1, 0) = 1.0F;
+    [[maybe_unused]] auto grad_input = leaky_bptt.backward(grad_output);
+
+    const float beta = std::exp(-1.0F / (2.0F * 3.0F));
+
+    // Threshold gradient: direct spike term + recurrent reset-path term
+    const float expected_dL_dVth = -2.0F - 0.5F * beta;
+    EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), expected_dL_dVth, 1e-5F);
+
+    // Input gradient through soft-reset recurrence
+    EXPECT_NEAR(grad_input.at(0, 0), 1.0F + 0.5F * beta, 1e-6F);
+    EXPECT_NEAR(grad_input.at(1, 0), 1.0F, 1e-6F);
+
+    // R and C gradients via v_post_history[0]=1.5 (post-soft-reset state)
+    const float d_beta_dR = (beta * 1.0F) / (3.0F * 2.0F * 2.0F); // beta/(C*R^2)
+    const float d_beta_dC = (beta * 1.0F) / (2.0F * 3.0F * 3.0F); // beta/(R*C^2)
+    EXPECT_NEAR(leaky_bptt.resistance.grad().at(0, 0), 1.5F * d_beta_dR, 1e-6F);
+    EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), 1.5F * d_beta_dC, 1e-6F);
 }
 
 // Teste para LeakyReLU
@@ -279,6 +571,14 @@ TEST(SurrogateGradientTest, Boxcar)
     auto grad = surrogate.calculate(v_mem_tensor, 2.0F);
     ASSERT_FLOAT_EQ(grad.at(0, 0), 1.0F);
     ASSERT_FLOAT_EQ(grad.at(0, 1), 0.0F);
+}
+
+TEST(SurrogateGradientTest, ThrowsOnInvalidHyperparameters)
+{
+    EXPECT_THROW((void) ExponentialSurrogate(0.0F), std::invalid_argument);
+    EXPECT_THROW((void) ExponentialSurrogate(-1.0F), std::invalid_argument);
+    EXPECT_THROW((void) BoxcarSurrogate(0.0F), std::invalid_argument);
+    EXPECT_THROW((void) BoxcarSurrogate(-0.5F), std::invalid_argument);
 }
 
 TEST(Conv2dTest, ForwardAndBackward)

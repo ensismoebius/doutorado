@@ -1,0 +1,65 @@
+# Bash completion for run_full_grid_and_analyze.sh
+#
+# Load with:
+#   source src/experiments/03/scripts/run_full_grid_and_analyze.bash-completion
+
+_run_full_grid_and_analyze_completions() {
+  local cur prev
+  COMPREPLY=()
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+  local opts="--project-root --bin --profiles-output-dir --results-dir --analysis-output-dir --jobs --timeout --help"
+
+  case "${prev}" in
+    --project-root|--profiles-output-dir|--results-dir|--analysis-output-dir)
+      COMPREPLY=( $(compgen -d -- "${cur}") )
+      return 0
+      ;;
+    --bin)
+      COMPREPLY=( $(compgen -f -- "${cur}") )
+      return 0
+      ;;
+    --jobs|--timeout)
+      COMPREPLY=( $(compgen -W "1 2 4 8 12 16 24 32 60 120 300 600 900 1200" -- "${cur}") )
+      return 0
+      ;;
+  esac
+
+  case "${cur}" in
+    --bin=*)
+      local value="${cur#*=}"
+      local files
+      files=$(compgen -f -- "${value}")
+      if [[ -n "${files}" ]]; then
+        while IFS= read -r f; do
+          COMPREPLY+=("--bin=${f}")
+        done <<< "${files}"
+      fi
+      return 0
+      ;;
+    --project-root=*|--profiles-output-dir=*|--results-dir=*|--analysis-output-dir=*)
+      local flag="${cur%%=*}"
+      local value="${cur#*=}"
+      local dirs
+      dirs=$(compgen -d -- "${value}")
+      if [[ -n "${dirs}" ]]; then
+        while IFS= read -r d; do
+          COMPREPLY+=("${flag}=${d}")
+        done <<< "${dirs}"
+      fi
+      return 0
+      ;;
+  esac
+
+  if [[ "${cur}" == -* ]]; then
+    COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+    return 0
+  fi
+
+  COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+  return 0
+}
+
+complete -F _run_full_grid_and_analyze_completions run_full_grid_and_analyze.sh
+complete -F _run_full_grid_and_analyze_completions ./run_full_grid_and_analyze.sh

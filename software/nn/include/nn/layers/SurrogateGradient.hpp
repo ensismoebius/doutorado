@@ -2,6 +2,7 @@
 #define SURROGATE_GRADIENT_HPP
 
 #include <cmath>
+#include <stdexcept>
 
 #include "nn/tensor/Tensor.hpp"
 
@@ -53,7 +54,15 @@ class ExponentialSurrogate : public ISurrogateGradient
      *        Smaller values make the surrogate more sharply peaked near V_th.
      *        Larger values make gradients spread over a wider voltage range.
      */
-    explicit ExponentialSurrogate(float sharpness = 1.0F) : sharpness_(sharpness) {}
+    explicit ExponentialSurrogate(float sharpness = 1.0F) : sharpness_(sharpness)
+    {
+        // Defensive validation: non-positive sharpness causes divide-by-zero or
+        // degenerate gradients and made training failures harder to diagnose.
+        if (sharpness_ <= 0.0F)
+        {
+            throw std::invalid_argument("ExponentialSurrogate sharpness must be > 0");
+        }
+    }
 
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
@@ -89,7 +98,15 @@ class BoxcarSurrogate : public ISurrogateGradient
      * @param window Width of the non-zero region around the threshold.
      *        The derivative is 1.0 when |V - V_th| < window/2, else 0.0.
      */
-    explicit BoxcarSurrogate(float window = 0.5F) : window_(window) {}
+    explicit BoxcarSurrogate(float window = 0.5F) : window_(window)
+    {
+        // Defensive validation: non-positive window collapses the active gradient
+        // region and can silently disable useful learning signals.
+        if (window_ <= 0.0F)
+        {
+            throw std::invalid_argument("BoxcarSurrogate window must be > 0");
+        }
+    }
 
     [[nodiscard]] auto calculate(const nn::Tensor& v_mem_pre_spike, float voltage_threshold) const
         -> nn::Tensor override
