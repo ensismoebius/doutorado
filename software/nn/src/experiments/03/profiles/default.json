@@ -28,7 +28,7 @@
   "neural_network_resistance": 1.0,
   "neural_network_capacitance": 1.0,
   "training_learning_rate": 0.001,
-  "training_epochs": 10,
+  "training_epochs": 100,
   "window_eeg_config": {
     "window_size": 256,
     "overlap": 0.5,
@@ -51,7 +51,7 @@
   "training_loss_type": "mse",
   "training_lr_plateau_enabled": true,
   "training_lr_plateau_factor": 0.5,
-  "training_lr_plateau_patience": 3,
+  "training_lr_plateau_patience": 20,
   "training_lr_plateau_min_delta": 0.000001,
   "training_normalize_inputs": true,
   "validation_modality_diagnostics_enabled": true,
