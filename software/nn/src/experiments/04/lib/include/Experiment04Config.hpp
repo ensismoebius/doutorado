@@ -23,34 +23,34 @@ struct Experiment04Config
     std::string program_device = "cpu";
 
     // ---- Dataset ----
-    std::string dataset_root   = ".";
-    std::string subject_regex  = ".*";
+    std::string dataset_root = ".";
+    std::string subject_regex = ".*";
     /// "audio-window" | "eeg-window" | "fused-window" | "protocol"
-    std::string dataset_type   = "audio-window";
+    std::string dataset_type = "audio-window";
 
     // ---- Data loading ----
-    int batch_size          = 1;    ///< samples per iteration
-    int max_batches_per_epoch = 0;  ///< 0 = unlimited
+    int batch_size = 1;            ///< samples per iteration
+    int max_batches_per_epoch = 0; ///< 0 = unlimited
     unsigned sampler_shuffle_seed = 42u;
 
     // ---- LSTM Architecture ----
-    int input_size  = 64;   ///< D — feature dimension per time step
-    int seq_len     = 32;   ///< T — number of time steps per sample
-    int hidden_size = 128;  ///< H — LSTM hidden dimension
-    int latent_size = 16;   ///< Z — bottleneck dimension
-    int num_layers  = 1;    ///< stacked LSTM layers (encoder and decoder)
+    int input_size = 64;   ///< D — feature dimension per time step
+    int seq_len = 32;      ///< T — number of time steps per sample
+    int hidden_size = 128; ///< H — LSTM hidden dimension
+    int latent_size = 16;  ///< Z — bottleneck dimension
+    int num_layers = 1;    ///< stacked LSTM layers (encoder and decoder)
 
     // ---- Training ----
-    int   epochs        = 30;
+    int epochs = 30;
     float learning_rate = 1e-3f;
-    float adam_beta1    = 0.9f;
-    float adam_beta2    = 0.999f;
-    float adam_epsilon  = 1e-8f;
+    float adam_beta1 = 0.9f;
+    float adam_beta2 = 0.999f;
+    float adam_epsilon = 1e-8f;
 
     // ---- Gradient clipping ----
-    float grad_clip_norm = 1.0f;  ///< 0 = disabled
+    float grad_clip_norm = 1.0f; ///< 0 = disabled
 
     // ---- Output ----
     std::string results_dir = ".";
-    std::string run_tag     = "experiment04";
+    std::string run_tag = "experiment04";
 };

@@ -5,7 +5,8 @@ add_executable(experiment_04_lstm_gtest
 target_include_directories(experiment_04_lstm_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/..
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+    ${CMAKE_CURRENT_SOURCE_DIR}/../lib/include
 )
 
 target_link_libraries(experiment_04_lstm_gtest

@@ -82,23 +82,23 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
     for (auto& lstm : enc_lstms_)
     {
         lstm->reset_state();
-        h = lstm->forward(h, requires_grad);  // [T × H]
+        h = lstm->forward(h, requires_grad); // [T × H]
     }
     enc_output_cache_ = h;
 
     // Take only the last time step's hidden state: [1 × H]
     const int T = static_cast<int>(h.rows());
-    Tensor h_last = h.row(static_cast<nn::Index>(T - 1));  // [1 × H]
+    Tensor h_last = h.row(static_cast<nn::Index>(T - 1)); // [1 × H]
 
     // Project to latent space
-    Tensor z_pre = enc_proj_->forward(h_last, requires_grad);  // [1 × Z]
+    Tensor z_pre = enc_proj_->forward(h_last, requires_grad); // [1 × Z]
     latent_pre_cache_ = z_pre;
 
     // Bounded latent codes via tanh
-    Tensor z = tanh_tensor(z_pre);  // [1 × Z]
+    Tensor z = tanh_tensor(z_pre); // [1 × Z]
     latent_cache_ = z;
 
-    return z;  // [1 × Z]
+    return z; // [1 × Z]
 }
 
 // ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
 {
     // latent : [1 × Z]
     // Expand latent to hidden dim
-    Tensor h_expand = dec_expand_->forward(latent, requires_grad);  // [1 × H]
+    Tensor h_expand = dec_expand_->forward(latent, requires_grad); // [1 × H]
 
     // Repeat h_expand for seq_len steps to form the decoder input [T × H]
     const int H = cfg_.hidden_size;
@@ -127,13 +127,13 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
     for (auto& lstm : dec_lstms_)
     {
         lstm->reset_state();
-        dec_h = lstm->forward(dec_h, requires_grad);  // [T × H]
+        dec_h = lstm->forward(dec_h, requires_grad); // [T × H]
     }
     dec_output_cache_ = dec_h;
 
     // Project each time step to input dimension
     // out_proj_ expects [batch × H]; we pass [T × H] treating T as batch
-    Tensor recon = out_proj_->forward(dec_h, requires_grad);  // [T × D]
+    Tensor recon = out_proj_->forward(dec_h, requires_grad); // [T × D]
     recon_cache_ = recon;
 
     return recon;
@@ -159,13 +159,13 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     // grad_output : [T × D]  dL/d_recon
 
     // ---- 1. Output projection backward  [T × D] → [T × H] ----
-    Tensor d_dec_h = out_proj_->backward(grad_output);  // [T × H]
+    Tensor d_dec_h = out_proj_->backward(grad_output); // [T × H]
 
     // ---- 2. Decoder LSTM stack backward (reversed) ----
     Tensor d_dec_in = d_dec_h;
     for (int l = static_cast<int>(dec_lstms_.size()) - 1; l >= 0; --l)
     {
-        d_dec_in = dec_lstms_[static_cast<size_t>(l)]->backward(d_dec_in);  // [T × H]
+        d_dec_in = dec_lstms_[static_cast<size_t>(l)]->backward(d_dec_in); // [T × H]
     }
 
     // ---- 3. Sum gradient over repeated time steps → [1 × H] ----
@@ -181,21 +181,21 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     }
 
     // ---- 4. Decoder expand backward  [1 × H] → [1 × Z] ----
-    Tensor d_z = dec_expand_->backward(d_h_expand);  // [1 × Z]
+    Tensor d_z = dec_expand_->backward(d_h_expand); // [1 × Z]
 
     // ---- 5. tanh backward through latent projection ----
     //         d/dz_pre = d_z ⊙ (1 - tanh²(z_pre)) = d_z ⊙ tanh_grad(z)
-    Tensor d_z_pre = d_z * tanh_grad(latent_cache_);  // [1 × Z]
+    Tensor d_z_pre = d_z * tanh_grad(latent_cache_); // [1 × Z]
 
     // ---- 6. Encoder projection backward  [1 × Z] → [1 × H] ----
-    Tensor d_h_last = enc_proj_->backward(d_z_pre);  // [1 × H]
+    Tensor d_h_last = enc_proj_->backward(d_z_pre); // [1 × H]
 
     // ---- 7. Propagate gradient to encoder LSTMs ----
     //         Only the last hidden state receives gradient; create [T × H] with
     //         gradient only in the last row.
     const int T = static_cast<int>(enc_output_cache_.rows());
-    Tensor d_enc_h = nn::Tensor::zeros(static_cast<nn::Index>(T),
-                                       static_cast<nn::Index>(cfg_.hidden_size));
+    Tensor d_enc_h =
+        nn::Tensor::zeros(static_cast<nn::Index>(T), static_cast<nn::Index>(cfg_.hidden_size));
     for (nn::Index col = 0; col < static_cast<nn::Index>(cfg_.hidden_size); ++col)
     {
         d_enc_h.at(static_cast<nn::Index>(T - 1), col) = d_h_last.at(0, col);
@@ -205,10 +205,10 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     Tensor d_input = d_enc_h;
     for (int l = static_cast<int>(enc_lstms_.size()) - 1; l >= 0; --l)
     {
-        d_input = enc_lstms_[static_cast<size_t>(l)]->backward(d_input);  // [T × D or T × H]
+        d_input = enc_lstms_[static_cast<size_t>(l)]->backward(d_input); // [T × D or T × H]
     }
 
-    return d_input;  // [T × D]
+    return d_input; // [T × D]
 }
 
 // ---------------------------------------------------------------------------

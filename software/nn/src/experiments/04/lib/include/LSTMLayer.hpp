@@ -92,16 +92,16 @@ inline auto tanh_grad(const nn::Tensor& tanh_out) -> nn::Tensor
 // ---------------------------------------------------------------------------
 struct LSTMStepCache
 {
-    nn::Tensor x;       // [batch × D]  -- input at this step
-    nn::Tensor h_prev;  // [batch × H]  -- hidden state entering this step
-    nn::Tensor c_prev;  // [batch × H]  -- cell state entering this step
-    nn::Tensor i;       // [batch × H]  -- input gate activation
-    nn::Tensor f;       // [batch × H]  -- forget gate activation
-    nn::Tensor o;       // [batch × H]  -- output gate activation
-    nn::Tensor g;       // [batch × H]  -- candidate cell activation
-    nn::Tensor c;       // [batch × H]  -- cell state at this step
-    nn::Tensor tanh_c;  // [batch × H]  -- tanh(c_t)
-    nn::Tensor h;       // [batch × H]  -- hidden state at this step
+    nn::Tensor x;      // [batch × D]  -- input at this step
+    nn::Tensor h_prev; // [batch × H]  -- hidden state entering this step
+    nn::Tensor c_prev; // [batch × H]  -- cell state entering this step
+    nn::Tensor i;      // [batch × H]  -- input gate activation
+    nn::Tensor f;      // [batch × H]  -- forget gate activation
+    nn::Tensor o;      // [batch × H]  -- output gate activation
+    nn::Tensor g;      // [batch × H]  -- candidate cell activation
+    nn::Tensor c;      // [batch × H]  -- cell state at this step
+    nn::Tensor tanh_c; // [batch × H]  -- tanh(c_t)
+    nn::Tensor h;      // [batch × H]  -- hidden state at this step
 };
 
 // ---------------------------------------------------------------------------
@@ -109,19 +109,19 @@ struct LSTMStepCache
 // ---------------------------------------------------------------------------
 class LSTMLayer : public Module<nn::EigenTensorBackend>
 {
-public:
+   public:
     using Tensor = nn::Tensor;
 
-    int input_size_;   ///< D: dimensionality of each input step
-    int hidden_size_;  ///< H: dimensionality of hidden/cell state
+    int input_size_;  ///< D: dimensionality of each input step
+    int hidden_size_; ///< H: dimensionality of hidden/cell state
 
     // ------- Stacked weight matrices -------
     // W : [4H × D]  input weights for [i, f, o, g] gates stacked
     // U : [4H × H]  recurrent weights stacked the same way
     // b : [4H × 1]  biases stacked
-    nn::Tensor W_;  // [4H × D]
-    nn::Tensor U_;  // [4H × H]
-    nn::Tensor b_;  // [4H × 1]
+    nn::Tensor W_; // [4H × D]
+    nn::Tensor U_; // [4H × H]
+    nn::Tensor b_; // [4H × 1]
 
     // ------- Gradient accumulators -------
     nn::Tensor dW_;
@@ -132,11 +132,11 @@ public:
     std::vector<nn::Tensor*> param_ptrs_;
 
     // ------- Initial hidden/cell (trainable not required, zeroed) -------
-    nn::Tensor h0_;  // [1 × H]
-    nn::Tensor c0_;  // [1 × H]
+    nn::Tensor h0_; // [1 × H]
+    nn::Tensor c0_; // [1 × H]
 
     // ------- BPTT cache -------
-    std::vector<LSTMStepCache> cache_;  // one entry per time step
+    std::vector<LSTMStepCache> cache_; // one entry per time step
     bool requires_grad_ = false;
 
     // ------- Current (last-seen) batch size for zero-init of h0/c0 -------
@@ -205,8 +205,8 @@ public:
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         requires_grad_ = requires_grad;
-        const int T = static_cast<int>(input.rows());   // sequence length
-        const int D = static_cast<int>(input.cols());   // input feature dim
+        const int T = static_cast<int>(input.rows()); // sequence length
+        const int D = static_cast<int>(input.cols()); // input feature dim
 
         if (D != input_size_)
         {
@@ -222,8 +222,8 @@ public:
         }
 
         // Initialise h and c (batch=1 implicit)
-        nn::Tensor h = h0_;  // [1 × H]
-        nn::Tensor c = c0_;  // [1 × H]
+        nn::Tensor h = h0_; // [1 × H]
+        nn::Tensor c = c0_; // [1 × H]
 
         // We accumulate all hidden states into [T × H] for the decoder path
         nn::Tensor all_h(static_cast<nn::Index>(T), static_cast<nn::Index>(hidden_size_));
@@ -235,9 +235,8 @@ public:
 
             // Pre-activations: [1 × 4H] = x_t · W^T + h · U^T + b^T
             // W_ : [4H × D]  →  W_^T : [D × 4H]  →  x_t · W_^T : [1 × 4H]
-            Tensor pre = x_t.matmul(W_.transpose())
-                            .add(h.matmul(U_.transpose()))
-                            .add(b_.transpose());
+            Tensor pre =
+                x_t.matmul(W_.transpose()).add(h.matmul(U_.transpose())).add(b_.transpose());
 
             // Slice gate pre-activations (each [1 × H])
             Tensor pre_i = pre.block(0, 0 * hidden_size_, 1, hidden_size_);
@@ -260,8 +259,7 @@ public:
 
             if (requires_grad)
             {
-                LSTMStepCache step{x_t, h, c, i_gate, f_gate, o_gate, g_gate,
-                                   c_new, tanh_c, h_new};
+                LSTMStepCache step{x_t, h, c, i_gate, f_gate, o_gate, g_gate, c_new, tanh_c, h_new};
                 cache_.push_back(std::move(step));
             }
 
@@ -279,7 +277,7 @@ public:
         h0_ = h;
         c0_ = c;
 
-        return all_h;  // [T × H]
+        return all_h; // [T × H]
     }
 
     /**
@@ -294,7 +292,8 @@ public:
         const int T = static_cast<int>(cache_.size());
         if (T == 0)
         {
-            throw std::runtime_error("LSTMLayer::backward called before forward with requires_grad");
+            throw std::runtime_error(
+                "LSTMLayer::backward called before forward with requires_grad");
         }
 
         // Zero gradient accumulators
@@ -384,7 +383,7 @@ public:
         U_.set_grad(dU_);
         b_.set_grad(db_);
 
-        return dx_all;  // [T × D]
+        return dx_all; // [T × D]
     }
 
     void reset_state() override

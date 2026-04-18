@@ -44,11 +44,11 @@ namespace experiment04
 // ---------------------------------------------------------------------------
 struct LSTMAutoencoderConfig
 {
-    int input_size  = 64;    ///< D — feature dimension per time step
-    int seq_len     = 32;    ///< T — number of time steps (fixed-length assumption)
-    int hidden_size = 128;   ///< H — LSTM hidden dimension
-    int latent_size = 16;    ///< Z — bottleneck dimension
-    int num_layers  = 1;     ///< number of stacked LSTM layers (encoder and decoder each)
+    int input_size = 64;   ///< D — feature dimension per time step
+    int seq_len = 32;      ///< T — number of time steps (fixed-length assumption)
+    int hidden_size = 128; ///< H — LSTM hidden dimension
+    int latent_size = 16;  ///< Z — bottleneck dimension
+    int num_layers = 1;    ///< number of stacked LSTM layers (encoder and decoder each)
 };
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ struct LSTMAutoencoderConfig
 // ---------------------------------------------------------------------------
 class LSTMAutoencoder : public Module<nn::EigenTensorBackend>
 {
-public:
+   public:
     using Tensor = nn::Tensor;
 
     LSTMAutoencoderConfig cfg_;
@@ -65,7 +65,7 @@ public:
     std::vector<std::unique_ptr<LSTMLayer>> enc_lstms_;
 
     // Projection from last encoder hidden state → latent
-    std::unique_ptr<Linear> enc_proj_;   // [hidden_size → latent_size]
+    std::unique_ptr<Linear> enc_proj_; // [hidden_size → latent_size]
 
     // --- Decoder stack ---
     // Expansion from latent → first decoder hidden dim
@@ -75,18 +75,18 @@ public:
     std::vector<std::unique_ptr<LSTMLayer>> dec_lstms_;
 
     // Output projection: hidden_size → input_size  (applied to each time step)
-    std::unique_ptr<Linear> out_proj_;   // [hidden_size → input_size]
+    std::unique_ptr<Linear> out_proj_; // [hidden_size → input_size]
 
     // --- Parameter flat view (for optimizer) ---
     std::vector<nn::Tensor*> param_ptrs_;
 
     // --- Forward caches (for backward) ---
-    Tensor enc_output_cache_;    // [T × H]  — all encoder hidden states
-    Tensor latent_cache_;        // [1 × Z]  — tanh output
-    Tensor latent_pre_cache_;    // [1 × Z]  — before tanh (needed for grad)
-    Tensor dec_input_cache_;     // [T × H]  — repeated latent expansion for decoder LSTM input
-    Tensor dec_output_cache_;    // [T × H]  — decoder LSTM output
-    Tensor recon_cache_;         // [T × D]  — reconstruction before loss
+    Tensor enc_output_cache_; // [T × H]  — all encoder hidden states
+    Tensor latent_cache_;     // [1 × Z]  — tanh output
+    Tensor latent_pre_cache_; // [1 × Z]  — before tanh (needed for grad)
+    Tensor dec_input_cache_;  // [T × H]  — repeated latent expansion for decoder LSTM input
+    Tensor dec_output_cache_; // [T × H]  — decoder LSTM output
+    Tensor recon_cache_;      // [T × D]  — reconstruction before loss
     bool requires_grad_ = false;
 
     explicit LSTMAutoencoder(const LSTMAutoencoderConfig& cfg);
@@ -126,7 +126,7 @@ public:
     auto state_dict() const -> std::map<std::string, nn::Tensor> override;
     void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override;
 
-private:
+   private:
     void build_param_ptrs();
 };
 

@@ -65,6 +65,12 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Added `experiment04` (LSTM autoencoder) under the standard experiment layout:
+  `src/experiments/04/lib/include`, `src/experiments/04/lib/src`,
+  `src/experiments/04/tests`, and `src/experiments/04/profiles`.
+  - New targets: `experiment04_lib`, `experiment04`, and `experiment_04_lstm_gtest`.
+  - Added JSON profiles: `default.json`, `deep.json`, and `lightweight.json`.
+
 - Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches
   with latent-space fusion and modality-specific decoders. Implementations live under
   `src/experiments/03/lib/` (Fused & Protocol autoencoders).

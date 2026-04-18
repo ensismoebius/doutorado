@@ -29,7 +29,6 @@
 
 #include "Experiment04Config.hpp"
 #include "LSTMAutoencoder.hpp"
-
 #include "nn/layers/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -42,10 +41,10 @@ namespace experiment04
 // ---------------------------------------------------------------------------
 struct EpochResult
 {
-    int    epoch;
-    float  train_loss;
-    float  val_loss;        ///< NaN when no validation set is given
-    double epoch_ms;        ///< wall-clock time in milliseconds
+    int epoch;
+    float train_loss;
+    float val_loss;  ///< NaN when no validation set is given
+    double epoch_ms; ///< wall-clock time in milliseconds
 };
 
 // ---------------------------------------------------------------------------
@@ -53,11 +52,12 @@ struct EpochResult
 // ---------------------------------------------------------------------------
 class Trainer
 {
-public:
-    using Sample = nn::Tensor;  // [seq_len × input_size]
+   public:
+    using Sample = nn::Tensor; // [seq_len × input_size]
 
     explicit Trainer(LSTMAutoencoder& model, const Experiment04Config& cfg)
-        : model_(model), cfg_(cfg),
+        : model_(model),
+          cfg_(cfg),
           optimizer_(cfg.learning_rate, cfg.adam_beta1, cfg.adam_beta2, cfg.adam_epsilon)
     {
         optimizer_.attach(model_.params());
@@ -70,8 +70,8 @@ public:
      * @param val_samples    Optional validation set (may be empty).
      * @return Per-epoch metrics.
      */
-    auto fit(const std::vector<Sample>& train_samples,
-             const std::vector<Sample>& val_samples = {}) -> std::vector<EpochResult>
+    auto fit(const std::vector<Sample>& train_samples, const std::vector<Sample>& val_samples = {})
+        -> std::vector<EpochResult>
     {
         std::vector<EpochResult> history;
         history.reserve(static_cast<size_t>(cfg_.epochs));
@@ -92,7 +92,7 @@ public:
 
             // ---- Training pass ----
             float train_loss_accum = 0.0f;
-            int   n_train          = 0;
+            int n_train = 0;
 
             for (size_t idx : indices)
             {
@@ -128,23 +128,21 @@ public:
                 optimizer_.step(model_.params());
 
                 // Honour max_batches_per_epoch limit
-                if (cfg_.max_batches_per_epoch > 0 &&
-                    n_train >= cfg_.max_batches_per_epoch)
+                if (cfg_.max_batches_per_epoch > 0 && n_train >= cfg_.max_batches_per_epoch)
                 {
                     break;
                 }
             }
 
-            float avg_train_loss = (n_train > 0)
-                                       ? train_loss_accum / static_cast<float>(n_train)
-                                       : 0.0f;
+            float avg_train_loss =
+                (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0f;
 
             // ---- Validation pass ----
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
             if (!val_samples.empty())
             {
                 float val_accum = 0.0f;
-                int   n_val     = 0;
+                int n_val = 0;
                 for (const Sample& vs : val_samples)
                 {
                     model_.reset_state();
@@ -157,8 +155,8 @@ public:
                 avg_val_loss = val_accum / static_cast<float>(n_val);
             }
 
-            auto t_end   = std::chrono::steady_clock::now();
-            double ms    = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+            auto t_end = std::chrono::steady_clock::now();
+            double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
 
             EpochResult res{epoch, avg_train_loss, avg_val_loss, ms};
             history.push_back(res);
@@ -169,10 +167,10 @@ public:
         return history;
     }
 
-private:
-    LSTMAutoencoder&  model_;
+   private:
+    LSTMAutoencoder& model_;
     Experiment04Config cfg_;
-    Adam              optimizer_;
+    Adam optimizer_;
 
     // ---- Gradient clipping ----
     static void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
@@ -200,8 +198,7 @@ private:
     // ---- Logging (mirrors experiment03 format) ----
     static void log_epoch(const EpochResult& r, bool no_val)
     {
-        std::cout << "[experiment04] epoch=" << r.epoch
-                  << "  train_loss=" << r.train_loss;
+        std::cout << "[experiment04] epoch=" << r.epoch << "  train_loss=" << r.train_loss;
         if (!no_val && !std::isnan(r.val_loss))
         {
             std::cout << "  val_loss=" << r.val_loss;

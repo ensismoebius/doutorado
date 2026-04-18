@@ -41,10 +41,8 @@ target_link_libraries(experiment04_lib
 
 nn_enable_target_pch(experiment04_lib)
 
-# Enable Eigen parallelisation with OpenMP if available
-if(TARGET configure_eigen_parallel_target)
-    configure_eigen_parallel_target(experiment04_lib)
-endif()
+# Enable Eigen parallelisation with OpenMP
+configure_eigen_parallel_target(experiment04_lib)
 
 # ---- Executable ----
 add_executable(experiment04
@@ -76,9 +74,7 @@ if(TARGET dataLoaders_10_1117_windowing)
 endif()
 
 # ---- Tests ----
-if(EXISTS ${SRC_DIR}/experiments/04/tests/CMakeLists.txt)
-    add_subdirectory(tests)
-endif()
+add_subdirectory(tests)
 
 # ---- Profile copy (for future JSON profiles) ----
 file(GLOB EXPERIMENT04_PROFILE_JSON "${SRC_DIR}/experiments/04/profiles/*.json")
