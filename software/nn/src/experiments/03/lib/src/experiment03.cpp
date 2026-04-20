@@ -345,7 +345,6 @@ int Experiment03::run()
 
             const size_t global_training_total_samples =
                 global_training_total_batches * config_.training_batch_size;
-            const size_t global_total_epochs = fold_selector.fold_count() * config_.training_epochs;
 
             size_t global_training_seen_batches = 0;
             size_t global_training_processed_samples = 0;
@@ -360,9 +359,7 @@ int Experiment03::run()
                 const auto& selection = fold_plans[fold_idx].selection;
                 const auto& train_trial_ids = selection.train_trial_ids;
                 const auto& val_trial_ids = selection.val_trial_ids;
-                const string fold_progress_context = string("Fold ") +
-                                                     std::to_string(fold_idx + 1) + "/" +
-                                                     std::to_string(fold_selector.fold_count());
+                const string fold_progress_context = "Training";
 
                 ostringstream fold_header;
                 fold_header << "=== K-Fold " << (fold_idx + 1) << "/" << fold_selector.fold_count()
@@ -422,8 +419,6 @@ int Experiment03::run()
                     size_t epoch_batches = 0;
                     float epoch_loss_sum = 0.0F;
                     double last_batch_loss = 0.0;
-                    const size_t global_epoch_index =
-                        fold_idx * config_.training_epochs + epoch + 1;
 
                     while (prefetcher_->hasNext())
                     {
@@ -460,14 +455,18 @@ int Experiment03::run()
                             static_cast<size_t>(batch.inputs.rows());
                         ++global_training_seen_batches;
 
-                        printProgress(global_training_total_samples,
+                        postProgressAsync(global_training_total_samples,
                             config_.training_batch_size,
                             global_training_total_batches,
                             global_training_seen_batches,
                             global_training_processed_samples,
                             false,
-                            global_epoch_index,
-                            global_total_epochs,
+                            fold_idx + 1,
+                            fold_selector.fold_count(),
+                            epoch + 1,
+                            config_.training_epochs,
+                            epoch_batches,
+                            train_epoch_max_batches,
                             last_batch_loss,
                             std::span<nn::Tensor*>{},
                             fold_progress_context);
@@ -478,17 +477,26 @@ int Experiment03::run()
                         const bool global_done = (fold_idx + 1 == fold_selector.fold_count()) &&
                                                  (epoch + 1 == config_.training_epochs);
 
-                        printProgress(global_training_total_samples,
+                        postProgressAsync(global_training_total_samples,
                             config_.training_batch_size,
                             global_training_total_batches,
                             global_training_seen_batches,
                             global_training_processed_samples,
                             global_done,
-                            global_epoch_index,
-                            global_total_epochs,
+                            fold_idx + 1,
+                            fold_selector.fold_count(),
+                            epoch + 1,
+                            config_.training_epochs,
+                            epoch_batches,
+                            train_epoch_max_batches,
                             last_batch_loss,
                             global_done ? model_->params() : std::span<nn::Tensor*>{},
                             fold_progress_context);
+
+                        if (global_done)
+                        {
+                            flushProgressAsync();
+                        }
                     }
 
                     const float mean_train_loss =
@@ -627,6 +635,7 @@ int Experiment03::run()
             const size_t total_training_batches = epoch_max_batches * config_.training_epochs;
             const size_t total_training_samples =
                 total_training_batches * config_.training_batch_size;
+            const string fold_progress_context = "Training";
 
             // Fit per-modality input normalizer on the full training corpus.
             auto input_transform = fit_input_transform(config_, epoch_max_batches, nullptr);
@@ -685,31 +694,46 @@ int Experiment03::run()
                     processed_samples_ += static_cast<size_t>(batch.inputs.rows());
                     ++seen_batches_;
 
-                    printProgress(total_training_samples,
+                    postProgressAsync(total_training_samples,
                         config_.training_batch_size,
                         total_training_batches,
                         seen_batches_,
                         processed_samples_,
                         false,
+                        1,
+                        1,
                         epoch + 1,
                         config_.training_epochs,
+                        epoch_batches,
+                        epoch_max_batches,
                         last_batch_loss,
-                        std::span<nn::Tensor*>{});
+                        std::span<nn::Tensor*>{},
+                        fold_progress_context);
                 }
 
                 if (model_) [[likely]]
                 {
                     const bool done = (epoch + 1 == config_.training_epochs);
-                    printProgress(total_training_samples,
+                    postProgressAsync(total_training_samples,
                         config_.training_batch_size,
                         total_training_batches,
                         seen_batches_,
                         processed_samples_,
                         done,
+                        1,
+                        1,
                         epoch + 1,
                         config_.training_epochs,
+                        epoch_batches,
+                        epoch_max_batches,
                         last_batch_loss,
-                        done ? model_->params() : std::span<nn::Tensor*>{});
+                        done ? model_->params() : std::span<nn::Tensor*>{},
+                        fold_progress_context);
+
+                    if (done)
+                    {
+                        flushProgressAsync();
+                    }
                 }
 
                 const float mean_train_loss =
