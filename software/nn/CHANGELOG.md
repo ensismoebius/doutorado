@@ -4,10 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased (2026-03-17)
 
-- Refactor: Move experiment pipeline into `Experiment04` class
-  - `src/experiments/03/experiment04.cpp` refactored; new API in
+- Refactor: Move experiment pipeline into `LstmAutoencoderExperiment` class
+  - Integrated the LSTM autoencoder runner into `experiment03`; new API in
     `src/experiments/03/lib/include/experiment04.hpp` and
     `src/experiments/03/lib/src/experiment04.cpp`.
+  - Folded former `src/experiments/04` library, tests, and profiles into
+    `src/experiments/03/lib`, `src/experiments/03/tests`, and
+    `src/experiments/03/profiles`.
 
 - Prefetcher: `BatchPrefetcher` redesigned to single-producer thread with
   a bounded deque to serialize MAT I/O and avoid concurrent `matio` reads.
@@ -65,11 +68,10 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- Added `experiment04` (LSTM autoencoder) under the standard experiment layout:
-  `src/experiments/04/lib/include`, `src/experiments/04/lib/src`,
-  `src/experiments/04/tests`, and `src/experiments/04/profiles`.
-  - New targets: `experiment04_lib`, `experiment04`, and `experiment_04_lstm_gtest`.
-  - Added JSON profiles: `default.json`, `deep.json`, and `lightweight.json`.
+- Added integrated Experiment04 LSTM assets under the Experiment03 module:
+  `src/experiments/03/lib/include/experiment04`,
+  `src/experiments/03/lib/src/experiment04`, `src/experiments/03/tests`, and
+  `src/experiments/03/profiles/lstm-*.json`.
 
 - Dual-branch multimodal autoencoders for `experiment03`: separate EEG and audio encoder branches
   with latent-space fusion and modality-specific decoders. Implementations live under

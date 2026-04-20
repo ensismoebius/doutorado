@@ -17,6 +17,7 @@
 
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
+#include "lib/include/experiment04.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 
@@ -42,10 +43,40 @@ auto parse_log_level_from_env() -> Level
     if (level == "debug") return Level::Debug;
     return Level::Info;
 }
+
+auto has_help_flag(int argc, char* argv[]) -> bool
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string_view arg = argv[i] ? argv[i] : "";
+        if (arg == "-h" || arg == "--help" || arg == "--help-all")
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 } // namespace
 
 auto main(int argc, char* argv[]) -> int
 {
+    const bool run_experiment04 = lstm_autoencoder_experiment::should_run_from_cli(argc, argv);
+    const bool wants_help = has_help_flag(argc, argv);
+
+    if (run_experiment04)
+    {
+        Logger::instance().set_level(parse_log_level_from_env());
+        std::unique_ptr<StreamRedirector> redirect;
+        if (!wants_help)
+        {
+            redirect = std::make_unique<StreamRedirector>(true, true);
+        }
+
+        LstmAutoencoderExperiment experiment;
+        return experiment.run(argc, argv);
+    }
+
     Config profile_defaults{};
     std::string profile_error;
     if (!experiment03::load_profile_to_config("default", profile_defaults, profile_error))
@@ -56,7 +87,12 @@ auto main(int argc, char* argv[]) -> int
 
     Config config = parseCliParams(argc, argv, profile_defaults);
     Logger::instance().set_level(parse_log_level_from_env());
-    StreamRedirector redirect(true, true);
+    std::unique_ptr<StreamRedirector> redirect;
+    if (!wants_help)
+    {
+        redirect = std::make_unique<StreamRedirector>(true, true);
+    }
+
     Experiment03 experiment(config);
     return experiment.run();
 }

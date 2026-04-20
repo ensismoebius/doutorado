@@ -27,7 +27,7 @@ TEST(Experiment03ProfilesTest, LoadsDefaultProfile)
     ASSERT_TRUE(ok) << error;
     EXPECT_EQ(config.autoencoder_hidden_size, 64);
     EXPECT_EQ(config.autoencoder_latent_size, 32);
-    EXPECT_EQ(config.autoencoder_depth, 4);
+    EXPECT_EQ(config.autoencoder_depth, 7);
     EXPECT_EQ(config.dataset_subject_filter_regex, "^S(\\d+)$");
     EXPECT_EQ(config.dataset_root_path,
         "/home/ensismoebius/Documentos/UNESP/doutorado/databases/BaseDeDatosHablaImaginada");

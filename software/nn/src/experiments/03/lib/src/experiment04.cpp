@@ -1,29 +1,9 @@
 /**
- * @file experiment04.cpp
- * @brief Experiment04 — LSTM Autoencoder for 1-D temporal signals.
- *
- * Entry point for the LSTM autoencoder training pipeline. This file mirrors the
- * thin launcher pattern used by experiment03:
- *
- *   1. Parse a JSON configuration profile (command-line or default).
- *   2. Build synthetic or real windowed dataset samples.
- *   3. Construct the LSTMAutoencoder.
- *   4. Run the Trainer.
- *   5. Write a JSON results summary.
- *
- * Comparison parity with experiment03:
- *   - MSE reconstruction loss
- *   - Adam optimizer with same default hyperparameters
- *   - Per-epoch train/val logging in the same format
- *   - JSON result artifact at the same path convention
- *
- * Dataset strategy:
- *   When a valid dataset root is provided (via --dataset-root) and the subject
- *   matcher finds subjects, real AudioWindowDataset samples are loaded.
- *   Otherwise, a synthetic sine-wave dataset is generated automatically so
- *   the experiment runs standalone without any data dependency — useful for
- *   architecture validation and CI.
+ * @file src/experiments/03/lib/src/experiment04.cpp
+ * @brief Integrated Experiment04 runner implementation.
  */
+
+#include "experiment04.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -35,25 +15,21 @@
 #include <string>
 #include <vector>
 
-// Experiment04 components
-#include "lib/include/Experiment04Config.hpp"
-#include "lib/include/LSTMAutoencoder.hpp"
-#include "lib/include/Trainer.hpp"
-
-// Core framework
+#include "experiment04/Experiment04Config.hpp"
+#include "experiment04/LSTMAutoencoder.hpp"
+#include "experiment04/Trainer.hpp"
+#include "nlohmann/json.hpp"
 #include "nn/tensor/Tensor.hpp"
 
-// JSON for results
-#include "nlohmann/json.hpp"
-
-// ---------------------------------------------------------------------------
-// CLI parsing (minimal — mirrors experiment03 pattern without CLI11 dep)
-// ---------------------------------------------------------------------------
+namespace lstm_autoencoder_experiment
+{
 namespace
 {
+constexpr const char* kDefaultProfileStem = "lstm-default";
 
 struct CliOptions
 {
+    std::string profile_name = kDefaultProfileStem;
     std::string config_path;
     std::string dataset_root;
     int epochs = -1;
@@ -67,29 +43,83 @@ struct CliOptions
     bool help = false;
 };
 
-void print_usage(const char* prog)
+auto has_experiment04_marker(const std::string& arg) -> bool
 {
-    std::cout << "Usage: " << prog << " [options]\n"
-              << "Options:\n"
-              << "  --config <path>          JSON config profile\n"
-              << "  --dataset-root <path>    Root directory for 10.1117 dataset\n"
-              << "  --epochs <n>             Override epoch count\n"
-              << "  --lr <f>                 Override learning rate\n"
-              << "  --input-size <n>         Override input feature dimension\n"
-              << "  --hidden-size <n>        Override LSTM hidden dimension\n"
-              << "  --latent-size <n>        Override latent dimension\n"
-              << "  --seq-len <n>            Override sequence length\n"
-              << "  --num-layers <n>         Override number of stacked LSTM layers\n"
-              << "  --grad-clip <f>          Override gradient clipping norm (0=off)\n"
-              << "  --help                   Print this message\n";
+    return arg == "--experiment04" || arg == "--lstm-autoencoder" || arg == "--experiment=04" ||
+           arg == "--experiment=experiment04" || arg == "--experiment=lstm" ||
+           arg == "--experiment=lstm-autoencoder";
 }
 
-CliOptions parse_cli(const int argc, char* const* const argv)
+auto source_profile_dir() -> std::filesystem::path
+{
+    return std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "profiles";
+}
+
+auto source_results_dir() -> std::filesystem::path
+{
+    return std::filesystem::path(__FILE__).parent_path().parent_path().parent_path() / "results";
+}
+
+void print_usage(const char* prog)
+{
+    std::cout << "Usage: " << prog << " --experiment=lstm-autoencoder [options]\n"
+              << "Options:\n"
+              << "  --experiment04                Run integrated Experiment04 pipeline\n"
+              << "  --lstm-profile <name|path>    LSTM profile stem or JSON path\n"
+              << "  --config <path>               Alias for explicit JSON config path\n"
+              << "  --dataset-root <path>         Override dataset root\n"
+              << "  --epochs <n>                  Override epoch count\n"
+              << "  --lr <f>                      Override learning rate\n"
+              << "  --input-size <n>              Override input feature dimension\n"
+              << "  --hidden-size <n>             Override hidden dimension\n"
+              << "  --latent-size <n>             Override latent dimension\n"
+              << "  --seq-len <n>                 Override sequence length\n"
+              << "  --num-layers <n>              Override stacked LSTM layer count\n"
+              << "  --grad-clip <f>               Override gradient clipping norm\n"
+              << "  --help                        Print this message\n";
+}
+
+auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
+{
+    namespace fs = std::filesystem;
+
+    if (!opts.config_path.empty())
+    {
+        return fs::path(opts.config_path);
+    }
+
+    const fs::path source_dir = source_profile_dir();
+    const fs::path runtime_dir = fs::path("profiles");
+    const fs::path raw_profile = fs::path(opts.profile_name);
+
+    if (raw_profile.has_parent_path() || raw_profile.extension() == ".json")
+    {
+        if (fs::exists(raw_profile)) return raw_profile;
+        if (raw_profile.extension() == ".json")
+        {
+            const fs::path source_candidate = source_dir / raw_profile.filename();
+            if (fs::exists(source_candidate)) return source_candidate;
+            const fs::path runtime_candidate = runtime_dir / raw_profile.filename();
+            if (fs::exists(runtime_candidate)) return runtime_candidate;
+        }
+    }
+
+    const std::string stem = raw_profile.stem().string().empty() ? std::string(kDefaultProfileStem)
+                                                                 : raw_profile.stem().string();
+    const fs::path source_candidate = source_dir / (stem + ".json");
+    if (fs::exists(source_candidate)) return source_candidate;
+    const fs::path runtime_candidate = runtime_dir / (stem + ".json");
+    if (fs::exists(runtime_candidate)) return runtime_candidate;
+
+    throw std::runtime_error("Cannot resolve Experiment04 profile: " + opts.profile_name);
+}
+
+auto parse_cli(int argc, char* argv[]) -> CliOptions
 {
     CliOptions opts;
     for (int i = 1; i < argc; ++i)
     {
-        std::string arg = argv[i];
+        const std::string arg = argv[i] ? argv[i] : "";
         auto next = [&]() -> std::string
         {
             if (i + 1 >= argc) throw std::runtime_error("Missing value for " + arg);
@@ -99,6 +129,18 @@ CliOptions parse_cli(const int argc, char* const* const argv)
         if (arg == "--help" || arg == "-h")
         {
             opts.help = true;
+        }
+        else if (has_experiment04_marker(arg))
+        {
+            continue;
+        }
+        else if (arg == "--lstm-profile")
+        {
+            opts.profile_name = next();
+        }
+        else if (arg.rfind("--lstm-profile=", 0) == 0)
+        {
+            opts.profile_name = arg.substr(std::string("--lstm-profile=").size());
         }
         else if (arg == "--config")
         {
@@ -140,26 +182,31 @@ CliOptions parse_cli(const int argc, char* const* const argv)
         {
             opts.grad_clip = std::stof(next());
         }
+        else if (arg == "--profile")
+        {
+            ++i;
+        }
+        else if (arg.rfind("--profile=", 0) == 0)
+        {
+            continue;
+        }
         else
         {
-            std::cerr << "Unknown option: " << arg << "\n";
+            throw std::runtime_error("Unknown Experiment04 option: " + arg);
         }
     }
+
     return opts;
 }
 
-// ---------------------------------------------------------------------------
-// Config loader from JSON (subset of experiment03 profile convention)
-// ---------------------------------------------------------------------------
-Experiment04Config load_config(const std::string& path)
+auto load_config(const std::filesystem::path& path) -> Experiment04Config
 {
     Experiment04Config cfg;
-    if (path.empty()) return cfg;
 
     std::ifstream f(path);
     if (!f.is_open())
     {
-        throw std::runtime_error("Cannot open config: " + path);
+        throw std::runtime_error("Cannot open config: " + path.string());
     }
 
     nlohmann::json j;
@@ -190,12 +237,8 @@ Experiment04Config load_config(const std::string& path)
     return cfg;
 }
 
-// ---------------------------------------------------------------------------
-// Synthetic dataset — sine waves with different frequencies per sample
-// Used when no real dataset root is supplied.
-// ---------------------------------------------------------------------------
-std::vector<nn::Tensor> make_synthetic_dataset(
-    int n_samples, int seq_len, int input_size, unsigned seed)
+auto make_synthetic_dataset(int n_samples, int seq_len, int input_size, unsigned seed)
+    -> std::vector<nn::Tensor>
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<float> freq_dist(0.5f, 4.0f);
@@ -212,33 +255,37 @@ std::vector<nn::Tensor> make_synthetic_dataset(
         {
             for (int d = 0; d < input_size; ++d)
             {
-                float freq = freq_dist(rng);
-                float phase = phase_dist(rng);
+                const float freq = freq_dist(rng);
+                const float phase = phase_dist(rng);
                 float val = std::sin(
                     2.0f * 3.14159f * freq * static_cast<float>(t) / static_cast<float>(seq_len) +
                     phase);
                 val += noise_dist(rng);
-                // Normalise to [-1, 1]
                 sample.at(static_cast<nn::Index>(t), static_cast<nn::Index>(d)) =
                     std::clamp(val, -1.0f, 1.0f);
             }
         }
         samples.push_back(std::move(sample));
     }
+
     return samples;
 }
 
-// ---------------------------------------------------------------------------
-// Results writer (JSON — same structure convention as experiment03)
-// ---------------------------------------------------------------------------
 void write_results(const Experiment04Config& cfg,
-    const experiment04::LSTMAutoencoderConfig& arch,
-    const std::vector<experiment04::EpochResult>& history,
+    const LSTMAutoencoderConfig& arch,
+    const std::vector<EpochResult>& history,
     int exit_code,
     const std::string& error_msg = "")
 {
     namespace fs = std::filesystem;
-    fs::create_directories(cfg.results_dir);
+
+    fs::path results_dir =
+        cfg.results_dir.empty() ? source_results_dir() : fs::path(cfg.results_dir);
+    if (!fs::exists(results_dir))
+    {
+        results_dir = fs::path("results");
+    }
+    fs::create_directories(results_dir);
 
     nlohmann::json j;
     j["run_tag"] = cfg.run_tag;
@@ -266,31 +313,49 @@ void write_results(const Experiment04Config& cfg,
     j["exit_code"] = exit_code;
     if (!error_msg.empty()) j["error"] = error_msg;
 
-    std::string filename = cfg.results_dir + "/" + cfg.run_tag + "_results.json";
+    const std::string run_tag = cfg.run_tag.empty() ? std::string("experiment04") : cfg.run_tag;
+    const fs::path filename = results_dir / (run_tag + "_results.json");
     std::ofstream out(filename);
     out << j.dump(2) << "\n";
-    std::cout << "[experiment04] Results written to " << filename << "\n";
+    std::cout << "[experiment04] Results written to " << filename.string() << "\n";
+}
+} // namespace
+
+auto should_run_from_cli(int argc, char* argv[]) -> bool
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i] ? argv[i] : "";
+        if (has_experiment04_marker(arg) || arg == "--lstm-profile" ||
+            arg.rfind("--lstm-profile=", 0) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
-} // anonymous namespace
+} // namespace lstm_autoencoder_experiment
 
-// ---------------------------------------------------------------------------
-// main
-// ---------------------------------------------------------------------------
-int main(int argc, char* argv[])
+auto LstmAutoencoderExperiment::run(int argc, char* argv[]) -> int
 {
+    using lstm_autoencoder_experiment::CliOptions;
+    using lstm_autoencoder_experiment::LSTMAutoencoder;
+    using lstm_autoencoder_experiment::LSTMAutoencoderConfig;
+    using lstm_autoencoder_experiment::Trainer;
+
     try
     {
-        // ---- CLI ----
-        CliOptions cli = parse_cli(argc, argv);
+        const CliOptions cli = lstm_autoencoder_experiment::parse_cli(argc, argv);
         if (cli.help)
         {
-            print_usage(argv[0]);
+            lstm_autoencoder_experiment::print_usage(argv[0]);
             return 0;
         }
 
-        // ---- Config ----
-        Experiment04Config cfg = load_config(cli.config_path);
+        Experiment04Config cfg = lstm_autoencoder_experiment::load_config(
+            lstm_autoencoder_experiment::resolve_profile_path(cli));
         if (!cli.dataset_root.empty()) cfg.dataset_root = cli.dataset_root;
         if (cli.epochs > 0) cfg.epochs = cli.epochs;
         if (cli.lr > 0.0f) cfg.learning_rate = cli.lr;
@@ -313,50 +378,42 @@ int main(int argc, char* argv[])
                   << "  lr           : " << cfg.learning_rate << "\n"
                   << "  grad_clip    : " << cfg.grad_clip_norm << "\n";
 
-        // ---- Dataset ----
-        // For now, always use the synthetic dataset path.
-        // A future extension point is DatasetBuilder04 (see README.md extension notes).
         constexpr int kNTrain = 200;
         constexpr int kNVal = 40;
-
         std::cout << "[experiment04] Building synthetic dataset (" << kNTrain << " train, " << kNVal
                   << " val)\n";
 
-        auto train_samples =
-            make_synthetic_dataset(kNTrain, cfg.seq_len, cfg.input_size, cfg.sampler_shuffle_seed);
-        auto val_samples = make_synthetic_dataset(
+        auto train_samples = lstm_autoencoder_experiment::make_synthetic_dataset(
+            kNTrain, cfg.seq_len, cfg.input_size, cfg.sampler_shuffle_seed);
+        auto val_samples = lstm_autoencoder_experiment::make_synthetic_dataset(
             kNVal, cfg.seq_len, cfg.input_size, cfg.sampler_shuffle_seed + 1u);
 
-        // ---- Model ----
-        experiment04::LSTMAutoencoderConfig arch;
+        LSTMAutoencoderConfig arch;
         arch.input_size = cfg.input_size;
         arch.seq_len = cfg.seq_len;
         arch.hidden_size = cfg.hidden_size;
         arch.latent_size = cfg.latent_size;
         arch.num_layers = cfg.num_layers;
-        experiment04::LSTMAutoencoder model(arch);
+        LSTMAutoencoder model(arch);
 
         std::cout << "[experiment04] Model built. Parameter count estimate: "
                   << model.params().size() << " tensors\n";
 
-        // ---- Training ----
-        experiment04::Trainer trainer(model, cfg);
-        auto history = trainer.fit(train_samples, val_samples);
+        Trainer trainer(model, cfg);
+        const auto history = trainer.fit(train_samples, val_samples);
 
-        // ---- Results ----
-        write_results(cfg, arch, history, 0);
+        lstm_autoencoder_experiment::write_results(cfg, arch, history, 0);
         std::cout << "[experiment04] Done.\n";
         return 0;
     }
     catch (const std::exception& ex)
     {
         std::cerr << "[experiment04] Fatal error: " << ex.what() << "\n";
-        // Write failure result if we can
         try
         {
             Experiment04Config cfg;
-            experiment04::LSTMAutoencoderConfig arch;
-            write_results(cfg, arch, {}, 1, ex.what());
+            lstm_autoencoder_experiment::LSTMAutoencoderConfig arch;
+            lstm_autoencoder_experiment::write_results(cfg, arch, {}, 1, ex.what());
         }
         catch (...)
         {

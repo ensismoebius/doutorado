@@ -1,8 +1,8 @@
-## exec_experiment04.cmake
-# Target for experiment04 utility
+# Experiment03 shared library and integrated LSTM sources
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
+    ${SRC_DIR}/experiments/03/lib/src/experiment04/LSTMAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp
@@ -18,6 +18,7 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/TrialFoldSelector.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03_helpers.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
+    ${SRC_DIR}/experiments/03/lib/src/experiment04.cpp
 )
 
 if(NN_USE_OBJECT_LIBRARIES)
@@ -37,6 +38,7 @@ target_link_libraries(experiment03_lib
     PUBLIC
         CLI11::CLI11
         util
+        nlohmann_json_wrapper
         dataLoaders_10_1117
         dataLoaders_10_1117_windowing
         dataLoaders
