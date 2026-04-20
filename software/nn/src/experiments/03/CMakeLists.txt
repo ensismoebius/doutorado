@@ -2,7 +2,8 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
-    ${SRC_DIR}/experiments/03/lib/src/experiment04/LSTMAutoencoder.cpp
+    ${SRC_DIR}/experiments/04/lib/src/LSTMAutoencoder.cpp
+    ${SRC_DIR}/experiments/04/lib/src/comparative_experiment.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp
@@ -18,7 +19,7 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/TrialFoldSelector.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03_helpers.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
-    ${SRC_DIR}/experiments/03/lib/src/experiment04.cpp
+    ${SRC_DIR}/experiments/04/lib/src/experiment04.cpp
 )
 
 if(NN_USE_OBJECT_LIBRARIES)
@@ -31,6 +32,7 @@ target_include_directories(experiment03_lib
     PUBLIC
         ${SRC_DIR}/experiments/03/lib/include
         ${SRC_DIR}/experiments/03/lib/include/autoencoder
+        ${SRC_DIR}/experiments/04/lib/include
     ${PROJECT_SOURCE_DIR}/include
 )
 
@@ -82,11 +84,13 @@ target_link_libraries(experiment03
 configure_eigen_parallel_target(experiment03)
 
 file(GLOB EXPERIMENT03_PROFILE_JSON "${SRC_DIR}/experiments/03/profiles/*.json")
-if(EXPERIMENT03_PROFILE_JSON)
+file(GLOB EXPERIMENT04_PROFILE_JSON "${SRC_DIR}/experiments/04/profiles/*.json")
+set(EXPERIMENT_PROFILE_JSON ${EXPERIMENT03_PROFILE_JSON} ${EXPERIMENT04_PROFILE_JSON})
+if(EXPERIMENT_PROFILE_JSON)
     add_custom_command(TARGET experiment03 POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:experiment03>/profiles
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${EXPERIMENT03_PROFILE_JSON}
+            ${EXPERIMENT_PROFILE_JSON}
             $<TARGET_FILE_DIR:experiment03>/profiles
         VERBATIM
     )

@@ -1,5 +1,5 @@
 /**
- * @file src/experiments/03/lib/src/experiment04.cpp
+ * @file src/experiments/04/lib/src/experiment04.cpp
  * @brief Integrated Experiment04 runner implementation.
  */
 
@@ -15,9 +15,10 @@
 #include <string>
 #include <vector>
 
-#include "experiment04/Experiment04Config.hpp"
-#include "experiment04/LSTMAutoencoder.hpp"
-#include "experiment04/Trainer.hpp"
+#include "Experiment04Config.hpp"
+#include "LSTMAutoencoder.hpp"
+#include "Trainer.hpp"
+#include "comparative_experiment.hpp"
 #include "nlohmann/json.hpp"
 #include "nn/tensor/Tensor.hpp"
 
@@ -323,6 +324,11 @@ void write_results(const Experiment04Config& cfg,
 
 auto should_run_from_cli(int argc, char* argv[]) -> bool
 {
+    if (comparative_autoencoder_experiment::should_run_from_cli(argc, argv))
+    {
+        return true;
+    }
+
     for (int i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i] ? argv[i] : "";
@@ -340,6 +346,12 @@ auto should_run_from_cli(int argc, char* argv[]) -> bool
 
 auto LstmAutoencoderExperiment::run(int argc, char* argv[]) -> int
 {
+    if (comparative_autoencoder_experiment::should_run_from_cli(argc, argv))
+    {
+        ComparativeAutoencoderExperiment comparative;
+        return comparative.run(argc, argv);
+    }
+
     using lstm_autoencoder_experiment::CliOptions;
     using lstm_autoencoder_experiment::LSTMAutoencoder;
     using lstm_autoencoder_experiment::LSTMAutoencoderConfig;

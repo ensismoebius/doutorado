@@ -33,7 +33,6 @@
 #include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
 #include "nn/device/Device.hpp"
-#include "nn/layers/eigen/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/optimizers/Optimizer.hpp"

@@ -17,6 +17,8 @@ CompileFlags:
     - -Iinclude
     - -Isrc
     - -Isrc/experiments/03/lib/include
+    - -Isrc/experiments/03/lib/include/autoencoder
+    - -Isrc/experiments/04/lib/include
     - -isystem
     - /usr/include/eigen3
     - --gcc-toolchain=/usr

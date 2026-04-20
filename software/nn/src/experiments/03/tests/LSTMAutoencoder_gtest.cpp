@@ -8,10 +8,10 @@
 #include <cmath>
 #include <vector>
 
-#include "experiment04/Experiment04Config.hpp"
-#include "experiment04/LSTMAutoencoder.hpp"
-#include "experiment04/LSTMLayer.hpp"
-#include "experiment04/Trainer.hpp"
+#include "Experiment04Config.hpp"
+#include "LSTMAutoencoder.hpp"
+#include "LSTMLayer.hpp"
+#include "Trainer.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace

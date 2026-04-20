@@ -3,7 +3,7 @@
  * @brief LSTM autoencoder forward and BPTT backward implementation.
  */
 
-#include "experiment04/LSTMAutoencoder.hpp"
+#include "LSTMAutoencoder.hpp"
 
 #include <string>
 

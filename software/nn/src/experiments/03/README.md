@@ -19,8 +19,8 @@ All runtime behavior must be defined by profile fields. CLI accepts only `--prof
 
 Integrated LSTM mode
 --------------------
-The old standalone `experiment04` LSTM autoencoder now lives inside the `experiment03`
-module. Invoke it from the same binary with an explicit experiment selector:
+The standalone `experiment04` implementation now lives under `src/experiments/04` and is
+invoked through the `experiment03` binary with an explicit experiment selector:
 
 ```bash
 ./src/experiments/03/experiment03 --experiment=lstm-autoencoder --lstm-profile lstm-default
@@ -29,23 +29,23 @@ module. Invoke it from the same binary with an explicit experiment selector:
 You can also pass an explicit JSON file:
 
 ```bash
-./src/experiments/03/experiment03 --experiment04 --config src/experiments/03/profiles/lstm-lightweight.json
+./src/experiments/03/experiment03 --experiment04 --config src/experiments/04/profiles/lstm-lightweight.json
 ```
 
-LSTM profiles live beside the regular `experiment03` profiles and are prefixed with `lstm-`.
+LSTM profiles now live under `src/experiments/04/profiles` and remain prefixed with `lstm-`.
 
 Use `--help` to inspect the full option list without starting the experiment or touching the logger pipeline.
 
 Integrated LSTM architecture
 ----------------------------
-The integrated LSTM path is intentionally self-contained inside the Experiment03 module:
+The integrated LSTM path is now hosted under `src/experiments/04` and dispatched by `experiment03`:
 
 - `src/experiments/03/experiment03.cpp`: top-level launcher and dispatch to standard Experiment03 or LSTM mode.
-- `src/experiments/03/lib/include/experiment04.hpp`: runner entrypoint used by the shared binary.
-- `src/experiments/03/lib/src/experiment04.cpp`: LSTM CLI parsing, profile loading, synthetic dataset generation, training orchestration, and JSON result writing.
-- `src/experiments/03/lib/include/experiment04/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
-- `src/experiments/03/lib/include/experiment04/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
-- `src/experiments/03/lib/include/experiment04/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
+- `src/experiments/04/lib/include/experiment04.hpp`: runner entrypoint used by the shared binary.
+- `src/experiments/04/lib/src/experiment04.cpp`: LSTM CLI parsing, profile loading, synthetic dataset generation, training orchestration, and JSON result writing.
+- `src/experiments/04/lib/include/experiment04/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
+- `src/experiments/04/lib/include/experiment04/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
+- `src/experiments/04/lib/include/experiment04/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.
 - `src/experiments/03/tests/LSTMAutoencoder_gtest.cpp`: regression coverage for the integrated LSTM components.
 
 Current integrated runner behavior:
@@ -121,9 +121,9 @@ Useful built-in examples:
 - `default.json`: generic baseline defaults.
 - `lightweight.json`: smaller/faster smoke-test baseline.
 - `fused-window-snn-default.json`: fused SNN baseline.
-- `lstm-default.json`: integrated Experiment04 baseline.
-- `lstm-lightweight.json`: integrated Experiment04 smoke profile.
-- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile.
+- `lstm-default.json`: integrated Experiment04 baseline (in `src/experiments/04/profiles`).
+- `lstm-lightweight.json`: integrated Experiment04 smoke profile (in `src/experiments/04/profiles`).
+- `lstm-deep.json`: integrated Experiment04 deeper LSTM profile (in `src/experiments/04/profiles`).
 - `protocol-ann-default.json`: protocol ANN baseline.
 - `protocol-snn-default.json`: protocol SNN baseline.
 - `sample-training-flow.json`: commented, loadable example that shows how to move from smoke tests to full training.

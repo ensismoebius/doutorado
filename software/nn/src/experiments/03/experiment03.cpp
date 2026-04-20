@@ -15,9 +15,9 @@
 #include <memory>
 #include <string_view>
 
+#include "../04/lib/include/experiment04.hpp"
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
-#include "lib/include/experiment04.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 
