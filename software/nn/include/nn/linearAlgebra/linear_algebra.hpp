@@ -41,14 +41,14 @@ auto derivative(std::vector<double>& vector, long level = 1) -> std::vector<doub
  * @param b
  * @return
  */
-auto dotProduct(std::span<const double> a, std::span<const double> b) -> double;
+auto dot_product(std::span<const double> a, std::span<const double> b) -> double;
 
 /**
  * Given a vector calculates the corresponding orthogonal vector
  * @param vector - source vector
  * @return orthogonal vector
  */
-auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>;
+auto calc_orthogonal_vector(std::span<const double> vector) -> std::vector<double>;
 
 /**
  * Normalize the vector
@@ -56,13 +56,13 @@ auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>
  * @param lowerLimit
  * @param upperLimit
  */
-void normalizeVectorToRange(std::span<double> signal, double lowerLimit, double upperLimit);
+void normalize_vector_to_range(std::span<double> signal, double lowerLimit, double upperLimit);
 
 /**
  * Normalize the vector to sum 1
  * @param signal
  */
-void normalizeVectorToSum1(std::span<double> signal);
+void normalize_vector_to_sum1(std::span<double> signal);
 
 /**
  * Convolute a signal with a filter (kernel)
@@ -76,49 +76,49 @@ auto convolution(std::span<double> data, std::span<const double> kernel) -> bool
  * Performs a DCT on vector
  * @param vector
  */
-void discreteCosineTransform(std::span<double> vector);
+void discrete_cosine_transform(std::span<double> vector);
 
 /**
  * Scales a given matrix
  * @param matrix
  */
-void scaleMatrix(std::vector<std::vector<double>>& matrix);
+void scale_matrix(std::vector<std::vector<double>>& matrix);
 
 /**
  * Solves the linear system represented by
  * the matrix and return the results.
  * The matrix MUST be scaled before!!!
- * @see scaleMatrix
+ * @see scale_matrix
  * @param matrix - A scaled matrix
  * @return a vetor with results
  */
-auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>;
+auto solve_matrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>;
 
 /**
  * Normalize the vector to sum 1 and guarantees
  * that all values are positives
  * @param signal
  */
-void normalizeVectorToSum1AllPositive(std::span<double> signal);
+void normalize_vector_to_sum1_all_positive(std::span<double> signal);
 
 /**
  * Resizes a vector in a centered way
  * @example std::vector<double> vec{ 1, 2, 3, 4, 5 };
- * resizeCentered(vec, 9);
+ * resize_centered(vec, 9);
  * we get: { 0, 0, 1, 2, 3, 4, 5, 0, 0 }
- * resizeCentered(vec, 3);
+ * resize_centered(vec, 3);
  * we get: { 2, 3, 4 }
  * @param vector
  * @param newSize
  */
-void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue = 0);
+void resize_centered(std::vector<double>& vector, long newSize, double defaultValue = 0);
 
 /**
  * Normalize feature matrix to a given range (min-max normalization per feature)
  * @param features matrix of features (n_samples x n_features), modified in-place
  * @param range target range [min, max]
  */
-void minMaxNormalizeFeatures(
+void min_max_normalize_features(
     std::vector<std::vector<double>>& features, const std::vector<double>& range = {0.0, 1.0});
 
 } // namespace linearAlgebra

@@ -44,6 +44,38 @@ find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # --------------------------------------------------------------------------------
+# Keep .clangd CompilationDatabase aligned with current configure/build directory
+# --------------------------------------------------------------------------------
+# On every configure pass, rewrite only the `CompilationDatabase:` line in .clangd
+# so editor indexing follows the active CMake build directory.
+set(NN_CLANGD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/.clangd")
+if(EXISTS "${NN_CLANGD_CONFIG_FILE}")
+    file(RELATIVE_PATH NN_CLANGD_COMPDB_REL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}")
+    if(NN_CLANGD_COMPDB_REL STREQUAL "")
+        set(NN_CLANGD_COMPDB_REL ".")
+    endif()
+
+    file(READ "${NN_CLANGD_CONFIG_FILE}" NN_CLANGD_CONFIG_CONTENT)
+    string(REGEX MATCH "[ \t]*CompilationDatabase:[ \t]*[^\r\n]*" NN_CLANGD_COMPDB_LINE "${NN_CLANGD_CONFIG_CONTENT}")
+
+    if(NN_CLANGD_COMPDB_LINE)
+        string(
+            REGEX REPLACE
+                "([ \t]*CompilationDatabase:[ \t]*)[^\r\n]*"
+                "\\1${NN_CLANGD_COMPDB_REL}"
+                NN_CLANGD_CONFIG_UPDATED
+                "${NN_CLANGD_CONFIG_CONTENT}")
+
+        if(NOT NN_CLANGD_CONFIG_UPDATED STREQUAL NN_CLANGD_CONFIG_CONTENT)
+            file(WRITE "${NN_CLANGD_CONFIG_FILE}" "${NN_CLANGD_CONFIG_UPDATED}")
+            message(STATUS ".clangd: CompilationDatabase -> ${NN_CLANGD_COMPDB_REL}")
+        endif()
+    else()
+        message(STATUS ".clangd found but no CompilationDatabase line to update")
+    endif()
+endif()
+
+# --------------------------------------------------------------------------------
 # Clang-Tidy Integration
 # --------------------------------------------------------------------------------
 if(NN_ENABLE_CLANG_TIDY)

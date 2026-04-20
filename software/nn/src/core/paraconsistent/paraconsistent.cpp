@@ -45,7 +45,7 @@ static void normalizeFeatureVectors( // LCOV_EXCL_LINE
 {
     for (unsigned int vi = 0; vi < vectorSize; vi++)                    // LCOV_EXCL_LINE
     {                                                                   // LCOV_EXCL_LINE
-        linearAlgebra::normalizeVectorToSum1(                           // LCOV_EXCL_LINE
+        linearAlgebra::normalize_vector_to_sum1(                        // LCOV_EXCL_LINE
             {featureVectors[vi], static_cast<size_t>(subVectorsSize)}); // LCOV_EXCL_LINE
     } // LCOV_EXCL_LINE
 } // LCOV_EXCL_LINE
@@ -58,7 +58,7 @@ static void normalizeFeatureVectors(
 {
     for (unsigned int i = 0; i < vectorSize; i++)
     {
-        linearAlgebra::normalizeVectorToSum1(featureVectors[i]);
+        linearAlgebra::normalize_vector_to_sum1(featureVectors[i]);
     }
 }
 

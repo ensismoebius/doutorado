@@ -1,0 +1,7 @@
+-std=gnu++20
+-Iinclude
+-Isrc
+-Isrc/experiments/03/lib/include
+-Isrc/experiments/03/lib/include/autoencoder
+-isystem
+/usr/include/eigen3

@@ -24,22 +24,13 @@ namespace lstm_autoencoder_experiment
 
 inline auto sigmoid(const nn::Tensor& x) -> nn::Tensor
 {
-    nn::Tensor result(x.rows(), x.cols());
-    for (nn::Index i = 0; i < static_cast<nn::Index>(x.size()); ++i)
-    {
-        result.at(i) = 1.0f / (1.0f + std::exp(-x.at(i)));
-    }
-    return result;
+    const nn::Tensor ones = nn::Tensor::ones(x.rows(), x.cols());
+    return ones.divide(ones + (x * -1.0f).exp());
 }
 
 inline auto tanh_tensor(const nn::Tensor& x) -> nn::Tensor
 {
-    nn::Tensor result(x.rows(), x.cols());
-    for (nn::Index i = 0; i < static_cast<nn::Index>(x.size()); ++i)
-    {
-        result.at(i) = std::tanh(x.at(i));
-    }
-    return result;
+    return (sigmoid(x * 2.0f) * 2.0f) - 1.0f;
 }
 
 inline auto sigmoid_grad(const nn::Tensor& sigmoid_out) -> nn::Tensor
@@ -179,10 +170,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
                 cache_.push_back(std::move(step));
             }
 
-            for (nn::Index col = 0; col < static_cast<nn::Index>(hidden_size_); ++col)
-            {
-                all_h.at(static_cast<nn::Index>(t), col) = h_new.at(0, col);
-            }
+            all_h.setBlock(static_cast<nn::Index>(t), 0, h_new);
 
             h = h_new;
             c = c_new;
@@ -230,13 +218,10 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
             nn::Tensor dpre_g = dg_gate * tanh_grad(step.g);
 
             nn::Tensor dpre(1, 4 * hidden_size_);
-            for (nn::Index col = 0; col < static_cast<nn::Index>(hidden_size_); ++col)
-            {
-                dpre.at(0, 0 * hidden_size_ + col) = dpre_i.at(0, col);
-                dpre.at(0, 1 * hidden_size_ + col) = dpre_f.at(0, col);
-                dpre.at(0, 2 * hidden_size_ + col) = dpre_o.at(0, col);
-                dpre.at(0, 3 * hidden_size_ + col) = dpre_g.at(0, col);
-            }
+            dpre.setBlock(0, 0, dpre_i);
+            dpre.setBlock(0, hidden_size_, dpre_f);
+            dpre.setBlock(0, 2 * hidden_size_, dpre_o);
+            dpre.setBlock(0, 3 * hidden_size_, dpre_g);
 
             nn::Tensor dW_t = dpre.transpose().matmul(step.x);
             dW_.add_inplace(dW_t);
@@ -246,10 +231,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
             db_.add_inplace(db_t);
 
             nn::Tensor dx_t = dpre.matmul(W_);
-            for (nn::Index col = 0; col < static_cast<nn::Index>(input_size_); ++col)
-            {
-                dx_all.at(static_cast<nn::Index>(t), col) = dx_t.at(0, col);
-            }
+            dx_all.setBlock(static_cast<nn::Index>(t), 0, dx_t);
 
             dh_next = dpre.matmul(U_);
         }

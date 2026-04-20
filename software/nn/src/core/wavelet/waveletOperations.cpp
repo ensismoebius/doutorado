@@ -64,7 +64,7 @@ auto malat(const std::vector<double>& signal,
 
     // Precompute high-pass filter once to eliminate repeated allocations.
     // Optimization: Moved outside hot path, reduces dynamic allocations.
-    std::vector<double> highpassfilter = linearAlgebra::calcOrthogonalVector(lowpassfilter);
+    std::vector<double> highpassfilter = linearAlgebra::calc_orthogonal_vector(lowpassfilter);
     size_t filter_len = lowpassfilter.size();
 
     // Main working buffers.

@@ -4,12 +4,19 @@
 
 CompileFlags:
   # Use compile_commands.json from your custom build dir
-  CompilationDatabase: build/cmake.debug.linux.x86_64.Local
+  CompilationDatabase: out/build/max-performance
+
+  # Drop PCH flags for editor parsing; they can trigger false include errors.
+  Remove:
+    - -Winvalid-pch
+    - -include
 
   # Added only if not present in compile_commands.json
   Add:
     - -std=gnu++20
-    - -I${workspaceFolder}/src
+    - -Iinclude
+    - -Isrc
+    - -Isrc/experiments/03/lib/include
     - -isystem
     - /usr/include/eigen3
     - --gcc-toolchain=/usr

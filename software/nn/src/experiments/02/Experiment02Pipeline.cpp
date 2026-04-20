@@ -33,7 +33,7 @@ constexpr const char* kDefaultAudioPath = "/path/to/S01_Audio.mat";
 void min_max_normalize(
     std::vector<std::vector<double>>& features, const std::vector<double>& range = {0.0, 1.0})
 {
-    linearAlgebra::minMaxNormalizeFeatures(features, range);
+    linearAlgebra::min_max_normalize_features(features, range);
 }
 
 auto run_wavelet_baseline_experiment(const ExperimentConfig& config) -> void

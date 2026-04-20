@@ -51,7 +51,7 @@ auto buildSincLowPassKernel(int order, double alpha) -> std::vector<double>
     return filter;
 }
 
-auto calcOrthogonalVectorLocal(const std::vector<double>& vector) -> std::vector<double>
+auto calc_orthogonal_vector_local(const std::vector<double>& vector) -> std::vector<double>
 {
     std::vector<double> result(vector.size());
     double multiplier = 1.0;
@@ -98,7 +98,7 @@ auto createHighPassFilter(int order, double samplingRate, double filterStartFreq
 
     // Builds the orthogonal vector
     // and return the final result (high pass filter)
-    return calcOrthogonalVectorLocal(filter);
+    return calc_orthogonal_vector_local(filter);
 }
 
 auto createStopBandFilter(

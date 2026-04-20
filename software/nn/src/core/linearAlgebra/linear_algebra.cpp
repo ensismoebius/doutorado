@@ -53,7 +53,7 @@ auto derivative(std::vector<double>& vector, long level) -> std::vector<double>
     return vector;
 }
 
-auto dotProduct(std::span<const double> a, std::span<const double> b) -> double
+auto dot_product(std::span<const double> a, std::span<const double> b) -> double
 {
     if (a.size() != b.size())
     {
@@ -62,7 +62,7 @@ auto dotProduct(std::span<const double> a, std::span<const double> b) -> double
     return std::transform_reduce(a.begin(), a.end(), b.begin(), 0.0);
 }
 
-auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>
+auto calc_orthogonal_vector(std::span<const double> vector) -> std::vector<double>
 {
     std::vector<double> result(vector.size());
     double multiplier = 1.0;
@@ -75,7 +75,7 @@ auto calcOrthogonalVector(std::span<const double> vector) -> std::vector<double>
     return result;
 }
 
-void normalizeVectorToSum1(std::span<double> signal)
+void normalize_vector_to_sum1(std::span<double> signal)
 {
     if (signal.empty()) return;
     double sum = std::reduce(signal.begin(), signal.end(), 0.0);
@@ -84,7 +84,7 @@ void normalizeVectorToSum1(std::span<double> signal)
         std::ranges::for_each(signal, [sum](double& v) { v /= sum; });
 }
 
-void normalizeVectorToSum1AllPositive(std::span<double> signal)
+void normalize_vector_to_sum1_all_positive(std::span<double> signal)
 {
     if (signal.empty()) return;
     double min_val = *std::min_element(signal.begin(), signal.end());
@@ -95,10 +95,10 @@ void normalizeVectorToSum1AllPositive(std::span<double> signal)
         std::ranges::for_each(signal, [offset](double& v) { v += offset; });
     }
 
-    normalizeVectorToSum1(signal);
+    normalize_vector_to_sum1(signal);
 }
 
-void normalizeVectorToRange(std::span<double> signal, double lowerLimit, double upperLimit)
+void normalize_vector_to_range(std::span<double> signal, double lowerLimit, double upperLimit)
 {
     if (lowerLimit >= upperLimit)
     {
@@ -151,7 +151,7 @@ auto convolution(std::span<double> data, std::span<const double> kernel) -> bool
     return true;
 }
 
-void discreteCosineTransform(std::span<double> vector)
+void discrete_cosine_transform(std::span<double> vector)
 {
     if (vector.empty()) return;
     size_t N = vector.size();
@@ -173,7 +173,7 @@ void discreteCosineTransform(std::span<double> vector)
     std::copy(res.begin(), res.end(), vector.begin());
 }
 
-void scaleMatrix(std::vector<std::vector<double>>& matrix)
+void scale_matrix(std::vector<std::vector<double>>& matrix)
 {
     if (matrix.empty()) return;
     unsigned int size = matrix.size();
@@ -230,7 +230,7 @@ void scaleMatrix(std::vector<std::vector<double>>& matrix)
     }
 }
 
-auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>
+auto solve_matrix(const std::vector<std::vector<double>>& matrix) -> std::vector<double>
 {
     if (matrix.empty()) return {};
     unsigned int rows = matrix.size();
@@ -253,7 +253,7 @@ auto solveMatrix(const std::vector<std::vector<double>>& matrix) -> std::vector<
     return result;
 }
 
-void resizeCentered(std::vector<double>& vector, long newSize, double defaultValue)
+void resize_centered(std::vector<double>& vector, long newSize, double defaultValue)
 {
     long currentSize = static_cast<long>(vector.size());
     if (currentSize == newSize) return;
@@ -278,7 +278,7 @@ void resizeCentered(std::vector<double>& vector, long newSize, double defaultVal
     }
 }
 
-void minMaxNormalizeFeatures(
+void min_max_normalize_features(
     std::vector<std::vector<double>>& features, const std::vector<double>& range)
 {
     if (features.empty() || range.size() != 2) return;

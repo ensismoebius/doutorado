@@ -81,15 +81,7 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
 {
     Tensor h_expand = dec_expand_->forward(latent, requires_grad);
 
-    const int H = cfg_.hidden_size;
-    Tensor dec_in(static_cast<nn::Index>(seq_len), static_cast<nn::Index>(H));
-    for (int t = 0; t < seq_len; ++t)
-    {
-        for (nn::Index col = 0; col < static_cast<nn::Index>(H); ++col)
-        {
-            dec_in.at(static_cast<nn::Index>(t), col) = h_expand.at(0, col);
-        }
-    }
+    Tensor dec_in = nn::Tensor::ones(static_cast<nn::Index>(seq_len), 1).matmul(h_expand);
     dec_input_cache_ = dec_in;
 
     Tensor dec_h = dec_in;
@@ -123,14 +115,7 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
         d_dec_in = dec_lstms_[static_cast<size_t>(l)]->backward(d_dec_in);
     }
 
-    Tensor d_h_expand = nn::Tensor::zeros(1, cfg_.hidden_size);
-    for (int t = 0; t < static_cast<int>(d_dec_in.rows()); ++t)
-    {
-        for (nn::Index col = 0; col < static_cast<nn::Index>(cfg_.hidden_size); ++col)
-        {
-            d_h_expand.at(0, col) += d_dec_in.at(static_cast<nn::Index>(t), col);
-        }
-    }
+    Tensor d_h_expand = nn::Tensor::ones(1, d_dec_in.rows()).matmul(d_dec_in);
 
     Tensor d_z = dec_expand_->backward(d_h_expand);
     Tensor d_z_pre = d_z * tanh_grad(latent_cache_);
@@ -139,10 +124,7 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     const int T = static_cast<int>(enc_output_cache_.rows());
     Tensor d_enc_h =
         nn::Tensor::zeros(static_cast<nn::Index>(T), static_cast<nn::Index>(cfg_.hidden_size));
-    for (nn::Index col = 0; col < static_cast<nn::Index>(cfg_.hidden_size); ++col)
-    {
-        d_enc_h.at(static_cast<nn::Index>(T - 1), col) = d_h_last.at(0, col);
-    }
+    d_enc_h.setBlock(static_cast<nn::Index>(T - 1), 0, d_h_last);
 
     Tensor d_input = d_enc_h;
     for (int l = static_cast<int>(enc_lstms_.size()) - 1; l >= 0; --l)
