@@ -28,7 +28,7 @@ struct EpochResult
     int epoch;
     float train_loss;
     float val_loss;
-    double epoch_ms;
+    float epoch_ms;
 };
 
 class Trainer
@@ -115,7 +115,7 @@ class Trainer
             }
 
             const auto t_end = std::chrono::steady_clock::now();
-            const double ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+            const float ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
             const EpochResult res{epoch, avg_train_loss, avg_val_loss, ms};
             history.push_back(res);
             log_epoch(res, val_samples.empty());

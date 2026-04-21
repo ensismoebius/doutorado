@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include "nn/statistics/inference_tests.hpp"
 #include "nn/statistics/multi_class_metrics.hpp"
 #include "nn/statistics/statistics.h"
 
@@ -271,6 +272,30 @@ TEST(StatisticsMemoryStressTest, LargeClassificationMetrics)
         EXPECT_GE(metrics.accuracy, 0.0);
         EXPECT_LE(metrics.accuracy, 1.0);
     });
+}
+
+TEST(InferenceTests, CohensDReturnsZeroForEqualVectors)
+{
+    const std::vector<float> a = {1.0f, 2.0f, 3.0f, 4.0f};
+    const std::vector<float> b = {1.0f, 2.0f, 3.0f, 4.0f};
+    EXPECT_NEAR(statistics::cohens_d(a, b), 0.0f, 1e-6f);
+}
+
+TEST(InferenceTests, TTestApproxReturnsSmallPForSeparatedMeans)
+{
+    const std::vector<float> a = {1.0f, 1.1f, 0.9f, 1.2f, 1.0f};
+    const std::vector<float> b = {3.0f, 3.1f, 2.9f, 3.2f, 3.0f};
+    const float p = statistics::t_test_pvalue_approx(a, b);
+    EXPECT_GE(p, 0.0f);
+    EXPECT_LE(p, 1.0f);
+    EXPECT_LT(p, 0.05f);
+}
+
+TEST(InferenceTests, WilcoxonApproxReturnsOneForInvalidPairs)
+{
+    const std::vector<float> a = {1.0f, 2.0f, 3.0f};
+    const std::vector<float> b = {1.0f, 2.0f};
+    EXPECT_FLOAT_EQ(statistics::wilcoxon_signed_rank_pvalue_approx(a, b), 1.0f);
 }
 
 // Numerical Edge Cases for Statistics

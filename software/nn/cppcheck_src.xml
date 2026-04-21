@@ -14,6 +14,24 @@
         <error id="syntaxError" severity="error" msg="syntax error" verbose="syntax error" file0="src/experiments/03/tests/LSTMAutoencoder_gtest.cpp">
             <location file="src/experiments/03/tests/LSTMAutoencoder_gtest.cpp" line="30" column="1"/>
         </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::transform algorithm instead of a raw loop." verbose="Consider using std::transform algorithm instead of a raw loop." cwe="398" file0="src/experiments/04/lib/src/comparative_experiment.cpp">
+            <location file="src/experiments/04/lib/src/comparative_experiment.cpp" line="331" column="11"/>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/experiments/04/lib/src/comparative_experiment.cpp">
+            <location file="src/experiments/04/lib/src/comparative_experiment.cpp" line="865" column="29"/>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/experiments/04/lib/src/comparative_experiment.cpp">
+            <location file="src/experiments/04/lib/src/comparative_experiment.cpp" line="869" column="29"/>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/experiments/04/lib/src/comparative_experiment.cpp">
+            <location file="src/experiments/04/lib/src/comparative_experiment.cpp" line="884" column="29"/>
+        </error>
+        <error id="useStlAlgorithm" severity="style" msg="Consider using std::accumulate algorithm instead of a raw loop." verbose="Consider using std::accumulate algorithm instead of a raw loop." cwe="398" file0="src/experiments/04/lib/src/comparative_experiment.cpp">
+            <location file="src/experiments/04/lib/src/comparative_experiment.cpp" line="888" column="29"/>
+        </error>
+        <error id="syntaxError" severity="error" msg="syntax error" verbose="syntax error" file0="src/experiments/04/tests/ComparativeExperiment_gtest.cpp">
+            <location file="src/experiments/04/tests/ComparativeExperiment_gtest.cpp" line="29" column="1"/>
+        </error>
         <error id="ctuOneDefinitionRuleViolation" severity="error" msg="The one definition rule is violated, different classes/structs have the same name &apos;SnnModel&apos;" verbose="The one definition rule is violated, different classes/structs have the same name &apos;SnnModel&apos;" cwe="758" file0="src/demos/voice_biometrics_cpp/main.cpp">
             <location file="src/demos/cppdemos/rede_snn.cpp" line="116" column="1"/>
             <location file="src/demos/voice_biometrics_cpp/main.cpp" line="256" column="1"/>

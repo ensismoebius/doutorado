@@ -5,9 +5,8 @@
 
 #include "LSTMAutoencoder.hpp"
 
+#include <random>
 #include <string>
-
-#include "nn/initializers/xavier.hpp"
 
 namespace lstm_autoencoder_experiment
 {
@@ -25,11 +24,23 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
         enc_lstms_.push_back(std::make_unique<LSTMLayer>(in_dim, H));
     }
 
+    auto normal_fill = [](nn::Tensor& t, unsigned seed)
+    {
+        std::mt19937 rng(seed);
+        std::normal_distribution<float> dist(0.0f, 0.05f);
+        for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k)
+        {
+            t.at(k) = dist(rng);
+        }
+    };
+
     enc_proj_ = std::make_unique<Linear>(H, Z);
-    xavierInitializer(H, Z, enc_proj_->weight, enc_proj_->bias, 100u);
+    normal_fill(enc_proj_->weight, 100u);
+    enc_proj_->bias.set_zero();
 
     dec_expand_ = std::make_unique<Linear>(Z, H);
-    xavierInitializer(Z, H, dec_expand_->weight, dec_expand_->bias, 101u);
+    normal_fill(dec_expand_->weight, 101u);
+    dec_expand_->bias.set_zero();
 
     for (int l = 0; l < L; ++l)
     {
@@ -37,7 +48,8 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     }
 
     out_proj_ = std::make_unique<Linear>(H, D);
-    xavierInitializer(H, D, out_proj_->weight, out_proj_->bias, 102u);
+    normal_fill(out_proj_->weight, 102u);
+    out_proj_->bias.set_zero();
 
     build_param_ptrs();
 }

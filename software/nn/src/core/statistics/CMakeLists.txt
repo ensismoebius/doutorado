@@ -2,6 +2,7 @@ include(GoogleTest)
 
 add_library(statistics
     statistics.cpp
+    inference_tests.cpp
     confusion_matrix.cpp
     multi_class_metrics.cpp
     kfold.cpp

@@ -21,3 +21,5 @@ Tests
 Recent behavior notes
 - `variance(...)` now validates inputs and throws on empty data (or zero-length raw arrays).
 - `compute_classification_metrics(...)` now throws `std::invalid_argument` for mismatched label vector sizes and `std::runtime_error` for empty label vectors.
+- Inference helpers were added in `include/nn/statistics/inference_tests.hpp` and implemented in `src/core/statistics/inference_tests.cpp`:
+	`cohens_d(...)`, `t_test_pvalue_approx(...)`, and `wilcoxon_signed_rank_pvalue_approx(...)`.

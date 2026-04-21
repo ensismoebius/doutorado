@@ -93,19 +93,18 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
           h0_(1, hidden_size),
           c0_(1, hidden_size)
     {
-        auto xavier_fill = [](nn::Tensor& t, int fan_in, int fan_out, unsigned seed_offset)
+        auto normal_fill = [](nn::Tensor& t, unsigned seed_offset)
         {
-            const float limit = std::sqrt(6.0f / static_cast<float>(fan_in + fan_out));
             std::mt19937 rng(42u + seed_offset);
-            std::uniform_real_distribution<float> dist(-limit, limit);
+            std::normal_distribution<float> dist(0.0f, 0.05f);
             for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k)
             {
                 t.at(k) = dist(rng);
             }
         };
 
-        xavier_fill(W_, input_size, hidden_size, 0u);
-        xavier_fill(U_, hidden_size, hidden_size, 1u);
+        normal_fill(W_, 0u);
+        normal_fill(U_, 1u);
         b_.set_zero();
         h0_.set_zero();
         c0_.set_zero();

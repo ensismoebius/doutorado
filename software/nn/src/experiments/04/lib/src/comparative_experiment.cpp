@@ -3,8 +3,6 @@
  * @brief Deterministic comparative runner for SNN-AE vs LSTM-AE.
  */
 
-#include "comparative_experiment.hpp"
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -25,11 +23,14 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "LSTMAutoencoder.hpp"
+#include "autoencoder/ProtocolSpikingAutoencoder.hpp"
+#include "experiment04.hpp"
 #include "nlohmann/json.hpp"
+#include "nn/io/ReportIO.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
+#include "nn/statistics/inference_tests.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace comparative_autoencoder_experiment
@@ -81,8 +82,8 @@ struct RunMetrics
     float spike_rate = 0.0f;
     float energy = 0.0f;
 
-    double train_ms = 0.0;
-    double infer_ms = 0.0;
+    float train_ms = 0.0f;
+    float infer_ms = 0.0f;
 
     std::size_t parameter_count = 0;
     std::size_t macs = 0;
@@ -486,12 +487,13 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
     {
         std::mt19937 rng(seed);
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        const float max_only = std::max(max_v, 1e-6f);
         for (nn::Index t = 0; t < sample.rows(); ++t)
         {
             for (nn::Index d = 0; d < sample.cols(); ++d)
             {
-                const float scaled = (sample.at(t, d) - min_v) / range;
-                encoded.at(t, d) = (dist(rng) < scaled) ? 1.0f : 0.0f;
+                const float p = std::clamp(sample.at(t, d) / max_only, 0.0f, 1.0f);
+                encoded.at(t, d) = (dist(rng) < p) ? 1.0f : 0.0f;
             }
         }
         return encoded;
@@ -562,6 +564,44 @@ auto conv1d_temporal_smooth(const Tensor& sample) -> Tensor
     }
 
     return out;
+}
+
+auto recurrent_lif_encode(const Tensor& sample, float alpha, float v_th) -> Tensor
+{
+    Tensor spikes(sample.rows(), sample.cols());
+    spikes.set_zero();
+
+    Tensor v_prev(1, sample.cols());
+    v_prev.set_zero();
+    Tensor s_prev(1, sample.cols());
+    s_prev.set_zero();
+
+    const float stable_alpha = std::clamp(alpha, 0.0f, 0.9999f);
+    const float stable_vth = std::max(v_th, 1e-4f);
+
+    for (nn::Index t = 0; t < sample.rows(); ++t)
+    {
+        Tensor x_t = sample.row(t);
+        Tensor v_t = (v_prev * stable_alpha) + x_t - (s_prev * stable_vth);
+        Tensor s_t(1, sample.cols());
+        for (nn::Index d = 0; d < sample.cols(); ++d)
+        {
+            s_t.at(0, d) = v_t.at(0, d) >= stable_vth ? 1.0f : 0.0f;
+            spikes.at(t, d) = s_t.at(0, d);
+        }
+        v_prev = v_t;
+        s_prev = s_t;
+    }
+
+    return spikes;
+}
+
+auto apply_snn_architecture_transform(
+    const Tensor& encoded, const std::string& architecture, float alpha, float v_th) -> Tensor
+{
+    if (architecture == "conv1d") return conv1d_temporal_smooth(encoded);
+    if (architecture == "recurrent") return recurrent_lif_encode(encoded, alpha, v_th);
+    return encoded;
 }
 
 auto mse_between(const Tensor& a, const Tensor& b) -> float
@@ -661,7 +701,7 @@ auto evaluate_lstm(lstm_autoencoder_experiment::LSTMAutoencoder& model,
     std::size_t param_count,
     const std::string& encoding,
     std::uint32_t seed,
-    double infer_ms) -> RunMetrics
+    float infer_ms) -> RunMetrics
 {
     RunMetrics m;
     m.macs = macs;
@@ -722,7 +762,7 @@ auto evaluate_lstm(lstm_autoencoder_experiment::LSTMAutoencoder& model,
     compute_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
     m.spike_rate = 0.0f;
-    m.energy = static_cast<float>(10.0 * static_cast<double>(m.macs));
+    m.energy = 10.0f * static_cast<float>(m.macs);
 
     return m;
 }
@@ -735,8 +775,10 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     std::size_t param_count,
     const std::string& encoding,
     const std::string& architecture,
+    float alpha,
+    float v_th,
     std::uint32_t seed,
-    double infer_ms) -> RunMetrics
+    float infer_ms) -> RunMetrics
 {
     RunMetrics m;
     m.macs = macs;
@@ -756,10 +798,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     {
         Tensor encoded =
             encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-        if (architecture == "conv1d")
-        {
-            encoded = conv1d_temporal_smooth(encoded);
-        }
+        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
 
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
@@ -791,10 +830,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     {
         Tensor encoded =
             encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-        if (architecture == "conv1d")
-        {
-            encoded = conv1d_temporal_smooth(encoded);
-        }
+        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
         const Tensor recon =
@@ -812,104 +848,9 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     compute_precision_recall_f1(val_labels, pred_labels, m.precision, m.recall, m.f1);
 
     m.spike_rate = (n_values > 0) ? spike_sum / static_cast<float>(n_values) : 0.0f;
-    m.energy = m.spike_rate * static_cast<float>(n_values) +
-               static_cast<float>(10.0 * static_cast<double>(m.macs));
+    m.energy = m.spike_rate * static_cast<float>(n_values) + 10.0f * static_cast<float>(m.macs);
 
     return m;
-}
-
-auto normal_cdf(double x) -> double
-{
-    return 0.5 * std::erfc(-x / std::sqrt(2.0));
-}
-
-auto cohens_d(const std::vector<double>& a, const std::vector<double>& b) -> double
-{
-    if (a.empty() || b.empty()) return 0.0;
-    const double mean_a = std::accumulate(a.begin(), a.end(), 0.0) / static_cast<double>(a.size());
-    const double mean_b = std::accumulate(b.begin(), b.end(), 0.0) / static_cast<double>(b.size());
-
-    double var_a = 0.0;
-    for (double v : a) var_a += (v - mean_a) * (v - mean_a);
-    var_a /= static_cast<double>(std::max<std::size_t>(1, a.size() - 1));
-
-    double var_b = 0.0;
-    for (double v : b) var_b += (v - mean_b) * (v - mean_b);
-    var_b /= static_cast<double>(std::max<std::size_t>(1, b.size() - 1));
-
-    const double pooled = std::sqrt((var_a + var_b) * 0.5);
-    if (pooled <= 1e-12) return 0.0;
-    return (mean_a - mean_b) / pooled;
-}
-
-auto t_test_pvalue(const std::vector<double>& a, const std::vector<double>& b) -> double
-{
-    if (a.size() < 2 || b.size() < 2) return 1.0;
-    const double mean_a = std::accumulate(a.begin(), a.end(), 0.0) / static_cast<double>(a.size());
-    const double mean_b = std::accumulate(b.begin(), b.end(), 0.0) / static_cast<double>(b.size());
-
-    double var_a = 0.0;
-    for (double v : a) var_a += (v - mean_a) * (v - mean_a);
-    var_a /= static_cast<double>(a.size() - 1);
-
-    double var_b = 0.0;
-    for (double v : b) var_b += (v - mean_b) * (v - mean_b);
-    var_b /= static_cast<double>(b.size() - 1);
-
-    const double se =
-        std::sqrt(var_a / static_cast<double>(a.size()) + var_b / static_cast<double>(b.size()));
-    if (se <= 1e-12) return 1.0;
-
-    const double t = (mean_a - mean_b) / se;
-    // Normal approximation to keep deterministic lightweight implementation.
-    return 2.0 * (1.0 - normal_cdf(std::fabs(t)));
-}
-
-auto wilcoxon_signed_rank_pvalue(const std::vector<double>& a, const std::vector<double>& b)
-    -> double
-{
-    if (a.size() != b.size() || a.empty()) return 1.0;
-
-    struct DiffItem
-    {
-        double abs_diff;
-        double sign;
-    };
-
-    std::vector<DiffItem> diffs;
-    diffs.reserve(a.size());
-    for (std::size_t i = 0; i < a.size(); ++i)
-    {
-        const double d = a[i] - b[i];
-        if (std::fabs(d) <= 1e-12) continue;
-        diffs.push_back(DiffItem{std::fabs(d), d > 0.0 ? 1.0 : -1.0});
-    }
-    if (diffs.empty()) return 1.0;
-
-    std::sort(diffs.begin(),
-        diffs.end(),
-        [](const DiffItem& lhs, const DiffItem& rhs) { return lhs.abs_diff < rhs.abs_diff; });
-
-    double rank = 1.0;
-    double w_pos = 0.0;
-    double w_neg = 0.0;
-    for (const auto& item : diffs)
-    {
-        if (item.sign > 0.0)
-            w_pos += rank;
-        else
-            w_neg += rank;
-        rank += 1.0;
-    }
-
-    const double w = std::min(w_pos, w_neg);
-    const double n = static_cast<double>(diffs.size());
-    const double mean_w = n * (n + 1.0) / 4.0;
-    const double std_w = std::sqrt(n * (n + 1.0) * (2.0 * n + 1.0) / 24.0);
-    if (std_w <= 1e-12) return 1.0;
-
-    const double z = (w - mean_w) / std_w;
-    return 2.0 * (1.0 - normal_cdf(std::fabs(z)));
 }
 
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
@@ -950,20 +891,24 @@ void write_summary_json(const std::filesystem::path& path,
         "Evaluation depends on available FSDD/PhysioNet files under dataset_root.",
     };
 
-    std::vector<double> snn_mse;
-    std::vector<double> lstm_mse;
+    std::vector<float> snn_mse;
+    std::vector<float> lstm_mse;
     for (const auto& row : rows)
     {
         if (row.model == "snn-ae") snn_mse.push_back(row.metrics.mse);
         if (row.model == "lstm-ae") lstm_mse.push_back(row.metrics.mse);
     }
 
-    j["statistics"]["mse"]["t_test_p"] = t_test_pvalue(snn_mse, lstm_mse);
-    j["statistics"]["mse"]["wilcoxon_p"] = wilcoxon_signed_rank_pvalue(snn_mse, lstm_mse);
-    j["statistics"]["mse"]["cohens_d"] = cohens_d(snn_mse, lstm_mse);
+    j["statistics"]["mse"]["t_test_p"] = statistics::t_test_pvalue_approx(snn_mse, lstm_mse);
+    j["statistics"]["mse"]["wilcoxon_p"] =
+        statistics::wilcoxon_signed_rank_pvalue_approx(snn_mse, lstm_mse);
+    j["statistics"]["mse"]["cohens_d"] = statistics::cohens_d(snn_mse, lstm_mse);
 
-    std::ofstream out(path);
-    out << j.dump(2) << '\n';
+    std::string error;
+    if (!nn::io::write_json_file(path, j, 2, &error))
+    {
+        throw std::runtime_error("Failed to write summary JSON: " + error);
+    }
 }
 
 auto make_lstm_cfg(const ComparativeConfig& cfg)
@@ -978,7 +923,8 @@ auto make_lstm_cfg(const ComparativeConfig& cfg)
     return arch;
 }
 
-auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha) -> AutoencoderConfig
+auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha, float v_th)
+    -> AutoencoderConfig
 {
     AutoencoderConfig model_cfg;
     model_cfg.loss_type = "mse";
@@ -987,7 +933,7 @@ auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha) -> Auto
     model_cfg.latent_size = cfg.latent_size;
     model_cfg.depth = std::max(1, layers);
     model_cfg.time_step = 1.0f;
-    model_cfg.resistance = 1.0f;
+    model_cfg.resistance = 1.0f / std::max(v_th, 1e-3f);
     model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));
     model_cfg.encoder_layer_spec = {"linear:hidden:leaky", "linear:latent:identity"};
     model_cfg.decoder_layer_spec = {"linear:hidden:leaky", "linear:output:identity"};
@@ -1023,6 +969,8 @@ void train_snn_once(ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& train_samples,
     const std::string& encoding,
     const std::string& architecture,
+    float alpha,
+    float v_th,
     std::uint32_t seed)
 {
     MSELossImpl<nn::EigenTensorBackend> mse_loss;
@@ -1030,10 +978,7 @@ void train_snn_once(ProtocolSpikingAutoencoder& model,
     {
         Tensor encoded =
             encode_sample(train_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-        if (architecture == "conv1d")
-        {
-            encoded = conv1d_temporal_smooth(encoded);
-        }
+        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
 
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
@@ -1056,8 +1001,8 @@ auto train_with_early_stopping_lstm(lstm_autoencoder_experiment::LSTMAutoencoder
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
     std::uint32_t seed,
-    double& train_ms,
-    double& infer_ms) -> RunMetrics
+    float& train_ms,
+    float& infer_ms) -> RunMetrics
 {
     auto best = std::numeric_limits<float>::infinity();
     int bad_epochs = 0;
@@ -1093,7 +1038,7 @@ auto train_with_early_stopping_lstm(lstm_autoencoder_experiment::LSTMAutoencoder
         }
     }
     const auto t1 = std::chrono::steady_clock::now();
-    train_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
     const auto infer_start = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < val_samples.size(); ++i)
@@ -1104,7 +1049,7 @@ auto train_with_early_stopping_lstm(lstm_autoencoder_experiment::LSTMAutoencoder
         (void) model.forward(encoded, false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
-    infer_ms = std::chrono::duration<double, std::milli>(infer_end - infer_start).count();
+    infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
 
     return evaluate_lstm(model,
         val_samples,
@@ -1126,9 +1071,11 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const std::string& encoding,
     const std::string& architecture,
     int layers,
+    float alpha,
+    float v_th,
     std::uint32_t seed,
-    double& train_ms,
-    double& infer_ms) -> RunMetrics
+    float& train_ms,
+    float& infer_ms) -> RunMetrics
 {
     auto best = std::numeric_limits<float>::infinity();
     int bad_epochs = 0;
@@ -1141,6 +1088,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
             train_samples,
             encoding,
             architecture,
+            alpha,
+            v_th,
             seed + static_cast<std::uint32_t>(epoch));
 
         float val_mse = 0.0f;
@@ -1149,10 +1098,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         {
             Tensor encoded =
                 encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-            if (architecture == "conv1d")
-            {
-                encoded = conv1d_temporal_smooth(encoded);
-            }
+            encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
             const Tensor flat = flatten_time_series(encoded);
             model.reset_state();
             const Tensor recon = model.forward(flat, false);
@@ -1173,23 +1119,20 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         }
     }
     const auto t1 = std::chrono::steady_clock::now();
-    train_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+    train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
     const auto infer_start = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         Tensor encoded =
             encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-        if (architecture == "conv1d")
-        {
-            encoded = conv1d_temporal_smooth(encoded);
-        }
+        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
         (void) model.forward(flat, false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
-    infer_ms = std::chrono::duration<double, std::milli>(infer_end - infer_start).count();
+    infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
 
     return evaluate_snn(model,
         val_samples,
@@ -1199,6 +1142,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         parameter_count(model.params()),
         encoding,
         architecture,
+        alpha,
+        v_th,
         seed,
         infer_ms);
 }
@@ -1218,13 +1163,13 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
 
     for (const auto& [key, vec] : groups)
     {
-        double mse = 0.0;
-        double mae = 0.0;
-        double r2 = 0.0;
-        double f1 = 0.0;
-        double spike_rate = 0.0;
-        double energy = 0.0;
-        double train_ms = 0.0;
+        float mse = 0.0f;
+        float mae = 0.0f;
+        float r2 = 0.0f;
+        float f1 = 0.0f;
+        float spike_rate = 0.0f;
+        float energy = 0.0f;
+        float train_ms = 0.0f;
         for (const auto* row : vec)
         {
             mse += row->metrics.mse;
@@ -1235,7 +1180,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
             energy += row->metrics.energy;
             train_ms += row->metrics.train_ms;
         }
-        const double n = static_cast<double>(vec.size());
+        const float n = static_cast<float>(vec.size());
 
         const auto* first = vec.front();
         out << first->model << ',' << first->encoding << ',' << first->layers << ',' << (mse / n)
@@ -1244,9 +1189,46 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
     }
 }
 
+void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows)
+{
+    if (cfg.repeats <= 1) return;
+
+    std::map<std::string, std::vector<const ResultRow*>> groups;
+    for (const auto& row : rows)
+    {
+        const std::string key = row.dataset + "|" + row.model + "|" + row.encoding + "|" +
+                                row.architecture + "|" + std::to_string(row.layers) + "|" +
+                                std::to_string(row.v_th) + "|" + std::to_string(row.alpha);
+        groups[key].push_back(&row);
+    }
+
+    auto almost_eq = [](float a, float b) { return std::fabs(a - b) <= 1e-6f; };
+
+    for (const auto& [key, group] : groups)
+    {
+        if (static_cast<int>(group.size()) != cfg.repeats)
+        {
+            throw std::runtime_error("Determinism check failed (missing repeats) for key: " + key);
+        }
+
+        const RunMetrics& ref = group.front()->metrics;
+        for (std::size_t i = 1; i < group.size(); ++i)
+        {
+            const RunMetrics& cur = group[i]->metrics;
+            if (!almost_eq(ref.mse, cur.mse) || !almost_eq(ref.mae, cur.mae) ||
+                !almost_eq(ref.r2, cur.r2) || !almost_eq(ref.f1, cur.f1) ||
+                !almost_eq(ref.spike_rate, cur.spike_rate) || !almost_eq(ref.energy, cur.energy))
+            {
+                throw std::runtime_error(
+                    "Determinism check failed (metrics differ) for key: " + key);
+            }
+        }
+    }
+}
+
 } // namespace
 
-auto should_run_from_cli(int argc, char* argv[]) -> bool
+auto should_run_comparative_cli(int argc, char* argv[]) -> bool
 {
     for (int i = 1; i < argc; ++i)
     {
@@ -1262,7 +1244,15 @@ auto should_run_from_cli(int argc, char* argv[]) -> bool
 
 } // namespace comparative_autoencoder_experiment
 
-auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
+namespace lstm_autoencoder_experiment
+{
+
+auto should_run_comparative_from_cli(int argc, char* argv[]) -> bool
+{
+    return comparative_autoencoder_experiment::should_run_comparative_cli(argc, argv);
+}
+
+auto run_comparative_experiment(int argc, char* argv[]) -> int
 {
     using namespace comparative_autoencoder_experiment;
 
@@ -1293,8 +1283,7 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < cfg.repeats; ++run_id)
                 {
-                    const std::uint32_t run_seed =
-                        cfg.seed + static_cast<std::uint32_t>(run_id * 1000);
+                    const std::uint32_t run_seed = cfg.seed;
 
                     // LSTM baseline
                     {
@@ -1303,8 +1292,8 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
                         Adam lstm_opt(cfg.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
-                        double train_ms = 0.0;
-                        double infer_ms = 0.0;
+                        float train_ms = 0.0f;
+                        float infer_ms = 0.0f;
                         RunMetrics metrics = train_with_early_stopping_lstm(lstm_model,
                             lstm_opt,
                             cfg,
@@ -1338,17 +1327,15 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
                             {
                                 for (float alpha : cfg.alpha_values)
                                 {
-                                    AutoencoderConfig snn_cfg = make_snn_cfg(cfg, layers, alpha);
-                                    // Keep v_th in results even though current core Leaky API does
-                                    // not expose threshold override in AutoencoderConfig.
-                                    (void) v_th;
+                                    AutoencoderConfig snn_cfg =
+                                        make_snn_cfg(cfg, layers, alpha, v_th);
 
                                     ProtocolSpikingAutoencoder snn_model(snn_cfg);
                                     Adam snn_opt(cfg.learning_rate);
                                     snn_opt.attach(snn_model.params());
 
-                                    double train_ms = 0.0;
-                                    double infer_ms = 0.0;
+                                    float train_ms = 0.0f;
+                                    float infer_ms = 0.0f;
                                     RunMetrics metrics = train_with_early_stopping_snn(snn_model,
                                         snn_opt,
                                         cfg,
@@ -1358,6 +1345,8 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
                                         encoding,
                                         architecture,
                                         layers,
+                                        alpha,
+                                        v_th,
                                         run_seed,
                                         train_ms,
                                         infer_ms);
@@ -1382,6 +1371,8 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
             }
         }
 
+        validate_repeat_determinism(cfg, all_rows);
+
         const std::filesystem::path csv_path = out_dir / (cfg.run_tag + "_comparative_metrics.csv");
         write_rows_csv(csv_path, all_rows);
 
@@ -1403,3 +1394,5 @@ auto ComparativeAutoencoderExperiment::run(int argc, char* argv[]) -> int
         return 1;
     }
 }
+
+} // namespace lstm_autoencoder_experiment

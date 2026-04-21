@@ -7,14 +7,10 @@
 
 #include "ResultsWriter.hpp"
 
-#include <cctype>
-#include <chrono>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
 
-#include "cli.hpp"
+#include "nlohmann/json.hpp"
+#include "nn/io/ReportIO.hpp"
 
 namespace experiment03
 {
@@ -27,61 +23,7 @@ auto safe_profile_stem(const std::string& profile_name) -> std::string
 
     std::string stem = p.stem().string();
     if (stem.empty()) stem = profile_name;
-    if (stem.empty()) stem = "profile";
-
-    for (char& c : stem)
-    {
-        const bool ok = std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_';
-        if (!ok) c = '_';
-    }
-
-    return stem;
-}
-
-auto escape_json(const std::string& input) -> std::string
-{
-    std::string out;
-    out.reserve(input.size());
-    for (char c : input)
-    {
-        switch (c)
-        {
-            case '\\':
-                out += "\\\\";
-                break;
-            case '"':
-                out += "\\\"";
-                break;
-            case '\n':
-                out += "\\n";
-                break;
-            case '\r':
-                out += "\\r";
-                break;
-            case '\t':
-                out += "\\t";
-                break;
-            default:
-                out += c;
-                break;
-        }
-    }
-    return out;
-}
-
-auto now_timestamp() -> std::string
-{
-    const auto now = std::chrono::system_clock::now();
-    const auto tt = std::chrono::system_clock::to_time_t(now);
-    std::tm tm{};
-#if defined(_WIN32)
-    localtime_s(&tm, &tt);
-#else
-    localtime_r(&tt, &tm);
-#endif
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y%m%d_%H%M%S");
-    return oss.str();
+    return nn::io::sanitize_stem(stem);
 }
 } // namespace
 
@@ -107,100 +49,37 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
         return false;
     }
 
-    const std::string stem = now_timestamp() + "_" + safe_profile_stem(summary.profile_name);
+    const std::string stem =
+        nn::io::timestamp_now_compact_local() + "_" + safe_profile_stem(summary.profile_name);
     const fs::path out_file = results_dir / (stem + ".json");
 
-    std::ofstream ofs(out_file);
-    if (!ofs)
-    {
-        out_error = "failed to open output file: " + out_file.string();
-        return false;
-    }
+    nlohmann::json payload;
+    payload["profile"] = summary.profile_name;
+    payload["dataset_type"] = summary.dataset_type;
+    payload["autoencoder_type"] = summary.autoencoder_type;
+    payload["loss_type"] = summary.loss_type;
+    payload["optimizer"]["type"] = summary.optimizer_type;
+    payload["optimizer"]["learning_rate"] = summary.optimizer_learning_rate;
+    payload["optimizer"]["momentum"] = summary.optimizer_momentum;
+    payload["optimizer"]["adam_beta1"] = summary.optimizer_adam_beta1;
+    payload["optimizer"]["adam_beta2"] = summary.optimizer_adam_beta2;
+    payload["optimizer"]["adam_epsilon"] = summary.optimizer_adam_epsilon;
+    payload["optimizer"]["final_learning_rate"] = summary.optimizer_final_learning_rate;
+    payload["exit_code"] = summary.exit_code;
+    payload["total_samples"] = summary.total_samples;
+    payload["processed_samples"] = summary.processed_samples;
+    payload["seen_batches"] = summary.seen_batches;
+    payload["epoch_mean_losses"] = summary.epoch_mean_losses;
+    payload["kfold"]["n_splits"] = summary.kfold_n_splits;
+    payload["kfold"]["fold_epoch_val_losses"] = summary.fold_epoch_val_losses;
+    payload["kfold"]["fold_epoch_val_eeg_losses"] = summary.fold_epoch_val_eeg_losses;
+    payload["kfold"]["fold_epoch_val_audio_losses"] = summary.fold_epoch_val_audio_losses;
+    payload["kfold"]["fold_mean_val_losses"] = summary.fold_mean_val_losses;
+    payload["kfold"]["mean_val_loss"] = summary.mean_val_loss;
+    payload["error"] = summary.error_message;
 
-    ofs << "{\n";
-    ofs << "  \"profile\": \"" << escape_json(summary.profile_name) << "\",\n";
-    ofs << "  \"dataset_type\": \"" << escape_json(summary.dataset_type) << "\",\n";
-    ofs << "  \"autoencoder_type\": \"" << escape_json(summary.autoencoder_type) << "\",\n";
-    ofs << "  \"loss_type\": \"" << escape_json(summary.loss_type) << "\",\n";
-    ofs << "  \"optimizer\": {\n";
-    ofs << "    \"type\": \"" << escape_json(summary.optimizer_type) << "\",\n";
-    ofs << "    \"learning_rate\": " << summary.optimizer_learning_rate << ",\n";
-    ofs << "    \"momentum\": " << summary.optimizer_momentum << ",\n";
-    ofs << "    \"adam_beta1\": " << summary.optimizer_adam_beta1 << ",\n";
-    ofs << "    \"adam_beta2\": " << summary.optimizer_adam_beta2 << ",\n";
-    ofs << "    \"adam_epsilon\": " << summary.optimizer_adam_epsilon << ",\n";
-    ofs << "    \"final_learning_rate\": " << summary.optimizer_final_learning_rate << "\n";
-    ofs << "  },\n";
-    ofs << "  \"exit_code\": " << summary.exit_code << ",\n";
-    ofs << "  \"total_samples\": " << summary.total_samples << ",\n";
-    ofs << "  \"processed_samples\": " << summary.processed_samples << ",\n";
-    ofs << "  \"seen_batches\": " << summary.seen_batches << ",\n";
-    ofs << "  \"epoch_mean_losses\": [";
-    for (std::size_t i = 0; i < summary.epoch_mean_losses.size(); ++i)
+    if (!nn::io::write_json_file(out_file, payload, 2, &out_error))
     {
-        if (i > 0) ofs << ", ";
-        ofs << summary.epoch_mean_losses[i];
-    }
-    ofs << "],\n";
-    ofs << "  \"kfold\": {\n";
-    ofs << "    \"n_splits\": " << summary.kfold_n_splits << ",\n";
-    ofs << "    \"fold_epoch_val_losses\": [";
-    for (std::size_t fi = 0; fi < summary.fold_epoch_val_losses.size(); ++fi)
-    {
-        if (fi > 0) ofs << ", ";
-        ofs << "[";
-        const auto& fold_losses = summary.fold_epoch_val_losses[fi];
-        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
-        {
-            if (ei > 0) ofs << ", ";
-            ofs << fold_losses[ei];
-        }
-        ofs << "]";
-    }
-    ofs << "],\n";
-    ofs << "    \"fold_epoch_val_eeg_losses\": [";
-    for (std::size_t fi = 0; fi < summary.fold_epoch_val_eeg_losses.size(); ++fi)
-    {
-        if (fi > 0) ofs << ", ";
-        ofs << "[";
-        const auto& fold_losses = summary.fold_epoch_val_eeg_losses[fi];
-        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
-        {
-            if (ei > 0) ofs << ", ";
-            ofs << fold_losses[ei];
-        }
-        ofs << "]";
-    }
-    ofs << "],\n";
-    ofs << "    \"fold_epoch_val_audio_losses\": [";
-    for (std::size_t fi = 0; fi < summary.fold_epoch_val_audio_losses.size(); ++fi)
-    {
-        if (fi > 0) ofs << ", ";
-        ofs << "[";
-        const auto& fold_losses = summary.fold_epoch_val_audio_losses[fi];
-        for (std::size_t ei = 0; ei < fold_losses.size(); ++ei)
-        {
-            if (ei > 0) ofs << ", ";
-            ofs << fold_losses[ei];
-        }
-        ofs << "]";
-    }
-    ofs << "],\n";
-    ofs << "    \"fold_mean_val_losses\": [";
-    for (std::size_t i = 0; i < summary.fold_mean_val_losses.size(); ++i)
-    {
-        if (i > 0) ofs << ", ";
-        ofs << summary.fold_mean_val_losses[i];
-    }
-    ofs << "],\n";
-    ofs << "    \"mean_val_loss\": " << summary.mean_val_loss << "\n";
-    ofs << "  },\n";
-    ofs << "  \"error\": \"" << escape_json(summary.error_message) << "\"\n";
-    ofs << "}\n";
-
-    if (!ofs.good())
-    {
-        out_error = "failed while writing output file: " + out_file.string();
         return false;
     }
 
