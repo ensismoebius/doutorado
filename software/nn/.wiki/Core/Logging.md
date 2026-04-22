@@ -134,4 +134,4 @@ nn::logging::Logger::set_level(nn::logging::Level::DEBUG);
 
 [1] ISO/IEC 25010:2011, *Systems and Software Engineering — Systems and Software Quality Requirements and Evaluation (SQuaRE)*.
 
-[2] B. H. Sigelman et al., "Dapper, a large-scale distributed systems tracing infrastructure," Google Technical Report, 2010. [Online]. Available: https://research.google/pubs/pub36356/
+[2] W. Xu, L. Huang, A. Fox, D. Patterson, and M. I. Jordan, "Detecting large-scale system problems by mining console logs," in *Proc. 22nd ACM Symp. Operating Systems Principles (SOSP)*, 2009, pp. 117–132. [Online]. Available: https://doi.org/10.1145/1629575.1629587
