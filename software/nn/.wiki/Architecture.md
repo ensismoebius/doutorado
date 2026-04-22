@@ -185,3 +185,61 @@ sequenceDiagram
 4. **PyTorch-like API**: Model interface mirrors PyTorch (`forward()`, `backward()`, `params()`, `state_dict()`).
 
 5. **Separation of Concerns**: Data loading, model definition, and training loop are independent components.
+
+## Build System
+
+### CMake Presets
+
+The project uses CMake presets for reproducible builds:
+
+| Preset | Purpose | Compiler Flags |
+|-------|--------|---------------|
+| `Clang_20.1.8_x86_64-pc-linux-gnu` | Debug build | `-g -O0` |
+| `max-performance` | Release with optimizations | `-O3 -march=native -flto` |
+| `pgo-generate` | PGO profile generation | `-O3 -fprofile-generate` |
+| `pgo-use` | PGO optimized final build | `-O3 -fprofile-use -flto` |
+
+### Quick Build Commands
+
+```bash
+# Configure with max-performance preset
+cmake --preset=max-performance
+
+# Build all targets
+cmake --build --preset=max-performance -j$(nproc)
+
+# Run tests
+ctest --test-dir out/build/max-performance --output-on-failure -j4
+```
+
+### Build Output Structure
+
+```
+out/
+├── build/
+│   └── max-performance/     # Compiled targets
+│       ├── src/
+│       │   ├── core/      # Core library
+│       │   ├── experiments/
+│       │   │   └── 03/   # Experiment03 binary
+│       │   └── demos/
+│       └── compile_commands.json
+└── install/
+    └── max-performance/    # Installed headers/libs
+```
+
+### Key Build Variables
+
+| Variable | Description | Default |
+|---------|------------|---------|
+| `NN_ENABLE_PCH` | Precompiled headers | `ON` |
+| `NN_ENABLE_FAST_LINKER` | Use mold linker | `OFF` |
+| `CMAKE_BUILD_TYPE` | Build type | `Debug` |
+| `CMAKE_INTERPROCEDURAL_OPTIMIZATION` | LTO | `OFF` (Debug) |
+
+## See Also
+
+- [Build System](./Guides/Build-System.md) - CMake configuration and workflows
+- [Grid Runbook](./Guides/Grid-Runbook.md) - Running experiment grid
+- [PGO](./Guides/PGO.md) - Profile-guided optimization
+- [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools
