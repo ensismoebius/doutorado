@@ -1,14 +1,20 @@
-#pragma once
+#ifndef NN_MODELS_LSTM_LSTMLAYER_HPP
+#define NN_MODELS_LSTM_LSTMLAYER_HPP
 
 /**
- * @file LSTMLayer.hpp
+ * @file include/nn/models/lstm/LSTMLayer.hpp
  * @brief Single-layer LSTM cell with full BPTT (Backpropagation Through Time).
  *
  * Gate equations (per time step t):
- *   i_t = sigma(W_i x_t + U_i h_{t-1} + b_i)
- *   f_t = sigma(W_f x_t + U_f h_{t-1} + b_f)
- *   o_t = sigma(W_o x_t + U_o h_{t-1} + b_o)
- *   g_t = tanh(W_g x_t + U_g h_{t-1} + b_g)
+ *   i_t = sigma(W_i x_t + U_i h_{t-1} + b_i)   // input gate
+ *   f_t = sigma(W_f x_t + U_f h_{t-1} + b_f)   // forget gate
+ *   o_t = sigma(W_o x_t + U_o h_{t-1} + b_o)   // output gate
+ *   g_t = tanh(W_g x_t + U_g h_{t-1} + b_g)    // cell gate
+ *
+ * Parameters are stored as stacked matrices [i|f|o|g] to reduce kernel
+ * dispatch overhead.  Hidden state and cell state are persisted across
+ * calls to @c forward so that sequences can be processed in chunks; call
+ * @c reset_state() between independent sequences.
  */
 
 #include <random>
@@ -18,68 +24,100 @@
 #include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
-namespace lstm_autoencoder_experiment
+namespace nn::models::lstm
 {
 
+// ---------------------------------------------------------------------------
+// Activation helpers (inline — used by LSTMLayer and LSTMAutoencoder)
+// ---------------------------------------------------------------------------
+
+/// Element-wise sigmoid: 1 / (1 + exp(-x))
 inline auto sigmoid(const nn::Tensor& x) -> nn::Tensor
 {
     const nn::Tensor ones = nn::Tensor::ones(x.rows(), x.cols());
     return ones.divide(ones + (x * -1.0f).exp());
 }
 
+/// Element-wise tanh via sigmoid identity: tanh(x) = 2*sigmoid(2x) - 1
 inline auto tanh_tensor(const nn::Tensor& x) -> nn::Tensor
 {
     return (sigmoid(x * 2.0f) * 2.0f) - 1.0f;
 }
 
+/// Gradient of sigmoid given its output: s * (1 - s)
 inline auto sigmoid_grad(const nn::Tensor& sigmoid_out) -> nn::Tensor
 {
-    nn::Tensor ones = nn::Tensor::ones(sigmoid_out.rows(), sigmoid_out.cols());
-    nn::Tensor one_minus = ones - sigmoid_out;
-    return sigmoid_out * one_minus;
+    const nn::Tensor ones = nn::Tensor::ones(sigmoid_out.rows(), sigmoid_out.cols());
+    return sigmoid_out * (ones - sigmoid_out);
 }
 
+/// Gradient of tanh given its output: 1 - tanh(x)^2
 inline auto tanh_grad(const nn::Tensor& tanh_out) -> nn::Tensor
 {
-    nn::Tensor sq = tanh_out * tanh_out;
-    nn::Tensor ones = nn::Tensor::ones(sq.rows(), sq.cols());
-    return ones - sq;
+    const nn::Tensor ones = nn::Tensor::ones(tanh_out.rows(), tanh_out.cols());
+    return ones - (tanh_out * tanh_out);
 }
 
+// ---------------------------------------------------------------------------
+// Per-timestep cache for BPTT
+// ---------------------------------------------------------------------------
+
+/// Cached activations for a single LSTM time step, required during backward.
 struct LSTMStepCache
 {
-    nn::Tensor x;
-    nn::Tensor h_prev;
-    nn::Tensor c_prev;
-    nn::Tensor i;
-    nn::Tensor f;
-    nn::Tensor o;
-    nn::Tensor g;
-    nn::Tensor c;
-    nn::Tensor tanh_c;
-    nn::Tensor h;
+    nn::Tensor x;      ///< input at this step
+    nn::Tensor h_prev; ///< hidden state from previous step
+    nn::Tensor c_prev; ///< cell state from previous step
+    nn::Tensor i;      ///< input-gate activation
+    nn::Tensor f;      ///< forget-gate activation
+    nn::Tensor o;      ///< output-gate activation
+    nn::Tensor g;      ///< cell-gate (tanh) activation
+    nn::Tensor c;      ///< new cell state
+    nn::Tensor tanh_c; ///< tanh of new cell state
+    nn::Tensor h;      ///< new hidden state
 };
 
+// ---------------------------------------------------------------------------
+// LSTMLayer
+// ---------------------------------------------------------------------------
+
+/**
+ * @class LSTMLayer
+ * @brief One stacked LSTM layer.  All weights, gradients, and hidden state
+ *        are owned by this object.
+ *
+ * Weight layout (row-major):
+ *   W_  : (4*H, D) — input-to-hidden weights, gates stacked [i|f|o|g]
+ *   U_  : (4*H, H) — hidden-to-hidden weights, same stacking
+ *   b_  : (4*H, 1) — bias (forget-gate bias initialised to 1)
+ */
 class LSTMLayer : public Module<nn::EigenTensorBackend>
 {
    public:
     using Tensor = nn::Tensor;
 
-    int input_size_;
-    int hidden_size_;
-    nn::Tensor W_;
-    nn::Tensor U_;
-    nn::Tensor b_;
-    nn::Tensor dW_;
-    nn::Tensor dU_;
-    nn::Tensor db_;
-    std::vector<nn::Tensor*> param_ptrs_;
-    nn::Tensor h0_;
-    nn::Tensor c0_;
-    std::vector<LSTMStepCache> cache_;
+    int input_size_;  ///< D: input feature dimension
+    int hidden_size_; ///< H: hidden state dimension
+
+    nn::Tensor W_; ///< input-weight matrix  (4H × D)
+    nn::Tensor U_; ///< hidden-weight matrix (4H × H)
+    nn::Tensor b_; ///< bias                 (4H × 1)
+
+    nn::Tensor dW_; ///< gradient accumulator for W_
+    nn::Tensor dU_; ///< gradient accumulator for U_
+    nn::Tensor db_; ///< gradient accumulator for b_
+
+    std::vector<nn::Tensor*> param_ptrs_; ///< flat param list for optimizer
+
+    nn::Tensor h0_; ///< persistent hidden state (reset via reset_state())
+    nn::Tensor c0_; ///< persistent cell   state (reset via reset_state())
+
+    std::vector<LSTMStepCache> cache_; ///< per-step cache for BPTT
     bool requires_grad_ = false;
     int last_batch_ = 0;
 
+    /// Construct with given input and hidden dimensions; initialises weights
+    /// with N(0, 0.05) and sets the forget-gate bias to 1 for training stability.
     explicit LSTMLayer(int input_size, int hidden_size)
         : input_size_(input_size),
           hidden_size_(hidden_size),
@@ -111,6 +149,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
         dU_.set_zero();
         db_.set_zero();
 
+        // Initialise forget-gate bias to 1 to help learning long sequences.
         for (int r = hidden_size_; r < 2 * hidden_size_; ++r)
         {
             b_.at(static_cast<nn::Index>(r), 0) = 1.0f;
@@ -119,6 +158,10 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
         param_ptrs_ = {&W_, &U_, &b_};
     }
 
+    /// Forward pass over a full sequence.
+    /// @param input  (T × D) input tensor
+    /// @param requires_grad  if true, caches activations for backward()
+    /// @return (T × H) tensor of per-step hidden states
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         requires_grad_ = requires_grad;
@@ -127,15 +170,14 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
 
         if (D != input_size_)
         {
-            throw std::invalid_argument(
-                "LSTMLayer::forward: input cols=" + std::to_string(D) +
-                " does not match input_size=" + std::to_string(input_size_));
+            throw std::invalid_argument("LSTMLayer::forward: input cols=" + std::to_string(D) +
+                                        " != input_size=" + std::to_string(input_size_));
         }
 
         if (requires_grad)
         {
             cache_.clear();
-            cache_.reserve(static_cast<size_t>(T));
+            cache_.reserve(static_cast<std::size_t>(T));
         }
 
         nn::Tensor h = h0_;
@@ -145,18 +187,14 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
         for (int t = 0; t < T; ++t)
         {
             Tensor x_t = input.row(static_cast<nn::Index>(t));
+            // Combined projection: [i|f|o|g] = W x + U h + b
             Tensor pre =
                 x_t.matmul(W_.transpose()).add(h.matmul(U_.transpose())).add(b_.transpose());
 
-            Tensor pre_i = pre.block(0, 0, 1, hidden_size_);
-            Tensor pre_f = pre.block(0, 1 * hidden_size_, 1, hidden_size_);
-            Tensor pre_o = pre.block(0, 2 * hidden_size_, 1, hidden_size_);
-            Tensor pre_g = pre.block(0, 3 * hidden_size_, 1, hidden_size_);
-
-            Tensor i_gate = sigmoid(pre_i);
-            Tensor f_gate = sigmoid(pre_f);
-            Tensor o_gate = sigmoid(pre_o);
-            Tensor g_gate = tanh_tensor(pre_g);
+            Tensor i_gate = sigmoid(pre.block(0, 0, 1, hidden_size_));
+            Tensor f_gate = sigmoid(pre.block(0, 1 * hidden_size_, 1, hidden_size_));
+            Tensor o_gate = sigmoid(pre.block(0, 2 * hidden_size_, 1, hidden_size_));
+            Tensor g_gate = tanh_tensor(pre.block(0, 3 * hidden_size_, 1, hidden_size_));
 
             Tensor c_new = (f_gate * c).add(i_gate * g_gate);
             Tensor tanh_c = tanh_tensor(c_new);
@@ -164,21 +202,23 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
 
             if (requires_grad)
             {
-                LSTMStepCache step{x_t, h, c, i_gate, f_gate, o_gate, g_gate, c_new, tanh_c, h_new};
-                cache_.push_back(std::move(step));
+                cache_.push_back({x_t, h, c, i_gate, f_gate, o_gate, g_gate, c_new, tanh_c, h_new});
             }
 
             all_h.setBlock(static_cast<nn::Index>(t), 0, h_new);
-
             h = h_new;
             c = c_new;
         }
 
+        // Persist state for the next call (stateful across chunks).
         h0_ = h;
         c0_ = c;
         return all_h;
     }
 
+    /// BPTT backward pass.
+    /// @param grad_output  (T × H) gradient of loss w.r.t. each hidden output
+    /// @return (T × D) gradient w.r.t. input
     auto backward(const Tensor& grad_output) -> Tensor override
     {
         const int T = static_cast<int>(cache_.size());
@@ -200,11 +240,13 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
 
         for (int t = T - 1; t >= 0; --t)
         {
-            const auto& step = cache_[static_cast<size_t>(t)];
+            const auto& step = cache_[static_cast<std::size_t>(t)];
             nn::Tensor dh = grad_output.row(static_cast<nn::Index>(t)).add(dh_next);
+
             nn::Tensor do_gate = dh * step.tanh_c;
             nn::Tensor dtanh_c = dh * step.o;
             nn::Tensor dc = (dtanh_c * tanh_grad(step.tanh_c)).add(dc_next);
+
             nn::Tensor di_gate = dc * step.g;
             nn::Tensor df_gate = dc * step.c_prev;
             nn::Tensor dg_gate = dc * step.i;
@@ -215,22 +257,18 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
             nn::Tensor dpre_o = do_gate * sigmoid_grad(step.o);
             nn::Tensor dpre_g = dg_gate * tanh_grad(step.g);
 
+            // Re-assemble into the stacked gate gradient.
             nn::Tensor dpre(1, 4 * hidden_size_);
             dpre.setBlock(0, 0, dpre_i);
             dpre.setBlock(0, hidden_size_, dpre_f);
             dpre.setBlock(0, 2 * hidden_size_, dpre_o);
             dpre.setBlock(0, 3 * hidden_size_, dpre_g);
 
-            nn::Tensor dW_t = dpre.transpose().matmul(step.x);
-            dW_.add_inplace(dW_t);
-            nn::Tensor dU_t = dpre.transpose().matmul(step.h_prev);
-            dU_.add_inplace(dU_t);
-            nn::Tensor db_t = dpre.transpose();
-            db_.add_inplace(db_t);
+            dW_.add_inplace(dpre.transpose().matmul(step.x));
+            dU_.add_inplace(dpre.transpose().matmul(step.h_prev));
+            db_.add_inplace(dpre.transpose());
 
-            nn::Tensor dx_t = dpre.matmul(W_);
-            dx_all.setBlock(static_cast<nn::Index>(t), 0, dx_t);
-
+            dx_all.setBlock(static_cast<nn::Index>(t), 0, dpre.matmul(W_));
             dh_next = dpre.matmul(U_);
         }
 
@@ -241,6 +279,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
         return dx_all;
     }
 
+    /// Reset hidden and cell state to zero (call between independent sequences).
     void reset_state() override
     {
         h0_.set_zero();
@@ -248,6 +287,7 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
         cache_.clear();
     }
 
+    /// Returns {W_, U_, b_} as a flat span.
     auto params() -> std::span<nn::Tensor*> override
     {
         return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
@@ -266,4 +306,6 @@ class LSTMLayer : public Module<nn::EigenTensorBackend>
     }
 };
 
-} // namespace lstm_autoencoder_experiment
+} // namespace nn::models::lstm
+
+#endif // NN_MODELS_LSTM_LSTMLAYER_HPP

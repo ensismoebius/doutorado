@@ -9,9 +9,10 @@ add_executable(lstm_autoencoder_gtest
     lstm_autoencoder_gtest.cpp
 )
 
-target_link_libraries(lstm_autoencoder_gtest 
-    PRIVATE 
-        google_test 
+target_link_libraries(lstm_autoencoder_gtest
+    PRIVATE
+        google_test
+        lstm_models
         tensor
         layers
         optimizers

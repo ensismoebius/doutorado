@@ -1,43 +1,192 @@
 /**
  * @file src/experiments/04/experiment04.cpp
- * @brief Deterministic comparative runner for SNN-AE vs LSTM-AE.
+ * @brief Standalone Experiment04 entrypoint, CLI normalization, and comparative runner.
  */
-
-#include "experiment04.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <map>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "LSTMAutoencoder.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "nlohmann/json.hpp"
 #include "nn/io/ReportIO.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
+#include "nn/logging/Logger.hpp"
+#include "nn/logging/StreamRedirector.hpp"
+#include "nn/models/lstm/LSTMAutoencoder.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/statistics/inference_tests.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/SignalPreprocessing.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace lstm_autoencoder_experiment
 {
+auto should_run_from_cli(int argc, char* argv[]) -> bool;
+auto should_run_comparative_from_cli(int argc, char* argv[]) -> bool;
+auto run_comparative_experiment(int argc, char* argv[]) -> int;
+} // namespace lstm_autoencoder_experiment
+
+class LstmAutoencoderExperiment
+{
+   public:
+    auto run(int argc, char* argv[]) -> int;
+};
+
+using nn::logging::Level;
+using nn::logging::Logger;
+using nn::logging::StreamRedirector;
+
+#ifndef NN_EXPERIMENT04_NO_MAIN
 namespace
+{
+auto parse_log_level_from_env() -> Level
+{
+    const char* value = std::getenv("NN_EXPERIMENT04_LOG_LEVEL");
+    if (value == nullptr) return Level::Info;
+
+    const std::string_view level{value};
+    if (level == "error") return Level::Error;
+    if (level == "warn" || level == "warning") return Level::Warn;
+    if (level == "debug") return Level::Debug;
+    return Level::Info;
+}
+
+auto has_help_flag(int argc, char* argv[]) -> bool
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string_view arg = argv[i] ? argv[i] : "";
+        if (arg == "-h" || arg == "--help" || arg == "--help-all")
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+} // namespace
+#endif
+
+namespace lstm_autoencoder_experiment
+{
+
+auto has_experiment04_marker(const std::string& arg) -> bool
+{
+    return arg == "--experiment04" || arg == "--lstm-autoencoder" || arg == "--experiment=04" ||
+           arg == "--experiment=experiment04" || arg == "--experiment=lstm" ||
+           arg == "--experiment=lstm-autoencoder";
+}
+
+void normalize_experiment04_aliases(int argc, char* argv[], std::vector<std::string>& args)
+{
+    args.clear();
+    args.reserve(static_cast<std::size_t>(argc));
+
+    if (argc > 0)
+    {
+        args.emplace_back(argv[0] ? argv[0] : "experiment04");
+    }
+    else
+    {
+        args.emplace_back("experiment04");
+    }
+
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i] ? argv[i] : "";
+
+        if (has_experiment04_marker(arg))
+        {
+            args.emplace_back("--comparative");
+            continue;
+        }
+
+        if (arg == "--lstm-profile" || arg == "--config")
+        {
+            args.emplace_back("--comparative-config");
+            if (i + 1 < argc)
+            {
+                args.emplace_back(argv[++i] ? argv[i] : "");
+            }
+            continue;
+        }
+
+        if (arg.rfind("--lstm-profile=", 0) == 0)
+        {
+            const std::string value = arg.substr(std::string("--lstm-profile=").size());
+            args.emplace_back("--comparative-config=" + value);
+            continue;
+        }
+
+        args.push_back(arg);
+    }
+}
+
+void to_argv(std::vector<std::string>& args, std::vector<char*>& argv_out)
+{
+    argv_out.clear();
+    argv_out.reserve(args.size());
+    for (std::string& arg : args)
+    {
+        argv_out.push_back(arg.data());
+    }
+}
+
+auto should_run_from_cli(int argc, char* argv[]) -> bool
+{
+    if (should_run_comparative_from_cli(argc, argv))
+    {
+        return true;
+    }
+
+    for (int i = 1; i < argc; ++i)
+    {
+        const std::string arg = argv[i] ? argv[i] : "";
+        if (has_experiment04_marker(arg) || arg == "--lstm-profile" ||
+            arg.rfind("--lstm-profile=", 0) == 0)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+} // namespace lstm_autoencoder_experiment
+
+auto LstmAutoencoderExperiment::run(int argc, char* argv[]) -> int
+{
+    std::vector<char*> normalized_argv;
+    std::vector<std::string> normalized_args;
+
+    lstm_autoencoder_experiment::normalize_experiment04_aliases(argc, argv, normalized_args);
+    lstm_autoencoder_experiment::to_argv(normalized_args, normalized_argv);
+
+    return lstm_autoencoder_experiment::run_comparative_experiment(
+        static_cast<int>(normalized_argv.size()), normalized_argv.data() //
+    );
+}
+
+namespace comparative_autoencoder_experiment
 {
 using Tensor = nn::Tensor;
 
@@ -306,10 +455,8 @@ auto to_window_tensor(const Tensor& signal, int window_size) -> std::vector<Tens
             }
         }
 
-        // Normalize each fixed-size window independently to keep reconstruction errors comparable.
         nn::utility::zscore_inplace(sample);
         windows.push_back(std::move(sample));
-
         offset += static_cast<std::size_t>(window_size);
     }
 
@@ -394,7 +541,6 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
         all_samples.begin() + static_cast<long>(train_count), all_samples.end());
     split.val_labels.assign(split.val_samples.size(), 0);
 
-    // Deterministic anomaly injection for F1 evaluation.
     for (std::size_t i = 0; i < split.val_samples.size(); ++i)
     {
         if (i % 10 != 0) continue;
@@ -601,8 +747,7 @@ void compute_precision_recall_f1(const std::vector<int>& y_true,
     f1 = (precision + recall) > 0.0f ? (2.0f * precision * recall) / (precision + recall) : 0.0f;
 }
 
-auto estimate_lstm_macs(const lstm_autoencoder_experiment::LSTMAutoencoderConfig& cfg)
-    -> std::size_t
+auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t
 {
     const std::size_t T = static_cast<std::size_t>(cfg.seq_len);
     const std::size_t I = static_cast<std::size_t>(cfg.input_size);
@@ -638,7 +783,7 @@ auto parameter_count(std::span<nn::Tensor*> params) -> std::size_t
     return count;
 }
 
-auto evaluate_lstm(lstm_autoencoder_experiment::LSTMAutoencoder& model,
+auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
     float anomaly_tau,
@@ -856,10 +1001,9 @@ void write_summary_json(const std::filesystem::path& path,
     }
 }
 
-auto make_lstm_cfg(const ComparativeConfig& cfg)
-    -> lstm_autoencoder_experiment::LSTMAutoencoderConfig
+auto make_lstm_cfg(const ComparativeConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
-    lstm_autoencoder_experiment::LSTMAutoencoderConfig arch;
+    nn::models::lstm::LSTMAutoencoderConfig arch;
     arch.input_size = 1;
     arch.seq_len = cfg.window_size;
     arch.hidden_size = cfg.hidden_size;
@@ -885,7 +1029,7 @@ auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha, float v
     return model_cfg;
 }
 
-void train_lstm_once(lstm_autoencoder_experiment::LSTMAutoencoder& model,
+void train_lstm_once(nn::models::lstm::LSTMAutoencoder& model,
     Adam& optimizer,
     const std::vector<Tensor>& train_samples,
     const std::string& encoding,
@@ -939,7 +1083,7 @@ void train_snn_once(ProtocolSpikingAutoencoder& model,
     }
 }
 
-auto train_with_early_stopping_lstm(lstm_autoencoder_experiment::LSTMAutoencoder& model,
+auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     Adam& optimizer,
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
@@ -1171,8 +1315,6 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
     }
 }
 
-} // namespace
-
 auto should_run_comparative_cli(int argc, char* argv[]) -> bool
 {
     for (int i = 1; i < argc; ++i)
@@ -1230,10 +1372,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 {
                     const std::uint32_t run_seed = cfg.seed;
 
-                    // LSTM baseline
                     {
                         auto lstm_cfg = make_lstm_cfg(cfg);
-                        lstm_autoencoder_experiment::LSTMAutoencoder lstm_model(lstm_cfg);
+                        nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
                         Adam lstm_opt(cfg.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
@@ -1263,7 +1404,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             metrics});
                     }
 
-                    // SNN variants + ablation
                     for (const auto& architecture : cfg.snn_architectures)
                     {
                         for (int layers : cfg.layers)
@@ -1341,3 +1481,20 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 }
 
 } // namespace lstm_autoencoder_experiment
+
+#ifndef NN_EXPERIMENT04_NO_MAIN
+auto main(int argc, char* argv[]) -> int
+{
+    const bool wants_help = has_help_flag(argc, argv);
+
+    Logger::instance().set_level(parse_log_level_from_env());
+    std::unique_ptr<StreamRedirector> redirect;
+    if (!wants_help)
+    {
+        redirect = std::make_unique<StreamRedirector>(true, true);
+    }
+
+    LstmAutoencoderExperiment experiment;
+    return experiment.run(argc, argv);
+}
+#endif

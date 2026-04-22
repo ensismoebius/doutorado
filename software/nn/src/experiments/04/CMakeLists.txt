@@ -4,7 +4,7 @@
 # independent entry point for running LSTM-AE or comparative experiments.
 
 add_executable(experiment04
-    ${SRC_DIR}/experiments/04/experiment04_launcher.cpp
+    ${SRC_DIR}/experiments/04/experiment04.cpp
 )
 
 target_include_directories(experiment04

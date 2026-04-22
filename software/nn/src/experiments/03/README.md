@@ -41,8 +41,8 @@ Integrated LSTM architecture
 The integrated LSTM path is now hosted under `src/experiments/04` and dispatched by `experiment03`:
 
 - `src/experiments/03/experiment03.cpp`: top-level launcher and dispatch to standard Experiment03 or LSTM mode.
-- `src/experiments/04/lib/include/experiment04.hpp`: runner entrypoint used by the shared binary.
-- `src/experiments/04/lib/src/experiment04.cpp`: LSTM CLI parsing, profile loading, synthetic dataset generation, training orchestration, and JSON result writing.
+- `src/experiments/04/experiment04.cpp`: shared Experiment04 CLI parsing, comparative runner, and standalone entrypoint implementation.
+- `src/experiments/04/lib/include/Trainer.hpp`: Experiment04 training config and trainer utilities reused by the Experiment03 LSTM tests.
 - `src/experiments/04/lib/include/experiment04/LSTMLayer.hpp`: recurrent cell implementation and BPTT caches.
 - `src/experiments/04/lib/include/experiment04/LSTMAutoencoder.hpp`: encoder/decoder stack contract and state serialization API.
 - `src/experiments/04/lib/include/experiment04/Trainer.hpp`: Adam-based epoch loop, optional validation pass, and gradient clipping.

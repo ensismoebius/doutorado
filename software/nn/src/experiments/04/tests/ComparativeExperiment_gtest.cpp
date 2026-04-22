@@ -8,18 +8,19 @@
 #include <cmath>
 #include <vector>
 
-#include "LSTMAutoencoder.hpp"
-#include "LSTMLayer.hpp"
+#include "nn/models/lstm/LSTMAutoencoder.hpp"
+#include "nn/models/lstm/LSTMLayer.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace
 {
+namespace lstm = nn::models::lstm;
 using Tensor = nn::Tensor;
 
 // LSTM Layer: shape and iteration
 TEST(LSTMLayerTest, ForwardShape)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm(8, 16);
+    lstm::LSTMLayer lstm(8, 16);
     Tensor input = Tensor::rand(4, 8);
     Tensor output = lstm.forward(input, false);
     EXPECT_EQ(output.rows(), 4u);
@@ -28,7 +29,7 @@ TEST(LSTMLayerTest, ForwardShape)
 
 TEST(LSTMLayerTest, BackwardShape)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm(8, 16);
+    lstm::LSTMLayer lstm(8, 16);
     Tensor input = Tensor::rand(4, 8);
     lstm.forward(input, true);
     Tensor grad_h = Tensor::ones(4, 16);
@@ -39,7 +40,7 @@ TEST(LSTMLayerTest, BackwardShape)
 
 TEST(LSTMLayerTest, ResetState)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm(8, 16);
+    lstm::LSTMLayer lstm(8, 16);
     Tensor input = Tensor::rand(4, 8);
     lstm.forward(input, true);
     EXPECT_GT(lstm.cache_.size(), 0u);
@@ -49,7 +50,7 @@ TEST(LSTMLayerTest, ResetState)
 
 TEST(LSTMLayerTest, Params)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm(8, 16);
+    lstm::LSTMLayer lstm(8, 16);
     auto params = lstm.params();
     EXPECT_EQ(params.size(), 3u);
     for (auto* p : params)
@@ -60,10 +61,10 @@ TEST(LSTMLayerTest, Params)
 
 TEST(LSTMLayerTest, StateDict)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm1(8, 16);
+    lstm::LSTMLayer lstm1(8, 16);
     auto state1 = lstm1.state_dict();
 
-    lstm_autoencoder_experiment::LSTMLayer lstm2(8, 16);
+    lstm::LSTMLayer lstm2(8, 16);
     lstm2.load_state_dict(state1);
     auto state2 = lstm2.state_dict();
 
@@ -72,7 +73,7 @@ TEST(LSTMLayerTest, StateDict)
 
 TEST(LSTMLayerTest, GradientsNonZero)
 {
-    lstm_autoencoder_experiment::LSTMLayer lstm(4, 8);
+    lstm::LSTMLayer lstm(4, 8);
     Tensor input = Tensor::rand(2, 4);
     lstm.forward(input, true);
     lstm.backward(Tensor::ones(2, 8));
@@ -85,7 +86,7 @@ TEST(LSTMLayerTest, GradientsNonZero)
 // Config: validation
 TEST(ConfigTest, Defaults)
 {
-    lstm_autoencoder_experiment::LSTMAutoencoderConfig config;
+    lstm::LSTMAutoencoderConfig config;
     EXPECT_GT(config.input_size, 0);
     EXPECT_GT(config.seq_len, 0);
     EXPECT_GT(config.hidden_size, 0);
@@ -95,7 +96,7 @@ TEST(ConfigTest, Defaults)
 
 TEST(ConfigTest, Custom)
 {
-    lstm_autoencoder_experiment::LSTMAutoencoderConfig config;
+    lstm::LSTMAutoencoderConfig config;
     config.input_size = 32;
     config.seq_len = 16;
     config.hidden_size = 64;
@@ -223,7 +224,7 @@ TEST(LSTMInitTest, VariousSizes)
     {
         for (int hidden : {8, 16, 32})
         {
-            lstm_autoencoder_experiment::LSTMLayer lstm(in, hidden);
+            lstm::LSTMLayer lstm(in, hidden);
             auto params = lstm.params();
             EXPECT_EQ(params.size(), 3u);
         }

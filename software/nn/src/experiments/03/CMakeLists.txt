@@ -2,8 +2,6 @@
 
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
-    ${SRC_DIR}/experiments/04/lib/src/LSTMAutoencoder.cpp
-    ${SRC_DIR}/experiments/04/experiment04.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp
@@ -19,7 +17,6 @@ set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/TrialFoldSelector.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03_helpers.cpp
     ${SRC_DIR}/experiments/03/lib/src/experiment03.cpp
-    ${SRC_DIR}/experiments/04/lib/src/experiment04.cpp
 )
 
 if(NN_USE_OBJECT_LIBRARIES)
@@ -32,7 +29,6 @@ target_include_directories(experiment03_lib
     PUBLIC
         ${SRC_DIR}/experiments/03/lib/include
         ${SRC_DIR}/experiments/03/lib/include/autoencoder
-        ${SRC_DIR}/experiments/04/lib/include
     ${PROJECT_SOURCE_DIR}/include
 )
 
@@ -49,6 +45,7 @@ target_link_libraries(experiment03_lib
         Eigen3::Eigen
         statistics
         layers
+        lstm_models
 )
 
 nn_enable_target_pch(experiment03_lib)
@@ -58,7 +55,10 @@ configure_eigen_parallel_target(experiment03_lib)
 
 add_executable(experiment03
     ${SRC_DIR}/experiments/03/experiment03.cpp
+    ${SRC_DIR}/experiments/04/experiment04.cpp
 )
+
+target_compile_definitions(experiment03 PRIVATE NN_EXPERIMENT04_NO_MAIN)
 
 if(NN_USE_OBJECT_LIBRARIES)
     target_sources(experiment03

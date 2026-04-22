@@ -1,14 +1,20 @@
 /**
- * @file LSTMAutoencoder.cpp
- * @brief LSTM autoencoder forward and BPTT backward implementation.
+ * @file src/core/models/lstm/LSTMAutoencoder.cpp
+ * @brief Implementation of LSTMAutoencoder in namespace nn::models::lstm.
+ *
+ * All logic was migrated from the former experiment-local copy
+ * (src/experiments/04/lib/src/LSTMAutoencoder.cpp) and placed here so it is
+ * reusable across all experiments rather than duplicated per-experiment.
  */
 
-#include "LSTMAutoencoder.hpp"
+#include "nn/models/lstm/LSTMAutoencoder.hpp"
 
 #include <random>
 #include <string>
 
-namespace lstm_autoencoder_experiment
+#include "nn/models/lstm/LSTMLayer.hpp"
+
+namespace nn::models::lstm
 {
 
 LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
@@ -18,12 +24,14 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     const int Z = cfg_.latent_size;
     const int L = cfg_.num_layers;
 
+    // Build stacked encoder LSTM layers.
     for (int l = 0; l < L; ++l)
     {
         const int in_dim = (l == 0) ? D : H;
         enc_lstms_.push_back(std::make_unique<LSTMLayer>(in_dim, H));
     }
 
+    // Initialise projection weights with N(0, 0.05) for stable early training.
     auto normal_fill = [](nn::Tensor& t, unsigned seed)
     {
         std::mt19937 rng(seed);
@@ -42,6 +50,7 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     normal_fill(dec_expand_->weight, 101u);
     dec_expand_->bias.set_zero();
 
+    // Decoder LSTM layers (hidden→hidden; all layers share the same H dimension).
     for (int l = 0; l < L; ++l)
     {
         dec_lstms_.push_back(std::make_unique<LSTMLayer>(H, H));
@@ -72,6 +81,7 @@ void LSTMAutoencoder::build_param_ptrs()
 
 auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
+    // Run input through each stacked encoder LSTM layer.
     Tensor h = input;
     for (auto& lstm : enc_lstms_)
     {
@@ -80,6 +90,7 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
     }
     enc_output_cache_ = h;
 
+    // Project the last hidden state to the latent space via tanh.
     const int T = static_cast<int>(h.rows());
     Tensor h_last = h.row(static_cast<nn::Index>(T - 1));
     Tensor z_pre = enc_proj_->forward(h_last, requires_grad);
@@ -91,11 +102,12 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 
 auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_grad) -> Tensor
 {
+    // Expand latent to hidden dimension, then replicate to form a T×H input sequence.
     Tensor h_expand = dec_expand_->forward(latent, requires_grad);
-
     Tensor dec_in = nn::Tensor::ones(static_cast<nn::Index>(seq_len), 1).matmul(h_expand);
     dec_input_cache_ = dec_in;
 
+    // Run through stacked decoder LSTM layers.
     Tensor dec_h = dec_in;
     for (auto& lstm : dec_lstms_)
     {
@@ -104,6 +116,7 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
     }
     dec_output_cache_ = dec_h;
 
+    // Project each hidden state back to input dimensionality.
     Tensor recon = out_proj_->forward(dec_h, requires_grad);
     recon_cache_ = recon;
     return recon;
@@ -119,20 +132,24 @@ auto LSTMAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 
 auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
+    // Backprop through output projection and decoder LSTM stack.
     Tensor d_dec_h = out_proj_->backward(grad_output);
 
     Tensor d_dec_in = d_dec_h;
     for (int l = static_cast<int>(dec_lstms_.size()) - 1; l >= 0; --l)
     {
-        d_dec_in = dec_lstms_[static_cast<size_t>(l)]->backward(d_dec_in);
+        d_dec_in = dec_lstms_[static_cast<std::size_t>(l)]->backward(d_dec_in);
     }
 
+    // Sum gradient over the T replicated rows to get the gradient w.r.t. h_expand.
     Tensor d_h_expand = nn::Tensor::ones(1, d_dec_in.rows()).matmul(d_dec_in);
-
     Tensor d_z = dec_expand_->backward(d_h_expand);
+
+    // Backprop through the latent tanh and encoder projection.
     Tensor d_z_pre = d_z * tanh_grad(latent_cache_);
     Tensor d_h_last = enc_proj_->backward(d_z_pre);
 
+    // Place the gradient of the last time step and backprop through encoder LSTM stack.
     const int T = static_cast<int>(enc_output_cache_.rows());
     Tensor d_enc_h =
         nn::Tensor::zeros(static_cast<nn::Index>(T), static_cast<nn::Index>(cfg_.hidden_size));
@@ -141,7 +158,7 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     Tensor d_input = d_enc_h;
     for (int l = static_cast<int>(enc_lstms_.size()) - 1; l >= 0; --l)
     {
-        d_input = enc_lstms_[static_cast<size_t>(l)]->backward(d_input);
+        d_input = enc_lstms_[static_cast<std::size_t>(l)]->backward(d_input);
     }
 
     return d_input;
@@ -167,13 +184,13 @@ auto LSTMAutoencoder::state_dict() const -> std::map<std::string, nn::Tensor>
         for (const auto& [k, v] : src) sd[pfx + k] = v;
     };
 
-    for (size_t l = 0; l < enc_lstms_.size(); ++l)
+    for (std::size_t l = 0; l < enc_lstms_.size(); ++l)
     {
         prefix_merge(enc_lstms_[l]->state_dict(), "enc_lstm" + std::to_string(l) + ".");
     }
     prefix_merge(enc_proj_->state_dict(), "enc_proj.");
     prefix_merge(dec_expand_->state_dict(), "dec_expand.");
-    for (size_t l = 0; l < dec_lstms_.size(); ++l)
+    for (std::size_t l = 0; l < dec_lstms_.size(); ++l)
     {
         prefix_merge(dec_lstms_[l]->state_dict(), "dec_lstm" + std::to_string(l) + ".");
     }
@@ -196,17 +213,17 @@ void LSTMAutoencoder::load_state_dict(const std::map<std::string, nn::Tensor>& s
         return sub;
     };
 
-    for (size_t l = 0; l < enc_lstms_.size(); ++l)
+    for (std::size_t l = 0; l < enc_lstms_.size(); ++l)
     {
         enc_lstms_[l]->load_state_dict(extract_prefix("enc_lstm" + std::to_string(l) + "."));
     }
     enc_proj_->load_state_dict(extract_prefix("enc_proj."));
     dec_expand_->load_state_dict(extract_prefix("dec_expand."));
-    for (size_t l = 0; l < dec_lstms_.size(); ++l)
+    for (std::size_t l = 0; l < dec_lstms_.size(); ++l)
     {
         dec_lstms_[l]->load_state_dict(extract_prefix("dec_lstm" + std::to_string(l) + "."));
     }
     out_proj_->load_state_dict(extract_prefix("out_proj."));
 }
 
-} // namespace lstm_autoencoder_experiment
+} // namespace nn::models::lstm

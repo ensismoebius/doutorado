@@ -9,7 +9,8 @@
 #include <gtest/gtest.h>
 #include <limits>
 
-#include "Trainer.hpp"
+#include "../EpochResult.hpp"
+#include "../TrainerConfig.hpp"
 
 namespace
 {

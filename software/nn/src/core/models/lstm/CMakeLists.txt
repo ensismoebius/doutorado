@@ -1,8 +1,22 @@
-# Core LSTM models - headers only library
+# Core LSTM models library
+# Headers live in include/nn/models/lstm/; implementation here.
 
-# Headers are in the same directory
-# No build targets needed for header-only interface
+add_library(lstm_models STATIC
+    LSTMAutoencoder.cpp
+)
 
-# Tests disabled: LSTMAutoencoder class has template inheritance issues
-# The config is tested in experiments/04 LSTMAutoencoder_gtest.cpp
-# add_subdirectory(tests)
+target_include_directories(lstm_models
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+        ${EIGEN3_INCLUDE_DIR}
+)
+
+target_link_libraries(lstm_models
+    PUBLIC
+        tensor
+        layers
+)
+
+set_property(TARGET lstm_models PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+add_subdirectory(tests)

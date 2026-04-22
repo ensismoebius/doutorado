@@ -6,10 +6,10 @@ namespace nn::training
 
 struct EpochResult
 {
-    int epoch;
-    float train_loss;
-    float val_loss;
-    float epoch_ms;
+    int epoch = 0;
+    float train_loss = 0.0F;
+    float val_loss = 0.0F;
+    float epoch_ms = 0.0F;
 };
 
 } // namespace nn::training
