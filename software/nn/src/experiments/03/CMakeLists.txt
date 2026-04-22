@@ -3,7 +3,7 @@
 set(EXPERIMENT03_LIB_SOURCES
     ${SRC_DIR}/experiments/03/lib/src/cli.cpp
     ${SRC_DIR}/experiments/04/lib/src/LSTMAutoencoder.cpp
-    ${SRC_DIR}/experiments/04/lib/src/comparative_experiment.cpp
+    ${SRC_DIR}/experiments/04/experiment04.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/AudioWindowSpikingAutoencoder.cpp
     ${SRC_DIR}/experiments/03/lib/src/autoencoder/EegWindowAutoencoder.cpp

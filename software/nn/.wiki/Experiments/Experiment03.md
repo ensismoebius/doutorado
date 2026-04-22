@@ -125,6 +125,24 @@ flowchart TB
 #   - profiles/
 ```
 
+## How Experiment04 Differs in Practice
+
+Although the [Experiment04](../Experiments/Experiment04.md) page frames it as an LSTM autoencoder experiment, the current implementation is a comparative benchmark runner that orchestrates both LSTM and SNN autoencoder families.
+
+From code:
+
+- Entry point `src/experiments/04/experiment04.cpp` is intentionally thin and forwards control to `LstmAutoencoderExperiment::run(...)`.
+- `LstmAutoencoderExperiment::run(...)` normalizes CLI aliases and delegates to comparative mode (`run_comparative_experiment`) in `src/experiments/04/lib/src/comparative_experiment.cpp`.
+- Default profile stem is `lstm-compare`, resolved from `src/experiments/04/profiles/`.
+- Comparative sweep includes datasets (e.g., `fsdd`, `physionet`), encoding strategies (`direct`, `poisson`, `latency`), SNN architecture variants (`dense`, `conv1d`, `recurrent`), and hyperparameter grids (`layers`, `v_th`, `alpha`).
+- Training uses Adam + MSE with early stopping; evaluation reports MSE, MAE, $R^2$, precision/recall/F1, spike rate, latency, parameter count, and MAC estimates.
+- Output artifacts are written as:
+    - `<run_tag>_comparative_metrics.csv`
+    - `<run_tag>_publication_table.csv`
+    - `<run_tag>_summary.json`
+
+This distinction matters when comparing Experiment03 and Experiment04 outputs: Experiment03 is a multimodal autoencoder pipeline, while Experiment04 currently serves as a deterministic SNN-vs-LSTM comparative harness.
+
 ## Common Pitfalls
 
 1. **Modality Mismatch**: Ensure EEG and audio feature dimensions are correctly specified

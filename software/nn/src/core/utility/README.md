@@ -13,6 +13,9 @@ Recent updates
 - `create_batches` now writes directly into output batch tensors, removing intermediate per-batch tensor vectors and reducing copies.
 - Batch container capacity is pre-reserved using the computed number of batches.
 - Progress rendering now consumes logger lines incrementally via `drain_recent_lines()` to prevent repeated O(N) reprocessing during redraw.
+- Added reusable signal preprocessing helpers in `include/nn/utility/SignalPreprocessing.hpp`:
+	- `read_csv_signal(path) -> nn::Tensor` parses numeric CSV/TXT tokens into a column tensor.
+	- `zscore_inplace(nn::Tensor&)` applies in-place z-score normalization with stable variance flooring.
 
 Optimization techniques and references
 - Direct tensor fill in `create_batches`: eliminate temporary vectors to reduce copy count and improve spatial locality on write paths (see [1], [2]).

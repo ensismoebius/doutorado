@@ -5,12 +5,16 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <numeric>
 #include <set>
 
 #include "core/utility/tests/test_helpers.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/utility/SignalPreprocessing.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/comparison.h"
 #include "nn/utility/synthetic_spike_data.hpp"
@@ -113,6 +117,67 @@ TEST(UtilTest, Batching)
 
     ASSERT_EQ(batches.size(), 2U);
     ASSERT_EQ(batches[0].inputs.rows(), 2);
+}
+
+TEST(UtilSignalPreprocessingTest, ReadCsvSignalReturnsColumnTensorAndSkipsInvalidTokens)
+{
+    const auto tmp =
+        std::filesystem::temp_directory_path() / "nn_signal_preprocessing_read_test.csv";
+    {
+        std::ofstream out(tmp);
+        ASSERT_TRUE(out.is_open());
+        out << "1.0,2.5,hello\n";
+        out << "3.0\n";
+        out << ",,4.5\n";
+    }
+
+    const nn::Tensor signal = nn::utility::read_csv_signal(tmp);
+    EXPECT_EQ(signal.rows(), 4);
+    EXPECT_EQ(signal.cols(), 1);
+    EXPECT_NEAR(signal.at(0, 0), 1.0F, 1e-6F);
+    EXPECT_NEAR(signal.at(1, 0), 2.5F, 1e-6F);
+    EXPECT_NEAR(signal.at(2, 0), 3.0F, 1e-6F);
+    EXPECT_NEAR(signal.at(3, 0), 4.5F, 1e-6F);
+
+    std::filesystem::remove(tmp);
+}
+
+TEST(UtilSignalPreprocessingTest, ReadCsvSignalThrowsWhenFileMissing)
+{
+    const auto missing =
+        std::filesystem::temp_directory_path() / "nn_signal_preprocessing_missing.csv";
+    std::filesystem::remove(missing);
+    EXPECT_THROW((void) nn::utility::read_csv_signal(missing), std::runtime_error);
+}
+
+TEST(UtilSignalPreprocessingTest, ZScoreInplaceProducesZeroMeanAndUnitStd)
+{
+    nn::Tensor signal = make_tensor_from_values(4, 1, {1.0F, 2.0F, 3.0F, 4.0F});
+    nn::utility::zscore_inplace(signal);
+
+    const float mean = signal.sum() / static_cast<float>(signal.size());
+    float sq_sum = 0.0F;
+    for (nn::Index i = 0; i < signal.rows(); ++i)
+    {
+        const float d = signal.at(i, 0) - mean;
+        sq_sum += d * d;
+    }
+    const float stddev = std::sqrt(sq_sum / static_cast<float>(signal.size()));
+
+    EXPECT_NEAR(mean, 0.0F, 1e-5F);
+    EXPECT_NEAR(stddev, 1.0F, 1e-5F);
+}
+
+TEST(UtilSignalPreprocessingTest, ZScoreInplaceKeepsConstantSignalFinite)
+{
+    nn::Tensor signal = make_tensor_from_values(3, 1, {5.0F, 5.0F, 5.0F});
+    nn::utility::zscore_inplace(signal);
+
+    for (nn::Index i = 0; i < signal.rows(); ++i)
+    {
+        EXPECT_TRUE(std::isfinite(signal.at(i, 0)));
+        EXPECT_NEAR(signal.at(i, 0), 0.0F, 1e-6F);
+    }
 }
 
 // Exception Testing for Utilities
