@@ -134,4 +134,6 @@ model->to(device);
 
 ## References
 
-[1] A. Munshi, "The OpenCL specification," Khronos OpenCL Working Group, 2009.
+[1] A. Munshi, "The OpenCL specification," Khronos OpenCL Working Group, 2009. [Online]. Available: https://www.khronos.org/opencl/
+
+[2] J. D. Owens, M. Houston, D. Luebke, S. Green, J. E. Stone, and J. C. Phillips, "GPU computing," *Proc. IEEE*, vol. 96, no. 5, pp. 879–899, May 2008. [Online]. Available: https://doi.org/10.1109/JPROC.2008.917757

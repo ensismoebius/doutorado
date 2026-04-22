@@ -6,7 +6,7 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [1] S. Hochreiter and J. Schmidhuber, "Long short-term memory," Neural Computation, vol. 9, no. 8, pp. 1735–1780, Nov. 1997. [Online]. Available: https://doi.org/10.1162/neco.1997.9.8.1735
 
-[2] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," arXiv preprint arXiv:1412.6980, 2014. [Online]. Available: https://arxiv.org/abs/1412.6980
+[2] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
 [3] X. Glorot and Y. Bengio, "Understanding the difficulty of training deep feedforward neural networks," in Proc. 13th Int. Conf. Artificial Intelligence and Statistics (AISTATS), 2010, pp. 249–256. [Online]. Available: http://proceedings.mlr.press/v9/glorot10a
 
@@ -24,7 +24,13 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [8] P. Vincent, H. Larochelle, Y. Bengio, and P.-A. Manzagol, "Extracting and composing robust features with denoising autoencoders," in Proc. 25th Int. Conf. Machine Learning (ICML), 2008, pp. 1096–1103. [Online]. Available: https://doi.org/10.1145/1390156.1390294
 
-[9] P. Vincent, H. Larochelle, I. Guyon, and Y. Bengio, "Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion," J. Mach. Learn. Res., vol. 11, pp. 3371–3408, 2010. [Online]. Available: https://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf
+[9] P. Vincent, H. Larochelle, I. Guyon, and Y. Bengio, "Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion," *J. Mach. Learn. Res.*, vol. 11, pp. 3371–3408, 2010. [Online]. Available: https://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf
+
+## Audio Signal Processing
+
+[10] S. Davis and P. Mermelstein, "Comparison of parametric representations for monosyllabic word recognition in continuously spoken sentences," *IEEE Trans. Acoust., Speech, Signal Process.*, vol. 28, no. 4, pp. 357–366, Aug. 1980. [Online]. Available: https://doi.org/10.1109/TASSP.1980.1163420
+
+[11] L. R. Rabiner and B.-H. Juang, *Fundamentals of Speech Recognition*. Prentice Hall, 1993.
 
 ## Multimodal Learning
 

@@ -101,4 +101,6 @@ nn::Tensor At = nn::linearAlgebra::transpose(A);  // Result: 4x3
 
 ## References
 
-[1] G. H. Golub and C. F. Van Loan, Matrix Computations, 4th ed. Johns Hopkins University Press, 2013.
+[1] G. H. Golub and C. F. Van Loan, *Matrix Computations*, 4th ed. Johns Hopkins University Press, 2013.
+
+[2] E. Anderson et al., *LAPACK Users' Guide*, 3rd ed. Philadelphia: SIAM, 1999. [Online]. Available: https://www.netlib.org/lapack/lug/

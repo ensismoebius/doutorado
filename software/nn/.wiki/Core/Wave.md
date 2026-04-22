@@ -17,7 +17,7 @@ Where:
 
 ### Mel Filterbank
 
-Human auditory perception is logarithmic. Mel scale transforms frequency [11]:
+Human auditory perception is logarithmic. Mel scale transforms frequency [1]:
 
 $$m = 2595 \log_{10}\left(1 + \frac{f}{700}\right)$$
 
@@ -156,6 +156,6 @@ nn::Tensor extract_mfcc(const nn::Tensor& audio,
 
 ## References
 
-[1] K. Simonyan and A. Zisserman, "Very deep convolutional networks for large-scale image recognition," arXiv preprint arXiv:1409.1556, 2014.
+[1] S. Davis and P. Mermelstein, "Comparison of parametric representations for monosyllabic word recognition in continuously spoken sentences," *IEEE Trans. Acoust., Speech, Signal Process.*, vol. 28, no. 4, pp. 357–366, Aug. 1980. [Online]. Available: https://doi.org/10.1109/TASSP.1980.1163420
 
-[2] S. Davis and P. Mermelstein, "Comparison of parametric representations for monosyllabic word recognition in continuously spoken sentences," IEEE Trans. Acoust., Speech, Signal Process., vol. 28, no. 4, pp. 357–366, 1980.
+[2] L. R. Rabiner and B.-H. Juang, *Fundamentals of Speech Recognition*. Prentice Hall, 1993.

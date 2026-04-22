@@ -136,4 +136,4 @@ nn::Tensor features = extractor.extract(eeg_data, eog_data);
 
 [1] N. C. C. da Costa, Theory of Paraconsistent Logic. Springer, 1990.
 
-[2] A. L. L. L. R. Lotte et al., "A review of classification algorithms for EEG-based brain-computer interfaces," J. Neural Eng., vol. 15, no. 3, p. 031005, 2018.
+[2] F. Lotte, L. Bougrain, A. Cichocki, M. Clerc, M. Congedo, A. Rakotomamonjy, and F. Yger, "A review of classification algorithms for EEG-based brain-computer interfaces: A 10-year update," *J. Neural Eng.*, vol. 15, no. 3, p. 031005, 2018. [Online]. Available: https://doi.org/10.1088/1741-2552/aab2f2

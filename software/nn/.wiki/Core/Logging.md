@@ -132,4 +132,6 @@ nn::logging::Logger::set_level(nn::logging::Level::DEBUG);
 
 ## References
 
-[1] ISO/IEC 25010:2011, Systems and software engineering — Systems and software Quality Requirements and Evaluation (SQuaRE).
+[1] ISO/IEC 25010:2011, *Systems and Software Engineering — Systems and Software Quality Requirements and Evaluation (SQuaRE)*.
+
+[2] B. H. Sigelman et al., "Dapper, a large-scale distributed systems tracing infrastructure," Google Technical Report, 2010. [Online]. Available: https://research.google/pubs/pub36356/
