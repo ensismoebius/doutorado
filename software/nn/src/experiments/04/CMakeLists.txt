@@ -1,7 +1,5 @@
-# Standalone experiment04 executable
-# Note: experiment04 reuses LSTM autoencoder and comparative runner components
-# that are compiled as part of experiment03_lib. This executable provides an
-# independent entry point for running LSTM-AE or comparative experiments.
+# Standalone experiment04 executable.
+# The experiment04 implementation lives in experiment04_lib (defined in Experiment03 CMake).
 
 add_executable(experiment04
     ${SRC_DIR}/experiments/04/experiment04.cpp
@@ -16,6 +14,7 @@ target_include_directories(experiment04
 target_link_libraries(experiment04
     PRIVATE
         OpenMP::OpenMP_CXX
+        experiment04_lib
         experiment03_lib
         Eigen3::Eigen
         cnpy-static

@@ -15,6 +15,8 @@
 #include <memory>
 #include <string_view>
 
+#include "../04/lib/include/Experiment04Cli.hpp"
+#include "../04/lib/include/LstmAutoencoderExperiment.hpp"
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
 #include "nn/logging/Logger.hpp"
@@ -28,17 +30,6 @@ using std::cout;
 using std::exception;
 using std::make_shared;
 using std::size_t;
-
-namespace lstm_autoencoder_experiment
-{
-auto should_run_from_cli(int argc, char* argv[]) -> bool;
-}
-
-class LstmAutoencoderExperiment
-{
-   public:
-    auto run(int argc, char* argv[]) -> int;
-};
 
 namespace
 {

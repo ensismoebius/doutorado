@@ -48,6 +48,30 @@ target_link_libraries(experiment03_lib
         lstm_models
 )
 
+# Experiment04 implementation library (used by both experiment03 and experiment04 executables).
+add_library(experiment04_lib STATIC
+    ${SRC_DIR}/experiments/04/lib/src/Experiment04Cli.cpp
+    ${SRC_DIR}/experiments/04/lib/src/LstmAutoencoderExperiment.cpp
+    ${SRC_DIR}/experiments/04/lib/src/RunComparativeExperiment.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeCli.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeDataset.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeEncoding.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeMetrics.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeEvaluation.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeTraining.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeOutput.cpp
+)
+
+target_include_directories(experiment04_lib
+    PUBLIC
+        ${SRC_DIR}/experiments/04/lib/include
+)
+
+target_link_libraries(experiment04_lib
+    PUBLIC
+        experiment03_lib
+)
+
 nn_enable_target_pch(experiment03_lib)
 
 # Enable Eigen parallelization with OpenMP
@@ -55,10 +79,7 @@ configure_eigen_parallel_target(experiment03_lib)
 
 add_executable(experiment03
     ${SRC_DIR}/experiments/03/experiment03.cpp
-    ${SRC_DIR}/experiments/04/experiment04.cpp
 )
-
-target_compile_definitions(experiment03 PRIVATE NN_EXPERIMENT04_NO_MAIN)
 
 if(NN_USE_OBJECT_LIBRARIES)
     target_sources(experiment03
@@ -74,6 +95,7 @@ target_link_libraries(experiment03
         dataLoaders_10_1117
         OpenMP::OpenMP_CXX
         experiment03_lib
+        experiment04_lib
         Eigen3::Eigen
         cnpy-static
         dataLoaders
