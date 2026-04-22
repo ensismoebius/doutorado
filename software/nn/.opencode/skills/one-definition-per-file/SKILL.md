@@ -1,0 +1,48 @@
+---
+name: one-definition-per-file
+description: "Enforce one enum/class/interface per header file for better modularity and compile times."
+---
+
+# one-definition-per-file
+
+Goal
+- Keep codebase modular with each type in its own file.
+- Improve build parallelism and reduce header dependency chains.
+
+Rules
+- RULE: ONE_CLASS_PER_FILE
+  DO: Each class must reside in its own header file.
+  AVOID: Multiple class definitions in a single header.
+  EXCEPTION: Related helper/impl structs that are tightly coupled (e.g., RAII handle + manager) may stay together.
+- RULE: ONE_ENUM_PER_FILE
+  DO: Each enum class must reside in its own header file.
+  AVOID: Multiple enum definitions in a single header.
+- RULE: ONE_INTERFACE_PER_FILE
+  DO: Each interface (abstract class with pure virtual methods) must have its own header.
+  AVOID: Mixing interface definitions with implementations.
+- RULE: AGGREGATE_HEADERS
+  DO: Create aggregation headers that include all related type headers (e.g., Transforms.hpp includes ITransform.hpp, Compose.hpp, etc.).
+  PURPOSE: Maintain backward compatibility for existing includes while enabling granular includes.
+
+Naming Conventions
+- Interface: Prefix with I (e.g., ISurrogateGradient.hpp, ITransform.hpp)
+- Aggregation: Use plural or collective name (e.g., Transforms.hpp, SurrogateGradient.hpp)
+- Keep original name for main class/impl (e.g., BoxcarSurrogate.hpp, Compose.hpp)
+
+Refactoring Pattern
+1. Create new separate header for each type
+2. Move type definition to its own file
+3. Update aggregation header to include all new files
+4. Ensure all existing includes still work (backward compatibility)
+
+Examples of Refactored Files
+- SurrogateGradient.hpp: Split into ISurrogateGradient.hpp, ExponentialSurrogate.hpp, BoxcarSurrogate.hpp
+- Regularization.hpp: Split into IRegularization.hpp, L1Regularization.hpp, L2Regularization.hpp
+- Transforms.hpp: Split into ITransform.hpp, Compose.hpp, AudioMeanStdNormalize.hpp, EEGWindowZScore.hpp, FusedModalityTransform.hpp
+- Device.hpp: Split into DeviceType.hpp, Device.hpp, DeviceRuntime.hpp
+- DataLoader.hpp: Split into DefaultSamplerType.hpp, DataLoader.hpp
+- Trainer.hpp: Split into EpochResult.hpp, TrainerConfig.hpp, Trainer.hpp
+
+Validation
+- Run build to verify includes work correctly.
+- Ensure all tests pass after refactoring.

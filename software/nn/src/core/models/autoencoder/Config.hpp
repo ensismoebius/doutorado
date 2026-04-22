@@ -29,28 +29,14 @@
 #include <string>
 #include <vector>
 
+#include "AutoencoderArchitecture.hpp"
+
 /**
  * @namespace nn::models::autoencoder
  * @brief Core autoencoder implementations
  */
 namespace nn::models::autoencoder
 {
-
-/**
- * @enum AutoencoderArchitecture
- * @brief Architecture family selection for autoencoders.
- *
- * Different architectures suit different data types:
- *   - Auto: Automatically select based on input dimensions
- *   - ResidualDense: ResNet-style skip connections with dense layers
- *   - DualBranchFusion: Two encoders fused before decoding (multimodal)
- */
-enum class AutoencoderArchitecture
-{
-    Auto,             ///< Automatic selection based on input
-    ResidualDense,    ///< ResNet-style residual blocks
-    DualBranchFusion  ///< Dual-branch for multimodal (EEG + Audio)
-};
 
 /**
  * @struct AutoencoderConfig

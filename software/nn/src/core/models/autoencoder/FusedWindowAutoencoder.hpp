@@ -27,12 +27,11 @@
 
 #include <vector>
 
+#include "BaseAutoencoder.hpp"
+#include "Config.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
-
-#include "Config.hpp"
-#include "BaseAutoencoder.hpp"
 
 namespace nn::models::autoencoder
 {
@@ -55,7 +54,7 @@ namespace nn::models::autoencoder
  */
 class FusedWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
 {
-public:
+   public:
     /**
      * @brief Construct fused multimodal autoencoder
      *
@@ -76,10 +75,8 @@ public:
      * @note Alternative API: pass single tensor with concatenated [eeg|audio]
      */
     auto encode_bimodal(
-        const nn::Tensor& eeg_input,
-        const nn::Tensor& audio_input,
-        bool requires_grad = true
-    ) -> nn::Tensor;
+        const nn::Tensor& eeg_input, const nn::Tensor& audio_input, bool requires_grad = true)
+        -> nn::Tensor;
 
     /**
      * @brief Encode single input (monomodal fallback)
@@ -119,7 +116,7 @@ public:
      */
     auto encode_audio_only(const nn::Tensor& audio_input, bool requires_grad = true) -> nn::Tensor;
 
-private:
+   private:
     void build_bimodal_encoder(const AutoencoderConfig& cfg);
     void build_decoder(const AutoencoderConfig& cfg);
 

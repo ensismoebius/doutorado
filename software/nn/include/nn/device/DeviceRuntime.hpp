@@ -1,0 +1,13 @@
+#pragma once
+
+#include "nn/device/Device.hpp"
+
+namespace nn
+{
+
+struct DeviceRuntime
+{
+    static void ensure_runtime(const Device& device);
+};
+
+} // namespace nn

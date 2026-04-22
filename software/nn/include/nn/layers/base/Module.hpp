@@ -6,6 +6,7 @@
 #include <string>
 
 #include "nn/device/Device.hpp"
+#include "nn/device/DeviceRuntime.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**

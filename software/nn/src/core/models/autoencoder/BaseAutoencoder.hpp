@@ -10,7 +10,7 @@
  *
  * Design Pattern (PyTorch-style):
  *   1. Subclass this base class
- *   2. Implement encode() and decode() 
+ *   2. Implement encode() and decode()
  *   3. forward() calls encode() then decode() by default
  *   4. params() returns all trainable weights for optimizer
  *
@@ -22,8 +22,8 @@
 #define NN_MODELS_AUTOENCODER_BASE_AUTOENCODER_HPP
 
 #include <span>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -53,7 +53,7 @@ namespace nn::models::autoencoder
 template <typename Backend>
 class BaseAutoencoder : public nn::Module<Backend>
 {
-public:
+   public:
     /**
      * @brief Virtual destructor for proper cleanup
      */
@@ -114,7 +114,7 @@ public:
      */
     virtual auto architecture_name() const -> std::string = 0;
 
-protected:
+   protected:
     /**
      * @brief Constructor - initializes base class
      * @param name Module name for logging/serialization

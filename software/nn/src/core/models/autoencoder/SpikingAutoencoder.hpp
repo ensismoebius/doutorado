@@ -46,7 +46,7 @@ namespace nn::models::autoencoder
 template <typename Backend>
 class SpikingAutoencoder : public BaseAutoencoder<Backend>
 {
-public:
+   public:
     /**
      * @brief Construct SNN autoencoder
      *
@@ -55,13 +55,13 @@ public:
      *   - resistance, capacitance: Membrane constants
      */
     explicit SpikingAutoencoder(
-        const AutoencoderConfig& cfg,
-        const std::string& name = "SpikingAutoencoder"
-    ) : BaseAutoencoder<Backend>(name),
-        time_step_(cfg.time_step),
-        resistance_(cfg.resistance),
-        capacitance_(cfg.capacitance)
-    {}
+        const AutoencoderConfig& cfg, const std::string& name = "SpikingAutoencoder")
+        : BaseAutoencoder<Backend>(name),
+          time_step_(cfg.time_step),
+          resistance_(cfg.resistance),
+          capacitance_(cfg.capacitance)
+    {
+    }
 
     /**
      * @brief Reset membrane state for new sequence
@@ -71,7 +71,7 @@ public:
      */
     virtual void reset_state() = 0;
 
-protected:
+   protected:
     /** @brief Simulation time step (seconds) */
     float time_step_;
 

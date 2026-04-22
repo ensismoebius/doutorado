@@ -20,12 +20,11 @@
 
 #include <vector>
 
+#include "BaseAutoencoder.hpp"
+#include "Config.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
-
-#include "Config.hpp"
-#include "BaseAutoencoder.hpp"
 
 namespace nn::models::autoencoder
 {
@@ -47,7 +46,7 @@ namespace nn::models::autoencoder
  */
 class EegWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
 {
-public:
+   public:
     /**
      * @brief Construct EEG autoencoder from configuration
      * @param cfg Configuration with architecture hyperparameters
@@ -84,7 +83,7 @@ public:
      */
     auto params() -> std::span<nn::Tensor*> override;
 
-private:
+   private:
     void build_encoder(const AutoencoderConfig& cfg);
     void build_decoder(const AutoencoderConfig& cfg);
 

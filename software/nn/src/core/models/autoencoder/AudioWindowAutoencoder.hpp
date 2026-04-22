@@ -45,12 +45,11 @@
 
 #include <vector>
 
+#include "BaseAutoencoder.hpp"
+#include "Config.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
-
-#include "Config.hpp"
-#include "BaseAutoencoder.hpp"
 
 /**
  * @namespace nn::models::autoencoder
@@ -77,7 +76,7 @@ namespace nn::models::autoencoder
  */
 class AudioWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
 {
-public:
+   public:
     /**
      * @brief Construct autoencoder from configuration
      *
@@ -136,7 +135,7 @@ public:
      */
     auto params() -> std::span<nn::Tensor*> override;
 
-private:
+   private:
     /**
      * @brief Build encoder network from config
      *

@@ -47,34 +47,16 @@
 #include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/training/EpochResult.hpp"
+#include "nn/training/TrainerConfig.hpp"
 
 namespace nn::training
 {
 
-struct EpochResult
-{
-    int epoch;
-    float train_loss;
-    float val_loss;
-    float epoch_ms;
-};
-
-struct TrainerConfig
-{
-    int epochs = 10;
-    float learning_rate = 0.001F;
-    float adam_beta1 = 0.9F;
-    float adam_beta2 = 0.999F;
-    float adam_epsilon = 1e-8F;
-    float grad_clip_norm = 0.0F;
-    int batch_size = 1;
-    unsigned int sampler_shuffle_seed = 42;
-};
-
 template <typename ModelType>
 class Trainer
 {
-public:
+   public:
     using Sample = nn::Tensor;
     using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
 
@@ -86,27 +68,16 @@ public:
         optimizer_.attach(model_.params());
     }
 
-    auto fit_autoencoder(
-        const std::vector<Sample>& train_samples,
-        const std::vector<Sample>& val_samples = {}
-    ) -> std::vector<EpochResult>
+    auto fit_autoencoder(const std::vector<Sample>& train_samples,
+        const std::vector<Sample>& val_samples = {}) -> std::vector<EpochResult>
     {
-        return fit_generic(
-            train_samples,
-            val_samples,
-            TrainingMode::Autoencoder
-        );
+        return fit_generic(train_samples, val_samples, TrainingMode::Autoencoder);
     }
 
-    auto fit_supervised(
-        const std::vector<SamplePair>& train_pairs,
-        const std::vector<SamplePair>& val_pairs = {}
-    ) -> std::vector<EpochResult>
+    auto fit_supervised(const std::vector<SamplePair>& train_pairs,
+        const std::vector<SamplePair>& val_pairs = {}) -> std::vector<EpochResult>
     {
-        return fit_supervised_generic(
-            train_pairs,
-            val_pairs
-        );
+        return fit_supervised_generic(train_pairs, val_pairs);
     }
 
     auto config() const -> const TrainerConfig&
@@ -114,7 +85,7 @@ public:
         return cfg_;
     }
 
-private:
+   private:
     enum class TrainingMode
     {
         Autoencoder,
@@ -148,7 +119,8 @@ private:
         }
     }
 
-    auto compute_loss(const nn::Tensor& output, const nn::Tensor& target, bool requires_grad) -> float
+    auto compute_loss(const nn::Tensor& output, const nn::Tensor& target, bool requires_grad)
+        -> float
     {
         nn::layers::MSELossImpl<nn::EigenTensorBackend> loss_fn;
         loss_fn.set_target(target);
@@ -197,11 +169,9 @@ private:
         return samples[start];
     }
 
-    auto fit_generic(
-        const std::vector<Sample>& train_samples,
+    auto fit_generic(const std::vector<Sample>& train_samples,
         const std::vector<Sample>& val_samples,
-        TrainingMode mode
-    ) -> std::vector<EpochResult>
+        TrainingMode mode) -> std::vector<EpochResult>
     {
         std::vector<EpochResult> history;
         history.reserve(static_cast<size_t>(cfg_.epochs));
@@ -223,9 +193,7 @@ private:
             while (batch_start < train_samples.size())
             {
                 size_t batch_end = std::min(
-                    batch_start + static_cast<size_t>(cfg_.batch_size),
-                    train_samples.size()
-                );
+                    batch_start + static_cast<size_t>(cfg_.batch_size), train_samples.size());
 
                 nn::Tensor batch = create_batch(train_samples, batch_start, batch_end);
                 nn::Tensor target = batch;
@@ -254,9 +222,8 @@ private:
                 batch_start = batch_end;
             }
 
-            const float avg_train_loss = (n_train > 0)
-                ? train_loss_accum / static_cast<float>(n_train)
-                : 0.0F;
+            const float avg_train_loss =
+                (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
 
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
 
@@ -269,9 +236,7 @@ private:
                 while (val_batch_start < val_samples.size())
                 {
                     size_t val_batch_end = std::min(
-                        val_batch_start + static_cast<size_t>(cfg_.batch_size),
-                        val_samples.size()
-                    );
+                        val_batch_start + static_cast<size_t>(cfg_.batch_size), val_samples.size());
 
                     nn::Tensor vbatch = create_batch(val_samples, val_batch_start, val_batch_end);
                     nn::Tensor vtarget = vbatch;
@@ -300,10 +265,8 @@ private:
         return history;
     }
 
-    auto fit_supervised_generic(
-        const std::vector<SamplePair>& train_pairs,
-        const std::vector<SamplePair>& val_pairs
-    ) -> std::vector<EpochResult>
+    auto fit_supervised_generic(const std::vector<SamplePair>& train_pairs,
+        const std::vector<SamplePair>& val_pairs) -> std::vector<EpochResult>
     {
         std::vector<EpochResult> history;
         history.reserve(static_cast<size_t>(cfg_.epochs));
@@ -339,11 +302,7 @@ private:
                     float loss_val = 0.0F;
                     for (size_t i = 0; i < batch_inputs.size(); ++i)
                     {
-                        loss_val += compute_loss(
-                            output,
-                            batch_targets[i],
-                            true
-                        );
+                        loss_val += compute_loss(output, batch_targets[i], true);
                     }
                     loss_val /= static_cast<float>(batch_inputs.size());
 
@@ -371,9 +330,8 @@ private:
                 }
             }
 
-            const float avg_train_loss = (n_train > 0)
-                ? train_loss_accum / static_cast<float>(n_train)
-                : 0.0F;
+            const float avg_train_loss =
+                (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
 
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
 
@@ -473,8 +431,7 @@ private:
 
     static void log_epoch(const EpochResult& r, bool no_val)
     {
-        std::cout << "[Trainer] epoch=" << r.epoch
-                  << "  train_loss=" << r.train_loss;
+        std::cout << "[Trainer] epoch=" << r.epoch << "  train_loss=" << r.train_loss;
 
         if (!no_val && !std::isnan(r.val_loss))
         {

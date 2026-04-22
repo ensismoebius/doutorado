@@ -6,7 +6,7 @@
 #include <mutex>
 #include <optional>
 
-#include "nn/device/Device.hpp"
+#include "nn/device/DeviceRuntime.hpp"
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 
 namespace nn
