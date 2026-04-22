@@ -216,7 +216,7 @@ void printProgress(std::size_t dataset_total_samples,
         if (value > 1.0) return 1.0;
         return value;
     };
-    const auto make_bar = [bar_width](double value)
+    const auto make_bar = [](double value)
     {
         const double clamped = std::clamp(value, 0.0, 1.0);
         int filled = static_cast<int>(clamped * static_cast<double>(bar_width));

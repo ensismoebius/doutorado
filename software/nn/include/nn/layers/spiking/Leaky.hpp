@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "nn/layers/base/Module.hpp"
-#include "nn/layers/spiking/SurrogateGradient.hpp"
+#include "nn/layers/spiking/ExponentialSurrogate.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 #ifdef DEBUG

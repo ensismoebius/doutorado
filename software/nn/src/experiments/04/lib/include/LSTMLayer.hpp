@@ -11,7 +11,6 @@
  *   g_t = tanh(W_g x_t + U_g h_{t-1} + b_g)
  */
 
-#include <cmath>
 #include <random>
 #include <stdexcept>
 #include <vector>
