@@ -44,7 +44,7 @@
 #include <utility>
 #include <vector>
 
-#include "nn/layers/losses/MSELoss.hpp"
+#include "nn/layers/eigen/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 

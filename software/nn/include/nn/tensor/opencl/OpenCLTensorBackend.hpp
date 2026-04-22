@@ -261,6 +261,9 @@ class OpenCLTensorBackend
     // Synchronize pending GPU operations before CPU access
     void sync_gpu() const;
 
+    // Lazy sync: only copy from GPU if data is dirty and CPU access is needed
+    void sync_gpu_if_needed() const;
+
     // Check if there are pending GPU operations
     bool has_pending_gpu_ops() const
     {
@@ -280,16 +283,56 @@ class OpenCLTensorBackend
         }
     }
 
+    // Flush: force synchronize all pending GPU operations
+    // Call this when you need the result immediately or to batch multiple kernels
+    void flush();
+
     static constexpr size_t max_pending_events = 16;
 
     // Helper to allocate persistent GPU buffer (internal use)
     void try_allocate_gpu_buffer(Index size);
+
+    // GPU-resident mode: keep data on GPU between operations
+    // When true, avoid copying back to CPU after operations
+    void set_gpu_resident(bool resident)
+    {
+        m_gpu_resident = resident;
+    }
+    bool is_gpu_resident() const
+    {
+        return m_gpu_resident;
+    }
+
+    // Lazy sync: check if GPU data needs to be copied to CPU
+    bool needs_sync_to_host() const
+    {
+        return m_needs_sync_to_host;
+    }
+
+    // Mark that GPU data has been modified and needs sync before CPU access
+    void mark_dirty()
+    {
+        m_needs_sync_to_host = true;
+    }
+
+    // Pipeline mode: queue multiple kernels before syncing
+    void set_pipeline_mode(bool enable)
+    {
+        m_pipeline_mode = enable;
+    }
+    bool is_pipeline_mode() const
+    {
+        return m_pipeline_mode;
+    }
 
    private:
     std::unique_ptr<OpenCLHostStorage> m_backend;
     std::unique_ptr<OpenCLTensorBackend> m_grad_backend;
     std::unique_ptr<tensor::GPUBuffer> m_gpu_buffer;
     bool m_has_gpu_memory = false;
+    bool m_gpu_resident = false;
+    bool m_pipeline_mode = false;
+    mutable bool m_needs_sync_to_host = false;
     mutable cl_event m_pending_events[max_pending_events];
     mutable size_t m_pending_events_count = 0;
 };

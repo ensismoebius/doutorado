@@ -2195,7 +2195,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
 // Element-wise operations
 OpenCLTensorBackend OpenCLTensorBackend::exp() const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("exp"))
     {
@@ -2210,9 +2210,52 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
             const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
-            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("exp_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "exp");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "exp");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "exp");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "exp");
+                    check_cl_error(clFinish(ctx.get_queue()), "exp");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
             if (pool)
             {
                 auto input_buf = pool->acquire(bytes);
@@ -2327,7 +2370,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
 OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sqrt"))
     {
@@ -2342,9 +2385,52 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
             const auto& ctx = opencl::OpenCLContext::instance();
             const std::size_t bytes = n * sizeof(float);
-            OpenCLHostStorage out(shape());
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sqrt_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "sqrt");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "sqrt");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "sqrt");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "sqrt");
+                    check_cl_error(clFinish(ctx.get_queue()), "sqrt");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
             if (pool)
             {
                 auto input_buf = pool->acquire(bytes);
@@ -2654,6 +2740,21 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                         "clEnqueueNDRangeKernel(add)");
                     check_cl_error(clFinish(ctx.get_queue()), "clFinish(add)");
 
+                    // GPU-resident mode: keep result on GPU
+                    if (m_gpu_resident)
+                    {
+                        OpenCLTensorBackend t;
+                        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                        t.m_has_gpu_memory = true;
+                        if (out_buf)
+                        {
+                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                        }
+                        t.set_gpu_resident(true);
+                        t.m_needs_sync_to_host = true;
+                        return t;
+                    }
+
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
                         out.mutable_data_ptr(),
@@ -2774,6 +2875,21 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                                        nullptr),
                         "clEnqueueNDRangeKernel(subtract)");
                     check_cl_error(clFinish(ctx.get_queue()), "clFinish(subtract)");
+
+                    // GPU-resident mode: keep result on GPU
+                    if (m_gpu_resident)
+                    {
+                        OpenCLTensorBackend t;
+                        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                        t.m_has_gpu_memory = true;
+                        if (out_buf)
+                        {
+                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                        }
+                        t.set_gpu_resident(true);
+                        t.m_needs_sync_to_host = true;
+                        return t;
+                    }
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -2896,6 +3012,21 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                         "clEnqueueNDRangeKernel(multiply)");
                     check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply)");
 
+                    // GPU-resident mode: keep result on GPU
+                    if (m_gpu_resident)
+                    {
+                        OpenCLTensorBackend t;
+                        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                        t.m_has_gpu_memory = true;
+                        if (out_buf)
+                        {
+                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                        }
+                        t.set_gpu_resident(true);
+                        t.m_needs_sync_to_host = true;
+                        return t;
+                    }
+
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
                         out.mutable_data_ptr(),
@@ -3016,6 +3147,21 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                                        nullptr),
                         "clEnqueueNDRangeKernel(divide)");
                     check_cl_error(clFinish(ctx.get_queue()), "clFinish(divide)");
+
+                    // GPU-resident mode: keep result on GPU
+                    if (m_gpu_resident)
+                    {
+                        OpenCLTensorBackend t;
+                        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                        t.m_has_gpu_memory = true;
+                        if (out_buf)
+                        {
+                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                        }
+                        t.set_gpu_resident(true);
+                        t.m_needs_sync_to_host = true;
+                        return t;
+                    }
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -3716,6 +3862,21 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                                        nullptr),
                         "clEnqueueNDRangeKernel(transpose)");
                     check_cl_error(clFinish(ctx.get_queue()), "clFinish(transpose)");
+
+                    // GPU-resident mode: keep result on GPU
+                    if (m_gpu_resident)
+                    {
+                        OpenCLTensorBackend t;
+                        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                        t.m_has_gpu_memory = true;
+                        if (out_buf)
+                        {
+                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                        }
+                        t.set_gpu_resident(true);
+                        t.m_needs_sync_to_host = true;
+                        return t;
+                    }
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -5069,6 +5230,14 @@ void OpenCLTensorBackend::sync_gpu() const
         AsyncTransferManager::instance().wait_and_release_events(
             ctx.get_queue(), m_pending_events, static_cast<cl_uint>(m_pending_events_count));
         m_pending_events_count = 0;
+    }
+}
+
+void OpenCLTensorBackend::sync_gpu_if_needed() const
+{
+    if (m_gpu_resident && m_has_gpu_memory && m_needs_sync_to_host)
+    {
+        sync_gpu();
     }
 }
 

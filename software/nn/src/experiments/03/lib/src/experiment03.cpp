@@ -187,6 +187,8 @@ int Experiment03::run()
     vector<float> fold_mean_val_losses;
     /// Grand mean validation loss across all folds.
     float mean_val_loss = 0.0F;
+    /// Test set trial IDs for test split.
+    std::vector<int> test_trial_ids;
 
     try
     {
@@ -299,6 +301,23 @@ int Experiment03::run()
         seen_batches_ = 0;
         processed_samples_ = 0;
 
+        // Create fold selector for test split (works even when kfold is disabled)
+        experiment03::TrialFoldSelector fold_selector{};
+        try
+        {
+            fold_selector =
+                experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
+                    config_.kfold_n_splits,
+                    config_.kfold_shuffle,
+                    config_.kfold_seed,
+                    config_.test_split);
+            test_trial_ids = fold_selector.test_trial_ids();
+        }
+        catch (...)
+        {
+            // Dataset unavailable; use empty test set
+        }
+
         if (config_.kfold_enabled)
         {
             /////////////////////////////////////////////////////////////////////
@@ -308,15 +327,6 @@ int Experiment03::run()
             //   2. Evaluates reconstruction loss on the held-out test subset.
             // Results are reported per-fold and included in the run summary.
             /////////////////////////////////////////////////////////////////////
-
-            // Build fold selections from SQLite trial ids. This keeps fold
-            // orchestration outside the training loop while preserving the
-            // SqliteBatchSource + BatchPrefetcher fast path.
-            const auto fold_selector =
-                experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
-                    config_.kfold_n_splits,
-                    config_.kfold_shuffle,
-                    config_.kfold_seed);
 
             struct FoldRuntimePlan
             {
@@ -851,7 +861,9 @@ int Experiment03::run()
             mean_val_loss,                //
             optimizer_learning_rate_ptr(*optimizer) != nullptr
                 ? *optimizer_learning_rate_ptr(*optimizer)
-                : config_.training_learning_rate //
+                : config_.training_learning_rate, //
+            0.0f,                        // test_loss placeholder
+            test_trial_ids.size()         // test_samples
         );
 
         if (write_run_summary_json(summary, results_path, results_error)) [[likely]]
@@ -869,20 +881,22 @@ int Experiment03::run()
     {
         string results_path;
         string results_error;
-        auto summary = build_run_summary(   //
+auto summary = build_run_summary(   //
             config_,                        //
             kExitFailure,                   //
             dataset_total_samples_,         //
             processed_samples_,             //
-            seen_batches_,                  //
-            epoch_mean_losses,              //
-            fold_epoch_val_losses,          //
-            fold_epoch_val_eeg_losses,      //
-            fold_epoch_val_audio_losses,    //
-            fold_mean_val_losses,           //
-            mean_val_loss,                  //
+            seen_batches_,                 //
+            epoch_mean_losses,             //
+            fold_epoch_val_losses,         //
+            fold_epoch_val_eeg_losses,     //
+            fold_epoch_val_audio_losses,   //
+            fold_mean_val_losses,          //
+            mean_val_loss,                 //
             config_.training_learning_rate, //
-            e.what()                        //
+            0.0f,                          // test_loss
+            test_trial_ids.size(),         // test_samples
+            e.what()                       //
         );
         (void) write_run_summary_json(summary, results_path, results_error);
 

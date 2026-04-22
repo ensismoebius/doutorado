@@ -18,8 +18,8 @@ GPUBufferPoolHandle::~GPUBufferPoolHandle()
     }
 }
 
-GPUBufferPool::GPUBufferPool(cl_context context, cl_command_queue queue)
-    : context_(context), queue_(queue)
+GPUBufferPool::GPUBufferPool(cl_context context, cl_command_queue queue, bool use_pinned)
+    : context_(context), queue_(queue), use_pinned_memory_(use_pinned)
 {
     clRetainContext(context);
     clRetainCommandQueue(queue);
@@ -34,14 +34,19 @@ GPUBufferPool::~GPUBufferPool()
 
 size_t GPUBufferPool::get_pool_size(size_t requested)
 {
-    // Round up to nearest power of 2, min 64 bytes
-    if (requested <= 64) return 64;
-    if (requested <= 256) return 256;
-    if (requested <= 1024) return 1024;
-    if (requested <= 4096) return 4096;
+    // Optimized bucket sizes for neural network workloads
+    // NN typically uses: 1KB-256KB for activations, 256KB-16MB for weights
+    if (requested <= 1024) return 1024;       // 1KB - small activations
+    if (requested <= 4096) return 4096;       // 4KB
+    if (requested <= 16384) return 16384;     // 16KB
+    if (requested <= 65536) return 65536;    // 64KB - common layer output
+    if (requested <= 262144) return 262144;  // 256KB - medium weights
+    if (requested <= 1048576) return 1048576; // 1MB - large activations
+    if (requested <= 4194304) return 4194304; // 4MB
+    if (requested <= 16777216) return 16777216; // 16MB - big layers
 
-    // For larger sizes, round up to nearest 64KB
-    const size_t bucket_size = 65536;
+    // For very large, round up to nearest 64MB
+    const size_t bucket_size = 67108864;
     return ((requested + bucket_size - 1) / bucket_size) * bucket_size;
 }
 
@@ -64,7 +69,12 @@ auto GPUBufferPool::acquire(size_t size_bytes) -> GPUBufferPoolHandle
 
     // Allocate new buffer
     cl_int err = CL_SUCCESS;
-    cl_mem mem = clCreateBuffer(context_, CL_MEM_READ_WRITE, pool_size, nullptr, &err);
+    cl_mem_flags flags = CL_MEM_READ_WRITE;
+    if (use_pinned_memory_)
+    {
+        flags |= CL_MEM_ALLOC_HOST_PTR; // Pinned memory for faster transfers
+    }
+    cl_mem mem = clCreateBuffer(context_, flags, pool_size, nullptr, &err);
 
     if (err != CL_SUCCESS || !mem)
     {
@@ -83,8 +93,8 @@ void GPUBufferPool::release(GPUBuffer buffer)
     size_t pool_size = get_pool_size(buffer.size_bytes);
     auto& pool = pools_[pool_size];
 
-    // Reuse if pool is not too large (max 10 buffers per size)
-    if (pool.size() < 10)
+    // Reuse if pool is not too large (max 20 buffers per size for NN workloads)
+    if (pool.size() < 20)
     {
         pool.push_back(std::move(buffer));
     }

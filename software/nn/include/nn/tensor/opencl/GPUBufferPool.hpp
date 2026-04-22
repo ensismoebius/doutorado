@@ -121,8 +121,9 @@ class GPUBufferPool
      * Initialize the pool with a context and command queue.
      * @param context OpenCL context for allocation
      * @param queue OpenCL command queue (used for synchronization if needed)
+     * @param use_pinned If true, use CL_MEM_ALLOC_HOST_PTR for pinned memory (faster transfers)
      */
-    explicit GPUBufferPool(cl_context context, cl_command_queue queue);
+    explicit GPUBufferPool(cl_context context, cl_command_queue queue, bool use_pinned = true);
 
     ~GPUBufferPool();
 
@@ -154,6 +155,7 @@ class GPUBufferPool
    private:
     cl_context context_;
     cl_command_queue queue_;
+    bool use_pinned_memory_;
 
     mutable std::mutex mutex_;
     // Buffers organized by size ranges: 64B, 256B, 1KB, 4KB, etc.

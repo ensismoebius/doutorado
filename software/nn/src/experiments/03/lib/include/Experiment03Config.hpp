@@ -120,6 +120,11 @@ struct Config
     bool kfold_shuffle;                // Shuffle indices before fold assignment.
     optional<unsigned int> kfold_seed; // Optional RNG seed for reproducible shuffling.
 
+    // Test set split (applied before k-fold).
+    // If > 0 and < 1, fraction of data to hold out as test set.
+    // Remaining data is used for train/validation (k-fold when enabled).
+    float test_split = 0.0f;
+
     // Returns effective input feature count, using inferred dataset shape when override is unset.
     auto effective_autoencoder_input_features(int observed_input_features) const -> int
     {

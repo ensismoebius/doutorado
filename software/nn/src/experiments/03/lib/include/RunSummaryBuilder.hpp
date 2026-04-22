@@ -31,6 +31,8 @@ auto build_run_summary(const Config& config,
     const std::vector<float>& fold_mean_val_losses = {},
     float mean_val_loss = 0.0F,
     float optimizer_final_learning_rate = 0.0F,
+    float test_loss = 0.0F,
+    size_t test_samples = 0,
     const std::string& error_message = "") -> Summary;
 
 } // namespace experiment03

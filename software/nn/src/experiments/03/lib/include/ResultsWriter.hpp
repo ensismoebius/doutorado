@@ -47,6 +47,10 @@ struct Summary
     std::vector<float> fold_mean_val_losses;
     /// Grand mean validation loss across all folds (average of fold_mean_val_losses).
     float mean_val_loss = 0.0F;
+    /// Test set loss (evaluated on held-out test set after training).
+    float test_loss = 0.0F;
+    /// Number of samples in test set.
+    std::size_t test_samples = 0;
     std::string error_message;
 };
 

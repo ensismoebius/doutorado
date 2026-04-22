@@ -76,6 +76,11 @@ auto write_run_summary_json(const Summary& summary, std::string& out_path, std::
     payload["kfold"]["fold_epoch_val_audio_losses"] = summary.fold_epoch_val_audio_losses;
     payload["kfold"]["fold_mean_val_losses"] = summary.fold_mean_val_losses;
     payload["kfold"]["mean_val_loss"] = summary.mean_val_loss;
+    if (summary.test_samples > 0)
+    {
+        payload["test"]["loss"] = summary.test_loss;
+        payload["test"]["samples"] = summary.test_samples;
+    }
     payload["error"] = summary.error_message;
 
     if (!nn::io::write_json_file(out_file, payload, 2, &out_error))

@@ -107,9 +107,9 @@ TEST_F(GPUBufferPoolTest, ReusesBuffers)
 
 TEST_F(GPUBufferPoolTest, PoolSizeRounding)
 {
-    // Request 100 bytes - should get 256
+    // Request 100 bytes - optimized bucket for NN
     auto handle = pool_->acquire(100);
-    EXPECT_EQ(handle->size_bytes, 256);
+    EXPECT_EQ(handle->size_bytes, 1024);
 }
 
 TEST_F(GPUBufferPoolTest, MultipleSizes)
@@ -118,9 +118,9 @@ TEST_F(GPUBufferPoolTest, MultipleSizes)
     auto h2 = pool_->acquire(512);
     auto h3 = pool_->acquire(2048);
 
-    EXPECT_EQ(h1->size_bytes, 64);
-    EXPECT_EQ(h2->size_bytes, 1024); // 512 rounds up to 1KB
-    EXPECT_EQ(h3->size_bytes, 4096); // 2048 rounds up to 4KB
+    EXPECT_EQ(h1->size_bytes, 1024);
+    EXPECT_EQ(h2->size_bytes, 1024);
+    EXPECT_EQ(h3->size_bytes, 4096);
 }
 
 TEST_F(GPUBufferPoolTest, PoolClear)
@@ -142,7 +142,7 @@ TEST_F(GPUBufferPoolTest, RoundsLargeRequestsTo64KBBuckets)
 {
     auto handle = pool_->acquire(5000);
     ASSERT_TRUE(handle);
-    EXPECT_EQ(handle->size_bytes, 65536);
+    EXPECT_EQ(handle->size_bytes, 16384);
 }
 
 TEST_F(GPUBufferPoolTest, OversizedAllocationReturnsInvalidHandle)

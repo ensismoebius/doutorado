@@ -3,11 +3,14 @@
 ## Build & Test Commands
 
 ```bash
-# Debug build (default)
+# Using CMake presets (recommended)
+cmake --preset=max-performance
+cmake --build --preset=max-performance -j$(nproc)
+ctest --test-dir out/build/max-performance --output-on-failure -j4
+
+# Alternative: manual build
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j$(nproc)
-
-# Run tests
 ctest --test-dir build --output-on-failure -j4
 
 # Format check
@@ -17,7 +20,7 @@ clang-format --check src/**/*.cpp src/**/*.hpp include/**/*.hpp
 ## Critical Conventions
 
 - **Language**: C++20, Linux only
-- **Build**: CMake + Ninja (out-of-tree under `build/`)
+- **Build**: CMake + preset `max-performance` (O3 + LTO + march=native)
 - **Tests**: GoogleTest, run via `ctest` or ninja test targets
 - **Formatting**: `.clang-format` in repo root; run `clang-format -i` before committing
 

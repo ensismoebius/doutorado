@@ -742,6 +742,7 @@ auto load_profile_to_config(
     {
         out_config.kfold_seed = kfold_seed;
     }
+    parse_number(text, "test_split", out_config.test_split);
     parse_bool(text, "program_opencl_profiling_enabled", out_config.opencl_profiling_enabled);
 
     std::string eeg_object;

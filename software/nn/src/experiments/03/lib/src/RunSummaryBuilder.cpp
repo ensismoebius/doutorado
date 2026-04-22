@@ -23,6 +23,8 @@ auto build_run_summary(const Config& config,
     const std::vector<float>& fold_mean_val_losses,
     float mean_val_loss,
     float optimizer_final_learning_rate,
+    float test_loss,
+    size_t test_samples,
     const std::string& error_message) -> Summary
 {
     Summary s{};
@@ -48,6 +50,8 @@ auto build_run_summary(const Config& config,
     s.fold_epoch_val_audio_losses = fold_epoch_val_audio_losses;
     s.fold_mean_val_losses = fold_mean_val_losses;
     s.mean_val_loss = mean_val_loss;
+    s.test_loss = test_loss;
+    s.test_samples = test_samples;
     if (!error_message.empty()) s.error_message = error_message;
     return s;
 }
