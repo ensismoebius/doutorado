@@ -48,6 +48,7 @@ target_link_libraries(experiment03_lib
         z
         Eigen3::Eigen
         statistics
+        layers
 )
 
 nn_enable_target_pch(experiment03_lib)

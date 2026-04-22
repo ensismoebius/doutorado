@@ -24,7 +24,9 @@
 #include "nn/layers/activations/LeakyReLU.hpp"
 #include "nn/layers/activations/ReLU.hpp"
 #include "nn/layers/base/Sequential.hpp"
+#include "nn/layers/convolution/Conv1d.hpp"
 #include "nn/layers/convolution/Conv2d.hpp"
+#include "nn/layers/convolution/MaxPool1d.hpp"
 #include "nn/layers/convolution/MaxPool2d.hpp"
 #include "nn/layers/dense/Linear.hpp"
 #include "nn/layers/losses/CrossEntropyLoss.hpp"
@@ -58,10 +60,16 @@ using LeakyBPTT = LeakyBPTTImpl<nn::EigenTensorBackend>;
 /// Continuous leaky integrator (non-spiking readout) on the Eigen backend.
 using LeakyIntegrator = LeakyIntegratorImpl<nn::EigenTensorBackend>;
 
+/// 1-D convolution layer on the Eigen backend.
+using Conv1d = Conv1dImpl<nn::EigenTensorBackend>;
+
 /// 2-D convolution layer on the Eigen backend.
 using Conv2d = Conv2dImpl<nn::EigenTensorBackend>;
 
-/// MaxPooling layer on the Eigen backend.
+/// MaxPooling layer (1D) on the Eigen backend.
+using MaxPool1d = MaxPool1dImpl<nn::EigenTensorBackend>;
+
+/// MaxPooling layer (2D) on the Eigen backend.
 using MaxPool2d = MaxPool2dImpl<nn::EigenTensorBackend>;
 
 /// Mean-squared-error loss on the Eigen backend.
@@ -88,7 +96,8 @@ using SimpleResNet = SimpleResNetImpl<nn::EigenTensorBackend>;
 /// Sequential container on the Eigen backend.
 using Sequential = SequentialImpl<nn::EigenTensorBackend>;
 
-// --- Explicit instantiation declarations (defined in Conv2d_impl.cpp / Conv2d_utils.cpp) ---
+// --- Explicit instantiation declarations (defined in *_impl.cpp / *_utils.cpp) ---
+extern template class Conv1dImpl<nn::EigenTensorBackend>;
 extern template class Conv2dImpl<nn::EigenTensorBackend>;
 
 #endif // NN_LAYERS_EIGEN_LAYERS_HPP

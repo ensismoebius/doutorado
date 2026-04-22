@@ -28,6 +28,17 @@ Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
     int kernel_size,
     int stride,
     int padding,
+    int dilation)
+    : Conv2dImpl<Backend>(in_channels, out_channels, kernel_size, stride, padding, dilation, true, 64)
+{
+}
+
+template <typename Backend>
+Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
+    int out_channels,
+    int kernel_size,
+    int stride,
+    int padding,
     int dilation,
     bool use_parallel,
     int max_batch_size)

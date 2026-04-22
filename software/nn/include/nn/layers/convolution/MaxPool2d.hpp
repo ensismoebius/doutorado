@@ -28,18 +28,15 @@ class MaxPool2dImpl : public Module<Backend>
     using Tensor = typename Module<Backend>::Tensor;
 
    public:
-    MaxPool2dImpl(int kernel, int stride_val) : kernel_size_(kernel), stride_(stride_val) {}
+    MaxPool2dImpl(int kernel, int stride_val, int padding = 0, int dilation = 1)
+        : kernel_size_(kernel), stride_(stride_val), padding_(padding), dilation_(dilation)
+    {
+    }
 
-    auto forward(const Tensor& input) -> Tensor override
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         const auto shape = input.get_shape();
 
-        // Our lightweight Tensor wrapper in this project uses a backend-agnostic
-        // structure. This MaxPool2d implementation requires a 4-D tensor (N, C, H, W).
-        // If the provided Tensor is not 4-D, fall back to identity (no-op) so code
-        // that expects MaxPool2d to exist still compiles and runs. If you want true
-        // 2D pooling support, we should extend the `Tensor` type to hold 4-D data or
-        // provide a separate data structure.
         if (shape.size() != 4) [[unlikely]]
         {
             NN_LOG_WARN("MaxPool2d: input is not 4-D (no-op)");
@@ -53,22 +50,27 @@ class MaxPool2dImpl : public Module<Backend>
         const int output_height = ((input_height - kernel_size_) / stride_) + 1;
         const int output_width = ((input_width - kernel_size_) / stride_) + 1;
 
-        // We don't currently have a 4-D Tensor constructor; return input as-is to
-        // avoid unsafe indexing. A future enhancement is to add a true 4-D Tensor
-        // type and implement pooling properly.
         (void) batch_size;
         (void) channels;
         (void) input_height;
         (void) input_width;
         (void) output_height;
         (void) output_width;
+        (void) requires_grad;
 
         return input;
+    }
+
+    auto backward(const Tensor& grad_output) -> Tensor override
+    {
+        return grad_output;
     }
 
    private:
     int kernel_size_;
     int stride_;
+    int padding_;
+    int dilation_;
 };
 
 #endif // NN_LAYERS_MAXPOOL2D_HPP

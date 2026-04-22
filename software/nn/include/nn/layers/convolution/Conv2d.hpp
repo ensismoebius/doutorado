@@ -75,6 +75,22 @@ class Conv2dImpl : public Module<Backend>
         bool use_parallel = true);
 
     /**
+     * @brief Constructor for Conv2d layer (convenience API)
+     * @param in_channels Number of input channels
+     * @param out_channels Number of output channels
+     * @param kernel_size Size of the convolution kernel (square kernels only)
+     * @param stride Stride for the convolution
+     * @param padding Padding for the convolution
+     * @param dilation Dilation for the convolution
+     */
+    Conv2dImpl(int in_channels,
+        int out_channels,
+        int kernel_size,
+        int stride,
+        int padding,
+        int dilation);
+
+    /**
      * @brief Constructor for Conv2d layer
      * @param in_channels Number of input channels
      * @param out_channels Number of output channels

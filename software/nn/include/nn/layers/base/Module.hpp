@@ -100,6 +100,22 @@ struct Module
     virtual void train(bool on) {};
 
     /**
+     * @brief Set training mode (PyTorch-style convenience method).
+     *
+     * Call this at the start of each training epoch.
+     * Equivalent to train(true).
+     */
+    void train() { train(true); }
+
+    /**
+     * @brief Set evaluation mode (PyTorch-style convenience method).
+     *
+     * Call this before validation or inference.
+     * Equivalent to train(false).
+     */
+    void eval() { train(false); }
+
+    /**
      * @brief Resets stateful internal variables (e.g., LIF membrane potential).
      *
      * This is crucial for spiking/recurrent modules: if you feed multiple independent

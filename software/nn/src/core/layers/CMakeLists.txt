@@ -2,6 +2,7 @@ enable_testing()
 
 # Layers library - mostly header-only, with Conv2d temporarily disabled
 add_library(layers STATIC
+    convolution/Conv1d_impl.cpp
     convolution/Conv2d_impl.cpp
     convolution/Conv2d_utils.cpp
 )
