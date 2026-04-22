@@ -61,6 +61,36 @@ clang-format --check src/**/*.cpp src/**/*.hpp include/**/*.hpp
 - `nn-core-usage-enforcer` — reuse existing core abstractions
 - `patching` — focused edit workflow with compile/test validation
 
+## Knowledge Graph (Graphify)
+
+The wiki includes an integrated knowledge graph:
+
+```bash
+# Start MCP server for agent queries
+cd /home/ensismoebius/Repos/doutorado/software/nn/.wiki
+python -m graphify.serve graphify-out/graph.json
+```
+
+Available tools when MCP is running:
+- `query_graph` - BFS/DFS traversal to answer questions
+- `get_node` - Get single node with all neighbors
+- `get_community` - List community members
+- `god_nodes` - Most connected nodes
+- `graph_stats` - Graph statistics
+- `shortest_path` - Path between two concepts
+
+Examples:
+```
+/graphify query "tensor operations"
+/graphify path "Tensor" "Optimizer"
+/graphify explain "Leaky"
+```
+
+Outputs in `.wiki/graphify-out/`:
+- `graph.html` - Interactive visualization
+- `GRAPH_REPORT.md` - God nodes, communities, surprising connections
+- `graph.json` - Raw GraphRAG data
+
 ## Existing Documentation
 
 - **Wiki** (comprehensive): `.wiki/` directory - See `.wiki/Home.md` for table of contents

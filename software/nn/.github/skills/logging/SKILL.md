@@ -9,9 +9,6 @@ Goal
 - Centralize runtime output and remove ad-hoc console/file diagnostics.
 
 Rules
-- RULE: NO_LEGACY_FORWARDERS
-  DO: Migrate call sites to canonical headers and update include paths directly.
-  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: LOGGER_ONLY
   DO: Use `NN_LOG_ERROR/WARN/INFO/DEBUG`.
   AVOID: New `std::cout`, `std::cerr`, `/tmp/*.log` diagnostics in core paths.

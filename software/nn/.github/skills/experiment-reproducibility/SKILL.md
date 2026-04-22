@@ -9,9 +9,6 @@ Goal
 - Ensure every experiment run is reproducible and traceable.
 
 Rules
-- RULE: NO_LEGACY_FORWARDERS
-  DO: Migrate call sites to canonical headers and update include paths directly.
-  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: EXPLICIT_CONFIG
   DO: Persist run config in JSON/YAML artifacts.
   AVOID: Implicit defaults without serialization.

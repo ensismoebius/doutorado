@@ -9,9 +9,6 @@ Goal
 - Keep code quality and safety regressions visible and controlled.
 
 Rules
-- RULE: NO_LEGACY_FORWARDERS
-  DO: Migrate call sites to canonical headers and update include paths directly.
-  AVOID: Creating legacy forwarding headers, compatibility wrapper headers, or shim include files.
 - RULE: ANALYZE_ALWAYS
   DO: Run `cppcheck` and relevant analyzer tasks on touched areas.
   AVOID: Shipping unreviewed static-analysis findings.
