@@ -316,10 +316,9 @@ ctest --test-dir build-asan --output-on-failure -j1
 Use `--ignore-errors inconsistent` — caused by gtest `TEST()` macro DWARF line mismatch.  
 See [GRID_TESTS_COMPREHENSIVE_RUNBOOK](./Grid-Runbook.md) for the full coverage workflow.
 (lldb) run --gtest_filter=TensorGtest.test_name
-```
 
 ## See Also
 
-- [Architecture](./Architecture.md) - System design
-- [Static Analysis](./Guides/Static-Analysis.md) - Code quality
+- [Architecture](./Architecture.md) - System design  
+- [Static Analysis](./Guides/Static-Analysis.md) - Code quality  
 - [PGO](./Guides/PGO.md) - Optimization workflow
