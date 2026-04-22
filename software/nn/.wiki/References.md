@@ -26,8 +26,38 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [9] P. Vincent, H. Larochelle, I. Guyon, and Y. Bengio, "Stacked denoising autoencoders: Learning useful representations in a deep network with a local denoising criterion," J. Mach. Learn. Res., vol. 11, pp. 3371–3408, 2010. [Online]. Available: https://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf
 
-## Signal Processing
+## Multimodal Learning
 
-[10] A. L. L. L. R. Lotte, L. Bougrain, A. Cichocki, M. Clerc, M. Congedo, A. Rakotomamonjy, and F. Yger, "A review of classification algorithms for EEG-based brain-computer interfaces: A 10 year update," J. Neural Eng., vol. 15, no. 3, p. 031005, 2018. [Online]. Available: https://doi.org/10.1088/1741-2552/aab2f2
+[12] T. Baltrušaitis, C. Ahuja, and L. P. Morency, "Multimodal machine learning: A survey and taxonomy," IEEE Trans. Pattern Anal. Mach. Intell., vol. 41, no. 2, pp. 423–443, Feb. 2019.
 
-[11] K. Simonyan and A. Zisserman, "Very deep convolutional networks for large-scale image recognition," arXiv preprint arXiv:1409.1556, 2014. [Online]. Available: https://arxiv.org/abs/1409.1556
+[13] Y. H. Tsai, Y. R. Yeh, and Y. C. F. Wang, "Learning deep multimodal representations by contrastive paired projections," in Proc. IEEE/CVF Int. Conf. Computer Vision (ICCV), 2019.
+
+[14] J. Ngiam, A. Khosla, M. Kim, J. Nam, H. Lee, and A. Y. Ng, "Multimodal deep learning," in Proc. 28th Int. Conf. Machine Learning (ICML), 2011, pp. 689–696.
+
+[15] N. Srivastava and R. Salakhutdinov, "Learning representations for multimodal data with deep belief nets," in Proc. 29th Int. Conf. Machine Learning (ICML), 2012.
+
+## EEG Signal Processing
+
+[16] M. X. Cohen, Analyzing Neural Time Series Data: Theory and Practice, MIT Press, 2014.
+
+[17] D. O'Shaughnessy, Speech Processing: A Dynamic and Optimization-Oriented Approach, CRC Press, 2000.
+
+[18] L. R. Rabiner and R. W. Schafer, Theory and Applications of Digital Signal Processing, Prentice Hall, 2011.
+
+[19] W. M. Campbell, D. E. Sturim, and D. A. Reynolds, "Support vector machines using GMM supervectors for speaker verification," IEEE Signal Process. Lett., vol. 13, no. 5, pp. 308–311, May 2006.
+
+[20] K. Brigham, B. V. K. Kumar, P. Narayana, and S. S. Narayanan, "Decoding imagined speech from EEG brain signals," in Proc. IEEE Int. Conf. Acoustics, Speech and Signal Processing (ICASSP), 2015.
+
+## SNN and Surrogate Gradients
+
+[21] W. Gerstner and W. M. Kistler, Spiking Neuron Models: Single Neurons, Populations, Plasticity, Cambridge University Press, 2002.
+
+[22] A. L. Hodgkin and A. F. Huxley, "A quantitative description of membrane current and its application to conduction and excitation in nerve," J. Physiol., vol. 117, no. 4, pp. 500–544, 1952.
+
+[23] I. M. Comsa et al., "Temporal coding with spiking neural networks," in Proc. Int. Joint Conf. Neural Networks (IJCNN), 2020.
+
+## Paraconsistent Logic
+
+[24] J. M. Abe, "Paraconsistent intelligent based systems," in Encyclopedia of Artificial Intelligence, 2015.
+
+[25] N. C. A. Da Costa, "On the theory of inconsistent formal systems," Notre Dame Journal of Formal Logic, vol. 15, no. 4, pp. 497–510, 1974.

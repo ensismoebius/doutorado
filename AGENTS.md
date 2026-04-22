@@ -63,6 +63,5 @@ clang-format --check src/**/*.cpp src/**/*.hpp include/**/*.hpp
 
 ## Existing Documentation
 
+- **Wiki** (comprehensive): `.wiki/` directory - See `.wiki/Home.md` for table of contents
 - Full guidance: `.github/copilot-instructions.md`
-- Naming rules: `docs/naming-conventions.md`
-- Project docs: `docs/docs.md`
