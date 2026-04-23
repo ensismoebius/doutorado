@@ -53,35 +53,43 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                     const std::uint32_t run_seed = config.seed;
 
                     {
+                        float train_ms = 0.0f;
+                        float infer_ms = 0.0f;
                         auto lstm_cfg = make_lstm_cfg(config);
+
                         nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
+
                         Adam lstm_opt(config.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
-                        float train_ms = 0.0f;
-                        float infer_ms = 0.0f;
-                        RunMetrics metrics = train_with_early_stopping_lstm(lstm_model,
-                            lstm_opt,
-                            config,
-                            split.train_samples,
-                            split.val_samples,
-                            encoding,
-                            run_seed,
-                            train_ms,
-                            infer_ms);
+                        RunMetrics metrics = train_with_early_stopping_lstm( //
+                            lstm_model,                                      //
+                            lstm_opt,                                        //
+                            config,                                          //
+                            split.train_samples,                             //
+                            split.val_samples,                               //
+                            encoding,                                        //
+                            run_seed,                                        //
+                            train_ms,                                        //
+                            infer_ms                                         //
+                        );
                         metrics.train_ms = train_ms;
 
-                        all_rows.push_back(ResultRow{dataset_name,
-                            "lstm-ae",
-                            encoding,
-                            "lstm",
-                            1,
-                            0.0f,
-                            0.0f,
-                            run_id + 1,
-                            run_seed,
-                            cfg_hash,
-                            metrics});
+                        all_rows.push_back( //
+                            ResultRow{
+                                dataset_name, //
+                                "lstm-ae",    //
+                                encoding,     //
+                                "lstm",       //
+                                1,            //
+                                0.0f,         //
+                                0.0f,         //
+                                run_id + 1,   //
+                                run_seed,     //
+                                cfg_hash,     //
+                                metrics       //
+                            } //
+                        );
                     }
 
                     for (const auto& architecture : config.snn_architectures)
