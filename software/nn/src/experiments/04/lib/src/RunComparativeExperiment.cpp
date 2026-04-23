@@ -9,6 +9,7 @@
 #include "../include/ComparativeOutput.hpp"
 #include "../include/ComparativeTraining.hpp"
 #include "../include/Experiment04Cli.hpp"
+#include "nn/utility/progress.hpp"
 
 namespace lstm_autoencoder_experiment
 {
@@ -50,7 +51,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.repeats; ++run_id)
                 {
-                    const std::uint32_t run_seed = config.seed;
+                    const std::uint32_t run_seed = config.seed_deterministic
+                        ? config.seed
+                        : config.seed + static_cast<std::uint32_t>(run_id);
 
                     {
                         float train_ms = 0.0f;
@@ -70,6 +73,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             split.val_samples,                               //
                             encoding,                                        //
                             run_seed,                                        //
+                            static_cast<std::size_t>(run_id),                //
+                            static_cast<std::size_t>(config.repeats),        //
                             train_ms,                                        //
                             infer_ms                                         //
                         );
@@ -128,6 +133,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         alpha,                                          //
                                         voltage_threshold,                              //
                                         run_seed,                                       //
+                                        static_cast<std::size_t>(run_id),                //
+                                        static_cast<std::size_t>(config.repeats),        //
                                         train_ms,                                       //
                                         infer_ms                                        //
                                     );
@@ -156,7 +163,10 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             }
         }
 
-        validate_repeat_determinism(config, all_rows);
+        if (config.repeats > 1 && config.check_determinism)
+        {
+            validate_repeat_determinism(config, all_rows);
+        }
 
         const std::filesystem::path csv_path =
             out_dir / (config.run_tag + "_comparative_metrics.csv");
@@ -174,6 +184,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                   << "  - " << csv_path << "\n"
                   << "  - " << table_path << "\n"
                   << "  - " << summary_json << "\n";
+        
+        flushProgressAsync();
         return 0;
     }
     catch (const std::exception& ex)

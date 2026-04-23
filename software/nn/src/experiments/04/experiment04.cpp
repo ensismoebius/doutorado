@@ -38,9 +38,19 @@ auto parse_log_level_from_env() -> Level
 
     // Convert the value to lowercase for case-insensitive comparison
     const std::string_view level{value};
-    if (level == "error") return Level::Error;
-    if (level == "warn" || level == "warning") return Level::Warn;
-    if (level == "debug") return Level::Debug;
+
+    if (level == "error")
+    {
+        return Level::Error;
+    }
+    if (level == "warn" || level == "warning")
+    {
+        return Level::Warn;
+    }
+    if (level == "debug")
+    {
+        return Level::Debug;
+    }
 
     return Level::Info;
 }
@@ -79,6 +89,27 @@ auto main(int argc, char* argv[]) -> int
         Logger::instance().set_level(parse_log_level_from_env());
 
         lstm_autoencoder_experiment::normalize_aliases(argc, argv, normalized_args);
+
+        bool has_comparative_config = false;
+        for (const auto& arg : normalized_args)
+        {
+            if (arg == "--comparative-config" || arg.rfind("--comparative-config=", 0) == 0)
+            {
+                has_comparative_config = true;
+                break;
+            }
+        }
+
+        if (!has_comparative_config)
+        {
+            normalized_args.insert(normalized_args.begin() + 1, "--comparative");
+            normalized_args.insert(normalized_args.begin() + 2, "--comparative-config=lstm-lightweight");
+        }
+        else if (normalized_args.size() > 1 && normalized_args[1] != "--comparative")
+        {
+            normalized_args.insert(normalized_args.begin() + 1, "--comparative");
+        }
+
         lstm_autoencoder_experiment::to_argv(normalized_args, normalized_argv);
 
         return lstm_autoencoder_experiment::run_comparative_experiment(

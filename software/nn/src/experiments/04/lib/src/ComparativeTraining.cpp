@@ -9,7 +9,7 @@
 #include "../include/ComparativeEvaluation.hpp"
 #include "../include/ComparativeMetrics.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
-#include "nn/progress/ProgressBar.hpp"
+#include "nn/utility/progress.hpp"
 
 namespace comparative_autoencoder_experiment
 {
@@ -42,73 +42,6 @@ auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha, float v
     return model_cfg;
 }
 
-static void train_lstm_once(nn::models::lstm::LSTMAutoencoder& model,
-    Adam& optimizer,
-    const std::vector<Tensor>& train_samples,
-    const std::string& encoding,
-    std::uint32_t seed,
-    nn::progress::ProgressBar* bar = nullptr)
-{
-    MSELossImpl<nn::EigenTensorBackend> mse_loss;
-    for (std::size_t i = 0; i < train_samples.size(); ++i)
-    {
-        const Tensor encoded =
-            encode_sample(train_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-
-        model.reset_state();
-        optimizer.zero_grad(model.params());
-
-        const Tensor recon = model.forward(encoded, true);
-        mse_loss.set_target(encoded);
-        const Tensor loss = mse_loss.forward(recon, true);
-        
-        const Tensor grad = mse_loss.backward(recon);
-        model.backward(grad);
-        optimizer.step(model.params());
-
-        if (bar)
-        {
-            bar->update(static_cast<float>(i + 1), {{"loss", loss.at(0,0)}});
-        }
-    }
-}
-
-static void train_snn_once(ProtocolSpikingAutoencoder& model,
-    Adam& optimizer,
-    const std::vector<Tensor>& train_samples,
-    const std::string& encoding,
-    const std::string& architecture,
-    float alpha,
-    float v_th,
-    std::uint32_t seed,
-    nn::progress::ProgressBar* bar = nullptr)
-{
-    MSELossImpl<nn::EigenTensorBackend> mse_loss;
-    for (std::size_t i = 0; i < train_samples.size(); ++i)
-    {
-        Tensor encoded =
-            encode_sample(train_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
-        encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-
-        const Tensor flat = flatten_time_series(encoded);
-        model.reset_state();
-        optimizer.zero_grad(model.params());
-
-        const Tensor recon_flat = model.forward(flat, true);
-        mse_loss.set_target(flat);
-        const Tensor loss = mse_loss.forward(recon_flat, true);
-        
-        const Tensor grad = mse_loss.backward(recon_flat);
-        model.backward(grad);
-        optimizer.step(model.params());
-
-        if (bar)
-        {
-            bar->update(static_cast<float>(i + 1), {{"loss", loss.at(0,0)}});
-        }
-    }
-}
-
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     Adam& optimizer,
     const ComparativeConfig& cfg,
@@ -116,6 +49,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
     std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
     float& train_ms,
     float& infer_ms) -> RunMetrics
 {
@@ -125,12 +60,25 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const auto t0 = std::chrono::steady_clock::now();
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
-        nn::progress::ProgressBar train_bar("LSTM Training", static_cast<float>(train_samples.size()));
-        train_lstm_once(
-            model, optimizer, train_samples, encoding, seed + static_cast<std::uint32_t>(epoch), &train_bar);
+        MSELossImpl<nn::EigenTensorBackend> mse_loss;
+        for (std::size_t i = 0; i < train_samples.size(); ++i)
+        {
+            const Tensor encoded =
+                encode_sample(train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
+
+            model.reset_state();
+            optimizer.zero_grad(model.params());
+
+            const Tensor recon = model.forward(encoded, true);
+            mse_loss.set_target(encoded);
+            (void) mse_loss.forward(recon, true);
+
+            const Tensor grad = mse_loss.backward(recon);
+            model.backward(grad);
+            optimizer.step(model.params());
+        }
 
         float val_mse = 0.0f;
-        MSELossImpl<nn::EigenTensorBackend> mse_loss;
         for (std::size_t i = 0; i < val_samples.size(); ++i)
         {
             const Tensor encoded =
@@ -141,6 +89,22 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
             val_mse += mse_loss.forward(recon, false).at(0, 0);
         }
         if (!val_samples.empty()) val_mse /= static_cast<float>(val_samples.size());
+
+        printProgress(train_samples.size(),
+            1,
+            train_samples.size() * cfg.epochs,
+            epoch * train_samples.size() + train_samples.size(),
+            epoch * train_samples.size() + train_samples.size(),
+            false,
+            run_id,
+            total_runs,
+            epoch + 1,
+            cfg.epochs,
+            train_samples.size(),
+            train_samples.size(),
+            static_cast<double>(val_mse),
+            std::span<nn::Tensor*>{},
+            "LSTM");
 
         if (val_mse + 1e-8f < best)
         {
@@ -153,6 +117,23 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
             if (bad_epochs >= cfg.early_stop_patience) break;
         }
     }
+    
+    printProgress(train_samples.size(),
+            1,
+            train_samples.size() * cfg.epochs,
+            train_samples.size() * cfg.epochs,
+            train_samples.size() * cfg.epochs,
+            true,
+            run_id,
+            total_runs,
+            cfg.epochs,
+            cfg.epochs,
+            train_samples.size(),
+            train_samples.size(),
+            best,
+            std::span<nn::Tensor*>{},
+            "LSTM");
+        
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -190,6 +171,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     float alpha,
     float v_th,
     std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
     float& train_ms,
     float& infer_ms) -> RunMetrics
 {
@@ -199,19 +182,27 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const auto t0 = std::chrono::steady_clock::now();
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
-        nn::progress::ProgressBar train_bar("SNN Training", static_cast<float>(train_samples.size()));
-        train_snn_once(model,
-            optimizer,
-            train_samples,
-            encoding,
-            architecture,
-            alpha,
-            v_th,
-            seed + static_cast<std::uint32_t>(epoch),
-            &train_bar);
+        MSELossImpl<nn::EigenTensorBackend> mse_loss;
+        for (std::size_t i = 0; i < train_samples.size(); ++i)
+        {
+            Tensor encoded =
+                encode_sample(train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
+            encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
+
+            const Tensor flat = flatten_time_series(encoded);
+            model.reset_state();
+            optimizer.zero_grad(model.params());
+
+            const Tensor recon_flat = model.forward(flat, true);
+            mse_loss.set_target(flat);
+            (void) mse_loss.forward(recon_flat, true);
+
+            const Tensor grad = mse_loss.backward(recon_flat);
+            model.backward(grad);
+            optimizer.step(model.params());
+        }
 
         float val_mse = 0.0f;
-        MSELossImpl<nn::EigenTensorBackend> mse_loss;
         for (std::size_t i = 0; i < val_samples.size(); ++i)
         {
             Tensor encoded =
@@ -225,6 +216,22 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         }
         if (!val_samples.empty()) val_mse /= static_cast<float>(val_samples.size());
 
+        printProgress(train_samples.size(),
+            1,
+            train_samples.size() * cfg.epochs,
+            epoch * train_samples.size() + train_samples.size(),
+            epoch * train_samples.size() + train_samples.size(),
+            false,
+            run_id,
+            total_runs,
+            epoch + 1,
+            cfg.epochs,
+            train_samples.size(),
+            train_samples.size(),
+            static_cast<double>(val_mse),
+            std::span<nn::Tensor*>{},
+            "SNN");
+
         if (val_mse + 1e-8f < best)
         {
             best = val_mse;
@@ -236,6 +243,23 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
             if (bad_epochs >= cfg.early_stop_patience) break;
         }
     }
+    
+    printProgress(train_samples.size(),
+        1,
+        train_samples.size() * cfg.epochs,
+        train_samples.size() * cfg.epochs,
+        train_samples.size() * cfg.epochs,
+        true,
+        run_id,
+        total_runs,
+        cfg.epochs,
+        cfg.epochs,
+        train_samples.size(),
+        train_samples.size(),
+        best,
+        std::span<nn::Tensor*>{},
+        "SNN");
+        
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 

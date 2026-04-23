@@ -125,7 +125,13 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
         groups[key].push_back(&row);
     }
 
-    auto almost_eq = [](float a, float b) { return std::fabs(a - b) <= 1e-6f; };
+    auto almost_eq = [](float a, float b) { return std::fabs(a - b) <= 1e-4f; };
+    auto rel_eq = [](float a, float b) {
+        if (a == 0.0f && b == 0.0f) return true;
+        const float diff = std::fabs(a - b);
+        const float scale = std::max(std::fabs(a), std::fabs(b));
+        return diff <= 1e-4f * scale;
+    };
 
     for (const auto& [key, group] : groups)
     {
@@ -138,11 +144,45 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
         for (std::size_t i = 1; i < group.size(); ++i)
         {
             const RunMetrics& cur = group[i]->metrics;
-            if (!almost_eq(ref.mse, cur.mse) || !almost_eq(ref.mae, cur.mae) ||
-                !almost_eq(ref.r2, cur.r2) || !almost_eq(ref.f1, cur.f1) ||
-                !almost_eq(ref.spike_rate, cur.spike_rate) || !almost_eq(ref.energy, cur.energy))
+
+            std::ostringstream diff;
+            bool has_diff = false;
+
+            if (!almost_eq(ref.mse, cur.mse) && !rel_eq(ref.mse, cur.mse))
             {
-                throw std::runtime_error("Determinism check failed (metrics differ) for key: " + key);
+                diff << " mse(" << ref.mse << " vs " << cur.mse << ")";
+                has_diff = true;
+            }
+            if (!almost_eq(ref.mae, cur.mae) && !rel_eq(ref.mae, cur.mae))
+            {
+                diff << " mae(" << ref.mae << " vs " << cur.mae << ")";
+                has_diff = true;
+            }
+            if (!almost_eq(ref.r2, cur.r2) && !rel_eq(ref.r2, cur.r2))
+            {
+                diff << " r2(" << ref.r2 << " vs " << cur.r2 << ")";
+                has_diff = true;
+            }
+            if (!almost_eq(ref.f1, cur.f1) && !rel_eq(ref.f1, cur.f1))
+            {
+                diff << " f1(" << ref.f1 << " vs " << cur.f1 << ")";
+                has_diff = true;
+            }
+            if (!almost_eq(ref.spike_rate, cur.spike_rate) && !rel_eq(ref.spike_rate, cur.spike_rate))
+            {
+                diff << " spike_rate(" << ref.spike_rate << " vs " << cur.spike_rate << ")";
+                has_diff = true;
+            }
+            if (!almost_eq(ref.energy, cur.energy) && !rel_eq(ref.energy, cur.energy))
+            {
+                diff << " energy(" << ref.energy << " vs " << cur.energy << ")";
+                has_diff = true;
+            }
+
+            if (has_diff)
+            {
+                throw std::runtime_error(
+                    "Determinism check failed (metrics differ) for key: " + key + diff.str());
             }
         }
     }

@@ -28,6 +28,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::string& encoding,
     std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
     float& train_ms,
     float& infer_ms) -> RunMetrics;
 
@@ -43,6 +45,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     float alpha,
     float v_th,
     std::uint32_t seed,
+    std::size_t run_id,
+    std::size_t total_runs,
     float& train_ms,
     float& infer_ms) -> RunMetrics;
 

@@ -1,108 +1,175 @@
-# Experiment04: LSTM Autoencoder
+# Experiment04: SNN vs LSTM Comparative
 
-Experiment04 implements LSTM-based autoencoders for sequence-to-sequence learning on time-series data.
+Experiment04 implements a comparative study between Spiking Neural Networks (SNNs) and LSTM autoencoders on time-series data, with support for the Free Spoken Digit Dataset (FSDD).
 
 ## Theoretical Background
 
 ### Sequence-to-Sequence Learning
 
-LSTM autoencoders compress variable-length sequences into fixed-size latent vectors:
+LSTM autoencoders compress variable-length sequences into fixed-size latent vectors: 
 
 1. **Encoder LSTM**: Processes input sequence, produces final hidden state
 2. **Latent Space**: Fixed-dimensional representation of entire sequence
 3. **Decoder LSTM**: Reconstructs sequence from latent state
 
-### BPTT in Autoencoders
+### SNN Surrogate Gradients
 
-Backpropagation Through Time (BPTT) computes gradients across time steps [1]:
+Spiking Neural Networks use surrogate gradient methods to approximate the non-differentiable spike function [1]:
 
-1. Forward pass: Encode sequence, store all hidden states
-2. Decode: Generate reconstruction, store decoder states
-3. Backward pass: Propagate gradients back through decoder, then encoder
+$$\frac{\partial S}{\partial V} \approx \frac{\partial \sigma}{\partial V}$$
+
+where $\sigma$ is a smooth approximation (e.g., fast sigmoid).
+
+### Comparative Framework
+
+The experiment compares:
+- **LSTM Autoencoder**: Standard recurrent autoencoder with BPTT
+- **SNN Autoencoder**: Layer-based spiking autoencoder with Leaky Integrate-and-Fire neurons
 
 ## Implementation
 
-### LSTM Autoencoder Architecture
+### Comparative Configuration
 
 ```cpp
-// File: src/experiments/04/lib/include/LSTMAutoencoder.hpp
-template <typename Backend>
-class LSTMAutoencoder : public Module<Backend>
+// File: src/experiments/04/lib/include/ComparativeConfig.hpp
+struct ComparativeConfig
 {
-    LeakyBPTT encoder_;  // Input -> Latent
-    LeakyBPTT decoder_;  // Latent -> Output
-    int latent_size_;
+    std::string dataset_root = "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset";
+    std::string results_dir = "results";
+    std::string run_tag = "snn_lstm_compare";
 
-public:
-    auto forward(const Tensor& input_sequence, bool requires_grad) -> Tensor override
-    {
-        // Encode: sequence -> latent vector
-        Tensor latent = encoder_.forward_sequence(input_sequence, requires_grad);
+    std::uint32_t seed = 42;
+    int repeats = 3;
 
-        // Decode: latent -> reconstruction
-        Tensor reconstruction = decoder_.forward_sequence(latent, requires_grad);
-
-        return reconstruction;
-    }
-};
-```
-
-### Training Configuration
-
-```cpp
-// File: src/experiments/04/lib/include/Experiment04Config.hpp
-struct Experiment04Config
-{
-    int input_timesteps;    // e.g., 100
-    int input_features;     // e.g., 64 per timestep
-    int hidden_size = 128;
-    int latent_size = 32;
-    int num_layers = 2;
+    int window_size = 256;
+    int batch_size = 100;
+    int max_train_samples = 500;
+    int max_val_samples = 100;
 
     int epochs = 100;
-    int batch_size = 16;
-    float learning_rate = 0.001f;
+    int early_stop_patience = 20;
+    float learning_rate = 1e-3f;
+    float anomaly_tau = 0.25f;
 
-    bool use_bidirectional = false;
+    int hidden_size = 64;
+    int latent_size = 32;
+
+    // Dataset selection
+    std::vector<std::string> datasets = {"fsdd"};
+    
+    // Encoding methods
+    std::vector<std::string> encodings = {"direct", "poisson", "latency"};
+    
+    // SNN architectures to compare
+    std::vector<std::string> snn_architectures = {"dense", "conv1d", "recurrent"};
+    
+    // Layer configurations
+    std::vector<int> layers = {1, 2, 3};
+    
+    // SNN parameters
+    std::vector<float> v_th_values = {0.5f, 1.0f, 1.5f};
+    std::vector<float> alpha_values = {0.8f, 0.9f, 0.99f};
 };
 ```
 
-### Data Flow
+### Profile Configurations
 
-```mermaid
-sequenceDiagram
-    participant Input
-    participant Encoder
-    participant Latent
-    participant Decoder
-    participant Output
+The experiment uses JSON profiles in `src/experiments/04/profiles/`:
 
-    Input->>Encoder: x_1, x_2, ..., x_T
-    Encoder->>Latent: h_T (final hidden state)
-    Latent->>Decoder: h_0 (initial decoder state)
-    Decoder->>Output: ŷ_1, ŷ_2, ..., ŷ_T
+| Profile | Description | Key Parameters |
+|---------|-------------|---------------|
+| `lstm-default.json` | Default LSTM/SNN comparison | window=256, batch=100, epochs=100, hidden=64 |
+| `lstm-compare.json` | Comprehensive grid search | 3 repeats, all encodings, layers, thresholds |
+| `lstm-deep.json` | Deeper network | hidden=192, layers=2 |
+| `lstm-lightweight.json` | Smoke test | window=256, batch=4, epochs=1 |
+
+### Dataset Support
+
+**FSDD (Free Spoken Digit Dataset)**:
+- Location: `/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset`
+- Format: `.wav` audio files (16-bit PCM, mono, 8kHz)
+- Organization: `{digit}_{speaker}_{index}.wav`
+- Samples: ~3,000 recordings (50 digits × 6 speakers)
+
+### WAV Loading
+
+```cpp
+// File: src/experiments/04/lib/src/ComparativeDataset.cpp
+#include "nn/wave/Wav.h"
+
+// Load FSDD audio files
+Wav wav_file;
+wav_file.read(file.string());
+const auto& raw_data = wav_file.get_data();  // std::vector<double>
+
+// Convert to Tensor
+nn::Tensor signal(static_cast<nn::Index>(raw_data.size()), 1);
+for (std::size_t i = 0; i < raw_data.size(); ++i)
+{
+    signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw_data[i]);
+}
+```
+
+### Progress Tracking
+
+Real-time progress bars during training using `nn::utility::printProgress`:
+
+```cpp
+// Inside ComparativeTraining.cpp
+printProgress(train_samples.size(),
+    1,
+    train_samples.size() * cfg.epochs,
+    epoch * train_samples.size() + train_samples.size(),
+    epoch * train_samples.size() + train_samples.size(),
+    false,
+    run_id,
+    total_runs,
+    epoch + 1,
+    cfg.epochs,
+    train_samples.size(),
+    train_samples.size(),
+    static_cast<double>(val_mse),
+    std::span<nn::Tensor*>{},
+    "LSTM");
+```
+
+Output (multiline ANSI):
+```
+LSTM Fold:  [===================>                  ]  50%
+Epoch: [===================>                  ]  50% (50/100)
+Batch: [========================================] 100% (500/500b, 500/500s)  loss: 1.219896
 ```
 
 ## Usage
 
 ```bash
-# Run LSTM autoencoder experiment
-./experiment04 --config configs/experiment04.yaml
+# Default run with FSDD
+./experiment04 --comparative --comparative-config lstm-default
 
-# Outputs:
-# - Latent representations
-# - Reconstruction quality metrics
-# - Per-sequence embeddings
+# With explicit dataset path
+./experiment04 --comparative --comparative-config lstm-default --dataset-root /path/to/fsdDataset
+
+# Lightweight smoke test
+./experiment04 --comparative --comparative-config lstm-lightweight
 ```
+
+### Outputs
+
+Results are written to `results/`:
+- `{run_tag}_comparative_metrics.csv` - Full metrics per configuration
+- `{run_tag}_publication_table.csv` - Formatted for publication
+- `{run_tag}_summary.json` - JSON summary
 
 ## Key Differences from Experiment03
 
 | Feature | Experiment03 | Experiment04 |
 |---------|-------------|--------------|
-| Model | Feedforward AE | LSTM AE |
+| Model | Feedforward AE | LSTM + SNN comparative |
 | Input | Fixed-dim vectors | Variable-length sequences |
 | Latent | Vector | Final hidden state |
-| BPTT | Not used | Used |
+| BPTT | Not used | LSTM uses BPTT |
+| Dataset | 10.1117 EEG/Audio | FSDD (spoken digits) |
+| Progress | Legacy async | nn::progress (ANSI) |
 
 ## Common Pitfalls
 
@@ -110,12 +177,17 @@ sequenceDiagram
 
 2. **Hidden State Reset**: Ensure proper initialization between sequences
 
-3. **Bidirectional**: Can't be used for online streaming inference
+3. **SNN Threshold**: $V_{th}$ affects spiking behavior significantly
+
+4. **FSDD Path**: Profiles must point to the correct dataset location
 
 ## See Also
 
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md) - Theory
-- [Autoencoders](../Concepts/Autoencoders.md) - General autoencoder theory
+- [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md)
+- [Autoencoders](../Concepts/Autoencoders.md)
+- [Wave Processing](../Core/Wave.md)
+- [Training](./Core/Training.md) - Progress bars
 - [Experiment03](../Experiments/Experiment03.md) - Feedforward autoencoder
 
 ## References
@@ -123,3 +195,5 @@ sequenceDiagram
 [1] S. Hochreiter and J. Schmidhuber, "Long short-term memory," *Neural Computation*, vol. 9, no. 8, pp. 1735–1780, Nov. 1997. [Online]. Available: https://doi.org/10.1162/neco.1997.9.8.1735
 
 [2] A. Graves, "Generating sequences with recurrent neural networks," arXiv preprint arXiv:1308.0850, 2013. [Online]. Available: https://arxiv.org/abs/1308.0850
+
+[3] FSDD Dataset: https://github.com/Jakobovski/Free-Spoken-Digits-Dataset

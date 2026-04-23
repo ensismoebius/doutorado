@@ -15,6 +15,8 @@ struct ComparativeConfig
 
     std::uint32_t seed = 1337u;
     int repeats = 3;
+    bool seed_deterministic = true;
+    bool check_determinism = false;
 
     int window_size = 128;
     int batch_size = 8;

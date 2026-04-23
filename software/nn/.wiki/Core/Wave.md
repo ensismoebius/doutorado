@@ -1,12 +1,12 @@
 # Wave
 
-Audio signal processing for MFCC, filterbank, and related features.
+Audio signal processing for MFCC, filterbank, and related features. Also includes WAV file loading for datasets like FSDD.
 
 ## Theoretical Background
 
 ### Short-Time Fourier Transform
 
-Audio signals are analyzed using short-time windows:
+Audio signals are analyzed using short-time windows: 
 
 $$X(m, k) = \sum_{n=0}^{N-1} x(n + mR) \cdot w(n) \cdot e^{-j2\pi kn/N}$$
 
@@ -19,7 +19,7 @@ Where:
 
 Human auditory perception is logarithmic. Mel scale transforms frequency [1]:
 
-$$m = 2595 \log_{10}\left(1 + \frac{f}{700}\right)$$
+$$m = 2595\log_{10}\left(1 + \frac{f}{700}\right)$$
 
 ### MFCC (Mel-Frequency Cepstral Coefficients)
 
@@ -29,6 +29,60 @@ MFCCs are computed as:
 3. Apply mel filterbank
 4. Take log of filterbank energies
 5. Apply DCT to decorrelate
+
+## WAV File Loading
+
+The codebase includes a WAV reader for loading audio datasets like FSDD:
+
+### Supported Formats
+
+- **Format**: PCM (WAVE file)
+- **Bit Depth**: 16-bit
+- **Channels**: Mono
+- **Sample Rate**: Any (typically 8kHz for FSDD)
+
+### Wav Class API
+
+```cpp
+// File: include/nn/wave/Wav.h
+class Wav
+{
+public:
+    Wav();
+    
+    Wav(uint32_t samplingRate,
+        uint16_t bitsPerSample,
+        uint16_t numOfChan,
+        const double* audioData,
+        size_t audioDataSize);
+
+    void read(const std::string& _path);     // Read WAV file
+    void write(const std::string& _path);    // Write WAV file
+    
+    auto get_path() const -> std::string;
+    auto get_data() const -> const std::vector<double>&;
+    auto get_data_left() const -> const std::vector<double>&;
+    auto get_data_right() const -> const std::vector<double>&;
+};
+```
+
+### Usage for FSDD
+
+```cpp
+// File: src/experiments/04/lib/src/ComparativeDataset.cpp
+#include "nn/wave/Wav.h"
+
+Wav wav_file;
+wav_file.read(file.string());
+const auto& raw_data = wav_file.get_data();
+
+// Convert to nn::Tensor (normalized to [-1.0, 1.0])
+nn::Tensor signal(static_cast<nn::Index>(raw_data.size()), 1);
+for (std::size_t i = 0; i < raw_data.size(); ++i)
+{
+    signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw_data[i]);
+}
+```
 
 ## How It Is Implemented Here
 

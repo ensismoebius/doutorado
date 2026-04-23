@@ -146,6 +146,8 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     get("layers", cfg.layers);
     get("v_th_values", cfg.v_th_values);
     get("alpha_values", cfg.alpha_values);
+    get("seed_deterministic", cfg.seed_deterministic);
+    get("check_determinism", cfg.check_determinism);
 
     if (!cli_opts.dataset_root.empty())
     {
@@ -179,6 +181,8 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["layers"] = cfg.layers;
     j["v_th_values"] = cfg.v_th_values;
     j["alpha_values"] = cfg.alpha_values;
+    j["seed_deterministic"] = cfg.seed_deterministic;
+    j["check_determinism"] = cfg.check_determinism;
     return std::hash<std::string>{}(j.dump());
 }
 

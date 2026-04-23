@@ -1,6 +1,6 @@
 # Training
 
-Training loop implementation with optimizer integration and gradient management.
+Training loop implementation with optimizer integration, gradient management, and real-time progress tracking.
 
 ## Theoretical Background
 
@@ -17,13 +17,75 @@ Neural network training minimizes a loss function through iterative gradient des
 
 Prevents exploding gradients by scaling:
 
-$$\nabla_\theta L \leftarrow \min\left(1, \frac{\text{max\_norm}}{\|\nabla_\theta L\|}\right) \nabla_\theta L$$
+$$\nabla_\theta L \leftarrow \min\left(1, \frac{\text{max\_norm}}{|\nabla_\theta L\|}\right) \nabla_\theta L$$
 
 ### Mini-batch SGD
 
 Instead of full dataset, use batches:
 - Reduces computation per iteration
 - Provides noise that helps escape local minima
+
+## Progress Tracking
+
+The codebase includes a non-blocking, thread-safe progress bar system for real-time training feedback:
+
+### ProgressBar (RAII Handle)
+
+```cpp
+// File: include/nn/progress/ProgressBar.hpp
+namespace nn::progress
+{
+class ProgressBar
+{
+public:
+    explicit ProgressBar(const std::string& label, float total);
+    ~ProgressBar();
+
+    void update(float current, const std::map<std::string, float>& metrics = {});
+    void mark_complete();
+
+    auto id() const -> uint32_t;
+};
+}
+```
+
+### ProgressManager (Singleton Renderer)
+
+```cpp
+// File: include/nn/progress/ProgressManager.hpp
+namespace nn::progress
+{
+class ProgressManager
+{
+public:
+    static auto instance() -> ProgressManager&;
+
+    auto create_bar(const std::string& label, float total) -> uint32_t;
+    void update_bar(uint32_t id, float current, const std::map<std::string, float>& metrics = {});
+    void mark_complete(uint32_t id);
+
+private:
+    ProgressManager();
+    ~ProgressManager();
+};
+}
+```
+
+### Features
+
+- **Non-blocking**: Background rendering thread (does not stall training)
+- **Multi-track**: Supports multiple concurrent progress bars
+- **Linear**: Strictly 0% → 100% progress
+- **Callbacks**: Updates via `update()` rather than polling
+- **No external deps**: Uses ANSI escape codes directly
+
+### ANSI Progress Output
+
+```cpp
+// Example output:
+// LSTM Training   [===================           ] 67% | loss: 0.4523
+// SNN Training    [======================        ] 88% | loss: 0.2314
+```
 
 ## How It Is Implemented Here
 
@@ -154,6 +216,31 @@ for (const auto& result : history)
 }
 ```
 
+### Progress Bar Integration in Training
+
+The Trainer automatically creates and updates progress bars during training/validation:
+
+```cpp
+// Inside Trainer::fit_generic():
+for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
+{
+    nn::progress::ProgressBar train_bar("Training", static_cast<float>(train_samples.size()));
+    
+    // ... training loop ...
+    train_bar.update(static_cast<float>(batch_start), {{"loss", loss_val}});
+    
+    nn::progress::ProgressBar val_bar("Validating", static_cast<float>(val_samples.size()));
+    // ... validation loop ...
+    val_bar.update(static_cast<float>(val_batch_start), {{"loss", vloss}});
+}
+```
+
+Output:
+```
+Training   [===================           ] 67% | loss: 0.4523
+Validating [======================        ] 88% | loss: 0.2314
+```
+
 ## Common Pitfalls
 
 1. **Learning Rate**: Too high causes divergence; too low is slow
@@ -170,6 +257,7 @@ for (const auto& result : history)
 - [Layers](./Layers.md) - Model layers
 - [Tensor](./Tensor.md) - Data structure
 - [Autoencoders](./Autoencoders.md) - Model being trained
+- [Progress Tracking](./Progress.md) - Non-blocking progress bars
 
 ## References
 

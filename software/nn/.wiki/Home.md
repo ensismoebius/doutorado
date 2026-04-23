@@ -44,12 +44,12 @@ The `nn` library is organized into several key components:
 - [Initializers](./Core/Initializers.md) - Weight initialization strategies
 - [LinearAlgebra](./Core/LinearAlgebra.md) - Linear algebra utilities
 - [Statistics](./Core/Statistics.md) - Metrics and statistical functions
-- [Wave](./Core/Wave.md) - Audio signal processing
+- [Wave](./Core/Wave.md) - Audio signal processing and WAV loading
 - [Wavelet](./Core/Wavelet.md) - Wavelet transforms
 - [Paraconsistent](./Core/Paraconsistent.md) - Paraconsistent logic features
 - [Saver](./Core/Saver.md) - Model serialization
 - [Models](./Core/Models.md) - Autoencoder model implementations
-- [Training](./Core/Training.md) - Training loop and configuration
+- [Training](./Core/Training.md) - Training loop with progress bars
 - [Device](./Core/Device.md) - CPU/OpenCL device abstraction
 - [Logging](./Core/Logging.md) - Centralized logging system
 - [Windowing](./Core/Windowing.md) - Signal windowing utilities
@@ -66,7 +66,7 @@ The `nn` library is organized into several key components:
 
 ### Experiments
 - [Experiment03](./Experiments/Experiment03.md) - Autoencoder experiments (audio, EEG, fused)
-- [Experiment04](./Experiments/Experiment04.md) - LSTM autoencoder experiments
+- [Experiment04](./Experiments/Experiment04.md) - SNN vs LSTM comparative with FSDD
 
 ### System Architecture
 - [Architecture](./Architecture.md) - High-level system design and module interactions
