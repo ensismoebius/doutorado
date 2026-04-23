@@ -29,7 +29,7 @@ struct ComparativeConfig
     int hidden_size = 64;
     int latent_size = 16;
 
-    std::vector<std::string> datasets = {"fsdd", "physionet"};
+    std::vector<std::string> datasets = {"fsdd"};
     std::vector<std::string> encodings = {"direct", "poisson", "latency"};
     std::vector<std::string> snn_architectures = {"dense", "conv1d", "recurrent"};
     std::vector<int> layers = {1, 2, 3};

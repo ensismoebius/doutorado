@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "nn/utility/SignalPreprocessing.hpp"
+#include "nn/wave/Wav.h"
 
 namespace comparative_autoencoder_experiment
 {
@@ -60,7 +61,7 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
 
         if (dataset == "fsdd")
         {
-            if ((ext == ".csv" || ext == ".txt") && path_str.find("FSDD") != std::string::npos)
+            if (ext == ".wav")
             {
                 files.push_back(entry.path());
             }
@@ -92,7 +93,22 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     std::vector<Tensor> all_samples;
     for (const auto& file : files)
     {
-        const Tensor signal = nn::utility::read_csv_signal(file);
+        nn::Tensor signal;
+        if (dataset == "fsdd")
+        {
+            Wav wav_file;
+            wav_file.read(file.string());
+            const auto& raw_data = wav_file.get_data();
+            signal = nn::Tensor(static_cast<nn::Index>(raw_data.size()), 1);
+            for (std::size_t i = 0; i < raw_data.size(); ++i)
+            {
+                signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw_data[i]);
+            }
+        }
+        else
+        {
+            signal = nn::utility::read_csv_signal(file);
+        }
         const auto windows = to_window_tensor(signal, cfg.window_size);
         all_samples.insert(all_samples.end(), windows.begin(), windows.end());
     }
@@ -131,3 +147,4 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
 }
 
 } // namespace comparative_autoencoder_experiment
+

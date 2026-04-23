@@ -1,0 +1,3 @@
+Model,Codificacao,Camadas,MSE,MAE,R2,F1,SpikeRate,Energia,TempoTreinoMs
+lstm-ae,direct,1,1.45015,0.915594,-0.0662876,0,0,2.788e+06,85.6358
+snn-ae,direct,1,1.89981,1.03211,-0.396921,0.333333,0.477344,82531,0.960114

@@ -26,7 +26,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             return 0;
         }
 
-        const ComparativeConfig config = load_config(resolve_profile_path(cli));
+        const ComparativeConfig config = load_config(resolve_profile_path(cli), cli);
         const std::size_t cfg_hash = config_hash(config);
 
         std::filesystem::path out_dir = config.results_dir.empty()

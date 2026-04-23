@@ -37,6 +37,7 @@ void print_usage(const char* prog)
               << "Options:\n"
               << "  --comparative                     Run SNN-vs-LSTM comparative experiment\n"
               << "  --comparative-config <name|path>  Comparative profile stem or JSON path\n"
+              << "  --dataset-root <path>            Dataset root directory\n"
               << "  --help                            Print this message\n";
 }
 
@@ -67,6 +68,10 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         else if (arg.rfind("--comparative-config=", 0) == 0)
         {
             opts.comparative_config = arg.substr(std::string("--comparative-config=").size());
+        }
+        else if (arg == "--dataset-root" || arg.rfind("--dataset-root=", 0) == 0)
+        {
+            opts.dataset_root = (arg == "--dataset-root") ? next() : arg.substr(std::string("--dataset-root=").size());
         }
     }
 
@@ -102,7 +107,7 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     throw std::runtime_error("Cannot resolve comparative profile: " + profile_name);
 }
 
-auto load_config(const std::filesystem::path& path) -> ComparativeConfig
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> ComparativeConfig
 {
     ComparativeConfig cfg;
 
@@ -141,6 +146,11 @@ auto load_config(const std::filesystem::path& path) -> ComparativeConfig
     get("layers", cfg.layers);
     get("v_th_values", cfg.v_th_values);
     get("alpha_values", cfg.alpha_values);
+
+    if (!cli_opts.dataset_root.empty())
+    {
+        cfg.dataset_root = cli_opts.dataset_root;
+    }
 
     return cfg;
 }

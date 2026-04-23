@@ -19,7 +19,7 @@ void print_usage(const char* prog);
 
 auto parse_cli(int argc, char* argv[]) -> CliOptions;
 auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path;
-auto load_config(const std::filesystem::path& path) -> ComparativeConfig;
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> ComparativeConfig;
 auto config_hash(const ComparativeConfig& cfg) -> std::size_t;
 
 auto should_run_comparative_cli(int argc, char* argv[]) -> bool;

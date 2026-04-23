@@ -47,6 +47,7 @@ target_link_libraries(experiment03_lib
         layers
         lstm_models
         nn_progress
+        waveCoreLib
     )
 
 

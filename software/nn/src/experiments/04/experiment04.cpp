@@ -71,31 +71,27 @@ auto has_help_flag(int argc, char* argv[]) -> bool
 
 auto main(int argc, char* argv[]) -> int
 {
-    std::vector<char*> normalized_argv;
-    std::vector<std::string> normalized_args;
-
-    std::unique_ptr<StreamRedirector> redirect;
-    Logger::instance().set_level(parse_log_level_from_env());
-
-    const bool wants_help = has_help_flag(argc, argv);
-    if (!wants_help)
+    try
     {
-        redirect = std::make_unique<StreamRedirector>(true, true);
+        std::vector<char*> normalized_argv;
+        std::vector<std::string> normalized_args;
+
+        Logger::instance().set_level(parse_log_level_from_env());
+
+        lstm_autoencoder_experiment::normalize_aliases(argc, argv, normalized_args);
+        lstm_autoencoder_experiment::to_argv(normalized_args, normalized_argv);
+
+        return lstm_autoencoder_experiment::run_comparative_experiment(
+            static_cast<int>(normalized_argv.size()), normalized_argv.data());
     }
-
-    lstm_autoencoder_experiment::normalize_aliases( //
-        argc,                                       //
-        argv,                                       //
-        normalized_args                             //
-    );
-
-    lstm_autoencoder_experiment::to_argv( //
-        normalized_args,                  //
-        normalized_argv                   //
-    );
-
-    return lstm_autoencoder_experiment::run_comparative_experiment( //
-        static_cast<int>(normalized_argv.size()),                   //
-        normalized_argv.data()                                      //
-    );
+    catch (const std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown error\n";
+        return 1;
+    }
 }

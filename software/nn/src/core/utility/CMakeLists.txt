@@ -6,8 +6,9 @@ add_library(util
         synthetic_spike_data.cpp
         progress.cpp
         comparison.cpp
-    signal_preprocessing.cpp
+        signal_preprocessing.cpp
 )
+
 
 set_property(TARGET util PROPERTY POSITION_INDEPENDENT_CODE ON)
 
