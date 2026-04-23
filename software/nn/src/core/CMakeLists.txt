@@ -17,4 +17,5 @@ add_subdirectory(paraconsistent)
 add_subdirectory(tools)
 add_subdirectory(models)
 add_subdirectory(training)
+add_subdirectory(progress)
 

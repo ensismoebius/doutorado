@@ -9,6 +9,7 @@
 #include "../include/ComparativeEvaluation.hpp"
 #include "../include/ComparativeMetrics.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
+#include "nn/progress/ProgressBar.hpp"
 
 namespace comparative_autoencoder_experiment
 {
@@ -45,7 +46,8 @@ static void train_lstm_once(nn::models::lstm::LSTMAutoencoder& model,
     Adam& optimizer,
     const std::vector<Tensor>& train_samples,
     const std::string& encoding,
-    std::uint32_t seed)
+    std::uint32_t seed,
+    nn::progress::ProgressBar* bar = nullptr)
 {
     MSELossImpl<nn::EigenTensorBackend> mse_loss;
     for (std::size_t i = 0; i < train_samples.size(); ++i)
@@ -59,10 +61,15 @@ static void train_lstm_once(nn::models::lstm::LSTMAutoencoder& model,
         const Tensor recon = model.forward(encoded, true);
         mse_loss.set_target(encoded);
         const Tensor loss = mse_loss.forward(recon, true);
-        (void) loss;
+        
         const Tensor grad = mse_loss.backward(recon);
         model.backward(grad);
         optimizer.step(model.params());
+
+        if (bar)
+        {
+            bar->update(static_cast<float>(i + 1), {{"loss", loss.at(0,0)}});
+        }
     }
 }
 
@@ -73,7 +80,8 @@ static void train_snn_once(ProtocolSpikingAutoencoder& model,
     const std::string& architecture,
     float alpha,
     float v_th,
-    std::uint32_t seed)
+    std::uint32_t seed,
+    nn::progress::ProgressBar* bar = nullptr)
 {
     MSELossImpl<nn::EigenTensorBackend> mse_loss;
     for (std::size_t i = 0; i < train_samples.size(); ++i)
@@ -89,10 +97,15 @@ static void train_snn_once(ProtocolSpikingAutoencoder& model,
         const Tensor recon_flat = model.forward(flat, true);
         mse_loss.set_target(flat);
         const Tensor loss = mse_loss.forward(recon_flat, true);
-        (void) loss;
+        
         const Tensor grad = mse_loss.backward(recon_flat);
         model.backward(grad);
         optimizer.step(model.params());
+
+        if (bar)
+        {
+            bar->update(static_cast<float>(i + 1), {{"loss", loss.at(0,0)}});
+        }
     }
 }
 

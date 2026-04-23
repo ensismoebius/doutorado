@@ -45,6 +45,7 @@
 #include <utility>
 #include <vector>
 
+#include "nn/progress/ProgressBar.hpp"
 #include "EpochResult.hpp"
 #include "TrainerConfig.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
@@ -195,6 +196,7 @@ namespace nn::training
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
         {
+            nn::progress::ProgressBar train_bar("Training", static_cast<float>(train_samples.size()));
             const auto t_start = std::chrono::steady_clock::now();
 
             std::shuffle(indices.begin(), indices.end(), rng);
@@ -218,27 +220,28 @@ namespace nn::training
                  nn::Tensor output = model_.forward(batch, true);
                  float loss_val = compute_loss(output, target, true);
 
-                train_loss_accum += loss_val;
-                n_train += static_cast<int>(batch_end - batch_start);
+                 train_loss_accum += loss_val;
+                 n_train += static_cast<int>(batch_end - batch_start);
 
-                optimizer_.zero_grad(model_.params());
+                 optimizer_.zero_grad(model_.params());
 
-                MSELossImpl<nn::EigenTensorBackend> loss_fn;
-                loss_fn.set_target(target);
-                nn::Tensor loss_tensor = loss_fn.forward(output, true);
-                nn::Tensor d_out = loss_fn.backward(output);
-                model_.backward(d_out);
+                 MSELossImpl<nn::EigenTensorBackend> loss_fn;
+                 loss_fn.set_target(target);
+                 nn::Tensor loss_tensor = loss_fn.forward(output, true);
+                 nn::Tensor d_out = loss_fn.backward(output);
+                 model_.backward(d_out);
 
-                if (cfg_.grad_clip_norm > 0.0F)
-                {
-                    clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-                }
+                 if (cfg_.grad_clip_norm > 0.0F)
+                 {
+                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+                 }
 
-                optimizer_.step(model_.params());
+                 optimizer_.step(model_.params());
 
-                batch_start = batch_end;
-            }
-
+                 batch_start = batch_end;
+                 train_bar.update(static_cast<float>(batch_start), {{"loss", loss_val}});
+             }
+            
             const float avg_train_loss =
                 (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
 
@@ -246,6 +249,7 @@ namespace nn::training
 
             if (!val_samples.empty())
             {
+                nn::progress::ProgressBar val_bar("Validating", static_cast<float>(val_samples.size()));
                 float val_accum = 0.0F;
                 int n_val = 0;
 
@@ -263,11 +267,12 @@ namespace nn::training
                      nn::Tensor vrecon = model_.forward(vbatch, false);
                      float vloss = compute_loss(vrecon, vtarget, false);
 
-                    val_accum += vloss;
-                    n_val += static_cast<int>(val_batch_end - val_batch_start);
+                     val_accum += vloss;
+                     n_val += static_cast<int>(val_batch_end - val_batch_start);
 
-                    val_batch_start = val_batch_end;
-                }
+                     val_batch_start = val_batch_end;
+                     val_bar.update(static_cast<float>(val_batch_start), {{"loss", vloss}});
+                 }
 
                 avg_val_loss = val_accum / static_cast<float>(n_val);
             }
@@ -283,6 +288,7 @@ namespace nn::training
 
         return history;
     }
+
 
     auto fit_supervised_generic(const std::vector<SamplePair>& train_pairs,
         const std::vector<SamplePair>& val_pairs) -> std::vector<EpochResult>

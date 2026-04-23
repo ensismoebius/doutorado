@@ -46,7 +46,9 @@ target_link_libraries(experiment03_lib
         statistics
         layers
         lstm_models
-)
+        nn_progress
+    )
+
 
 # Experiment04 implementation library (used by both experiment03 and experiment04 executables).
 add_library(experiment04_lib STATIC

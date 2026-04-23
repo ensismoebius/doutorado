@@ -474,41 +474,26 @@ int Experiment03::run()
                             fold_selector.fold_count(),
                             epoch + 1,
                             config_.training_epochs,
-                            epoch_batches,
-                            train_epoch_max_batches,
-                            last_batch_loss,
-                            std::span<nn::Tensor*>{},
-                            fold_progress_context);
+                                    epoch_batches,
+                                    train_epoch_max_batches,
+                                    last_batch_loss,
+                                    std::span<nn::Tensor*>{},
+                                    fold_progress_context);
                     }
 
                     if (model_) [[likely]]
                     {
                         const bool global_done = (fold_idx + 1 == fold_selector.fold_count()) &&
-                                                 (epoch + 1 == config_.training_epochs);
-
-                        postProgressAsync(global_training_total_samples,
-                            config_.training_batch_size,
-                            global_training_total_batches,
-                            global_training_seen_batches,
-                            global_training_processed_samples,
-                            global_done,
-                            fold_idx + 1,
-                            fold_selector.fold_count(),
-                            epoch + 1,
-                            config_.training_epochs,
-                            epoch_batches,
-                            train_epoch_max_batches,
-                            last_batch_loss,
-                            global_done ? model_->params() : std::span<nn::Tensor*>{},
-                            fold_progress_context);
+                                                  (epoch + 1 == config_.training_epochs);
 
                         if (global_done)
                         {
-                            flushProgressAsync();
+                            // Progress is handled by Trainer or manual bars if needed
                         }
                     }
 
                     const float mean_train_loss =
+
                         epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches)
                                           : 0.0F;
                     epoch_mean_losses.push_back(mean_train_loss);
@@ -713,39 +698,20 @@ int Experiment03::run()
                         1,
                         epoch + 1,
                         config_.training_epochs,
-                        epoch_batches,
-                        epoch_max_batches,
-                        last_batch_loss,
-                        std::span<nn::Tensor*>{},
-                        fold_progress_context);
-                }
-
-                if (model_) [[likely]]
-                {
-                    const bool done = (epoch + 1 == config_.training_epochs);
-                    postProgressAsync(total_training_samples,
-                        config_.training_batch_size,
-                        total_training_batches,
-                        seen_batches_,
-                        processed_samples_,
-                        done,
-                        1,
-                        1,
-                        epoch + 1,
-                        config_.training_epochs,
-                        epoch_batches,
-                        epoch_max_batches,
-                        last_batch_loss,
-                        done ? model_->params() : std::span<nn::Tensor*>{},
-                        fold_progress_context);
-
-                    if (done)
-                    {
-                        flushProgressAsync();
+                                    epoch_batches,
+                                    epoch_max_batches,
+                                    last_batch_loss,
+                                    std::span<nn::Tensor*>{},
+                                    fold_progress_context);
                     }
-                }
 
-                const float mean_train_loss =
+                    if (model_) [[likely]]
+                    {
+                        const bool done = (epoch + 1 == config_.training_epochs);
+                    }
+
+                    const float mean_train_loss =
+
                     epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
                 epoch_mean_losses.push_back(mean_train_loss);
 
