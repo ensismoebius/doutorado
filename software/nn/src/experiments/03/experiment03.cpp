@@ -15,8 +15,6 @@
 #include <memory>
 #include <string_view>
 
-#include "../04/lib/include/Experiment04Cli.hpp"
-#include "../04/lib/include/LstmAutoencoderExperiment.hpp"
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
 #include "nn/logging/Logger.hpp"
@@ -62,32 +60,21 @@ auto has_help_flag(int argc, char* argv[]) -> bool
 
 auto main(int argc, char* argv[]) -> int
 {
-    const bool run_experiment04 = lstm_autoencoder_experiment::should_run_from_cli(argc, argv);
+    std::string profile_error;
     const bool wants_help = has_help_flag(argc, argv);
 
-    if (run_experiment04)
-    {
-        Logger::instance().set_level(parse_log_level_from_env());
-        std::unique_ptr<StreamRedirector> redirect;
-        if (!wants_help)
-        {
-            redirect = std::make_unique<StreamRedirector>(true, true);
-        }
-
-        LstmAutoencoderExperiment experiment;
-        return experiment.run(argc, argv);
-    }
+    // Set log level from environment variable before any logging occurs.
+    Logger::instance().set_level(parse_log_level_from_env());
 
     Config profile_defaults{};
-    std::string profile_error;
+    Config config = parseCliParams(argc, argv, profile_defaults);
+
     if (!experiment03::load_profile_to_config("default", profile_defaults, profile_error))
     {
         cerr << "Failed to load default profile: " << profile_error << '\n';
         return 1;
     }
 
-    Config config = parseCliParams(argc, argv, profile_defaults);
-    Logger::instance().set_level(parse_log_level_from_env());
     std::unique_ptr<StreamRedirector> redirect;
     if (!wants_help)
     {

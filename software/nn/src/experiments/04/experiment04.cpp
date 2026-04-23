@@ -9,6 +9,10 @@
 #include <string_view>
 #include <vector>
 
+#include "../include/ComparativeCli.hpp"
+#include "../include/Experiment04Cli.hpp"
+#include "../include/LstmAutoencoderExperiment.hpp"
+#include "experiments/04/lib/include/LstmAutoencoderExperiment.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/logging/StreamRedirector.hpp"
 
@@ -16,7 +20,6 @@ using nn::logging::Level;
 using nn::logging::Logger;
 using nn::logging::StreamRedirector;
 
-#ifndef NN_EXPERIMENT04_NO_MAIN
 namespace
 {
 /**
@@ -70,6 +73,7 @@ auto main(int argc, char* argv[]) -> int
 {
     std::vector<char*> normalized_argv;
     std::vector<std::string> normalized_args;
+
     std::unique_ptr<StreamRedirector> redirect;
     Logger::instance().set_level(parse_log_level_from_env());
 
@@ -79,12 +83,19 @@ auto main(int argc, char* argv[]) -> int
         redirect = std::make_unique<StreamRedirector>(true, true);
     }
 
-    lstm_snn_autoencoder_comparisom::normalize_aliases(argc, argv, normalized_args);
-    lstm_snn_autoencoder_comparisom::to_argv(normalized_args, normalized_argv);
+    lstm_autoencoder_experiment::normalize_experiment04_aliases( //
+        argc,                                                    //
+        argv,                                                    //
+        normalized_args                                          //
+    );
 
-    return lstm_snn_autoencoder_comparisom::run_comparative_experiment( //
-        static_cast<int>(normalized_argv.size()),                       //
-        normalized_argv.data()                                          //
+    lstm_autoencoder_experiment::to_argv( //
+        normalized_args,                  //
+        normalized_argv                   //
+    );
+
+    return lstm_autoencoder_experiment::run_comparative_experiment( //
+        static_cast<int>(normalized_argv.size()),                   //
+        normalized_argv.data()                                      //
     );
 }
-#endif
