@@ -32,7 +32,7 @@ namespace lstm_autoencoder_experiment
 auto has_experiment04_marker(const std::string& arg) -> bool;
 
 // Normalizes legacy/alias flags into the comparative runner flags.
-void normalize_experiment04_aliases(int argc, char* argv[], std::vector<std::string>& args);
+void normalize_aliases(int argc, char* argv[], std::vector<std::string>& args);
 
 // Converts an argv-like vector of std::string into a vector of char*.
 void to_argv(std::vector<std::string>& args, std::vector<char*>& argv_out);

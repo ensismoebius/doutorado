@@ -125,8 +125,9 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const auto t0 = std::chrono::steady_clock::now();
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
+        nn::progress::ProgressBar train_bar("LSTM Training", static_cast<float>(train_samples.size()));
         train_lstm_once(
-            model, optimizer, train_samples, encoding, seed + static_cast<std::uint32_t>(epoch));
+            model, optimizer, train_samples, encoding, seed + static_cast<std::uint32_t>(epoch), &train_bar);
 
         float val_mse = 0.0f;
         MSELossImpl<nn::EigenTensorBackend> mse_loss;
@@ -198,6 +199,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const auto t0 = std::chrono::steady_clock::now();
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
+        nn::progress::ProgressBar train_bar("SNN Training", static_cast<float>(train_samples.size()));
         train_snn_once(model,
             optimizer,
             train_samples,
@@ -205,7 +207,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
             architecture,
             alpha,
             v_th,
-            seed + static_cast<std::uint32_t>(epoch));
+            seed + static_cast<std::uint32_t>(epoch),
+            &train_bar);
 
         float val_mse = 0.0f;
         MSELossImpl<nn::EigenTensorBackend> mse_loss;

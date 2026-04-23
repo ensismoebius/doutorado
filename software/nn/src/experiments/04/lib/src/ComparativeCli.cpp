@@ -198,7 +198,7 @@ auto has_experiment04_marker(const std::string& arg) -> bool
            arg == "--experiment=lstm-autoencoder";
 }
 
-void normalize_experiment04_aliases(int argc, char* argv[], std::vector<std::string>& args)
+void normalize_aliases(int argc, char* argv[], std::vector<std::string>& args)
 {
     args.clear();
     args.reserve(static_cast<std::size_t>(argc));

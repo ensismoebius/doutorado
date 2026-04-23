@@ -83,10 +83,10 @@ auto main(int argc, char* argv[]) -> int
         redirect = std::make_unique<StreamRedirector>(true, true);
     }
 
-    lstm_autoencoder_experiment::normalize_experiment04_aliases( //
-        argc,                                                    //
-        argv,                                                    //
-        normalized_args                                          //
+    lstm_autoencoder_experiment::normalize_aliases( //
+        argc,                                       //
+        argv,                                       //
+        normalized_args                             //
     );
 
     lstm_autoencoder_experiment::to_argv( //
