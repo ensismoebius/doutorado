@@ -28,13 +28,26 @@ struct ComparativeConfig
     float learning_rate = 1e-3f;
     float anomaly_tau = 0.25f;
 
-    int hidden_size = 64;
     int latent_size = 16;
+
+    // Network architecture: [hidden1, hidden2, ..., latent]
+    // Example: [64, 32] means 64->32 (latent)
+    //          [128, 64, 32] means 128->64->32 (latent)
+    std::vector<int> layer_sizes;
+
+    // Experiment03-compatible topology controls.
+    int branch_hidden_size = 0;
+    int fusion_hidden_size = 0;
+    std::vector<std::string> encoder_layer_spec;
+    std::vector<std::string> decoder_layer_spec;
+    std::vector<std::string> branch_encoder_layer_spec;
+    std::vector<std::string> branch_decoder_layer_spec;
+    std::vector<std::string> fusion_encoder_layer_spec;
+    std::vector<std::string> fusion_decoder_layer_spec;
 
     std::vector<std::string> datasets = {"fsdd"};
     std::vector<std::string> encodings = {"direct", "poisson", "latency"};
     std::vector<std::string> snn_architectures = {"dense", "conv1d", "recurrent"};
-    std::vector<int> layers = {1, 2, 3};
     std::vector<float> v_th_values = {0.5f, 1.0f, 1.5f};
     std::vector<float> alpha_values = {0.8f, 0.9f, 0.99f};
 };

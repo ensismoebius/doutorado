@@ -1,12 +1,15 @@
 #include "../include/ComparativeCli.hpp"
 
-#include <cstddef>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include "nlohmann/json.hpp"
+
+#include <sstream>
 
 namespace comparative_autoencoder_experiment
 {
@@ -14,6 +17,39 @@ namespace comparative_autoencoder_experiment
 constexpr const char* kDefaultComparativeProfileStem = "lstm-compare";
 
 static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
+
+void infer_dimensions_from_layer_specs(ComparativeConfig& cfg)
+{
+    if (cfg.encoder_layer_spec.empty()) return;
+
+    int max_hidden = 0;
+    for (const auto& spec : cfg.encoder_layer_spec)
+    {
+        std::stringstream ss(spec);
+        std::string token;
+        std::vector<std::string> parts;
+        while (std::getline(ss, token, ':'))
+        {
+            parts.push_back(token);
+        }
+        if (parts.size() >= 2 && parts[0] == "linear")
+        {
+            try
+            {
+                int hidden = std::stoi(parts[1]);
+                if (hidden > max_hidden) max_hidden = hidden;
+            }
+            catch (...)
+            {
+            }
+        }
+    }
+
+    if (max_hidden > 0 && cfg.layer_sizes.empty())
+    {
+        cfg.layer_sizes.push_back(max_hidden);
+    }
+}
 
 auto has_compare_marker(const std::string& arg) -> bool
 {
@@ -71,7 +107,9 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         }
         else if (arg == "--dataset-root" || arg.rfind("--dataset-root=", 0) == 0)
         {
-            opts.dataset_root = (arg == "--dataset-root") ? next() : arg.substr(std::string("--dataset-root=").size());
+            opts.dataset_root = (arg == "--dataset-root")
+                                    ? next()
+                                    : arg.substr(std::string("--dataset-root=").size());
         }
     }
 
@@ -138,12 +176,84 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     get("early_stop_patience", cfg.early_stop_patience);
     get("learning_rate", cfg.learning_rate);
     get("anomaly_tau", cfg.anomaly_tau);
-    get("hidden_size", cfg.hidden_size);
     get("latent_size", cfg.latent_size);
+    get("branch_hidden_size", cfg.branch_hidden_size);
+    get("fusion_hidden_size", cfg.fusion_hidden_size);
+    get("layer_sizes", cfg.layer_sizes);
+
+    if (j.contains("neural_network_layer"))
+    {
+        const auto tokens = j["neural_network_layer"].get<std::vector<std::string>>();
+        for (const auto& token : tokens)
+        {
+            if (token.rfind("encoder:", 0) == 0)
+            {
+                cfg.encoder_layer_spec.emplace_back(token.substr(8));
+            }
+            else if (token.rfind("decoder:", 0) == 0)
+            {
+                cfg.decoder_layer_spec.emplace_back(token.substr(8));
+            }
+            else if (token.rfind("branch_encoder:", 0) == 0)
+            {
+                cfg.branch_encoder_layer_spec.emplace_back(token.substr(14));
+            }
+            else if (token.rfind("branch_decoder:", 0) == 0)
+            {
+                cfg.branch_decoder_layer_spec.emplace_back(token.substr(14));
+            }
+            else if (token.rfind("fusion_encoder:", 0) == 0)
+            {
+                cfg.fusion_encoder_layer_spec.emplace_back(token.substr(14));
+            }
+            else if (token.rfind("fusion_decoder:", 0) == 0)
+            {
+                cfg.fusion_decoder_layer_spec.emplace_back(token.substr(14));
+            }
+        }
+    }
+
+    if (!cfg.encoder_layer_spec.empty())
+    {
+        for (const auto& spec : cfg.encoder_layer_spec)
+        {
+            std::stringstream ss(spec);
+            std::string token;
+            std::vector<std::string> parts;
+            while (std::getline(ss, token, ':'))
+            {
+                parts.push_back(token);
+            }
+            if (parts.size() >= 2 && parts[0] == "linear")
+            {
+                try
+                {
+                    int hidden = std::stoi(parts[1]);
+                    if (hidden > 0)
+                    {
+                        if (cfg.layer_sizes.empty() || hidden != cfg.layer_sizes.front())
+                        {
+                            cfg.layer_sizes.insert(cfg.layer_sizes.begin(), hidden);
+                        }
+                    }
+                }
+                catch (...)
+                {
+                }
+            }
+        }
+    }
+
+    infer_dimensions_from_layer_specs(cfg);
+    get("encoder_layer_spec", cfg.encoder_layer_spec);
+    get("decoder_layer_spec", cfg.decoder_layer_spec);
+    get("branch_encoder_layer_spec", cfg.branch_encoder_layer_spec);
+    get("branch_decoder_layer_spec", cfg.branch_decoder_layer_spec);
+    get("fusion_encoder_layer_spec", cfg.fusion_encoder_layer_spec);
+    get("fusion_decoder_layer_spec", cfg.fusion_decoder_layer_spec);
     get("datasets", cfg.datasets);
     get("encodings", cfg.encodings);
     get("snn_architectures", cfg.snn_architectures);
-    get("layers", cfg.layers);
     get("v_th_values", cfg.v_th_values);
     get("alpha_values", cfg.alpha_values);
     get("seed_deterministic", cfg.seed_deterministic);
@@ -173,12 +283,19 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["early_stop_patience"] = cfg.early_stop_patience;
     j["learning_rate"] = cfg.learning_rate;
     j["anomaly_tau"] = cfg.anomaly_tau;
-    j["hidden_size"] = cfg.hidden_size;
     j["latent_size"] = cfg.latent_size;
+    j["branch_hidden_size"] = cfg.branch_hidden_size;
+    j["fusion_hidden_size"] = cfg.fusion_hidden_size;
+    j["layer_sizes"] = cfg.layer_sizes;
+    j["encoder_layer_spec"] = cfg.encoder_layer_spec;
+    j["decoder_layer_spec"] = cfg.decoder_layer_spec;
+    j["branch_encoder_layer_spec"] = cfg.branch_encoder_layer_spec;
+    j["branch_decoder_layer_spec"] = cfg.branch_decoder_layer_spec;
+    j["fusion_encoder_layer_spec"] = cfg.fusion_encoder_layer_spec;
+    j["fusion_decoder_layer_spec"] = cfg.fusion_decoder_layer_spec;
     j["datasets"] = cfg.datasets;
     j["encodings"] = cfg.encodings;
     j["snn_architectures"] = cfg.snn_architectures;
-    j["layers"] = cfg.layers;
     j["v_th_values"] = cfg.v_th_values;
     j["alpha_values"] = cfg.alpha_values;
     j["seed_deterministic"] = cfg.seed_deterministic;

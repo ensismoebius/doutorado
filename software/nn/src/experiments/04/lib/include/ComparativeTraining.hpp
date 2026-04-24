@@ -4,9 +4,9 @@
 #include <string>
 #include <vector>
 
+#include "AutoencoderConfig.hpp"
 #include "ComparativeConfig.hpp"
 #include "RunMetrics.hpp"
-#include "AutoencoderConfig.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "nn/models/lstm/LSTMAutoencoder.hpp"
 #include "nn/optimizers/Adam.hpp"
@@ -18,8 +18,7 @@ namespace comparative_autoencoder_experiment
 using Tensor = nn::Tensor;
 
 auto make_lstm_cfg(const ComparativeConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig;
-auto make_snn_cfg(const ComparativeConfig& cfg, int layers, float alpha, float v_th)
-    -> AutoencoderConfig;
+auto make_snn_cfg(const ComparativeConfig& cfg, float alpha, float v_th) -> AutoencoderConfig;
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     Adam& optimizer,
@@ -41,7 +40,6 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const std::vector<int>& val_labels,
     const std::string& encoding,
     const std::string& architecture,
-    int layers,
     float alpha,
     float v_th,
     std::uint32_t seed,

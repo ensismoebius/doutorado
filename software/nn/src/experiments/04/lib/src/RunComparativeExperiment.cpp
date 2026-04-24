@@ -100,69 +100,64 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
                     for (const auto& architecture : config.snn_architectures)
                     {
-                        for (int layer_size : config.layers)
+                        for (float voltage_threshold : config.v_th_values)
                         {
-                            for (float voltage_threshold : config.v_th_values)
+                            for (float alpha : config.alpha_values)
                             {
-                                for (float alpha : config.alpha_values)
-                                {
-                                    float train_ms = 0.0f;
-                                    float infer_ms = 0.0f;
+                                float train_ms = 0.0f;
+                                float infer_ms = 0.0f;
 
-                                    AutoencoderConfig snn_config = make_snn_cfg( //
-                                        config,                                  //
-                                        layer_size,                              //
-                                        alpha,                                   //
-                                        voltage_threshold                        //
-                                    );
-                                    snn_config.initializer_seed = run_seed;
-                                    snn_config.initializer_sampler_type =
-                                        "comparative|" + dataset_name + "|" + encoding + "|" +
-                                        architecture + "|" + std::to_string(layer_size) + "|" +
-                                        std::to_string(voltage_threshold) + "|" +
-                                        std::to_string(alpha);
+                                AutoencoderConfig snn_config = make_snn_cfg( //
+                                    config,                                  //
+                                    alpha,                                   //
+                                    voltage_threshold                        //
+                                );
+                                snn_config.initializer_seed = run_seed;
+                                snn_config.initializer_sampler_type =
+                                    "comparative|" + dataset_name + "|" + encoding + "|" +
+                                    architecture + "|" + std::to_string(config.layer_sizes.empty() ? 0 : config.layer_sizes.front()) + "|" +
+                                    std::to_string(voltage_threshold) + "|" +
+                                    std::to_string(alpha);
 
-                                    Adam snn_optimizer(config.learning_rate);
+                                Adam snn_optimizer(config.learning_rate);
 
-                                    ProtocolSpikingAutoencoder snn_model(snn_config);
-                                    snn_optimizer.attach(snn_model.params());
+                                ProtocolSpikingAutoencoder snn_model(snn_config);
+                                snn_optimizer.attach(snn_model.params());
 
-                                    RunMetrics metrics = train_with_early_stopping_snn( //
-                                        snn_model,                                      //
-                                        snn_optimizer,                                  //
-                                        config,                                         //
-                                        split.train_samples,                            //
-                                        split.val_samples,                              //
-                                        split.val_labels,                               //
-                                        encoding,                                       //
-                                        architecture,                                   //
-                                        layer_size,                                     //
-                                        alpha,                                          //
-                                        voltage_threshold,                              //
-                                        run_seed,                                       //
-                                        static_cast<std::size_t>(run_id),               //
-                                        static_cast<std::size_t>(config.repeats),       //
-                                        train_ms,                                       //
-                                        infer_ms                                        //
-                                    );
+                                RunMetrics metrics = train_with_early_stopping_snn( //
+                                    snn_model,                                      //
+                                    snn_optimizer,                                  //
+                                    config,                                         //
+                                    split.train_samples,                            //
+                                    split.val_samples,                              //
+                                    split.val_labels,                               //
+                                    encoding,                                       //
+                                    architecture,                                   //
+                                    alpha,                                          //
+                                    voltage_threshold,                              //
+                                    run_seed,                                       //
+                                    static_cast<std::size_t>(run_id),               //
+                                    static_cast<std::size_t>(config.repeats),       //
+                                    train_ms,                                       //
+                                    infer_ms                                        //
+                                );
 
-                                    metrics.train_ms = train_ms;
-                                    all_rows.push_back( //
-                                        ResultRow{
-                                            dataset_name,      //
-                                            "snn-ae",          //
-                                            encoding,          //
-                                            architecture,      //
-                                            layer_size,        //
-                                            voltage_threshold, //
-                                            alpha,             //
-                                            run_id + 1,        //
-                                            run_seed,          //
-                                            cfg_hash,          //
-                                            metrics            //
-                                        } //
-                                    );
-                                }
+                                metrics.train_ms = train_ms;
+                                all_rows.push_back( //
+                                    ResultRow{
+                                        dataset_name,      //
+                                        "snn-ae",          //
+                                        encoding,          //
+                                        architecture,      //
+                                        static_cast<int>(config.layer_sizes.size()),        //
+                                        voltage_threshold, //
+                                        alpha,             //
+                                        run_id + 1,        //
+                                        run_seed,          //
+                                        cfg_hash,          //
+                                        metrics            //
+                                    } //
+                                );
                             }
                         }
                     }
