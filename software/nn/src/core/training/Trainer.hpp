@@ -45,9 +45,8 @@
 #include <utility>
 #include <vector>
 
-#include "nn/progress/ProgressBar.hpp"
-#include "EpochResult.hpp"
-#include "TrainerConfig.hpp"
+#include "core/training/EpochResult.hpp"
+#include "core/training/TrainerConfig.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -55,9 +54,9 @@
 namespace nn::training
 {
 
- template <typename ModelType>
- class Trainer
- {
+template <typename ModelType>
+class Trainer
+{
    public:
     using Sample = nn::Tensor;
     using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
@@ -94,17 +93,9 @@ namespace nn::training
         Supervised
     };
 
-     ModelType& model_;
-     TrainerConfig cfg_;
-     Adam optimizer_;
-
-     static void reset_state_if_supported(ModelType& model)
-     {
-         if constexpr (requires(ModelType& m) { m.reset_state(); })
-         {
-             model.reset_state();
-         }
-     }
+    ModelType& model_;
+    TrainerConfig cfg_;
+    Adam optimizer_;
 
     static void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
     {
@@ -196,7 +187,6 @@ namespace nn::training
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
         {
-            nn::progress::ProgressBar train_bar("Training", static_cast<float>(train_samples.size()));
             const auto t_start = std::chrono::steady_clock::now();
 
             std::shuffle(indices.begin(), indices.end(), rng);
@@ -205,43 +195,38 @@ namespace nn::training
             int n_train = 0;
 
             size_t batch_start = 0;
-             while (batch_start < train_samples.size())
-             {
-                 size_t batch_end = std::min(
-                     batch_start + static_cast<size_t>(cfg_.batch_size), train_samples.size());
+            while (batch_start < train_samples.size())
+            {
+                size_t batch_end = std::min(
+                    batch_start + static_cast<size_t>(cfg_.batch_size), train_samples.size());
 
-                 nn::Tensor batch = create_batch(train_samples, batch_start, batch_end);
-                 nn::Tensor target = batch;
+                nn::Tensor batch = create_batch(train_samples, batch_start, batch_end);
+                nn::Tensor target = batch;
 
-                 // Stateful modules (e.g., LSTMs, spiking layers) must reset between
-                 // independent sequences/samples.
-                 reset_state_if_supported(model_);
+                nn::Tensor output = model_.forward(batch, true);
+                float loss_val = compute_loss(output, target, true);
 
-                 nn::Tensor output = model_.forward(batch, true);
-                 float loss_val = compute_loss(output, target, true);
+                train_loss_accum += loss_val;
+                n_train += static_cast<int>(batch_end - batch_start);
 
-                 train_loss_accum += loss_val;
-                 n_train += static_cast<int>(batch_end - batch_start);
+                optimizer_.zero_grad(model_.params());
 
-                 optimizer_.zero_grad(model_.params());
+                MSELossImpl<nn::EigenTensorBackend> loss_fn;
+                loss_fn.set_target(target);
+                nn::Tensor loss_tensor = loss_fn.forward(output, true);
+                nn::Tensor d_out = loss_fn.backward(output);
+                model_.backward(d_out);
 
-                 MSELossImpl<nn::EigenTensorBackend> loss_fn;
-                 loss_fn.set_target(target);
-                 nn::Tensor loss_tensor = loss_fn.forward(output, true);
-                 nn::Tensor d_out = loss_fn.backward(output);
-                 model_.backward(d_out);
+                if (cfg_.grad_clip_norm > 0.0F)
+                {
+                    clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+                }
 
-                 if (cfg_.grad_clip_norm > 0.0F)
-                 {
-                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-                 }
+                optimizer_.step(model_.params());
 
-                 optimizer_.step(model_.params());
+                batch_start = batch_end;
+            }
 
-                 batch_start = batch_end;
-                 train_bar.update(static_cast<float>(batch_start), {{"loss", loss_val}});
-             }
-            
             const float avg_train_loss =
                 (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
 
@@ -249,30 +234,26 @@ namespace nn::training
 
             if (!val_samples.empty())
             {
-                nn::progress::ProgressBar val_bar("Validating", static_cast<float>(val_samples.size()));
                 float val_accum = 0.0F;
                 int n_val = 0;
 
                 size_t val_batch_start = 0;
-                 while (val_batch_start < val_samples.size())
-                 {
-                     size_t val_batch_end = std::min(
-                         val_batch_start + static_cast<size_t>(cfg_.batch_size), val_samples.size());
+                while (val_batch_start < val_samples.size())
+                {
+                    size_t val_batch_end = std::min(
+                        val_batch_start + static_cast<size_t>(cfg_.batch_size), val_samples.size());
 
-                     nn::Tensor vbatch = create_batch(val_samples, val_batch_start, val_batch_end);
-                     nn::Tensor vtarget = vbatch;
+                    nn::Tensor vbatch = create_batch(val_samples, val_batch_start, val_batch_end);
+                    nn::Tensor vtarget = vbatch;
 
-                     reset_state_if_supported(model_);
+                    nn::Tensor vrecon = model_.forward(vbatch, false);
+                    float vloss = compute_loss(vrecon, vtarget, false);
 
-                     nn::Tensor vrecon = model_.forward(vbatch, false);
-                     float vloss = compute_loss(vrecon, vtarget, false);
+                    val_accum += vloss;
+                    n_val += static_cast<int>(val_batch_end - val_batch_start);
 
-                     val_accum += vloss;
-                     n_val += static_cast<int>(val_batch_end - val_batch_start);
-
-                     val_batch_start = val_batch_end;
-                     val_bar.update(static_cast<float>(val_batch_start), {{"loss", vloss}});
-                 }
+                    val_batch_start = val_batch_end;
+                }
 
                 avg_val_loss = val_accum / static_cast<float>(n_val);
             }
@@ -288,7 +269,6 @@ namespace nn::training
 
         return history;
     }
-
 
     auto fit_supervised_generic(const std::vector<SamplePair>& train_pairs,
         const std::vector<SamplePair>& val_pairs) -> std::vector<EpochResult>
@@ -319,11 +299,10 @@ namespace nn::training
                 batch_inputs.push_back(input);
                 batch_targets.push_back(target);
 
-                 if (static_cast<int>(batch_inputs.size()) >= cfg_.batch_size ||
-                     n_train + batch_inputs.size() == train_pairs.size())
-                 {
-                     reset_state_if_supported(model_);
-                     nn::Tensor output = model_.forward(merge_batch(batch_inputs), true);
+                if (static_cast<int>(batch_inputs.size()) >= cfg_.batch_size ||
+                    n_train + batch_inputs.size() == train_pairs.size())
+                {
+                    nn::Tensor output = model_.forward(merge_batch(batch_inputs), true);
 
                     float loss_val = 0.0F;
                     for (size_t i = 0; i < batch_inputs.size(); ++i)
@@ -335,7 +314,7 @@ namespace nn::training
                     train_loss_accum += loss_val * static_cast<float>(batch_inputs.size());
                     n_train += static_cast<int>(batch_inputs.size());
 
-                     optimizer_.zero_grad(model_.params());
+                    optimizer_.zero_grad(model_.params());
 
                     MSELossImpl<nn::EigenTensorBackend> loss_fn;
                     nn::Tensor merged_target = merge_batch(batch_targets);
@@ -374,11 +353,10 @@ namespace nn::training
                     vbatch_inputs.push_back(vinput);
                     vbatch_targets.push_back(vtarget);
 
-                     if (static_cast<int>(vbatch_inputs.size()) >= cfg_.batch_size ||
-                         n_val + vbatch_inputs.size() == val_pairs.size())
-                     {
-                         reset_state_if_supported(model_);
-                         nn::Tensor voutput = model_.forward(merge_batch(vbatch_inputs), false);
+                    if (static_cast<int>(vbatch_inputs.size()) >= cfg_.batch_size ||
+                        n_val + vbatch_inputs.size() == val_pairs.size())
+                    {
+                        nn::Tensor voutput = model_.forward(merge_batch(vbatch_inputs), false);
 
                         float vloss = 0.0F;
                         for (size_t i = 0; i < vbatch_inputs.size(); ++i)

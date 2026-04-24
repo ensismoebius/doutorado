@@ -51,9 +51,10 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.repeats; ++run_id)
                 {
-                    const std::uint32_t run_seed = config.seed_deterministic
-                        ? config.seed
-                        : config.seed + static_cast<std::uint32_t>(run_id);
+                    const std::uint32_t run_seed =
+                        config.seed_deterministic
+                            ? config.seed
+                            : config.seed + static_cast<std::uint32_t>(run_id);
 
                     {
                         float train_ms = 0.0f;
@@ -114,6 +115,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         alpha,                                   //
                                         voltage_threshold                        //
                                     );
+                                    snn_config.initializer_seed = run_seed;
+                                    snn_config.initializer_sampler_type =
+                                        "comparative|" + dataset_name + "|" + encoding + "|" +
+                                        architecture + "|" + std::to_string(layer_size) + "|" +
+                                        std::to_string(voltage_threshold) + "|" +
+                                        std::to_string(alpha);
 
                                     Adam snn_optimizer(config.learning_rate);
 
@@ -133,8 +140,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         alpha,                                          //
                                         voltage_threshold,                              //
                                         run_seed,                                       //
-                                        static_cast<std::size_t>(run_id),                //
-                                        static_cast<std::size_t>(config.repeats),        //
+                                        static_cast<std::size_t>(run_id),               //
+                                        static_cast<std::size_t>(config.repeats),       //
                                         train_ms,                                       //
                                         infer_ms                                        //
                                     );
@@ -184,7 +191,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                   << "  - " << csv_path << "\n"
                   << "  - " << table_path << "\n"
                   << "  - " << summary_json << "\n";
-        
+
         flushProgressAsync();
         return 0;
     }

@@ -203,6 +203,11 @@ void printProgress(std::size_t dataset_total_samples,
 
     const std::size_t clamped_seen_batches = std::min(seen_batches, total_batches);
     const std::size_t clamped_processed_samples = std::min(processed_samples, total_samples);
+    const std::size_t clamped_epoch_seen_batches =
+        std::min(epoch_seen_batches, epoch_total_batches);
+    const std::size_t epoch_total_samples = epoch_total_batches * safe_batch_size;
+    const std::size_t epoch_seen_samples =
+        std::min(clamped_epoch_seen_batches * safe_batch_size, epoch_total_samples);
 
     const double ratio =
         (total_samples == 0)
@@ -251,7 +256,8 @@ void printProgress(std::size_t dataset_total_samples,
 
     const auto [fold_bar, fold_percent] = make_bar(fold_ratio);
     const auto [epoch_bar, epoch_percent] = make_bar(epoch_ratio);
-    const auto [batch_bar, batch_percent] = make_bar(ratio);
+    const double batch_ratio = (epoch_total_batches > 0) ? epoch_batch_ratio : ratio;
+    const auto [batch_bar, batch_percent] = make_bar(batch_ratio);
 
     // Drain newly emitted log lines to avoid reprocessing the same ring-buffer entries.
     auto new_lines = nn::logging::Logger::instance().drain_recent_lines();
@@ -314,9 +320,18 @@ void printProgress(std::size_t dataset_total_samples,
         epoch_status << "Epoch: [" << epoch_bar << "] " << std::setw(3) << epoch_percent << "%";
     }
 
-    batch_status << "Batch: [" << batch_bar << "] " << std::setw(3) << batch_percent << "% ("
-                 << clamped_seen_batches << "/" << total_batches << "b, "
-                 << clamped_processed_samples << "/" << total_samples << "s)";
+    if (epoch_total_batches > 0)
+    {
+        batch_status << "Batch: [" << batch_bar << "] " << std::setw(3) << batch_percent << "% ("
+                     << clamped_epoch_seen_batches << "/" << epoch_total_batches << "b, "
+                     << epoch_seen_samples << "/" << epoch_total_samples << "s)";
+    }
+    else
+    {
+        batch_status << "Batch: [" << batch_bar << "] " << std::setw(3) << batch_percent << "% ("
+                     << clamped_seen_batches << "/" << total_batches << "b, "
+                     << clamped_processed_samples << "/" << total_samples << "s)";
+    }
     if (std::isfinite(current_loss))
     {
         batch_status << "  loss: " << std::fixed << std::setprecision(6) << current_loss;
