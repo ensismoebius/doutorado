@@ -1,3 +1,5 @@
+// TODO Profiles must contain the specification of two nn: LSTM and SNN
+
 /**
  * @file src/experiments/04/experiment04.cpp
  * @brief Standalone Experiment04 entrypoint (thin main wrapper).
@@ -103,7 +105,8 @@ auto main(int argc, char* argv[]) -> int
         if (!has_comparative_config)
         {
             normalized_args.insert(normalized_args.begin() + 1, "--comparative");
-            normalized_args.insert(normalized_args.begin() + 2, "--comparative-config=lstm-lightweight");
+            normalized_args.insert(
+                normalized_args.begin() + 2, "--comparative-config=lstm-lightweight");
         }
         else if (normalized_args.size() > 1 && normalized_args[1] != "--comparative")
         {
