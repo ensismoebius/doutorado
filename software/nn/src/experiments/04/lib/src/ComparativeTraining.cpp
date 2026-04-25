@@ -82,7 +82,10 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 {
     auto best = std::numeric_limits<float>::infinity();
     int bad_epochs = 0;
-    const std::size_t batch_sz = static_cast<std::size_t>(cfg.batch_size);
+    const std::size_t batch_sz = static_cast<std::size_t>(cfg.samples_per_batch);
+    const std::size_t effective_batch_sz = (batch_sz == 0) ? 1 : batch_sz;
+    const std::size_t total_batches =
+        (train_samples.size() + effective_batch_sz - 1) / effective_batch_sz;
     const std::size_t total_training_samples =
         train_samples.size() * static_cast<std::size_t>(cfg.epochs);
     std::size_t seen_batches = 0;
@@ -93,28 +96,36 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
         MSELossImpl<nn::EigenTensorBackend> mse_loss;
-        for (std::size_t i = 0; i < train_samples.size(); ++i)
+        std::size_t batch_start = 0;
+        while (batch_start < train_samples.size())
         {
-            const Tensor encoded = encode_sample(
-                train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
-
-            model.reset_state();
+            std::size_t batch_end = std::min(batch_start + effective_batch_sz, train_samples.size());
             optimizer.zero_grad(model.params());
+            float epoch_loss = 0.0f;
 
-            const Tensor recon = model.forward(encoded, true);
-            mse_loss.set_target(encoded);
-            const Tensor loss_value = mse_loss.forward(recon, true);
+            for (std::size_t i = batch_start; i < batch_end; ++i)
+            {
+                const Tensor encoded = encode_sample(
+                    train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
 
-            const Tensor grad = mse_loss.backward(recon);
-            model.backward(grad);
+                model.reset_state();
+                const Tensor recon = model.forward(encoded, true);
+                mse_loss.set_target(encoded);
+                const Tensor loss_value = mse_loss.forward(recon, true);
+                epoch_loss += loss_value.at(0, 0);
+
+                const Tensor grad = mse_loss.backward(recon);
+                model.backward(grad);
+            }
+
             optimizer.step(model.params());
+            seen_batches = static_cast<std::size_t>(epoch) * total_batches + (batch_start / effective_batch_sz) + 1;
+            processed_samples = batch_end;
 
-            seen_batches = static_cast<std::size_t>(epoch) * train_samples.size() + i + 1;
-            processed_samples = seen_batches * batch_sz;
-
-            printProgress(total_training_samples,
-                batch_sz,
-                train_samples.size() * cfg.epochs,
+            const double avg_loss = epoch_loss / static_cast<float>(batch_end - batch_start);
+printProgress(total_training_samples,
+                effective_batch_sz,
+                total_batches * cfg.epochs,
                 seen_batches,
                 processed_samples,
                 false,
@@ -122,11 +133,13 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
                 total_runs,
                 static_cast<std::size_t>(epoch + 1),
                 static_cast<std::size_t>(cfg.epochs),
-                i + 1,
+                batch_end,
                 train_samples.size(),
-                static_cast<double>(loss_value.at(0, 0)),
+                avg_loss,
                 std::span<nn::Tensor*>{},
                 "LSTM");
+
+            batch_start = batch_end;
         }
 
         float val_mse = 0.0f;
@@ -155,21 +168,21 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         }
     }
 
-    printProgress(total_training_samples,
-        batch_sz,
-        train_samples.size() * cfg.epochs,
-        seen_batches,
-        processed_samples,
-        true,
-        run_id,
-        total_runs,
-        completed_epochs,
-        static_cast<std::size_t>(cfg.epochs),
-        train_samples.size(),
-        train_samples.size(),
-        best,
-        std::span<nn::Tensor*>{},
-        "LSTM");
+printProgress(total_training_samples,
+                effective_batch_sz,
+                total_batches * cfg.epochs,
+                seen_batches,
+                processed_samples,
+                true,
+                run_id,
+                total_runs,
+                completed_epochs,
+                static_cast<std::size_t>(cfg.epochs),
+                train_samples.size(),
+                train_samples.size(),
+                best,
+                std::span<nn::Tensor*>{},
+                "LSTM");
 
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
@@ -214,7 +227,10 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 {
     auto best = std::numeric_limits<float>::infinity();
     int bad_epochs = 0;
-    const std::size_t batch_sz = static_cast<std::size_t>(cfg.batch_size);
+    const std::size_t batch_sz = static_cast<std::size_t>(cfg.samples_per_batch);
+    const std::size_t effective_batch_sz = (batch_sz == 0) ? 1 : batch_sz;
+    const std::size_t total_batches =
+        (train_samples.size() + effective_batch_sz - 1) / effective_batch_sz;
     const std::size_t total_training_samples =
         train_samples.size() * static_cast<std::size_t>(cfg.epochs);
     std::size_t seen_batches = 0;
@@ -225,30 +241,38 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     for (int epoch = 0; epoch < cfg.epochs; ++epoch)
     {
         MSELossImpl<nn::EigenTensorBackend> mse_loss;
-        for (std::size_t i = 0; i < train_samples.size(); ++i)
+        std::size_t batch_start = 0;
+        while (batch_start < train_samples.size())
         {
-            Tensor encoded = encode_sample(
-                train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
-            encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
-
-            const Tensor flat = flatten_time_series(encoded);
-            model.reset_state();
+            std::size_t batch_end = std::min(batch_start + effective_batch_sz, train_samples.size());
             optimizer.zero_grad(model.params());
+            float epoch_loss = 0.0f;
 
-            const Tensor recon_flat = model.forward(flat, true);
-            mse_loss.set_target(flat);
-            const Tensor loss_value = mse_loss.forward(recon_flat, true);
+            for (std::size_t i = batch_start; i < batch_end; ++i)
+            {
+                Tensor encoded = encode_sample(
+                    train_samples[i], encoding, seed + static_cast<std::uint32_t>(epoch + i));
+                encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
 
-            const Tensor grad = mse_loss.backward(recon_flat);
-            model.backward(grad);
+                const Tensor flat = flatten_time_series(encoded);
+                model.reset_state();
+                const Tensor recon_flat = model.forward(flat, true);
+                mse_loss.set_target(flat);
+                const Tensor loss_value = mse_loss.forward(recon_flat, true);
+                epoch_loss += loss_value.at(0, 0);
+
+                const Tensor grad = mse_loss.backward(recon_flat);
+                model.backward(grad);
+            }
+
             optimizer.step(model.params());
+            seen_batches = static_cast<std::size_t>(epoch) * total_batches + (batch_start / effective_batch_sz) + 1;
+            processed_samples = batch_end;
 
-            seen_batches = static_cast<std::size_t>(epoch) * train_samples.size() + i + 1;
-            processed_samples = seen_batches * batch_sz;
-
+            const double avg_loss = epoch_loss / static_cast<float>(batch_end - batch_start);
             printProgress(total_training_samples,
-                batch_sz,
-                train_samples.size() * cfg.epochs,
+                effective_batch_sz,
+                total_batches * cfg.epochs,
                 seen_batches,
                 processed_samples,
                 false,
@@ -256,11 +280,13 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
                 total_runs,
                 static_cast<std::size_t>(epoch + 1),
                 static_cast<std::size_t>(cfg.epochs),
-                i + 1,
+                batch_end,
                 train_samples.size(),
-                static_cast<double>(loss_value.at(0, 0)),
+                avg_loss,
                 std::span<nn::Tensor*>{},
                 "SNN");
+
+            batch_start = batch_end;
         }
 
         float val_mse = 0.0f;
@@ -291,21 +317,21 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         }
     }
 
-    printProgress(total_training_samples,
-        batch_sz,
-        train_samples.size() * cfg.epochs,
-        seen_batches,
-        processed_samples,
-        true,
-        run_id,
-        total_runs,
-        completed_epochs,
-        static_cast<std::size_t>(cfg.epochs),
-        train_samples.size(),
-        train_samples.size(),
-        best,
-        std::span<nn::Tensor*>{},
-        "SNN");
+printProgress(total_training_samples,
+                effective_batch_sz,
+                total_batches * cfg.epochs,
+                seen_batches,
+                processed_samples,
+                true,
+                run_id,
+                total_runs,
+                completed_epochs,
+                static_cast<std::size_t>(cfg.epochs),
+                train_samples.size(),
+                train_samples.size(),
+                best,
+                std::span<nn::Tensor*>{},
+                "SNN");
 
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();

@@ -41,7 +41,8 @@ void write_summary_json(const std::filesystem::path& path,
     j["seed"] = cfg.seed;
     j["config_hash"] = cfg_hash;
     j["epochs"] = cfg.epochs;
-    j["batch_size"] = cfg.batch_size;
+    j["samples_per_batch"] = cfg.samples_per_batch;
+    j["batches_per_epoch"] = cfg.batches_per_epoch;
     j["window_size"] = cfg.window_size;
     j["repeats"] = cfg.repeats;
     j["limitation_notes"] = {

@@ -169,9 +169,10 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     get("seed", cfg.seed);
     get("repeats", cfg.repeats);
     get("window_size", cfg.window_size);
-    get("batch_size", cfg.batch_size);
     get("max_train_samples", cfg.max_train_samples);
     get("max_val_samples", cfg.max_val_samples);
+    get("samples_per_batch", cfg.samples_per_batch);
+    get("batches_per_epoch", cfg.batches_per_epoch);
     get("epochs", cfg.epochs);
     get("early_stop_patience", cfg.early_stop_patience);
     get("learning_rate", cfg.learning_rate);
@@ -276,9 +277,10 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["seed"] = cfg.seed;
     j["repeats"] = cfg.repeats;
     j["window_size"] = cfg.window_size;
-    j["batch_size"] = cfg.batch_size;
     j["max_train_samples"] = cfg.max_train_samples;
     j["max_val_samples"] = cfg.max_val_samples;
+    j["samples_per_batch"] = cfg.samples_per_batch;
+    j["batches_per_epoch"] = cfg.batches_per_epoch;
     j["epochs"] = cfg.epochs;
     j["early_stop_patience"] = cfg.early_stop_patience;
     j["learning_rate"] = cfg.learning_rate;

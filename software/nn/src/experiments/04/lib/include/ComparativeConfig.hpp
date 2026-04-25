@@ -19,9 +19,10 @@ struct ComparativeConfig
     bool check_determinism = false;
 
     int window_size = 128;
-    int batch_size = 8;
     int max_train_samples = 512;
     int max_val_samples = 128;
+    int samples_per_batch = 1;
+    int batches_per_epoch = 0;
 
     int epochs = 100;
     int early_stop_patience = 20;
