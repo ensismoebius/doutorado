@@ -200,14 +200,14 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["dataset"]["dataset_root"] = cfg.dataset.dataset_root;
     j["dataset"]["results_dir"] = cfg.dataset.results_dir;
     j["dataset"]["window_size"] = cfg.dataset.window_size;
-    j["dataset"]["max_train_samples"] = cfg.dataset.max_train_samples;
-    j["dataset"]["max_val_samples"] = cfg.dataset.max_val_samples;
+    j["dataset"]["max_loaded_train_samples"] = cfg.dataset.max_loaded_train_samples;
+    j["dataset"]["max_validation_samples"] = cfg.dataset.max_validation_samples;
     j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
     j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
     j["training"]["epochs"] = cfg.training.epochs;
     j["training"]["early_stop_patience"] = cfg.training.early_stop_patience;
     j["training"]["learning_rate"] = cfg.training.learning_rate;
-    j["training"]["anomaly_tau"] = cfg.training.anomaly_tau;
+    j["training"]["max_reconstruct_mean_deviation"] = cfg.training.max_reconstruct_mean_deviation;
     j["model"]["latent_size"] = cfg.model.latent_size;
     j["model"]["layer_sizes"] = cfg.model.layer_sizes;
     j["evaluation"]["datasets"] = cfg.evaluation.datasets;

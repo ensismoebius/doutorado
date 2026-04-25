@@ -127,13 +127,13 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     }
 
     const std::size_t max_total =
-        static_cast<std::size_t>(cfg.dataset.max_train_samples + cfg.dataset.max_val_samples);
+        static_cast<std::size_t>(cfg.dataset.max_loaded_train_samples + cfg.dataset.max_validation_samples);
     if (all_samples.size() > max_total)
     {
         all_samples.resize(max_total);
     }
 
-    const std::size_t val_count = std::min<std::size_t>(cfg.dataset.max_val_samples, all_samples.size() / 5);
+    const std::size_t val_count = std::min<std::size_t>(cfg.dataset.max_validation_samples, all_samples.size() / 5);
     const std::size_t train_count = all_samples.size() - val_count;
 
     split.train_samples.assign(all_samples.begin(), all_samples.begin() + static_cast<long>(train_count));

@@ -26,6 +26,11 @@ The experiment compares:
 - **LSTM Autoencoder**: Standard recurrent autoencoder with BPTT
 - **SNN Autoencoder**: Layer-based spiking autoencoder with Leaky Integrate-and-Fire neurons
 
+#### Latent Space and Compression
+The `latent_size` parameter defines the dimensionality of the bottleneck layer. The encoder compresses the high-dimensional input signal into a fixed-size latent vector, and the decoder attempts to reconstruct the signal from this compressed representation.
+
+Forcing a small `latent_size` prevents the model from simply copying the input to the output, requiring it to learn the most critical features of the data. In this comparative study, both models are assigned the same `latent_size` to ensure a fair comparison of their compression efficiency and reconstruction accuracy.
+
 ## Implementation
 
 ### Comparative Configuration
@@ -43,34 +48,33 @@ struct ComparativeConfig
 
     int window_size = 256;
     int batch_size = 100;
-    int max_train_samples = 500;
-    int max_val_samples = 100;
-
-    int epochs = 100;
-    int early_stop_patience = 20;
-    float learning_rate = 1e-3f;
-    float anomaly_tau = 0.25f;
-
-    int hidden_size = 64;
-    int latent_size = 32;
-
-    // Dataset selection
-    std::vector<std::string> datasets = {"fsdd"};
-    
-    // Encoding methods
-    std::vector<std::string> encodings = {"direct", "poisson", "latency"};
-    
-    // SNN architectures to compare
-    std::vector<std::string> snn_architectures = {"dense", "conv1d", "recurrent"};
-    
-    // Layer configurations
-    std::vector<int> layers = {1, 2, 3};
-    
-    // SNN parameters
-    std::vector<float> v_th_values = {0.5f, 1.0f, 1.5f};
-    std::vector<float> alpha_values = {0.8f, 0.9f, 0.99f};
+    int max_loaded_train_samples = 500;
+    int max_validation_samples = 100;
 };
 ```
+
+### Data Loading Limits
+
+To prevent excessive memory usage and keep execution times predictable during large grid searches, the experiment implements a two-tier capping system for the dataset:
+
+1. **Global Hard Cap**: The total number of signal windows loaded into RAM is capped at:
+   $$\text{Total Loaded} = \text{max\_loaded\_train\_samples} + \text{max\_validation\_samples}$$
+
+2. **Validation Set Ceiling**: The actual size of the validation set is determined by whichever is smaller: 20% of the loaded data or the `max_validation_samples` limit:
+   $$\text{Val Count} = \min(\text{max\_validation\_samples}, \frac{\text{Total Loaded}}{5})$$
+
+3. **Training Set Allocation**: The remaining samples are assigned to training:
+   $$\text{Train Count} = \text{Total Loaded} - \text{Val Count}$$
+
+This ensures that validation times remain constant across different profiles while preserving a reasonable training-to-validation ratio for smaller datasets.
+
+### Training Stability and Reproducibility
+
+Because neural network performance can vary based on random weight initialization, the experiment uses a `repeats` parameter to ensure statistical reliability:
+
+1. **Statistical Reliability**: By training each configuration multiple times (e.g., `repeats = 3`), the experiment allows for the calculation of averages and standard deviations, ensuring that results are not due to "lucky" random seeds.
+2. **Determinism Verification**: When `seed_deterministic` is enabled, every repeat uses the same seed. The `check_determinism` flag then verifies that the results are identical across all repeats, which is critical for scientific reproducibility.
+3. **Stability Analysis**: When `seed_deterministic` is disabled, each repeat uses a unique seed. This reveals how robust the model is to different initializations.
 
 ### Profile Configurations
 
@@ -139,6 +143,29 @@ LSTM Fold:  [===================>                  ]  50%
 Epoch: [===================>                  ]  50% (50/100)
 Batch: [========================================] 100% (500/500b, 500/500s)  loss: 1.219896
 ```
+
+### Anomaly Detection
+
+The experiment evaluates the autoencoders' ability to detect anomalies (specifically, modified signals) using the `max_reconstruct_mean_deviation` threshold.
+
+1. **Residual Calculation**: For each sample, the mean absolute residual between the original signal ($x$) and the reconstruction ($\hat{x}$) is computed:
+   $$\text{Residual Mean} = \frac{1}{N} \sum_{i=1}^{N} | x_i - \hat{x}_i |$$
+
+2. **Thresholding**: A binary label is assigned based on the `max_reconstruct_mean_deviation` value:
+   - **Anomaly (1)**: $\text{Residual Mean} > \text{max\_reconstruct\_mean\_deviation}$
+   - **Normal (0)**: $\text{Residual Mean} \le \text{max\_reconstruct\_mean\_deviation}$
+
+This classification allows the calculation of **Precision**, **Recall**, and **F1-Score**, which measure how effectively the model distinguishes between normal data and anomalies.
+
+#### Threshold Impact and Metrics
+
+The `max_reconstruct_mean_deviation` parameter acts as a tuning dial for the model's sensitivity, creating a trade-off between Precision and Recall:
+
+- **High $\tau$ (Conservative)**: Reduces False Positives ($\uparrow$ Precision) but increases False Negatives ($\downarrow$ Recall). The model only flags anomalies with very high reconstruction errors.
+- **Low $\tau$ (Aggressive)**: Reduces False Negatives ($\uparrow$ Recall) but increases False Positives ($\downarrow$ Precision). The model flags even subtle anomalies, but may misclassify normal noise as anomalies.
+
+The **F1-Score** is used to find the optimal balance between these two metrics:
+$$F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
 
 ## Usage
 

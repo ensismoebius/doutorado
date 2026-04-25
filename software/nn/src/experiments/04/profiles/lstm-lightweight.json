@@ -10,29 +10,45 @@
     "dataset": {
         "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
         "results_dir": "results",
-        "window_size": 64,
-        "max_train_samples": 50,
-        "max_val_samples": 50
+        "window_size": 256,
+        "max_loaded_train_samples": 100,
+        "max_validation_samples": 100
     },
     "training": {
-        "samples_per_batch": 8,
-        "batches_per_epoch": 0,
-        "epochs": 10,
+        "samples_per_batch": 80,
+        "batches_per_epoch": 10,
+        "epochs": 2,
         "early_stop_patience": 30,
         "learning_rate": 0.001,
-        "anomaly_tau": 0.25
+        "max_reconstruct_mean_deviation": 0.25
     },
     "model": {
         "latent_size": 8,
         "layer_sizes": [],
-        "encoder_layer_spec": ["linear:16:leaky", "linear:latent:identity"],
-        "decoder_layer_spec": ["linear:latent:leaky", "linear:output:identity"]
+        "encoder_layer_spec": [
+            "linear:16:leaky",
+            "linear:latent:identity"
+        ],
+        "decoder_layer_spec": [
+            "linear:latent:leaky",
+            "linear:output:identity"
+        ]
     },
     "evaluation": {
-        "datasets": ["fsdd"],
-        "encodings": ["direct"],
-        "snn_architectures": ["dense"],
-        "v_th_values": [1.0],
-        "alpha_values": [0.9]
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct"
+        ],
+        "snn_architectures": [
+            "dense"
+        ],
+        "v_th_values": [
+            1.0
+        ],
+        "alpha_values": [
+            0.9
+        ]
     }
 }

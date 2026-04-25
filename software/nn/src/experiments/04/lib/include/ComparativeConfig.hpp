@@ -24,8 +24,8 @@ struct ComparativeConfig
         std::string dataset_root = ".";
         std::string results_dir = "results";
         int window_size = 128;
-        int max_train_samples = 512;
-        int max_val_samples = 128;
+        int max_loaded_train_samples = 512;
+        int max_validation_samples = 128;
     };
 
     struct Training
@@ -35,7 +35,7 @@ struct ComparativeConfig
         int epochs = 100;
         int early_stop_patience = 20;
         float learning_rate = 1e-3f;
-        float anomaly_tau = 0.25f;
+        float max_reconstruct_mean_deviation = 0.25f;
     };
 
     struct Model
@@ -85,15 +85,15 @@ struct ComparativeConfig
         get("check_determinism", cfg.experiment.check_determinism);
 
         get("window_size", cfg.dataset.window_size);
-        get("max_train_samples", cfg.dataset.max_train_samples);
-        get("max_val_samples", cfg.dataset.max_val_samples);
+        get("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
+        get("max_validation_samples", cfg.dataset.max_validation_samples);
 
         get("samples_per_batch", cfg.training.samples_per_batch);
         get("batches_per_epoch", cfg.training.batches_per_epoch);
         get("epochs", cfg.training.epochs);
         get("early_stop_patience", cfg.training.early_stop_patience);
         get("learning_rate", cfg.training.learning_rate);
-        get("anomaly_tau", cfg.training.anomaly_tau);
+        get("max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
 
         get("latent_size", cfg.model.latent_size);
         get("layer_sizes", cfg.model.layer_sizes);
@@ -155,15 +155,15 @@ struct ComparativeConfig
         get_dat("dataset_root", cfg.dataset.dataset_root);
         get_dat("results_dir", cfg.dataset.results_dir);
         get_dat("window_size", cfg.dataset.window_size);
-        get_dat("max_train_samples", cfg.dataset.max_train_samples);
-        get_dat("max_val_samples", cfg.dataset.max_val_samples);
+        get_dat("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
+        get_dat("max_validation_samples", cfg.dataset.max_validation_samples);
 
         get_trn("samples_per_batch", cfg.training.samples_per_batch);
         get_trn("batches_per_epoch", cfg.training.batches_per_epoch);
         get_trn("epochs", cfg.training.epochs);
         get_trn("early_stop_patience", cfg.training.early_stop_patience);
         get_trn("learning_rate", cfg.training.learning_rate);
-        get_trn("anomaly_tau", cfg.training.anomaly_tau);
+        get_trn("max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
 
         get_mdl("latent_size", cfg.model.latent_size);
         get_mdl("layer_sizes", cfg.model.layer_sizes);

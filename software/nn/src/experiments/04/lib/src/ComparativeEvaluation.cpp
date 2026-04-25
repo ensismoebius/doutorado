@@ -12,7 +12,7 @@ namespace comparative_autoencoder_experiment
 auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
-    float anomaly_tau,
+    float max_reconstruct_mean_deviation,
     std::size_t macs,
     std::size_t param_count,
     const std::string& encoding,
@@ -50,7 +50,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
             ++n_values;
         }
         sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, encoded.size()));
-        pred_labels.push_back(sample_residual_mean > anomaly_tau ? 1 : 0);
+        pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
     m.mse = val_samples.empty() ? 0.0f : mse_acc / static_cast<float>(val_samples.size());
@@ -86,7 +86,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
 auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
-    float anomaly_tau,
+    float max_reconstruct_mean_deviation,
     std::size_t macs,
     std::size_t param_count,
     const std::string& encoding,
@@ -133,7 +133,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
             ++n_values;
         }
         sample_residual_mean /= static_cast<float>(std::max<nn::Index>(1, encoded.size()));
-        pred_labels.push_back(sample_residual_mean > anomaly_tau ? 1 : 0);
+        pred_labels.push_back(sample_residual_mean > max_reconstruct_mean_deviation ? 1 : 0);
     }
 
     m.mse = val_samples.empty() ? 0.0f : mse_acc / static_cast<float>(val_samples.size());
