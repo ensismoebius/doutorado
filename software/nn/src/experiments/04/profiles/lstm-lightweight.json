@@ -10,9 +10,9 @@
     "dataset": {
         "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
         "results_dir": "results",
-        "window_size": 256,
-        "max_loaded_train_samples": 100,
-        "max_validation_samples": 100
+        "window_size": 64,
+        "max_loaded_train_samples": 50,
+        "max_validation_samples": 50
     },
     "training": {
         "samples_per_batch": 80,

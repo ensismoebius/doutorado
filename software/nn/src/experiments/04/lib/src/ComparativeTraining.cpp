@@ -167,10 +167,11 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
             optimizer.step(model.params());
             seen_batches = static_cast<std::size_t>(epoch) * total_batches + (batch_start / effective_batch_sz) + 1;
-            processed_samples = batch_end;
+            processed_samples = static_cast<std::size_t>(epoch) * train_samples.size() + batch_end;
 
             const double avg_loss = epoch_loss / static_cast<float>(batch_end - batch_start);
-printProgress(total_training_samples,
+            printProgress(total_training_samples,
+
                 effective_batch_sz,
                 total_batches * cfg.training.epochs,
                 seen_batches,
@@ -314,7 +315,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
             optimizer.step(model.params());
             seen_batches = static_cast<std::size_t>(epoch) * total_batches + (batch_start / effective_batch_sz) + 1;
-            processed_samples = batch_end;
+            processed_samples = static_cast<std::size_t>(epoch) * train_samples.size() + batch_end;
 
             const double avg_loss = epoch_loss / static_cast<float>(batch_end - batch_start);
             printProgress(total_training_samples,

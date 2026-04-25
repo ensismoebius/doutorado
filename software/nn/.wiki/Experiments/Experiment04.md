@@ -168,6 +168,50 @@ The `max_reconstruct_mean_deviation` parameter acts as a tuning dial for the mod
 The **F1-Score** is used to find the optimal balance between these two metrics:
 $$F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
 
+### Layer Specification Manual
+
+The architecture of the autoencoder is defined using a domain-specific language (DSL) in the `encoder_layer_spec` and `decoder_layer_spec` lists. Each string in the list represents a layer or a block of layers.
+
+#### 1. Linear Layers
+The most common layer used in Experiment04.
+- **Format**: `linear:<width>[:<activation>]`
+- **Width**: Can be a numeric value (e.g., `32`) or a special token:
+    - `hidden`: Resolves to the base hidden size.
+    - `latent`: Resolves to the bottleneck dimensionality.
+    - `output`: Resolves to the input signal window size.
+    - `branch_hidden` / `fusion_hidden`: Resolves to the specific branch/fusion sizes.
+- **Activation**: Optional.
+    - **ANN Mode**: `relu`, `leaky_relu`, `identity`.
+    - **SNN Mode**: `leaky` (LIF), `leaky_integrator`, `identity`.
+- **Example**: `linear:64:leaky` $\rightarrow$ A linear layer with 64 units and a Leaky ReLU/LIF activation.
+
+#### 2. Convolutional Layers (1D and 2D)
+- **Conv1D Format**: `conv1d:<out_channels>:<kernel_size>[:<stride>[:<activation>]]`
+    - Example: `conv1d:64:3:1:relu`
+- **Conv2D Format**: `conv2d:<out_channels>:<kernel_size>:<stride>:<activation>`
+    - Example: `conv2d:64:3:1:relu`
+
+#### 3. Pooling Layers
+- **Pool1D Format**: `pool1d:<kernel_size>[:<stride>]`
+- **Pool2D Format**: `pool2d:<kernel_size>[:<stride>]`
+
+#### 4. Residual Blocks
+Used to add depth and prevent vanishing gradients.
+- **Format**: `residual` or `residual:<repeat_count>`
+- **Example**: `residual:3` $\rightarrow$ Adds 3 consecutive residual blocks.
+
+#### 5. Standalone Activations
+You can add an activation layer without a preceding linear layer.
+- **Format**: `<activation_type>`
+- **Example**: `relu`
+
+#### Building a Full Architecture
+The total network is built by concatenating these specs. 
+**Example Encoder**: `["linear:128:leaky", "residual:2", "linear:32:identity"]`
+1. Linear(input $\rightarrow$ 128) $\rightarrow$ Leaky ReLU
+2. 2x Residual Blocks (128 $\rightarrow$ 128)
+3. Linear(128 $\rightarrow$ 32) $\rightarrow$ Identity (Latent Bottleneck)
+
 ## Usage
 
 ```bash
