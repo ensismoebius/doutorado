@@ -1,0 +1,38 @@
+{
+    "_comment": "Nested format - testing",
+    "experiment": {
+        "run_tag": "debug",
+        "seed": 42,
+        "repeats": 1,
+        "seed_deterministic": false,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 64,
+        "max_train_samples": 20,
+        "max_val_samples": 10
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 2,
+        "early_stop_patience": 5,
+        "learning_rate": 0.001,
+        "anomaly_tau": 0.25
+    },
+    "model": {
+        "latent_size": 8,
+        "layer_sizes": [],
+        "encoder_layer_spec": ["linear:16:leaky", "linear:latent:identity"],
+        "decoder_layer_spec": ["linear:latent:leaky", "linear:output:identity"]
+    },
+    "evaluation": {
+        "datasets": ["fsdd"],
+        "encodings": ["direct"],
+        "snn_architectures": ["dense"],
+        "v_th_values": [1.0],
+        "alpha_values": [0.9]
+    }
+}

@@ -1,0 +1,38 @@
+{
+    "_comment": "Default profile for Experiment04 (LSTM/SNN comparative)",
+    "experiment": {
+        "run_tag": "lstm_fsd",
+        "seed": 42,
+        "repeats": 1,
+        "seed_deterministic": true,
+        "check_determinism": true
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 512,
+        "max_train_samples": 500,
+        "max_val_samples": 100
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 100,
+        "early_stop_patience": 20,
+        "learning_rate": 0.001,
+        "anomaly_tau": 0.25
+    },
+    "model": {
+        "latent_size": 32,
+        "layer_sizes": [64],
+        "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
+        "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"]
+    },
+    "evaluation": {
+        "datasets": ["fsdd"],
+        "encodings": ["direct"],
+        "snn_architectures": ["dense"],
+        "v_th_values": [1.0],
+        "alpha_values": [0.9]
+    }
+}

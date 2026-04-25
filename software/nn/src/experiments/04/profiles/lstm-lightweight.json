@@ -1,0 +1,38 @@
+{
+    "_comment": "Lightweight profile for FSDD",
+    "experiment": {
+        "run_tag": "lstm_lightweight",
+        "seed": 42,
+        "repeats": 4,
+        "seed_deterministic": true,
+        "check_determinism": true
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 64,
+        "max_train_samples": 50,
+        "max_val_samples": 50
+    },
+    "training": {
+        "samples_per_batch": 8,
+        "batches_per_epoch": 0,
+        "epochs": 10,
+        "early_stop_patience": 30,
+        "learning_rate": 0.001,
+        "anomaly_tau": 0.25
+    },
+    "model": {
+        "latent_size": 8,
+        "layer_sizes": [],
+        "encoder_layer_spec": ["linear:16:leaky", "linear:latent:identity"],
+        "decoder_layer_spec": ["linear:latent:leaky", "linear:output:identity"]
+    },
+    "evaluation": {
+        "datasets": ["fsdd"],
+        "encodings": ["direct"],
+        "snn_architectures": ["dense"],
+        "v_th_values": [1.0],
+        "alpha_values": [0.9]
+    }
+}
