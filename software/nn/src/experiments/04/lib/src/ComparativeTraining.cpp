@@ -14,29 +14,76 @@
 namespace comparative_autoencoder_experiment
 {
 
+auto extract_layer_sizes(const std::vector<std::string>& specs) -> std::vector<int>
+{
+    std::vector<int> sizes;
+    for (const auto& spec : specs)
+    {
+        std::stringstream ss(spec);
+        std::string token;
+        std::vector<std::string> parts;
+        while (std::getline(ss, token, ':'))
+        {
+            parts.push_back(token);
+        }
+        if (parts.size() >= 2 && parts[0] == "linear")
+        {
+            try { sizes.push_back(std::stoi(parts[1])); } catch (...) {}
+        }
+    }
+    return sizes;
+}
+
+auto extract_latent_size(const std::vector<std::string>& encoder_specs, 
+                         const std::vector<std::string>& decoder_specs) -> int
+{
+    auto get_size = [](const std::string& spec) -> int {
+        std::stringstream ss(spec);
+        std::string token;
+        std::vector<std::string> parts;
+        while (std::getline(ss, token, ':')) parts.push_back(token);
+        if (parts.size() >= 2) {
+            try { return std::stoi(parts[1]); } catch (...) {}
+        }
+        return -1;
+    };
+
+    if (!encoder_specs.empty()) {
+        int s = get_size(encoder_specs.back());
+        if (s != -1) return s;
+    }
+    if (!decoder_specs.empty()) {
+        int s = get_size(decoder_specs.front());
+        if (s != -1) return s;
+    }
+    return 16; // Final default
+}
+
 auto make_lstm_cfg(const ComparativeConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
+    const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     nn::models::lstm::LSTMAutoencoderConfig arch;
     arch.input_size = 1;
     arch.seq_len = cfg.dataset.window_size;
-    arch.hidden_size = cfg.model.layer_sizes.empty() ? cfg.model.latent_size : cfg.model.layer_sizes.front();
-    arch.latent_size = cfg.model.latent_size;
-    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, cfg.model.layer_sizes.size()));
+    arch.hidden_size = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec) : sizes.front();
+    arch.latent_size = extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
 }
 
 auto make_snn_cfg(const ComparativeConfig& cfg, float alpha, float v_th) -> AutoencoderConfig
 {
-    const int effective_layers = static_cast<int>(std::max<std::size_t>(1, cfg.model.layer_sizes.size()));
-    const int hidden_sz = cfg.model.layer_sizes.empty() ? cfg.model.latent_size : cfg.model.layer_sizes.front();
+    const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
+    const int effective_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
+    const int hidden_sz = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec) : sizes.front();
 
     AutoencoderConfig model_cfg;
     model_cfg.loss_type = "mse";
     model_cfg.input_features = cfg.dataset.window_size;
     model_cfg.hidden_size = hidden_sz;
-    model_cfg.latent_size = cfg.model.latent_size;
+    model_cfg.latent_size = extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
     model_cfg.depth = effective_layers;
-    model_cfg.layer_sizes = cfg.model.layer_sizes;
+    model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
     model_cfg.fusion_hidden_size = cfg.model.fusion_hidden_size;
     model_cfg.time_step = 1.0f;
@@ -354,8 +401,8 @@ printProgress(total_training_samples,
         val_labels,
          cfg.training.max_reconstruct_mean_deviation,
         estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),
-            cfg.model.layer_sizes.empty() ? cfg.model.latent_size : cfg.model.layer_sizes.front(),
-            static_cast<int>(cfg.model.layer_sizes.size())),
+            extract_layer_sizes(cfg.model.encoder_layer_spec).empty() ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec) : extract_layer_sizes(cfg.model.encoder_layer_spec).front(),
+            static_cast<int>(extract_layer_sizes(cfg.model.encoder_layer_spec).size())),
         parameter_count(model.params()),
         encoding,
         architecture,

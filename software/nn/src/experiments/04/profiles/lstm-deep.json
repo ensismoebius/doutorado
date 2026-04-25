@@ -23,8 +23,6 @@
         "max_reconstruct_mean_deviation": 0.25
     },
     "model": {
-        "latent_size": 32,
-        "layer_sizes": [192],
         "encoder_layer_spec": ["linear:192:leaky", "linear:32:identity"],
         "decoder_layer_spec": ["linear:192:leaky", "linear:output:identity"]
     },

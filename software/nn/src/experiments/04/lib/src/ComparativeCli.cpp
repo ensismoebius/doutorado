@@ -20,35 +20,8 @@ static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
 void infer_dimensions_from_layer_specs(ComparativeConfig& cfg)
 {
-    if (cfg.model.encoder_layer_spec.empty()) return;
-
-    int max_hidden = 0;
-    for (const auto& spec : cfg.model.encoder_layer_spec)
-    {
-        std::stringstream ss(spec);
-        std::string token;
-        std::vector<std::string> parts;
-        while (std::getline(ss, token, ':'))
-        {
-            parts.push_back(token);
-        }
-        if (parts.size() >= 2 && parts[0] == "linear")
-        {
-            try
-            {
-                int hidden = std::stoi(parts[1]);
-                if (hidden > max_hidden) max_hidden = hidden;
-            }
-            catch (...)
-            {
-            }
-        }
-    }
-
-    if (max_hidden > 0 && cfg.model.layer_sizes.empty())
-    {
-        cfg.model.layer_sizes.push_back(max_hidden);
-    }
+    // This function is now deprecated as layer_sizes is removed from ComparativeConfig.
+    // Dimensions are inferred on-the-fly in Training.
 }
 
 auto has_compare_marker(const std::string& arg) -> bool
@@ -208,8 +181,8 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["training"]["early_stop_patience"] = cfg.training.early_stop_patience;
     j["training"]["learning_rate"] = cfg.training.learning_rate;
     j["training"]["max_reconstruct_mean_deviation"] = cfg.training.max_reconstruct_mean_deviation;
-    j["model"]["latent_size"] = cfg.model.latent_size;
-    j["model"]["layer_sizes"] = cfg.model.layer_sizes;
+
+
     j["evaluation"]["datasets"] = cfg.evaluation.datasets;
     j["evaluation"]["encodings"] = cfg.evaluation.encodings;
     j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;

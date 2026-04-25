@@ -27,9 +27,10 @@ The experiment compares:
 - **SNN Autoencoder**: Layer-based spiking autoencoder with Leaky Integrate-and-Fire neurons
 
 #### Latent Space and Compression
-The `latent_size` parameter defines the dimensionality of the bottleneck layer. The encoder compresses the high-dimensional input signal into a fixed-size latent vector, and the decoder attempts to reconstruct the signal from this compressed representation.
 
-Forcing a small `latent_size` prevents the model from simply copying the input to the output, requiring it to learn the most critical features of the data. In this comparative study, both models are assigned the same `latent_size` to ensure a fair comparison of their compression efficiency and reconstruction accuracy.
+The latent space dimensionality is now automatically inferred from the `encoder_layer_spec` (the size of the last encoder layer) or the `decoder_layer_spec` (the size of the first decoder layer).
+
+Forcing a small latent dimensionality prevents the model from simply copying the input to the output, requiring it to learn the most critical features of the data. In this comparative study, both models are assigned the same latent dimensionality to ensure a fair comparison of their compression efficiency and reconstruction accuracy.
 
 ## Implementation
 
@@ -82,9 +83,9 @@ The experiment uses JSON profiles in `src/experiments/04/profiles/`:
 
 | Profile | Description | Key Parameters |
 |---------|-------------|---------------|
-| `lstm-default.json` | Default LSTM/SNN comparison | window=256, batch=100, epochs=100, hidden=64 |
+| `lstm-default.json` | Default LSTM/SNN comparison | window=256, batch=100, epochs=100 |
 | `lstm-compare.json` | Comprehensive grid search | 3 repeats, all encodings, layers, thresholds |
-| `lstm-deep.json` | Deeper network | hidden=192, layers=2 |
+| `lstm-deep.json` | Deeper network |- |
 | `lstm-lightweight.json` | Smoke test | window=256, batch=4, epochs=1 |
 
 ### Dataset Support

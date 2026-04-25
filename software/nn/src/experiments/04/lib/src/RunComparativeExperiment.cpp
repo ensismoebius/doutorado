@@ -11,6 +11,27 @@
 #include "../include/Experiment04Cli.hpp"
 #include "nn/utility/progress.hpp"
 
+// Helper to extract sizes from layer specs
+auto extract_layer_sizes(const std::vector<std::string>& specs)
+{
+    std::vector<int> sizes;
+    for (const auto& spec : specs)
+    {
+        std::stringstream ss(spec);
+        std::string token;
+        std::vector<std::string> parts;
+        while (std::getline(ss, token, ':'))
+        {
+            parts.push_back(token);
+        }
+        if (parts.size() >= 2 && parts[0] == "linear")
+        {
+            try { sizes.push_back(std::stoi(parts[1])); } catch (...) {}
+        }
+    }
+    return sizes;
+}
+
 namespace lstm_autoencoder_experiment
 {
 
@@ -115,7 +136,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 snn_config.initializer_seed = run_seed;
                                 snn_config.initializer_sampler_type =
                                     "comparative|" + dataset_name + "|" + encoding + "|" +
-                                     architecture + "|" + std::to_string(config.model.layer_sizes.empty() ? 0 : config.model.layer_sizes.front()) + "|" +
+                                     architecture + "|" + std::to_string(extract_layer_sizes(config.model.encoder_layer_spec).empty() ? 0 : extract_layer_sizes(config.model.encoder_layer_spec).front()) + "|" +
                                     std::to_string(voltage_threshold) + "|" +
                                     std::to_string(alpha);
 
@@ -149,7 +170,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         "snn-ae",          //
                                         encoding,          //
                                         architecture,      //
-                                         static_cast<int>(config.model.layer_sizes.size()),        //
+                                          static_cast<int>(config.model.encoder_layer_spec.size()),        //
                                         voltage_threshold, //
                                         alpha,             //
                                         run_id + 1,        //

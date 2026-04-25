@@ -40,8 +40,6 @@ struct ComparativeConfig
 
     struct Model
     {
-        int latent_size = 16;
-        std::vector<int> layer_sizes;
         int branch_hidden_size = 0;
         int fusion_hidden_size = 0;
         std::vector<std::string> encoder_layer_spec;
@@ -79,24 +77,6 @@ struct ComparativeConfig
         get("dataset_root", cfg.dataset.dataset_root);
         get("results_dir", cfg.dataset.results_dir);
         get("run_tag", cfg.experiment.run_tag);
-        get("seed", cfg.experiment.seed);
-        get("repeats", cfg.experiment.repeats);
-        get("seed_deterministic", cfg.experiment.seed_deterministic);
-        get("check_determinism", cfg.experiment.check_determinism);
-
-        get("window_size", cfg.dataset.window_size);
-        get("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
-        get("max_validation_samples", cfg.dataset.max_validation_samples);
-
-        get("samples_per_batch", cfg.training.samples_per_batch);
-        get("batches_per_epoch", cfg.training.batches_per_epoch);
-        get("epochs", cfg.training.epochs);
-        get("early_stop_patience", cfg.training.early_stop_patience);
-        get("learning_rate", cfg.training.learning_rate);
-        get("max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
-
-        get("latent_size", cfg.model.latent_size);
-        get("layer_sizes", cfg.model.layer_sizes);
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
         get("encoder_layer_spec", cfg.model.encoder_layer_spec);
@@ -165,8 +145,6 @@ struct ComparativeConfig
         get_trn("learning_rate", cfg.training.learning_rate);
         get_trn("max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
 
-        get_mdl("latent_size", cfg.model.latent_size);
-        get_mdl("layer_sizes", cfg.model.layer_sizes);
         get_mdl("branch_hidden_size", cfg.model.branch_hidden_size);
         get_mdl("fusion_hidden_size", cfg.model.fusion_hidden_size);
         get_mdl("encoder_layer_spec", cfg.model.encoder_layer_spec);
