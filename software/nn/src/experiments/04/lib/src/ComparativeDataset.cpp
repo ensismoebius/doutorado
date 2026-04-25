@@ -46,7 +46,7 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
     -> std::vector<std::filesystem::path>
 {
     namespace fs = std::filesystem;
-    const fs::path root = fs::path(cfg.dataset_root);
+    const fs::path root = fs::path(cfg.dataset.dataset_root);
     if (!fs::exists(root))
     {
         throw std::runtime_error("Dataset root does not exist: " + root.string());
@@ -83,8 +83,14 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
 
 auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> DatasetSplit
 {
+    std::cerr << "[DBG_DATASET] Starting build_split for " << dataset << "\n";
+    std::cerr.flush();
+
     DatasetSplit split;
     const auto files = collect_signal_files(cfg, dataset);
+    std::cerr << "[DBG_DATASET] Found " << files.size() << " files\n";
+    std::cerr.flush();
+
     if (files.empty())
     {
         throw std::runtime_error("No files found for dataset token: " + dataset);
@@ -93,6 +99,8 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     std::vector<Tensor> all_samples;
     for (const auto& file : files)
     {
+        std::cerr << "[DBG_DATASET] Loading " << file.string() << "\n";
+        std::cerr.flush();
         nn::Tensor signal;
         if (dataset == "fsdd")
         {
@@ -109,7 +117,7 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
         {
             signal = nn::utility::read_csv_signal(file);
         }
-        const auto windows = to_window_tensor(signal, cfg.window_size);
+        const auto windows = to_window_tensor(signal, cfg.dataset.window_size);
         all_samples.insert(all_samples.end(), windows.begin(), windows.end());
     }
 
@@ -119,13 +127,13 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     }
 
     const std::size_t max_total =
-        static_cast<std::size_t>(cfg.max_train_samples + cfg.max_val_samples);
+        static_cast<std::size_t>(cfg.dataset.max_train_samples + cfg.dataset.max_val_samples);
     if (all_samples.size() > max_total)
     {
         all_samples.resize(max_total);
     }
 
-    const std::size_t val_count = std::min<std::size_t>(cfg.max_val_samples, all_samples.size() / 5);
+    const std::size_t val_count = std::min<std::size_t>(cfg.dataset.max_val_samples, all_samples.size() / 5);
     const std::size_t train_count = all_samples.size() - val_count;
 
     split.train_samples.assign(all_samples.begin(), all_samples.begin() + static_cast<long>(train_count));

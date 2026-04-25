@@ -30,9 +30,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const ComparativeConfig config = load_config(resolve_profile_path(cli), cli);
         const std::size_t cfg_hash = config_hash(config);
 
-        std::filesystem::path out_dir = config.results_dir.empty()
+        std::filesystem::path out_dir = config.dataset.results_dir.empty()
                                             ? source_results_dir()
-                                            : std::filesystem::path(config.results_dir);
+                                            : std::filesystem::path(config.dataset.results_dir);
 
         if (!std::filesystem::exists(out_dir))
         {
@@ -43,18 +43,18 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         std::vector<ResultRow> all_rows;
 
-        for (const auto& dataset_name : config.datasets)
+        for (const auto& dataset_name : config.evaluation.datasets)
         {
             const DatasetSplit split = build_split(config, dataset_name);
 
-            for (const auto& encoding : config.encodings)
+            for (const auto& encoding : config.evaluation.encodings)
             {
-                for (int run_id = 0; run_id < config.repeats; ++run_id)
+                for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
                     const std::uint32_t run_seed =
-                        config.seed_deterministic
-                            ? config.seed
-                            : config.seed + static_cast<std::uint32_t>(run_id);
+                        config.experiment.seed_deterministic
+                            ? config.experiment.seed
+                            : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
                     {
                         float train_ms = 0.0f;
@@ -63,7 +63,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
                         nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
 
-                        Adam lstm_opt(config.learning_rate);
+                        Adam lstm_opt(config.training.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
                         RunMetrics metrics = train_with_early_stopping_lstm( //
@@ -75,7 +75,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             encoding,                                        //
                             run_seed,                                        //
                             static_cast<std::size_t>(run_id),                //
-                            static_cast<std::size_t>(config.repeats),        //
+                            static_cast<std::size_t>(config.experiment.repeats),        //
                             train_ms,                                        //
                             infer_ms                                         //
                         );
@@ -98,11 +98,11 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         );
                     }
 
-                    for (const auto& architecture : config.snn_architectures)
+                    for (const auto& architecture : config.evaluation.snn_architectures)
                     {
-                        for (float voltage_threshold : config.v_th_values)
+                        for (float voltage_threshold : config.evaluation.v_th_values)
                         {
-                            for (float alpha : config.alpha_values)
+                            for (float alpha : config.evaluation.alpha_values)
                             {
                                 float train_ms = 0.0f;
                                 float infer_ms = 0.0f;
@@ -115,11 +115,11 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 snn_config.initializer_seed = run_seed;
                                 snn_config.initializer_sampler_type =
                                     "comparative|" + dataset_name + "|" + encoding + "|" +
-                                    architecture + "|" + std::to_string(config.layer_sizes.empty() ? 0 : config.layer_sizes.front()) + "|" +
+                                     architecture + "|" + std::to_string(config.model.layer_sizes.empty() ? 0 : config.model.layer_sizes.front()) + "|" +
                                     std::to_string(voltage_threshold) + "|" +
                                     std::to_string(alpha);
 
-                                Adam snn_optimizer(config.learning_rate);
+                                Adam snn_optimizer(config.training.learning_rate);
 
                                 ProtocolSpikingAutoencoder snn_model(snn_config);
                                 snn_optimizer.attach(snn_model.params());
@@ -137,7 +137,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                     voltage_threshold,                              //
                                     run_seed,                                       //
                                     static_cast<std::size_t>(run_id),               //
-                                    static_cast<std::size_t>(config.repeats),       //
+                                    static_cast<std::size_t>(config.experiment.repeats),       //
                                     train_ms,                                       //
                                     infer_ms                                        //
                                 );
@@ -149,7 +149,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         "snn-ae",          //
                                         encoding,          //
                                         architecture,      //
-                                        static_cast<int>(config.layer_sizes.size()),        //
+                                         static_cast<int>(config.model.layer_sizes.size()),        //
                                         voltage_threshold, //
                                         alpha,             //
                                         run_id + 1,        //
@@ -165,21 +165,21 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             }
         }
 
-        if (config.repeats > 1 && config.check_determinism)
+        if (config.experiment.repeats > 1 && config.experiment.check_determinism)
         {
             validate_repeat_determinism(config, all_rows);
         }
 
         const std::filesystem::path csv_path =
-            out_dir / (config.run_tag + "_comparative_metrics.csv");
+            out_dir / (config.experiment.run_tag + "_comparative_metrics.csv");
 
         write_rows_csv(csv_path, all_rows);
 
         const std::filesystem::path table_path =
-            out_dir / (config.run_tag + "_publication_table.csv");
+            out_dir / (config.experiment.run_tag + "_publication_table.csv");
         write_publication_table(table_path, all_rows);
 
-        const std::filesystem::path summary_json = out_dir / (config.run_tag + "_summary.json");
+        const std::filesystem::path summary_json = out_dir / (config.experiment.run_tag + "_summary.json");
         write_summary_json(summary_json, config, cfg_hash, all_rows);
 
         std::cout << "[comparative] Results written to:\n"

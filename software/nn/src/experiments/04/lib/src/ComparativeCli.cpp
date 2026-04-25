@@ -20,10 +20,10 @@ static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
 void infer_dimensions_from_layer_specs(ComparativeConfig& cfg)
 {
-    if (cfg.encoder_layer_spec.empty()) return;
+    if (cfg.model.encoder_layer_spec.empty()) return;
 
     int max_hidden = 0;
-    for (const auto& spec : cfg.encoder_layer_spec)
+    for (const auto& spec : cfg.model.encoder_layer_spec)
     {
         std::stringstream ss(spec);
         std::string token;
@@ -45,9 +45,9 @@ void infer_dimensions_from_layer_specs(ComparativeConfig& cfg)
         }
     }
 
-    if (max_hidden > 0 && cfg.layer_sizes.empty())
+    if (max_hidden > 0 && cfg.model.layer_sizes.empty())
     {
-        cfg.layer_sizes.push_back(max_hidden);
+        cfg.model.layer_sizes.push_back(max_hidden);
     }
 }
 
@@ -147,6 +147,8 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
 
 auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> ComparativeConfig
 {
+    std::cerr << "[DBG_LOAD] Loading config from: " << path << "\n";
+    std::cerr.flush();
     ComparativeConfig cfg;
 
     std::ifstream f(path);
@@ -157,112 +159,33 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     nlohmann::json j;
     f >> j;
+    std::cerr << "[DBG_LOAD] JSON loaded. Keys: ";
+    for (auto& el : j.items()) std::cerr << el.key() << " ";
+    std::cerr << "\n";
+    std::cerr.flush();
 
-    auto get = [&](const std::string& key, auto& field)
-    {
-        if (j.contains(key)) field = j[key].get<std::decay_t<decltype(field)>>();
+    auto has_nested_keys = [](const nlohmann::json& json) -> bool {
+        return json.contains("experiment") && json.contains("dataset") &&
+               json.contains("training") && json.contains("model") &&
+               json.contains("evaluation");
     };
 
-    get("dataset_root", cfg.dataset_root);
-    get("results_dir", cfg.results_dir);
-    get("run_tag", cfg.run_tag);
-    get("seed", cfg.seed);
-    get("repeats", cfg.repeats);
-    get("window_size", cfg.window_size);
-    get("max_train_samples", cfg.max_train_samples);
-    get("max_val_samples", cfg.max_val_samples);
-    get("samples_per_batch", cfg.samples_per_batch);
-    get("batches_per_epoch", cfg.batches_per_epoch);
-    get("epochs", cfg.epochs);
-    get("early_stop_patience", cfg.early_stop_patience);
-    get("learning_rate", cfg.learning_rate);
-    get("anomaly_tau", cfg.anomaly_tau);
-    get("latent_size", cfg.latent_size);
-    get("branch_hidden_size", cfg.branch_hidden_size);
-    get("fusion_hidden_size", cfg.fusion_hidden_size);
-    get("layer_sizes", cfg.layer_sizes);
-
-    if (j.contains("neural_network_layer"))
+    if (has_nested_keys(j))
     {
-        const auto tokens = j["neural_network_layer"].get<std::vector<std::string>>();
-        for (const auto& token : tokens)
-        {
-            if (token.rfind("encoder:", 0) == 0)
-            {
-                cfg.encoder_layer_spec.emplace_back(token.substr(8));
-            }
-            else if (token.rfind("decoder:", 0) == 0)
-            {
-                cfg.decoder_layer_spec.emplace_back(token.substr(8));
-            }
-            else if (token.rfind("branch_encoder:", 0) == 0)
-            {
-                cfg.branch_encoder_layer_spec.emplace_back(token.substr(14));
-            }
-            else if (token.rfind("branch_decoder:", 0) == 0)
-            {
-                cfg.branch_decoder_layer_spec.emplace_back(token.substr(14));
-            }
-            else if (token.rfind("fusion_encoder:", 0) == 0)
-            {
-                cfg.fusion_encoder_layer_spec.emplace_back(token.substr(14));
-            }
-            else if (token.rfind("fusion_decoder:", 0) == 0)
-            {
-                cfg.fusion_decoder_layer_spec.emplace_back(token.substr(14));
-            }
-        }
+        std::cerr << "[DBG_LOAD] Using nested loader\n";
+        std::cerr.flush();
+        cfg = ComparativeConfig::from_nested_json(j);
     }
-
-    if (!cfg.encoder_layer_spec.empty())
+    else
     {
-        for (const auto& spec : cfg.encoder_layer_spec)
-        {
-            std::stringstream ss(spec);
-            std::string token;
-            std::vector<std::string> parts;
-            while (std::getline(ss, token, ':'))
-            {
-                parts.push_back(token);
-            }
-            if (parts.size() >= 2 && parts[0] == "linear")
-            {
-                try
-                {
-                    int hidden = std::stoi(parts[1]);
-                    if (hidden > 0)
-                    {
-                        if (cfg.layer_sizes.empty() || hidden != cfg.layer_sizes.front())
-                        {
-                            cfg.layer_sizes.insert(cfg.layer_sizes.begin(), hidden);
-                        }
-                    }
-                }
-                catch (...)
-                {
-                }
-            }
-        }
+        std::cerr << "[DBG_LOAD] Using flat loader\n";
+        std::cerr.flush();
+        cfg = ComparativeConfig::from_flat_json(j);
     }
-
-    infer_dimensions_from_layer_specs(cfg);
-    get("encoder_layer_spec", cfg.encoder_layer_spec);
-    get("decoder_layer_spec", cfg.decoder_layer_spec);
-    get("branch_encoder_layer_spec", cfg.branch_encoder_layer_spec);
-    get("branch_decoder_layer_spec", cfg.branch_decoder_layer_spec);
-    get("fusion_encoder_layer_spec", cfg.fusion_encoder_layer_spec);
-    get("fusion_decoder_layer_spec", cfg.fusion_decoder_layer_spec);
-    get("datasets", cfg.datasets);
-    get("encodings", cfg.encodings);
-    get("snn_architectures", cfg.snn_architectures);
-    get("v_th_values", cfg.v_th_values);
-    get("alpha_values", cfg.alpha_values);
-    get("seed_deterministic", cfg.seed_deterministic);
-    get("check_determinism", cfg.check_determinism);
 
     if (!cli_opts.dataset_root.empty())
     {
-        cfg.dataset_root = cli_opts.dataset_root;
+        cfg.dataset.dataset_root = cli_opts.dataset_root;
     }
 
     return cfg;
@@ -271,37 +194,30 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 auto config_hash(const ComparativeConfig& cfg) -> std::size_t
 {
     nlohmann::json j;
-    j["dataset_root"] = cfg.dataset_root;
-    j["results_dir"] = cfg.results_dir;
-    j["run_tag"] = cfg.run_tag;
-    j["seed"] = cfg.seed;
-    j["repeats"] = cfg.repeats;
-    j["window_size"] = cfg.window_size;
-    j["max_train_samples"] = cfg.max_train_samples;
-    j["max_val_samples"] = cfg.max_val_samples;
-    j["samples_per_batch"] = cfg.samples_per_batch;
-    j["batches_per_epoch"] = cfg.batches_per_epoch;
-    j["epochs"] = cfg.epochs;
-    j["early_stop_patience"] = cfg.early_stop_patience;
-    j["learning_rate"] = cfg.learning_rate;
-    j["anomaly_tau"] = cfg.anomaly_tau;
-    j["latent_size"] = cfg.latent_size;
-    j["branch_hidden_size"] = cfg.branch_hidden_size;
-    j["fusion_hidden_size"] = cfg.fusion_hidden_size;
-    j["layer_sizes"] = cfg.layer_sizes;
-    j["encoder_layer_spec"] = cfg.encoder_layer_spec;
-    j["decoder_layer_spec"] = cfg.decoder_layer_spec;
-    j["branch_encoder_layer_spec"] = cfg.branch_encoder_layer_spec;
-    j["branch_decoder_layer_spec"] = cfg.branch_decoder_layer_spec;
-    j["fusion_encoder_layer_spec"] = cfg.fusion_encoder_layer_spec;
-    j["fusion_decoder_layer_spec"] = cfg.fusion_decoder_layer_spec;
-    j["datasets"] = cfg.datasets;
-    j["encodings"] = cfg.encodings;
-    j["snn_architectures"] = cfg.snn_architectures;
-    j["v_th_values"] = cfg.v_th_values;
-    j["alpha_values"] = cfg.alpha_values;
-    j["seed_deterministic"] = cfg.seed_deterministic;
-    j["check_determinism"] = cfg.check_determinism;
+    j["experiment"]["run_tag"] = cfg.experiment.run_tag;
+    j["experiment"]["seed"] = cfg.experiment.seed;
+    j["experiment"]["repeats"] = cfg.experiment.repeats;
+    j["dataset"]["dataset_root"] = cfg.dataset.dataset_root;
+    j["dataset"]["results_dir"] = cfg.dataset.results_dir;
+    j["dataset"]["window_size"] = cfg.dataset.window_size;
+    j["dataset"]["max_train_samples"] = cfg.dataset.max_train_samples;
+    j["dataset"]["max_val_samples"] = cfg.dataset.max_val_samples;
+    j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
+    j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
+    j["training"]["epochs"] = cfg.training.epochs;
+    j["training"]["early_stop_patience"] = cfg.training.early_stop_patience;
+    j["training"]["learning_rate"] = cfg.training.learning_rate;
+    j["training"]["anomaly_tau"] = cfg.training.anomaly_tau;
+    j["model"]["latent_size"] = cfg.model.latent_size;
+    j["model"]["layer_sizes"] = cfg.model.layer_sizes;
+    j["evaluation"]["datasets"] = cfg.evaluation.datasets;
+    j["evaluation"]["encodings"] = cfg.evaluation.encodings;
+    j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
+    j["evaluation"]["v_th_values"] = cfg.evaluation.v_th_values;
+    j["evaluation"]["alpha_values"] = cfg.evaluation.alpha_values;
+    j["experiment"]["seed_deterministic"] = cfg.experiment.seed_deterministic;
+    j["experiment"]["check_determinism"] = cfg.experiment.check_determinism;
+    
     return std::hash<std::string>{}(j.dump());
 }
 

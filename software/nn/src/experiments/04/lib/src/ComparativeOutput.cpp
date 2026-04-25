@@ -38,19 +38,21 @@ void write_summary_json(const std::filesystem::path& path,
     const std::vector<ResultRow>& rows)
 {
     nlohmann::json j;
-    j["seed"] = cfg.seed;
+    j["seed"] = cfg.experiment.seed;
     j["config_hash"] = cfg_hash;
-    j["epochs"] = cfg.epochs;
-    j["samples_per_batch"] = cfg.samples_per_batch;
-    j["batches_per_epoch"] = cfg.batches_per_epoch;
-    j["window_size"] = cfg.window_size;
-    j["repeats"] = cfg.repeats;
+    j["experiment"]["seed"] = cfg.experiment.seed;
+    j["experiment"]["repeats"] = cfg.experiment.repeats;
+    j["training"]["epochs"] = cfg.training.epochs;
+    j["training"]["samples_per_batch"] = cfg.training.samples_per_batch;
+    j["training"]["batches_per_epoch"] = cfg.training.batches_per_epoch;
+    j["dataset"]["window_size"] = cfg.dataset.window_size;
     j["limitation_notes"] = {
         "Surrogate gradient in spiking model is an approximation.",
         "Latency encoding can reduce information throughput.",
         "Energy metric is a proxy: spikes + 10*MACs.",
         "Evaluation depends on available FSDD/PhysioNet files under dataset_root.",
     };
+
 
     std::vector<float> snn_mse;
     std::vector<float> lstm_mse;
@@ -115,7 +117,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
 
 void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows)
 {
-    if (cfg.repeats <= 1) return;
+    if (cfg.experiment.repeats <= 1) return;
 
     std::map<std::string, std::vector<const ResultRow*>> groups;
     for (const auto& row : rows)
@@ -136,7 +138,7 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
 
     for (const auto& [key, group] : groups)
     {
-        if (static_cast<int>(group.size()) != cfg.repeats)
+        if (static_cast<int>(group.size()) != cfg.experiment.repeats)
         {
             throw std::runtime_error("Determinism check failed (missing repeats) for key: " + key);
         }
