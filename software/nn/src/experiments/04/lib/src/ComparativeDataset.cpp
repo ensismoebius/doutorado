@@ -83,13 +83,8 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
 
 auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> DatasetSplit
 {
-    std::cerr << "[DBG_DATASET] Starting build_split for " << dataset << "\n";
-    std::cerr.flush();
-
     DatasetSplit split;
     const auto files = collect_signal_files(cfg, dataset);
-    std::cerr << "[DBG_DATASET] Found " << files.size() << " files\n";
-    std::cerr.flush();
 
     if (files.empty())
     {
@@ -99,8 +94,6 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     std::vector<Tensor> all_samples;
     for (const auto& file : files)
     {
-        std::cerr << "[DBG_DATASET] Loading " << file.string() << "\n";
-        std::cerr.flush();
         nn::Tensor signal;
         if (dataset == "fsdd")
         {

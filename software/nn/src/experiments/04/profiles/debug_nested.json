@@ -23,8 +23,8 @@
         "max_reconstruct_mean_deviation": 0.25
     },
     "model": {
-        "encoder_layer_spec": ["linear:16:leaky", "linear:latent:identity"],
-        "decoder_layer_spec": ["linear:latent:leaky", "linear:output:identity"]
+        "encoder_layer_spec": ["linear:16:leaky", "linear:8:identity"],
+        "decoder_layer_spec": ["linear:8:leaky", "linear:output:identity"]
     },
     "evaluation": {
         "datasets": ["fsdd"],

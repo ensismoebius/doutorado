@@ -28,7 +28,7 @@ The experiment compares:
 
 #### Latent Space and Compression
 
-The latent space dimensionality is now automatically inferred from the `encoder_layer_spec` (the size of the last encoder layer) or the `decoder_layer_spec` (the size of the first decoder layer).
+The latent space dimensionality is now defined explicitly within the `encoder_layer_spec` and `decoder_layer_spec`. For example, specifying the last encoder layer as `linear:32:identity` explicitly sets the latent size to 32.
 
 Forcing a small latent dimensionality prevents the model from simply copying the input to the output, requiring it to learn the most critical features of the data. In this comparative study, both models are assigned the same latent dimensionality to ensure a fair comparison of their compression efficiency and reconstruction accuracy.
 

@@ -2,14 +2,10 @@
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <stdexcept>
-#include <string_view>
 #include <vector>
 
 #include "nlohmann/json.hpp"
-
-#include <sstream>
 
 namespace comparative_autoencoder_experiment
 {
@@ -120,8 +116,6 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
 
 auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> ComparativeConfig
 {
-    std::cerr << "[DBG_LOAD] Loading config from: " << path << "\n";
-    std::cerr.flush();
     ComparativeConfig cfg;
 
     std::ifstream f(path);
@@ -132,10 +126,6 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     nlohmann::json j;
     f >> j;
-    std::cerr << "[DBG_LOAD] JSON loaded. Keys: ";
-    for (auto& el : j.items()) std::cerr << el.key() << " ";
-    std::cerr << "\n";
-    std::cerr.flush();
 
     auto has_nested_keys = [](const nlohmann::json& json) -> bool {
         return json.contains("experiment") && json.contains("dataset") &&
@@ -145,14 +135,10 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     if (has_nested_keys(j))
     {
-        std::cerr << "[DBG_LOAD] Using nested loader\n";
-        std::cerr.flush();
         cfg = ComparativeConfig::from_nested_json(j);
     }
     else
     {
-        std::cerr << "[DBG_LOAD] Using flat loader\n";
-        std::cerr.flush();
         cfg = ComparativeConfig::from_flat_json(j);
     }
 
@@ -182,7 +168,6 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["training"]["learning_rate"] = cfg.training.learning_rate;
     j["training"]["max_reconstruct_mean_deviation"] = cfg.training.max_reconstruct_mean_deviation;
 
-
     j["evaluation"]["datasets"] = cfg.evaluation.datasets;
     j["evaluation"]["encodings"] = cfg.evaluation.encodings;
     j["evaluation"]["snn_architectures"] = cfg.evaluation.snn_architectures;
@@ -190,7 +175,7 @@ auto config_hash(const ComparativeConfig& cfg) -> std::size_t
     j["evaluation"]["alpha_values"] = cfg.evaluation.alpha_values;
     j["experiment"]["seed_deterministic"] = cfg.experiment.seed_deterministic;
     j["experiment"]["check_determinism"] = cfg.experiment.check_determinism;
-    
+
     return std::hash<std::string>{}(j.dump());
 }
 
