@@ -62,6 +62,7 @@ class OpenCLTensorBackend
     OpenCLTensorBackend() = default;
 
     explicit OpenCLTensorBackend(Index rows, Index cols);
+    explicit OpenCLTensorBackend(Index d1, Index d2, Index d3);
     explicit OpenCLTensorBackend(Index d1, Index d2, Index d3, Index d4);
     explicit OpenCLTensorBackend(const std::vector<Index>& shape);
 

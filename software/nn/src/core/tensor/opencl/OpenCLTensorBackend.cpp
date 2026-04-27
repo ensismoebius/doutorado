@@ -42,6 +42,11 @@ class OpenCLHostStorage
     {
     }
 
+    explicit OpenCLHostStorage(Index d1, Index d2, Index d3)
+        : m_shape({d1, d2, d3}), m_data(d1 * d2 * d3, 0.0F)
+    {
+    }
+
     explicit OpenCLHostStorage(Index d1, Index d2, Index d3, Index d4)
         : m_shape({d1, d2, d3, d4}), m_data(d1 * d2 * d3 * d4, 0.0F)
     {
@@ -124,6 +129,16 @@ class OpenCLHostStorage
         return m_data[offset_2d(row, col)];
     }
 
+    float& at(Index d1, Index d2, Index d3)
+    {
+        return m_data[offset_3d(d1, d2, d3)];
+    }
+
+    const float& at(Index d1, Index d2, Index d3) const
+    {
+        return m_data[offset_3d(d1, d2, d3)];
+    }
+
     float& at(Index d1, Index d2, Index d3, Index d4)
     {
         return m_data[offset_4d(d1, d2, d3, d4)];
@@ -166,6 +181,20 @@ class OpenCLHostStorage
         return row + (col * m_shape[0]);
     }
 
+    Index offset_3d(Index d1, Index d2, Index d3) const
+    {
+        if (m_shape.size() != 3)
+        {
+            throw std::invalid_argument("at(d1, d2, d3) is only valid for 3D tensors");
+        }
+        if (d1 >= m_shape[0] || d2 >= m_shape[1] || d3 >= m_shape[2])
+        {
+            throw std::out_of_range("Index out of range");
+        }
+        const Index col_idx = d2 * m_shape[2] + d3;
+        return d1 + (col_idx * m_shape[0]);
+    }
+
     Index offset_4d(Index d1, Index d2, Index d3, Index d4) const
     {
         if (m_shape.size() != 4)
@@ -195,6 +224,10 @@ class OpenCLHostStorage
         if (indices.size() == 2)
         {
             return offset_2d(indices[0], indices[1]);
+        }
+        if (indices.size() == 3)
+        {
+            return offset_3d(indices[0], indices[1], indices[2]);
         }
         if (indices.size() == 4)
         {
@@ -585,6 +618,12 @@ OpenCLTensorBackend::OpenCLTensorBackend(Index rows, Index cols)
     : m_backend(std::make_unique<OpenCLHostStorage>(rows, cols))
 {
     try_allocate_gpu_buffer(rows * cols);
+}
+
+OpenCLTensorBackend::OpenCLTensorBackend(Index d1, Index d2, Index d3)
+    : m_backend(std::make_unique<OpenCLHostStorage>(d1, d2, d3))
+{
+    try_allocate_gpu_buffer(d1 * d2 * d3);
 }
 
 OpenCLTensorBackend::OpenCLTensorBackend(Index d1, Index d2, Index d3, Index d4)

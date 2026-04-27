@@ -479,6 +479,191 @@ TEST(TensorTest, ThreadSafetyValidation)
     }
 }
 
+// -----------------------------------------------------------------------
+// 3D tensor tests
+// -----------------------------------------------------------------------
+
+TEST(TensorTest, ThreeDConstruction)
+{
+    nn::Tensor t(2, 3, 4);
+    ASSERT_EQ(t.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    ASSERT_EQ(t.size(), 24u);
+    ASSERT_EQ(t.rows(), 2u);
+    ASSERT_EQ(t.cols(), 3u);
+    ASSERT_NEAR(t.sum(), 0.0f, 1e-6f);
+}
+
+TEST(TensorTest, ThreeDAccess)
+{
+    nn::Tensor t(2, 3, 4);
+    t.at(0, 0, 0) = 1.0f;
+    t.at(1, 2, 3) = 2.0f;
+    t.at(0, 1, 2) = 3.0f;
+
+    EXPECT_NEAR(t.at(0, 0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 2, 3), 2.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 1, 2), 3.0f, 1e-6f);
+
+    // operator() overload
+    t(0, 2, 1) = 7.0f;
+    EXPECT_NEAR(t(0, 2, 1), 7.0f, 1e-6f);
+}
+
+TEST(TensorTest, ThreeDAccessOutOfRange)
+{
+    nn::Tensor t(2, 3, 4);
+    ASSERT_THROW(t.at(2, 0, 0), std::out_of_range);
+    ASSERT_THROW(t.at(0, 3, 0), std::out_of_range);
+    ASSERT_THROW(t.at(0, 0, 4), std::out_of_range);
+}
+
+TEST(TensorTest, ThreeDAccessWrongDimension)
+{
+    nn::Tensor t3d(2, 3, 4);
+    nn::Tensor t2d(2, 3);
+    nn::Tensor t4d(2, 3, 4, 5);
+
+    // 2D accessor on 3D tensor
+    ASSERT_THROW(t3d.at(0, 0), std::invalid_argument);
+    // 4D accessor on 3D tensor
+    ASSERT_THROW(t3d.at(0, 0, 0, 0), std::invalid_argument);
+    // 3D accessor on 2D tensor
+    ASSERT_THROW(t2d.at(0, 0, 0), std::invalid_argument);
+    // 3D accessor on 4D tensor
+    ASSERT_THROW(t4d.at(0, 0, 0), std::invalid_argument);
+}
+
+TEST(TensorTest, ThreeDVectorAccess)
+{
+    nn::Tensor t(2, 3, 4);
+    t.at(1, 2, 3) = 5.0f;
+
+    // vector-index access must agree with typed access
+    EXPECT_NEAR(t.at({1, 2, 3}), 5.0f, 1e-6f);
+
+    // wrong number of indices
+    ASSERT_THROW(t.at({1, 2}), std::invalid_argument);
+    ASSERT_THROW(t.at({1, 2, 3, 0}), std::invalid_argument);
+}
+
+TEST(TensorTest, ThreeDVectorConstruction)
+{
+    // Shape vector of length 3 must produce a proper 3D tensor
+    nn::Tensor t(std::vector<size_t>{2, 3, 4});
+    ASSERT_EQ(t.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    ASSERT_EQ(t.size(), 24u);
+
+    t.at({0, 0, 0}) = 1.0f;
+    t.at({1, 2, 3}) = 2.0f;
+    EXPECT_NEAR(t.at(0, 0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(t.at(1, 2, 3), 2.0f, 1e-6f);
+}
+
+TEST(TensorTest, ThreeDFactories)
+{
+    auto z = nn::Tensor::zeros(2, 3, 4);
+    ASSERT_EQ(z.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    EXPECT_NEAR(z.sum(), 0.0f, 1e-6f);
+
+    auto o = nn::Tensor::ones(2, 3, 4);
+    ASSERT_EQ(o.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    EXPECT_NEAR(o.sum(), 24.0f, 1e-6f);
+
+    auto c = nn::Tensor::constant(2, 3, 4, 3.5f);
+    ASSERT_EQ(c.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    EXPECT_NEAR(c.at(0, 0, 0), 3.5f, 1e-6f);
+    EXPECT_NEAR(c.at(1, 2, 3), 3.5f, 1e-6f);
+}
+
+TEST(TensorTest, ThreeDRandDeterminism)
+{
+    std::mt19937 rng1(42), rng2(42);
+    auto a = nn::Tensor::rand(2, 3, 4, rng1);
+    auto b = nn::Tensor::rand(2, 3, 4, rng2);
+    ASSERT_EQ(a.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    ASSERT_EQ(a.size(), 24u);
+    for (size_t i = 0; i < 2; ++i)
+        for (size_t j = 0; j < 3; ++j)
+            for (size_t k = 0; k < 4; ++k)
+                EXPECT_FLOAT_EQ(a.at(i, j, k), b.at(i, j, k));
+}
+
+TEST(TensorTest, ThreeDRandNonDeterministic)
+{
+    auto a = nn::Tensor::rand(2, 3, 4);
+    ASSERT_EQ(a.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    ASSERT_EQ(a.size(), 24u);
+    // Values should be in [0, 1)
+    for (size_t i = 0; i < 2; ++i)
+        for (size_t j = 0; j < 3; ++j)
+            for (size_t k = 0; k < 4; ++k)
+            {
+                EXPECT_GE(a.at(i, j, k), 0.0f);
+                EXPECT_LT(a.at(i, j, k), 1.0f);
+            }
+}
+
+TEST(TensorTest, ThreeDReshapeToAndFrom)
+{
+    // 3D → 2D reshape
+    nn::Tensor t3(2, 3, 4);
+    t3.at(0, 0, 0) = 1.0f;
+    t3.at(1, 2, 3) = 2.0f;
+    t3.reshape({2, 12});
+    ASSERT_EQ(t3.get_shape(), (std::vector<size_t>{2, 12}));
+    ASSERT_EQ(t3.size(), 24u);
+
+    // 2D → 3D reshape (total size preserved)
+    nn::Tensor t2(4, 6);
+    for (size_t i = 0; i < 4; ++i)
+        for (size_t j = 0; j < 6; ++j)
+            t2.at(i, j) = static_cast<float>(i * 6 + j);
+
+    t2.reshape({4, 3, 2});
+    ASSERT_EQ(t2.get_shape(), (std::vector<size_t>{4, 3, 2}));
+    ASSERT_EQ(t2.size(), 24u);
+    // Check reshape size mismatch is rejected
+    ASSERT_THROW(t2.reshape({3, 3, 3}), std::invalid_argument);
+}
+
+TEST(TensorTest, ThreeDGradient)
+{
+    nn::Tensor t(2, 3, 4);
+    t.fill(1.0f);
+
+    nn::Tensor g(2, 3, 4);
+    g.fill(5.0f);
+    t.set_grad(g);
+
+    auto retrieved = t.grad();
+    ASSERT_EQ(retrieved.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    EXPECT_NEAR(retrieved.sum(), 5.0f * 24.0f, 1e-4f);
+
+    t.zero_grad();
+    EXPECT_NEAR(t.grad().sum(), 0.0f, 1e-6f);
+}
+
+TEST(TensorTest, ThreeDElementwiseOps)
+{
+    nn::Tensor a(2, 3, 4);
+    a.fill(2.0f);
+    nn::Tensor b(2, 3, 4);
+    b.fill(3.0f);
+
+    auto sum = a.add(b);
+    ASSERT_EQ(sum.get_shape(), (std::vector<size_t>{2, 3, 4}));
+    EXPECT_NEAR(sum.at(0, 0, 0), 5.0f, 1e-6f);
+    EXPECT_NEAR(sum.sum(), 5.0f * 24.0f, 1e-4f);
+
+    auto prod = a.multiply(b);
+    EXPECT_NEAR(prod.at(1, 2, 3), 6.0f, 1e-6f);
+
+    auto scaled = a.multiply_scalar(3.0f);
+    EXPECT_NEAR(scaled.at(0, 1, 2), 6.0f, 1e-6f);
+}
+
+// -----------------------------------------------------------------------
+
 TEST(TensorTest, RandDeterminism)
 {
     std::mt19937 rng1(12345);

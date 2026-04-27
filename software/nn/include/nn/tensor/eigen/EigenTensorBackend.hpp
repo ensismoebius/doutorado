@@ -55,6 +55,13 @@ class EigenTensorBackend
     {
     }
 
+    explicit EigenTensorBackend(Index d1, Index d2, Index d3)
+        : m_data(Eigen::MatrixXf::Zero(
+              static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(d2 * d3))),
+          m_shape({d1, d2, d3})
+    {
+    }
+
     explicit EigenTensorBackend(Index d1, Index d2, Index d3, Index d4)
         : m_data(Eigen::MatrixXf::Zero(
               static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(d2 * d3 * d4))),
@@ -68,6 +75,11 @@ class EigenTensorBackend
         {
             m_data.resize(static_cast<Eigen::Index>(shape[0]), static_cast<Eigen::Index>(shape[1]));
         }
+        else if (shape.size() == 3)
+        {
+            m_data.resize(static_cast<Eigen::Index>(shape[0]),
+                static_cast<Eigen::Index>(shape[1] * shape[2]));
+        }
         else if (shape.size() == 4)
         {
             m_data.resize(static_cast<Eigen::Index>(shape[0]),
@@ -75,7 +87,7 @@ class EigenTensorBackend
         }
         else
         {
-            // Flat fallback
+            // Flat fallback for 1D and 5D+
             // cppcheck-suppress useStlAlgorithm
             const Eigen::Index total = std::accumulate(shape.begin(),
                 shape.end(),
@@ -166,6 +178,26 @@ class EigenTensorBackend
             [&]() { return dist(rng); });
         return t;
     }
+    // 3D random uniform [0,1).
+    static EigenTensorBackend random(Index d1, Index d2, Index d3)
+    {
+        EigenTensorBackend t(d1, d2, d3);
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(d1),
+            static_cast<Eigen::Index>(d2 * d3),
+            [&]() { return dist(rng); });
+        return t;
+    }
+    static EigenTensorBackend random(Index d1, Index d2, Index d3, std::mt19937& rng)
+    {
+        EigenTensorBackend t(d1, d2, d3);
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        t.m_data = Eigen::MatrixXf::NullaryExpr(static_cast<Eigen::Index>(d1),
+            static_cast<Eigen::Index>(d2 * d3),
+            [&]() { return dist(rng); });
+        return t;
+    }
 
     // -----------------------------------------------------------------
     // Shape
@@ -201,6 +233,11 @@ class EigenTensorBackend
             new_rows = static_cast<Eigen::Index>(new_shape[0]);
             new_cols = static_cast<Eigen::Index>(new_shape[1]);
         }
+        else if (new_shape.size() == 3)
+        {
+            new_rows = static_cast<Eigen::Index>(new_shape[0]);
+            new_cols = static_cast<Eigen::Index>(new_shape[1] * new_shape[2]);
+        }
         else if (new_shape.size() == 4)
         {
             new_rows = static_cast<Eigen::Index>(new_shape[0]);
@@ -208,7 +245,7 @@ class EigenTensorBackend
         }
         else
         {
-            // Flat fallback
+            // Flat fallback for 1D and 5D+
             new_rows = new_size;
             new_cols = 1;
         }
@@ -276,6 +313,26 @@ class EigenTensorBackend
         return m_data(static_cast<Eigen::Index>(row), static_cast<Eigen::Index>(col));
     }
 
+    // 3D access: maps (d1, d2, d3) → storage (row=d1, col=d2*shape[2]+d3).
+    float& at(Index d1, Index d2, Index d3)
+    {
+        if (m_shape.size() != 3)
+            throw std::invalid_argument("at(d1, d2, d3) is only valid for 3D tensors");
+        if (d1 >= m_shape[0] || d2 >= m_shape[1] || d3 >= m_shape[2])
+            throw std::out_of_range("Index out of range");
+        const Index col_idx = d2 * m_shape[2] + d3;
+        return m_data(static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(col_idx));
+    }
+    const float& at(Index d1, Index d2, Index d3) const
+    {
+        if (m_shape.size() != 3)
+            throw std::invalid_argument("at(d1, d2, d3) is only valid for 3D tensors");
+        if (d1 >= m_shape[0] || d2 >= m_shape[1] || d3 >= m_shape[2])
+            throw std::out_of_range("Index out of range");
+        const Index col_idx = d2 * m_shape[2] + d3;
+        return m_data(static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(col_idx));
+    }
+
     // 4D access: maps d2,d3,d4 → column index: col_idx = d2*(d3*d4) + d3*(d4) + d4.
     // This mapping is part of the public contract; changing it requires documenting compatibility.
     float& at(Index d1, Index d2, Index d3, Index d4)
@@ -303,17 +360,18 @@ class EigenTensorBackend
         return m_data(static_cast<Eigen::Index>(d1), static_cast<Eigen::Index>(col_idx));
     }
 
-    // N-D access: delegate to 1/2/4 specializations; otherwise linearize indices.
+    // N-D access: delegate to 1/2/3/4 specializations; otherwise linearize indices.
     float& at(const std::vector<Index>& indices)
     {
         if (indices.size() != m_shape.size())
             throw std::invalid_argument("Indices dimension mismatch");
 
-        if (indices.size() == 2) return at(indices[0], indices[1]);
-        if (indices.size() == 4) return at(indices[0], indices[1], indices[2], indices[3]);
         if (indices.size() == 1) return at(indices[0]);
+        if (indices.size() == 2) return at(indices[0], indices[1]);
+        if (indices.size() == 3) return at(indices[0], indices[1], indices[2]);
+        if (indices.size() == 4) return at(indices[0], indices[1], indices[2], indices[3]);
 
-        // General linear access for other dimensions (e.g. 3D flattened fallback)
+        // General linear access for 5D+ (stored flat as (total, 1))
         Eigen::Index flat_idx = 0;
         Eigen::Index current_stride = 1;
         for (int i = static_cast<int>(m_shape.size()) - 1; i >= 0; --i)
@@ -329,9 +387,10 @@ class EigenTensorBackend
         if (indices.size() != m_shape.size())
             throw std::invalid_argument("Indices dimension mismatch");
 
-        if (indices.size() == 2) return at(indices[0], indices[1]);
-        if (indices.size() == 4) return at(indices[0], indices[1], indices[2], indices[3]);
         if (indices.size() == 1) return at(indices[0]);
+        if (indices.size() == 2) return at(indices[0], indices[1]);
+        if (indices.size() == 3) return at(indices[0], indices[1], indices[2]);
+        if (indices.size() == 4) return at(indices[0], indices[1], indices[2], indices[3]);
 
         Eigen::Index flat_idx = 0;
         Eigen::Index current_stride = 1;
@@ -393,10 +452,11 @@ class EigenTensorBackend
 
     EigenTensorBackend exp() const
     {
-        return EigenTensorBackend(m_data.array().exp());
+        return make_like(m_data.array().exp().matrix());
     }
     EigenTensorBackend rowwise_sum() const
     {
+        // Shape changes: result is always (rows, 1) — no make_like.
         EigenTensorBackend res(m_data.rows(), 1);
         res.m_data = m_data.rowwise().sum();
         return res;
@@ -414,7 +474,7 @@ class EigenTensorBackend
     EigenTensorBackend add(const EigenTensorBackend& other) const
     {
         if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for add");
-        return EigenTensorBackend(m_data + other.m_data);
+        return make_like(m_data + other.m_data);
     }
 
     // Add a column vector of shape (cols, 1) to every row of this 2D tensor.
@@ -437,13 +497,13 @@ class EigenTensorBackend
     EigenTensorBackend subtract(const EigenTensorBackend& other) const
     {
         if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for subtract");
-        return EigenTensorBackend(m_data - other.m_data);
+        return make_like(m_data - other.m_data);
     }
 
     EigenTensorBackend multiply(const EigenTensorBackend& other) const
     {
         if (m_shape != other.m_shape) throw std::invalid_argument("Shape mismatch for multiply");
-        return EigenTensorBackend(m_data.cwiseProduct(other.m_data));
+        return make_like(m_data.cwiseProduct(other.m_data));
     }
 
     // Matrix multiplication for 2D tensors only. Backends should delegate to
@@ -467,20 +527,20 @@ class EigenTensorBackend
 
     EigenTensorBackend add_scalar(float val) const
     {
-        return EigenTensorBackend(m_data.array() + val);
+        return make_like((m_data.array() + val).matrix());
     }
     EigenTensorBackend multiply_scalar(float val) const
     {
-        return EigenTensorBackend(m_data * val);
+        return make_like(m_data * val);
     }
     EigenTensorBackend divide_scalar(float val) const
     {
-        return EigenTensorBackend(m_data / val);
+        return make_like(m_data / val);
     }
 
     EigenTensorBackend divide(const EigenTensorBackend& other) const
     {
-        return EigenTensorBackend(m_data.array() / other.m_data.array());
+        return make_like((m_data.array() / other.m_data.array()).matrix());
     }
 
     // Elementwise comparisons: return tensor of 0.0/1.0 floats where condition holds.
@@ -502,7 +562,8 @@ class EigenTensorBackend
 
         if (rows_a == rows_b)
         {
-            return EigenTensorBackend((a < b).cast<float>().matrix());
+            // Same shape: preserve logical shape (handles 3D/4D correctly).
+            return make_like((a < b).cast<float>().matrix());
         }
         else if (rows_a == 1)
         {
@@ -537,7 +598,7 @@ class EigenTensorBackend
 
         if (rows_a == rows_b)
         {
-            return EigenTensorBackend((a <= b).cast<float>().matrix());
+            return make_like((a <= b).cast<float>().matrix());
         }
         else if (rows_a == 1)
         {
@@ -572,7 +633,7 @@ class EigenTensorBackend
 
         if (rows_a == rows_b)
         {
-            return EigenTensorBackend((a == b).cast<float>().matrix());
+            return make_like((a == b).cast<float>().matrix());
         }
         else if (rows_a == 1)
         {
@@ -589,51 +650,46 @@ class EigenTensorBackend
     // Scalar comparisons: compare every element to a scalar value.
     EigenTensorBackend compare_lt_scalar(float value) const
     {
-        Eigen::MatrixXf out = (m_data.array() < value).cast<float>().matrix();
-        return EigenTensorBackend(std::move(out));
+        return make_like((m_data.array() < value).cast<float>().matrix());
     }
     EigenTensorBackend compare_gt_scalar(float value) const
     {
-        Eigen::MatrixXf out = (m_data.array() > value).cast<float>().matrix();
-        return EigenTensorBackend(std::move(out));
+        return make_like((m_data.array() > value).cast<float>().matrix());
     }
     EigenTensorBackend compare_le_scalar(float value) const
     {
-        Eigen::MatrixXf out = (m_data.array() <= value).cast<float>().matrix();
-        return EigenTensorBackend(std::move(out));
+        return make_like((m_data.array() <= value).cast<float>().matrix());
     }
     EigenTensorBackend compare_ge_scalar(float value) const
     {
-        Eigen::MatrixXf out = (m_data.array() >= value).cast<float>().matrix();
-        return EigenTensorBackend(std::move(out));
+        return make_like((m_data.array() >= value).cast<float>().matrix());
     }
     EigenTensorBackend compare_eq_scalar(float value) const
     {
-        Eigen::MatrixXf out = (m_data.array() == value).cast<float>().matrix();
-        return EigenTensorBackend(std::move(out));
+        return make_like((m_data.array() == value).cast<float>().matrix());
     }
 
     EigenTensorBackend sqrt() const
     {
-        return EigenTensorBackend(m_data.array().sqrt());
+        return make_like(m_data.array().sqrt().matrix());
     }
     EigenTensorBackend square() const
     {
-        return EigenTensorBackend(m_data.array().square());
+        return make_like(m_data.array().square().matrix());
     }
     EigenTensorBackend abs() const
     {
-        return EigenTensorBackend(m_data.array().abs());
+        return make_like(m_data.array().abs().matrix());
     }
 
     EigenTensorBackend relu() const
     {
-        return EigenTensorBackend(m_data.cwiseMax(0.0f));
+        return make_like(m_data.cwiseMax(0.0f));
     }
 
     EigenTensorBackend leaky_relu(float alpha) const
     {
-        return EigenTensorBackend((m_data.array() > 0).select(m_data, alpha * m_data));
+        return make_like((m_data.array() > 0).select(m_data, alpha * m_data));
     }
 
     // -----------------------------------------------------------------
@@ -641,9 +697,7 @@ class EigenTensorBackend
     // -----------------------------------------------------------------
     EigenTensorBackend clamp(float min_val, float max_val) const
     {
-        EigenTensorBackend out(*this);
-        out.m_data = out.m_data.cwiseMax(min_val).cwiseMin(max_val);
-        return out;
+        return make_like(m_data.cwiseMax(min_val).cwiseMin(max_val));
     }
 
     void clamp_inplace(float min_val, float max_val)
@@ -824,11 +878,9 @@ class EigenTensorBackend
     EigenTensorBackend get_grad() const
     {
         // Returns a *value* (copy). If no grad is allocated, returns a zeros tensor
-        // with the same logical rows/cols. For device-backed tensors, consider
-        // whether get_grad() implies a host copy or a device pointer; document
-        // that behaviour clearly in your backend.
+        // with the same shape as this tensor (preserving 3D/4D shapes, not just 2D).
         if (m_grad_backend) return *m_grad_backend;
-        return EigenTensorBackend::zeros(rows(), cols());
+        return EigenTensorBackend(m_shape);
     }
 
     // Copy provided gradient into internal storage, allocating lazily if needed.
@@ -836,7 +888,7 @@ class EigenTensorBackend
     {
         // Copies the provided gradient values into this backend's grad buffer.
         // Precondition: `other` should be shape-compatible with this tensor.
-        if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(rows(), cols());
+        if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(m_shape);
         m_grad_backend->m_data = other.m_data;
     }
 
@@ -852,8 +904,19 @@ class EigenTensorBackend
     // access.
     EigenTensorBackend& grad_ref()
     {
-        if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(rows(), cols());
+        if (!m_grad_backend) m_grad_backend = std::make_unique<EigenTensorBackend>(m_shape);
         return *m_grad_backend;
+    }
+
+    // Creates a backend whose underlying matrix is `data` but whose logical shape
+    // matches this tensor. Used by all shape-preserving operations (add, multiply,
+    // exp, relu, etc.) so that 3D/4D shapes survive element-wise computation.
+    EigenTensorBackend make_like(Eigen::MatrixXf data) const
+    {
+        EigenTensorBackend result;
+        result.m_data = std::move(data);
+        result.m_shape = m_shape;
+        return result;
     }
 
    private:

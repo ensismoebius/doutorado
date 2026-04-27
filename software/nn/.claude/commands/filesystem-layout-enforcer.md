@@ -1,0 +1,40 @@
+---
+description: "Enforce modular project layout for core libraries, experiments, profiles, and result artifacts."
+---
+
+# filesystem-layout-enforcer
+
+Preserve repository modularity and discoverability. Every new file must land in the correct location.
+
+## Rules
+
+- **EXPERIMENT_LAYOUT**: Place reusable experiment code under `src/experiments/<id>/lib/include/` and `src/experiments/<id>/lib/src/`. No mixing reusable code into ad-hoc mains.
+- **CORE_BOUNDARY**: Keep shared primitives in `src/core/` and public headers in `include/`. No duplicating core utilities inside experiments.
+- **ARTIFACT_LAYOUT**: Keep profile and result artifacts in dedicated folders (`results/`, `profiles/`). No scattering generated outputs across source trees.
+
+## Expected Layout
+
+```
+include/nn/          ← public headers for core library
+src/core/            ← core library implementations
+src/experiments/
+  <id>/
+    main.cpp         ← entry point only
+    lib/
+      include/       ← experiment-local reusable headers
+      src/           ← experiment-local reusable sources
+results/             ← timestamped run outputs
+profiles/            ← profiling artifacts
+```
+
+## Checklist
+
+1. Is the new file a shared primitive? → `include/nn/` + `src/core/`.
+2. Is it experiment-specific and reusable within that experiment? → `src/experiments/<id>/lib/`.
+3. Is it a run artifact (JSON, binary, log)? → `results/<experiment_id>/<timestamp>/`.
+4. Does any new header duplicate something already in `include/nn/`?
+
+## Validation
+
+- New files follow existing module boundaries.
+- No generated artifacts committed to `src/` or `include/`.
