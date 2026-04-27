@@ -41,6 +41,7 @@ struct Adam : public Optimizer
 
     std::vector<nn::Tensor> moment1; // Vetor de médias móveis dos gradientes
     std::vector<nn::Tensor> moment2; // Vetor de médias móveis dos quadrados dos gradientes
+    std::vector<float> lr_scales_;   // Per-parameter lr multipliers (1.0 = global lr)
 
     // Inicializa o Adam com hiperparâmetros padrão recomendados na literatura.
     // learning_rate: taxa de aprendizado, decay_rate_moment1: decaimento do primeiro momento,
@@ -113,6 +114,30 @@ struct Adam : public Optimizer
         }
     }
 
+    /**
+     * @brief Attach parameters with individual learning-rate scales.
+     *
+     * Enables per-parameter-group learning rates — critical for SNN training
+     * where biophysical parameters (R, C, V_th) require a much smaller lr than
+     * weight matrices (recommended scale ≈ 0.1, giving lr_snn ≈ 1e-4).
+     *
+     * @param params     Parameter tensors to optimise.
+     * @param lr_scales  Per-parameter lr multiplier (same size as params).
+     *                   Effective lr for param i = learning_rate * lr_scales[i].
+     *
+     * Reference: Frontiers Neuroscience 2025 [37]; SNN lr guidance lr=1e-4 for
+     * biophysical params vs lr=1e-3 for weight matrices.
+     */
+    void attach_with_scales(std::span<nn::Tensor*> params, std::span<const float> lr_scales)
+    {
+        if (params.size() != lr_scales.size())
+        {
+            throw std::invalid_argument("attach_with_scales: params and lr_scales must match");
+        }
+        lr_scales_.assign(lr_scales.begin(), lr_scales.end());
+        attach(params);
+    }
+
     // Inicializa os vetores moment1 e moment2 para cada parâmetro, com zeros do mesmo shape dos
     // gradientes. Deve ser chamado sempre que os parâmetros mudarem.
     void attach(std::span<nn::Tensor*> params) override
@@ -163,6 +188,9 @@ struct Adam : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
+            // Per-parameter lr: use scale if provided, otherwise 1.0 (global lr).
+            const float lr_i = learning_rate
+                                * (i < lr_scales_.size() ? lr_scales_[i] : 1.0f);
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             // moment1[i] = decay_rate_moment1 * moment1[i] + (1 - decay_rate_moment1) * grad
             // Precondition: `param.grad()` must be meaningful. If the model did not run
@@ -191,7 +219,7 @@ struct Adam : public Optimizer
             // param = param - learning_rate * m_hat / (sqrt(v_hat) + epsilon)
             nn::Tensor v_hat_sqrt = v_hat.sqrt();
             nn::Tensor v_hat_sqrt_eps = v_hat_sqrt.add_scalar(epsilon);
-            nn::Tensor m_hat_scaled = m_hat.multiply_scalar(learning_rate);
+            nn::Tensor m_hat_scaled = m_hat.multiply_scalar(lr_i);
             nn::Tensor update_step = m_hat_scaled.divide(v_hat_sqrt_eps);
 
             param = param.add(update_step.multiply_scalar(-1.0f));

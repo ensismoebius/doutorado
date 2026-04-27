@@ -85,6 +85,23 @@ struct LeakyImpl : public Module<Backend>
     /// @brief The potential to reset to if `reset_zero` is true.
     float reset_potential = 0.0F;
 
+    // --- Spike-frequency adaptation (adaptive threshold) ---
+    // Implements a negative-feedback adaptation variable `adapt_a`:
+    //   adapt_a[t] = adapt_decay * adapt_a[t-1] + adapt_coupling * spike[t-1]
+    //   effective threshold = voltage_threshold + adapt_a
+    // After each spike, the threshold rises by `adapt_coupling`, then decays
+    // back toward zero at rate `adapt_decay`. This suppresses bursting and
+    // improves temporal selectivity.
+    //
+    // Reference: [34-35] MPD-ATP (IEEE Xplore 2025); AR-LIF (arXiv 2025).
+    // Set adapt_coupling = 0.0 (default) to disable adaptation.
+
+    /// @brief Per-call decay of the adaptation variable (0 < adapt_decay < 1).
+    float adapt_decay = 0.9F;
+
+    /// @brief Coupling strength: amount by which threshold rises per spike.
+    float adapt_coupling = 0.0F; // 0 = disabled; try 0.1–0.3 for adaptation
+
     // Persistent membrane potential (stateful, snnTorch-like)
 
     /// @brief Caches the membrane potential *before* spike/reset for the backward pass.
@@ -95,6 +112,9 @@ struct LeakyImpl : public Module<Backend>
 
     /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
     Tensor v_mem_t_minus_1;
+
+    /// @brief Adaptation variable: raised by adapt_coupling on each spike, then decays.
+    Tensor adapt_a;
 
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
@@ -139,6 +159,10 @@ struct LeakyImpl : public Module<Backend>
         {
             v_mem_t_minus_1.setZero();
         }
+        if (adapt_a.size() > 0)
+        {
+            adapt_a.setZero();
+        }
     }
 
     /**
@@ -157,6 +181,8 @@ struct LeakyImpl : public Module<Backend>
         float voltage_threshold_ = 1.0F,        // voltage threshold
         bool reset_zero_ = true,                // reset to zero or subtract threshold
         float reset_potential_ = 0.0F,          // reset potential value
+        float adapt_decay_ = 0.9F,              // adaptation decay rate
+        float adapt_coupling_ = 0.0F,           // adaptation coupling (0 = disabled)
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>())
         : time_step(time_step_),
@@ -165,6 +191,8 @@ struct LeakyImpl : public Module<Backend>
           voltage_threshold(Tensor::constant(1, 1, voltage_threshold_)),
           reset_zero(reset_zero_),
           reset_potential(reset_potential_),
+          adapt_decay(adapt_decay_),
+          adapt_coupling(adapt_coupling_),
           surrogate_gradient(std::move(surrogate_grad))
     {
     }
