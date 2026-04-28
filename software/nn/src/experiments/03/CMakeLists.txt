@@ -68,6 +68,9 @@ add_library(experiment04_lib STATIC
 target_include_directories(experiment04_lib
     PUBLIC
         ${SRC_DIR}/experiments/04/lib/include
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_SOURCE_DIR}/include
 )
 
 target_link_libraries(experiment04_lib
