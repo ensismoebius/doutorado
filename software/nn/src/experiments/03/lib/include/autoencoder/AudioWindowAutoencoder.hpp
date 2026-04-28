@@ -16,7 +16,7 @@
  *   Encoder: Linear(input_features → hidden) → ReLU → [×depth] → Linear(hidden → latent) → ReLU
  *   Decoder: Linear(latent → hidden) → ReLU → [×depth] → Linear(hidden → input_features)
  */
-struct AudioWindowAutoencoder : Module<nn::EigenTensorBackend>
+struct AudioWindowAutoencoder : Module<nn::Backend>
 {
     Sequential encoder_;
     Sequential decoder_;

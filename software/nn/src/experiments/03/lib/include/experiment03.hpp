@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Experiment03Config.hpp"
+#include "nn/Backend.hpp"
 #include "nn/dataLoaders/datasets/Dataset.hpp"
 #include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
 #include "nn/dataLoaders/runtime/DataLoader.hpp"
@@ -30,7 +31,7 @@ class Experiment03
     std::unique_ptr<BatchPrefetcher> prefetcher_;
     std::unique_ptr<DataLoader> data_loader_;
     std::shared_ptr<Dataset> dataset_;
-    std::unique_ptr<Module<nn::EigenTensorBackend>> model_;
+    std::unique_ptr<Module<nn::Backend>> model_;
 
     std::size_t seen_batches_ = 0;
     std::size_t processed_samples_ = 0;

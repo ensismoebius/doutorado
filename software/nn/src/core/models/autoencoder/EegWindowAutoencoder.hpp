@@ -44,7 +44,7 @@ namespace nn::models::autoencoder
  * @note Uses ReLU activation (standard ANN). For spiking neurons,
  *       use EegWindowSpikingAutoencoder instead.
  */
-class EegWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
+class EegWindowAutoencoder : public BaseAutoencoder<nn::Backend>
 {
    public:
     /**

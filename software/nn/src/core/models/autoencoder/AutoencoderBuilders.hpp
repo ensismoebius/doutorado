@@ -32,6 +32,7 @@
 #ifndef NN_MODELS_AUTOENCODER_BUILDERS_HPP
 #define NN_MODELS_AUTOENCODER_BUILDERS_HPP
 
+#include "nn/Backend.hpp"
 #include <memory>
 
 #include "AutoencoderType.hpp"
@@ -50,10 +51,10 @@ class FusedWindowAutoencoder;
 namespace nn::models::autoencoder::builders
 {
 
-std::unique_ptr<BaseAutoencoder<nn::EigenTensorBackend>> create(
+std::unique_ptr<BaseAutoencoder<nn::Backend>> create(
     AutoencoderType type, const AutoencoderConfig& cfg);
 
-inline std::unique_ptr<BaseAutoencoder<nn::EigenTensorBackend>> create(
+inline std::unique_ptr<BaseAutoencoder<nn::Backend>> create(
     const std::string& type_str, const AutoencoderConfig& cfg)
 {
     return create(from_string(type_str), cfg);

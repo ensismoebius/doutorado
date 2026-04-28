@@ -16,7 +16,7 @@
  *   Encoder: Linear(input_features → hidden) → ReLU → [×depth] → Linear(hidden → latent) → ReLU
  *   Decoder: Linear(latent → hidden) → ReLU → [×depth] → Linear(hidden → input_features)
  */
-struct EegWindowAutoencoder : Module<nn::EigenTensorBackend>
+struct EegWindowAutoencoder : Module<nn::Backend>
 {
     Sequential encoder_;
     Sequential decoder_;

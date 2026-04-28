@@ -28,7 +28,7 @@ auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
 
 // Build an autoencoder `Module` instance according to experiment `Config`.
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
-    -> std::unique_ptr<Module<nn::EigenTensorBackend>>;
+    -> std::unique_ptr<Module<nn::Backend>>;
 
 // Fit normalization transform from the training split (or full corpus when trial_ids is null).
 auto fit_input_transform(

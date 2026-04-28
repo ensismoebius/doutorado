@@ -19,7 +19,7 @@
  * Use `encode()` and `decode()` to run each half independently.
  * `forward()` chains both halves (reconstruction).
  */
-struct ProtocolAutoencoder : Module<nn::EigenTensorBackend>
+struct ProtocolAutoencoder : Module<nn::Backend>
 {
     bool use_dual_branch_ = false;
 

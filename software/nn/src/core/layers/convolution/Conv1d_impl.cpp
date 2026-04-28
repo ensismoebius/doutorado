@@ -14,6 +14,7 @@
 #include <cmath>
 #include <random>
 
+#include "nn/Backend.hpp"
 #include "nn/layers/convolution/Conv1d.hpp"
 
 template <typename Backend>
@@ -136,4 +137,4 @@ auto Conv1dImpl<Backend>::compute_output_length(int input_length) const -> int
     return (input_length + 2 * padding_ - dilation_ * (kernel_size_ - 1) - 1) / stride_ + 1;
 }
 
-template class Conv1dImpl<nn::EigenTensorBackend>;
+template class Conv1dImpl<nn::Backend>;

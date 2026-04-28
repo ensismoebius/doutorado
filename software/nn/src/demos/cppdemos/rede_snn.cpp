@@ -16,7 +16,7 @@
 
 using nn::Index;
 using nn::Tensor;
-using ModuleEigen = Module<nn::EigenTensorBackend>;
+using ModuleEigen = Module<nn::Backend>;
 using std::make_shared;
 using std::shared_ptr;
 using std::vector;

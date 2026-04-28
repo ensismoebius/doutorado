@@ -31,7 +31,7 @@
 #include "nn/utility/vectorizationCheck.hpp"
 
 using namespace std;
-using ModuleEigen = Module<nn::EigenTensorBackend>;
+using ModuleEigen = Module<nn::Backend>;
 
 namespace
 {

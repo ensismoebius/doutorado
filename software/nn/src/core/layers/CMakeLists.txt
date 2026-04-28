@@ -7,7 +7,7 @@ add_library(layers STATIC
     convolution/Conv2d_utils.cpp
 )
 
-target_include_directories(layers 
+target_include_directories(layers
     PUBLIC
         ${CMAKE_SOURCE_DIR}/include
     PRIVATE

@@ -6,7 +6,7 @@
  *   - ModelType : any class with forward(Tensor, bool) → Tensor, backward(Tensor),
  *                 params() → span<Tensor*>. reset_state() called if present.
  *   - LossType  : any class with set_target(Tensor), forward(Tensor, bool) → Tensor,
- *                 backward(Tensor) → Tensor. Default: MSELossImpl<EigenTensorBackend>.
+ *                 backward(Tensor) → Tensor. Default: MSELossImpl<nn::Backend>.
  *
  * All console output goes through ITrainingCallback — Trainer itself has no cout.
  * Add a ProgressCallback or LogCallback to restore visible training output.
@@ -37,6 +37,7 @@
 
 #include "core/training/EpochResult.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "nn/Backend.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
@@ -63,7 +64,7 @@ struct has_reset_state<T, std::void_t<decltype(std::declval<T>().reset_state())>
 } // namespace detail
 
 template <typename ModelType,
-          typename LossType = MSELossImpl<nn::EigenTensorBackend>>
+          typename LossType = MSELossImpl<nn::Backend>>
 class Trainer
 {
    public:

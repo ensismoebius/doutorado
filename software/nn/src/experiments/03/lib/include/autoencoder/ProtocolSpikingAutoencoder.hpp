@@ -20,7 +20,7 @@
  * continuous membrane potentials.  Call `reset_state()` between independent
  * sequences/trials to zero all membrane potentials.
  */
-struct ProtocolSpikingAutoencoder : Module<nn::EigenTensorBackend>
+struct ProtocolSpikingAutoencoder : Module<nn::Backend>
 {
     bool use_dual_branch_ = false;
 
