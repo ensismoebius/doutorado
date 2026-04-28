@@ -219,7 +219,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     float& train_ms,
     float& infer_ms) -> RunMetrics
 {
-    nn::training::TrainerConfig tcfg = make_trainer_config(cfg, cfg.training.snn_lr_scale);
+    // SNN biophysical params (R, C, V_th) need ~10× smaller lr than weights [37].
+    nn::training::TrainerConfig tcfg = make_trainer_config(cfg, 0.1F);
 
     nn::training::Trainer<ProtocolSpikingAutoencoder> trainer(model, tcfg);
 

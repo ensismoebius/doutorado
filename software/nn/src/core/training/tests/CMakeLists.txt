@@ -43,7 +43,7 @@ target_link_libraries(trainer_genericity_gtest
         tensor
         layers
         optimizers
-        progress
+        nn_progress
 )
 
 target_include_directories(

@@ -142,6 +142,52 @@ public:
 };
 ```
 
+### LSTM Layer
+
+Single-layer LSTM with full BPTT and optional batch gradient accumulation.
+
+**Location:** `include/nn/layers/lstm/LSTMLayer.hpp`  
+(Compat shim at `include/nn/models/lstm/LSTMLayer.hpp` — namespace `nn::models::lstm` unchanged.)
+
+Weight layout (gates stacked [i|f|o|g]):
+- `W_` : (4H × D) — input-to-hidden
+- `U_` : (4H × H) — hidden-to-hidden
+- `b_` : (4H × 1) — bias (forget-gate initialised to 1 for training stability)
+
+```cpp
+// File: include/nn/layers/lstm/LSTMLayer.hpp
+namespace nn::models::lstm {
+
+class LSTMLayer : public Module<nn::EigenTensorBackend>
+{
+public:
+    explicit LSTMLayer(int input_size, int hidden_size);
+
+    // Single-sample forward (T×D) → (T×H). Caches activations for BPTT.
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+
+    // Single-sample BPTT. grad_output: (T×H).
+    auto backward(const Tensor& grad_output) -> Tensor override;
+
+    // Batch forward: B independent sequences, each (T×D) → (T×H).
+    // Stores per-sample caches for backward_batch().
+    auto forward_batch(const std::vector<Tensor>& batch_inputs,
+                       bool requires_grad = true) -> std::vector<Tensor>;
+
+    // Batch backward: accumulate W/U/b gradients across B samples.
+    // BatchEquivalence: backward_batch({g, g}) == 2× backward(g) for same input.
+    auto backward_batch(const std::vector<Tensor>& grad_outputs) -> std::vector<Tensor>;
+
+    // Call between independent sequences (zeros h0_, c0_).
+    void reset_state() override;
+
+    auto params() -> std::span<Tensor*> override;  // {W_, U_, b_}
+    auto state_dict() const -> std::map<std::string, Tensor> override;
+    void load_state_dict(const std::map<std::string, Tensor>&) override;
+};
+} // namespace nn::models::lstm
+```
+
 ### Spike Losses
 
 | Class | File | Use case |

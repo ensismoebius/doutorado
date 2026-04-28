@@ -90,6 +90,37 @@ for (auto& outer : nkf.split(n_samples))
 
 See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) for theory and the bias-reduction rationale.
 
+### Statistic Interface
+
+Lightweight interface for incremental metric accumulation (reset per epoch, update per batch):
+
+```cpp
+// File: include/nn/statistics/IStatistic.hpp
+namespace nn::statistics {
+class IStatistic {
+public:
+    virtual void        reset()           = 0;  // call at epoch begin
+    virtual void        update(float v)   = 0;  // call at batch end
+    virtual float       value()     const = 0;  // mean/sum/etc
+    virtual std::string name()      const = 0;
+    virtual ~IStatistic()                 = default;
+};
+} // namespace nn::statistics
+```
+
+**`RunningMean`** — concrete `IStatistic` for per-epoch loss tracking:
+
+```cpp
+// File: include/nn/statistics/RunningMean.hpp
+nn::statistics::RunningMean loss_stat("train_loss");
+loss_stat.reset();
+for (auto& batch : epoch_batches) {
+    float lv = /* compute loss */;
+    loss_stat.update(lv);
+}
+float epoch_mean = loss_stat.value();
+```
+
 ### Metrics
 
 ```cpp

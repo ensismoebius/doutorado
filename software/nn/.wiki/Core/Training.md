@@ -163,14 +163,25 @@ where $l$ indexes layers, the inner sum counts spikes in one batch, and fan_out 
 
 ```cpp
 // File: src/core/training/Trainer.hpp
-template <typename ModelType>
+template <typename ModelType,
+          typename LossType = MSELossImpl<nn::EigenTensorBackend>>
 class Trainer
 {
 public:
-    using Sample = nn::Tensor;
-    using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
+    using Sample      = nn::Tensor;
+    using SamplePair  = std::pair<nn::Tensor, nn::Tensor>;
+    // Optional per-sample preprocessing (encoding, model state reset, etc.)
+    using SampleTransform = std::function<nn::Tensor(const nn::Tensor&, std::size_t idx)>;
 
     explicit Trainer(ModelType& model, const TrainerConfig& cfg);
+    explicit Trainer(ModelType& model, const TrainerConfig& cfg, LossType loss);
+
+    // Register a callback (called at train/epoch/batch boundaries)
+    void add_callback(std::shared_ptr<ITrainingCallback> cb);
+
+    // Optional per-sample transform applied before model.forward() in both train and val.
+    // Use for: encoding, model.reset_state() side effects, data augmentation.
+    void set_sample_transform(SampleTransform fn);
 
     // For autoencoders (input = target)
     auto fit_autoencoder(
@@ -183,8 +194,24 @@ public:
         const std::vector<SamplePair>& train_pairs,
         const std::vector<SamplePair>& val_pairs = {}
     ) -> std::vector<EpochResult>;
+
+    const TrainerConfig& config() const;
 };
 ```
+
+**LossType template** (default `MSELossImpl<EigenTensorBackend>`) — must implement:
+- `set_target(const Tensor&)`
+- `forward(const Tensor& pred, bool requires_grad) -> Tensor` (returns 1×1 scalar)
+- `backward(const Tensor& pred) -> Tensor` (gradient w.r.t. pred)
+
+**Bugs fixed** vs prior implementation:
+1. `zero_grad` called **before** forward (was after)
+2. Single forward+loss+backward per batch (was double-forward)
+3. Loss type pluggable via template (was hardcoded MSE)
+4. `snn_lr_scale` wired via `attach_with_scales()` (was silently ignored)
+5. Supervised batch: per-sample forward within batch loop (was merged-batch shape mismatch)
+6. `EpochResult.mean_spike_rate` populated when `LossType::last_mean_rate()` exists
+7. No `cout` inside Trainer — output goes through `ITrainingCallback`
 
 ## Data Flow
 
@@ -215,62 +242,107 @@ sequenceDiagram
 ## Usage Example
 
 ```cpp
-// File: src/core/training/tests/trainer_gtest.cpp
-#include "nn/training/Trainer.hpp"
-#include "nn/training/TrainerConfig.hpp"
-#include "nn/optimizers/Adam.hpp"
+#include "core/training/Trainer.hpp"
+#include "core/training/TrainerConfig.hpp"
+#include "nn/training/ProgressCallback.hpp"
+#include "nn/training/EarlyStoppingCallback.hpp"
 
 // Configure training
 nn::training::TrainerConfig config{
-    .epochs = 10,
+    .epochs        = 100,
     .learning_rate = 0.001f,
-    .batch_size = 32,
-    .grad_clip_norm = 1.0f
+    .batch_size    = 32,
+    .grad_clip_norm = 1.0f,
+    .snn_lr_scale  = 1.0f  // 1.0 = disabled; 0.1 = SNN biophysical params
 };
 
-// Create trainer
-nn::training::Trainer trainer(*model, config);
+// Create trainer (MSELoss default; plug in SpikeCountLoss for SNN)
+nn::training::Trainer<MyAutoencoder> trainer(*model, config);
+
+// Add callbacks
+trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("Train"));
+auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(/*patience=*/20);
+trainer.add_callback(stopper);
 
 // Train autoencoder
 std::vector<nn::Tensor> train_data = /* load data */;
-std::vector<nn::Tensor> val_data = /* load validation */;
+std::vector<nn::Tensor> val_data   = /* load validation */;
 
 auto history = trainer.fit_autoencoder(train_data, val_data);
 
-// Print results
-for (const auto& result : history)
+// Results
+for (const auto& r : history)
 {
-    std::cout << "Epoch " << result.epoch 
-              << " train_loss=" << result.train_loss
-              << " val_loss=" << result.val_loss
-              << " time=" << result.epoch_ms << "ms\n";
+    // r.epoch, r.train_loss, r.val_loss, r.epoch_ms
+    // r.mean_spike_rate (NaN for ANN), r.sops (0 for ANN)
 }
 ```
 
-### Progress Bar Integration in Training
+### Callback Interface
 
-The Trainer automatically creates and updates progress bars during training/validation:
+Callbacks observe training at well-defined hook points. All output, early stopping, and metric logging go through callbacks — Trainer has no `cout`.
 
 ```cpp
-// Inside Trainer::fit_generic():
-for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
-{
-    nn::progress::ProgressBar train_bar("Training", static_cast<float>(train_samples.size()));
-    
-    // ... training loop ...
-    train_bar.update(static_cast<float>(batch_start), {{"loss", loss_val}});
-    
-    nn::progress::ProgressBar val_bar("Validating", static_cast<float>(val_samples.size()));
-    // ... validation loop ...
-    val_bar.update(static_cast<float>(val_batch_start), {{"loss", vloss}});
-}
+// File: include/nn/training/ITrainingCallback.hpp
+namespace nn::training {
+
+struct TrainingState {
+    int epoch; int total_epochs;
+    int batch; int total_batches;
+    float batch_loss;
+    const EpochResult* last_epoch_result = nullptr;
+};
+
+struct ITrainingCallback {
+    virtual void on_train_begin(int total_epochs) {}
+    virtual void on_train_end(const std::vector<EpochResult>&) {}
+    virtual void on_epoch_begin(const TrainingState&) {}
+    virtual void on_epoch_end(const TrainingState&, const EpochResult&) {}
+    virtual void on_batch_begin(const TrainingState&) {}
+    virtual void on_batch_end(const TrainingState&) {}
+    virtual bool should_stop() const { return false; }
+    virtual ~ITrainingCallback() = default;
+};
+} // namespace nn::training
 ```
 
-Output:
+### Concrete Callbacks
+
+**`ProgressCallback`** — wraps `nn::progress::ProgressManager` (thread-safe singleton):
+
+```cpp
+// File: include/nn/training/ProgressCallback.hpp
+trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("LSTM run 1/5"));
+// Output: LSTM run 1/5  [=====               ] 25% | train_loss: 0.42 | val_loss: 0.38
 ```
-Training   [===================           ] 67% | loss: 0.4523
-Validating [======================        ] 88% | loss: 0.2314
+
+**`EarlyStoppingCallback`** — stops training when validation loss stops improving:
+
+```cpp
+// File: include/nn/training/EarlyStoppingCallback.hpp
+auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
+    /*patience=*/20, /*min_delta=*/1e-8f);
+trainer.add_callback(stopper);
+// After training:
+float best = stopper->best_val_loss(); // for RunMetrics reporting
 ```
+
+The Trainer checks `should_stop()` after every `on_epoch_end` fires. When any callback returns `true`, the loop breaks and `on_train_end` is called.
+
+### Sample Transform
+
+For models that need per-sample preprocessing (LSTM state reset, SNN encoding):
+
+```cpp
+// Reset LSTM state and encode each sample before forward pass
+trainer.set_sample_transform(
+    [&model, &encoding, seed](const nn::Tensor& s, std::size_t idx) -> nn::Tensor {
+        model.reset_state();
+        return encode_sample(s, encoding, seed + static_cast<uint32_t>(idx));
+    });
+```
+
+Transform is applied in **both** training and validation loops, immediately before `model.forward()`.
 
 ## Common Pitfalls
 

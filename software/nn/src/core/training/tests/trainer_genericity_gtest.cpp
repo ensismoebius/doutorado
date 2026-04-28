@@ -115,9 +115,9 @@ TEST(TrainerGenericity, CallbackCountsAutoencoder)
 {
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs     = 3;
-    cfg.batch_size = 2;
-    cfg.snn_lr_scale = 1.0F; // disable scale branch
+    cfg.epochs       = 3;
+    cfg.batch_size   = 1;  // TinyModel is not batched; 1 avoids 3D tensor stacking
+    cfg.snn_lr_scale = 1.0F;
 
     nn::training::Trainer<TinyModel> trainer(model, cfg);
 
@@ -147,7 +147,7 @@ TEST(TrainerGenericity, EarlyStoppingHaltsLoop)
     nn::training::TrainerConfig cfg;
     cfg.epochs       = 50;
     cfg.batch_size   = 1;
-    cfg.learning_rate = 0.0F; // loss won't decrease → triggers early stopping
+    cfg.learning_rate = 1e-10F; // near-zero lr: loss barely decreases → triggers early stopping
     cfg.snn_lr_scale  = 1.0F;
 
     nn::training::Trainer<TinyModel> trainer(model, cfg);
