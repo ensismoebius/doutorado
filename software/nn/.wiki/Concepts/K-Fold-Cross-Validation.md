@@ -36,138 +36,200 @@ Train+Val: 80% → split into k folds for CV
 Test: 20% → held out completely, evaluated once
 ```
 
-## How It Is Implemented Here
+### Nested K-Fold (Two-Loop CV)
 
-### Fold Sampler
+Standard single-level k-fold leads to **optimistic performance estimates** when hyperparameters are tuned on the same splits used for evaluation.  The 2024 biomedical ML guide [41] strongly recommends **nested k-fold** to eliminate this selection bias:
 
-```cpp
-// File: include/nn/dataLoaders/samplers/FoldSampler.hpp
-class FoldSampler : public ISampler
-{
-    size_t total_size_;
-    size_t num_folds_;
-    size_t current_fold_;
-    size_t seed_;
-
-public:
-    auto get_train_indices(size_t epoch) -> std::vector<size_t> override
-    {
-        // Returns indices excluding current validation fold
-    }
-
-    auto get_val_indices() -> std::vector<size_t> override
-    {
-        // Returns indices for current validation fold
-    }
-};
+```
+Outer loop (K_outer folds) → held-out test estimate (unbiased)
+  └── Inner loop (K_inner folds) → hyperparameter selection
 ```
 
-### K-Fold Configuration
+For each outer fold $o$:
+1. Hold out test set $T_o$ (completely hidden from inner loop)
+2. Run inner k-fold on the remaining data to select best hyperparameters $h^*_o$
+3. Retrain with $h^*_o$ on all non-test data; evaluate on $T_o$
+
+The outer-loop scores $\{m_1, \ldots, m_{K_\text{outer}}\}$ give an unbiased estimate of generalisation performance.
+
+---
+
+## How It Is Implemented Here
+
+### K-Fold and Stratified K-Fold
 
 ```cpp
 // File: include/nn/statistics/kfold.hpp
-struct KFoldConfig
-{
-    int num_folds = 5;
-    float test_split = 0.0f;  // 0.0 = no test set, 0.2 = 20% held out
-    unsigned int seed = 42;
-    bool shuffle = true;
+
+struct FoldSplit {
+    std::vector<std::size_t> train_indices;
+    std::vector<std::size_t> test_indices;
+};
+
+// Plain K-fold
+class KFold {
+public:
+    explicit KFold(std::size_t n_splits, bool shuffle = false,
+                   std::uint32_t random_seed = 0U);
+    auto split(std::size_t n_samples) const -> std::vector<FoldSplit>;
+};
+
+// Stratified K-fold (for classification)
+class StratifiedKFold {
+public:
+    explicit StratifiedKFold(std::size_t n_splits, bool shuffle = false,
+                             std::uint32_t random_seed = 0U);
+    auto split(const std::vector<int>& labels) const -> std::vector<FoldSplit>;
 };
 ```
+
+### Nested K-Fold
+
+```cpp
+// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+
+struct NestedFoldSplit {
+    std::vector<std::size_t> test_indices;  // outer held-out test set
+    std::vector<FoldSplit>   inner_splits;  // inner HPO splits (train+val)
+};
+
+class NestedKFold {
+public:
+    explicit NestedKFold(std::size_t n_outer_splits,
+                         std::size_t n_inner_splits,
+                         bool shuffle = false,
+                         std::uint32_t random_seed = 0U);
+
+    auto split(std::size_t n_samples) const -> std::vector<NestedFoldSplit>;
+};
+```
+
+Inner seeds are deterministic but distinct per outer fold (Knuth multiplicative hash on the outer test indices), guaranteeing reproducibility while ensuring inner splits differ.
+
+### TrainerConfig Integration
+
+```cpp
+// File: src/core/training/TrainerConfig.hpp
+struct TrainerConfig {
+    // ...
+    int nested_cv_outer_folds = 0;  // 0 = disabled (plain k-fold)
+    int nested_cv_inner_folds = 5;  // inner HPO folds per outer fold
+};
+```
+
+---
 
 ## Data Flow
 
 ```mermaid
-flowchart LR
-    subgraph Data
-        data[Full Dataset<br/>N samples]
+flowchart TB
+    subgraph Dataset
+        data[Full Dataset N samples]
     end
 
-    subgraph Split
-        test[Test Set<br/>test_split × N]
-        cv[Train+Val<br/>(1-test_split) × N]
+    subgraph OuterLoop["Outer Loop (K_outer folds)"]
+        test_o["Test set T_o (held out)"]
+        train_o["Train+Val pool"]
     end
 
-    subgraph CV
-        fold1[Fold 1: Val]
-        fold2[Fold 2: Val]
-        fold3[Fold 3: Val]
+    subgraph InnerLoop["Inner Loop (K_inner folds)"]
+        val_i["Val fold (HPO eval)"]
+        train_i["Train fold (HPO train)"]
     end
 
-    subgraph Results
-        scores[m1, m2, ..., mk]
-        avg[Average]
+    subgraph Result
+        hpo["Best h*_o"]
+        score_o["Outer score m_o"]
     end
 
-    data --> test
-    data --> cv
-    cv --> fold1
-    cv --> fold2
-    cv --> fold3
-    fold1 --> scores
-    fold2 --> scores
-    fold3 --> scores
-    scores --> avg
+    data --> test_o
+    data --> train_o
+    train_o --> val_i
+    train_o --> train_i
+    train_i -->|"select h*"| hpo
+    hpo -->|"retrain + eval on T_o"| score_o
 ```
+
+---
 
 ## Usage Example
 
+### Standard K-Fold
+
 ```cpp
-// File: src/experiments/03/lib/src/TrialFoldSelector.cpp
 #include "nn/statistics/kfold.hpp"
-#include "nn/dataLoaders/samplers/FoldSampler.hpp"
 
-// Configure k-fold
-nn::statistics::KFoldConfig kfold_cfg{
-    .num_folds = 5,
-    .test_split = 0.2f,  // 20% test set
-    .seed = 42
-};
+statistics::KFold kf(5, /*shuffle=*/true, /*seed=*/42U);
+auto splits = kf.split(dataset.size());
 
-// Run k-fold training
 std::vector<float> fold_scores;
-
-for (int fold = 0; fold < kfold_cfg.num_folds; ++fold)
+for (auto& [train_idx, val_idx] : splits)
 {
-    // Get fold splits
-    auto train_indices = get_train_indices(fold, kfold_cfg);
-    auto val_indices = get_val_indices(fold, kfold_cfg);
-
-    // Create data loaders
-    DataLoader train_loader(dataset, batch_size, train_indices);
-    DataLoader val_loader(dataset, batch_size, val_indices);
-
-    // Train model
     auto model = create_model();
-    Trainer trainer(*model, config);
-    auto history = trainer.fit_autoencoder(train_loader, val_loader);
-
-    // Record validation score
-    fold_scores.push_back(history.back().val_loss);
+    // train on train_idx, evaluate on val_idx ...
+    fold_scores.push_back(val_loss);
 }
-
-// Report results
-float mean_score = std::accumulate(fold_scores.begin(), fold_scores.end(), 0.0f) / fold_scores.size();
-std::cout << "K-Fold Mean: " << mean_score << std::endl;
+float mean = std::accumulate(fold_scores.begin(), fold_scores.end(), 0.0f) / fold_scores.size();
 ```
+
+### Nested K-Fold
+
+```cpp
+#include "nn/statistics/kfold.hpp"
+
+statistics::NestedKFold nkf(5, 5, /*shuffle=*/true, /*seed=*/42U);
+auto outer_folds = nkf.split(dataset.size());
+
+for (auto& outer : outer_folds)
+{
+    // outer.test_indices — never touched during inner HPO
+    // inner HPO: pick best learning rate
+    float best_val = std::numeric_limits<float>::infinity();
+    float best_lr = 1e-3f;
+    for (float lr : {1e-4f, 1e-3f, 1e-2f})
+    {
+        float inner_val = 0.0f;
+        for (auto& [tr, va] : outer.inner_splits)
+        {
+            auto model = create_model(lr);
+            // train on tr, evaluate on va ...
+            inner_val += val_loss;
+        }
+        inner_val /= outer.inner_splits.size();
+        if (inner_val < best_val) { best_val = inner_val; best_lr = lr; }
+    }
+    // Retrain with best_lr on all outer.train data, evaluate on outer.test_indices
+}
+```
+
+---
 
 ## Common Pitfalls
 
-1. **Data Leakage**: Never use validation data for training; preprocess separately per fold
+1. **Data Leakage**: Never use validation or test data for training; preprocess separately per fold
 
-2. **Non-IID Data**: Time-series or grouped data require special handling
+2. **Non-IID Data**: Time-series or grouped data require special handling (group-aware splits)
 
-3. **Test Split**: Always hold out test set to estimate true generalization error
+3. **Hyperparameter Leak**: If you tune hyperparameters using single-level CV scores, use nested k-fold instead
 
-4. **Stratification**: Use stratified sampling for classification with imbalanced classes
+4. **Stratification**: Use `StratifiedKFold` for classification with imbalanced classes
+
+---
 
 ## See Also
 
-- [DataLoaders](../Core/DataLoaders.md) - Loading and sampling data
-- [Autoencoders](./Autoencoders.md) - Models being validated
-- [Experiment03](../Experiments/Experiment03.md) - Experiments using k-fold
+- [DataLoaders](../Core/DataLoaders.md) — Loading and sampling data
+- [Statistics](../Core/Statistics.md) — KFold/NestedKFold implementation reference
+- [Autoencoders](./Autoencoders.md) — Models being validated
+- [Training](../Core/Training.md) — `nested_cv_*` fields in `TrainerConfig`
+- [Experiment03](../Experiments/Experiment03.md) — Experiments using k-fold
+
+---
 
 ## References
 
-[1] R. Kohavi, "A study of cross-validation and bootstrap for accuracy estimation and model selection," in Proc. 14th Int. Joint Conf. Artificial Intelligence (IJCAI), 1995, pp. 1137–1143.
-[2] S. Arlot and A. Celisse, "A survey of cross-validation procedures for model selection," *Statistics Surveys*, vol. 4, pp. 40–79, 2010. [Online]. Available: https://doi.org/10.1214/09-SS054
+[6] R. Kohavi, "A study of cross-validation and bootstrap for accuracy estimation and model selection," in *Proc. 14th Int. Joint Conf. Artificial Intelligence (IJCAI)*, 1995, pp. 1137–1143.
+
+[40] S. Arlot and A. Celisse, "A survey of cross-validation procedures for model selection," *Statistics Surveys*, vol. 4, pp. 40–79, 2010. [Online]. Available: https://doi.org/10.1214/09-SS054
+
+[41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/

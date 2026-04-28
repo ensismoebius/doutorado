@@ -32,41 +32,59 @@ $$\theta_{t+1} = \theta_t - v_t$$
 
 ## How It Is Implemented Here
 
+### Adam — Standard Usage
+
 ```cpp
 // File: include/nn/optimizers/Adam.hpp
-class Adam
+struct Adam : public Optimizer
 {
-    std::vector<Tensor> m_;  // first moment (velocity)
-    std::vector<Tensor> v_;  // second moment (adaptive learning rate)
+    float learning_rate;
+    float decay_rate_moment1 = 0.9F;
+    float decay_rate_moment2 = 0.999F;
+    float epsilon = 1e-8F;
 
-    float beta1_ = 0.9f;
-    float beta2_ = 0.999f;
-    float epsilon_ = 1e-8f;
+    std::vector<nn::Tensor> moment1;  // per-param first moment
+    std::vector<nn::Tensor> moment2;  // per-param second moment
 
-public:
-    void step(std::vector<Tensor*> params)
-    {
-        for (size_t i = 0; i < params.size(); ++i)
-        {
-            auto& param = *params[i];
-            auto grad = param.grad();
+    explicit Adam(float learning_rate_ = 0.001F, ...);
 
-            // Update first moment
-            m_[i] = beta1_ * m_[i] + (1 - beta1_) * grad;
-            // Update second moment
-            v_[i] = beta2_ * v_[i] + (1 - beta2_) * (grad * grad);
-
-            // Bias correction
-            Tensor m_hat = m_[i] / (1 - std::pow(beta1_, t_));
-            Tensor v_hat = v_[i] / (1 - std::pow(beta2_, t_));
-
-            // Update
-            param = param - learning_rate_ * m_hat / (v_hat.sqrt() + epsilon_);
-        }
-        t_++;
-    }
+    void attach(std::span<nn::Tensor*> params) override;
+    void step(std::span<nn::Tensor*> params) override;
+    void zero_grad(std::span<nn::Tensor*> params) override;
 };
 ```
+
+### Per-Parameter-Group Learning Rates
+
+SNN biophysical parameters (R, C, V_th) require a much smaller learning rate than
+weight matrices.  Literature recommends a 10× reduction: lr_SNN ≈ 1e-4 when
+global lr = 1e-3 [37].  Use `attach_with_scales()` to set per-parameter lr multipliers:
+
+```cpp
+// File: include/nn/optimizers/Adam.hpp
+void attach_with_scales(std::span<nn::Tensor*> params, std::span<const float> lr_scales);
+```
+
+The effective learning rate for parameter $i$ is:
+$$\eta_i = \eta_\text{global} \times \text{lr\_scales}[i]$$
+
+Example — separate lr for SNN layers vs weight matrices:
+```cpp
+Adam optimizer(/*lr=*/0.001F);
+
+// Collect all params from mixed ANN+SNN model
+auto all_params = model.params();  // e.g., [W1, W2, R_snn, C_snn, Vth_snn]
+
+// Scale: full lr for weights, 0.1× for SNN biophysical params
+std::vector<float> scales = {1.0f, 1.0f, 0.1f, 0.1f, 0.1f};
+optimizer.attach_with_scales(all_params, scales);
+
+// Training loop: step() uses per-param lr automatically
+optimizer.step(all_params);
+```
+
+`TrainerConfig::snn_lr_scale` (default 0.1) documents the intended scale; the caller
+is responsible for populating the `scales` vector accordingly.
 
 ## Data Flow
 
@@ -133,13 +151,16 @@ for (int epoch = 0; epoch < epochs; ++epoch)
 
 ## See Also
 
-- [Tensor](./Tensor.md) - Gradient computation
-- [Layers](./Layers.md) - Forward/backward passes
-- [Adam Optimiser](../Concepts/Adam-Optimiser.md) - Detailed Adam explanation
-- [Trainer (not written yet)]() - Training loop integration
+- [Tensor](./Tensor.md) — Gradient computation
+- [Layers](./Layers.md) — Forward/backward passes
+- [Adam Optimiser](../Concepts/Adam-Optimiser.md) — Detailed Adam explanation
+- [Training](./Training.md) — `TrainerConfig.snn_lr_scale` field
+- [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) — SNN parameter landscape
 
 ## References
 
 [1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
 [2] S. Ruder, "An overview of gradient descent optimization algorithms," arXiv preprint arXiv:1609.04747, 2016. [Online]. Available: https://arxiv.org/abs/1609.04747
+
+[37] Y. Cao et al., "Direct training of spiking neural networks: Challenges and insights," *Frontiers in Neuroscience*, 2025. [Online]. Available: https://www.frontiersin.org/journals/neuroscience

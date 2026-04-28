@@ -99,34 +99,65 @@ struct TrainerConfig
 {
     int epochs = 10;
     float learning_rate = 0.001F;
-    
+
     // Adam parameters
     float adam_beta1 = 0.9F;
     float adam_beta2 = 0.999F;
     float adam_epsilon = 1e-8F;
-    
+
     // Gradient clipping
     float grad_clip_norm = 0.0F;
-    
+
     // Batch
     int batch_size = 1;
     unsigned int sampler_shuffle_seed = 42;
+
+    // SNN-specific: per-group learning rate for biophysical parameters (R, C, V_th).
+    // Effective SNN lr = learning_rate * snn_lr_scale.
+    // Literature recommends 0.1 (10× smaller than weight lr) [37].
+    float snn_lr_scale = 0.1F;
+
+    // Nested k-fold cross-validation (0 = disabled, plain k-fold).
+    // Set nested_cv_outer_folds > 0 for unbiased hyperparameter evaluation [41].
+    int nested_cv_outer_folds = 0;
+    int nested_cv_inner_folds = 5;
 };
 }
 ```
+
+**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics.  Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3.  Pass this scale to `Adam::attach_with_scales()`.
+
+**Nested CV rationale**: Single-level k-fold cross-validation with hyperparameter tuning leads to optimistic performance estimates.  Nested k-fold [41] uses an outer loop for unbiased test estimation and an inner loop for hyperparameter selection.
 
 ### Epoch Result
 
 ```cpp
 // File: src/core/training/EpochResult.hpp
+namespace nn::training
+{
 struct EpochResult
 {
-    int epoch;
-    float train_loss;
-    float val_loss;
-    float epoch_ms;
+    int epoch = 0;
+    float train_loss = 0.0F;
+    float val_loss = 0.0F;
+    float epoch_ms = 0.0F;
+
+    // SNN energy-efficiency indicators
+    // mean_spike_rate: mean firing rate over all SNN neurons in last training batch [0,1].
+    // NaN for ANN models (not measured). Target range: [0.05, 0.80] (see SpikeCountLoss).
+    float mean_spike_rate = std::numeric_limits<float>::quiet_NaN();
+
+    // sops: estimated Synaptic OPerations for one forward pass.
+    // SOPs = Σ_layer(total_spikes × fan_out).  0 when not measured.
+    // Compare against ANN FLOP count to quantify energy advantage [26].
+    long long sops = 0LL;
 };
+}
 ```
+
+**SOPs formula**: $\text{SOPs} = \sum_l \left(\sum_{i,f} s_{i,f}^{(l)}\right) \times \text{fan\_out}^{(l)}$
+
+where $l$ indexes layers, the inner sum counts spikes in one batch, and fan_out is the number of post-synaptic connections per neuron.
 
 ### Trainer
 
@@ -253,14 +284,21 @@ Validating [======================        ] 88% | loss: 0.2314
 
 ## See Also
 
-- [Optimizers](./Optimizers.md) - Adam/SGD
-- [Layers](./Layers.md) - Model layers
-- [Tensor](./Tensor.md) - Data structure
-- [Autoencoders](./Autoencoders.md) - Model being trained
-- [Progress Tracking](./Progress.md) - Non-blocking progress bars
+- [Optimizers](./Optimizers.md) — Adam with per-group lr (`attach_with_scales`)
+- [Layers](./Layers.md) — Model layers
+- [Tensor](./Tensor.md) — Data structure
+- [Autoencoders](./Autoencoders.md) — Model being trained
+- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — Nested CV theory
+- [Spike Rate Regularization](../Concepts/Spike-Rate-Regularization.md) — `mean_spike_rate` and SOPs context
 
 ## References
 
 [1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
-[2] L. Bottou, "Large-scale machine learning with stochastic gradient descent," in *Proc. 19th Int. Conf. Computational Statistics (COMPSTAT)*, 2010, pp. 177–186. [Online]. Available: https://doi.org/10.1007/978-3-7908-2604-3_16
+[2] L. Bottou, "Large-scale machine learning with stochastic gradient descent," in *Proc. 19th Int. Conf. Computational Statistics (COMPSTAT)*, 2010, pp. 177–186.
+
+[26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023.
+
+[37] Y. Cao et al., "Direct training of spiking neural networks: Challenges and insights," *Frontiers in Neuroscience*, 2025.
+
+[41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/

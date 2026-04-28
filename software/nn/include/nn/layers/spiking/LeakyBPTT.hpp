@@ -83,7 +83,8 @@ struct LeakyBPTTImpl : public Module<Backend>
     // Added to avoid backward-time reconstruction drift: gradients for beta (and thus R/C)
     // must use the exact previous post-reset state seen in forward.
     Tensor v_post_history; ///< Cached post-reset membrane values for exact recurrence derivatives.
-    Tensor spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
+    Tensor spike_history;  ///< Placeholder for spike cache (currently unused in this implementation)
+    Tensor adapt_a_bptt_;  ///< Adaptation variable state (shape: B x F), persists across calls.
 
     // Configuration
     int time_steps; ///< Number of time steps in the input sequence
@@ -91,6 +92,12 @@ struct LeakyBPTTImpl : public Module<Backend>
     bool readout_mode =
         false; ///< If true, outputs membrane potential instead of spikes (Regression)
     float reset_potential = 0.0F;
+
+    // Spike-frequency adaptation (same semantics as LeakyImpl)
+    // effective threshold = voltage_threshold + adapt_a[b,f]
+    // adapt_a decays each step by adapt_decay, rises by adapt_coupling on each spike.
+    float adapt_decay = 0.9F;
+    float adapt_coupling = 0.0F; // 0 = disabled
 
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
     // Persistent parameter pointer storage for returning spans.
@@ -110,7 +117,9 @@ struct LeakyBPTTImpl : public Module<Backend>
         float reset_potential_ = 0.0F,
         bool readout_mode_ = false,
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
-            std::make_shared<ExponentialSurrogate>())
+            std::make_shared<ExponentialSurrogate>(),
+        float adapt_decay_ = 0.9F,
+        float adapt_coupling_ = 0.0F)
         : time_step(time_step_), time_steps(time_steps_), readout_mode(readout_mode_)
     {
         resistance.at(0, 0) = resistance_;
@@ -118,14 +127,15 @@ struct LeakyBPTTImpl : public Module<Backend>
         voltage_threshold.at(0, 0) = voltage_threshold_;
         reset_zero = reset_zero_;
         reset_potential = reset_potential_;
+        adapt_decay = adapt_decay_;
+        adapt_coupling = adapt_coupling_;
         surrogate_gradient = std::move(surrogate_grad);
     }
 
     void reset_state() override
     {
-        // Clearing v_mem means the next forward() will re-initialize state to zeros.
-        // This matches the common “reset hidden state between sequences” pattern.
-        v_mem = Tensor(); // Clear state
+        v_mem = Tensor();        // Clear state — next forward() re-initialises to zeros.
+        adapt_a_bptt_ = Tensor(); // Clear adaptation state as well.
     }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
@@ -163,25 +173,28 @@ struct LeakyBPTTImpl : public Module<Backend>
         float const C = std::max(kMinPositiveParam, capacitance.at(0, 0));
         float const tau = R * C;
         float const beta = std::exp(-time_step / tau);
-        float threshold_val = voltage_threshold.at(0, 0);
+        float const base_threshold = voltage_threshold.at(0, 0);
+
+        // Spike-frequency adaptation state: shape (B, F), lazy-init like v_mem
+        const bool use_adaptation = (adapt_coupling > 0.0F);
+        if (use_adaptation
+            && (adapt_a_bptt_.rows() != batch_size_idx || adapt_a_bptt_.cols() != features_idx))
+        {
+            adapt_a_bptt_ = Tensor(batch_size, features);
+            adapt_a_bptt_.setZero();
+        }
 
         // Time Loop
         for (int t = 0; t < time_steps; ++t)
         {
-            // Extract input slice for this time step
-            // Implementation detail:
-            // - We iterate manually instead of using a block view to stay within the current
-            //   Tensor interface and keep the logic explicit/teachable.
-
-            // 1. Decay & Integrate
-            // v[t] = v[t-1] * beta + input[t]
-
-            // Optimized: v_mem = v_mem * beta + input_slice
-            // We access input rows: [t*batch, (t+1)*batch)
-
             int offset = t * batch_size;
 
-            // We can iterate batch items
+            // Decay adaptation before this step (adapt_a[t] = decay * adapt_a[t-1])
+            if (use_adaptation)
+            {
+                adapt_a_bptt_.multiply_scalar_inplace(adapt_decay);
+            }
+
             for (int b = 0; b < batch_size; ++b)
             {
                 for (int f = 0; f < features; ++f)
@@ -198,28 +211,31 @@ struct LeakyBPTTImpl : public Module<Backend>
 
                     if (readout_mode)
                     {
-                        // Readout Mode: Output is V_mem
                         output.at(offset + b, f) = v;
-                        // Readout mode is used for regression/continuous outputs.
-                        // There is no spike event, so no threshold/reset is applied.
                     }
                     else
                     {
-                        // Spiking Mode
-                        float s = (v > threshold_val) ? 1.0f : 0.0f;
+                        // Effective threshold includes adaptation variable
+                        float eff_thresh = base_threshold
+                                           + (use_adaptation ? adapt_a_bptt_.at(b, f) : 0.0F);
+                        float s = (v > eff_thresh) ? 1.0f : 0.0f;
                         output.at(offset + b, f) = s;
 
-                        // Reset
+                        // Reset + update adaptation on spike
                         if (s > 0.5f)
                         {
                             if (reset_zero)
                                 v = reset_potential;
                             else
-                                v -= threshold_val;
+                                v -= base_threshold;
+
+                            if (use_adaptation)
+                            {
+                                adapt_a_bptt_.at(b, f) += adapt_coupling;
+                            }
                         }
                     }
 
-                    // Update State
                     v_mem.at(b, f) = v;
                     if (requires_grad)
                     {

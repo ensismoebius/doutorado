@@ -1,0 +1,265 @@
+# nn project — Claude Code rules
+
+## Caveman mode
+
+Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
+`/caveman lite|full|ultra` to change.
+
+---
+
+## Graphify knowledge graph
+
+Output: `.wiki/graphify-out/` — 1851 nodes, 4205 edges, 174 communities.
+
+```bash
+# Find nodes by label
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+
+# Find edges from/to node
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for e in g['links']:
+    if q in e['source'].lower() or q in e['target'].lower():
+        print(e['source'],'--['+e.get('type','?')+']-->',e['target'])
+" <NODE_ID>
+```
+
+Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges.
+
+---
+
+## Build & test
+
+**Always use presets** — never invent raw cmake flags:
+
+```bash
+# Configure (first time or after CMakeLists change)
+cmake --preset=max-performance
+
+# Build a specific target
+cmake --build out/build/max-performance --target <target> -j$(nproc)
+
+# Run all tests
+ctest --test-dir out/build/max-performance --output-on-failure -j4
+
+# Run one test binary directly (fastest iteration)
+./out/build/max-performance/path/to/test_binary --gtest_filter="SuiteName.*"
+```
+
+**Named build targets** (all phony, use with `--target`):
+
+| Target | What |
+|---|---|
+| `core_gtest` | All core unit tests |
+| `experiment03` | Experiment 03 binary |
+| `experiment03_lib` | Experiment 03 library only |
+| `experiment04` | Experiment 04 binary |
+| `experiment04_lib` | Experiment 04 library only |
+| `experiment_02` | Experiment 02 binary |
+| `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
+| `nn_progress` | Progress bar library |
+| `analysis-cppcheck` | cppcheck static analysis |
+| `analysis-clang-tidy` | clang-tidy static analysis |
+| `analysis-all` | All static analysis |
+| `check_eigen_leaks` | Verify no Eigen leaks into banned targets |
+| `clean-cache` | Clear ccache |
+
+**Debug build** (for sanitisers or gdb):
+```bash
+cmake --preset=Clang_20.1.8_x86_64-pc-linux-gnu
+cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu --target <target> -j$(nproc)
+```
+
+---
+
+## Language & compiler rules
+
+- **C++20** required. `std::span`, `std::ranges`, concepts, designated initialisers all available.
+- Compiler: clang preferred (project ships clang preset). `clang-tidy` must pass.
+- `-Wall` is on. `-Wno-sign-compare` suppressed. Fix warnings, do not add more suppressions.
+- **No raw `new`/`delete`** — use RAII, smart pointers, value types.
+- **No naked Eigen includes** in targets marked with `nn_disallow_eigen()`. Check `cmake/EigenBan.cmake`. Violating this is a hard build error. Use `nn_allow_eigen(<target>)` only in targets that explicitly need Eigen (e.g., `EigenTensorBackend`).
+
+---
+
+## Module / Layer contract
+
+Every layer inherits `Module<Backend>`. Required overrides:
+
+```cpp
+template <typename Backend>
+struct MyLayer : public Module<Backend> {
+    using Tensor = typename Module<Backend>::Tensor;
+
+    // REQUIRED
+    auto forward(const Tensor& input, bool requires_grad) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
+
+    // If layer has trainable params — return span of raw pointers to member Tensors
+    auto params() -> std::span<nn::Tensor*> override;
+
+    // If layer is stateful (SNN) — clear hidden state for next sequence
+    void reset_state() override;
+
+    // If layer should be saveable
+    auto state_dict() const -> std::map<std::string, nn::Tensor> override;
+    void load_state_dict(const std::map<std::string, nn::Tensor>&) override;
+};
+```
+
+Rules:
+- `forward(requires_grad=true)` **must** be called before `backward()` — caches intermediate state.
+- `params()` returns raw pointers to **member** tensors (not temporaries). Store params as struct members, not locals.
+- `reset_state()` must clear ALL persistent state (e.g., `v_mem`, `adapt_a`, LSTM hidden/cell).
+- Stateful layers (SNN, LSTM): call `reset_state()` between independent sequences/batches.
+
+---
+
+## Tensor shape conventions
+
+| Context | Shape | Notes |
+|---|---|---|
+| Standard 2D | `(rows, cols)` | rows=batch, cols=features |
+| SNN time-major | `(T*B, F)` | T time steps, B batch, F features. Row order: t0 rows, then t1 rows, … |
+| `T*B % time_steps == 0` | invariant | violated → `std::invalid_argument` |
+| 3D data | `(d1, d2*d3)` | stored as 2D; access via `at(d1, d2, d3)` |
+
+Gradient shape always matches forward input shape.
+
+---
+
+## SNN-specific invariants
+
+1. **Time-major layout**: input to `LeakyBPTTImpl` and `SpikeTimeLossImpl` is `(T*B, F)`, not `(B, T, F)`.
+2. **Loss ↔ encoding must match**:
+   - Rate-coded → `SpikeCountLoss`
+   - Latency-coded → `SpikeTimeLoss`
+   - Mixing these reverses gradient direction.
+3. **Surrogate arg order**: `LeakyImpl` and `LeakyBPTTImpl` constructors take `surrogate_grad` **before** `adapt_decay`/`adapt_coupling`. Wrong type passed → compile error.
+4. **SNN lr**: biophysical params (R, C, V_th) need ~10× smaller lr than weights. Use `Adam::attach_with_scales()`. `TrainerConfig::snn_lr_scale = 0.1` documents the intent.
+5. **β = exp(−Δt/(R·C))** clamped: R and C are clamped to `1e-6` in forward and grad is zeroed in clamped region. Never let optimizer drive them negative.
+6. **readout_mode**: `LeakyBPTTImpl` with `readout_mode=true` emits `v_mem` directly — no spike/reset. Backward is purely continuous. Don't mix with spike losses.
+
+---
+
+## Adding a new layer checklist
+
+1. Header in `include/nn/layers/<category>/MyLayer.hpp`
+2. Inherit `Module<Backend>`, implement `forward`, `backward`, `params` (if trainable), `reset_state` (if stateful), `state_dict`/`load_state_dict` (if serialisable)
+3. Add to `include/nn/layers/eigen/Layers.hpp` convenience alias if needed
+4. Add gtest in nearest `tests/` directory, named `mylayer_gtest.cpp`
+5. Wire test into `CMakeLists.txt` under `core_gtest` or relevant experiment test target
+6. Update `.wiki/Core/Layers.md` with new entry
+7. Build: `cmake --build out/build/max-performance --target core_gtest -j$(nproc)`
+8. Test: `ctest --test-dir out/build/max-performance -R mylayer --output-on-failure`
+
+---
+
+## Model serialisation
+
+Save/load via `state_dict()` → `NetworkSerializer` or `NnSaver`:
+
+```cpp
+// Full model (map<string,Tensor>)
+#include "nn/saver/NetworkSerializer.hpp"
+NetworkSerializer::save(model.state_dict(), "model.npz");
+model.load_state_dict(NetworkSerializer::load("model.npz"));
+
+// Single weight/bias pair (legacy)
+#include "nn/saver/NnSaver.hpp"
+NnSaver::save("prefix", weights, bias);  // → prefix_weights.npy, prefix_bias.npy
+```
+
+---
+
+## Project layout
+
+```
+include/nn/          Public headers (backend-agnostic interface)
+  layers/
+    activations/     ReLU, LeakyReLU, Sigmoid, Tanh
+    base/            Module<Backend>
+    convolution/     Conv2D, MaxPool2D
+    dense/           Linear
+    losses/          MSELoss, MAELoss, CrossEntropyLoss, SpikeCountLoss, SpikeTimeLoss
+    regularization/  L1/L2 regularizers
+    residual/        ResNetBlock
+    spiking/         Leaky, LeakyBPTT, ThresholdDependentBatchNorm, PoissonLatentLayer
+  optimizers/        Adam, SGD
+  statistics/        kfold.hpp (KFold, StratifiedKFold, NestedKFold), metrics
+  tensor/            Tensor.hpp, EigenTensorBackend, OpenCLTensorBackend
+  dataLoaders/       10.1117/ (audio+EEG), datasets, samplers, sources
+  saver/             NnSaver, NetworkSerializer
+  wave/              WAV I/O
+  wavelet/           Wavelet packet decomposition
+  paraconsistent/    Da Costa paraconsistent logic (thesis novel contribution)
+
+src/core/            Implementation + tests
+  training/          Trainer.hpp, TrainerConfig.hpp, EpochResult.hpp
+  statistics/        kfold.cpp, metrics
+  models/autoencoder/ BaseAutoencoder + concrete models
+
+src/experiments/
+  00–04/             Independent experiment binaries; each has lib/, tests/, profiles/
+
+results/             Experiment output (JSON, CSV, .npy)
+.wiki/               Documentation wiki (keep in sync with code changes)
+  graphify-out/      Knowledge graph files
+scripts/             Analysis scripts (Python + bash)
+cmake/               Modular CMake includes
+```
+
+---
+
+## Test conventions
+
+- Framework: **GoogleTest**. File suffix: `*_gtest.cpp`.
+- Place tests in `tests/` sibling to the code under test.
+- Use `EXPECT_*` over `ASSERT_*` unless subsequent steps would crash.
+- SNN tests: always call `layer.reset_state()` between independent forward passes.
+- No mocking of internal state — test through the public API only.
+
+---
+
+## Wiki maintenance
+
+When adding/changing any layer, loss, optimizer, or training feature:
+1. Update `.wiki/Core/Layers.md` (or relevant Core/ page)
+2. Update `.wiki/References.md` if new citations added
+3. Update concept page in `.wiki/Concepts/` if theory changed
+4. Run graphify if structure changed significantly: check `.opencode/plugins/graphify.js` for invocation
+
+---
+
+## Key file index
+
+| What | Where |
+|---|---|
+| LIF neuron (single-step) | `include/nn/layers/spiking/Leaky.hpp` |
+| LIF neuron (full BPTT) | `include/nn/layers/spiking/LeakyBPTT.hpp` |
+| tdBN | `include/nn/layers/spiking/ThresholdDependentBatchNorm.hpp` |
+| Poisson VAE latent | `include/nn/layers/spiking/PoissonLatentLayer.hpp` |
+| Spike count loss + reg | `include/nn/layers/losses/SpikeCountLoss.hpp` |
+| First-spike time loss | `include/nn/layers/losses/SpikeTimeLoss.hpp` |
+| Adam optimizer | `include/nn/optimizers/Adam.hpp` |
+| SGD optimizer | `include/nn/optimizers/SGD.hpp` |
+| Module base | `include/nn/layers/base/Module.hpp` |
+| Tensor | `include/nn/tensor/Tensor.hpp` |
+| KFold / NestedKFold | `include/nn/statistics/kfold.hpp` |
+| Trainer | `src/core/training/Trainer.hpp` |
+| TrainerConfig | `src/core/training/TrainerConfig.hpp` |
+| EpochResult | `src/core/training/EpochResult.hpp` |
+| Surrogate gradients | `include/nn/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` |
+| Paraconsistent logic | `include/nn/paraconsistent/` |
+| Wiki | `.wiki/` |
+| Graphify output | `.wiki/graphify-out/` |
+| CMake presets | `CMakePresets.json` |

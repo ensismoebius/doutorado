@@ -62,7 +62,9 @@ The `nn` library is organized into several key components:
 - [Weight Initialisation](./Concepts/Weight-Initialisation.md) - Xavier, Kaiming initialization
 - [Adam Optimiser](./Concepts/Adam-Optimiser.md) - Adaptive moment estimation
 - [Data Normalisation](./Concepts/Data-Normalisation.md) - Input normalization techniques
-- [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) - Cross-validation for model selection
+- [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) - Cross-validation and nested k-fold for unbiased evaluation
+- [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) - Preventing dead/bursting neurons in SNN autoencoders
+- [Spike Encoding](./Concepts/Spike-Encoding.md) - Rate coding vs latency coding and matching loss functions
 
 ### Experiments
 - [Experiment03](./Experiments/Experiment03.md) - Autoencoder experiments (audio, EEG, fused)
