@@ -16,7 +16,7 @@
  *   Encoder: Linear(input → hidden) → Leaky → [×depth] → Linear(hidden → latent) → Leaky
  *   Decoder: Linear(latent → hidden) → LeakyIntegrator → [×depth] → Linear(hidden → input)
  */
-struct AudioWindowSpikingAutoencoder : Module<nn::EigenTensorBackend>
+struct AudioWindowSpikingAutoencoder : Module<nn::Backend>
 {
     Sequential encoder_;
     Sequential decoder_;

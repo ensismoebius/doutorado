@@ -35,7 +35,7 @@ using ::Linear;
 using argparse::ArgumentParser;
 using nn::Index;
 using nn::Tensor;
-using ModuleEigen = Module<nn::EigenTensorBackend>;
+using ModuleEigen = Module<nn::Backend>;
 using std::cout;
 using std::exception;
 using std::llround;

@@ -50,7 +50,7 @@ struct LSTMAutoencoderConfig
  * Backward pass uses the caches filled during forward to propagate gradients
  * through all LSTM steps (BPTT) and the encoder/decoder projections.
  */
-class LSTMAutoencoder : public Module<nn::EigenTensorBackend>
+class LSTMAutoencoder : public Module<nn::Backend>
 {
    public:
     using Tensor = nn::Tensor;

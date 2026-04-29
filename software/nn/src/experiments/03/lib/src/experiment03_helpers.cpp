@@ -17,6 +17,7 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
+#include "nn/Backend.hpp"
 #include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
 #include "nn/logging/Logger.hpp"
 
@@ -42,7 +43,7 @@ auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
 }
 
 auto build_autoencoder_model(const Config& config, nn::Index input_features)
-    -> std::unique_ptr<Module<nn::EigenTensorBackend>>
+    -> std::unique_ptr<Module<nn::Backend>>
 {
     AutoencoderConfig model_cfg{};
     model_cfg.input_features =

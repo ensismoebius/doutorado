@@ -6,6 +6,7 @@
 #include <cmath>
 #include <random>
 
+#include "nn/Backend.hpp"
 #include "nn/layers/convolution/Conv2d.hpp"
 
 constexpr int DEFAULT_SIZE = 32;
@@ -339,4 +340,4 @@ void Conv2dImpl<Backend>::initialize_weights_he()
 // Explicit instantiation: generate code for the Eigen (CPU) backend only.
 // A GPU backend implementation would add its own explicit instantiation here or in a
 // separate translation unit after providing the required algorithm specialisation.
-template class Conv2dImpl<nn::EigenTensorBackend>;
+template class Conv2dImpl<nn::Backend>;

@@ -429,7 +429,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
                 
-                auto conv = std::make_shared<Conv1dImpl<nn::EigenTensorBackend>>(
+                auto conv = std::make_shared<Conv1dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 encoder.add_module(conv);
                 append_ann_activation(encoder, stage.activation_type);
@@ -445,7 +445,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
                 
-                auto conv = std::make_shared<Conv2dImpl<nn::EigenTensorBackend>>(
+                auto conv = std::make_shared<Conv2dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 encoder.add_module(conv);
                 append_ann_activation(encoder, stage.activation_type);
@@ -473,7 +473,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
                 
-                auto pool = std::make_shared<MaxPool2dImpl<nn::EigenTensorBackend>>(
+                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(
                     kernel, stride, 0, kernel);
                 encoder.add_module(pool);
                 // Output channels stay same, spatial dims change
@@ -546,7 +546,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
                 
-                auto conv = std::make_shared<Conv1dImpl<nn::EigenTensorBackend>>(
+                auto conv = std::make_shared<Conv1dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 decoder.add_module(conv);
                 append_ann_activation(decoder, stage.activation_type);
@@ -561,7 +561,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
                 
-                auto conv = std::make_shared<Conv2dImpl<nn::EigenTensorBackend>>(
+                auto conv = std::make_shared<Conv2dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 decoder.add_module(conv);
                 append_ann_activation(decoder, stage.activation_type);
@@ -584,7 +584,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
                 
-                auto pool = std::make_shared<MaxPool2dImpl<nn::EigenTensorBackend>>(
+                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(
                     kernel, stride, 0, kernel);
                 decoder.add_module(pool);
             }

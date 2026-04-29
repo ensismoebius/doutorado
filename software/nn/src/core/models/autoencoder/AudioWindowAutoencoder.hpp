@@ -13,7 +13,7 @@
  * Typical input: 128-dimensional feature vector per time window.
  *
  * Design Pattern (PyTorch-Style):
- *   1. Inherit from BaseAutoencoder<EigenTensorBackend>
+ *   1. Inherit from BaseAutoencoder<nn::Backend>
  *   2. Use Sequential for encoder/decoder (like torch.nn.Sequential)
  *   3. Override encode() and decode() for custom logic
  *   4. Implement params() to return all trainable tensors
@@ -74,7 +74,7 @@ namespace nn::models::autoencoder
  * @note Uses ReLU activation (standard ANN). For spiking neurons,
  *       use AudioWindowSpikingAutoencoder instead.
  */
-class AudioWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
+class AudioWindowAutoencoder : public BaseAutoencoder<nn::Backend>
 {
    public:
     /**

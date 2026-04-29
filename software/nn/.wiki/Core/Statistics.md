@@ -26,17 +26,99 @@ The dataset is split into $k$ equal-sized folds. Train on $k-1$, validate on 1, 
 
 ## How It Is Implemented Here
 
-### K-Fold Configuration
+### K-Fold Splitters
 
 ```cpp
-// File: include/nn/statistics/kfold.hpp
-struct KFoldConfig
-{
-    int num_folds = 5;
-    float test_split = 0.0f;
-    unsigned int seed = 42;
-    bool shuffle = true;
+// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+
+struct FoldSplit {
+    std::vector<std::size_t> train_indices;
+    std::vector<std::size_t> test_indices;
 };
+
+// Plain K-fold
+class KFold {
+public:
+    explicit KFold(std::size_t n_splits, bool shuffle = false,
+                   std::uint32_t random_seed = 0U);
+    auto split(std::size_t n_samples) const -> std::vector<FoldSplit>;
+};
+
+// Stratified K-fold for classification
+class StratifiedKFold {
+public:
+    explicit StratifiedKFold(std::size_t n_splits, bool shuffle = false,
+                             std::uint32_t random_seed = 0U);
+    auto split(const std::vector<int>& labels) const -> std::vector<FoldSplit>;
+};
+```
+
+### Nested K-Fold
+
+For unbiased hyperparameter evaluation in biomedical ML [41]:
+
+```cpp
+// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+
+struct NestedFoldSplit {
+    std::vector<std::size_t> test_indices;  // outer held-out test set
+    std::vector<FoldSplit>   inner_splits;  // inner HPO train/val splits
+};
+
+class NestedKFold {
+public:
+    explicit NestedKFold(std::size_t n_outer_splits,
+                         std::size_t n_inner_splits,
+                         bool shuffle = false,
+                         std::uint32_t random_seed = 0U);
+    auto split(std::size_t n_samples) const -> std::vector<NestedFoldSplit>;
+};
+```
+
+Usage pattern:
+```cpp
+statistics::NestedKFold nkf(5, 5, /*shuffle=*/true, 42U);
+for (auto& outer : nkf.split(n_samples))
+{
+    // outer.test_indices — held out, never seen during HPO
+    for (auto& [tr, va] : outer.inner_splits)
+    {
+        // tr → training, va → HPO validation
+    }
+}
+```
+
+See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) for theory and the bias-reduction rationale.
+
+### Statistic Interface
+
+Lightweight interface for incremental metric accumulation (reset per epoch, update per batch):
+
+```cpp
+// File: include/nn/statistics/IStatistic.hpp
+namespace nn::statistics {
+class IStatistic {
+public:
+    virtual void        reset()           = 0;  // call at epoch begin
+    virtual void        update(float v)   = 0;  // call at batch end
+    virtual float       value()     const = 0;  // mean/sum/etc
+    virtual std::string name()      const = 0;
+    virtual ~IStatistic()                 = default;
+};
+} // namespace nn::statistics
+```
+
+**`RunningMean`** — concrete `IStatistic` for per-epoch loss tracking:
+
+```cpp
+// File: include/nn/statistics/RunningMean.hpp
+nn::statistics::RunningMean loss_stat("train_loss");
+loss_stat.reset();
+for (auto& batch : epoch_batches) {
+    float lv = /* compute loss */;
+    loss_stat.update(lv);
+}
+float epoch_mean = loss_stat.value();
 ```
 
 ### Metrics
@@ -139,12 +221,15 @@ float mse = nn::statistics::mse(y_pred, y_true);
 
 ## See Also
 
-- [DataLoaders](./DataLoaders.md) - K-fold integration
-- [K-Fold-Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) - Theory
-- [Layer Layers.md] - Model evaluation
+- [DataLoaders](./DataLoaders.md) — K-fold integration
+- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — Theory and nested CV rationale
+- [Training](./Training.md) — `nested_cv_*` fields in `TrainerConfig`
+- [Layers](./Layers.md) — Model evaluation
 
 ## References
 
 [1] R. Kohavi, "A study of cross-validation and bootstrap for accuracy estimation and model selection," in *Proc. 14th Int. Joint Conf. Artificial Intelligence (IJCAI)*, 1995, pp. 1137–1143.
 
 [2] D. M. W. Powers, "Evaluation: From precision, recall and F-measure to ROC, informedness, markedness and correlation," *J. Machine Learning Technologies*, vol. 2, no. 1, pp. 37–63, 2011. [Online]. Available: https://arxiv.org/abs/2010.16061
+
+[41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/

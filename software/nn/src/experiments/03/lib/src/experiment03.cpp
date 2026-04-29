@@ -25,6 +25,7 @@
 #include "experiment03_helpers.hpp"
 
 // Core libraries
+#include "nn/Backend.hpp"
 #include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
 #include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 #include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
@@ -38,7 +39,7 @@
 #include "nn/optimizers/Optimizer.hpp"
 #include "nn/optimizers/OptimizerFactory.hpp"
 #include "nn/optimizers/SGD.hpp"
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
+
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"

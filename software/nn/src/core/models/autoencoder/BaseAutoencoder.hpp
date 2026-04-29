@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "nn/Backend.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
@@ -48,7 +49,7 @@ namespace nn::models::autoencoder
  * Architecture Overview:
  *   Input -> [Encoder] -> Latent -> [Decoder] -> Reconstruction
  *
- * @tparam Backend Tensor computation backend (e.g., nn::EigenTensorBackend)
+ * @tparam Backend Tensor computation backend (e.g., nn::Backend)
  */
 template <typename Backend>
 class BaseAutoencoder : public nn::Module<Backend>
@@ -130,8 +131,8 @@ class BaseAutoencoder : public nn::Module<Backend>
  * - SNN: Spiking neural network (LeakyIntegrator activations)
  * - Eigen: Eigen backend for CPU computation
  */
-using EigenAutoencoder = BaseAutoencoder<nn::EigenTensorBackend>;
-using EigenSpikingAutoencoder = BaseAutoencoder<nn::EigenTensorBackend>;
+using EigenAutoencoder = BaseAutoencoder<nn::Backend>;
+using EigenSpikingAutoencoder = BaseAutoencoder<nn::Backend>;
 
 } // namespace nn::models::autoencoder
 

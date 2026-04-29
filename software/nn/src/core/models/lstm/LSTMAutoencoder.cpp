@@ -95,7 +95,7 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
     Tensor h_last = h.row(static_cast<nn::Index>(T - 1));
     Tensor z_pre = enc_proj_->forward(h_last, requires_grad);
     latent_pre_cache_ = z_pre;
-    Tensor z = tanh_tensor(z_pre);
+    Tensor z = lstm_tanh(z_pre);
     latent_cache_ = z;
     return z;
 }
@@ -146,7 +146,7 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     Tensor d_z = dec_expand_->backward(d_h_expand);
 
     // Backprop through the latent tanh and encoder projection.
-    Tensor d_z_pre = d_z * tanh_grad(latent_cache_);
+    Tensor d_z_pre = d_z * lstm_tanh_grad(latent_cache_);
     Tensor d_h_last = enc_proj_->backward(d_z_pre);
 
     // Place the gradient of the last time step and backprop through encoder LSTM stack.

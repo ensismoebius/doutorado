@@ -3,6 +3,7 @@
  * @brief Implementation details for `Conv2d` (index caching, im2col/col2im helpers).
  */
 
+#include "nn/Backend.hpp"
 #include "nn/layers/convolution/Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
@@ -395,4 +396,4 @@ auto Conv2dImpl<Backend>::reshape_output_optimized(
 // LCOV_EXCL_STOP
 
 // Explicit instantiation: generate code for the Eigen (CPU) backend only.
-template class Conv2dImpl<nn::EigenTensorBackend>;
+template class Conv2dImpl<nn::Backend>;

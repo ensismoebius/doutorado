@@ -154,4 +154,71 @@ auto StratifiedKFold::split(const std::vector<int>& labels) const -> std::vector
     return splits;
 }
 
+NestedKFold::NestedKFold(std::size_t n_outer_splits,
+    std::size_t n_inner_splits,
+    bool shuffle,
+    std::uint32_t random_seed)
+    : n_outer_splits_(n_outer_splits),
+      n_inner_splits_(n_inner_splits),
+      shuffle_(shuffle),
+      random_seed_(random_seed)
+{
+}
+
+auto NestedKFold::split(std::size_t n_samples) const -> std::vector<NestedFoldSplit>
+{
+    validate_split_params(n_outer_splits_, n_samples);
+
+    // Build outer splits using KFold
+    KFold outer_kf(n_outer_splits_, shuffle_, random_seed_);
+    auto outer_folds = outer_kf.split(n_samples);
+
+    std::vector<NestedFoldSplit> nested;
+    nested.reserve(n_outer_splits_);
+
+    for (auto& outer : outer_folds)
+    {
+        NestedFoldSplit nfs;
+        nfs.test_indices = outer.test_indices;
+
+        // Run inner KFold on the outer training set only.
+        // Use a deterministic seed derived from outer seed + test fold offset.
+        const std::size_t inner_n = outer.train_indices.size();
+        validate_split_params(n_inner_splits_, inner_n);
+
+        // Seed derivation: combine outer seed with a hash of first test index
+        // to make each outer fold's inner splits reproducible but distinct.
+        std::uint32_t inner_seed = random_seed_;
+        if (!outer.test_indices.empty())
+        {
+            inner_seed ^= static_cast<std::uint32_t>(outer.test_indices[0]) * 2654435761U;
+        }
+
+        KFold inner_kf(n_inner_splits_, shuffle_, inner_seed);
+        auto inner_splits_local = inner_kf.split(inner_n);
+
+        // Map inner indices back to global sample indices via outer.train_indices
+        for (auto& inner : inner_splits_local)
+        {
+            FoldSplit mapped;
+            mapped.train_indices.reserve(inner.train_indices.size());
+            mapped.test_indices.reserve(inner.test_indices.size());
+
+            for (std::size_t local_idx : inner.train_indices)
+            {
+                mapped.train_indices.push_back(outer.train_indices[local_idx]);
+            }
+            for (std::size_t local_idx : inner.test_indices)
+            {
+                mapped.test_indices.push_back(outer.train_indices[local_idx]);
+            }
+            nfs.inner_splits.push_back(std::move(mapped));
+        }
+
+        nested.push_back(std::move(nfs));
+    }
+
+    return nested;
+}
+
 } // namespace statistics

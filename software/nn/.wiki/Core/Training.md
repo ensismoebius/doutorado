@@ -99,47 +99,89 @@ struct TrainerConfig
 {
     int epochs = 10;
     float learning_rate = 0.001F;
-    
+
     // Adam parameters
     float adam_beta1 = 0.9F;
     float adam_beta2 = 0.999F;
     float adam_epsilon = 1e-8F;
-    
+
     // Gradient clipping
     float grad_clip_norm = 0.0F;
-    
+
     // Batch
     int batch_size = 1;
     unsigned int sampler_shuffle_seed = 42;
+
+    // SNN-specific: per-group learning rate for biophysical parameters (R, C, V_th).
+    // Effective SNN lr = learning_rate * snn_lr_scale.
+    // Literature recommends 0.1 (10× smaller than weight lr) [37].
+    float snn_lr_scale = 0.1F;
+
+    // Nested k-fold cross-validation (0 = disabled, plain k-fold).
+    // Set nested_cv_outer_folds > 0 for unbiased hyperparameter evaluation [41].
+    int nested_cv_outer_folds = 0;
+    int nested_cv_inner_folds = 5;
 };
 }
 ```
+
+**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics.  Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3.  Pass this scale to `Adam::attach_with_scales()`.
+
+**Nested CV rationale**: Single-level k-fold cross-validation with hyperparameter tuning leads to optimistic performance estimates.  Nested k-fold [41] uses an outer loop for unbiased test estimation and an inner loop for hyperparameter selection.
 
 ### Epoch Result
 
 ```cpp
 // File: src/core/training/EpochResult.hpp
+namespace nn::training
+{
 struct EpochResult
 {
-    int epoch;
-    float train_loss;
-    float val_loss;
-    float epoch_ms;
+    int epoch = 0;
+    float train_loss = 0.0F;
+    float val_loss = 0.0F;
+    float epoch_ms = 0.0F;
+
+    // SNN energy-efficiency indicators
+    // mean_spike_rate: mean firing rate over all SNN neurons in last training batch [0,1].
+    // NaN for ANN models (not measured). Target range: [0.05, 0.80] (see SpikeCountLoss).
+    float mean_spike_rate = std::numeric_limits<float>::quiet_NaN();
+
+    // sops: estimated Synaptic OPerations for one forward pass.
+    // SOPs = Σ_layer(total_spikes × fan_out).  0 when not measured.
+    // Compare against ANN FLOP count to quantify energy advantage [26].
+    long long sops = 0LL;
 };
+}
 ```
+
+**SOPs formula**: $\text{SOPs} = \sum_l \left(\sum_{i,f} s_{i,f}^{(l)}\right) \times \text{fan\_out}^{(l)}$
+
+where $l$ indexes layers, the inner sum counts spikes in one batch, and fan_out is the number of post-synaptic connections per neuron.
 
 ### Trainer
 
 ```cpp
 // File: src/core/training/Trainer.hpp
-template <typename ModelType>
+template <typename ModelType,
+          typename LossType = MSELossImpl<nn::EigenTensorBackend>>
 class Trainer
 {
 public:
-    using Sample = nn::Tensor;
-    using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
+    using Sample      = nn::Tensor;
+    using SamplePair  = std::pair<nn::Tensor, nn::Tensor>;
+    // Optional per-sample preprocessing (encoding, model state reset, etc.)
+    using SampleTransform = std::function<nn::Tensor(const nn::Tensor&, std::size_t idx)>;
 
     explicit Trainer(ModelType& model, const TrainerConfig& cfg);
+    explicit Trainer(ModelType& model, const TrainerConfig& cfg, LossType loss);
+
+    // Register a callback (called at train/epoch/batch boundaries)
+    void add_callback(std::shared_ptr<ITrainingCallback> cb);
+
+    // Optional per-sample transform applied before model.forward() in both train and val.
+    // Use for: encoding, model.reset_state() side effects, data augmentation.
+    void set_sample_transform(SampleTransform fn);
 
     // For autoencoders (input = target)
     auto fit_autoencoder(
@@ -152,8 +194,24 @@ public:
         const std::vector<SamplePair>& train_pairs,
         const std::vector<SamplePair>& val_pairs = {}
     ) -> std::vector<EpochResult>;
+
+    const TrainerConfig& config() const;
 };
 ```
+
+**LossType template** (default `MSELossImpl<EigenTensorBackend>`) — must implement:
+- `set_target(const Tensor&)`
+- `forward(const Tensor& pred, bool requires_grad) -> Tensor` (returns 1×1 scalar)
+- `backward(const Tensor& pred) -> Tensor` (gradient w.r.t. pred)
+
+**Bugs fixed** vs prior implementation:
+1. `zero_grad` called **before** forward (was after)
+2. Single forward+loss+backward per batch (was double-forward)
+3. Loss type pluggable via template (was hardcoded MSE)
+4. `snn_lr_scale` wired via `attach_with_scales()` (was silently ignored)
+5. Supervised batch: per-sample forward within batch loop (was merged-batch shape mismatch)
+6. `EpochResult.mean_spike_rate` populated when `LossType::last_mean_rate()` exists
+7. No `cout` inside Trainer — output goes through `ITrainingCallback`
 
 ## Data Flow
 
@@ -184,62 +242,107 @@ sequenceDiagram
 ## Usage Example
 
 ```cpp
-// File: src/core/training/tests/trainer_gtest.cpp
-#include "nn/training/Trainer.hpp"
-#include "nn/training/TrainerConfig.hpp"
-#include "nn/optimizers/Adam.hpp"
+#include "core/training/Trainer.hpp"
+#include "core/training/TrainerConfig.hpp"
+#include "nn/training/ProgressCallback.hpp"
+#include "nn/training/EarlyStoppingCallback.hpp"
 
 // Configure training
 nn::training::TrainerConfig config{
-    .epochs = 10,
+    .epochs        = 100,
     .learning_rate = 0.001f,
-    .batch_size = 32,
-    .grad_clip_norm = 1.0f
+    .batch_size    = 32,
+    .grad_clip_norm = 1.0f,
+    .snn_lr_scale  = 1.0f  // 1.0 = disabled; 0.1 = SNN biophysical params
 };
 
-// Create trainer
-nn::training::Trainer trainer(*model, config);
+// Create trainer (MSELoss default; plug in SpikeCountLoss for SNN)
+nn::training::Trainer<MyAutoencoder> trainer(*model, config);
+
+// Add callbacks
+trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("Train"));
+auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(/*patience=*/20);
+trainer.add_callback(stopper);
 
 // Train autoencoder
 std::vector<nn::Tensor> train_data = /* load data */;
-std::vector<nn::Tensor> val_data = /* load validation */;
+std::vector<nn::Tensor> val_data   = /* load validation */;
 
 auto history = trainer.fit_autoencoder(train_data, val_data);
 
-// Print results
-for (const auto& result : history)
+// Results
+for (const auto& r : history)
 {
-    std::cout << "Epoch " << result.epoch 
-              << " train_loss=" << result.train_loss
-              << " val_loss=" << result.val_loss
-              << " time=" << result.epoch_ms << "ms\n";
+    // r.epoch, r.train_loss, r.val_loss, r.epoch_ms
+    // r.mean_spike_rate (NaN for ANN), r.sops (0 for ANN)
 }
 ```
 
-### Progress Bar Integration in Training
+### Callback Interface
 
-The Trainer automatically creates and updates progress bars during training/validation:
+Callbacks observe training at well-defined hook points. All output, early stopping, and metric logging go through callbacks — Trainer has no `cout`.
 
 ```cpp
-// Inside Trainer::fit_generic():
-for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
-{
-    nn::progress::ProgressBar train_bar("Training", static_cast<float>(train_samples.size()));
-    
-    // ... training loop ...
-    train_bar.update(static_cast<float>(batch_start), {{"loss", loss_val}});
-    
-    nn::progress::ProgressBar val_bar("Validating", static_cast<float>(val_samples.size()));
-    // ... validation loop ...
-    val_bar.update(static_cast<float>(val_batch_start), {{"loss", vloss}});
-}
+// File: include/nn/training/ITrainingCallback.hpp
+namespace nn::training {
+
+struct TrainingState {
+    int epoch; int total_epochs;
+    int batch; int total_batches;
+    float batch_loss;
+    const EpochResult* last_epoch_result = nullptr;
+};
+
+struct ITrainingCallback {
+    virtual void on_train_begin(int total_epochs) {}
+    virtual void on_train_end(const std::vector<EpochResult>&) {}
+    virtual void on_epoch_begin(const TrainingState&) {}
+    virtual void on_epoch_end(const TrainingState&, const EpochResult&) {}
+    virtual void on_batch_begin(const TrainingState&) {}
+    virtual void on_batch_end(const TrainingState&) {}
+    virtual bool should_stop() const { return false; }
+    virtual ~ITrainingCallback() = default;
+};
+} // namespace nn::training
 ```
 
-Output:
+### Concrete Callbacks
+
+**`ProgressCallback`** — wraps `nn::progress::ProgressManager` (thread-safe singleton):
+
+```cpp
+// File: include/nn/training/ProgressCallback.hpp
+trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("LSTM run 1/5"));
+// Output: LSTM run 1/5  [=====               ] 25% | train_loss: 0.42 | val_loss: 0.38
 ```
-Training   [===================           ] 67% | loss: 0.4523
-Validating [======================        ] 88% | loss: 0.2314
+
+**`EarlyStoppingCallback`** — stops training when validation loss stops improving:
+
+```cpp
+// File: include/nn/training/EarlyStoppingCallback.hpp
+auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
+    /*patience=*/20, /*min_delta=*/1e-8f);
+trainer.add_callback(stopper);
+// After training:
+float best = stopper->best_val_loss(); // for RunMetrics reporting
 ```
+
+The Trainer checks `should_stop()` after every `on_epoch_end` fires. When any callback returns `true`, the loop breaks and `on_train_end` is called.
+
+### Sample Transform
+
+For models that need per-sample preprocessing (LSTM state reset, SNN encoding):
+
+```cpp
+// Reset LSTM state and encode each sample before forward pass
+trainer.set_sample_transform(
+    [&model, &encoding, seed](const nn::Tensor& s, std::size_t idx) -> nn::Tensor {
+        model.reset_state();
+        return encode_sample(s, encoding, seed + static_cast<uint32_t>(idx));
+    });
+```
+
+Transform is applied in **both** training and validation loops, immediately before `model.forward()`.
 
 ## Common Pitfalls
 
@@ -253,14 +356,21 @@ Validating [======================        ] 88% | loss: 0.2314
 
 ## See Also
 
-- [Optimizers](./Optimizers.md) - Adam/SGD
-- [Layers](./Layers.md) - Model layers
-- [Tensor](./Tensor.md) - Data structure
-- [Autoencoders](./Autoencoders.md) - Model being trained
-- [Progress Tracking](./Progress.md) - Non-blocking progress bars
+- [Optimizers](./Optimizers.md) — Adam with per-group lr (`attach_with_scales`)
+- [Layers](./Layers.md) — Model layers
+- [Tensor](./Tensor.md) — Data structure
+- [Autoencoders](./Autoencoders.md) — Model being trained
+- [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) — Nested CV theory
+- [Spike Rate Regularization](../Concepts/Spike-Rate-Regularization.md) — `mean_spike_rate` and SOPs context
 
 ## References
 
 [1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
-[2] L. Bottou, "Large-scale machine learning with stochastic gradient descent," in *Proc. 19th Int. Conf. Computational Statistics (COMPSTAT)*, 2010, pp. 177–186. [Online]. Available: https://doi.org/10.1007/978-3-7908-2604-3_16
+[2] L. Bottou, "Large-scale machine learning with stochastic gradient descent," in *Proc. 19th Int. Conf. Computational Statistics (COMPSTAT)*, 2010, pp. 177–186.
+
+[26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023.
+
+[37] Y. Cao et al., "Direct training of spiking neural networks: Challenges and insights," *Frontiers in Neuroscience*, 2025.
+
+[41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/

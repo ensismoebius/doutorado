@@ -52,7 +52,7 @@ namespace nn::models::autoencoder
  * @note You MUST set eeg_features and audio_features in config
  *       before constructing this model.
  */
-class FusedWindowAutoencoder : public BaseAutoencoder<nn::EigenTensorBackend>
+class FusedWindowAutoencoder : public BaseAutoencoder<nn::Backend>
 {
    public:
     /**

@@ -37,6 +37,9 @@ class DeviceTensorBackend
     // Construct a 2D host-backed tensor. Does not allocate device memory.
     explicit DeviceTensorBackend(Index rows, Index cols) : m_host(rows, cols) {}
 
+    // Construct a 3D host-backed tensor (stored as (d1, d2*d3)).
+    explicit DeviceTensorBackend(Index d1, Index d2, Index d3) : m_host(d1, d2, d3) {}
+
     // Construct a 4D host-backed tensor (stored using the 4D->2D convention).
     // Note: avoid device allocations here; call `allocate_on_device()` when ready.
     explicit DeviceTensorBackend(Index d1, Index d2, Index d3, Index d4) : m_host(d1, d2, d3, d4) {}
@@ -143,6 +146,15 @@ class DeviceTensorBackend
     const float& at(Index r, Index c) const
     {
         return m_host.at(r, c);
+    }
+
+    float& at(Index d1, Index d2, Index d3)
+    {
+        return m_host.at(d1, d2, d3);
+    }
+    const float& at(Index d1, Index d2, Index d3) const
+    {
+        return m_host.at(d1, d2, d3);
     }
 
     float& at(Index d1, Index d2, Index d3, Index d4)

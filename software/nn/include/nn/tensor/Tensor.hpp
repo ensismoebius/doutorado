@@ -12,7 +12,8 @@
  *
  * **Contract:**
  * - 2D mapping: rows/cols map to Eigen storage row/col (row-major logical).
- * - 4D mapping: rows = d1; cols = d2 * d3 * d4.
+ * - 3D mapping: rows = d1; cols = d2; storage cols = d2 * d3.
+ * - 4D mapping: rows = d1; cols = d2; storage cols = d2 * d3 * d4.
  * - Public APIs throw `std::invalid_argument` or `std::out_of_range` on misuse.
  */
 
@@ -98,6 +99,9 @@ class TensorImpl
     /// Construct a 2-D tensor.
     TensorImpl(Index rows, Index cols) : backend_(rows, cols) {}
 
+    /// Construct a 3-D tensor. Storage: (d1, d2*d3).
+    TensorImpl(Index d1, Index d2, Index d3) : backend_(d1, d2, d3) {}
+
     /// Construct a 4-D tensor.
     TensorImpl(Index dim1, Index d2, Index d3, Index d4) : backend_(dim1, d2, d3, d4) {}
 
@@ -111,16 +115,37 @@ class TensorImpl
         t.fill(value);
         return t;
     }
+    /// Create a 3-D tensor filled with `value`.
+    static auto constant(Index d1, Index d2, Index d3, float value) -> TensorImpl
+    {
+        TensorImpl t(d1, d2, d3);
+        t.fill(value);
+        return t;
+    }
     /// Create a zeros tensor.
     static auto zeros(Index rows, Index cols) -> TensorImpl
     {
         // Require Backend::zeros to return Backend value
         return TensorImpl(Backend::zeros(rows, cols));
     }
+    /// Create a 3-D zeros tensor.
+    static auto zeros(Index d1, Index d2, Index d3) -> TensorImpl
+    {
+        TensorImpl t(d1, d2, d3);
+        t.fill(0.0f);
+        return t;
+    }
     /// Create a ones tensor.
     static auto ones(Index rows, Index cols) -> TensorImpl
     {
         return TensorImpl(Backend::ones(rows, cols));
+    }
+    /// Create a 3-D ones tensor.
+    static auto ones(Index d1, Index d2, Index d3) -> TensorImpl
+    {
+        TensorImpl t(d1, d2, d3);
+        t.fill(1.0f);
+        return t;
     }
 
     /// Create a tensor with uniform random values in [0,1).
@@ -132,6 +157,16 @@ class TensorImpl
     static auto rand(Index rows, Index cols, std::mt19937& rng) -> TensorImpl
     {
         return TensorImpl(Backend::random(rows, cols, rng));
+    }
+    /// Create a 3-D tensor with uniform random values in [0,1).
+    static auto rand(Index d1, Index d2, Index d3) -> TensorImpl
+    {
+        return TensorImpl(Backend::random(d1, d2, d3));
+    }
+    /// Create a 3-D tensor with uniform random values in [0,1) using provided RNG.
+    static auto rand(Index d1, Index d2, Index d3, std::mt19937& rng) -> TensorImpl
+    {
+        return TensorImpl(Backend::random(d1, d2, d3, rng));
     }
 
     // -----------------------------------------------------------------
@@ -191,6 +226,15 @@ class TensorImpl
     [[nodiscard]] auto at(Index row, Index col) const -> const float&
     {
         return backend_.at(row, col);
+    }
+
+    auto at(Index d1, Index d2, Index d3) -> float&
+    {
+        return backend_.at(d1, d2, d3);
+    }
+    [[nodiscard]] auto at(Index d1, Index d2, Index d3) const -> const float&
+    {
+        return backend_.at(d1, d2, d3);
     }
 
     auto at(Index d1, Index d2, Index d3, Index d4) -> float&
@@ -479,6 +523,14 @@ class TensorImpl
     const float& operator()(Index i, Index j) const
     {
         return at(i, j);
+    }
+    float& operator()(Index d1, Index d2, Index d3)
+    {
+        return at(d1, d2, d3);
+    }
+    const float& operator()(Index d1, Index d2, Index d3) const
+    {
+        return at(d1, d2, d3);
     }
 
     const float* data_ptr() const noexcept

@@ -8,18 +8,23 @@
 
 /**
  * @file SGD.hpp
- * @brief Stochastic Gradient Descent (with optional momentum).
+ * @brief Stochastic Gradient Descent with optional momentum (Polyak heavy-ball formulation).
  *
  * Lifecycle:
  * - `attach(params)` allocates velocity buffers matching each parameter shape.
  * - `step(params)` applies an update in-place.
  * - `zero_grad(params)` resets gradients on all parameters.
  *
- * Important caveat:
- * - A conventional SGD update uses `param.grad()`.
- *   This implementation currently builds its velocity from `param` values
- *   (not `grad`), which is atypical and likely not what you want for training.
- *   Treat this as experimental/placeholder unless verified.
+ * Update rule (Polyak / classical momentum):
+ *   v_t = μ * v_{t-1} − lr * g_t
+ *   θ_t = θ_{t-1} + v_t
+ *
+ * This is mathematically equivalent to the Sutskever formulation
+ * (v = μ*v + g; θ -= lr*v) when μ=0, and produces the same fixed points.
+ * Both forms are standard — see Polyak 1964 and Sutskever et al. ICML 2013.
+ *
+ * Reference: [2] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization,"
+ * ICLR 2015. (SGD as baseline comparator)
  */
 
 struct SGD : public Optimizer

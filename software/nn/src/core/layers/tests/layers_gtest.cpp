@@ -313,7 +313,7 @@ TEST(LeakyIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradient
 
 TEST(LeakyBPTTLayerTest, ParamsExposeTrainableCapacitance)
 {
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -328,7 +328,7 @@ TEST(LeakyBPTTLayerTest, ParamsExposeTrainableCapacitance)
 
 TEST(LeakyBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
 {
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -368,7 +368,7 @@ TEST(LeakyBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
 TEST(LeakyBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
 {
     // Large boxcar window keeps surrogate derivative at 1 over this test's voltage range.
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -406,7 +406,7 @@ TEST(LeakyBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
 
 TEST(LeakyBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
 {
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -431,7 +431,7 @@ TEST(LeakyBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
 
 TEST(LeakyBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/-2.0F,
         /*capacitance=*/-3.0F,
@@ -479,7 +479,7 @@ TEST(LeakyBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
     // R/C gradients use v_post_history[0]=1.5:
     //   dL_dR = 1.5 * (beta/12)   [d_beta_dR = beta/(R^2*C) = beta/12]
     //   dL_dC = 1.5 * (beta/18)   [d_beta_dC = beta/(R*C^2) = beta/18]
-    LeakyBPTTImpl<nn::EigenTensorBackend> leaky_bptt(/*time_steps=*/2,
+    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,

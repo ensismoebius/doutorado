@@ -20,7 +20,7 @@
  *   Encoder: Linear(input_features → hidden) → ReLU → [×depth] → Linear(hidden → latent) → ReLU
  *   Decoder: Linear(latent → hidden) → ReLU → [×depth] → Linear(hidden → input_features)
  */
-struct FusedWindowAutoencoder : Module<nn::EigenTensorBackend>
+struct FusedWindowAutoencoder : Module<nn::Backend>
 {
     Sequential eeg_encoder_;
     Sequential audio_encoder_;

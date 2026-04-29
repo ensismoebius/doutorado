@@ -1,0 +1,42 @@
+---
+description: "Enforce fold ID, split seed, and sample index tracking in all K-fold experiment outputs for post-hoc analysis."
+---
+
+# fold-metadata-tracker
+
+Ensure K-fold results are never aggregated without first saving per-fold metadata, enabling fold-wise error analysis and significance testing.
+
+## Rules
+
+- **FOLD_ID_IN_OUTPUT**: Every per-fold result (loss, metrics, predictions) must be tagged with its fold ID (0-indexed). No aggregating fold results before saving per-fold records.
+- **SPLIT_SEED_RECORDED**: The random seed used to generate the fold split must be saved alongside results. Two runs with the same seed must produce the same split.
+- **SAMPLE_INDICES_SAVED**: Save train and validation sample indices per fold to a sidecar file. Enables re-running a single fold and verifying reproducibility.
+- **NO_EARLY_AGGREGATION**: Compute and save per-fold metrics first, then aggregate to mean ± std. Never compute only the aggregate and discard fold-level data.
+- **FOLD_TIMING**: Record wall-clock time per fold. Log summary (min, max, mean fold duration) at end of cross-validation.
+
+## Required Output Structure
+
+```
+results/<experiment_id>/<timestamp>/
+├── config.json
+├── fold_00/
+│   ├── metrics.json      ← { "fold_id": 0, "val_loss": ..., "val_acc": ... }
+│   ├── indices.json      ← { "train": [...], "val": [...] }
+│   └── model.bin         ← best checkpoint for this fold
+├── fold_01/
+│   └── ...
+└── summary.json          ← { "mean_val_acc": ..., "std_val_acc": ..., "split_seed": 42 }
+```
+
+## Key Files to Fix
+
+- [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — `FoldSplit` struct needs `fold_id` and `split_seed` fields
+- [src/experiments/02/Experiment02Training.cpp](src/experiments/02/Experiment02Training.cpp) — save per-fold metrics before averaging
+- [src/core/training/EpochResult.hpp](src/core/training/EpochResult.hpp) — add `fold_id` field
+
+## Validation
+
+- `fold_<id>/metrics.json` exists for every fold after training completes.
+- `fold_<id>/indices.json` allows exact reproduction of the train/val split.
+- `summary.json` is written only after all per-fold files are flushed.
+- Re-running with same seed and same fold ID produces the same split.

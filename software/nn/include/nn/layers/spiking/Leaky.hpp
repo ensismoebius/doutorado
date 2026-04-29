@@ -85,6 +85,23 @@ struct LeakyImpl : public Module<Backend>
     /// @brief The potential to reset to if `reset_zero` is true.
     float reset_potential = 0.0F;
 
+    // --- Spike-frequency adaptation (adaptive threshold) ---
+    // Implements a negative-feedback adaptation variable `adapt_a`:
+    //   adapt_a[t] = adapt_decay * adapt_a[t-1] + adapt_coupling * spike[t-1]
+    //   effective threshold = voltage_threshold + adapt_a
+    // After each spike, the threshold rises by `adapt_coupling`, then decays
+    // back toward zero at rate `adapt_decay`. This suppresses bursting and
+    // improves temporal selectivity.
+    //
+    // Reference: [34-35] MPD-ATP (IEEE Xplore 2025); AR-LIF (arXiv 2025).
+    // Set adapt_coupling = 0.0 (default) to disable adaptation.
+
+    /// @brief Per-call decay of the adaptation variable (0 < adapt_decay < 1).
+    float adapt_decay = 0.9F;
+
+    /// @brief Coupling strength: amount by which threshold rises per spike.
+    float adapt_coupling = 0.0F; // 0 = disabled; try 0.1–0.3 for adaptation
+
     // Persistent membrane potential (stateful, snnTorch-like)
 
     /// @brief Caches the membrane potential *before* spike/reset for the backward pass.
@@ -95,6 +112,9 @@ struct LeakyImpl : public Module<Backend>
 
     /// @brief Caches the membrane potential from the previous time step, v(t-1), for backprop.
     Tensor v_mem_t_minus_1;
+
+    /// @brief Adaptation variable: raised by adapt_coupling on each spike, then decays.
+    Tensor adapt_a;
 
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
@@ -139,6 +159,10 @@ struct LeakyImpl : public Module<Backend>
         {
             v_mem_t_minus_1.setZero();
         }
+        if (adapt_a.size() > 0)
+        {
+            adapt_a.setZero();
+        }
     }
 
     /**
@@ -158,13 +182,17 @@ struct LeakyImpl : public Module<Backend>
         bool reset_zero_ = true,                // reset to zero or subtract threshold
         float reset_potential_ = 0.0F,          // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
-            std::make_shared<ExponentialSurrogate>())
+            std::make_shared<ExponentialSurrogate>(),
+        float adapt_decay_ = 0.9F,              // adaptation decay rate (0,1)
+        float adapt_coupling_ = 0.0F)           // adaptation coupling (0 = disabled)
         : time_step(time_step_),
           resistance(Tensor::constant(1, 1, resistance_)),
           capacitance(Tensor::constant(1, 1, capacitance_)),
           voltage_threshold(Tensor::constant(1, 1, voltage_threshold_)),
           reset_zero(reset_zero_),
           reset_potential(reset_potential_),
+          adapt_decay(adapt_decay_),
+          adapt_coupling(adapt_coupling_),
           surrogate_gradient(std::move(surrogate_grad))
     {
     }
@@ -184,6 +212,14 @@ struct LeakyImpl : public Module<Backend>
         {
             v_mem = Tensor(input.rows(), input.cols());
             v_mem.setZero();
+        }
+
+        // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
+        if (adapt_coupling > 0.0F
+            && (adapt_a.rows() != input.rows() || adapt_a.cols() != input.cols())) [[unlikely]]
+        {
+            adapt_a = Tensor(input.rows(), input.cols());
+            adapt_a.setZero();
         }
 
         // The membrane time constant (tau = R * C) determines how quickly potential leaks.
@@ -239,26 +275,35 @@ struct LeakyImpl : public Module<Backend>
             printTensor(v_mem, oss.str());
         }
 #endif
-        // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the threshold.
-        // This is a non-differentiable step function, which is why we need surrogate
-        // gradients for training.
-        // Implementation note: this uses explicit loops rather than a vectorized
-        // compare operation; for large tensors this can become a hotspot.
+        // 4. Fire (Spike): Generate a spike (1.0) if potential exceeds the effective threshold.
+        // When spike-frequency adaptation is enabled (adapt_coupling > 0), the effective
+        // threshold = voltage_threshold + adapt_a (per-neuron), implementing a negative-feedback
+        // mechanism that suppresses bursting (MPD-ATP, IEEE 2025 [35]).
+        // This is a non-differentiable step function — surrogate gradients approximate it.
         Tensor output(input.rows(), input.cols());
-        float threshold_val = voltage_threshold.at(0, 0);
+        float const base_threshold = voltage_threshold.at(0, 0);
+        const bool use_adaptation = (adapt_coupling > 0.0F) && (adapt_a.size() > 0);
+
+        // Decay adaptation variable before this step's threshold is applied
+        if (use_adaptation)
+        {
+            adapt_a.multiply_scalar_inplace(adapt_decay);
+        }
+
         for (size_t i = 0; i < v_mem.rows(); ++i)
         {
             for (size_t j = 0; j < v_mem.cols(); ++j)
             {
-                output.at(i, j) = (v_mem.at(i, j) > threshold_val) ? 1.0f : 0.0f;
+                float eff_thresh = base_threshold
+                                   + (use_adaptation ? adapt_a.at(i, j) : 0.0F);
+                output.at(i, j) = (v_mem.at(i, j) > eff_thresh) ? 1.0f : 0.0f;
             }
         }
 
         // 5. Reset: For every neuron that fired a spike, its membrane potential must be reset.
+        // If adaptation is active, also increment adapt_a by adapt_coupling.
         if (reset_zero)
         {
-            // Hard Reset: The potential is reset to a fixed value, `reset_potential`
-            // (which is often 0).
             for (size_t i = 0; i < v_mem.rows(); ++i)
             {
                 for (size_t j = 0; j < v_mem.cols(); ++j)
@@ -266,6 +311,10 @@ struct LeakyImpl : public Module<Backend>
                     if (output.at(i, j) == 1.0f)
                     {
                         v_mem.at(i, j) = reset_potential;
+                        if (use_adaptation)
+                        {
+                            adapt_a.at(i, j) += adapt_coupling;
+                        }
                     }
                 }
             }
@@ -279,7 +328,11 @@ struct LeakyImpl : public Module<Backend>
             {
                 for (size_t j = 0; j < v_mem.cols(); ++j)
                 {
-                    v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * threshold_val;
+                    v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * base_threshold;
+                    if (use_adaptation && output.at(i, j) == 1.0f)
+                    {
+                        adapt_a.at(i, j) += adapt_coupling;
+                    }
                 }
             }
         }

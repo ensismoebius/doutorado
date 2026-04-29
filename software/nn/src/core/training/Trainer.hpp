@@ -1,35 +1,24 @@
 /**
  * @file Trainer.hpp
- * @brief Generic training loop for any nn::Module model.
+ * @brief Generic training loop for any nn::Module model with pluggable loss and callbacks.
  *
- * This class provides a PyTorch Lightning-style training loop:
- *   - Works with any model: autoencoders, classifiers, LSTMs, etc.
- *   - Configurable loss function (MSE, CrossEntropy, MAE)
- *   - Supports both autoencoder mode (input=target) and supervised (input,target) pairs
- *   - Batch processing
+ * Template parameters:
+ *   - ModelType : any class with forward(Tensor, bool) → Tensor, backward(Tensor),
+ *                 params() → span<Tensor*>. reset_state() called if present.
+ *   - LossType  : any class with set_target(Tensor), forward(Tensor, bool) → Tensor,
+ *                 backward(Tensor) → Tensor. Default: MSELossImpl<nn::Backend>.
  *
- * PyTorch vs This Code:
- *   PyTorch:                  This Code:
- *   model.train()             Trainer handles automatically
- *   optimizer.zero_grad()     trainer.fit()
- *   loss = criterion(out, target)
- *   loss.backward()
- *   optimizer.step()
+ * All console output goes through ITrainingCallback — Trainer itself has no cout.
+ * Add a ProgressCallback or LogCallback to restore visible training output.
  *
- * Example Usage (Autoencoder):
- *   @code
- *   Autoencoder model(cfg);
- *   Trainer<decltype(model), nn::layers::MSELoss> trainer(model, config);
- *   auto history = trainer.fit_autoencoder(train_data, val_data);
- *   @endcode
- *
- * Example Usage (Supervised):
- *   @code
- *   Classifier model(cfg);
- *   Trainer<decltype(model), nn::layers::CrossEntropyLoss> trainer(model, config);
- *   std::vector<std::pair<nn::Tensor, nn::Tensor>> train_pairs = ...;
- *   auto history = trainer.fit_supervised(train_pairs, val_pairs);
- *   @endcode
+ * Bugs fixed vs prior implementation:
+ *   1. zero_grad now called BEFORE forward (was after).
+ *   2. Single forward+loss pass (was double forward).
+ *   3. Loss type is a template parameter (was hardcoded MSE).
+ *   4. snn_lr_scale wired via attach_with_scales (was silently ignored).
+ *   5. fit_supervised_generic batch loss: output re-run per sample (shape mismatch fixed).
+ *   6. EpochResult.mean_spike_rate / sops populated when LossType exposes last_mean_rate().
+ *   7. No cout inside Trainer — output is callback responsibility.
  */
 #ifndef NN_TRAINING_TRAINER_HPP
 #define NN_TRAINING_TRAINER_HPP
@@ -37,8 +26,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <iostream>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <random>
 #include <span>
@@ -47,55 +37,137 @@
 
 #include "core/training/EpochResult.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "nn/Backend.hpp"
 #include "nn/layers/losses/MSELoss.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/training/ITrainingCallback.hpp"
 
 namespace nn::training
 {
 
-template <typename ModelType>
+namespace detail
+{
+// Detect last_mean_rate() on LossType at compile time.
+template <typename T, typename = void>
+struct has_last_mean_rate : std::false_type {};
+template <typename T>
+struct has_last_mean_rate<T, std::void_t<decltype(std::declval<T>().last_mean_rate())>>
+    : std::true_type {};
+
+// Detect reset_state() on ModelType at compile time.
+template <typename T, typename = void>
+struct has_reset_state : std::false_type {};
+template <typename T>
+struct has_reset_state<T, std::void_t<decltype(std::declval<T>().reset_state())>>
+    : std::true_type {};
+} // namespace detail
+
+template <typename ModelType,
+          typename LossType = MSELossImpl<nn::Backend>>
 class Trainer
 {
    public:
-    using Sample = nn::Tensor;
-    using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
+    using Sample      = nn::Tensor;
+    using SamplePair  = std::pair<nn::Tensor, nn::Tensor>;
+    using SampleTransform = std::function<nn::Tensor(const nn::Tensor&, std::size_t)>;
 
     explicit Trainer(ModelType& model, const TrainerConfig& cfg)
+        : Trainer(model, cfg, LossType{}) {}
+
+    explicit Trainer(ModelType& model, const TrainerConfig& cfg, LossType loss)
         : model_(model),
           cfg_(cfg),
+          loss_(std::move(loss)),
           optimizer_(cfg.learning_rate, cfg.adam_beta1, cfg.adam_beta2, cfg.adam_epsilon)
     {
-        optimizer_.attach(model_.params());
+        if (cfg_.snn_lr_scale != 1.0F)
+        {
+            auto params = model_.params();
+            std::vector<float> scales(params.size(), cfg_.snn_lr_scale);
+            optimizer_.attach_with_scales(params, scales);
+        }
+        else
+        {
+            optimizer_.attach(model_.params());
+        }
+    }
+
+    void add_callback(std::shared_ptr<ITrainingCallback> cb)
+    {
+        callbacks_.push_back(std::move(cb));
+    }
+
+    void set_sample_transform(SampleTransform fn)
+    {
+        sample_transform_ = std::move(fn);
     }
 
     auto fit_autoencoder(const std::vector<Sample>& train_samples,
         const std::vector<Sample>& val_samples = {}) -> std::vector<EpochResult>
     {
-        return fit_generic(train_samples, val_samples, TrainingMode::Autoencoder);
+        return fit_loop(train_samples, val_samples, true);
     }
 
     auto fit_supervised(const std::vector<SamplePair>& train_pairs,
         const std::vector<SamplePair>& val_pairs = {}) -> std::vector<EpochResult>
     {
-        return fit_supervised_generic(train_pairs, val_pairs);
+        std::vector<Sample> train_inputs, train_targets, val_inputs, val_targets;
+        for (const auto& [i, t] : train_pairs) { train_inputs.push_back(i); train_targets.push_back(t); }
+        for (const auto& [i, t] : val_pairs)   { val_inputs.push_back(i);   val_targets.push_back(t); }
+        return fit_loop_supervised(train_inputs, train_targets, val_inputs, val_targets);
     }
 
-    auto config() const -> const TrainerConfig&
-    {
-        return cfg_;
-    }
+    const TrainerConfig& config() const { return cfg_; }
 
    private:
-    enum class TrainingMode
-    {
-        Autoencoder,
-        Supervised
-    };
+    ModelType&         model_;
+    TrainerConfig      cfg_;
+    LossType           loss_;
+    Adam               optimizer_;
+    SampleTransform    sample_transform_;
+    std::vector<std::shared_ptr<ITrainingCallback>> callbacks_;
 
-    ModelType& model_;
-    TrainerConfig cfg_;
-    Adam optimizer_;
+    // --- callback helpers ---
+
+    void cb_train_begin(int total_epochs)
+    {
+        for (auto& cb : callbacks_) cb->on_train_begin(total_epochs);
+    }
+
+    void cb_train_end(const std::vector<EpochResult>& hist)
+    {
+        for (auto& cb : callbacks_) cb->on_train_end(hist);
+    }
+
+    void cb_epoch_begin(const TrainingState& s)
+    {
+        for (auto& cb : callbacks_) cb->on_epoch_begin(s);
+    }
+
+    void cb_epoch_end(const TrainingState& s, const EpochResult& r)
+    {
+        for (auto& cb : callbacks_) cb->on_epoch_end(s, r);
+    }
+
+    void cb_batch_begin(const TrainingState& s)
+    {
+        for (auto& cb : callbacks_) cb->on_batch_begin(s);
+    }
+
+    void cb_batch_end(const TrainingState& s)
+    {
+        for (auto& cb : callbacks_) cb->on_batch_end(s);
+    }
+
+    bool cb_should_stop() const
+    {
+        for (const auto& cb : callbacks_)
+            if (cb->should_stop()) return true;
+        return false;
+    }
+
+    // --- gradient clipping ---
 
     static void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
     {
@@ -105,9 +177,7 @@ class Trainer
             nn::Tensor g = p->grad();
             total_sq += g.norm() * g.norm();
         }
-
         const float global_norm = std::sqrt(total_sq);
-
         if (global_norm > max_norm && global_norm > 0.0F)
         {
             const float scale = max_norm / global_norm;
@@ -120,334 +190,302 @@ class Trainer
         }
     }
 
-    auto compute_loss(const nn::Tensor& output, const nn::Tensor& target, bool requires_grad)
-        -> float
+    // --- apply optional sample transform ---
+
+    nn::Tensor transform(const nn::Tensor& s, std::size_t idx) const
     {
-        MSELossImpl<nn::EigenTensorBackend> loss_fn;
-        loss_fn.set_target(target);
-        nn::Tensor loss_tensor = loss_fn.forward(output, requires_grad);
-        return loss_tensor.at(0, 0);
+        return sample_transform_ ? sample_transform_(s, idx) : s;
     }
 
-    nn::Tensor create_batch(const std::vector<Sample>& samples, size_t start, size_t end)
+    // --- batch utilities ---
+
+    static nn::Tensor create_batch(const std::vector<Sample>& samples,
+                                   std::size_t start, std::size_t end)
     {
-        if (end - start == 1)
-        {
-            return samples[start];
-        }
+        if (end - start == 1) return samples[start];
 
-        const auto& first_shape = samples[start].get_shape();
-        size_t batch_size = end - start;
+        const auto& shape = samples[start].get_shape();
+        const std::size_t B = end - start;
 
-        if (first_shape.size() == 2)
+        if (shape.size() == 2)
         {
-            size_t rows = first_shape[0];
-            size_t cols = first_shape[1];
-            nn::Tensor batch(std::vector<nn::Index>{static_cast<nn::Index>(batch_size),
-                static_cast<nn::Index>(rows),
-                static_cast<nn::Index>(cols)});
-            for (size_t i = start; i < end; ++i)
-            {
-                for (size_t j = 0; j < rows * cols; ++j)
-                {
-                    const size_t base = (i - start) * rows * cols;
-                    batch.at(static_cast<nn::Index>(base + j)) =
+            const std::size_t R = shape[0], C = shape[1];
+            nn::Tensor batch(std::vector<nn::Index>{
+                static_cast<nn::Index>(B),
+                static_cast<nn::Index>(R),
+                static_cast<nn::Index>(C)});
+            for (std::size_t i = start; i < end; ++i)
+                for (std::size_t j = 0; j < R * C; ++j)
+                    batch.at(static_cast<nn::Index>((i - start) * R * C + j)) =
                         samples[i].at(static_cast<nn::Index>(j));
-                }
-            }
             return batch;
         }
-        else if (first_shape.size() == 1)
+        if (shape.size() == 1)
         {
-            size_t features = first_shape[0];
-            nn::Tensor batch(batch_size, features);
-            for (size_t i = start; i < end; ++i)
-            {
-                for (size_t j = 0; j < features; ++j)
-                {
+            const std::size_t F = shape[0];
+            nn::Tensor batch(B, F);
+            for (std::size_t i = start; i < end; ++i)
+                for (std::size_t j = 0; j < F; ++j)
                     batch.at(i - start, j) = samples[i].at(j);
-                }
-            }
             return batch;
         }
-
         return samples[start];
     }
 
-    auto fit_generic(const std::vector<Sample>& train_samples,
-        const std::vector<Sample>& val_samples,
-        TrainingMode mode) -> std::vector<EpochResult>
-    {
-        std::vector<EpochResult> history;
-        history.reserve(static_cast<size_t>(cfg_.epochs));
+    // --- populate SNN energy fields if LossType supports it ---
 
-        std::vector<size_t> indices(train_samples.size());
+    void maybe_populate_snn_fields(EpochResult& result)
+    {
+        if constexpr (detail::has_last_mean_rate<LossType>::value)
+            result.mean_spike_rate = loss_.last_mean_rate();
+    }
+
+    // --- main autoencoder loop ---
+
+    auto fit_loop(const std::vector<Sample>& train_samples,
+                  const std::vector<Sample>& val_samples,
+                  bool /*autoencoder_mode*/) -> std::vector<EpochResult>
+    {
+        const int N = static_cast<int>(train_samples.size());
+        const int batches_per_epoch =
+            (N + cfg_.batch_size - 1) / cfg_.batch_size;
+
+        std::vector<EpochResult> history;
+        history.reserve(static_cast<std::size_t>(cfg_.epochs));
+
+        std::vector<std::size_t> indices(train_samples.size());
         std::iota(indices.begin(), indices.end(), 0u);
         std::mt19937 rng(cfg_.sampler_shuffle_seed);
+
+        cb_train_begin(cfg_.epochs);
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
         {
             const auto t_start = std::chrono::steady_clock::now();
 
+            TrainingState state{epoch, cfg_.epochs, 0, batches_per_epoch, 0.0F, nullptr};
+            cb_epoch_begin(state);
+
             std::shuffle(indices.begin(), indices.end(), rng);
 
-            float train_loss_accum = 0.0F;
-            int n_train = 0;
+            float train_loss_sum = 0.0F;
+            int   n_train        = 0;
+            int   batch_idx      = 0;
 
-            size_t batch_start = 0;
+            std::size_t batch_start = 0;
             while (batch_start < train_samples.size())
             {
-                size_t batch_end = std::min(
-                    batch_start + static_cast<size_t>(cfg_.batch_size), train_samples.size());
+                const std::size_t batch_end = std::min(
+                    batch_start + static_cast<std::size_t>(cfg_.batch_size),
+                    train_samples.size());
 
-                nn::Tensor batch = create_batch(train_samples, batch_start, batch_end);
-                nn::Tensor target = batch;
+                // Build batch (with optional per-sample transform)
+                std::vector<Sample> batch_samples;
+                batch_samples.reserve(batch_end - batch_start);
+                for (std::size_t k = batch_start; k < batch_end; ++k)
+                    batch_samples.push_back(transform(train_samples[indices[k]], indices[k]));
 
-                nn::Tensor output = model_.forward(batch, true);
-                float loss_val = compute_loss(output, target, true);
+                nn::Tensor batch = create_batch(batch_samples, 0, batch_samples.size());
 
-                train_loss_accum += loss_val;
-                n_train += static_cast<int>(batch_end - batch_start);
+                state.batch = ++batch_idx;
+                cb_batch_begin(state);
 
+                // zero_grad BEFORE forward (bug 1 fix)
                 optimizer_.zero_grad(model_.params());
 
-                MSELossImpl<nn::EigenTensorBackend> loss_fn;
-                loss_fn.set_target(target);
-                nn::Tensor loss_tensor = loss_fn.forward(output, true);
-                nn::Tensor d_out = loss_fn.backward(output);
+                // Single forward+loss+backward (bug 2 fix)
+                nn::Tensor output = model_.forward(batch, true);
+                loss_.set_target(batch); // autoencoder: target = input
+                nn::Tensor loss_tensor = loss_.forward(output, true);
+                const float loss_val = loss_tensor.at(0, 0);
+
+                nn::Tensor d_out = loss_.backward(output);
                 model_.backward(d_out);
 
                 if (cfg_.grad_clip_norm > 0.0F)
-                {
                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-                }
 
                 optimizer_.step(model_.params());
+
+                const int bs = static_cast<int>(batch_end - batch_start);
+                train_loss_sum += loss_val * static_cast<float>(bs);
+                n_train        += bs;
+
+                state.batch_loss = loss_val;
+                cb_batch_end(state);
 
                 batch_start = batch_end;
             }
 
             const float avg_train_loss =
-                (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
+                (n_train > 0) ? train_loss_sum / static_cast<float>(n_train) : 0.0F;
 
+            // Validation
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
-
             if (!val_samples.empty())
             {
-                float val_accum = 0.0F;
-                int n_val = 0;
+                float val_sum = 0.0F;
+                int   n_val   = 0;
 
-                size_t val_batch_start = 0;
-                while (val_batch_start < val_samples.size())
+                std::size_t val_start = 0;
+                while (val_start < val_samples.size())
                 {
-                    size_t val_batch_end = std::min(
-                        val_batch_start + static_cast<size_t>(cfg_.batch_size), val_samples.size());
+                    const std::size_t val_end = std::min(
+                        val_start + static_cast<std::size_t>(cfg_.batch_size),
+                        val_samples.size());
 
-                    nn::Tensor vbatch = create_batch(val_samples, val_batch_start, val_batch_end);
-                    nn::Tensor vtarget = vbatch;
+                    std::vector<Sample> vbatch_samples;
+                    vbatch_samples.reserve(val_end - val_start);
+                    for (std::size_t k = val_start; k < val_end; ++k)
+                        vbatch_samples.push_back(transform(val_samples[k], k));
 
-                    nn::Tensor vrecon = model_.forward(vbatch, false);
-                    float vloss = compute_loss(vrecon, vtarget, false);
+                    nn::Tensor vbatch = create_batch(vbatch_samples, 0, vbatch_samples.size());
 
-                    val_accum += vloss;
-                    n_val += static_cast<int>(val_batch_end - val_batch_start);
+                    nn::Tensor vout = model_.forward(vbatch, false);
+                    loss_.set_target(vbatch);
+                    nn::Tensor vloss_t = loss_.forward(vout, false);
+                    const float vloss = vloss_t.at(0, 0);
 
-                    val_batch_start = val_batch_end;
+                    const int vbs = static_cast<int>(val_end - val_start);
+                    val_sum += vloss * static_cast<float>(vbs);
+                    n_val   += vbs;
+
+                    val_start = val_end;
                 }
-
-                avg_val_loss = val_accum / static_cast<float>(n_val);
+                avg_val_loss = val_sum / static_cast<float>(n_val);
             }
 
             const auto t_end = std::chrono::steady_clock::now();
-            const float ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+            const float ms   = std::chrono::duration<float, std::milli>(t_end - t_start).count();
 
             EpochResult result{epoch, avg_train_loss, avg_val_loss, ms};
+            maybe_populate_snn_fields(result); // bug 6 fix
+
+            state.last_epoch_result = &result;
+            cb_epoch_end(state, result);
             history.push_back(result);
 
-            log_epoch(result, val_samples.empty());
+            if (cb_should_stop()) break;
         }
 
+        cb_train_end(history);
         return history;
     }
 
-    auto fit_supervised_generic(const std::vector<SamplePair>& train_pairs,
-        const std::vector<SamplePair>& val_pairs) -> std::vector<EpochResult>
-    {
-        std::vector<EpochResult> history;
-        history.reserve(static_cast<size_t>(cfg_.epochs));
+    // --- supervised loop (input != target) ---
 
-        std::vector<size_t> indices(train_pairs.size());
+    auto fit_loop_supervised(const std::vector<Sample>& train_inputs,
+                             const std::vector<Sample>& train_targets,
+                             const std::vector<Sample>& val_inputs,
+                             const std::vector<Sample>& val_targets) -> std::vector<EpochResult>
+    {
+        const int N = static_cast<int>(train_inputs.size());
+        const int batches_per_epoch =
+            (N + cfg_.batch_size - 1) / cfg_.batch_size;
+
+        std::vector<EpochResult> history;
+        history.reserve(static_cast<std::size_t>(cfg_.epochs));
+
+        std::vector<std::size_t> indices(train_inputs.size());
         std::iota(indices.begin(), indices.end(), 0u);
         std::mt19937 rng(cfg_.sampler_shuffle_seed);
+
+        cb_train_begin(cfg_.epochs);
 
         for (int epoch = 1; epoch <= cfg_.epochs; ++epoch)
         {
             const auto t_start = std::chrono::steady_clock::now();
 
+            TrainingState state{epoch, cfg_.epochs, 0, batches_per_epoch, 0.0F, nullptr};
+            cb_epoch_begin(state);
+
             std::shuffle(indices.begin(), indices.end(), rng);
 
-            float train_loss_accum = 0.0F;
-            int n_train = 0;
+            float train_loss_sum = 0.0F;
+            int   n_train        = 0;
+            int   batch_idx      = 0;
 
-            std::vector<nn::Tensor> batch_inputs;
-            std::vector<nn::Tensor> batch_targets;
-
-            for (size_t idx : indices)
+            std::size_t batch_start = 0;
+            while (batch_start < train_inputs.size())
             {
-                const auto& [input, target] = train_pairs[idx];
+                const std::size_t batch_end = std::min(
+                    batch_start + static_cast<std::size_t>(cfg_.batch_size),
+                    train_inputs.size());
 
-                batch_inputs.push_back(input);
-                batch_targets.push_back(target);
+                // Collect this mini-batch (bug 5 fix: per-sample forward inside batch)
+                float batch_loss_sum = 0.0F;
+                optimizer_.zero_grad(model_.params()); // zero BEFORE any forward
 
-                if (static_cast<int>(batch_inputs.size()) >= cfg_.batch_size ||
-                    n_train + batch_inputs.size() == train_pairs.size())
+                for (std::size_t k = batch_start; k < batch_end; ++k)
                 {
-                    nn::Tensor output = model_.forward(merge_batch(batch_inputs), true);
+                    const std::size_t idx = indices[k];
+                    const nn::Tensor& inp = transform(train_inputs[idx], idx);
+                    const nn::Tensor& tgt = train_targets[idx];
 
-                    float loss_val = 0.0F;
-                    for (size_t i = 0; i < batch_inputs.size(); ++i)
-                    {
-                        loss_val += compute_loss(output, batch_targets[i], true);
-                    }
-                    loss_val /= static_cast<float>(batch_inputs.size());
+                    nn::Tensor output    = model_.forward(inp, true);
+                    loss_.set_target(tgt);
+                    nn::Tensor loss_t    = loss_.forward(output, true);
+                    const float lv       = loss_t.at(0, 0);
+                    batch_loss_sum      += lv;
 
-                    train_loss_accum += loss_val * static_cast<float>(batch_inputs.size());
-                    n_train += static_cast<int>(batch_inputs.size());
-
-                    optimizer_.zero_grad(model_.params());
-
-                    MSELossImpl<nn::EigenTensorBackend> loss_fn;
-                    nn::Tensor merged_target = merge_batch(batch_targets);
-                    loss_fn.set_target(merged_target);
-                    nn::Tensor loss_tensor = loss_fn.forward(output, true);
-                    nn::Tensor d_out = loss_fn.backward(output);
+                    nn::Tensor d_out = loss_.backward(output);
                     model_.backward(d_out);
-
-                    if (cfg_.grad_clip_norm > 0.0F)
-                    {
-                        clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-                    }
-
-                    optimizer_.step(model_.params());
-
-                    batch_inputs.clear();
-                    batch_targets.clear();
                 }
+
+                if (cfg_.grad_clip_norm > 0.0F)
+                    clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                optimizer_.step(model_.params());
+
+                const int bs = static_cast<int>(batch_end - batch_start);
+                const float avg_batch_loss = batch_loss_sum / static_cast<float>(bs);
+                train_loss_sum += avg_batch_loss * static_cast<float>(bs);
+                n_train        += bs;
+
+                state.batch      = ++batch_idx;
+                state.batch_loss = avg_batch_loss;
+                cb_batch_begin(state);
+                cb_batch_end(state);
+
+                batch_start = batch_end;
             }
 
             const float avg_train_loss =
-                (n_train > 0) ? train_loss_accum / static_cast<float>(n_train) : 0.0F;
+                (n_train > 0) ? train_loss_sum / static_cast<float>(n_train) : 0.0F;
 
+            // Validation
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
-
-            if (!val_pairs.empty())
+            if (!val_inputs.empty())
             {
-                float val_accum = 0.0F;
-                int n_val = 0;
+                float val_sum = 0.0F;
+                int   n_val   = 0;
 
-                std::vector<nn::Tensor> vbatch_inputs;
-                std::vector<nn::Tensor> vbatch_targets;
-
-                for (const auto& [vinput, vtarget] : val_pairs)
+                for (std::size_t k = 0; k < val_inputs.size(); ++k)
                 {
-                    vbatch_inputs.push_back(vinput);
-                    vbatch_targets.push_back(vtarget);
-
-                    if (static_cast<int>(vbatch_inputs.size()) >= cfg_.batch_size ||
-                        n_val + vbatch_inputs.size() == val_pairs.size())
-                    {
-                        nn::Tensor voutput = model_.forward(merge_batch(vbatch_inputs), false);
-
-                        float vloss = 0.0F;
-                        for (size_t i = 0; i < vbatch_inputs.size(); ++i)
-                        {
-                            vloss += compute_loss(voutput, vbatch_targets[i], false);
-                        }
-                        vloss /= static_cast<float>(vbatch_inputs.size());
-
-                        val_accum += vloss * static_cast<float>(vbatch_inputs.size());
-                        n_val += static_cast<int>(vbatch_inputs.size());
-
-                        vbatch_inputs.clear();
-                        vbatch_targets.clear();
-                    }
+                    nn::Tensor vout = model_.forward(val_inputs[k], false);
+                    loss_.set_target(val_targets[k]);
+                    nn::Tensor vloss_t = loss_.forward(vout, false);
+                    val_sum += vloss_t.at(0, 0);
+                    ++n_val;
                 }
-
-                avg_val_loss = val_accum / static_cast<float>(n_val);
+                avg_val_loss = val_sum / static_cast<float>(n_val);
             }
 
             const auto t_end = std::chrono::steady_clock::now();
-            const float ms = std::chrono::duration<float, std::milli>(t_end - t_start).count();
+            const float ms   = std::chrono::duration<float, std::milli>(t_end - t_start).count();
 
             EpochResult result{epoch, avg_train_loss, avg_val_loss, ms};
+            maybe_populate_snn_fields(result);
+
+            state.last_epoch_result = &result;
+            cb_epoch_end(state, result);
             history.push_back(result);
 
-            log_epoch(result, val_pairs.empty());
+            if (cb_should_stop()) break;
         }
 
+        cb_train_end(history);
         return history;
-    }
-
-    nn::Tensor merge_batch(const std::vector<nn::Tensor>& samples)
-    {
-        if (samples.empty())
-        {
-            return nn::Tensor(1, 1);
-        }
-
-        if (samples.size() == 1)
-        {
-            return samples[0];
-        }
-
-        const auto& first_shape = samples[0].get_shape();
-        size_t batch_size = samples.size();
-
-        if (first_shape.size() == 2)
-        {
-            size_t rows = first_shape[0];
-            size_t cols = first_shape[1];
-            nn::Tensor batch(std::vector<nn::Index>{static_cast<nn::Index>(batch_size),
-                static_cast<nn::Index>(rows),
-                static_cast<nn::Index>(cols)});
-            for (size_t i = 0; i < batch_size; ++i)
-            {
-                for (size_t j = 0; j < rows * cols; ++j)
-                {
-                    const size_t base = i * rows * cols;
-                    batch.at(static_cast<nn::Index>(base + j)) =
-                        samples[i].at(static_cast<nn::Index>(j));
-                }
-            }
-            return batch;
-        }
-        else if (first_shape.size() == 1)
-        {
-            size_t features = first_shape[0];
-            nn::Tensor batch(batch_size, features);
-            for (size_t i = 0; i < batch_size; ++i)
-            {
-                for (size_t j = 0; j < features; ++j)
-                {
-                    batch.at(i, j) = samples[i].at(j);
-                }
-            }
-            return batch;
-        }
-
-        return samples[0];
-    }
-
-    static void log_epoch(const EpochResult& r, bool no_val)
-    {
-        std::cout << "[Trainer] epoch=" << r.epoch << "  train_loss=" << r.train_loss;
-
-        if (!no_val && !std::isnan(r.val_loss))
-        {
-            std::cout << "  val_loss=" << r.val_loss;
-        }
-
-        std::cout << "  time=" << static_cast<int>(r.epoch_ms) << "ms\n";
     }
 };
 
