@@ -27,6 +27,7 @@ set(_exclude_patterns
 foreach(_pat IN LISTS _exclude_patterns)
     list(FILTER _all_layer_headers EXCLUDE REGEX "${_pat}")
 endforeach()
+
 list(SORT _all_layer_headers)
 
 set(LAYER_INCLUDES  "")
