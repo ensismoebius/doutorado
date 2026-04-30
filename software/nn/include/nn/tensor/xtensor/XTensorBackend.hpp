@@ -11,6 +11,7 @@
 #include <xtensor/xmanipulation.hpp>
 #include <xtensor/xview.hpp>
 #include <xtensor/xio.hpp>
+#include <xtensor/xnoalias.hpp>
 #include <xtensor-blas/xlinalg.hpp>
 
 #include <algorithm>
@@ -27,6 +28,9 @@
 
 namespace nn
 {
+
+#include <xsimd/xsimd.hpp>
+static_assert(xsimd::batch<float>::size > 1, "SIMD not active");
 
 using Index = std::size_t;
 
@@ -64,8 +68,8 @@ class XTensorBackend
     XTensorBackend(const XTensorBackend& other)
         : m_data(other.m_data)
     {
-        if (other.m_grad_backend)
-            m_grad_backend = std::make_unique<XTensorBackend>(*other.m_grad_backend);
+        if (other.m_grad)
+            m_grad = other.m_grad;
     }
 
     XTensorBackend(XTensorBackend&& other) noexcept = default;
@@ -75,10 +79,7 @@ class XTensorBackend
         if (this != &other)
         {
             m_data  = other.m_data;
-            if (other.m_grad_backend)
-                m_grad_backend = std::make_unique<XTensorBackend>(*other.m_grad_backend);
-            else
-                m_grad_backend.reset();
+            m_grad = other.m_grad;
         }
         return *this;
     }
@@ -187,6 +188,36 @@ class XTensorBackend
     // Element access
     // ------------------------------------------------------------------
 
+    // Unchecked flat access — caller guarantees i < size().
+    float& at_unsafe(Index i) noexcept { return *(m_data.data() + i); }
+    const float& at_unsafe(Index i) const noexcept { return *(m_data.data() + i); }
+
+    // Unchecked 2D access.
+    float& at_unsafe(Index r, Index c) noexcept { return m_data(r, c); }
+    const float& at_unsafe(Index r, Index c) const noexcept { return m_data(r, c); }
+
+    // Unchecked vector access.
+    float& at_unsafe(const std::vector<Index>& indices)
+    {
+        Index flat = 0, stride = 1;
+        for (int i = static_cast<int>(m_data.shape().size()) - 1; i >= 0; --i)
+        {
+            flat += indices[i] * stride;
+            stride *= m_data.shape(i);
+        }
+        return *(m_data.data() + flat);
+    }
+    const float& at_unsafe(const std::vector<Index>& indices) const
+    {
+        Index flat = 0, stride = 1;
+        for (int i = static_cast<int>(m_data.shape().size()) - 1; i >= 0; --i)
+        {
+            flat += indices[i] * stride;
+            stride *= m_data.shape(i);
+        }
+        return *(m_data.data() + flat);
+    }
+
     float& at(Index i)
     {
         if (i >= size()) throw std::out_of_range("Index out of range");
@@ -290,8 +321,8 @@ class XTensorBackend
     void add_scalar_inplace(float val)                  { m_data += val; }
     void multiply_scalar_inplace(float val)             { m_data *= val; }
     void divide_scalar_inplace(float val)               { m_data /= val; }
-    void sqrt_inplace()                                 { m_data = xt::sqrt(m_data); }
-    void square_inplace()                               { m_data = xt::square(m_data); }
+    void sqrt_inplace()                                 { xt::noalias(m_data) = xt::sqrt(m_data); }
+    void square_inplace()                               { xt::noalias(m_data) = xt::square(m_data); }
 
     // ------------------------------------------------------------------
     // Functional arithmetic
@@ -305,7 +336,7 @@ class XTensorBackend
 
     XTensorBackend add(const XTensorBackend& other) const
     {
-        if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for add");
+        if (!same_shape(other)) throw std::invalid_argument("Shape mismatch for add");
         xt::xarray<float> r = m_data + other.m_data;
         return XTensorBackend(std::move(r));
     }
@@ -320,14 +351,14 @@ class XTensorBackend
 
     XTensorBackend subtract(const XTensorBackend& other) const
     {
-        if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for subtract");
+        if (!same_shape(other)) throw std::invalid_argument("Shape mismatch for subtract");
         xt::xarray<float> r = m_data - other.m_data;
         return XTensorBackend(std::move(r));
     }
 
     XTensorBackend multiply(const XTensorBackend& other) const
     {
-        if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for multiply");
+        if (!same_shape(other)) throw std::invalid_argument("Shape mismatch for multiply");
         xt::xarray<float> r = m_data * other.m_data;
         return XTensorBackend(std::move(r));
     }
@@ -479,7 +510,7 @@ class XTensorBackend
     }
     void clamp_inplace(float min_val, float max_val)
     {
-        m_data = xt::clip(m_data, min_val, max_val);
+        xt::noalias(m_data) = xt::clip(m_data, min_val, max_val);
     }
 
     // ------------------------------------------------------------------
@@ -530,23 +561,15 @@ class XTensorBackend
 
     XTensorBackend sum_rows() const
     {
-        const std::size_t R = m_data.shape(0);
-        const std::size_t C = m_data.shape(1);
-        xt::xarray<float> s = xt::zeros<float>({R, std::size_t{1}});
-        for (std::size_t r = 0; r < R; ++r)
-            for (std::size_t c = 0; c < C; ++c)
-                s(r, 0) += m_data(r, c);
+        xt::xtensor<float, 2> s = xt::eval(xt::sum(m_data, {std::size_t{1}}));
+        s.reshape({m_data.shape(0), std::size_t{1}});
         return XTensorBackend(std::move(s));
     }
 
     XTensorBackend sum_cols() const
     {
-        const std::size_t R = m_data.shape(0);
-        const std::size_t C = m_data.shape(1);
-        xt::xarray<float> s = xt::zeros<float>({std::size_t{1}, C});
-        for (std::size_t r = 0; r < R; ++r)
-            for (std::size_t c = 0; c < C; ++c)
-                s(0, c) += m_data(r, c);
+        xt::xtensor<float, 2> s = xt::eval(xt::sum(m_data, {std::size_t{0}}));
+        s.reshape({std::size_t{1}, m_data.shape(1)});
         return XTensorBackend(std::move(s));
     }
 
@@ -581,8 +604,9 @@ class XTensorBackend
             r(0, 0) = m_data(i);
             return XTensorBackend(std::move(r));
         }
-        xt::xarray<float> r = xt::view(m_data, i, xt::all());
-        r.reshape({std::size_t{1}, m_data.shape(1)});
+        xt::xarray<float> r = xt::eval(
+            xt::reshape_view(xt::view(m_data, i, xt::all()),
+                             std::vector<Index>{std::size_t{1}, m_data.shape(1)}));
         return XTensorBackend(std::move(r));
     }
 
@@ -675,32 +699,46 @@ class XTensorBackend
 
     XTensorBackend get_grad() const
     {
-        if (m_grad_backend) return *m_grad_backend;
+        if (m_grad) return XTensorBackend(*m_grad);
         return XTensorBackend(shape());
     }
 
     void set_grad(const XTensorBackend& other)
     {
-        if (!m_grad_backend)
-            m_grad_backend = std::make_unique<XTensorBackend>(shape());
-        m_grad_backend->m_data = other.m_data;
+        if (!m_grad) m_grad.emplace(xt::zeros<float>(m_data.shape()));
+        *m_grad = other.m_data;
     }
 
     void zero_grad()
     {
-        if (m_grad_backend) m_grad_backend->m_data.fill(0.0f);
+        if (m_grad) m_grad->fill(0.0f);
     }
 
     XTensorBackend& grad_ref()
     {
-        if (!m_grad_backend)
-            m_grad_backend = std::make_unique<XTensorBackend>(shape());
-        return *m_grad_backend;
+        if (!m_grad_wrapper)
+        {
+            std::vector<Index> shape_vec(m_data.shape().begin(), m_data.shape().end());
+            m_grad_wrapper = std::make_unique<XTensorBackend>(shape_vec);
+        }
+        if (m_grad) m_grad_wrapper->m_data = *m_grad;
+        return *m_grad_wrapper;
     }
 
     private:
+    bool same_shape(const XTensorBackend& other) const noexcept
+    {
+        const auto& a = m_data.shape();
+        const auto& b = other.m_data.shape();
+        if (a.size() != b.size()) return false;
+        for (std::size_t i = 0; i < a.size(); ++i)
+            if (a[i] != b[i]) return false;
+        return true;
+    }
+
     xt::xarray<float>  m_data;
-    mutable std::unique_ptr<XTensorBackend> m_grad_backend;
+    mutable std::optional<xt::xarray<float>> m_grad;
+    mutable std::unique_ptr<XTensorBackend> m_grad_wrapper;
 
 
     XTensorBackend make_like(xt::xarray<float> data) const

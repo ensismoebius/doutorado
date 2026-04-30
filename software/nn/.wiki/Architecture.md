@@ -96,7 +96,7 @@ flowchart TB
 
 | Module | Purpose | Key Files |
 |--------|---------|------------|
-| `tensor/` | Tensor data structure and operations | `Tensor.hpp`, `OpenCLTensorBackend.cpp` |
+| `tensor/` | Tensor data structure and operations | `Tensor.hpp`, `XTensorBackend.hpp`, `OpenCLTensorBackend.cpp` |
 | `layers/` | Neural network layer implementations | `Linear.hpp`, `Conv2d.hpp`, `LeakyBPTT.hpp` |
 | `optimizers/` | Optimization algorithms | `Adam.hpp`, `SGD.hpp` |
 | `training/` | Training loop implementation | `Trainer.hpp`, `TrainerConfig.hpp` |
@@ -117,7 +117,7 @@ flowchart TB
 
 | Path | Contents |
 |------|----------|
-| `tensor/` | Tensor, OpenCL backend |
+| `tensor/` | Tensor, XTensor and OpenCL backends |
 | `layers/` | All layer types |
 | `device/` | Device abstraction (CPU/OpenCL) |
 | `optimizers/` | Optimizer interfaces |

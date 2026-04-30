@@ -125,7 +125,7 @@ struct LinearImpl : public Module<Backend>
         // Convert CPU parameters to the active backend, then compute y = x W^T + b.
         Tensor weight_t(weight);
         Tensor bias_t(bias);
-        Tensor result_flat = input_flat.matmul(weight_t.transpose());
+        Tensor result_flat = input_flat.matmul_transposed(weight_t);
         result_flat.add_col_vector_to_rows_inplace(bias_t);
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)

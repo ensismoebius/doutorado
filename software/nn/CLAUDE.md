@@ -94,7 +94,6 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
 | `analysis-all` | All static analysis |
-| `check_xtensor_leaks` | Verify no xtensor leaks into banned targets |
 | `clean-cache` | Clear ccache |
 
 **Debug build** (for sanitisers or gdb):
@@ -111,7 +110,7 @@ cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu --target <target> -j$(n
 - Compiler: clang preferred (project ships clang preset). `clang-tidy` must pass.
 - `-Wall` is on. `-Wno-sign-compare` suppressed. Fix warnings, do not add more suppressions.
 - **No raw `new`/`delete`** — use RAII, smart pointers, value types.
-- **No naked xtensor includes** in targets marked with `nn_disallow_xtensor()`. Check `cmake/XtensorBan.cmake`. Violating this is a hard build error. Use `nn_allow_xtensor(<target>)` only in targets that explicitly need xtensor (e.g., `XTensorBackend`).
+- **No naked xtensor includes** in targets that should remain backend-agnostic. Ensure core modules only depend on the `Tensor` interface, not the `XTensorBackend` implementation directly.
 
 ---
 
@@ -179,7 +178,7 @@ Gradient shape always matches forward input shape.
 
 1. Header in `include/nn/layers/<category>/MyLayer.hpp`
 2. Inherit `Module<Backend>`, implement `forward`, `backward`, `params` (if trainable), `reset_state` (if stateful), `state_dict`/`load_state_dict` (if serialisable)
-3. Add to `include/nn/layers/eigen/Layers.hpp` convenience alias if needed
+3. Add to `include/nn/layers/Layers.hpp` convenience alias if needed
 4. Add gtest in nearest `tests/` directory, named `mylayer_gtest.cpp`
 5. Wire test into `CMakeLists.txt` under `core_gtest` or relevant experiment test target
 6. Update `.wiki/Core/Layers.md` with new entry

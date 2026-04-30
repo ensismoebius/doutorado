@@ -55,6 +55,7 @@ include(cmake/VendorJson.cmake)
 # xtensor (N-D array) + xtensor-blas (matmul) + xtensor parallel settings
 include(cmake/VendorXtensor.cmake)
 include(cmake/VendorXtensorParallel.cmake)
+include(cmake/VendorXsimd.cmake)
 
 # Optional vendored SQLite (if third_party/sqlite contains an amalgamation)
 include(cmake/VendorSqlite.cmake)

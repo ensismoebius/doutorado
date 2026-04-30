@@ -24,7 +24,7 @@ include/nn/             ← public headers for all core modules
 |--------|------|
 | `cmake/Policies.cmake` | Sets CMake compatibility policies (e.g. CMP0069) |
 | `cmake/Tooling.cmake` | ccache detection, `compile_commands.json` export, analysis tool detection |
-| `cmake/DevAndAnalysisTargets.cmake` | Custom targets: `dev-setup`, `analysis-all`, `clean-cache`, `check_xtensor_leaks` |
+| `cmake/DevAndAnalysisTargets.cmake` | Custom targets: `dev-setup`, `analysis-all`, `clean-cache` |
 | `cmake/Flags.cmake` | C++20 standard, PIC, linker selection (mold → lld fallback), CMake options |
 | `cmake/EnableCoverage.cmake` | `--coverage` flags when `NN_ENABLE_COVERAGE=ON` |
 | `cmake/PrecompiledHeaders.cmake` | Per-target PCH helpers (opt-in via `NN_ENABLE_PCH`) |
@@ -49,6 +49,10 @@ include/nn/             ← public headers for all core modules
 | `VendorMatplotlibCpp.cmake` | matplotlib-cpp |
 | `VendorYaml.cmake` | yaml-cpp |
 | `VendorJson.cmake` | nlohmann::json |
+| `VendorXtensor.cmake` | xtensor core integration |
+| `VendorXsimd.cmake` | xsimd (SIMD acceleration) |
+| `VendorXtensor.cmake` | xtensor core integration |
+| `VendorXsimd.cmake` | xsimd (SIMD acceleration) |
 | `VendorXtensorParallel.cmake` | xtensor parallelization settings |
 | `VendorSqlite.cmake` | Optional vendored SQLite amalgamation |
 

@@ -115,8 +115,9 @@ class LSTMLayerImpl : public Module<Backend>
         {
             std::mt19937 rng(42u + seed_offset);
             std::normal_distribution<float> dist(0.0f, 0.05f);
-            for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k)
-                t.at(k) = dist(rng);
+                for (nn::Index k = 0; k < static_cast<nn::Index>(t.size()); ++k)
+                    t.at(k) = dist(rng);
+
         };
 
         normal_fill(W_, 0u);
@@ -201,9 +202,10 @@ class LSTMLayerImpl : public Module<Backend>
         for (int t = 0; t < T_seq; ++t)
         {
             nn::Tensor x_t = seq.row(static_cast<nn::Index>(t));
-            nn::Tensor pre = x_t.matmul(W_.transpose())
-                                .add(h.matmul(U_.transpose()))
-                                .add(b_.transpose());
+            nn::Tensor pre = x_t.matmul_transposed(W_)
+                                 .add(h.matmul_transposed(U_))
+                                 .add(b_.transpose());
+
 
             nn::Tensor i_g = nn::activation::sigmoid(pre.block(0, 0,              1, hidden_size_));
             nn::Tensor f_g = nn::activation::sigmoid(pre.block(0, 1*hidden_size_, 1, hidden_size_));
@@ -277,8 +279,9 @@ class LSTMLayerImpl : public Module<Backend>
                 for (int d = 0; d < D_in; ++d)
                     sample.at(static_cast<nn::Index>(t), static_cast<nn::Index>(d)) =
                         input.at(static_cast<nn::Index>(b),
-                                 static_cast<nn::Index>(t),
-                                 static_cast<nn::Index>(d));
+                                  static_cast<nn::Index>(t),
+                                  static_cast<nn::Index>(d));
+
 
             nn::Tensor h0 = nn::Tensor::zeros(1, hidden_size_);
             nn::Tensor c0 = nn::Tensor::zeros(1, hidden_size_);
@@ -289,8 +292,9 @@ class LSTMLayerImpl : public Module<Backend>
             for (int t = 0; t < T_seq; ++t)
                 for (int hh = 0; hh < hidden_size_; ++hh)
                     all_out.at(static_cast<nn::Index>(b),
-                               static_cast<nn::Index>(t),
-                               static_cast<nn::Index>(hh)) = h_out.at(t, hh);
+                                static_cast<nn::Index>(t),
+                                static_cast<nn::Index>(hh)) = h_out.at(t, hh);
+
         }
         return Tensor(all_out);
     }
@@ -323,8 +327,9 @@ class LSTMLayerImpl : public Module<Backend>
                 for (int h = 0; h < hidden_size_; ++h)
                     grad_b.at(static_cast<nn::Index>(t), static_cast<nn::Index>(h)) =
                         grad_output.at(static_cast<nn::Index>(b),
-                                       static_cast<nn::Index>(t),
-                                       static_cast<nn::Index>(h));
+                                        static_cast<nn::Index>(t),
+                                        static_cast<nn::Index>(h));
+
  
             auto [dW_b, dU_b, db_b, dx_b] = _bptt_pure(batch_caches_[b], grad_b);
  
@@ -339,9 +344,10 @@ class LSTMLayerImpl : public Module<Backend>
             for (int t = 0; t < T; ++t)
                 for (int d = 0; d < input_size_; ++d)
                     dx_all.at(static_cast<nn::Index>(b),
-                               static_cast<nn::Index>(t),
-                               static_cast<nn::Index>(d)) =
+                             static_cast<nn::Index>(t),
+                             static_cast<nn::Index>(d)) =
                         dx_b.at(static_cast<nn::Index>(t), static_cast<nn::Index>(d));
+
         }
  
         W_.set_grad(dW_accum); U_.set_grad(dU_accum); b_.set_grad(db_accum);
