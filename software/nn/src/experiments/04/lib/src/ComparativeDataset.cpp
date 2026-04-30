@@ -23,8 +23,8 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
         const std::size_t take =
             std::min<std::size_t>(remaining, static_cast<std::size_t>(window_size));
 
-        nn::Tensor sample(window_size, 1);
-        sample.set_zero();
+        // Produce 2D {window_size, 1} tensors — expected by Linear/LSTM layers.
+        nn::Tensor sample(static_cast<nn::Index>(window_size), 1);
         for (int t = 0; t < window_size; ++t)
         {
             if (static_cast<std::size_t>(t) < take)
@@ -138,9 +138,9 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
         if (i % 10 != 0) continue;
         split.val_labels[i] = 1;
         Tensor& sample = split.val_samples[i];
-        for (nn::Index t = 0; t < sample.rows(); ++t)
+        for (nn::Index t = 0; t < sample.size(); ++t)
         {
-            sample.at(t, 0) += 1.5f;
+            sample.at(t) += 1.5f;
         }
     }
 

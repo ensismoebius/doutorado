@@ -55,25 +55,17 @@ void zscore_inplace(nn::Tensor& signal)
     const float mean = signal.sum() / static_cast<float>(signal.size());
 
     float sq_sum = 0.0F;
-    for (nn::Index i = 0; i < signal.rows(); ++i)
+    for (nn::Index i = 0; i < signal.size(); ++i)
     {
-        for (nn::Index j = 0; j < signal.cols(); ++j)
-        {
-            const float d = signal.at(i, j) - mean;
-            sq_sum += d * d;
-        }
+        const float d = signal.at(i) - mean;
+        sq_sum += d * d;
     }
 
     const float variance = sq_sum / static_cast<float>(signal.size());
     const float stddev = std::sqrt(std::max(variance, 1e-8F));
 
-    for (nn::Index i = 0; i < signal.rows(); ++i)
-    {
-        for (nn::Index j = 0; j < signal.cols(); ++j)
-        {
-            signal.at(i, j) = (signal.at(i, j) - mean) / stddev;
-        }
-    }
+    for (nn::Index i = 0; i < signal.size(); ++i)
+        signal.at(i) = (signal.at(i) - mean) / stddev;
 }
 
 } // namespace nn::utility

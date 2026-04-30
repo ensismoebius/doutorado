@@ -15,12 +15,6 @@
  * Hidden and cell state persist across forward() calls; call reset_state()
  * between independent sequences.
  *
- * Batch support:
- *   forward_batch({s1, s2, ...}) — runs per-sample forward, stores per-sample
- *   caches in batch_caches_. Follow with backward_batch(grad_outputs) to
- *   accumulate gradients across the batch.
- *   BatchEquivalence: backward_batch({g, g}) == 2× backward(g) for same sample.
- *
  * Shape contract:
  *   forward(Tensor{T, D})    → Tensor{T, H}    — single sequence, 2D
  *   forward(Tensor{B, T, D}) → Tensor{B, T, H} — batched, 3D
@@ -163,70 +157,6 @@ class LSTMLayerImpl : public Module<Backend>
             return Tensor(_bptt_apply(cache_, nn::Tensor(grad_output), false));
     }
 
-    // --- batch forward: run B independent sequences, store per-sample caches ---
-
-    auto forward_batch(const std::vector<Tensor>& batch_inputs,
-                       bool requires_grad = true) -> std::vector<Tensor>
-    {
-        batch_caches_.clear();
-        batch_caches_.reserve(batch_inputs.size());
-
-        std::vector<Tensor> outputs;
-        outputs.reserve(batch_inputs.size());
-
-        for (const auto& sample : batch_inputs)
-        {
-            reset_state();
-            Tensor out = forward(sample, requires_grad);
-            outputs.push_back(out);
-            if (requires_grad)
-                batch_caches_.push_back(cache_);
-        }
-
-        return outputs;
-    }
-
-    // --- batch backward: accumulate gradients across all samples in the batch ---
-
-    auto backward_batch(const std::vector<Tensor>& grad_outputs) -> std::vector<Tensor>
-    {
-        if (grad_outputs.size() != batch_caches_.size())
-            throw std::runtime_error(
-                "backward_batch: grad_outputs.size() != batch_caches_.size()");
-
-        nn::Tensor dW_accum = nn::Tensor::zeros(dW_.rows(), dW_.cols());
-        nn::Tensor dU_accum = nn::Tensor::zeros(dU_.rows(), dU_.cols());
-        nn::Tensor db_accum = nn::Tensor::zeros(db_.rows(), db_.cols());
-
-        std::vector<Tensor> dx_all_outputs;
-        dx_all_outputs.reserve(grad_outputs.size());
-
-        for (std::size_t b = 0; b < grad_outputs.size(); ++b)
-        {
-            auto [dW_b, dU_b, db_b, dx_b] =
-                _bptt_pure(batch_caches_[b], nn::Tensor(grad_outputs[b]));
-
-            for (nn::Index k = 0; k < static_cast<nn::Index>(dW_accum.size()); ++k)
-                dW_accum.at(k) += dW_b.at(k);
-            for (nn::Index k = 0; k < static_cast<nn::Index>(dU_accum.size()); ++k)
-                dU_accum.at(k) += dU_b.at(k);
-            for (nn::Index k = 0; k < static_cast<nn::Index>(db_accum.size()); ++k)
-                db_accum.at(k) += db_b.at(k);
-
-            dx_all_outputs.push_back(Tensor(dx_b));
-        }
-
-        W_.set_grad(dW_accum);
-        U_.set_grad(dU_accum);
-        b_.set_grad(db_accum);
-
-        dW_ = dW_accum;
-        dU_ = dU_accum;
-        db_ = db_accum;
-
-        return dx_all_outputs;
-    }
-
     // --- state management ---
 
     void reset_state() override
@@ -254,122 +184,113 @@ class LSTMLayerImpl : public Module<Backend>
     }
 
     private:
- 
-    // 2D single-sample forward — existing logic, unchanged.
-    auto forward_2d(const Tensor& input, bool requires_grad) -> Tensor
+
+    // Core LSTM gate loop over one CPU-resident (T, D) sequence.
+    // Returns {all_h (T,H), final_h (1,H), final_c (1,H)}.
+    // Appends step caches to *cache_out when requires_grad && cache_out != nullptr.
+    auto _run_sequence(const nn::Tensor& seq,
+                       nn::Tensor h, nn::Tensor c,
+                       bool requires_grad,
+                       std::vector<LSTMStepCache>* cache_out)
+        -> std::tuple<nn::Tensor, nn::Tensor, nn::Tensor>
     {
-        const int T = static_cast<int>(input.rows());
-        const int D = static_cast<int>(input.cols());
-        if (D != input_size_)
-            throw std::invalid_argument("LSTMLayerImpl::forward: input cols=" +
-                                        std::to_string(D) + " != input_size=" +
-                                        std::to_string(input_size_));
-        if (requires_grad) { cache_.clear(); cache_.reserve(T); }
- 
-        nn::Tensor h = h0_;
-        nn::Tensor c = c0_;
-        nn::Tensor all_h(static_cast<nn::Index>(T),
+        const int T_seq = static_cast<int>(seq.rows());
+        nn::Tensor all_h(static_cast<nn::Index>(T_seq),
                          static_cast<nn::Index>(hidden_size_));
- 
-        for (int t = 0; t < T; ++t)
+
+        for (int t = 0; t < T_seq; ++t)
         {
-            nn::Tensor x_t = nn::Tensor(input).row(static_cast<nn::Index>(t));
-            nn::Tensor pre  = x_t.matmul(W_.transpose())
-                                 .add(h.matmul(U_.transpose()))
-                                 .add(b_.transpose());
- 
-            nn::Tensor i_g = nn::activation::sigmoid(pre.block(0, 0,                1, hidden_size_));
-            nn::Tensor f_g = nn::activation::sigmoid(pre.block(0, 1*hidden_size_,   1, hidden_size_));
-            nn::Tensor o_g = nn::activation::sigmoid(pre.block(0, 2*hidden_size_,   1, hidden_size_));
-            nn::Tensor g_g = nn::activation::tanh(  pre.block(0, 3*hidden_size_,   1, hidden_size_));
- 
+            nn::Tensor x_t = seq.row(static_cast<nn::Index>(t));
+            nn::Tensor pre = x_t.matmul(W_.transpose())
+                                .add(h.matmul(U_.transpose()))
+                                .add(b_.transpose());
+
+            nn::Tensor i_g = nn::activation::sigmoid(pre.block(0, 0,              1, hidden_size_));
+            nn::Tensor f_g = nn::activation::sigmoid(pre.block(0, 1*hidden_size_, 1, hidden_size_));
+            nn::Tensor o_g = nn::activation::sigmoid(pre.block(0, 2*hidden_size_, 1, hidden_size_));
+            nn::Tensor g_g = nn::activation::tanh(  pre.block(0, 3*hidden_size_, 1, hidden_size_));
+
             nn::Tensor c_new = (f_g * c).add(i_g * g_g);
             nn::Tensor tc    = nn::activation::tanh(c_new);
             nn::Tensor h_new = o_g * tc;
- 
-            if (requires_grad)
-                cache_.push_back({x_t, h, c, i_g, f_g, o_g, g_g, c_new, tc, h_new});
- 
+
+            if (requires_grad && cache_out)
+                cache_out->push_back({x_t, h, c, i_g, f_g, o_g, g_g, c_new, tc, h_new});
+
             all_h.setBlock(static_cast<nn::Index>(t), 0, h_new);
             h = h_new;
             c = c_new;
         }
-        h0_ = h; c0_ = c;
+        return {all_h, h, c};
+    }
+
+    // 2D single-sample forward: input (T, D) → output (T, H). Persists h0_/c0_.
+    auto forward_2d(const Tensor& input, bool requires_grad) -> Tensor
+    {
+        const int D_in = static_cast<int>(input.cols());
+        if (D_in != input_size_)
+            throw std::invalid_argument("LSTMLayerImpl::forward: input cols=" +
+                                        std::to_string(D_in) + " != input_size=" +
+                                        std::to_string(input_size_));
+
+        const int T_seq = static_cast<int>(input.rows());
+        if (requires_grad) { cache_.clear(); cache_.reserve(T_seq); }
+
+        nn::Tensor seq(input);
+        auto [all_h, h_f, c_f] = _run_sequence(seq, h0_, c0_, requires_grad,
+                                                requires_grad ? &cache_ : nullptr);
+        h0_ = h_f;
+        c0_ = c_f;
         return Tensor(all_h);
     }
- 
-    // 3D batch forward — input shape (B, T, D), output shape (B, T, H).
+
+    // 3D batch forward: input (B, T, D) → output (B, T, H). Each sample starts h/c=0.
     auto forward_3d(const Tensor& input, bool requires_grad) -> Tensor
     {
         const auto& shape = input.get_shape();
-        const int B = static_cast<int>(shape[0]);
-        const int T = static_cast<int>(shape[1]);
-        const int D = static_cast<int>(shape[2]);
- 
-        if (D != input_size_)
+        const int B     = static_cast<int>(shape[0]);
+        const int T_seq = static_cast<int>(shape[1]);
+        const int D_in  = static_cast<int>(shape[2]);
+
+        if (D_in != input_size_)
             throw std::invalid_argument("LSTMLayerImpl::forward_3d: input D=" +
-                                        std::to_string(D) + " != input_size=" +
+                                        std::to_string(D_in) + " != input_size=" +
                                         std::to_string(input_size_));
- 
+
         if (requires_grad)
         {
             batch_caches_.clear();
             batch_caches_.resize(B);
-            for (auto& bc : batch_caches_) { bc.clear(); bc.reserve(T); }
+            for (auto& bc : batch_caches_) bc.reserve(T_seq);
         }
- 
-        // Output: (B, T, H)
+
         nn::Tensor all_out = nn::Tensor::zeros(
             static_cast<nn::Index>(B),
-            static_cast<nn::Index>(T),
+            static_cast<nn::Index>(T_seq),
             static_cast<nn::Index>(hidden_size_));
- 
+
         for (int b = 0; b < B; ++b)
         {
-            // Extract sample b: view (T, D) from (B, T, D)
-            nn::Tensor sample(static_cast<nn::Index>(T),
-                              static_cast<nn::Index>(D));
-            for (int t = 0; t < T; ++t)
-                for (int d = 0; d < D; ++d)
-                    sample.at(static_cast<nn::Index>(t),
-                              static_cast<nn::Index>(d)) =
+            nn::Tensor sample(static_cast<nn::Index>(T_seq),
+                              static_cast<nn::Index>(D_in));
+            for (int t = 0; t < T_seq; ++t)
+                for (int d = 0; d < D_in; ++d)
+                    sample.at(static_cast<nn::Index>(t), static_cast<nn::Index>(d)) =
                         input.at(static_cast<nn::Index>(b),
                                  static_cast<nn::Index>(t),
                                  static_cast<nn::Index>(d));
- 
-            // Run single-sample forward with its own h0/c0 = zeros.
-            h0_.set_zero(); c0_.set_zero();
-            nn::Tensor h = h0_;
-            nn::Tensor c = c0_;
- 
-            for (int t = 0; t < T; ++t)
-            {
-                nn::Tensor x_t = sample.row(static_cast<nn::Index>(t));
-                nn::Tensor pre = x_t.matmul(W_.transpose())
-                                    .add(h.matmul(U_.transpose()))
-                                    .add(b_.transpose());
- 
-                nn::Tensor i_g = nn::activation::sigmoid(pre.block(0, 0,              1, hidden_size_));
-                nn::Tensor f_g = nn::activation::sigmoid(pre.block(0, 1*hidden_size_, 1, hidden_size_));
-                nn::Tensor o_g = nn::activation::sigmoid(pre.block(0, 2*hidden_size_, 1, hidden_size_));
-                nn::Tensor g_g = nn::activation::tanh(  pre.block(0, 3*hidden_size_, 1, hidden_size_));
- 
-                nn::Tensor c_new = (f_g * c).add(i_g * g_g);
-                nn::Tensor tc    = nn::activation::tanh(c_new);
-                nn::Tensor h_new = o_g * tc;
- 
-                if (requires_grad)
-                    batch_caches_[b].push_back(
-                        {x_t, h, c, i_g, f_g, o_g, g_g, c_new, tc, h_new});
- 
-                // Write h_new into all_out[b, t, :]
+
+            nn::Tensor h0 = nn::Tensor::zeros(1, hidden_size_);
+            nn::Tensor c0 = nn::Tensor::zeros(1, hidden_size_);
+            auto [h_out, h_f, c_f] = _run_sequence(sample, h0, c0, requires_grad,
+                                                    requires_grad ? &batch_caches_[b] : nullptr);
+            (void)h_f; (void)c_f;
+
+            for (int t = 0; t < T_seq; ++t)
                 for (int hh = 0; hh < hidden_size_; ++hh)
                     all_out.at(static_cast<nn::Index>(b),
                                static_cast<nn::Index>(t),
-                               static_cast<nn::Index>(hh)) = h_new.at(0, static_cast<nn::Index>(hh));
- 
-                h = h_new; c = c_new;
-            }
+                               static_cast<nn::Index>(hh)) = h_out.at(t, hh);
         }
         return Tensor(all_out);
     }

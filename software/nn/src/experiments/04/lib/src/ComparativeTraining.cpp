@@ -91,6 +91,7 @@ auto make_snn_cfg(const ComparativeConfig& cfg, float alpha, float v_th) -> Auto
 
     AutoencoderConfig model_cfg;
     model_cfg.loss_type          = "mse";
+    // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
     model_cfg.input_features     = cfg.dataset.window_size;
     model_cfg.hidden_size        = hidden_sz;
     model_cfg.latent_size        = extract_latent_size(cfg.model.encoder_layer_spec,

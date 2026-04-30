@@ -189,6 +189,11 @@ class TensorImpl
     {
         backend_.reshape(new_shape);
     }
+
+    auto reshape(const std::vector<Index>& new_shape) const -> TensorImpl
+    {
+        return TensorImpl(backend_.reshape(new_shape));
+    }
     [[nodiscard]] auto rows() const noexcept -> Index
     {
         return backend_.rows();

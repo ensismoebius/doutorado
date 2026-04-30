@@ -74,9 +74,29 @@ struct ComparativeConfig
             if (j.contains(key)) field = j[key].get<std::decay_t<decltype(field)>>();
         };
 
+        // Experiment
+        get("run_tag", cfg.experiment.run_tag);
+        get("seed", cfg.experiment.seed);
+        get("repeats", cfg.experiment.repeats);
+        get("seed_deterministic", cfg.experiment.seed_deterministic);
+        get("check_determinism", cfg.experiment.check_determinism);
+
+        // Dataset
         get("dataset_root", cfg.dataset.dataset_root);
         get("results_dir", cfg.dataset.results_dir);
-        get("run_tag", cfg.experiment.run_tag);
+        get("window_size", cfg.dataset.window_size);
+        get("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
+        get("max_validation_samples", cfg.dataset.max_validation_samples);
+
+        // Training
+        get("samples_per_batch", cfg.training.samples_per_batch);
+        get("batches_per_epoch", cfg.training.batches_per_epoch);
+        get("epochs", cfg.training.epochs);
+        get("early_stop_patience", cfg.training.early_stop_patience);
+        get("learning_rate", cfg.training.learning_rate);
+        get("max_reconstruct_mean_deviation", cfg.training.max_reconstruct_mean_deviation);
+
+        // Model
         get("branch_hidden_size", cfg.model.branch_hidden_size);
         get("fusion_hidden_size", cfg.model.fusion_hidden_size);
         get("encoder_layer_spec", cfg.model.encoder_layer_spec);
@@ -86,6 +106,7 @@ struct ComparativeConfig
         get("fusion_encoder_layer_spec", cfg.model.fusion_encoder_layer_spec);
         get("fusion_decoder_layer_spec", cfg.model.fusion_decoder_layer_spec);
 
+        // Evaluation
         get("datasets", cfg.evaluation.datasets);
         get("encodings", cfg.evaluation.encodings);
         get("snn_architectures", cfg.evaluation.snn_architectures);

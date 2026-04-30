@@ -165,6 +165,19 @@ class XTensorBackend
         m_data.reshape(xshape);
     }
 
+    XTensorBackend reshape(const std::vector<Index>& new_shape) const
+    {
+        const Index new_size = std::accumulate(new_shape.begin(), new_shape.end(),
+                                                 Index{1}, std::multiplies<Index>{});
+        if (m_data.size() != new_size)
+            throw std::invalid_argument("Reshape total size mismatch");
+
+        xt::dynamic_shape<Index> xshape(new_shape.begin(), new_shape.end());
+        xt::xarray<float> res = m_data;
+        res.reshape(xshape);
+        return XTensorBackend(std::move(res));
+    }
+
     Index rows() const { return m_data.shape().empty() ? 0 : m_data.shape(0); }
     Index cols() const { return m_data.shape().size() < 2 ? 1 : m_data.shape(1); }
     Index size() const { return m_data.size(); }
@@ -187,7 +200,10 @@ class XTensorBackend
 
     float& at(Index row, Index col)
     {
-        if (m_data.shape().size() != 2) throw std::invalid_argument("Tensor must be 2D");
+        if (m_data.shape().size() != 2) {
+            std::cerr << "at(row, col) failed: shape size is " << m_data.shape().size() << "\n";
+            throw std::invalid_argument("Tensor must be 2D");
+        }
         if (row >= m_data.shape(0) || col >= m_data.shape(1))
             throw std::out_of_range("Index out of range");
         return m_data(row, col);
@@ -328,8 +344,11 @@ class XTensorBackend
 
     XTensorBackend matmul(const XTensorBackend& other) const
     {
-        if (shape().size() != 2 || other.shape().size() != 2)
+        if (shape().size() != 2 || other.shape().size() != 2) {
+            std::cerr << "matmul() failed: left shape size " << shape().size() 
+                      << ", right shape size " << other.shape().size() << "\n";
             throw std::invalid_argument("Tensors must be 2D");
+        }
         if (cols() != other.rows())
             throw std::invalid_argument("Dimension mismatch for matmul");
         xt::xarray<float> r = xt::linalg::dot(m_data, other.m_data);
@@ -338,7 +357,10 @@ class XTensorBackend
 
     XTensorBackend transpose() const
     {
-        if (shape().size() != 2) throw std::invalid_argument("Tensor must be 2D");
+        if (m_data.shape().size() != 2) {
+            std::cerr << "transpose() failed: shape size is " << m_data.shape().size() << "\n";
+            throw std::invalid_argument("Tensor must be 2D");
+        }
         xt::xarray<float> r = xt::transpose(m_data);
         return XTensorBackend(std::move(r));
     }
@@ -466,7 +488,7 @@ class XTensorBackend
 
     float mean_squared_error(const XTensorBackend& target) const
     {
-        if (shape() != target.shape())
+        if (m_data.size() != target.m_data.size())
         {
             std::ostringstream oss;
             oss << "Shape mismatch in mean_squared_error: "
@@ -552,6 +574,13 @@ class XTensorBackend
     XTensorBackend row(Index i) const
     {
         if (i >= rows()) throw std::out_of_range("Index out of range");
+        if (m_data.shape().size() == 1)
+        {
+            std::vector<Index> shape = {1, 1};
+            xt::xarray<float> r = xt::zeros<float>(shape);
+            r(0, 0) = m_data(i);
+            return XTensorBackend(std::move(r));
+        }
         xt::xarray<float> r = xt::view(m_data, i, xt::all());
         r.reshape({std::size_t{1}, m_data.shape(1)});
         return XTensorBackend(std::move(r));
@@ -559,6 +588,14 @@ class XTensorBackend
 
     XTensorBackend col(Index j) const
     {
+        if (m_data.shape().size() == 1)
+        {
+            if (j != 0) throw std::out_of_range("Index out of range");
+            std::vector<Index> shape = {m_data.shape(0), 1};
+            xt::xarray<float> c = xt::zeros<float>(shape);
+            for (Index i = 0; i < m_data.shape(0); ++i) c(i, 0) = m_data(i);
+            return XTensorBackend(std::move(c));
+        }
         if (j >= cols()) throw std::out_of_range("Index out of range");
         xt::xarray<float> c = xt::view(m_data, xt::all(), j);
         c.reshape({m_data.shape(0), std::size_t{1}});
@@ -579,13 +616,24 @@ class XTensorBackend
 
     XTensorBackend block(Index r, Index c, Index block_rows, Index block_cols) const
     {
+        if (m_data.shape().size() == 1)
+        {
+            if (c != 0 || block_cols != 1) throw std::invalid_argument("Block must be (r, 0, rows, 1) for 1D tensor");
+            if (r + block_rows > m_data.shape(0)) throw std::out_of_range("Block indices out of range");
+            
+            std::vector<Index> shape = {block_rows, 1};
+            xt::xarray<float> res = xt::zeros<float>(shape);
+            for (Index i = 0; i < block_rows; ++i) res(i, 0) = m_data(r + i);
+            return XTensorBackend(std::move(res));
+        }
         if (r + block_rows > m_data.shape(0) || c + block_cols > m_data.shape(1))
             throw std::out_of_range("Block indices out of range");
         xt::xarray<float> res = xt::view(m_data,
-                                          xt::range(r, r + block_rows),
-                                          xt::range(c, c + block_cols));
+                                           xt::range(r, r + block_rows),
+                                           xt::range(c, c + block_cols));
         return XTensorBackend(std::move(res));
     }
+
 
     void setBlock(Index r, Index c, const XTensorBackend& other)
     {

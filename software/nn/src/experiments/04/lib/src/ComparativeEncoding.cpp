@@ -38,7 +38,7 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
         {
             for (nn::Index d = 0; d < sample.cols(); ++d)
             {
-                const float p = std::clamp(sample.at(t, d) / max_only, 0.0f, 1.0f);
+                const float p = std::clamp(sample.at(t * sample.cols() + d) / max_only, 0.0f, 1.0f);
                 encoded.at(t, d) = (dist(rng) < p) ? 1.0f : 0.0f;
             }
         }
@@ -52,7 +52,7 @@ auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint3
         {
             for (nn::Index d = 0; d < sample.cols(); ++d)
             {
-                const float scaled = (sample.at(t, d) - min_v) / range;
+                const float scaled = (sample.at(t * sample.cols() + d) - min_v) / range;
                 const nn::Index t_spike = static_cast<nn::Index>(std::llround(
                     (1.0f - scaled) * static_cast<float>(std::max<nn::Index>(1, T - 1))));
                 encoded.at(t, d) = (t >= t_spike) ? 1.0f : 0.0f;
@@ -72,7 +72,7 @@ auto flatten_time_series(const Tensor& sample) -> Tensor
     {
         for (nn::Index d = 0; d < sample.cols(); ++d)
         {
-            flat.at(0, k++) = sample.at(t, d);
+            flat.at(0, k++) = sample.at(t * sample.cols() + d);
         }
     }
     return flat;
@@ -86,7 +86,7 @@ auto unflatten_time_series(const Tensor& flat, nn::Index rows, nn::Index cols) -
     {
         for (nn::Index d = 0; d < cols; ++d)
         {
-            sample.at(t, d) = flat.at(0, k++);
+            sample.at(t * sample.cols() + d) = flat.at(0, k++);
         }
     }
     return sample;
@@ -103,8 +103,9 @@ static auto conv1d_temporal_smooth(const Tensor& sample) -> Tensor
         {
             const nn::Index t_prev = std::max<nn::Index>(0, t - 1);
             const nn::Index t_next = std::min<nn::Index>(sample.rows() - 1, t + 1);
-            const float v = 0.25f * sample.at(t_prev, d) + 0.5f * sample.at(t, d) +
-                            0.25f * sample.at(t_next, d);
+            const float v = 0.25f * sample.at(t_prev * sample.cols() + d) + 0.5f * sample.at(t * sample.cols() + d) +
+                                0.25f * sample.at(t_next * sample.cols() + d);
+
             out.at(t, d) = v;
         }
     }

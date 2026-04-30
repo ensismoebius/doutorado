@@ -89,30 +89,59 @@ struct LinearImpl : public Module<Backend>
      */
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        if (static_cast<int>(input.cols()) != in_features)
+        const auto shape = input.get_shape();
+        if (shape.empty()) throw std::invalid_argument("Input tensor cannot be empty");
+
+        const nn::Index in_dim = shape.back();
+        if (static_cast<int>(in_dim) != in_features)
         {
             throw std::invalid_argument(
-                "Linear layer forward: input features (" + std::to_string(input.cols()) +
+                "Linear layer forward: input features (" + std::to_string(in_dim) +
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
         if (requires_grad)
         {
-            // Store a CPU copy so the CPU optimizer can compute gradients.
             input_cache = nn::Tensor(input);
         }
 
-#ifdef DEBUG
-        debug(nn::Tensor(input));
-#endif
+        // Handle N-D inputs by flattening leading dimensions into a single batch dimension.
+        // Input: (d0, d1, ..., in_features) -> Reshape: (B_eff, in_features)
+        std::vector<nn::Index> flat_shape = {1, (nn::Index)in_features};
+        if (shape.size() > 1)
+        {
+            nn::Index effective_batch = 1;
+            for (size_t i = 0; i < shape.size() - 1; ++i) effective_batch *= shape[i];
+            flat_shape[0] = effective_batch;
+        }
+        else
+        {
+            // 1D input (in_features,) is treated as a single sample (1, in_features)
+            flat_shape[0] = 1;
+        }
+
+        Tensor input_flat = input.reshape(flat_shape);
 
         // Convert CPU parameters to the active backend, then compute y = x W^T + b.
         Tensor weight_t(weight);
         Tensor bias_t(bias);
-        Tensor result = input.matmul(weight_t.transpose());
-        result.add_col_vector_to_rows_inplace(bias_t);
-        return result;
+        Tensor result_flat = input_flat.matmul(weight_t.transpose());
+        result_flat.add_col_vector_to_rows_inplace(bias_t);
+
+        // Restore original leading dimensions: (d0, d1, ..., out_features)
+        std::vector<nn::Index> out_shape = shape;
+        out_shape.back() = (nn::Index)out_features;
+        
+        // If input was 1D, result should be 2D (1, out_features) to maintain batch consistency
+        if (shape.size() == 1)
+        {
+            return result_flat; 
+        }
+
+        result_flat.reshape(out_shape);
+        return result_flat;
     }
+
 
     /**
      * @brief Backward pass: compute parameter gradients and return the input gradient.
@@ -125,27 +154,75 @@ struct LinearImpl : public Module<Backend>
      */
     auto backward(const Tensor& grad_previous) -> Tensor override
     {
-        if (grad_previous.cols() != static_cast<size_t>(out_features))
+        const auto shape = grad_previous.get_shape();
+        if (shape.empty()) throw std::invalid_argument("Gradient tensor cannot be empty");
+
+        const nn::Index out_dim = shape.back();
+        if (static_cast<int>(out_dim) != out_features)
         {
             throw std::invalid_argument("Linear layer backward: gradient features (" +
-                                        std::to_string(grad_previous.cols()) +
-                                        ") do not match expected out_features (" +
-                                        std::to_string(out_features) + ")");
+                                           std::to_string(out_dim) +
+                                           ") do not match expected out_features (" +
+                                           std::to_string(out_features) + ")");
         }
 
-        // Lift CPU cache and parameters into the active backend, compute gradients,
-        // then download them back to CPU tensors for the optimizer.
-        Tensor input_t(input_cache);
+        // Flatten leading dimensions of grad_previous: (B_eff, out_features)
+        std::vector<nn::Index> flat_grad_shape = {1, (nn::Index)out_features};
+        if (shape.size() > 1)
+        {
+            nn::Index effective_batch = 1;
+            for (size_t i = 0; i < shape.size() - 1; ++i) effective_batch *= shape[i];
+            flat_grad_shape[0] = effective_batch;
+        }
+        else
+        {
+            flat_grad_shape[0] = 1;
+        }
+        Tensor grad_flat = grad_previous.reshape(flat_grad_shape);
+
+        // Flatten cached input: (B_eff, in_features)
+        const auto input_shape = input_cache.get_shape();
+        std::vector<nn::Index> flat_input_shape = {1, (nn::Index)in_features};
+        if (input_shape.size() > 1)
+        {
+            nn::Index effective_batch = 1;
+            for (size_t i = 0; i < input_shape.size() - 1; ++i) effective_batch *= input_shape[i];
+            flat_input_shape[0] = effective_batch;
+        }
+        else
+        {
+            flat_input_shape[0] = 1;
+        }
+        Tensor input_t = input_cache;
+        input_t.reshape(flat_input_shape);
+
         Tensor weight_t(weight);
+        
         // dL/dW = (dL/dY)^T · X
-        Tensor grad_weight = grad_previous.transpose().matmul(input_t);
+        Tensor grad_weight = grad_flat.transpose().matmul(input_t);
         weight.set_grad(nn::Tensor(grad_weight));
+        
         // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
-        Tensor grad_bias = grad_previous.transpose().rowwise_sum();
+        Tensor grad_bias = grad_flat.transpose().rowwise_sum();
         bias.set_grad(nn::Tensor(grad_bias));
+        
         // dL/dX = dL/dY · W
-        return grad_previous.matmul(weight_t);
+        Tensor grad_input_flat = grad_flat.matmul(weight_t);
+
+        // Restore original leading dimensions for the input gradient
+        std::vector<nn::Index> input_out_shape = input_shape;
+        // No change to last dim because it's already in_features
+        
+        if (input_shape.size() == 1)
+        {
+            return grad_input_flat;
+        }
+
+        grad_input_flat.reshape(input_out_shape);
+        return grad_input_flat;
     }
+
+
 
     /// Returns the two CPU-resident trainable parameters (weight, bias).
     auto params() -> std::span<nn::Tensor*> override
