@@ -221,12 +221,14 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
     bias_.set_grad(grad_output_2d.sum_rows().transpose());
 
     // 3. Get im2col of cached input
-    auto& im2col_buffer = *im2col_buffer_;
-    if (im2col_buffer.rows() < static_cast<nn::Index>(patch_rows) ||
-        im2col_buffer.cols() < static_cast<nn::Index>(total_patch_cols))
+
+    if (!im2col_buffer_ ||
+        im2col_buffer_->rows() < static_cast<nn::Index>(patch_rows) ||
+        im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols))
     {
-        im2col_buffer = nn::Tensor(patch_rows, total_patch_cols);
+        im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
     }
+    auto& im2col_buffer = *im2col_buffer_;
 
     im2col_optimized(input_cache_,
         im2col_buffer,

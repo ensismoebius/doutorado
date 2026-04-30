@@ -28,7 +28,7 @@
  * Backend polymorphism:
  * - `Module` is templated on `Backend` (no default — callers must name it explicitly).
  * - `forward()` and `backward()` operate on `TensorImpl<Backend>`, making the
- *   interface agnostic to any specific backend (xtensor, OpenCL, CUDA, …).
+ *   interface agnostic to any specific backend (Eigen, OpenCL, CUDA, …).
  * - Adding a new backend never requires new virtual methods; instantiate
  *   `Module<NewBackend>` and derive from it instead.
  */

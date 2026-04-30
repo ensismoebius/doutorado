@@ -8,12 +8,10 @@
 #include <memory>
 
 #include "core/utility/tests/test_helpers.hpp"
-#include "nn/layers/convolution/Conv2d.hpp"
 #include "nn/layers/Layers.hpp"
-#include "nn/layers/regularization/Regularization.hpp"
+#include "nn/layers/convolution/Conv2d.hpp"
 #include "nn/layers/spiking/Leaky.hpp"
 #include "nn/layers/spiking/LeakyBPTT.hpp"
-#include "nn/layers/spiking/SurrogateGradient.hpp"
 #include "nn/tensor/Tensor.hpp"
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)

@@ -56,21 +56,28 @@ class PoissonLatentLayerImpl : public Module<Backend>
     using Tensor = typename Module<Backend>::Tensor;
 
    public:
-    int time_steps = 1;     ///< T: number of spike time steps to simulate
+    int time_steps = 1;      ///< T: number of spike time steps to simulate
     float prior_rate = 0.1F; ///< λ₀: prior Poisson rate for KL divergence
-    float beta_kl = 1.0F;   ///< β weighting for KL term (β-SVAE; 0 = plain AE)
+    float beta_kl = 1.0F;    ///< β weighting for KL term (β-SVAE; 0 = plain AE)
 
-    explicit PoissonLatentLayerImpl(int T = 1, float prior_rate_ = 0.1F, float beta_kl_ = 1.0F)
-        : time_steps(T), prior_rate(prior_rate_), beta_kl(beta_kl_)
+    explicit PoissonLatentLayerImpl(
+        int T = 1, float prior_rate_val = 0.1F, float beta_kl_val = 1.0F)
+        : time_steps(T), prior_rate(prior_rate_val), beta_kl(beta_kl_val)
     {
         rng_.seed(42U);
     }
 
     /// KL divergence accumulated in the last forward() call. Add to total loss.
-    float kl_loss() const { return kl_loss_; }
+    float kl_loss() const
+    {
+        return kl_loss_;
+    }
 
     /// Mean rates λ from last forward (useful for logging spike sparsity).
-    const Tensor& last_rates() const { return rate_cache_; }
+    const Tensor& last_rates() const
+    {
+        return rate_cache_;
+    }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
@@ -105,7 +112,7 @@ class PoissonLatentLayerImpl : public Module<Backend>
                 for (size_t f = 0; f < F; ++f)
                 {
                     float lam = rate.at(b, f);
-                                                float kl = lam - prior_rate - lam * std::log(lam / prior_rate + 1e-8f);
+                    float kl = lam - prior_rate - lam * std::log(lam / prior_rate + 1e-8f);
 
                     kl_loss_ += kl;
                 }

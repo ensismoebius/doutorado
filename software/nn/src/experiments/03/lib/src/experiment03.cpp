@@ -39,7 +39,6 @@
 #include "nn/optimizers/Optimizer.hpp"
 #include "nn/optimizers/OptimizerFactory.hpp"
 #include "nn/optimizers/SGD.hpp"
-
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
@@ -306,12 +305,11 @@ int Experiment03::run()
         experiment03::TrialFoldSelector fold_selector{};
         try
         {
-            fold_selector =
-                experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
-                    config_.kfold_n_splits,
-                    config_.kfold_shuffle,
-                    config_.kfold_seed,
-                    config_.test_split);
+            fold_selector = experiment03::TrialFoldSelector::from_sqlite(config_.dataset_root_path,
+                config_.kfold_n_splits,
+                config_.kfold_shuffle,
+                config_.kfold_seed,
+                config_.test_split);
             test_trial_ids = fold_selector.test_trial_ids();
         }
         catch (...)
@@ -475,17 +473,17 @@ int Experiment03::run()
                             fold_selector.fold_count(),
                             epoch + 1,
                             config_.training_epochs,
-                                    epoch_batches,
-                                    train_epoch_max_batches,
-                                    last_batch_loss,
-                                    std::span<nn::Tensor*>{},
-                                    fold_progress_context);
+                            epoch_batches,
+                            train_epoch_max_batches,
+                            last_batch_loss,
+                            std::span<nn::Tensor*>{},
+                            fold_progress_context);
                     }
 
                     if (model_) [[likely]]
                     {
                         const bool global_done = (fold_idx + 1 == fold_selector.fold_count()) &&
-                                                  (epoch + 1 == config_.training_epochs);
+                                                 (epoch + 1 == config_.training_epochs);
 
                         if (global_done)
                         {
@@ -699,19 +697,19 @@ int Experiment03::run()
                         1,
                         epoch + 1,
                         config_.training_epochs,
-                                    epoch_batches,
-                                    epoch_max_batches,
-                                    last_batch_loss,
-                                    std::span<nn::Tensor*>{},
-                                    fold_progress_context);
-                    }
+                        epoch_batches,
+                        epoch_max_batches,
+                        last_batch_loss,
+                        std::span<nn::Tensor*>{},
+                        fold_progress_context);
+                }
 
-                    if (model_) [[likely]]
-                    {
-                        const bool done = (epoch + 1 == config_.training_epochs);
-                    }
+                if (model_) [[likely]]
+                {
+                    // const bool done = (epoch + 1 == config_.training_epochs); // unused
+                }
 
-                    const float mean_train_loss =
+                const float mean_train_loss =
 
                     epoch_batches > 0 ? epoch_loss_sum / static_cast<float>(epoch_batches) : 0.0F;
                 epoch_mean_losses.push_back(mean_train_loss);
@@ -829,8 +827,8 @@ int Experiment03::run()
             optimizer_learning_rate_ptr(*optimizer) != nullptr
                 ? *optimizer_learning_rate_ptr(*optimizer)
                 : config_.training_learning_rate, //
-            0.0f,                        // test_loss placeholder
-            test_trial_ids.size()         // test_samples
+            0.0f,                                 // test_loss placeholder
+            test_trial_ids.size()                 // test_samples
         );
 
         if (write_run_summary_json(summary, results_path, results_error)) [[likely]]
@@ -848,22 +846,22 @@ int Experiment03::run()
     {
         string results_path;
         string results_error;
-auto summary = build_run_summary(   //
+        auto summary = build_run_summary(   //
             config_,                        //
             kExitFailure,                   //
             dataset_total_samples_,         //
             processed_samples_,             //
-            seen_batches_,                 //
-            epoch_mean_losses,             //
-            fold_epoch_val_losses,         //
-            fold_epoch_val_eeg_losses,     //
-            fold_epoch_val_audio_losses,   //
-            fold_mean_val_losses,          //
-            mean_val_loss,                 //
+            seen_batches_,                  //
+            epoch_mean_losses,              //
+            fold_epoch_val_losses,          //
+            fold_epoch_val_eeg_losses,      //
+            fold_epoch_val_audio_losses,    //
+            fold_mean_val_losses,           //
+            mean_val_loss,                  //
             config_.training_learning_rate, //
-            0.0f,                          // test_loss
-            test_trial_ids.size(),         // test_samples
-            e.what()                       //
+            0.0f,                           // test_loss
+            test_trial_ids.size(),          // test_samples
+            e.what()                        //
         );
         (void) write_run_summary_json(summary, results_path, results_error);
 
