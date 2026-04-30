@@ -144,49 +144,36 @@ public:
 
 ### LSTM Layer
 
-Single-layer LSTM with full BPTT and optional batch gradient accumulation.
+Single-layer LSTM with full BPTT [5, 6]. Gate equations and backward derivation
+verified against Hochreiter & Schmidhuber (1997) [5] and Greff et al. (2015) [6].
 
 **Location:** `include/nn/layers/lstm/LSTMLayer.hpp`  
 (Compat shim at `include/nn/models/lstm/LSTMLayer.hpp` — namespace `nn::models::lstm` unchanged.)
 
-Weight layout (gates stacked [i|f|o|g]):
+Weight layout (gates stacked [i|f|o|g] per [6]):
 - `W_` : (4H × D) — input-to-hidden
 - `U_` : (4H × H) — hidden-to-hidden
-- `b_` : (4H × 1) — bias (forget-gate initialised to 1 for training stability)
+- `b_` : (4H × 1) — bias; forget-gate slice initialised to 1 [7]
 
 ```cpp
 // File: include/nn/layers/lstm/LSTMLayer.hpp
-namespace nn::models::lstm {
+// forward dispatches on input rank:
+//   (T, D)    → (T, H)     single sequence; persists h0_/c0_ across calls
+//   (B, T, D) → (B, T, H)  batch; each of B samples starts from zero state
 
-class LSTMLayer : public Module<nn::XtensorTensorBackend>
-{
-public:
-    explicit LSTMLayer(int input_size, int hidden_size);
+nn::models::lstm::LSTMLayer layer(input_size, hidden_size);
 
-    // Single-sample forward (T×D) → (T×H). Caches activations for BPTT.
-    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+layer.reset_state();                             // zero h0_, c0_
+auto out = layer.forward(seq_td,  true);         // (T,D)   → (T,H)
+auto dx  = layer.backward(grad_th);              // (T,H)   → (T,D)
 
-    // Single-sample BPTT. grad_output: (T×H).
-    auto backward(const Tensor& grad_output) -> Tensor override;
+auto out3 = layer.forward(seq_btd, true);        // (B,T,D) → (B,T,H)
+auto dx3  = layer.backward(grad_bth);            // (B,T,H) → (B,T,D)
 
-    // Batch forward: B independent sequences, each (T×D) → (T×H).
-    // Stores per-sample caches for backward_batch().
-    auto forward_batch(const std::vector<Tensor>& batch_inputs,
-                       bool requires_grad = true) -> std::vector<Tensor>;
-
-    // Batch backward: accumulate W/U/b gradients across B samples.
-    // BatchEquivalence: backward_batch({g, g}) == 2× backward(g) for same input.
-    auto backward_batch(const std::vector<Tensor>& grad_outputs) -> std::vector<Tensor>;
-
-    // Call between independent sequences (zeros h0_, c0_).
-    void reset_state() override;
-
-    auto params() -> std::span<Tensor*> override;  // {W_, U_, b_}
-    auto state_dict() const -> std::map<std::string, Tensor> override;
-    void load_state_dict(const std::map<std::string, Tensor>&) override;
-};
-} // namespace nn::models::lstm
+auto params = layer.params();                    // span<nn::Tensor*>: {W_, U_, b_}
 ```
+
+See [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md) for full equation derivation.
 
 ### Spike Losses
 
@@ -266,5 +253,11 @@ nn::Tensor y = fc2.forward(h, true);
 [29] K. Kamata et al., "Fully spiking variational autoencoder," in *Proc. AAAI Conf. Artificial Intelligence*, 2022.
 
 [30] C. Chen et al., "ESVAE: An efficient spiking variational autoencoder with reparameterizable Poisson spiking sampling," arXiv:2310.14839, 2024.
+
+[5] S. Hochreiter and J. Schmidhuber, "Long short-term memory," *Neural Computation*, vol. 9, no. 8, pp. 1735–1780, Nov. 1997. doi: [10.1162/neco.1997.9.8.1735](https://doi.org/10.1162/neco.1997.9.8.1735)
+
+[6] K. Greff, R. K. Srivastava, J. Koutník, B. R. Steunebrink, and J. Schmidhuber, "LSTM: A search space odyssey," *IEEE Trans. Neural Netw. Learn. Syst.*, vol. 28, no. 10, pp. 2222–2232, 2017. arXiv: [1503.04069](https://arxiv.org/abs/1503.04069)
+
+[7] R. Jozefowicz, W. Zaremba, and I. Sutskever, "An empirical evaluation of recurrent network architectures," in *Proc. ICML*, 2015, pp. 2342–2350.
 
 [33] Y. Zheng et al., "Going deeper with directly-trained larger spiking neural networks," in *Proc. AAAI Conf. Artificial Intelligence*, 2021. [Online]. Available: https://arxiv.org/abs/2011.05280

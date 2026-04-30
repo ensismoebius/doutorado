@@ -659,6 +659,27 @@ class XTensorBackend
     }
 
 
+    // Extract 2D slice [b, :, :] from a 3D (B, T, D) tensor → (T, D).
+    XTensorBackend slice_batch(Index b) const
+    {
+        if (m_data.shape().size() != 3)
+            throw std::invalid_argument("slice_batch: tensor must be 3D");
+        if (b >= m_data.shape(0))
+            throw std::out_of_range("slice_batch: index out of range");
+        xt::xarray<float> r = xt::eval(xt::view(m_data, b, xt::all(), xt::all()));
+        return XTensorBackend(std::move(r));
+    }
+
+    // Write 2D (T, D) tensor into slice [b, :, :] of a 3D (B, T, D) tensor.
+    void set_batch_slice(Index b, const XTensorBackend& val)
+    {
+        if (m_data.shape().size() != 3)
+            throw std::invalid_argument("set_batch_slice: tensor must be 3D");
+        if (b >= m_data.shape(0))
+            throw std::out_of_range("set_batch_slice: index out of range");
+        xt::view(m_data, b, xt::all(), xt::all()) = val.m_data;
+    }
+
     void setBlock(Index r, Index c, const XTensorBackend& other)
     {
         if (r + other.rows() > m_data.shape(0) || c + other.cols() > m_data.shape(1))

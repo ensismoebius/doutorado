@@ -295,6 +295,18 @@ class TensorImpl
         return TensorImpl(backend_.slice(indices));
     }
 
+    // Extract 2D slice [b, :, :] from a 3D (B, T, D) tensor → (T, D).
+    [[nodiscard]] auto slice_batch(Index b) const -> TensorImpl
+    {
+        return TensorImpl(backend_.slice_batch(b));
+    }
+
+    // Write a 2D (T, D) tensor into slice [b, :, :] of a 3D (B, T, D) tensor.
+    void set_batch_slice(Index b, const TensorImpl& val)
+    {
+        backend_.set_batch_slice(b, val.backend_);
+    }
+
     // -----------------------------------------------------------------
     // Element-wise & matrix ops
     // -----------------------------------------------------------------
