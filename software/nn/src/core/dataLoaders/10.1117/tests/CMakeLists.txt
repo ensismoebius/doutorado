@@ -36,11 +36,12 @@ target_include_directories(dataLoaders_10_1117_gtest
 target_link_libraries(dataLoaders_10_1117_gtest 
 	PRIVATE 
 		google_test 
+		tensor
 		xtensor xtensor-blas 
 		${ZLIB_LIBRARIES} 
 		matioCpp
-        dataLoaders_10_1117 # Link to the new library
-        MatTestUtilsLib
+		dataLoaders_10_1117 # Link to the new library
+		MatTestUtilsLib
 )
 
 include(GoogleTest)

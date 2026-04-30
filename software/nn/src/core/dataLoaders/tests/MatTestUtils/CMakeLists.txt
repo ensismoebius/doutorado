@@ -17,6 +17,7 @@ target_include_directories(MatTestUtilsLib
 
 target_link_libraries(MatTestUtilsLib
     PRIVATE
+        tensor
         xtensor xtensor-blas
         matioCpp
 )

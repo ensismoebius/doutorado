@@ -22,6 +22,7 @@ target_include_directories(util
 
 target_link_libraries(util
     PRIVATE 
+        tensor
         xtensor xtensor-blas
 )
 
