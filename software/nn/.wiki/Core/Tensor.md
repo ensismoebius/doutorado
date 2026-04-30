@@ -34,7 +34,7 @@ class TensorImpl
     std::vector<size_t> strides_;  // memory layout
 
     // Data storage
-    std::vector<float> data_;        // host data (Eigen backend)
+    std::vector<float> data_;        // host data (xtensor backend)
     void* gpu_data_;              // GPU data (OpenCL backend)
 
     // Gradients
@@ -63,7 +63,7 @@ class Tensor {
 ```
 
 Supported backends:
-- `nn::EigenTensorBackend` - CPU operations
+- `nn::XtensorTensorBackend` - CPU operations
 - `nn::OpenCLTensorBackend` - GPU operations with lazy sync
 
 ## Data Flow
@@ -79,7 +79,7 @@ flowchart LR
     end
 
     subgraph Compute
-        CPU[Eigen ops]
+        CPU[xtensor ops]
         GPU[OpenCL kernels]
     end
 

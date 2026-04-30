@@ -3,16 +3,13 @@
 #
 # System dependency discovery.
 #
-# This module is where we require system-provided packages (Eigen, OpenMP, SDL2,
+# This module is where we require system-provided packages (OpenMP, SDL2,
 # BLAS/LAPACK/OpenBLAS, etc). Vendored dependencies are handled separately via
 # `Vendor*.cmake` modules.
 #+#+#+#+-----------------------------------------------------------------------
 
 # Package finder
 find_package(PkgConfig REQUIRED)
-
-# Find Eigen
-find_package(Eigen3 REQUIRED NO_MODULE)
 
 # Find OpenMP
 find_package(OpenMP REQUIRED)

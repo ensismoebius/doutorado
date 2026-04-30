@@ -8,30 +8,28 @@
  * - explicit notes about the project-specific shape conventions for time-flattened SNN input.
  */
 
-#include <algorithm>
-#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
-#include <numeric>
 #include <ranges>
 #include <span>
 #include <string>
 #include <vector>
 
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
-#include "nn/utility/EigenParallel.hpp"
+#include "nn/utility/XtensorParallel.hpp"
+#include "nn/utility/GradClip.hpp"
 #include "nn/utility/reset.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
 
 using namespace std;
-using ModuleEigen = Module<nn::Backend>;
+using ModuleXTensor = Module<nn::Backend>;
 
 namespace
 {
@@ -57,7 +55,7 @@ struct ModelConfig
 // =============================================================================
 // SNN Encoder-Decoder Model (PyTorch/snntorch style)
 // =============================================================================
-class SpikeAutoEncoder : public ModuleEigen
+class SpikeAutoEncoder : public ModuleXTensor
 {
    public:
     Sequential encoder;
@@ -69,10 +67,10 @@ class SpikeAutoEncoder : public ModuleEigen
     explicit SpikeAutoEncoder(const ModelConfig& cfg)
     {
         // --- Helper to create layers succinctly ---
-        auto lin = [](int in, int out) -> std::shared_ptr<ModuleEigen>
+        auto lin = [](int in, int out) -> std::shared_ptr<ModuleXTensor>
         { return make_shared<Linear>(in, out); };
 
-        auto leaky = [&](bool readout = false) -> std::shared_ptr<ModuleEigen>
+        auto leaky = [&](bool readout = false) -> std::shared_ptr<ModuleXTensor>
         {
             // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
             // (time-major flatten). This demo flattens the per-step tensors that way.
@@ -198,53 +196,6 @@ class SpikeAutoEncoder : public ModuleEigen
     }
 };
 
-// =============================================================================
-// Utility: Gradient Clipping
-// =============================================================================
-void clip_gradients(std::span<nn::Tensor*> params, float max_norm)
-{
-    // Global-norm gradient clipping (PyTorch-style):
-    // - Compute ||g|| over all parameters.
-    // - If it exceeds max_norm, scale every gradient tensor by max_norm/||g||.
-    //
-    // Why it matters here:
-    // - Deep SNN stacks + surrogate gradients can produce unstable/large gradients.
-    // - Clipping helps keep training numerically stable without changing the forward dynamics.
-
-    // C++20 Ranges: Compute total norm squared
-    auto param_norms = params | std::views::transform(
-                                    [](auto* p)
-                                    {
-                                        float n = p->grad().norm();
-                                        return n * n;
-                                    });
-
-    const float total_norm_sq = std::accumulate(param_norms.begin(), param_norms.end(), 0.0f);
-
-    float total_norm = std::sqrt(total_norm_sq);
-
-    if (total_norm > max_norm)
-    {
-        float scale = max_norm / (total_norm + 1e-6f);
-
-        // Important Tensor API note:
-        // - `p->grad()` returns a *copy* in this codebase, so we must `set_grad()` after editing.
-        // - We scale elementwise via a std::span over the contiguous buffer.
-
-        // C++20 Ranges: Scale gradients
-        std::ranges::for_each(params,
-            [scale](auto* p)
-            {
-                nn::Tensor g = p->grad();
-                if (g.size() > 0)
-                {
-                    std::span<float> data(g.mutable_data(), g.size());
-                    std::ranges::for_each(data, [scale](float& val) { val *= scale; });
-                    p->set_grad(g);
-                }
-            });
-    }
-}
 
 // =============================================================================
 // Main
@@ -253,7 +204,7 @@ auto main(int, char*[]) -> int
 {
     try
     {
-        util::initializeEigenParallel();
+        util::initializeXtensorParallel();
         printVectorizationSupport();
         cout << fixed << scientific << setprecision(4);
 
@@ -338,7 +289,7 @@ auto main(int, char*[]) -> int
             model.backward(grad_loss);
 
             // Clip & Step
-            clip_gradients(params, 1.0f);
+            nn::utils::clip_grad_norm(params, 1.0f);
             optimizer.step(params);
 
             // Log

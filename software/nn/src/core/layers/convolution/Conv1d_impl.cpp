@@ -3,7 +3,7 @@
  * @brief Implementation of the Conv1d layer.
  *
  * NOTE: Currently a no-op placeholder. The nn::Tensor type only supports 2D and 4D
- * tensors natively (via Eigen matrices). A true 1D convolution requires either:
+ * tensors natively (via xtensor matrices). A true 1D convolution requires either:
  * 1. Adding 3D tensor support to the Tensor class
  * 2. Reshaping 3D input to 2D, applying 1D conv, then reshaping back
  *

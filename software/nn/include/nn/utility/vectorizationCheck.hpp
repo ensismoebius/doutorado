@@ -6,9 +6,9 @@
  * @brief Small diagnostics helper: prints CPU SIMD/vectorization capabilities.
  *
  * Why this exists:
- * - Eigen performance depends heavily on SIMD support and compile flags.
+ * - xtensor performance depends on SIMD and parallelization flags.
  * - The demos print this at startup so you can sanity-check whether you are
- *   getting AVX/SSE/NEON acceleration on the current machine/build.
+ *   getting acceleration on the current machine/build.
  */
 void printVectorizationSupport();
 

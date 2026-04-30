@@ -22,7 +22,7 @@ target_include_directories(util
 
 target_link_libraries(util
     PRIVATE 
-        Eigen3::Eigen
+        xtensor xtensor-blas
 )
 
 add_subdirectory(tests)

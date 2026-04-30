@@ -1,7 +1,7 @@
 # tensor
 
 Purpose
-- Core tensor abstraction and Eigen-backed implementations used across the codebase.
+- Core tensor abstraction and xtensor-backed implementations used across the codebase.
 
 Source layout
 - `src/core/tensor/opencl/`: OpenCL-specific tensor runtime and backend implementation.
@@ -31,7 +31,7 @@ Recent updates
 	so experiment code no longer manages OpenCL buffer-pool shutdown directly.
 
 Optimization techniques and references
-- Backend-level fused rowwise update: move broadcast-add into the Eigen-backed kernel path to leverage vectorized matrix expressions and avoid per-element scalar loops at call sites (see [1], [2]).
+- Backend-level fused rowwise update: move broadcast-add into the xtensor-backed kernel path to leverage vectorized matrix expressions and avoid per-element scalar loops at call sites (see [1], [2]).
 
 Bibliographic references
 - [1] Gene H. Golub and Charles F. Van Loan. Matrix Computations (4th ed.). Johns Hopkins University Press, 2013.

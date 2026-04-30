@@ -36,7 +36,7 @@ target_include_directories(dataLoaders_10_1117_gtest
 target_link_libraries(dataLoaders_10_1117_gtest 
 	PRIVATE 
 		google_test 
-		Eigen3::Eigen 
+		xtensor xtensor-blas 
 		${ZLIB_LIBRARIES} 
 		matioCpp
         dataLoaders_10_1117 # Link to the new library
@@ -46,5 +46,5 @@ target_link_libraries(dataLoaders_10_1117_gtest
 include(GoogleTest)
 add_subdirectory(fuzz)
 add_subdirectory(windowing)
-configure_eigen_parallel_target(dataLoaders_10_1117_gtest)
+configure_xtensor_parallel_target(dataLoaders_10_1117_gtest)
 gtest_discover_tests(dataLoaders_10_1117_gtest)

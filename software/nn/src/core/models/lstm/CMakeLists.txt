@@ -8,7 +8,6 @@ add_library(lstm_models STATIC
 target_include_directories(lstm_models
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
-        ${EIGEN3_INCLUDE_DIR}
 )
 
 target_link_libraries(lstm_models

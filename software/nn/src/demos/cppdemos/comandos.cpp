@@ -16,7 +16,7 @@
 // Use project headers from include/nn
 #include "codificacao.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 #include "nn/wave/Wav.h"

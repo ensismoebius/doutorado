@@ -25,7 +25,7 @@ target_link_libraries(experiment_02
         dataLoaders
         linearAlgebra
         waveCoreLib
-        Eigen3::Eigen
+        xtensor xtensor-blas
         nlohmann_json_wrapper
         OpenMP::OpenMP_CXX
 )

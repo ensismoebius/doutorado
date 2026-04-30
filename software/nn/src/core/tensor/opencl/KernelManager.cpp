@@ -41,7 +41,7 @@ __kernel void matmul_kernel(
     
     float sum = 0.0f;
     for (uint i = 0; i < K; ++i) {
-        // Eigen::MatrixXf is column-major by default:
+        // xt::xarray<float> is column-major by default:
         // idx(row,col) = row + col * rows
         sum += A[row + i * M] * B[i + col * K];
     }

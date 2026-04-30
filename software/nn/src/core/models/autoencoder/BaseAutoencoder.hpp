@@ -129,10 +129,10 @@ class BaseAutoencoder : public nn::Module<Backend>
  *
  * - ANN: Standard artificial neural network (ReLU activations)
  * - SNN: Spiking neural network (LeakyIntegrator activations)
- * - Eigen: Eigen backend for CPU computation
+ * - xtensor: xtensor backend for CPU computation
  */
-using EigenAutoencoder = BaseAutoencoder<nn::Backend>;
-using EigenSpikingAutoencoder = BaseAutoencoder<nn::Backend>;
+using XTensorAutoencoder = BaseAutoencoder<nn::Backend>;
+using XTensorSpikingAutoencoder = BaseAutoencoder<nn::Backend>;
 
 } // namespace nn::models::autoencoder
 

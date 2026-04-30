@@ -11,7 +11,7 @@
  * - Thread-safe for single command queue (AMD Renoir single-queue model)
  *
  * **Memory Layout:**
- * - Row-major dense storage (compatibility with Eigen, BLAS)
+ * - Row-major dense storage (compatibility with xtensor, BLAS)
  * - No padding or alignment overhead for AMD Renoir
  */
 

@@ -395,5 +395,5 @@ auto Conv2dImpl<Backend>::reshape_output_optimized(
 }
 // LCOV_EXCL_STOP
 
-// Explicit instantiation: generate code for the Eigen (CPU) backend only.
+// Explicit instantiation: generate code for the xtensor (CPU) backend only.
 template class Conv2dImpl<nn::Backend>;

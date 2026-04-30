@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "Config.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace phase00

@@ -337,7 +337,7 @@ void Conv2dImpl<Backend>::initialize_weights_he()
     }
 }
 
-// Explicit instantiation: generate code for the Eigen (CPU) backend only.
+// Explicit instantiation: generate code for the xtensor (CPU) backend only.
 // A GPU backend implementation would add its own explicit instantiation here or in a
 // separate translation unit after providing the required algorithm specialisation.
 template class Conv2dImpl<nn::Backend>;

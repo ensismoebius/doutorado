@@ -11,7 +11,7 @@ target_include_directories(voice_biometrics_cpp PRIVATE
 )
 
 target_link_libraries(voice_biometrics_cpp PRIVATE
-    Eigen3::Eigen
+    xtensor xtensor-blas
     tensor
     layers
     argparse
@@ -21,4 +21,4 @@ target_link_libraries(voice_biometrics_cpp PRIVATE
     linearAlgebra
 )
 
-configure_eigen_parallel_target(voice_biometrics_cpp)
+configure_xtensor_parallel_target(voice_biometrics_cpp)

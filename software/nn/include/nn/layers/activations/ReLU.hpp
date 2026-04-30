@@ -19,7 +19,7 @@
  * Backend polymorphism:
  * - `ReLUImpl<Backend>` works with any backend tensor type that implements `relu()`,
  *   `operator>`, and `multiply()`.
- * - The convenience alias `ReLU = ReLUImpl<EigenBackend>` (in `nn/layers/eigen/Layers.hpp`)
+ * - The convenience alias `ReLU = ReLUImpl<Backend>` (in `nn/layers/Layers.hpp`)
  * preserves backward compatibility with all existing call sites.
  */
 template <typename Backend>

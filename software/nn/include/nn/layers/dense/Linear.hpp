@@ -23,11 +23,11 @@
  * - `LinearImpl<Backend>` works with any backend tensor type.
  * - Parameters (`weight`, `bias`) are always stored as CPU-resident `nn::Tensor` so that
  *   existing CPU optimizers continue to work without modification.
- * - For non-Eigen backends the parameters are converted to the active backend at the start
- *   of each forward/backward pass; this conversion is zero-cost when Backend == Eigen since
+* - For non-xtensor backends the parameters are converted to the active backend at the start
+*   of each forward/backward pass; this conversion is zero-cost when Backend == XTensorBackend since
  *   both types alias the same underlying storage.
- * - Concrete aliases (e.g. `Linear = LinearImpl<EigenBackend>`) live in
- *   `nn/layers/eigen/Layers.hpp`.
+* - Concrete aliases (e.g. `Linear = LinearImpl<Backend>`) live in
+*   `nn/layers/Layers.hpp`.
  */
 template <typename Backend>
 struct LinearImpl : public Module<Backend>
@@ -80,7 +80,7 @@ struct LinearImpl : public Module<Backend>
      * @brief Forward pass: y = x W^T + b.
      *
      * CPU-resident parameters are converted to the active backend on each call.
-     * For the Eigen backend this conversion is a same-type copy (zero semantic
+     * For the xtensor backend this conversion is a same-type copy (zero semantic
      * overhead); for other backends it performs an explicit transfer.
      *
      * @param input  [batch × in_features]

@@ -24,12 +24,11 @@ include/nn/             ← public headers for all core modules
 |--------|------|
 | `cmake/Policies.cmake` | Sets CMake compatibility policies (e.g. CMP0069) |
 | `cmake/Tooling.cmake` | ccache detection, `compile_commands.json` export, analysis tool detection |
-| `cmake/DevAndAnalysisTargets.cmake` | Custom targets: `dev-setup`, `analysis-all`, `clean-cache`, `check_eigen_leaks` |
+| `cmake/DevAndAnalysisTargets.cmake` | Custom targets: `dev-setup`, `analysis-all`, `clean-cache`, `check_xtensor_leaks` |
 | `cmake/Flags.cmake` | C++20 standard, PIC, linker selection (mold → lld fallback), CMake options |
 | `cmake/EnableCoverage.cmake` | `--coverage` flags when `NN_ENABLE_COVERAGE=ON` |
 | `cmake/PrecompiledHeaders.cmake` | Per-target PCH helpers (opt-in via `NN_ENABLE_PCH`) |
-| `cmake/EigenBan.cmake` | Compile-time poison to prevent direct Eigen include leaks |
-| `cmake/PackageChecking.cmake` | System deps: Eigen3, OpenMP, SDL2, BLAS/LAPACK/OpenBLAS, OpenCL |
+| `cmake/PackageChecking.cmake` | System deps: xtensor, OpenMP, SDL2, BLAS/LAPACK/OpenBLAS, OpenCL |
 | `cmake/VendorIncludes.cmake` | Aggregates all vendored deps — includes each `Vendor*.cmake` in order |
 | `cmake/SanitizerFlags.cmake` | ASan + UBSan for Debug/RelWithDebInfo (opt-in via `NN_ENABLE_ASAN=ON`) |
 
@@ -50,14 +49,14 @@ include/nn/             ← public headers for all core modules
 | `VendorMatplotlibCpp.cmake` | matplotlib-cpp |
 | `VendorYaml.cmake` | yaml-cpp |
 | `VendorJson.cmake` | nlohmann::json |
-| `VendorEigenParallel.cmake` | Eigen parallelization settings |
+| `VendorXtensorParallel.cmake` | xtensor parallelization settings |
 | `VendorSqlite.cmake` | Optional vendored SQLite amalgamation |
 
 ### System Dependencies (via `cmake/PackageChecking.cmake`)
 
 Required at configure time:
 
-- **Eigen3** — linear algebra
+- **xtensor** — linear algebra
 - **OpenMP** — parallel loops
 - **SDL2** — GUI/audio demos
 - **BLAS / LAPACK / OpenBLAS** — linear algebra acceleration
@@ -265,9 +264,6 @@ cmake --build out/build/max-performance --target analysis-all
 
 # Clear ccache
 cmake --build out/build/max-performance --target clean-cache
-
-# Check for Eigen include leaks
-cmake --build out/build/max-performance --target check_eigen_leaks
 ```
 
 ---

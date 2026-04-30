@@ -158,7 +158,7 @@ Weight layout (gates stacked [i|f|o|g]):
 // File: include/nn/layers/lstm/LSTMLayer.hpp
 namespace nn::models::lstm {
 
-class LSTMLayer : public Module<nn::EigenTensorBackend>
+class LSTMLayer : public Module<nn::XtensorTensorBackend>
 {
 public:
     explicit LSTMLayer(int input_size, int hidden_size);
@@ -227,9 +227,9 @@ flowchart TB
 #include "nn/layers/activations/ReLU.hpp"
 
 // Create a simple MLP: 128 -> 64 -> 32
-nn::layers::Linear<nn::EigenTensorBackend> fc1(128, 64);
+nn::layers::Linear<nn::XtensorTensorBackend> fc1(128, 64);
 nn::layers::ReLU relu1;
-nn::layers::Linear<nn::EigenTensorBackend> fc2(64, 32);
+nn::layers::Linear<nn::XtensorTensorBackend> fc2(64, 32);
 
 // Forward pass
 nn::Tensor x = /* input data */;

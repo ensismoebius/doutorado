@@ -1,5 +1,29 @@
 # nn project — Claude Code rules
 
+## OpenCode Duo Directives (PERMANENT)
+
+**Role split:**
+- Claude Code = **Planner + Reviewer**. Designs solutions, writes plans, reviews output, synthesizes.
+- OpenCode = **Executor**. Runs tasks via MCP tools (`mcp__opencode__*`). Handles file edits, shell, search.
+
+**Model priority for OpenCode tasks** (free/low-cost first):
+1. Gemini / Gemma (Google) — prefer for code generation and analysis
+2. Minmax (OpenCode Zen) — prefer for reasoning and debate
+3. Other free models available in OpenCode
+4. Paid models only as last resort
+
+**Workflow:**
+1. Claude plans. Uses free OpenCode models for debate/second-opinion during planning if useful.
+2. Claude delegates execution to OpenCode via MCP (`mcp__opencode__run_task` or equivalent).
+3. Claude reviews OpenCode output, synthesizes, reports to user.
+4. If OpenCode warns about token exhaustion → immediately warn user: "⚠️ OpenCode token limit approaching — reduce scope or start new session."
+
+**Token warning rule:** Any response from OpenCode containing "token", "limit", "context", "quota", or "exhausted" → surface warning to user before continuing.
+
+**MCP not available:** If `mcp__opencode__*` tools absent (OpenCode not running) → warn user: "OpenCode MCP offline. Start OpenCode first, then restart Claude Code." Fall back to solo execution.
+
+---
+
 ## Caveman mode
 
 Caveman active (full). Terse responses. Drop articles, filler, hedging. Technical substance exact.
@@ -70,7 +94,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
 | `analysis-all` | All static analysis |
-| `check_eigen_leaks` | Verify no Eigen leaks into banned targets |
+| `check_xtensor_leaks` | Verify no xtensor leaks into banned targets |
 | `clean-cache` | Clear ccache |
 
 **Debug build** (for sanitisers or gdb):
@@ -87,7 +111,7 @@ cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu --target <target> -j$(n
 - Compiler: clang preferred (project ships clang preset). `clang-tidy` must pass.
 - `-Wall` is on. `-Wno-sign-compare` suppressed. Fix warnings, do not add more suppressions.
 - **No raw `new`/`delete`** — use RAII, smart pointers, value types.
-- **No naked Eigen includes** in targets marked with `nn_disallow_eigen()`. Check `cmake/EigenBan.cmake`. Violating this is a hard build error. Use `nn_allow_eigen(<target>)` only in targets that explicitly need Eigen (e.g., `EigenTensorBackend`).
+- **No naked xtensor includes** in targets marked with `nn_disallow_xtensor()`. Check `cmake/XtensorBan.cmake`. Violating this is a hard build error. Use `nn_allow_xtensor(<target>)` only in targets that explicitly need xtensor (e.g., `XTensorBackend`).
 
 ---
 
@@ -196,7 +220,7 @@ include/nn/          Public headers (backend-agnostic interface)
     spiking/         Leaky, LeakyBPTT, ThresholdDependentBatchNorm, PoissonLatentLayer
   optimizers/        Adam, SGD
   statistics/        kfold.hpp (KFold, StratifiedKFold, NestedKFold), metrics
-  tensor/            Tensor.hpp, EigenTensorBackend, OpenCLTensorBackend
+  tensor/            Tensor.hpp, XTensorBackend, OpenCLTensorBackend
   dataLoaders/       10.1117/ (audio+EEG), datasets, samplers, sources
   saver/             NnSaver, NetworkSerializer
   wave/              WAV I/O

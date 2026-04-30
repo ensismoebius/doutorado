@@ -5,7 +5,7 @@ add_executable(speaker_demo
 )
 
 target_link_libraries(speaker_demo PRIVATE
-    Eigen3::Eigen
+    xtensor xtensor-blas
     tensor
     argparse
     wavelet
@@ -14,10 +14,10 @@ target_link_libraries(speaker_demo PRIVATE
     linearAlgebra
 )
 
-configure_eigen_parallel_target(speaker_demo)
+configure_xtensor_parallel_target(speaker_demo)
 
 
 add_library(rede_snn SHARED rede_snn.cpp)
 set_target_properties(rede_snn PROPERTIES PREFIX "" OUTPUT_NAME "rede_snn")
-target_link_libraries(rede_snn PRIVATE tensor Eigen3::Eigen)
-configure_eigen_parallel_target(rede_snn)
+target_link_libraries(rede_snn PRIVATE tensor xtensor xtensor-blas)
+configure_xtensor_parallel_target(rede_snn)

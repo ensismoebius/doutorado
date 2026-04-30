@@ -52,8 +52,9 @@ include(cmake/VendorYaml.cmake)
 # nlohmann::json integration
 include(cmake/VendorJson.cmake)
 
-# Eigen parallelization settings
-include(cmake/VendorEigenParallel.cmake)
+# xtensor (N-D array) + xtensor-blas (matmul) + xtensor parallel settings
+include(cmake/VendorXtensor.cmake)
+include(cmake/VendorXtensorParallel.cmake)
 
 # Optional vendored SQLite (if third_party/sqlite contains an amalgamation)
 include(cmake/VendorSqlite.cmake)

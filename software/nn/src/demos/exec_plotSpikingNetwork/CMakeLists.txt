@@ -24,7 +24,7 @@ pkg_search_module(GLFW REQUIRED glfw3)
 target_link_libraries(plotSpikingNetwork
     PRIVATE
         cnpy
-        Eigen3::Eigen
+        xtensor xtensor-blas
         ${OpenMP_CXX_LIBRARIES}
         OpenGL::GL
         ${GLFW_LIBRARIES}
@@ -40,10 +40,9 @@ target_include_directories(plotSpikingNetwork
         ${SRC_DIR}
         ${CNPY_DIR}
         ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
         ${GLFW_INCLUDE_DIRS}
 )
 
-# Configure Eigen parallelism for the target
-configure_eigen_parallel_target(plotSpikingNetwork)
+# Configure xtensor parallelism for the target
+configure_xtensor_parallel_target(plotSpikingNetwork)

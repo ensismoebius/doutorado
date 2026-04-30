@@ -26,7 +26,7 @@ target_link_libraries(dataLoaders
         SQLite3::SQLite3
     cnpy
         dataLoaders_samplers
-        Eigen3::Eigen
+        xtensor xtensor-blas
     matioCpp
         tensor
 )

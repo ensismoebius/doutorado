@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "nn/layers/base/Module.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/models/lstm/LSTMLayer.hpp"
 #include "nn/tensor/Tensor.hpp"
 

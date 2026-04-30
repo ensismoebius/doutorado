@@ -20,7 +20,7 @@ target_include_directories(dataLoaders_10_1117
 
 target_link_libraries(dataLoaders_10_1117
     PRIVATE
-        Eigen3::Eigen
+        xtensor xtensor-blas
         ${ZLIB_LIBRARIES}
         matioCpp
         tensor
@@ -64,7 +64,7 @@ target_link_libraries(dataLoaders_10_1117_windowing
         dataLoaders
         dataLoaders_10_1117
     PRIVATE
-        Eigen3::Eigen
+        xtensor xtensor-blas
 )
 
 add_subdirectory(tests)

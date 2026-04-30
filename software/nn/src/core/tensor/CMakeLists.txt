@@ -11,11 +11,10 @@ add_library(tensor STATIC
 
 target_include_directories(tensor PUBLIC
 	${CMAKE_SOURCE_DIR}/include
-	${EIGEN3_INCLUDE_DIR}
 )
 
 target_link_libraries(tensor PUBLIC
-	Eigen3::Eigen
+	xtensor xtensor-blas
 )
 
 # Link OpenCL if available

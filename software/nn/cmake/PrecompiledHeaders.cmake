@@ -23,8 +23,6 @@ function(nn_enable_target_pch target_name)
 
     target_precompile_headers(${target_name}
         PRIVATE
-            <Eigen/Core>
-            <Eigen/Dense>
             <vector>
             <string>
             <memory>

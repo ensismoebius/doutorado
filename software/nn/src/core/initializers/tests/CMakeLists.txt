@@ -5,7 +5,7 @@
 ## - `initializers_gtest`: tests for weight initialization helpers.
 ##
 ## Notes:
-## - Linked against `initializers` + `tensor` and uses Eigen/OpenMP settings.
+## - Linked against `initializers` + `tensor` and uses xtensor/OpenMP settings.
 ##
 add_executable(
     initializers_gtest 
@@ -14,15 +14,14 @@ add_executable(
 target_link_libraries(initializers_gtest 
     PRIVATE 
         google_test 
-        Eigen3::Eigen 
+         xtensor xtensor-blas 
         initializers
         tensor
 )
 
 target_include_directories(initializers_gtest 
     PRIVATE 
-        ${EIGEN3_INCLUDE_DIR}
 )
 include(GoogleTest)
 gtest_discover_tests(initializers_gtest)
-configure_eigen_parallel_target(initializers_gtest)
+configure_xtensor_parallel_target(initializers_gtest)

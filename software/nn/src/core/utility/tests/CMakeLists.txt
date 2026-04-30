@@ -12,7 +12,7 @@ add_executable(util_gtest
 target_link_libraries(util_gtest 
     PRIVATE 
         google_test 
-        Eigen3::Eigen
+         xtensor xtensor-blas
         cnpy-static
         z
         ${BLAS_LIBRARIES}
@@ -24,10 +24,9 @@ target_link_libraries(util_gtest
 
 target_include_directories(util_gtest 
     PRIVATE 
-        ${CMAKE_SOURCE_DIR}/src 
-        ${CMAKE_SOURCE_DIR}/src/core/tensor 
-        ${EIGEN3_INCLUDE_DIR} 
-        ${cnpy_SOURCE_DIR}
+         ${CMAKE_SOURCE_DIR}/src 
+         ${CMAKE_SOURCE_DIR}/src/core/tensor 
+         ${cnpy_SOURCE_DIR}
 )
 
 include(GoogleTest)

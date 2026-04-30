@@ -16,7 +16,7 @@ namespace nn::dataLoaders
 {
 struct EEGData
 {
-    Eigen::MatrixXf eegSamplesMatrix;
+    xt::xarray<float> eegSamplesMatrix;
     std::array<int, 3> eegInfo;
     std::vector<Eigen::VectorXf> eegChannels;
 };

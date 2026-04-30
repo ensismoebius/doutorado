@@ -51,7 +51,7 @@ class ResidualBlock : public Module<Backend>
 ```cpp
 // File: include/nn/layers/residual/ResNetBlock.hpp
 // Pre-activation ResNet block
-class ResNetBlock : public Module<EigenTensorBackend>
+class ResNetBlock : public Module<XtensorTensorBackend>
 {
     // BatchNorm -> ReLU -> Conv -> BatchNorm -> ReLU -> Conv
 };

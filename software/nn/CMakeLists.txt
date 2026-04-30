@@ -41,9 +41,6 @@ include(cmake/EnableCoverage.cmake)
 # Optional helpers for precompiled headers on selected targets
 include(cmake/PrecompiledHeaders.cmake)
 
-# Eigen hard-ban helper (compile-time poison + helper functions)
-include(cmake/EigenBan.cmake)
-
 # Do the required libraries check (package checks remain small and local)
 include(cmake/PackageChecking.cmake)
 

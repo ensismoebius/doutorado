@@ -3,7 +3,7 @@
 
 #include <algorithm>
 
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
+#include "nn/tensor/xtensor/XTensorBackend.hpp"
 
 namespace nn
 {
@@ -12,12 +12,12 @@ namespace nn
  * @brief Skeleton "device" backend demonstrating how to implement another
  * tensor backend.
  *
- * This minimal example delegates all work to an internal Eigen-based host
+ * This minimal example delegates all work to an internal xtensor-based host
  * mirror (m_host). It is intentionally simple so contributors can easily
  * replace the internals with device allocations (CUDA, ROCm) and implement
  * explicit copy_to_device()/copy_to_host() semantics.
  *
- * Required behaviour (contract): see `EigenTensorBackend.hpp` for detailed
+ * Required behaviour (contract): see `XTensorBackend.hpp` for detailed
  * expectations and per-method documentation. This skeleton preserves that
  * contract while showing where device-specific code would go.
  *
@@ -47,12 +47,6 @@ class DeviceTensorBackend
     // Construct from arbitrary shape vector (may be >2 dimensions).
     // Ensure `reshape()` semantics are preserved on device copies.
     explicit DeviceTensorBackend(const std::vector<Index>& shape) : m_host(shape) {}
-
-    // Construct directly from an Eigen matrix (host data). For device
-    // backends prefer explicit host->device transfers via `copy_to_device()`.
-    explicit DeviceTensorBackend(const Eigen::MatrixXf& data) : m_host(data) {}
-
-    explicit DeviceTensorBackend(Eigen::MatrixXf&& data) : m_host(std::move(data)) {}
 
     // Copy / Move
 
@@ -92,23 +86,23 @@ class DeviceTensorBackend
     // Static factories
     static DeviceTensorBackend zeros(Index rows, Index cols)
     {
-        return DeviceTensorBackend(EigenTensorBackend::zeros(rows, cols));
+        return DeviceTensorBackend(XTensorBackend::zeros(rows, cols));
     }
 
     static DeviceTensorBackend ones(Index rows, Index cols)
     {
-        return DeviceTensorBackend(EigenTensorBackend::ones(rows, cols));
+        return DeviceTensorBackend(XTensorBackend::ones(rows, cols));
     }
 
-    // Construct from an Eigen host backend directly. This is useful for
-    // factories that produce `EigenTensorBackend` values; prefer this over
+    // Construct from an xtensor host backend directly. This is useful for
+    // factories that produce `XTensorBackend` values; prefer this over
     // accessing private internals like `.m_data`.
-    explicit DeviceTensorBackend(const EigenTensorBackend& host) : m_host(host) {}
+    explicit DeviceTensorBackend(const XTensorBackend& host) : m_host(host) {}
 
-    explicit DeviceTensorBackend(EigenTensorBackend&& host) : m_host(std::move(host)) {}
+    explicit DeviceTensorBackend(XTensorBackend&& host) : m_host(std::move(host)) {}
 
     // Shape / sizing
-    const std::vector<Index>& shape() const
+    std::vector<Index> shape() const
     {
         return m_host.shape();
     }
@@ -177,7 +171,7 @@ class DeviceTensorBackend
 
     // Element-wise arithmetic (add/subtract/multiply).
     // - Implement device kernels for element-wise ops for performance.
-    // - Ensure shape compatibility checks match `EigenTensorBackend` behaviour.
+    // - Ensure shape compatibility checks match `XTensorBackend` behaviour.
 
     void add_inplace(const DeviceTensorBackend& other)
     {
@@ -250,7 +244,7 @@ class DeviceTensorBackend
     }
 
     // Transpose (2D only). Implement an in-device transpose when possible
-    // to avoid a host round-trip. Keep API semantics identical to Eigen fallback.
+    // to avoid a host round-trip. Keep API semantics identical to xtensor fallback.
     DeviceTensorBackend transpose() const
     {
         return DeviceTensorBackend(m_host.transpose());
@@ -274,7 +268,7 @@ class DeviceTensorBackend
 
     // Element-wise unary functions. Implement device kernels where
     // practical. Ensure numerical stability and consistent edge-case handling
-    // (NaN/Infs) with Eigen reference behaviour.
+    // (NaN/Infs) with xtensor reference behaviour.
     DeviceTensorBackend sqrt() const
     {
         return DeviceTensorBackend(m_host.sqrt());
@@ -483,7 +477,7 @@ class DeviceTensorBackend
     void copy_grad_to_device()
     {
         // Copy the host gradient into the device grad buffer. The host grad is
-        // obtained via m_host.get_grad() which returns an EigenTensorBackend
+        // obtained via m_host.get_grad() which returns an XTensorBackend
         // value; copy its contents into the device vector.
         if (!m_grad_on_device) allocate_device_grad();
         auto host_grad = m_host.get_grad();
@@ -538,9 +532,9 @@ class DeviceTensorBackend
     }
 
    private:
-    // Host mirror (Eigen implementation). Replace with device-native storage in
+    // Host mirror (xtensor implementation). Replace with device-native storage in
     // concrete implementations. Use this as a reliable host fallback in tests.
-    EigenTensorBackend m_host;
+    XTensorBackend m_host;
 
     // Simulated device buffer (for the skeleton): stores a host-side copy of
     // what would be device memory. Replace with an actual device pointer,

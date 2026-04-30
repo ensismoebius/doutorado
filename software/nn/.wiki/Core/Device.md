@@ -87,7 +87,7 @@ flowchart TB
     end
 
     subgraph Backend
-        eigen[Eigen CPU]
+        xtensor[xtensor CPU]
         opencl[OpenCL GPU]
     end
 

@@ -6,8 +6,9 @@
 #include "nn/dataLoaders/io/mat_file_utils.hpp"
 
 #include <matio.h>
-#include <matioCpp/EigenConversions.h>
 #include <matioCpp/File.h>
+#include <matioCpp/MultiDimensionalArray.h>
+#include <matioCpp/Vector.h>
 
 #include <algorithm>
 #include <stdexcept>
@@ -15,7 +16,7 @@
 #include "nn/dataLoaders/io/mat_file.hpp"
 
 // Implementation strategy:
-// - matio-cpp reads variables and can convert them to Eigen structures.
+// - matio-cpp reads variables and can convert them to raw data pointers.
 // - This translation unit converts supported variable types into `nn::Tensor`
 //   by copying into the project's float-based tensor storage.
 //
@@ -31,32 +32,36 @@ namespace matioCpp::utils
 {
 namespace
 {
-auto to_tensor_from_eigen_matrix(const Eigen::MatrixXf& eigen_matrix) -> nn::Tensor
+template <typename T>
+auto to_tensor_from_raw(const T* data, size_t rows, size_t cols) -> nn::Tensor
 {
-    nn::Tensor result(
-        static_cast<size_t>(eigen_matrix.rows()), static_cast<size_t>(eigen_matrix.cols()));
-    std::copy_n(
-        eigen_matrix.data(), static_cast<size_t>(eigen_matrix.size()), result.mutable_data_ptr());
+    nn::Tensor result(rows, cols);
+    float* dst = result.mutable_data_ptr();
+    // MATLAB/matio stores column-major; nn::Tensor (xtensor) is row-major.
+    // Transpose during copy: src[col*rows + row] -> dst[row*cols + col]
+    for (size_t r = 0; r < rows; ++r)
+        for (size_t c = 0; c < cols; ++c)
+            dst[r * cols + c] = static_cast<float>(data[c * rows + r]);
     return result;
 }
 } // namespace
 
-// Small helpers that convert matio-cpp Variable objects into nn::Tensor instances without
-// exposing Eigen types in this translation unit.
+// Small helpers that convert matio-cpp Variable objects into nn::Tensor instances.
 template <typename T>
 auto to_tensor_from_multi(const matioCpp::Variable& variable) -> std::optional<nn::Tensor>
 {
-    auto multi_array = variable.template asMultiDimensionalArray<T>();
-    auto eigen_matrix = matioCpp::to_eigen(multi_array).template cast<float>();
-    return to_tensor_from_eigen_matrix(eigen_matrix);
+    auto multi = variable.template asMultiDimensionalArray<T>();
+    auto dims = multi.dimensions();
+    size_t rows = (dims.size() > 0) ? dims[0] : 1;
+    size_t cols = (dims.size() > 1) ? dims[1] : 1;
+    return to_tensor_from_raw(multi.data(), rows, cols);
 }
 
 template <typename T>
 auto to_tensor_from_vector(const matioCpp::Variable& variable) -> std::optional<nn::Tensor>
 {
     auto vec = variable.template asVector<T>();
-    auto eigen_matrix = matioCpp::to_eigen(vec).template cast<float>();
-    return to_tensor_from_eigen_matrix(eigen_matrix);
+    return to_tensor_from_raw(vec.data(), vec.size(), 1);
 }
 
 auto load_named_variable_as_matrix(const std::string& mat_path, const std::string& var_name)

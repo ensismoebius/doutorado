@@ -3,7 +3,7 @@ add_executable(fftw3_demo
   )
 
   target_link_libraries(fftw3_demo PRIVATE
-    Eigen3::Eigen
+    xtensor xtensor-blas
     matioCpp
     dataLoaders
     util
@@ -12,4 +12,4 @@ add_executable(fftw3_demo
     MatplotlibCpp::MatplotlibCpp
   )
 
-  configure_eigen_parallel_target(fftw3_demo)
+  configure_xtensor_parallel_target(fftw3_demo)

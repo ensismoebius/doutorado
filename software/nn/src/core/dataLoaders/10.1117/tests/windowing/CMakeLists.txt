@@ -24,10 +24,10 @@ target_link_libraries(windowing_gtest
         google_test
         dataLoaders_10_1117_windowing
         tensor
-        Eigen3::Eigen
+         xtensor xtensor-blas
 )
 
-configure_eigen_parallel_target(windowing_gtest)
+configure_xtensor_parallel_target(windowing_gtest)
 
 include(GoogleTest)
 gtest_discover_tests(windowing_gtest)

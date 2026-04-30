@@ -16,7 +16,7 @@ target_include_directories(layers
 )
 
 target_link_libraries(layers
-    PUBLIC Eigen3::Eigen
+    PUBLIC xtensor xtensor-blas
     PUBLIC tensor
 )
 
@@ -25,7 +25,7 @@ set_property(TARGET layers PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
 target_compile_options(layers PRIVATE -fno-lto)
 target_link_options(layers PRIVATE -fno-lto)
 
-configure_eigen_parallel_target(layers)
+configure_xtensor_parallel_target(layers)
 
 nn_enable_target_pch(layers)
 

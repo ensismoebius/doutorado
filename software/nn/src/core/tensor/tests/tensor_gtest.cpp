@@ -732,7 +732,7 @@ TEST(TensorTest, CommaInitializerWorks)
     nn::Tensor t(2, 2);
     // comma-initializer should populate values in row-major logic used by Tensor
     t << 1.0f, 2.0f, 3.0f, 4.0f;
-    // Comma-initializer copies into underlying storage order (Eigen column-major),
+    // Comma-initializer copies into underlying storage order (xtensor row-major),
     // so sequence maps to: (0,0)=1, (1,0)=2, (0,1)=3, (1,1)=4
     EXPECT_FLOAT_EQ(t.at(0, 0), 1.0f);
     EXPECT_FLOAT_EQ(t.at(1, 0), 2.0f);

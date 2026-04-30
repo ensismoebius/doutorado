@@ -1,29 +1,21 @@
 /**
  * @file vectorizationCheck.cpp
- * @brief Prints compile-time Eigen SIMD/vectorization support information.
+ * @brief Prints compile-time xtensor SIMD/vectorization support information.
  */
 
 #include "nn/utility/vectorizationCheck.hpp"
-
-#include <Eigen/Dense>
 
 #include "nn/logging/Logger.hpp"
 
 void printVectorizationSupport()
 {
-    std::string info = "Eigen vectorization: ";
-
-#ifdef EIGEN_VECTORIZE_AVX
-    info += "AVX ";
+    std::string info = "xtensor SIMD: ";
+#ifdef XSIMD_VERSION_MAJOR
+    info += "xsimd " + std::to_string(XSIMD_VERSION_MAJOR) + "."
+          + std::to_string(XSIMD_VERSION_MINOR) + " ";
 #endif
-
-#ifdef EIGEN_VECTORIZE_SSE4_2
-    info += "SSE4.2 ";
+#ifdef _OPENMP
+    info += "OpenMP " + std::to_string(_OPENMP) + " ";
 #endif
-
-#ifdef EIGEN_VECTORIZE_FMA
-    info += "FMA ";
-#endif
-
     NN_LOG_INFO(info);
 }

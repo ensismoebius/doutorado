@@ -5,7 +5,7 @@
 
 #include "AutoencoderConfig.hpp"
 #include "nn/layers/base/Module.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**

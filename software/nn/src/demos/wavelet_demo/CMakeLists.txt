@@ -3,7 +3,7 @@ add_executable(wavelet_demo
   )
 
   target_link_libraries(wavelet_demo PRIVATE
-    Eigen3::Eigen
+    xtensor xtensor-blas
     matioCpp
     dataLoaders
     util
@@ -14,4 +14,4 @@ add_executable(wavelet_demo
     MatplotlibCpp::MatplotlibCpp
   )
 
-  configure_eigen_parallel_target(wavelet_demo)
+  configure_xtensor_parallel_target(wavelet_demo)

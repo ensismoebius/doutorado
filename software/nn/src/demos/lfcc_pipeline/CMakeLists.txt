@@ -20,7 +20,6 @@ target_include_directories(exec_lfcc_pipeline
     PRIVATE
         ${SRC_DIR}
         ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
         ${cnpy_SOURCE_DIR} 
 )
@@ -29,7 +28,7 @@ target_include_directories(exec_lfcc_pipeline
 target_link_libraries(exec_lfcc_pipeline
     PRIVATE
         cnpy
-        Eigen3::Eigen
+        xtensor xtensor-blas
 		${ZLIB_LIBRARIES}
         ${OpenMP_CXX_LIBRARIES}
         matioCpp
@@ -40,8 +39,8 @@ target_link_libraries(exec_lfcc_pipeline
         waveCoreLib
 )
 
-# Configure Eigen parallelism for the target
-configure_eigen_parallel_target(exec_lfcc_pipeline)
+# Configure xtensor parallelism for the target
+configure_xtensor_parallel_target(exec_lfcc_pipeline)
 # End of Experiment 01 CMake configuration
 
 add_subdirectory(tests)

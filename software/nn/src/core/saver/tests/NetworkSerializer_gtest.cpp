@@ -6,7 +6,7 @@
 #include <cstdio>
 
 #include "gtest/gtest.h"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/layers/spiking/Leaky.hpp"
 #include "nn/saver/NetworkSerializer.hpp"
 

@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -42,6 +41,7 @@
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/training/ITrainingCallback.hpp"
+#include "nn/utility/GradClip.hpp"
 
 namespace nn::training
 {
@@ -171,23 +171,7 @@ class Trainer
 
     static void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
     {
-        float total_sq = 0.0F;
-        for (nn::Tensor* p : params)
-        {
-            nn::Tensor g = p->grad();
-            total_sq += g.norm() * g.norm();
-        }
-        const float global_norm = std::sqrt(total_sq);
-        if (global_norm > max_norm && global_norm > 0.0F)
-        {
-            const float scale = max_norm / global_norm;
-            for (nn::Tensor* p : params)
-            {
-                nn::Tensor g = p->grad();
-                g.multiply_scalar_inplace(scale);
-                p->set_grad(g);
-            }
-        }
+        nn::utils::clip_grad_norm(params, max_norm);
     }
 
     // --- apply optional sample transform ---

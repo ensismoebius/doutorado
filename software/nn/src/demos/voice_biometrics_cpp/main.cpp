@@ -23,7 +23,7 @@
 #include "codificacao.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/layers/base/Module.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
@@ -35,7 +35,7 @@ using ::Linear;
 using argparse::ArgumentParser;
 using nn::Index;
 using nn::Tensor;
-using ModuleEigen = Module<nn::Backend>;
+using ModuleXTensor = Module<nn::Backend>;
 using std::cout;
 using std::exception;
 using std::llround;
@@ -198,7 +198,7 @@ auto build_features(const std::vector<double>& audio, ExtractionConfig cfg)
 
 // --- SNN model (Linear + Leaky with optional residual blocks) ---
 
-struct ResidualSnnBlock : public ModuleEigen
+struct ResidualSnnBlock : public ModuleXTensor
 {
     std::shared_ptr<Linear> fc1;
     std::shared_ptr<Leaky> lif1;
@@ -253,7 +253,7 @@ struct ResidualSnnBlock : public ModuleEigen
     }
 };
 
-struct SnnModel : public ModuleEigen
+struct SnnModel : public ModuleXTensor
 {
     std::shared_ptr<Linear> fc_in;
     std::shared_ptr<Leaky> lif_in;

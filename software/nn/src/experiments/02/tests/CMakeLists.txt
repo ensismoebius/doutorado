@@ -27,7 +27,7 @@ target_link_libraries(experiment_02_data_gtest
         matioCpp
         dataLoaders
         util
-        Eigen3::Eigen
+        xtensor xtensor-blas
 )
 
 target_include_directories(experiment_02_wavelets_gtest
@@ -58,6 +58,6 @@ include(GoogleTest)
 gtest_discover_tests(experiment_02_data_gtest)
 gtest_discover_tests(experiment_02_wavelets_gtest)
 gtest_discover_tests(experiment_02_reporting_gtest)
-configure_eigen_parallel_target(experiment_02_data_gtest)
-configure_eigen_parallel_target(experiment_02_wavelets_gtest)
-configure_eigen_parallel_target(experiment_02_reporting_gtest)
+configure_xtensor_parallel_target(experiment_02_data_gtest)
+configure_xtensor_parallel_target(experiment_02_wavelets_gtest)
+configure_xtensor_parallel_target(experiment_02_reporting_gtest)

@@ -10,7 +10,7 @@ Linear algebra operations form the foundation of neural network computations:
 - **Transpose**: $(A^T)_{ij} = A_{ji}$
 - **Element-wise operations**: $C_{ij} = A_{ij} \odot B_{ij}$
 
-These operations are compute-intensive and benefit from optimized libraries (Eigen, OpenCL BLAS).
+These operations are compute-intensive and benefit from optimized libraries (xtensor, OpenCL BLAS).
 
 ## How It Is Implemented Here
 
@@ -71,7 +71,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: src/core/tensor/EigenTensorBackend.cpp
+// File: src/core/tensor/XtensorTensorBackend.cpp
 #include "nn/linearAlgebra/linear_algebra.hpp"
 
 // Matrix multiplication

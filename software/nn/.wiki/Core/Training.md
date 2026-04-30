@@ -164,7 +164,7 @@ where $l$ indexes layers, the inner sum counts spikes in one batch, and fan_out 
 ```cpp
 // File: src/core/training/Trainer.hpp
 template <typename ModelType,
-          typename LossType = MSELossImpl<nn::EigenTensorBackend>>
+           typename LossType = MSELossImpl<nn::XtensorTensorBackend>>
 class Trainer
 {
 public:
@@ -199,7 +199,7 @@ public:
 };
 ```
 
-**LossType template** (default `MSELossImpl<EigenTensorBackend>`) — must implement:
+**LossType template** (default `MSELossImpl<XtensorTensorBackend>`) — must implement:
 - `set_target(const Tensor&)`
 - `forward(const Tensor& pred, bool requires_grad) -> Tensor` (returns 1×1 scalar)
 - `backward(const Tensor& pred) -> Tensor` (gradient w.r.t. pred)

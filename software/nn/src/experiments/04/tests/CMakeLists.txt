@@ -16,7 +16,7 @@ target_link_libraries(experiment_04_comparative_gtest
         layers
         dataLoaders
         util
-        Eigen3::Eigen
+        xtensor xtensor-blas
         statistics
         matioCpp
         dataLoaders_10_1117_windowing
@@ -26,4 +26,4 @@ target_link_libraries(experiment_04_comparative_gtest
 
 include(GoogleTest)
 gtest_discover_tests(experiment_04_comparative_gtest)
-configure_eigen_parallel_target(experiment_04_comparative_gtest)
+configure_xtensor_parallel_target(experiment_04_comparative_gtest)

@@ -82,7 +82,7 @@ The `nn` library is organized into several key components:
 
 ## Key Features
 
-1. **Multiple Backend Support**: Eigen (CPU) and OpenCL (GPU) tensor backends
+1. **Multiple Backend Support**: xtensor (CPU) and OpenCL (GPU) tensor backends
 2. **Spiking Neural Networks**: Leaky Integrate-and-Fire neurons with surrogate gradients
 3. **LSTM Autoencoders**: Sequence-to-sequence learning for time-series
 4. **Multimodal Learning**: Combined EEG and audio processing pipeline
@@ -92,7 +92,7 @@ The `nn` library is organized into several key components:
 
 - C++20 compatible compiler
 - CMake 3.16+
-- Eigen 3.4+
+- xtensor
 - OpenCL (optional, for GPU acceleration)
 
 ## Building

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <random>
 
+#include "nn/layers/activations/Sigmoid.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
@@ -150,7 +151,7 @@ class PoissonLatentLayerImpl : public Module<Backend>
             for (size_t f = 0; f < F; ++f)
             {
                 float z = input_cache_.at(b, f);
-                float sigmoid_z = 1.0f / (1.0f + std::exp(-z)); // d(softplus)/dz
+                float sigmoid_z = nn::activation::sigmoid(z); // d(softplus)/dz
                 grad_input.at(b, f) = grad_output.at(b, f) * inv_T * sigmoid_z;
             }
         }
@@ -165,7 +166,7 @@ class PoissonLatentLayerImpl : public Module<Backend>
                 {
                     float lam = rate_cache_.at(b, f);
                     float z = input_cache_.at(b, f);
-                    float sigmoid_z = 1.0f / (1.0f + std::exp(-z));
+                    float sigmoid_z = nn::activation::sigmoid(z);
                     float d_kl = (1.0f - prior_rate_ / (lam + 1e-8f)) * sigmoid_z * scale;
                     grad_input.at(b, f) += d_kl;
                 }

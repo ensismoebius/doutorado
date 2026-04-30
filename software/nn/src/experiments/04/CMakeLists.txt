@@ -16,7 +16,7 @@ target_link_libraries(experiment04
         OpenMP::OpenMP_CXX
         experiment04_lib
         experiment03_lib
-        Eigen3::Eigen
+        xtensor xtensor-blas
         cnpy-static
         dataLoaders_10_1117_windowing
         dataLoaders_10_1117
@@ -25,8 +25,8 @@ target_link_libraries(experiment04
         z
 )
 
-# Enable Eigen parallelization with OpenMP
-configure_eigen_parallel_target(experiment04)
+# Enable xtensor parallelization with OpenMP
+configure_xtensor_parallel_target(experiment04)
 
 # Copy profile JSON files to build directory
 # Note: profiles are already copied by experiment03, but we also copy them

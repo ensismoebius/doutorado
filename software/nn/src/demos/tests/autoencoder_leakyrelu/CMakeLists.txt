@@ -7,7 +7,7 @@ add_executable(autoencoder_scaffold_test
 target_link_libraries(autoencoder_scaffold_test
     PRIVATE
         experiment03_lib
-        Eigen3::Eigen
+        xtensor xtensor-blas
 )
 target_include_directories(autoencoder_scaffold_test
     PRIVATE
@@ -16,11 +16,10 @@ target_include_directories(autoencoder_scaffold_test
         ${SRC_DIR}/experiments/03/lib/include/autoencoder
         ${PROJECT_SOURCE_DIR}/include
         ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
         ${cnpy_SOURCE_DIR}
 )
-configure_eigen_parallel_target(autoencoder_scaffold_test)
+configure_xtensor_parallel_target(autoencoder_scaffold_test)
 
 # Test 2: autoEncoderLeakyReLUTest
 add_executable(autoEncoderLeakyReLUTest
@@ -29,7 +28,7 @@ add_executable(autoEncoderLeakyReLUTest
 target_link_libraries(autoEncoderLeakyReLUTest
     PRIVATE
         cnpy
-        Eigen3::Eigen
+        xtensor xtensor-blas
         ${OpenMP_CXX_LIBRARIES}
         util
         tensor
@@ -43,11 +42,10 @@ target_include_directories(autoEncoderLeakyReLUTest
         ${SRC_DIR}/core/optimizers
         ${SRC_DIR}/core/layers
         ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
         ${cnpy_SOURCE_DIR}
 )
-configure_eigen_parallel_target(autoEncoderLeakyReLUTest)
+configure_xtensor_parallel_target(autoEncoderLeakyReLUTest)
 
 # Test 3: autoEncoderLeakyReLUAndSpikeTest
 add_executable(autoEncoderLeakyReLUAndSpikeTest
@@ -56,7 +54,7 @@ add_executable(autoEncoderLeakyReLUAndSpikeTest
 target_link_libraries(autoEncoderLeakyReLUAndSpikeTest
     PRIVATE
         cnpy
-        Eigen3::Eigen
+        xtensor xtensor-blas
         ${OpenMP_CXX_LIBRARIES}
         util
         tensor
@@ -71,8 +69,7 @@ target_include_directories(autoEncoderLeakyReLUAndSpikeTest
         ${SRC_DIR}/core/optimizers
         ${SRC_DIR}/core/layers
         ${LIB_DIR}/util
-        ${EIGEN3_INCLUDE_DIR}
         ${OpenMP_INCLUDE_DIRS}
         ${cnpy_SOURCE_DIR}
 )
-configure_eigen_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
+configure_xtensor_parallel_target(autoEncoderLeakyReLUAndSpikeTest)

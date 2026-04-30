@@ -13,7 +13,7 @@
 
 #include "nn/dataLoaders/io/mat_file_utils.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"

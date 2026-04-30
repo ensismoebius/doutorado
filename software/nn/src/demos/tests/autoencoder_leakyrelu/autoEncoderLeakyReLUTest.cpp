@@ -19,12 +19,12 @@
 #include <tuple>
 
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 #include "nn/saver/NetworkSerializer.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
-#include "nn/utility/EigenParallel.hpp"
+#include "nn/utility/XtensorParallel.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
@@ -77,7 +77,7 @@ auto main(int /*argc*/, char* /*argv*/[]) -> int
 {
     try
     {
-        util::initializeEigenParallel();
+        util::initializeXtensorParallel();
 
         cout << fixed << scientific << setprecision(OUTPUT_PRECISION);
 

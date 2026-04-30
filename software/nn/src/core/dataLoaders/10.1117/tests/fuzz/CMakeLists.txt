@@ -42,7 +42,7 @@ function(add_10_1117_loader_fuzz_target target_name source_file)
     target_link_libraries(${target_name}
         PRIVATE
             dataLoaders_10_1117
-            Eigen3::Eigen
+            xtensor xtensor-blas
             matioCpp
     )
 

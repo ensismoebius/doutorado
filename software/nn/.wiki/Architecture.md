@@ -58,7 +58,7 @@ flowchart TB
     end
 
     subgraph "Backends"
-        Eigen[Eigen CPU]
+        xtensor[xtensor CPU]
         OpenCL[OpenCL GPU]
     end
 
@@ -85,7 +85,7 @@ flowchart TB
     Loader --> Prefetch
     Prefetch --> Core
 
-    Tensor --> Eigen
+    Tensor --> xtensor
     Tensor --> OpenCL
     Optim --> Tensor
 ```
@@ -176,7 +176,7 @@ sequenceDiagram
 
 ## Key Design Decisions
 
-1. **Template-based Backend Selection**: Layers use template parameters (`<Backend>`) to select between Eigen and OpenCL at compile time.
+1. **Template-based Backend Selection**: Layers use template parameters (`<Backend>`) to select between xtensor and OpenCL at compile time.
 
 2. **RAII Device Management**: `DeviceRuntime` ensures OpenCL context is initialized once and lives for process duration.
 

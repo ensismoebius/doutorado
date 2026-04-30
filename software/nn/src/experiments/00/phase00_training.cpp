@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 
 namespace phase00

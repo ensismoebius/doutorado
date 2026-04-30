@@ -42,7 +42,7 @@ target_link_libraries(experiment03_lib
         dataLoaders
         matioCpp
         z
-        Eigen3::Eigen
+        xtensor xtensor-blas
         statistics
         layers
         lstm_models
@@ -80,8 +80,8 @@ target_link_libraries(experiment04_lib
 
 nn_enable_target_pch(experiment03_lib)
 
-# Enable Eigen parallelization with OpenMP
-configure_eigen_parallel_target(experiment03_lib)
+# Enable xtensor parallelization with OpenMP
+configure_xtensor_parallel_target(experiment03_lib)
 
 add_executable(experiment03
     ${SRC_DIR}/experiments/03/experiment03.cpp
@@ -102,15 +102,15 @@ target_link_libraries(experiment03
         OpenMP::OpenMP_CXX
         experiment03_lib
         experiment04_lib
-        Eigen3::Eigen
+        xtensor xtensor-blas
         cnpy-static
         dataLoaders
         matioCpp
         z
 )
 
-# Enable Eigen parallelization with OpenMP
-configure_eigen_parallel_target(experiment03)
+# Enable xtensor parallelization with OpenMP
+configure_xtensor_parallel_target(experiment03)
 
 file(GLOB EXPERIMENT03_PROFILE_JSON "${SRC_DIR}/experiments/03/profiles/*.json")
 file(GLOB EXPERIMENT04_PROFILE_JSON "${SRC_DIR}/experiments/04/profiles/*.json")

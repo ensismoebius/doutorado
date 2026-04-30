@@ -11,7 +11,7 @@
  * - Gradients are backend-managed; see backend `grad_ref()` semantics.
  *
  * **Contract:**
- * - 2D mapping: rows/cols map to Eigen storage row/col (row-major logical).
+ * - 2D mapping: rows/cols map to xtensor storage row/col (row-major logical).
  * - 3D mapping: rows = d1; cols = d2; storage cols = d2 * d3.
  * - 4D mapping: rows = d1; cols = d2; storage cols = d2 * d3 * d4.
  * - Public APIs throw `std::invalid_argument` or `std::out_of_range` on misuse.
@@ -31,8 +31,8 @@ struct Device;
 class OpenCLTensorBackend;
 } // namespace nn
 
-// EigenTensorBackend.hpp must be available in include path.
-#include "nn/tensor/eigen/EigenTensorBackend.hpp"
+// XTensorBackend.hpp must be available in include path.
+#include "nn/tensor/xtensor/XTensorBackend.hpp"
 
 // -----------------------------------------------------------------------------
 // Lightweight Tensor wrapper (Templated)
@@ -47,7 +47,7 @@ class OpenCLTensorBackend;
 //
 // Shapes:
 // - This API supports 2D and a “4D-on-top-of-2D-storage” convention via the backend.
-// - For 4D tensors, the backend typically stores data in an Eigen::MatrixXf with shape:
+// - For 4D tensors, the backend typically stores data in an xt::xarray<float> with shape:
 //     rows = dim1
 //     cols = dim2 * dim3 * dim4
 //   and `at(d1,d2,d3,d4)` computes the flattened column index.
@@ -66,7 +66,7 @@ namespace nn
 template <typename Backend>
 class TensorImpl;
 
-template <typename Backend = EigenTensorBackend>
+template <typename Backend = XTensorBackend>
 class TensorImpl
 {
    public:
@@ -181,7 +181,7 @@ class TensorImpl
     // -----------------------------------------------------------------
     // Shape / sizing helpers
     // -----------------------------------------------------------------
-    auto get_shape() const -> const std::vector<Index>&
+    auto get_shape() const -> std::vector<Index>
     {
         return backend_.shape();
     }
@@ -511,8 +511,8 @@ class TensorImpl
     }
 
     // Raw data pointers:
-    // - These expose the backend's contiguous buffer (Eigen storage for the default backend).
-    // - The memory order is backend-defined (Eigen is column-major by default).
+    // - These expose the backend's contiguous buffer (xtensor storage for the default backend).
+    // - The memory order is backend-defined (xtensor is row-major by default).
     //   When you treat it as a flat array (e.g., gradient clipping), you are operating in
     //   that underlying order.
 
@@ -693,7 +693,7 @@ class TensorImpl
 };
 
 // Default type alias
-using Tensor = TensorImpl<EigenTensorBackend>;
+using Tensor = TensorImpl<XTensorBackend>;
 using OpenCLTensor = TensorImpl<OpenCLTensorBackend>;
 
 // -----------------------------------------------------------------------------
@@ -718,12 +718,21 @@ class TensorImpl<Backend>::CommaInitializer
     ~CommaInitializer() noexcept(false)
     {
         // Comma-initialization copies the provided values into the underlying buffer.
-        // If fewer than `tensor.size()` values are provided, the remaining elements keep
-        // their previous values.
+        // To maintain compatibility with Eigen-style column-major filling:
+        // Populate column by column.
         if (m_values.size() <= static_cast<size_t>(m_tensor.size()))
         {
-            float* ptr = m_tensor.mutable_data();
-            std::copy(m_values.begin(), m_values.end(), ptr);
+            Index rows = m_tensor.rows();
+            Index cols = m_tensor.cols();
+            for (size_t i = 0; i < m_values.size(); ++i)
+            {
+                Index r = i % rows;
+                Index c = i / rows;
+                if (r < rows && c < cols)
+                {
+                    m_tensor.at(r, c) = m_values[i];
+                }
+            }
         }
     }
 

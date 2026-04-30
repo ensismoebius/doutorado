@@ -24,7 +24,6 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/core/models
-        ${EIGEN3_INCLUDE_DIR}
 )
 
 gtest_discover_tests(lstm_autoencoder_gtest)
@@ -51,7 +50,6 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
         ${CMAKE_SOURCE_DIR}/src/core/models
-        ${EIGEN3_INCLUDE_DIR}
 )
 
 gtest_discover_tests(lstm_batch_gtest)

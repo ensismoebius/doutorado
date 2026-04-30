@@ -12,7 +12,7 @@ add_executable(lfcc_pipeline_utils_gtest lfcc_pipeline_utils_gtest.cpp)
 target_link_libraries(lfcc_pipeline_utils_gtest
     PRIVATE
         google_test
-        Eigen3::Eigen
+        xtensor xtensor-blas
         tensor
         dataLoaders
         util
@@ -23,9 +23,8 @@ target_include_directories(lfcc_pipeline_utils_gtest
     PRIVATE
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/src/core/tensor
-        ${EIGEN3_INCLUDE_DIR}
 )
 
 include(GoogleTest)
 gtest_discover_tests(lfcc_pipeline_utils_gtest)
-configure_eigen_parallel_target(lfcc_pipeline_utils_gtest)
+configure_xtensor_parallel_target(lfcc_pipeline_utils_gtest)

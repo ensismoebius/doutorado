@@ -44,7 +44,7 @@ BPTT unrolls the RNN over time steps and computes gradients through each step [1
 
 ```cpp
 // File: include/nn/layers/spiking/LeakyBPTT.hpp
-class LeakyBPTT : public Module<EigenTensorBackend>
+class LeakyBPTT : public Module<XtensorTensorBackend>
 {
     // LSTM-like cell with BPTT
     Tensor weights_ih_;  // input to hidden

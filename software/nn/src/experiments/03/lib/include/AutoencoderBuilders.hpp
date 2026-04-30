@@ -22,7 +22,7 @@
 #include "AutoencoderConfig.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
 #include "nn/initializers/xavier.hpp"
-#include "nn/layers/eigen/Layers.hpp"
+#include "nn/layers/Layers.hpp"
 #include "nn/layers/convolution/Conv2d.hpp"
 #include "nn/layers/convolution/MaxPool2d.hpp"
 #include "nn/tensor/Tensor.hpp"

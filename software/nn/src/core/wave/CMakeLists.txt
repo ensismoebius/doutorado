@@ -12,11 +12,10 @@ target_include_directories(waveCoreLib
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/src
-        ${EIGEN3_INCLUDE_DIR}
 )
 
 target_link_libraries(waveCoreLib
-    PUBLIC Eigen3::Eigen FFTW::FFTW fftw3f tensor dataLoaders_10_1117
+    PUBLIC xtensor xtensor-blas FFTW::FFTW fftw3f tensor dataLoaders_10_1117
 )
 
 nn_enable_target_pch(waveCoreLib)

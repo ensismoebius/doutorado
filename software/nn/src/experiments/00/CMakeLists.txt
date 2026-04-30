@@ -25,7 +25,7 @@ target_link_libraries(Phase00
         optimizers
         dataLoaders
         dataLoaders_10_1117  # Added to link the 10.1117 specific data loaders
-        Eigen3::Eigen
+        xtensor xtensor-blas
         nlohmann_json_wrapper
         OpenMP::OpenMP_CXX
 )
