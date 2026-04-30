@@ -106,7 +106,10 @@ struct Module
      * Call this at the start of each training epoch.
      * Equivalent to train(true).
      */
-    void train() { train(true); }
+    void train()
+    {
+        train(true);
+    }
 
     /**
      * @brief Set evaluation mode (PyTorch-style convenience method).
@@ -114,7 +117,10 @@ struct Module
      * Call this before validation or inference.
      * Equivalent to train(false).
      */
-    void eval() { train(false); }
+    void eval()
+    {
+        train(false);
+    }
 
     /**
      * @brief Resets stateful internal variables (e.g., LIF membrane potential).
