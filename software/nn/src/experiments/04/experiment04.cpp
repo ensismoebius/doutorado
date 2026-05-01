@@ -6,21 +6,15 @@
  */
 
 #include <cstdlib>
-#include <memory>
 #include <string>
 #include <string_view>
-#include <vector>
 
-#include "../include/ComparativeCli.hpp"
 #include "../include/Experiment04Cli.hpp"
-#include "../include/LstmAutoencoderExperiment.hpp"
 #include "experiments/04/lib/include/LstmAutoencoderExperiment.hpp"
 #include "nn/logging/Logger.hpp"
-#include "nn/logging/StreamRedirector.hpp"
 
 using nn::logging::Level;
 using nn::logging::Logger;
-using nn::logging::StreamRedirector;
 
 namespace
 {
@@ -57,66 +51,15 @@ auto parse_log_level_from_env() -> Level
     return Level::Info;
 }
 
-/**
- * Check if any of the help flags are present in the command-line arguments.
- *
- * @param argc
- * @param argv
- * @return true
- * @return false
- */
-auto has_help_flag(int argc, char* argv[]) -> bool
-{
-    for (int i = 1; i < argc; ++i)
-    {
-        const std::string_view arg = argv[i] ? argv[i] : "";
-
-        if (arg == "-h" || arg == "--help" || arg == "--help-all")
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
 } // namespace
 
 auto main(int argc, char* argv[]) -> int
 {
     try
     {
-        std::vector<char*> normalized_argv;
-        std::vector<std::string> normalized_args;
-
         Logger::instance().set_level(parse_log_level_from_env());
 
-        lstm_autoencoder_experiment::normalize_aliases(argc, argv, normalized_args);
-
-        bool has_comparative_config = false;
-        for (const auto& arg : normalized_args)
-        {
-            if (arg == "--comparative-config" || arg.rfind("--comparative-config=", 0) == 0)
-            {
-                has_comparative_config = true;
-                break;
-            }
-        }
-
-        if (!has_comparative_config)
-        {
-            normalized_args.insert(normalized_args.begin() + 1, "--comparative");
-            normalized_args.insert(
-                normalized_args.begin() + 2, "--comparative-config=lstm-lightweight");
-        }
-        else if (normalized_args.size() > 1 && normalized_args[1] != "--comparative")
-        {
-            normalized_args.insert(normalized_args.begin() + 1, "--comparative");
-        }
-
-        lstm_autoencoder_experiment::to_argv(normalized_args, normalized_argv);
-
-        return lstm_autoencoder_experiment::run_comparative_experiment(
-            static_cast<int>(normalized_argv.size()), normalized_argv.data());
+        return lstm_autoencoder_experiment::run_comparative_experiment(argc, argv);
     }
     catch (const std::exception& e)
     {

@@ -29,6 +29,10 @@
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
 
+using nn::LeakyReLU;
+using nn::Linear;
+using nn::MSELoss;
+using nn::Sequential;
 using std::cout;
 using std::fixed;
 using std::flush;

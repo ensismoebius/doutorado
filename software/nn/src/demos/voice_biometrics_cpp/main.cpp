@@ -22,18 +22,18 @@
 
 #include "codificacao.hpp"
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 #include "nn/wave/Wav.h"
 #include "nn/wavelet/waveletOperations.h"
 
-using ::Leaky;
-using ::Linear;
 using argparse::ArgumentParser;
 using nn::Index;
+using nn::Leaky;
+using nn::Linear;
 using nn::Tensor;
 using ModuleXTensor = Module<nn::Backend>;
 using std::cout;

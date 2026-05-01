@@ -32,14 +32,12 @@ list(SORT _all_layer_headers)
 
 set(LAYER_INCLUDES  "")
 set(LAYER_ALIASES   "")
-set(GLOBAL_ALIASES  "")
 
 foreach(_header IN LISTS _all_layer_headers)
     file(RELATIVE_PATH _rel "${CMAKE_SOURCE_DIR}/include" "${_header}")
     get_filename_component(_name "${_header}" NAME_WE)   # e.g. "ReLU"
     string(APPEND LAYER_INCLUDES  "#include \"${_rel}\"\n")
     string(APPEND LAYER_ALIASES   "    using ${_name} = ${_name}Impl<Backend>;\n")
-    string(APPEND GLOBAL_ALIASES  "using nn::${_name};\n")
 endforeach()
 
 # Non-template extras included verbatim (regularization + surrogate grab-bags)

@@ -65,16 +65,7 @@ auto load_experiment_config(const std::string& spec_path) -> ExperimentConfig
 
     exp_config.id = config.at("experiment").at("id").get<std::string>();
 
-    // Keep backward compatibility with both old and nested determinism layouts.
-    if (config.contains("determinism") && config["determinism"].contains("random_seed"))
-    {
-        exp_config.random_seed = config["determinism"]["random_seed"].get<int>();
-    }
-    else
-    {
-        exp_config.random_seed =
-            config.at("experiment").at("determinism").at("random_seed").get<int>();
-    }
+    exp_config.random_seed = config.at("experiment").at("determinism").at("random_seed").get<int>();
 
     exp_config.eeg_sampling_rate = config.at("data").at("sampling_rate").at("EEG").get<int>();
     exp_config.audio_sampling_rate = config.at("data").at("sampling_rate").at("Audio").get<int>();

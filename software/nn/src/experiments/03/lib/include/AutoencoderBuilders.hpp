@@ -30,6 +30,14 @@
 namespace experiment03::autoencoders
 {
 
+using nn::Leaky;
+using nn::LeakyIntegrator;
+using nn::LeakyReLU;
+using nn::Linear;
+using nn::ReLU;
+using nn::ResidualBlock;
+using nn::Sequential;
+
 inline auto resolved_branch_hidden_size(const AutoencoderConfig& cfg) -> int;
 inline auto resolved_fusion_hidden_size(const AutoencoderConfig& cfg) -> int;
 
@@ -100,7 +108,9 @@ inline auto parse_layer_module_spec(const std::string& spec) -> ParsedLayerSpec
         if (tokens.size() < 3 || tokens.size() > 5)
         {
             throw std::invalid_argument(
-                "Conv1D layer spec must be 'conv1d:out_channels:kernel_size[:stride[:activation]]': " + spec);
+                "Conv1D layer spec must be "
+                "'conv1d:out_channels:kernel_size[:stride[:activation]]': " +
+                spec);
         }
         // Store in format: width_token = "out_channels:kernel:stride"
         std::stringstream conv_spec;
@@ -118,7 +128,9 @@ inline auto parse_layer_module_spec(const std::string& spec) -> ParsedLayerSpec
         if (tokens.size() < 3 || tokens.size() > 5)
         {
             throw std::invalid_argument(
-                "Conv2D layer spec must be 'conv2d:out_channels:kernel_size[:stride[:activation]]': " + spec);
+                "Conv2D layer spec must be "
+                "'conv2d:out_channels:kernel_size[:stride[:activation]]': " +
+                spec);
         }
         std::stringstream conv_spec;
         conv_spec << tokens[1] << ":" << tokens[2];
@@ -428,7 +440,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 char colon;
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
-                
+
                 auto conv = std::make_shared<Conv1dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 encoder.add_module(conv);
@@ -444,7 +456,7 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 char colon;
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
-                
+
                 auto conv = std::make_shared<Conv2dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 encoder.add_module(conv);
@@ -459,10 +471,11 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 char colon;
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
-                
+
                 // MaxPool1d would need to be implemented - for now use fallback
                 // encoder.add_module(std::make_shared<MaxPool1d>(kernel, stride));
-                (void)kernel; (void)stride; // Placeholder
+                (void) kernel;
+                (void) stride; // Placeholder
             }
             else if (stage.kind == LayerSpecKind::Pool2d)
             {
@@ -472,9 +485,8 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
                 char colon;
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
-                
-                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(
-                    kernel, stride, 0, kernel);
+
+                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(kernel, stride, 0, kernel);
                 encoder.add_module(pool);
                 // Output channels stay same, spatial dims change
             }
@@ -545,7 +557,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 char colon;
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
-                
+
                 auto conv = std::make_shared<Conv1dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 decoder.add_module(conv);
@@ -560,7 +572,7 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 char colon;
                 ss >> out_channels >> colon >> kernel;
                 if (!(ss >> colon >> stride)) stride = 1;
-                
+
                 auto conv = std::make_shared<Conv2dImpl<nn::Backend>>(
                     current, out_channels, kernel, stride, 1, 1);
                 decoder.add_module(conv);
@@ -574,7 +586,8 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 char colon;
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
-                (void)kernel; (void)stride; // Placeholder
+                (void) kernel;
+                (void) stride; // Placeholder
             }
             else if (stage.kind == LayerSpecKind::Pool2d)
             {
@@ -583,9 +596,8 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
                 char colon;
                 ss >> kernel >> colon >> stride;
                 if (!(ss >> colon >> stride)) stride = kernel;
-                
-                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(
-                    kernel, stride, 0, kernel);
+
+                auto pool = std::make_shared<MaxPool2dImpl<nn::Backend>>(kernel, stride, 0, kernel);
                 decoder.add_module(pool);
             }
             else if (stage.kind == LayerSpecKind::Activation)

@@ -19,7 +19,7 @@ namespace phase00
 struct TrainResult
 {
     double accuracy;
-    std::unique_ptr<SimpleResNet> model;
+    std::unique_ptr<nn::SimpleResNet> model;
     int input_dim;
     int output_dim;
     int hidden_dim;

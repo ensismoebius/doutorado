@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -18,8 +18,8 @@
  */
 struct AudioWindowSpikingAutoencoder : Module<nn::Backend>
 {
-    Sequential encoder_;
-    Sequential decoder_;
+    nn::Sequential encoder_;
+    nn::Sequential decoder_;
 
     explicit AudioWindowSpikingAutoencoder(const AutoencoderConfig& cfg);
 

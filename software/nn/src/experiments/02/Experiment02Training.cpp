@@ -18,7 +18,8 @@
 #include "nn/tensor/Tensor.hpp"
 #include "nn/utility/batching.hpp"
 
-using SNNResNet = SimpleResNet;
+using SNNResNet = nn::SimpleResNet;
+using nn::CrossEntropyLoss;
 
 namespace
 {

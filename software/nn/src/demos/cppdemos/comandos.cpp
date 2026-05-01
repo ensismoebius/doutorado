@@ -25,6 +25,9 @@
 namespace demo
 {
 
+using nn::Leaky;
+using nn::Linear;
+using nn::Sequential;
 using nn::TensorImpl;
 
 /**
@@ -52,7 +55,7 @@ using nn::TensorImpl;
 // `compute_adaptive_max_rate` and `encode_poisson` are implemented in
 // `codificacao.cpp` and declared in `codificacao.hpp`.
 
-// Forward-declare the new signature so the old-wrapper can call it.
+// Forward-declare the cmd signature with explicit seed control.
 void cmd_demo(double duration,
     int sample_rate,
     int window_size,
@@ -63,32 +66,6 @@ void cmd_demo(double duration,
     int depth,
     const std::string& plot_output,
     unsigned int random_seed /* = 0 */);
-
-// Backwards-compatible wrapper (old callers expect no seed parameter).
-void cmd_demo(                     // old signature
-    double duration,               //
-    int sample_rate,               //
-    int window_size,               //
-    int hop_size,                  //
-    const std::string& wavelet,    //
-    int num_bands,                 //
-    int steps_per_window,          //
-    int depth,                     //
-    const std::string& plot_output //
-)
-{
-    // Forward to the new signature with default seed = 0 (nondeterministic)
-    cmd_demo(duration,
-        sample_rate,
-        window_size,
-        hop_size,
-        wavelet,
-        num_bands,
-        steps_per_window,
-        depth,
-        plot_output,
-        0u);
-}
 
 // New signature with explicit seed for reproducibility.
 void cmd_demo(                      //

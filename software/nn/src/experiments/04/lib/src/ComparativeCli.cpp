@@ -127,10 +127,10 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     nlohmann::json j;
     f >> j;
 
-    auto has_nested_keys = [](const nlohmann::json& json) -> bool {
+    auto has_nested_keys = [](const nlohmann::json& json) -> bool
+    {
         return json.contains("experiment") && json.contains("dataset") &&
-               json.contains("training") && json.contains("model") &&
-               json.contains("evaluation");
+               json.contains("training") && json.contains("model") && json.contains("evaluation");
     };
 
     if (has_nested_keys(j))
@@ -194,70 +194,3 @@ auto should_run_comparative_cli(int argc, char* argv[]) -> bool
 }
 
 } // namespace comparative_autoencoder_experiment
-
-namespace lstm_autoencoder_experiment
-{
-
-auto has_experiment04_marker(const std::string& arg) -> bool
-{
-    return arg == "--experiment04" || arg == "--lstm-autoencoder" || arg == "--experiment=04" ||
-           arg == "--experiment=experiment04" || arg == "--experiment=lstm" ||
-           arg == "--experiment=lstm-autoencoder";
-}
-
-void normalize_aliases(int argc, char* argv[], std::vector<std::string>& args)
-{
-    args.clear();
-    args.reserve(static_cast<std::size_t>(argc));
-
-    if (argc > 0)
-    {
-        args.emplace_back(argv[0] ? argv[0] : "experiment04");
-    }
-    else
-    {
-        args.emplace_back("experiment04");
-    }
-
-    for (int i = 1; i < argc; ++i)
-    {
-        const std::string arg = argv[i] ? argv[i] : "";
-
-        if (has_experiment04_marker(arg))
-        {
-            args.emplace_back("--comparative");
-            continue;
-        }
-
-        if (arg == "--lstm-profile" || arg == "--config")
-        {
-            args.emplace_back("--comparative-config");
-            if (i + 1 < argc)
-            {
-                args.emplace_back(argv[++i] ? argv[i] : "");
-            }
-            continue;
-        }
-
-        if (arg.rfind("--lstm-profile=", 0) == 0)
-        {
-            const std::string value = arg.substr(std::string("--lstm-profile=").size());
-            args.emplace_back("--comparative-config=" + value);
-            continue;
-        }
-
-        args.push_back(arg);
-    }
-}
-
-void to_argv(std::vector<std::string>& args, std::vector<char*>& argv_out)
-{
-    argv_out.clear();
-    argv_out.reserve(args.size());
-    for (std::string& arg : args)
-    {
-        argv_out.push_back(arg.data());
-    }
-}
-
-} // namespace lstm_autoencoder_experiment

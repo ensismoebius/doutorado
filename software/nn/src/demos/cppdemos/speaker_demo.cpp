@@ -55,7 +55,8 @@ void cmd_demo(double duration,
     int num_bands,
     int steps_per_window,
     int depth,
-    const std::string& plot_output);
+    const std::string& plot_output,
+    unsigned int random_seed = 0);
 }
 
 /**
@@ -242,7 +243,8 @@ int main(int argc, char** argv)
                     num_bands,
                     steps_per_window,
                     depth,
-                    plot_output);
+                    plot_output,
+                    0u);
                 return 0;
             }
             catch (const std::exception& e)

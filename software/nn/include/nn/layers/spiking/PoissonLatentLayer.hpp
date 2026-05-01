@@ -112,7 +112,7 @@ class PoissonLatentLayerImpl : public Module<Backend>
                 for (size_t f = 0; f < F; ++f)
                 {
                     float lam = rate.at(b, f);
-                    float kl = lam - prior_rate - lam * std::log(lam / prior_rate + 1e-8f);
+                    float kl = prior_rate - lam + lam * std::log(lam / prior_rate + 1e-8f);
 
                     kl_loss_ += kl;
                 }

@@ -32,6 +32,7 @@ using ImPlot::PlotScatter;
 using ImPlot::SetupAxes;
 
 using ImPlot::CreateContext;
+using nn::Leaky;
 using std::cerr;
 using std::to_string;
 using std::vector;

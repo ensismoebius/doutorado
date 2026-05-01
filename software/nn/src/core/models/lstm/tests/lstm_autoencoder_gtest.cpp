@@ -5,8 +5,8 @@
 
 #include <gtest/gtest.h>
 
+#include "nn/layers/lstm/LSTMLayer.hpp"
 #include "nn/models/lstm/LSTMAutoencoder.hpp"
-#include "nn/models/lstm/LSTMLayer.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace

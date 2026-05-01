@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -23,15 +23,15 @@ struct ProtocolAutoencoder : Module<nn::Backend>
 {
     bool use_dual_branch_ = false;
 
-    Sequential encoder_;
-    Sequential decoder_;
+    nn::Sequential encoder_;
+    nn::Sequential decoder_;
 
-    Sequential eeg_encoder_;
-    Sequential audio_encoder_;
-    Sequential fusion_encoder_;
-    Sequential fusion_decoder_;
-    Sequential eeg_decoder_;
-    Sequential audio_decoder_;
+    nn::Sequential eeg_encoder_;
+    nn::Sequential audio_encoder_;
+    nn::Sequential fusion_encoder_;
+    nn::Sequential fusion_decoder_;
+    nn::Sequential eeg_decoder_;
+    nn::Sequential audio_decoder_;
 
     int eeg_features_ = 0;
     int audio_features_ = 0;

@@ -9,12 +9,15 @@
 #include <vector>
 
 #include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
 
 using nn::Index;
+using nn::LeakyBPTT;
+using nn::Linear;
+using nn::Sequential;
 using nn::Tensor;
 using ModuleXTensor = Module<nn::Backend>;
 using std::make_shared;

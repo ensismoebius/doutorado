@@ -26,6 +26,23 @@ include(GoogleTest)
 gtest_discover_tests(tensor_gtest)
 configure_xtensor_parallel_target(tensor_gtest)
 
+add_executable(tensor_all_backends_gtest tensor_all_backends_gtest.cpp)
+
+target_link_libraries(tensor_all_backends_gtest
+    PRIVATE
+        google_test
+        xtensor xtensor-blas
+        tensor
+)
+
+target_include_directories(tensor_all_backends_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+gtest_discover_tests(tensor_all_backends_gtest)
+configure_xtensor_parallel_target(tensor_all_backends_gtest)
+
 # Device backend tests (skeleton implementation delegated to xtensor host mirror)
 add_executable(device_backend_gtest device_backend_gtest.cpp)
 

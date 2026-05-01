@@ -16,12 +16,15 @@
 #include "Experiment03Config.hpp"
 #include "Experiment03DatasetType.hpp"
 #include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
+#include "nn/layers/base/Module.hpp"
 #include "nn/utility/Transforms.hpp"
 
 namespace experiment03
 {
+using nn::MAELoss;
+using nn::MSELoss;
+
 // Convert the experiment-level dataset enum to the SqliteBatchSource enum.
 auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
     -> nn::dataLoaders::SqliteDatasetType;

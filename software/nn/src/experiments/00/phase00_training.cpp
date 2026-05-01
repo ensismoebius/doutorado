@@ -22,6 +22,9 @@
 #include "nn/layers/Layers.hpp"
 #include "nn/optimizers/Adam.hpp"
 
+using nn::MSELoss;
+using nn::SimpleResNet;
+
 namespace phase00
 {
 

@@ -301,6 +301,24 @@ class TensorImpl
         return TensorImpl(backend_.slice_batch(b));
     }
 
+    // Write 2D (T, D) tensor into [b, :, :] of a 3D (B, T, D) tensor.
+    void set_batch_slice(Index b, const TensorImpl& val)
+    {
+        backend_.set_batch_slice(b, val.backend_);
+    }
+
+    // Extract (B, D) slice at time t from a 3D (B, T, D) tensor.
+    [[nodiscard]] auto slice_time(Index t) const -> TensorImpl
+    {
+        return TensorImpl(backend_.slice_time(t));
+    }
+
+    // Write (B, D) tensor into [:, t, :] of a 3D (B, T, D) tensor.
+    void set_time_slice(Index t, const TensorImpl& val)
+    {
+        backend_.set_time_slice(t, val.backend_);
+    }
+
     // -----------------------------------------------------------------
     // Element-wise & matrix ops
     // -----------------------------------------------------------------
@@ -339,6 +357,14 @@ class TensorImpl
     void add_col_vector_to_rows_inplace(const TensorImpl& col_vector)
     {
         backend_.add_col_vector_to_rows_inplace(col_vector.backend_);
+    }
+    auto add_row_broadcast(const TensorImpl& row) const -> TensorImpl
+    {
+        return TensorImpl(backend_.add_row_broadcast(row.backend_));
+    }
+    void add_row_broadcast_inplace(const TensorImpl& row)
+    {
+        backend_.add_row_broadcast_inplace(row.backend_);
     }
     void subtract_inplace(const TensorImpl& other)
     {

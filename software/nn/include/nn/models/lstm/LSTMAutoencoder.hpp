@@ -21,9 +21,9 @@
 #include <string>
 #include <vector>
 
-#include "nn/layers/base/Module.hpp"
 #include "nn/layers/Layers.hpp"
-#include "nn/models/lstm/LSTMLayer.hpp"
+#include "nn/layers/base/Module.hpp"
+#include "nn/layers/lstm/LSTMLayer.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 namespace nn::models::lstm

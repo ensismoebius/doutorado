@@ -10,6 +10,8 @@
 #include "nn/layers/Layers.hpp"
 #include "nn/tensor/Tensor.hpp"
 
+using nn::Linear;
+
 // Initializer: kaiming_snn
 TEST(InitializerTest, KaimingSNN)
 {

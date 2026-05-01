@@ -20,16 +20,16 @@ All runtime behavior must be defined by profile fields. CLI accepts only `--prof
 Integrated LSTM mode
 --------------------
 The standalone `experiment04` implementation now lives under `src/experiments/04` and is
-invoked through the `experiment03` binary with an explicit experiment selector:
+invoked through the `experiment03` binary with comparative flags:
 
 ```bash
-./src/experiments/03/experiment03 --experiment=lstm-autoencoder --lstm-profile lstm-default
+./src/experiments/03/experiment03 --comparative --comparative-config lstm-default
 ```
 
 You can also pass an explicit JSON file:
 
 ```bash
-./src/experiments/03/experiment03 --experiment04 --config src/experiments/04/profiles/lstm-lightweight.json
+./src/experiments/03/experiment03 --comparative --comparative-config src/experiments/04/profiles/lstm-lightweight.json
 ```
 
 LSTM profiles now live under `src/experiments/04/profiles` and remain prefixed with `lstm-`.
@@ -50,7 +50,7 @@ The integrated LSTM path is now hosted under `src/experiments/04` and dispatched
 
 Current integrated runner behavior:
 
-- Uses lightweight selector flags: `--experiment04`, `--lstm-autoencoder`, or `--experiment=lstm-autoencoder`.
+- Uses comparative-only selector flags: `--comparative` and `--comparative-config`.
 - Loads only LSTM-specific JSON keys; there are no mixed per-parameter overrides from the regular Experiment03 profile system.
 - Trains on a synthetic temporal dataset generated from the chosen architecture sizes.
 - Writes a JSON run summary with config, architecture, epoch history, and exit status.

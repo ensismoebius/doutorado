@@ -33,8 +33,8 @@ class EEGMatSession
    public:
     // `filePath` may be either a path to a .mat file or a .sqlite database.
     // When using a sqlite DB, callers should provide `subject_id` so the
-    // session can scope queries to a single subject. The parameter has a
-    // default of -1 to preserve backward compatibility with existing calls.
+    // session can scope queries to a single subject. A value of -1 means
+    // "no subject scope" (used for MAT-file mode).
     explicit EEGMatSession(const std::string& filePath, int subject_id = -1);
     ~EEGMatSession();
 

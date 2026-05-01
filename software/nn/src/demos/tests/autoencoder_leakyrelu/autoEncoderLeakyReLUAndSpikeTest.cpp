@@ -22,14 +22,18 @@
 #include "nn/optimizers/Adam.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/testing.hpp"
-#include "nn/utility/XtensorParallel.hpp"
 #include "nn/utility/GradClip.hpp"
+#include "nn/utility/XtensorParallel.hpp"
 #include "nn/utility/reset.hpp"
 #include "nn/utility/synthetic_spike_data.hpp"
 #include "nn/utility/vectorizationCheck.hpp"
 
 using namespace std;
 using ModuleXTensor = Module<nn::Backend>;
+using nn::LeakyBPTT;
+using nn::Linear;
+using nn::MSELoss;
+using nn::Sequential;
 
 namespace
 {
@@ -195,7 +199,6 @@ class SpikeAutoEncoder : public ModuleXTensor
         return false;
     }
 };
-
 
 // =============================================================================
 // Main

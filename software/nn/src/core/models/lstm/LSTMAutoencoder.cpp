@@ -13,7 +13,7 @@
 #include <string>
 
 #include "nn/layers/activations/Tanh.hpp"
-#include "nn/models/lstm/LSTMLayer.hpp"
+#include "nn/layers/lstm/LSTMLayer.hpp"
 
 namespace nn::models::lstm
 {

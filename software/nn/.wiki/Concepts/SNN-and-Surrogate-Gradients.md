@@ -64,9 +64,13 @@ For variational spiking autoencoders, the Gaussian VAE reparameterisation is rep
 1. Encoder outputs logits $z$ (B × F)
 2. Rate: $\lambda = \text{softplus}(z)$, ensuring $\lambda > 0$
 3. Training sample: $s \sim \text{Poisson}(\lambda \cdot T)$, output $= s/T$
-4. KL divergence: $\text{KL}(\text{Poisson}(\lambda) \| \text{Poisson}(\lambda_0)) = \lambda - \lambda_0 - \lambda \log(\lambda/\lambda_0)$
+4. KL divergence: $\text{KL}(\text{Poisson}(\lambda) \| \text{Poisson}(\lambda_0)) = \lambda_0 - \lambda + \lambda \log(\lambda/\lambda_0) \geq 0$
+
+   *(Previous wiki entry had the sign reversed — matched a code bug fixed 2026-05-01; see `PoissonLatentTest.KLNonNegative`.)*
 
 Straight-through gradient: $\partial L / \partial z \approx (\partial L / \partial \text{output}) \cdot (1/T) \cdot \sigma(z)$
+
+**Tests:** `TdBNTest.*` (formula, γ/β grad, V_th/√T scaling), `PoissonLatentTest.*` (rate positivity, KL≥0, straight-through grad) — in `src/core/layers/tests/fundamental_mechanisms_gtest.cpp`.
 
 ---
 

@@ -495,6 +495,8 @@ class DeviceTensorBackend
         std::copy(m_device_grad.begin(),
             m_device_grad.begin() + static_cast<size_t>(size()),
             host_grad_ref.mutable_data_ptr());
+        // Keep XTensorBackend canonical gradient storage in sync with grad_ref().
+        m_host.set_grad(host_grad_ref);
     }
 
     bool is_grad_on_device() const

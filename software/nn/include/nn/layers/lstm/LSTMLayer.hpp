@@ -152,19 +152,23 @@ class LSTMLayerImpl : public Module<Backend>
             c = c0_;
         }
 
-        Tensor all_out = Tensor::zeros(static_cast<nn::Index>(B),
-            static_cast<nn::Index>(T_seq),
-            static_cast<nn::Index>(hidden_size_));
-        Tensor b_T = b_.transpose();
+        Tensor b_T = b_.transpose(); // (1, 4H) — computed once outside loop
+
+        // Opt: for single-sequence (B=1), write directly to (T,H) output; skip 3D alloc+copy.
+        const bool is_2d = (shape.size() == 2);
+        Tensor all_out = is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq),
+                                     static_cast<nn::Index>(hidden_size_))
+                               : Tensor::zeros(static_cast<nn::Index>(B),
+                                     static_cast<nn::Index>(T_seq),
+                                     static_cast<nn::Index>(hidden_size_));
 
         for (int t = 0; t < T_seq; ++t)
         {
-            // x_t = seq_3d[b, t, :], here b=0 if B==1
-            Tensor x_t = Tensor::zeros(static_cast<size_t>(B), static_cast<size_t>(D_in));
-            for (int b = 0; b < B; ++b)
-                for (int d = 0; d < D_in; ++d) x_t.at(b, d) = seq_3d.at(b, t, d);
+            // Opt: vectorized slice instead of scalar copy loop.
+            Tensor x_t = seq_3d.slice_time(static_cast<nn::Index>(t)); // (B, D)
 
-            Tensor pre = x_t.matmul_transposed(W_).add(h.matmul_transposed(U_)).add(b_T);
+            Tensor pre =
+                x_t.matmul_transposed(W_).add(h.matmul_transposed(U_)).add_row_broadcast(b_T);
 
             Tensor i_g = nn::activation::sigmoid(pre.block(0, 0, B, hidden_size_));
             Tensor f_g = nn::activation::sigmoid(pre.block(0, 1 * hidden_size_, B, hidden_size_));
@@ -177,29 +181,32 @@ class LSTMLayerImpl : public Module<Backend>
 
             if (requires_grad) cache_.push_back({x_t, h, c, i_g, f_g, o_g, g_g, tc});
 
-            // all_out[b, t, :] = h_new
-            for (int b = 0; b < B; ++b)
-                for (int hh = 0; hh < hidden_size_; ++hh) all_out.at(b, t, hh) = h_new.at(b, hh);
+            // Opt: vectorized write instead of scalar copy loop.
+            if (is_2d)
+                all_out.setBlock(static_cast<nn::Index>(t), 0, h_new); // h_new is (1,H) when B=1
+            else
+                all_out.set_time_slice(static_cast<nn::Index>(t), h_new); // h_new is (B,H)
+
             h = h_new;
             c = c_new;
         }
 
-        if (shape.size() == 2)
+        if (is_2d)
         {
             h0_ = h;
             c0_ = c;
-            // Return (T, H) for single sequence
-            Tensor out2d =
-                Tensor::zeros(static_cast<nn::Index>(T_seq), static_cast<nn::Index>(hidden_size_));
-            for (int t = 0; t < T_seq; ++t)
-                for (int hh = 0; hh < hidden_size_; ++hh) out2d.at(t, hh) = all_out.at(0, t, hh);
-            return out2d;
         }
         return all_out;
     }
 
     auto backward(const Tensor& grad_output) -> Tensor override
     {
+        if (cache_.empty())
+        {
+            throw std::runtime_error(
+                "LSTMLayerImpl::backward called before forward(requires_grad=true)");
+        }
+
         const auto& shape = grad_output.get_shape();
         int B = (shape.size() == 3) ? static_cast<int>(shape[0]) : 1;
 
@@ -282,13 +289,15 @@ class LSTMLayerImpl : public Module<Backend>
         Tensor dh_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
         Tensor dc_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
 
+        // Opt: pre-allocate dpre once; overwrite each timestep via setBlock.
+        Tensor dpre(static_cast<nn::Index>(B), 4 * static_cast<nn::Index>(H));
+
         for (int t = T - 1; t >= 0; --t)
         {
             const auto& step = step_cache[static_cast<std::size_t>(t)];
-            // grad_output: (B, T, H)
-            Tensor dh = Tensor::zeros(static_cast<size_t>(B), static_cast<size_t>(H));
-            for (int b = 0; b < B; ++b)
-                for (int h_ = 0; h_ < H; ++h_) dh.at(b, h_) = grad_output.at(b, t, h_);
+
+            // Opt: vectorized slice instead of scalar loop over (B, H).
+            Tensor dh = grad_output.slice_time(static_cast<nn::Index>(t)); // (B, H)
             dh = dh.add(dh_next);
 
             Tensor do_gate = dh * step.tanh_c;
@@ -305,27 +314,20 @@ class LSTMLayerImpl : public Module<Backend>
             Tensor dpre_o = do_gate * nn::activation::sigmoid_grad(step.o);
             Tensor dpre_g = dg_gate * nn::activation::tanh_grad(step.g);
 
-            Tensor dpre(static_cast<nn::Index>(B), 4 * static_cast<nn::Index>(H));
-            // Set blocks for each gate
-            for (int b = 0; b < B; ++b)
-            {
-                for (int h = 0; h < H; ++h)
-                {
-                    dpre.at(b, 0 * H + h) = dpre_i.at(b, h);
-                    dpre.at(b, 1 * H + h) = dpre_f.at(b, h);
-                    dpre.at(b, 2 * H + h) = dpre_o.at(b, h);
-                    dpre.at(b, 3 * H + h) = dpre_g.at(b, h);
-                }
-            }
+            // Opt: block writes instead of scalar scatter.
+            dpre.setBlock(0, 0 * H, dpre_i);
+            dpre.setBlock(0, 1 * H, dpre_f);
+            dpre.setBlock(0, 2 * H, dpre_o);
+            dpre.setBlock(0, 3 * H, dpre_g);
 
-            dW.add_inplace(dpre.transpose().matmul(step.x));
-            dU.add_inplace(dpre.transpose().matmul(step.h_prev));
-            db.add_inplace(dpre.transpose());
+            Tensor dpre_T = dpre.transpose(); // (4H, B)
+            dW.add_inplace(dpre_T.matmul(step.x));
+            dU.add_inplace(dpre_T.matmul(step.h_prev));
+            // Opt: sum over batch before accumulating to (4H, 1).
+            db.add_inplace(dpre_T.rowwise_sum());
 
-            // dx_all[:, t, :] = dpre.matmul(W_)
-            Tensor dx_t = dpre.matmul(W_);
-            for (int b = 0; b < B; ++b)
-                for (int d = 0; d < input_size_; ++d) dx_all.at(b, t, d) = dx_t.at(b, d);
+            // Opt: vectorized write instead of scalar loop.
+            dx_all.set_time_slice(static_cast<nn::Index>(t), dpre.matmul(W_));
             dh_next = dpre.matmul(U_);
         }
 

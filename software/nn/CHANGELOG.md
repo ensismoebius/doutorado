@@ -43,8 +43,9 @@ All notable changes to this project will be documented in this file.
 - Legacy standalone LSTM execution path was removed from Experiment04 runner;
   execution now always delegates to the comparative SNN-vs-LSTM pipeline.
 - Legacy CLI aliases (`--experiment04`, `--lstm-autoencoder`,
-  `--lstm-profile`, `--config`) are normalized to comparative CLI inputs to
-  preserve invocation compatibility.
+  `--lstm-profile`, `--config`) were removed. The runner now accepts only
+  comparative CLI flags (for example, `--comparative` and
+  `--comparative-config`).
 
 ### Fixed (2026-04-16)
 

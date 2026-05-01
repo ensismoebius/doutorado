@@ -349,6 +349,20 @@ class XTensorBackend
         m_data += bias_row;
     }
 
+    // Broadcast-add a (1,C) row tensor to every row of this (N,C) tensor.
+    // Returns a new tensor; does not modify this.
+    XTensorBackend add_row_broadcast(const XTensorBackend& row) const
+    {
+        xt::xarray<float> r = m_data + row.m_data;
+        return XTensorBackend(std::move(r));
+    }
+
+    // In-place version: this (N,C) += row (1,C), broadcasting over N rows.
+    void add_row_broadcast_inplace(const XTensorBackend& row)
+    {
+        m_data += row.m_data;
+    }
+
     XTensorBackend subtract(const XTensorBackend& other) const
     {
         if (!same_shape(other)) throw std::invalid_argument("Shape mismatch for subtract");
@@ -561,15 +575,18 @@ class XTensorBackend
 
     XTensorBackend sum_rows() const
     {
-        xt::xtensor<float, 2> s = xt::eval(xt::sum(m_data, {std::size_t{1}}));
-        s.reshape({m_data.shape(0), std::size_t{1}});
+        // Reduce axis 1 → (R,1). Allocate target first to avoid xt::eval rank deduction
+        // issues with xarray-backed reducers (xt::eval may infer wrong static rank).
+        xt::xarray<float> s = xt::zeros<float>({m_data.shape(0), std::size_t{1}});
+        xt::view(s, xt::all(), 0) = xt::sum(m_data, {std::size_t{1}});
         return XTensorBackend(std::move(s));
     }
 
     XTensorBackend sum_cols() const
     {
-        xt::xtensor<float, 2> s = xt::eval(xt::sum(m_data, {std::size_t{0}}));
-        s.reshape({std::size_t{1}, m_data.shape(1)});
+        // Reduce axis 0 → (1,C). Same rationale as sum_rows.
+        xt::xarray<float> s = xt::zeros<float>({std::size_t{1}, m_data.shape(1)});
+        xt::view(s, 0, xt::all()) = xt::sum(m_data, {std::size_t{0}});
         return XTensorBackend(std::move(s));
     }
 
@@ -678,6 +695,27 @@ class XTensorBackend
         if (b >= m_data.shape(0))
             throw std::out_of_range("set_batch_slice: index out of range");
         xt::view(m_data, b, xt::all(), xt::all()) = val.m_data;
+    }
+
+    // Extract (B, D) slice at time t from a 3D (B, T, D) tensor.
+    XTensorBackend slice_time(Index t) const
+    {
+        if (m_data.shape().size() != 3)
+            throw std::invalid_argument("slice_time: tensor must be 3D");
+        if (t >= m_data.shape(1))
+            throw std::out_of_range("slice_time: index out of range");
+        xt::xarray<float> r = xt::eval(xt::view(m_data, xt::all(), t, xt::all()));
+        return XTensorBackend(std::move(r));
+    }
+
+    // Write (B, D) tensor into [:, t, :] of a 3D (B, T, D) tensor.
+    void set_time_slice(Index t, const XTensorBackend& val)
+    {
+        if (m_data.shape().size() != 3)
+            throw std::invalid_argument("set_time_slice: tensor must be 3D");
+        if (t >= m_data.shape(1))
+            throw std::out_of_range("set_time_slice: index out of range");
+        xt::view(m_data, xt::all(), t, xt::all()) = val.m_data;
     }
 
     void setBlock(Index r, Index c, const XTensorBackend& other)

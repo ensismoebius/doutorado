@@ -28,7 +28,14 @@ Convolutional layers apply local filters:
 
 $$y_{i,j,k} = \sum_{m,n} x_{i,m,n} \cdot w_{k,m,n} + b_k$$
 
+Output length formula for 1D convolution: $L_{out} = \lfloor(L + 2P - K)/S\rfloor + 1$
+
 This preserves spatial structure in images.
+
+**Implementation status:** `Conv1dImpl` (file: `include/nn/layers/convolution/Conv1d.hpp`) and
+`MaxPool1dImpl` / `MaxPool2dImpl` (files: `convolution/MaxPool1d.hpp`, `MaxPool2d.hpp`) are documented
+placeholders that validate input shape and return the input unchanged. Forward-only contract.
+Tests in `fundamental_mechanisms_gtest` document this placeholder behaviour.
 
 ## How It Is Implemented Here
 
@@ -119,9 +126,24 @@ ThresholdDependentBatchNormImpl<Backend> tdbn(64, /*vth=*/1.0f, /*T=*/10);
 auto h = tdbn.forward(fc.forward(input, true), true);
 ```
 
+### ResidualBlock vs ResNetBlock
+
+| Class | File | Status | Backward |
+|---|---|---|---|
+| `ResidualBlockImpl` | `residual/ResidualBlock.hpp` | Full | ✓ |
+| `ResNetBlockImpl` | `residual/ResNetBlock.hpp` | Abstract | ✗ (not implemented) |
+
+`ResNetBlockImpl` does not override `Module::backward()` and cannot be directly instantiated.
+`ResidualBlockImpl` (MLP-style Linear/ReLU/Linear + skip) is fully tested in `fundamental_mechanisms_gtest`.
+
 ### Poisson Latent Layer (SNN-VAE)
 
 Reparameterisable Poisson latent space for spiking variational autoencoders [29, 30].
+
+> **Bug fix (2026-05-01):** KL sign error in `PoissonLatentLayer.hpp` line 115 corrected.
+> Old code computed $-\text{KL}$ (always ≤ 0), adding it to total loss encouraged *divergence* from the prior.
+> Correct formula: $\text{KL}(\text{Poisson}(\lambda) \| \text{Poisson}(\lambda_0)) = \lambda_0 - \lambda + \lambda \log(\lambda/\lambda_0) \geq 0$.
+> Caught by `PoissonLatentTest.KLNonNegative` in `fundamental_mechanisms_gtest`.
 
 ```cpp
 // File: include/nn/layers/spiking/PoissonLatentLayer.hpp
@@ -147,8 +169,7 @@ public:
 Single-layer LSTM with full BPTT [5, 6]. Gate equations and backward derivation
 verified against Hochreiter & Schmidhuber (1997) [5] and Greff et al. (2015) [6].
 
-**Location:** `include/nn/layers/lstm/LSTMLayer.hpp`  
-(Compat shim at `include/nn/models/lstm/LSTMLayer.hpp` — namespace `nn::models::lstm` unchanged.)
+**Location:** `include/nn/layers/lstm/LSTMLayer.hpp`
 
 Weight layout (gates stacked [i|f|o|g] per [6]):
 - `W_` : (4H × D) — input-to-hidden
@@ -209,14 +230,14 @@ flowchart TB
 ## Usage Example
 
 ```cpp
-// File: include/nn/layers/eigen/Layers.hpp
+// File: include/nn/layers/Layers.hpp
 #include "nn/layers/dense/Linear.hpp"
 #include "nn/layers/activations/ReLU.hpp"
 
 // Create a simple MLP: 128 -> 64 -> 32
-nn::layers::Linear<nn::XtensorTensorBackend> fc1(128, 64);
-nn::layers::ReLU relu1;
-nn::layers::Linear<nn::XtensorTensorBackend> fc2(64, 32);
+nn::Linear fc1(128, 64);
+nn::ReLU relu1;
+nn::Linear fc2(64, 32);
 
 // Forward pass
 nn::Tensor x = /* input data */;

@@ -13,6 +13,17 @@
 #include "nn/layers/spiking/Leaky.hpp"
 #include "nn/layers/spiking/LeakyBPTT.hpp"
 #include "nn/tensor/Tensor.hpp"
+
+using nn::Conv2d;
+using nn::Leaky;
+using nn::LeakyIntegrator;
+using nn::LeakyReLU;
+using nn::Linear;
+using nn::MSELoss;
+using nn::ReLU;
+using nn::Sequential;
+using nn::SimpleResNet;
+using nn::SpikeCountLoss;
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)
 {

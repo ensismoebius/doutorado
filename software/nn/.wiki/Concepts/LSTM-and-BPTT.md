@@ -43,6 +43,8 @@ The cell update contains **no weight matrix on the recurrent path** ($C_t \lefta
 
 Forget gate bias is initialised to 1 to discourage forgetting at the start of training [4].
 
+**Tests:** Gate equations and bias init verified by `LSTMGateTest.*` in `src/core/layers/tests/fundamental_mechanisms_gtest.cpp`. Covers: forget-bias = 1, f≈0 clears cell, i≈0 blocks update, o≈0 silences H, forward/backward shapes.
+
 ### Backward Pass (BPTT)
 
 Gradients flow backward from $t = T$ to $t = 1$. At each step, let $\delta h_t$ denote

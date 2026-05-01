@@ -22,6 +22,12 @@
 
 using namespace std;
 
+using nn::CrossEntropyLoss;
+using nn::Linear;
+using nn::ReLU;
+using nn::ResidualBlock;
+using nn::Sequential;
+
 auto main() -> int
 {
     try
