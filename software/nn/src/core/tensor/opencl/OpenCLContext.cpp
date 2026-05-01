@@ -34,6 +34,45 @@ OpenCLContext& OpenCLContext::instance()
     return context;
 }
 
+OpenCLContext::BatchScope::BatchScope()
+{
+    OpenCLContext& ctx = OpenCLContext::instance();
+    if (!ctx.is_available())
+    {
+        return;
+    }
+    OpenCLContext::begin_batch();
+    active = true;
+}
+
+OpenCLContext::BatchScope::~BatchScope()
+{
+    if (active)
+    {
+        OpenCLContext::end_batch();
+    }
+}
+
+OpenCLContext::BatchScope::BatchScope(BatchScope&& other) noexcept
+    : active(other.active)
+{
+    other.active = false;
+}
+
+auto OpenCLContext::BatchScope::operator=(BatchScope&& other) noexcept -> BatchScope&
+{
+    if (this != &other)
+    {
+        if (active)
+        {
+            OpenCLContext::end_batch();
+        }
+        active = other.active;
+        other.active = false;
+    }
+    return *this;
+}
+
 OpenCLContext::OpenCLContext()
 {
     initialize_device();

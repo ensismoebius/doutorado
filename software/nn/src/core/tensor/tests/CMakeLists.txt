@@ -93,6 +93,21 @@ target_include_directories(gpu_buffer_pool_gtest
 
 gtest_discover_tests(gpu_buffer_pool_gtest)
 
+add_executable(tensor_perf_bench tensor_perf_bench.cpp)
+
+target_link_libraries(tensor_perf_bench
+    PRIVATE
+        tensor
+        xtensor xtensor-blas
+)
+
+target_include_directories(tensor_perf_bench
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+configure_xtensor_parallel_target(tensor_perf_bench)
+
 # Mock-backend focused tests (xtensor-free math, but Tensor header still requires xtensor include)
 # add_executable(tensor_mock_gtest 
 #     mock_backend_gtest.cpp

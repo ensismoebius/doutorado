@@ -14,10 +14,14 @@
 #include <xtensor/xnoalias.hpp>
 #include <xtensor-blas/xlinalg.hpp>
 
+#include <cblas.h>
+
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <random>
 #include <span>
 #include <sstream>
@@ -113,35 +117,27 @@ class XTensorBackend
 
     static XTensorBackend random(Index rows, Index cols)
     {
-        XTensorBackend t(rows, cols);
         std::mt19937 rng(std::random_device{}());
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        for (auto& v : t.m_data) v = dist(rng);
-        return t;
+        return random(rows, cols, rng);
     }
 
     static XTensorBackend random(Index rows, Index cols, std::mt19937& rng)
     {
         XTensorBackend t(rows, cols);
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        for (auto& v : t.m_data) v = dist(rng);
+        fill_uniform_random_simd(t.m_data.data(), t.m_data.size(), rng);
         return t;
     }
 
     static XTensorBackend random(Index d1, Index d2, Index d3)
     {
-        XTensorBackend t(d1, d2, d3);
         std::mt19937 rng(std::random_device{}());
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        for (auto& v : t.m_data) v = dist(rng);
-        return t;
+        return random(d1, d2, d3, rng);
     }
 
     static XTensorBackend random(Index d1, Index d2, Index d3, std::mt19937& rng)
     {
         XTensorBackend t(d1, d2, d3);
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        for (auto& v : t.m_data) v = dist(rng);
+        fill_uniform_random_simd(t.m_data.data(), t.m_data.size(), rng);
         return t;
     }
 
@@ -383,8 +379,23 @@ class XTensorBackend
             throw std::invalid_argument("Tensors must be 2D");
         if (cols() != other.cols())
             throw std::invalid_argument("Dimension mismatch for matmul_transposed");
-        xt::xarray<float> r = xt::linalg::dot(m_data, xt::transpose(other.m_data));
-        return XTensorBackend(std::move(r));
+
+        XTensorBackend result(rows(), other.rows());
+        cblas_sgemm(CblasRowMajor,
+            CblasNoTrans,
+            CblasTrans,
+            static_cast<int>(rows()),
+            static_cast<int>(other.rows()),
+            static_cast<int>(cols()),
+            1.0f,
+            m_data.data(),
+            static_cast<int>(cols()),
+            other.m_data.data(),
+            static_cast<int>(other.cols()),
+            0.0f,
+            result.m_data.data(),
+            static_cast<int>(other.rows()));
+        return result;
     }
 
     XTensorBackend matmul(const XTensorBackend& other) const
@@ -745,9 +756,9 @@ class XTensorBackend
     // Mutators
     // ------------------------------------------------------------------
 
-    void fill(float v)  { m_data.fill(v); }
-    void set_zero()     { m_data.fill(0.0f); }
-    void set_ones()     { m_data.fill(1.0f); }
+    void fill(float v)  { fill_constant_simd(m_data.data(), m_data.size(), v); }
+    void set_zero()     { fill_constant_simd(m_data.data(), m_data.size(), 0.0f); }
+    void set_ones()     { fill_constant_simd(m_data.data(), m_data.size(), 1.0f); }
 
     const float* data_ptr() const noexcept { return m_data.data(); }
     float* mutable_data_ptr() noexcept     { return m_data.data(); }
@@ -793,6 +804,36 @@ class XTensorBackend
         for (std::size_t i = 0; i < a.size(); ++i)
             if (a[i] != b[i]) return false;
         return true;
+    }
+
+    static void fill_uniform_random_simd(float* data, Index count, std::mt19937& rng)
+    {
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        constexpr Index kWidth = xsimd::batch<float>::size;
+        std::array<float, kWidth> lane{};
+
+        Index i = 0;
+        for (; i + kWidth <= count; i += kWidth)
+        {
+            for (Index j = 0; j < kWidth; ++j)
+                lane[j] = dist(rng);
+            const auto batch = xsimd::batch<float>::load_unaligned(lane.data());
+            batch.store_unaligned(data + i);
+        }
+        for (; i < count; ++i)
+            data[i] = dist(rng);
+    }
+
+    static void fill_constant_simd(float* data, Index count, float value)
+    {
+        constexpr Index kWidth = xsimd::batch<float>::size;
+        const auto batch = xsimd::batch<float>(value);
+
+        Index i = 0;
+        for (; i + kWidth <= count; i += kWidth)
+            batch.store_unaligned(data + i);
+        for (; i < count; ++i)
+            data[i] = value;
     }
 
     xt::xarray<float>  m_data;

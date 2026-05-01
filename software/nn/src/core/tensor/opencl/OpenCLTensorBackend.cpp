@@ -263,6 +263,15 @@ void check_cl_error(cl_int err, const char* context)
     }
 }
 
+void finish_queue_if_not_batching(cl_command_queue queue, const char* context)
+{
+    if (opencl::OpenCLContext::is_batching())
+    {
+        return;
+    }
+    check_cl_error(clFinish(queue), context);
+}
+
 class AsyncTransferManager
 {
    public:
@@ -347,7 +356,7 @@ class AsyncTransferManager
 
     static void sync_queue(cl_command_queue queue)
     {
-        check_cl_error(clFinish(queue), "sync_queue");
+        finish_queue_if_not_batching(queue, "sync_queue");
     }
 
    private:
@@ -960,7 +969,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "add_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "add_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "add_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1123,7 +1132,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "subtract_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "subtract_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "subtract_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1287,7 +1296,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "multiply_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "multiply_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "multiply_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1451,7 +1460,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "divide_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "divide_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "divide_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1571,7 +1580,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "add_scalar_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "add_scalar_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "add_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1691,7 +1700,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "multiply_scalar_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "multiply_scalar_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "multiply_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1810,7 +1819,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "divide_scalar_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "divide_scalar_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "divide_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -1923,7 +1932,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "sqrt_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "sqrt_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "sqrt_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -2037,7 +2046,7 @@ void OpenCLTensorBackend::square_inplace()
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "square_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "square_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "square_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -2052,8 +2061,14 @@ void OpenCLTensorBackend::square_inplace()
 
 void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector)
 {
-    sync_gpu();
-    col_vector.sync_gpu();
+    if (!m_gpu_resident)
+    {
+        sync_gpu();
+    }
+    if (!col_vector.m_gpu_resident)
+    {
+        col_vector.sync_gpu();
+    }
     if (shape().size() != 2 || col_vector.shape().size() != 2)
     {
         warn_opencl_cpu_fallback_once(
@@ -2076,6 +2091,54 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
             const std::size_t col_bytes = num_cols * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer && col_vector.m_has_gpu_memory &&
+                col_vector.m_gpu_buffer)
+            {
+                if (!m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "add_col_vector_to_rows_inplace resident data");
+                }
+                if (!col_vector.m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        col_vector.m_gpu_buffer->buffer,
+                        col_vector.m_backend->data_ptr(),
+                        col_bytes,
+                        "add_col_vector_to_rows_inplace resident col");
+                }
+
+                cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
+                    "add_col_vector_to_rows_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_mem col_mem = col_vector.m_gpu_buffer->buffer;
+                const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+                const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
+                    "add_col_vector_to_rows_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &col_mem),
+                    "add_col_vector_to_rows_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                    "add_col_vector_to_rows_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                    "add_col_vector_to_rows_inplace resident");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "add_col_vector_to_rows_inplace resident");
+                finish_queue_if_not_batching(
+                    ctx.get_queue(), "add_col_vector_to_rows_inplace resident");
+                m_needs_sync_to_host = true;
+                return;
+            }
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2217,7 +2280,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "add_col_vector_to_rows_inplace");
-            check_cl_error(clFinish(ctx.get_queue()), "add_col_vector_to_rows_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "add_col_vector_to_rows_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
             return;
@@ -2279,7 +2342,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                                        nullptr,
                                        nullptr),
                         "exp");
-                    check_cl_error(clFinish(ctx.get_queue()), "exp");
+                    finish_queue_if_not_batching(ctx.get_queue(), "exp");
 
                     OpenCLHostStorage out(shape());
                     OpenCLTensorBackend t;
@@ -2390,7 +2453,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(exp)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(exp)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(exp)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -2454,7 +2517,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
                                        nullptr,
                                        nullptr),
                         "sqrt");
-                    check_cl_error(clFinish(ctx.get_queue()), "sqrt");
+                    finish_queue_if_not_batching(ctx.get_queue(), "sqrt");
 
                     OpenCLHostStorage out(shape());
                     OpenCLTensorBackend t;
@@ -2565,7 +2628,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(sqrt)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(sqrt)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(sqrt)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -2698,7 +2761,7 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(square)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(square)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(square)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -2777,7 +2840,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(add)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(add)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(add)");
 
                     // GPU-resident mode: keep result on GPU
                     if (m_gpu_resident)
@@ -2833,7 +2896,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(add)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(add)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(add)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -2913,7 +2976,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(subtract)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(subtract)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(subtract)");
 
                     // GPU-resident mode: keep result on GPU
                     if (m_gpu_resident)
@@ -2969,7 +3032,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(subtract)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(subtract)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(subtract)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3049,7 +3112,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(multiply)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(multiply)");
 
                     // GPU-resident mode: keep result on GPU
                     if (m_gpu_resident)
@@ -3105,7 +3168,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(multiply)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(multiply)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3185,7 +3248,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(divide)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(divide)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(divide)");
 
                     // GPU-resident mode: keep result on GPU
                     if (m_gpu_resident)
@@ -3241,7 +3304,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(divide)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(divide)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(divide)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3310,7 +3373,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(add_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(add_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(add_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -3348,7 +3411,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(add_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(add_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(add_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3417,7 +3480,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(multiply_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(multiply_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -3456,7 +3519,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(multiply_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(multiply_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(multiply_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3525,7 +3588,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(divide_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(divide_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(divide_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -3563,7 +3626,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(divide_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(divide_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(divide_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3639,7 +3702,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(rowwise_sum)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(rowwise_sum)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(rowwise_sum)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -3678,7 +3741,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, nullptr, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(rowwise_sum)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(rowwise_sum)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(rowwise_sum)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3721,6 +3784,60 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
             const std::size_t b_bytes = k * n * sizeof(float);
             const std::size_t c_bytes = m * n * sizeof(float);
             OpenCLHostStorage out(m, n);
+
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (!m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        a_bytes,
+                        "clEnqueueWriteBuffer(matmul, a resident)");
+                }
+                if (!other.m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        b_bytes,
+                        "clEnqueueWriteBuffer(matmul, b resident)");
+                }
+
+                OpenCLTensorBackend t(m, n);
+                t.set_gpu_resident(true);
+
+                cl_kernel kernel = opencl::KernelManager::instance().get_kernel("matmul_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_mem c_mem = t.m_gpu_buffer->buffer;
+                const cl_uint m_u32 = static_cast<cl_uint>(m);
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+                const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                    "clSetKernelArg(matmul, a resident)");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                    "clSetKernelArg(matmul, b resident)");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_mem),
+                    "clSetKernelArg(matmul, c resident)");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &m_u32),
+                    "clSetKernelArg(matmul, m resident)");
+                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32),
+                    "clSetKernelArg(matmul, n resident)");
+                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &k_u32),
+                    "clSetKernelArg(matmul, k resident)");
+
+                const std::size_t global[2] = {m, n};
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                    "clEnqueueNDRangeKernel(matmul resident)");
+                finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul resident)");
+                t.m_needs_sync_to_host = true;
+                return t;
+            }
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -3774,7 +3891,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(matmul)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(matmul)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul)");
 
                     copy_device_to_host(ctx.get_queue(),
                         c_buf->buffer,
@@ -3820,7 +3937,7 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(matmul)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(matmul)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -3840,7 +3957,196 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBackend& other) const
 {
-    return matmul(other.transpose());
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
+    if (shape().size() != 2 || other.shape().size() != 2 || cols() != other.cols())
+    {
+        throw_opencl_only_failure(
+            "matmul_transposed", "OpenCL runtime unavailable or matrix dimensions are invalid");
+    }
+    else if (can_use_opencl("matmul_transposed"))
+    {
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const Index m = rows();
+            const Index k = cols();
+            const Index n = other.rows();
+
+            const std::size_t a_bytes = m * k * sizeof(float);
+            const std::size_t b_bytes = n * k * sizeof(float);
+            const std::size_t c_bytes = m * n * sizeof(float);
+            OpenCLHostStorage out(m, n);
+
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (!m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        a_bytes,
+                        "clEnqueueWriteBuffer(matmul_transposed, a resident)");
+                }
+                if (!other.m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        b_bytes,
+                        "clEnqueueWriteBuffer(matmul_transposed, b resident)");
+                }
+
+                OpenCLTensorBackend t(m, n);
+                t.set_gpu_resident(true);
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_mem c_mem = t.m_gpu_buffer->buffer;
+                const cl_uint m_u32 = static_cast<cl_uint>(m);
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+                const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                    "clSetKernelArg(matmul_transposed, a resident)");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                    "clSetKernelArg(matmul_transposed, b resident)");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_mem),
+                    "clSetKernelArg(matmul_transposed, c resident)");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &m_u32),
+                    "clSetKernelArg(matmul_transposed, m resident)");
+                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32),
+                    "clSetKernelArg(matmul_transposed, n resident)");
+                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &k_u32),
+                    "clSetKernelArg(matmul_transposed, k resident)");
+
+                const std::size_t global[2] = {m, n};
+                check_cl_error(clEnqueueNDRangeKernel(
+                                   ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                    "clEnqueueNDRangeKernel(matmul_transposed resident)");
+                finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_transposed resident)");
+                t.m_needs_sync_to_host = true;
+                return t;
+            }
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto a_buf = pool->acquire(a_bytes);
+                auto b_buf = pool->acquire(b_bytes);
+                auto c_buf = pool->acquire(c_bytes);
+                if (a_buf && b_buf && c_buf)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        a_buf->buffer,
+                        m_backend->data_ptr(),
+                        a_bytes,
+                        "clEnqueueWriteBuffer(matmul_transposed, a)");
+                    copy_host_to_device(ctx.get_queue(),
+                        b_buf->buffer,
+                        other.m_backend->data_ptr(),
+                        b_bytes,
+                        "clEnqueueWriteBuffer(matmul_transposed, b)");
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_kernel");
+                    const cl_mem a_mem = a_buf->buffer;
+                    const cl_mem b_mem = b_buf->buffer;
+                    const cl_mem c_mem = c_buf->buffer;
+                    const cl_uint m_u32 = static_cast<cl_uint>(m);
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+                    const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                        "clSetKernelArg(matmul_transposed, a)");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                        "clSetKernelArg(matmul_transposed, b)");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_mem),
+                        "clSetKernelArg(matmul_transposed, c)");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &m_u32),
+                        "clSetKernelArg(matmul_transposed, m)");
+                    check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32),
+                        "clSetKernelArg(matmul_transposed, n)");
+                    check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &k_u32),
+                        "clSetKernelArg(matmul_transposed, k)");
+
+                    const std::size_t global[2] = {m, n};
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       2,
+                                       nullptr,
+                                       global,
+                                       nullptr,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clEnqueueNDRangeKernel(matmul_transposed)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_transposed)");
+
+                    copy_device_to_host(ctx.get_queue(),
+                        c_buf->buffer,
+                        out.mutable_data_ptr(),
+                        c_bytes,
+                        "clEnqueueReadBuffer(matmul_transposed, c)");
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory a_dev(a_bytes);
+            opencl::DeviceMemory b_dev(b_bytes);
+            opencl::DeviceMemory out_dev(c_bytes);
+            a_dev.copy_to_device(m_backend->data_ptr());
+            b_dev.copy_to_device(other.m_backend->data_ptr());
+
+            cl_kernel kernel =
+                opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_kernel");
+            const cl_mem a_mem = a_dev.get_device_buffer();
+            const cl_mem b_mem = b_dev.get_device_buffer();
+            const cl_mem c_mem = out_dev.get_device_buffer();
+            const cl_uint m_u32 = static_cast<cl_uint>(m);
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+            const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                "clSetKernelArg(matmul_transposed, a)");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                "clSetKernelArg(matmul_transposed, b)");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &c_mem),
+                "clSetKernelArg(matmul_transposed, c)");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &m_u32),
+                "clSetKernelArg(matmul_transposed, m)");
+            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32),
+                "clSetKernelArg(matmul_transposed, n)");
+            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &k_u32),
+                "clSetKernelArg(matmul_transposed, k)");
+
+            const std::size_t global[2] = {m, n};
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(matmul_transposed)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_transposed)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("matmul_transposed", e.what());
+        }
+    }
+
+    throw_opencl_only_failure(
+        "matmul_transposed", "OpenCL runtime unavailable or matrix dimensions are invalid");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
@@ -3900,7 +4206,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(transpose)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(transpose)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(transpose)");
 
                     // GPU-resident mode: keep result on GPU
                     if (m_gpu_resident)
@@ -3954,7 +4260,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(transpose)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(transpose)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(transpose)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4035,7 +4341,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_lt)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_lt)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_lt)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4076,7 +4382,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_lt)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_lt)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_lt)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4156,7 +4462,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_gt)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_gt)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_gt)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4197,7 +4503,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_gt)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_gt)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_gt)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4277,7 +4583,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_le)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_le)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_le)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4318,7 +4624,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_le)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_le)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_le)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4398,7 +4704,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_ge)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_ge)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_ge)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4439,7 +4745,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_ge)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_ge)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_ge)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4519,7 +4825,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_eq)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_eq)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_eq)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4560,7 +4866,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_eq)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_eq)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_eq)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4629,7 +4935,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_lt_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_lt_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_lt_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4668,7 +4974,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_lt_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_lt_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_lt_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4737,7 +5043,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_gt_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_gt_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_gt_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4776,7 +5082,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_gt_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_gt_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_gt_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4845,7 +5151,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_le_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_le_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_le_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4884,7 +5190,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_le_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_le_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_le_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -4953,7 +5259,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_ge_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_ge_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_ge_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -4992,7 +5298,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_ge_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_ge_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_ge_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -5061,7 +5367,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
                                        nullptr,
                                        nullptr),
                         "clEnqueueNDRangeKernel(compare_eq_scalar)");
-                    check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_eq_scalar)");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_eq_scalar)");
 
                     copy_device_to_host(ctx.get_queue(),
                         out_buf->buffer,
@@ -5100,7 +5406,7 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
                 clEnqueueNDRangeKernel(
                     ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(compare_eq_scalar)");
-            check_cl_error(clFinish(ctx.get_queue()), "clFinish(compare_eq_scalar)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(compare_eq_scalar)");
 
             out_dev.copy_from_device(out.mutable_data_ptr());
 
@@ -5269,6 +5575,18 @@ void OpenCLTensorBackend::sync_gpu() const
         AsyncTransferManager::instance().wait_and_release_events(
             ctx.get_queue(), m_pending_events, static_cast<cl_uint>(m_pending_events_count));
         m_pending_events_count = 0;
+    }
+
+    if (m_gpu_resident && m_has_gpu_memory && m_needs_sync_to_host && m_gpu_buffer && m_backend)
+    {
+        const auto& ctx = opencl::OpenCLContext::instance();
+        const std::size_t bytes = size() * sizeof(float);
+        copy_device_to_host(ctx.get_queue(),
+            m_gpu_buffer->buffer,
+            m_backend->mutable_data_ptr(),
+            bytes,
+            "sync_gpu");
+        m_needs_sync_to_host = false;
     }
 }
 

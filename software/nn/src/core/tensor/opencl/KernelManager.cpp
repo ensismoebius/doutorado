@@ -49,6 +49,29 @@ __kernel void matmul_kernel(
     C[row + col * M] = sum;
 }
 
+__kernel void matmul_rhs_transposed_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0);
+    const uint col = get_global_id(1);
+
+    if (row >= M || col >= N) return;
+
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        // B is stored as original (N x K) column-major tensor.
+        // Access B(col, i) directly instead of materializing transpose.
+        sum += A[row + i * M] * B[col + i * N];
+    }
+
+    C[row + col * M] = sum;
+}
+
 __kernel void transpose_kernel(
     __global const float* input,
     __global float* output,

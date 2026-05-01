@@ -18,6 +18,15 @@ Tests
 - See `src/core/tensor/tests/` for construction, operations, and gradient examples.
 
 Recent updates
+- Fixed layer aggregator template substitution by correcting placeholder tokens in [cmake/Layers.hpp.in], then regenerating [include/nn/layers/Layers.hpp] during CMake configure to remove unresolved `@...@` build breakers.
+- Added SIMD-assisted bulk fill paths in `XTensorBackend` for random initialization and constant fills (`fill`, `set_zero`, `set_ones`) through xsimd batch stores.
+- Replaced `XTensorBackend::matmul_transposed` with a direct CBLAS `sgemm` path so CPU affine-style workloads no longer pay transpose-expression overhead before GEMM.
+- Refactored `OpenCLTensorBackend` queue synchronization to a centralized `finish_queue_if_not_batching(...)` helper and replaced direct `clFinish(ctx.get_queue())` calls in kernel paths, so batch mode can amortize GPU synchronization overhead.
+- Added RAII `OpenCLContext::BatchScope` and wired dense `Linear` forward/backward chains to batch OpenCL tensor operations through a single synchronization boundary.
+- Extended `OpenCLTensorBackend` GPU-resident execution so `matmul` outputs can stay on device across dense affine chains, `add_col_vector_to_rows_inplace` can update resident buffers in place, and host storage is synchronized lazily on first CPU access.
+- Added `matmul_rhs_transposed_kernel` in the OpenCL linear algebra program and routed `OpenCLTensorBackend::matmul_transposed` to this direct path, removing the extra transpose materialization previously used by dense and recurrent affine chains.
+- Added standalone benchmark executable [src/core/tensor/tests/tensor_perf_bench.cpp](src/core/tensor/tests/tensor_perf_bench.cpp) to emit CSV timing for xtensor and OpenCL tensor workloads without making performance checks part of CTest.
+- Rebuilt affected targets (`experiment03_lib`, `core_gtest`) and re-ran full CTest: 680/680 passed after these changes.
 - Added backend primitive for rowwise addition of a `(cols, 1)` bias vector across all rows (`add_col_vector_to_rows_inplace`), exposed through `nn::Tensor`.
 - Added OpenCL execution path in `OpenCLTensorBackend` for hot operations (`matmul`, `transpose`, `add`, `multiply`, `exp`, scalar add/multiply), with explicit runtime CPU fallback on kernel/context errors.
 - Added ASan-safe runtime guard: OpenCL execution is disabled under AddressSanitizer builds to avoid third-party OpenCL runtime leak noise while preserving functional CPU fallback.

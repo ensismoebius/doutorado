@@ -32,6 +32,25 @@ class OpenCLContext
 {
    public:
     /**
+     * @brief RAII scope for batch mode.
+     *
+     * Starts batch mode on construction when OpenCL is available and
+     * synchronizes exactly once on destruction.
+     */
+    struct BatchScope
+    {
+        bool active = false;
+
+        BatchScope();
+        ~BatchScope();
+
+        BatchScope(const BatchScope&) = delete;
+        BatchScope& operator=(const BatchScope&) = delete;
+        BatchScope(BatchScope&& other) noexcept;
+        BatchScope& operator=(BatchScope&& other) noexcept;
+    };
+
+    /**
      * @brief Get the singleton OpenCL context instance.
      *
      * First call initializes the context (device detection, context creation).

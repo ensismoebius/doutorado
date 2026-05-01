@@ -1,8 +1,13 @@
 #ifndef NN_LAYERS_LINEAR_HPP
 #define NN_LAYERS_LINEAR_HPP
 
+#include <optional>
+#include <type_traits>
+
+#include "nn/Backend.hpp"
 #include "nn/layers/base/Module.hpp"
 #include "nn/tensor/Tensor.hpp"
+#include "nn/tensor/opencl/OpenCLContext.hpp"
 
 /**
  * @file Linear.hpp
@@ -89,6 +94,12 @@ struct LinearImpl : public Module<Backend>
      */
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
+        std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
+        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            batch_scope.emplace();
+        }
+
         const auto shape = input.get_shape();
         if (shape.empty()) throw std::invalid_argument("Input tensor cannot be empty");
 
@@ -122,11 +133,26 @@ struct LinearImpl : public Module<Backend>
 
         Tensor input_flat = input.reshape(flat_shape);
 
-        // Convert CPU parameters to the active backend, then compute y = x W^T + b.
-        Tensor weight_t(weight);
-        Tensor bias_t(bias);
-        Tensor result_flat = input_flat.matmul_transposed(weight_t);
-        result_flat.add_col_vector_to_rows_inplace(bias_t);
+        // Convert CPU parameters only when the active backend differs from the default backend.
+        Tensor result_flat;
+        if constexpr (std::is_same_v<Backend, nn::Backend>)
+        {
+            result_flat = Tensor(input_flat.get_backend().matmul_transposed(weight.get_backend()));
+            result_flat.get_backend().add_col_vector_to_rows_inplace(bias.get_backend());
+        }
+        else
+        {
+            Tensor weight_t(weight);
+            Tensor bias_t(bias);
+            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            {
+                input_flat.get_backend().set_gpu_resident(true);
+                weight_t.get_backend().set_gpu_resident(true);
+                bias_t.get_backend().set_gpu_resident(true);
+            }
+            result_flat = input_flat.matmul_transposed(weight_t);
+            result_flat.add_col_vector_to_rows_inplace(bias_t);
+        }
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)
         std::vector<nn::Index> out_shape = shape;
@@ -154,6 +180,12 @@ struct LinearImpl : public Module<Backend>
      */
     auto backward(const Tensor& grad_previous) -> Tensor override
     {
+        std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
+        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            batch_scope.emplace();
+        }
+
         const auto shape = grad_previous.get_shape();
         if (shape.empty()) throw std::invalid_argument("Gradient tensor cannot be empty");
 
@@ -196,8 +228,6 @@ struct LinearImpl : public Module<Backend>
         Tensor input_t = input_cache;
         input_t.reshape(flat_input_shape);
 
-        Tensor weight_t(weight);
-        
         // dL/dW = (dL/dY)^T · X
         Tensor grad_weight = grad_flat.transpose().matmul(input_t);
         weight.set_grad(nn::Tensor(grad_weight));
@@ -207,7 +237,21 @@ struct LinearImpl : public Module<Backend>
         bias.set_grad(nn::Tensor(grad_bias));
         
         // dL/dX = dL/dY · W
-        Tensor grad_input_flat = grad_flat.matmul(weight_t);
+        Tensor grad_input_flat;
+        if constexpr (std::is_same_v<Backend, nn::Backend>)
+        {
+            grad_input_flat = Tensor(grad_flat.get_backend().matmul(weight.get_backend()));
+        }
+        else
+        {
+            Tensor weight_t(weight);
+            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            {
+                grad_flat.get_backend().set_gpu_resident(true);
+                weight_t.get_backend().set_gpu_resident(true);
+            }
+            grad_input_flat = grad_flat.matmul(weight_t);
+        }
 
         // Restore original leading dimensions for the input gradient
         std::vector<nn::Index> input_out_shape = input_shape;
