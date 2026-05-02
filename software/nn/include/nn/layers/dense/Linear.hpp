@@ -52,7 +52,7 @@ struct LinearImpl : public Module<Backend>
     std::optional<Tensor> input_cache_backend;
     // Owned view of parameter pointers. Must point to member tensors so the span
     // returned by `params()` remains valid for the lifetime of this object.
-    std::array<nn::Tensor*, 2> param_ptrs_{{&weight, &bias}};
+    std::array<Tensor*, 2> param_ptrs_{{&weight, &bias}};
 
     /**
      * @brief Construct the layer and allocate uninitialized weight/bias storage.
@@ -304,20 +304,20 @@ struct LinearImpl : public Module<Backend>
     }
 
     /// Returns the two CPU-resident trainable parameters (weight, bias).
-    auto params() -> std::span<nn::Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        std::map<std::string, nn::Tensor> d;
+        std::map<std::string, Tensor> d;
         d["weight"] = weight;
         d["bias"] = bias;
         return d;
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         auto itw = sd.find("weight");
         if (itw != sd.end())

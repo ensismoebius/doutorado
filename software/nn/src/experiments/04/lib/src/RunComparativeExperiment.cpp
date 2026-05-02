@@ -72,10 +72,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         std::vector<ResultRow> all_rows;
 
         // Total outer iterations: datasets × encodings × repeats.
-        const int total_outer_runs =
-            static_cast<int>(config.evaluation.datasets.size()) *
-            static_cast<int>(config.evaluation.encodings.size()) *
-            config.experiment.repeats;
+        const int total_outer_runs = static_cast<int>(config.evaluation.datasets.size()) *
+                                     static_cast<int>(config.evaluation.encodings.size()) *
+                                     config.experiment.repeats;
 
         const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
             "all exp. runs", static_cast<float>(total_outer_runs));
@@ -90,8 +89,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
-                    nn::progress::ProgressManager::instance().update_bar(
-                        run_bar,
+                    nn::progress::ProgressManager::instance().update_bar(run_bar,
                         static_cast<float>(completed_runs),
                         {{"ds", static_cast<float>(config.evaluation.datasets.size())}});
                     const std::uint32_t run_seed =

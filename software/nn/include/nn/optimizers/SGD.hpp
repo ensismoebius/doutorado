@@ -29,10 +29,12 @@
 
 struct SGD : public Optimizer
 {
+    using Tensor = Optimizer::Tensor;
+
     float learning_rate;
     float momentum;
 
-    std::vector<nn::Tensor> velocity;
+    std::vector<Tensor> velocity;
 
     explicit SGD(float lr = 0.01F, float momentum_value = 0.0F)
         : learning_rate(lr), momentum(momentum_value)
@@ -47,7 +49,7 @@ struct SGD : public Optimizer
         }
     }
 
-    auto attach(std::span<nn::Tensor*> paramsList) -> void override
+    auto attach(std::span<Tensor*> paramsList) -> void override
     {
         velocity.clear();
         velocity.reserve(paramsList.size()); // Pre-allocate memory
@@ -63,7 +65,7 @@ struct SGD : public Optimizer
         }
     }
 
-    auto step(std::span<nn::Tensor*> paramsList) -> void override
+    auto step(std::span<Tensor*> paramsList) -> void override
     {
         for (size_t i = 0; i < paramsList.size(); ++i) [[likely]]
         {
@@ -72,14 +74,14 @@ struct SGD : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             auto& param = *paramsList[i];
-            nn::Tensor grad = param.grad();
+            Tensor grad = param.grad();
             velocity[i].multiply_scalar_inplace(momentum);
             velocity[i].add_inplace(grad.multiply_scalar(-learning_rate));
             param.add_inplace(velocity[i]);
         }
     }
 
-    auto zero_grad(std::span<nn::Tensor*> paramsList) -> void override
+    auto zero_grad(std::span<Tensor*> paramsList) -> void override
     {
         for (auto* param : paramsList) [[likely]]
         {

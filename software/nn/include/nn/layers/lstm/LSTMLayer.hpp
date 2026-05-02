@@ -249,22 +249,17 @@ class LSTMLayerImpl : public Module<Backend>
         cache_.clear();
     }
 
-    auto params() -> std::span<nn::Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
-        // TensorImpl<Backend> inherits nn::Tensor, so reinterpret_cast is safe
-        return std::span<nn::Tensor*>{
-            reinterpret_cast<nn::Tensor**>(param_ptrs_.data()), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        // Always store as nn::Tensor (XTensorBackend)
-        return {{"W", W_.template to_backend<nn::XTensorBackend>()},
-            {"U", U_.template to_backend<nn::XTensorBackend>()},
-            {"b", b_.template to_backend<nn::XTensorBackend>()}};
+        return {{"W", W_}, {"U", U_}, {"b", b_}};
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         if (auto it = sd.find("W"); it != sd.end()) W_ = it->second;
         if (auto it = sd.find("U"); it != sd.end()) U_ = it->second;

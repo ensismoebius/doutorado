@@ -83,8 +83,8 @@ struct LeakyBPTTImpl : public Module<Backend>
     // Added to avoid backward-time reconstruction drift: gradients for beta (and thus R/C)
     // must use the exact previous post-reset state seen in forward.
     Tensor v_post_history; ///< Cached post-reset membrane values for exact recurrence derivatives.
-    Tensor spike_history;  ///< Placeholder for spike cache (currently unused in this implementation)
-    Tensor adapt_a_bptt_;  ///< Adaptation variable state (shape: B x F), persists across calls.
+    Tensor spike_history; ///< Placeholder for spike cache (currently unused in this implementation)
+    Tensor adapt_a_bptt_; ///< Adaptation variable state (shape: B x F), persists across calls.
 
     // Configuration
     int time_steps; ///< Number of time steps in the input sequence
@@ -101,11 +101,11 @@ struct LeakyBPTTImpl : public Module<Backend>
 
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
     // Persistent parameter pointer storage for returning spans.
-    std::array<nn::Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
+    std::array<Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
 
-    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     explicit LeakyBPTTImpl(int time_steps_,
@@ -134,7 +134,7 @@ struct LeakyBPTTImpl : public Module<Backend>
 
     void reset_state() override
     {
-        v_mem = Tensor();        // Clear state — next forward() re-initialises to zeros.
+        v_mem = Tensor();         // Clear state — next forward() re-initialises to zeros.
         adapt_a_bptt_ = Tensor(); // Clear adaptation state as well.
     }
 
@@ -177,8 +177,8 @@ struct LeakyBPTTImpl : public Module<Backend>
 
         // Spike-frequency adaptation state: shape (B, F), lazy-init like v_mem
         const bool use_adaptation = (adapt_coupling > 0.0F);
-        if (use_adaptation
-            && (adapt_a_bptt_.rows() != batch_size_idx || adapt_a_bptt_.cols() != features_idx))
+        if (use_adaptation &&
+            (adapt_a_bptt_.rows() != batch_size_idx || adapt_a_bptt_.cols() != features_idx))
         {
             adapt_a_bptt_ = Tensor(batch_size, features);
             adapt_a_bptt_.setZero();
@@ -216,8 +216,8 @@ struct LeakyBPTTImpl : public Module<Backend>
                     else
                     {
                         // Effective threshold includes adaptation variable
-                        float eff_thresh = base_threshold
-                                           + (use_adaptation ? adapt_a_bptt_.at(b, f) : 0.0F);
+                        float eff_thresh =
+                            base_threshold + (use_adaptation ? adapt_a_bptt_.at(b, f) : 0.0F);
                         float s = (v > eff_thresh) ? 1.0f : 0.0f;
                         output.at(offset + b, f) = s;
 

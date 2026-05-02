@@ -171,16 +171,16 @@ void LSTMAutoencoder::reset_state()
     for (auto& lstm : dec_lstms_) lstm->reset_state();
 }
 
-auto LSTMAutoencoder::params() -> std::span<nn::Tensor*>
+auto LSTMAutoencoder::params() -> std::span<Tensor*>
 {
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }
 
-auto LSTMAutoencoder::state_dict() const -> std::map<std::string, nn::Tensor>
+auto LSTMAutoencoder::state_dict() const -> std::map<std::string, Tensor>
 {
-    std::map<std::string, nn::Tensor> sd;
+    std::map<std::string, Tensor> sd;
 
-    auto prefix_merge = [&](const std::map<std::string, nn::Tensor>& src, const std::string& pfx)
+    auto prefix_merge = [&](const std::map<std::string, Tensor>& src, const std::string& pfx)
     {
         for (const auto& [k, v] : src) sd[pfx + k] = v;
     };
@@ -199,11 +199,11 @@ auto LSTMAutoencoder::state_dict() const -> std::map<std::string, nn::Tensor>
     return sd;
 }
 
-void LSTMAutoencoder::load_state_dict(const std::map<std::string, nn::Tensor>& sd)
+void LSTMAutoencoder::load_state_dict(const std::map<std::string, Tensor>& sd)
 {
-    auto extract_prefix = [&](const std::string& pfx) -> std::map<std::string, nn::Tensor>
+    auto extract_prefix = [&](const std::string& pfx) -> std::map<std::string, Tensor>
     {
-        std::map<std::string, nn::Tensor> sub;
+        std::map<std::string, Tensor> sub;
         for (const auto& [k, v] : sd)
         {
             if (k.substr(0, pfx.size()) == pfx)

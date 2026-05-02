@@ -119,23 +119,23 @@ struct LeakyImpl : public Module<Backend>
     /// @brief The surrogate gradient strategy.
     std::shared_ptr<ISurrogateGradient> surrogate_gradient;
     // Persistent parameter pointer storage for returning spans.
-    std::array<nn::Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
+    std::array<Tensor*, 3> param_ptrs_{{&resistance, &voltage_threshold, &capacitance}};
 
-    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        std::map<std::string, nn::Tensor> d;
+        std::map<std::string, Tensor> d;
         d["resistance"] = resistance;
         d["capacitance"] = capacitance;
         d["voltage_threshold"] = voltage_threshold;
         return d;
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         auto it = sd.find("resistance");
         if (it != sd.end()) resistance = it->second;
@@ -183,8 +183,8 @@ struct LeakyImpl : public Module<Backend>
         float reset_potential_ = 0.0F,          // reset potential value
         std::shared_ptr<ISurrogateGradient> surrogate_grad =
             std::make_shared<ExponentialSurrogate>(),
-        float adapt_decay_ = 0.9F,              // adaptation decay rate (0,1)
-        float adapt_coupling_ = 0.0F)           // adaptation coupling (0 = disabled)
+        float adapt_decay_ = 0.9F,    // adaptation decay rate (0,1)
+        float adapt_coupling_ = 0.0F) // adaptation coupling (0 = disabled)
         : time_step(time_step_),
           resistance(Tensor::constant(1, 1, resistance_)),
           capacitance(Tensor::constant(1, 1, capacitance_)),
@@ -215,8 +215,8 @@ struct LeakyImpl : public Module<Backend>
         }
 
         // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
-        if (adapt_coupling > 0.0F
-            && (adapt_a.rows() != input.rows() || adapt_a.cols() != input.cols())) [[unlikely]]
+        if (adapt_coupling > 0.0F &&
+            (adapt_a.rows() != input.rows() || adapt_a.cols() != input.cols())) [[unlikely]]
         {
             adapt_a = Tensor(input.rows(), input.cols());
             adapt_a.setZero();
@@ -294,8 +294,7 @@ struct LeakyImpl : public Module<Backend>
         {
             for (size_t j = 0; j < v_mem.cols(); ++j)
             {
-                float eff_thresh = base_threshold
-                                   + (use_adaptation ? adapt_a.at(i, j) : 0.0F);
+                float eff_thresh = base_threshold + (use_adaptation ? adapt_a.at(i, j) : 0.0F);
                 output.at(i, j) = (v_mem.at(i, j) > eff_thresh) ? 1.0f : 0.0f;
             }
         }

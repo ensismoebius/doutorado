@@ -23,6 +23,8 @@
 
 struct SGDMinimal : public Optimizer
 {
+    using Tensor = Optimizer::Tensor;
+
     float learning_rate;
 
     explicit SGDMinimal(float learnningRate = 0.01F) : learning_rate(learnningRate)
@@ -37,7 +39,7 @@ struct SGDMinimal : public Optimizer
         }
     }
 
-    auto step(std::span<nn::Tensor*> params) -> void override
+    auto step(std::span<Tensor*> params) -> void override
     {
         for (auto* param : params) [[likely]]
         {
@@ -46,7 +48,7 @@ struct SGDMinimal : public Optimizer
                 throw std::invalid_argument("Parameter pointer is null");
             }
             // Update: param = param - learning_rate * grad (uses backend operations)
-            nn::Tensor grad_copy = param->grad();
+            Tensor grad_copy = param->grad();
             auto update = grad_copy.multiply_scalar(learning_rate);
             *param = *param - update;
 
@@ -55,7 +57,7 @@ struct SGDMinimal : public Optimizer
         }
     }
 
-    auto zero_grad(std::span<nn::Tensor*> params) -> void override
+    auto zero_grad(std::span<Tensor*> params) -> void override
     {
         for (auto* param : params) [[likely]]
         {
@@ -66,7 +68,7 @@ struct SGDMinimal : public Optimizer
             param->zero_grad();
         }
     }
-    void attach(std::span<nn::Tensor*> params) override
+    void attach(std::span<Tensor*> params) override
     {
         // cppcheck-suppress useStlAlgorithm
         const bool has_null = std::any_of(

@@ -202,7 +202,7 @@ auto Conv2dImpl<Backend>::col2im_optimized(const typename Conv2dImpl<Backend>::T
         result.get_shape()[2] != static_cast<std::size_t>(input_height) ||
         result.get_shape()[3] != static_cast<std::size_t>(input_width))
     {
-        result = nn::Tensor(batch_size, in_channels_, input_height, input_width);
+        result = Tensor(batch_size, in_channels_, input_height, input_width);
         result.setZero();
     }
     else
@@ -346,7 +346,7 @@ auto Conv2dImpl<Backend>::reshape_output_optimized(
     int output_width) const -> typename Conv2dImpl<Backend>::Tensor
 {
     // Create output tensor with correct shape
-    nn::Tensor output(batch_size, out_channels_, output_height, output_width);
+    Tensor output(batch_size, out_channels_, output_height, output_width);
 
     const int patch_cols = output_height * output_width;
 

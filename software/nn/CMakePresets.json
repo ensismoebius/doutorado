@@ -42,6 +42,26 @@
             }
         },
         {
+            "name": "max-performance-opencl",
+            "displayName": "Max Performance (OpenCL backend)",
+            "description": "Configure max-performance build with OpenCL as nn::Backend.",
+            "inherits": "max-performance",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "NN_BACKEND": "OpenCL"
+            }
+        },
+        {
+            "name": "max-performance-device",
+            "displayName": "Max Performance (Device backend)",
+            "description": "Configure max-performance build with DeviceTensorBackend as nn::Backend.",
+            "inherits": "max-performance",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "NN_BACKEND": "Device"
+            }
+        },
+        {
             "name": "pgo-generate",
             "displayName": "PGO - Generate Profile",
             "description": "Configure an instrumented build to generate PGO data (profile).",
@@ -79,6 +99,16 @@
             "name": "max-performance",
             "displayName": "Build (max-performance)",
             "configurePreset": "max-performance"
+        },
+        {
+            "name": "max-performance-opencl",
+            "displayName": "Build (max-performance-opencl)",
+            "configurePreset": "max-performance-opencl"
+        },
+        {
+            "name": "max-performance-device",
+            "displayName": "Build (max-performance-device)",
+            "configurePreset": "max-performance-device"
         },
         {
             "name": "pgo-generate",

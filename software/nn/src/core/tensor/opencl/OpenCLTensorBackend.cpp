@@ -728,6 +728,10 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
     return *this;
 }
 
+OpenCLTensorBackend::OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept = default;
+
+OpenCLTensorBackend& OpenCLTensorBackend::operator=(OpenCLTensorBackend&& other) noexcept = default;
+
 OpenCLTensorBackend::~OpenCLTensorBackend() = default;
 
 OpenCLTensorBackend::RuntimeScope::~RuntimeScope()
@@ -850,6 +854,19 @@ const float& OpenCLTensorBackend::at(Index row, Index col) const
     return m_backend->at(row, col);
 }
 
+float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3)
+{
+    sync_gpu();
+    m_needs_sync_to_device = true;
+    return m_backend->at(d1, d2, d3);
+}
+
+const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3) const
+{
+    sync_gpu();
+    return m_backend->at(d1, d2, d3);
+}
+
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
 {
     sync_gpu();
@@ -874,6 +891,19 @@ const float& OpenCLTensorBackend::at(const std::vector<Index>& indices) const
 {
     sync_gpu();
     return m_backend->at(indices);
+}
+
+float* OpenCLTensorBackend::mutable_data_ptr()
+{
+    sync_gpu();
+    m_needs_sync_to_device = true;
+    return m_backend->mutable_data_ptr();
+}
+
+const float* OpenCLTensorBackend::data_ptr() const
+{
+    sync_gpu();
+    return m_backend->data_ptr();
 }
 
 // In-place operations
@@ -1999,6 +2029,52 @@ void OpenCLTensorBackend::sqrt_inplace()
         }
     }
     throw_opencl_only_failure("sqrt_inplace", "OpenCL runtime unavailable");
+}
+
+void OpenCLTensorBackend::fill(float value)
+{
+    sync_gpu();
+    m_backend->fill(value);
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
+}
+
+void OpenCLTensorBackend::set_zero()
+{
+    fill(0.0F);
+}
+
+void OpenCLTensorBackend::set_ones()
+{
+    fill(1.0F);
+}
+
+void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& row)
+{
+    sync_gpu();
+    row.sync_gpu();
+    if (shape().size() != 2 || row.shape().size() != 2 || row.rows() != 1 || row.cols() != cols())
+    {
+        throw std::invalid_argument("add_row_broadcast_inplace requires lhs=(N,M) and row=(1,M)");
+    }
+
+    for (Index i = 0; i < rows(); ++i)
+    {
+        for (Index j = 0; j < cols(); ++j)
+        {
+            m_backend->at(i, j) += row.m_backend->at(0, j);
+        }
+    }
+
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::add_row_broadcast(const OpenCLTensorBackend& row) const
+{
+    OpenCLTensorBackend out(*this);
+    out.add_row_broadcast_inplace(row);
+    return out;
 }
 
 void OpenCLTensorBackend::square_inplace()
@@ -3866,6 +3942,11 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
         "rowwise_sum", "OpenCL runtime unavailable or tensor rank is invalid");
 }
 
+OpenCLTensorBackend OpenCLTensorBackend::sum_rows() const
+{
+    return rowwise_sum();
+}
+
 // Linear algebra
 OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other) const
 {
@@ -4841,6 +4922,32 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
     }
 
     throw_opencl_only_failure("transpose", "OpenCL runtime unavailable or tensor rank is invalid");
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::block(
+    Index row, Index col, Index rows_n, Index cols_n) const
+{
+    sync_gpu();
+    if (shape().size() != 2)
+    {
+        throw std::invalid_argument("block is only valid for rank-2 tensors");
+    }
+    if (row + rows_n > rows() || col + cols_n > cols())
+    {
+        throw std::out_of_range("block exceeds tensor bounds");
+    }
+
+    OpenCLTensorBackend out(rows_n, cols_n);
+    for (Index i = 0; i < rows_n; ++i)
+    {
+        for (Index j = 0; j < cols_n; ++j)
+        {
+            out.m_backend->at(i, j) = m_backend->at(row + i, col + j);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
 }
 
 // Comparisons

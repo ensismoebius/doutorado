@@ -75,7 +75,7 @@ class SimpleResNetImpl : public Module<Backend>
         return model_->backward(grad_output);
     }
 
-    auto params() -> std::span<nn::Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
         return model_->params();
     }

@@ -73,11 +73,11 @@ class OpenCLTensorBackend
 
     // Copy/Move construction
     OpenCLTensorBackend(const OpenCLTensorBackend& other);
-    OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept = default;
+    OpenCLTensorBackend(OpenCLTensorBackend&& other) noexcept;
 
     // Copy/Move assignment
     OpenCLTensorBackend& operator=(const OpenCLTensorBackend& other);
-    OpenCLTensorBackend& operator=(OpenCLTensorBackend&& other) noexcept = default;
+    OpenCLTensorBackend& operator=(OpenCLTensorBackend&& other) noexcept;
 
     ~OpenCLTensorBackend();
 
@@ -104,10 +104,15 @@ class OpenCLTensorBackend
     const float& at(Index i) const;
     float& at(Index row, Index col);
     const float& at(Index row, Index col) const;
+    float& at(Index d1, Index d2, Index d3);
+    const float& at(Index d1, Index d2, Index d3) const;
     float& at(Index d1, Index d2, Index d3, Index d4);
     const float& at(Index d1, Index d2, Index d3, Index d4) const;
     float& at(const std::vector<Index>& indices);
     const float& at(const std::vector<Index>& indices) const;
+
+    float* mutable_data_ptr();
+    const float* data_ptr() const;
 
     // -----------------------------------------------------------------
     // In-place Operations
@@ -119,8 +124,12 @@ class OpenCLTensorBackend
     void add_scalar_inplace(float val);
     void multiply_scalar_inplace(float val);
     void divide_scalar_inplace(float val);
+    void set_zero();
+    void set_ones();
+    void fill(float value);
     void sqrt_inplace();
     void square_inplace();
+    void add_row_broadcast_inplace(const OpenCLTensorBackend& row);
     void add_col_vector_to_rows_inplace(const OpenCLTensorBackend& col_vector);
 
     // -----------------------------------------------------------------
@@ -138,11 +147,13 @@ class OpenCLTensorBackend
     OpenCLTensorBackend add_scalar(float val) const;
     OpenCLTensorBackend multiply_scalar(float val) const;
     OpenCLTensorBackend divide_scalar(float val) const;
+    OpenCLTensorBackend add_row_broadcast(const OpenCLTensorBackend& row) const;
 
     // -----------------------------------------------------------------
     // Reduction Operations
     // -----------------------------------------------------------------
     OpenCLTensorBackend rowwise_sum() const;
+    OpenCLTensorBackend sum_rows() const;
 
     // -----------------------------------------------------------------
     // Linear Algebra
@@ -153,6 +164,7 @@ class OpenCLTensorBackend
     OpenCLTensorBackend matmul_transposed_add_col_bias(
         const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
     OpenCLTensorBackend transpose() const;
+    OpenCLTensorBackend block(Index row, Index col, Index rows, Index cols) const;
 
     // -----------------------------------------------------------------
     // Comparisons
@@ -191,6 +203,11 @@ class OpenCLTensorBackend
      * @brief Get const reference to gradient (throws if not allocated).
      */
     auto get_grad() const -> const OpenCLTensorBackend&;
+
+    /**
+     * @brief Replace stored gradient backend with a copy of the provided tensor.
+     */
+    void set_grad(const OpenCLTensorBackend& grad);
 
     /**
      * @brief Zero out all accumulated gradients.

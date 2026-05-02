@@ -50,11 +50,11 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
     Tensor x_norm_cache_;
     Tensor input_cache_;
 
-    std::array<nn::Tensor*, 2> param_ptrs_{{&gamma, &beta}};
+    std::array<Tensor*, 2> param_ptrs_{{&gamma, &beta}};
 
-    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
     explicit ThresholdDependentBatchNormImpl(
@@ -203,15 +203,15 @@ class ThresholdDependentBatchNormImpl : public Module<Backend>
         return grad_input;
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        std::map<std::string, nn::Tensor> d;
+        std::map<std::string, Tensor> d;
         d["gamma"] = gamma;
         d["beta"] = beta;
         return d;
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         auto it = sd.find("gamma");
         if (it != sd.end()) gamma = it->second;

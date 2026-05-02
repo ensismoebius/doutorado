@@ -24,13 +24,10 @@ Conv2dImpl<Backend>::Conv2dImpl(
 }
 
 template <typename Backend>
-Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
-    int out_channels,
-    int kernel_size,
-    int stride,
-    int padding,
-    int dilation)
-    : Conv2dImpl<Backend>(in_channels, out_channels, kernel_size, stride, padding, dilation, true, 64)
+Conv2dImpl<Backend>::Conv2dImpl(
+    int in_channels, int out_channels, int kernel_size, int stride, int padding, int dilation)
+    : Conv2dImpl<Backend>(
+          in_channels, out_channels, kernel_size, stride, padding, dilation, true, 64)
 {
 }
 
@@ -51,14 +48,13 @@ Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
       dilation_(dilation),
       max_batch_size_(max_batch_size),
       use_parallel_(use_parallel),
-      weights_(
-          nn::Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
-      bias_(nn::Tensor(1, out_channels)), // Bias should be 1 x out_channels
-      im2col_buffer_(std::make_unique<nn::Tensor>(in_channels * kernel_size * kernel_size,
+      weights_(Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
+      bias_(Tensor(1, out_channels)), // Bias should be 1 x out_channels
+      im2col_buffer_(std::make_unique<Tensor>(in_channels * kernel_size * kernel_size,
           max_batch_size * MAX_IMAGE_SIZE * MAX_IMAGE_SIZE)),
       col2im_buffer_(
-          std::make_unique<nn::Tensor>(max_batch_size, in_channels, COL2IM_SIZE, COL2IM_SIZE)),
-      grad_output_buffer_(std::make_unique<nn::Tensor>(max_batch_size,
+          std::make_unique<Tensor>(max_batch_size, in_channels, COL2IM_SIZE, COL2IM_SIZE)),
+      grad_output_buffer_(std::make_unique<Tensor>(max_batch_size,
           out_channels,
           DEFAULT_SIZE - kernel_size + 1,
           DEFAULT_SIZE - kernel_size + 1))
@@ -131,7 +127,7 @@ auto Conv2dImpl<Backend>::forward(const typename Conv2dImpl<Backend>::Tensor& in
                               im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols));
     if (need_resize) [[unlikely]]
     {
-        im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
+        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols);
     }
 
     auto& im2col_tensor = *im2col_buffer_;
@@ -147,15 +143,14 @@ auto Conv2dImpl<Backend>::forward(const typename Conv2dImpl<Backend>::Tensor& in
     // weights is (patch_rows x out_channels), im2col is (patch_rows x total_patch_cols)
     // We need weights^T * im2col = (out_channels x patch_rows) * (patch_rows x total_patch_cols)
     //                              = (out_channels x total_patch_cols)
-    nn::Tensor weights_transposed = weights_.transpose();
-    nn::Tensor output_2d = weights_transposed.matmul(im2col_active);
+    Tensor weights_transposed = weights_.transpose();
+    Tensor output_2d = weights_transposed.matmul(im2col_active);
 
     // 3. Add bias using optimized broadcasting
     add_bias_optimized(output_2d, bias_, total_patch_cols);
 
     // 4. Reshape output efficiently
-    nn::Tensor output =
-        reshape_output_optimized(output_2d, batch_size, output_height, output_width);
+    Tensor output = reshape_output_optimized(output_2d, batch_size, output_height, output_width);
 
     return output;
 }
@@ -178,7 +173,7 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
 
     // Reshape grad_output to 2D (C, B*H*W)
     // We need to manually copy because grad_output is (B, C, H, W)
-    nn::Tensor grad_output_2d(out_channels_, total_patch_cols);
+    Tensor grad_output_2d(out_channels_, total_patch_cols);
 
     if (use_parallel_)
     {
@@ -222,11 +217,10 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
 
     // 3. Get im2col of cached input
 
-    if (!im2col_buffer_ ||
-        im2col_buffer_->rows() < static_cast<nn::Index>(patch_rows) ||
+    if (!im2col_buffer_ || im2col_buffer_->rows() < static_cast<nn::Index>(patch_rows) ||
         im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols))
     {
-        im2col_buffer_ = std::make_unique<nn::Tensor>(patch_rows, total_patch_cols);
+        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols);
     }
     auto& im2col_buffer = *im2col_buffer_;
 
@@ -244,15 +238,15 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
     // 3. Compute weights gradient: dW = im2col_input * dY^T
     // im2col_buffer is (patch_rows, total_patch_cols), grad_output is (out_channels,
     // total_patch_cols)
-    nn::Tensor grad_output_transposed = grad_output_2d.transpose();
+    Tensor grad_output_transposed = grad_output_2d.transpose();
     weights_.set_grad(im2col_active.matmul(grad_output_transposed));
 
     // 4. Compute input gradient: dX_col = W * dY
     // weights_ is (patch_rows, out_channels), grad_output is (out_channels, total_patch_cols)
-    nn::Tensor d_input_col = weights_.matmul(grad_output_2d);
+    Tensor d_input_col = weights_.matmul(grad_output_2d);
 
     // 5. Convert col2im (input gradient)
-    nn::Tensor grad_input = col2im_optimized(
+    Tensor grad_input = col2im_optimized(
         d_input_col, batch_size, input_height, input_width, output_height, output_width);
 
     return grad_input;
