@@ -148,9 +148,10 @@ class OpenCLTensorBackend
     // Linear Algebra
     // -----------------------------------------------------------------
     OpenCLTensorBackend matmul(const OpenCLTensorBackend& other) const;
+    OpenCLTensorBackend matmul_lhs_transposed(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend matmul_transposed(const OpenCLTensorBackend& other) const;
-    OpenCLTensorBackend matmul_transposed_add_col_bias(const OpenCLTensorBackend& other,
-        const OpenCLTensorBackend& bias) const;
+    OpenCLTensorBackend matmul_transposed_add_col_bias(
+        const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
     OpenCLTensorBackend transpose() const;
 
     // -----------------------------------------------------------------
@@ -312,10 +313,24 @@ class OpenCLTensorBackend
         return m_needs_sync_to_host;
     }
 
+    // Lazy sync: check if host data needs to be copied to GPU before GPU execution
+    bool needs_sync_to_device() const
+    {
+        return m_needs_sync_to_device;
+    }
+
     // Mark that GPU data has been modified and needs sync before CPU access
     void mark_dirty()
     {
         m_needs_sync_to_host = true;
+        m_needs_sync_to_device = false;
+    }
+
+    // Mark that host data has been modified and needs sync before GPU access
+    void mark_host_dirty()
+    {
+        m_needs_sync_to_device = true;
+        m_needs_sync_to_host = false;
     }
 
     // Pipeline mode: queue multiple kernels before syncing
@@ -336,6 +351,7 @@ class OpenCLTensorBackend
     bool m_gpu_resident = false;
     bool m_pipeline_mode = false;
     mutable bool m_needs_sync_to_host = false;
+    mutable bool m_needs_sync_to_device = true;
     mutable cl_event m_pending_events[max_pending_events];
     mutable size_t m_pending_events_count = 0;
 };

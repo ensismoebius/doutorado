@@ -72,6 +72,56 @@ __kernel void matmul_rhs_transposed_kernel(
     C[row + col * M] = sum;
 }
 
+__kernel void matmul_lhs_transposed_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0); // output row in [0, K)
+    const uint col = get_global_id(1); // output col in [0, N)
+    const uint lx = get_local_id(0);
+    const uint ly = get_local_id(1);
+
+    const uint TILE = 16;
+    __local float a_tile[16][16];
+    __local float b_tile[16][16];
+
+    float sum = 0.0f;
+    for (uint t = 0; t < M; t += TILE) {
+        const uint a_i = t + ly;
+        const uint b_i = t + lx;
+
+        // A is (M x K) in column-major: A(i,row) -> i + row*M
+        if (row < K && a_i < M) {
+            a_tile[ly][lx] = A[a_i + row * M];
+        } else {
+            a_tile[ly][lx] = 0.0f;
+        }
+
+        // B is (M x N) in column-major: B(i,col) -> i + col*M
+        if (col < N && b_i < M) {
+            b_tile[lx][ly] = B[b_i + col * M];
+        } else {
+            b_tile[lx][ly] = 0.0f;
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        for (uint j = 0; j < TILE; ++j) {
+            sum += a_tile[j][lx] * b_tile[j][ly];
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (row < K && col < N) {
+        C[row + col * K] = sum;
+    }
+}
+
 __kernel void matmul_rhs_transposed_bias_kernel(
     __global const float* A,
     __global const float* B,

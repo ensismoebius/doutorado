@@ -392,6 +392,35 @@ TEST(OpenCLTensorBackendTest, MatmulTransposed)
     EXPECT_NEAR(c.at(1, 1), 5.0f, 1e-4f);
 }
 
+TEST(OpenCLTensorBackendTest, MatmulLhsTransposed)
+{
+    // a (3x2), b (3x2) -> a^T (2x3) * b (3x2) = (2x2)
+    nn::OpenCLTensorBackend a(3, 2);
+    nn::OpenCLTensorBackend b(3, 2);
+
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(1, 0) = 3.0f;
+    a.at(1, 1) = 4.0f;
+    a.at(2, 0) = 5.0f;
+    a.at(2, 1) = 6.0f;
+
+    b.at(0, 0) = 1.0f;
+    b.at(0, 1) = 0.0f;
+    b.at(1, 0) = 0.0f;
+    b.at(1, 1) = 1.0f;
+    b.at(2, 0) = 1.0f;
+    b.at(2, 1) = 1.0f;
+
+    auto c = a.matmul_lhs_transposed(b);
+    EXPECT_EQ(c.rows(), 2);
+    EXPECT_EQ(c.cols(), 2);
+    EXPECT_NEAR(c.at(0, 0), 6.0f, 1e-4f);
+    EXPECT_NEAR(c.at(0, 1), 8.0f, 1e-4f);
+    EXPECT_NEAR(c.at(1, 0), 8.0f, 1e-4f);
+    EXPECT_NEAR(c.at(1, 1), 10.0f, 1e-4f);
+}
+
 TEST(OpenCLTensorBackendTest, AddColVectorToRowsInplace)
 {
     nn::OpenCLTensorBackend a(3, 2);

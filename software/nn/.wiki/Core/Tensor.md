@@ -121,6 +121,27 @@ nn::Tensor grad = model_param.grad();
 optimizer.step(model_param.params());
 ```
 
+## Recent OpenCL Optimization (2026-05-02)
+
+The OpenCL backend now includes a tuned tiled kernel for direct
+$A^T \cdot B$ (`matmul_lhs_transposed_kernel`) and uses this path in the
+Linear-layer backward weight-gradient hot path (`dL/dW`).
+
+Implementation points:
+- Kernel source: `src/core/tensor/opencl/KernelManager.cpp`
+- Backend API: `OpenCLTensorBackend::matmul_lhs_transposed(...)` in
+    `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
+- Linear backward integration: `include/nn/layers/dense/Linear.hpp`
+
+Measured evidence (20-iteration samples on rusticl + AMD Radeon Graphics):
+- `opencl,grad_weight_matmul_512x1024x256`: 5.662 and 5.858 ms/iter
+- `opencl,grad_weight_matmul_via_transpose_probe_512x1024x256`:
+    10.653 and 10.290 ms/iter
+- Observed speedup for grad-weight path: about $1.76\times$ to $1.88\times$
+
+Detailed benchmark log:
+- [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../../results/opencl_lhs_transposed_benchmark_2026-05-02.md)
+
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$

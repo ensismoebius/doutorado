@@ -88,6 +88,13 @@ The `nn` library is organized into several key components:
 4. **Multimodal Learning**: Combined EEG and audio processing pipeline
 5. **Experiment Tracking**: JSON-based results logging with metrics
 
+## Recent Highlights
+
+- OpenCL tensor backend gained a tuned lhs-transposed matmul path used by
+    Linear backward `dL/dW` on GPU.
+- See details in [Core/Tensor](./Core/Tensor.md) and benchmark evidence in
+    [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../results/opencl_lhs_transposed_benchmark_2026-05-02.md).
+
 ## Requirements
 
 - C++20 compatible compiler

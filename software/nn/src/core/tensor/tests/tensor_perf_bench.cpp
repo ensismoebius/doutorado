@@ -128,10 +128,22 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
         iterations,
         [&]()
         {
-            auto output = input.matmul_transposed(weight);
-            output.add_col_vector_to_rows_inplace(bias);
-            volatile float sink = output.at(0, 0);
-            (void) sink;
+            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            {
+                input.set_gpu_resident(true);
+                weight.set_gpu_resident(true);
+                bias.set_gpu_resident(true);
+                auto output = input.matmul_transposed_add_col_bias(weight, bias);
+                volatile float sink = output.at(0, 0);
+                (void) sink;
+            }
+            else
+            {
+                auto output = input.matmul_transposed(weight);
+                output.add_col_vector_to_rows_inplace(bias);
+                volatile float sink = output.at(0, 0);
+                (void) sink;
+            }
         }));
 
     results.push_back(measure(backend_name,
@@ -143,10 +155,86 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
         [&]()
         {
             auto grad_t = grad_output.transpose();
-            auto grad_weight = grad_t.matmul(input);
+            auto grad_weight = [&]()
+            {
+                if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+                {
+                    grad_output.set_gpu_resident(true);
+                    input.set_gpu_resident(true);
+                    return grad_output.matmul_lhs_transposed(input);
+                }
+                return grad_t.matmul(input);
+            }();
             auto grad_bias = grad_t.rowwise_sum();
             auto grad_input = grad_output.matmul(weight);
             volatile float sink = grad_weight.at(0, 0) + grad_bias.at(0, 0) + grad_input.at(0, 0);
+            (void) sink;
+        }));
+
+    results.push_back(measure(backend_name,
+        "transpose_1024x512",
+        1024,
+        512,
+        0,
+        iterations,
+        [&]()
+        {
+            auto grad_t = grad_output.transpose();
+            volatile float sink = grad_t.at(0, 0);
+            (void) sink;
+        }));
+
+    results.push_back(measure(backend_name,
+        "grad_weight_matmul_512x1024x256",
+        512,
+        1024,
+        256,
+        iterations,
+        [&]()
+        {
+            auto grad_t = grad_output.transpose();
+            auto grad_weight = [&]()
+            {
+                if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+                {
+                    grad_output.set_gpu_resident(true);
+                    input.set_gpu_resident(true);
+                    return grad_output.matmul_lhs_transposed(input);
+                }
+                return grad_t.matmul(input);
+            }();
+            volatile float sink = grad_weight.at(0, 0);
+            (void) sink;
+        }));
+
+    if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+    {
+        results.push_back(measure(backend_name,
+            "grad_weight_matmul_via_transpose_probe_512x1024x256",
+            1024,
+            512,
+            256,
+            iterations,
+            [&]()
+            {
+                auto grad_t = grad_output.transpose();
+                auto grad_weight = grad_t.matmul(input);
+                volatile float sink = grad_weight.at(0, 0);
+                (void) sink;
+            }));
+    }
+
+    results.push_back(measure(backend_name,
+        "rowwise_sum_512x1024",
+        512,
+        1024,
+        0,
+        iterations,
+        [&]()
+        {
+            auto grad_t = grad_output.transpose();
+            auto grad_bias = grad_t.rowwise_sum();
+            volatile float sink = grad_bias.at(0, 0);
             (void) sink;
         }));
 

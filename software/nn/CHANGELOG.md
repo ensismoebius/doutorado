@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased (2026-05-02)
+
+### Changed
+
+- OpenCL linear algebra: added a tiled local-memory kernel for direct
+  `A^T * B` computation (`matmul_lhs_transposed_kernel`) and integrated it
+  through `OpenCLTensorBackend::matmul_lhs_transposed(...)`.
+- Linear backward (`dL/dW`) on OpenCL now uses the tuned lhs-transposed
+  primitive instead of materializing transpose + matmul in the hot path.
+- Benchmark coverage was extended to include explicit comparison between
+  the new lhs-transposed path and the prior transpose-based route.
+
+### Validation
+
+- Added/updated targeted correctness coverage for lhs-transposed matmul in
+  OpenCL backend tests.
+- Long-run benchmark samples (`NN_TENSOR_BENCH_ITERS=20`) showed stable
+  speedup for grad-weight computation on the active AMD rusticl stack:
+  roughly 1.76x to 1.83x faster than the transpose-based probe.
+
 ## Unreleased (2026-03-17)
 
 - Refactor: Move experiment pipeline into `LstmAutoencoderExperiment` class

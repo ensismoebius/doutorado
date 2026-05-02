@@ -113,14 +113,7 @@ struct LinearImpl : public Module<Backend>
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
-        if (requires_grad)
-        {
-            input_cache = nn::Tensor(input);
-            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-            {
-                input_cache_backend.reset();
-            }
-        }
+        if (requires_grad) input_cache = nn::Tensor(input);
 
         // Handle N-D inputs by flattening leading dimensions into a single batch dimension.
         // Input: (d0, d1, ..., in_features) -> Reshape: (B_eff, in_features)
@@ -153,23 +146,22 @@ struct LinearImpl : public Module<Backend>
             result_flat = Tensor(input_flat.get_backend().matmul_transposed(weight.get_backend()));
             result_flat.get_backend().add_col_vector_to_rows_inplace(bias.get_backend());
         }
+        else if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            Tensor weight_t(weight);
+            Tensor bias_t(bias);
+            input_flat.get_backend().set_gpu_resident(true);
+            weight_t.get_backend().set_gpu_resident(true);
+            bias_t.get_backend().set_gpu_resident(true);
+            result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
+                weight_t.get_backend(), bias_t.get_backend()));
+        }
         else
         {
             Tensor weight_t(weight);
             Tensor bias_t(bias);
-            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-            {
-                input_flat.get_backend().set_gpu_resident(true);
-                weight_t.get_backend().set_gpu_resident(true);
-                bias_t.get_backend().set_gpu_resident(true);
-                result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
-                    weight_t.get_backend(), bias_t.get_backend()));
-            }
-            else
-            {
-                result_flat = input_flat.matmul_transposed(weight_t);
-                result_flat.add_col_vector_to_rows_inplace(bias_t);
-            }
+            result_flat = input_flat.matmul_transposed(weight_t);
+            result_flat.add_col_vector_to_rows_inplace(bias_t);
         }
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)
@@ -260,20 +252,21 @@ struct LinearImpl : public Module<Backend>
             input_t.reshape(flat_input_shape);
         }
 
+        Tensor grad_weight;
+        Tensor grad_t = grad_flat.transpose();
         if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
         {
             grad_flat.get_backend().set_gpu_resident(true);
             input_t.get_backend().set_gpu_resident(true);
-        }
-
-        Tensor grad_t = grad_flat.transpose();
-        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-        {
+            grad_weight =
+                Tensor(grad_flat.get_backend().matmul_lhs_transposed(input_t.get_backend()));
             grad_t.get_backend().set_gpu_resident(true);
         }
-
-        // dL/dW = (dL/dY)^T · X
-        Tensor grad_weight = grad_t.matmul(input_t);
+        else
+        {
+            // dL/dW = (dL/dY)^T · X
+            grad_weight = grad_t.matmul(input_t);
+        }
         weight.set_grad(nn::Tensor(grad_weight));
 
         // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
@@ -286,14 +279,15 @@ struct LinearImpl : public Module<Backend>
         {
             grad_input_flat = Tensor(grad_flat.get_backend().matmul(weight.get_backend()));
         }
-        else
+        else if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
         {
             Tensor weight_t(weight);
-            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-            {
-                weight_t.get_backend().set_gpu_resident(true);
-            }
+            weight_t.get_backend().set_gpu_resident(true);
             grad_input_flat = grad_flat.matmul(weight_t);
+        }
+        else
+        {
+            grad_input_flat = grad_flat.matmul(Tensor(weight));
         }
 
         // Restore original leading dimensions for the input gradient

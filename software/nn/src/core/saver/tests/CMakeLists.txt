@@ -11,6 +11,7 @@
 add_executable(core_gtest
     NetworkSerializer_gtest.cpp
     StateIO_gtest.cpp
+    state_io_gtest.cpp
 )
 
 target_link_libraries(core_gtest

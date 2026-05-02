@@ -1,8 +1,7 @@
 /**
- * @file src/core/dataLoaders/tests/state_io_gtest.cpp
- * @brief Implementation for State io gtest.
+ * @file src/core/saver/tests/state_io_gtest.cpp
+ * @brief Unit tests for nn::io::StateIO round-trip serialization.
  *
-
  */
 
 #include <gtest/gtest.h>

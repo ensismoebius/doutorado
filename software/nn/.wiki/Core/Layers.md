@@ -70,6 +70,14 @@ class Linear : public Module<Backend>
 };
 ```
 
+Backward-path note (OpenCL):
+- For OpenCL backend, `dL/dW` uses direct lhs-transposed matmul
+    (`matmul_lhs_transposed`) instead of explicit `transpose(dL/dY)` followed by
+    regular matmul.
+- This reduces backward hot-path cost for dense layers and is validated by
+    OpenCL backend tests plus benchmark probe rows in
+    `src/core/tensor/tests/tensor_perf_bench.cpp`.
+
 ### Spiking Neuron (Leaky Integrate-and-Fire)
 
 `LeakyImpl` keeps persistent membrane state across sequential `forward()` calls.
