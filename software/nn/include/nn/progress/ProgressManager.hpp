@@ -41,6 +41,7 @@ public:
 
     uint32_t create_bar(const std::string& label, float target);
     void update_bar(uint32_t id, float value, const std::map<std::string, float>& metrics = {});
+    void set_target(uint32_t id, float target);
     void complete_bar(uint32_t id);
     void remove_bar(uint32_t id);
     void shutdown();

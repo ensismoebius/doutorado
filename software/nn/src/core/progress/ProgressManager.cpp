@@ -54,6 +54,19 @@ void ProgressManager::update_bar(uint32_t id, float value, const std::map<std::s
     }
 }
 
+void ProgressManager::set_target(uint32_t id, float target)
+{
+    std::lock_guard<std::mutex> lock(manager_mutex_);
+    for (auto& entry : entries_)
+    {
+        if (entry->id == id)
+        {
+            entry->target_value = std::max(target, 1.0f);
+            return;
+        }
+    }
+}
+
 void ProgressManager::complete_bar(uint32_t id)
 {
     std::lock_guard<std::mutex> lock(manager_mutex_);

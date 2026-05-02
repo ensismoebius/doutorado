@@ -9,6 +9,7 @@
 #include "../include/ComparativeOutput.hpp"
 #include "../include/ComparativeTraining.hpp"
 #include "../include/Experiment04Cli.hpp"
+#include "nn/progress/ProgressManager.hpp"
 #include "nn/utility/progress.hpp"
 
 // Helper to extract sizes from layer specs
@@ -26,7 +27,13 @@ auto extract_layer_sizes(const std::vector<std::string>& specs)
         }
         if (parts.size() >= 2 && parts[0] == "linear")
         {
-            try { sizes.push_back(std::stoi(parts[1])); } catch (...) {}
+            try
+            {
+                sizes.push_back(std::stoi(parts[1]));
+            }
+            catch (...)
+            {
+            }
         }
     }
     return sizes;
@@ -70,8 +77,15 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
             for (const auto& encoding : config.evaluation.encodings)
             {
+                // Run bar: tracks repeat progress for this (dataset, encoding) pair.
+                const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
+                    dataset_name + "/" + encoding + " run",
+                    static_cast<float>(config.experiment.repeats));
+
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
+                    nn::progress::ProgressManager::instance().update_bar(
+                        run_bar, static_cast<float>(run_id));
                     const std::uint32_t run_seed =
                         config.experiment.seed_deterministic
                             ? config.experiment.seed
@@ -87,18 +101,18 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         Adam lstm_opt(config.training.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
-                        RunMetrics metrics = train_with_early_stopping_lstm( //
-                            lstm_model,                                      //
-                            lstm_opt,                                        //
-                            config,                                          //
-                            split.train_samples,                             //
-                            split.val_samples,                               //
-                            encoding,                                        //
-                            run_seed,                                        //
-                            static_cast<std::size_t>(run_id),                //
-                            static_cast<std::size_t>(config.experiment.repeats),        //
-                            train_ms,                                        //
-                            infer_ms                                         //
+                        RunMetrics metrics = train_with_early_stopping_lstm(     //
+                            lstm_model,                                          //
+                            lstm_opt,                                            //
+                            config,                                              //
+                            split.train_samples,                                 //
+                            split.val_samples,                                   //
+                            encoding,                                            //
+                            run_seed,                                            //
+                            static_cast<std::size_t>(run_id),                    //
+                            static_cast<std::size_t>(config.experiment.repeats), //
+                            train_ms,                                            //
+                            infer_ms                                             //
                         );
                         metrics.train_ms = train_ms;
 
@@ -136,8 +150,13 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 snn_config.initializer_seed = run_seed;
                                 snn_config.initializer_sampler_type =
                                     "comparative|" + dataset_name + "|" + encoding + "|" +
-                                     architecture + "|" + std::to_string(extract_layer_sizes(config.model.encoder_layer_spec).empty() ? 0 : extract_layer_sizes(config.model.encoder_layer_spec).front()) + "|" +
-                                    std::to_string(voltage_threshold) + "|" +
+                                    architecture + "|" +
+                                    std::to_string(
+                                        extract_layer_sizes(config.model.encoder_layer_spec).empty()
+                                            ? 0
+                                            : extract_layer_sizes(config.model.encoder_layer_spec)
+                                                  .front()) +
+                                    "|" + std::to_string(voltage_threshold) + "|" +
                                     std::to_string(alpha);
 
                                 Adam snn_optimizer(config.training.learning_rate);
@@ -145,44 +164,46 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 ProtocolSpikingAutoencoder snn_model(snn_config);
                                 snn_optimizer.attach(snn_model.params());
 
-                                RunMetrics metrics = train_with_early_stopping_snn( //
-                                    snn_model,                                      //
-                                    snn_optimizer,                                  //
-                                    config,                                         //
-                                    split.train_samples,                            //
-                                    split.val_samples,                              //
-                                    split.val_labels,                               //
-                                    encoding,                                       //
-                                    architecture,                                   //
-                                    alpha,                                          //
-                                    voltage_threshold,                              //
-                                    run_seed,                                       //
-                                    static_cast<std::size_t>(run_id),               //
-                                    static_cast<std::size_t>(config.experiment.repeats),       //
-                                    train_ms,                                       //
-                                    infer_ms                                        //
+                                RunMetrics metrics = train_with_early_stopping_snn(      //
+                                    snn_model,                                           //
+                                    snn_optimizer,                                       //
+                                    config,                                              //
+                                    split.train_samples,                                 //
+                                    split.val_samples,                                   //
+                                    split.val_labels,                                    //
+                                    encoding,                                            //
+                                    architecture,                                        //
+                                    alpha,                                               //
+                                    voltage_threshold,                                   //
+                                    run_seed,                                            //
+                                    static_cast<std::size_t>(run_id),                    //
+                                    static_cast<std::size_t>(config.experiment.repeats), //
+                                    train_ms,                                            //
+                                    infer_ms                                             //
                                 );
 
                                 metrics.train_ms = train_ms;
                                 all_rows.push_back( //
                                     ResultRow{
-                                        dataset_name,      //
-                                        "snn-ae",          //
-                                        encoding,          //
-                                        architecture,      //
-                                          static_cast<int>(config.model.encoder_layer_spec.size()),        //
-                                        voltage_threshold, //
-                                        alpha,             //
-                                        run_id + 1,        //
-                                        run_seed,          //
-                                        cfg_hash,          //
-                                        metrics            //
+                                        dataset_name,                                             //
+                                        "snn-ae",                                                 //
+                                        encoding,                                                 //
+                                        architecture,                                             //
+                                        static_cast<int>(config.model.encoder_layer_spec.size()), //
+                                        voltage_threshold,                                        //
+                                        alpha,                                                    //
+                                        run_id + 1,                                               //
+                                        run_seed,                                                 //
+                                        cfg_hash,                                                 //
+                                        metrics                                                   //
                                     } //
                                 );
                             }
                         }
                     }
                 }
+
+                nn::progress::ProgressManager::instance().complete_bar(run_bar);
             }
         }
 
@@ -200,7 +221,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             out_dir / (config.experiment.run_tag + "_publication_table.csv");
         write_publication_table(table_path, all_rows);
 
-        const std::filesystem::path summary_json = out_dir / (config.experiment.run_tag + "_summary.json");
+        const std::filesystem::path summary_json =
+            out_dir / (config.experiment.run_tag + "_summary.json");
         write_summary_json(summary_json, config, cfg_hash, all_rows);
 
         std::cout << "[comparative] Results written to:\n"
