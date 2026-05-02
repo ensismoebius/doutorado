@@ -146,8 +146,7 @@ auto benchmark_backend(const std::string& backend_name, int iterations) -> std::
             auto grad_weight = grad_t.matmul(input);
             auto grad_bias = grad_t.rowwise_sum();
             auto grad_input = grad_output.matmul(weight);
-            volatile float sink =
-                grad_weight.at(0, 0) + grad_bias.at(0, 0) + grad_input.at(0, 0);
+            volatile float sink = grad_weight.at(0, 0) + grad_bias.at(0, 0) + grad_input.at(0, 0);
             (void) sink;
         }));
 
