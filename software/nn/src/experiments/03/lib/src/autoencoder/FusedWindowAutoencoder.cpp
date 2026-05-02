@@ -92,7 +92,7 @@ FusedWindowAutoencoder::FusedWindowAutoencoder(const AutoencoderConfig& cfg)
     }
 }
 
-auto FusedWindowAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto FusedWindowAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     auto eeg = experiment03::autoencoders::slice_columns(input, 0, eeg_features_);
     auto audio = experiment03::autoencoders::slice_columns(input, eeg_features_, audio_features_);
@@ -103,7 +103,7 @@ auto FusedWindowAutoencoder::encode(const nn::Tensor& input, bool requires_grad)
     return fusion_encoder_.forward(fused, requires_grad);
 }
 
-auto FusedWindowAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -> nn::Tensor
+auto FusedWindowAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     auto fused = fusion_decoder_.forward(latent, requires_grad);
     const int branch_cols = fused.cols() / 2;
@@ -115,12 +115,12 @@ auto FusedWindowAutoencoder::decode(const nn::Tensor& latent, bool requires_grad
     return experiment03::autoencoders::concat_columns(eeg_reconstruction, audio_reconstruction);
 }
 
-auto FusedWindowAutoencoder::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto FusedWindowAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto FusedWindowAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto FusedWindowAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
     auto eeg_grad = experiment03::autoencoders::slice_columns(grad_output, 0, eeg_features_);
     auto audio_grad =
@@ -143,7 +143,7 @@ auto FusedWindowAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tens
     return experiment03::autoencoders::concat_columns(eeg_input_grad, audio_input_grad);
 }
 
-auto FusedWindowAutoencoder::params() -> std::span<nn::Tensor*>
+auto FusedWindowAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     auto a = eeg_encoder_.params();
@@ -158,5 +158,5 @@ auto FusedWindowAutoencoder::params() -> std::span<nn::Tensor*>
     param_ptrs_.insert(param_ptrs_.end(), e.begin(), e.end());
     auto f = audio_decoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), f.begin(), f.end());
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }

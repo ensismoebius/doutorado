@@ -11,7 +11,7 @@
  * - Gradients are backend-managed; see backend `grad_ref()` semantics.
  *
  * **Contract:**
- * - 2D mapping: rows/cols map to xtensor storage row/col (row-major logical).
+ * - 2D mapping: rows/cols map to backend storage row/col (row-major logical).
  * - 3D mapping: rows = d1; cols = d2; storage cols = d2 * d3.
  * - 4D mapping: rows = d1; cols = d2; storage cols = d2 * d3 * d4.
  * - Public APIs throw `std::invalid_argument` or `std::out_of_range` on misuse.
@@ -21,18 +21,12 @@
 #define TENSOR_HPP
 
 #include <algorithm>
+#include <concepts>
+#include <random>
 #include <span>
 #include <vector>
 
-// Forward declare Device to avoid circular include
-namespace nn
-{
-struct Device;
-class OpenCLTensorBackend;
-} // namespace nn
-
-// XTensorBackend.hpp must be available in include path.
-#include "nn/tensor/xtensor/XTensorBackend.hpp"
+#include "nn/Backend.hpp"
 
 // -----------------------------------------------------------------------------
 // Lightweight Tensor wrapper (Templated)
@@ -62,14 +56,56 @@ class OpenCLTensorBackend;
 namespace nn
 {
 
+template <typename Backend>
+concept TensorBackendParityContract = requires(Backend b,
+    const Backend cb,
+    const std::vector<Index>& shape,
+    std::span<const int> idx,
+    Index i,
+    Index j,
+    Index d1,
+    Index d2,
+    Index d3,
+    Index row,
+    Index col,
+    Index rows,
+    Index cols,
+    float scalar) {
+    { b.at(d1, d2, d3) } -> std::same_as<float&>;
+    { cb.at(d1, d2, d3) } -> std::same_as<const float&>;
+    { cb.row(i) } -> std::same_as<Backend>;
+    { cb.col(j) } -> std::same_as<Backend>;
+    { cb.leftCols(cols) } -> std::same_as<Backend>;
+    { cb.topRows(rows) } -> std::same_as<Backend>;
+    { cb.block(row, col, rows, cols) } -> std::same_as<Backend>;
+    { b.setBlock(row, col, cb) } -> std::same_as<void>;
+    { cb.slice(idx) } -> std::same_as<Backend>;
+    { cb.slice_batch(i) } -> std::same_as<Backend>;
+    { b.set_batch_slice(i, cb) } -> std::same_as<void>;
+    { cb.slice_time(i) } -> std::same_as<Backend>;
+    { b.set_time_slice(i, cb) } -> std::same_as<void>;
+    { cb.add_row_broadcast(cb) } -> std::same_as<Backend>;
+    { b.add_row_broadcast_inplace(cb) } -> std::same_as<void>;
+    { cb.sum_rows() } -> std::same_as<Backend>;
+    { b.fill(scalar) } -> std::same_as<void>;
+    { b.set_zero() } -> std::same_as<void>;
+    { b.set_ones() } -> std::same_as<void>;
+    { cb.data_ptr() } -> std::same_as<const float*>;
+    { b.mutable_data_ptr() } -> std::same_as<float*>;
+    { b.set_grad(cb) } -> std::same_as<void>;
+};
+
 // Forward declare for CommaInitializer
 template <typename Backend>
 class TensorImpl;
 
-template <typename Backend = XTensorBackend>
+template <typename Backend>
 class TensorImpl
 {
    public:
+    static_assert(TensorBackendParityContract<Backend>,
+        "Tensor backend missing mandatory parity methods. Implement full API parity in backend.");
+
     using index_type = size_t; // Alignment with std::size_t usually
 
     // Note on index types:
@@ -192,7 +228,9 @@ class TensorImpl
 
     auto reshape(const std::vector<Index>& new_shape) const -> TensorImpl
     {
-        return TensorImpl(backend_.reshape(new_shape));
+        TensorImpl out(*this);
+        out.reshape(new_shape);
+        return out;
     }
     [[nodiscard]] auto rows() const noexcept -> Index
     {
@@ -235,19 +273,11 @@ class TensorImpl
 
     auto at(Index d1, Index d2, Index d3) -> float&
     {
-        if constexpr (requires(Backend& b) { b.at(d1, d2, d3); })
-        {
-            return backend_.at(d1, d2, d3);
-        }
-        return backend_.at(std::vector<Index>{d1, d2, d3});
+        return backend_.at(d1, d2, d3);
     }
     [[nodiscard]] auto at(Index d1, Index d2, Index d3) const -> const float&
     {
-        if constexpr (requires(const Backend& b) { b.at(d1, d2, d3); })
-        {
-            return backend_.at(d1, d2, d3);
-        }
-        return backend_.at(std::vector<Index>{d1, d2, d3});
+        return backend_.at(d1, d2, d3);
     }
 
     auto at(Index d1, Index d2, Index d3, Index d4) -> float&
@@ -273,226 +303,58 @@ class TensorImpl
     // -----------------------------------------------------------------
     auto row(Index i) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.row(i); })
-        {
-            return TensorImpl(backend_.row(i));
-        }
-
-        TensorImpl out(1, cols());
-        for (Index c = 0; c < cols(); ++c)
-        {
-            out.at(0, c) = at(i, c);
-        }
-        return out;
+        return TensorImpl(backend_.row(i));
     }
     auto col(Index j) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.col(j); })
-        {
-            return TensorImpl(backend_.col(j));
-        }
-
-        TensorImpl out(rows(), 1);
-        for (Index r = 0; r < rows(); ++r)
-        {
-            out.at(r, 0) = at(r, j);
-        }
-        return out;
+        return TensorImpl(backend_.col(j));
     }
     auto leftCols(Index n) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.leftCols(n); })
-        {
-            return TensorImpl(backend_.leftCols(n));
-        }
-
-        if (n > cols()) throw std::out_of_range("leftCols exceeds tensor width");
-        TensorImpl out(rows(), n);
-        for (Index r = 0; r < rows(); ++r)
-        {
-            for (Index c = 0; c < n; ++c)
-            {
-                out.at(r, c) = at(r, c);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.leftCols(n));
     }
     auto topRows(Index n) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.topRows(n); })
-        {
-            return TensorImpl(backend_.topRows(n));
-        }
-
-        if (n > rows()) throw std::out_of_range("topRows exceeds tensor height");
-        TensorImpl out(n, cols());
-        for (Index r = 0; r < n; ++r)
-        {
-            for (Index c = 0; c < cols(); ++c)
-            {
-                out.at(r, c) = at(r, c);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.topRows(n));
     }
 
     auto block(Index row, Index col, Index rows, Index cols) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.block(row, col, rows, cols); })
-        {
-            return TensorImpl(backend_.block(row, col, rows, cols));
-        }
-
-        if (row + rows > this->rows() || col + cols > this->cols())
-            throw std::out_of_range("block exceeds tensor bounds");
-        TensorImpl out(rows, cols);
-        for (Index r = 0; r < rows; ++r)
-        {
-            for (Index c = 0; c < cols; ++c)
-            {
-                out.at(r, c) = at(row + r, col + c);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.block(row, col, rows, cols));
     }
 
     void setBlock(Index row, Index col, const TensorImpl& block)
     {
-        if constexpr (requires(Backend& b) { b.setBlock(row, col, block.backend_); })
-        {
-            backend_.setBlock(row, col, block.backend_);
-            return;
-        }
-
-        if (row + block.rows() > rows() || col + block.cols() > cols())
-            throw std::out_of_range("setBlock exceeds tensor bounds");
-        for (Index r = 0; r < block.rows(); ++r)
-        {
-            for (Index c = 0; c < block.cols(); ++c)
-            {
-                at(row + r, col + c) = block.at(r, c);
-            }
-        }
+        backend_.setBlock(row, col, block.backend_);
     }
 
     [[nodiscard]] auto slice(std::span<const int> indices) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.slice(indices); })
-        {
-            return TensorImpl(backend_.slice(indices));
-        }
-
-        if (get_shape().size() != 2)
-            throw std::invalid_argument("slice(span<int>) fallback requires rank-2 tensor");
-        TensorImpl out(indices.size(), cols());
-        for (Index i = 0; i < indices.size(); ++i)
-        {
-            const auto src_r = static_cast<Index>(indices[i]);
-            if (src_r >= rows()) throw std::out_of_range("slice index out of range");
-            for (Index c = 0; c < cols(); ++c)
-            {
-                out.at(i, c) = at(src_r, c);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.slice(indices));
     }
 
     // Extract 2D slice [b, :, :] from a 3D (B, T, D) tensor → (T, D).
     [[nodiscard]] auto slice_batch(Index b) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& be) { be.slice_batch(b); })
-        {
-            return TensorImpl(backend_.slice_batch(b));
-        }
-
-        const auto shape = get_shape();
-        if (shape.size() != 3)
-            throw std::invalid_argument("slice_batch fallback requires rank-3 tensor");
-        if (b >= shape[0]) throw std::out_of_range("slice_batch index out of range");
-
-        TensorImpl out(shape[1], shape[2]);
-        for (Index t = 0; t < shape[1]; ++t)
-        {
-            for (Index d = 0; d < shape[2]; ++d)
-            {
-                out.at(t, d) = at(b, t, d);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.slice_batch(b));
     }
 
     // Write 2D (T, D) tensor into [b, :, :] of a 3D (B, T, D) tensor.
     void set_batch_slice(Index b, const TensorImpl& val)
     {
-        if constexpr (requires(Backend& be) { be.set_batch_slice(b, val.backend_); })
-        {
-            backend_.set_batch_slice(b, val.backend_);
-            return;
-        }
-
-        const auto shape = get_shape();
-        if (shape.size() != 3)
-            throw std::invalid_argument("set_batch_slice fallback requires rank-3 tensor");
-        if (b >= shape[0]) throw std::out_of_range("set_batch_slice index out of range");
-        if (val.rows() != shape[1] || val.cols() != shape[2])
-            throw std::invalid_argument("set_batch_slice value shape mismatch");
-
-        for (Index t = 0; t < shape[1]; ++t)
-        {
-            for (Index d = 0; d < shape[2]; ++d)
-            {
-                at(b, t, d) = val.at(t, d);
-            }
-        }
+        backend_.set_batch_slice(b, val.backend_);
     }
 
     // Extract (B, D) slice at time t from a 3D (B, T, D) tensor.
     [[nodiscard]] auto slice_time(Index t) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& be) { be.slice_time(t); })
-        {
-            return TensorImpl(backend_.slice_time(t));
-        }
-
-        const auto shape = get_shape();
-        if (shape.size() != 3)
-            throw std::invalid_argument("slice_time fallback requires rank-3 tensor");
-        if (t >= shape[1]) throw std::out_of_range("slice_time index out of range");
-
-        TensorImpl out(shape[0], shape[2]);
-        for (Index b = 0; b < shape[0]; ++b)
-        {
-            for (Index d = 0; d < shape[2]; ++d)
-            {
-                out.at(b, d) = at(b, t, d);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.slice_time(t));
     }
 
     // Write (B, D) tensor into [:, t, :] of a 3D (B, T, D) tensor.
     void set_time_slice(Index t, const TensorImpl& val)
     {
-        if constexpr (requires(Backend& be) { be.set_time_slice(t, val.backend_); })
-        {
-            backend_.set_time_slice(t, val.backend_);
-            return;
-        }
-
-        const auto shape = get_shape();
-        if (shape.size() != 3)
-            throw std::invalid_argument("set_time_slice fallback requires rank-3 tensor");
-        if (t >= shape[1]) throw std::out_of_range("set_time_slice index out of range");
-        if (val.rows() != shape[0] || val.cols() != shape[2])
-            throw std::invalid_argument("set_time_slice value shape mismatch");
-
-        for (Index b = 0; b < shape[0]; ++b)
-        {
-            for (Index d = 0; d < shape[2]; ++d)
-            {
-                at(b, t, d) = val.at(b, d);
-            }
-        }
+        backend_.set_time_slice(t, val.backend_);
     }
 
     // -----------------------------------------------------------------
@@ -536,42 +398,11 @@ class TensorImpl
     }
     auto add_row_broadcast(const TensorImpl& row) const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.add_row_broadcast(row.backend_); })
-        {
-            return TensorImpl(backend_.add_row_broadcast(row.backend_));
-        }
-
-        if (row.rows() != 1 || row.cols() != cols())
-            throw std::invalid_argument("add_row_broadcast requires row shape (1, cols)");
-
-        TensorImpl out(rows(), cols());
-        for (Index r = 0; r < rows(); ++r)
-        {
-            for (Index c = 0; c < cols(); ++c)
-            {
-                out.at(r, c) = at(r, c) + row.at(0, c);
-            }
-        }
-        return out;
+        return TensorImpl(backend_.add_row_broadcast(row.backend_));
     }
     void add_row_broadcast_inplace(const TensorImpl& row)
     {
-        if constexpr (requires(Backend& b) { b.add_row_broadcast_inplace(row.backend_); })
-        {
-            backend_.add_row_broadcast_inplace(row.backend_);
-            return;
-        }
-
-        if (row.rows() != 1 || row.cols() != cols())
-            throw std::invalid_argument("add_row_broadcast_inplace requires row shape (1, cols)");
-
-        for (Index r = 0; r < rows(); ++r)
-        {
-            for (Index c = 0; c < cols(); ++c)
-            {
-                at(r, c) += row.at(0, c);
-            }
-        }
+        backend_.add_row_broadcast_inplace(row.backend_);
     }
     void subtract_inplace(const TensorImpl& other)
     {
@@ -659,26 +490,7 @@ class TensorImpl
 
     auto sum_rows() const -> TensorImpl
     {
-        if constexpr (requires(const Backend& b) { b.sum_rows(); })
-        {
-            return TensorImpl(backend_.sum_rows());
-        }
-        if constexpr (requires(const Backend& b) { b.rowwise_sum(); })
-        {
-            return TensorImpl(backend_.rowwise_sum());
-        }
-
-        TensorImpl out(rows(), 1);
-        for (Index r = 0; r < rows(); ++r)
-        {
-            float acc = 0.0f;
-            for (Index c = 0; c < cols(); ++c)
-            {
-                acc += at(r, c);
-            }
-            out.at(r, 0) = acc;
-        }
-        return out;
+        return TensorImpl(backend_.sum_rows());
     }
     auto sum_cols() const -> TensorImpl
     {
@@ -738,34 +550,15 @@ class TensorImpl
     // -----------------------------------------------------------------
     void fill(float value)
     {
-        if constexpr (requires(Backend& b) { b.fill(value); })
-        {
-            backend_.fill(value);
-            return;
-        }
-
-        for (Index i = 0; i < size(); ++i)
-        {
-            at(i) = value;
-        }
+        backend_.fill(value);
     }
     void set_zero()
     {
-        if constexpr (requires(Backend& b) { b.set_zero(); })
-        {
-            backend_.set_zero();
-            return;
-        }
-        fill(0.0f);
+        backend_.set_zero();
     }
     void set_ones()
     {
-        if constexpr (requires(Backend& b) { b.set_ones(); })
-        {
-            backend_.set_ones();
-            return;
-        }
-        fill(1.0f);
+        backend_.set_ones();
     }
     void setZero()
     {
@@ -793,8 +586,8 @@ class TensorImpl
     }
 
     // Raw data pointers:
-    // - These expose the backend's contiguous buffer (xtensor storage for the default backend).
-    // - The memory order is backend-defined (xtensor is row-major by default).
+    // - These expose the backend's contiguous buffer.
+    // - The memory order is backend-defined.
     //   When you treat it as a flat array (e.g., gradient clipping), you are operating in
     //   that underlying order.
 
@@ -841,14 +634,7 @@ class TensorImpl
 
     void set_grad(const TensorImpl& new_grad)
     {
-        if constexpr (requires(Backend& b) { b.set_grad(new_grad.backend_); })
-        {
-            backend_.set_grad(new_grad.backend_);
-        }
-        else
-        {
-            backend_.grad_ref() = new_grad.backend_;
-        }
+        backend_.set_grad(new_grad.backend_);
     }
 
     void zero_grad()
@@ -981,9 +767,8 @@ class TensorImpl
     Backend backend_;
 };
 
-// Default type alias
-using Tensor = TensorImpl<XTensorBackend>;
-using OpenCLTensor = TensorImpl<OpenCLTensorBackend>;
+// Active backend alias selected centrally in nn/Backend.hpp.
+using Tensor = TensorImpl<Backend>;
 
 // -----------------------------------------------------------------------------
 // CommaInitializer Implementation

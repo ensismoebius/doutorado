@@ -41,6 +41,8 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& la
     std::optional<unsigned int> seed = std::nullopt,
     const std::string& sampler_default_type = "") -> void
 {
+    using Tensor = typename LinearImpl<Backend>::Tensor;
+
     // Kaiming/He uniform limit: sqrt(6 / fan_in)
     float const limit = std::sqrt(6.0F / static_cast<float>(layer->in_features));
 
@@ -59,7 +61,7 @@ inline auto kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& la
         gen.seed(static_cast<unsigned int>(std::random_device{}()));
     }
 
-    layer->weight = nn::Tensor::rand(static_cast<nn::Index>(layer->out_features),
+    layer->weight = Tensor::rand(static_cast<nn::Index>(layer->out_features),
         static_cast<nn::Index>(layer->in_features),
         gen)
                         .multiply_scalar(2.0F * limit)

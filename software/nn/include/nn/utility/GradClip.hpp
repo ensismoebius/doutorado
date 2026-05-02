@@ -11,10 +11,11 @@ namespace nn::utils {
 // Global-norm gradient clipping (PyTorch-style).
 // Computes ||g|| over all parameters; if it exceeds max_norm, scales every
 // gradient tensor by max_norm/||g||. No-op when global norm <= max_norm.
-inline void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
+template <typename Tensor>
+inline void clip_grad_norm(std::span<Tensor*> params, float max_norm)
 {
     float total_sq = 0.0f;
-    for (nn::Tensor* p : params)
+    for (Tensor* p : params)
     {
         float n = p->grad().norm();
         total_sq += n * n;
@@ -23,9 +24,9 @@ inline void clip_grad_norm(std::span<nn::Tensor*> params, float max_norm)
     if (global_norm > max_norm && global_norm > 0.0f)
     {
         const float scale = max_norm / global_norm;
-        for (nn::Tensor* p : params)
+        for (Tensor* p : params)
         {
-            nn::Tensor g = p->grad();
+            Tensor g = p->grad();
             g.multiply_scalar_inplace(scale);
             p->set_grad(g);
         }

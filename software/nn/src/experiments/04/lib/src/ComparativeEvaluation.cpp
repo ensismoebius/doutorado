@@ -9,6 +9,9 @@
 namespace comparative_autoencoder_experiment
 {
 
+using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
+using SnnTensor = ProtocolSpikingAutoencoder::Tensor;
+
 auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const std::vector<Tensor>& val_samples,
     const std::vector<int>& val_labels,
@@ -37,7 +40,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
         const Tensor encoded =
             encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
         model.reset_state();
-        const Tensor recon = model.forward(encoded, false);
+        const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
 
         mse_acc += mse_between(encoded, recon);
         mae_acc += mae_between(encoded, recon);
@@ -64,7 +67,7 @@ auto evaluate_lstm(nn::models::lstm::LSTMAutoencoder& model,
         const Tensor encoded =
             encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
         model.reset_state();
-        const Tensor recon = model.forward(encoded, false);
+        const Tensor recon = Tensor(model.forward(LstmTensor(encoded), false));
         for (nn::Index k = 0; k < encoded.size(); ++k)
         {
             const float y = encoded.at(k);
@@ -118,7 +121,7 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
 
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
-        const Tensor recon_flat = model.forward(flat, false);
+        const Tensor recon_flat = Tensor(model.forward(SnnTensor(flat), false));
         const Tensor recon = unflatten_time_series(recon_flat, encoded.rows(), encoded.cols());
 
         mse_acc += mse_between(encoded, recon);
@@ -149,8 +152,8 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
         encoded = apply_snn_architecture_transform(encoded, architecture, alpha, v_th);
         const Tensor flat = flatten_time_series(encoded);
         model.reset_state();
-        const Tensor recon =
-            unflatten_time_series(model.forward(flat, false), encoded.rows(), encoded.cols());
+        const Tensor recon = unflatten_time_series(
+            Tensor(model.forward(SnnTensor(flat), false)), encoded.rows(), encoded.cols());
         for (nn::Index k = 0; k < encoded.size(); ++k)
         {
             const float y = encoded.at(k);

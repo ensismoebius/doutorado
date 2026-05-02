@@ -33,7 +33,7 @@ LSTMAutoencoder::LSTMAutoencoder(const LSTMAutoencoderConfig& cfg) : cfg_(cfg)
     }
 
     // Initialise projection weights with N(0, 0.05) for stable early training.
-    auto normal_fill = [](nn::Tensor& t, unsigned seed)
+    auto normal_fill = [](Tensor& t, unsigned seed)
     {
         std::mt19937 rng(seed);
         std::normal_distribution<float> dist(0.0f, 0.05f);
@@ -69,15 +69,15 @@ void LSTMAutoencoder::build_param_ptrs()
     param_ptrs_.clear();
     for (auto& lstm : enc_lstms_)
     {
-        for (nn::Tensor* p : lstm->params()) param_ptrs_.push_back(p);
+        for (Tensor* p : lstm->params()) param_ptrs_.push_back(p);
     }
-    for (nn::Tensor* p : enc_proj_->params()) param_ptrs_.push_back(p);
-    for (nn::Tensor* p : dec_expand_->params()) param_ptrs_.push_back(p);
+    for (Tensor* p : enc_proj_->params()) param_ptrs_.push_back(p);
+    for (Tensor* p : dec_expand_->params()) param_ptrs_.push_back(p);
     for (auto& lstm : dec_lstms_)
     {
-        for (nn::Tensor* p : lstm->params()) param_ptrs_.push_back(p);
+        for (Tensor* p : lstm->params()) param_ptrs_.push_back(p);
     }
-    for (nn::Tensor* p : out_proj_->params()) param_ptrs_.push_back(p);
+    for (Tensor* p : out_proj_->params()) param_ptrs_.push_back(p);
 }
 
 auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
@@ -96,7 +96,9 @@ auto LSTMAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
     Tensor h_last = h.row(static_cast<nn::Index>(T - 1));
     Tensor z_pre = enc_proj_->forward(h_last, requires_grad);
     latent_pre_cache_ = z_pre;
-    Tensor z = nn::activation::tanh(z_pre);
+    const Tensor ones = Tensor::ones(z_pre.rows(), z_pre.cols());
+    const Tensor two = ones + ones;
+    Tensor z = ones.divide(ones + (z_pre * -2.0f).exp()) * two - ones;
     latent_cache_ = z;
     return z;
 }
@@ -105,7 +107,7 @@ auto LSTMAutoencoder::decode(const Tensor& latent, int seq_len, bool requires_gr
 {
     // Expand latent to hidden dimension, then replicate to form a T×H input sequence.
     Tensor h_expand = dec_expand_->forward(latent, requires_grad);
-    Tensor dec_in = nn::Tensor::ones(static_cast<nn::Index>(seq_len), 1).matmul(h_expand);
+    Tensor dec_in = Tensor::ones(static_cast<nn::Index>(seq_len), 1).matmul(h_expand);
     dec_input_cache_ = dec_in;
 
     // Run through stacked decoder LSTM layers.
@@ -143,17 +145,18 @@ auto LSTMAutoencoder::backward(const Tensor& grad_output) -> Tensor
     }
 
     // Sum gradient over the T replicated rows to get the gradient w.r.t. h_expand.
-    Tensor d_h_expand = nn::Tensor::ones(1, d_dec_in.rows()).matmul(d_dec_in);
+    Tensor d_h_expand = Tensor::ones(1, d_dec_in.rows()).matmul(d_dec_in);
     Tensor d_z = dec_expand_->backward(d_h_expand);
 
     // Backprop through the latent tanh and encoder projection.
-    Tensor d_z_pre = d_z * nn::activation::tanh_grad(latent_cache_);
+    const Tensor tanh_ones = Tensor::ones(latent_cache_.rows(), latent_cache_.cols());
+    Tensor d_z_pre = d_z * (tanh_ones - (latent_cache_ * latent_cache_));
     Tensor d_h_last = enc_proj_->backward(d_z_pre);
 
     // Place the gradient of the last time step and backprop through encoder LSTM stack.
     const int T = static_cast<int>(enc_output_cache_.rows());
     Tensor d_enc_h =
-        nn::Tensor::zeros(static_cast<nn::Index>(T), static_cast<nn::Index>(cfg_.hidden_size));
+        Tensor::zeros(static_cast<nn::Index>(T), static_cast<nn::Index>(cfg_.hidden_size));
     d_enc_h.setBlock(static_cast<nn::Index>(T - 1), 0, d_h_last);
 
     Tensor d_input = d_enc_h;

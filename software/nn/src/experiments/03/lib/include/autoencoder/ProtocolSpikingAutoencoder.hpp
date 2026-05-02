@@ -22,6 +22,8 @@
  */
 struct ProtocolSpikingAutoencoder : Module<nn::Backend>
 {
+    using Tensor = typename Module<nn::Backend>::Tensor;
+
     bool use_dual_branch_ = false;
 
     nn::Sequential encoder_;
@@ -40,16 +42,16 @@ struct ProtocolSpikingAutoencoder : Module<nn::Backend>
     explicit ProtocolSpikingAutoencoder(const AutoencoderConfig& cfg);
 
     /// Run the encoder and return spike tensors for the latent layer.
-    auto encode(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor;
+    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
 
     /// Run the decoder and return reconstructed continuous activations.
-    auto decode(const nn::Tensor& latent, bool requires_grad = true) -> nn::Tensor;
+    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
 
-    std::vector<nn::Tensor*> param_ptrs_;
-    auto params() -> std::span<nn::Tensor*> override;
+    std::vector<Tensor*> param_ptrs_;
+    auto params() -> std::span<Tensor*> override;
 
     /// Reset all stateful (membrane potential) layers between sequences.
     void reset_state() override;

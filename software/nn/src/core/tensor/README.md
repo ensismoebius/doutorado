@@ -18,6 +18,10 @@ Tests
 - See `src/core/tensor/tests/` for construction, operations, and gradient examples.
 
 Recent updates
+- Added CMake backend-reference guard (`cmake/BackendImplementationGuard.cmake`) that scans source files and generates a compile-time guard unit; any concrete backend token usage outside `include/nn/Backend.hpp` and backend implementation directories now fails compilation with: `Backend implementation must only be refereced inside include/nn/Backend.hpp !`.
+- Tensor frontend contract decoupling: `include/nn/tensor/Tensor.hpp` no longer declares or includes concrete backend implementations directly, and the active `nn::Tensor` alias now resolves through central backend selection (`nn::Backend`).
+- Added backend switchability enforcement tests in `src/core/tensor/tests/tensor_backend_switchability_gtest.cpp`, including a custom backend conformance check and source-contract assertions that forbid concrete-backend leakage in `Tensor.hpp`.
+- OpenCL verification probe API now accepts `OpenCLTensorBackend` arguments directly, removing its prior dependency on the global `nn::Tensor` alias.
 - Fixed layer aggregator template substitution by correcting placeholder tokens in [cmake/Layers.hpp.in], then regenerating [include/nn/layers/Layers.hpp] during CMake configure to remove unresolved `@...@` build breakers.
 - Added SIMD-assisted bulk fill paths in `XTensorBackend` for random initialization and constant fills (`fill`, `set_zero`, `set_ones`) through xsimd batch stores.
 - Replaced `XTensorBackend::matmul_transposed` with a direct CBLAS `sgemm` path so CPU affine-style workloads no longer pay transpose-expression overhead before GEMM.

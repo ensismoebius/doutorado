@@ -16,6 +16,9 @@
 namespace comparative_autoencoder_experiment
 {
 
+using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
+using SnnTensor = ProtocolSpikingAutoencoder::Tensor;
+
 // ---------------------------------------------------------------------------
 // Config helpers (unchanged)
 // ---------------------------------------------------------------------------
@@ -165,16 +168,25 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         cfg.training.early_stop_patience);
     trainer.add_callback(stopper);
 
+    std::vector<LstmTensor> train_backend_samples;
+    train_backend_samples.reserve(train_samples.size());
+    for (const auto& sample : train_samples) train_backend_samples.emplace_back(sample);
+
+    std::vector<LstmTensor> val_backend_samples;
+    val_backend_samples.reserve(val_samples.size());
+    for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
+
     // Reset LSTM state and encode each sample before forward.
     trainer.set_sample_transform(
-        [&model, &encoding, seed](const nn::Tensor& s, std::size_t idx) -> nn::Tensor
+        [&model, &encoding, seed](const LstmTensor& s, std::size_t idx) -> LstmTensor
         {
             model.reset_state();
-            return encode_sample(s, encoding, seed + static_cast<std::uint32_t>(idx));
+            return LstmTensor(
+                encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx)));
         });
 
     const auto t0 = std::chrono::steady_clock::now();
-    trainer.fit_autoencoder(train_samples, val_samples);
+    trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -183,9 +195,9 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
         const Tensor encoded = encode_sample(val_samples[i], encoding,
-                                             seed + static_cast<std::uint32_t>(i));
+                             seed + static_cast<std::uint32_t>(i));
         model.reset_state();
-        (void) model.forward(encoded, false);
+        (void) model.forward(LstmTensor(encoded), false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
@@ -235,18 +247,26 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         cfg.training.early_stop_patience);
     trainer.add_callback(stopper);
 
+    std::vector<SnnTensor> train_backend_samples;
+    train_backend_samples.reserve(train_samples.size());
+    for (const auto& sample : train_samples) train_backend_samples.emplace_back(sample);
+
+    std::vector<SnnTensor> val_backend_samples;
+    val_backend_samples.reserve(val_samples.size());
+    for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
+
     trainer.set_sample_transform(
-        [&encoding, &architecture, alpha, v_th, seed]
-        (const nn::Tensor& s, std::size_t idx) -> nn::Tensor
+        [&encoding, &architecture, alpha, v_th, seed](const SnnTensor& s, std::size_t idx)
+            -> SnnTensor
         {
-            nn::Tensor enc = encode_sample(s, encoding,
-                                           seed + static_cast<std::uint32_t>(idx));
+            Tensor enc = encode_sample(Tensor(s), encoding,
+                                       seed + static_cast<std::uint32_t>(idx));
             enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
-            return flatten_time_series(enc);
+            return SnnTensor(flatten_time_series(enc));
         });
 
     const auto t0 = std::chrono::steady_clock::now();
-    trainer.fit_autoencoder(train_samples, val_samples);
+    trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -259,7 +279,7 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
         const nn::Tensor flat = flatten_time_series(enc);
         model.reset_state();
-        (void) model.forward(flat, false);
+        (void) model.forward(SnnTensor(flat), false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();

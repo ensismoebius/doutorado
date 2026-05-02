@@ -35,10 +35,11 @@
  * @param bias         Reference to the tensor where the bias vector will be stored.
  *                     Must be pre-allocated as a 1D tensor of shape (out_features).
  */
+template <typename TensorT>
 inline auto xavierInitializer(int in_features,
     int out_features,
-    nn::Tensor& weights,
-    nn::Tensor& bias,
+    TensorT& weights,
+    TensorT& bias,
     std::optional<unsigned int> seed = std::nullopt,
     const std::string& sampler_default_type = "") -> void
 {
@@ -83,7 +84,7 @@ inline auto xavierInitializer(int in_features,
     }
 
     // Use Tensor helpers instead of manual element-wise loops.
-    weights = nn::Tensor::rand(               //
+    weights = TensorT::rand(                  //
         static_cast<nn::Index>(out_features), //
         static_cast<nn::Index>(in_features),  //
         gen                                   //

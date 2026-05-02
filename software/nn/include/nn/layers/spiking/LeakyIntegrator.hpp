@@ -132,7 +132,7 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
             // --- Gradient for resistance ---
             Tensor r_grad(1, 1);
             r_grad.at(0, 0) = dL_dbeta * d_beta_dR;
-            this->resistance.set_grad(nn::Tensor(r_grad));
+            this->resistance.set_grad(r_grad);
 
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
@@ -141,7 +141,7 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
                 (raw_C > kMinPositiveParam) ? (beta * this->time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
-            this->capacitance.set_grad(nn::Tensor(c_grad));
+            this->capacitance.set_grad(c_grad);
         }
         else
         {
@@ -149,10 +149,10 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
             // resistance gradient well-defined.
             Tensor r_grad(1, 1);
             r_grad.set_zero();
-            this->resistance.set_grad(nn::Tensor(r_grad));
+            this->resistance.set_grad(r_grad);
             Tensor c_grad(1, 1);
             c_grad.set_zero();
-            this->capacitance.set_grad(nn::Tensor(c_grad));
+            this->capacitance.set_grad(c_grad);
         }
 
         return grad_input;

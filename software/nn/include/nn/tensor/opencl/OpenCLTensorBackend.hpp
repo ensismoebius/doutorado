@@ -14,12 +14,12 @@
 
 #include <memory>
 #include <random>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "nn/device/Device.hpp"
-#include "nn/tensor/Tensor.hpp"
 #include "nn/tensor/opencl/GPUBufferPool.hpp"
 namespace nn
 {
@@ -59,7 +59,7 @@ class OpenCLTensorBackend
     // -----------------------------------------------------------------
     // Constructors
     // -----------------------------------------------------------------
-    OpenCLTensorBackend() = default;
+    OpenCLTensorBackend();
 
     explicit OpenCLTensorBackend(Index rows, Index cols);
     explicit OpenCLTensorBackend(Index d1, Index d2, Index d3);
@@ -115,6 +115,20 @@ class OpenCLTensorBackend
     const float* data_ptr() const;
 
     // -----------------------------------------------------------------
+    // Views / Slicing
+    // -----------------------------------------------------------------
+    OpenCLTensorBackend row(Index i) const;
+    OpenCLTensorBackend col(Index j) const;
+    OpenCLTensorBackend leftCols(Index n) const;
+    OpenCLTensorBackend topRows(Index n) const;
+    void setBlock(Index row, Index col, const OpenCLTensorBackend& block);
+    OpenCLTensorBackend slice(std::span<const int> indices) const;
+    OpenCLTensorBackend slice_batch(Index b) const;
+    void set_batch_slice(Index b, const OpenCLTensorBackend& val);
+    OpenCLTensorBackend slice_time(Index t) const;
+    void set_time_slice(Index t, const OpenCLTensorBackend& val);
+
+    // -----------------------------------------------------------------
     // In-place Operations
     // -----------------------------------------------------------------
     void add_inplace(const OpenCLTensorBackend& other);
@@ -138,6 +152,9 @@ class OpenCLTensorBackend
     OpenCLTensorBackend exp() const;
     OpenCLTensorBackend sqrt() const;
     OpenCLTensorBackend square() const;
+    OpenCLTensorBackend abs() const;
+    OpenCLTensorBackend relu() const;
+    OpenCLTensorBackend leaky_relu(float alpha) const;
 
     OpenCLTensorBackend add(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend subtract(const OpenCLTensorBackend& other) const;
@@ -154,6 +171,14 @@ class OpenCLTensorBackend
     // -----------------------------------------------------------------
     OpenCLTensorBackend rowwise_sum() const;
     OpenCLTensorBackend sum_rows() const;
+    OpenCLTensorBackend sum_cols() const;
+    float mean_squared_error(const OpenCLTensorBackend& target) const;
+    float mean() const;
+    float norm() const;
+    float sum() const;
+    bool hasNaN() const;
+    OpenCLTensorBackend clamp(float min_val, float max_val) const;
+    void clamp_inplace(float min_val, float max_val);
 
     // -----------------------------------------------------------------
     // Linear Algebra
@@ -246,8 +271,8 @@ class OpenCLTensorBackend
      * @param gpu_busy_percent_path Sysfs path for gpu_busy_percent probing.
      * @throws std::runtime_error when OpenCL runtime is unavailable or probe indicates no activity.
      */
-    static void verify_runtime_activity_or_throw(const Tensor& prediction,
-        const Tensor& target,
+    static void verify_runtime_activity_or_throw(const OpenCLTensorBackend& prediction,
+        const OpenCLTensorBackend& target,
         std::string_view gpu_busy_percent_path = "/sys/class/drm/card1/device/gpu_busy_percent");
 
     /**

@@ -15,33 +15,33 @@ AudioWindowAutoencoder::AudioWindowAutoencoder(const AutoencoderConfig& cfg)
 {
 }
 
-auto AudioWindowAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto AudioWindowAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     return encoder_.forward(input, requires_grad);
 }
 
-auto AudioWindowAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -> nn::Tensor
+auto AudioWindowAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     return decoder_.forward(latent, requires_grad);
 }
 
-auto AudioWindowAutoencoder::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto AudioWindowAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto AudioWindowAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto AudioWindowAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
-    nn::Tensor grad = decoder_.backward(grad_output);
+    Tensor grad = decoder_.backward(grad_output);
     return encoder_.backward(grad);
 }
 
-auto AudioWindowAutoencoder::params() -> std::span<nn::Tensor*>
+auto AudioWindowAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     auto ep = encoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), ep.begin(), ep.end());
     auto dp = decoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), dp.begin(), dp.end());
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }

@@ -36,7 +36,7 @@
 #include "nn/tensor/Tensor.hpp"
 
 using Tensor = nn::Tensor;
-using Backend = nn::XTensorBackend;
+using Backend = nn::Backend;
 
 // ---------------------------------------------------------------------------
 // Finite-difference gradient checker

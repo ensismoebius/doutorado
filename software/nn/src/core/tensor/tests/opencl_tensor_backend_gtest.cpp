@@ -159,8 +159,8 @@ TEST(OpenCLProfilingTest, ToggleFlag)
 
 TEST(OpenCLTensorBackendTest, VerifyRuntimeActivityHandlesUnavailableProbePath)
 {
-    nn::Tensor prediction(1, 2);
-    nn::Tensor target(1, 2);
+    nn::OpenCLTensorBackend prediction(1, 2);
+    nn::OpenCLTensorBackend target(1, 2);
     prediction.at(0, 0) = 1.0f;
     prediction.at(0, 1) = 2.0f;
     target.at(0, 0) = 1.5f;

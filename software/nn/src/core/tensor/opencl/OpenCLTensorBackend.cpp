@@ -597,9 +597,9 @@ auto read_gpu_busy_percent(std::string_view gpu_busy_percent_path) -> std::optio
     return value;
 }
 
-auto to_opencl_tensor(const nn::Tensor& source) -> nn::OpenCLTensorBackend
+auto to_opencl_tensor(const nn::OpenCLTensorBackend& source) -> nn::OpenCLTensorBackend
 {
-    nn::OpenCLTensorBackend result(source.get_shape());
+    nn::OpenCLTensorBackend result(source.shape());
     for (Index i = 0; i < source.size(); ++i)
     {
         result.at(i) = source.at(i);
@@ -607,7 +607,8 @@ auto to_opencl_tensor(const nn::Tensor& source) -> nn::OpenCLTensorBackend
     return result;
 }
 
-auto compute_opencl_reconstruction_mse(const nn::Tensor& prediction, const nn::Tensor& target)
+auto compute_opencl_reconstruction_mse(
+    const nn::OpenCLTensorBackend& prediction, const nn::OpenCLTensorBackend& target)
     -> float
 {
     auto prediction_gpu = to_opencl_tensor(prediction);
@@ -627,6 +628,8 @@ auto compute_opencl_reconstruction_mse(const nn::Tensor& prediction, const nn::T
 } // namespace
 
 // Constructors
+OpenCLTensorBackend::OpenCLTensorBackend() = default;
+
 OpenCLTensorBackend::OpenCLTensorBackend(Index rows, Index cols)
     : m_backend(std::make_unique<OpenCLHostStorage>(rows, cols))
 {
@@ -904,6 +907,202 @@ const float* OpenCLTensorBackend::data_ptr() const
 {
     sync_gpu();
     return m_backend->data_ptr();
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::row(Index i) const
+{
+    sync_gpu();
+    if (shape().size() != 2) throw std::invalid_argument("row requires rank-2 tensor");
+    if (i >= rows()) throw std::out_of_range("row index out of range");
+
+    OpenCLTensorBackend out(1, cols());
+    for (Index c = 0; c < cols(); ++c)
+    {
+        out.m_backend->at(0, c) = m_backend->at(i, c);
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::col(Index j) const
+{
+    sync_gpu();
+    if (shape().size() != 2) throw std::invalid_argument("col requires rank-2 tensor");
+    if (j >= cols()) throw std::out_of_range("col index out of range");
+
+    OpenCLTensorBackend out(rows(), 1);
+    for (Index r = 0; r < rows(); ++r)
+    {
+        out.m_backend->at(r, 0) = m_backend->at(r, j);
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::leftCols(Index n) const
+{
+    sync_gpu();
+    if (shape().size() != 2) throw std::invalid_argument("leftCols requires rank-2 tensor");
+    if (n > cols()) throw std::out_of_range("leftCols exceeds tensor width");
+
+    OpenCLTensorBackend out(rows(), n);
+    for (Index r = 0; r < rows(); ++r)
+    {
+        for (Index c = 0; c < n; ++c)
+        {
+            out.m_backend->at(r, c) = m_backend->at(r, c);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::topRows(Index n) const
+{
+    sync_gpu();
+    if (shape().size() != 2) throw std::invalid_argument("topRows requires rank-2 tensor");
+    if (n > rows()) throw std::out_of_range("topRows exceeds tensor height");
+
+    OpenCLTensorBackend out(n, cols());
+    for (Index r = 0; r < n; ++r)
+    {
+        for (Index c = 0; c < cols(); ++c)
+        {
+            out.m_backend->at(r, c) = m_backend->at(r, c);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+void OpenCLTensorBackend::setBlock(Index row, Index col, const OpenCLTensorBackend& block)
+{
+    sync_gpu();
+    block.sync_gpu();
+    if (shape().size() != 2 || block.shape().size() != 2)
+    {
+        throw std::invalid_argument("setBlock requires rank-2 tensors");
+    }
+    if (row + block.rows() > rows() || col + block.cols() > cols())
+    {
+        throw std::out_of_range("setBlock exceeds tensor bounds");
+    }
+
+    for (Index r = 0; r < block.rows(); ++r)
+    {
+        for (Index c = 0; c < block.cols(); ++c)
+        {
+            m_backend->at(row + r, col + c) = block.m_backend->at(r, c);
+        }
+    }
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::slice(std::span<const int> indices) const
+{
+    sync_gpu();
+    if (shape().size() != 2) throw std::invalid_argument("slice requires rank-2 tensor");
+
+    OpenCLTensorBackend out(indices.size(), cols());
+    for (Index i = 0; i < indices.size(); ++i)
+    {
+        const auto src_r = static_cast<Index>(indices[i]);
+        if (src_r >= rows()) throw std::out_of_range("slice index out of range");
+        for (Index c = 0; c < cols(); ++c)
+        {
+            out.m_backend->at(i, c) = m_backend->at(src_r, c);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::slice_batch(Index b) const
+{
+    sync_gpu();
+    const auto& s = shape();
+    if (s.size() != 3) throw std::invalid_argument("slice_batch requires rank-3 tensor");
+    if (b >= s[0]) throw std::out_of_range("slice_batch index out of range");
+
+    OpenCLTensorBackend out(s[1], s[2]);
+    for (Index t = 0; t < s[1]; ++t)
+    {
+        for (Index d = 0; d < s[2]; ++d)
+        {
+            out.m_backend->at(t, d) = m_backend->at(b, t, d);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+void OpenCLTensorBackend::set_batch_slice(Index b, const OpenCLTensorBackend& val)
+{
+    sync_gpu();
+    val.sync_gpu();
+    const auto& s = shape();
+    if (s.size() != 3) throw std::invalid_argument("set_batch_slice requires rank-3 tensor");
+    if (b >= s[0]) throw std::out_of_range("set_batch_slice index out of range");
+    if (val.rows() != s[1] || val.cols() != s[2])
+        throw std::invalid_argument("set_batch_slice value shape mismatch");
+
+    for (Index t = 0; t < s[1]; ++t)
+    {
+        for (Index d = 0; d < s[2]; ++d)
+        {
+            m_backend->at(b, t, d) = val.m_backend->at(t, d);
+        }
+    }
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::slice_time(Index t) const
+{
+    sync_gpu();
+    const auto& s = shape();
+    if (s.size() != 3) throw std::invalid_argument("slice_time requires rank-3 tensor");
+    if (t >= s[1]) throw std::out_of_range("slice_time index out of range");
+
+    OpenCLTensorBackend out(s[0], s[2]);
+    for (Index b = 0; b < s[0]; ++b)
+    {
+        for (Index d = 0; d < s[2]; ++d)
+        {
+            out.m_backend->at(b, d) = m_backend->at(b, t, d);
+        }
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+void OpenCLTensorBackend::set_time_slice(Index t, const OpenCLTensorBackend& val)
+{
+    sync_gpu();
+    val.sync_gpu();
+    const auto& s = shape();
+    if (s.size() != 3) throw std::invalid_argument("set_time_slice requires rank-3 tensor");
+    if (t >= s[1]) throw std::out_of_range("set_time_slice index out of range");
+    if (val.rows() != s[0] || val.cols() != s[2])
+        throw std::invalid_argument("set_time_slice value shape mismatch");
+
+    for (Index b = 0; b < s[0]; ++b)
+    {
+        for (Index d = 0; d < s[2]; ++d)
+        {
+            m_backend->at(b, t, d) = val.m_backend->at(b, d);
+        }
+    }
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
 }
 
 // In-place operations
@@ -3947,6 +4146,152 @@ OpenCLTensorBackend OpenCLTensorBackend::sum_rows() const
     return rowwise_sum();
 }
 
+OpenCLTensorBackend OpenCLTensorBackend::sum_cols() const
+{
+    sync_gpu();
+    if (shape().size() != 2)
+    {
+        throw std::invalid_argument("sum_cols is only valid for rank-2 tensors");
+    }
+
+    OpenCLTensorBackend out(1, cols());
+    out.m_backend->fill(0.0F);
+    for (Index c = 0; c < cols(); ++c)
+    {
+        float acc = 0.0F;
+        for (Index r = 0; r < rows(); ++r)
+        {
+            acc += m_backend->at(r, c);
+        }
+        out.m_backend->at(0, c) = acc;
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target) const
+{
+    sync_gpu();
+    target.sync_gpu();
+    if (shape() != target.shape())
+    {
+        throw std::invalid_argument("mean_squared_error requires equal shapes");
+    }
+
+    const auto n = size();
+    if (n == 0) return 0.0F;
+
+    float sq = 0.0F;
+    for (Index i = 0; i < n; ++i)
+    {
+        const float d = m_backend->at(i) - target.m_backend->at(i);
+        sq += d * d;
+    }
+    return sq / static_cast<float>(n);
+}
+
+float OpenCLTensorBackend::mean() const
+{
+    const auto n = size();
+    if (n == 0) return 0.0F;
+    return sum() / static_cast<float>(n);
+}
+
+float OpenCLTensorBackend::norm() const
+{
+    sync_gpu();
+    float sq = 0.0F;
+    for (Index i = 0; i < size(); ++i)
+    {
+        const float v = m_backend->at(i);
+        sq += v * v;
+    }
+    return std::sqrt(sq);
+}
+
+float OpenCLTensorBackend::sum() const
+{
+    sync_gpu();
+    float acc = 0.0F;
+    for (Index i = 0; i < size(); ++i)
+    {
+        acc += m_backend->at(i);
+    }
+    return acc;
+}
+
+bool OpenCLTensorBackend::hasNaN() const
+{
+    sync_gpu();
+    for (Index i = 0; i < size(); ++i)
+    {
+        if (std::isnan(m_backend->at(i))) return true;
+    }
+    return false;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::abs() const
+{
+    sync_gpu();
+    OpenCLTensorBackend out(*this);
+    for (Index i = 0; i < out.size(); ++i)
+    {
+        out.m_backend->at(i) = std::abs(out.m_backend->at(i));
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::relu() const
+{
+    sync_gpu();
+    OpenCLTensorBackend out(*this);
+    for (Index i = 0; i < out.size(); ++i)
+    {
+        const float v = out.m_backend->at(i);
+        out.m_backend->at(i) = std::max(v, 0.0F);
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
+{
+    sync_gpu();
+    OpenCLTensorBackend out(*this);
+    for (Index i = 0; i < out.size(); ++i)
+    {
+        const float v = out.m_backend->at(i);
+        out.m_backend->at(i) = (v > 0.0F) ? v : (alpha * v);
+    }
+    out.m_needs_sync_to_device = true;
+    out.m_needs_sync_to_host = false;
+    return out;
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) const
+{
+    sync_gpu();
+    OpenCLTensorBackend out(*this);
+    out.clamp_inplace(min_val, max_val);
+    return out;
+}
+
+void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
+{
+    sync_gpu();
+    for (Index i = 0; i < size(); ++i)
+    {
+        auto& v = m_backend->at(i);
+        v = std::clamp(v, min_val, max_val);
+    }
+    m_needs_sync_to_device = true;
+    m_needs_sync_to_host = false;
+}
+
 // Linear algebra
 OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other) const
 {
@@ -6116,6 +6461,22 @@ const OpenCLTensorBackend& OpenCLTensorBackend::get_grad() const
     return *m_grad_backend;
 }
 
+void OpenCLTensorBackend::set_grad(const OpenCLTensorBackend& grad)
+{
+    if (shape() != grad.shape())
+    {
+        throw std::invalid_argument("set_grad requires gradient shape to match tensor shape");
+    }
+    if (!m_grad_backend)
+    {
+        m_grad_backend = std::make_unique<OpenCLTensorBackend>(grad);
+    }
+    else
+    {
+        *m_grad_backend = grad;
+    }
+}
+
 void OpenCLTensorBackend::zero_grad()
 {
     if (m_grad_backend)
@@ -6179,7 +6540,9 @@ OpenCLTensorBackend::RuntimeScope OpenCLTensorBackend::start_runtime_scope_or_th
 }
 
 void OpenCLTensorBackend::verify_runtime_activity_or_throw(
-    const Tensor& prediction, const Tensor& target, std::string_view gpu_busy_percent_path)
+    const OpenCLTensorBackend& prediction,
+    const OpenCLTensorBackend& target,
+    std::string_view gpu_busy_percent_path)
 {
     const auto& opencl_context = opencl::OpenCLContext::instance();
     if (!opencl_context.is_available())

@@ -206,8 +206,8 @@ auto fit_input_transform(
                    : std::static_pointer_cast<nn::transforms::ITransform>(audio_norm);
 }
 
-auto modality_val_losses_from_batch(const nn::Tensor& val_inputs,
-    const nn::Tensor& val_reconstruction,
+auto modality_val_losses_from_batch(const Tensor& val_inputs,
+    const Tensor& val_reconstruction,
     size_t eeg_features,
     size_t audio_features) -> std::pair<float, float>
 {
@@ -256,7 +256,7 @@ ReconstructionLoss::ReconstructionLoss(const std::string& loss_type)
     throw std::invalid_argument("Unsupported training_loss_type: " + loss_type);
 }
 
-auto ReconstructionLoss::set_target(const nn::Tensor& target) -> void
+auto ReconstructionLoss::set_target(const Tensor& target) -> void
 {
     if (mse_)
     {
@@ -268,7 +268,7 @@ auto ReconstructionLoss::set_target(const nn::Tensor& target) -> void
     }
 }
 
-auto ReconstructionLoss::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto ReconstructionLoss::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     if (mse_)
     {
@@ -277,7 +277,7 @@ auto ReconstructionLoss::forward(const nn::Tensor& input, bool requires_grad) ->
     return mae_->forward(input, requires_grad);
 }
 
-auto ReconstructionLoss::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto ReconstructionLoss::backward(const Tensor& grad_output) -> Tensor
 {
     if (mse_)
     {

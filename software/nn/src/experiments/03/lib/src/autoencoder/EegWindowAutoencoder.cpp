@@ -15,33 +15,33 @@ EegWindowAutoencoder::EegWindowAutoencoder(const AutoencoderConfig& cfg)
 {
 }
 
-auto EegWindowAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto EegWindowAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     return encoder_.forward(input, requires_grad);
 }
 
-auto EegWindowAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -> nn::Tensor
+auto EegWindowAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     return decoder_.forward(latent, requires_grad);
 }
 
-auto EegWindowAutoencoder::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto EegWindowAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto EegWindowAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto EegWindowAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
-    nn::Tensor grad = decoder_.backward(grad_output);
+    Tensor grad = decoder_.backward(grad_output);
     return encoder_.backward(grad);
 }
 
-auto EegWindowAutoencoder::params() -> std::span<nn::Tensor*>
+auto EegWindowAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     auto ep = encoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), ep.begin(), ep.end());
     auto dp = decoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), dp.begin(), dp.end());
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }

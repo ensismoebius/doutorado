@@ -24,6 +24,7 @@ namespace experiment03
 {
 using nn::MAELoss;
 using nn::MSELoss;
+using Tensor = nn::TensorImpl<nn::Backend>;
 
 // Convert the experiment-level dataset enum to the SqliteBatchSource enum.
 auto to_sqlite_dataset_type(Experiment03DatasetType dataset_type)
@@ -39,8 +40,8 @@ auto fit_input_transform(
     -> std::shared_ptr<nn::transforms::ITransform>;
 
 // Compute modality-specific MSE diagnostics from reconstructed validation inputs.
-auto modality_val_losses_from_batch(const nn::Tensor& val_inputs,
-    const nn::Tensor& val_reconstruction,
+auto modality_val_losses_from_batch(const Tensor& val_inputs,
+    const Tensor& val_reconstruction,
     size_t eeg_features,
     size_t audio_features) -> std::pair<float, float>;
 
@@ -49,9 +50,9 @@ class ReconstructionLoss
    public:
     explicit ReconstructionLoss(const std::string& loss_type);
 
-    auto set_target(const nn::Tensor& target) -> void;
-    auto forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor;
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor;
+    auto set_target(const Tensor& target) -> void;
+    auto forward(const Tensor& input, bool requires_grad) -> Tensor;
+    auto backward(const Tensor& grad_output) -> Tensor;
 
    private:
     std::unique_ptr<MSELoss> mse_;

@@ -358,8 +358,10 @@ struct LeakyImpl : public Module<Backend>
     auto backward(const Tensor& grad_output) -> Tensor override
     {
         // --- Surrogate Gradient Calculation ---
-        const auto surrogate_grad =
-            surrogate_gradient->calculate(v_mem_pre_spike, voltage_threshold.at(0, 0));
+        const nn::Tensor v_mem_cpu = v_mem_pre_spike.template to_backend<nn::Backend>();
+        const nn::Tensor surrogate_grad_cpu =
+            surrogate_gradient->calculate(v_mem_cpu, voltage_threshold.at(0, 0));
+        const Tensor surrogate_grad(surrogate_grad_cpu);
 
         // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
         // This is the starting point for calculating other gradients via the chain rule.

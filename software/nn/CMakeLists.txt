@@ -52,6 +52,9 @@ include(cmake/Tooling.cmake)
 # Development and analysis custom targets
 include(cmake/DevAndAnalysisTargets.cmake)
 
+# Enforce backend implementation reference boundaries.
+include(cmake/BackendImplementationGuard.cmake)
+
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
 

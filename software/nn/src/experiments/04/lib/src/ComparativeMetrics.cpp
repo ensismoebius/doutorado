@@ -84,15 +84,4 @@ auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) 
     return in_proj + hidden_proj + out_proj;
 }
 
-auto parameter_count(std::span<nn::Tensor*> params) -> std::size_t
-{
-    std::size_t count = 0;
-    for (nn::Tensor* p : params)
-    {
-        if (!p) continue;
-        count += static_cast<std::size_t>(p->size());
-    }
-    return count;
-}
-
 } // namespace comparative_autoencoder_experiment
