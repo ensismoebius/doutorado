@@ -804,6 +804,29 @@ OpenCLTensorBackend OpenCLTensorBackend::random(Index rows, Index cols, std::mt1
     return t;
 }
 
+OpenCLTensorBackend OpenCLTensorBackend::random(Index d1, Index d2, Index d3)
+{
+    std::mt19937 rng(std::random_device{}());
+    return random(d1, d2, d3, rng);
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::random(Index d1, Index d2, Index d3, std::mt19937& rng)
+{
+    OpenCLTensorBackend t(d1, d2, d3);
+    std::uniform_real_distribution<float> dist(0.0F, 1.0F);
+    for (Index i = 0; i < t.size(); ++i)
+        t.m_backend->at(i) = dist(rng);
+    return t;
+}
+
+bool OpenCLTensorBackend::operator==(const OpenCLTensorBackend& other) const
+{
+    if (shape() != other.shape()) return false;
+    for (Index i = 0; i < size(); ++i)
+        if (m_backend->at(i) != other.m_backend->at(i)) return false;
+    return true;
+}
+
 // Shape & Access
 const std::vector<Index>& OpenCLTensorBackend::shape() const
 {

@@ -88,6 +88,8 @@ class OpenCLTensorBackend
     static OpenCLTensorBackend ones(Index rows, Index cols);
     static OpenCLTensorBackend random(Index rows, Index cols);
     static OpenCLTensorBackend random(Index rows, Index cols, std::mt19937& rng);
+    static OpenCLTensorBackend random(Index d1, Index d2, Index d3);
+    static OpenCLTensorBackend random(Index d1, Index d2, Index d3, std::mt19937& rng);
 
     // -----------------------------------------------------------------
     // Shape & Access
@@ -177,6 +179,7 @@ class OpenCLTensorBackend
     float norm() const;
     float sum() const;
     bool hasNaN() const;
+    bool operator==(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend clamp(float min_val, float max_val) const;
     void clamp_inplace(float min_val, float max_val);
 

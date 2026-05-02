@@ -23,6 +23,8 @@ namespace
 
 struct TinyModel
 {
+    using Tensor = nn::Tensor;
+
     nn::Tensor weight_{1, 1};   // single learnable scalar
     nn::Tensor last_input_;
 

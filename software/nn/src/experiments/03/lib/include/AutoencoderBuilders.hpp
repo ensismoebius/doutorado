@@ -782,38 +782,17 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     return decoder;
 }
 
-inline auto slice_columns(const nn::Tensor& input, nn::Index col_offset, nn::Index col_count)
-    -> nn::Tensor
-{
-    return input.block(0, col_offset, input.rows(), col_count);
-}
-
-using Tensor = nn::TensorImpl<nn::Backend>;
+using Tensor = nn::Tensor;
 
 inline auto slice_columns(const Tensor& input, nn::Index col_offset, nn::Index col_count) -> Tensor
 {
     return input.block(0, col_offset, input.rows(), col_count);
 }
 
-inline auto concat_columns(const nn::Tensor& left, const nn::Tensor& right) -> nn::Tensor
-{
-    if (left.rows() != right.rows())
-    {
-        throw std::invalid_argument("concat_columns requires equal row counts");
-    }
-
-    nn::Tensor joined(left.rows(), left.cols() + right.cols());
-    joined.setBlock(0, 0, left);
-    joined.setBlock(0, left.cols(), right);
-    return joined;
-}
-
 inline auto concat_columns(const Tensor& left, const Tensor& right) -> Tensor
 {
     if (left.rows() != right.rows())
-    {
         throw std::invalid_argument("concat_columns requires equal row counts");
-    }
 
     Tensor joined(left.rows(), left.cols() + right.cols());
     joined.setBlock(0, 0, left);
@@ -821,24 +800,11 @@ inline auto concat_columns(const Tensor& left, const Tensor& right) -> Tensor
     return joined;
 }
 
-inline auto join_params(std::initializer_list<std::vector<nn::Tensor*>> groups)
-    -> std::vector<nn::Tensor*>
-{
-    std::vector<nn::Tensor*> params;
-    for (const auto& group : groups)
-    {
-        params.insert(params.end(), group.begin(), group.end());
-    }
-    return params;
-}
-
 inline auto join_params(std::initializer_list<std::vector<Tensor*>> groups) -> std::vector<Tensor*>
 {
     std::vector<Tensor*> params;
     for (const auto& group : groups)
-    {
         params.insert(params.end(), group.begin(), group.end());
-    }
     return params;
 }
 
