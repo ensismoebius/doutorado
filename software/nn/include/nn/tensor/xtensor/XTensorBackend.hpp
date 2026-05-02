@@ -4,16 +4,6 @@
 // All shapes are logical (not flattened): a (B,T,D) tensor stores B*T*D elements
 // and is indexed as m_data(b, t, d) — no manual stride arithmetic.
 
-#include <xtensor/xarray.hpp>
-#include <xtensor/xbuilder.hpp>
-#include <xtensor/xeval.hpp>
-#include <xtensor/xmath.hpp>
-#include <xtensor/xmanipulation.hpp>
-#include <xtensor/xview.hpp>
-#include <xtensor/xio.hpp>
-#include <xtensor/xnoalias.hpp>
-#include <xtensor-blas/xlinalg.hpp>
-
 #include <cblas.h>
 
 #include <algorithm>
@@ -27,6 +17,15 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <xtensor-blas/xlinalg.hpp>
+#include <xtensor/xarray.hpp>
+#include <xtensor/xbuilder.hpp>
+#include <xtensor/xeval.hpp>
+#include <xtensor/xio.hpp>
+#include <xtensor/xmanipulation.hpp>
+#include <xtensor/xmath.hpp>
+#include <xtensor/xnoalias.hpp>
+#include <xtensor/xview.hpp>
 
 #include "nn/logging/Logger.hpp"
 
@@ -47,17 +46,16 @@ class XTensorBackend
 
     XTensorBackend() = default;
 
-    explicit XTensorBackend(Index rows, Index cols)
-        : m_data(xt::zeros<float>({rows, cols}))
-    {}
+    explicit XTensorBackend(Index rows, Index cols) : m_data(xt::zeros<float>({rows, cols})) {}
 
-    explicit XTensorBackend(Index d1, Index d2, Index d3)
-        : m_data(xt::zeros<float>({d1, d2, d3}))
-    {}
+    explicit XTensorBackend(Index d1, Index d2, Index d3) : m_data(xt::zeros<float>({d1, d2, d3}))
+    {
+    }
 
     explicit XTensorBackend(Index d1, Index d2, Index d3, Index d4)
         : m_data(xt::zeros<float>({d1, d2, d3, d4}))
-    {}
+    {
+    }
 
     explicit XTensorBackend(const std::vector<Index>& shape)
     {
@@ -65,15 +63,11 @@ class XTensorBackend
         m_data = xt::zeros<float>(xshape);
     }
 
-    explicit XTensorBackend(xt::xarray<float> data)
-        : m_data(std::move(data))
-    {}
+    explicit XTensorBackend(xt::xarray<float> data) : m_data(std::move(data)) {}
 
-    XTensorBackend(const XTensorBackend& other)
-        : m_data(other.m_data)
+    XTensorBackend(const XTensorBackend& other) : m_data(other.m_data)
     {
-        if (other.m_grad)
-            m_grad = other.m_grad;
+        if (other.m_grad) m_grad = other.m_grad;
     }
 
     XTensorBackend(XTensorBackend&& other) noexcept = default;
@@ -82,14 +76,13 @@ class XTensorBackend
     {
         if (this != &other)
         {
-            m_data  = other.m_data;
+            m_data = other.m_data;
             m_grad = other.m_grad;
         }
         return *this;
     }
 
     XTensorBackend& operator=(XTensorBackend&& other) noexcept = default;
-
 
     // ------------------------------------------------------------------
     // Static factories
@@ -153,10 +146,9 @@ class XTensorBackend
 
     void reshape(const std::vector<Index>& new_shape)
     {
-        const Index new_size = std::accumulate(new_shape.begin(), new_shape.end(),
-                                                 Index{1}, std::multiplies<Index>{});
-        if (m_data.size() != new_size)
-            throw std::invalid_argument("Reshape total size mismatch");
+        const Index new_size =
+            std::accumulate(new_shape.begin(), new_shape.end(), Index{1}, std::multiplies<Index>{});
+        if (m_data.size() != new_size) throw std::invalid_argument("Reshape total size mismatch");
 
         xt::dynamic_shape<Index> xshape(new_shape.begin(), new_shape.end());
         m_data.reshape(xshape);
@@ -164,10 +156,9 @@ class XTensorBackend
 
     XTensorBackend reshape(const std::vector<Index>& new_shape) const
     {
-        const Index new_size = std::accumulate(new_shape.begin(), new_shape.end(),
-                                                 Index{1}, std::multiplies<Index>{});
-        if (m_data.size() != new_size)
-            throw std::invalid_argument("Reshape total size mismatch");
+        const Index new_size =
+            std::accumulate(new_shape.begin(), new_shape.end(), Index{1}, std::multiplies<Index>{});
+        if (m_data.size() != new_size) throw std::invalid_argument("Reshape total size mismatch");
 
         xt::dynamic_shape<Index> xshape(new_shape.begin(), new_shape.end());
         xt::xarray<float> res = m_data;
@@ -175,22 +166,42 @@ class XTensorBackend
         return XTensorBackend(std::move(res));
     }
 
-    Index rows() const { return m_data.shape().empty() ? 0 : m_data.shape(0); }
-    Index cols() const { return m_data.shape().size() < 2 ? 1 : m_data.shape(1); }
-    Index size() const { return m_data.size(); }
-
+    Index rows() const
+    {
+        return m_data.shape().empty() ? 0 : m_data.shape(0);
+    }
+    Index cols() const
+    {
+        return m_data.shape().size() < 2 ? 1 : m_data.shape(1);
+    }
+    Index size() const
+    {
+        return m_data.size();
+    }
 
     // ------------------------------------------------------------------
     // Element access
     // ------------------------------------------------------------------
 
     // Unchecked flat access — caller guarantees i < size().
-    float& at_unsafe(Index i) noexcept { return *(m_data.data() + i); }
-    const float& at_unsafe(Index i) const noexcept { return *(m_data.data() + i); }
+    float& at_unsafe(Index i) noexcept
+    {
+        return *(m_data.data() + i);
+    }
+    const float& at_unsafe(Index i) const noexcept
+    {
+        return *(m_data.data() + i);
+    }
 
     // Unchecked 2D access.
-    float& at_unsafe(Index r, Index c) noexcept { return m_data(r, c); }
-    const float& at_unsafe(Index r, Index c) const noexcept { return m_data(r, c); }
+    float& at_unsafe(Index r, Index c) noexcept
+    {
+        return m_data(r, c);
+    }
+    const float& at_unsafe(Index r, Index c) const noexcept
+    {
+        return m_data(r, c);
+    }
 
     // Unchecked vector access.
     float& at_unsafe(const std::vector<Index>& indices)
@@ -227,7 +238,8 @@ class XTensorBackend
 
     float& at(Index row, Index col)
     {
-        if (m_data.shape().size() != 2) {
+        if (m_data.shape().size() != 2)
+        {
             std::cerr << "at(row, col) failed: shape size is " << m_data.shape().size() << "\n";
             throw std::invalid_argument("Tensor must be 2D");
         }
@@ -261,21 +273,24 @@ class XTensorBackend
     float& at(Index d1, Index d2, Index d3, Index d4)
     {
         if (m_data.shape().size() != 4) throw std::invalid_argument("Tensor must be 4D");
-        if (d1 >= m_data.shape(0) || d2 >= m_data.shape(1) || d3 >= m_data.shape(2) || d4 >= m_data.shape(3))
+        if (d1 >= m_data.shape(0) || d2 >= m_data.shape(1) || d3 >= m_data.shape(2) ||
+            d4 >= m_data.shape(3))
             throw std::out_of_range("Index out of range");
         return m_data(d1, d2, d3, d4);
     }
     const float& at(Index d1, Index d2, Index d3, Index d4) const
     {
         if (m_data.shape().size() != 4) throw std::invalid_argument("Tensor must be 4D");
-        if (d1 >= m_data.shape(0) || d2 >= m_data.shape(1) || d3 >= m_data.shape(2) || d4 >= m_data.shape(3))
+        if (d1 >= m_data.shape(0) || d2 >= m_data.shape(1) || d3 >= m_data.shape(2) ||
+            d4 >= m_data.shape(3))
             throw std::out_of_range("Index out of range");
         return m_data(d1, d2, d3, d4);
     }
 
     float& at(const std::vector<Index>& indices)
     {
-        if (indices.size() != m_data.shape().size()) throw std::invalid_argument("Index dimension mismatch");
+        if (indices.size() != m_data.shape().size())
+            throw std::invalid_argument("Index dimension mismatch");
         if (indices.size() == 1) return at(indices[0]);
         if (indices.size() == 2) return at(indices[0], indices[1]);
         if (indices.size() == 3) return at(indices[0], indices[1], indices[2]);
@@ -291,7 +306,8 @@ class XTensorBackend
     }
     const float& at(const std::vector<Index>& indices) const
     {
-        if (indices.size() != m_data.shape().size()) throw std::invalid_argument("Index dimension mismatch");
+        if (indices.size() != m_data.shape().size())
+            throw std::invalid_argument("Index dimension mismatch");
         if (indices.size() == 1) return at(indices[0]);
         if (indices.size() == 2) return at(indices[0], indices[1]);
         if (indices.size() == 3) return at(indices[0], indices[1], indices[2]);
@@ -310,15 +326,42 @@ class XTensorBackend
     // In-place arithmetic
     // ------------------------------------------------------------------
 
-    void add_inplace(const XTensorBackend& other)       { m_data += other.m_data; }
-    void subtract_inplace(const XTensorBackend& other)  { m_data -= other.m_data; }
-    void multiply_inplace(const XTensorBackend& other)  { m_data *= other.m_data; }
-    void divide_inplace(const XTensorBackend& other)    { m_data /= other.m_data; }
-    void add_scalar_inplace(float val)                  { m_data += val; }
-    void multiply_scalar_inplace(float val)             { m_data *= val; }
-    void divide_scalar_inplace(float val)               { m_data /= val; }
-    void sqrt_inplace()                                 { xt::noalias(m_data) = xt::sqrt(m_data); }
-    void square_inplace()                               { xt::noalias(m_data) = xt::square(m_data); }
+    void add_inplace(const XTensorBackend& other)
+    {
+        m_data += other.m_data;
+    }
+    void subtract_inplace(const XTensorBackend& other)
+    {
+        m_data -= other.m_data;
+    }
+    void multiply_inplace(const XTensorBackend& other)
+    {
+        m_data *= other.m_data;
+    }
+    void divide_inplace(const XTensorBackend& other)
+    {
+        m_data /= other.m_data;
+    }
+    void add_scalar_inplace(float val)
+    {
+        m_data += val;
+    }
+    void multiply_scalar_inplace(float val)
+    {
+        m_data *= val;
+    }
+    void divide_scalar_inplace(float val)
+    {
+        m_data /= val;
+    }
+    void sqrt_inplace()
+    {
+        xt::noalias(m_data) = xt::sqrt(m_data);
+    }
+    void square_inplace()
+    {
+        xt::noalias(m_data) = xt::square(m_data);
+    }
 
     // ------------------------------------------------------------------
     // Functional arithmetic
@@ -339,8 +382,7 @@ class XTensorBackend
 
     void add_col_vector_to_rows_inplace(const XTensorBackend& col_vector)
     {
-        xt::xarray<float> bias_row = xt::reshape_view(
-            xt::view(col_vector.m_data, xt::all(), 0),
+        xt::xarray<float> bias_row = xt::reshape_view(xt::view(col_vector.m_data, xt::all(), 0),
             std::vector<Index>{1, col_vector.m_data.shape(0)});
         m_data += bias_row;
     }
@@ -400,20 +442,36 @@ class XTensorBackend
 
     XTensorBackend matmul(const XTensorBackend& other) const
     {
-        if (shape().size() != 2 || other.shape().size() != 2) {
-            std::cerr << "matmul() failed: left shape size " << shape().size() 
+        if (shape().size() != 2 || other.shape().size() != 2)
+        {
+            std::cerr << "matmul() failed: left shape size " << shape().size()
                       << ", right shape size " << other.shape().size() << "\n";
             throw std::invalid_argument("Tensors must be 2D");
         }
-        if (cols() != other.rows())
-            throw std::invalid_argument("Dimension mismatch for matmul");
-        xt::xarray<float> r = xt::linalg::dot(m_data, other.m_data);
-        return XTensorBackend(std::move(r));
+        if (cols() != other.rows()) throw std::invalid_argument("Dimension mismatch for matmul");
+
+        XTensorBackend result(rows(), other.cols());
+        cblas_sgemm(CblasRowMajor,
+            CblasNoTrans,
+            CblasNoTrans,
+            static_cast<int>(rows()),
+            static_cast<int>(other.cols()),
+            static_cast<int>(cols()),
+            1.0f,
+            m_data.data(),
+            static_cast<int>(cols()),
+            other.m_data.data(),
+            static_cast<int>(other.cols()),
+            0.0f,
+            result.m_data.data(),
+            static_cast<int>(other.cols()));
+        return result;
     }
 
     XTensorBackend transpose() const
     {
-        if (m_data.shape().size() != 2) {
+        if (m_data.shape().size() != 2)
+        {
             std::cerr << "transpose() failed: shape size is " << m_data.shape().size() << "\n";
             throw std::invalid_argument("Tensor must be 2D");
         }
@@ -547,8 +605,7 @@ class XTensorBackend
         if (m_data.size() != target.m_data.size())
         {
             std::ostringstream oss;
-            oss << "Shape mismatch in mean_squared_error: "
-                << rows() << "x" << cols() << " vs "
+            oss << "Shape mismatch in mean_squared_error: " << rows() << "x" << cols() << " vs "
                 << target.rows() << "x" << target.cols();
             NN_LOG_ERROR(oss.str());
             throw std::invalid_argument("Shape mismatch for mean_squared_error");
@@ -557,7 +614,11 @@ class XTensorBackend
         const float* b = target.m_data.data();
         const std::size_t n = m_data.size();
         float sq = 0.0f;
-        for (std::size_t i = 0; i < n; ++i) { float d = a[i] - b[i]; sq += d * d; }
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            float d = a[i] - b[i];
+            sq += d * d;
+        }
         return sq / static_cast<float>(n);
     }
 
@@ -601,7 +662,10 @@ class XTensorBackend
         return XTensorBackend(std::move(s));
     }
 
-    XTensorBackend rowwise_sum() const { return sum_rows(); }
+    XTensorBackend rowwise_sum() const
+    {
+        return sum_rows();
+    }
 
     bool hasNaN() const
     {
@@ -616,7 +680,10 @@ class XTensorBackend
         if (shape() != other.shape()) return false;
         return static_cast<bool>(xt::all(xt::abs(m_data - other.m_data) <= 1e-5f));
     }
-    bool operator!=(const XTensorBackend& other) const { return !(*this == other); }
+    bool operator!=(const XTensorBackend& other) const
+    {
+        return !(*this == other);
+    }
 
     // ------------------------------------------------------------------
     // Slicing and views
@@ -632,9 +699,8 @@ class XTensorBackend
             r(0, 0) = m_data(i);
             return XTensorBackend(std::move(r));
         }
-        xt::xarray<float> r = xt::eval(
-            xt::reshape_view(xt::view(m_data, i, xt::all()),
-                             std::vector<Index>{std::size_t{1}, m_data.shape(1)}));
+        xt::xarray<float> r = xt::eval(xt::reshape_view(
+            xt::view(m_data, i, xt::all()), std::vector<Index>{std::size_t{1}, m_data.shape(1)}));
         return XTensorBackend(std::move(r));
     }
 
@@ -670,9 +736,11 @@ class XTensorBackend
     {
         if (m_data.shape().size() == 1)
         {
-            if (c != 0 || block_cols != 1) throw std::invalid_argument("Block must be (r, 0, rows, 1) for 1D tensor");
-            if (r + block_rows > m_data.shape(0)) throw std::out_of_range("Block indices out of range");
-            
+            if (c != 0 || block_cols != 1)
+                throw std::invalid_argument("Block must be (r, 0, rows, 1) for 1D tensor");
+            if (r + block_rows > m_data.shape(0))
+                throw std::out_of_range("Block indices out of range");
+
             std::vector<Index> shape = {block_rows, 1};
             xt::xarray<float> res = xt::zeros<float>(shape);
             for (Index i = 0; i < block_rows; ++i) res(i, 0) = m_data(r + i);
@@ -680,20 +748,17 @@ class XTensorBackend
         }
         if (r + block_rows > m_data.shape(0) || c + block_cols > m_data.shape(1))
             throw std::out_of_range("Block indices out of range");
-        xt::xarray<float> res = xt::view(m_data,
-                                           xt::range(r, r + block_rows),
-                                           xt::range(c, c + block_cols));
+        xt::xarray<float> res =
+            xt::view(m_data, xt::range(r, r + block_rows), xt::range(c, c + block_cols));
         return XTensorBackend(std::move(res));
     }
-
 
     // Extract 2D slice [b, :, :] from a 3D (B, T, D) tensor → (T, D).
     XTensorBackend slice_batch(Index b) const
     {
         if (m_data.shape().size() != 3)
             throw std::invalid_argument("slice_batch: tensor must be 3D");
-        if (b >= m_data.shape(0))
-            throw std::out_of_range("slice_batch: index out of range");
+        if (b >= m_data.shape(0)) throw std::out_of_range("slice_batch: index out of range");
         xt::xarray<float> r = xt::eval(xt::view(m_data, b, xt::all(), xt::all()));
         return XTensorBackend(std::move(r));
     }
@@ -703,8 +768,7 @@ class XTensorBackend
     {
         if (m_data.shape().size() != 3)
             throw std::invalid_argument("set_batch_slice: tensor must be 3D");
-        if (b >= m_data.shape(0))
-            throw std::out_of_range("set_batch_slice: index out of range");
+        if (b >= m_data.shape(0)) throw std::out_of_range("set_batch_slice: index out of range");
         xt::view(m_data, b, xt::all(), xt::all()) = val.m_data;
     }
 
@@ -713,8 +777,7 @@ class XTensorBackend
     {
         if (m_data.shape().size() != 3)
             throw std::invalid_argument("slice_time: tensor must be 3D");
-        if (t >= m_data.shape(1))
-            throw std::out_of_range("slice_time: index out of range");
+        if (t >= m_data.shape(1)) throw std::out_of_range("slice_time: index out of range");
         xt::xarray<float> r = xt::eval(xt::view(m_data, xt::all(), t, xt::all()));
         return XTensorBackend(std::move(r));
     }
@@ -724,8 +787,7 @@ class XTensorBackend
     {
         if (m_data.shape().size() != 3)
             throw std::invalid_argument("set_time_slice: tensor must be 3D");
-        if (t >= m_data.shape(1))
-            throw std::out_of_range("set_time_slice: index out of range");
+        if (t >= m_data.shape(1)) throw std::out_of_range("set_time_slice: index out of range");
         xt::view(m_data, xt::all(), t, xt::all()) = val.m_data;
     }
 
@@ -733,9 +795,8 @@ class XTensorBackend
     {
         if (r + other.rows() > m_data.shape(0) || c + other.cols() > m_data.shape(1))
             throw std::invalid_argument("Block indices out of range");
-        xt::view(m_data,
-                 xt::range(r, r + other.rows()),
-                 xt::range(c, c + other.cols())) = other.m_data;
+        xt::view(m_data, xt::range(r, r + other.rows()), xt::range(c, c + other.cols())) =
+            other.m_data;
     }
 
     XTensorBackend slice(std::span<const int> indices) const
@@ -756,12 +817,27 @@ class XTensorBackend
     // Mutators
     // ------------------------------------------------------------------
 
-    void fill(float v)  { fill_constant_simd(m_data.data(), m_data.size(), v); }
-    void set_zero()     { fill_constant_simd(m_data.data(), m_data.size(), 0.0f); }
-    void set_ones()     { fill_constant_simd(m_data.data(), m_data.size(), 1.0f); }
+    void fill(float v)
+    {
+        fill_constant_simd(m_data.data(), m_data.size(), v);
+    }
+    void set_zero()
+    {
+        fill_constant_simd(m_data.data(), m_data.size(), 0.0f);
+    }
+    void set_ones()
+    {
+        fill_constant_simd(m_data.data(), m_data.size(), 1.0f);
+    }
 
-    const float* data_ptr() const noexcept { return m_data.data(); }
-    float* mutable_data_ptr() noexcept     { return m_data.data(); }
+    const float* data_ptr() const noexcept
+    {
+        return m_data.data();
+    }
+    float* mutable_data_ptr() noexcept
+    {
+        return m_data.data();
+    }
 
     // ------------------------------------------------------------------
     // Gradient
@@ -795,7 +871,7 @@ class XTensorBackend
         return *m_grad_wrapper;
     }
 
-    private:
+   private:
     bool same_shape(const XTensorBackend& other) const noexcept
     {
         const auto& a = m_data.shape();
@@ -815,13 +891,11 @@ class XTensorBackend
         Index i = 0;
         for (; i + kWidth <= count; i += kWidth)
         {
-            for (Index j = 0; j < kWidth; ++j)
-                lane[j] = dist(rng);
+            for (Index j = 0; j < kWidth; ++j) lane[j] = dist(rng);
             const auto batch = xsimd::batch<float>::load_unaligned(lane.data());
             batch.store_unaligned(data + i);
         }
-        for (; i < count; ++i)
-            data[i] = dist(rng);
+        for (; i < count; ++i) data[i] = dist(rng);
     }
 
     static void fill_constant_simd(float* data, Index count, float value)
@@ -830,16 +904,13 @@ class XTensorBackend
         const auto batch = xsimd::batch<float>(value);
 
         Index i = 0;
-        for (; i + kWidth <= count; i += kWidth)
-            batch.store_unaligned(data + i);
-        for (; i < count; ++i)
-            data[i] = value;
+        for (; i + kWidth <= count; i += kWidth) batch.store_unaligned(data + i);
+        for (; i < count; ++i) data[i] = value;
     }
 
-    xt::xarray<float>  m_data;
+    xt::xarray<float> m_data;
     mutable std::optional<xt::xarray<float>> m_grad;
     mutable std::unique_ptr<XTensorBackend> m_grad_wrapper;
-
 
     XTensorBackend make_like(xt::xarray<float> data) const
     {

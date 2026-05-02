@@ -28,11 +28,11 @@
  * - `LinearImpl<Backend>` works with any backend tensor type.
  * - Parameters (`weight`, `bias`) are always stored as CPU-resident `nn::Tensor` so that
  *   existing CPU optimizers continue to work without modification.
-* - For non-xtensor backends the parameters are converted to the active backend at the start
-*   of each forward/backward pass; this conversion is zero-cost when Backend == XTensorBackend since
- *   both types alias the same underlying storage.
-* - Concrete aliases (e.g. `Linear = LinearImpl<Backend>`) live in
-*   `nn/layers/Layers.hpp`.
+ * - For non-xtensor backends the parameters are converted to the active backend at the start
+ *   of each forward/backward pass; this conversion is zero-cost when Backend == XTensorBackend
+ * since both types alias the same underlying storage.
+ * - Concrete aliases (e.g. `Linear = LinearImpl<Backend>`) live in
+ *   `nn/layers/Layers.hpp`.
  */
 template <typename Backend>
 struct LinearImpl : public Module<Backend>
@@ -48,6 +48,8 @@ struct LinearImpl : public Module<Backend>
     nn::Tensor bias;
     /// CPU-side cached input; populated when `forward(..., requires_grad=true)`.
     nn::Tensor input_cache;
+    /// Backend-side cached input for avoiding CPU->backend re-conversion in backward.
+    std::optional<Tensor> input_cache_backend;
     // Owned view of parameter pointers. Must point to member tensors so the span
     // returned by `params()` remains valid for the lifetime of this object.
     std::array<nn::Tensor*, 2> param_ptrs_{{&weight, &bias}};
@@ -114,11 +116,15 @@ struct LinearImpl : public Module<Backend>
         if (requires_grad)
         {
             input_cache = nn::Tensor(input);
+            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            {
+                input_cache_backend.reset();
+            }
         }
 
         // Handle N-D inputs by flattening leading dimensions into a single batch dimension.
         // Input: (d0, d1, ..., in_features) -> Reshape: (B_eff, in_features)
-        std::vector<nn::Index> flat_shape = {1, (nn::Index)in_features};
+        std::vector<nn::Index> flat_shape = {1, (nn::Index) in_features};
         if (shape.size() > 1)
         {
             nn::Index effective_batch = 1;
@@ -132,6 +138,13 @@ struct LinearImpl : public Module<Backend>
         }
 
         Tensor input_flat = input.reshape(flat_shape);
+        if (requires_grad)
+        {
+            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            {
+                input_cache_backend = input_flat;
+            }
+        }
 
         // Convert CPU parameters only when the active backend differs from the default backend.
         Tensor result_flat;
@@ -149,25 +162,29 @@ struct LinearImpl : public Module<Backend>
                 input_flat.get_backend().set_gpu_resident(true);
                 weight_t.get_backend().set_gpu_resident(true);
                 bias_t.get_backend().set_gpu_resident(true);
+                result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
+                    weight_t.get_backend(), bias_t.get_backend()));
             }
-            result_flat = input_flat.matmul_transposed(weight_t);
-            result_flat.add_col_vector_to_rows_inplace(bias_t);
+            else
+            {
+                result_flat = input_flat.matmul_transposed(weight_t);
+                result_flat.add_col_vector_to_rows_inplace(bias_t);
+            }
         }
 
         // Restore original leading dimensions: (d0, d1, ..., out_features)
         std::vector<nn::Index> out_shape = shape;
-        out_shape.back() = (nn::Index)out_features;
-        
+        out_shape.back() = (nn::Index) out_features;
+
         // If input was 1D, result should be 2D (1, out_features) to maintain batch consistency
         if (shape.size() == 1)
         {
-            return result_flat; 
+            return result_flat;
         }
 
         result_flat.reshape(out_shape);
         return result_flat;
     }
-
 
     /**
      * @brief Backward pass: compute parameter gradients and return the input gradient.
@@ -192,14 +209,13 @@ struct LinearImpl : public Module<Backend>
         const nn::Index out_dim = shape.back();
         if (static_cast<int>(out_dim) != out_features)
         {
-            throw std::invalid_argument("Linear layer backward: gradient features (" +
-                                           std::to_string(out_dim) +
-                                           ") do not match expected out_features (" +
-                                           std::to_string(out_features) + ")");
+            throw std::invalid_argument(
+                "Linear layer backward: gradient features (" + std::to_string(out_dim) +
+                ") do not match expected out_features (" + std::to_string(out_features) + ")");
         }
 
         // Flatten leading dimensions of grad_previous: (B_eff, out_features)
-        std::vector<nn::Index> flat_grad_shape = {1, (nn::Index)out_features};
+        std::vector<nn::Index> flat_grad_shape = {1, (nn::Index) out_features};
         if (shape.size() > 1)
         {
             nn::Index effective_batch = 1;
@@ -214,7 +230,7 @@ struct LinearImpl : public Module<Backend>
 
         // Flatten cached input: (B_eff, in_features)
         const auto input_shape = input_cache.get_shape();
-        std::vector<nn::Index> flat_input_shape = {1, (nn::Index)in_features};
+        std::vector<nn::Index> flat_input_shape = {1, (nn::Index) in_features};
         if (input_shape.size() > 1)
         {
             nn::Index effective_batch = 1;
@@ -225,17 +241,45 @@ struct LinearImpl : public Module<Backend>
         {
             flat_input_shape[0] = 1;
         }
-        Tensor input_t = input_cache;
-        input_t.reshape(flat_input_shape);
+        Tensor input_t;
+        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            if (input_cache_backend.has_value())
+            {
+                input_t = *input_cache_backend;
+            }
+            else
+            {
+                input_t = Tensor(input_cache);
+                input_t.reshape(flat_input_shape);
+            }
+        }
+        else
+        {
+            input_t = Tensor(input_cache);
+            input_t.reshape(flat_input_shape);
+        }
+
+        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            grad_flat.get_backend().set_gpu_resident(true);
+            input_t.get_backend().set_gpu_resident(true);
+        }
+
+        Tensor grad_t = grad_flat.transpose();
+        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        {
+            grad_t.get_backend().set_gpu_resident(true);
+        }
 
         // dL/dW = (dL/dY)^T · X
-        Tensor grad_weight = grad_flat.transpose().matmul(input_t);
+        Tensor grad_weight = grad_t.matmul(input_t);
         weight.set_grad(nn::Tensor(grad_weight));
-        
+
         // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
-        Tensor grad_bias = grad_flat.transpose().rowwise_sum();
+        Tensor grad_bias = grad_t.rowwise_sum();
         bias.set_grad(nn::Tensor(grad_bias));
-        
+
         // dL/dX = dL/dY · W
         Tensor grad_input_flat;
         if constexpr (std::is_same_v<Backend, nn::Backend>)
@@ -247,7 +291,6 @@ struct LinearImpl : public Module<Backend>
             Tensor weight_t(weight);
             if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
             {
-                grad_flat.get_backend().set_gpu_resident(true);
                 weight_t.get_backend().set_gpu_resident(true);
             }
             grad_input_flat = grad_flat.matmul(weight_t);
@@ -256,7 +299,7 @@ struct LinearImpl : public Module<Backend>
         // Restore original leading dimensions for the input gradient
         std::vector<nn::Index> input_out_shape = input_shape;
         // No change to last dim because it's already in_features
-        
+
         if (input_shape.size() == 1)
         {
             return grad_input_flat;
@@ -265,8 +308,6 @@ struct LinearImpl : public Module<Backend>
         grad_input_flat.reshape(input_out_shape);
         return grad_input_flat;
     }
-
-
 
     /// Returns the two CPU-resident trainable parameters (weight, bias).
     auto params() -> std::span<nn::Tensor*> override

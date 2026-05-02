@@ -25,6 +25,8 @@ Recent updates
 - Added RAII `OpenCLContext::BatchScope` and wired dense `Linear` forward/backward chains to batch OpenCL tensor operations through a single synchronization boundary.
 - Extended `OpenCLTensorBackend` GPU-resident execution so `matmul` outputs can stay on device across dense affine chains, `add_col_vector_to_rows_inplace` can update resident buffers in place, and host storage is synchronized lazily on first CPU access.
 - Added `matmul_rhs_transposed_kernel` in the OpenCL linear algebra program and routed `OpenCLTensorBackend::matmul_transposed` to this direct path, removing the extra transpose materialization previously used by dense and recurrent affine chains.
+- Added GPU-resident execution path for `OpenCLTensorBackend::rowwise_sum`, allowing reduction outputs to remain on device through chained gradient computations before lazy host synchronization.
+- Reduced resident-path synchronization by removing explicit queue finishes in selected OpenCL affine/reduction resident fast paths (`matmul_transposed`, `add_col_vector_to_rows_inplace`, `rowwise_sum`) so same-queue kernel chains can progress without forced host-side barriers.
 - Added standalone benchmark executable [src/core/tensor/tests/tensor_perf_bench.cpp](src/core/tensor/tests/tensor_perf_bench.cpp) to emit CSV timing for xtensor and OpenCL tensor workloads without making performance checks part of CTest.
 - Rebuilt affected targets (`experiment03_lib`, `core_gtest`) and re-ran full CTest: 680/680 passed after these changes.
 - Added backend primitive for rowwise addition of a `(cols, 1)` bias vector across all rows (`add_col_vector_to_rows_inplace`), exposed through `nn::Tensor`.

@@ -53,8 +53,7 @@ OpenCLContext::BatchScope::~BatchScope()
     }
 }
 
-OpenCLContext::BatchScope::BatchScope(BatchScope&& other) noexcept
-    : active(other.active)
+OpenCLContext::BatchScope::BatchScope(BatchScope&& other) noexcept : active(other.active)
 {
     other.active = false;
 }

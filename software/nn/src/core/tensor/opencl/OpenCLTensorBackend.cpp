@@ -406,7 +406,8 @@ static bool can_use_opencl(const char* operation)
     const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
     if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
     {
-        warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+        warn_opencl_cpu_fallback_once(
+            operation, "AddressSanitizer build disables OpenCL execution");
         return false;
     }
 #elif defined(__has_feature)
@@ -414,7 +415,8 @@ static bool can_use_opencl(const char* operation)
     const char* force_opencl = std::getenv("NN_FORCE_OPENCL_UNDER_ASAN");
     if (force_opencl == nullptr || force_opencl[0] == '\0' || force_opencl[0] == '0')
     {
-        warn_opencl_cpu_fallback_once(operation, "AddressSanitizer build disables OpenCL execution");
+        warn_opencl_cpu_fallback_once(
+            operation, "AddressSanitizer build disables OpenCL execution");
         return false;
     }
 #endif
@@ -486,7 +488,9 @@ class EventTracker
         {
             std::vector<cl_event> cl_events;
             cl_events.reserve(events.size());
-            std::transform(events.begin(), events.end(), std::back_inserter(cl_events),
+            std::transform(events.begin(),
+                events.end(),
+                std::back_inserter(cl_events),
                 [](const PendingEvent& pe) { return pe.event; });
 #if defined(CL_VERSION_1_2)
             check_cl_error(
@@ -2112,8 +2116,8 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                         "add_col_vector_to_rows_inplace resident col");
                 }
 
-                cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
-                    "add_col_vector_to_rows_kernel");
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
                 const cl_mem data_mem = m_gpu_buffer->buffer;
                 const cl_mem col_mem = col_vector.m_gpu_buffer->buffer;
                 const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
@@ -2134,8 +2138,6 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                     clEnqueueNDRangeKernel(
                         ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
                     "add_col_vector_to_rows_inplace resident");
-                finish_queue_if_not_batching(
-                    ctx.get_queue(), "add_col_vector_to_rows_inplace resident");
                 m_needs_sync_to_host = true;
                 return;
             }
@@ -2850,7 +2852,8 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                         t.m_has_gpu_memory = true;
                         if (out_buf)
                         {
-                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                            t.m_gpu_buffer =
+                                std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                         }
                         t.set_gpu_resident(true);
                         t.m_needs_sync_to_host = true;
@@ -2986,7 +2989,8 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                         t.m_has_gpu_memory = true;
                         if (out_buf)
                         {
-                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                            t.m_gpu_buffer =
+                                std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                         }
                         t.set_gpu_resident(true);
                         t.m_needs_sync_to_host = true;
@@ -3122,7 +3126,8 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                         t.m_has_gpu_memory = true;
                         if (out_buf)
                         {
-                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                            t.m_gpu_buffer =
+                                std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                         }
                         t.set_gpu_resident(true);
                         t.m_needs_sync_to_host = true;
@@ -3258,7 +3263,8 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                         t.m_has_gpu_memory = true;
                         if (out_buf)
                         {
-                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                            t.m_gpu_buffer =
+                                std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                         }
                         t.set_gpu_resident(true);
                         t.m_needs_sync_to_host = true;
@@ -3646,6 +3652,10 @@ OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 // Reduction
 OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
 {
+    if (!m_gpu_resident)
+    {
+        sync_gpu_if_needed();
+    }
     if (shape().size() != 2)
     {
         warn_opencl_cpu_fallback_once("rowwise_sum", "OpenCL path requires rank-2 tensors");
@@ -3662,6 +3672,44 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
             const std::size_t output_bytes = num_rows * sizeof(float);
 
             OpenCLHostStorage out(num_rows, 1);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                if (!m_needs_sync_to_host)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        input_bytes,
+                        "clEnqueueWriteBuffer(rowwise_sum, input resident)");
+                }
+
+                OpenCLTensorBackend t(num_rows, 1);
+                t.set_gpu_resident(true);
+
+                cl_kernel kernel = opencl::KernelManager::instance().get_kernel("rowwise_sum_kernel");
+                const cl_mem in_mem = m_gpu_buffer->buffer;
+                const cl_mem out_mem = t.m_gpu_buffer->buffer;
+                const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+                const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                    "clSetKernelArg(rowwise_sum, input resident)");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                    "clSetKernelArg(rowwise_sum, output resident)");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                    "clSetKernelArg(rowwise_sum, rows resident)");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                    "clSetKernelArg(rowwise_sum, cols resident)");
+
+                const std::size_t global = static_cast<std::size_t>(num_rows);
+                check_cl_error(clEnqueueNDRangeKernel(
+                                   ctx.get_queue(), kernel, 1, nullptr, &global, nullptr, 0, nullptr, nullptr),
+                    "clEnqueueNDRangeKernel(rowwise_sum resident)");
+                t.m_needs_sync_to_host = true;
+                return t;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -3957,8 +4005,14 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBackend& other) const
 {
-    sync_gpu_if_needed();
-    other.sync_gpu_if_needed();
+    if (!m_gpu_resident)
+    {
+        sync_gpu_if_needed();
+    }
+    if (!other.m_gpu_resident)
+    {
+        other.sync_gpu_if_needed();
+    }
     if (shape().size() != 2 || other.shape().size() != 2 || cols() != other.cols())
     {
         throw_opencl_only_failure(
@@ -4024,10 +4078,10 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
                     "clSetKernelArg(matmul_transposed, k resident)");
 
                 const std::size_t global[2] = {m, n};
-                check_cl_error(clEnqueueNDRangeKernel(
-                                   ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                     "clEnqueueNDRangeKernel(matmul_transposed resident)");
-                finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_transposed resident)");
                 t.m_needs_sync_to_host = true;
                 return t;
             }
@@ -4051,8 +4105,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
                         b_bytes,
                         "clEnqueueWriteBuffer(matmul_transposed, b)");
 
-                    cl_kernel kernel =
-                        opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_kernel");
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
+                        "matmul_rhs_transposed_kernel");
                     const cl_mem a_mem = a_buf->buffer;
                     const cl_mem b_mem = b_buf->buffer;
                     const cl_mem c_mem = c_buf->buffer;
@@ -4149,6 +4203,245 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
         "matmul_transposed", "OpenCL runtime unavailable or matrix dimensions are invalid");
 }
 
+OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
+    const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const
+{
+    if (!m_gpu_resident)
+    {
+        sync_gpu_if_needed();
+    }
+    if (!other.m_gpu_resident)
+    {
+        other.sync_gpu_if_needed();
+    }
+    if (!bias.m_gpu_resident)
+    {
+        bias.sync_gpu_if_needed();
+    }
+
+    if (shape().size() != 2 || other.shape().size() != 2 || bias.shape().size() != 2)
+    {
+        throw_opencl_only_failure("matmul_transposed_add_col_bias",
+            "OpenCL runtime unavailable or matrix dimensions are invalid");
+    }
+    if (cols() != other.cols() || bias.rows() != other.rows() || bias.cols() != 1)
+    {
+        throw_opencl_only_failure("matmul_transposed_add_col_bias",
+            "OpenCL runtime unavailable or matrix dimensions are invalid");
+    }
+    if (!can_use_opencl("matmul_transposed_add_col_bias"))
+    {
+        throw_opencl_only_failure("matmul_transposed_add_col_bias",
+            "OpenCL runtime unavailable or matrix dimensions are invalid");
+    }
+
+    try
+    {
+        const auto& ctx = opencl::OpenCLContext::instance();
+        const Index m = rows();
+        const Index k = cols();
+        const Index n = other.rows();
+
+        const std::size_t a_bytes = m * k * sizeof(float);
+        const std::size_t b_bytes = n * k * sizeof(float);
+        const std::size_t bias_bytes = n * sizeof(float);
+        const std::size_t c_bytes = m * n * sizeof(float);
+        OpenCLHostStorage out(m, n);
+
+        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
+            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer &&
+            other.m_gpu_buffer && bias.m_gpu_buffer)
+        {
+            if (!m_needs_sync_to_host)
+            {
+                copy_host_to_device(ctx.get_queue(),
+                    m_gpu_buffer->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, a resident)");
+            }
+            if (!other.m_needs_sync_to_host)
+            {
+                copy_host_to_device(ctx.get_queue(),
+                    other.m_gpu_buffer->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, b resident)");
+            }
+            if (!bias.m_needs_sync_to_host)
+            {
+                copy_host_to_device(ctx.get_queue(),
+                    bias.m_gpu_buffer->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, bias resident)");
+            }
+
+            OpenCLTensorBackend t(m, n);
+            t.set_gpu_resident(true);
+
+            cl_kernel kernel =
+                opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_kernel");
+            const cl_mem a_mem = m_gpu_buffer->buffer;
+            const cl_mem b_mem = other.m_gpu_buffer->buffer;
+            const cl_mem bias_mem = bias.m_gpu_buffer->buffer;
+            const cl_mem c_mem = t.m_gpu_buffer->buffer;
+            const cl_uint m_u32 = static_cast<cl_uint>(m);
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+            const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                "clSetKernelArg(matmul_transposed_add_col_bias, a resident)");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                "clSetKernelArg(matmul_transposed_add_col_bias, b resident)");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
+                "clSetKernelArg(matmul_transposed_add_col_bias, bias resident)");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
+                "clSetKernelArg(matmul_transposed_add_col_bias, c resident)");
+            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
+                "clSetKernelArg(matmul_transposed_add_col_bias, m resident)");
+            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
+                "clSetKernelArg(matmul_transposed_add_col_bias, n resident)");
+            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
+                "clSetKernelArg(matmul_transposed_add_col_bias, k resident)");
+
+            const std::size_t global[2] = {m, n};
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(matmul_transposed_add_col_bias resident)");
+            t.m_needs_sync_to_host = true;
+            return t;
+        }
+
+        tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+        if (pool)
+        {
+            auto a_buf = pool->acquire(a_bytes);
+            auto b_buf = pool->acquire(b_bytes);
+            auto bias_buf = pool->acquire(bias_bytes);
+            auto c_buf = pool->acquire(c_bytes);
+            if (a_buf && b_buf && bias_buf && c_buf)
+            {
+                copy_host_to_device(ctx.get_queue(),
+                    a_buf->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, a)");
+                copy_host_to_device(ctx.get_queue(),
+                    b_buf->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, b)");
+                copy_host_to_device(ctx.get_queue(),
+                    bias_buf->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_transposed_add_col_bias, bias)");
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_kernel");
+                const cl_mem a_mem = a_buf->buffer;
+                const cl_mem b_mem = b_buf->buffer;
+                const cl_mem bias_mem = bias_buf->buffer;
+                const cl_mem c_mem = c_buf->buffer;
+                const cl_uint m_u32 = static_cast<cl_uint>(m);
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+                const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, a)");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, b)");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, bias)");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, c)");
+                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, m)");
+                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, n)");
+                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
+                    "clSetKernelArg(matmul_transposed_add_col_bias, k)");
+
+                const std::size_t global[2] = {m, n};
+                check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                   kernel,
+                                   2,
+                                   nullptr,
+                                   global,
+                                   nullptr,
+                                   0,
+                                   nullptr,
+                                   nullptr),
+                    "clEnqueueNDRangeKernel(matmul_transposed_add_col_bias)");
+                finish_queue_if_not_batching(
+                    ctx.get_queue(), "clFinish(matmul_transposed_add_col_bias)");
+
+                copy_device_to_host(ctx.get_queue(),
+                    c_buf->buffer,
+                    out.mutable_data_ptr(),
+                    c_bytes,
+                    "clEnqueueReadBuffer(matmul_transposed_add_col_bias, c)");
+
+                OpenCLTensorBackend t;
+                t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                return t;
+            }
+        }
+
+        opencl::DeviceMemory a_dev(a_bytes);
+        opencl::DeviceMemory b_dev(b_bytes);
+        opencl::DeviceMemory bias_dev(bias_bytes);
+        opencl::DeviceMemory out_dev(c_bytes);
+        a_dev.copy_to_device(m_backend->data_ptr());
+        b_dev.copy_to_device(other.m_backend->data_ptr());
+        bias_dev.copy_to_device(bias.m_backend->data_ptr());
+
+        cl_kernel kernel =
+            opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_kernel");
+        const cl_mem a_mem = a_dev.get_device_buffer();
+        const cl_mem b_mem = b_dev.get_device_buffer();
+        const cl_mem bias_mem = bias_dev.get_device_buffer();
+        const cl_mem c_mem = out_dev.get_device_buffer();
+        const cl_uint m_u32 = static_cast<cl_uint>(m);
+        const cl_uint n_u32 = static_cast<cl_uint>(n);
+        const cl_uint k_u32 = static_cast<cl_uint>(k);
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),
+            "clSetKernelArg(matmul_transposed_add_col_bias, a)");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),
+            "clSetKernelArg(matmul_transposed_add_col_bias, b)");
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem),
+            "clSetKernelArg(matmul_transposed_add_col_bias, bias)");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),
+            "clSetKernelArg(matmul_transposed_add_col_bias, c)");
+        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),
+            "clSetKernelArg(matmul_transposed_add_col_bias, m)");
+        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),
+            "clSetKernelArg(matmul_transposed_add_col_bias, n)");
+        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),
+            "clSetKernelArg(matmul_transposed_add_col_bias, k)");
+
+        const std::size_t global[2] = {m, n};
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+            "clEnqueueNDRangeKernel(matmul_transposed_add_col_bias)");
+        finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_transposed_add_col_bias)");
+
+        out_dev.copy_from_device(out.mutable_data_ptr());
+
+        OpenCLTensorBackend t;
+        t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+        return t;
+    }
+    catch (const std::exception& e)
+    {
+        throw_opencl_only_failure("matmul_transposed_add_col_bias", e.what());
+    }
+}
+
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 {
     if (shape().size() != 2)
@@ -4216,7 +4509,8 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                         t.m_has_gpu_memory = true;
                         if (out_buf)
                         {
-                            t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                            t.m_gpu_buffer =
+                                std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                         }
                         t.set_gpu_resident(true);
                         t.m_needs_sync_to_host = true;
