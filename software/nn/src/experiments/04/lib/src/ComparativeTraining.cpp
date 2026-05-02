@@ -156,7 +156,8 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, tcfg);
 
-    const std::string label = "LSTM " + std::to_string(run_id + 1) + "/" +
+    const std::string label = "LSTM [" + encoding + "] r" +
+                              std::to_string(run_id + 1) + "/" +
                               std::to_string(total_runs);
     trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
 
@@ -225,7 +226,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
     nn::training::Trainer<ProtocolSpikingAutoencoder> trainer(model, tcfg);
 
-    const std::string label = "SNN " + std::to_string(run_id + 1) + "/" +
+    const std::string label = "SNN [" + encoding + "] r" +
+                              std::to_string(run_id + 1) + "/" +
                               std::to_string(total_runs);
     trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
 

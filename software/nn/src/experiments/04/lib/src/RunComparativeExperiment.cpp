@@ -71,21 +71,29 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         std::vector<ResultRow> all_rows;
 
+        // Total outer iterations: datasets × encodings × repeats.
+        const int total_outer_runs =
+            static_cast<int>(config.evaluation.datasets.size()) *
+            static_cast<int>(config.evaluation.encodings.size()) *
+            config.experiment.repeats;
+
+        const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
+            "all exp. runs", static_cast<float>(total_outer_runs));
+
+        int completed_runs = 0;
+
         for (const auto& dataset_name : config.evaluation.datasets)
         {
             const DatasetSplit split = build_split(config, dataset_name);
 
             for (const auto& encoding : config.evaluation.encodings)
             {
-                // Run bar: tracks repeat progress for this (dataset, encoding) pair.
-                const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
-                    dataset_name + "/" + encoding + " run",
-                    static_cast<float>(config.experiment.repeats));
-
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
                     nn::progress::ProgressManager::instance().update_bar(
-                        run_bar, static_cast<float>(run_id));
+                        run_bar,
+                        static_cast<float>(completed_runs),
+                        {{"ds", static_cast<float>(config.evaluation.datasets.size())}});
                     const std::uint32_t run_seed =
                         config.experiment.seed_deterministic
                             ? config.experiment.seed
@@ -201,11 +209,14 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             }
                         }
                     }
-                }
 
-                nn::progress::ProgressManager::instance().complete_bar(run_bar);
+                    nn::progress::ProgressManager::instance().update_bar(
+                        run_bar, static_cast<float>(++completed_runs));
+                }
             }
         }
+
+        nn::progress::ProgressManager::instance().complete_bar(run_bar);
 
         if (config.experiment.repeats > 1 && config.experiment.check_determinism)
         {
