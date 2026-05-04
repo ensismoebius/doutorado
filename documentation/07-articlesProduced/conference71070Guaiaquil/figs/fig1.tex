@@ -1,24 +1,23 @@
-% Simple coordinate-based TikZ figure to avoid positioning library issues
-\begin{tikzpicture}[font=\scriptsize, >=latex, every node/.style={align=center}]
-  % coordinates chosen to fit ~\columnwidth and keep height small
-  \node[draw, rounded corners, minimum height=6mm, minimum width=20mm] (Ainput) at (-4.5,0.8) {Audio\\Input};
-  \node[draw, rounded corners, minimum height=6mm, minimum width=22mm] (Aenc) at (-2.5,0.8) {Audio\\Encoder};
+% SNN autoencoder architecture — 2-row U-shaped layout (fits single column)
+\begin{tikzpicture}[font=\scriptsize, >=Latex,
+  box/.style={draw, rounded corners, align=center,
+              minimum height=8mm, minimum width=24mm, fill=gray!8}]
 
-  \node[draw, rounded corners, minimum height=6mm, minimum width=20mm] (Einput) at (-4.5,-0.8) {EEG\\Input};
-  \node[draw, rounded corners, minimum height=6mm, minimum width=22mm] (EEG) at (-2.5,-0.8) {EEG\\Encoder};
+% Encoder row (top, left to right)
+\node[box] (in)  at (0,0)   {Input\\$x\!\in\!\mathbb{R}^T$};
+\node[box] (phi) at (2.8,0) {Encode $+\phi$};
+\node[box] (enc) at (5.6,0) {Encoder\\Lin$\to$Leaky${\times}2$};
 
-  \node[draw, rounded corners, minimum height=7mm, minimum width=20mm] (FUS) at (0,0) {Fusion};
-  \node[draw, rounded corners, minimum height=7mm, minimum width=20mm] (Z) at (2.5,0) {Latent\\Vector};
-  \node[draw, rounded corners, minimum height=7mm, minimum width=26mm] (Dec) at (5,0) {Decoder\\(symmetric)};
+% Decoder row (bottom, right to left)
+\node[box] (z)   at (5.6,-1.4) {Latent\\$z\!\in\!\mathbb{R}^{32}$};
+\node[box] (dec) at (2.8,-1.4) {Decoder\\LeakyInt$\to$Lin};
+\node[box] (out) at (0,-1.4)   {Output\\$\hat{x}\!\in\!\mathbb{R}^T$};
 
-  % arrows
-  \draw[->] (Ainput) -- (Aenc);
-  \draw[->] (Einput) -- (EEG);
-  \draw[->] (Aenc) -- (FUS);
-  \draw[->] (EEG) -- (FUS);
-  \draw[->] (FUS) -- (Z);
-  \draw[->] (Z) -- (Dec);
+% Arrows
+\draw[->] (in)  -- (phi);
+\draw[->] (phi) -- (enc);
+\draw[->] (enc) -- (z);
+\draw[->] (z)   -- (dec);
+\draw[->] (dec) -- (out);
 
-  % note
-  \node[below=6mm of Dec, font=\scriptsize, anchor=north] (note) {Figure fits one column; minimal labels};
 \end{tikzpicture}

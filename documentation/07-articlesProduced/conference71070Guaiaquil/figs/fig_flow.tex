@@ -1,0 +1,32 @@
+% Experiment execution pipeline flowchart (single-column)
+\begin{tikzpicture}[
+  font=\scriptsize, >=Latex,
+  node distance = 3mm and 2mm,
+  box/.style  = {draw, rounded corners, align=center,
+                 minimum height=6mm, fill=gray!8},
+  main/.style = {box, text width=38mm, minimum width=40mm},
+  side/.style = {box, text width=15mm, minimum width=17mm}
+]
+
+\node[main] (fsdd) {FSDD Dataset};
+\node[main, below=of fsdd] (win)  {Windowing ($T=256$)};
+\node[main, below=of win]  (enc)  {Direct \textbar{} Poisson \textbar{} Latency};
+
+\node[side, below left  = 5mm and 5mm of enc] (snn)
+  {SNN-AE\\dense / conv1d / recur.};
+\node[side, below right = 5mm and 5mm of enc] (lstm) {LSTM-AE};
+
+\node[main, below = 14mm of enc] (met)
+  {MSE, MAE, $R^2$, F1\\spike rate, energy, params};
+\node[main, below=of met] (out) {CSV + pgfplots \texttt{.dat}};
+
+\draw[->] (fsdd) -- (win);
+\draw[->] (win)  -- (enc);
+\draw[->] (enc.south) -- ++(0,-2mm) coordinate (fork);
+\draw[->] (fork) -| (snn.north);
+\draw[->] (fork) -| (lstm.north);
+\draw[->] (snn.south)  |- (met.west);
+\draw[->] (lstm.south) |- (met.east);
+\draw[->] (met) -- (out);
+
+\end{tikzpicture}
