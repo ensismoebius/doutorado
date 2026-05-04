@@ -90,7 +90,11 @@ TEST_F(AudioLoaderTest, LoadsAudioDataCorrectly)
 
     // Basic sanity checks
     EXPECT_FALSE(audioSamples.hasNaN());
-    EXPECT_GE(eegIndex, 0); // EEG index should be non-negative
+    EXPECT_EQ(audioStimulus, 1);
+    EXPECT_EQ(eegIndex, 42);
+    EXPECT_NEAR(audioSamples.at(0, 0), 0.0, 1e-7);
+    EXPECT_NEAR(audioSamples.at(1, 0), 0.001, 1e-7);
+    EXPECT_NEAR(audioSamples.at(999, 0), 0.999, 1e-7);
 }
 
 TEST_F(AudioLoaderTest, ThrowsOnInvalidFile)

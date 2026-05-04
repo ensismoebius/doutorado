@@ -51,19 +51,26 @@ class OptimizerTest : public ::testing::Test
         weights.set_grad(test_helpers::make_ones_tensor(2, 2));
         bias.set_grad(test_helpers::make_ones_tensor(2, 1));
     }
-
-    // Helper to check if a tensor's data has changed from initial
-    static bool has_data_changed(const nn::Tensor& tensor, const nn::Tensor& initial_data)
-    {
-        return !test_helpers::tensor_is_approx(tensor, initial_data);
-    }
 };
 
 TEST_F(OptimizerTest, SGDMinimalOptimizerStepAndZeroGrad)
 {
     SGDMinimal sgd_minimal(0.01F);
     sgd_minimal.step(params);
-    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
+
+    // Exact one-step SGDMinimal update: p <- p - lr * grad.
+    for (size_t i = 0; i < weights.rows(); ++i)
+    {
+        for (size_t j = 0; j < weights.cols(); ++j)
+        {
+            EXPECT_NEAR(weights.at(i, j), 0.99F, 1e-6F);
+        }
+    }
+    for (size_t i = 0; i < bias.rows(); ++i)
+    {
+        EXPECT_NEAR(bias.at(i, 0), -0.01F, 1e-6F);
+    }
+
     sgd_minimal.zero_grad(params);
     ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
     ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));
@@ -74,7 +81,23 @@ TEST_F(OptimizerTest, AdamOptimizerStepAndZeroGrad)
     Adam adam(0.01F);
     adam.attach(params); // Adam requires attaching parameters
     adam.step(params);
-    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
+
+    // At t=1 with grad=1 and default Adam hyperparameters, update is ~lr.
+    // p <- p - lr * m_hat / (sqrt(v_hat) + eps) = p - 0.01/(1+eps).
+    const float expected_weight = 1.0F - (0.01F / (1.0F + 1e-8F));
+    const float expected_bias = 0.0F - (0.01F / (1.0F + 1e-8F));
+    for (size_t i = 0; i < weights.rows(); ++i)
+    {
+        for (size_t j = 0; j < weights.cols(); ++j)
+        {
+            EXPECT_NEAR(weights.at(i, j), expected_weight, 1e-6F);
+        }
+    }
+    for (size_t i = 0; i < bias.rows(); ++i)
+    {
+        EXPECT_NEAR(bias.at(i, 0), expected_bias, 1e-6F);
+    }
+
     adam.zero_grad(params);
     ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
     ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));
@@ -85,7 +108,20 @@ TEST_F(OptimizerTest, SGDOptimizerStepAndZeroGrad)
     SGD sgd(0.01F);
     sgd.attach(params); // SGD with momentum requires attaching parameters
     sgd.step(params);
-    ASSERT_TRUE(has_data_changed(weights, initial_weights_data));
+
+    // Default momentum is 0.0, so first step matches plain SGD exactly.
+    for (size_t i = 0; i < weights.rows(); ++i)
+    {
+        for (size_t j = 0; j < weights.cols(); ++j)
+        {
+            EXPECT_NEAR(weights.at(i, j), 0.99F, 1e-6F);
+        }
+    }
+    for (size_t i = 0; i < bias.rows(); ++i)
+    {
+        EXPECT_NEAR(bias.at(i, 0), -0.01F, 1e-6F);
+    }
+
     sgd.zero_grad(params);
     ASSERT_TRUE(test_helpers::tensor_is_zero(weights.grad(), 1e-6F));
     ASSERT_TRUE(test_helpers::tensor_is_zero(bias.grad(), 1e-6F));

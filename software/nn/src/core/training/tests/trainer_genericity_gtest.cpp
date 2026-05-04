@@ -168,11 +168,18 @@ TEST(TrainerGenericity, CallbackCountsAutoencoder)
 
     auto history = trainer.fit_autoencoder(data);
 
+    // epochs=3, samples=4, batch_size=1 -> 12 batches total.
+    // Per batch: 1 begin, 5 progress callbacks, 1 end.
+    constexpr int expected_batches = 12;
+    constexpr int expected_batch_progress_calls = 60;
+
     EXPECT_EQ(cb->train_begin, 1);
     EXPECT_EQ(cb->train_end, 1);
     EXPECT_EQ(cb->epoch_begin, 3);
     EXPECT_EQ(cb->epoch_end, 3);
-    EXPECT_GT(cb->batch_progress, 0);
+    EXPECT_EQ(cb->batch_begin, expected_batches);
+    EXPECT_EQ(cb->batch_end, expected_batches);
+    EXPECT_EQ(cb->batch_progress, expected_batch_progress_calls);
     EXPECT_FLOAT_EQ(cb->last_batch_progress, 1.0F);
     EXPECT_EQ(static_cast<int>(history.size()), 3);
 }
@@ -245,9 +252,10 @@ TEST(TrainerGenericity, EpochResultsPopulated)
     auto history = trainer.fit_autoencoder(train_data, val_data);
 
     ASSERT_EQ(static_cast<int>(history.size()), 2);
-    for (const auto& r : history)
+    for (std::size_t i = 0; i < history.size(); ++i)
     {
-        EXPECT_GT(r.epoch, 0);
+        const auto& r = history[i];
+        EXPECT_EQ(r.epoch, static_cast<int>(i + 1));
         EXPECT_GE(r.train_loss, 0.0F);
         EXPECT_GE(r.epoch_ms, 0.0F);
         EXPECT_FALSE(std::isnan(r.val_loss));

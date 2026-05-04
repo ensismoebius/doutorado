@@ -4,6 +4,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <vector>
 
@@ -13,9 +14,9 @@
 namespace
 {
 
-constexpr int D = 4;  // input features
-constexpr int H = 8;  // hidden size
-constexpr int T = 3;  // sequence length
+constexpr int D = 4; // input features
+constexpr int H = 8; // hidden size
+constexpr int T = 3; // sequence length
 
 static nn::Tensor make_sample(float fill_val)
 {
@@ -29,30 +30,28 @@ static nn::Tensor make_sample(float fill_val)
 // Stack B independent (T, D) tensors into a (B, T, D) tensor.
 static nn::Tensor stack_samples(const std::vector<nn::Tensor>& samples)
 {
-    const int B  = static_cast<int>(samples.size());
+    const int B = static_cast<int>(samples.size());
     nn::Tensor out = nn::Tensor::zeros(B, T, D);
     for (int b = 0; b < B; ++b)
         for (int t = 0; t < T; ++t)
             for (int d = 0; d < D; ++d)
                 out.at(static_cast<nn::Index>(b),
-                       static_cast<nn::Index>(t),
-                       static_cast<nn::Index>(d)) = samples[b].at(t, d);
+                    static_cast<nn::Index>(t),
+                    static_cast<nn::Index>(d)) = samples[b].at(t, d);
     return out;
 }
 
 static nn::Tensor ones_grad_2d()
 {
     nn::Tensor g(T, H);
-    for (nn::Index k = 0; k < static_cast<nn::Index>(g.size()); ++k)
-        g.at(k) = 1.0F;
+    for (nn::Index k = 0; k < static_cast<nn::Index>(g.size()); ++k) g.at(k) = 1.0F;
     return g;
 }
 
 static nn::Tensor ones_grad_3d(int B)
 {
     nn::Tensor g = nn::Tensor::zeros(B, T, H);
-    for (nn::Index k = 0; k < static_cast<nn::Index>(g.size()); ++k)
-        g.at(k) = 1.0F;
+    for (nn::Index k = 0; k < static_cast<nn::Index>(g.size()); ++k) g.at(k) = 1.0F;
     return g;
 }
 
@@ -92,11 +91,24 @@ TEST(LSTMBatchTest, OutputShape)
     EXPECT_EQ(static_cast<int>(shape[2]), H);
 }
 
-TEST(LSTMBatchTest, GradientAccumulationNonzero)
+TEST(LSTMBatchTest, GradientNormScalesWithBatchSize)
 {
     nn::models::lstm::LSTMLayer layer(D, H);
     nn::Tensor s = make_sample(0.3F);
 
+    // Reference gradients for a single sample.
+    layer.reset_state();
+    layer.forward(s, true);
+    layer.backward(ones_grad_2d());
+
+    float dW_single_norm = 0.0F, dU_single_norm = 0.0F;
+    for (nn::Index k = 0; k < static_cast<nn::Index>(layer.W_.grad().size()); ++k)
+        dW_single_norm += layer.W_.grad().at(k) * layer.W_.grad().at(k);
+    for (nn::Index k = 0; k < static_cast<nn::Index>(layer.U_.grad().size()); ++k)
+        dU_single_norm += layer.U_.grad().at(k) * layer.U_.grad().at(k);
+
+    // Batch with duplicated samples should scale gradients by factor 2.
+    layer.reset_state();
     layer.forward(stack_samples({s, s}), true);
     layer.backward(ones_grad_3d(2));
 
@@ -106,15 +118,15 @@ TEST(LSTMBatchTest, GradientAccumulationNonzero)
     for (nn::Index k = 0; k < static_cast<nn::Index>(layer.U_.grad().size()); ++k)
         dU_norm += layer.U_.grad().at(k) * layer.U_.grad().at(k);
 
-    EXPECT_GT(std::sqrt(dW_norm), 1e-6F);
-    EXPECT_GT(std::sqrt(dU_norm), 1e-6F);
+    EXPECT_NEAR(std::sqrt(dW_norm), 2.0F * std::sqrt(dW_single_norm), 1e-4F);
+    EXPECT_NEAR(std::sqrt(dU_norm), 2.0F * std::sqrt(dU_single_norm), 1e-4F);
 }
 
 TEST(LSTMBatchTest, BatchEquivalence_GradsAreTwoTimeSingle)
 {
     nn::models::lstm::LSTMLayer ref_layer(D, H);
     nn::Tensor sample = make_sample(0.2F);
-    nn::Tensor g2d    = ones_grad_2d();
+    nn::Tensor g2d = ones_grad_2d();
 
     ref_layer.reset_state();
     ref_layer.forward(sample, true);
@@ -135,12 +147,10 @@ TEST(LSTMBatchTest, BatchEquivalence_GradsAreTwoTimeSingle)
     nn::Tensor batch_dU = batch_layer.U_.grad();
 
     for (nn::Index k = 0; k < static_cast<nn::Index>(ref_dW.size()); ++k)
-        EXPECT_NEAR(batch_dW.at(k), 2.0F * ref_dW.at(k), 1e-4F)
-            << "dW mismatch at k=" << k;
+        EXPECT_NEAR(batch_dW.at(k), 2.0F * ref_dW.at(k), 1e-4F) << "dW mismatch at k=" << k;
 
     for (nn::Index k = 0; k < static_cast<nn::Index>(ref_dU.size()); ++k)
-        EXPECT_NEAR(batch_dU.at(k), 2.0F * ref_dU.at(k), 1e-4F)
-            << "dU mismatch at k=" << k;
+        EXPECT_NEAR(batch_dU.at(k), 2.0F * ref_dU.at(k), 1e-4F) << "dU mismatch at k=" << k;
 }
 
 } // namespace

@@ -49,7 +49,7 @@ TEST(WindowSpecTest, HopSizeMinimumOne)
 {
     // overlap = 0.99 rounds hop to ≥ 1
     WindowSpec spec{.window_size = 2, .overlap = 0.99f, .sample_rate = 1};
-    EXPECT_GE(spec.hop_size(), 1);
+    EXPECT_EQ(spec.hop_size(), 1);
 }
 
 TEST(WindowSpecTest, NumWindowsExact)
@@ -179,14 +179,13 @@ TEST(WindowingEngineTest, AudioSchemaWindows_250msAt44100Hz)
     // Window = 11025 samples (~250 ms), overlap = 0.5 → hop = 5512 → 31 windows.
     WindowSpec spec{.window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
     auto w = compute_windows(176400, spec);
-    // (176400 - 11025) / 5512 + 1 = 31  (approximately, depend on rounding)
-    EXPECT_GT(w.size(), 0u);
-    // Verify no window exceeds signal bounds.
-    for (const auto& win : w)
-    {
-        EXPECT_GE(win.start, 0);
-        EXPECT_LE(win.end, 176400);
-    }
+    // hop_size = int(11025 * 0.5) = 5512; windows = 1 + (176400 - 11025) / 5512 = 31
+    EXPECT_EQ(w.size(), 31u);
+    ASSERT_FALSE(w.empty());
+    EXPECT_EQ(w.front().start, 0);
+    EXPECT_EQ(w.front().end, 11025);
+    EXPECT_EQ(w.back().start, 165360);
+    EXPECT_EQ(w.back().end, 176385);
 }
 
 TEST(WindowingEngineTest, SameSyncWindowCountForMatchedSpecs)
@@ -203,11 +202,9 @@ TEST(WindowingEngineTest, SameSyncWindowCountForMatchedSpecs)
     const int eeg_n = eeg_spec.num_windows(4096);       // 1024 * 4
     const int audio_n = audio_spec.num_windows(176400); // 44100 * 4
 
-    // Both should be non-zero.
-    EXPECT_GT(eeg_n, 0);
-    EXPECT_GT(audio_n, 0);
-    // The minimum (used by FusedWindowDataset as windows_per_pair) should be > 0.
-    EXPECT_GT(std::min(eeg_n, audio_n), 0);
+    EXPECT_EQ(eeg_n, 15);
+    EXPECT_EQ(audio_n, 15);
+    EXPECT_EQ(std::min(eeg_n, audio_n), 15);
 }
 
 // ---------------------------------------------------------------------------

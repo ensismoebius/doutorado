@@ -171,5 +171,8 @@ TEST(BatchPrefetcherFastPathTest, FastDominateSlowInSteadyState)
     std::cout << "[   METRICS] Ring size: " << d.ring_size << "\n";
     std::cout << "[   METRICS] Seen batches: " << d.seen_batches << "\n";
 
-    EXPECT_GT(consumed, 0) << "Should consume at least one batch";
+    // 1 trial, fused window_size=4/hop=2 on length-12 modalities => 5 windows.
+    // With batch_size=2, emit batches of rows [2, 2, 1] => 3 total batches.
+    EXPECT_EQ(consumed, 3);
+    EXPECT_EQ(d.seen_batches, 3U);
 }
