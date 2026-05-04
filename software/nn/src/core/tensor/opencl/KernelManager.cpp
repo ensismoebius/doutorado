@@ -731,7 +731,6 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
     cl_kernel kernel = clCreateKernel(program, kernel_name.c_str(), &err);
     check_cl_error(err, "clCreateKernel '" + kernel_name + "'");
 
-    NN_LOG_INFO("KernelManager: created kernel '" + kernel_name + "'");
     m_kernels[kernel_name] = kernel;
 
     return kernel;

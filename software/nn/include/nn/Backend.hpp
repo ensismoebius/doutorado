@@ -1,17 +1,23 @@
 #pragma once
 // Single authoritative backend declaration.
 // Change this one typedef to switch backends project-wide.
-#include "nn/tensor/DeviceTensorBackend.hpp"
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
-#include "nn/tensor/xtensor/XTensorBackend.hpp"
 
+#if defined(NN_BACKEND_OPENCL)
+#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 namespace nn
 {
-#if defined(NN_BACKEND_OPENCL)
 using Backend = OpenCLTensorBackend;
+}
 #elif defined(NN_BACKEND_DEVICE)
+#include "nn/tensor/DeviceTensorBackend.hpp"
+namespace nn
+{
 using Backend = DeviceTensorBackend;
+}
 #else
+#include "nn/tensor/xtensor/XTensorBackend.hpp"
+namespace nn
+{
 using Backend = XTensorBackend;
+} 
 #endif
-} // namespace nn

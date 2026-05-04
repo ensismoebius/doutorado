@@ -1,10 +1,12 @@
 #include "nn/progress/ProgressManager.hpp"
-#include <iostream>
-#include <iomanip>
-#include <cmath>
-#include <chrono>
+
 #include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
 #include <sstream>
+#include <string_view>
 
 namespace nn::progress
 {
@@ -18,18 +20,30 @@ constexpr int kInfoWidth = 12;
 constexpr int kMetricsWidth = 12;
 constexpr int kFlavorWidth = 10;
 
-auto fit_cell(std::string text, std::size_t width) -> std::string
+void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t width)
 {
+    if (width == 0)
+    {
+        return;
+    }
+
     if (text.size() > width)
     {
         if (width <= 3)
         {
-            return text.substr(0, width);
+            os.write(text.data(), static_cast<std::streamsize>(width));
+            return;
         }
-        return text.substr(0, width - 3) + "...";
+        os.write(text.data(), static_cast<std::streamsize>(width - 3));
+        os << "...";
+        return;
     }
-    text.append(width - text.size(), ' ');
-    return text;
+
+    os.write(text.data(), static_cast<std::streamsize>(text.size()));
+    for (std::size_t i = text.size(); i < width; ++i)
+    {
+        os.put(' ');
+    }
 }
 
 auto compact_metric_name(const std::string& name) -> std::string
@@ -54,8 +68,7 @@ auto format_percent(float progress) -> std::string
 auto format_step(float current, float target) -> std::string
 {
     std::ostringstream oss;
-    oss << static_cast<int>(std::round(current)) << '/'
-        << static_cast<int>(std::round(target));
+    oss << static_cast<int>(std::round(current)) << '/' << static_cast<int>(std::round(target));
     return oss.str();
 }
 
@@ -77,8 +90,7 @@ auto format_metrics(const std::map<std::string, float>& metrics) -> std::string
     for (const auto& [name, value] : metrics)
     {
         if (!first) oss << ' ';
-        oss << compact_metric_name(name) << '=' << std::fixed << std::setprecision(3)
-            << value;
+        oss << compact_metric_name(name) << '=' << std::fixed << std::setprecision(3) << value;
         first = false;
         if (++metric_count == 1) break;
     }
@@ -159,7 +171,8 @@ uint32_t ProgressManager::create_bar(const std::string& label, float target)
     return id;
 }
 
-void ProgressManager::update_bar(uint32_t id, float value, const std::map<std::string, float>& metrics)
+void ProgressManager::update_bar(
+    uint32_t id, float value, const std::map<std::string, float>& metrics)
 {
     std::lock_guard<std::mutex> lock(manager_mutex_);
     for (auto& entry : entries_)
@@ -207,8 +220,8 @@ void ProgressManager::remove_bar(uint32_t id)
 {
     std::lock_guard<std::mutex> lock(manager_mutex_);
     entries_.erase(
-        std::remove_if(entries_.begin(), entries_.end(), 
-            [id](const auto& e) { return e->id == id; }), 
+        std::remove_if(
+            entries_.begin(), entries_.end(), [id](const auto& e) { return e->id == id; }),
         entries_.end());
 }
 
@@ -237,8 +250,7 @@ void ProgressManager::render_loop()
                 {
                     const float current_value = entry->current_value.load();
                     const float target_value = std::max(entry->target_value, 1.0f);
-                    const float progress =
-                        std::clamp(current_value / target_value, 0.0f, 1.0f);
+                    const float progress = std::clamp(current_value / target_value, 0.0f, 1.0f);
                     const int pos = static_cast<int>(kBarWidth * progress);
                     const bool completed = entry->completed.load();
                     std::map<std::string, float> metrics;
@@ -249,27 +261,29 @@ void ProgressManager::render_loop()
                     }
 
                     std::stringstream ss;
-                          std::string bar_cell;
-                          bar_cell.reserve(static_cast<std::size_t>(kBarWidth));
-                          bar_cell.push_back('[');
-                          for (int i = 0; i < kBarWidth - 2; ++i)
-                          {
-                                bar_cell.push_back(i < pos ? '=' : ' ');
-                          }
-                          bar_cell.push_back(']');
+                    std::string bar_cell;
+                    bar_cell.reserve(static_cast<std::size_t>(kBarWidth));
+                    bar_cell.push_back('[');
+                    for (int i = 0; i < kBarWidth - 2; ++i)
+                    {
+                        bar_cell.push_back(i < pos ? '=' : ' ');
+                    }
+                    bar_cell.push_back(']');
 
-                          ss << "\033[2K\r"
-                              << fit_cell(entry->label, kLabelWidth)
-                              << " | "
-                              << fit_cell(bar_cell, kBarWidth)
-                              << " | "
-                              << fit_cell(format_progress_info(progress, current_value, target_value),
-                                        kInfoWidth)
-                              << " | "
-                              << fit_cell(format_metrics(metrics), kMetricsWidth)
-                              << " | "
-                              << fit_cell(format_flavor(entry->label, progress, completed), kFlavorWidth);
-                    
+                    ss << "\033[2K\r";
+                    append_fitted_cell(ss, entry->label, kLabelWidth);
+                    ss << " | ";
+                    append_fitted_cell(ss, bar_cell, kBarWidth);
+                    ss << " | ";
+                    append_fitted_cell(ss,
+                        format_progress_info(progress, current_value, target_value),
+                        kInfoWidth);
+                    ss << " | ";
+                    append_fitted_cell(ss, format_metrics(metrics), kMetricsWidth);
+                    ss << " | ";
+                    append_fitted_cell(
+                        ss, format_flavor(entry->label, progress, completed), kFlavorWidth);
+
                     std::cout << ss.str() << "\n";
                 }
                 // Move cursor back up to the top of the block for the next frame

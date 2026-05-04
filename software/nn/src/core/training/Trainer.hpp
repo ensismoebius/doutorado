@@ -174,6 +174,11 @@ class Trainer
         for (auto& cb : callbacks_) cb->on_batch_begin(s);
     }
 
+    void cb_batch_progress(const TrainingState& s)
+    {
+        for (auto& cb : callbacks_) cb->on_batch_progress(s);
+    }
+
     void cb_batch_end(const TrainingState& s)
     {
         for (auto& cb : callbacks_) cb->on_batch_end(s);
@@ -262,7 +267,10 @@ class Trainer
         {
             const auto t_start = std::chrono::steady_clock::now();
 
-            TrainingState state{epoch, cfg_.epochs, 0, batches_per_epoch, 0.0F, nullptr};
+            TrainingState state;
+            state.epoch = epoch;
+            state.total_epochs = cfg_.epochs;
+            state.total_batches = batches_per_epoch;
             cb_epoch_begin(state);
 
             std::shuffle(indices.begin(), indices.end(), rng);
@@ -277,28 +285,47 @@ class Trainer
                 const std::size_t batch_end = std::min(
                     batch_start + static_cast<std::size_t>(cfg_.batch_size), train_samples.size());
 
+                state.batch = ++batch_idx;
+                state.batch_progress = 0.0F;
+                state.batch_loss = 0.0F;
+                cb_batch_begin(state);
+
                 // Build batch (with optional per-sample transform)
                 std::vector<Sample> batch_samples;
                 batch_samples.reserve(batch_end - batch_start);
+                const std::size_t batch_sample_count = batch_end - batch_start;
                 for (std::size_t k = batch_start; k < batch_end; ++k)
+                {
                     batch_samples.push_back(transform(train_samples[indices[k]], indices[k]));
+                    const float sample_fraction =
+                        static_cast<float>((k - batch_start) + 1) /
+                        static_cast<float>(std::max<std::size_t>(batch_sample_count, 1));
+                    state.batch_progress = 0.35F * sample_fraction;
+                    cb_batch_progress(state);
+                }
 
                 Tensor batch = create_batch(batch_samples, 0, batch_samples.size());
-
-                state.batch = ++batch_idx;
-                cb_batch_begin(state);
+                state.batch_progress = 0.45F;
+                cb_batch_progress(state);
 
                 // zero_grad BEFORE forward (bug 1 fix)
                 optimizer_.zero_grad(model_.params());
 
                 // Single forward+loss+backward (bug 2 fix)
                 Tensor output = model_.forward(batch, true);
+                state.batch_progress = 0.65F;
+                cb_batch_progress(state);
                 loss_.set_target(batch); // autoencoder: target = input
                 Tensor loss_tensor = loss_.forward(output, true);
                 const float loss_val = loss_tensor.at(0, 0);
+                state.batch_loss = loss_val;
+                state.batch_progress = 0.75F;
+                cb_batch_progress(state);
 
                 Tensor d_out = loss_.backward(output);
                 model_.backward(d_out);
+                state.batch_progress = 0.9F;
+                cb_batch_progress(state);
 
                 if (cfg_.grad_clip_norm > 0.0F)
                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
@@ -309,7 +336,7 @@ class Trainer
                 train_loss_sum += loss_val * static_cast<float>(bs);
                 n_train += bs;
 
-                state.batch_loss = loss_val;
+                state.batch_progress = 1.0F;
                 cb_batch_end(state);
 
                 batch_start = batch_end;
@@ -392,7 +419,10 @@ class Trainer
         {
             const auto t_start = std::chrono::steady_clock::now();
 
-            TrainingState state{epoch, cfg_.epochs, 0, batches_per_epoch, 0.0F, nullptr};
+            TrainingState state;
+            state.epoch = epoch;
+            state.total_epochs = cfg_.epochs;
+            state.total_batches = batches_per_epoch;
             cb_epoch_begin(state);
 
             std::shuffle(indices.begin(), indices.end(), rng);
@@ -407,9 +437,15 @@ class Trainer
                 const std::size_t batch_end = std::min(
                     batch_start + static_cast<std::size_t>(cfg_.batch_size), train_inputs.size());
 
+                state.batch = ++batch_idx;
+                state.batch_progress = 0.0F;
+                state.batch_loss = 0.0F;
+                cb_batch_begin(state);
+
                 // Collect this mini-batch (bug 5 fix: per-sample forward inside batch)
                 float batch_loss_sum = 0.0F;
                 optimizer_.zero_grad(model_.params()); // zero BEFORE any forward
+                const std::size_t batch_sample_count = batch_end - batch_start;
 
                 for (std::size_t k = batch_start; k < batch_end; ++k)
                 {
@@ -422,13 +458,23 @@ class Trainer
                     Tensor loss_t = loss_.forward(output, true);
                     const float lv = loss_t.at(0, 0);
                     batch_loss_sum += lv;
+                    state.batch_loss = batch_loss_sum / static_cast<float>((k - batch_start) + 1);
 
                     Tensor d_out = loss_.backward(output);
                     model_.backward(d_out);
+
+                    const float sample_fraction =
+                        static_cast<float>((k - batch_start) + 1) /
+                        static_cast<float>(std::max<std::size_t>(batch_sample_count, 1));
+                    state.batch_progress = 0.85F * sample_fraction;
+                    cb_batch_progress(state);
                 }
 
                 if (cfg_.grad_clip_norm > 0.0F)
                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                state.batch_progress = 0.92F;
+                cb_batch_progress(state);
 
                 optimizer_.step(model_.params());
 
@@ -437,9 +483,8 @@ class Trainer
                 train_loss_sum += avg_batch_loss * static_cast<float>(bs);
                 n_train += bs;
 
-                state.batch = ++batch_idx;
                 state.batch_loss = avg_batch_loss;
-                cb_batch_begin(state);
+                state.batch_progress = 1.0F;
                 cb_batch_end(state);
 
                 batch_start = batch_end;

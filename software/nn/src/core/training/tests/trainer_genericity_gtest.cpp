@@ -4,14 +4,15 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <atomic>
 #include <memory>
 #include <span>
 #include <vector>
 
 #include "../EpochResult.hpp"
-#include "../TrainerConfig.hpp"
 #include "../Trainer.hpp"
+#include "../TrainerConfig.hpp"
 #include "nn/tensor/Tensor.hpp"
 #include "nn/training/EarlyStoppingCallback.hpp"
 #include "nn/training/ITrainingCallback.hpp"
@@ -25,10 +26,13 @@ struct TinyModel
 {
     using Tensor = nn::Tensor;
 
-    nn::Tensor weight_{1, 1};   // single learnable scalar
+    nn::Tensor weight_{1, 1}; // single learnable scalar
     nn::Tensor last_input_;
 
-    TinyModel() { weight_.at(0, 0) = 1.0F; }
+    TinyModel()
+    {
+        weight_.at(0, 0) = 1.0F;
+    }
 
     nn::Tensor forward(const nn::Tensor& input, bool /*requires_grad*/)
     {
@@ -64,14 +68,39 @@ struct CountingCallback : nn::training::ITrainingCallback
     int train_begin = 0, train_end = 0;
     int epoch_begin = 0, epoch_end = 0;
     int batch_begin = 0, batch_end = 0;
+    int batch_progress = 0;
+    float last_batch_progress = 0.0F;
 
-    void on_train_begin(int) override       { ++train_begin; }
-    void on_train_end(const std::vector<nn::training::EpochResult>&) override { ++train_end; }
-    void on_epoch_begin(const nn::training::TrainingState&) override { ++epoch_begin; }
-    void on_epoch_end(const nn::training::TrainingState&,
-                      const nn::training::EpochResult&) override     { ++epoch_end; }
-    void on_batch_begin(const nn::training::TrainingState&) override { ++batch_begin; }
-    void on_batch_end(const nn::training::TrainingState&) override   { ++batch_end; }
+    void on_train_begin(int) override
+    {
+        ++train_begin;
+    }
+    void on_train_end(const std::vector<nn::training::EpochResult>&) override
+    {
+        ++train_end;
+    }
+    void on_epoch_begin(const nn::training::TrainingState&) override
+    {
+        ++epoch_begin;
+    }
+    void on_epoch_end(const nn::training::TrainingState&, const nn::training::EpochResult&) override
+    {
+        ++epoch_end;
+    }
+    void on_batch_begin(const nn::training::TrainingState&) override
+    {
+        ++batch_begin;
+    }
+    void on_batch_progress(const nn::training::TrainingState& state) override
+    {
+        ++batch_progress;
+        last_batch_progress = state.batch_progress;
+    }
+    void on_batch_end(const nn::training::TrainingState& state) override
+    {
+        ++batch_end;
+        last_batch_progress = state.batch_progress;
+    }
 };
 
 // ---- Custom loss for template test ----
@@ -82,7 +111,10 @@ struct CountingLoss
     int forward_calls = 0;
     int backward_calls = 0;
 
-    void set_target(const nn::Tensor& t) { target_ = t; }
+    void set_target(const nn::Tensor& t)
+    {
+        target_ = t;
+    }
 
     nn::Tensor forward(const nn::Tensor& pred, bool /*requires_grad*/)
     {
@@ -117,8 +149,8 @@ TEST(TrainerGenericity, CallbackCountsAutoencoder)
 {
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs       = 3;
-    cfg.batch_size   = 1;  // TinyModel is not batched; 1 avoids 3D tensor stacking
+    cfg.epochs = 3;
+    cfg.batch_size = 1; // TinyModel is not batched; 1 avoids 3D tensor stacking
     cfg.snn_lr_scale = 1.0F;
 
     nn::training::Trainer<TinyModel> trainer(model, cfg);
@@ -137,9 +169,11 @@ TEST(TrainerGenericity, CallbackCountsAutoencoder)
     auto history = trainer.fit_autoencoder(data);
 
     EXPECT_EQ(cb->train_begin, 1);
-    EXPECT_EQ(cb->train_end,   1);
+    EXPECT_EQ(cb->train_end, 1);
     EXPECT_EQ(cb->epoch_begin, 3);
-    EXPECT_EQ(cb->epoch_end,   3);
+    EXPECT_EQ(cb->epoch_end, 3);
+    EXPECT_GT(cb->batch_progress, 0);
+    EXPECT_FLOAT_EQ(cb->last_batch_progress, 1.0F);
     EXPECT_EQ(static_cast<int>(history.size()), 3);
 }
 
@@ -147,10 +181,10 @@ TEST(TrainerGenericity, EarlyStoppingHaltsLoop)
 {
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs       = 50;
-    cfg.batch_size   = 1;
+    cfg.epochs = 50;
+    cfg.batch_size = 1;
     cfg.learning_rate = 1e-10F; // near-zero lr: loss barely decreases → triggers early stopping
-    cfg.snn_lr_scale  = 1.0F;
+    cfg.snn_lr_scale = 1.0F;
 
     nn::training::Trainer<TinyModel> trainer(model, cfg);
 
@@ -158,7 +192,8 @@ TEST(TrainerGenericity, EarlyStoppingHaltsLoop)
     trainer.add_callback(stopper);
 
     std::vector<nn::Tensor> data;
-    nn::Tensor t(1, 1); t.at(0, 0) = 1.0F;
+    nn::Tensor t(1, 1);
+    t.at(0, 0) = 1.0F;
     data.push_back(t);
 
     auto history = trainer.fit_autoencoder(data, data);
@@ -172,15 +207,16 @@ TEST(TrainerGenericity, CustomLossTypeTemplate)
 {
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs       = 2;
-    cfg.batch_size   = 1;
+    cfg.epochs = 2;
+    cfg.batch_size = 1;
     cfg.snn_lr_scale = 1.0F;
 
     CountingLoss loss;
     nn::training::Trainer<TinyModel, CountingLoss> trainer(model, cfg, loss);
 
     std::vector<nn::Tensor> data;
-    nn::Tensor t(1, 1); t.at(0, 0) = 0.5F;
+    nn::Tensor t(1, 1);
+    t.at(0, 0) = 0.5F;
     data.push_back(t);
 
     auto history = trainer.fit_autoencoder(data);
@@ -191,8 +227,8 @@ TEST(TrainerGenericity, EpochResultsPopulated)
 {
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs       = 2;
-    cfg.batch_size   = 1;
+    cfg.epochs = 2;
+    cfg.batch_size = 1;
     cfg.snn_lr_scale = 1.0F;
 
     nn::training::Trainer<TinyModel> trainer(model, cfg);
@@ -200,7 +236,8 @@ TEST(TrainerGenericity, EpochResultsPopulated)
     std::vector<nn::Tensor> train_data, val_data;
     for (int i = 0; i < 3; ++i)
     {
-        nn::Tensor t(1, 1); t.at(0, 0) = static_cast<float>(i) * 0.1F;
+        nn::Tensor t(1, 1);
+        t.at(0, 0) = static_cast<float>(i) * 0.1F;
         train_data.push_back(t);
         val_data.push_back(t);
     }
@@ -222,15 +259,16 @@ TEST(TrainerGenericity, NoForwardDoubling)
     // CountingLoss tracks forward calls; should be exactly 1 per batch (not 2)
     TinyModel model;
     nn::training::TrainerConfig cfg;
-    cfg.epochs       = 1;
-    cfg.batch_size   = 1;
+    cfg.epochs = 1;
+    cfg.batch_size = 1;
     cfg.snn_lr_scale = 1.0F;
 
     CountingLoss loss;
     nn::training::Trainer<TinyModel, CountingLoss> trainer(model, cfg, loss);
 
     std::vector<nn::Tensor> data;
-    nn::Tensor t(1, 1); t.at(0, 0) = 0.5F;
+    nn::Tensor t(1, 1);
+    t.at(0, 0) = 0.5F;
     data.push_back(t);
 
     trainer.fit_autoencoder(data);

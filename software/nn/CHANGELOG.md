@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Trainer progress callbacks now expose fractional intra-batch progress via `TrainingState::batch_progress`, and Experiment04 batch bars advance while the active batch is still being assembled and executed instead of only jumping at batch completion.
 - Tensor frontend decoupling: `include/nn/tensor/Tensor.hpp` no longer depends on concrete backend headers (`XTensorBackend`/`OpenCLTensorBackend`) and no longer provides a concrete-backend default template argument.
 - Active tensor alias now resolves through central backend selection (`nn::Backend`), preserving single-point backend binding in `include/nn/Backend.hpp`.
 - OpenCL runtime verification API now takes `OpenCLTensorBackend` inputs directly, removing dependency on global `nn::Tensor` alias for backend-local verification probes.
