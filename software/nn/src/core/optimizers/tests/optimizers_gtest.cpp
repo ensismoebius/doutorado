@@ -286,9 +286,10 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
         }
     }
 
-    // Change should be very small
+    // lr * grad = 1e-10 * 0.1 = 1e-11/elem — below float32 epsilon (~1.19e-7) around 1.0.
+    // Subtraction 1.0 - 1e-11 rounds to exactly 1.0 in float32; diff is exactly zero.
     nn::Tensor diff = test_helpers::tensor_subtract(data_after, data_before);
-    EXPECT_TRUE(test_helpers::tensor_norm(diff) < 1e-8F);
+    EXPECT_EQ(test_helpers::tensor_norm(diff), 0.0F);
 
     // Test with very large learning rate (but not invalid)
     SGDMinimal sgd_large(1e6F);
@@ -310,9 +311,9 @@ TEST(OptimizerNumericalEdgeTest, ExtremeLearningRates)
         }
     }
 
-    // Change should be large
+    // diff = -lr * grad = -1e6 * 0.1 = -1e5/elem; 2x2 tensor: norm = sqrt(4 * (1e5)^2) = 2e5
     diff = test_helpers::tensor_subtract(data_after, data_before);
-    EXPECT_TRUE(test_helpers::tensor_norm(diff) > 1.0F);
+    EXPECT_NEAR(test_helpers::tensor_norm(diff), 2e5F, 1.0F);
 }
 
 // Thread Safety Validation for Optimizers
@@ -339,17 +340,17 @@ TEST(OptimizerThreadSafetyTest, ConcurrentParameterUpdates)
     for (int i = 0; i < 5; ++i)
     {
         ASSERT_NO_THROW(sgd.step(params));
-        // Gradients should be preserved between steps
-        EXPECT_TRUE(std::all_of(params.begin(),
-            params.end(),
-            [](const auto* param) { return !test_helpers::tensor_is_zero(param->grad()); }));
+        // Gradients constant at 0.1 (never zeroed): verify each element
+        for (const auto* p : params)
+            for (size_t r = 0; r < p->rows(); ++r)
+                for (size_t c = 0; c < p->cols(); ++c) EXPECT_NEAR(p->grad().at(r, c), 0.1F, 1e-6F);
     }
 
-    // Test zero_grad operations
+    // After zero_grad each gradient element must be exactly 0
     ASSERT_NO_THROW(sgd.zero_grad(params));
-    EXPECT_TRUE(std::all_of(params.begin(),
-        params.end(),
-        [](const auto* param) { return test_helpers::tensor_is_zero(param->grad()); }));
+    for (const auto* p : params)
+        for (size_t r = 0; r < p->rows(); ++r)
+            for (size_t c = 0; c < p->cols(); ++c) EXPECT_NEAR(p->grad().at(r, c), 0.0F, 1e-6F);
 }
 
 TEST(OptimizerThreadSafetyTest, AdamInternalState)
@@ -387,8 +388,10 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
         }
     }
 
-    // Parameters should have changed
-    EXPECT_FALSE(test_helpers::tensor_is_approx(data_before, data_after));
+    // After 3 Adam(0.01) steps with const grad=0.1: each step ≈ 0.01 update; param ≈ 0.97
+    for (size_t i = 0; i < data_after.rows(); ++i)
+        for (size_t j = 0; j < data_after.cols(); ++j)
+            EXPECT_NEAR(data_after.at(i, j), 0.97F, 1e-2F);
 
     // Test that internal state affects subsequent steps differently
     nn::Tensor data_step3(param.rows(), param.cols());
@@ -413,8 +416,11 @@ TEST(OptimizerThreadSafetyTest, AdamInternalState)
     nn::Tensor diff3 = test_helpers::tensor_subtract(data_step4, data_step3);
     nn::Tensor diff1 = test_helpers::tensor_subtract(data_after, data_before);
 
-    // Due to bias correction, later steps should behave differently
-    EXPECT_FALSE(test_helpers::tensor_is_approx(diff3, diff1));
+    // diff1 = 3-step cumulative (~0.03/elem for 3x3); diff3 = single step 4 (~0.01/elem)
+    // Cumulative norm ≈ 0.09; single-step norm ≈ 0.03
+    EXPECT_NEAR(test_helpers::tensor_norm(diff3), 0.03F, 5e-3F);
+    EXPECT_NEAR(test_helpers::tensor_norm(diff1), 0.09F, 1e-2F);
+    EXPECT_GT(test_helpers::tensor_norm(diff1), test_helpers::tensor_norm(diff3));
 }
 
 // Additional Comprehensive Tests
@@ -447,9 +453,8 @@ TEST(OptimizerComprehensiveTest, GradientClipping)
     }
     nn::Tensor diff = test_helpers::tensor_subtract(data_after, data_before);
 
-    // Change should be controlled by learning rate
-    EXPECT_TRUE(test_helpers::tensor_norm(diff) <
-                10.0F); // Large gradients but small LR should limit change
+    // diff = -lr * grad = -0.01 * 100 = -1.0/elem; 2x2 tensor: norm = sqrt(4 * 1.0) = 2.0
+    EXPECT_NEAR(test_helpers::tensor_norm(diff), 2.0F, 1e-5F);
 }
 
 TEST(OptimizerComprehensiveTest, ParameterGroups)
@@ -484,8 +489,10 @@ TEST(OptimizerComprehensiveTest, ParameterGroups)
     nn::Tensor diff1 = test_helpers::tensor_subtract(param1, data1_before);
     nn::Tensor diff2 = test_helpers::tensor_subtract(param2, data2_before);
 
-    // Higher learning rate should cause larger parameter changes
-    EXPECT_TRUE(test_helpers::tensor_norm(diff1) > test_helpers::tensor_norm(diff2));
+    // param1: lr=0.1, grad=0.1 → diff = -0.01/elem; 2x2 norm = sqrt(4 * 1e-4) = 0.02
+    // param2: lr=0.01, grad=0.1 → diff = -0.001/elem; 2x2 norm = sqrt(4 * 1e-6) = 0.002
+    EXPECT_NEAR(test_helpers::tensor_norm(diff1), 0.02F, 1e-6F);
+    EXPECT_NEAR(test_helpers::tensor_norm(diff2), 0.002F, 1e-6F);
 }
 
 TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
@@ -511,9 +518,11 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
         sgd.step(params);
     }
 
-    // Parameter should have moved toward zero
-    EXPECT_TRUE(test_helpers::tensor_norm(param) < 10.0F);
-
-    // But not exactly zero (due to constant gradient)
-    EXPECT_FALSE(test_helpers::tensor_is_zero(param));
+    // SGD(0.1) with grad=param each step: p_n = p_0 * (1 - lr)^n = 10 * 0.9^10
+    const float p10 = 10.0F * std::pow(0.9F, 10); // ≈ 3.4868
+    // 2x2 tensor norm = 2 * p10 ≈ 6.9736
+    EXPECT_NEAR(test_helpers::tensor_norm(param), 2.0F * p10, 1e-3F);
+    // Each element equals p10
+    for (size_t r = 0; r < param.rows(); ++r)
+        for (size_t c = 0; c < param.cols(); ++c) EXPECT_NEAR(param.at(r, c), p10, 1e-4F);
 }
