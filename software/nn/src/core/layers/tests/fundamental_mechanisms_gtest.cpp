@@ -866,7 +866,7 @@ TEST(ResidualBlockTest, GradExactSkipOnly)
 
 TEST(ResidualBlockTest, SkipGradFlow)
 {
-    // With zero weights, backward should still propagate at least the identity grad
+    // With zero weights, residual branch is exactly identity: dx == grad_output.
     ResidualBlockImpl<Backend> block(3);
     block.fc1->weight.setZero();
     block.fc1->bias.setZero();
@@ -884,8 +884,7 @@ TEST(ResidualBlockTest, SkipGradFlow)
     go.at(0, 1) = 1.f;
     go.at(0, 2) = 1.f;
     Tensor dx = block.backward(go);
-    // Skip path: dx should include the identity gradient (at least ≥ 1 from skip)
-    for (size_t c = 0; c < 3; ++c) EXPECT_GE(dx.at(0, c), 1.0f);
+    for (size_t c = 0; c < 3; ++c) EXPECT_NEAR(dx.at(0, c), 1.0f, 1e-6f);
 }
 
 // ===========================================================================

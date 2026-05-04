@@ -78,6 +78,7 @@ The `nn` library is organized into several key components:
 - [Grid Runbook](./Guides/Grid-Runbook.md) - Running and analyzing SNN grid tests
 - [PGO](./Guides/PGO.md) - Profile-guided optimization workflow
 - [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools and policies
+- [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
 
 ## Key Features

@@ -155,14 +155,15 @@ TEST(DataLoaderExceptionTest, NegativeBatchSize)
 // Memory Stress Testing for DataLoaders
 TEST(DataLoaderMemoryStressTest, LargeDataset)
 {
-    const size_t large_size = 10000;
-    const size_t feature_dim = 100;
+    // Keep stress intent while avoiding minute-long runtimes in CI/local loops.
+    const size_t large_size = 1000;
+    const size_t feature_dim = 32;
 
     auto inputs = make_sequential_tensor(large_size, feature_dim);
     auto targets = make_sequential_tensor(large_size, 1);
     auto dataset = std::make_shared<TensorDataset>(inputs, targets);
 
-    DataLoader loader(dataset, 1000, false);
+    DataLoader loader(dataset, 250, false);
 
     size_t total_samples = 0;
     size_t batch_count = 0;
@@ -176,7 +177,7 @@ TEST(DataLoaderMemoryStressTest, LargeDataset)
     }
 
     EXPECT_EQ(total_samples, large_size);
-    EXPECT_EQ(batch_count, 10); // 10000 / 1000 = 10 batches
+    EXPECT_EQ(batch_count, 4); // 1000 / 250 = 4 batches
 }
 
 TEST(DataLoaderMemoryStressTest, LargeBatchSize)

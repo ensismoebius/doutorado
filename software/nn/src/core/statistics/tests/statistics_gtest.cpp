@@ -136,14 +136,12 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
         });
 
     EXPECT_EQ(results.size(), static_cast<size_t>(k));
-    double mean_acc = 0.0;
-    for (double acc : results)
-    {
-        // Each fold has exactly 2 test samples, so accuracy is in {0, 0.5, 1}.
-        EXPECT_TRUE(acc == 0.0 || acc == 0.5 || acc == 1.0);
-        mean_acc += acc;
-    }
-    mean_acc /= static_cast<double>(results.size());
+    ASSERT_EQ(results.size(), 3U);
+    EXPECT_NEAR(results[0], 0.5, 1e-12);
+    EXPECT_NEAR(results[1], 0.0, 1e-12);
+    EXPECT_NEAR(results[2], 0.5, 1e-12);
+
+    const double mean_acc = (results[0] + results[1] + results[2]) / 3.0;
     // Equal fold sizes imply mean fold accuracy equals global sample accuracy.
     EXPECT_NEAR(mean_acc, 1.0 / 3.0, 1e-12);
 }
@@ -246,13 +244,11 @@ TEST(StatisticsMemoryStressTest, LargeDatasetVariance)
     }
 
     ASSERT_NO_THROW({
-        double var = statistics::variance(large_data);
-        double stddev = statistics::standardDeviation(large_data);
+        const double var = statistics::variance(large_data);
+        const double stddev = statistics::standardDeviation(large_data);
 
-        EXPECT_TRUE(std::isfinite(var));
-        EXPECT_TRUE(std::isfinite(stddev));
-        EXPECT_GE(var, 0.0);
-        EXPECT_GE(stddev, 0.0);
+        EXPECT_NEAR(var, 833.25, 1e-12);
+        EXPECT_NEAR(stddev, 28.86607004772212, 1e-12);
     });
 }
 
@@ -270,16 +266,13 @@ TEST(StatisticsMemoryStressTest, LargeClassificationMetrics)
     }
 
     ASSERT_NO_THROW({
-        auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
+        const auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
 
-        EXPECT_TRUE(std::isfinite(metrics.accuracy));
-        EXPECT_TRUE(std::isfinite(metrics.precision));
-        EXPECT_TRUE(std::isfinite(metrics.recall));
-        EXPECT_TRUE(std::isfinite(metrics.f1_score));
-        EXPECT_TRUE(std::isfinite(metrics.balanced_accuracy));
-
-        EXPECT_GE(metrics.accuracy, 0.0);
-        EXPECT_LE(metrics.accuracy, 1.0);
+        EXPECT_NEAR(metrics.accuracy, 0.33334, 1e-12);
+        EXPECT_NEAR(metrics.precision, 0.33333999866639996, 1e-12);
+        EXPECT_NEAR(metrics.recall, 0.33333999999999997, 1e-12);
+        EXPECT_NEAR(metrics.f1_score, 0.33333999866659997, 1e-12);
+        EXPECT_NEAR(metrics.balanced_accuracy, 0.33333999999999997, 1e-12);
     });
 }
 
@@ -295,9 +288,7 @@ TEST(InferenceTests, TTestApproxReturnsSmallPForSeparatedMeans)
     const std::vector<float> a = {1.0f, 1.1f, 0.9f, 1.2f, 1.0f};
     const std::vector<float> b = {3.0f, 3.1f, 2.9f, 3.2f, 3.0f};
     const float p = statistics::t_test_pvalue_approx(a, b);
-    EXPECT_GE(p, 0.0f);
-    EXPECT_LE(p, 1.0f);
-    EXPECT_LT(p, 0.05f);
+    EXPECT_FLOAT_EQ(p, 0.0f);
 }
 
 TEST(InferenceTests, WilcoxonApproxReturnsOneForInvalidPairs)
@@ -371,13 +362,11 @@ TEST(StatisticsThreadSafetyTest, ConcurrentVarianceCalculations)
         }
 
         ASSERT_NO_THROW({
-            double var = statistics::variance(data);
-            double std = statistics::standardDeviation(data);
+            const double var = statistics::variance(data);
+            const double std = statistics::standardDeviation(data);
 
-            EXPECT_TRUE(std::isfinite(var));
-            EXPECT_TRUE(std::isfinite(std));
-            EXPECT_GE(var, 0.0);
-            EXPECT_GE(std, 0.0);
+            EXPECT_NEAR(var, 83333.25, 1e-12);
+            EXPECT_NEAR(std, 288.6749902572095, 1e-12);
         });
     }
 }
@@ -392,12 +381,14 @@ TEST(StatisticsThreadSafetyTest, ConcurrentClassificationMetrics)
         std::vector<int> pred_labels = {0, 1, 2, 1, 2, 0, 2, 0, 1}; // Some correct, some wrong
 
         ASSERT_NO_THROW({
-            auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
+            const auto metrics =
+                statistics::compute_classification_metrics(true_labels, pred_labels);
 
-            EXPECT_TRUE(std::isfinite(metrics.accuracy));
-            EXPECT_TRUE(std::isfinite(metrics.precision));
-            EXPECT_TRUE(std::isfinite(metrics.recall));
-            EXPECT_TRUE(std::isfinite(metrics.f1_score));
+            EXPECT_NEAR(metrics.accuracy, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.precision, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.recall, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.f1_score, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.balanced_accuracy, 1.0 / 3.0, 1e-12);
         });
     }
 }
@@ -483,5 +474,6 @@ TEST(StatisticsComprehensiveTest, KFoldCrossValidationDeterminism)
     for (size_t i = 0; i < results1.size(); ++i)
     {
         EXPECT_NEAR(results1[i], results2[i], 1e-10);
+        EXPECT_NEAR(results1[i], 1.0 / 3.0, 1e-10);
     }
 }

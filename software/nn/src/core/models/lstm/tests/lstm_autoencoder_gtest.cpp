@@ -70,7 +70,7 @@ TEST(CoreLSTMLayerTest, ResetStateClearsCache)
     nn::models::lstm::LSTMLayer layer(8, 16);
     nn::Tensor input = nn::Tensor::rand(4, 8);
     layer.forward(input, true);
-    EXPECT_GT(layer.cache_.size(), 0u);
+    EXPECT_EQ(layer.cache_.size(), 4u);
     layer.reset_state();
     EXPECT_EQ(layer.cache_.size(), 0u);
 }

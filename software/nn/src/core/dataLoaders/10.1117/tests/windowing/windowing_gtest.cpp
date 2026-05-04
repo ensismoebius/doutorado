@@ -151,8 +151,9 @@ TEST(WindowingEngineTest, CenterTimeIsCorrect)
     // window=100, sample_rate=100 → center of first window = 0.5 s
     WindowSpec spec{.window_size = 100, .overlap = 0.0f, .sample_rate = 100};
     auto w = compute_windows(200, spec);
-    ASSERT_GE(w.size(), 1u);
+    ASSERT_EQ(w.size(), 2u);
     EXPECT_DOUBLE_EQ(w[0].center_time_s, 0.5);
+    EXPECT_DOUBLE_EQ(w[1].center_time_s, 1.5);
 }
 
 TEST(WindowingEngineTest, CountMatchesNumWindows)
@@ -366,7 +367,7 @@ TEST_F(WindowingDatasetIntegrationTest, AudioWindowDatasetLoadsAndCollates)
 {
     nn::windowing::WindowSpec spec{.window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
     AudioWindowDataset ds({subject}, spec);
-    ASSERT_GT(ds.size(), 0U);
+    ASSERT_EQ(ds.size(), 62U);
 
     const Batch item = ds.get_item(0);
     EXPECT_EQ(item.inputs.rows(), 1);
@@ -385,7 +386,7 @@ TEST_F(WindowingDatasetIntegrationTest, EEGWindowDatasetLoadsAndCollates)
 {
     nn::windowing::WindowSpec spec{.window_size = 256, .overlap = 0.5f, .sample_rate = 1024};
     EEGWindowDataset ds({subject}, spec);
-    ASSERT_GT(ds.size(), 0U);
+    ASSERT_EQ(ds.size(), 62U);
 
     const Batch item = ds.get_item(0);
     EXPECT_EQ(item.inputs.rows(), 1);
@@ -407,7 +408,7 @@ TEST_F(WindowingDatasetIntegrationTest, FusedWindowDatasetLoadsAndCollates)
         .window_size = 11025, .overlap = 0.5f, .sample_rate = 44100};
 
     FusedWindowDataset ds({subject}, eeg_spec, audio_spec);
-    ASSERT_GT(ds.size(), 0U);
+    ASSERT_EQ(ds.size(), 62U);
 
     const Batch item = ds.get_item(0);
     EXPECT_EQ(item.inputs.rows(), 1);

@@ -4,6 +4,7 @@
  */
 
 #include <numeric>
+#include <random>
 
 #include "gtest/gtest.h"
 #include "nn/dataLoaders/datasets/TensorDataset.hpp"
@@ -92,8 +93,8 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
     }
     EXPECT_EQ(orderA1, orderA2);
 
-    // Different seed should produce a different ordering (very likely). Compare
-    // the ordering from seed A with ordering from seed B and require they differ.
+    // Different seed should produce the deterministic std::shuffle order
+    // used by RandomSampler.
     DataLoader dl_seedB(dataset, 3, true, 456u);
     std::vector<int> orderB;
     for (const auto& b : dl_seedB)
@@ -103,9 +104,16 @@ TEST(DataLoaderMoreTest, DifferentSeedsChangeOrder)
             orderB.push_back(static_cast<int>(b.inputs.at(r, 0) / 2));
         }
     }
-    // Expect different ordering for different seeds. If orders are identical
-    // that's unexpected and the test will fail (extremely unlikely).
-    EXPECT_NE(orderA1, orderB);
+    std::vector<int> expected_a(12), expected_b(12);
+    std::iota(expected_a.begin(), expected_a.end(), 0);
+    std::iota(expected_b.begin(), expected_b.end(), 0);
+    std::mt19937 rng_a(123u);
+    std::mt19937 rng_b(456u);
+    std::shuffle(expected_a.begin(), expected_a.end(), rng_a);
+    std::shuffle(expected_b.begin(), expected_b.end(), rng_b);
+
+    EXPECT_EQ(orderA1, expected_a);
+    EXPECT_EQ(orderB, expected_b);
 }
 
 TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsSequentialAndRandom)
@@ -156,9 +164,14 @@ TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsSequentialAndRandom)
     std::vector<int> expected_seq(10);
     std::iota(expected_seq.begin(), expected_seq.end(), 0);
 
+    std::vector<int> expected_random(10);
+    std::iota(expected_random.begin(), expected_random.end(), 0);
+    std::mt19937 rng(77u);
+    std::shuffle(expected_random.begin(), expected_random.end(), rng);
+
     EXPECT_EQ(seq_order, expected_seq);
     EXPECT_EQ(rnd_a, rnd_b);
-    EXPECT_NE(rnd_a, expected_seq);
+    EXPECT_EQ(rnd_a, expected_random);
 }
 
 TEST(DataLoaderMoreTest, DefaultSamplerSelectorSupportsWeightedAndDistributed)

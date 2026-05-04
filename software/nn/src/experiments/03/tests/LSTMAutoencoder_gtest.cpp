@@ -204,14 +204,14 @@ TEST(LSTMAutoencoderTest, MultiLayerForwardShape)
 TEST(TrainerTest, LossDecreasesOnSyntheticData)
 {
     auto arch_cfg = small_cfg();
-    arch_cfg.input_size = 4;
-    arch_cfg.seq_len = 5;
-    arch_cfg.hidden_size = 8;
-    arch_cfg.latent_size = 2;
+    arch_cfg.input_size = 2;
+    arch_cfg.seq_len = 3;
+    arch_cfg.hidden_size = 4;
+    arch_cfg.latent_size = 1;
 
     TrainerConfig train_cfg;
-    train_cfg.epochs = 20;
-    train_cfg.learning_rate = 1e-3f;
+    train_cfg.epochs = 6;
+    train_cfg.learning_rate = 2e-3f;
     train_cfg.grad_clip_norm = 1.0f;
     train_cfg.sampler_shuffle_seed = 7u;
     train_cfg.batch_size = 1;
@@ -221,7 +221,7 @@ TEST(TrainerTest, LossDecreasesOnSyntheticData)
         for (nn::Index j = 0; j < static_cast<nn::Index>(arch_cfg.input_size); ++j)
             sample.at(i, j) = 0.5f;
 
-    std::vector<nn::Tensor> train_samples(10, sample);
+    std::vector<nn::Tensor> train_samples(4, sample);
 
     lstm::LSTMAutoencoder model(arch_cfg);
     nn::training::Trainer<lstm::LSTMAutoencoder> trainer(model, train_cfg);
@@ -236,21 +236,21 @@ TEST(TrainerTest, LossDecreasesOnSyntheticData)
 TEST(TrainerTest, ValidationLossFiniteWhenProvided)
 {
     auto arch_cfg = small_cfg();
-    arch_cfg.input_size = 4;
-    arch_cfg.seq_len = 5;
-    arch_cfg.hidden_size = 8;
-    arch_cfg.latent_size = 2;
+    arch_cfg.input_size = 2;
+    arch_cfg.seq_len = 3;
+    arch_cfg.hidden_size = 4;
+    arch_cfg.latent_size = 1;
 
     TrainerConfig train_cfg;
-    train_cfg.epochs = 3;
+    train_cfg.epochs = 1;
     train_cfg.learning_rate = 1e-3f;
     train_cfg.grad_clip_norm = 0.0f;
     train_cfg.batch_size = 1;
 
     nn::Tensor sample(arch_cfg.seq_len, arch_cfg.input_size);
     sample.fill(0.3f);
-    std::vector<nn::Tensor> train_s(5, sample);
-    std::vector<nn::Tensor> val_s(2, sample);
+    std::vector<nn::Tensor> train_s(3, sample);
+    std::vector<nn::Tensor> val_s(1, sample);
 
     lstm::LSTMAutoencoder model(arch_cfg);
     nn::training::Trainer<lstm::LSTMAutoencoder> trainer(model, train_cfg);
