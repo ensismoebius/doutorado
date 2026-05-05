@@ -30,7 +30,16 @@
         "epochs": 5,
         "early_stop_patience": 5,
         "learning_rate": 0.001,
-        "max_reconstruct_mean_deviation": 0.25
+        "learning_rate_biophysical": 0.0001,
+        "max_reconstruct_mean_deviation": 0.25,
+        "loss_lstm": "mse",
+        "loss_snn": "spike_time_loss",
+        "loss_reduction": "mean",
+        "optimizer": "adam",
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-8,
+        "purpose": "Timing benchmark: measure forward/backward pass latency on XTensor vs OpenCL backends"
     },
     "model": {
         "profile_purpose": "Backend timing comparison (XTensor vs OpenCL)",

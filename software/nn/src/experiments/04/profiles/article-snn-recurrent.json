@@ -58,7 +58,6 @@
             "recurrent:lsnn:64",
             "linear:output"
         ],
-        "snn_neuron_type": "LSNN (Leaky Spiking Neural Network with adaptive threshold)",
         "surrogate_gradient_function": "exponential",
         "surrogate_gradient_width": 1.0,
         "membrane_decay_beta": "learnable (clamped 1e-6 to 1.0)",
