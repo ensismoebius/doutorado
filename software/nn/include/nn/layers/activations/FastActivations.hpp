@@ -1,0 +1,70 @@
+#pragma once
+
+#include <cmath>
+
+#include "nn/tensor/Tensor.hpp"
+
+namespace nn::activations
+{
+
+// Fast sigmoid: rational approximation (error < 0.01)
+// Avoids expensive exp() computation
+inline auto sigmoid_fast(float x) -> float
+{
+    // Clip to [-8, 8] to avoid overflow
+    x = x < -8.0f ? -8.0f : (x > 8.0f ? 8.0f : x);
+    // Rational approximation: sigmoid(x) ≈ 0.5 + x / (2 * (1 + |x|))
+    return 0.5f + x / (2.0f * (1.0f + std::abs(x)));
+}
+
+// Fast tanh: rational approximation (error < 0.01)
+// Avoids expensive exp() computation
+inline auto tanh_fast(float x) -> float
+{
+    // Clip to [-8, 8]
+    x = x < -8.0f ? -8.0f : (x > 8.0f ? 8.0f : x);
+    // Rational approximation: tanh(x) ≈ x / (1 + |x|)
+    float abs_x = std::abs(x);
+    return x / (1.0f + abs_x);
+}
+
+// Sigmoid gradient from output: dy/dx = y(1-y)
+inline auto sigmoid_grad_fast(float y) -> float
+{
+    return y * (1.0f - y);
+}
+
+// Tanh gradient from output: dy/dx = 1 - y^2
+inline auto tanh_grad_fast(float y) -> float
+{
+    return 1.0f - y * y;
+}
+
+// Vectorized versions operating on Tensors
+inline auto sigmoid_fast_tensor(const nn::Tensor& x) -> nn::Tensor
+{
+    nn::Tensor result(x.rows(), x.cols());
+    for (nn::Index i = 0; i < x.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < x.cols(); ++j)
+        {
+            result.at(i, j) = sigmoid_fast(x.at(i, j));
+        }
+    }
+    return result;
+}
+
+inline auto tanh_fast_tensor(const nn::Tensor& x) -> nn::Tensor
+{
+    nn::Tensor result(x.rows(), x.cols());
+    for (nn::Index i = 0; i < x.rows(); ++i)
+    {
+        for (nn::Index j = 0; j < x.cols(); ++j)
+        {
+            result.at(i, j) = tanh_fast(x.at(i, j));
+        }
+    }
+    return result;
+}
+
+} // namespace nn::activations

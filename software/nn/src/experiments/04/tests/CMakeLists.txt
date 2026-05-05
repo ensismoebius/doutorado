@@ -52,3 +52,23 @@ target_link_libraries(dat_writer_gtest
 
 gtest_discover_tests(dat_writer_gtest)
 configure_xtensor_parallel_target(dat_writer_gtest)
+
+# LSTM microbench (ops breakdown)
+add_executable(lstm_ops_microbench
+    lstm_ops_microbench.cpp
+)
+
+target_include_directories(lstm_ops_microbench
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(lstm_ops_microbench
+    PRIVATE
+        tensor
+        layers
+        xtensor xtensor-blas
+)
+
+configure_xtensor_parallel_target(lstm_ops_microbench)

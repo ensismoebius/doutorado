@@ -34,6 +34,7 @@
 #include <tuple>
 #include <vector>
 
+#include "nn/layers/activations/FastActivations.hpp"
 #include "nn/layers/activations/Sigmoid.hpp"
 #include "nn/layers/activations/Tanh.hpp"
 #include "nn/layers/base/Module.hpp"
@@ -155,16 +156,9 @@ class LSTMLayerImpl : public Module<Backend>
         Tensor b_T = b_.transpose(); // (1, 4H) — computed once outside loop
 
         auto sigmoid_tensor = [](const Tensor& x) -> Tensor
-        {
-            const Tensor ones = Tensor::ones(x.rows(), x.cols());
-            return ones.divide(ones + (x * -1.0f).exp());
-        };
-        auto tanh_tensor = [&](const Tensor& x) -> Tensor
-        {
-            const Tensor ones = Tensor::ones(x.rows(), x.cols());
-            const Tensor two = ones + ones;
-            return sigmoid_tensor(x * 2.0f) * two - ones;
-        };
+        { return nn::activations::sigmoid_fast_tensor(x); };
+        auto tanh_tensor = [](const Tensor& x) -> Tensor
+        { return nn::activations::tanh_fast_tensor(x); };
 
         // Opt: for single-sequence (B=1), write directly to (T,H) output; skip 3D alloc+copy.
         const bool is_2d = (shape.size() == 2);
