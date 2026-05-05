@@ -1,4 +1,6 @@
-% MSE by model type and encoding (placeholder values)
+% MSE by model type and encoding loaded from experiment-generated CSV.
+\pgfplotstableread[col sep=comma]{data/paper_mse_plot.csv}\msetable
+
 \begin{tikzpicture}[font=\scriptsize]
   \begin{axis}[
     ybar=2pt,
@@ -9,18 +11,13 @@
     enlarge x limits=0.18,
     legend style={at={(0.5,-0.35)}, anchor=north, legend columns=4,
       /tikz/every even column/.append style={column sep=3pt}},
-    symbolic x coords={direct,poisson,latency},
     xtick=data,
-    ylabel={MSE (simulated)},
+    ylabel={MSE},
     ymajorgrids]
-    \addplot+[fill=black!70]
-      coordinates {(direct,0.019) (poisson,0.024) (latency,0.022)};
-    \addplot+[fill=blue!60]
-      coordinates {(direct,0.023) (poisson,0.026) (latency,0.028)};
-    \addplot+[fill=red!50]
-      coordinates {(direct,0.027) (poisson,0.030) (latency,0.031)};
-    \addplot+[fill=green!60]
-      coordinates {(direct,0.030) (poisson,0.033) (latency,0.035)};
+    \addplot+[fill=black!70] table[x=encoding,y=lstm_ae] {\msetable};
+    \addplot+[fill=blue!60] table[x=encoding,y=snn_dense] {\msetable};
+    \addplot+[fill=red!50] table[x=encoding,y=snn_conv1d] {\msetable};
+    \addplot+[fill=green!60] table[x=encoding,y=snn_recurrent] {\msetable};
     \legend{LSTM-AE, SNN-dense, SNN-conv1d, SNN-recurrent}
   \end{axis}
 \end{tikzpicture}

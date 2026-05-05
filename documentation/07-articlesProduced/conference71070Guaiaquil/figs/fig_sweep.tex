@@ -1,21 +1,20 @@
-% MSE vs membrane decay alpha for SNN modes (direct encoding, V_th=1.0, simulated)
+% MSE vs membrane decay alpha for SNN modes (direct encoding, V_th=1.0).
+\pgfplotstableread[col sep=comma]{data/paper_sweep_alpha.csv}\sweeptable
+
 \begin{tikzpicture}[font=\scriptsize]
   \begin{axis}[
     width=\columnwidth,
     height=3.5cm,
     xlabel={Membrane decay $\alpha$},
-    ylabel={MSE (simulated)},
+    ylabel={MSE},
     ymajorgrids,
     ymin=0.020, ymax=0.042,
     xtick={0.80,0.90,0.99},
     xticklabels={0.80,0.90,0.99},
     legend style={at={(0.5,-0.32)}, anchor=north, legend columns=3}]
-    \addplot+[mark=o,thick]
-      coordinates {(0.80,0.032) (0.90,0.028) (0.99,0.025)};
-    \addplot+[mark=square,thick]
-      coordinates {(0.80,0.035) (0.90,0.029) (0.99,0.027)};
-    \addplot+[mark=triangle,thick]
-      coordinates {(0.80,0.038) (0.90,0.032) (0.99,0.030)};
+    \addplot+[mark=o,thick] table[x=alpha,y=dense] {\sweeptable};
+    \addplot+[mark=square,thick] table[x=alpha,y=conv1d] {\sweeptable};
+    \addplot+[mark=triangle,thick] table[x=alpha,y=recurrent] {\sweeptable};
     \legend{dense, conv1d, recurrent}
   \end{axis}
 \end{tikzpicture}

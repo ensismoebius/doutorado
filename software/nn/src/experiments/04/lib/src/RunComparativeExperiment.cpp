@@ -1,7 +1,8 @@
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
-#include <stdexcept>
+#include <span>
 #include <string>
 
 #include "../include/ComparativeCli.hpp"
@@ -39,6 +40,95 @@ auto extract_layer_sizes(const std::vector<std::string>& specs)
     return sizes;
 }
 
+auto active_backend_name() -> std::string
+{
+#if defined(NN_BACKEND_OPENCL)
+    return "opencl";
+#elif defined(NN_BACKEND_DEVICE)
+    return "device";
+#else
+    return "xtensor";
+#endif
+}
+
+auto sanitize_name(const std::string& raw) -> std::string
+{
+    std::string out;
+    out.reserve(raw.size());
+    for (char c : raw)
+    {
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+            c == '-' || c == '_')
+        {
+            out.push_back(c);
+        }
+        else
+        {
+            out.push_back('_');
+        }
+    }
+    return out.empty() ? std::string("artifact") : out;
+}
+
+auto save_state_dict_text(
+    const std::filesystem::path& path, const std::map<std::string, nn::Tensor>& state_dict) -> bool
+{
+    std::ofstream out(path);
+    if (!out.is_open())
+    {
+        return false;
+    }
+
+    out << "# LSTM state_dict dump (name rows cols values...)\n";
+    for (const auto& [name, tensor] : state_dict)
+    {
+        out << name << ' ' << tensor.rows() << ' ' << tensor.cols();
+        for (nn::Index r = 0; r < tensor.rows(); ++r)
+        {
+            for (nn::Index c = 0; c < tensor.cols(); ++c)
+            {
+                out << ' ' << tensor.at(r, c);
+            }
+        }
+        out << '\n';
+    }
+
+    return out.good();
+}
+
+auto save_parameter_list_text(
+    const std::filesystem::path& path, std::span<nn::Tensor*> parameters, const std::string& prefix)
+    -> bool
+{
+    std::ofstream out(path);
+    if (!out.is_open())
+    {
+        return false;
+    }
+
+    out << "# Parameter dump (name rows cols values...)\n";
+    for (std::size_t i = 0; i < parameters.size(); ++i)
+    {
+        const nn::Tensor* tensor = parameters[i];
+        if (tensor == nullptr)
+        {
+            continue;
+        }
+
+        out << prefix << '.' << i << ' ' << tensor->rows() << ' ' << tensor->cols();
+        for (nn::Index r = 0; r < tensor->rows(); ++r)
+        {
+            for (nn::Index c = 0; c < tensor->cols(); ++c)
+            {
+                out << ' ' << tensor->at(r, c);
+            }
+        }
+        out << '\n';
+    }
+
+    return out.good();
+}
+
 namespace lstm_autoencoder_experiment
 {
 
@@ -57,6 +147,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         const ComparativeConfig config = load_config(resolve_profile_path(cli), cli);
         const std::size_t cfg_hash = config_hash(config);
+        const std::string backend_name = active_backend_name();
 
         std::filesystem::path out_dir = config.dataset.results_dir.empty()
                                             ? source_results_dir()
@@ -68,6 +159,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         }
 
         std::filesystem::create_directories(out_dir);
+        const std::filesystem::path models_dir =
+            out_dir / "models" / sanitize_name(config.experiment.run_tag);
+        if (config.dataset.save_models)
+        {
+            std::filesystem::create_directories(models_dir);
+        }
 
         std::vector<ResultRow> all_rows;
 
@@ -122,19 +219,38 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         );
                         metrics.train_ms = train_ms;
 
+                        if (config.dataset.save_models)
+                        {
+                            const std::string base_name =
+                                sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name +
+                                              "_" + encoding + "_run" + std::to_string(run_id + 1));
+                            const std::filesystem::path state_txt =
+                                models_dir / (base_name + "_state_dict.txt");
+                            const bool ok =
+                                save_state_dict_text(state_txt, lstm_model.state_dict());
+                            if (!ok)
+                            {
+                                std::cerr
+                                    << "[comparative] Warning: failed to save LSTM state_dict for "
+                                    << base_name << "\n";
+                            }
+                        }
+
                         all_rows.push_back( //
                             ResultRow{
-                                dataset_name, //
-                                "lstm-ae",    //
-                                encoding,     //
-                                "lstm",       //
-                                1,            //
-                                0.0f,         //
-                                0.0f,         //
-                                run_id + 1,   //
-                                run_seed,     //
-                                cfg_hash,     //
-                                metrics       //
+                                backend_name,              //
+                                config.experiment.run_tag, //
+                                dataset_name,              //
+                                "lstm-ae",                 //
+                                encoding,                  //
+                                "lstm",                    //
+                                1,                         //
+                                0.0f,                      //
+                                0.0f,                      //
+                                run_id + 1,                //
+                                run_seed,                  //
+                                cfg_hash,                  //
+                                metrics                    //
                             } //
                         );
                     }
@@ -189,8 +305,35 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 );
 
                                 metrics.train_ms = train_ms;
+
+                                if (config.dataset.save_models)
+                                {
+                                    const std::string base_name = sanitize_name(
+                                        config.experiment.run_tag + "_snn_" + dataset_name + "_" +
+                                        encoding + "_" + architecture + "_vth" +
+                                        std::to_string(voltage_threshold) + "_a" +
+                                        std::to_string(alpha) + "_run" +
+                                        std::to_string(run_id + 1));
+                                    const std::filesystem::path encoder_txt =
+                                        models_dir / (base_name + "_encoder_params.txt");
+                                    const std::filesystem::path decoder_txt =
+                                        models_dir / (base_name + "_decoder_params.txt");
+                                    const bool enc_ok = save_parameter_list_text(
+                                        encoder_txt, snn_model.encoder_.params(), "encoder");
+                                    const bool dec_ok = save_parameter_list_text(
+                                        decoder_txt, snn_model.decoder_.params(), "decoder");
+                                    if (!enc_ok || !dec_ok)
+                                    {
+                                        std::cerr << "[comparative] Warning: failed to save SNN "
+                                                     "model artifacts for "
+                                                  << base_name << "\n";
+                                    }
+                                }
+
                                 all_rows.push_back( //
                                     ResultRow{
+                                        backend_name,                                             //
+                                        config.experiment.run_tag,                                //
                                         dataset_name,                                             //
                                         "snn-ae",                                                 //
                                         encoding,                                                 //
@@ -233,6 +376,13 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const std::filesystem::path summary_json =
             out_dir / (config.experiment.run_tag + "_summary.json");
         write_summary_json(summary_json, config, cfg_hash, all_rows);
+
+        if (!config.dataset.latex_data_dir.empty())
+        {
+            const std::filesystem::path latex_dir =
+                std::filesystem::path(config.dataset.latex_data_dir);
+            write_latex_exports(latex_dir, config.experiment.run_tag, config, all_rows);
+        }
 
         std::cout << "[comparative] Results written to:\n"
                   << "  - " << csv_path << "\n"

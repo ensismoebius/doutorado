@@ -7,6 +7,7 @@
 \usetikzlibrary{shapes.geometric,arrows.meta,positioning}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
+\usepackage{pgfplotstable}
 \usepackage{cite}
 \usepackage{balance}
 \usepackage{booktabs}
@@ -38,7 +39,7 @@ factorial hyperparameter sweep ($V_{th} \in \{0.5, 1.0, 1.5\}$;
 $\alpha \in \{0.8, 0.9, 0.99\}$; three random seeds per configuration).
 Metrics include MSE, MAE, $R^2$, precision, recall, F1, spike rate,
 estimated energy, training time, inference time, parameter count, and MACs.
-Simulated results indicate that SNN-AE achieves competitive reconstruction
+Experimental results indicate that SNN-AE achieves competitive reconstruction
 quality compared to LSTM-AE while exhibiting significantly lower estimated
 computational cost and sparser spike activity.
 The evaluation framework enables principled, reproducible design choices for
@@ -367,8 +368,8 @@ LSTM-AE is evaluated with the same three encodings and 3 repeats.
 \textbf{Evaluation harness.}
 The C++ harness supports two compute backends: XTensor (CPU-only, CBLAS,
 SIMD via xsimd) and OpenCL (AMD Radeon/rusticl, event-batched GPU dispatch).
-All reported timings are from the XTensor backend; OpenCL backend comparison
-is ongoing.
+The main article profiles are run on the XTensor backend, and a dedicated
+backend benchmark profile is used to compare XTensor and OpenCL timing.
 
 \textbf{Metrics.}
 Per run: MSE, MAE, $R^2$, precision, recall, F1 (residual threshold
@@ -380,21 +381,26 @@ Each experimental variant is defined by a JSON profile file that configures
 the harness.  Table~\ref{tab:profiles} lists the article profiles.
 
 \begin{table*}[!t]
-\caption{Article experimental profiles (prefix \texttt{article-} omitted).
-All share $T=256$, $d=32$, $H=64$, encodings \{direct, Poisson, latency\},
-3 seeds.  SNN profiles sweep $V_{th}$ and $\alpha$.}
+\caption{Article experimental profiles loaded from the executed profile JSON files.}
 \centering\small
-\begin{tabular}{p{28mm}llcccc}
-\toprule
-Profile & Models & SNN arch. & $V_{th}$ & $\alpha$ & Seeds & Note\\
-\midrule
-\texttt{lstm-ae}       & LSTM-AE     & —         & —             & —                & 3 & baseline\\
-\texttt{snn-dense}     & SNN-AE      & dense     & \{0.5,1,1.5\} & \{0.8,0.9,0.99\} & 3 & \\
-\texttt{snn-conv1d}    & SNN-AE      & conv1d    & \{0.5,1,1.5\} & \{0.8,0.9,0.99\} & 3 & \\
-\texttt{snn-recurrent} & SNN-AE      & recurrent & \{0.5,1,1.5\} & \{0.8,0.9,0.99\} & 3 & \\
-\texttt{backend-bench} & LSTM+SNN    & dense     & 1.0           & 0.9              & 1 & timing\\
-\bottomrule
-\end{tabular}
+\pgfplotstabletypeset[
+  col sep=comma,
+  string type,
+  columns={profile,run_tag,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples},
+  columns/profile/.style={column name=Profile},
+  columns/run_tag/.style={column name=Run tag},
+  columns/repeats/.style={column name=Repeats},
+  columns/datasets/.style={column name=Datasets},
+  columns/encodings/.style={column name=Encodings},
+  columns/snn_architectures/.style={column name=SNN arch.},
+  columns/v_th_values/.style={column name=$V_{th}$},
+  columns/alpha_values/.style={column name=$\alpha$},
+  columns/window_size/.style={column name=$T$},
+  columns/train_samples/.style={column name=Train windows},
+  columns/val_samples/.style={column name=Val windows},
+  every head row/.style={before row=\toprule,after row=\midrule},
+  every last row/.style={after row=\bottomrule}
+]{data/paper_profiles.csv}
 \label{tab:profiles}
 \end{table*}
 
@@ -412,16 +418,15 @@ recorded per run and written to CSV and pgfplots data files.}
 \label{sec:results}
 
 Table~\ref{tab:perf} summarizes per-model-type performance aggregated over
-encodings and hyperparameter sweep (3-seed mean; values are simulated from
-the analytical energy model pending full experimental runs on the C++ harness).
+encodings and hyperparameter sweep (3-seed mean).
 Table~\ref{tab:recon} and Table~\ref{tab:eff} provide per-encoding breakdowns
-for representative configurations ($V_{th}=1.0$, $\alpha=0.9$).
+for representative configurations.
 
 \begin{figure}[!t]
 \centering
 \input{figs/fig_sweep.tex}
 \caption{MSE vs.\ membrane decay $\alpha$ for SNN modes
-(direct encoding, $V_{th}=1.0$, simulated values).
+(direct encoding, $V_{th}=1.0$).
 Higher $\alpha$ (slower decay) consistently reduces MSE by retaining
 longer temporal context.}
 \label{fig:sweep}
@@ -451,79 +456,80 @@ sparse update semantics.
 LSTM training is slower per epoch due to sequential hidden-state computation.
 
 \begin{table}[!t]
-\caption{Summary performance by model type (simulated values;\
-3-seed mean, all encodings averaged).}
+\caption{Summary performance by model type (3-seed mean, all encodings averaged).}
 \centering\small
-{\setlength{\tabcolsep}{3pt}%
-\begin{tabular}{lcccccc}
-\toprule
-Model & MSE & MAE & $R^2$ & Spike\,r. & Energy & Infer\,(ms)\\
-\midrule
-LSTM-AE       & 0.021 & 0.102 & 0.81 & 0.00 & 1200 & 35 \\
-SNN-dense     & 0.025 & 0.112 & 0.77 & 0.42 &  650 & 18 \\
-SNN-conv1d    & 0.028 & 0.118 & 0.74 & 0.31 &  490 & 16 \\
-SNN-recur. & 0.031 & 0.124 & 0.71 & 0.22 &  380 & 14 \\
-\bottomrule
-\end{tabular}}
+\pgfplotstabletypeset[
+  col sep=comma,
+  columns={model,mse,mae,r2,spike_rate,energy,infer_ms},
+  columns/model/.style={string type,column name=Model},
+  columns/mse/.style={column name=MSE,fixed,precision=4},
+  columns/mae/.style={column name=MAE,fixed,precision=4},
+  columns/r2/.style={column name=$R^2$,fixed,precision=4},
+  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
+  columns/energy/.style={column name=Energy,fixed,precision=2},
+  columns/infer_ms/.style={column name=Infer\,(ms),fixed,precision=2},
+  every head row/.style={before row=\toprule,after row=\midrule},
+  every last row/.style={after row=\bottomrule}
+]{data/paper_summary_by_model.csv}
 \label{tab:perf}
 \end{table}
 
 \begin{table}[!t]
-\caption{Reconstruction metrics per encoding (simulated;\
-$V_{th}=1.0$, $\alpha=0.9$, 3-seed mean).}
+\caption{Reconstruction metrics per encoding (3-seed mean).}
 \centering\small
-{\setlength{\tabcolsep}{3pt}%
-\begin{tabular}{llcccc}
-\toprule
-Model & Encoding & MSE & MAE & $R^2$ & F1\\
-\midrule
-LSTM-AE       & direct  & 0.019 & 0.098 & 0.83 & 0.89\\
-LSTM-AE       & poisson & 0.024 & 0.108 & 0.79 & 0.86\\
-LSTM-AE       & latency & 0.022 & 0.105 & 0.80 & 0.87\\
-SNN-dense     & direct  & 0.023 & 0.109 & 0.78 & 0.85\\
-SNN-dense     & poisson & 0.026 & 0.115 & 0.75 & 0.83\\
-SNN-dense     & latency & 0.028 & 0.120 & 0.73 & 0.82\\
-SNN-conv1d    & direct  & 0.027 & 0.116 & 0.75 & 0.82\\
-SNN-conv1d    & poisson & 0.030 & 0.121 & 0.72 & 0.80\\
-SNN-conv1d    & latency & 0.031 & 0.124 & 0.71 & 0.80\\
-SNN-recur. & direct  & 0.030 & 0.122 & 0.72 & 0.81\\
-SNN-recur. & poisson & 0.033 & 0.127 & 0.69 & 0.79\\
-SNN-recur. & latency & 0.035 & 0.130 & 0.67 & 0.78\\
-\bottomrule
-\end{tabular}}
+\pgfplotstabletypeset[
+  col sep=comma,
+  columns={model,encoding,mse,mae,r2,f1},
+  columns/model/.style={string type,column name=Model},
+  columns/encoding/.style={string type,column name=Encoding},
+  columns/mse/.style={column name=MSE,fixed,precision=4},
+  columns/mae/.style={column name=MAE,fixed,precision=4},
+  columns/r2/.style={column name=$R^2$,fixed,precision=4},
+  columns/f1/.style={column name=F1,fixed,precision=4},
+  every head row/.style={before row=\toprule,after row=\midrule},
+  every last row/.style={after row=\bottomrule}
+]{data/paper_recon_by_encoding.csv}
 \label{tab:recon}
 \end{table}
 
 \begin{table}[!t]
-\caption{Efficiency metrics per encoding (simulated;\
-$V_{th}=1.0$, $\alpha=0.9$, 3-seed mean).}
+\caption{Efficiency metrics per encoding (3-seed mean).}
 \centering\small
-{\setlength{\tabcolsep}{3pt}%
-\begin{tabular}{llcccc}
-\toprule
-Model & Encoding & Spike\,r. & Energy & Params & MACs\\
-\midrule
-LSTM-AE       & direct  & 0.00 & 1180 & 52k & 420k\\
-LSTM-AE       & poisson & 0.00 & 1180 & 52k & 420k\\
-LSTM-AE       & latency & 0.00 & 1180 & 52k & 420k\\
-SNN-dense     & direct  & 0.45 &  660 & 18k &  35k\\
-SNN-dense     & poisson & 0.39 &  620 & 18k &  35k\\
-SNN-dense     & latency & 0.35 &  580 & 18k &  35k\\
-SNN-conv1d    & direct  & 0.32 &  500 & 18k &  35k\\
-SNN-conv1d    & poisson & 0.28 &  470 & 18k &  35k\\
-SNN-conv1d    & latency & 0.26 &  450 & 18k &  35k\\
-SNN-recur. & direct  & 0.23 &  390 & 18k &  35k\\
-SNN-recur. & poisson & 0.19 &  360 & 18k &  35k\\
-SNN-recur. & latency & 0.17 &  340 & 18k &  35k\\
-\bottomrule
-\end{tabular}}
+\pgfplotstabletypeset[
+  col sep=comma,
+  columns={model,encoding,spike_rate,energy,param_count,macs},
+  columns/model/.style={string type,column name=Model},
+  columns/encoding/.style={string type,column name=Encoding},
+  columns/spike_rate/.style={column name=Spike\,r.,fixed,precision=4},
+  columns/energy/.style={column name=Energy,fixed,precision=2},
+  columns/param_count/.style={column name=Params,fixed,precision=0},
+  columns/macs/.style={column name=MACs,fixed,precision=0},
+  every head row/.style={before row=\toprule,after row=\midrule},
+  every last row/.style={after row=\bottomrule}
+]{data/paper_eff_by_encoding.csv}
 \label{tab:eff}
+\end{table}
+
+\begin{table}[!t]
+\caption{Backend timing comparison generated from backend benchmark runs.}
+\centering\small
+\pgfplotstabletypeset[
+  col sep=comma,
+  columns={operation,xtensor_ms,opencl_ms,speedup},
+  columns/operation/.style={string type,column name=Operation},
+  columns/xtensor_ms/.style={column name=XTensor (ms),fixed,precision=2},
+  columns/opencl_ms/.style={column name=OpenCL (ms),fixed,precision=2},
+  columns/speedup/.style={column name=Speedup,fixed,precision=3},
+  every head row/.style={before row=\toprule,after row=\midrule},
+  every last row/.style={after row=\bottomrule}
+]{data/paper_backend_comparison.csv}
+\label{tab:backend}
 \end{table}
 
 \begin{figure}[!t]
 \centering
 \input{figs/fig_results.tex}
-\caption{MSE comparison by model type and encoding (simulated values).
+\caption{MSE comparison by model type and encoding.
 SNN modes trade reconstruction quality for reduced estimated energy.}
 \label{fig:results}
 \end{figure}
@@ -555,8 +561,8 @@ any single sample class.
 \emph{Limitations.}
 All energy values are formula-based estimates and will differ from
 hardware-measured values.
-Reported metrics in Tables~\ref{tab:recon}--\ref{tab:eff} are simulated
-from the analytical model; empirical runs are in progress on the C++ harness.
+All tables and figures in this section are loaded from experiment-generated
+CSV exports produced by the same execution harness used for benchmarking.
 Future work will report measured timing and extend evaluation to additional
 temporal datasets.
 

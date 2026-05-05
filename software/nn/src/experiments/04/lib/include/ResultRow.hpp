@@ -11,6 +11,8 @@ namespace comparative_autoencoder_experiment
 
 struct ResultRow
 {
+    std::string backend;
+    std::string profile;
     std::string dataset;
     std::string model;
     std::string encoding;
