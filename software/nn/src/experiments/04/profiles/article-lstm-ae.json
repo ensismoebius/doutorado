@@ -1,0 +1,74 @@
+{
+    "_profile_name": "article-lstm-ae",
+    "_network_type": "LSTM autoencoder (seq2seq encoder-decoder)",
+    "_architecture_summary": "Encoder: input→Linear(64,leaky)→Linear(32,identity)→tanh→latent z. Decoder: z→Linear(64,leaky)→Linear(output,identity)→reconstruct. BPTT with stateful LSTM cells.",
+    "_loss_function": "MSE (mean squared error) on reconstructed audio time-series",
+    "_preprocessing": "Window 256 (1s@256Hz), encodings: direct (passthrough), Poisson (spike rate), latency (time-to-first-spike). Normalized per-window [0,1].",
+    "_total_runs_breakdown": "9 total = 3 encodings × 3 repeats (seeds: 42,43,44). Single pass per encoding, no hyperparameter sweep.",
+    "_dataset_config": "500 train, 100 val (FSDD). 100 epochs max, early stop patience 20, lr 0.001, batch size 1.",
+    "_expected_outputs": "results/article_lstm_ae_*_summary.json, results/article_lstm_ae_*_weights.npz (save_models=true), .../data/article_lstm_ae_summary.dat",
+    "_comment": "LSTM-AE baseline: 9 runs (3 encodings × 3 repeats). Reproduces with LSTM+BPTT+MSE. 500/100 data. Est. ~30 min.",
+    "experiment": {
+        "run_tag": "article_lstm_ae",
+        "seed": 42,
+        "repeats": 3,
+        "seed_deterministic": true,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 256,
+        "max_loaded_train_samples": 500,
+        "max_validation_samples": 100,
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
+        "save_models": true
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 100,
+        "early_stop_patience": 20,
+        "learning_rate": 0.001,
+        "max_reconstruct_mean_deviation": 0.25,
+        "loss": "mse",
+        "loss_reduction": "mean",
+        "optimizer": "adam",
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "epsilon": 1e-8
+    },
+    "model": {
+        "model_type": "lstm_autoencoder",
+        "loss_function": "mse",
+        "latent_dim": 32,
+        "lstm_hidden_size": 64,
+        "encoder_layer_spec": [
+            "lstm:64",
+            "linear:64:leaky",
+            "linear:32:tanh"
+        ],
+        "decoder_layer_spec": [
+            "linear:64:leaky",
+            "lstm:64",
+            "linear:output:identity"
+        ],
+        "encoder_description": "Input → LSTM(hidden=64) → Linear(64,leaky) → Linear(32,tanh projection) → latent z",
+        "decoder_description": "Latent z → Linear(64,leaky) → LSTM(hidden=64) → Linear(output_dim,identity) → reconstruct",
+        "training_algorithm": "BPTT (Backpropagation Through Time) with stateful LSTM cells",
+        "forget_bias_init": 1.0
+    },
+    "evaluation": {
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct",
+            "poisson",
+            "latency"
+        ],
+        "snn_architectures": [],
+        "v_th_values": [],
+        "alpha_values": []
+    }
+}

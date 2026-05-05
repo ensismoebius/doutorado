@@ -1,0 +1,76 @@
+{
+    "_profile_name": "article-backend-bench",
+    "_network_type": "Mixed: LSTM autoencoder + SNN autoencoder (dense) for backend timing comparison",
+    "_architecture_summary": "LSTM: Encoder→Linear(64,leaky)→Linear(32)→tanh→z. Decoder→Linear(64,leaky)→output. SNN-dense: Encoder→Linear(64)→Leaky(SNN)→Linear(32)→z. Decoder→Linear(64)→Leaky(SNN)→output. Quick run (5 epochs, reduced dataset).",
+    "_loss_function": "LSTM: MSE. SNN: spike-time loss + regularization",
+    "_preprocessing": "Window 256 (1s@256Hz), direct encoding only (no Poisson/latency). SNN: v_th=1.0, α=0.9 (fixed, no sweep).",
+    "_total_runs_breakdown": "2 total = 1 LSTM-AE + 1 SNN-AE dense, 1 seed. No hyperparameter sweep. Purpose: XTensor vs OpenCL backend timing.",
+    "_dataset_config": "50 train, 20 val (reduced for speed). 5 epochs max, early stop patience 5, lr 0.001, batch size 1. Compile with 'max-performance' preset.",
+    "_expected_outputs": "results/article_backend_bench_*_summary.json, .../data/article_backend_bench_summary.dat, .../data/article_backend_bench_sweep.dat (timing cols).",
+    "_comment": "Backend bench: 2 runs (1 LSTM + 1 SNN-dense). Timing only, direct encoding. 50/20 data. Est. ~5 min per backend (XTensor + OpenCL).",
+    "experiment": {
+        "run_tag": "article_backend_bench",
+        "seed": 42,
+        "repeats": 1,
+        "seed_deterministic": true,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 256,
+        "max_loaded_train_samples": 50,
+        "max_validation_samples": 20,
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
+        "save_models": false
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 5,
+        "early_stop_patience": 5,
+        "learning_rate": 0.001,
+        "max_reconstruct_mean_deviation": 0.25
+    },
+    "model": {
+        "profile_purpose": "Backend timing comparison (XTensor vs OpenCL)",
+        "lstm_model": {
+            "model_type": "lstm_autoencoder",
+            "loss_function": "mse",
+            "latent_dim": 32,
+            "lstm_hidden_size": 64,
+            "encoder_layer_spec": ["lstm:64", "linear:64:leaky", "linear:32:tanh"],
+            "decoder_layer_spec": ["linear:64:leaky", "lstm:64", "linear:output:identity"],
+            "training_algorithm": "BPTT"
+        },
+        "snn_model": {
+            "model_type": "snn_autoencoder_dense",
+            "loss_function": "spike_time_loss",
+            "latent_dim": 32,
+            "encoder_layer_spec": ["linear:64", "spiking_neuron:leaky:64", "linear:32"],
+            "decoder_layer_spec": ["linear:64", "spiking_neuron:leaky:64", "linear:output"],
+            "snn_neuron_type": "Leaky (LIF)",
+            "surrogate_gradient_function": "exponential",
+            "threshold_v_th": 1.0,
+            "membrane_decay_beta": "learnable (alpha=0.9 fixed)",
+            "training_algorithm": "BPTT with surrogate gradients"
+        }
+    },
+    "evaluation": {
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct"
+        ],
+        "snn_architectures": [
+            "dense"
+        ],
+        "v_th_values": [
+            1.0
+        ],
+        "alpha_values": [
+            0.9
+        ]
+    }
+}
