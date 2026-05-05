@@ -350,6 +350,130 @@ void write_latex_exports(const std::filesystem::path& dir,
     }
 }
 
+void write_pgfplots_summary_dat(
+    const std::filesystem::path& path, const std::vector<ResultRow>& rows)
+{
+    std::map<std::string, Aggregated> by_config;
+    for (const auto& row : rows)
+    {
+        const std::string key = row.model + "|" + row.encoding + "|" + row.architecture + "|" +
+                                std::to_string(row.v_th) + "|" + std::to_string(row.alpha);
+        by_config[key].add(row);
+    }
+
+    std::ofstream out(path);
+    out << "model encoding architecture v_th alpha mse mae r2 f1 spike_rate energy infer_ms "
+           "train_ms param_count macs\n";
+    out << std::fixed << std::setprecision(4);
+
+    for (const auto& [key, agg] : by_config)
+    {
+        const std::size_t pos1 = key.find('|');
+        const std::size_t pos2 = key.find('|', pos1 + 1);
+        const std::size_t pos3 = key.find('|', pos2 + 1);
+        const std::size_t pos4 = key.find('|', pos3 + 1);
+
+        const std::string model = key.substr(0, pos1);
+        const std::string encoding = key.substr(pos1 + 1, pos2 - pos1 - 1);
+        const std::string architecture = key.substr(pos2 + 1, pos3 - pos2 - 1);
+        const std::string v_th_str = key.substr(pos3 + 1, pos4 - pos3 - 1);
+        const std::string alpha_str = key.substr(pos4 + 1);
+
+        out << model << ' ' << encoding << ' ' << architecture << ' ' << v_th_str << ' '
+            << alpha_str << ' ' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.mae; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.r2; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.f1; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.energy; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ' '
+            << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+    }
+}
+
+void write_pgfplots_sweep_dat(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
+{
+    std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
+    for (const auto& row : rows)
+    {
+        if (row.model != "snn-ae") continue;
+        if (row.encoding != "direct") continue;
+        if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
+        by_alpha_arch[row.alpha][row.architecture].add(row);
+    }
+
+    std::ofstream out(path);
+    out << "alpha mse_dense mse_conv1d mse_recurrent energy_dense energy_conv1d energy_recurrent\n";
+    out << std::fixed << std::setprecision(4);
+
+    for (const auto& [alpha, arch_map] : by_alpha_arch)
+    {
+        auto get_mse = [&](const std::string& arch)
+        {
+            const auto it = arch_map.find(arch);
+            if (it == arch_map.end()) return 0.0;
+            return avg(it->second, [](const Aggregated& a) { return a.mse; });
+        };
+        auto get_energy = [&](const std::string& arch)
+        {
+            const auto it = arch_map.find(arch);
+            if (it == arch_map.end()) return 0.0;
+            return avg(it->second, [](const Aggregated& a) { return a.energy; });
+        };
+
+        out << alpha << ' ' << get_mse("dense") << ' ' << get_mse("conv1d") << ' '
+            << get_mse("recurrent") << ' ' << get_energy("dense") << ' ' << get_energy("conv1d")
+            << ' ' << get_energy("recurrent") << '\n';
+    }
+}
+
+void write_epoch_history_dat(const std::filesystem::path& path,
+    const std::string& model,
+    const std::string& encoding,
+    const std::string& architecture,
+    float v_th,
+    float alpha,
+    int run_id,
+    const EpochHistory& history)
+{
+    std::ofstream out(path);
+    out << "# model=" << model << " encoding=" << encoding << " architecture=" << architecture
+        << " v_th=" << v_th << " alpha=" << alpha << " run=" << run_id << '\n';
+    out << "epoch train_loss val_loss\n";
+    out << std::fixed << std::setprecision(6);
+
+    for (std::size_t i = 0; i < history.epoch_nums.size(); ++i)
+    {
+        out << static_cast<int>(history.epoch_nums[i]) << ' ' << history.train_losses[i] << ' '
+            << history.val_losses[i] << '\n';
+    }
+}
+
+void write_batch_convergence_dat(const std::filesystem::path& path,
+    const std::string& model,
+    const std::string& encoding,
+    const std::string& architecture,
+    float v_th,
+    float alpha,
+    int run_id,
+    const EpochHistory& history)
+{
+    std::ofstream out(path);
+    out << "# Batch convergence for: model=" << model << " encoding=" << encoding
+        << " architecture=" << architecture << " v_th=" << v_th << " alpha=" << alpha
+        << " run=" << run_id << '\n';
+    out << "batch_num epoch batch_loss\n";
+    out << std::fixed << std::setprecision(6);
+
+    for (std::size_t i = 0; i < history.batch_losses.size(); ++i)
+    {
+        out << i << ' ' << static_cast<int>(history.batch_epochs[i]) << ' '
+            << history.batch_losses[i] << '\n';
+    }
+}
+
 void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows)
 {
     if (cfg.experiment.repeats <= 1) return;

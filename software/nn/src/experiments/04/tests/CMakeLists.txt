@@ -27,3 +27,28 @@ target_link_libraries(experiment_04_comparative_gtest
 include(GoogleTest)
 gtest_discover_tests(experiment_04_comparative_gtest)
 configure_xtensor_parallel_target(experiment_04_comparative_gtest)
+
+# DAT writer tests
+add_executable(dat_writer_gtest
+    dat_writer_gtest.cpp
+)
+
+target_include_directories(dat_writer_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(dat_writer_gtest
+    PRIVATE
+        google_test
+        experiment04_lib
+        experiment03_lib
+        tensor
+        layers
+        xtensor xtensor-blas
+        cnpy-static
+)
+
+gtest_discover_tests(dat_writer_gtest)
+configure_xtensor_parallel_target(dat_writer_gtest)

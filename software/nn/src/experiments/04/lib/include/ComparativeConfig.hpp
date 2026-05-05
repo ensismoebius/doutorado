@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+
 #include "nlohmann/json.hpp"
 
 namespace comparative_autoencoder_experiment
@@ -66,6 +67,8 @@ struct ComparativeConfig
     Training training;
     Model model;
     Evaluation evaluation;
+
+    void validate() const;
 
     static ComparativeConfig from_flat_json(const nlohmann::json& j)
     {

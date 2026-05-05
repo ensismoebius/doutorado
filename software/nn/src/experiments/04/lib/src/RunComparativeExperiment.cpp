@@ -146,6 +146,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         }
 
         const ComparativeConfig config = load_config(resolve_profile_path(cli), cli);
+        config.validate();
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
 
@@ -204,7 +205,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         Adam lstm_opt(config.training.learning_rate);
                         lstm_opt.attach(lstm_model.params());
 
-                        RunMetrics metrics = train_with_early_stopping_lstm(     //
+                        TrainResult train_result = train_with_early_stopping_lstm(     //
                             lstm_model,                                          //
                             lstm_opt,                                            //
                             config,                                              //
@@ -217,7 +218,24 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             train_ms,                                            //
                             infer_ms                                             //
                         );
+                        RunMetrics metrics = train_result.metrics;
                         metrics.train_ms = train_ms;
+
+                        if (!config.dataset.latex_data_dir.empty())
+                        {
+                            const std::filesystem::path latex_dir =
+                                std::filesystem::path(config.dataset.latex_data_dir);
+                            write_epoch_history_dat(
+                                latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
+                                             "_run" + std::to_string(run_id + 1) + "_history.dat"),
+                                "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                train_result.history);
+                            write_batch_convergence_dat(
+                                latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
+                                             "_run" + std::to_string(run_id + 1) + "_convergence.dat"),
+                                "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                train_result.history);
+                        }
 
                         if (config.dataset.save_models)
                         {
@@ -286,7 +304,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 ProtocolSpikingAutoencoder snn_model(snn_config);
                                 snn_optimizer.attach(snn_model.params());
 
-                                RunMetrics metrics = train_with_early_stopping_snn(      //
+                                TrainResult train_result = train_with_early_stopping_snn(      //
                                     snn_model,                                           //
                                     snn_optimizer,                                       //
                                     config,                                              //
@@ -304,7 +322,30 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                     infer_ms                                             //
                                 );
 
+                                RunMetrics metrics = train_result.metrics;
                                 metrics.train_ms = train_ms;
+
+                                if (!config.dataset.latex_data_dir.empty())
+                                {
+                                    const std::filesystem::path latex_dir =
+                                        std::filesystem::path(config.dataset.latex_data_dir);
+                                    write_epoch_history_dat(
+                                        latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
+                                                     "_" + architecture + "_vth" +
+                                                     std::to_string(voltage_threshold) + "_a" +
+                                                     std::to_string(alpha) + "_run" +
+                                                     std::to_string(run_id + 1) + "_history.dat"),
+                                        "snn-ae", encoding, architecture, voltage_threshold, alpha,
+                                        run_id + 1, train_result.history);
+                                    write_batch_convergence_dat(
+                                        latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
+                                                     "_" + architecture + "_vth" +
+                                                     std::to_string(voltage_threshold) + "_a" +
+                                                     std::to_string(alpha) + "_run" +
+                                                     std::to_string(run_id + 1) + "_convergence.dat"),
+                                        "snn-ae", encoding, architecture, voltage_threshold, alpha,
+                                        run_id + 1, train_result.history);
+                                }
 
                                 if (config.dataset.save_models)
                                 {
@@ -382,6 +423,10 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             const std::filesystem::path latex_dir =
                 std::filesystem::path(config.dataset.latex_data_dir);
             write_latex_exports(latex_dir, config.experiment.run_tag, config, all_rows);
+            write_pgfplots_summary_dat(
+                latex_dir / (config.experiment.run_tag + "_summary.dat"), all_rows);
+            write_pgfplots_sweep_dat(
+                latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
         }
 
         std::cout << "[comparative] Results written to:\n"

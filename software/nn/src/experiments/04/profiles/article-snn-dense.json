@@ -9,6 +9,7 @@
     "_expected_outputs": "results/article_snn_dense_*_summary.json, results/article_snn_dense_*_weights.npz (save_models=true), .../data/article_snn_dense_summary.dat, .../data/article_snn_dense_sweep.dat",
     "_comment": "SNN-AE dense: 81 runs (3 enc × 3 v_th × 3 α × 3 repeats). SNN+Leaky+spike-time loss. 500/100 data. Est. ~4 hrs.",
     "experiment": {
+        "_comment": "Experiment control: seed, repeats, determinism settings",
         "run_tag": "article_snn_dense",
         "seed": 42,
         "repeats": 3,
@@ -16,6 +17,7 @@
         "check_determinism": false
     },
     "dataset": {
+        "_comment": "Dataset config: paths, window size, train/val sample counts, output directories",
         "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
         "results_dir": "results",
         "window_size": 256,
@@ -25,6 +27,7 @@
         "save_models": true
     },
     "training": {
+        "_comment": "Training hyperparams: optimizer, learning rates (weights vs biophysical), loss, epochs, early stopping",
         "samples_per_batch": 1,
         "batches_per_epoch": 0,
         "epochs": 100,
@@ -42,6 +45,7 @@
         "surrogate_gradient_scale": 1.0
     },
     "model": {
+        "_comment": "Model architecture: SNN with dense pre-processor, layers, surrogates, biophysical params",
         "model_type": "snn_autoencoder_dense",
         "loss_function": "spike_time_loss",
         "loss_reduction": "mean",
@@ -71,6 +75,7 @@
         "training_algorithm": "BPTT with surrogate gradients, biophysical params 10x smaller lr"
     },
     "evaluation": {
+        "_comment": "Evaluation config: encodings, SNN architecture (dense), v_th and alpha sweeps",
         "datasets": [
             "fsdd"
         ],

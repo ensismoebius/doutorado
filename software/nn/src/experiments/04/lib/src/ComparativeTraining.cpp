@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 
+#include "../include/BatchLossCollector.hpp"
 #include "../include/ComparativeEncoding.hpp"
 #include "../include/ComparativeEvaluation.hpp"
 #include "../include/ComparativeMetrics.hpp"
@@ -34,14 +35,20 @@ auto extract_layer_sizes(const std::vector<std::string>& specs) -> std::vector<i
         while (std::getline(ss, token, ':')) parts.push_back(token);
         if (parts.size() >= 2 && parts[0] == "linear")
         {
-            try { sizes.push_back(std::stoi(parts[1])); } catch (...) {}
+            try
+            {
+                sizes.push_back(std::stoi(parts[1]));
+            }
+            catch (...)
+            {
+            }
         }
     }
     return sizes;
 }
 
 auto extract_latent_size(const std::vector<std::string>& encoder_specs,
-                         const std::vector<std::string>& decoder_specs) -> int
+    const std::vector<std::string>& decoder_specs) -> int
 {
     auto get_size = [](const std::string& spec) -> int
     {
@@ -51,7 +58,13 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
         while (std::getline(ss, token, ':')) parts.push_back(token);
         if (parts.size() >= 2)
         {
-            try { return std::stoi(parts[1]); } catch (...) {}
+            try
+            {
+                return std::stoi(parts[1]);
+            }
+            catch (...)
+            {
+            }
         }
         return -1;
     };
@@ -73,47 +86,49 @@ auto make_lstm_cfg(const ComparativeConfig& cfg) -> nn::models::lstm::LSTMAutoen
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     nn::models::lstm::LSTMAutoencoderConfig arch;
-    arch.input_size  = 1;
-    arch.seq_len     = cfg.dataset.window_size;
-    arch.hidden_size = sizes.empty()
-        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
-        : sizes.front();
-    arch.latent_size = extract_latent_size(cfg.model.encoder_layer_spec,
-                                           cfg.model.decoder_layer_spec);
-    arch.num_layers  = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
+    arch.input_size = 1;
+    arch.seq_len = cfg.dataset.window_size;
+    arch.hidden_size = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                           cfg.model.decoder_layer_spec)
+                                     : sizes.front();
+    arch.latent_size =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+    arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
 }
 
 auto make_snn_cfg(const ComparativeConfig& cfg, float alpha, float v_th) -> AutoencoderConfig
 {
-    const auto sizes      = extract_layer_sizes(cfg.model.encoder_layer_spec);
+    const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
-    const int hidden_sz   = sizes.empty()
-        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
-        : sizes.front();
+    const int hidden_sz = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                              cfg.model.decoder_layer_spec)
+                                        : sizes.front();
 
     AutoencoderConfig model_cfg;
-    model_cfg.loss_type          = "mse";
+    model_cfg.loss_type = "mse";
     // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
-    model_cfg.input_features     = cfg.dataset.window_size;
-    model_cfg.hidden_size        = hidden_sz;
-    model_cfg.latent_size        = extract_latent_size(cfg.model.encoder_layer_spec,
-                                                       cfg.model.decoder_layer_spec);
-    model_cfg.depth              = effective_l;
-    model_cfg.layer_sizes        = sizes;
+    model_cfg.input_features = cfg.dataset.window_size;
+    model_cfg.hidden_size = hidden_sz;
+    model_cfg.latent_size =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+    model_cfg.depth = effective_l;
+    model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
     model_cfg.fusion_hidden_size = cfg.model.fusion_hidden_size;
-    model_cfg.time_step          = 1.0f;
-    model_cfg.resistance         = 1.0f / std::max(v_th, 1e-3f);
-    model_cfg.capacitance        = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));
+    model_cfg.time_step = 1.0f;
+    model_cfg.resistance = 1.0f / std::max(v_th, 1e-3f);
+    model_cfg.capacitance = std::max(1e-3f, -1.0f / std::log(std::max(alpha, 1e-3f)));
 
-    model_cfg.encoder_layer_spec = cfg.model.encoder_layer_spec.empty()
-        ? std::vector<std::string>{"linear:hidden:leaky", "linear:latent:identity"}
-        : cfg.model.encoder_layer_spec;
+    model_cfg.encoder_layer_spec =
+        cfg.model.encoder_layer_spec.empty()
+            ? std::vector<std::string>{"linear:hidden:leaky", "linear:latent:identity"}
+            : cfg.model.encoder_layer_spec;
 
-    model_cfg.decoder_layer_spec = cfg.model.decoder_layer_spec.empty()
-        ? std::vector<std::string>{"linear:hidden:leaky", "linear:output:identity"}
-        : cfg.model.decoder_layer_spec;
+    model_cfg.decoder_layer_spec =
+        cfg.model.decoder_layer_spec.empty()
+            ? std::vector<std::string>{"linear:hidden:leaky", "linear:output:identity"}
+            : cfg.model.decoder_layer_spec;
 
     model_cfg.branch_encoder_layer_spec = cfg.model.branch_encoder_layer_spec;
     model_cfg.branch_decoder_layer_spec = cfg.model.branch_decoder_layer_spec;
@@ -130,10 +145,10 @@ static auto make_trainer_config(const ComparativeConfig& cfg, float snn_lr_scale
     -> nn::training::TrainerConfig
 {
     nn::training::TrainerConfig tcfg;
-    tcfg.epochs            = cfg.training.epochs;
-    tcfg.batch_size        = std::max(1, cfg.training.samples_per_batch);
-    tcfg.learning_rate     = cfg.training.learning_rate;
-    tcfg.snn_lr_scale      = snn_lr_scale;
+    tcfg.epochs = cfg.training.epochs;
+    tcfg.batch_size = std::max(1, cfg.training.samples_per_batch);
+    tcfg.learning_rate = cfg.training.learning_rate;
+    tcfg.snn_lr_scale = snn_lr_scale;
     return tcfg;
 }
 
@@ -142,7 +157,7 @@ static auto make_trainer_config(const ComparativeConfig& cfg, float snn_lr_scale
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    Adam& /*optimizer*/,  // Trainer owns its optimizer; kept in signature for compatibility
+    Adam& /*optimizer*/, // Trainer owns its optimizer; kept in signature for compatibility
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
@@ -151,7 +166,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     std::size_t run_id,
     std::size_t total_runs,
     float& train_ms,
-    float& infer_ms) -> RunMetrics
+    float& infer_ms) -> TrainResult
 {
     // LSTM processes one sequence at a time (no 3-D batching).
     nn::training::TrainerConfig tcfg = make_trainer_config(cfg);
@@ -159,14 +174,16 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, tcfg);
 
-    const std::string label = "LSTM [" + encoding + "] r" +
-                              std::to_string(run_id + 1) + "/" +
-                              std::to_string(total_runs);
+    const std::string label =
+        "LSTM [" + encoding + "] r" + std::to_string(run_id + 1) + "/" + std::to_string(total_runs);
     trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
 
-    auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
-        cfg.training.early_stop_patience);
+    auto stopper =
+        std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
     trainer.add_callback(stopper);
+
+    auto batch_collector = std::make_shared<BatchLossCollector>();
+    trainer.add_callback(batch_collector);
 
     std::vector<LstmTensor> train_backend_samples;
     train_backend_samples.reserve(train_samples.size());
@@ -186,7 +203,7 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         });
 
     const auto t0 = std::chrono::steady_clock::now();
-    trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
+    const auto epoch_results = trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -194,15 +211,15 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     const auto infer_start = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        const Tensor encoded = encode_sample(val_samples[i], encoding,
-                             seed + static_cast<std::uint32_t>(i));
+        const Tensor encoded =
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
         model.reset_state();
         (void) model.forward(LstmTensor(encoded), false);
     }
     const auto infer_end = std::chrono::steady_clock::now();
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
 
-    return evaluate_lstm(model,
+    RunMetrics metrics = evaluate_lstm(model,
         val_samples,
         std::vector<int>(val_samples.size(), 0),
         cfg.training.max_reconstruct_mean_deviation,
@@ -211,6 +228,26 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
         encoding,
         seed,
         infer_ms);
+
+    EpochHistory history;
+    for (const auto& er : epoch_results)
+    {
+        history.epoch_nums.push_back(static_cast<float>(er.epoch));
+        history.train_losses.push_back(er.train_loss);
+        history.val_losses.push_back(er.val_loss);
+    }
+
+    const int batches_per_epoch = train_samples.size() / std::max(1, cfg.training.samples_per_batch);
+    int batch_idx = 0;
+    for (const auto& batch_loss : batch_collector->batch_losses)
+    {
+        const int current_epoch = (batch_idx / std::max(1, batches_per_epoch)) + 1;
+        history.batch_losses.push_back(batch_loss);
+        history.batch_epochs.push_back(static_cast<float>(current_epoch));
+        ++batch_idx;
+    }
+
+    return TrainResult{metrics, history};
 }
 
 // ---------------------------------------------------------------------------
@@ -231,21 +268,23 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     std::size_t run_id,
     std::size_t total_runs,
     float& train_ms,
-    float& infer_ms) -> RunMetrics
+    float& infer_ms) -> TrainResult
 {
     // SNN biophysical params (R, C, V_th) need ~10× smaller lr than weights [37].
     nn::training::TrainerConfig tcfg = make_trainer_config(cfg, 0.1F);
 
     nn::training::Trainer<ProtocolSpikingAutoencoder> trainer(model, tcfg);
 
-    const std::string label = "SNN [" + encoding + "] r" +
-                              std::to_string(run_id + 1) + "/" +
-                              std::to_string(total_runs);
+    const std::string label =
+        "SNN [" + encoding + "] r" + std::to_string(run_id + 1) + "/" + std::to_string(total_runs);
     trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
 
-    auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
-        cfg.training.early_stop_patience);
+    auto stopper =
+        std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
     trainer.add_callback(stopper);
+
+    auto batch_collector = std::make_shared<BatchLossCollector>();
+    trainer.add_callback(batch_collector);
 
     std::vector<SnnTensor> train_backend_samples;
     train_backend_samples.reserve(train_samples.size());
@@ -256,17 +295,16 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     for (const auto& sample : val_samples) val_backend_samples.emplace_back(sample);
 
     trainer.set_sample_transform(
-        [&encoding, &architecture, alpha, v_th, seed](const SnnTensor& s, std::size_t idx)
-            -> SnnTensor
+        [&encoding, &architecture, alpha, v_th, seed](
+            const SnnTensor& s, std::size_t idx) -> SnnTensor
         {
-            Tensor enc = encode_sample(Tensor(s), encoding,
-                                       seed + static_cast<std::uint32_t>(idx));
+            Tensor enc = encode_sample(Tensor(s), encoding, seed + static_cast<std::uint32_t>(idx));
             enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
             return SnnTensor(flatten_time_series(enc));
         });
 
     const auto t0 = std::chrono::steady_clock::now();
-    trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
+    const auto epoch_results = trainer.fit_autoencoder(train_backend_samples, val_backend_samples);
     const auto t1 = std::chrono::steady_clock::now();
     train_ms = std::chrono::duration<float, std::milli>(t1 - t0).count();
 
@@ -274,8 +312,8 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     const auto infer_start = std::chrono::steady_clock::now();
     for (std::size_t i = 0; i < val_samples.size(); ++i)
     {
-        nn::Tensor enc = encode_sample(val_samples[i], encoding,
-                                       seed + static_cast<std::uint32_t>(i));
+        nn::Tensor enc =
+            encode_sample(val_samples[i], encoding, seed + static_cast<std::uint32_t>(i));
         enc = apply_snn_architecture_transform(enc, architecture, alpha, v_th);
         const nn::Tensor flat = flatten_time_series(enc);
         model.reset_state();
@@ -285,17 +323,17 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
     infer_ms = std::chrono::duration<float, std::milli>(infer_end - infer_start).count();
 
     const auto enc_sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
-    const int top_hidden = enc_sizes.empty()
-        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
-        : enc_sizes.front();
+    const int top_hidden = enc_sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
+                                                   cfg.model.decoder_layer_spec)
+                                             : enc_sizes.front();
 
-    return evaluate_snn(model,
+    RunMetrics metrics = evaluate_snn(model,
         val_samples,
         val_labels,
         cfg.training.max_reconstruct_mean_deviation,
         estimate_snn_macs(static_cast<std::size_t>(cfg.dataset.window_size),
-                          top_hidden,
-                          static_cast<int>(enc_sizes.size())),
+            top_hidden,
+            static_cast<int>(enc_sizes.size())),
         parameter_count(model.params()),
         encoding,
         architecture,
@@ -303,6 +341,26 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
         v_th,
         seed,
         infer_ms);
+
+    EpochHistory history;
+    for (const auto& er : epoch_results)
+    {
+        history.epoch_nums.push_back(static_cast<float>(er.epoch));
+        history.train_losses.push_back(er.train_loss);
+        history.val_losses.push_back(er.val_loss);
+    }
+
+    const int batches_per_epoch = train_samples.size() / std::max(1, cfg.training.samples_per_batch);
+    int batch_idx = 0;
+    for (const auto& batch_loss : batch_collector->batch_losses)
+    {
+        const int current_epoch = (batch_idx / std::max(1, batches_per_epoch)) + 1;
+        history.batch_losses.push_back(batch_loss);
+        history.batch_epochs.push_back(static_cast<float>(current_epoch));
+        ++batch_idx;
+    }
+
+    return TrainResult{metrics, history};
 }
 
 } // namespace comparative_autoencoder_experiment

@@ -57,6 +57,7 @@ add_library(experiment04_lib STATIC
     ${SRC_DIR}/experiments/04/lib/src/LstmAutoencoderExperiment.cpp
     ${SRC_DIR}/experiments/04/lib/src/RunComparativeExperiment.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeCli.cpp
+    ${SRC_DIR}/experiments/04/lib/src/ComparativeConfig.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeDataset.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeEncoding.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeMetrics.cpp
