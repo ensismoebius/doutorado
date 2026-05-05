@@ -90,7 +90,7 @@ class LSTMLayerImpl : public Module<Backend>
           h0_(1, hidden_size),
           c0_(1, hidden_size)
     {
-        auto normal_fill = [](nn::Tensor& t, unsigned seed_offset)
+        auto normal_fill = [](Tensor& t, unsigned seed_offset)
         {
             std::mt19937 rng(42u + seed_offset);
             std::normal_distribution<float> dist(0.0f, 0.05f);
@@ -154,6 +154,18 @@ class LSTMLayerImpl : public Module<Backend>
 
         Tensor b_T = b_.transpose(); // (1, 4H) — computed once outside loop
 
+        auto sigmoid_tensor = [](const Tensor& x) -> Tensor
+        {
+            const Tensor ones = Tensor::ones(x.rows(), x.cols());
+            return ones.divide(ones + (x * -1.0f).exp());
+        };
+        auto tanh_tensor = [&](const Tensor& x) -> Tensor
+        {
+            const Tensor ones = Tensor::ones(x.rows(), x.cols());
+            const Tensor two = ones + ones;
+            return sigmoid_tensor(x * 2.0f) * two - ones;
+        };
+
         // Opt: for single-sequence (B=1), write directly to (T,H) output; skip 3D alloc+copy.
         const bool is_2d = (shape.size() == 2);
         Tensor all_out = is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq),
@@ -170,13 +182,13 @@ class LSTMLayerImpl : public Module<Backend>
             Tensor pre =
                 x_t.matmul_transposed(W_).add(h.matmul_transposed(U_)).add_row_broadcast(b_T);
 
-            Tensor i_g = nn::activation::sigmoid(pre.block(0, 0, B, hidden_size_));
-            Tensor f_g = nn::activation::sigmoid(pre.block(0, 1 * hidden_size_, B, hidden_size_));
-            Tensor o_g = nn::activation::sigmoid(pre.block(0, 2 * hidden_size_, B, hidden_size_));
-            Tensor g_g = nn::activation::tanh(pre.block(0, 3 * hidden_size_, B, hidden_size_));
+            Tensor i_g = sigmoid_tensor(pre.block(0, 0, B, hidden_size_));
+            Tensor f_g = sigmoid_tensor(pre.block(0, 1 * hidden_size_, B, hidden_size_));
+            Tensor o_g = sigmoid_tensor(pre.block(0, 2 * hidden_size_, B, hidden_size_));
+            Tensor g_g = tanh_tensor(pre.block(0, 3 * hidden_size_, B, hidden_size_));
 
             Tensor c_new = (f_g * c).add(i_g * g_g);
-            Tensor tc = nn::activation::tanh(c_new);
+            Tensor tc = tanh_tensor(c_new);
             Tensor h_new = o_g * tc;
 
             if (requires_grad) cache_.push_back({x_t, h, c, i_g, f_g, o_g, g_g, tc});
@@ -249,22 +261,17 @@ class LSTMLayerImpl : public Module<Backend>
         cache_.clear();
     }
 
-    auto params() -> std::span<nn::Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
-        // TensorImpl<Backend> inherits nn::Tensor, so reinterpret_cast is safe
-        return std::span<nn::Tensor*>{
-            reinterpret_cast<nn::Tensor**>(param_ptrs_.data()), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        // Always store as nn::Tensor (XTensorBackend)
-        return {{"W", W_.template to_backend<nn::XTensorBackend>()},
-            {"U", U_.template to_backend<nn::XTensorBackend>()},
-            {"b", b_.template to_backend<nn::XTensorBackend>()}};
+        return {{"W", W_}, {"U", U_}, {"b", b_}};
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         if (auto it = sd.find("W"); it != sd.end()) W_ = it->second;
         if (auto it = sd.find("U"); it != sd.end()) U_ = it->second;
@@ -289,6 +296,17 @@ class LSTMLayerImpl : public Module<Backend>
         Tensor dh_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
         Tensor dc_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
 
+        auto sigmoid_grad_from_output = [](const Tensor& y) -> Tensor
+        {
+            const Tensor ones = Tensor::ones(y.rows(), y.cols());
+            return y * (ones - y);
+        };
+        auto tanh_grad_from_output = [](const Tensor& y) -> Tensor
+        {
+            const Tensor ones = Tensor::ones(y.rows(), y.cols());
+            return ones - (y * y);
+        };
+
         // Opt: pre-allocate dpre once; overwrite each timestep via setBlock.
         Tensor dpre(static_cast<nn::Index>(B), 4 * static_cast<nn::Index>(H));
 
@@ -302,17 +320,17 @@ class LSTMLayerImpl : public Module<Backend>
 
             Tensor do_gate = dh * step.tanh_c;
             Tensor dtanh_c = dh * step.o;
-            Tensor dc = (dtanh_c * nn::activation::tanh_grad(step.tanh_c)).add(dc_next);
+            Tensor dc = (dtanh_c * tanh_grad_from_output(step.tanh_c)).add(dc_next);
 
             Tensor di_gate = dc * step.g;
             Tensor df_gate = dc * step.c_prev;
             Tensor dg_gate = dc * step.i;
             dc_next = dc * step.f;
 
-            Tensor dpre_i = di_gate * nn::activation::sigmoid_grad(step.i);
-            Tensor dpre_f = df_gate * nn::activation::sigmoid_grad(step.f);
-            Tensor dpre_o = do_gate * nn::activation::sigmoid_grad(step.o);
-            Tensor dpre_g = dg_gate * nn::activation::tanh_grad(step.g);
+            Tensor dpre_i = di_gate * sigmoid_grad_from_output(step.i);
+            Tensor dpre_f = df_gate * sigmoid_grad_from_output(step.f);
+            Tensor dpre_o = do_gate * sigmoid_grad_from_output(step.o);
+            Tensor dpre_g = dg_gate * tanh_grad_from_output(step.g);
 
             // Opt: block writes instead of scalar scatter.
             dpre.setBlock(0, 0 * H, dpre_i);
@@ -337,7 +355,7 @@ class LSTMLayerImpl : public Module<Backend>
 
 namespace nn::models::lstm
 {
-using LSTMLayer = LSTMLayerImpl<nn::XTensorBackend>;
+using LSTMLayer = LSTMLayerImpl<nn::Backend>;
 } // namespace nn::models::lstm
 
 #endif // NN_LAYERS_LSTM_LSTMLAYER_HPP

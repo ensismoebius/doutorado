@@ -163,11 +163,10 @@ TEST(LinearAlgebraTest, TestNormalizeAllPositiveAndDotException)
 {
     std::vector<double> v = {-2.0, 0.0, 2.0};
     linearAlgebra::normalize_vector_to_sum1_all_positive(v);
-    for (double x : v)
-    {
-        EXPECT_GT(x, 0.0);
-    }
-    EXPECT_NEAR(v[0] + v[1] + v[2], 1.0, 1e-9);
+    EXPECT_NEAR(v[0], 1.0 / 9.0, 1e-12);
+    EXPECT_NEAR(v[1], 3.0 / 9.0, 1e-12);
+    EXPECT_NEAR(v[2], 5.0 / 9.0, 1e-12);
+    EXPECT_NEAR(v[0] + v[1] + v[2], 1.0, 1e-12);
 
     std::vector<double> a = {1.0, 2.0};
     std::vector<double> b = {1.0};
@@ -186,7 +185,10 @@ TEST(LinearAlgebraTest, TestConvolutionEdgeCasesAndDct)
 
     std::vector<double> dct_in = {1.0, 1.0, 1.0, 1.0};
     linearAlgebra::discrete_cosine_transform(dct_in);
-    EXPECT_GT(std::abs(dct_in[0]), 0.0);
+    EXPECT_NEAR(dct_in[0], 2.0, 1e-12);
+    EXPECT_NEAR(dct_in[1], 0.0, 1e-12);
+    EXPECT_NEAR(dct_in[2], 0.0, 1e-12);
+    EXPECT_NEAR(dct_in[3], 0.0, 1e-12);
 }
 
 TEST(LinearAlgebraTest, TestScaleSolveAndResizeCentered)

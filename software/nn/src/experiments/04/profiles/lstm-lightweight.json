@@ -15,9 +15,9 @@
         "max_validation_samples": 50
     },
     "training": {
-        "samples_per_batch": 80,
-        "batches_per_epoch": 10,
-        "epochs": 2,
+        "samples_per_batch": 30,
+        "batches_per_epoch": 3,
+        "epochs": 1,
         "early_stop_patience": 30,
         "learning_rate": 0.001,
         "max_reconstruct_mean_deviation": 0.25

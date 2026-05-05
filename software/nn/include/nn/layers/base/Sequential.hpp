@@ -38,7 +38,7 @@ struct SequentialImpl : Module<Backend>
     std::vector<Tensor> outputs;
     // Owned concatenation of parameter pointers from child layers. This storage
     // must remain valid while the returned span is used by callers.
-    std::vector<nn::Tensor*> param_ptrs_;
+    std::vector<Tensor*> param_ptrs_;
 
     SequentialImpl() = default;
 
@@ -110,7 +110,7 @@ struct SequentialImpl : Module<Backend>
     }
 
     // Returns all trainable parameters (weights and biases) from all layers
-    [[nodiscard]] auto params() -> std::span<nn::Tensor*> override
+    [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
         param_ptrs_.clear();
         for (auto& layer : layers) [[likely]]
@@ -118,12 +118,12 @@ struct SequentialImpl : Module<Backend>
             auto layer_params = layer->params();
             param_ptrs_.insert(param_ptrs_.end(), layer_params.begin(), layer_params.end());
         }
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        std::map<std::string, nn::Tensor> out;
+        std::map<std::string, Tensor> out;
         for (size_t i = 0; i < layers.size(); ++i)
         {
             auto d = layers[i]->state_dict();
@@ -135,7 +135,7 @@ struct SequentialImpl : Module<Backend>
         return out;
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         // Dispatch keys of form "<idx>.<name>" to child modules
         for (const auto& kv : sd)
@@ -148,7 +148,7 @@ struct SequentialImpl : Module<Backend>
             size_t idx = static_cast<size_t>(std::stoul(idx_str));
             if (idx >= layers.size()) continue;
             // Create a small map and call child load
-            std::map<std::string, nn::Tensor> child_map{{name, kv.second}};
+            std::map<std::string, Tensor> child_map{{name, kv.second}};
             layers[idx]->load_state_dict(child_map);
         }
     }

@@ -59,16 +59,11 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetrics)
 
     auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
 
-    EXPECT_GE(metrics.accuracy, 0.0);
-    EXPECT_LE(metrics.accuracy, 1.0);
-    EXPECT_GE(metrics.precision, 0.0);
-    EXPECT_LE(metrics.precision, 1.0);
-    EXPECT_GE(metrics.recall, 0.0);
-    EXPECT_LE(metrics.recall, 1.0);
-    EXPECT_GE(metrics.f1_score, 0.0);
-    EXPECT_LE(metrics.f1_score, 1.0);
-    EXPECT_GE(metrics.balanced_accuracy, 0.0);
-    EXPECT_LE(metrics.balanced_accuracy, 1.0);
+    EXPECT_NEAR(metrics.accuracy, 4.0 / 6.0, 1e-6);
+    EXPECT_NEAR(metrics.precision, 13.0 / 18.0, 1e-6);
+    EXPECT_NEAR(metrics.recall, 2.0 / 3.0, 1e-6);
+    EXPECT_NEAR(metrics.f1_score, 59.0 / 90.0, 1e-6);
+    EXPECT_NEAR(metrics.balanced_accuracy, 2.0 / 3.0, 1e-6);
 }
 
 TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
@@ -82,12 +77,17 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
     EXPECT_NEAR(metrics_perfect.precision, 1.0, 1e-6);
     EXPECT_NEAR(metrics_perfect.recall, 1.0, 1e-6);
     EXPECT_NEAR(metrics_perfect.f1_score, 1.0, 1e-6);
+    EXPECT_NEAR(metrics_perfect.balanced_accuracy, 1.0, 1e-6);
 
     // All wrong predictions
     std::vector<int> pred_labels_all_wrong = {1, 2, 0};
     auto metrics_wrong =
         statistics::compute_classification_metrics(true_labels_all_correct, pred_labels_all_wrong);
     EXPECT_NEAR(metrics_wrong.accuracy, 0.0, 1e-6);
+    EXPECT_NEAR(metrics_wrong.precision, 0.0, 1e-6);
+    EXPECT_NEAR(metrics_wrong.recall, 0.0, 1e-6);
+    EXPECT_NEAR(metrics_wrong.f1_score, 0.0, 1e-6);
+    EXPECT_NEAR(metrics_wrong.balanced_accuracy, 0.0, 1e-6);
 
     // Single class
     std::vector<int> true_labels_single = {0, 0, 0};
@@ -95,6 +95,10 @@ TEST(MultiClassMetricsTest, TestComputeClassificationMetricsEdgeCases)
     auto metrics_single =
         statistics::compute_classification_metrics(true_labels_single, pred_labels_single);
     EXPECT_NEAR(metrics_single.accuracy, 1.0, 1e-6);
+    EXPECT_NEAR(metrics_single.precision, 1.0, 1e-6);
+    EXPECT_NEAR(metrics_single.recall, 1.0, 1e-6);
+    EXPECT_NEAR(metrics_single.f1_score, 1.0, 1e-6);
+    EXPECT_NEAR(metrics_single.balanced_accuracy, 1.0, 1e-6);
 
     // Empty labels (should handle or throw)
     std::vector<int> empty_true;
@@ -132,11 +136,14 @@ TEST(MultiClassMetricsTest, TestKFoldCrossValidation)
         });
 
     EXPECT_EQ(results.size(), static_cast<size_t>(k));
-    for (double acc : results)
-    {
-        EXPECT_GE(acc, 0.0);
-        EXPECT_LE(acc, 1.0);
-    }
+    ASSERT_EQ(results.size(), 3U);
+    EXPECT_NEAR(results[0], 0.5, 1e-12);
+    EXPECT_NEAR(results[1], 0.0, 1e-12);
+    EXPECT_NEAR(results[2], 0.5, 1e-12);
+
+    const double mean_acc = (results[0] + results[1] + results[2]) / 3.0;
+    // Equal fold sizes imply mean fold accuracy equals global sample accuracy.
+    EXPECT_NEAR(mean_acc, 1.0 / 3.0, 1e-12);
 }
 
 TEST(MultiClassMetricsTest, TestKFoldCrossValidationEdgeCases)
@@ -237,13 +244,11 @@ TEST(StatisticsMemoryStressTest, LargeDatasetVariance)
     }
 
     ASSERT_NO_THROW({
-        double var = statistics::variance(large_data);
-        double stddev = statistics::standardDeviation(large_data);
+        const double var = statistics::variance(large_data);
+        const double stddev = statistics::standardDeviation(large_data);
 
-        EXPECT_TRUE(std::isfinite(var));
-        EXPECT_TRUE(std::isfinite(stddev));
-        EXPECT_GE(var, 0.0);
-        EXPECT_GE(stddev, 0.0);
+        EXPECT_NEAR(var, 833.25, 1e-12);
+        EXPECT_NEAR(stddev, 28.86607004772212, 1e-12);
     });
 }
 
@@ -261,16 +266,13 @@ TEST(StatisticsMemoryStressTest, LargeClassificationMetrics)
     }
 
     ASSERT_NO_THROW({
-        auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
+        const auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
 
-        EXPECT_TRUE(std::isfinite(metrics.accuracy));
-        EXPECT_TRUE(std::isfinite(metrics.precision));
-        EXPECT_TRUE(std::isfinite(metrics.recall));
-        EXPECT_TRUE(std::isfinite(metrics.f1_score));
-        EXPECT_TRUE(std::isfinite(metrics.balanced_accuracy));
-
-        EXPECT_GE(metrics.accuracy, 0.0);
-        EXPECT_LE(metrics.accuracy, 1.0);
+        EXPECT_NEAR(metrics.accuracy, 0.33334, 1e-12);
+        EXPECT_NEAR(metrics.precision, 0.33333999866639996, 1e-12);
+        EXPECT_NEAR(metrics.recall, 0.33333999999999997, 1e-12);
+        EXPECT_NEAR(metrics.f1_score, 0.33333999866659997, 1e-12);
+        EXPECT_NEAR(metrics.balanced_accuracy, 0.33333999999999997, 1e-12);
     });
 }
 
@@ -286,9 +288,7 @@ TEST(InferenceTests, TTestApproxReturnsSmallPForSeparatedMeans)
     const std::vector<float> a = {1.0f, 1.1f, 0.9f, 1.2f, 1.0f};
     const std::vector<float> b = {3.0f, 3.1f, 2.9f, 3.2f, 3.0f};
     const float p = statistics::t_test_pvalue_approx(a, b);
-    EXPECT_GE(p, 0.0f);
-    EXPECT_LE(p, 1.0f);
-    EXPECT_LT(p, 0.05f);
+    EXPECT_FLOAT_EQ(p, 0.0f);
 }
 
 TEST(InferenceTests, WilcoxonApproxReturnsOneForInvalidPairs)
@@ -327,14 +327,16 @@ TEST(StatisticsNumericalEdgeTest, ExtremeValues)
     // Test with very large values
     std::vector<double> large_data = {1e10, 2e10, 3e10};
     double large_var = statistics::variance(large_data);
+    const double expected_large_var = 2e20 / 3.0;
     EXPECT_TRUE(std::isfinite(large_var));
-    EXPECT_GT(large_var, 0.0);
+    EXPECT_NEAR(large_var, expected_large_var, expected_large_var * 1e-12);
 
     // Test with very small values
     std::vector<double> small_data = {1e-10, 2e-10, 3e-10};
     double small_var = statistics::variance(small_data);
+    const double expected_small_var = 2e-20 / 3.0;
     EXPECT_TRUE(std::isfinite(small_var));
-    EXPECT_GT(small_var, 0.0);
+    EXPECT_NEAR(small_var, expected_small_var, expected_small_var * 1e-12);
 
     // Test with zero variance (constant values)
     std::vector<double> constant_data = {5.0, 5.0, 5.0, 5.0};
@@ -360,13 +362,11 @@ TEST(StatisticsThreadSafetyTest, ConcurrentVarianceCalculations)
         }
 
         ASSERT_NO_THROW({
-            double var = statistics::variance(data);
-            double std = statistics::standardDeviation(data);
+            const double var = statistics::variance(data);
+            const double std = statistics::standardDeviation(data);
 
-            EXPECT_TRUE(std::isfinite(var));
-            EXPECT_TRUE(std::isfinite(std));
-            EXPECT_GE(var, 0.0);
-            EXPECT_GE(std, 0.0);
+            EXPECT_NEAR(var, 83333.25, 1e-12);
+            EXPECT_NEAR(std, 288.6749902572095, 1e-12);
         });
     }
 }
@@ -381,12 +381,14 @@ TEST(StatisticsThreadSafetyTest, ConcurrentClassificationMetrics)
         std::vector<int> pred_labels = {0, 1, 2, 1, 2, 0, 2, 0, 1}; // Some correct, some wrong
 
         ASSERT_NO_THROW({
-            auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
+            const auto metrics =
+                statistics::compute_classification_metrics(true_labels, pred_labels);
 
-            EXPECT_TRUE(std::isfinite(metrics.accuracy));
-            EXPECT_TRUE(std::isfinite(metrics.precision));
-            EXPECT_TRUE(std::isfinite(metrics.recall));
-            EXPECT_TRUE(std::isfinite(metrics.f1_score));
+            EXPECT_NEAR(metrics.accuracy, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.precision, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.recall, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.f1_score, 1.0 / 3.0, 1e-12);
+            EXPECT_NEAR(metrics.balanced_accuracy, 1.0 / 3.0, 1e-12);
         });
     }
 }
@@ -428,18 +430,17 @@ TEST(StatisticsComprehensiveTest, ClassificationMetricsDetailed)
     // Accuracy = (1+2+1)/6 = 4/6 ≈ 0.667
     EXPECT_NEAR(metrics.accuracy, 4.0 / 6.0, 1e-6);
 
-    // For multiclass, precision/recall/f1 are macro-averaged
-    // Class 0: precision=1/2=0.5, recall=1/2=0.5, f1=0.5
-    // Class 1: precision=2/2=1.0, recall=2/2=1.0, f1=1.0
-    // Class 2: precision=1/1=1.0, recall=1/2=0.5, f1=2/3≈0.667
-    // Macro average: precision=(0.5+1.0+1.0)/3≈0.833, etc.
-
-    EXPECT_GE(metrics.precision, 0.0);
-    EXPECT_LE(metrics.precision, 1.0);
-    EXPECT_GE(metrics.recall, 0.0);
-    EXPECT_LE(metrics.recall, 1.0);
-    EXPECT_GE(metrics.f1_score, 0.0);
-    EXPECT_LE(metrics.f1_score, 1.0);
+    // For multiclass, precision/recall/f1 are macro-averaged.
+    // Class 0: p=1/2, r=1/2, f1=1/2
+    // Class 1: p=2/3, r=1,   f1=4/5
+    // Class 2: p=1,   r=1/2, f1=2/3
+    // Macro precision = (1/2 + 2/3 + 1)/3 = 13/18
+    // Macro recall    = (1/2 + 1   + 1/2)/3 = 2/3
+    // Macro f1        = (1/2 + 4/5 + 2/3)/3 = 59/90
+    EXPECT_NEAR(metrics.precision, 13.0 / 18.0, 1e-6);
+    EXPECT_NEAR(metrics.recall, 2.0 / 3.0, 1e-6);
+    EXPECT_NEAR(metrics.f1_score, 59.0 / 90.0, 1e-6);
+    EXPECT_NEAR(metrics.balanced_accuracy, 2.0 / 3.0, 1e-6);
 }
 
 TEST(StatisticsComprehensiveTest, KFoldCrossValidationDeterminism)
@@ -473,5 +474,6 @@ TEST(StatisticsComprehensiveTest, KFoldCrossValidationDeterminism)
     for (size_t i = 0; i < results1.size(); ++i)
     {
         EXPECT_NEAR(results1[i], results2[i], 1e-10);
+        EXPECT_NEAR(results1[i], 1.0 / 3.0, 1e-10);
     }
 }

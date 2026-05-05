@@ -5,6 +5,7 @@
 #include <span>
 #include <vector>
 
+#include "nn/Backend.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 /**
@@ -16,12 +17,14 @@
  * - An `Optimizer` receives those pointers and updates `param->data` using `param->grad()`.
  *
  * Design choices:
- * - Parameters are passed as `std::span<nn::Tensor*>` to avoid unnecessary allocations.
+ * - Parameters are passed as `std::span<Tensor*>` to avoid unnecessary allocations.
  * - `attach()` lets an optimizer allocate per-parameter state (e.g., Adam moments) once.
  */
 
 struct Optimizer
 {
+    using Tensor = nn::TensorImpl<nn::Backend>;
+
     /**
      * @brief Default contructor of the Optimizer object
      *
@@ -63,7 +66,7 @@ struct Optimizer
      *
      * Precondition: each tensor in `params` has a valid gradient (usually set by backward()).
      */
-    virtual auto step(std::span<nn::Tensor*> params) -> void = 0;
+    virtual auto step(std::span<Tensor*> params) -> void = 0;
 
     /**
      * Convenience no-arg overload: step using attached parameters (if any).
@@ -74,7 +77,7 @@ struct Optimizer
     {
         if (!attached_params_.empty())
         {
-            step(std::span<nn::Tensor*>{attached_params_.data(), attached_params_.size()});
+            step(std::span<Tensor*>{attached_params_.data(), attached_params_.size()});
         }
         else
         {
@@ -85,7 +88,7 @@ struct Optimizer
     /**
      * @brief Set all parameter gradients to zero before the next backward pass.
      */
-    virtual auto zero_grad(std::span<nn::Tensor*> params) -> void = 0;
+    virtual auto zero_grad(std::span<Tensor*> params) -> void = 0;
 
     /**
      * Convenience no-arg overload for zeroing attached parameters' gradients.
@@ -94,7 +97,7 @@ struct Optimizer
     {
         if (!attached_params_.empty())
         {
-            zero_grad(std::span<nn::Tensor*>{attached_params_.data(), attached_params_.size()});
+            zero_grad(std::span<Tensor*>{attached_params_.data(), attached_params_.size()});
         }
         else
         {
@@ -108,19 +111,19 @@ struct Optimizer
      * Example: Adam stores first/second moments m/v with the same shape as each parameter.
      * Call this after building the model and before training.
      */
-    virtual auto attach(std::span<nn::Tensor*> params) -> void {}
+    virtual auto attach(std::span<Tensor*> params) -> void {}
 
     // Stored copy of the last attached parameters (optional). Concrete optimizers
     // may still override `attach()` but should call `Optimizer::attach(params)`
     // to preserve this storage for no-arg convenience methods.
-    std::vector<nn::Tensor*> attached_params_;
+    std::vector<Tensor*> attached_params_;
 
     virtual ~Optimizer() = default;
     /**
      * @brief Return optimizer internal state as a map of name->Tensor.
      * Default: empty. Concrete optimizers may override to expose moments or counters.
      */
-    virtual auto state_dict() const -> std::map<std::string, nn::Tensor>
+    virtual auto state_dict() const -> std::map<std::string, Tensor>
     {
         return {};
     }
@@ -128,7 +131,7 @@ struct Optimizer
     /**
      * @brief Load optimizer internal state from a map produced by `state_dict()`.
      */
-    virtual void load_state_dict(const std::map<std::string, nn::Tensor>&) {}
+    virtual void load_state_dict(const std::map<std::string, Tensor>&) {}
 };
 
 #endif // OPTIMIZER_HPP

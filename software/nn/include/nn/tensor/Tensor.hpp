@@ -11,7 +11,7 @@
  * - Gradients are backend-managed; see backend `grad_ref()` semantics.
  *
  * **Contract:**
- * - 2D mapping: rows/cols map to xtensor storage row/col (row-major logical).
+ * - 2D mapping: rows/cols map to backend storage row/col (row-major logical).
  * - 3D mapping: rows = d1; cols = d2; storage cols = d2 * d3.
  * - 4D mapping: rows = d1; cols = d2; storage cols = d2 * d3 * d4.
  * - Public APIs throw `std::invalid_argument` or `std::out_of_range` on misuse.
@@ -21,18 +21,12 @@
 #define TENSOR_HPP
 
 #include <algorithm>
+#include <concepts>
+#include <random>
 #include <span>
 #include <vector>
 
-// Forward declare Device to avoid circular include
-namespace nn
-{
-struct Device;
-class OpenCLTensorBackend;
-} // namespace nn
-
-// XTensorBackend.hpp must be available in include path.
-#include "nn/tensor/xtensor/XTensorBackend.hpp"
+#include "nn/Backend.hpp"
 
 // -----------------------------------------------------------------------------
 // Lightweight Tensor wrapper (Templated)
@@ -62,14 +56,56 @@ class OpenCLTensorBackend;
 namespace nn
 {
 
+template <typename Backend>
+concept TensorBackendParityContract = requires(Backend b,
+    const Backend cb,
+    const std::vector<Index>& shape,
+    std::span<const int> idx,
+    Index i,
+    Index j,
+    Index d1,
+    Index d2,
+    Index d3,
+    Index row,
+    Index col,
+    Index rows,
+    Index cols,
+    float scalar) {
+    { b.at(d1, d2, d3) } -> std::same_as<float&>;
+    { cb.at(d1, d2, d3) } -> std::same_as<const float&>;
+    { cb.row(i) } -> std::same_as<Backend>;
+    { cb.col(j) } -> std::same_as<Backend>;
+    { cb.leftCols(cols) } -> std::same_as<Backend>;
+    { cb.topRows(rows) } -> std::same_as<Backend>;
+    { cb.block(row, col, rows, cols) } -> std::same_as<Backend>;
+    { b.setBlock(row, col, cb) } -> std::same_as<void>;
+    { cb.slice(idx) } -> std::same_as<Backend>;
+    { cb.slice_batch(i) } -> std::same_as<Backend>;
+    { b.set_batch_slice(i, cb) } -> std::same_as<void>;
+    { cb.slice_time(i) } -> std::same_as<Backend>;
+    { b.set_time_slice(i, cb) } -> std::same_as<void>;
+    { cb.add_row_broadcast(cb) } -> std::same_as<Backend>;
+    { b.add_row_broadcast_inplace(cb) } -> std::same_as<void>;
+    { cb.sum_rows() } -> std::same_as<Backend>;
+    { b.fill(scalar) } -> std::same_as<void>;
+    { b.set_zero() } -> std::same_as<void>;
+    { b.set_ones() } -> std::same_as<void>;
+    { cb.data_ptr() } -> std::same_as<const float*>;
+    { b.mutable_data_ptr() } -> std::same_as<float*>;
+    { b.set_grad(cb) } -> std::same_as<void>;
+};
+
 // Forward declare for CommaInitializer
 template <typename Backend>
 class TensorImpl;
 
-template <typename Backend = XTensorBackend>
+template <typename Backend>
 class TensorImpl
 {
    public:
+    static_assert(TensorBackendParityContract<Backend>,
+        "Tensor backend missing mandatory parity methods. Implement full API parity in backend.");
+
     using index_type = size_t; // Alignment with std::size_t usually
 
     // Note on index types:
@@ -192,7 +228,9 @@ class TensorImpl
 
     auto reshape(const std::vector<Index>& new_shape) const -> TensorImpl
     {
-        return TensorImpl(backend_.reshape(new_shape));
+        TensorImpl out(*this);
+        out.reshape(new_shape);
+        return out;
     }
     [[nodiscard]] auto rows() const noexcept -> Index
     {
@@ -548,8 +586,8 @@ class TensorImpl
     }
 
     // Raw data pointers:
-    // - These expose the backend's contiguous buffer (xtensor storage for the default backend).
-    // - The memory order is backend-defined (xtensor is row-major by default).
+    // - These expose the backend's contiguous buffer.
+    // - The memory order is backend-defined.
     //   When you treat it as a flat array (e.g., gradient clipping), you are operating in
     //   that underlying order.
 
@@ -729,9 +767,8 @@ class TensorImpl
     Backend backend_;
 };
 
-// Default type alias
-using Tensor = TensorImpl<XTensorBackend>;
-using OpenCLTensor = TensorImpl<OpenCLTensorBackend>;
+// Active backend alias selected centrally in nn/Backend.hpp.
+using Tensor = TensorImpl<Backend>;
 
 // -----------------------------------------------------------------------------
 // CommaInitializer Implementation

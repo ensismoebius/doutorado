@@ -70,7 +70,7 @@ TEST(CoreLSTMLayerTest, ResetStateClearsCache)
     nn::models::lstm::LSTMLayer layer(8, 16);
     nn::Tensor input = nn::Tensor::rand(4, 8);
     layer.forward(input, true);
-    EXPECT_GT(layer.cache_.size(), 0u);
+    EXPECT_EQ(layer.cache_.size(), 4u);
     layer.reset_state();
     EXPECT_EQ(layer.cache_.size(), 0u);
 }
@@ -115,7 +115,7 @@ TEST(CoreLSTMAutoencoderTest, BackwardShapeMatchesInput)
     EXPECT_EQ(grad_in.cols(), input.cols());
 }
 
-TEST(CoreLSTMAutoencoderTest, ParamCountNonZero)
+TEST(CoreLSTMAutoencoderTest, ParamCountExactSingleLayer)
 {
     nn::models::lstm::LSTMAutoencoderConfig cfg;
     cfg.input_size = 4;
@@ -125,7 +125,14 @@ TEST(CoreLSTMAutoencoderTest, ParamCountNonZero)
     cfg.num_layers = 1;
 
     nn::models::lstm::LSTMAutoencoder model(cfg);
-    EXPECT_GT(model.params().size(), 0u);
+    // Single-layer topology has:
+    //   enc_lstm (W,U,b)=3
+    //   enc_proj (W,b)=2
+    //   dec_expand (W,b)=2
+    //   dec_lstm (W,U,b)=3
+    //   out_proj (W,b)=2
+    // total = 12 trainable tensors.
+    EXPECT_EQ(model.params().size(), 12u);
 }
 
 TEST(CoreLSTMAutoencoderTest, StateDictRoundtrip)

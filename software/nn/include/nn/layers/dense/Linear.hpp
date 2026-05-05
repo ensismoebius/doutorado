@@ -26,11 +26,8 @@
  *
  * Backend polymorphism:
  * - `LinearImpl<Backend>` works with any backend tensor type.
- * - Parameters (`weight`, `bias`) are always stored as CPU-resident `nn::Tensor` so that
- *   existing CPU optimizers continue to work without modification.
- * - For non-xtensor backends the parameters are converted to the active backend at the start
- *   of each forward/backward pass; this conversion is zero-cost when Backend == XTensorBackend
- * since both types alias the same underlying storage.
+ * - Parameters (`weight`, `bias`) are stored as the active backend Tensor type.
+ * - This keeps optimizer parameter pointers and module contracts backend-consistent.
  * - Concrete aliases (e.g. `Linear = LinearImpl<Backend>`) live in
  *   `nn/layers/Layers.hpp`.
  */
@@ -42,17 +39,17 @@ struct LinearImpl : public Module<Backend>
 
     int in_features;  // number of input features
     int out_features; // number of output neurons
-    /// Weight matrix [out_features × in_features] — always CPU-resident for optimizer compat.
-    nn::Tensor weight;
-    /// Bias vector [out_features × 1] — always CPU-resident for optimizer compat.
-    nn::Tensor bias;
-    /// CPU-side cached input; populated when `forward(..., requires_grad=true)`.
-    nn::Tensor input_cache;
+    /// Weight matrix [out_features × in_features].
+    Tensor weight;
+    /// Bias vector [out_features × 1].
+    Tensor bias;
+    /// Cached input; populated when `forward(..., requires_grad=true)`.
+    Tensor input_cache;
     /// Backend-side cached input for avoiding CPU->backend re-conversion in backward.
     std::optional<Tensor> input_cache_backend;
     // Owned view of parameter pointers. Must point to member tensors so the span
     // returned by `params()` remains valid for the lifetime of this object.
-    std::array<nn::Tensor*, 2> param_ptrs_{{&weight, &bias}};
+    std::array<Tensor*, 2> param_ptrs_{{&weight, &bias}};
 
     /**
      * @brief Construct the layer and allocate uninitialized weight/bias storage.
@@ -66,13 +63,13 @@ struct LinearImpl : public Module<Backend>
     LinearImpl(const int in_features_, const int out_features_)
         : in_features(in_features_),
           out_features(out_features_),
-          weight(nn::Tensor(out_features_, in_features_)),
-          bias(nn::Tensor(out_features_, 1))
+          weight(Tensor(out_features_, in_features_)),
+          bias(Tensor(out_features_, 1))
     {
     }
 
 #ifdef DEBUG
-    auto debug(const nn::Tensor& input) -> void
+    auto debug(const Tensor& input) -> void
     {
         std::ostringstream oss;
         oss << "Linear layer forward:" << "\n"
@@ -97,7 +94,7 @@ struct LinearImpl : public Module<Backend>
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
-        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
         {
             batch_scope.emplace();
         }
@@ -113,7 +110,7 @@ struct LinearImpl : public Module<Backend>
                 ") do not match expected in_features (" + std::to_string(in_features) + ")");
         }
 
-        if (requires_grad) input_cache = nn::Tensor(input);
+        if (requires_grad) input_cache = input;
 
         // Handle N-D inputs by flattening leading dimensions into a single batch dimension.
         // Input: (d0, d1, ..., in_features) -> Reshape: (B_eff, in_features)
@@ -133,28 +130,35 @@ struct LinearImpl : public Module<Backend>
         Tensor input_flat = input.reshape(flat_shape);
         if (requires_grad)
         {
-            if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+            if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
             {
                 input_cache_backend = input_flat;
             }
         }
 
-        // Convert CPU parameters only when the active backend differs from the default backend.
         Tensor result_flat;
-        if constexpr (std::is_same_v<Backend, nn::Backend>)
-        {
-            result_flat = Tensor(input_flat.get_backend().matmul_transposed(weight.get_backend()));
-            result_flat.get_backend().add_col_vector_to_rows_inplace(bias.get_backend());
-        }
-        else if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        if constexpr (requires(const Backend& in, const Backend& w, const Backend& b) {
+                          in.matmul_transposed_add_col_bias(w, b);
+                      })
         {
             Tensor weight_t(weight);
             Tensor bias_t(bias);
-            input_flat.get_backend().set_gpu_resident(true);
-            weight_t.get_backend().set_gpu_resident(true);
-            bias_t.get_backend().set_gpu_resident(true);
+            if constexpr (requires(Backend& be) { be.set_gpu_resident(true); })
+            {
+                input_flat.get_backend().set_gpu_resident(true);
+                weight_t.get_backend().set_gpu_resident(true);
+                bias_t.get_backend().set_gpu_resident(true);
+            }
             result_flat = Tensor(input_flat.get_backend().matmul_transposed_add_col_bias(
                 weight_t.get_backend(), bias_t.get_backend()));
+        }
+        else if constexpr (requires(const Backend& in, const Backend& w, Backend& out, const Backend& b) {
+                               in.matmul_transposed(w);
+                               out.add_col_vector_to_rows_inplace(b);
+                           })
+        {
+            result_flat = Tensor(input_flat.get_backend().matmul_transposed(weight.get_backend()));
+            result_flat.get_backend().add_col_vector_to_rows_inplace(bias.get_backend());
         }
         else
         {
@@ -181,8 +185,7 @@ struct LinearImpl : public Module<Backend>
     /**
      * @brief Backward pass: compute parameter gradients and return the input gradient.
      *
-     * Parameter gradients are stored as CPU `nn::Tensor` (via `set_grad`) so that
-     * CPU optimizers can consume them without backend awareness.
+     * Parameter gradients are stored in the active backend tensor type.
      *
      * @param grad_previous  [batch × out_features] gradient of the loss w.r.t. output.
      * @return [batch × in_features] gradient of the loss w.r.t. input.
@@ -190,7 +193,7 @@ struct LinearImpl : public Module<Backend>
     auto backward(const Tensor& grad_previous) -> Tensor override
     {
         std::optional<nn::opencl::OpenCLContext::BatchScope> batch_scope;
-        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
         {
             batch_scope.emplace();
         }
@@ -234,7 +237,7 @@ struct LinearImpl : public Module<Backend>
             flat_input_shape[0] = 1;
         }
         Tensor input_t;
-        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        if constexpr (requires(Backend& b) { b.set_gpu_resident(true); })
         {
             if (input_cache_backend.has_value())
             {
@@ -254,7 +257,9 @@ struct LinearImpl : public Module<Backend>
 
         Tensor grad_weight;
         Tensor grad_t = grad_flat.transpose();
-        if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
+        if constexpr (requires(const Backend& lhs, const Backend& rhs) {
+                          lhs.matmul_lhs_transposed(rhs);
+                      })
         {
             grad_flat.get_backend().set_gpu_resident(true);
             input_t.get_backend().set_gpu_resident(true);
@@ -267,23 +272,17 @@ struct LinearImpl : public Module<Backend>
             // dL/dW = (dL/dY)^T · X
             grad_weight = grad_t.matmul(input_t);
         }
-        weight.set_grad(nn::Tensor(grad_weight));
+        weight.set_grad(grad_weight);
 
         // dL/db = sum_rows((dL/dY)^T), shape: (out_features, 1)
         Tensor grad_bias = grad_t.rowwise_sum();
-        bias.set_grad(nn::Tensor(grad_bias));
+        bias.set_grad(grad_bias);
 
         // dL/dX = dL/dY · W
         Tensor grad_input_flat;
-        if constexpr (std::is_same_v<Backend, nn::Backend>)
+        if constexpr (requires(const Backend& lhs, const Backend& rhs) { lhs.matmul(rhs); })
         {
             grad_input_flat = Tensor(grad_flat.get_backend().matmul(weight.get_backend()));
-        }
-        else if constexpr (std::is_same_v<Backend, nn::OpenCLTensorBackend>)
-        {
-            Tensor weight_t(weight);
-            weight_t.get_backend().set_gpu_resident(true);
-            grad_input_flat = grad_flat.matmul(weight_t);
         }
         else
         {
@@ -304,20 +303,20 @@ struct LinearImpl : public Module<Backend>
     }
 
     /// Returns the two CPU-resident trainable parameters (weight, bias).
-    auto params() -> std::span<nn::Tensor*> override
+    auto params() -> std::span<Tensor*> override
     {
-        return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+        return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override
+    auto state_dict() const -> std::map<std::string, Tensor> override
     {
-        std::map<std::string, nn::Tensor> d;
+        std::map<std::string, Tensor> d;
         d["weight"] = weight;
         d["bias"] = bias;
         return d;
     }
 
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
         auto itw = sd.find("weight");
         if (itw != sd.end())

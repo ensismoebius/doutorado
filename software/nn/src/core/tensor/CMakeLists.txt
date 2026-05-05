@@ -1,4 +1,5 @@
 add_library(tensor STATIC
+	${NN_BACKEND_REFERENCE_GUARD_SOURCE}
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/OpenCLContext.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/CLBuffer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/opencl/DeviceMemory.cpp

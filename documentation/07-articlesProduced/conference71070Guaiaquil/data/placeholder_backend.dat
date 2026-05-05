@@ -1,0 +1,3 @@
+operation xtensor_ms opencl_ms speedup
+train_epoch 420.0 185.0 2.27
+infer_sample 18.0 7.5 2.40

@@ -18,19 +18,21 @@
  */
 struct AudioWindowSpikingAutoencoder : Module<nn::Backend>
 {
+    using Tensor = typename Module<nn::Backend>::Tensor;
+
     nn::Sequential encoder_;
     nn::Sequential decoder_;
 
     explicit AudioWindowSpikingAutoencoder(const AutoencoderConfig& cfg);
 
-    auto encode(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor;
-    auto decode(const nn::Tensor& latent, bool requires_grad = true) -> nn::Tensor;
+    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
+    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
 
-    std::vector<nn::Tensor*> param_ptrs_;
-    auto params() -> std::span<nn::Tensor*> override;
+    std::vector<Tensor*> param_ptrs_;
+    auto params() -> std::span<Tensor*> override;
 
     void reset_state() override;
 };

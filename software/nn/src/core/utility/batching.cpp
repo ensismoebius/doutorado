@@ -9,6 +9,7 @@
 #include <numeric>
 #include <random>
 #include <span>
+#include <sstream>
 #include <stdexcept>
 #include <vector>
 

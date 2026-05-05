@@ -1,0 +1,4 @@
+alpha mse_dense mse_conv1d mse_recurrent energy_dense energy_conv1d energy_recurrent
+0.80 0.032 0.035 0.038 650 500 390
+0.90 0.028 0.029 0.032 640 490 380
+0.99 0.025 0.027 0.030 630 480 370

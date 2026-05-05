@@ -136,15 +136,15 @@ struct Module
      *
      * The returned `std::span` is a non-owning view and MUST reference storage
      * that is owned by the `Module` (or by the caller). Implementations that
-     * previously returned freshly-constructed `std::vector<nn::Tensor*>` must
-     * instead expose storage (e.g. a persistent `std::vector<nn::Tensor*>` member)
+     * previously returned freshly-constructed `std::vector<Tensor*>` must
+     * instead expose storage (e.g. a persistent `std::vector<Tensor*>` member)
      * whose lifetime outlives the span.
      *
      * Convention: if a module has no trainable parameters, return an empty span.
      */
-    virtual auto params() -> std::span<nn::Tensor*>
+    virtual auto params() -> std::span<Tensor*>
     {
-        return std::span<nn::Tensor*>{};
+        return std::span<Tensor*>{};
     }
 
     /**
@@ -154,7 +154,7 @@ struct Module
      * parameters (e.g., `Linear`) should override this to allow saving/loading
      * state via `state_dict()` / `load_state_dict()`.
      */
-    virtual auto state_dict() const -> std::map<std::string, nn::Tensor>
+    virtual auto state_dict() const -> std::map<std::string, Tensor>
     {
         return {};
     }
@@ -165,7 +165,7 @@ struct Module
      * Default implementation is a no-op. Implementations should copy shapes and
      * values from the provided tensors into their parameter members.
      */
-    virtual void load_state_dict(const std::map<std::string, nn::Tensor>&) {}
+    virtual void load_state_dict(const std::map<std::string, Tensor>&) {}
 
     /**
      * @brief Move the module to the specified compute device (PyTorch-like).

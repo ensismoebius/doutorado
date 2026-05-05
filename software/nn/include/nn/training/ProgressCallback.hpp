@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <map>
 #include <string>
@@ -26,10 +27,17 @@ class ProgressCallback : public ITrainingCallback
    public:
     explicit ProgressCallback(std::string label) : label_(std::move(label)) {}
 
+    /// Converts batch-local fractional progress into an epoch-relative bar position.
+    static auto batch_value(const TrainingState& state) -> float
+    {
+        const float batch_index = static_cast<float>(std::max(state.batch - 1, 0));
+        const float batch_progress = std::clamp(state.batch_progress, 0.0F, 1.0F);
+        return batch_index + batch_progress;
+    }
+
     /// Creates epoch and batch progress bars.
     void on_train_begin(int total_epochs) override
     {
-        total_epochs_ = total_epochs;
         epoch_bar_id_ = nn::progress::ProgressManager::instance().create_bar(
             label_ + " epoch", static_cast<float>(total_epochs));
         // Batch bar target is updated on the first on_epoch_begin call.
@@ -45,6 +53,20 @@ class ProgressCallback : public ITrainingCallback
             batch_bar_id_, static_cast<float>(epoch_batches_));
         // Reset batch bar to zero at the start of each epoch.
         nn::progress::ProgressManager::instance().update_bar(batch_bar_id_, 0.0f);
+    }
+
+    /// Anchors the bar at the start of the active batch.
+    void on_batch_begin(const TrainingState& state) override
+    {
+        nn::progress::ProgressManager::instance().update_bar(
+            batch_bar_id_, batch_value(state), {{"loss", state.batch_loss}});
+    }
+
+    /// Advances the batch bar while the current batch is still executing.
+    void on_batch_progress(const TrainingState& state) override
+    {
+        nn::progress::ProgressManager::instance().update_bar(
+            batch_bar_id_, batch_value(state), {{"loss", state.batch_loss}});
     }
 
     /// Advances the batch bar and displays the running loss.
@@ -76,7 +98,6 @@ class ProgressCallback : public ITrainingCallback
     std::string label_;
     uint32_t epoch_bar_id_ = 0;
     uint32_t batch_bar_id_ = 0;
-    int total_epochs_ = 0;
     int epoch_batches_ = 1;
 };
 

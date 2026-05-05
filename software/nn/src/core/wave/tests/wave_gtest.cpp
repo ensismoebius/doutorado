@@ -4,6 +4,8 @@
  */
 // cppcheck-suppress-file passedByValueCallback
 
+#include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <numbers>
@@ -29,8 +31,8 @@ TEST(FilterOperationsTest, TestCreateAlpha)
     double sampling_rate = 44100.0;
     double cutoff_frequency = 2000.0;
     auto alpha = createAlpha(sampling_rate, cutoff_frequency);
-    EXPECT_GT(alpha, 0.0);
-    EXPECT_LT(alpha, 1.0);
+    const double expected = std::numbers::pi_v<double> * cutoff_frequency / (sampling_rate / 2.0);
+    EXPECT_NEAR(alpha, expected, 1e-12);
 }
 
 TEST(FilterOperationsTest, TestCreateAlphaHighPass)
@@ -46,21 +48,69 @@ TEST(FilterOperationsTest, TestCreateLowPassFilterAndValidation)
 {
     EXPECT_THROW((void) createLowPassFilter(10, 44100.0, 2000.0), std::runtime_error);
 
-    const auto filter = createLowPassFilter(11, 44100.0, 2000.0);
+    const int order = 11;
+    const double sampling_rate = 44100.0;
+    const double cutoff_frequency = 2000.0;
+    const auto filter = createLowPassFilter(order, sampling_rate, cutoff_frequency);
     ASSERT_EQ(filter.size(), 12U);
-    for (double v : filter)
+
+    // Deterministic reference from the documented formula:
+    // raw[n] = sin(alpha * (n - order/2)) / (pi * (n - order/2)),
+    // normalized to [0, 1] by global min/max.
+    const double alpha = createAlpha(sampling_rate, cutoff_frequency);
+    const double half = static_cast<double>(order) / 2.0;
+    std::vector<double> expected(12);
+    for (int n = 0; n <= order; ++n)
     {
-        EXPECT_GE(v, 0.0);
-        EXPECT_LE(v, 1.0);
+        expected[static_cast<size_t>(n)] =
+            std::sin(alpha * (static_cast<double>(n) - half)) /
+            (std::numbers::pi_v<double> * (static_cast<double>(n) - half));
     }
+
+    const auto [mn_it, mx_it] = std::minmax_element(expected.begin(), expected.end());
+    const double mn = *mn_it;
+    const double mx = *mx_it;
+    const double range = (mx == mn) ? 1.0 : (mx - mn);
+    for (double& v : expected) v = (v - mn) / range;
+
+    for (size_t i = 0; i < filter.size(); ++i) EXPECT_NEAR(filter[i], expected[i], 1e-12);
 }
 
 TEST(FilterOperationsTest, TestCreateHighPassFilter)
 {
     EXPECT_THROW((void) createHighPassFilter(8, 44100.0, 4000.0), std::runtime_error);
 
-    const auto filter = createHighPassFilter(9, 44100.0, 4000.0);
+    const int order = 9;
+    const double sampling_rate = 44100.0;
+    const double cutoff = 4000.0;
+    const auto filter = createHighPassFilter(order, sampling_rate, cutoff);
     ASSERT_EQ(filter.size(), 10U);
+
+    // Deterministic reference: orthogonalized normalized low-pass built with high-pass alpha.
+    const double alpha = createAlpha(sampling_rate, cutoff, true);
+    const double half = static_cast<double>(order) / 2.0;
+    std::vector<double> low(order + 1);
+    for (int n = 0; n <= order; ++n)
+    {
+        low[static_cast<size_t>(n)] =
+            std::sin(alpha * (static_cast<double>(n) - half)) /
+            (std::numbers::pi_v<double> * (static_cast<double>(n) - half));
+    }
+    const auto [mn_it, mx_it] = std::minmax_element(low.begin(), low.end());
+    const double mn = *mn_it;
+    const double mx = *mx_it;
+    const double range = (mx == mn) ? 1.0 : (mx - mn);
+    for (double& v : low) v = (v - mn) / range;
+
+    std::vector<double> expected(order + 1);
+    double sign = 1.0;
+    for (int i = 0; i <= order; ++i)
+    {
+        expected[static_cast<size_t>(i)] = low[static_cast<size_t>(order - i)] * sign;
+        sign *= -1.0;
+    }
+
+    for (size_t i = 0; i < filter.size(); ++i) EXPECT_NEAR(filter[i], expected[i], 1e-12);
 }
 
 TEST(FilterOperationsTest, TestStopAndBandStopFilter)
@@ -68,10 +118,27 @@ TEST(FilterOperationsTest, TestStopAndBandStopFilter)
     EXPECT_THROW((void) createStopBandFilter(4, 44100.0, 1000.0, 2000.0), std::runtime_error);
     EXPECT_THROW((void) bandStopFilter(6, 44100.0, 1000.0, 2000.0), std::runtime_error);
 
-    const auto stop = createStopBandFilter(9, 44100.0, 1000.0, 2000.0);
-    const auto band_stop = bandStopFilter(9, 44100.0, 1000.0, 2000.0);
+    const int order = 9;
+    const double sampling_rate = 44100.0;
+    const double start_frequency = 1000.0;
+    const double final_frequency = 2000.0;
+
+    const auto stop = createStopBandFilter(order, sampling_rate, start_frequency, final_frequency);
+    const auto band_stop = bandStopFilter(order, sampling_rate, start_frequency, final_frequency);
     EXPECT_EQ(stop.size(), 10U);
     EXPECT_EQ(band_stop.size(), 10U);
+
+    const auto low_max = createLowPassFilter(order, sampling_rate, final_frequency);
+    const auto low_min = createLowPassFilter(order, sampling_rate, start_frequency);
+    const auto high_start = createHighPassFilter(order, sampling_rate, start_frequency);
+
+    // createStopBandFilter = low(final) - low(start)
+    // bandStopFilter = low(final) + high(start)
+    for (size_t i = 0; i < stop.size(); ++i)
+    {
+        EXPECT_NEAR(stop[i], low_max[i] - low_min[i], 1e-12);
+        EXPECT_NEAR(band_stop[i], low_max[i] + high_start[i], 1e-12);
+    }
 }
 
 TEST(FilterOperationsTest, TestTriangularWindowAndApplyWindow)
@@ -145,8 +212,7 @@ namespace
 int g_callback_calls = 0;
 // cppcheck-suppress passedByValueCallback
 // cppcheck-suppress passedByValue
-void CountCallback(
-    std::vector<double>& signal,
+void CountCallback(std::vector<double>& signal,
     size_t& signalLength,
     uint32_t samplingRate,
     const std::string& path)
@@ -457,7 +523,7 @@ TEST(SimpleSignalOperationsTest, AddEchoesLongSignalTriggersEchoBranch)
     constexpr int kLen = 100002;
     std::vector<double> sig(kLen, 1.0);
     addEchoes(sig.data(), kLen);
-    // Samples at index >= 100000 should have been modified (average with delayed copy)
-    EXPECT_NE(sig[100000], 1.0); // echo branch was executed
-    EXPECT_NE(sig[100001], 1.0);
+    // Deterministic values from the in-place recurrence for this fixed fixture.
+    EXPECT_NEAR(sig[100000], 0.8333335122903041, 1e-12);
+    EXPECT_NEAR(sig[100001], 0.8333334049161216, 1e-12);
 }

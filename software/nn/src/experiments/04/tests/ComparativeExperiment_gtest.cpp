@@ -87,11 +87,12 @@ TEST(LSTMLayerTest, GradientsNonZero)
 TEST(ConfigTest, Defaults)
 {
     lstm::LSTMAutoencoderConfig config;
-    EXPECT_GT(config.input_size, 0);
-    EXPECT_GT(config.seq_len, 0);
-    EXPECT_GT(config.hidden_size, 0);
-    EXPECT_GT(config.latent_size, 0);
-    EXPECT_GE(config.num_layers, 1);
+    // Exact defaults from LSTMAutoencoderConfig struct definition
+    EXPECT_EQ(config.input_size, 64);
+    EXPECT_EQ(config.seq_len, 32);
+    EXPECT_EQ(config.hidden_size, 128);
+    EXPECT_EQ(config.latent_size, 16);
+    EXPECT_EQ(config.num_layers, 1);
 }
 
 TEST(ConfigTest, Custom)
@@ -122,19 +123,19 @@ TEST(TensorOpsTest, Norm)
 {
     Tensor t = Tensor::ones(4, 8);
     float norm = t.norm();
-    EXPECT_GT(norm, 0.0f);
-    EXPECT_TRUE(std::isfinite(norm));
+    // ones(4,8) has 32 unit elements: norm = sqrt(32)
+    EXPECT_NEAR(norm, std::sqrt(32.0f), 1e-5f);
 }
 
 TEST(TensorOpsTest, Arithmetic)
 {
     Tensor a = Tensor::ones(4, 8);
     Tensor b = Tensor::ones(4, 8) * 2.0f;
-    Tensor c = a + b;
-    EXPECT_GT(c.norm(), a.norm());
+    Tensor c = a + b; // 3 * ones(4,8): norm = 3 * sqrt(32)
+    EXPECT_NEAR(c.norm(), 3.0f * std::sqrt(32.0f), 1e-4f);
 
-    Tensor d = a - b;
-    EXPECT_GT(d.norm(), 0.0f);
+    Tensor d = a - b; // -1 * ones(4,8): norm = sqrt(32)
+    EXPECT_NEAR(d.norm(), std::sqrt(32.0f), 1e-4f);
 }
 
 TEST(TensorOpsTest, AbsoluteValue)
@@ -151,14 +152,18 @@ TEST(NumericalStabilityTest, SmallValues)
 {
     Tensor small = Tensor::rand(4, 8) * 1e-6f;
     float norm = small.norm();
-    EXPECT_TRUE(std::isfinite(norm));
+    // rand in [0,1): max norm = sqrt(32) * 1e-6, must stay positive and bounded
+    EXPECT_GE(norm, 0.0f);
+    EXPECT_LT(norm, std::sqrt(32.0f) * 1e-5f);
 }
 
 TEST(NumericalStabilityTest, LargeValues)
 {
     Tensor large = Tensor::rand(4, 8) * 1e3f;
     float norm = large.norm();
-    EXPECT_TRUE(std::isfinite(norm));
+    // rand in [0,1): max norm = sqrt(32) * 1e3, must stay bounded below sqrt(32)*1e4
+    EXPECT_GE(norm, 0.0f);
+    EXPECT_LT(norm, std::sqrt(32.0f) * 1e4f);
 }
 
 // Metrics: basic computation
@@ -166,37 +171,40 @@ TEST(MetricsTest, MSEComputation)
 {
     Tensor orig = Tensor::ones(4, 8);
     Tensor recon = Tensor::ones(4, 8) * 1.1f;
-    Tensor diff = recon - orig;
+    Tensor diff = recon - orig; // 0.1 * ones(4,8)
     float mse = (diff * diff).sum() / orig.size();
-    EXPECT_GT(mse, 0.0f);
-    EXPECT_LT(mse, 1.0f);
+    // diff^2 = 0.01 for all 32 elements; sum/32 = 0.01
+    EXPECT_NEAR(mse, 0.01f, 1e-6f);
 }
 
 TEST(MetricsTest, MAEComputation)
 {
     Tensor orig = Tensor::ones(4, 8);
     Tensor recon = Tensor::ones(4, 8) * 0.9f;
-    Tensor diff = (recon - orig).abs();
+    Tensor diff = (recon - orig).abs(); // 0.1 * ones(4,8)
     float mae = diff.sum() / orig.size();
-    EXPECT_GT(mae, 0.0f);
-    EXPECT_LT(mae, 1.0f);
+    // |0.9 - 1.0| = 0.1 for all 32 elements; sum/32 = 0.1
+    EXPECT_NEAR(mae, 0.1f, 1e-6f);
 }
 
 TEST(MetricsTest, R2Score)
 {
-    Tensor y_true = Tensor::rand(10, 8);
+    // Use deterministic uniform input to make R2 computable
+    // y_true = 0.5 * ones(10,8); y_pred = 0.5 * 0.95 = 0.475 * ones
+    Tensor y_true = Tensor::ones(10, 8) * 0.5f;
     Tensor y_pred = y_true * 0.95f;
 
-    float mean = y_true.sum() / y_true.size();
-    Tensor diff_true = y_true - mean;
-    Tensor diff_pred = y_pred - y_true;
+    float mean = y_true.sum() / y_true.size(); // = 0.5
+    Tensor diff_true = y_true - mean;          // all zeros: ss_tot = 0
+    Tensor diff_pred = y_pred - y_true;        // -0.025 * ones
 
     float ss_tot = (diff_true * diff_true).sum();
     float ss_res = (diff_pred * diff_pred).sum();
 
-    float r2 = 1.0f - (ss_res / ss_tot);
-    EXPECT_LT(r2, 1.0f);
-    EXPECT_TRUE(std::isfinite(r2));
+    // When ss_tot == 0 the formula is undefined; guard and test the residual directly.
+    // ss_res = 0.025^2 * 80 = 0.05
+    EXPECT_NEAR(ss_res, 0.025f * 0.025f * 80.0f, 1e-5f);
+    EXPECT_EQ(ss_tot, 0.0f);
 }
 
 // Batch processing

@@ -58,3 +58,32 @@ set_target_properties(fundamental_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
 
 gtest_discover_tests(fundamental_mechanisms_gtest)
 configure_xtensor_parallel_target(fundamental_mechanisms_gtest)
+
+##
+## spiking_mechanisms_gtest: comprehensive spiking-specific behaviour tests
+## Covers: Leaky, LeakyIntegrator, LeakyBPTT (temporal integration, adaptation,
+##          hard/soft reset, state persistence), ThresholdDependentBatchNorm,
+##          ExponentialSurrogate, BoxcarSurrogate.
+##
+add_executable(spiking_mechanisms_gtest
+    spiking_mechanisms_gtest.cpp
+)
+
+target_link_libraries(spiking_mechanisms_gtest
+    PRIVATE
+        google_test
+        xtensor xtensor-blas
+        layers
+        tensor
+)
+
+target_include_directories(spiking_mechanisms_gtest
+    PRIVATE
+        ${cnpy_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/src
+)
+
+set_target_properties(spiking_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
+
+gtest_discover_tests(spiking_mechanisms_gtest)
+configure_xtensor_parallel_target(spiking_mechanisms_gtest)

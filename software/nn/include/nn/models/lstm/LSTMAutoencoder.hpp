@@ -53,7 +53,7 @@ struct LSTMAutoencoderConfig
 class LSTMAutoencoder : public Module<nn::Backend>
 {
    public:
-    using Tensor = nn::Tensor;
+    using Tensor = typename Module<nn::Backend>::Tensor;
 
     LSTMAutoencoderConfig cfg_; ///< architecture configuration (read-only after construction)
 
@@ -66,7 +66,7 @@ class LSTMAutoencoder : public Module<nn::Backend>
     std::vector<std::unique_ptr<LSTMLayer>> dec_lstms_; ///< stacked decoder LSTM layers
     std::unique_ptr<Linear> out_proj_;                  ///< H → D output projection
 
-    std::vector<nn::Tensor*> param_ptrs_; ///< flat parameter list for optimizer
+    std::vector<Tensor*> param_ptrs_; ///< flat parameter list for optimizer
 
     // BPTT caches (populated during forward when requires_grad is true)
     Tensor enc_output_cache_; ///< full encoder hidden output (T × H)
@@ -108,13 +108,13 @@ class LSTMAutoencoder : public Module<nn::Backend>
     void reset_state() override;
 
     /// Flat parameter pointer list for use with optimizers.
-    auto params() -> std::span<nn::Tensor*> override;
+    auto params() -> std::span<Tensor*> override;
 
     /// Serialise all parameters to a named map.
-    auto state_dict() const -> std::map<std::string, nn::Tensor> override;
+    auto state_dict() const -> std::map<std::string, Tensor> override;
 
     /// Load parameters from a named map (e.g. produced by state_dict()).
-    void load_state_dict(const std::map<std::string, nn::Tensor>& sd) override;
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override;
 
    private:
     /// Populate param_ptrs_ from all sub-modules.

@@ -46,8 +46,8 @@ TEST(SqliteBatchSourceWindowing, PaddingRepeatLastSample)
         int joined = sqlite3_column_int(st, 0);
         sqlite3_finalize(st);
         sqlite3_close(checkdb);
-        ASSERT_GT(trials, 0);
-        ASSERT_GT(joined, 0);
+        ASSERT_EQ(trials, 1);
+        ASSERT_EQ(joined, 1);
     }
 
     nn::windowing::WindowSpec eeg_win{.window_size = 4, .overlap = 0.5f, .sample_rate = 1024};
@@ -66,8 +66,8 @@ TEST(SqliteBatchSourceWindowing, PaddingRepeatLastSample)
         EXPECT_TRUE(ok);
         EXPECT_EQ(b.inputs.rows(), 1);
         EXPECT_EQ(b.targets.rows(), 1);
-        EXPECT_GT(b.inputs.cols(), 0);
-        EXPECT_GT(b.targets.cols(), 0);
+        EXPECT_EQ(b.inputs.cols(), 28);
+        EXPECT_EQ(b.targets.cols(), 28);
     }
 
     // Clean up recursively in case SQLite leaves aux files (journal/wal/shm).
@@ -105,8 +105,9 @@ TEST(SqliteBatchSourceWindowing, EmitsAllWindowsAcrossSuccessiveBatches)
     const float first_window_start = first_batch.inputs.at(0, 0);
     const float second_window_start = first_batch.inputs.at(1, 0);
     const float third_window_start = second_batch.inputs.at(0, 0);
-    EXPECT_NE(first_window_start, second_window_start);
-    EXPECT_NE(second_window_start, third_window_start);
+    EXPECT_NEAR(first_window_start, 0.0f, 1e-6f);
+    EXPECT_NEAR(second_window_start, 2.0f, 1e-6f);
+    EXPECT_NEAR(third_window_start, 4.0f, 1e-6f);
 
     Batch third_batch;
     EXPECT_FALSE(src.next(third_batch));

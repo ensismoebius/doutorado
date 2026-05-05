@@ -95,8 +95,7 @@ TEST_F(AudioLoaderArticleSpecTest, AudioEEGIndexReferencesValidEEGTrial)
             nn::dataLoaders::loadAudioFromMat(audio_file_, row);
         (void) audio_tensor;
 
-        ASSERT_GE(eeg_index, 0);
-        ASSERT_LT(static_cast<std::size_t>(eeg_index), eeg_rows_);
+        ASSERT_EQ(eeg_index, static_cast<int>(row % eeg_rows_));
 
         auto [eeg_tensor, eeg_labels] =
             nn::dataLoaders::loadEEGFromMat(eeg_file_, static_cast<std::size_t>(eeg_index));

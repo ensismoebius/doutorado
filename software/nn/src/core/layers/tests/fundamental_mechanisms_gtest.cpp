@@ -31,12 +31,16 @@
 #include "nn/layers/lstm/LSTMLayer.hpp"
 #include "nn/layers/residual/ResNetBlock.hpp"
 #include "nn/layers/residual/ResidualBlock.hpp"
+#include "nn/layers/residual/SimpleResNet.hpp"
+#include "nn/layers/spiking/Leaky.hpp"
+#include "nn/layers/spiking/LeakyBPTT.hpp"
+#include "nn/layers/spiking/LeakyIntegrator.hpp"
 #include "nn/layers/spiking/PoissonLatentLayer.hpp"
 #include "nn/layers/spiking/ThresholdDependentBatchNorm.hpp"
 #include "nn/tensor/Tensor.hpp"
 
 using Tensor = nn::Tensor;
-using Backend = nn::XTensorBackend;
+using Backend = nn::Backend;
 
 // ---------------------------------------------------------------------------
 // Finite-difference gradient checker
@@ -441,19 +445,33 @@ TEST(Conv1dTest, BiasShape)
     EXPECT_EQ(b.size(), 4u);
 }
 
-TEST(Conv1dTest, BackwardGradNonzero)
+TEST(Conv1dTest, BackwardIdentityKernelOne)
 {
-    Conv1dImpl<Backend> conv(1, 1, 3, 1, 0, 1);
+    // K=1, S=1, P=0 with w=1 and b=0 is identity: y=x, so dx must equal grad_out.
+    Conv1dImpl<Backend> conv(1, 1, 1, 1, 0, 1);
+    conv.set_weights(Tensor::ones(1, 1));
+    Tensor bz(1, 1);
+    bz.setZero();
+    conv.set_bias(bz);
+
     Tensor x(1, 1, 5);
-    for (size_t i = 0; i < x.size(); ++i) x.at(i) = 1.0f;
+    x.at(0, 0, 0) = 1.0f;
+    x.at(0, 0, 1) = 2.0f;
+    x.at(0, 0, 2) = 3.0f;
+    x.at(0, 0, 3) = 4.0f;
+    x.at(0, 0, 4) = 5.0f;
     Tensor out = conv.forward(x, true);
-    Tensor grad(1, 1, 3);
-    for (size_t i = 0; i < grad.size(); ++i) grad.at(i) = 1.0f;
+    ASSERT_EQ(out.get_shape()[2], 5u);
+
+    Tensor grad(1, 1, 5);
+    grad.at(0, 0, 0) = 1.0f;
+    grad.at(0, 0, 1) = 2.0f;
+    grad.at(0, 0, 2) = 3.0f;
+    grad.at(0, 0, 3) = 4.0f;
+    grad.at(0, 0, 4) = 5.0f;
     Tensor dx = conv.backward(grad);
-    // At least some grad elements should be nonzero
-    float norm = 0.0f;
-    for (size_t i = 0; i < dx.size(); ++i) norm += dx.at(i) * dx.at(i);
-    EXPECT_GT(norm, 0.0f);
+
+    for (size_t i = 0; i < grad.size(); ++i) EXPECT_NEAR(dx.at(i), grad.at(i), 1e-5f);
 }
 
 TEST(Conv1dTest, KernelOneIdentity)
@@ -562,8 +580,9 @@ TEST(TdBNTest, ZeroMean)
     }
     Tensor out = tdbn.forward(x, false);
 
-    // Normalized ±1/std * vth/√T; mean of |output| should be vth/√T
+    // Normalized ±1/std scaled by vth/sqrt(T).
     const float scale = vth / std::sqrt(static_cast<float>(T));
+    const float expected_abs = scale / std::sqrt(1.0f + 1e-5f);
     // Verify output mean per time step ≈ 0 (zero mean input → zero mean output)
     for (int t = 0; t < T; ++t)
     {
@@ -572,8 +591,8 @@ TEST(TdBNTest, ZeroMean)
             float a = out.at(t * 2, f);
             float b = out.at(t * 2 + 1, f);
             EXPECT_NEAR(a + b, 0.0f, 1e-4f); // zero mean preserved
-            EXPECT_GT(std::abs(a), 0.0f);    // nonzero (scaled)
-            (void) scale;
+            EXPECT_NEAR(std::abs(a), expected_abs, 1e-5f);
+            EXPECT_NEAR(std::abs(b), expected_abs, 1e-5f);
         }
     }
 }
@@ -629,10 +648,9 @@ TEST(TdBNTest, DoubleTReducesScale)
     EXPECT_NEAR(out4.at(0, 0), out1.at(0, 0) * 0.5f, 1e-4f);
 }
 
-TEST(TdBNTest, GammaGrad)
+TEST(TdBNTest, GammaGradExact)
 {
-    // After backward, d_gamma should be nonzero.
-    // Use asymmetric batch [1, 3] so x_norm values don't cancel in d_gamma sum.
+    // Exact d_gamma from asymmetric upstream gradient and explicit x_norm.
     const int F = 3;
     ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1);
     Tensor x(2, F);
@@ -657,12 +675,21 @@ TEST(TdBNTest, GammaGrad)
     tdbn.backward(go);
 
     Tensor dgamma = tdbn.gamma.grad();
-    float norm = 0.0f;
-    for (size_t c = 0; c < static_cast<size_t>(F); ++c) norm += dgamma.at(0, c) * dgamma.at(0, c);
-    EXPECT_GT(norm, 0.0f);
+    for (size_t c = 0; c < static_cast<size_t>(F); ++c)
+    {
+        float x0 = x.at(0, c);
+        float x1 = x.at(1, c);
+        float mean = 0.5f * (x0 + x1);
+        float var = 0.5f * ((x0 - mean) * (x0 - mean) + (x1 - mean) * (x1 - mean));
+        float inv_std = 1.0f / std::sqrt(var + 1e-5f);
+        float x_norm0 = (x0 - mean) * inv_std;
+        float x_norm1 = (x1 - mean) * inv_std;
+        float expected = go.at(0, c) * x_norm0 + go.at(1, c) * x_norm1;
+        EXPECT_NEAR(dgamma.at(0, c), expected, 1e-5f);
+    }
 }
 
-TEST(TdBNTest, BetaGrad)
+TEST(TdBNTest, BetaGradExact)
 {
     // d_beta = sum over batch of (dout * tdbn_scale)
     const int F = 2;
@@ -680,7 +707,8 @@ TEST(TdBNTest, BetaGrad)
 
     Tensor dbeta = tdbn.beta.grad();
     // d_beta = sum over batch of (1.0 * tdbn_scale) * 2 samples = 2 * vth/√T = 2*1/1 = 2
-    EXPECT_GT(std::abs(dbeta.at(0, 0)), 0.0f);
+    EXPECT_NEAR(dbeta.at(0, 0), 2.0f, 1e-5f);
+    EXPECT_NEAR(dbeta.at(0, 1), 2.0f, 1e-5f);
 }
 
 // ===========================================================================
@@ -688,10 +716,9 @@ TEST(TdBNTest, BetaGrad)
 // Ref: Kamata et al., AAAI 2022 (FSVAE); Chen et al., arXiv:2310.14839 (ESVAE)
 // ===========================================================================
 
-TEST(PoissonLatentTest, RatePositive)
+TEST(PoissonLatentTest, InferenceRateSoftplusExact)
 {
-    // λ = softplus(z) > 0 for all z.
-    // Inference mode (requires_grad=false) returns λ directly as output.
+    // Inference mode returns λ=softplus(z) exactly.
     PoissonLatentLayerImpl<Backend> layer(1, 0.1f, 0.0f);
     Tensor z(1, 4);
     z.at(0, 0) = -10.f;
@@ -699,13 +726,18 @@ TEST(PoissonLatentTest, RatePositive)
     z.at(0, 2) = 0.f;
     z.at(0, 3) = 10.f;
     Tensor rates = layer.forward(z, false); // inference: output IS the rate
-    for (size_t c = 0; c < 4; ++c) EXPECT_GT(rates.at(0, c), 0.0f);
+
+    for (size_t c = 0; c < 4; ++c)
+    {
+        const float zv = z.at(0, c);
+        const float expected = (zv > 20.0f) ? zv : std::log1p(std::exp(zv));
+        EXPECT_NEAR(rates.at(0, c), expected, 1e-5f);
+    }
 }
 
-TEST(PoissonLatentTest, KLNonNegative)
+TEST(PoissonLatentTest, KLExactKnownValue)
 {
-    // KL(Poisson(λ) || Poisson(λ₀)) = λ₀ - λ + λ·log(λ/λ₀) ≥ 0 always.
-    // Bug at PoissonLatentLayer.hpp:115 negated this; this test catches it.
+    // KL(Poisson(λ) || Poisson(λ0)) = λ0 - λ + λ*log(λ/λ0), averaged over features.
     PoissonLatentLayerImpl<Backend> layer(1, 0.1f, 1.0f);
     Tensor z(1, 4);
     z.at(0, 0) = -1.f;
@@ -713,8 +745,18 @@ TEST(PoissonLatentTest, KLNonNegative)
     z.at(0, 2) = 1.f;
     z.at(0, 3) = 5.f;
     layer.forward(z, true);
-    EXPECT_GE(layer.kl_loss(), 0.0f)
-        << "KL divergence must be >=0. Sign error at PoissonLatentLayer.hpp:115";
+
+    const float lambda0 = 0.1f;
+    float expected = 0.0f;
+    for (size_t c = 0; c < 4; ++c)
+    {
+        const float zv = z.at(0, c);
+        const float lam = (zv > 20.0f) ? zv : std::log1p(std::exp(zv));
+        expected += lambda0 - lam + lam * std::log(lam / lambda0 + 1e-8f);
+    }
+    expected /= 4.0f;
+
+    EXPECT_NEAR(layer.kl_loss(), expected, 1e-6f);
 }
 
 TEST(PoissonLatentTest, KLZeroAtPrior)
@@ -744,9 +786,9 @@ TEST(PoissonLatentTest, InferenceMean)
     EXPECT_NEAR(out.at(0, 1), std::log1p(std::exp(1.f)), 1e-4f);
 }
 
-TEST(PoissonLatentTest, GradNonzero)
+TEST(PoissonLatentTest, GradExactNoKL)
 {
-    // Straight-through backward: dL/dz = dL/d_out * (1/T) * sigmoid(z)
+    // With beta_kl=0 and T=1: dL/dz = dL/d_out * sigmoid(z)
     PoissonLatentLayerImpl<Backend> layer(1, 0.1f, 0.0f);
     Tensor z(1, 3);
     z.at(0, 0) = -1.f;
@@ -758,9 +800,10 @@ TEST(PoissonLatentTest, GradNonzero)
     go.at(0, 1) = 1.f;
     go.at(0, 2) = 1.f;
     Tensor dz = layer.backward(go);
-    float norm = 0.0f;
-    for (size_t c = 0; c < 3; ++c) norm += dz.at(0, c) * dz.at(0, c);
-    EXPECT_GT(norm, 0.0f);
+
+    EXPECT_NEAR(dz.at(0, 0), nn::activation::sigmoid(-1.0f), 1e-5f);
+    EXPECT_NEAR(dz.at(0, 1), nn::activation::sigmoid(0.0f), 1e-5f);
+    EXPECT_NEAR(dz.at(0, 2), nn::activation::sigmoid(1.0f), 1e-5f);
 }
 
 // ===========================================================================
@@ -798,24 +841,32 @@ TEST(ResidualBlockTest, SkipActive)
     EXPECT_NEAR(out.at(0, 2), 3.f, 1e-5f);
 }
 
-TEST(ResidualBlockTest, GradNonzero)
+TEST(ResidualBlockTest, GradExactSkipOnly)
 {
+    // Zeroing both FC layers isolates the skip path: y=x, so backward is identity.
     ResidualBlockImpl<Backend> block(4);
+    block.fc1->weight.setZero();
+    block.fc1->bias.setZero();
+    block.fc2->weight.setZero();
+    block.fc2->bias.setZero();
+
     Tensor x(2, 4);
     for (size_t r = 0; r < 2; ++r)
         for (size_t c = 0; c < 4; ++c) x.at(r, c) = static_cast<float>(r + c + 1) * 0.1f;
     block.forward(x, true);
-    Tensor go = Tensor::ones(2, 4);
+    Tensor go(2, 4);
+    for (size_t r = 0; r < go.rows(); ++r)
+        for (size_t c = 0; c < go.cols(); ++c) go.at(r, c) = static_cast<float>(r * 4 + c + 1);
+
     Tensor dx = block.backward(go);
-    float norm = 0.0f;
+
     for (size_t r = 0; r < dx.rows(); ++r)
-        for (size_t c = 0; c < dx.cols(); ++c) norm += dx.at(r, c) * dx.at(r, c);
-    EXPECT_GT(norm, 0.0f);
+        for (size_t c = 0; c < dx.cols(); ++c) EXPECT_NEAR(dx.at(r, c), go.at(r, c), 1e-5f);
 }
 
 TEST(ResidualBlockTest, SkipGradFlow)
 {
-    // With zero weights, backward should still propagate at least the identity grad
+    // With zero weights, residual branch is exactly identity: dx == grad_output.
     ResidualBlockImpl<Backend> block(3);
     block.fc1->weight.setZero();
     block.fc1->bias.setZero();
@@ -833,15 +884,14 @@ TEST(ResidualBlockTest, SkipGradFlow)
     go.at(0, 1) = 1.f;
     go.at(0, 2) = 1.f;
     Tensor dx = block.backward(go);
-    // Skip path: dx should include the identity gradient (at least ≥ 1 from skip)
-    for (size_t c = 0; c < 3; ++c) EXPECT_GE(dx.at(0, c), 1.0f);
+    for (size_t c = 0; c < 3; ++c) EXPECT_NEAR(dx.at(0, c), 1.0f, 1e-6f);
 }
 
 // ===========================================================================
 // ResNetBlockTest
 // ===========================================================================
 
-TEST(ResNetBlockTest, ForwardDoesNotCrash)
+TEST(ResNetBlockTest, ForwardShapeAndFinite)
 {
     // Conv2d(k=3,p=0,s=1) twice: 7x7 -> 3x3.
     // Test verifies residual alignment does not throw on shape mismatch.
@@ -860,26 +910,37 @@ TEST(ResNetBlockTest, ForwardDoesNotCrash)
     EXPECT_FALSE(out.hasNaN());
 }
 
-TEST(ResNetBlockTest, OutputNonzero)
+TEST(ResNetBlockTest, DeterministicForwardBackward)
 {
-    // Backward must map skip-path gradient back to input shape.
+    // Same input/grad pair must produce identical output/input-gradient across repeated runs.
     ResNetBlockImpl<Backend> block(/*in_channels=*/1, /*out_channels=*/2);
 
     Tensor x(1, 1, 7, 7);
     x.fill(0.5f);
-    Tensor y = block.forward(x, true);
+    Tensor y1 = block.forward(x, true);
+    Tensor y2 = block.forward(x, true);
 
-    Tensor grad_out(y.get_shape());
+    ASSERT_EQ(y1.get_shape(), y2.get_shape());
+    for (size_t i = 0; i < y1.size(); ++i) EXPECT_NEAR(y1.at(i), y2.at(i), 1e-6f);
+
+    Tensor grad_out(y1.get_shape());
     grad_out.fill(1.0f);
 
-    Tensor grad_in = block.backward(grad_out);
-    const auto grad_shape = grad_in.get_shape();
+    // Recompute forward before each backward call to refresh caches deterministically.
+    block.forward(x, true);
+    Tensor grad_in1 = block.backward(grad_out);
+    block.forward(x, true);
+    Tensor grad_in2 = block.backward(grad_out);
+
+    const auto grad_shape = grad_in1.get_shape();
     ASSERT_EQ(grad_shape.size(), 4U);
     EXPECT_EQ(grad_shape[0], 1U);
     EXPECT_EQ(grad_shape[1], 1U);
     EXPECT_EQ(grad_shape[2], 7U);
     EXPECT_EQ(grad_shape[3], 7U);
-    EXPECT_FALSE(grad_in.hasNaN());
+    EXPECT_FALSE(grad_in1.hasNaN());
+    EXPECT_FALSE(grad_in2.hasNaN());
+    for (size_t i = 0; i < grad_in1.size(); ++i) EXPECT_NEAR(grad_in1.at(i), grad_in2.at(i), 1e-6f);
 }
 
 // ===========================================================================
@@ -887,7 +948,7 @@ TEST(ResNetBlockTest, OutputNonzero)
 // Ref: Goodfellow et al., Deep Learning, Ch. 6
 // ===========================================================================
 
-TEST(CrossEntropyLossTest, NonNeg)
+TEST(CrossEntropyLossTest, ExactKnownValue)
 {
     CrossEntropyLossImpl<Backend> loss;
     Tensor logits(2, 3);
@@ -906,7 +967,11 @@ TEST(CrossEntropyLossTest, NonNeg)
     target.at(1, 2) = 0.f;
     loss.set_target(target);
     Tensor out = loss.forward(logits, true);
-    EXPECT_GE(out.at(0, 0), 0.0f);
+
+    const float p0 = std::exp(3.0f) / (std::exp(1.0f) + std::exp(2.0f) + std::exp(3.0f));
+    const float p1 = std::exp(0.1f) / (std::exp(0.1f) + std::exp(0.5f) + std::exp(0.4f));
+    const float expected = 0.5f * (-std::log(p0 + 1e-7f) - std::log(p1 + 1e-7f));
+    EXPECT_NEAR(out.at(0, 0), expected, 1e-6f);
 }
 
 TEST(CrossEntropyLossTest, PerfectPred)
@@ -1095,7 +1160,7 @@ TEST(SpikeTimeLossTest, MissingPenalty)
     EXPECT_NEAR(out.at(0, 0), 9.0f, 1e-4f);
 }
 
-TEST(SpikeTimeLossTest, NonNeg)
+TEST(SpikeTimeLossTest, ExactKnownValue)
 {
     SpikeTimeLossImpl<Backend> loss(4);
     Tensor pred(4, 2);
@@ -1106,7 +1171,12 @@ TEST(SpikeTimeLossTest, NonNeg)
     target.at(0, 1) = 1.f;
     loss.set_target(target);
     Tensor out = loss.forward(pred, true);
-    EXPECT_GE(out.at(0, 0), 0.0f);
+
+    // B=1, F=2, T=4:
+    // feature 0: pred_t=2, tgt_t=4 (missing spike) -> diff=-2 -> sq=4
+    // feature 1: pred_t=4 (missing spike), tgt_t=0 -> diff=4 -> sq=16
+    // loss = (4 + 16) / (1*2) = 10
+    EXPECT_NEAR(out.at(0, 0), 10.0f, 1e-6f);
 }
 
 TEST(SpikeTimeLossTest, GradAtFirstOnly)
@@ -1127,7 +1197,7 @@ TEST(SpikeTimeLossTest, GradAtFirstOnly)
     Tensor g = loss.backward(dummy);
     // Gradient only at t=1 (where pred spiked first)
     EXPECT_NEAR(g.at(0, 0), 0.0f, 1e-6f); // t=0: no spike
-    EXPECT_NE(g.at(1, 0), 0.0f);          // t=1: spike time → grad here
+    EXPECT_NEAR(g.at(1, 0), 2.0f, 1e-6f); // t=1: scale * (pred_t - tgt_t) = 2*(1-0)
     EXPECT_NEAR(g.at(2, 0), 0.0f, 1e-6f); // t=2: no spike
 }
 
@@ -1255,4 +1325,347 @@ TEST(LSTMGateTest, BackwardGradShape)
     Tensor dx = lstm.backward(grad_out);
     EXPECT_EQ(dx.rows(), 4u);
     EXPECT_EQ(dx.cols(), 3u);
+}
+
+TEST(LSTMGateTest, BiasGradExact)
+{
+    // Deterministic 1-step case (D=1, H=1): with x=0 and initial h/c=0,
+    // pre-activations are exactly biases [i,f,o,g]=[0,1,0,0].
+    // For grad_out=1, expected db = [0,0,0,0.25]^T.
+    LSTMLayerImpl<Backend> lstm(1, 1);
+    Tensor x(1, 1);
+    x.setZero();
+    lstm.forward(x, true);
+    Tensor go = Tensor::ones(1, 1);
+    lstm.backward(go);
+
+    ASSERT_EQ(lstm.b_.rows(), 4u);
+    EXPECT_NEAR(lstm.b_.grad().at(0, 0), 0.0f, 1e-5f);
+    EXPECT_NEAR(lstm.b_.grad().at(1, 0), 0.0f, 1e-5f);
+    EXPECT_NEAR(lstm.b_.grad().at(2, 0), 0.0f, 1e-5f);
+    EXPECT_NEAR(lstm.b_.grad().at(3, 0), 0.25f, 1e-5f);
+}
+
+// ===========================================================================
+// LeakyTest additions — V_th gradient and full training loop
+// ===========================================================================
+
+TEST(LeakyTest, VthreshGradExact)
+{
+    // Two-step deterministic setup: warm-up to create nonzero v(t-1), then spike.
+    LeakyImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
+    Tensor x_warm(1, 1);
+    x_warm.at(0, 0) = 0.3f;
+    layer.forward(x_warm, false);
+
+    Tensor x(1, 1);
+    x.at(0, 0) = 2.0f;
+    layer.forward(x, true);
+    Tensor go = Tensor::ones(1, 1);
+    layer.backward(go);
+
+    const float beta = std::exp(-1.0f);
+    const float v_pre = beta * 0.3f + 2.0f;
+    const float surr = std::exp(-std::abs(v_pre - 0.5f));
+    const float expected_dVth = -surr;
+    EXPECT_NEAR(layer.voltage_threshold.grad().at(0, 0), expected_dVth, 1e-5f);
+}
+
+TEST(LeakyTest, AllParamsGradExact)
+{
+    // For one feature: dVth=-surr, dR=dC=(surr*v_prev)*d_beta_d{R,C}, with
+    // d_beta_dR=d_beta_dC=exp(-1).
+    LeakyImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
+    Tensor x_warm(1, 1);
+    x_warm.at(0, 0) = 0.3f;
+    layer.forward(x_warm, false);
+
+    Tensor x(1, 1);
+    x.at(0, 0) = 2.0f;
+    layer.forward(x, true);
+    Tensor go = Tensor::ones(1, 1);
+    layer.backward(go);
+
+    const float beta = std::exp(-1.0f);
+    const float v_pre = beta * 0.3f + 2.0f;
+    const float surr = std::exp(-std::abs(v_pre - 0.5f));
+    const float dL_dbeta = surr * 0.3f;
+    const float expected_dVth = -surr;
+    const float expected_dR = dL_dbeta * beta;
+    const float expected_dC = dL_dbeta * beta;
+
+    EXPECT_NEAR(layer.voltage_threshold.grad().at(0, 0), expected_dVth, 1e-5f);
+    EXPECT_NEAR(layer.resistance.grad().at(0, 0), expected_dR, 1e-5f);
+    EXPECT_NEAR(layer.capacitance.grad().at(0, 0), expected_dC, 1e-5f);
+}
+
+// ===========================================================================
+// LeakyBPTTTest additions — training loop verification
+// ===========================================================================
+
+TEST(LeakyBPTTTest, AllParamsGradExact)
+{
+    // T=2, B=1, F=1 deterministic sequence.
+    LeakyBPTTImpl<Backend> layer(2, 1.0f, 1.0f, 1.0f, 0.5f);
+    Tensor x(2, 1);
+    x.at(0, 0) = 0.3f;
+    x.at(1, 0) = 3.0f;
+    layer.forward(x, true);
+    Tensor go = Tensor::ones(2, 1);
+    layer.backward(go);
+
+    const float beta = std::exp(-1.0f);
+    const float v0_pre = 0.3f;
+    const float v1_pre = beta * 0.3f + 3.0f;
+    const float surr0 = std::exp(-std::abs(v0_pre - 0.5f));
+    const float surr1 = std::exp(-std::abs(v1_pre - 0.5f));
+
+    // Derived from current LeakyBPTT backward equations for reset_zero=true.
+    const float expected_dVth = -surr1 - surr0 + (surr1 * beta * (surr0 * (v0_pre - 0.0f)));
+    const float expected_dR = surr1 * 0.3f * beta;
+    const float expected_dC = surr1 * 0.3f * beta;
+
+    EXPECT_NEAR(layer.voltage_threshold.grad().at(0, 0), expected_dVth, 1e-5f);
+    EXPECT_NEAR(layer.resistance.grad().at(0, 0), expected_dR, 1e-5f);
+    EXPECT_NEAR(layer.capacitance.grad().at(0, 0), expected_dC, 1e-5f);
+}
+
+// ===========================================================================
+// LeakyIntegratorTest — known-value forward + V_th grad zero + RC training loop
+// ===========================================================================
+
+TEST(LeakyIntegratorTest, KnownValueForward)
+{
+    // beta = exp(-dt/(R*C)) = exp(-1/1) ≈ 0.3679
+    // First step from v_mem=0: V(t) = beta*0 + input = input (note: readout mode uses beta*v +
+    // input) Actually for LeakyIntegrator: V(t) = beta * V(t-1) + input[t] From zero: V(0) = 0 +
+    // input = input? Let me check the forward pass. Looking at Leaky.hpp forward: v_mem = beta *
+    // v_mem_prev + input (no spike/reset) LeakyIntegrator overrides forward to not spike. Let's
+    // verify.
+    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f); // dt=1, R=1, C=1
+    Tensor x(1, 1);
+    x.at(0, 0) = 2.0f;
+    Tensor out = layer.forward(x, false);
+    // beta = exp(-1/(1*1)) ≈ 0.3679; V(0) = beta*0 + input = 2.0
+    // But wait, the forward might be: v_mem = beta * v_mem + input
+    // With v_mem initially 0: v_mem = 0 + 2 = 2? Or v_mem = beta*0 + (1-beta)*input?
+    // Let me check the actual formula from the header...
+    // From LeakyIntegrator.hpp: V[t] = beta * V[t-1] + input[t]
+    // So V(first step from 0) = 0 + 2.0 = 2.0? That doesn't use beta.
+    // Actually: v_mem = beta * v_mem + input (from the parent Leaky forward)
+    // First step: v_mem = beta*0 + 2.0 = 2.0
+    // Second step: v_mem = beta*2.0 + 2.0 = 0.3679*2 + 2 = 2.7358
+    // The formula in the comment says V[t] = beta*V[t-1] + input[t]
+    // So first step output = 2.0, but that ignores beta entirely.
+    // Let's just verify what we DO know: output should be positive and finite.
+    // We'll verify the second step to actually exercise beta.
+    float beta = std::exp(-1.0f); // ≈ 0.3679
+    // After 1 step: vmem = 2.0
+    // After 2nd step with same input: vmem = beta*2.0 + 2.0
+    layer.reset_state();
+    Tensor out1 = layer.forward(x, false);
+    Tensor out2 = layer.forward(x, false);
+    float expected_v2 = beta * out1.at(0, 0) + x.at(0, 0);
+    EXPECT_NEAR(out1.at(0, 0), 2.0f, 1e-5f);
+    EXPECT_NEAR(out2.at(0, 0), expected_v2, 1e-4f);
+}
+
+TEST(LeakyIntegratorTest, VthreshGradAlwaysZero)
+{
+    // voltage_threshold is in params() (inherited from Leaky) but LeakyIntegrator
+    // never uses it in forward/backward — its gradient must always be exactly zero.
+    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
+    Tensor x(1, 2);
+    x.at(0, 0) = 1.0f;
+    x.at(0, 1) = 2.0f;
+    layer.forward(x, true);
+    Tensor go(1, 2);
+    go.at(0, 0) = 1.0f;
+    go.at(0, 1) = 1.0f;
+    layer.backward(go);
+    // V_th gradient must be exactly 0 — no spike path, so surrogate is never evaluated
+    EXPECT_EQ(layer.voltage_threshold.grad().at(0, 0), 0.0f)
+        << "LeakyIntegrator: V_th never used in forward/backward, gradient must be 0";
+}
+
+TEST(LeakyIntegratorTest, RCParamsGradExact)
+{
+    // Two-step deterministic protocol: warm-up to set v(t-1), then exact R/C gradients.
+    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
+
+    Tensor x_warm(1, 1);
+    x_warm.at(0, 0) = 0.3f;
+    layer.forward(x_warm, false);
+
+    Tensor x(1, 1);
+    x.at(0, 0) = 2.0f;
+    layer.forward(x, true);
+
+    Tensor go = Tensor::ones(1, 1);
+    layer.backward(go);
+
+    const float beta = std::exp(-1.0f);
+    const float expected_dR = 0.3f * beta;
+    const float expected_dC = 0.3f * beta;
+
+    EXPECT_NEAR(layer.resistance.grad().at(0, 0), expected_dR, 1e-5f);
+    EXPECT_NEAR(layer.capacitance.grad().at(0, 0), expected_dC, 1e-5f);
+    EXPECT_NEAR(layer.voltage_threshold.grad().at(0, 0), 0.0f, 1e-5f);
+}
+
+// ===========================================================================
+// TdBNTest additions — training loop: gamma and beta must update
+// ===========================================================================
+
+TEST(TdBNTest, GammaAndBetaGradsExact)
+{
+    const int F = 3;
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1, 1e-5f);
+
+    Tensor x(2, F);
+    x.at(0, 0) = 1.f;
+    x.at(0, 1) = 2.f;
+    x.at(0, 2) = 3.f;
+    x.at(1, 0) = 3.f;
+    x.at(1, 1) = 6.f;
+    x.at(1, 2) = 9.f;
+    tdbn.forward(x, true);
+
+    Tensor go(2, F);
+    go.at(0, 0) = 2.f;
+    go.at(0, 1) = 2.f;
+    go.at(0, 2) = 2.f;
+    go.at(1, 0) = 1.f;
+    go.at(1, 1) = 1.f;
+    go.at(1, 2) = 1.f;
+    tdbn.backward(go);
+
+    const float eps = 1e-5f;
+    for (int f = 0; f < F; ++f)
+    {
+        const float x0 = x.at(0, static_cast<size_t>(f));
+        const float x1 = x.at(1, static_cast<size_t>(f));
+        const float mean = 0.5f * (x0 + x1);
+        const float var = 0.5f * ((x0 - mean) * (x0 - mean) + (x1 - mean) * (x1 - mean));
+        const float inv_std = 1.0f / std::sqrt(var + eps);
+        const float x_norm0 = (x0 - mean) * inv_std;
+        const float x_norm1 = (x1 - mean) * inv_std;
+
+        const float expected_dgamma =
+            go.at(0, static_cast<size_t>(f)) * x_norm0 + go.at(1, static_cast<size_t>(f)) * x_norm1;
+        const float expected_dbeta =
+            go.at(0, static_cast<size_t>(f)) + go.at(1, static_cast<size_t>(f));
+
+        EXPECT_NEAR(tdbn.gamma.grad().at(0, static_cast<size_t>(f)), expected_dgamma, 1e-5f);
+        EXPECT_NEAR(tdbn.beta.grad().at(0, static_cast<size_t>(f)), expected_dbeta, 1e-5f);
+    }
+}
+
+// ===========================================================================
+// MaxPoolTest additions — backward gradient routing to argmax positions
+// ===========================================================================
+
+TEST(MaxPoolTest, MaxPool1dBackwardRoutesToArgmax)
+{
+    // Pool(kernel=2, stride=2): windows [0..1]→max=3@pos0, [2..3]→max=4@pos2
+    MaxPool1dImpl<Backend> pool(2, 2);
+    Tensor x(1, 1, 4);
+    x.at(0, 0, 0) = 3.0f;
+    x.at(0, 0, 1) = 1.0f;
+    x.at(0, 0, 2) = 4.0f;
+    x.at(0, 0, 3) = 2.0f;
+    pool.forward(x, true);
+
+    Tensor go(1, 1, 2);
+    go.at(0, 0, 0) = 1.0f;
+    go.at(0, 0, 1) = 1.0f;
+    Tensor dx = pool.backward(go);
+
+    EXPECT_NEAR(dx.at(0, 0, 0), 1.0f, 1e-6f) << "argmax at pos 0 must receive gradient";
+    EXPECT_NEAR(dx.at(0, 0, 1), 0.0f, 1e-6f) << "non-max pos 1 must have zero gradient";
+    EXPECT_NEAR(dx.at(0, 0, 2), 1.0f, 1e-6f) << "argmax at pos 2 must receive gradient";
+    EXPECT_NEAR(dx.at(0, 0, 3), 0.0f, 1e-6f) << "non-max pos 3 must have zero gradient";
+}
+
+TEST(MaxPoolTest, MaxPool2dBackwardRoutesToArgmax)
+{
+    // Pool(kernel=2, stride=2) on (1,1,4,4): 4 windows, each 2x2
+    // Window top-left (0..1,0..1): max at (1,1)=6
+    // Window top-right (0..1,2..3): max at (1,3)=8
+    // Window bottom-left (2..3,0..1): max at (3,1)=14
+    // Window bottom-right (2..3,2..3): max at (3,3)=16
+    MaxPool2dImpl<Backend> pool(2, 2);
+    Tensor x(1, 1, 4, 4);
+    for (size_t r = 0; r < 4; ++r)
+        for (size_t c = 0; c < 4; ++c) x.at(0, 0, r, c) = static_cast<float>(r * 4 + c + 1);
+    // Values: 1..16, row-major → max of each 2x2 block is bottom-right element
+    pool.forward(x, true);
+
+    Tensor go(1, 1, 2, 2);
+    for (size_t r = 0; r < 2; ++r)
+        for (size_t c = 0; c < 2; ++c) go.at(0, 0, r, c) = 1.0f;
+    Tensor dx = pool.backward(go);
+
+    // Argmax positions: (1,1), (1,3), (3,1), (3,3) — each should get gradient 1
+    // Non-argmax positions should get 0
+    EXPECT_NEAR(dx.at(0, 0, 1, 1), 1.0f, 1e-6f); // argmax of top-left block
+    EXPECT_NEAR(dx.at(0, 0, 1, 3), 1.0f, 1e-6f); // argmax of top-right block
+    EXPECT_NEAR(dx.at(0, 0, 3, 1), 1.0f, 1e-6f); // argmax of bottom-left block
+    EXPECT_NEAR(dx.at(0, 0, 3, 3), 1.0f, 1e-6f); // argmax of bottom-right block
+    // Spot-check non-argmax positions
+    EXPECT_NEAR(dx.at(0, 0, 0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(dx.at(0, 0, 1, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(dx.at(0, 0, 0, 1), 0.0f, 1e-6f);
+}
+
+// ===========================================================================
+// SimpleResNetTest — known-value forward at depth=0
+// ===========================================================================
+
+TEST(SimpleResNetTest, KnownValueDepth0)
+{
+    // depth=0: fc_in(in→H) + ReLU + fc_out(H→out). No residual blocks.
+    // Set all weights=1 and all biases=0 to get deterministic closed-form output.
+    const int D = 2, H = 3, O = 2;
+    SimpleResNetImpl<Backend> net(D, H, O, /*depth=*/0);
+
+    auto params = net.params();
+    ASSERT_EQ(params.size(), 4u);
+    params[0]->fill(1.0f); // fc_in weight (H x D)
+    params[1]->setZero();  // fc_in bias
+    params[2]->fill(1.0f); // fc_out weight (O x H)
+    params[3]->setZero();  // fc_out bias
+
+    Tensor x(1, D);
+    x.at(0, 0) = 1.0f;
+    x.at(0, 1) = 1.0f;
+    Tensor out = net.forward(x, false);
+    EXPECT_EQ(out.rows(), 1u);
+    EXPECT_EQ(out.cols(), static_cast<size_t>(O));
+    EXPECT_NEAR(out.at(0, 0), 6.0f, 1e-5f);
+    EXPECT_NEAR(out.at(0, 1), 6.0f, 1e-5f);
+}
+
+TEST(SimpleResNetTest, BackwardGradExactDepth0)
+{
+    const int D = 2, H = 3, O = 2;
+    SimpleResNetImpl<Backend> net(D, H, O, /*depth=*/0);
+
+    auto params = net.params();
+    ASSERT_EQ(params.size(), 4u);
+    params[0]->fill(1.0f);
+    params[1]->setZero();
+    params[2]->fill(1.0f);
+    params[3]->setZero();
+
+    Tensor x(1, D);
+    x.at(0, 0) = 1.0f;
+    x.at(0, 1) = 1.0f;
+    net.forward(x, true);
+    Tensor go = Tensor::ones(1, O);
+    Tensor dx = net.backward(go);
+    EXPECT_EQ(dx.rows(), 1u);
+    EXPECT_EQ(dx.cols(), static_cast<size_t>(D));
+    EXPECT_NEAR(dx.at(0, 0), 6.0f, 1e-5f);
+    EXPECT_NEAR(dx.at(0, 1), 6.0f, 1e-5f);
 }

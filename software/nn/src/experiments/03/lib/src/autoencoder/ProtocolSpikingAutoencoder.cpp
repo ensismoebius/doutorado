@@ -44,7 +44,7 @@ ProtocolSpikingAutoencoder::ProtocolSpikingAutoencoder(const AutoencoderConfig& 
     }
 }
 
-auto ProtocolSpikingAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto ProtocolSpikingAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     if (!use_dual_branch_)
     {
@@ -59,7 +59,7 @@ auto ProtocolSpikingAutoencoder::encode(const nn::Tensor& input, bool requires_g
     return fusion_encoder_.forward(fused, requires_grad);
 }
 
-auto ProtocolSpikingAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -> nn::Tensor
+auto ProtocolSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     if (!use_dual_branch_)
     {
@@ -76,16 +76,16 @@ auto ProtocolSpikingAutoencoder::decode(const nn::Tensor& latent, bool requires_
     return experiment03::autoencoders::concat_columns(eeg_reconstruction, audio_reconstruction);
 }
 
-auto ProtocolSpikingAutoencoder::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto ProtocolSpikingAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto ProtocolSpikingAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto ProtocolSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
     if (!use_dual_branch_)
     {
-        nn::Tensor grad = decoder_.backward(grad_output);
+        Tensor grad = decoder_.backward(grad_output);
         return encoder_.backward(grad);
     }
 
@@ -107,7 +107,7 @@ auto ProtocolSpikingAutoencoder::backward(const nn::Tensor& grad_output) -> nn::
     return experiment03::autoencoders::concat_columns(eeg_input_grad, audio_input_grad);
 }
 
-auto ProtocolSpikingAutoencoder::params() -> std::span<nn::Tensor*>
+auto ProtocolSpikingAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     if (!use_dual_branch_)
@@ -132,7 +132,7 @@ auto ProtocolSpikingAutoencoder::params() -> std::span<nn::Tensor*>
         auto f = audio_decoder_.params();
         param_ptrs_.insert(param_ptrs_.end(), f.begin(), f.end());
     }
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }
 
 void ProtocolSpikingAutoencoder::reset_state()

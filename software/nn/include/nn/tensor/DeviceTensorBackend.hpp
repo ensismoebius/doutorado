@@ -209,6 +209,10 @@ class DeviceTensorBackend
     {
         m_host.square_inplace();
     }
+    void add_row_broadcast_inplace(const DeviceTensorBackend& row)
+    {
+        m_host.add_row_broadcast_inplace(row.m_host);
+    }
 
     DeviceTensorBackend exp() const
     {
@@ -256,6 +260,10 @@ class DeviceTensorBackend
     DeviceTensorBackend add_scalar(float val) const
     {
         return DeviceTensorBackend(m_host.add_scalar(val));
+    }
+    DeviceTensorBackend add_row_broadcast(const DeviceTensorBackend& row) const
+    {
+        return DeviceTensorBackend(m_host.add_row_broadcast(row.m_host));
     }
     DeviceTensorBackend multiply_scalar(float val) const
     {
@@ -360,6 +368,22 @@ class DeviceTensorBackend
     DeviceTensorBackend slice(std::span<const int> indices) const
     {
         return DeviceTensorBackend(m_host.slice(indices));
+    }
+    DeviceTensorBackend slice_batch(Index b) const
+    {
+        return DeviceTensorBackend(m_host.slice_batch(b));
+    }
+    void set_batch_slice(Index b, const DeviceTensorBackend& val)
+    {
+        m_host.set_batch_slice(b, val.m_host);
+    }
+    DeviceTensorBackend slice_time(Index t) const
+    {
+        return DeviceTensorBackend(m_host.slice_time(t));
+    }
+    void set_time_slice(Index t, const DeviceTensorBackend& val)
+    {
+        m_host.set_time_slice(t, val.m_host);
     }
 
     // Mutators: update both host mirror and optionally device buffer.

@@ -1,9 +1,12 @@
 #include "../include/ComparativeOutput.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <map>
+#include <sstream>
 #include <stdexcept>
 
 #include "nlohmann/json.hpp"
@@ -13,22 +16,91 @@
 namespace comparative_autoencoder_experiment
 {
 
+namespace
+{
+
+template <typename T>
+auto join_values(const std::vector<T>& values, const char* sep = ";") -> std::string
+{
+    std::ostringstream oss;
+    for (std::size_t i = 0; i < values.size(); ++i)
+    {
+        if (i > 0) oss << sep;
+        oss << values[i];
+    }
+    return oss.str();
+}
+
+auto model_label(const ResultRow& row) -> std::string
+{
+    if (row.model == "lstm-ae") return "LSTM-AE";
+    if (row.architecture == "dense") return "SNN-dense";
+    if (row.architecture == "conv1d") return "SNN-conv1d";
+    if (row.architecture == "recurrent") return "SNN-recurrent";
+    return row.model;
+}
+
+struct Aggregated
+{
+    double mse = 0.0;
+    double mae = 0.0;
+    double r2 = 0.0;
+    double precision = 0.0;
+    double recall = 0.0;
+    double f1 = 0.0;
+    double spike_rate = 0.0;
+    double energy = 0.0;
+    double train_ms = 0.0;
+    double infer_ms = 0.0;
+    double param_count = 0.0;
+    double macs = 0.0;
+    int count = 0;
+
+    void add(const ResultRow& row)
+    {
+        mse += row.metrics.mse;
+        mae += row.metrics.mae;
+        r2 += row.metrics.r2;
+        precision += row.metrics.precision;
+        recall += row.metrics.recall;
+        f1 += row.metrics.f1;
+        spike_rate += row.metrics.spike_rate;
+        energy += row.metrics.energy;
+        train_ms += row.metrics.train_ms;
+        infer_ms += row.metrics.infer_ms;
+        param_count += static_cast<double>(row.metrics.parameter_count);
+        macs += static_cast<double>(row.metrics.macs);
+        ++count;
+    }
+};
+
+template <typename Getter>
+auto avg(const Aggregated& a, Getter getter) -> double
+{
+    if (a.count == 0) return 0.0;
+    return getter(a) / static_cast<double>(a.count);
+}
+
+} // namespace
+
 void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultRow>& rows)
 {
     std::ofstream out(path);
-    out << "dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_hash,";
+    out << "backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_"
+           "hash,";
     out << "mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,macs\n";
 
     out << std::fixed << std::setprecision(6);
     for (const auto& row : rows)
     {
-        out << row.dataset << ',' << row.model << ',' << row.encoding << ',' << row.architecture
-            << ',' << row.layers << ',' << row.v_th << ',' << row.alpha << ',' << row.run_id << ','
-            << row.seed << ',' << row.config_hash << ',' << row.metrics.mse << ','
-            << row.metrics.mae << ',' << row.metrics.r2 << ',' << row.metrics.precision << ','
-            << row.metrics.recall << ',' << row.metrics.f1 << ',' << row.metrics.spike_rate << ','
-            << row.metrics.energy << ',' << row.metrics.train_ms << ',' << row.metrics.infer_ms
-            << ',' << row.metrics.parameter_count << ',' << row.metrics.macs << '\n';
+        out << row.backend << ',' << row.profile << ',' << row.dataset << ',' << row.model << ','
+            << row.encoding << ',' << row.architecture << ',' << row.layers << ',' << row.v_th
+            << ',' << row.alpha << ',' << row.run_id << ',' << row.seed << ',' << row.config_hash
+            << ',' << row.metrics.mse << ',' << row.metrics.mae << ',' << row.metrics.r2 << ','
+            << row.metrics.precision << ',' << row.metrics.recall << ',' << row.metrics.f1 << ','
+            << row.metrics.spike_rate << ',' << row.metrics.energy << ',' << row.metrics.train_ms
+            << ',' << row.metrics.infer_ms << ',' << row.metrics.parameter_count << ','
+            << row.metrics.macs << '\n';
     }
 }
 
@@ -52,7 +124,6 @@ void write_summary_json(const std::filesystem::path& path,
         "Energy metric is a proxy: spikes + 10*MACs.",
         "Evaluation depends on available FSDD/PhysioNet files under dataset_root.",
     };
-
 
     std::vector<float> snn_mse;
     std::vector<float> lstm_mse;
@@ -115,6 +186,170 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
     }
 }
 
+void write_latex_exports(const std::filesystem::path& dir,
+    const std::string& run_tag,
+    const ComparativeConfig& cfg,
+    const std::vector<ResultRow>& rows)
+{
+    namespace fs = std::filesystem;
+    fs::create_directories(dir);
+
+    const fs::path summary_path = dir / (run_tag + "_summary_by_model.csv");
+    const fs::path recon_path = dir / (run_tag + "_recon_by_encoding.csv");
+    const fs::path eff_path = dir / (run_tag + "_efficiency_by_encoding.csv");
+    const fs::path mse_plot_path = dir / (run_tag + "_mse_plot.csv");
+    const fs::path sweep_path = dir / (run_tag + "_sweep_alpha.csv");
+    const fs::path backend_path = dir / (run_tag + "_backend_timing.csv");
+    const fs::path profile_manifest_path = dir / (run_tag + "_profile_manifest.csv");
+
+    {
+        std::map<std::string, Aggregated> by_model;
+        for (const auto& row : rows)
+        {
+            by_model[model_label(row)].add(row);
+        }
+
+        std::ofstream out(summary_path);
+        out << "model,mse,mae,r2,spike_rate,energy,infer_ms,train_ms,param_count,macs\n";
+        out << std::fixed << std::setprecision(6);
+        for (const auto& [model, agg] : by_model)
+        {
+            out << model << ',' << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+        }
+    }
+
+    {
+        std::map<std::string, Aggregated> by_model_encoding;
+        for (const auto& row : rows)
+        {
+            const std::string key = model_label(row) + "|" + row.encoding;
+            by_model_encoding[key].add(row);
+        }
+
+        std::ofstream recon(recon_path);
+        std::ofstream eff(eff_path);
+        recon << "model,encoding,mse,mae,r2,f1\n";
+        eff << "model,encoding,spike_rate,energy,param_count,macs\n";
+
+        recon << std::fixed << std::setprecision(6);
+        eff << std::fixed << std::setprecision(6);
+
+        for (const auto& [key, agg] : by_model_encoding)
+        {
+            const std::size_t pos = key.find('|');
+            const std::string model = key.substr(0, pos);
+            const std::string encoding = key.substr(pos + 1);
+            recon << model << ',' << encoding << ','
+                  << avg(agg, [](const Aggregated& a) { return a.mse; }) << ','
+                  << avg(agg, [](const Aggregated& a) { return a.mae; }) << ','
+                  << avg(agg, [](const Aggregated& a) { return a.r2; }) << ','
+                  << avg(agg, [](const Aggregated& a) { return a.f1; }) << '\n';
+
+            eff << model << ',' << encoding << ','
+                << avg(agg, [](const Aggregated& a) { return a.spike_rate; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.energy; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.param_count; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.macs; }) << '\n';
+        }
+    }
+
+    {
+        std::map<std::string, Aggregated> by_encoding;
+        for (const auto& row : rows)
+        {
+            const std::string model = model_label(row);
+            by_encoding[row.encoding + "|" + model].add(row);
+        }
+
+        std::ofstream out(mse_plot_path);
+        out << "encoding,lstm_ae,snn_dense,snn_conv1d,snn_recurrent\n";
+        out << std::fixed << std::setprecision(6);
+        const std::vector<std::string> encodings = {"direct", "poisson", "latency"};
+        for (const auto& encoding : encodings)
+        {
+            auto get_mse = [&](const std::string& model_key)
+            {
+                const auto it = by_encoding.find(encoding + "|" + model_key);
+                if (it == by_encoding.end()) return 0.0;
+                return avg(it->second, [](const Aggregated& a) { return a.mse; });
+            };
+            out << encoding << ',' << get_mse("LSTM-AE") << ',' << get_mse("SNN-dense") << ','
+                << get_mse("SNN-conv1d") << ',' << get_mse("SNN-recurrent") << '\n';
+        }
+    }
+
+    {
+        std::map<float, std::map<std::string, Aggregated>> by_alpha_arch;
+        for (const auto& row : rows)
+        {
+            if (row.model != "snn-ae") continue;
+            if (row.encoding != "direct") continue;
+            if (std::fabs(row.v_th - 1.0f) > 1e-5f) continue;
+            by_alpha_arch[row.alpha][row.architecture].add(row);
+        }
+
+        std::ofstream out(sweep_path);
+        out << "alpha,dense,conv1d,recurrent\n";
+        out << std::fixed << std::setprecision(6);
+        for (const auto& [alpha, arch_map] : by_alpha_arch)
+        {
+            auto get_mse = [&](const std::string& arch)
+            {
+                const auto it = arch_map.find(arch);
+                if (it == arch_map.end()) return 0.0;
+                return avg(it->second, [](const Aggregated& a) { return a.mse; });
+            };
+            out << alpha << ',' << get_mse("dense") << ',' << get_mse("conv1d") << ','
+                << get_mse("recurrent") << '\n';
+        }
+    }
+
+    {
+        std::map<std::string, Aggregated> by_backend_model;
+        for (const auto& row : rows)
+        {
+            const std::string key = row.backend + "|" + model_label(row);
+            by_backend_model[key].add(row);
+        }
+
+        std::ofstream out(backend_path);
+        out << "backend,model,train_ms,infer_ms\n";
+        out << std::fixed << std::setprecision(6);
+        for (const auto& [key, agg] : by_backend_model)
+        {
+            const std::size_t pos = key.find('|');
+            const std::string backend = key.substr(0, pos);
+            const std::string model = key.substr(pos + 1);
+            out << backend << ',' << model << ','
+                << avg(agg, [](const Aggregated& a) { return a.train_ms; }) << ','
+                << avg(agg, [](const Aggregated& a) { return a.infer_ms; }) << '\n';
+        }
+    }
+
+    {
+        std::ofstream out(profile_manifest_path);
+        out << "run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,"
+               "window_size,train_samples,val_samples,backend\n";
+        out << run_tag << ',' << cfg.experiment.seed << ',' << cfg.experiment.repeats << ',' << '"'
+            << join_values(cfg.evaluation.datasets) << '"' << ',' << '"'
+            << join_values(cfg.evaluation.encodings) << '"' << ',' << '"'
+            << join_values(cfg.evaluation.snn_architectures) << '"' << ',' << '"'
+            << join_values(cfg.evaluation.v_th_values) << '"' << ',' << '"'
+            << join_values(cfg.evaluation.alpha_values) << '"' << ',' << cfg.dataset.window_size
+            << ',' << cfg.dataset.max_loaded_train_samples << ','
+            << cfg.dataset.max_validation_samples << ','
+            << (rows.empty() ? "unknown" : rows.front().backend) << '\n';
+    }
+}
+
 void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows)
 {
     if (cfg.experiment.repeats <= 1) return;
@@ -129,7 +364,8 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
     }
 
     auto almost_eq = [](float a, float b) { return std::fabs(a - b) <= 1e-4f; };
-    auto rel_eq = [](float a, float b) {
+    auto rel_eq = [](float a, float b)
+    {
         if (a == 0.0f && b == 0.0f) return true;
         const float diff = std::fabs(a - b);
         const float scale = std::max(std::fabs(a), std::fabs(b));
@@ -171,7 +407,8 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
                 diff << " f1(" << ref.f1 << " vs " << cur.f1 << ")";
                 has_diff = true;
             }
-            if (!almost_eq(ref.spike_rate, cur.spike_rate) && !rel_eq(ref.spike_rate, cur.spike_rate))
+            if (!almost_eq(ref.spike_rate, cur.spike_rate) &&
+                !rel_eq(ref.spike_rate, cur.spike_rate))
             {
                 diff << " spike_rate(" << ref.spike_rate << " vs " << cur.spike_rate << ")";
                 has_diff = true;

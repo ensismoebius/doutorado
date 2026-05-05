@@ -15,38 +15,38 @@ AudioWindowSpikingAutoencoder::AudioWindowSpikingAutoencoder(const AutoencoderCo
 {
 }
 
-auto AudioWindowSpikingAutoencoder::encode(const nn::Tensor& input, bool requires_grad)
-    -> nn::Tensor
+auto AudioWindowSpikingAutoencoder::encode(const Tensor& input, bool requires_grad)
+    -> Tensor
 {
     return encoder_.forward(input, requires_grad);
 }
 
-auto AudioWindowSpikingAutoencoder::decode(const nn::Tensor& latent, bool requires_grad)
-    -> nn::Tensor
+auto AudioWindowSpikingAutoencoder::decode(const Tensor& latent, bool requires_grad)
+    -> Tensor
 {
     return decoder_.forward(latent, requires_grad);
 }
 
-auto AudioWindowSpikingAutoencoder::forward(const nn::Tensor& input, bool requires_grad)
-    -> nn::Tensor
+auto AudioWindowSpikingAutoencoder::forward(const Tensor& input, bool requires_grad)
+    -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto AudioWindowSpikingAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto AudioWindowSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
-    nn::Tensor grad = decoder_.backward(grad_output);
+    Tensor grad = decoder_.backward(grad_output);
     return encoder_.backward(grad);
 }
 
-auto AudioWindowSpikingAutoencoder::params() -> std::span<nn::Tensor*>
+auto AudioWindowSpikingAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     auto ep = encoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), ep.begin(), ep.end());
     auto dp = decoder_.params();
     param_ptrs_.insert(param_ptrs_.end(), dp.begin(), dp.end());
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }
 
 void AudioWindowSpikingAutoencoder::reset_state()

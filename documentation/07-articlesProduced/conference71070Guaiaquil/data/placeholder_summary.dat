@@ -1,0 +1,13 @@
+model encoding architecture v_th alpha mse mae r2 f1 spike_rate energy infer_ms train_ms params macs
+LSTM-AE direct lstm 0.0 0.0 0.019 0.098 0.83 0.89 0.00 1180 35.0 850.0 52000 420000
+LSTM-AE poisson lstm 0.0 0.0 0.024 0.108 0.79 0.86 0.00 1180 35.0 870.0 52000 420000
+LSTM-AE latency lstm 0.0 0.0 0.022 0.105 0.80 0.87 0.00 1180 35.0 860.0 52000 420000
+SNN-AE direct dense 1.0 0.9 0.023 0.109 0.78 0.85 0.45 660 18.0 420.0 18000 35000
+SNN-AE poisson dense 1.0 0.9 0.026 0.115 0.75 0.83 0.39 620 18.0 430.0 18000 35000
+SNN-AE latency dense 1.0 0.9 0.028 0.120 0.73 0.82 0.35 580 18.0 440.0 18000 35000
+SNN-AE direct conv1d 1.0 0.9 0.027 0.116 0.75 0.82 0.32 500 16.0 400.0 18000 35000
+SNN-AE poisson conv1d 1.0 0.9 0.030 0.121 0.72 0.80 0.28 470 16.0 410.0 18000 35000
+SNN-AE latency conv1d 1.0 0.9 0.031 0.124 0.71 0.80 0.26 450 16.0 415.0 18000 35000
+SNN-AE direct recurrent 1.0 0.9 0.030 0.122 0.72 0.81 0.23 390 14.0 380.0 18000 35000
+SNN-AE poisson recurrent 1.0 0.9 0.033 0.127 0.69 0.79 0.19 360 14.0 390.0 18000 35000
+SNN-AE latency recurrent 1.0 0.9 0.035 0.130 0.67 0.78 0.17 340 14.0 395.0 18000 35000

@@ -26,6 +26,8 @@ struct ComparativeConfig
         int window_size = 128;
         int max_loaded_train_samples = 512;
         int max_validation_samples = 128;
+        std::string latex_data_dir = "";
+        bool save_models = false;
     };
 
     struct Training
@@ -87,6 +89,8 @@ struct ComparativeConfig
         get("window_size", cfg.dataset.window_size);
         get("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
         get("max_validation_samples", cfg.dataset.max_validation_samples);
+        get("latex_data_dir", cfg.dataset.latex_data_dir);
+        get("save_models", cfg.dataset.save_models);
 
         // Training
         get("samples_per_batch", cfg.training.samples_per_batch);
@@ -158,6 +162,8 @@ struct ComparativeConfig
         get_dat("window_size", cfg.dataset.window_size);
         get_dat("max_loaded_train_samples", cfg.dataset.max_loaded_train_samples);
         get_dat("max_validation_samples", cfg.dataset.max_validation_samples);
+        get_dat("latex_data_dir", cfg.dataset.latex_data_dir);
+        get_dat("save_models", cfg.dataset.save_models);
 
         get_trn("samples_per_batch", cfg.training.samples_per_batch);
         get_trn("batches_per_epoch", cfg.training.batches_per_epoch);

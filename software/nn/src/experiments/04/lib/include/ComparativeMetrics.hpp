@@ -24,6 +24,17 @@ void compute_precision_recall_f1(const std::vector<int>& y_true,
 
 auto estimate_lstm_macs(const nn::models::lstm::LSTMAutoencoderConfig& cfg) -> std::size_t;
 auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) -> std::size_t;
-auto parameter_count(std::span<nn::Tensor*> params) -> std::size_t;
+
+template <typename T>
+auto parameter_count(std::span<T*> params) -> std::size_t
+{
+    std::size_t count = 0;
+    for (T* p : params)
+    {
+        if (!p) continue;
+        count += static_cast<std::size_t>(p->size());
+    }
+    return count;
+}
 
 } // namespace comparative_autoencoder_experiment

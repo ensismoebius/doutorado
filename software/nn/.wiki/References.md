@@ -114,3 +114,13 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [42] H. Yang et al., "Time series forecasting via derivative spike encoding and bespoke loss functions for spiking neural networks," Computers, vol. 13, no. 8, p. 202, 2024. [Online]. Available: https://doi.org/10.3390/computers13080202
 
 [43] V. Mnih et al., "ADMM-based training for spiking neural networks," arXiv preprint arXiv:2505.05527, 2025. [Online]. Available: https://arxiv.org/abs/2505.05527
+
+## Software Testing and Test Quality
+
+[44] L. Inozemtseva and R. Holmes, "Coverage is not strongly correlated with test suite effectiveness," in Proc. 36th International Conference on Software Engineering (ICSE), 2014.
+
+[45] R. Just, D. Jalali, and M. D. Ernst, "Defects4J: A database of existing faults to enable controlled testing studies for Java programs," in Proc. International Symposium on Software Testing and Analysis (ISSTA), 2014.
+
+[46] Y. Jia and M. Harman, "An analysis and survey of the development of mutation testing," IEEE Transactions on Software Engineering, vol. 37, no. 5, pp. 649-678, 2011.
+
+[47] K. Claessen and J. Hughes, "QuickCheck: A lightweight tool for random testing of Haskell programs," in Proc. ACM SIGPLAN International Conference on Functional Programming (ICFP), 2000.

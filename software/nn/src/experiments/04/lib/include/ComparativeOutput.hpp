@@ -19,6 +19,11 @@ void write_summary_json(const std::filesystem::path& path,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& rows);
 
+void write_latex_exports(const std::filesystem::path& dir,
+    const std::string& run_tag,
+    const ComparativeConfig& cfg,
+    const std::vector<ResultRow>& rows);
+
 void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows);
 
 } // namespace comparative_autoencoder_experiment

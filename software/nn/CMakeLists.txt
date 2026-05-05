@@ -17,6 +17,26 @@ project(nn VERSION 0.2.0 LANGUAGES CXX C)
 
 enable_testing()
 
+# Backend selection for backend-agnostic modules.
+set(NN_BACKEND "XTensor" CACHE STRING "Primary tensor backend (XTensor, OpenCL, Device)")
+set_property(CACHE NN_BACKEND PROPERTY STRINGS XTensor OpenCL Device)
+
+if(NOT NN_BACKEND STREQUAL "XTensor" AND
+	 NOT NN_BACKEND STREQUAL "OpenCL" AND
+	 NOT NN_BACKEND STREQUAL "Device")
+	message(FATAL_ERROR "NN_BACKEND must be one of: XTensor, OpenCL, Device")
+endif()
+
+if(NN_BACKEND STREQUAL "XTensor")
+	add_compile_definitions(NN_BACKEND_XTENSOR)
+elseif(NN_BACKEND STREQUAL "OpenCL")
+	add_compile_definitions(NN_BACKEND_OPENCL)
+elseif(NN_BACKEND STREQUAL "Device")
+	add_compile_definitions(NN_BACKEND_DEVICE)
+endif()
+
+message(STATUS "NN backend: ${NN_BACKEND}")
+
 # Define paths for convenience
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/lib")
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
@@ -31,6 +51,9 @@ include(cmake/Tooling.cmake)
 
 # Development and analysis custom targets
 include(cmake/DevAndAnalysisTargets.cmake)
+
+# Enforce backend implementation reference boundaries.
+include(cmake/BackendImplementationGuard.cmake)
 
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)

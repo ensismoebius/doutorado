@@ -9,6 +9,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 #include <string>
 
 #include "ProfileLoader.hpp"
@@ -138,8 +139,7 @@ TEST(Experiment03ProfilesTest, RejectsUnknownTopLevelKey)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
-    EXPECT_NE(error.find("batch_size"), std::string::npos);
+    EXPECT_EQ(error, "unknown profile key(s): batch_size");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -165,8 +165,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyProfileKeys)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
-    EXPECT_NE(error.find("autoencoder_type"), std::string::npos);
+    EXPECT_EQ(error, "unknown profile key(s): autoencoder_type");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -317,11 +316,11 @@ TEST(Experiment03ProfilesTest, LoadsDeclarativeArchitectureAndTrainingOverrides)
     EXPECT_EQ(config.autoencoder_fusion_decoder_layer_spec[0], "linear:output:identity");
     EXPECT_EQ(config.training_optimizer_type, "sgd");
     EXPECT_EQ(config.training_loss_type, "mae");
-    EXPECT_TRUE(config.training_lr_plateau_enabled);
+    EXPECT_EQ(config.training_lr_plateau_enabled, true);
     EXPECT_FLOAT_EQ(config.training_lr_plateau_factor, 0.25F);
     EXPECT_EQ(config.training_lr_plateau_patience, 4U);
     EXPECT_FLOAT_EQ(config.training_lr_plateau_min_delta, 0.0005F);
-    EXPECT_TRUE(config.validation_modality_diagnostics_enabled);
+    EXPECT_EQ(config.validation_modality_diagnostics_enabled, true);
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -346,8 +345,7 @@ TEST(Experiment03ProfilesTest, RejectsSplitLayerSpecKeys)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
-    EXPECT_NE(error.find("neural_network_decoder_layer_spec"), std::string::npos);
+    EXPECT_EQ(error, "unknown profile key(s): neural_network_decoder_layer_spec");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -373,8 +371,7 @@ TEST(Experiment03ProfilesTest, RejectsLegacyNeuralNetworkFamilyAlias)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unknown profile key(s):"), std::string::npos);
-    EXPECT_NE(error.find("neural_network_family"), std::string::npos);
+    EXPECT_EQ(error, "unknown profile key(s): neural_network_family");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -400,7 +397,7 @@ TEST(Experiment03ProfilesTest, RejectsShortNeuralNetworkTypeAlias)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unsupported neural_network_type"), std::string::npos);
+    EXPECT_EQ(error, "unsupported neural_network_type: ann");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -426,7 +423,7 @@ TEST(Experiment03ProfilesTest, RejectsUnsupportedAutoencoderType)
     const bool ok = experiment03::load_profile_to_config(profile_path.string(), config, error);
 
     ASSERT_FALSE(ok);
-    EXPECT_NE(error.find("unsupported neural_network_type"), std::string::npos);
+    EXPECT_EQ(error, "unsupported neural_network_type: transformer-snn");
 
     std::error_code ec;
     std::filesystem::remove(profile_path, ec);
@@ -731,13 +728,24 @@ TEST(Experiment03ResultsWriterTest, WritesSummaryJson)
     ASSERT_TRUE(ifs.good());
     std::string body((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
-    EXPECT_NE(body.find("\"profile\": \"test-profile\""), std::string::npos);
-    EXPECT_NE(body.find("\"loss_type\": \"mae\""), std::string::npos);
-    EXPECT_NE(body.find("\"optimizer\":"), std::string::npos);
-    EXPECT_NE(body.find("\"type\": \"adam\""), std::string::npos);
-    EXPECT_NE(body.find("\"final_learning_rate\":"), std::string::npos);
-    EXPECT_NE(body.find("\"epoch_mean_losses\":"), std::string::npos);
-    EXPECT_NE(body.find("\"fold_epoch_val_eeg_losses\":"), std::string::npos);
-    EXPECT_NE(body.find("\"fold_epoch_val_audio_losses\":"), std::string::npos);
-    EXPECT_NE(body.find("\"fold_epoch_val_losses\":"), std::string::npos);
+    const auto json = nlohmann::json::parse(body);
+    EXPECT_EQ(json.at("profile").get<std::string>(), "test-profile");
+    EXPECT_EQ(json.at("dataset_type").get<std::string>(), "fused-window");
+    EXPECT_EQ(json.at("autoencoder_type").get<std::string>(), "fused-window-ann");
+    EXPECT_EQ(json.at("loss_type").get<std::string>(), "mae");
+    EXPECT_EQ(json.at("optimizer").at("type").get<std::string>(), "adam");
+    EXPECT_FLOAT_EQ(json.at("optimizer").at("learning_rate").get<float>(), 1e-4F);
+    EXPECT_FLOAT_EQ(json.at("optimizer").at("final_learning_rate").get<float>(), 5e-5F);
+    EXPECT_EQ(json.at("epoch_mean_losses").size(), 2U);
+    EXPECT_FLOAT_EQ(json.at("epoch_mean_losses").at(0).get<float>(), 1.0F);
+    EXPECT_FLOAT_EQ(json.at("epoch_mean_losses").at(1).get<float>(), 0.9F);
+    EXPECT_EQ(json.at("kfold").at("fold_epoch_val_losses").size(), 1U);
+    EXPECT_EQ(json.at("kfold").at("fold_epoch_val_eeg_losses").size(), 1U);
+    EXPECT_EQ(json.at("kfold").at("fold_epoch_val_audio_losses").size(), 1U);
+    EXPECT_FLOAT_EQ(json.at("kfold").at("fold_epoch_val_losses").at(0).at(0).get<float>(), 0.8F);
+    EXPECT_FLOAT_EQ(json.at("kfold").at("fold_epoch_val_losses").at(0).at(1).get<float>(), 0.7F);
+    EXPECT_FLOAT_EQ(
+        json.at("kfold").at("fold_epoch_val_eeg_losses").at(0).at(0).get<float>(), 0.3F);
+    EXPECT_FLOAT_EQ(
+        json.at("kfold").at("fold_epoch_val_audio_losses").at(0).at(0).get<float>(), 1.3F);
 }

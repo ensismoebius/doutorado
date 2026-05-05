@@ -222,9 +222,11 @@ TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
     grad_output.at(0, 0) = 1.0F;
     [[maybe_unused]] auto grad_input = leaky.backward(grad_output);
 
-    EXPECT_TRUE(std::isfinite(leaky.v_mem.at(0, 0)));
-    EXPECT_TRUE(std::isfinite(leaky.resistance.grad().at(0, 0)));
-    EXPECT_TRUE(std::isfinite(leaky.capacitance.grad().at(0, 0)));
+    // With clamped R and a single step from zero state, v_mem becomes input exactly.
+    EXPECT_NEAR(leaky.v_mem.at(0, 0), 1.0F, 1e-7F);
+    // Clamp-at-use semantics block RC gradients while raw parameters are non-positive.
+    EXPECT_NEAR(leaky.resistance.grad().at(0, 0), 0.0F, 1e-7F);
+    EXPECT_NEAR(leaky.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
 TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
@@ -295,9 +297,9 @@ TEST(LeakyIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
     grad_output.at(0, 0) = 1.0F;
     [[maybe_unused]] auto grad_input = integrator.backward(grad_output);
 
-    EXPECT_TRUE(std::isfinite(integrator.v_mem.at(0, 0)));
-    EXPECT_TRUE(std::isfinite(integrator.resistance.grad().at(0, 0)));
-    EXPECT_TRUE(std::isfinite(integrator.capacitance.grad().at(0, 0)));
+    EXPECT_NEAR(integrator.v_mem.at(0, 0), 2.0F, 1e-7F);
+    EXPECT_NEAR(integrator.resistance.grad().at(0, 0), 0.0F, 1e-7F);
+    EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
 TEST(LeakyIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
@@ -458,10 +460,11 @@ TEST(LeakyBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
     nn::Tensor grad_output(2, 1);
     grad_output.at(0, 0) = 1.0F;
     grad_output.at(1, 0) = 1.0F;
-    [[maybe_unused]] auto grad_input = leaky_bptt.backward(grad_output);
+    const auto grad_input = leaky_bptt.backward(grad_output);
 
-    EXPECT_TRUE(std::isfinite(leaky_bptt.resistance.grad().at(0, 0)));
-    EXPECT_TRUE(std::isfinite(leaky_bptt.capacitance.grad().at(0, 0)));
+    EXPECT_NEAR(grad_input.at(0, 0), 1.0F, 1e-7F);
+    EXPECT_NEAR(grad_input.at(1, 0), 1.0F, 1e-7F);
+    EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), 0.0F, 1e-7F);
     EXPECT_NEAR(leaky_bptt.resistance.grad().at(0, 0), 0.0F, 1e-7F);
     EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
@@ -948,8 +951,8 @@ TEST(Conv2dTest, ParallelExecution)
     ASSERT_EQ(grad_shape_s[0], batch_size);
 }
 
-// Test: Gradient computation (basic sanity check)
-TEST(Conv2dTest, GradientComputation)
+// Test: Gradient computation with exact deterministic reference
+TEST(Conv2dTest, GradientComputationExact)
 {
     const int in_channels = 1;
     const int out_channels = 1;
@@ -972,31 +975,33 @@ TEST(Conv2dTest, GradientComputation)
     bias.at(0, 0) = 0.1F;
     conv.set_bias(bias);
 
-    // Input
+    // Input: deterministic 1..16 grid
     nn::Tensor input(batch_size, in_channels, input_height, input_width);
-    test_helpers::rand_fill(input, -0.5F, 0.5F, 42U);
+    float value = 1.0F;
+    for (int r = 0; r < input_height; ++r)
+    {
+        for (int c = 0; c < input_width; ++c)
+        {
+            input.at(0, 0, r, c) = value;
+            value += 1.0F;
+        }
+    }
 
     // Forward and backward
     conv.forward(input);
     nn::Tensor grad_output(batch_size, out_channels, 3, 3);
-    test_helpers::rand_fill(grad_output, -0.5F, 0.5F, 42U);
+    grad_output.set_ones();
     conv.backward(grad_output);
 
-    // Verify gradients were computed (non-zero)
+    // Verify exact gradients for 2x2 kernel on 4x4 input with grad_output=ones(3x3).
     auto weight_grad = conv.get_weights().grad();
     auto bias_grad = conv.get_bias().grad();
 
-    // Verify that at least some gradients are non-zero
-    bool has_nonzero_weight_grad = false;
-    for (int i = 0; i < weight_grad.size(); ++i)
-    {
-        if (std::abs(weight_grad.at(i)) > 1e-6F)
-        {
-            has_nonzero_weight_grad = true;
-            break;
-        }
-    }
-    ASSERT_TRUE(has_nonzero_weight_grad);
+    // Kernel gradient layout is row-major [k00, k01, k10, k11].
+    ASSERT_NEAR(weight_grad.at(0), 54.0F, 1e-5F);
+    ASSERT_NEAR(weight_grad.at(1), 63.0F, 1e-5F);
+    ASSERT_NEAR(weight_grad.at(2), 90.0F, 1e-5F);
+    ASSERT_NEAR(weight_grad.at(3), 99.0F, 1e-5F);
 
     // Bias gradient should be sum of grad_output
     float expected_bias_grad = grad_output.sum();
@@ -1461,8 +1466,10 @@ TEST(LayerComprehensiveTest, LeakyLayerStateManagement)
     [[maybe_unused]] nn::Tensor out2 = leaky.forward(tensor2);
     float vmem_after2 = leaky.v_mem(0, 0);
 
-    // Membrane potential should be different
-    EXPECT_NE(vmem_after1, vmem_after2);
+    // Step 1: v=0*exp(-1/5)+3=3 > v_th(2) -> hard reset to 0.
+    // Step 2: v=0*exp(-1/5)+1=1 (no spike) -> state remains 1.
+    EXPECT_NEAR(vmem_after1, 0.0F, 1e-6F);
+    EXPECT_NEAR(vmem_after2, 1.0F, 1e-6F);
 }
 
 TEST(LayerComprehensiveTest, ReLUGradientFlow)
@@ -1559,13 +1566,11 @@ TEST(LayerComprehensiveTest, SurrogateGradientRange)
     v_minus_one.at(0, 0) = -1.0F;
     float grad_at_minus_one = surrogate->calculate(v_minus_one, 1.0F).at(0, 0);
 
-    // All gradients should be finite and reasonable
-    EXPECT_TRUE(std::isfinite(grad_at_zero));
-    EXPECT_TRUE(std::isfinite(grad_at_one));
-    EXPECT_TRUE(std::isfinite(grad_at_minus_one));
-
-    // Gradient at threshold (0) should be positive
-    EXPECT_GT(grad_at_zero, 0.0F);
+    // Exponential surrogate with sharpness=1:
+    // g(v, th) = exp(-|v-th|)
+    EXPECT_NEAR(grad_at_zero, std::exp(-1.0F), 1e-6F);
+    EXPECT_NEAR(grad_at_one, 1.0F, 1e-6F);
+    EXPECT_NEAR(grad_at_minus_one, std::exp(-2.0F), 1e-6F);
 }
 
 TEST(Conv2dTest, ForwardThrowsOnNon4DInput)
@@ -1611,6 +1616,12 @@ TEST(Conv2dTest, ReusesCachedIndicesAndBuffersOnRepeatedShape)
 
     ASSERT_EQ(out1.get_shape(), out2.get_shape());
     ASSERT_EQ(in_grad1.get_shape(), in_grad2.get_shape());
-    EXPECT_TRUE(std::isfinite(out2.at(0, 0, 0, 0)));
-    EXPECT_TRUE(std::isfinite(in_grad2.at(0, 0, 1, 1)));
+    for (size_t y = 0; y < 2; ++y)
+    {
+        for (size_t x = 0; x < 2; ++x)
+        {
+            EXPECT_NEAR(out2.at(0, 0, y, x), out1.at(0, 0, y, x), 1e-7F);
+            EXPECT_NEAR(in_grad2.at(0, 0, y, x), in_grad1.at(0, 0, y, x), 1e-7F);
+        }
+    }
 }

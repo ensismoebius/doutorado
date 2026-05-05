@@ -40,7 +40,7 @@ ProtocolAutoencoder::ProtocolAutoencoder(const AutoencoderConfig& cfg)
     }
 }
 
-auto ProtocolAutoencoder::encode(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto ProtocolAutoencoder::encode(const Tensor& input, bool requires_grad) -> Tensor
 {
     if (!use_dual_branch_)
     {
@@ -55,7 +55,7 @@ auto ProtocolAutoencoder::encode(const nn::Tensor& input, bool requires_grad) ->
     return fusion_encoder_.forward(fused, requires_grad);
 }
 
-auto ProtocolAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -> nn::Tensor
+auto ProtocolAutoencoder::decode(const Tensor& latent, bool requires_grad) -> Tensor
 {
     if (!use_dual_branch_)
     {
@@ -72,16 +72,16 @@ auto ProtocolAutoencoder::decode(const nn::Tensor& latent, bool requires_grad) -
     return experiment03::autoencoders::concat_columns(eeg_reconstruction, audio_reconstruction);
 }
 
-auto ProtocolAutoencoder::forward(const nn::Tensor& input, bool requires_grad) -> nn::Tensor
+auto ProtocolAutoencoder::forward(const Tensor& input, bool requires_grad) -> Tensor
 {
     return decode(encode(input, requires_grad), requires_grad);
 }
 
-auto ProtocolAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
+auto ProtocolAutoencoder::backward(const Tensor& grad_output) -> Tensor
 {
     if (!use_dual_branch_)
     {
-        nn::Tensor grad = decoder_.backward(grad_output);
+        Tensor grad = decoder_.backward(grad_output);
         return encoder_.backward(grad);
     }
 
@@ -103,7 +103,7 @@ auto ProtocolAutoencoder::backward(const nn::Tensor& grad_output) -> nn::Tensor
     return experiment03::autoencoders::concat_columns(eeg_input_grad, audio_input_grad);
 }
 
-auto ProtocolAutoencoder::params() -> std::span<nn::Tensor*>
+auto ProtocolAutoencoder::params() -> std::span<Tensor*>
 {
     param_ptrs_.clear();
     if (!use_dual_branch_)
@@ -128,5 +128,5 @@ auto ProtocolAutoencoder::params() -> std::span<nn::Tensor*>
         auto f = audio_decoder_.params();
         param_ptrs_.insert(param_ptrs_.end(), f.begin(), f.end());
     }
-    return std::span<nn::Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
 }

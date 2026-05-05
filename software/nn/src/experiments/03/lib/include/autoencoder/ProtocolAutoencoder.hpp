@@ -21,6 +21,8 @@
  */
 struct ProtocolAutoencoder : Module<nn::Backend>
 {
+    using Tensor = typename Module<nn::Backend>::Tensor;
+
     bool use_dual_branch_ = false;
 
     nn::Sequential encoder_;
@@ -39,16 +41,16 @@ struct ProtocolAutoencoder : Module<nn::Backend>
     explicit ProtocolAutoencoder(const AutoencoderConfig& cfg);
 
     /// Run the encoder and return the latent representation.
-    auto encode(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor;
+    auto encode(const Tensor& input, bool requires_grad = true) -> Tensor;
 
     /// Run the decoder and return the reconstruction.
-    auto decode(const nn::Tensor& latent, bool requires_grad = true) -> nn::Tensor;
+    auto decode(const Tensor& latent, bool requires_grad = true) -> Tensor;
 
-    auto forward(const nn::Tensor& input, bool requires_grad = true) -> nn::Tensor override;
-    auto backward(const nn::Tensor& grad_output) -> nn::Tensor override;
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override;
+    auto backward(const Tensor& grad_output) -> Tensor override;
 
-    std::vector<nn::Tensor*> param_ptrs_;
-    auto params() -> std::span<nn::Tensor*> override;
+    std::vector<Tensor*> param_ptrs_;
+    auto params() -> std::span<Tensor*> override;
 };
 
 #endif // EXPERIMENT03_PROTOCOL_AUTOENCODER_HPP

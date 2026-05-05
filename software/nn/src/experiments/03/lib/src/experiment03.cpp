@@ -39,7 +39,6 @@
 #include "nn/optimizers/Optimizer.hpp"
 #include "nn/optimizers/OptimizerFactory.hpp"
 #include "nn/optimizers/SGD.hpp"
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
 #include "nn/utility/batching.hpp"
 #include "nn/utility/progress.hpp"
 
@@ -72,6 +71,7 @@ using std::size_t;
 using std::string;
 using std::unique_ptr;
 using std::vector;
+using Tensor = nn::TensorImpl<nn::Backend>;
 
 namespace
 {
@@ -436,8 +436,9 @@ int Experiment03::run()
                             break;
                         }
                         const Batch batch = std::move(maybe_batch.value());
-                        const nn::Tensor inputs =
+                        const nn::Tensor host_inputs =
                             input_transform ? (*input_transform)(batch.inputs) : batch.inputs;
+                        const Tensor inputs(host_inputs);
 
                         if (is_snn_type(config_.autoencoder_type))
                         {
@@ -529,9 +530,10 @@ int Experiment03::run()
                             break;
                         }
                         const Batch val_batch = std::move(maybe_val_batch.value());
-                        const nn::Tensor val_inputs = input_transform
-                                                          ? (*input_transform)(val_batch.inputs)
-                                                          : val_batch.inputs;
+                        const nn::Tensor host_val_inputs =
+                            input_transform ? (*input_transform)(val_batch.inputs)
+                                            : val_batch.inputs;
+                        const Tensor val_inputs(host_val_inputs);
                         if (is_snn_type(config_.autoencoder_type))
                         {
                             model_->reset_state();
@@ -664,8 +666,9 @@ int Experiment03::run()
                     }
 
                     const Batch batch = std::move(maybe_batch.value());
-                    const nn::Tensor inputs =
+                    const nn::Tensor host_inputs =
                         input_transform ? (*input_transform)(batch.inputs) : batch.inputs;
+                    const Tensor inputs(host_inputs);
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();
@@ -745,8 +748,9 @@ int Experiment03::run()
                         break;
                     }
                     const Batch val_batch = std::move(maybe_val_batch.value());
-                    const nn::Tensor val_inputs =
+                    const nn::Tensor host_val_inputs =
                         input_transform ? (*input_transform)(val_batch.inputs) : val_batch.inputs;
+                    const Tensor val_inputs(host_val_inputs);
                     if (is_snn_type(config_.autoencoder_type))
                     {
                         model_->reset_state();

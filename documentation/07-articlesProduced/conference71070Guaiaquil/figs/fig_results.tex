@@ -1,20 +1,23 @@
-% TikZ bar charts comparing ANN vs SNN variants (RMSE, Latency, Ops)
+% MSE by model type and encoding loaded from experiment-generated CSV.
+\pgfplotstableread[col sep=comma]{data/paper_mse_plot.csv}\msetable
+
 \begin{tikzpicture}[font=\scriptsize]
   \begin{axis}[
-    ybar=0.6em,
-    bar width=6pt,
+    ybar=2pt,
+    bar width=5pt,
     width=\columnwidth,
-    height=3.2cm,
-    ymin=0,
-    enlarge x limits=0.25,
-    legend style={at={(0.5,-0.25)}, anchor=north,legend columns=3, /tikz/every even column/.append style={column sep=2pt}},
-    symbolic x coords={ANN,SNN-small,SNN-tiny},
+    height=3.8cm,
+    ymin=0, ymax=0.042,
+    enlarge x limits=0.18,
+    legend style={at={(0.5,-0.35)}, anchor=north, legend columns=4,
+      /tikz/every even column/.append style={column sep=3pt}},
     xtick=data,
-    ylabel={RMSE},
+    ylabel={MSE},
     ymajorgrids]
-    \addplot+[fill=black!60] coordinates {(ANN,0.123) (SNN-small,0.145) (SNN-tiny,0.165)};
-    \addplot+[fill=blue!60, yshift=0pt] coordinates {(ANN,35) (SNN-small,18) (SNN-tiny,12)};
-    \addplot+[fill=red!60] coordinates {(ANN,120) (SNN-small,32) (SNN-tiny,18)};
-    \legend{RMSE,Latency (ms),Energy (mJ)}
+    \addplot+[fill=black!70] table[x=encoding,y=lstm_ae] {\msetable};
+    \addplot+[fill=blue!60] table[x=encoding,y=snn_dense] {\msetable};
+    \addplot+[fill=red!50] table[x=encoding,y=snn_conv1d] {\msetable};
+    \addplot+[fill=green!60] table[x=encoding,y=snn_recurrent] {\msetable};
+    \legend{LSTM-AE, SNN-dense, SNN-conv1d, SNN-recurrent}
   \end{axis}
 \end{tikzpicture}
