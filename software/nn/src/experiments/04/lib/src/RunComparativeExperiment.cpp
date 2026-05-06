@@ -170,7 +170,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
         const auto chk_dir = out_dir / "checkpoints";
         std::filesystem::create_directories(chk_dir);
-        int skipped_runs = 0;
+
 
         std::vector<ResultRow> all_rows;
 
@@ -209,7 +209,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         if (checkpoint_is_valid(lstm_chk, cfg_hash))
                         {
                             all_rows.push_back(checkpoint_load(lstm_chk));
-                            ++skipped_runs;
                         }
                         else
                         {
@@ -307,7 +306,6 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 if (checkpoint_is_valid(snn_chk, cfg_hash))
                                 {
                                     all_rows.push_back(checkpoint_load(snn_chk));
-                                    ++skipped_runs;
                                 }
                                 else
                                 {

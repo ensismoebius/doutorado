@@ -30,6 +30,7 @@ int main()
     Tensor h(B, H);       // (1, 32)
     Tensor pre(B, 4 * H); // (1, 128) — stacked 4 gates
 
+
     // Initialize with random
     for (nn::Index i = 0; i < W.rows(); ++i)
         for (nn::Index j = 0; j < W.cols(); ++j) W.at(i, j) = 0.1f;
@@ -132,11 +133,11 @@ int main()
         auto start = Clock::now();
         for (int r = 0; r < reps; ++r)
         {
-            auto pre = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
-            auto i_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 0, B, H));
-            auto f_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 1 * H, B, H));
-            auto o_g = nn::activations::sigmoid_fast_tensor(pre.block(0, 2 * H, B, H));
-            auto g_g = nn::activations::tanh_fast_tensor(pre.block(0, 3 * H, B, H));
+            auto pre_sum = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
+            auto i_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 0, B, H));
+            auto f_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 1 * H, B, H));
+            auto o_g = nn::activations::sigmoid_fast_tensor(pre_sum.block(0, 2 * H, B, H));
+            auto g_g = nn::activations::tanh_fast_tensor(pre_sum.block(0, 3 * H, B, H));
             auto c_new = (f_g * c).add(i_g * g_g);
             auto tc = nn::activations::tanh_fast_tensor(c_new);
             auto h_new = o_g * tc;
@@ -152,11 +153,11 @@ int main()
         auto start = Clock::now();
         for (int r = 0; r < reps; ++r)
         {
-            auto pre = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
-            auto i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
-            auto f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
-            auto o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
-            auto g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
+            auto pre_sum = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
+            auto i_g = nn::activations::sigmoid_fast_block(pre_sum, 0 * H, H);
+            auto f_g = nn::activations::sigmoid_fast_block(pre_sum, 1 * H, H);
+            auto o_g = nn::activations::sigmoid_fast_block(pre_sum, 2 * H, H);
+            auto g_g = nn::activations::tanh_fast_block(pre_sum, 3 * H, H);
             auto c_new = (f_g * c).add(i_g * g_g);
             auto tc = nn::activations::tanh_fast_tensor(c_new);
             auto h_new = o_g * tc;
