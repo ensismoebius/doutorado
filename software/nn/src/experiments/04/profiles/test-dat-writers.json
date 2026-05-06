@@ -1,0 +1,78 @@
+{
+    "experiment": {
+        "run_tag": "test_dat",
+        "seed": 42,
+        "repeats": 1,
+        "seed_deterministic": true,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 64,
+        "max_loaded_train_samples": 20,
+        "max_validation_samples": 10,
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
+        "save_models": false
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 1,
+        "early_stop_patience": 5,
+        "learning_rate": 0.001,
+        "learning_rate_biophysical": 0.0001,
+        "max_reconstruct_mean_deviation": 0.25,
+        "loss": "spike_time_loss",
+        "loss_reduction": "mean",
+        "optimizer": "adam",
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-8,
+        "snn_param_scaling": "attach_with_scales(0.1)",
+        "surrogate_gradient_scale": 1.0
+    },
+    "model": {
+        "model_type": "snn_autoencoder_dense",
+        "loss_function": "spike_time_loss",
+        "loss_reduction": "mean",
+        "spike_regularization": true,
+        "spike_regularization_weight": 0.01,
+        "latent_dim": 8,
+        "encoder_layer_spec": [
+            "linear:16",
+            "spiking_neuron:leaky:16",
+            "linear:8"
+        ],
+        "decoder_layer_spec": [
+            "linear:16",
+            "spiking_neuron:leaky:16",
+            "linear:output"
+        ],
+        "surrogate_gradient_function": "exponential",
+        "surrogate_gradient_width": 1.0,
+        "membrane_decay_beta": "learnable (clamped 1e-6 to 1.0)",
+        "threshold_v_th": "learnable (swept in evaluation)",
+        "threshold_adaptation": false,
+        "reset_mechanism": "hard_reset (V→0)",
+        "biophysical_params_learnable": true,
+        "biophysical_params_lr_scale": 0.1
+    },
+    "evaluation": {
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct"
+        ],
+        "snn_architectures": [
+            "dense"
+        ],
+        "v_th_values": [
+            1.0
+        ],
+        "alpha_values": [
+            0.9
+        ]
+    }
+}

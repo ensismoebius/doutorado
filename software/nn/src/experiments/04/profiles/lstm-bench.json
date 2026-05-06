@@ -1,0 +1,52 @@
+{
+  "experiment": {
+    "run_tag": "lstm_bench",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true,
+    "check_determinism": false
+  },
+  "dataset": {
+    "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+    "results_dir": "results",
+    "window_size": 256,
+    "max_loaded_train_samples": 32,
+    "max_validation_samples": 8,
+    "latex_data_dir": "",
+    "save_models": false
+  },
+  "training": {
+    "samples_per_batch": 1,
+    "batches_per_epoch": 0,
+    "epochs": 3,
+    "early_stop_patience": 2,
+    "learning_rate": 0.001,
+    "max_reconstruct_mean_deviation": 0.25
+  },
+  "model": {
+    "branch_hidden_size": 0,
+    "fusion_hidden_size": 0,
+    "encoder_layer_spec": [
+      "linear:64:leaky",
+      "linear:32:identity"
+    ],
+    "decoder_layer_spec": [
+      "linear:64:leaky",
+      "linear:output:identity"
+    ],
+    "branch_encoder_layer_spec": [],
+    "branch_decoder_layer_spec": [],
+    "fusion_encoder_layer_spec": [],
+    "fusion_decoder_layer_spec": []
+  },
+  "evaluation": {
+    "datasets": [
+      "fsdd"
+    ],
+    "encodings": [
+      "direct"
+    ],
+    "snn_architectures": [],
+    "_comment": "LSTM-only benchmark: 1 encoding × 1 repeat. ~32 train + 8 val samples. 3 epochs. NO SNN to isolate LSTM performance."
+  }
+}

@@ -1,0 +1,74 @@
+{
+    "_profile_name": "minimal-dat-test",
+    "_network_type": "SNN autoencoder (dense) — minimal test",
+    "_total_runs_breakdown": "1 total (direct encoding × 1 v_th × 1 alpha × 1 repeat)",
+    "experiment": {
+        "run_tag": "minimal_dat_test",
+        "seed": 42,
+        "repeats": 1,
+        "seed_deterministic": true,
+        "check_determinism": false
+    },
+    "dataset": {
+        "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+        "results_dir": "results",
+        "window_size": 32,
+        "max_loaded_train_samples": 10,
+        "max_validation_samples": 5,
+        "latex_data_dir": "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data",
+        "save_models": false
+    },
+    "training": {
+        "samples_per_batch": 1,
+        "batches_per_epoch": 0,
+        "epochs": 1,
+        "early_stop_patience": 2,
+        "learning_rate": 0.001,
+        "learning_rate_biophysical": 0.0001,
+        "max_reconstruct_mean_deviation": 0.25,
+        "loss": "spike_time_loss",
+        "loss_reduction": "mean",
+        "optimizer": "adam",
+        "adam_beta1": 0.9,
+        "adam_beta2": 0.999,
+        "adam_epsilon": 1e-8
+    },
+    "model": {
+        "model_type": "snn_autoencoder_dense",
+        "loss_function": "spike_time_loss",
+        "spike_regularization": true,
+        "spike_regularization_weight": 0.01,
+        "latent_dim": 4,
+        "encoder_layer_spec": [
+            "linear:8",
+            "spiking_neuron:leaky:8",
+            "linear:4"
+        ],
+        "decoder_layer_spec": [
+            "linear:8",
+            "spiking_neuron:leaky:8",
+            "linear:output"
+        ],
+        "surrogate_gradient_function": "exponential",
+        "surrogate_gradient_width": 1.0,
+        "biophysical_params_learnable": true,
+        "biophysical_params_lr_scale": 0.1
+    },
+    "evaluation": {
+        "datasets": [
+            "fsdd"
+        ],
+        "encodings": [
+            "direct"
+        ],
+        "snn_architectures": [
+            "dense"
+        ],
+        "v_th_values": [
+            1.0
+        ],
+        "alpha_values": [
+            0.9
+        ]
+    }
+}
