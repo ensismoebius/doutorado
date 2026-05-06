@@ -24,27 +24,22 @@ A Systematic Comparison with LSTM-based Models}
 \emergencystretch=3em
 
 \begin{abstract}
-Spiking Neural Networks (SNNs) offer event-driven, sparse computation
-attractive for energy-constrained deployment on embedded and neuromorphic
-hardware.
-Despite significant progress in SNN classification, their application as
-autoencoders for one-dimensional temporal signal representation learning
-remains largely underexplored.
+Spiking Neural Networks (SNNs) reduce energy consumption through event-driven,
+sparse computation on embedded and neuromorphic hardware.
+While SNNs excel at classification tasks, their use as autoencoders for
+one-dimensional temporal signals lacks systematic evaluation.
 We present a systematic empirical comparison of SNN autoencoders (SNN-AE)
-against LSTM autoencoders (LSTM-AE) on the Free Spoken Digit Dataset (FSDD)
-\cite{jackson2018fsdd} using a reproducible C++ evaluation harness.
-Three spike encoding strategies (direct, Poisson, latency) and three SNN
-pre-processing modes (dense, conv1d, recurrent) are evaluated under a full
-factorial hyperparameter sweep ($V_{th} \in \{0.5, 1.0, 1.5\}$;
-$\alpha \in \{0.8, 0.9, 0.99\}$; three random seeds per configuration).
-Metrics include MSE, MAE, $R^2$, precision, recall, F1, spike rate,
-estimated energy, training time, inference time, parameter count, and MACs.
-Experimental results indicate that SNN-AE achieves competitive reconstruction
-quality compared to LSTM-AE while exhibiting significantly lower estimated
-computational cost and sparser spike activity.
-The evaluation framework enables principled, reproducible design choices for
-energy-aware spiking representation learning on temporal audio data, filling
-an important gap in the spiking autoencoder literature.
+and LSTM autoencoders (LSTM-AE) on the Free Spoken Digit Dataset (FSDD)
+\cite{jackson2018fsdd}, evaluating three spike encoding strategies (direct,
+Poisson, latency) and three SNN pre-processing modes (dense, conv1d, recurrent)
+across a full factorial hyperparameter sweep ($V_{th} \in \{0.5, 1.0, 1.5\}$;
+$\alpha \in \{0.8, 0.9, 0.99\}$; 3 random seeds).
+Metrics include MSE, MAE, $R^2$, F1, spike rate, estimated energy, timing,
+parameters, and MACs.
+We find that SNN-AE achieves competitive reconstruction quality with
+significantly lower estimated computational cost.
+A reproducible C++ evaluation harness enables principled design choices for
+energy-aware spiking representation learning.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -79,7 +74,7 @@ However, a systematic study of SNN autoencoders for temporal signal
 reconstruction — with controlled comparison against LSTM baselines across
 spike encoding schemes and architectural modes — is lacking.
 
-This paper closes that gap with three contributions:
+This paper addresses this gap with three contributions:
 \begin{enumerate}
   \item A systematic empirical comparison of SNN-AE and LSTM-AE on FSDD
         \cite{jackson2018fsdd} covering 81 SNN configurations.
@@ -196,36 +191,15 @@ for the LIF model.
 % ── EXPANDED: LSTM ────────────────────────────────────────────
 \subsection{LSTM autoencoder}
 \label{sec:lstm}
-The LSTM gates are computed from a stacked pre-activation
-\cite{hochreiter1997long,greff2017lstm}:
-\begin{equation}
-  \mathrm{pre}_t = x_t W^{T} + H_{t-1} U^{T} + b^{T} \in \mathbb{R}^{4H}.
-\end{equation}
-Slices of width $H$ give the four gates:
-\begin{align}
-  i_t &= \sigma(\mathrm{pre}_t[0{:}H]),\\
-  f_t &= \sigma(\mathrm{pre}_t[H{:}2H]),\\
-  o_t &= \sigma(\mathrm{pre}_t[2H{:}3H]),\\
-  g_t &= \tanh(\mathrm{pre}_t[3H{:}4H]).
-\end{align}
-Cell and hidden state updates:
-\begin{equation}
-  C_t = f_t \odot C_{t-1} + i_t \odot g_t, \qquad
-  H_t = o_t \odot \tanh(C_t).
-\end{equation}
-The recurrent path $C_t \leftarrow f_t \odot C_{t-1}$ carries no weight
-matrix — the \emph{constant-error carousel} that prevents vanishing gradients
-\cite{hochreiter1997long}.
-Forget-gate bias is initialised to 1 to discourage forgetting early in
-training \cite{jozefowicz2015empirical}.
+LSTM-AE uses standard gate equations: input, forget, output gates computed
+via dense pre-activation, with cell state accumulation $C_t = f_t \odot C_{t-1} + i_t \odot g_t$
+\cite{hochreiter1997long,greff2017lstm}.
 
 The LSTM-AE encoder stacks two LSTM layers ($H=64$); the final hidden state
-$H_T$ is projected through $\mathrm{Linear}(H \to d) \to \tanh$ to yield
-latent $z \in \mathbb{R}^d$.
-The decoder expands $z$ via $\mathrm{Linear}(d \to H)$, replicates across
-$T$ steps, and applies a symmetric LSTM stack followed by an output
-projection.
-Hidden and cell states are reset between samples.
+$H_T$ is projected to the 32-dimensional latent via $\mathrm{Linear}(H \to d) \to \tanh$.
+The decoder mirrors this: $\mathrm{Linear}(d \to H)$ followed by two stacked LSTM
+layers and an output projection to reconstruct $\mathbb{R}^{256}$.
+States are reset between samples.
 
 % ── Spike encodings ───────────────────────────────────────────
 \subsection{Spike encodings}
@@ -332,16 +306,11 @@ Both models use batch size 1 to accommodate stateful sequence processing.
 
 % ── Energy estimation ─────────────────────────────────────────
 \subsection{Energy estimation}
-Computational energy is estimated analytically from operation counts,
-avoiding hardware instrumentation:
-\begin{align}
-  E_{\mathrm{SNN}}  &= C_{\mathrm{op}}\bigl(r \cdot N + M\bigr), \\
-  E_{\mathrm{LSTM}} &= C_{\mathrm{op}} \cdot M,
-\end{align}
-where $r$ is mean spike rate, $N$ total output activations, $M$ the MAC
-count, and $C_{\mathrm{op}}=10$ (arbitrary units).
-SNN energy decreases as $r \to 0$, reflecting sparse event-driven
-computation.
+Computational energy is estimated from operation counts.
+SNN energy is proportional to spike rate $r$ and MAC count $M$; LSTM
+energy depends on $M$ alone. All estimates use relative units (no absolute
+hardware assumptions). Hardware energy per operation varies by platform
+and will be measured in future work.
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
@@ -538,33 +507,25 @@ SNN modes trade reconstruction quality for reduced estimated energy.}
 \section{Discussion}
 \label{sec:discussion}
 
-Results reveal a consistent trade-off: SNN-AE reduces estimated energy by
-45--68\% compared to LSTM-AE at the cost of 10--67\% higher MSE, depending
-on encoding and mode.
-Direct encoding with dense mode minimizes reconstruction error among SNN
-configurations; latency encoding with recurrent mode maximizes sparsity and
-energy savings.
+Results show a clear trade-off: SNN-AE reduces estimated energy by
+45--68\% compared to LSTM-AE at 10--67\% higher MSE.
+Direct encoding with dense mode minimizes SNN reconstruction error;
+latency encoding with recurrent mode maximizes sparsity.
 
-The membrane decay $\alpha$ is the most influential SNN hyperparameter:
-higher $\alpha$ (e.g., $0.99$) retains longer temporal context and
-consistently reduces MSE, but must be combined with appropriate $V_{th}$
-to avoid training instability.
-The conv1d smoothing mode reduces spike variance at the cost of blurring
-rapid transients; the recurrent pre-processor compounds temporal integration
-with the SNN autoencoder's own dynamics, achieving the lowest spike rates.
+Membrane decay $\alpha$ is the dominant SNN hyperparameter:
+higher $\alpha$ (e.g., $0.99$) extends temporal memory and reduces MSE,
+but requires tuning of $V_{th}$ to maintain training stability.
+Conv1d preprocessing reduces spike jitter at the cost of smoothing transients.
+Recurrent preprocessing compounds temporal dynamics, achieving lowest spike
+rates.
 
-F1 score (residual-threshold proxy for anomaly detection suitability)
-remains competitive across SNN configurations despite higher MSE, suggesting
-reconstruction errors are broadly distributed rather than concentrated on
-any single sample class.
+F1 scores remain competitive across configurations despite higher MSE,
+indicating errors are broadly distributed.
 
 \emph{Limitations.}
-All energy values are formula-based estimates and will differ from
-hardware-measured values.
-All tables and figures in this section are loaded from experiment-generated
-CSV exports produced by the same execution harness used for benchmarking.
-Future work will report measured timing and extend evaluation to additional
-temporal datasets.
+Energy estimates are relative and do not account for hardware specifics.
+All results are loaded from experiment-generated CSV exports; future work
+will measure hardware energy and extend to additional temporal datasets.
 
 \balance
 % ─────────────────────────────────────────────────────────────

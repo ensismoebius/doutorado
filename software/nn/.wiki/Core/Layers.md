@@ -22,6 +22,26 @@ Common activations include:
 - **Sigmoid**: $f(x) = 1/(1 + e^{-x})$
 - **Tanh**: $f(x) = \tanh(x)$
 
+#### Fast Activation Approximations
+
+`include/nn/layers/activations/FastActivations.hpp` provides rational approximations that avoid `exp()`:
+
+| Function | Formula | Max error | Use case |
+|---|---|---|---|
+| `sigmoid_fast(x)` | $0.5 + x / (2(1+\|x\|))$ | < 0.01 | LSTM gates, anywhere exp() is hot |
+| `tanh_fast(x)` | $x / (1 + \|x\|)$ | < 0.01 | LSTM cell candidate, cell state |
+
+Fused variants read directly from a column range of a source tensor, skipping the intermediate `block()` copy:
+
+```cpp
+// Reads pre[:,col_start:col_start+gate_size] and applies sigmoid in one pass.
+// Avoids one alloc + one read-scan vs. sigmoid_fast_tensor(pre.block(...)).
+nn::activations::sigmoid_fast_block(pre, col_start, gate_size);
+nn::activations::tanh_fast_block(pre, col_start, gate_size);
+```
+
+**Performance impact (B=1, D=128, H=32):** Gate computation fell from 43.7% → 1.1% of full LSTM timestep. Full timestep **2.85× faster**. See [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md#performance-characteristics-and-optimizations) for full microbenchmark data.
+
 ### Convolutional Layers
 
 Convolutional layers apply local filters:
@@ -202,7 +222,12 @@ auto dx3  = layer.backward(grad_bth);            // (B,T,H) → (B,T,D)
 auto params = layer.params();                    // span<nn::Tensor*>: {W_, U_, b_}
 ```
 
-See [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md) for full equation derivation.
+**Performance optimizations applied:**
+- Gates use `sigmoid_fast_block` / `tanh_fast_block` (fused slice+activation, no intermediate copy).
+- `b_T = b_.transpose()` computed once outside the time loop.
+- `slice_time` / `setBlock` used for vectorized I/O instead of scalar loops.
+
+See [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md) for full equation derivation and microbenchmark data.
 
 ### Spike Losses
 

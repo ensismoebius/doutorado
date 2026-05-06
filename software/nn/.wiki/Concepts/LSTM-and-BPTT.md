@@ -157,12 +157,60 @@ opt.step();
 layer.reset_state();
 ```
 
+## Performance Characteristics and Optimizations
+
+### Microbenchmark Results (B=1, D=128, H=32, T=256)
+
+Profiled via `src/experiments/04/tests/lstm_ops_microbench.cpp`:
+
+| Operation | Time | % of Full Step (before) | % of Full Step (after) |
+|---|---|---|---|
+| `x_t @ W^T` matmul | 0.036ms | 50.6% | 50.6% |
+| `h @ U^T` matmul | 0.003ms | 4.1% | 4.1% |
+| `block()` + 4 gate activations | 0.031ms | **43.7%** | 1.1% |
+| Individual sigmoid/tanh (each) | 0.0003ms | 0.44% | 0.44% |
+| **Full timestep** | — | **0.1436ms** | **0.0504ms** |
+
+**Key finding:** `block()` was the dominant secondary cost — not the activations themselves. Each of the 4 gate extractions (`pre.block(0, col*H, B, H)`) creates an intermediate tensor copy (alloc + read pass), costing ~10× more than the sigmoid/tanh math.
+
+### Optimization: Fused Block+Activation
+
+**Problem:** Forward pass called `block()` then `sigmoid/tanh`, two passes per gate:
+```cpp
+// OLD — block() copies data into new Tensor, then activation reads it again
+Tensor i_g = sigmoid_tensor(pre.block(0, 0, B, hidden_size_));
+```
+
+**Fix:** `sigmoid_fast_block` / `tanh_fast_block` in `FastActivations.hpp` read the column range directly:
+```cpp
+// NEW — single pass: reads pre[:,col_start:col_start+H] and applies activation
+Tensor i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
+```
+
+**Result:** Gate computation 21% → 1.1% of full timestep. **Full timestep 2.85× faster.**
+
+### Fast Activation Approximations
+
+`FastActivations.hpp` replaces `exp()`-based sigmoid/tanh with rational approximations (error < 0.01):
+
+| Function | Formula | vs. standard |
+|---|---|---|
+| `sigmoid_fast(x)` | `0.5 + x / (2*(1+\|x\|))` | avoids `exp()`, ~5× fewer FLOPs |
+| `tanh_fast(x)` | `x / (1 + \|x\|)` | avoids `exp()`, ~5× fewer FLOPs |
+
+Both clip input to [-8, 8] to prevent overflow without branchy range checks.
+
+### Remaining Bottleneck
+
+After fused-block optimization, `x_t @ W^T` (BLAS `sgemm`) is 50%+ of full timestep. This is hard-floor BLAS performance for (1,128)×(128,128). Next meaningful gain would be stacking the two matmuls into one call: `[x_t | h] @ [W | U]^T` — one BLAS call instead of two — saving function-call and dispatch overhead.
+
 ## Common Pitfalls
 
 1. **Call `reset_state()` between independent sequences.** Hidden and cell state persist across `forward()` calls on the 2-D path.
 2. **Gradient clipping** — essential for long sequences; clip $\|\nabla W\|$ to $[-\theta, \theta]$ [2].
 3. **Forget-gate bias = 1** — already initialised; do not zero-initialise the full bias vector.
 4. **Rate of learning** — biophysical SNN params need ~10× lower lr than weights; use `Adam::attach_with_scales()`.
+5. **`block()` is a copy.** Never call `block()` inside a hot loop if a fused alternative exists — prefer `sigmoid_fast_block` / `tanh_fast_block` from `FastActivations.hpp`.
 
 ## References
 
