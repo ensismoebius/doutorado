@@ -1,2 +1,2 @@
 backend,profile,dataset,model,encoding,architecture,layers,v_th,alpha,run,seed,config_hash,mse,mae,r2,precision,recall,f1,spike_rate,energy,train_ms,infer_ms,param_count,macs
-xtensor,lstm_bench,fsdd,lstm-ae,direct,lstm,1,0.000000,0.000000,1,42,3262369182696528124,1.280772,0.842277,-0.027836,0.000000,0.000000,0.000000,0.000000,85238400.000000,27421.896484,337.709686,120225,8523840
+xtensor,lstm_bench,fsdd,lstm-ae,direct,lstm,1,0.000000,0.000000,1,42,3262369182696528124,1.280772,0.842277,-0.027836,0.000000,0.000000,0.000000,0.000000,85238400.000000,33735.171875,433.158691,120225,8523840

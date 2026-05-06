@@ -25,7 +25,7 @@ set(YAML_CPP_BUILD_CONTRIB OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     yaml-cpp
     GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG        yaml-cpp-0.7.0 
+    GIT_TAG        0.8.0
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 

@@ -141,6 +141,28 @@ auto format_flavor(const std::string& label, float progress, bool completed) -> 
     return "learning";
 }
 
+auto format_eta(int64_t start_ns, float progress) -> std::string
+{
+    if (progress < 0.05f || start_ns == 0) return "";
+    const int64_t elapsed =
+        std::chrono::steady_clock::now().time_since_epoch().count() - start_ns;
+    if (elapsed <= 0) return "";
+    const int64_t eta_s =
+        static_cast<int64_t>(static_cast<double>(elapsed) * (1.0 - progress) / progress)
+        / 1'000'000'000LL;
+    char buf[16];
+    if (eta_s < 60)
+        std::snprintf(buf, sizeof(buf), "%llds", static_cast<long long>(eta_s));
+    else if (eta_s < 3600)
+        std::snprintf(buf, sizeof(buf), "%lldm%02llds",
+            static_cast<long long>(eta_s / 60), static_cast<long long>(eta_s % 60));
+    else
+        std::snprintf(buf, sizeof(buf), "%lldh%02lldm",
+            static_cast<long long>(eta_s / 3600),
+            static_cast<long long>((eta_s % 3600) / 60));
+    return buf;
+}
+
 } // namespace
 
 ProgressManager::ProgressManager()
@@ -167,6 +189,7 @@ uint32_t ProgressManager::create_bar(const std::string& label, float target)
     std::lock_guard<std::mutex> lock(manager_mutex_);
     uint32_t id = next_id_++;
     auto entry = std::make_unique<ProgressEntry>(id, label, target);
+    entry->start_ns = std::chrono::steady_clock::now().time_since_epoch().count();
     entries_.push_back(std::move(entry));
     return id;
 }
@@ -281,8 +304,11 @@ void ProgressManager::render_loop()
                     ss << " | ";
                     append_fitted_cell(ss, format_metrics(metrics), kMetricsWidth);
                     ss << " | ";
-                    append_fitted_cell(
-                        ss, format_flavor(entry->label, progress, completed), kFlavorWidth);
+                    const std::string eta = format_eta(entry->start_ns, progress);
+                    const std::string fifth_cell = eta.empty()
+                        ? format_flavor(entry->label, progress, completed)
+                        : eta;
+                    append_fitted_cell(ss, fifth_cell, kFlavorWidth);
 
                     std::cout << ss.str() << "\n";
                 }

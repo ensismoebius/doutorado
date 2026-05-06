@@ -296,8 +296,8 @@ $\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane dynamics optimization
 forward pass with gradients zeroed in the clamped region.
 BPTT \cite{werbos1990backpropagation} propagates gradients through the full
 time dimension.
-Early stopping monitors validation MSE with patience $P=20$ epochs and
-minimum delta $10^{-8}$ over a maximum of 100 epochs
+Early stopping monitors validation MSE with patience $P=5$ epochs and
+minimum delta $10^{-8}$ over a maximum of 30 epochs
 \cite{eshraghian2023training}.
 Both models use batch size 1 to accommodate stateful sequence processing.
 
@@ -317,11 +317,28 @@ and will be measured in future work.
 The Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd} contains
 recordings of spoken digits (0--9) from multiple speakers at 8\,kHz.
 Signals are segmented into non-overlapping windows of $T=256$ samples.
-Up to 500 windows are used for training and 100 for validation.
+Up to 100 windows are used for training and 30 for validation.
 
 \textbf{Preprocessing.}
 Raw waveform values are used with per-sample statistics ($x_{\min}$,
 $x_{\max}$) computed at encoding time.  No additional filtering is applied.
+
+\textbf{Windowing.}
+Fig.~\ref{fig:windowing} illustrates the segmentation process.
+Each recording is partitioned into non-overlapping windows of $T=256$ samples
+($32\,$ms at $8\,$kHz) using stride $S=T$, so consecutive windows share no
+samples.  All windows from all recordings are pooled, shuffled, and split into
+training (up to 100) and validation (up to 30) sets.
+
+\begin{figure}[!t]
+\centering
+\input{figs/fig_windowing.tex}
+\caption{Signal windowing. Each recording is segmented into non-overlapping
+windows of $T=256$ samples (32\,ms at 8\,kHz). Stride $S=T$ yields
+independent windows with no shared samples. Each window is then spike-encoded
+and fed to the autoencoder.}
+\label{fig:windowing}
+\end{figure}
 
 \textbf{Hyperparameter sweep.}
 SNN variants are evaluated over threshold $V_{th} \in \{0.5, 1.0, 1.5\}$,

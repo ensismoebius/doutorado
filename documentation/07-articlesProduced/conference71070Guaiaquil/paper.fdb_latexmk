@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex paper"] 0 "paper.aux" "paper.bbl" "paper" 0 -1
-  "./paper.bib" 1778047666.80844 4652 fabb5470ed4c02114827d754c31dc4f1 ""
+["bibtex paper"] 1778048961.87776 "paper.aux" "paper.bbl" "paper" 1778048961.98354 2
+  "./paper.bib" 1778047811.31048 4652 fabb5470ed4c02114827d754c31dc4f1 ""
   "/usr/share/texmf-dist/bibtex/bst/ieeetran/IEEEtran.bst" 1775415801 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "paper.aux" 1778047675.09872 7628 3cee64c0104b0b089579f45f66d74380 "pdflatex"
+  "paper.aux" 1778048953.87177 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
   (generated)
   "paper.bbl"
   "paper.blg"
   (rewritten before read)
-["pdflatex"] 1778047673.18288 "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" "paper.pdf" "paper" 1778047675.44112 2
-  "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" 1778047566.81187 24765 f56b9dc22d52437fa58e8d8be72a64ff ""
+["pdflatex"] 1778048959.04438 "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" "paper.pdf" "paper" 1778048961.58695 2
+  "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" 1778048958.7338 25478 10f3e0c141cd3fed94150dc67fd79eaf ""
   "/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1775415801 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1775415801 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -249,9 +249,10 @@
   "figs/fig_flow.tex" 1777954936.89945 1149 88176dec213d1c833f34ab7e724e0396 ""
   "figs/fig_results.tex" 1777954936.89945 880 590e3ed54382ce64e3df654fdbd36029 ""
   "figs/fig_sweep.tex" 1777954936.89945 759 b51b2d34013a040f4d2d64c0ad3a4606 ""
-  "paper.aux" 1778047675.09872 7628 3cee64c0104b0b089579f45f66d74380 "pdflatex"
-  "paper.bbl" 1778047670.28614 3911 2a91199beefe96503f3248b3a163ea8e "bibtex paper"
-  "paper.tex" 1778047566.81187 24765 f56b9dc22d52437fa58e8d8be72a64ff ""
+  "figs/fig_windowing.tex" 1778048927.77574 2505 4ce93041a3a7bf8d95ae219a901f0175 ""
+  "paper.aux" 1778048953.87177 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
+  "paper.bbl" 1778048961.9789 0 d41d8cd98f00b204e9800998ecf8427e "bibtex paper"
+  "paper.tex" 1778048958.7338 25478 10f3e0c141cd3fed94150dc67fd79eaf ""
   (generated)
   "paper.aux"
   "paper.log"

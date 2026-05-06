@@ -10,6 +10,7 @@
 #include "../include/ComparativeOutput.hpp"
 #include "../include/ComparativeTraining.hpp"
 #include "../include/Experiment04Cli.hpp"
+#include "../include/RunCheckpoint.hpp"
 #include "nn/progress/ProgressManager.hpp"
 #include "nn/utility/progress.hpp"
 
@@ -167,6 +168,10 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             std::filesystem::create_directories(models_dir);
         }
 
+        const auto chk_dir = out_dir / "checkpoints";
+        std::filesystem::create_directories(chk_dir);
+        int skipped_runs = 0;
+
         std::vector<ResultRow> all_rows;
 
         // Total outer iterations: datasets × encodings × repeats.
@@ -196,81 +201,95 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
                     {
-                        float train_ms = 0.0f;
-                        float infer_ms = 0.0f;
-                        auto lstm_cfg = make_lstm_cfg(config);
+                        const CheckpointKey lstm_key{
+                            config.experiment.run_tag, backend_name, dataset_name,
+                            "lstm-ae", encoding, "lstm", 0.0f, 0.0f, run_id + 1};
+                        const auto lstm_chk = checkpoint_path(chk_dir, lstm_key);
 
-                        nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
-
-                        Adam lstm_opt(config.training.learning_rate);
-                        lstm_opt.attach(lstm_model.params());
-
-                        TrainResult train_result = train_with_early_stopping_lstm(     //
-                            lstm_model,                                          //
-                            lstm_opt,                                            //
-                            config,                                              //
-                            split.train_samples,                                 //
-                            split.val_samples,                                   //
-                            encoding,                                            //
-                            run_seed,                                            //
-                            static_cast<std::size_t>(run_id),                    //
-                            static_cast<std::size_t>(config.experiment.repeats), //
-                            train_ms,                                            //
-                            infer_ms                                             //
-                        );
-                        RunMetrics metrics = train_result.metrics;
-                        metrics.train_ms = train_ms;
-
-                        if (!config.dataset.latex_data_dir.empty())
+                        if (checkpoint_is_valid(lstm_chk, cfg_hash))
                         {
-                            const std::filesystem::path latex_dir =
-                                std::filesystem::path(config.dataset.latex_data_dir);
-                            write_epoch_history_dat(
-                                latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
-                                             "_run" + std::to_string(run_id + 1) + "_history.dat"),
-                                "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
-                                train_result.history);
-                            write_batch_convergence_dat(
-                                latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
-                                             "_run" + std::to_string(run_id + 1) + "_convergence.dat"),
-                                "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
-                                train_result.history);
+                            all_rows.push_back(checkpoint_load(lstm_chk));
+                            ++skipped_runs;
                         }
-
-                        if (config.dataset.save_models)
+                        else
                         {
-                            const std::string base_name =
-                                sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name +
-                                              "_" + encoding + "_run" + std::to_string(run_id + 1));
-                            const std::filesystem::path state_txt =
-                                models_dir / (base_name + "_state_dict.txt");
-                            const bool ok =
-                                save_state_dict_text(state_txt, lstm_model.state_dict());
-                            if (!ok)
+                            float train_ms = 0.0f;
+                            float infer_ms = 0.0f;
+                            auto lstm_cfg = make_lstm_cfg(config);
+
+                            nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
+
+                            Adam lstm_opt(config.training.learning_rate);
+                            lstm_opt.attach(lstm_model.params());
+
+                            TrainResult train_result = train_with_early_stopping_lstm(     //
+                                lstm_model,                                          //
+                                lstm_opt,                                            //
+                                config,                                              //
+                                split.train_samples,                                 //
+                                split.val_samples,                                   //
+                                encoding,                                            //
+                                run_seed,                                            //
+                                static_cast<std::size_t>(run_id),                    //
+                                static_cast<std::size_t>(config.experiment.repeats), //
+                                train_ms,                                            //
+                                infer_ms                                             //
+                            );
+                            RunMetrics metrics = train_result.metrics;
+                            metrics.train_ms = train_ms;
+
+                            if (!config.dataset.latex_data_dir.empty())
                             {
-                                std::cerr
-                                    << "[comparative] Warning: failed to save LSTM state_dict for "
-                                    << base_name << "\n";
+                                const std::filesystem::path latex_dir =
+                                    std::filesystem::path(config.dataset.latex_data_dir);
+                                write_epoch_history_dat(
+                                    latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
+                                                 "_run" + std::to_string(run_id + 1) + "_history.dat"),
+                                    "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                    train_result.history);
+                                write_batch_convergence_dat(
+                                    latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
+                                                 "_run" + std::to_string(run_id + 1) + "_convergence.dat"),
+                                    "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                    train_result.history);
                             }
-                        }
 
-                        all_rows.push_back( //
-                            ResultRow{
-                                backend_name,              //
-                                config.experiment.run_tag, //
-                                dataset_name,              //
-                                "lstm-ae",                 //
-                                encoding,                  //
-                                "lstm",                    //
-                                1,                         //
-                                0.0f,                      //
-                                0.0f,                      //
-                                run_id + 1,                //
-                                run_seed,                  //
-                                cfg_hash,                  //
-                                metrics                    //
-                            } //
-                        );
+                            if (config.dataset.save_models)
+                            {
+                                const std::string base_name =
+                                    sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name +
+                                                  "_" + encoding + "_run" + std::to_string(run_id + 1));
+                                const std::filesystem::path state_txt =
+                                    models_dir / (base_name + "_state_dict.txt");
+                                const bool ok =
+                                    save_state_dict_text(state_txt, lstm_model.state_dict());
+                                if (!ok)
+                                {
+                                    std::cerr
+                                        << "[comparative] Warning: failed to save LSTM state_dict for "
+                                        << base_name << "\n";
+                                }
+                            }
+
+                            all_rows.push_back( //
+                                ResultRow{
+                                    backend_name,              //
+                                    config.experiment.run_tag, //
+                                    dataset_name,              //
+                                    "lstm-ae",                 //
+                                    encoding,                  //
+                                    "lstm",                    //
+                                    1,                         //
+                                    0.0f,                      //
+                                    0.0f,                      //
+                                    run_id + 1,                //
+                                    run_seed,                  //
+                                    cfg_hash,                  //
+                                    metrics                    //
+                                } //
+                            );
+                            checkpoint_save(lstm_chk, all_rows.back(), train_result.history, cfg_hash);
+                        }
                     }
 
                     for (const auto& architecture : config.evaluation.snn_architectures)
@@ -279,115 +298,130 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         {
                             for (float alpha : config.evaluation.alpha_values)
                             {
-                                float train_ms = 0.0f;
-                                float infer_ms = 0.0f;
+                                const CheckpointKey snn_key{
+                                    config.experiment.run_tag, backend_name, dataset_name,
+                                    "snn-ae", encoding, architecture,
+                                    voltage_threshold, alpha, run_id + 1};
+                                const auto snn_chk = checkpoint_path(chk_dir, snn_key);
 
-                                AutoencoderConfig snn_config = make_snn_cfg( //
-                                    config,                                  //
-                                    alpha,                                   //
-                                    voltage_threshold                        //
-                                );
-                                snn_config.initializer_seed = run_seed;
-                                snn_config.initializer_sampler_type =
-                                    "comparative|" + dataset_name + "|" + encoding + "|" +
-                                    architecture + "|" +
-                                    std::to_string(
-                                        extract_layer_sizes(config.model.encoder_layer_spec).empty()
-                                            ? 0
-                                            : extract_layer_sizes(config.model.encoder_layer_spec)
-                                                  .front()) +
-                                    "|" + std::to_string(voltage_threshold) + "|" +
-                                    std::to_string(alpha);
-
-                                Adam snn_optimizer(config.training.learning_rate);
-
-                                ProtocolSpikingAutoencoder snn_model(snn_config);
-                                snn_optimizer.attach(snn_model.params());
-
-                                TrainResult train_result = train_with_early_stopping_snn(      //
-                                    snn_model,                                           //
-                                    snn_optimizer,                                       //
-                                    config,                                              //
-                                    split.train_samples,                                 //
-                                    split.val_samples,                                   //
-                                    split.val_labels,                                    //
-                                    encoding,                                            //
-                                    architecture,                                        //
-                                    alpha,                                               //
-                                    voltage_threshold,                                   //
-                                    run_seed,                                            //
-                                    static_cast<std::size_t>(run_id),                    //
-                                    static_cast<std::size_t>(config.experiment.repeats), //
-                                    train_ms,                                            //
-                                    infer_ms                                             //
-                                );
-
-                                RunMetrics metrics = train_result.metrics;
-                                metrics.train_ms = train_ms;
-
-                                if (!config.dataset.latex_data_dir.empty())
+                                if (checkpoint_is_valid(snn_chk, cfg_hash))
                                 {
-                                    const std::filesystem::path latex_dir =
-                                        std::filesystem::path(config.dataset.latex_data_dir);
-                                    write_epoch_history_dat(
-                                        latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
-                                                     "_" + architecture + "_vth" +
-                                                     std::to_string(voltage_threshold) + "_a" +
-                                                     std::to_string(alpha) + "_run" +
-                                                     std::to_string(run_id + 1) + "_history.dat"),
-                                        "snn-ae", encoding, architecture, voltage_threshold, alpha,
-                                        run_id + 1, train_result.history);
-                                    write_batch_convergence_dat(
-                                        latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
-                                                     "_" + architecture + "_vth" +
-                                                     std::to_string(voltage_threshold) + "_a" +
-                                                     std::to_string(alpha) + "_run" +
-                                                     std::to_string(run_id + 1) + "_convergence.dat"),
-                                        "snn-ae", encoding, architecture, voltage_threshold, alpha,
-                                        run_id + 1, train_result.history);
+                                    all_rows.push_back(checkpoint_load(snn_chk));
+                                    ++skipped_runs;
                                 }
-
-                                if (config.dataset.save_models)
+                                else
                                 {
-                                    const std::string base_name = sanitize_name(
-                                        config.experiment.run_tag + "_snn_" + dataset_name + "_" +
-                                        encoding + "_" + architecture + "_vth" +
-                                        std::to_string(voltage_threshold) + "_a" +
-                                        std::to_string(alpha) + "_run" +
-                                        std::to_string(run_id + 1));
-                                    const std::filesystem::path encoder_txt =
-                                        models_dir / (base_name + "_encoder_params.txt");
-                                    const std::filesystem::path decoder_txt =
-                                        models_dir / (base_name + "_decoder_params.txt");
-                                    const bool enc_ok = save_parameter_list_text(
-                                        encoder_txt, snn_model.encoder_.params(), "encoder");
-                                    const bool dec_ok = save_parameter_list_text(
-                                        decoder_txt, snn_model.decoder_.params(), "decoder");
-                                    if (!enc_ok || !dec_ok)
+                                    float train_ms = 0.0f;
+                                    float infer_ms = 0.0f;
+
+                                    AutoencoderConfig snn_config = make_snn_cfg( //
+                                        config,                                  //
+                                        alpha,                                   //
+                                        voltage_threshold                        //
+                                    );
+                                    snn_config.initializer_seed = run_seed;
+                                    snn_config.initializer_sampler_type =
+                                        "comparative|" + dataset_name + "|" + encoding + "|" +
+                                        architecture + "|" +
+                                        std::to_string(
+                                            extract_layer_sizes(config.model.encoder_layer_spec).empty()
+                                                ? 0
+                                                : extract_layer_sizes(config.model.encoder_layer_spec)
+                                                      .front()) +
+                                        "|" + std::to_string(voltage_threshold) + "|" +
+                                        std::to_string(alpha);
+
+                                    Adam snn_optimizer(config.training.learning_rate);
+
+                                    ProtocolSpikingAutoencoder snn_model(snn_config);
+                                    snn_optimizer.attach(snn_model.params());
+
+                                    TrainResult train_result = train_with_early_stopping_snn(      //
+                                        snn_model,                                           //
+                                        snn_optimizer,                                       //
+                                        config,                                              //
+                                        split.train_samples,                                 //
+                                        split.val_samples,                                   //
+                                        split.val_labels,                                    //
+                                        encoding,                                            //
+                                        architecture,                                        //
+                                        alpha,                                               //
+                                        voltage_threshold,                                   //
+                                        run_seed,                                            //
+                                        static_cast<std::size_t>(run_id),                    //
+                                        static_cast<std::size_t>(config.experiment.repeats), //
+                                        train_ms,                                            //
+                                        infer_ms                                             //
+                                    );
+
+                                    RunMetrics metrics = train_result.metrics;
+                                    metrics.train_ms = train_ms;
+
+                                    if (!config.dataset.latex_data_dir.empty())
                                     {
-                                        std::cerr << "[comparative] Warning: failed to save SNN "
-                                                     "model artifacts for "
-                                                  << base_name << "\n";
+                                        const std::filesystem::path latex_dir =
+                                            std::filesystem::path(config.dataset.latex_data_dir);
+                                        write_epoch_history_dat(
+                                            latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
+                                                         "_" + architecture + "_vth" +
+                                                         std::to_string(voltage_threshold) + "_a" +
+                                                         std::to_string(alpha) + "_run" +
+                                                         std::to_string(run_id + 1) + "_history.dat"),
+                                            "snn-ae", encoding, architecture, voltage_threshold, alpha,
+                                            run_id + 1, train_result.history);
+                                        write_batch_convergence_dat(
+                                            latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
+                                                         "_" + architecture + "_vth" +
+                                                         std::to_string(voltage_threshold) + "_a" +
+                                                         std::to_string(alpha) + "_run" +
+                                                         std::to_string(run_id + 1) + "_convergence.dat"),
+                                            "snn-ae", encoding, architecture, voltage_threshold, alpha,
+                                            run_id + 1, train_result.history);
                                     }
-                                }
 
-                                all_rows.push_back( //
-                                    ResultRow{
-                                        backend_name,                                             //
-                                        config.experiment.run_tag,                                //
-                                        dataset_name,                                             //
-                                        "snn-ae",                                                 //
-                                        encoding,                                                 //
-                                        architecture,                                             //
-                                        static_cast<int>(config.model.encoder_layer_spec.size()), //
-                                        voltage_threshold,                                        //
-                                        alpha,                                                    //
-                                        run_id + 1,                                               //
-                                        run_seed,                                                 //
-                                        cfg_hash,                                                 //
-                                        metrics                                                   //
-                                    } //
-                                );
+                                    if (config.dataset.save_models)
+                                    {
+                                        const std::string base_name = sanitize_name(
+                                            config.experiment.run_tag + "_snn_" + dataset_name + "_" +
+                                            encoding + "_" + architecture + "_vth" +
+                                            std::to_string(voltage_threshold) + "_a" +
+                                            std::to_string(alpha) + "_run" +
+                                            std::to_string(run_id + 1));
+                                        const std::filesystem::path encoder_txt =
+                                            models_dir / (base_name + "_encoder_params.txt");
+                                        const std::filesystem::path decoder_txt =
+                                            models_dir / (base_name + "_decoder_params.txt");
+                                        const bool enc_ok = save_parameter_list_text(
+                                            encoder_txt, snn_model.encoder_.params(), "encoder");
+                                        const bool dec_ok = save_parameter_list_text(
+                                            decoder_txt, snn_model.decoder_.params(), "decoder");
+                                        if (!enc_ok || !dec_ok)
+                                        {
+                                            std::cerr << "[comparative] Warning: failed to save SNN "
+                                                         "model artifacts for "
+                                                      << base_name << "\n";
+                                        }
+                                    }
+
+                                    all_rows.push_back( //
+                                        ResultRow{
+                                            backend_name,                                             //
+                                            config.experiment.run_tag,                                //
+                                            dataset_name,                                             //
+                                            "snn-ae",                                                 //
+                                            encoding,                                                 //
+                                            architecture,                                             //
+                                            static_cast<int>(config.model.encoder_layer_spec.size()), //
+                                            voltage_threshold,                                        //
+                                            alpha,                                                    //
+                                            run_id + 1,                                               //
+                                            run_seed,                                                 //
+                                            cfg_hash,                                                 //
+                                            metrics                                                   //
+                                        } //
+                                    );
+                                    checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+                                }
                             }
                         }
                     }

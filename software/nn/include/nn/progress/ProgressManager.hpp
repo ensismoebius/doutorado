@@ -22,8 +22,9 @@ struct ProgressEntry
     
     mutable std::mutex metrics_mutex;
     std::map<std::string, float> metrics;
+    int64_t start_ns{0};  // set once in create_bar(); nanoseconds since steady_clock epoch
 
-    ProgressEntry(uint32_t p_id, std::string lbl, float target) 
+    ProgressEntry(uint32_t p_id, std::string lbl, float target)
         : id(p_id), label(std::move(lbl)), target_value(target) {}
 };
 

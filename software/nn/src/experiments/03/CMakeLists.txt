@@ -64,6 +64,7 @@ add_library(experiment04_lib STATIC
     ${SRC_DIR}/experiments/04/lib/src/ComparativeEvaluation.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeTraining.cpp
     ${SRC_DIR}/experiments/04/lib/src/ComparativeOutput.cpp
+    ${SRC_DIR}/experiments/04/lib/src/RunCheckpoint.cpp
 )
 
 target_include_directories(experiment04_lib
