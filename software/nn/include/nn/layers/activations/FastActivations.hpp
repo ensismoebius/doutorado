@@ -11,8 +11,10 @@ namespace nn::activations
 // Avoids expensive exp() computation
 inline auto sigmoid_fast(float x) -> float
 {
-    // Clip to [-8, 8] to avoid overflow
-    x = x < -8.0f ? -8.0f : (x > 8.0f ? 8.0f : x);
+    // Saturate cleanly beyond ±10 — the rational approximation becomes
+    // inaccurate for large |x| and the true sigmoid is already ≈0 or ≈1 there.
+    if (x <= -10.0f) return 0.0f;
+    if (x >= 10.0f) return 1.0f;
     // Rational approximation: sigmoid(x) ≈ 0.5 + x / (2 * (1 + |x|))
     return 0.5f + x / (2.0f * (1.0f + std::abs(x)));
 }
@@ -21,8 +23,9 @@ inline auto sigmoid_fast(float x) -> float
 // Avoids expensive exp() computation
 inline auto tanh_fast(float x) -> float
 {
-    // Clip to [-8, 8]
-    x = x < -8.0f ? -8.0f : (x > 8.0f ? 8.0f : x);
+    // Saturate cleanly beyond ±10.
+    if (x <= -10.0f) return -1.0f;
+    if (x >= 10.0f) return 1.0f;
     // Rational approximation: tanh(x) ≈ x / (1 + |x|)
     float abs_x = std::abs(x);
     return x / (1.0f + abs_x);
@@ -69,7 +72,8 @@ inline auto tanh_fast_tensor(const nn::Tensor& x) -> nn::Tensor
 
 // Fused block+activation: reads column range [col_start, col_start+gate_size) from src directly.
 // Avoids the intermediate Tensor copy that block() creates — eliminates one alloc + one read pass.
-inline auto sigmoid_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size) -> nn::Tensor
+inline auto sigmoid_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::Tensor
 {
     nn::Tensor result(src.rows(), gate_size);
     for (nn::Index i = 0; i < src.rows(); ++i)
@@ -78,7 +82,8 @@ inline auto sigmoid_fast_block(const nn::Tensor& src, nn::Index col_start, nn::I
     return result;
 }
 
-inline auto tanh_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size) -> nn::Tensor
+inline auto tanh_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::Tensor
 {
     nn::Tensor result(src.rows(), gate_size);
     for (nn::Index i = 0; i < src.rows(); ++i)
