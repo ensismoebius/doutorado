@@ -69,7 +69,7 @@ non-differentiable spike functions.
 Surrogate gradient methods
 \cite{neftci2019surrogate,zenke2018superspike}
 enable end-to-end gradient-based training and have produced competitive
-SNN classification performance \cite{eshraghian2023training,lv2024direct}.
+SNN classification performance \cite{eshraghian2023training,pfeiffer2018deep}.
 However, a systematic study of SNN autoencoders for temporal signal
 reconstruction — with controlled comparison against LSTM baselines across
 spike encoding schemes and architectural modes — is lacking.
@@ -105,19 +105,16 @@ Training with backpropagation requires differentiable surrogates for the
 discontinuous Heaviside activation; surrogate gradient methods
 \cite{neftci2019surrogate,zenke2021remarkable,bellec2020solution} have
 enabled competitive SNN accuracy with lower inference cost.
-Spiking VAEs \cite{kamata2022fully} and temporal-coding autoencoders
-\cite{comsa2021spiking} show the viability of SNNs for generative and
-reconstruction tasks; regularization is critical to avoid dead or bursting
-neurons \cite{radford2021training}.
-Long-sequence SNN training remains an open challenge
-\cite{perez2024learning}.
+SNN research has also expanded from classification to temporal sequence
+modelling and representation learning, but systematic reconstruction
+benchmarks remain limited \cite{bellec2020solution,eshraghian2023training}.
 
 \subsection{Spike encoding for temporal signals}
 Continuous signals must be converted to spike trains before SNN processing.
 Rate coding (Poisson spike generation proportional to amplitude), latency
 coding (earlier spikes for stronger stimuli), and direct pass-through of
 normalized values represent the three dominant strategies
-\cite{yang2024time,comsa2020temporal}.
+\cite{neftci2019surrogate,thorpe1998rank}.
 Encoding choice affects sparsity, gradient flow, training stability, and
 reconstruction fidelity \cite{neftci2019surrogate}.
 
@@ -218,7 +215,7 @@ sampling \cite{neftci2019surrogate}:
 \end{equation}
 
 \textbf{Latency.} A binary step fires once per element from a time
-inversely proportional to signal strength \cite{yang2024time}:
+inversely proportional to signal strength \cite{thorpe1998rank}:
 \begin{equation}
   \tilde{x}_{t,i} = \mathbf{1}\!\left[t \geq
     \left\lfloor\!\left(1 - \frac{x_i - x_{\min}}{x_{\max}-x_{\min}}
@@ -546,6 +543,6 @@ The reproducible C++ evaluation framework reports a rich set of metrics,
 enabling principled design choices for energy-aware temporal autoencoders.
 
 \bibliographystyle{IEEEtran}
-\bibliography{bibliography}
+\bibliography{paper}
 
 \end{document}
