@@ -97,14 +97,19 @@ static auto conv1d_temporal_smooth(const Tensor& sample) -> Tensor
     Tensor out(sample.rows(), sample.cols());
     out.set_zero();
 
+    if (sample.rows() == 0 || sample.cols() == 0)
+    {
+        return out;
+    }
+
     for (nn::Index t = 0; t < sample.rows(); ++t)
     {
         for (nn::Index d = 0; d < sample.cols(); ++d)
         {
-            const nn::Index t_prev = std::max<nn::Index>(0, t - 1);
-            const nn::Index t_next = std::min<nn::Index>(sample.rows() - 1, t + 1);
-            const float v = 0.25f * sample.at(t_prev * sample.cols() + d) + 0.5f * sample.at(t * sample.cols() + d) +
-                                0.25f * sample.at(t_next * sample.cols() + d);
+            const nn::Index t_prev = (t == 0) ? 0 : (t - 1);
+            const nn::Index t_next = (t + 1 < sample.rows()) ? (t + 1) : t;
+            const float v = 0.25f * sample.at(t_prev, d) + 0.5f * sample.at(t, d) +
+                            0.25f * sample.at(t_next, d);
 
             out.at(t, d) = v;
         }

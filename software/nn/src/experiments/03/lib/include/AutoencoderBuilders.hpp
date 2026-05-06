@@ -37,6 +37,7 @@ using nn::Linear;
 using nn::ReLU;
 using nn::ResidualBlock;
 using nn::Sequential;
+using nn::Tanh;
 
 inline auto resolved_branch_hidden_size(const AutoencoderConfig& cfg) -> int;
 inline auto resolved_fusion_hidden_size(const AutoencoderConfig& cfg) -> int;
@@ -57,6 +58,7 @@ enum class LayerSpecKind
     Residual,
     Pool1d,
     Pool2d,
+    LSTM,
 };
 
 struct ParsedLayerSpec
@@ -195,6 +197,15 @@ inline auto parse_layer_module_spec(const std::string& spec) -> ParsedLayerSpec
         return ParsedLayerSpec{LayerSpecKind::Residual, "", "", repeat};
     }
 
+    if (head == "lstm")
+    {
+        if (tokens.size() < 2)
+        {
+            throw std::invalid_argument("LSTM layer spec must be 'lstm:hidden_size': " + spec);
+        }
+        return ParsedLayerSpec{LayerSpecKind::LSTM, tokens[1], "", 1};
+    }
+
     if (tokens.size() != 1)
     {
         throw std::invalid_argument("Activation spec must be a single token: " + spec);
@@ -257,6 +268,16 @@ inline void append_ann_activation(Sequential& seq, const std::string& activation
     if (activation_type == "leaky_relu")
     {
         seq.add_module(std::make_shared<LeakyReLU>());
+        return;
+    }
+    if (activation_type == "leaky")
+    {
+        seq.add_module(std::make_shared<LeakyReLU>());
+        return;
+    }
+    if (activation_type == "tanh")
+    {
+        seq.add_module(std::make_shared<nn::Tanh>());
         return;
     }
     if (activation_type == "identity")
@@ -494,6 +515,10 @@ inline auto build_ann_encoder(const AutoencoderConfig& cfg, int input_size, int 
             {
                 append_ann_activation(encoder, stage.activation_type);
             }
+            else if (stage.kind == LayerSpecKind::LSTM)
+            {
+                // LSTM is handled externally by LSTMAutoencoder; skip in Sequential builder.
+            }
             else
             {
                 append_residual_blocks(encoder, current, stage.repeat);
@@ -604,6 +629,10 @@ inline auto build_ann_decoder(const AutoencoderConfig& cfg, int output_size, int
             {
                 append_ann_activation(decoder, stage.activation_type);
             }
+            else if (stage.kind == LayerSpecKind::LSTM)
+            {
+                // LSTM is handled externally by LSTMAutoencoder; skip in Sequential builder.
+            }
             else
             {
                 append_residual_blocks(decoder, current, stage.repeat);
@@ -701,6 +730,10 @@ inline auto build_snn_encoder(const AutoencoderConfig& cfg, int input_size, int 
             {
                 append_activation_by_mode(cfg, encoder, stage.activation_type, true);
             }
+            else if (stage.kind == LayerSpecKind::LSTM)
+            {
+                // LSTM is handled externally; skip in Sequential builder.
+            }
             else
             {
                 append_residual_blocks(encoder, current, stage.repeat);
@@ -753,6 +786,10 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
             else if (stage.kind == LayerSpecKind::Activation)
             {
                 append_activation_by_mode(cfg, decoder, stage.activation_type, true);
+            }
+            else if (stage.kind == LayerSpecKind::LSTM)
+            {
+                // LSTM is handled externally; skip in Sequential builder.
             }
             else
             {
