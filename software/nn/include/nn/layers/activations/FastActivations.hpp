@@ -67,4 +67,24 @@ inline auto tanh_fast_tensor(const nn::Tensor& x) -> nn::Tensor
     return result;
 }
 
+// Fused block+activation: reads column range [col_start, col_start+gate_size) from src directly.
+// Avoids the intermediate Tensor copy that block() creates — eliminates one alloc + one read pass.
+inline auto sigmoid_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size) -> nn::Tensor
+{
+    nn::Tensor result(src.rows(), gate_size);
+    for (nn::Index i = 0; i < src.rows(); ++i)
+        for (nn::Index j = 0; j < gate_size; ++j)
+            result.at(i, j) = sigmoid_fast(src.at(i, col_start + j));
+    return result;
+}
+
+inline auto tanh_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size) -> nn::Tensor
+{
+    nn::Tensor result(src.rows(), gate_size);
+    for (nn::Index i = 0; i < src.rows(); ++i)
+        for (nn::Index j = 0; j < gate_size; ++j)
+            result.at(i, j) = tanh_fast(src.at(i, col_start + j));
+    return result;
+}
+
 } // namespace nn::activations

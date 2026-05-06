@@ -23,6 +23,7 @@ set(_exclude_patterns
     ".*/spiking/ExponentialSurrogate\\.hpp$"
     ".*/spiking/SurrogateGradient\\.hpp$"  # umbrella include
     ".*/layers/Layers\\.hpp$"        # the generated file itself — avoid self-include
+    ".*/activations/FastActivations\\.hpp$"  # inline functions only, no FooImpl<Backend> class
 )
 foreach(_pat IN LISTS _exclude_patterns)
     list(FILTER _all_layer_headers EXCLUDE REGEX "${_pat}")

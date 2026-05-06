@@ -66,13 +66,17 @@ auto parse_cli(int argc, char* argv[]) -> CliOptions
         {
             continue;
         }
-        else if (arg == "--comparative-config")
+        else if (arg == "--comparative-config" || arg == "--profile")
         {
             opts.comparative_config = next();
         }
         else if (arg.rfind("--comparative-config=", 0) == 0)
         {
             opts.comparative_config = arg.substr(std::string("--comparative-config=").size());
+        }
+        else if (arg.rfind("--profile=", 0) == 0)
+        {
+            opts.comparative_config = arg.substr(std::string("--profile=").size());
         }
         else if (arg == "--dataset-root" || arg.rfind("--dataset-root=", 0) == 0)
         {

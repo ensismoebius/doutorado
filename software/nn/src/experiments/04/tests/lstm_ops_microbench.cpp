@@ -90,7 +90,7 @@ int main()
         results.push_back({"tanh_fast_tensor (1,32)", elapsed / (reps * T)});
     }
 
-    // Benchmark 5: 4 gates combined (sigmoid_fast × 3 + tanh_fast × 1)
+    // Benchmark 5a: 4 gates via block() + activation (old way)
     {
         auto start = Clock::now();
         for (int r = 0; r < reps * T; ++r)
@@ -105,10 +105,28 @@ int main()
             (void) g_g;
         }
         auto elapsed = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
-        results.push_back({"all_4_gates_fast", elapsed / (reps * T)});
+        results.push_back({"4_gates block()+fast", elapsed / (reps * T)});
     }
 
-    // Benchmark 6: one full timestep (matmul + gates + elementwise)
+    // Benchmark 5b: 4 gates via fused block+activation (new way)
+    {
+        auto start = Clock::now();
+        for (int r = 0; r < reps * T; ++r)
+        {
+            auto i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
+            auto f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
+            auto o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
+            auto g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
+            (void) i_g;
+            (void) f_g;
+            (void) o_g;
+            (void) g_g;
+        }
+        auto elapsed = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+        results.push_back({"4_gates fused_block", elapsed / (reps * T)});
+    }
+
+    // Benchmark 6a: full timestep — old (block + fast)
     {
         Tensor c(B, H);
         auto start = Clock::now();
@@ -125,7 +143,27 @@ int main()
             (void) h_new;
         }
         auto elapsed = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
-        results.push_back({"full_timestep", elapsed / reps});
+        results.push_back({"full_timestep_old", elapsed / reps});
+    }
+
+    // Benchmark 6b: full timestep — new (fused block+activation)
+    {
+        Tensor c(B, H);
+        auto start = Clock::now();
+        for (int r = 0; r < reps; ++r)
+        {
+            auto pre = x_t.matmul_transposed(W).add(h.matmul_transposed(U));
+            auto i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
+            auto f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
+            auto o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
+            auto g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
+            auto c_new = (f_g * c).add(i_g * g_g);
+            auto tc = nn::activations::tanh_fast_tensor(c_new);
+            auto h_new = o_g * tc;
+            (void) h_new;
+        }
+        auto elapsed = std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+        results.push_back({"full_timestep_fused", elapsed / reps});
     }
 
     // Report
@@ -139,7 +177,7 @@ int main()
     double full_step_time = 0;
     for (const auto& r : results)
     {
-        if (std::string(r.name).find("full_timestep") != std::string::npos)
+        if (std::string(r.name) == "full_timestep_old")
         {
             full_step_time = r.ms;
             break;

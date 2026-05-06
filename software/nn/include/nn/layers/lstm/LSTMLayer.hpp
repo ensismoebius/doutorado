@@ -155,18 +155,13 @@ class LSTMLayerImpl : public Module<Backend>
 
         Tensor b_T = b_.transpose(); // (1, 4H) — computed once outside loop
 
-        auto sigmoid_tensor = [](const Tensor& x) -> Tensor
-        { return nn::activations::sigmoid_fast_tensor(x); };
-        auto tanh_tensor = [](const Tensor& x) -> Tensor
-        { return nn::activations::tanh_fast_tensor(x); };
+        const nn::Index H = static_cast<nn::Index>(hidden_size_);
 
         // Opt: for single-sequence (B=1), write directly to (T,H) output; skip 3D alloc+copy.
         const bool is_2d = (shape.size() == 2);
-        Tensor all_out = is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq),
-                                     static_cast<nn::Index>(hidden_size_))
+        Tensor all_out = is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq), H)
                                : Tensor::zeros(static_cast<nn::Index>(B),
-                                     static_cast<nn::Index>(T_seq),
-                                     static_cast<nn::Index>(hidden_size_));
+                                     static_cast<nn::Index>(T_seq), H);
 
         for (int t = 0; t < T_seq; ++t)
         {
@@ -176,13 +171,14 @@ class LSTMLayerImpl : public Module<Backend>
             Tensor pre =
                 x_t.matmul_transposed(W_).add(h.matmul_transposed(U_)).add_row_broadcast(b_T);
 
-            Tensor i_g = sigmoid_tensor(pre.block(0, 0, B, hidden_size_));
-            Tensor f_g = sigmoid_tensor(pre.block(0, 1 * hidden_size_, B, hidden_size_));
-            Tensor o_g = sigmoid_tensor(pre.block(0, 2 * hidden_size_, B, hidden_size_));
-            Tensor g_g = tanh_tensor(pre.block(0, 3 * hidden_size_, B, hidden_size_));
+            // Opt: fused block+activation — reads column range directly, skips intermediate copy.
+            Tensor i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
+            Tensor f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
+            Tensor o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
+            Tensor g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
 
             Tensor c_new = (f_g * c).add(i_g * g_g);
-            Tensor tc = tanh_tensor(c_new);
+            Tensor tc = nn::activations::tanh_fast_tensor(c_new);
             Tensor h_new = o_g * tc;
 
             if (requires_grad) cache_.push_back({x_t, h, c, i_g, f_g, o_g, g_g, tc});
