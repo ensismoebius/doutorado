@@ -14,7 +14,7 @@
 \usepackage[english]{babel}
 
 \title{Spiking Neural Autoencoders for Temporal Signals:
-A Systematic Comparison with LSTM-based Models}
+A Comparison with LSTM-based Models}
 
 \author{Removed for blind review}
 
@@ -24,23 +24,29 @@ A Systematic Comparison with LSTM-based Models}
 \emergencystretch=3em
 
 \begin{abstract}
-Spiking Neural Networks (SNNs) reduce energy consumption through event-driven,
-sparse computation on embedded and neuromorphic hardware.
-While SNNs excel at classification tasks, their use as autoencoders for
-one-dimensional temporal signals lacks systematic evaluation.
-We present a systematic empirical comparison of SNN autoencoders (SNN-AE)
-and LSTM autoencoders (LSTM-AE) on the Free Spoken Digit Dataset (FSDD)
-\cite{jackson2018fsdd}, evaluating three spike encoding strategies (direct,
-Poisson, latency) and three SNN pre-processing modes (dense, conv1d, recurrent)
-across a full factorial hyperparameter sweep ($V_{th} \in \{0.5, 1.0, 1.5\}$;
-$\alpha \in \{0.8, 0.9, 0.99\}$; 3 random seeds).
-Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing,
-parameter count, and estimated MACs.
-SNN-recurrent mode surpasses LSTM-AE in reconstruction quality while
-consuming over 99\% less estimated energy; encoding scheme and membrane
-decay are the dominant performance factors.
-A reproducible C++ evaluation harness enables principled design choices for
-energy-aware spiking representation learning.
+
+\par Spiking Neural Networks (SNNs) emerge as a promising approach to reduce 
+energy consumption through event-driven, sparse computation on embedded 
+and neuromorphic hardware. While SNNs already has been proven effective 
+in classification tasks, their use as autoencoders for temporal signals 
+lacks systematic evaluation.
+
+\par We present a systematic empirical comparison of Spiking Neural Networks 
+- autoencoders (SNN-AE) and Long Short-Term Memory - autoencoders (LSTM-AE) 
+on the Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd}, evaluating 
+three spike encoding strategies (direct, Poisson, latency) and three SNN 
+pre-processing modes (dense, conv1d, recurrent) across a full factorial 
+hyperparameter sweep for Leak Integrate and Fire neuron: Threshold - 
+($V_{th} \in \{0.5, 1.0, 1.5\}$ ; Membrane time constant - ($\alpha \in \{0.8, 0.9, 0.99\}$; 
+3 random seeds). 
+
+\par Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing, 
+parameter count, and estimated MACs. SNN-recurrent mode surpasses LSTM-AE 
+in reconstruction quality while consuming over 99\% less estimated energy; 
+encoding scheme and membrane decay are the dominant performance factors.
+
+\par A reproducible C++ evaluation harness enables principled design choices 
+for 3 energy-aware spiking representation learning.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -51,31 +57,29 @@ surrogate gradients, audio signal processing
 % ─────────────────────────────────────────────────────────────
 \section{Introduction}
 
-One-dimensional temporal signals — audio waveforms, biosignals, sensor
-streams — arise in low-power embedded systems where energy budget is a
-primary constraint.
-Autoencoders for such signals must learn compact latent representations
+\par One-dimensional temporal signals such as audio waveforms, biosignals, sensor
+streams in some cases, need to be processed an interpreted in low-power 
+embedded systems where energy budget is a primary constraint.
+
+\par Autoencoders for such signals must learn compact latent representations
 efficiently and accurately reconstruct the original sequence.
 
-Long Short-Term Memory (LSTM) autoencoders are a well-established baseline
+\par Long Short-Term Memory (LSTM) autoencoders are a well-established baseline
 for sequence reconstruction \cite{sutskever2014sequence,hochreiter1997long},
 but their dense matrix operations are computationally expensive.
-Spiking Neural Networks (SNNs) communicate via sparse binary events and
+Spiking Neural Networks (SNNs) otherwise communicate via sparse binary events and
 perform synaptic updates only when spikes occur, offering potential energy
 reduction on general-purpose and neuromorphic hardware
 \cite{maass1997networks,pfeiffer2018deep,gerstner2002spiking}.
 
-Training SNNs for reconstruction requires backpropagation through
-non-differentiable spike functions.
-Surrogate gradient methods
-\cite{neftci2019surrogate,zenke2018superspike}
-enable end-to-end gradient-based training and have produced competitive
-SNN classification performance \cite{eshraghian2023training,pfeiffer2018deep}.
-However, a systematic study of SNN autoencoders for temporal signal
-reconstruction — with controlled comparison against LSTM baselines across
+\par Training SNNs for reconstruction requires backpropagation through
+non-differentiable spike functions which perform like step functions. 
+Surrogate gradient methods \cite{neftci2019surrogate,zenke2018superspike} enable end-to-end 
+gradient-based training and have produced competitive SNN classification performance \cite{eshraghian2023training,pfeiffer2018deep}. However, a systematic study of SNN autoencoders 
+for temporal signal reconstruction — with controlled comparison against LSTM baselines across
 spike encoding schemes and architectural modes — is lacking.
 
-This paper addresses this gap with three contributions:
+\par This paper addresses this gap with three contributions:
 \begin{enumerate}
   \item A systematic empirical comparison of SNN-AE and LSTM-AE on FSDD
         \cite{jackson2018fsdd} covering 81 SNN configurations.
@@ -83,23 +87,26 @@ This paper addresses this gap with three contributions:
         pre-processing modes in a full factorial hyperparameter sweep.
   \item A reproducible C++ harness (XTensor backend) reporting
         MSE, MAE, $R^2$, spike rate, energy, timing, params, and MACs.
+  \item An emerging C++ framework for energy-aware spiking representation learning 
+        and neural architecture design with flexible backend.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────
 \section{Related Work}
 
 \subsection{LSTM autoencoders}
-LSTM autoencoders encode variable-length sequences into fixed-size latent
+\par LSTM autoencoders encode variable-length sequences into fixed-size latent
 vectors and reconstruct the original sequence from the latent code
 \cite{sutskever2014sequence,hochreiter1997long}.
-The constant-error carousel in the cell recurrence prevents vanishing
+
+\par The constant-error carousel in the cell recurrence prevents vanishing
 gradients during backpropagation through time (BPTT)
 \cite{werbos1990backpropagation,greff2017lstm}, making LSTMs effective for
 long temporal sequences.
 They serve as the primary comparison target in this work.
 
 \subsection{Spiking neural networks and surrogate gradients}
-SNNs model computation via binary spike events governed by membrane
+\par SNNs model computation via binary spike events governed by membrane
 potential dynamics \cite{gerstner2002spiking,maass1997networks}.
 The Leaky Integrate-and-Fire (LIF) neuron is the most widely deployed model.
 Training with backpropagation requires differentiable surrogates for the
@@ -111,7 +118,7 @@ modelling and representation learning, but systematic reconstruction
 benchmarks remain limited \cite{bellec2020solution,eshraghian2023training}.
 
 \subsection{Spike encoding for temporal signals}
-Continuous signals must be converted to spike trains before SNN processing.
+\par Continuous signals must be converted to spike trains before SNN processing.
 Rate coding (Poisson spike generation proportional to amplitude), latency
 coding (earlier spikes for stronger stimuli), and direct pass-through of
 normalized values represent the three dominant strategies
@@ -123,87 +130,97 @@ reconstruction fidelity \cite{neftci2019surrogate}.
 \section{Methodology}
 
 \subsection{Problem formulation}
-Let $x \in \mathbb{R}^{T}$ denote a temporal signal window of length $T$.
+
+\par Let $x \in \mathbb{R}^{T}$ denote a temporal signal window of length $T$.
 An autoencoder learns encoder $E:\mathbb{R}^T \to \mathbb{R}^d$ and decoder
 $D:\mathbb{R}^d \to \mathbb{R}^T$ minimizing reconstruction loss:
 \begin{equation}
   \mathcal{L} = \|x - D(E(x))\|_2^2.
 \end{equation}
-Both SNN-AE and LSTM-AE use latent dimension $d=32$ and hidden size $H=64$.
+\par Where $x$ is the input window, $E(x)$ is the latent representation, and $D(E(x))$ is the reconstructed output.
 
-% ── NEW: LIF theory ───────────────────────────────────────────
+\par Both SNN-AE and LSTM-AE use latent dimension $d=32$ and hidden size $H=64$.
+
+% ── LIF theory ───────────────────────────────────────────
 \subsection{LIF neuron model}
-The continuous-time Leaky Integrate-and-Fire neuron is described by
+
+\par The continuous-time Leaky Integrate-and-Fire neuron is described by
 \cite{gerstner2002spiking}:
 \begin{equation}
   \tau \frac{dV}{dt} = -(V - V_{\mathrm{rest}}) + I(t), \qquad \tau = RC.
 \end{equation}
-Discretising with time step $\Delta t$ and defining
+\par Where $V$ is the membrane potential, $V_{\mathrm{rest}}$ is the resting potential,$I(t)$ is the input current, $R$ is the membrane resistance, and $C$ is the membrane capacitance. The time constant $\tau$ governs the rate of potential decay.
+
+\par Discretising with time step $\Delta t$ and defining
 $\beta = e^{-\Delta t/(RC)}$ gives the iterative update:
 \begin{equation}
   V[t] = \beta\, V[t-1] + R\,I[t].
   \label{eq:lif}
 \end{equation}
-When the membrane potential reaches the threshold, a spike is emitted and
+
+\par When the membrane potential reaches the threshold, a spike is emitted and
 the membrane is reset:
 \begin{equation}
   s[t] = \mathbf{1}[V[t] \geq V_{th}], \qquad
   V \leftarrow
     \begin{cases} 0 & \text{(hard reset)} \\ V - V_{th} & \text{(soft reset)} \end{cases}.
 \end{equation}
-Resistance $R$, capacitance $C$, and threshold $V_{th}$ are trainable
+
+\par Resistance $R$, capacitance $C$, and threshold $V_{th}$ are trainable
 parameters; $R$ and $C$ are clamped to $10^{-6}$ to prevent numerical
 instability.
-Both hard and soft resets are supported; soft reset preserves supra-threshold
+
+\par Both hard and soft resets are supported; soft reset preserves supra-threshold
 charge for smoother gradients.
 
-% ── NEW: Surrogate gradients ──────────────────────────────────
+% ── Surrogate gradients ──────────────────────────────────
 \subsection{Surrogate gradient training}
 \label{sec:surr}
-The spike function $s = \mathbf{1}[V \geq V_{th}]$ has true gradient zero
-almost everywhere, blocking standard backpropagation
-\cite{neftci2019surrogate}.
-Surrogate gradient methods replace $\partial s / \partial V$ with a smooth
-approximation in the backward pass while preserving the exact Heaviside rule
-in the forward pass \cite{neftci2019surrogate,zenke2021remarkable}.
+
+\par The spike function $s = \mathbf{1}[V \geq V_{th}]$ has true gradient zero almost everywhere, blocking standard backpropagation \cite{neftci2019surrogate}.
+
+\par Surrogate gradient methods replace $\partial s / \partial V$ with a smooth approximation in the backward pass while preserving the exact Heaviside rule in the forward pass \cite{neftci2019surrogate,zenke2021remarkable}.
 
 \textbf{Exponential (SuperSpike~\cite{zenke2018superspike}):}
 \begin{equation}
   \hat{\sigma}'(V) = \frac{1}{\sigma_s}
     \exp\!\left(-\frac{|V - V_{th}|}{\sigma_s}\right).
 \end{equation}
+\par Exponential surrogate gradient.  $\sigma_s$ controls the width of the approximation; $\sigma_s=1$ is used in this work.
+
 \textbf{Boxcar:}
 \begin{equation}
   \hat{\sigma}'(V) = \mathbf{1}\!\left[|V - V_{th}| < \tfrac{w}{2}\right].
 \end{equation}
-We use the exponential surrogate ($\sigma_s=1$).
+\par Boxcar surrogate gradient.  $w$ controls the width of the approximation.
+
+\par We use the exponential surrogate ($\sigma_s=1$).
 BPTT \cite{werbos1990backpropagation} unrolls both LSTM and SNN through the
 full time dimension $T$; the reverse-time recurrence for layer $l$ is:
 \begin{equation}
   \delta_l[t] = \hat{\sigma}'(V[t])\,\delta_{l+1}[t]
               + \beta\,\delta_l[t+1],
 \end{equation}
-where $\beta$ equals $\partial V_{\mathrm{post}}/\partial V_{\mathrm{pre}}$
+\par where $\beta$ equals $\partial V_{\mathrm{post}}/\partial V_{\mathrm{pre}}$
 for the LIF model.
 
 % ── EXPANDED: LSTM ────────────────────────────────────────────
 \subsection{LSTM autoencoder}
 \label{sec:lstm}
-LSTM-AE uses standard gate equations: input, forget, output gates computed
+
+\par LSTM-AE uses standard gate equations: input, forget, output gates computed
 via dense pre-activation, with cell state accumulation $C_t = f_t \odot C_{t-1} + i_t \odot g_t$
 \cite{hochreiter1997long,greff2017lstm}.
 
-The LSTM-AE encoder stacks two LSTM layers ($H=64$); the final hidden state
-$H_T$ is projected to the 32-dimensional latent via $\mathrm{Linear}(H \to d) \to \tanh$.
-The decoder mirrors this: $\mathrm{Linear}(d \to H)$ followed by two stacked LSTM
-layers and an output projection to reconstruct $\mathbb{R}^{256}$.
+\par The LSTM-AE encoder stacks two LSTM layers ($H=64$); the final hidden state $H_T$ is projected to the 32-dimensional latent via $\mathrm{Linear}(H \to d) \to \tanh$.
+The decoder mirrors this: $\mathrm{Linear}(d \to H)$ followed by two stacked LSTM layers and an output projection to reconstruct $\mathbb{R}^{256}$.
 States are reset between samples.
 
 % ── Spike encodings ───────────────────────────────────────────
 \subsection{Spike encodings}
 \label{sec:encodings}
 
-Three strategies convert raw window $x$ into pre-processed $\tilde{x}$:
+\par Three strategies convert raw window $x$ into pre-processed $\tilde{x}$:
 
 \textbf{Direct.} $\tilde{x} = x$.  Normalized values are passed without
 binarization.
@@ -214,6 +231,8 @@ sampling \cite{neftci2019surrogate}:
   \tilde{x}_i \sim \mathrm{Bernoulli}\!\left(\mathrm{clip}\!\left(
     \frac{x_i}{x_{\max}},\;0,\;1\right)\right).
 \end{equation}
+\par Where $x_{\max}$ is the maximum value in the window after z-score normalization, 
+     ensuring the Bernoulli parameter is in $[0,1]$.
 
 \textbf{Latency.} A binary step fires once per element from a time
 inversely proportional to signal strength \cite{thorpe1998rank}:
@@ -222,45 +241,40 @@ inversely proportional to signal strength \cite{thorpe1998rank}:
     \left\lfloor\!\left(1 - \frac{x_i - x_{\min}}{x_{\max}-x_{\min}}
     \right)(T-1)\right\rceil\right].
 \end{equation}
+\par Where $x_{\min}$ and $x_{\max}$ are the minimum and maximum values in the window after z-score normalization, respectively.  Stronger signals fire earlier; weaker signals fire later.
 
 \begin{figure}[!t]
-\centering
-\input{figs/fig2.tex}
-\caption{Three spike encoding schemes.  Direct passes raw values; Poisson
-generates stochastic binary spikes proportional to amplitude; latency fires
-at a time inversely proportional to stimulus strength.}
-\label{fig:encodings}
+  \centering
+  \input{figs/spikeEncodingSchemes.tex}
+  \caption{Three spike encoding schemes. Direct passes raw values; Poisson generates stochastic binary spikes proportional to amplitude; latency fires at a time inversely proportional to stimulus strength.}
+  \label{fig:encodings}
 \end{figure}
 
 % ── SNN pre-processing modes ──────────────────────────────────
 \subsection{SNN pre-processing modes}
 \label{sec:modes}
 
-After spike encoding, a pre-processing transform $\phi$ is applied before
-the SNN autoencoder.  Three modes are evaluated:
-
-\textbf{Dense.} $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
+\par After spike encoding, a pre-processing transform $\phi$ is applied beforeDense. $\phi(\tilde{x}) = \tilde{x}$.  No additional transform.
 
 \textbf{Conv1d.} A fixed 3-tap temporal smoothing filter:
 \begin{equation}
   \phi(\tilde{x})_t = 0.25\,\tilde{x}_{t-1} + 0.5\,\tilde{x}_t
                     + 0.25\,\tilde{x}_{t+1},
 \end{equation}
-with boundary clamping.  Reduces high-frequency spike jitter before
-autoencoder input.
+\par with boundary clamping.  Reduces high-frequency spike jitter beforeautoencoder input.
 
 \textbf{Recurrent.}  A recurrent LIF cell integrates the encoded signal:
 \begin{align}
   v[t] &= \alpha\, v[t-1] + \tilde{x}[t] - s[t-1]\,V_{th},\\
   s[t] &= \mathbf{1}[v[t] \geq V_{th}],
 \end{align}
-where $\alpha$ and $V_{th}$ are sweep parameters.
+\par where $\alpha$ and $V_{th}$ are sweep parameters.
 
 % ── SNN architecture ──────────────────────────────────────────
 \subsection{SNN autoencoder architecture}
 \label{sec:snn-arch}
 
-The SNN autoencoder (Fig.~\ref{fig:arch}) is a two-layer fully connected
+\par The SNN autoencoder (Fig.~\ref{fig:arch}) is a two-layer fully connected
 network:
 \begin{align*}
 \text{Enc:}&\quad
@@ -270,36 +284,26 @@ network:
   \mathrm{Lin}(d{\to}H)\to\mathrm{LeakyInt}\to
   \mathrm{Lin}(H{\to}T)
 \end{align*}
-with $T=256$, $H=64$, $d=32$.
-Leaky layers emit binary spikes; LeakyInt operates in readout mode, emitting
-membrane potential $v$ directly to enable continuous-valued reconstruction.
-The discrete LIF update follows Eq.~(\ref{eq:lif}) with
-$R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters.
-All membrane states are reset between independent samples.
+\par with $T=256$, $H=64$, $d=32$.
+\par Leaky layers emit binary spikes; LeakyInt operates in readout mode, emitting membrane potential $v$ directly to enable continuous-valued reconstruction. The discrete LIF update follows Eq.~(\ref{eq:lif}) with $R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters. All membrane states are reset between independent samples.
 
-The four tested architectures are therefore: (i) LSTM-AE, with a two-layer
-LSTM encoder, a 32-dimensional latent projection, and a mirrored two-layer
-LSTM decoder; (ii) SNN-dense, which applies the SNN autoencoder directly to
-the encoded window; (iii) SNN-conv1d, which uses the same SNN autoencoder but
-precedes it with the fixed 3-tap temporal smoothing filter; and
-(iv) SNN-recurrent, which uses the same SNN autoencoder preceded by the
-recurrent LIF input transform defined above. Thus, dense/conv1d/recurrent differ
-only in the input-side pre-processing block $\phi$, while the encoder/decoder
-stack and latent size remain fixed.
+\par The four tested architectures are therefore: (i) LSTM-AE, with a two-layer LSTM encoder, a 32-dimensional latent projection, and a mirrored two-layer LSTM decoder; (ii) SNN-dense, which applies the SNN autoencoder directly to
+the encoded window; (iii) SNN-conv1d, which uses the same SNN autoencoder but precedes it with the fixed 3-tap temporal smoothing filter; and (iv) SNN-recurrent, which uses the same SNN autoencoder preceded by the recurrent LIF input transform defined above. Thus, dense/conv1d/recurrent differ only in the input-side pre-processing block $\phi$, while the encoder/decoder stack and latent size remain fixed.
 
 \begin{figure}[!t]
-\centering
-\input{figs/fig1.tex}
-\caption{SNN autoencoder architecture.  Input window $x$ is encoded and
-pre-processed by mode $\phi$, then compressed to latent $z \in \mathbb{R}^{32}$
-by the encoder (Linear+Leaky layers).  The decoder (LeakyInt+Linear)
-reconstructs $\hat{x}$.}
-\label{fig:arch}
+  \centering
+  \input{figs/fig1.tex}
+  \caption{SNN autoencoder architecture.  Input window $x$ is encoded and
+  pre-processed by mode $\phi$, then compressed to latent $z \in \mathbb{R}^{32}$
+  by the encoder (Linear+Leaky layers).  The decoder (LeakyInt+Linear)
+  reconstructs $\hat{x}$.}
+  \label{fig:arch}
 \end{figure}
 
 % ── Training ──────────────────────────────────────────────────
 \subsection{Training}
-Both models minimize MSE reconstruction loss via Adam
+
+\par Both models minimize MSE reconstruction loss via Adam
 \cite{kingma2015adam} ($\eta = 10^{-3}$, $\beta_1=0.9$, $\beta_2=0.999$).
 SNN biophysical parameters ($R$, $C$, $V_{th}$) use a scaled learning rate
 $\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane dynamics optimization
@@ -307,25 +311,27 @@ $\eta_{\mathrm{bio}} = 0.1\,\eta$ to stabilize membrane dynamics optimization
 forward pass with gradients zeroed in the clamped region.
 BPTT \cite{werbos1990backpropagation} propagates gradients through the full
 time dimension.
-Early stopping monitors validation MSE with patience $P=5$ epochs and
-minimum delta $10^{-8}$ over a maximum of 30 epochs
-\cite{eshraghian2023training}.
+
+\par Early stopping monitors validation MSE with patience $P=5$ epochs and
+minimum delta $10^{-8}$ over a maximum of 30 epochs \cite{eshraghian2023training}.
 Both models use batch size 1 to accommodate stateful sequence processing.
 
 % ── Energy estimation ─────────────────────────────────────────
 \subsection{Energy estimation}
-Computational energy is estimated from operation counts in relative units
+
+\par Computational energy is estimated from operation counts in relative units
 (no absolute hardware assumption). Let $M$ be the model's estimated MAC
 count and $N$ the number of output values produced per window:
 \begin{align}
-E_{\mathrm{LSTM}} &= 10\,M, \\
-E_{\mathrm{SNN}}  &= r\,N + 10\,M,
+  E_{\mathrm{LSTM}} &= 10\,M, \\
+  E_{\mathrm{SNN}}  &= r\,N + 10\,M,
 \end{align}
-where $r \in [0,1]$ is the SNN spike rate (fraction of output spikes).
-For LSTM-AE $r=0$. The constant $10$ is a fixed
+\par Where $r \in [0,1]$ is the SNN spike rate (fraction of output spikes).
+\par For LSTM-AE $r=0$. The constant $10$ is a fixed
 weighting between MAC operations and spike events; absolute per-operation
 energy is platform-dependent and out of scope.
-In the implementation, $r$ is the mean spike fraction reported by the trainer
+
+\par In the implementation, $r$ is the mean spike fraction reported by the trainer
 for the evaluated run, and $M$ is the estimated forward-pass MAC count for one
 window. The resulting energy values are therefore analytic proxies derived from
 the run logs and model operation counts, not hardware power measurements.
@@ -335,13 +341,13 @@ the run logs and model operation counts, not hardware power measurements.
 \label{sec:setup}
 
 \textbf{Dataset.}
-The Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd} contains
-recordings of spoken digits (0--9) from multiple speakers at 8\,kHz.
+\par The Free Spoken Digit Dataset (FSDD) \cite{jackson2018fsdd} contains
+recordings of spoken digits (0 to 9) from multiple speakers at 8\,kHz.
 Signals are segmented into non-overlapping windows of $T=256$ samples.
 Up to 100 windows are used for training and 30 for validation.
 
 \textbf{Preprocessing.}
-Each window is z-score normalised in place (subtract mean, divide by
+\par Each window is z-score normalised in place (subtract mean, divide by
 standard deviation) before encoding. Encodings that require a $[0,1]$
 range (Poisson, latency) re-normalise the z-scored window to its own
 $(x_{\min}, x_{\max})$ range internally.
@@ -374,7 +380,7 @@ LSTM-AE is evaluated with the same three encodings and 3 repeats.
 \textbf{Evaluation harness.}
 The C++ harness runs on the XTensor backend (CPU-only, CBLAS, SIMD via
 xsimd). All article profiles are executed on this backend;
-Table~\ref{tab:backend} reports per-model inference and training times.
+Table~\ref{tab:backend} reports per-model inference and training times. 
 
 \textbf{Metrics.}
 Per run we report reconstruction quality (MSE, MAE, $R^2$) and efficiency
@@ -394,6 +400,7 @@ the harness.  Table~\ref{tab:profiles} lists the article profiles.
 \begin{table*}[!t]
 \caption{Article experimental profiles loaded from the executed profile JSON files.}
 \centering\small
+\resizebox{\textwidth}{!}{%
 \pgfplotstabletypeset[
   col sep=comma,
   string type,
@@ -410,7 +417,8 @@ the harness.  Table~\ref{tab:profiles} lists the article profiles.
   columns/val_samples/.style={column name=Val windows},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
-]{data/paper_profiles.csv}
+]{data/paper_profiles.csv}%
+}%
 \label{tab:profiles}
 \end{table*}
 
@@ -486,6 +494,7 @@ $\text{train\_ms}$ values.
 \begin{table}[!t]
 \caption{Summary performance by model type (3-seed mean, all encodings averaged).}
 \centering\small
+\resizebox{\columnwidth}{!}{%
 \pgfplotstabletypeset[
   col sep=comma,
   columns={model,mse,mae,r2,spike_rate,energy,infer_ms},
@@ -498,7 +507,8 @@ $\text{train\_ms}$ values.
   columns/infer_ms/.style={column name=Infer\,(ms),fixed,precision=2},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
-]{data/paper_summary_by_model.csv}
+]{data/paper_summary_by_model.csv}%
+}%
 \label{tab:perf}
 \end{table}
 
@@ -522,6 +532,7 @@ $\text{train\_ms}$ values.
 \begin{table}[!t]
 \caption{Efficiency metrics per encoding (3-seed mean).}
 \centering\small
+\resizebox{\columnwidth}{!}{%
 \pgfplotstabletypeset[
   col sep=comma,
   columns={model,encoding,spike_rate,energy,param_count,macs},
@@ -533,7 +544,8 @@ $\text{train\_ms}$ values.
   columns/macs/.style={column name=MACs,fixed,precision=0},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
-]{data/paper_eff_by_encoding.csv}
+]{data/paper_eff_by_encoding.csv}%
+}%
 \label{tab:eff}
 \end{table}
 
@@ -595,7 +607,7 @@ Energy estimates are relative proxies and do not account for hardware specifics.
 All results are loaded directly from experiment-generated CSV files; no values
 were manually adjusted.
 
-\balance
+\IEEEtriggeratref{13}
 % ─────────────────────────────────────────────────────────────
 \section{Conclusion}
 \label{sec:conclusion}

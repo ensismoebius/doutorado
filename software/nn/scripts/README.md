@@ -41,3 +41,24 @@ This publishes:
 - `.github/skills/*` to `~/.config/opencode/skills/*`
 - `.claude/commands/*.md` to `~/.claude/commands/*.md`
 - `.claude/commands/*.md` as skill files to `~/.claude/skills/*/SKILL.md`
+
+Wiki export for Anytype
+=================================
+
+To prepare a clean Markdown import folder for Anytype, run:
+
+```bash
+bash scripts/export_wiki_for_anytype.sh --clean
+```
+
+Default output:
+- `out/anytype/wiki/`
+
+Useful options:
+- `--source <dir>`: use a different wiki source path
+- `--output <dir>`: write export to a custom folder
+- `--include-graphify-out`: include generated graphify pages
+- `--dry-run`: preview what would be copied
+
+After running, import the output folder in Anytype:
+- `Library -> Import -> Markdown & CSV`
