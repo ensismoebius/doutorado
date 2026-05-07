@@ -1,0 +1,3 @@
+model,encoding,spike_rate,energy,param_count,macs
+LSTM-AE,direct,0,0,0,0
+SNN-AE,direct,0,0,0,0

@@ -171,13 +171,17 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         const auto chk_dir = out_dir / "checkpoints";
         std::filesystem::create_directories(chk_dir);
 
-
         std::vector<ResultRow> all_rows;
 
-        // Total outer iterations: datasets × encodings × repeats.
+        // Total individual runs: datasets × encodings × repeats × (1 LSTM + SNN sweep).
+        const int snn_per_combo =
+            static_cast<int>(config.evaluation.snn_architectures.size()) *
+            static_cast<int>(config.evaluation.v_th_values.size()) *
+            static_cast<int>(config.evaluation.alpha_values.size());
         const int total_outer_runs = static_cast<int>(config.evaluation.datasets.size()) *
                                      static_cast<int>(config.evaluation.encodings.size()) *
-                                     config.experiment.repeats;
+                                     config.experiment.repeats *
+                                     (1 + snn_per_combo);
 
         const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
             "all exp. runs", static_cast<float>(total_outer_runs));
@@ -192,9 +196,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
-                    nn::progress::ProgressManager::instance().update_bar(run_bar,
-                        static_cast<float>(completed_runs),
-                        {{"ds", static_cast<float>(config.evaluation.datasets.size())}});
+                    (void)completed_runs; // updated inside each LSTM/SNN block
                     const std::uint32_t run_seed =
                         config.experiment.seed_deterministic
                             ? config.experiment.seed
@@ -209,6 +211,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         if (checkpoint_is_valid(lstm_chk, cfg_hash))
                         {
                             all_rows.push_back(checkpoint_load(lstm_chk));
+                            nn::progress::ProgressManager::instance().update_bar(
+                                run_bar, static_cast<float>(++completed_runs));
                         }
                         else
                         {
@@ -218,13 +222,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
 
                             nn::models::lstm::LSTMAutoencoder lstm_model(lstm_cfg);
 
-                            Adam lstm_opt(config.training.learning_rate);
-                            lstm_opt.attach(lstm_model.params());
-
-                            TrainResult train_result = train_with_early_stopping_lstm(     //
-                                lstm_model,                                          //
-                                lstm_opt,                                            //
-                                config,                                              //
+                            TrainResult train_result = train_with_early_stopping_lstm( //
+                                lstm_model,                                            //
+                                config,                                                //
                                 split.train_samples,                                 //
                                 split.val_samples,                                   //
                                 encoding,                                            //
@@ -288,6 +288,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 } //
                             );
                             checkpoint_save(lstm_chk, all_rows.back(), train_result.history, cfg_hash);
+                            nn::progress::ProgressManager::instance().update_bar(
+                                run_bar, static_cast<float>(++completed_runs));
                         }
                     }
 
@@ -306,6 +308,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 if (checkpoint_is_valid(snn_chk, cfg_hash))
                                 {
                                     all_rows.push_back(checkpoint_load(snn_chk));
+                                    nn::progress::ProgressManager::instance().update_bar(
+                                        run_bar, static_cast<float>(++completed_runs));
                                 }
                                 else
                                 {
@@ -329,15 +333,11 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         "|" + std::to_string(voltage_threshold) + "|" +
                                         std::to_string(alpha);
 
-                                    Adam snn_optimizer(config.training.learning_rate);
-
                                     ProtocolSpikingAutoencoder snn_model(snn_config);
-                                    snn_optimizer.attach(snn_model.params());
 
-                                    TrainResult train_result = train_with_early_stopping_snn(      //
-                                        snn_model,                                           //
-                                        snn_optimizer,                                       //
-                                        config,                                              //
+                                    TrainResult train_result = train_with_early_stopping_snn( //
+                                        snn_model,                                            //
+                                        config,                                               //
                                         split.train_samples,                                 //
                                         split.val_samples,                                   //
                                         split.val_labels,                                    //
@@ -419,13 +419,12 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         } //
                                     );
                                     checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+                                    nn::progress::ProgressManager::instance().update_bar(
+                                        run_bar, static_cast<float>(++completed_runs));
                                 }
                             }
                         }
                     }
-
-                    nn::progress::ProgressManager::instance().update_bar(
-                        run_bar, static_cast<float>(++completed_runs));
                 }
             }
         }

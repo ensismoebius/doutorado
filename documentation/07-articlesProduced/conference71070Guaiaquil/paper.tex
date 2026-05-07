@@ -34,8 +34,8 @@ and LSTM autoencoders (LSTM-AE) on the Free Spoken Digit Dataset (FSDD)
 Poisson, latency) and three SNN pre-processing modes (dense, conv1d, recurrent)
 across a full factorial hyperparameter sweep ($V_{th} \in \{0.5, 1.0, 1.5\}$;
 $\alpha \in \{0.8, 0.9, 0.99\}$; 3 random seeds).
-Metrics include MSE, MAE, $R^2$, F1, spike rate, estimated energy, timing,
-parameters, and MACs.
+Metrics include MSE, MAE, $R^2$, spike rate, estimated energy, timing,
+parameter count, and estimated MACs.
 We find that SNN-AE achieves competitive reconstruction quality with
 significantly lower estimated computational cost.
 A reproducible C++ evaluation harness enables principled design choices for
@@ -81,7 +81,7 @@ This paper addresses this gap with three contributions:
   \item Evaluation of three spike encoding schemes crossed with three SNN
         pre-processing modes in a full factorial hyperparameter sweep.
   \item A reproducible C++ harness (XTensor and OpenCL backends) reporting
-        MSE, MAE, $R^2$, F1, spike rate, energy, timing, params, and MACs.
+        MSE, MAE, $R^2$, spike rate, energy, timing, params, and MACs.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────
@@ -303,11 +303,17 @@ Both models use batch size 1 to accommodate stateful sequence processing.
 
 % ── Energy estimation ─────────────────────────────────────────
 \subsection{Energy estimation}
-Computational energy is estimated from operation counts.
-SNN energy is proportional to spike rate $r$ and MAC count $M$; LSTM
-energy depends on $M$ alone. All estimates use relative units (no absolute
-hardware assumptions). Hardware energy per operation varies by platform
-and will be measured in future work.
+Computational energy is estimated from operation counts in relative units
+(no absolute hardware assumption). Let $M$ be the model's estimated MAC
+count and $N$ the number of output values produced per window:
+\begin{align}
+E_{\mathrm{LSTM}} &= 10\,M, \\
+E_{\mathrm{SNN}}  &= r\,N + 10\,M,
+\end{align}
+where $r \in [0,1]$ is the SNN spike rate (fraction of output spikes).
+For LSTM-AE $r=0$. The constant $10$ is a fixed
+weighting between MAC operations and spike events; absolute per-operation
+energy is platform-dependent and out of scope.
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
@@ -320,8 +326,10 @@ Signals are segmented into non-overlapping windows of $T=256$ samples.
 Up to 100 windows are used for training and 30 for validation.
 
 \textbf{Preprocessing.}
-Raw waveform values are used with per-sample statistics ($x_{\min}$,
-$x_{\max}$) computed at encoding time.  No additional filtering is applied.
+Each window is z-score normalised in place (subtract mean, divide by
+standard deviation) before encoding. Encodings that require a $[0,1]$
+range (Poisson, latency) re-normalise the z-scored window to its own
+$(x_{\min}, x_{\max})$ range internally.
 
 \textbf{Windowing.}
 Fig.~\ref{fig:windowing} illustrates the segmentation process.
@@ -355,9 +363,11 @@ The main article profiles are run on the XTensor backend, and a dedicated
 backend benchmark profile is used to compare XTensor and OpenCL timing.
 
 \textbf{Metrics.}
-Per run: MSE, MAE, $R^2$, precision, recall, F1 (residual threshold
-$\delta=0.25$), spike rate, estimated energy, training time (ms), inference
-time (ms), parameter count, and estimated MACs.
+Per run we report reconstruction quality (MSE, MAE, $R^2$) and efficiency
+(spike rate, estimated energy, training time in ms, inference time in ms,
+parameter count, and estimated MAC count). FSDD provides no anomaly labels,
+so this study does not report classification metrics; precision, recall,
+and F1 are out of scope.
 
 \textbf{Profiles.}
 Each experimental variant is defined by a JSON profile file that configures
@@ -462,13 +472,12 @@ LSTM training is slower per epoch due to sequential hidden-state computation.
 \centering\small
 \pgfplotstabletypeset[
   col sep=comma,
-  columns={model,encoding,mse,mae,r2,f1},
+  columns={model,encoding,mse,mae,r2},
   columns/model/.style={string type,column name=Model},
   columns/encoding/.style={string type,column name=Encoding},
   columns/mse/.style={column name=MSE,fixed,precision=4},
   columns/mae/.style={column name=MAE,fixed,precision=4},
   columns/r2/.style={column name=$R^2$,fixed,precision=4},
-  columns/f1/.style={column name=F1,fixed,precision=4},
   every head row/.style={before row=\toprule,after row=\midrule},
   every last row/.style={after row=\bottomrule}
 ]{data/paper_recon_by_encoding.csv}

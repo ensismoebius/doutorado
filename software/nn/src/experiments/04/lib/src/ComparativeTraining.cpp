@@ -85,14 +85,17 @@ auto extract_latent_size(const std::vector<std::string>& encoder_specs,
 auto make_lstm_cfg(const ComparativeConfig& cfg) -> nn::models::lstm::LSTMAutoencoderConfig
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
+    const int derived_hidden = sizes.empty()
+        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
+        : sizes.front();
+    const int derived_latent =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+
     nn::models::lstm::LSTMAutoencoderConfig arch;
     arch.input_size = 1;
     arch.seq_len = cfg.dataset.window_size;
-    arch.hidden_size = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
-                                           cfg.model.decoder_layer_spec)
-                                     : sizes.front();
-    arch.latent_size =
-        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+    arch.hidden_size = (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    arch.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     arch.num_layers = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
     return arch;
 }
@@ -101,17 +104,18 @@ auto make_snn_cfg(const ComparativeConfig& cfg, float alpha, float v_th) -> Auto
 {
     const auto sizes = extract_layer_sizes(cfg.model.encoder_layer_spec);
     const int effective_l = static_cast<int>(std::max<std::size_t>(1, sizes.size()));
-    const int hidden_sz = sizes.empty() ? extract_latent_size(cfg.model.encoder_layer_spec,
-                                              cfg.model.decoder_layer_spec)
-                                        : sizes.front();
+    const int derived_hidden = sizes.empty()
+        ? extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec)
+        : sizes.front();
+    const int derived_latent =
+        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
 
     AutoencoderConfig model_cfg;
-    model_cfg.loss_type = "mse";
+    model_cfg.loss_type = cfg.model.loss_type.empty() ? "mse" : cfg.model.loss_type;
     // After flatten_time_series, input is {1, window_size*1} — SNN sees window_size features.
     model_cfg.input_features = cfg.dataset.window_size;
-    model_cfg.hidden_size = hidden_sz;
-    model_cfg.latent_size =
-        extract_latent_size(cfg.model.encoder_layer_spec, cfg.model.decoder_layer_spec);
+    model_cfg.hidden_size = (cfg.model.lstm_hidden_size > 0) ? cfg.model.lstm_hidden_size : derived_hidden;
+    model_cfg.latent_size = (cfg.model.latent_dim > 0) ? cfg.model.latent_dim : derived_latent;
     model_cfg.depth = effective_l;
     model_cfg.layer_sizes = sizes;
     model_cfg.branch_hidden_size = cfg.model.branch_hidden_size;
@@ -148,7 +152,13 @@ static auto make_trainer_config(const ComparativeConfig& cfg, float snn_lr_scale
     tcfg.epochs = cfg.training.epochs;
     tcfg.batch_size = std::max(1, cfg.training.samples_per_batch);
     tcfg.learning_rate = cfg.training.learning_rate;
-    tcfg.snn_lr_scale = snn_lr_scale;
+    tcfg.adam_beta1 = cfg.training.beta1;
+    tcfg.adam_beta2 = cfg.training.beta2;
+    tcfg.adam_epsilon = cfg.training.epsilon;
+    // If explicit biophysical lr set in profile, derive scale from it.
+    tcfg.snn_lr_scale = (cfg.training.learning_rate_biophysical > 0.0f)
+        ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
+        : snn_lr_scale;
     return tcfg;
 }
 
@@ -157,7 +167,6 @@ static auto make_trainer_config(const ComparativeConfig& cfg, float snn_lr_scale
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    Adam& /*optimizer*/, // Trainer owns its optimizer; kept in signature for compatibility
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
@@ -255,7 +264,6 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 // ---------------------------------------------------------------------------
 
 auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
-    Adam& /*optimizer*/,
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,

@@ -28,7 +28,6 @@ struct TrainResult
 };
 
 auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
-    Adam& optimizer,
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,
@@ -40,7 +39,6 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
     float& infer_ms) -> TrainResult;
 
 auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
-    Adam& optimizer,
     const ComparativeConfig& cfg,
     const std::vector<Tensor>& train_samples,
     const std::vector<Tensor>& val_samples,

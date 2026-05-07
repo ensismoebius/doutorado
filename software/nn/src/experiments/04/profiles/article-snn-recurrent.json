@@ -1,23 +1,21 @@
 {
     "_profile_name": "article-snn-recurrent",
-    "_network_type": "SNN autoencoder (recurrent/LSNN pre-processor with spiking neurons)",
-    "_architecture_summary": "Encoder: input\u2192LSNN(64)\u2192Linear(32)\u2192latent z. Decoder: z\u2192Linear(64)\u2192LSNN(64)\u2192Linear(output)\u2192reconstruct. LSNN: Leaky with adaptive threshold a[t]. Surrogate: exponential.",
-    "_loss_function": "Spike-time loss (first spike latency decoding) + spike regularization",
-    "_preprocessing": "Window 256 (1s@256Hz), encodings: direct, Poisson, latency. v_th sweep [0.5,1.0,1.5], \u03b1 decay sweep [0.8,0.9,0.99].",
-    "_total_runs_breakdown": "81 total = 3 encodings \u00d7 3 v_th \u00d7 3 \u03b1 \u00d7 3 repeats (seeds 42,43,44). Full hyperparameter sweep for recurrent LSNN architecture.",
-    "_dataset_config": "100 train, 30 val (FSDD). 30 epochs max, early stop patience 5, lr 0.001 (weights), 0.0001 (SNN params), batch size 1.",
-    "_expected_outputs": "results/article_snn_recurrent_*_summary.json, results/article_snn_recurrent_*_weights.npz (save_models=true), .../data/article_snn_recurrent_summary.dat, .../data/article_snn_recurrent_sweep.dat",
-    "_comment": "SNN-AE recurrent: 81 runs (3 enc \u00d7 3 v_th \u00d7 3 \u03b1 \u00d7 3 repeats). SNN+LSNN+Leaky+adaptive+spike-time. 100/30 data. Est. ~45 min.",
+    "_network_type": "SNN autoencoder, recurrent LIF input transform",
+    "_architecture_summary": "Same network as article-snn-dense (Linear+Leaky x2 encoder, Linear+Leaky -> Linear+LeakyIntegrator decoder). Mode 'recurrent' applies a stand-alone LIF integration to the encoded input BEFORE the SNN: v[t] = alpha v[t-1] + x[t] - s[t-1] V_th, s[t] = 1[v[t] >= V_th]. Not a learned LSNN layer; no adaptive threshold.",
+    "_loss_function": "MSE reconstruction loss",
+    "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score per window. Encoding then LIF integration (mode='recurrent') with the swept (V_th, alpha).",
+    "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats.",
+    "_dataset_config": "100 train, 30 val from FSDD (shuffled split). 30 epochs max, early stop patience 5, lr 0.001 (weights), 0.0001 (R,C,V_th), batch size 1.",
+    "_expected_outputs": "results/article_snn_recurrent_*.csv; .../data/article_snn_recurrent_summary.dat, _sweep.dat.",
+    "_comment": "SNN-AE with stand-alone LIF input transform. 81 runs. ~45 min.",
     "experiment": {
-        "_comment": "Experiment control: seed, repeats, determinism settings",
         "run_tag": "article_snn_recurrent",
         "seed": 42,
         "repeats": 3,
-        "seed_deterministic": true,
+        "seed_deterministic": false,
         "check_determinism": false
     },
     "dataset": {
-        "_comment": "Dataset config: paths, window size, train/val sample counts, output directories",
         "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
         "results_dir": "results",
         "window_size": 256,
@@ -27,7 +25,6 @@
         "save_models": true
     },
     "training": {
-        "_comment": "Training hyperparams: optimizer, learning rates, loss, epochs, early stopping",
         "samples_per_batch": 1,
         "batches_per_epoch": 0,
         "epochs": 30,
@@ -35,48 +32,24 @@
         "learning_rate": 0.001,
         "learning_rate_biophysical": 0.0001,
         "max_reconstruct_mean_deviation": 0.25,
-        "loss": "spike_time_loss",
-        "loss_reduction": "mean",
-        "optimizer": "adam",
-        "adam_beta1": 0.9,
-        "adam_beta2": 0.999,
-        "adam_epsilon": 1e-08,
-        "snn_param_scaling": "attach_with_scales(0.1)",
-        "surrogate_gradient_scale": 1.0,
-        "adaptive_threshold_enabled": true
+        "beta1": 0.9,
+        "beta2": 0.999,
+        "epsilon": 1e-8
     },
     "model": {
-        "_comment": "Model architecture: SNN with recurrent LSNN, layers, surrogates, adaptive threshold, biophysical params",
-        "model_type": "snn_autoencoder_recurrent_lsnn",
-        "loss_function": "spike_time_loss",
-        "loss_reduction": "mean",
-        "spike_regularization": true,
-        "spike_regularization_weight": 0.01,
+        "loss_function": "mse",
         "latent_dim": 32,
+        "lstm_hidden_size": 64,
         "encoder_layer_spec": [
-            "recurrent:lsnn:64",
-            "linear:32"
+            "linear:64:leaky",
+            "linear:32:identity"
         ],
         "decoder_layer_spec": [
-            "linear:64",
-            "recurrent:lsnn:64",
-            "linear:output"
-        ],
-        "surrogate_gradient_function": "exponential",
-        "surrogate_gradient_width": 1.0,
-        "membrane_decay_beta": "learnable (clamped 1e-6 to 1.0)",
-        "threshold_v_th": "learnable (swept in evaluation)",
-        "threshold_adaptation": true,
-        "adaptation_param_a": "learnable (decay d * a[t-1] + coupling c * s[t-1])",
-        "reset_mechanism": "hard_reset (V\u21920)",
-        "biophysical_params_learnable": true,
-        "biophysical_params_lr_scale": 0.1,
-        "encoder_description": "Input \u2192 LSNN(64 neurons, exponential surrogate, adaptive threshold) \u2192 Linear(32) \u2192 latent z",
-        "decoder_description": "Latent z \u2192 Linear(64) \u2192 LSNN(64 neurons, exponential surrogate, adaptive threshold) \u2192 Linear(output) \u2192 reconstructed spikes",
-        "training_algorithm": "BPTT with surrogate gradients, adaptive threshold, biophysical params 10x smaller lr"
+            "linear:64:leaky",
+            "linear:output:identity"
+        ]
     },
     "evaluation": {
-        "_comment": "Evaluation config: encodings, SNN architecture (recurrent LSNN), v_th and alpha sweeps",
         "datasets": [
             "fsdd"
         ],

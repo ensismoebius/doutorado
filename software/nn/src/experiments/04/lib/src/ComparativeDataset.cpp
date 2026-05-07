@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <random>
 #include <stdexcept>
 
 #include "nn/utility/SignalPreprocessing.hpp"
@@ -119,6 +120,11 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
         throw std::runtime_error("No windows created for dataset token: " + dataset);
     }
 
+    {
+        std::mt19937 rng(cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u);
+        std::shuffle(all_samples.begin(), all_samples.end(), rng);
+    }
+
     const std::size_t max_total =
         static_cast<std::size_t>(cfg.dataset.max_loaded_train_samples + cfg.dataset.max_validation_samples);
     if (all_samples.size() > max_total)
@@ -126,23 +132,13 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
         all_samples.resize(max_total);
     }
 
-    const std::size_t val_count = std::min<std::size_t>(cfg.dataset.max_validation_samples, all_samples.size() / 5);
+    const std::size_t val_count =
+        std::min<std::size_t>(cfg.dataset.max_validation_samples, all_samples.size());
     const std::size_t train_count = all_samples.size() - val_count;
 
     split.train_samples.assign(all_samples.begin(), all_samples.begin() + static_cast<long>(train_count));
     split.val_samples.assign(all_samples.begin() + static_cast<long>(train_count), all_samples.end());
     split.val_labels.assign(split.val_samples.size(), 0);
-
-    for (std::size_t i = 0; i < split.val_samples.size(); ++i)
-    {
-        if (i % 10 != 0) continue;
-        split.val_labels[i] = 1;
-        Tensor& sample = split.val_samples[i];
-        for (nn::Index t = 0; t < sample.size(); ++t)
-        {
-            sample.at(t) += 1.5f;
-        }
-    }
 
     return split;
 }

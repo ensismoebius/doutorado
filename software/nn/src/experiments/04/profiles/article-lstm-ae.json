@@ -1,23 +1,21 @@
 {
     "_profile_name": "article-lstm-ae",
     "_network_type": "LSTM autoencoder (seq2seq encoder-decoder)",
-    "_architecture_summary": "Encoder: input→Linear(64,leaky)→Linear(32,identity)→tanh→latent z. Decoder: z→Linear(64,leaky)→Linear(output,identity)→reconstruct. BPTT with stateful LSTM cells.",
-    "_loss_function": "MSE (mean squared error) on reconstructed audio time-series",
-    "_preprocessing": "Window 256 (1s@256Hz), encodings: direct (passthrough), Poisson (spike rate), latency (time-to-first-spike). Normalized per-window [0,1].",
-    "_total_runs_breakdown": "9 total = 3 encodings × 3 repeats (seeds: 42,43,44). Single pass per encoding, no hyperparameter sweep.",
-    "_dataset_config": "100 train, 30 val (FSDD). 30 epochs max, early stop patience 5, lr 0.001, batch size 1.",
-    "_expected_outputs": "results/article_lstm_ae_*_summary.json, results/article_lstm_ae_*_weights.npz (save_models=true), .../data/article_lstm_ae_summary.dat",
-    "_comment": "LSTM-AE baseline: 9 runs (3 encodings × 3 repeats). Reproduces with LSTM+BPTT+MSE. 100/30 data. Est. ~10 min.",
+    "_architecture_summary": "Encoder: 2 stacked LSTM layers (H=64) over input (T=256, D=1) -> last hidden state -> Linear(64->32) -> tanh -> latent z. Decoder: Linear(32->64) -> repeat T times -> 2 stacked LSTM layers (H=64) -> Linear(64->1) per step -> reconstruction. num_layers derived from count of 'linear:*' entries in encoder_layer_spec.",
+    "_loss_function": "MSE reconstruction loss",
+    "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score normalisation per window. Encodings swept: direct, Poisson, latency.",
+    "_total_runs_breakdown": "9 = 3 encodings x 3 repeats (seeds 42, 43, 44).",
+    "_dataset_config": "100 train, 30 val from FSDD pool (shuffled and split). 30 epochs max, early stop patience 5, lr 0.001, batch size 1.",
+    "_expected_outputs": "results/article_lstm_ae_*.csv; .../data/article_lstm_ae_summary.dat for paper figures.",
+    "_comment": "LSTM-AE baseline. 9 runs. ~10 min.",
     "experiment": {
-        "_comment": "Experiment control: seed, repeats, determinism settings",
         "run_tag": "article_lstm_ae",
         "seed": 42,
         "repeats": 3,
-        "seed_deterministic": true,
+        "seed_deterministic": false,
         "check_determinism": false
     },
     "dataset": {
-        "_comment": "Dataset config: paths, window size, train/val sample counts, output directories",
         "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
         "results_dir": "results",
         "window_size": 256,
@@ -27,23 +25,17 @@
         "save_models": true
     },
     "training": {
-        "_comment": "Training hyperparams: optimizer, learning rate, loss, epochs, early stopping",
         "samples_per_batch": 1,
         "batches_per_epoch": 0,
         "epochs": 30,
         "early_stop_patience": 5,
         "learning_rate": 0.001,
         "max_reconstruct_mean_deviation": 0.25,
-        "loss": "mse",
-        "loss_reduction": "mean",
-        "optimizer": "adam",
         "beta1": 0.9,
         "beta2": 0.999,
         "epsilon": 1e-8
     },
     "model": {
-        "_comment": "Model architecture: network type, layers, latent dim, loss function",
-        "model_type": "lstm_autoencoder",
         "loss_function": "mse",
         "latent_dim": 32,
         "lstm_hidden_size": 64,
@@ -56,14 +48,9 @@
             "linear:64:leaky",
             "lstm:64",
             "linear:output:identity"
-        ],
-        "encoder_description": "Input → LSTM(hidden=64) → Linear(64,leaky) → Linear(32,tanh projection) → latent z",
-        "decoder_description": "Latent z → Linear(64,leaky) → LSTM(hidden=64) → Linear(output_dim,identity) → reconstruct",
-        "training_algorithm": "BPTT (Backpropagation Through Time) with stateful LSTM cells",
-        "forget_bias_init": 1.0
+        ]
     },
     "evaluation": {
-        "_comment": "Evaluation config: datasets, encodings, hyperparameter sweeps",
         "datasets": [
             "fsdd"
         ],
@@ -71,6 +58,9 @@
             "direct",
             "poisson",
             "latency"
-        ]
+        ],
+        "snn_architectures": [],
+        "v_th_values": [],
+        "alpha_values": []
     }
 }
