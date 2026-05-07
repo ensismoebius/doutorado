@@ -1,0 +1,2 @@
+run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples,backend
+article_snn_recurrent,42,3,"fsdd","direct;poisson;latency","recurrent","0.5;1;1.5","0.8;0.9;0.99",256,100,30,xtensor

@@ -1,0 +1,8 @@
+# model=lstm-ae encoding=poisson architecture= v_th=0 alpha=0 run=3
+epoch train_loss val_loss
+1 0.145281 0.113524
+2 0.140458 0.116775
+3 0.140200 0.113541
+4 0.139098 0.115571
+5 0.145383 0.116081
+6 0.144138 0.116562

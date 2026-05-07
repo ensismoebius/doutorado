@@ -1,0 +1,9 @@
+# model=lstm-ae encoding=latency architecture= v_th=0 alpha=0 run=1
+epoch train_loss val_loss
+1 0.300120 0.235812
+2 0.241163 0.231175
+3 0.235963 0.232677
+4 0.236097 0.232868
+5 0.235814 0.233715
+6 0.236111 0.231667
+7 0.236008 0.234838

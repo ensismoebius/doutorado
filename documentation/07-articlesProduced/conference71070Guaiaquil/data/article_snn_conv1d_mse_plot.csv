@@ -1,0 +1,4 @@
+encoding,lstm_ae,snn_dense,snn_conv1d,snn_recurrent
+direct,0.996841,0.000000,0.805189,0.000000
+poisson,0.118532,0.000000,0.069742,0.000000
+latency,0.241491,0.000000,0.103243,0.000000

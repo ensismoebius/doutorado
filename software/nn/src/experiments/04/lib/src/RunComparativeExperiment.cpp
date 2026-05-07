@@ -184,7 +184,9 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                      (1 + snn_per_combo);
 
         const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
-            "all exp. runs", static_cast<float>(total_outer_runs));
+            "Profile: " + config.experiment.run_tag, static_cast<float>(total_outer_runs));
+        nn::progress::ProgressManager::instance().set_description(
+            run_bar, "SNN vs LSTM comparative experiment");
 
         int completed_runs = 0;
 
@@ -430,6 +432,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         }
 
         nn::progress::ProgressManager::instance().complete_bar(run_bar);
+        nn::progress::ProgressManager::instance().shutdown();
 
         if (config.experiment.repeats > 1 && config.experiment.check_determinism)
         {

@@ -1,0 +1,9 @@
+# model=snn-ae encoding=poisson architecture=recurrent v_th=1.5 alpha=0.8 run=2
+epoch train_loss val_loss
+1 0.081567 0.052102
+2 0.080101 0.047120
+3 0.073562 0.049552
+4 0.076843 0.049391
+5 0.072288 0.049223
+6 0.075555 0.049093
+7 0.070239 0.050122

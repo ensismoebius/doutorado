@@ -1,2 +1,6 @@
-run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples,backend
-article-backend-bench,42,1,fsdd,direct,dense,1,0.9,256,50,20,xtensor
+profile,run_tag,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples
+article-backend-bench.json,article-backend-bench,1,fsdd,direct,dense,1.0,0.9,256,50,20
+article-lstm-ae.json,article-lstm-ae,3,fsdd,direct/poisson/latency,,,,256,100,30
+article-snn-conv1d.json,article-snn-conv1d,3,fsdd,direct/poisson/latency,conv1d,0.5/1.0/1.5,0.8/0.9/0.99,256,100,30
+article-snn-dense.json,article-snn-dense,3,fsdd,direct/poisson/latency,dense,0.5/1.0/1.5,0.8/0.9/0.99,256,100,30
+article-snn-recurrent.json,article-snn-recurrent,3,fsdd,direct/poisson/latency,recurrent,0.5/1.0/1.5,0.8/0.9/0.99,256,100,30

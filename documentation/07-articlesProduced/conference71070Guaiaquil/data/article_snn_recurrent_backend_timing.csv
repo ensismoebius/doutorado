@@ -1,0 +1,3 @@
+backend,model,train_ms,infer_ms
+xtensor,LSTM-AE,440245.284722,1780.518134
+xtensor,SNN-recurrent,14293.486244,226.172263

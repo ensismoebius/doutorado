@@ -90,6 +90,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `experiment04_lib` | Experiment 04 library only |
 | `experiment_02` | Experiment 02 binary |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
+| `profile_audit_gtest` | 25 tests verifying all 5 article profiles parse + validate |
 | `nn_progress` | Progress bar library |
 | `analysis-cppcheck` | cppcheck static analysis |
 | `analysis-clang-tidy` | clang-tidy static analysis |
@@ -171,6 +172,8 @@ Gradient shape always matches forward input shape.
 4. **SNN lr**: biophysical params (R, C, V_th) need ~10× smaller lr than weights. Use `Adam::attach_with_scales()`. `TrainerConfig::snn_lr_scale = 0.1` documents the intent.
 5. **β = exp(−Δt/(R·C))** clamped: R and C are clamped to `1e-6` in forward and grad is zeroed in clamped region. Never let optimizer drive them negative.
 6. **readout_mode**: `LeakyBPTTImpl` with `readout_mode=true` emits `v_mem` directly — no spike/reset. Backward is purely continuous. Don't mix with spike losses.
+7. **Experiment04 SNN architecture modes are INPUT TRANSFORMS, not network architecture changes.** `dense`/`conv1d`/`recurrent` in the profile `snn_architectures` list select how the raw signal is pre-processed before entering the shared autoencoder network. All three modes use the same `linear:64:leaky / linear:32:identity` network. `conv1d` = 3-tap smoothing `{0.25, 0.5, 0.25}`; `recurrent` = stand-alone LIF transform on input; `dense` = pass-through.
+8. **Experiment04 SNN builder only parses `linear:width[:activation]`.** Entries like `conv1d:64:kernel=3`, `pool1d:4`, `residual` in `encoder_layer_spec`/`decoder_layer_spec` cause `parse_layer_module_spec` to throw at startup. Only `linear` entries are instantiated into the SNN network.
 
 ---
 
@@ -286,3 +289,48 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Wiki | `.wiki/` |
 | Graphify output | `.wiki/graphify-out/` |
 | CMake presets | `CMakePresets.json` |
+| Exp04 dataset loading | `src/experiments/04/lib/src/ComparativeDataset.cpp` |
+| Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
+| Exp04 training loop | `src/experiments/04/lib/src/ComparativeTraining.cpp` |
+| Exp04 output / CSV / DAT writers | `src/experiments/04/lib/src/ComparativeOutput.cpp` |
+| Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
+| Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/AutoencoderBuilders.hpp` |
+| Exp04 profile audit tests | `src/experiments/04/tests/profile_audit_gtest.cpp` |
+| Paper CSV aggregator | `scripts/build_paper_data.py` |
+| Article run script | `scripts/run_article_profiles.sh` |
+
+---
+
+## Experiment04 paper pipeline
+
+Full chain from profiles to compiled PDF:
+
+```bash
+# 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
+cd software/nn
+./scripts/run_article_profiles.sh
+# writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
+# writes .../conference71070Guaiaquil/data/article_*_*.dat  (pgfplots DAT files)
+
+# 2. Aggregate into paper_*.csv (called automatically by run_article_profiles.sh)
+python3 scripts/build_paper_data.py \
+  --results-dir results \
+  --data-dir .../conference71070Guaiaquil/data \
+  --profiles-dir src/experiments/04/profiles
+
+# 3. Compile paper
+cd documentation/07-articlesProduced/conference71070Guaiaquil
+pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
+```
+
+**Column mapping** (`build_paper_data.py` reads `comparative_metrics.csv`):
+- `model == "lstm-ae"` → label `LSTM-AE`
+- `model == "snn-ae"` + `architecture == "dense/conv1d/recurrent"` → label `SNN-{arch}`
+
+**Profile guard**: `profile_audit_gtest` (25 tests × 5 profiles) verifies every profile
+parses, validates, has `loss=mse`, `seed_deterministic=false`, and consistent sweep arrays.
+Run after any profile edit:
+```bash
+cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
+```

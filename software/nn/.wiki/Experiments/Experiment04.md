@@ -36,38 +36,36 @@ Forcing a small latent dimensionality prevents the model from simply copying the
 
 ### Comparative Configuration
 
-```cpp
-// File: src/experiments/04/lib/include/ComparativeConfig.hpp
-struct ComparativeConfig
+Config is loaded from a JSON profile. Top-level sections:
+
+```jsonc
 {
-    std::string dataset_root = "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset";
-    std::string results_dir = "results";
-    std::string run_tag = "snn_lstm_compare";
-
-    std::uint32_t seed = 42;
-    int repeats = 3;
-
-    int window_size = 256;
-    int batch_size = 100;
-    int max_loaded_train_samples = 500;
-    int max_validation_samples = 100;
-};
+  "experiment": { "run_tag", "seed", "repeats", "seed_deterministic", "check_determinism" },
+  "dataset":    { "dataset_root", "results_dir", "window_size",
+                  "max_loaded_train_samples", "max_validation_samples",
+                  "latex_data_dir", "save_models" },
+  "training":   { "epochs", "early_stop_patience", "learning_rate",
+                  "samples_per_batch", "batches_per_epoch",
+                  "beta1", "beta2", "epsilon", "max_reconstruct_mean_deviation" },
+  "model":      { "loss_function", "latent_dim", "lstm_hidden_size",
+                  "encoder_layer_spec", "decoder_layer_spec" },
+  "evaluation": { "datasets", "encodings", "snn_architectures",
+                  "v_th_values", "alpha_values" }
+}
 ```
+
+Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
+
+Parsed by: `src/experiments/04/lib/include/ComparativeConfig.hpp` (`from_nested_json`).
 
 ### Data Loading Limits
 
-To prevent excessive memory usage and keep execution times predictable during large grid searches, the experiment implements a two-tier capping system for the dataset:
+Samples are loaded from FSDD WAV files, windowed into non-overlapping `window_size`-sample frames, **shuffled** (seeded by `experiment.seed`), then split:
 
-1. **Global Hard Cap**: The total number of signal windows loaded into RAM is capped at:
-   $$\text{Total Loaded} = \text{max\_loaded\_train\_samples} + \text{max\_validation\_samples}$$
+$$\text{Val Count} = \min(\text{max\_validation\_samples},\ \text{Total Loaded})$$
+$$\text{Train Count} = \text{Total Loaded} - \text{Val Count}$$
 
-2. **Validation Set Ceiling**: The actual size of the validation set is determined by whichever is smaller: 20% of the loaded data or the `max_validation_samples` limit:
-   $$\text{Val Count} = \min(\text{max\_validation\_samples}, \frac{\text{Total Loaded}}{5})$$
-
-3. **Training Set Allocation**: The remaining samples are assigned to training:
-   $$\text{Train Count} = \text{Total Loaded} - \text{Val Count}$$
-
-This ensures that validation times remain constant across different profiles while preserving a reasonable training-to-validation ratio for smaller datasets.
+The shuffle happens before the split, so the validation set is a random draw from all loaded windows — not just the last 20%.  The profile fields `max_loaded_train_samples` and `max_validation_samples` are **hard limits**, not ratios.
 
 ### Training Stability and Reproducibility
 
@@ -79,14 +77,19 @@ Because neural network performance can vary based on random weight initializatio
 
 ### Profile Configurations
 
-The experiment uses JSON profiles in `src/experiments/04/profiles/`:
+Article profiles live in `src/experiments/04/profiles/`:
 
-| Profile | Description | Key Parameters |
-|---------|-------------|---------------|
-| `lstm-default.json` | Default LSTM/SNN comparison | window=256, batch=100, epochs=100 |
-| `lstm-compare.json` | Comprehensive grid search | 3 repeats, all encodings, layers, thresholds |
-| `lstm-deep.json` | Deeper network |- |
-| `lstm-lightweight.json` | Smoke test | window=256, batch=4, epochs=1 |
+| Profile | Purpose | Runs | ETA |
+|---------|---------|------|-----|
+| `article-lstm-ae.json` | LSTM-AE baseline, 3 encodings × 3 seeds | 9 | ~10 min |
+| `article-snn-dense.json` | SNN dense, 3 encodings × V_th/alpha sweep × 3 seeds | varies | ~45 min |
+| `article-snn-conv1d.json` | SNN with 3-tap smoothing pre-filter | varies | ~45 min |
+| `article-snn-recurrent.json` | SNN with LIF input transform | varies | ~45 min |
+| `article-backend-bench.json` | Wall-clock timing only (xtensor vs OpenCL) | 2 | ~5 min |
+
+All article profiles share: `window_size=256`, `dataset=fsdd`, `seed_deterministic=false`, `loss_function=mse`, `latent_dim=32`.
+
+Profile validation test: `profile_audit_gtest` (25 tests). Run after every profile edit.
 
 ### Dataset Support
 
@@ -145,28 +148,19 @@ Epoch: [===================>                  ]  50% (50/100)
 Batch: [========================================] 100% (500/500b, 500/500s)  loss: 1.219896
 ```
 
-### Anomaly Detection
+### Reconstruction Metrics
 
-The experiment evaluates the autoencoders' ability to detect anomalies (specifically, modified signals) using the `max_reconstruct_mean_deviation` threshold.
+The experiment is a **pure reconstruction study**. FSDD carries no anomaly labels, so F1/precision/recall are not computed. Reported metrics:
 
-1. **Residual Calculation**: For each sample, the mean absolute residual between the original signal ($x$) and the reconstruction ($\hat{x}$) is computed:
-   $$\text{Residual Mean} = \frac{1}{N} \sum_{i=1}^{N} | x_i - \hat{x}_i |$$
+| Metric | Formula | Notes |
+|--------|---------|-------|
+| MSE | $\frac{1}{N}\sum(x-\hat x)^2$ | Primary quality metric |
+| MAE | $\frac{1}{N}\sum|x-\hat x|$ | Robust alternative |
+| $R^2$ | $1 - \text{SS\_res}/\text{SS\_tot}$ | Coefficient of determination |
+| Spike rate | mean spike fraction over val set | SNN only |
+| Energy | $r \cdot N + 10 \cdot \text{MACs}$ (SNN) / $10 \cdot \text{MACs}$ (LSTM) | Proxy; 10× constant = energy cost per MAC vs spike op |
 
-2. **Thresholding**: A binary label is assigned based on the `max_reconstruct_mean_deviation` value:
-   - **Anomaly (1)**: $\text{Residual Mean} > \text{max\_reconstruct\_mean\_deviation}$
-   - **Normal (0)**: $\text{Residual Mean} \le \text{max\_reconstruct\_mean\_deviation}$
-
-This classification allows the calculation of **Precision**, **Recall**, and **F1-Score**, which measure how effectively the model distinguishes between normal data and anomalies.
-
-#### Threshold Impact and Metrics
-
-The `max_reconstruct_mean_deviation` parameter acts as a tuning dial for the model's sensitivity, creating a trade-off between Precision and Recall:
-
-- **High $\tau$ (Conservative)**: Reduces False Positives ($\uparrow$ Precision) but increases False Negatives ($\downarrow$ Recall). The model only flags anomalies with very high reconstruction errors.
-- **Low $\tau$ (Aggressive)**: Reduces False Negatives ($\uparrow$ Recall) but increases False Positives ($\downarrow$ Precision). The model flags even subtle anomalies, but may misclassify normal noise as anomalies.
-
-The **F1-Score** is used to find the optimal balance between these two metrics:
-$$F1 = 2 \cdot \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}$$
+`max_reconstruct_mean_deviation` remains in the config but is only used as a per-sample pass/fail threshold for logging — it does not affect the reported metrics.
 
 ### Layer Specification Manual
 
@@ -185,25 +179,27 @@ The most common layer used in Experiment04.
     - **SNN Mode**: `leaky` (LIF), `leaky_integrator`, `identity`.
 - **Example**: `linear:64:leaky` $\rightarrow$ A linear layer with 64 units and a Leaky ReLU/LIF activation.
 
-#### 2. Convolutional Layers (1D and 2D)
-- **Conv1D Format**: `conv1d:<out_channels>:<kernel_size>[:<stride>[:<activation>]]`
-    - Example: `conv1d:64:3:1:relu`
-- **Conv2D Format**: `conv2d:<out_channels>:<kernel_size>:<stride>:<activation>`
-    - Example: `conv2d:64:3:1:relu`
+#### 2. Convolutional, Pooling, Residual (ANN mode only)
+- **Conv1D**: `conv1d:<out_channels>:<kernel_size>[:<stride>[:<activation>]]`
+- **Pool1D**: `pool1d:<kernel_size>[:<stride>]`
+- **Residual**: `residual` or `residual:<repeat_count>`
 
-#### 3. Pooling Layers
-- **Pool1D Format**: `pool1d:<kernel_size>[:<stride>]`
-- **Pool2D Format**: `pool2d:<kernel_size>[:<stride>]`
+> ⚠️ **SNN mode restriction**: In SNN autoencoders (`snn-ae`), `parse_layer_module_spec` only instantiates `linear` entries. Any `conv1d`, `pool1d`, or `residual` entry in `encoder_layer_spec` / `decoder_layer_spec` will **throw a `std::invalid_argument` at startup**. Keep SNN specs to `linear:width:leaky` / `linear:width:identity` only.
 
-#### 4. Residual Blocks
-Used to add depth and prevent vanishing gradients.
-- **Format**: `residual` or `residual:<repeat_count>`
-- **Example**: `residual:3` $\rightarrow$ Adds 3 consecutive residual blocks.
+#### 3. Standalone Activations
+- **Format**: `<activation_type>` (e.g., `relu`)
 
-#### 5. Standalone Activations
-You can add an activation layer without a preceding linear layer.
-- **Format**: `<activation_type>`
-- **Example**: `relu`
+#### 4. SNN Architecture Modes (input transforms, not network layers)
+
+`snn_architectures` in the profile selects how the raw signal is pre-processed **before** entering the autoencoder. All three modes share the same network (e.g., `linear:64:leaky / linear:32:identity`).
+
+| Mode | Pre-processing applied to input |
+|------|-------------------------------|
+| `dense` | Pass-through (no transform) |
+| `conv1d` | 3-tap smoothing filter: kernel `{0.25, 0.5, 0.25}` |
+| `recurrent` | Stand-alone LIF transform (stateless, fixed V_th/alpha) |
+
+These are **not** different network architectures — they are signal conditioning steps applied at `ComparativeEncoding.cpp:apply_snn_architecture_transform`.
 
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 
@@ -215,22 +211,43 @@ The total network is built by concatenating these specs.
 ## Usage
 
 ```bash
-# Default run with FSDD
-./experiment04 --comparative --comparative-config lstm-default
+# Run a specific profile (from software/nn/)
+./out/build/max-performance/src/experiments/04/experiment04 \
+  --comparative-config src/experiments/04/profiles/article-lstm-ae.json
 
-# With explicit dataset path
-./experiment04 --comparative --comparative-config lstm-default --dataset-root /path/to/fsdDataset
-
-# Lightweight smoke test
-./experiment04 --comparative --comparative-config lstm-lightweight
+# Run all article profiles + build paper CSVs (~2.5 h)
+./scripts/run_article_profiles.sh
 ```
+
+Both `--comparative-config` and `--profile` are accepted as the flag name.
 
 ### Outputs
 
-Results are written to `results/`:
-- `{run_tag}_comparative_metrics.csv` - Full metrics per configuration
-- `{run_tag}_publication_table.csv` - Formatted for publication
-- `{run_tag}_summary.json` - JSON summary
+Results written to `results/` (or `dataset.results_dir` from profile):
+
+| File | Contents |
+|------|----------|
+| `{run_tag}_comparative_metrics.csv` | One row per (model, encoding, architecture, v_th, alpha, run_id) |
+| `{run_tag}_publication_table.csv` | Aggregated, formatted for paper tables |
+| `{run_tag}_summary.json` | Config hash, per-model stats |
+| `data/{run_tag}_*.dat` | pgfplots DAT files for paper figures |
+| `data/paper_*.csv` | Aggregated across all runs (written by `build_paper_data.py`) |
+
+Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
+
+### Paper data pipeline
+
+```bash
+# After all article runs complete:
+python3 scripts/build_paper_data.py \
+  --results-dir results \
+  --data-dir /path/to/conference71070Guaiaquil/data \
+  --profiles-dir src/experiments/04/profiles
+
+# Compile paper:
+cd documentation/07-articlesProduced/conference71070Guaiaquil
+pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
+```
 
 ## Key Differences from Experiment03
 
@@ -245,13 +262,17 @@ Results are written to `results/`:
 
 ## Common Pitfalls
 
-1. **Sequence Truncation**: Very long sequences may need truncation
+1. **SNN spec with non-linear entries throws at startup.** `parse_layer_module_spec` in SNN mode only handles `linear:width[:activation]`. Any `conv1d:`, `pool1d:`, `residual`, or `spiking_neuron:` entry throws `std::invalid_argument` before training begins.
 
-2. **Hidden State Reset**: Ensure proper initialization between sequences
+2. **`early_stop_patience` must be < `epochs`.** `validate()` enforces this — profile will reject with a clear error if violated.
 
-3. **SNN Threshold**: $V_{th}$ affects spiking behavior significantly
+3. **`seed_deterministic: true` with `repeats > 1` produces identical runs.** Use `false` for article profiles (different seed per repeat).
 
-4. **FSDD Path**: Profiles must point to the correct dataset location
+4. **SNN architecture modes are signal transforms, not layers.** `conv1d`/`recurrent` in `snn_architectures` do not add conv or LSTM layers to the network — they pre-process the input window before it enters the autoencoder.
+
+5. **FSDD path must match `dataset_root` in profile.** Default: `/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset`.
+
+6. **F1/precision/recall are always 0 for FSDD.** FSDD has no anomaly labels. These fields exist in the output CSV but should not be cited.
 
 ## See Also
 

@@ -27,6 +27,32 @@ class ProgressCallback : public ITrainingCallback
    public:
     explicit ProgressCallback(std::string label) : label_(std::move(label)) {}
 
+    // Metadata setters for progress display
+    void set_metadata(
+        const std::string& description, int fold_num, int total_folds, const std::string& loss_type)
+    {
+        description_ = description;
+        fold_number_ = fold_num;
+        total_folds_ = total_folds;
+        loss_type_ = loss_type;
+        if (epoch_bar_id_ > 0)
+        {
+            nn::progress::ProgressManager::instance().set_description(epoch_bar_id_, description_);
+            nn::progress::ProgressManager::instance().set_fold_info(
+                epoch_bar_id_, fold_number_, total_folds_);
+            nn::progress::ProgressManager::instance().set_loss_type(epoch_bar_id_, loss_type_);
+        }
+    }
+
+    void set_phases(const std::vector<std::string>& phases, int current_idx)
+    {
+        if (epoch_bar_id_ > 0)
+        {
+            nn::progress::ProgressManager::instance().set_phases(
+                epoch_bar_id_, phases, current_idx);
+        }
+    }
+
     /// Converts batch-local fractional progress into an epoch-relative bar position.
     static auto batch_value(const TrainingState& state) -> float
     {
@@ -39,10 +65,18 @@ class ProgressCallback : public ITrainingCallback
     void on_train_begin(int total_epochs) override
     {
         epoch_bar_id_ = nn::progress::ProgressManager::instance().create_bar(
-            label_ + " epoch", static_cast<float>(total_epochs));
+            label_, static_cast<float>(total_epochs));
         // Batch bar target is updated on the first on_epoch_begin call.
-        batch_bar_id_ =
-            nn::progress::ProgressManager::instance().create_bar(label_ + " batch", 1.0f);
+        batch_bar_id_ = nn::progress::ProgressManager::instance().create_bar(
+            std::string("Batches done"), 1.0f);
+        // Flush metadata stored before training began (bar didn't exist yet).
+        if (!description_.empty())
+        {
+            auto& pm = nn::progress::ProgressManager::instance();
+            pm.set_description(epoch_bar_id_, description_);
+            pm.set_fold_info(epoch_bar_id_, fold_number_, total_folds_);
+            pm.set_loss_type(epoch_bar_id_, loss_type_);
+        }
     }
 
     /// Captures the per-epoch batch budget so the batch bar has the right target.
@@ -99,6 +133,12 @@ class ProgressCallback : public ITrainingCallback
     uint32_t epoch_bar_id_ = 0;
     uint32_t batch_bar_id_ = 0;
     int epoch_batches_ = 1;
+
+    // Metadata fields
+    std::string description_;
+    int fold_number_ = 0;
+    int total_folds_ = 1;
+    std::string loss_type_;
 };
 
 } // namespace nn::training

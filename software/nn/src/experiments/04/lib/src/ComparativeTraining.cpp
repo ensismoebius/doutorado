@@ -183,9 +183,13 @@ auto train_with_early_stopping_lstm(nn::models::lstm::LSTMAutoencoder& model,
 
     nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, tcfg);
 
-    const std::string label =
-        "LSTM [" + encoding + "] r" + std::to_string(run_id + 1) + "/" + std::to_string(total_runs);
-    trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
+    const std::string label = "LSTM-AE: encoding=" + encoding;
+    auto lstm_cb = std::make_shared<nn::training::ProgressCallback>(label);
+    lstm_cb->set_metadata("LSTM Autoencoder",
+        static_cast<int>(run_id + 1),
+        static_cast<int>(total_runs),
+        "MSE");
+    trainer.add_callback(lstm_cb);
 
     auto stopper =
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
@@ -283,9 +287,15 @@ auto train_with_early_stopping_snn(ProtocolSpikingAutoencoder& model,
 
     nn::training::Trainer<ProtocolSpikingAutoencoder> trainer(model, tcfg);
 
-    const std::string label =
-        "SNN [" + encoding + "] r" + std::to_string(run_id + 1) + "/" + std::to_string(total_runs);
-    trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(label));
+    std::ostringstream lbl;
+    lbl << "SNN-" << architecture << ": encoding=" << encoding << "  v=" << std::fixed
+        << std::setprecision(1) << v_th << "  a=" << std::setprecision(2) << alpha;
+    auto snn_cb = std::make_shared<nn::training::ProgressCallback>(lbl.str());
+    snn_cb->set_metadata("SNN Autoencoder (" + architecture + ")",
+        static_cast<int>(run_id + 1),
+        static_cast<int>(total_runs),
+        "MSE");
+    trainer.add_callback(snn_cb);
 
     auto stopper =
         std::make_shared<nn::training::EarlyStoppingCallback>(cfg.training.early_stop_patience);
