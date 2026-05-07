@@ -14,19 +14,14 @@ namespace nn::progress
 namespace
 {
 
-constexpr int kLabelWidth = 26;
-constexpr int kBarWidth = 30;
-constexpr int kInfoWidth = 12;
-constexpr int kMetricsWidth = 12;
-constexpr int kFlavorWidth = 10;
+constexpr int kLabelWidth = 30;
+constexpr int kBarWidth = 40;
+constexpr int kInfoWidth = 20;
+constexpr int kMetricsWidth = 25;
 
 void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t width)
 {
-    if (width == 0)
-    {
-        return;
-    }
-
+    if (width == 0) return;
     if (text.size() > width)
     {
         if (width <= 3)
@@ -38,24 +33,8 @@ void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t wid
         os << "...";
         return;
     }
-
     os.write(text.data(), static_cast<std::streamsize>(text.size()));
-    for (std::size_t i = text.size(); i < width; ++i)
-    {
-        os.put(' ');
-    }
-}
-
-auto compact_metric_name(const std::string& name) -> std::string
-{
-    if (name == "train_loss") return "train";
-    if (name == "val_loss") return "val";
-    return name;
-}
-
-auto label_has(const std::string& label, std::string_view token) -> bool
-{
-    return label.find(token) != std::string::npos;
+    for (std::size_t i = text.size(); i < width; ++i) os.put(' ');
 }
 
 auto format_percent(float progress) -> std::string
@@ -72,98 +51,58 @@ auto format_step(float current, float target) -> std::string
     return oss.str();
 }
 
-auto format_progress_info(float progress, float current, float target) -> std::string
-{
-    return format_percent(progress) + " " + format_step(current, target);
-}
-
 auto format_metrics(const std::map<std::string, float>& metrics) -> std::string
 {
-    if (metrics.empty())
-    {
-        return "pending";
-    }
-
+    if (metrics.empty()) return "pending";
     std::ostringstream oss;
     bool first = true;
-    int metric_count = 0;
     for (const auto& [name, value] : metrics)
     {
         if (!first) oss << ' ';
-        oss << compact_metric_name(name) << '=' << std::fixed << std::setprecision(3) << value;
+        std::string short_name = name;
+        if (name == "train_loss") short_name = "train";
+        else if (name == "val_loss") short_name = "val";
+        oss << short_name << '=' << std::fixed << std::setprecision(3) << value;
         first = false;
-        if (++metric_count == 1) break;
     }
     return oss.str();
 }
 
-auto format_flavor(const std::string& label, float progress, bool completed) -> std::string
+auto format_phases(const std::vector<std::string>& phases, int current_idx) -> std::string
 {
-    if (completed)
+    if (phases.empty()) return "";
+    std::ostringstream oss;
+    for (size_t i = 0; i < phases.size(); ++i)
     {
-        return "locked";
+        if (i == static_cast<size_t>(current_idx)) oss << "[" << phases[i] << "]";
+        else oss << phases[i];
+        if (i < phases.size() - 1) oss << " → ";
     }
-
-    const bool is_lstm = label_has(label, "LSTM");
-    const bool is_snn = label_has(label, "SNN");
-    const bool is_run = label_has(label, "run");
-    const bool is_epoch = label_has(label, "epoch");
-    const bool is_batch = label_has(label, "batch");
-
-    if (is_run)
-    {
-        return progress < 0.5f ? "EEG hop" : "sweeping";
-    }
-    if (is_lstm && is_epoch)
-    {
-        return progress < 0.5f ? "gating" : "settling";
-    }
-    if (is_lstm && is_batch)
-    {
-        return progress < 0.5f ? "tokens" : "holding";
-    }
-    if (is_snn && is_epoch)
-    {
-        return progress < 0.5f ? "charge" : "firing";
-    }
-    if (is_snn && is_batch)
-    {
-        return progress < 0.5f ? "spikes" : "settled";
-    }
-    if (is_epoch)
-    {
-        return progress < 0.5f ? "tuning" : "steady";
-    }
-    if (is_batch)
-    {
-        return progress < 0.5f ? "active" : "steady";
-    }
-    return "learning";
+    return oss.str();
 }
 
-auto format_eta(int64_t start_ns, float progress) -> std::string
+auto format_eta(int64_t start_ns, float current, float target) -> std::string
 {
-    if (progress < 0.05f || start_ns == 0) return "";
-    const int64_t elapsed =
-        std::chrono::steady_clock::now().time_since_epoch().count() - start_ns;
+    if (current <= 0.0f || start_ns == 0) return "";
+    const int64_t elapsed = std::chrono::steady_clock::now().time_since_epoch().count() - start_ns;
     if (elapsed <= 0) return "";
-    const int64_t eta_s =
-        static_cast<int64_t>(static_cast<double>(elapsed) * (1.0 - progress) / progress)
-        / 1'000'000'000LL;
+    const double time_per_item = static_cast<double>(elapsed) / current;
+    const double remaining = static_cast<double>(target - current);
+    if (remaining <= 0.0) return "done";
+    const int64_t eta_s = static_cast<int64_t>(time_per_item * remaining) / 1'000'000'000LL;
+    if (eta_s <= 0) return "";
     char buf[16];
     if (eta_s < 60)
         std::snprintf(buf, sizeof(buf), "%llds", static_cast<long long>(eta_s));
     else if (eta_s < 3600)
-        std::snprintf(buf, sizeof(buf), "%lldm%02llds",
-            static_cast<long long>(eta_s / 60), static_cast<long long>(eta_s % 60));
+        std::snprintf(buf, sizeof(buf), "%lldm%02llds", static_cast<long long>(eta_s / 60), static_cast<long long>(eta_s % 60));
     else
-        std::snprintf(buf, sizeof(buf), "%lldh%02lldm",
-            static_cast<long long>(eta_s / 3600),
-            static_cast<long long>((eta_s % 3600) / 60));
+        std::snprintf(buf, sizeof(buf), "%lldh%02lldm", static_cast<long long>(eta_s / 3600), static_cast<long long>((eta_s % 3600) / 60));
     return buf;
 }
 
 } // namespace
+
 
 ProgressManager::ProgressManager()
 {
@@ -256,25 +195,14 @@ void ProgressManager::render_loop()
             std::lock_guard<std::mutex> lock(manager_mutex_);
             if (entries_.empty())
             {
-                // Don't spam the console if nothing is happening
             }
             else
             {
-                // Move cursor up to the start of our bar block
-                if (entries_.size() > 0)
-                {
-                    // We print a newline at the end of each frame to stay on the same line?
-                    // No, for multiple bars, we need to shift the cursor.
-                    // We simulate a "frame" by printing all bars then moving cursor back up.
-                }
-
-                // Render all bars
                 for (const auto& entry : entries_)
                 {
                     const float current_value = entry->current_value.load();
                     const float target_value = std::max(entry->target_value, 1.0f);
                     const float progress = std::clamp(current_value / target_value, 0.0f, 1.0f);
-                    const int pos = static_cast<int>(kBarWidth * progress);
                     const bool completed = entry->completed.load();
                     std::map<std::string, float> metrics;
 
@@ -283,37 +211,39 @@ void ProgressManager::render_loop()
                         metrics = entry->metrics;
                     }
 
-                    std::stringstream ss;
-                    std::string bar_cell;
-                    bar_cell.reserve(static_cast<std::size_t>(kBarWidth));
-                    bar_cell.push_back('[');
-                    for (int i = 0; i < kBarWidth - 2; ++i)
+                    std::lock_guard<std::mutex> meta_lock(entry->metadata_mutex);
+
+                    // Line 1: Metadata
+                    std::stringstream ss_meta;
+                    ss_meta << "\033[2K\r";
+                    ss_meta << "\033[1m" << entry->label << "\033[0m: ";
+                    append_fitted_cell(ss_meta, entry->description, kLabelWidth + 20);
+                    ss_meta << " | Fold " << entry->fold_number << "/" << entry->total_folds;
+                    ss_meta << " | Loss: " << (entry->loss_type.empty() ? "N/A" : entry->loss_type);
+                    ss_meta << " | ";
+                    append_fitted_cell(ss_meta, format_phases(entry->phases, entry->current_phase_index), 30);
+                    std::cout << ss_meta.str() << "\n";
+
+                    // Line 2: Progress bar and status
+                    std::stringstream ss_prog;
+                    ss_prog << "\033[2K\r";
+                    ss_prog << "  Progress: [";
+                    int pos = static_cast<int>(kBarWidth * progress);
+                    for (int i = 0; i < kBarWidth; ++i)
                     {
-                        bar_cell.push_back(i < pos ? '=' : ' ');
+                        ss_prog << (i < pos ? "█" : "░");
                     }
-                    bar_cell.push_back(']');
-
-                    ss << "\033[2K\r";
-                    append_fitted_cell(ss, entry->label, kLabelWidth);
-                    ss << " | ";
-                    append_fitted_cell(ss, bar_cell, kBarWidth);
-                    ss << " | ";
-                    append_fitted_cell(ss,
-                        format_progress_info(progress, current_value, target_value),
-                        kInfoWidth);
-                    ss << " | ";
-                    append_fitted_cell(ss, format_metrics(metrics), kMetricsWidth);
-                    ss << " | ";
-                    const std::string eta = format_eta(entry->start_ns, progress);
-                    const std::string fifth_cell = eta.empty()
-                        ? format_flavor(entry->label, progress, completed)
-                        : eta;
-                    append_fitted_cell(ss, fifth_cell, kFlavorWidth);
-
-                    std::cout << ss.str() << "\n";
+                    ss_prog << "] ";
+                    ss_prog << format_percent(progress) << " (" << format_step(current_value, target_value) << ") ";
+                    ss_prog << " | ";
+                    append_fitted_cell(ss_prog, format_metrics(metrics), kMetricsWidth);
+                    ss_prog << " | ";
+                    const std::string eta = format_eta(entry->start_ns, current_value, target_value);
+                    ss_prog << (eta.empty() ? "starting..." : "ETA: " + eta);
+                    std::cout << ss_prog.str() << "\n";
                 }
-                // Move cursor back up to the top of the block for the next frame
-                std::cout << "\033[" << entries_.size() << "A";
+                // Move cursor back up by 2 * entries.size() lines
+                std::cout << "\033[" << (entries_.size() * 2) << "A";
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
