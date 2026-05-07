@@ -1,3 +1,3 @@
 model,encoding,mse,mae,r2
-LSTM-AE,direct,0,0,0
-SNN-AE,direct,0,0,0
+LSTM-AE,direct,0.998976,0.709281,0.001038
+SNN-dense,direct,1.128313,0.795669,-0.128310

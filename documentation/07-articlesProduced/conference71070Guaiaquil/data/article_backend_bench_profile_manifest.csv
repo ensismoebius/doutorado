@@ -1,2 +1,2 @@
 run_tag,seed,repeats,datasets,encodings,snn_architectures,v_th_values,alpha_values,window_size,train_samples,val_samples,backend
-article-backend-bench,42,1,fsdd,direct,dense,1,0.9,256,50,20,xtensor
+article_backend_bench,42,1,"fsdd","direct","dense","1","0.9",256,50,20,xtensor

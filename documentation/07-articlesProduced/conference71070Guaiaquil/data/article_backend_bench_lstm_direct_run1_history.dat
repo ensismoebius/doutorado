@@ -1,0 +1,7 @@
+# model=lstm-ae encoding=direct architecture= v_th=0 alpha=0 run=1
+epoch train_loss val_loss
+1 1.000015 0.999976
+2 0.999978 0.999935
+3 0.999894 0.999683
+4 0.999652 0.999155
+5 0.999345 0.998976

@@ -44,14 +44,31 @@ def read_rows(path: pathlib.Path):
         return reader.fieldnames or [], rows
 
 
+# pgfplots typesets cell values in math mode unless wrapped, so any value
+# containing `_` blows up with "Missing $ inserted". Sanitise the columns
+# that are known to contain non-numeric tokens with underscores by replacing
+# `_` with `-` before writing.
+STRING_COLUMNS = {
+    "run_tag", "operation", "model", "encoding", "datasets",
+    "encodings", "snn_architectures", "v_th_values", "alpha_values",
+    "backend",
+}
+
+
+def sanitise(value, column):
+    if column in STRING_COLUMNS and isinstance(value, str):
+        return value.replace("_", "-")
+    return value
+
+
 def write_rows(path: pathlib.Path, fieldnames, rows):
     if not fieldnames:
         return
     with path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         for row in rows:
-            writer.writerow({k: row.get(k, "") for k in fieldnames})
+            writer.writerow({k: sanitise(row.get(k, ""), k) for k in fieldnames})
     print(f"wrote {path.name} ({len(rows)} rows)")
 
 
@@ -151,15 +168,15 @@ PLACEHOLDER_SCHEMAS = {
         ],
     ),
     "paper_profiles.csv": (
-        ["profile", "run_tag", "repeats", "datasets", "encodings",
+        ["run_tag", "seed", "repeats", "datasets", "encodings",
          "snn_architectures", "v_th_values", "alpha_values",
-         "window_size", "train_samples", "val_samples"],
+         "window_size", "train_samples", "val_samples", "backend"],
         [
-            {"profile": "article-lstm-ae", "run_tag": "article_lstm_ae",
-             "repeats": "3", "datasets": "fsdd",
-             "encodings": "direct;poisson;latency",
+            {"run_tag": "article_lstm_ae", "seed": "42", "repeats": "3",
+             "datasets": "fsdd", "encodings": "direct;poisson;latency",
              "snn_architectures": "", "v_th_values": "", "alpha_values": "",
-             "window_size": "256", "train_samples": "100", "val_samples": "30"},
+             "window_size": "256", "train_samples": "100", "val_samples": "30",
+             "backend": "xtensor"},
         ],
     ),
     "paper_mse_plot.csv": (

@@ -1,3 +1,3 @@
 operation,xtensor_ms,opencl_ms,speedup
-train_epoch,0.00,0.00,1.000
-infer_sample,0.00,0.00,1.000
+train-epoch,0.00,0.00,1.000
+infer-sample,0.00,0.00,1.000
