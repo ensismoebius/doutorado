@@ -1,18 +1,33 @@
 Skills index
 
-- `agent-customization`: compact, deterministic customization-file authoring.
-- `navigation`: fast symbol/file/test discovery workflow.
-- `patching`: minimal diffs with build/test validation.
-- `build-test`: deterministic CMake/Ninja verification with release/ccache/repro constraints.
-- `logging`: migration to centralized logger conventions.
-- `cpp-performance-and-consistency-optimizer`: profile-first optimization + memory/locality/parallelism constraints.
-- `nn-core-usage-enforcer`: force reuse of existing core NN abstractions.
-- `snn-efficiency-optimizer`: reduce SNN temporal overhead and buffer churn.
-- `memory-constrained-design`: enforce low-memory model/runtime constraints.
-- `experiment-reproducibility`: enforce traceable and deterministic run artifacts.
-- `cli-contract-enforcer`: enforce deterministic, side-effect-safe CLI behavior.
-- `dev-tooling-integrator`: standardize use of local CLI productivity tools.
-- `static-analysis-enforcer`: enforce static analysis and critical warning handling.
-- `filesystem-layout-enforcer`: enforce modular repository structure boundaries.
-- `token-efficiency-enforcer`: meta-skill for concise, constraint-first outputs.
-- `state-of-the-art-code-reference-search`: find and summarize authoritative, reproducible code references.
+- `agent-customization`: Skill to create, update, review and validate VS Code agent customization files (instructions, prompts, agents, SKILL.md).
+- `batch-metrics-aggregation`: Enforce a unified contract for batch-level metric accumulation (loss, accuracy, confusion matrix) across all training loops.
+- `bibliography-verifier`: Verify all bibliography entries in a .bib file for correctness: real publication, right journal/venue, year, volume, pages, and DOI.
+- `build-test`: Skill for deterministic CMake/Ninja build and targeted test execution.
+- `checkpoint-versioning-enforcer`: Enforce checkpoint format versioning, architecture metadata, and load-time compatibility validation.
+- `class-balance-and-stratification-enforcer`: Enforce stratified fold splitting when declared in config, auto-compute class weights, and require macro/weighted metrics for imbalanced datasets.
+- `cli-contract-enforcer`: Enforce deterministic, side-effect-safe CLI behavior and argument validation.
+- `cpp-performance-and-consistency-optimizer`: Profile-first C++20 optimization skill for speed, memory efficiency, consistency audits, and deterministic refactors.
+- `data-normalization-contract-enforcer`: Enforce normalization scope (per-feature vs global), train-only fitting, and leakage prevention between splits.
+- `dev-tooling-integrator`: Standardize use of local CLI tools to reduce manual complexity and token-heavy workflows.
+- `experiment-config-schema-validator`: Validate experiment YAML/JSON configs against a JSON Schema: required fields, types, enums, and cross-field dependencies.
+- `experiment-reproducibility`: Enforce deterministic experiment metadata and output traceability.
+- `filesystem-layout-enforcer`: Enforce modular project layout for core libraries, experiments, profiles, and results.
+- `fold-metadata-tracker`: Enforce fold ID, split seed, and sample index tracking in all K-fold experiment outputs for post-hoc analysis.
+- `gradient-flow-validator`: Validate backward pass tensor shapes, cache consistency, and gradient finiteness before optimizer step.
+- `hyperparameter-search-logger`: Enforce hyperparameter search space declaration, sampled-point logging, and result-to-config traceability.
+- `initialization-determinism-enforcer`: Enforce seed propagation from experiment config through trainer into all layer parameter initializers.
+- `logging`: Skill for consistent use of nn::logging::Logger and migration from ad-hoc prints.
+- `memory-constrained-design`: Constrain model and pipeline choices for low-memory targets (e.g., Raspberry Pi class devices).
+- `navigation`: Skill to locate files, symbols, tests, and targets quickly with minimal tool calls.
+- `nn-core-usage-enforcer`: Enforce reuse of existing nn core abstractions instead of reimplementation.
+- `numerical-stability-enforcer`: Enforce consistent epsilon guards, NaN/Inf detection, and clamping across all forward/backward passes.
+- `one-definition-per-file`: Enforce one enum/class/interface per header file for better modularity and compile times.
+- `patching`: Skill for focused apply_patch edits with compile/test validation.
+- `snn-efficiency-optimizer`: Optimize SNN pipelines by reducing temporal recomputation and buffer churn.
+- `snn-parameter-bounds-enforcer`: Enforce physical bounds on SNN parameters (R, C, V_th) at the optimizer step, not silently at forward time.
+- `state-of-the-art-code-reference-search`: Find and summarize state-of-the-art code references and implementation patterns for a target problem.
+- `static-analysis-enforcer`: Enforce static analysis checks and critical warning remediation.
+- `thread-safety-contract-enforcer`: Enforce thread-safety contracts for DataLoader, BatchPrefetcher, and SPSC queue — document ownership and validate no data races.
+- `token-efficiency-enforcer`: Meta-skill to reduce verbosity while preserving precision and constraints.
+- `wiki`: Create a comprehensive codebase wiki under .wiki/ with theory, implementation, data flow, and IEEE-cited references.

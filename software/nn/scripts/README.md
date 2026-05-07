@@ -26,3 +26,18 @@ Notes:
 - This approach keeps the hook untracked (git doesn't store `.git/hooks/*`).
 - If you prefer a cross-platform/managed approach, use `pre-commit` and the
   `mirrors-clang-format` hook instead.
+
+Cross-project skill sync
+=================================
+
+To make this repository's skill catalog available in other projects, run:
+
+```bash
+bash scripts/sync_cross_project_skills.sh
+```
+
+This publishes:
+- `.github/skills/*` to `~/.copilot/skills/*`
+- `.github/skills/*` to `~/.config/opencode/skills/*`
+- `.claude/commands/*.md` to `~/.claude/commands/*.md`
+- `.claude/commands/*.md` as skill files to `~/.claude/skills/*/SKILL.md`
