@@ -8,6 +8,8 @@
 *.bbl
 *.blg
 *.brf
+*.fdb_latexmk
+*.fls
 *.idx
 *.lof
 *.log
@@ -27,6 +29,7 @@ software/nn/src/demos/pydemos/__pycache__
 __pycache__/
 **.pyc
 **/__pycache__/
+.ipynb_checkpoints/
 *.wav
 *.png
 *.pt
