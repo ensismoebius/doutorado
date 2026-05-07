@@ -274,6 +274,143 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 
 6. **F1/precision/recall are always 0 for FSDD.** FSDD has no anomaly labels. These fields exist in the output CSV but should not be cited.
 
+## Results
+
+All results from 3 independent runs, FSDD dataset, window size 256, Adam(lr=1e-3, β₁=0.9, β₂=0.999), up to 30 epochs with early stopping (patience=10). SNN: 2 linear layers (64→32 latent). LSTM: 1-layer hidden=64, latent=32.
+
+### Raw Publication Tables
+
+Values are means across 3 runs. Energy unit: proxy score = spike\_rate × N + 10 × MACs (dimensionless relative measure). Train time in ms.
+
+#### LSTM-AE (article-lstm-ae profile, 3 repeats)
+
+| Model | Encoding | Layers | MSE | MAE | R² | Spike Rate | Energy | Train ms |
+|-------|----------|--------|-----|-----|----|------------|--------|----------|
+| lstm-ae | direct | 1 | 0.9978 | 0.7049 | 0.0022 | 0 | 8.52e+07 | 452 708 |
+| lstm-ae | latency | 1 | 0.2348 | 0.4780 | 0.0483 | 0 | 8.52e+07 | 186 683 |
+| lstm-ae | poisson | 1 | 0.1179 | 0.2523 | −0.0352 | 0 | 8.52e+07 | 158 527 |
+
+#### SNN-dense (article-snn-dense profile, 3 repeats)
+
+| Model | Encoding | Layers | MSE | MAE | R² | Spike Rate | Energy | Train ms |
+|-------|----------|--------|-----|-----|----|------------|--------|----------|
+| lstm-ae | direct | 1 | 0.9968 | 0.7054 | 0.0032 | 0 | 8.52e+07 | 666 860 |
+| lstm-ae | latency | 1 | 0.2415 | 0.4863 | 0.0213 | 0 | 8.52e+07 | 385 226 |
+| lstm-ae | poisson | 1 | 0.1185 | 0.2728 | −0.0408 | 0 | 8.52e+07 | 572 979 |
+| snn-ae | direct | 2 | 1.1056 | 0.7709 | −0.1056 | 0.499 | 372 471 | 3 986 |
+| snn-ae | latency | 2 | 0.1364 | 0.2673 | 0.4472 | 0.877 | 375 374 | 3 266 |
+| snn-ae | poisson | 2 | 0.1244 | 0.1707 | −0.0921 | 0.970 | 376 092 | 6 485 |
+
+#### SNN-conv1d (article-snn-conv1d profile, 3 repeats)
+
+Conv1d mode = 3-tap smoothing filter {0.25, 0.5, 0.25} applied before encoding.
+
+| Model | Encoding | Layers | MSE | MAE | R² | Spike Rate | Energy | Train ms |
+|-------|----------|--------|-----|-----|----|------------|--------|----------|
+| lstm-ae | direct | 1 | 0.9968 | 0.7054 | 0.0032 | 0 | 8.52e+07 | 302 894 |
+| lstm-ae | latency | 1 | 0.2415 | 0.4863 | 0.0213 | 0 | 8.52e+07 | 323 118 |
+| lstm-ae | poisson | 1 | 0.1185 | 0.2728 | −0.0408 | 0 | 8.52e+07 | 281 009 |
+| snn-ae | direct | 2 | 0.8052 | 0.6342 | −0.1155 | 0.489 | 372 393 | 1 963 |
+| snn-ae | latency | 2 | 0.1032 | 0.2331 | 0.5269 | 0.881 | 375 410 | 2 809 |
+| snn-ae | poisson | 2 | 0.0697 | 0.1516 | −0.1284 | 0.994 | 376 271 | 1 363 |
+
+#### SNN-recurrent (article-snn-recurrent profile, 3 repeats)
+
+Recurrent mode = stand-alone LIF transform on input before encoding.
+
+| Model | Encoding | Layers | MSE | MAE | R² | Spike Rate | Energy | Train ms |
+|-------|----------|--------|-----|-----|----|------------|--------|----------|
+| lstm-ae | direct | 1 | 0.9968 | 0.7054 | 0.0032 | 0 | 8.52e+07 | 318 625 |
+| lstm-ae | latency | 1 | 0.2415 | 0.4863 | 0.0213 | 0 | 8.52e+07 | 566 580 |
+| lstm-ae | poisson | 1 | 0.1185 | 0.2728 | −0.0408 | 0 | 8.52e+07 | 435 531 |
+| snn-ae | direct | 2 | 0.1276 | 0.1786 | −0.0876 | 0.947 | 375 917 | 8 912 |
+| snn-ae | latency | 2 | 0.1594 | 0.2859 | 0.2507 | 0.834 | 375 043 | 18 182 |
+| snn-ae | poisson | 2 | 0.1156 | 0.1605 | −0.0836 | 0.970 | 376 090 | 15 787 |
+
+---
+
+### Compiled Analysis
+
+#### Best MSE per encoding (lowest = best reconstruction)
+
+| Encoding | Best model | MSE | vs LSTM-AE MSE | Improvement |
+|----------|-----------|-----|----------------|-------------|
+| direct | SNN-recurrent | 0.1276 | 0.9978 | **7.8×** |
+| latency | SNN-conv1d | 0.1032 | 0.2348 | **2.3×** |
+| poisson | SNN-conv1d | 0.0697 | 0.1179 | **1.7×** |
+
+SNN consistently outperforms LSTM-AE on reconstruction MSE for all three encodings. Best overall: SNN-conv1d + poisson (MSE = 0.0697).
+
+#### Energy efficiency (proxy: spike\_rate × N + 10 × MACs)
+
+| Model | Energy (mean) | vs LSTM-AE | Factor |
+|-------|--------------|------------|--------|
+| LSTM-AE | ~8.52 × 10⁷ | baseline | 1× |
+| SNN-dense | ~374 646 | 227× lower | **227×** |
+| SNN-conv1d | ~374 691 | 227× lower | **227×** |
+| SNN-recurrent | ~375 683 | 227× lower | **227×** |
+
+SNN architecture mode does not affect energy — all three use the same network; the pre-processing transform is essentially free.
+
+#### Spike rates
+
+| Architecture | Encoding | Spike Rate |
+|-------------|----------|------------|
+| dense | poisson | 0.970 |
+| conv1d | poisson | 0.994 |
+| recurrent | poisson | 0.970 |
+| dense | latency | 0.877 |
+| conv1d | latency | 0.881 |
+| recurrent | latency | 0.834 |
+| dense | direct | 0.499 |
+| conv1d | direct | 0.489 |
+| recurrent | direct | 0.947 |
+
+Poisson encoding produces highest spike rates (~0.97–0.99). Direct encoding varies by architecture (recurrent: 0.947, dense/conv1d: ~0.49).
+
+#### Training time
+
+| Model | Fastest encoding | Time (ms) | Slowest encoding | Time (ms) |
+|-------|-----------------|-----------|-----------------|-----------|
+| LSTM-AE | poisson | 158 527 | direct | 452 708 |
+| SNN-dense | latency | 3 266 | poisson | 6 485 |
+| SNN-conv1d | poisson | 1 363 | latency | 2 809 |
+| SNN-recurrent | direct | 8 912 | latency | 18 182 |
+
+SNN-conv1d trains fastest (1 363–2 809 ms). SNN-recurrent is slowest among SNNs (~9–18 s) due to LIF transform overhead per window. LSTM-AE trains slowest overall (~158–453 s).
+
+#### R² summary
+
+Positive R² indicates the model explains variance beyond the mean baseline. Only some configurations achieve positive R²:
+
+| Model | Encoding | R² |
+|-------|----------|----|
+| SNN-conv1d | latency | **0.527** |
+| SNN-dense | latency | **0.447** |
+| SNN-recurrent | latency | **0.251** |
+| LSTM-AE | latency | 0.048 |
+| LSTM-AE | direct | 0.002–0.003 |
+| all others | direct/poisson | < 0 |
+
+Latency encoding is the only configuration where models learn meaningful variance structure. All direct and poisson encodings yield near-zero or negative R², indicating the models learn the signal mean but not its shape.
+
+---
+
+### Raw Data Files
+
+| File | Description |
+|------|-------------|
+| `results/article_lstm_ae_comparative_metrics.csv` | Per-run raw metrics (9 rows: 3 encodings × 3 runs) |
+| `results/article_snn_dense_comparative_metrics.csv` | Per-run raw metrics (81 rows: 3 enc × 3 arch-sweep × v_th × alpha × 3 runs) |
+| `results/article_snn_conv1d_comparative_metrics.csv` | Same structure as dense |
+| `results/article_snn_recurrent_comparative_metrics.csv` | Same structure as dense |
+| `results/article_*_publication_table.csv` | Aggregated mean over runs, formatted for paper |
+| `results/article_*_summary.json` | Config hash, seed, stat tests |
+| `data/article_*_history.dat` | Per-run epoch loss curves (pgfplots format) |
+| `data/article_*_convergence.dat` | Convergence diagnostic per run |
+| `data/article_*_summary.dat` | Summary statistics (pgfplots format) |
+| `data/article_*_sweep.dat` | Hyperparameter sweep results |
+
 ## See Also
 
 - [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md) - Theory

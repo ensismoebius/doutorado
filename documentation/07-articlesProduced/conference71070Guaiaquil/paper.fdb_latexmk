@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex paper"] 1778048961.87776 "paper.aux" "paper.bbl" "paper" 1778048961.98354 2
+["bibtex paper"] 1778159095.8706 "paper.aux" "paper.bbl" "paper" 1778159146.8173 0
   "./paper.bib" 1778047811.31048 4652 fabb5470ed4c02114827d754c31dc4f1 ""
   "/usr/share/texmf-dist/bibtex/bst/ieeetran/IEEEtran.bst" 1775415801 57748 7c8250ecf02814ce6ddc0cdbb63df1dd ""
-  "paper.aux" 1778048953.87177 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
+  "paper.aux" 1778159146.56759 8110 5ef5477f2ee2215576c4e4bac9b66cc5 "pdflatex"
   (generated)
   "paper.bbl"
   "paper.blg"
   (rewritten before read)
-["pdflatex"] 1778048959.04438 "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" "paper.pdf" "paper" 1778048961.58695 2
-  "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" 1778048958.7338 25478 10f3e0c141cd3fed94150dc67fd79eaf ""
+["pdflatex"] 1778159145.26946 "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" "paper.pdf" "paper" 1778159146.81747 0
+  "/home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/paper.tex" 1778159144.8356 29164 6415075df0d1bd5d4b4e4ebc95a8ea1b ""
   "/usr/share/texmf-dist/fonts/enc/dvips/base/8r.enc" 1775415801 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1775415801 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/adobe/courier/pcrr7t.tfm" 1775415801 960 379cc0019370a9e0208a0a3f949f847a ""
@@ -244,15 +244,22 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1775415801 43569 fd570f2fa160877d211e859f687312ba ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1775875402 5445065 1bdd5556788ae78b707a30acff49dc90 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1775875372 3654637 2768adcb71765dc5456113d24658ac5e ""
+  "data/paper_backend_comparison.csv" 1778156743.92634 165 3cf6b259fd162d11771966180e50109e ""
+  "data/paper_eff_by_encoding.csv" 1778153485.84772 858 3f2e913331118fe5ad68987fdf08fc83 ""
+  "data/paper_mse_plot.csv" 1778153485.84781 281 0880b7ca41287769c91bc784f0741c7c ""
+  "data/paper_profiles.csv" 1778157058.26468 646 7137e69c7434b083b689c9d5ccc22cbe ""
+  "data/paper_recon_by_encoding.csv" 1778153485.84756 946 e996411cd4851c62c7c1ad054bf44951 ""
+  "data/paper_summary_by_model.csv" 1778153485.84687 699 ee5a5418502e648bb538223f44b7f422 ""
+  "data/paper_sweep_alpha.csv" 1778153485.84789 190 1f77f016a2ef07ff01f8c2ca338f7373 ""
   "figs/fig1.tex" 1777954936.89914 847 47d70b346713f0b2b48ecd0267580a30 ""
   "figs/fig2.tex" 1777954936.89914 725 ae0e3eb75a6d9ee11b2ec1383e6adacb ""
   "figs/fig_flow.tex" 1777954936.89945 1149 88176dec213d1c833f34ab7e724e0396 ""
-  "figs/fig_results.tex" 1777954936.89945 880 590e3ed54382ce64e3df654fdbd36029 ""
-  "figs/fig_sweep.tex" 1777954936.89945 759 b51b2d34013a040f4d2d64c0ad3a4606 ""
+  "figs/fig_results.tex" 1778130758.72513 916 6af8e4cd0eede1d2e54b893d9e30ace7 ""
+  "figs/fig_sweep.tex" 1778157898.25179 754 13fa7609584d4cd8b2d9d02af1038ec5 ""
   "figs/fig_windowing.tex" 1778048927.77574 2505 4ce93041a3a7bf8d95ae219a901f0175 ""
-  "paper.aux" 1778048953.87177 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
-  "paper.bbl" 1778048961.9789 0 d41d8cd98f00b204e9800998ecf8427e "bibtex paper"
-  "paper.tex" 1778048958.7338 25478 10f3e0c141cd3fed94150dc67fd79eaf ""
+  "paper.aux" 1778159146.56759 8110 5ef5477f2ee2215576c4e4bac9b66cc5 "pdflatex"
+  "paper.bbl" 1778159121.90877 3961 c6527df00359d6c1d0fe7ddb5275c2ee "bibtex paper"
+  "paper.tex" 1778159144.8356 29164 6415075df0d1bd5d4b4e4ebc95a8ea1b ""
   (generated)
   "paper.aux"
   "paper.log"

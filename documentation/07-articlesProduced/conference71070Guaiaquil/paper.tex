@@ -81,7 +81,7 @@ This paper addresses this gap with three contributions:
         \cite{jackson2018fsdd} covering 81 SNN configurations.
   \item Evaluation of three spike encoding schemes crossed with three SNN
         pre-processing modes in a full factorial hyperparameter sweep.
-  \item A reproducible C++ harness (XTensor and OpenCL backends) reporting
+  \item A reproducible C++ harness (XTensor backend) reporting
         MSE, MAE, $R^2$, spike rate, energy, timing, params, and MACs.
 \end{enumerate}
 
@@ -277,6 +277,16 @@ The discrete LIF update follows Eq.~(\ref{eq:lif}) with
 $R = 1/V_{th}$ and $C = -1/\ln(\alpha)$ derived from sweep parameters.
 All membrane states are reset between independent samples.
 
+The four tested architectures are therefore: (i) LSTM-AE, with a two-layer
+LSTM encoder, a 32-dimensional latent projection, and a mirrored two-layer
+LSTM decoder; (ii) SNN-dense, which applies the SNN autoencoder directly to
+the encoded window; (iii) SNN-conv1d, which uses the same SNN autoencoder but
+precedes it with the fixed 3-tap temporal smoothing filter; and
+(iv) SNN-recurrent, which uses the same SNN autoencoder preceded by the
+recurrent LIF input transform defined above. Thus, dense/conv1d/recurrent differ
+only in the input-side pre-processing block $\phi$, while the encoder/decoder
+stack and latent size remain fixed.
+
 \begin{figure}[!t]
 \centering
 \input{figs/fig1.tex}
@@ -315,6 +325,10 @@ where $r \in [0,1]$ is the SNN spike rate (fraction of output spikes).
 For LSTM-AE $r=0$. The constant $10$ is a fixed
 weighting between MAC operations and spike events; absolute per-operation
 energy is platform-dependent and out of scope.
+In the implementation, $r$ is the mean spike fraction reported by the trainer
+for the evaluated run, and $M$ is the estimated forward-pass MAC count for one
+window. The resulting energy values are therefore analytic proxies derived from
+the run logs and model operation counts, not hardware power measurements.
 
 % ─────────────────────────────────────────────────────────────
 \section{Experimental Setup}
@@ -358,17 +372,20 @@ Each configuration is repeated 3 times with a fixed seed.
 LSTM-AE is evaluated with the same three encodings and 3 repeats.
 
 \textbf{Evaluation harness.}
-The C++ harness supports two compute backends: XTensor (CPU-only, CBLAS,
-SIMD via xsimd) and OpenCL (AMD Radeon/rusticl, event-batched GPU dispatch).
-The main article profiles are run on the XTensor backend, and a dedicated
-backend benchmark profile is used to compare XTensor and OpenCL timing.
+The C++ harness runs on the XTensor backend (CPU-only, CBLAS, SIMD via
+xsimd). All article profiles are executed on this backend;
+Table~\ref{tab:backend} reports per-model inference and training times.
 
 \textbf{Metrics.}
 Per run we report reconstruction quality (MSE, MAE, $R^2$) and efficiency
 (spike rate, estimated energy, training time in ms, inference time in ms,
 parameter count, and estimated MAC count). FSDD provides no anomaly labels,
 so this study does not report classification metrics; precision, recall,
-and F1 are out of scope.
+and F1 are out of scope. Spike rate is computed only for SNN runs as the mean
+fraction of neurons emitting a spike over the validation set; for LSTM-AE it is
+defined as $0$. The paper CSVs then report arithmetic means over the repeated
+runs of each configuration, and the per-model summary further averages across
+encodings and, for SNNs, across the $V_{th}$ and $\alpha$ sweep.
 
 \textbf{Profiles.}
 Each experimental variant is defined by a JSON profile file that configures
@@ -432,10 +449,12 @@ SNN-recurrent achieves the lowest overall MSE ($0.134$), outperforming
 LSTM-AE ($0.450$) by a factor of $3.4\times$.
 SNN-conv1d ($0.326$) also surpasses LSTM-AE; SNN-dense ($0.455$) is
 comparable.
-Table~\ref{tab:recon} shows the per-encoding breakdown: latency encoding
-consistently achieves lower MSE than direct encoding across all SNN modes
-(e.g., SNN-conv1d/latency MSE $= 0.103$, $R^2=0.527$), while direct encoding
-is most challenging for all models.
+Table~\ref{tab:recon} shows the per-encoding breakdown: for SNN-dense and
+SNN-conv1d, latency encoding achieves substantially lower MSE than direct
+encoding (e.g., SNN-conv1d/latency MSE $= 0.103$, $R^2=0.527$; direct
+$= 0.805$); for SNN-recurrent, all three encodings yield comparable MSE
+($0.116$--$0.159$), with direct ($0.128$) marginally better than latency.
+Direct encoding is most challenging for dense and conv1d modes.
 Higher membrane decay $\alpha$ benefits the recurrent mode specifically:
 MSE falls from $0.140$ at $\alpha{=}0.8$ to $0.072$ at $\alpha{=}0.99$
 (Fig.~\ref{fig:sweep}); dense and conv1d modes show no consistent benefit
@@ -458,7 +477,11 @@ than LSTM-AE, respectively; SNN-recurrent is $6.8\times$ faster due to
 its recurrent pre-processing stage.
 SNN training is $18$--$130\times$ faster than LSTM-AE, consistent with
 fewer parameters ($37{,}286$ vs $120{,}225$) and the absence of unrolled
-hidden-state computation.
+hidden-state computation. All timing values are wall-clock means measured on the
+same XTensor/CPU backend over the same three seeds. Reported inference speedup
+is computed as $\text{infer\_ms}(\mathrm{LSTM\mbox{-}AE})/\text{infer\_ms}(\mathrm{model})$;
+the training-speedup range is computed analogously from the mean
+$\text{train\_ms}$ values.
 
 \begin{table}[!t]
 \caption{Summary performance by model type (3-seed mean, all encodings averaged).}
@@ -534,7 +557,9 @@ hidden-state computation.
 \centering
 \input{figs/fig_results.tex}
 \caption{MSE comparison by model type and encoding.
-SNN modes trade reconstruction quality for reduced estimated energy.}
+SNN-recurrent achieves the lowest MSE across encodings; SNN-dense is
+comparable to LSTM-AE; all SNN variants consume over 99\% less estimated
+energy.}
 \label{fig:results}
 \end{figure}
 
@@ -550,11 +575,14 @@ pre-processing mode effectively extends temporal integration through
 a time-varying membrane state, enabling better waveform reconstruction
 than the dense-MACs LSTM baseline.
 
-Encoding scheme is the primary factor for reconstruction fidelity: latency
-encoding consistently yields lower MSE and higher $R^2$ than direct encoding
-across all SNN modes, because the binary time-to-first-spike signal retains
-relative amplitude ordering without the high-variance density of raw waveforms.
-Poisson encoding is intermediate.
+Encoding scheme is the primary factor for reconstruction fidelity in dense
+and conv1d modes: latency encoding yields substantially lower MSE and higher
+$R^2$ than direct encoding for those modes, because the binary
+time-to-first-spike signal retains relative amplitude ordering without the
+high-variance density of raw waveforms.
+For SNN-recurrent, all three encodings yield similar MSE ($0.116$--$0.159$);
+the recurrent temporal integration dominates over encoding choice.
+Poisson encoding is intermediate for dense and conv1d modes.
 For the recurrent mode, increasing $\alpha$ from $0.8$ to $0.99$ halves MSE
 by lengthening the effective integration window; this effect is absent in
 dense and conv1d modes, which lack recurrent temporal accumulation.
