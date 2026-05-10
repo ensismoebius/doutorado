@@ -278,14 +278,13 @@ bool SqliteBatchSource::next(Batch& out)
             while (next_trial_index_ < trial_ids_.size())
             {
                 const int trial_id = trial_ids_[next_trial_index_++];
-                int rc = SQLITE_ROW;
                 std::vector<float> eeg_accum;
                 std::vector<float> audio_accum;
 
                 // Read eeg_samples rows for this trial
                 sqlite3_reset(select_eeg_stmt_);
                 sqlite3_bind_int(select_eeg_stmt_, 1, trial_id);
-                while ((rc = sqlite3_step(select_eeg_stmt_)) == SQLITE_ROW)
+                while (sqlite3_step(select_eeg_stmt_) == SQLITE_ROW)
                 {
                     // Columns: F3,F4,C3,C4,P3,P4,blink (blobs may be NULL if not present)
                     for (int c = 0; c < 6; ++c)
@@ -305,7 +304,7 @@ bool SqliteBatchSource::next(Batch& out)
                 // Read audio_samples rows for this trial
                 sqlite3_reset(select_audio_stmt_);
                 sqlite3_bind_int(select_audio_stmt_, 1, trial_id);
-                while ((rc = sqlite3_step(select_audio_stmt_)) == SQLITE_ROW)
+                while (sqlite3_step(select_audio_stmt_) == SQLITE_ROW)
                 {
                     const void* blob = sqlite3_column_blob(select_audio_stmt_, 0);
                     int bytes = sqlite3_column_bytes(select_audio_stmt_, 0);

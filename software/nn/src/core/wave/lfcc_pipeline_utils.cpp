@@ -10,8 +10,9 @@
 #include <fftw3.h>
 
 #include <cstddef>
-#include <iostream>
 #include <vector>
+
+#include "nn/logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
 
 #include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
 #include "nn/wave/audioFeatureExtraction.h"
@@ -74,7 +75,7 @@ auto load_and_process_audio(const std::string& audio_file_path,
 
 void process_subject(const SubjectInfo& subject)
 {
-    std::cout << "Processing subject: " << subject.name << '\n';
+    NN_LOG_INFO("Processing subject: " + subject.name);
 
     const AudioProcessingParams audio_processing_params = {
         .target_sampling_rate = 44100,
@@ -107,5 +108,5 @@ void process_subject(const SubjectInfo& subject)
 
     std::vector<nn::Tensor> audio_windows =
         load_and_process_audio(subject.audio_file_path, loading_params);
-    std::cout << "  - Loaded and processed " << audio_windows.size() << " audio windows.\n";
+    NN_LOG_INFO("Loaded and processed " + std::to_string(audio_windows.size()) + " audio windows.");
 }

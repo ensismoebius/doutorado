@@ -1,9 +1,10 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <span>
 #include <string>
+
+#include "nn/logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
 
 #include "../include/ComparativeCli.hpp"
 #include "../include/ComparativeDataset.hpp"
@@ -266,9 +267,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                     save_state_dict_text(state_txt, lstm_model.state_dict());
                                 if (!ok)
                                 {
-                                    std::cerr
-                                        << "[comparative] Warning: failed to save LSTM state_dict for "
-                                        << base_name << "\n";
+                                    NN_LOG_WARN("[comparative] failed to save LSTM state_dict for " +
+                                                base_name);
                                 }
                             }
 
@@ -397,9 +397,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                             decoder_txt, snn_model.decoder_.params(), "decoder");
                                         if (!enc_ok || !dec_ok)
                                         {
-                                            std::cerr << "[comparative] Warning: failed to save SNN "
-                                                         "model artifacts for "
-                                                      << base_name << "\n";
+                                            NN_LOG_WARN("[comparative] failed to save SNN model artifacts for " +
+                                                        base_name);
                                         }
                                     }
 
@@ -463,17 +462,16 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
         }
 
-        std::cout << "[comparative] Results written to:\n"
-                  << "  - " << csv_path << "\n"
-                  << "  - " << table_path << "\n"
-                  << "  - " << summary_json << "\n";
+        NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() +
+                    ", " + table_path.string() +
+                    ", " + summary_json.string());
 
         flushProgressAsync();
         return 0;
     }
     catch (const std::exception& ex)
     {
-        std::cerr << "[comparative] Fatal error: " << ex.what() << "\n";
+        NN_LOG_ERROR(std::string("[comparative] Fatal error: ") + ex.what());
         return 1;
     }
 }

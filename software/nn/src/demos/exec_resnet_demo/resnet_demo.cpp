@@ -20,8 +20,6 @@
 #include "nn/testing.hpp"
 #include "nn/utility/batching.hpp"
 
-using namespace std;
-
 using nn::CrossEntropyLoss;
 using nn::Linear;
 using nn::ReLU;
@@ -34,12 +32,12 @@ auto main() -> int
     {
         NN_LOG_INFO("ResNet demo: load .mat, train small ResNet-like MLP");
 
-        const string mat_path =
+        const std::string mat_path =
             "/home/ensismoebius/Documentos/UNESP/"
             "doutorado/databases/BasedeDatosHablaImaginada/S02/"
             "S02_Audio.mat";
 
-        const string var_name = "Audio";
+        const std::string var_name = "Audio";
 
         auto var_names = matioCpp::utils::list_variable_names(mat_path);
         if (var_names.empty())
@@ -71,8 +69,8 @@ auto main() -> int
         const int n_features = static_cast<int>(mat.cols() - 1);
 
         // Build inputs/targets vectors compatible with create_batches
-        vector<nn::Tensor> inputs;
-        vector<nn::Tensor> targets;
+        std::vector<nn::Tensor> inputs;
+        std::vector<nn::Tensor> targets;
         inputs.reserve(n_samples);
         targets.reserve(n_samples);
 
@@ -81,7 +79,7 @@ auto main() -> int
         for (int i = 0; i < n_samples; ++i)
         {
             int lbl = static_cast<int>(mat.at(i, mat.cols() - 1));
-            max_label = max(max_label, lbl);
+            max_label = std::max(max_label, lbl);
         }
         int n_classes = max_label + 1;
 
@@ -100,11 +98,11 @@ auto main() -> int
         }
 
         // Model: input -> Linear -> ReLU -> ResidualBlock x2 -> Linear(output)
-        auto fc_in = make_shared<Linear>(n_features, 64);
-        auto act = make_shared<ReLU>();
-        auto rb1 = make_shared<ResidualBlock>(64);
-        auto rb2 = make_shared<ResidualBlock>(64);
-        auto fc_out = make_shared<Linear>(64, n_classes);
+        auto fc_in  = std::make_shared<Linear>(n_features, 64);
+        auto act    = std::make_shared<ReLU>();
+        auto rb1    = std::make_shared<ResidualBlock>(64);
+        auto rb2    = std::make_shared<ResidualBlock>(64);
+        auto fc_out = std::make_shared<Linear>(64, n_classes);
 
         Sequential model({fc_in, act, rb1, rb2, fc_out});
 
@@ -143,11 +141,11 @@ auto main() -> int
                 epoch_loss += loss_tensor(0, 0);
             }
 
-            cout << "Epoch " << epoch
-                 << " loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
+            std::cout << "Epoch " << epoch
+                      << " loss: " << epoch_loss / static_cast<float>(batches.size()) << "\n";
         }
 
-        cout << "Training finished." << '\n';
+        std::cout << "Training finished." << '\n';
         return 0;
     }
     catch (const std::exception& e)

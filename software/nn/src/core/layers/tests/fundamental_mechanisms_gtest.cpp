@@ -1436,38 +1436,20 @@ TEST(LeakyBPTTTest, AllParamsGradExact)
 
 TEST(LeakyIntegratorTest, KnownValueForward)
 {
-    // beta = exp(-dt/(R*C)) = exp(-1/1) ≈ 0.3679
-    // First step from v_mem=0: V(t) = beta*0 + input = input (note: readout mode uses beta*v +
-    // input) Actually for LeakyIntegrator: V(t) = beta * V(t-1) + input[t] From zero: V(0) = 0 +
-    // input = input? Let me check the forward pass. Looking at Leaky.hpp forward: v_mem = beta *
-    // v_mem_prev + input (no spike/reset) LeakyIntegrator overrides forward to not spike. Let's
-    // verify.
-    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f); // dt=1, R=1, C=1
+    // V[t] = beta * V[t-1] + input[t], beta = exp(-dt/(R*C)).
+    // dt=1, R=1, C=1 → beta = exp(-1).
+    // Step 1 from zero: V[0] = exp(-1)*0 + 2 = 2.
+    // Step 2 same input: V[1] = exp(-1)*2 + 2.
+    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
     Tensor x(1, 1);
     x.at(0, 0) = 2.0f;
-    Tensor out = layer.forward(x, false);
-    // beta = exp(-1/(1*1)) ≈ 0.3679; V(0) = beta*0 + input = 2.0
-    // But wait, the forward might be: v_mem = beta * v_mem + input
-    // With v_mem initially 0: v_mem = 0 + 2 = 2? Or v_mem = beta*0 + (1-beta)*input?
-    // Let me check the actual formula from the header...
-    // From LeakyIntegrator.hpp: V[t] = beta * V[t-1] + input[t]
-    // So V(first step from 0) = 0 + 2.0 = 2.0? That doesn't use beta.
-    // Actually: v_mem = beta * v_mem + input (from the parent Leaky forward)
-    // First step: v_mem = beta*0 + 2.0 = 2.0
-    // Second step: v_mem = beta*2.0 + 2.0 = 0.3679*2 + 2 = 2.7358
-    // The formula in the comment says V[t] = beta*V[t-1] + input[t]
-    // So first step output = 2.0, but that ignores beta entirely.
-    // Let's just verify what we DO know: output should be positive and finite.
-    // We'll verify the second step to actually exercise beta.
-    float beta = std::exp(-1.0f); // ≈ 0.3679
-    // After 1 step: vmem = 2.0
-    // After 2nd step with same input: vmem = beta*2.0 + 2.0
-    layer.reset_state();
+
     Tensor out1 = layer.forward(x, false);
     Tensor out2 = layer.forward(x, false);
-    float expected_v2 = beta * out1.at(0, 0) + x.at(0, 0);
+
+    const float beta = std::exp(-1.0f);
     EXPECT_NEAR(out1.at(0, 0), 2.0f, 1e-5f);
-    EXPECT_NEAR(out2.at(0, 0), expected_v2, 1e-4f);
+    EXPECT_NEAR(out2.at(0, 0), beta * 2.0f + 2.0f, 1e-4f);
 }
 
 TEST(LeakyIntegratorTest, VthreshGradAlwaysZero)
