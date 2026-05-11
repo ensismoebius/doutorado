@@ -574,3 +574,112 @@ TEST(SGDMinimalTest, AttachWithValidParams)
     std::vector<nn::Tensor*> valid_params = {&p};
     EXPECT_NO_THROW(sgd.attach(valid_params));
 }
+
+namespace
+{
+struct DummyOptimizer final : public Optimizer
+{
+    using Optimizer::step;
+    using Optimizer::zero_grad;
+
+    size_t step_count = 0;
+    size_t zero_count = 0;
+    size_t last_step_size = 0;
+    size_t last_zero_size = 0;
+
+    auto step(std::span<Tensor*> params) -> void override
+    {
+        ++step_count;
+        last_step_size = params.size();
+    }
+
+    auto zero_grad(std::span<Tensor*> params) -> void override
+    {
+        ++zero_count;
+        last_zero_size = params.size();
+    }
+};
+} // namespace
+
+TEST(OptimizerBaseTest, ConvenienceMethodsAndDefaults)
+{
+    DummyOptimizer opt;
+
+    EXPECT_THROW(opt.step(), std::runtime_error);
+    EXPECT_THROW(opt.zero_grad(), std::runtime_error);
+
+    nn::Tensor p(1, 1);
+    p.at(0, 0) = 1.0F;
+    std::vector<nn::Tensor*> params = {&p};
+
+    // Base attach() is a no-op.
+    EXPECT_NO_THROW(opt.attach(params));
+    EXPECT_TRUE(opt.attached_params_.empty());
+
+    // Manually populate attached params to exercise no-arg dispatch paths.
+    opt.attached_params_.assign(params.begin(), params.end());
+    EXPECT_NO_THROW(opt.step());
+    EXPECT_NO_THROW(opt.zero_grad());
+    EXPECT_EQ(opt.step_count, 1U);
+    EXPECT_EQ(opt.zero_count, 1U);
+    EXPECT_EQ(opt.last_step_size, 1U);
+    EXPECT_EQ(opt.last_zero_size, 1U);
+
+    auto sd = opt.state_dict();
+    EXPECT_TRUE(sd.empty());
+    EXPECT_NO_THROW(opt.load_state_dict(sd));
+}
+
+TEST(AdamTest, AttachWithScalesValidationAndSuccess)
+{
+    Adam adam(0.01F);
+    nn::Tensor p1(2, 2);
+    nn::Tensor p2(2, 2);
+    std::vector<nn::Tensor*> params = {&p1, &p2};
+
+    const std::vector<float> bad_scales = {0.1F};
+    EXPECT_THROW(adam.attach_with_scales(params, bad_scales), std::invalid_argument);
+
+    const std::vector<float> good_scales = {0.1F, 0.5F};
+    EXPECT_NO_THROW(adam.attach_with_scales(params, good_scales));
+    ASSERT_EQ(adam.lr_scales_.size(), 2U);
+    EXPECT_FLOAT_EQ(adam.lr_scales_[0], 0.1F);
+    EXPECT_FLOAT_EQ(adam.lr_scales_[1], 0.5F);
+    EXPECT_EQ(adam.moment1.size(), 2U);
+    EXPECT_EQ(adam.moment2.size(), 2U);
+}
+
+TEST(AdamTest, StateDictRoundTripAndNullParamGuards)
+{
+    nn::Tensor p1(1, 1);
+    nn::Tensor p2(1, 1);
+    p1.at(0, 0) = 1.0F;
+    p2.at(0, 0) = 2.0F;
+    p1.set_grad(test_helpers::make_constant_tensor(1, 1, 0.25F));
+    p2.set_grad(test_helpers::make_constant_tensor(1, 1, -0.50F));
+    std::vector<nn::Tensor*> params = {&p1, &p2};
+
+    Adam adam_src(0.01F);
+    adam_src.attach(params);
+    adam_src.step(params);
+    const auto saved = adam_src.state_dict();
+
+    Adam adam_dst(0.01F);
+    adam_dst.attach(params);
+    EXPECT_NO_THROW(adam_dst.load_state_dict(saved));
+    EXPECT_EQ(adam_dst.time_step, adam_src.time_step);
+    ASSERT_EQ(adam_dst.moment1.size(), adam_src.moment1.size());
+    ASSERT_EQ(adam_dst.moment2.size(), adam_src.moment2.size());
+    EXPECT_NEAR(adam_dst.moment1[0].at(0, 0), adam_src.moment1[0].at(0, 0), 1e-6F);
+    EXPECT_NEAR(adam_dst.moment2[1].at(0, 0), adam_src.moment2[1].at(0, 0), 1e-6F);
+
+    // Also exercise the path where time_step exists but tensor has zero shape.
+    std::map<std::string, nn::Tensor> malformed = saved;
+    malformed["time_step"] = nn::Tensor(0, 0);
+    EXPECT_NO_THROW(adam_dst.load_state_dict(malformed));
+
+    nn::Tensor* null_ptr = nullptr;
+    std::vector<nn::Tensor*> params_with_null = {&p1, null_ptr};
+    EXPECT_THROW(adam_dst.step(params_with_null), std::invalid_argument);
+    EXPECT_THROW(adam_dst.zero_grad(params_with_null), std::invalid_argument);
+}

@@ -2,8 +2,10 @@
 
 #include <chrono>
 #include <map>
+#include <string>
 #include <thread>
 
+#include "nn/logging/Logger.hpp"
 #include "nn/progress/ProgressBar.hpp"
 #include "nn/progress/ProgressManager.hpp"
 
@@ -94,4 +96,40 @@ TEST(ProgressTest, ShutdownCleansUpRenderer)
     std::this_thread::sleep_for(std::chrono::milliseconds(80));
     manager.shutdown();
     SUCCEED();
+}
+
+TEST(LoggerTest, CoversLevelPrefixes)
+{
+    auto& logger = nn::logging::Logger::instance();
+    logger.set_suppress_console_output(true);
+    logger.set_level(nn::logging::Level::Debug);
+    (void) logger.drain_recent_lines();
+
+    logger.log(nn::logging::Level::Warn, "warn-msg");
+    logger.log(nn::logging::Level::Info, "info-msg");
+    logger.log(nn::logging::Level::Debug, "debug-msg");
+
+    auto lines = logger.drain_recent_lines();
+    ASSERT_EQ(lines.size(), 3U);
+    EXPECT_NE(lines[0].find("WARN:"), std::string::npos);
+    EXPECT_NE(lines[1].find("INFO:"), std::string::npos);
+    EXPECT_NE(lines[2].find("DEBUG:"), std::string::npos);
+}
+
+TEST(LoggerTest, RecentLinesBufferEvictsOldEntries)
+{
+    auto& logger = nn::logging::Logger::instance();
+    logger.set_suppress_console_output(true);
+    logger.set_level(nn::logging::Level::Info);
+    (void) logger.drain_recent_lines();
+
+    for (int i = 0; i < 205; ++i)
+    {
+        logger.log(nn::logging::Level::Info, "ring_" + std::to_string(i));
+    }
+
+    auto lines = logger.drain_recent_lines();
+    ASSERT_EQ(lines.size(), 200U);
+    EXPECT_NE(lines.front().find("ring_5"), std::string::npos);
+    EXPECT_NE(lines.back().find("ring_204"), std::string::npos);
 }
