@@ -1678,11 +1678,88 @@ TEST(Conv2dTest, ReusesCachedIndicesAndBuffersOnRepeatedShape)
     }
 }
 
+// Conv1d basic forward and backward (Conv1d_impl.cpp validation/getters)
+TEST(Conv1dTest, BasicForwardBackward)
+{
+    nn::Conv1d conv(1,
+        1,
+        2,
+        1,
+        0,
+        1); // in_channels=1, out_channels=1, kernel_size=2, stride=1, padding=0, dilation=1
+    nn::Tensor input(std::vector<size_t>{1, 1, 4}); // batch=1, channels=1, length=4
+    input.at(0, 0, 0) = 1.0F;
+    input.at(0, 0, 1) = 2.0F;
+    input.at(0, 0, 2) = 3.0F;
+    input.at(0, 0, 3) = 4.0F;
+
+    auto output = conv.forward(input);
+    ASSERT_EQ(output.get_shape().size(), 3); // Should be 3D (B, C_out, L_out)
+
+    nn::Tensor grad_out(output.get_shape());
+    grad_out.set_ones();
+    auto input_grad = conv.backward(grad_out);
+    ASSERT_EQ(input_grad.get_shape(), input.get_shape());
+}
+
+TEST(Conv2dTest, ConvenienceCtorAndConstGetters)
+{
+    Conv2d conv(1, 1, 3, 1, 0, 1);
+
+    const auto& const_conv = std::as_const(conv);
+    const auto& weights = const_conv.get_weights();
+    const auto& bias = const_conv.get_bias();
+
+    EXPECT_EQ(weights.get_shape().size(), 2U);
+    EXPECT_EQ(bias.get_shape().size(), 2U);
+
+    nn::Tensor input(std::vector<size_t>{1, 1, 5, 5});
+    input.set_ones();
+    auto output = conv.forward(input);
+    EXPECT_EQ(output.get_shape(), std::vector<size_t>({1, 1, 3, 3}));
+}
+
+// Conv1d forward with wrong input channels (Conv1d_impl.cpp line 70)
+TEST(Conv1dTest, ForwardThrowsOnWrongInputChannels)
+{
+    nn::Conv1d conv(2, 1, 2, 1, 0, 1);              // Expects 2 input channels
+    nn::Tensor input(std::vector<size_t>{1, 1, 4}); // Only 1 input channel
+    EXPECT_THROW(conv.forward(input), std::invalid_argument);
+}
+
+// Conv1d forward with wrong input dimensions (Conv1d_impl.cpp line 63)
+TEST(Conv1dTest, ForwardThrowsOnNot3DInput)
+{
+    nn::Conv1d conv(1, 1, 2, 1, 0, 1);
+    nn::Tensor input(std::vector<size_t>{1, 1, 4, 4}); // 4D instead of 3D
+    EXPECT_THROW(conv.forward(input), std::invalid_argument);
+}
+
+// Conv1d with invalid output length (Conv1d_impl.cpp line 74)
+TEST(Conv1dTest, ForwardThrowsOnInvalidOutputLength)
+{
+    nn::Conv1d conv(1, 1, 5, 1, 0, 1);              // kernel=5, stride=1, padding=0, dilation=1
+    nn::Tensor input(std::vector<size_t>{1, 1, 2}); // Only 2 time steps → output would be negative
+    EXPECT_THROW(conv.forward(input), std::invalid_argument);
+}
+
 // BoxcarSurrogate.width() accessor (BoxcarSurrogate.hpp line 42)
 TEST(SurrogateGradientTest, BoxcarSurrogateWidthAccessor)
 {
     BoxcarSurrogate surrogate(0.5F);
     EXPECT_FLOAT_EQ(surrogate.width(), 0.5F);
+}
+// Conv1d getters (Conv1d_impl.cpp getter methods)
+TEST(Conv1dTest, GettersReturnCorrectTypes)
+{
+    nn::Conv1d conv(2, 3, 2, 1, 0, 1);  // in=2, out=3, kernel=2, stride=1, padding=0, dilation=1
+    auto& weights = conv.get_weights(); // Calls mutable getter
+    const auto& const_weights = std::as_const(conv).get_weights(); // Calls const getter
+    EXPECT_EQ(weights.get_shape(), const_weights.get_shape());
+
+    auto& bias = conv.get_bias();                            // Calls mutable bias getter
+    const auto& const_bias = std::as_const(conv).get_bias(); // Calls const bias getter
+    EXPECT_EQ(bias.get_shape(), const_bias.get_shape());
 }
 
 // SpikeCountLoss.train() — covers SpikeCountLoss.hpp lines 54, 56, 57
