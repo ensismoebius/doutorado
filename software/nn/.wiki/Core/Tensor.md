@@ -142,6 +142,21 @@ Measured evidence (20-iteration samples on rusticl + AMD Radeon Graphics):
 Detailed benchmark log:
 - [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../../results/opencl_lhs_transposed_benchmark_2026-05-02.md)
 
+## Recent OpenCL Stability and SNN Integration Update (2026-05-10)
+
+The OpenCL backend and SNN layer integration were extended to validate LIF helper usage from layer code, not only from backend helper unit tests.
+
+Implementation points:
+- OpenCL backend default constructor now initializes empty host storage to avoid null host-state dereference during early shape checks.
+    - `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
+- OpenCL tensor tests now include Leaky layer forward/backward integration cases instantiated on `OpenCLTensorBackend`.
+    - `src/core/tensor/tests/opencl_tensor_backend_gtest.cpp`
+
+Observed behavior after the fix:
+- Direct helper tests (`lif_step_inplace`, `lif_grad`) pass.
+- Layer-level OpenCL tests for Leaky forward parity and exponential-surrogate backward also pass.
+- A previously reproducible segmentation fault in first-call Leaky forward is removed.
+
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$

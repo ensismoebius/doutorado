@@ -38,6 +38,8 @@ class ExponentialSurrogate : public ISurrogateGradient
         return (1.0F / sharpness_) * std::exp(-diff_abs / sharpness_);
     }
 
+   [[nodiscard]] float sharpness() const { return sharpness_; }
+
    private:
     float sharpness_;
 };

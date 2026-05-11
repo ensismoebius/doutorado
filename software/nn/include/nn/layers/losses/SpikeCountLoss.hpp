@@ -65,31 +65,27 @@ class SpikeCountLossImpl : public Module<Backend>
             last_input_ = input;
         }
 
-        // MSE on spike counts
         Tensor diff = last_input_;
         diff.subtract_inplace(target_);
+
+        Tensor squared = diff;
+        squared.multiply(diff);
+        auto row_sums = squared.rowwise_sum();
         float sum_sq = 0.0f;
-        for (size_t i = 0; i < diff.rows(); ++i)
+        for (size_t i = 0; i < row_sums.rows(); ++i)
         {
-            for (size_t j = 0; j < diff.cols(); ++j)
-            {
-                float val = diff.at(i, j);
-                sum_sq += val * val;
-            }
+            sum_sq += row_sums.at(i, 0);
         }
         float mse = sum_sq / static_cast<float>(diff.size());
 
-        // Spike-rate regularization: penalise dead and bursting neurons
         float reg = 0.0f;
         if (rate_reg_lambda > 0.0f && last_input_.size() > 0)
         {
+            auto spike_row_sums = last_input_.rowwise_sum();
             float spike_sum = 0.0f;
-            for (size_t i = 0; i < last_input_.rows(); ++i)
+            for (size_t i = 0; i < spike_row_sums.rows(); ++i)
             {
-                for (size_t j = 0; j < last_input_.cols(); ++j)
-                {
-                    spike_sum += last_input_.at(i, j);
-                }
+                spike_sum += spike_row_sums.at(i, 0);
             }
             last_mean_rate_ = spike_sum / static_cast<float>(last_input_.size());
 
@@ -105,25 +101,16 @@ class SpikeCountLossImpl : public Module<Backend>
 
     auto backward(const Tensor& /*grad_output*/) -> Tensor override
     {
-        // Base gradient: 2*(prediction - target)/N
         Tensor grad(last_input_);
         grad.subtract_inplace(target_);
         grad.multiply_scalar_inplace(2.0f / static_cast<float>(last_input_.size()));
 
-        // Regularization gradient: pushes mean rate toward [min_rate, max_rate].
-        // d_reg/d_spike_ij = 2*lambda*(mean_rate - clamp(mean_rate, min_rate, max_rate)) / N
         if (rate_reg_lambda > 0.0f && last_input_.size() > 0)
         {
             float clamped = std::clamp(last_mean_rate_, min_rate, max_rate);
             float d_reg = 2.0f * rate_reg_lambda * (last_mean_rate_ - clamped)
                           / static_cast<float>(last_input_.size());
-            for (size_t i = 0; i < grad.rows(); ++i)
-            {
-                for (size_t j = 0; j < grad.cols(); ++j)
-                {
-                    grad.at(i, j) += d_reg;
-                }
-            }
+            grad.add_scalar_inplace(d_reg);
         }
         return grad;
     }

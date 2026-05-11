@@ -126,6 +126,19 @@ struct LeakyImpl : public Module<Backend>
 computes exact BPTT gradients for R, C, V_th including the recurrent reset path.
 See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) for full detail.
 
+OpenCL integration update (2026-05-10):
+- `LeakyImpl` now uses a backend-gated fast path when the active backend exposes
+    fused helpers:
+    - `lif_step_inplace(...)` for forward membrane update + spike generation
+    - `lif_grad(...)` for exponential surrogate gradient in backward
+- Fallback behavior remains available for backends without these helpers.
+
+Validation path:
+- Backend helper correctness tests in `opencl_tensor_backend_gtest`.
+- Layer-level OpenCL-instantiated tests in the same target:
+    - `LeakyLayerForwardParityOnOpenCLBackend`
+    - `LeakyLayerBackwardExponentialSurrogateOnOpenCLBackend`
+
 ### Threshold-Dependent Batch Normalization (tdBN)
 
 Normalises pre-spike membrane potentials per time step and rescales by $V_{th}/\sqrt{T}$,

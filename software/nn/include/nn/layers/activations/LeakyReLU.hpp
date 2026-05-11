@@ -25,21 +25,14 @@ struct LeakyReLUImpl : public Module<Backend>
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
-        // Cache the gradient for the backward pass only if gradients required
         if (requires_grad)
         {
-            // Create gradient mask: 1 for positive values, alpha for negative values
-            leaky_grad = Tensor(input.rows(), input.cols());
-            for (size_t i = 0; i < input.rows(); ++i)
-            {
-                for (size_t j = 0; j < input.cols(); ++j)
-                {
-                    leaky_grad.at(i, j) = (input.at(i, j) > 0.0f) ? 1.0f : alpha;
-                }
-            }
+            Tensor binary_mask = input.compare_gt_scalar(0.0f);
+            binary_mask.multiply_scalar_inplace(1.0f - alpha);
+            leaky_grad = binary_mask;
+            leaky_grad.add_scalar_inplace(alpha);
         }
 
-        // Apply the LeakyReLU activation function using Tensor method
         return input.leaky_relu(alpha);
     }
 

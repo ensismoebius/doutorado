@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "nn/layers/base/Module.hpp"
+#include "nn/layers/spiking/BoxcarSurrogate.hpp"
 #include "nn/layers/spiking/ExponentialSurrogate.hpp"
 #include "nn/tensor/Tensor.hpp"
 
@@ -208,15 +209,16 @@ struct LeakyImpl : public Module<Backend>
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         // Ensure v_mem is correctly sized, initializing if necessary
-        if (v_mem.rows() != input.rows() || v_mem.cols() != input.cols()) [[unlikely]]
+        if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
+            [[unlikely]]
         {
             v_mem = Tensor(input.rows(), input.cols());
             v_mem.setZero();
         }
 
         // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
-        if (adapt_coupling > 0.0F &&
-            (adapt_a.rows() != input.rows() || adapt_a.cols() != input.cols())) [[unlikely]]
+        if (adapt_coupling > 0.0F && (adapt_a.size() == 0 || adapt_a.rows() != input.rows() ||
+                                         adapt_a.cols() != input.cols())) [[unlikely]]
         {
             adapt_a = Tensor(input.rows(), input.cols());
             adapt_a.setZero();
@@ -252,6 +254,53 @@ struct LeakyImpl : public Module<Backend>
             v_mem_t_minus_1 = v_mem;
         }
 
+        // Fast path: if the backend provides fused LIF step, use it to avoid
+        // per-element host loops while keeping legacy semantics.
+        Tensor output(input.rows(), input.cols());
+        float const base_threshold = voltage_threshold.at(0, 0);
+        const bool use_adaptation = (adapt_coupling > 0.0F) && (adapt_a.size() > 0);
+        if constexpr (requires(Backend& v,
+                          const Backend& in,
+                          Backend& out,
+                          Backend* adapt,
+                          float beta_,
+                          float threshold_,
+                          float reset_,
+                          bool reset_zero_,
+                          float adapt_decay_,
+                          float adapt_coupling_,
+                          bool use_adaptation_) {
+                          v.lif_step_inplace(in,
+                              out,
+                              adapt,
+                              beta_,
+                              threshold_,
+                              reset_,
+                              reset_zero_,
+                              adapt_decay_,
+                              adapt_coupling_,
+                              use_adaptation_);
+                      })
+        {
+            if (requires_grad)
+            {
+                v_mem_pre_spike = v_mem.multiply_scalar(beta).add(input);
+            }
+
+            Backend* adapt_backend = use_adaptation ? &adapt_a.get_backend() : nullptr;
+            v_mem.get_backend().lif_step_inplace(input.get_backend(),
+                output.get_backend(),
+                adapt_backend,
+                beta,
+                base_threshold,
+                reset_potential,
+                reset_zero,
+                adapt_decay,
+                adapt_coupling,
+                use_adaptation);
+            return output;
+        }
+
         // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
         // is decayed by a factor of `beta`. If there were no input, the potential
         // would exponentially decay toward its resting potential (0).
@@ -280,10 +329,6 @@ struct LeakyImpl : public Module<Backend>
         // threshold = voltage_threshold + adapt_a (per-neuron), implementing a negative-feedback
         // mechanism that suppresses bursting (MPD-ATP, IEEE 2025 [35]).
         // This is a non-differentiable step function — surrogate gradients approximate it.
-        Tensor output(input.rows(), input.cols());
-        float const base_threshold = voltage_threshold.at(0, 0);
-        const bool use_adaptation = (adapt_coupling > 0.0F) && (adapt_a.size() > 0);
-
         // Decay adaptation variable before this step's threshold is applied
         if (use_adaptation)
         {
@@ -357,14 +402,51 @@ struct LeakyImpl : public Module<Backend>
      */
     auto backward(const Tensor& grad_output) -> Tensor override
     {
-        // --- Surrogate Gradient Calculation ---
-        const nn::Tensor v_mem_cpu = v_mem_pre_spike.template to_backend<nn::Backend>();
-        const nn::Tensor surrogate_grad_cpu =
-            surrogate_gradient->calculate(v_mem_cpu, voltage_threshold.at(0, 0));
-        const Tensor surrogate_grad(surrogate_grad_cpu);
+        float threshold = voltage_threshold.at(0, 0);
+        float sharpness = 1.0f;
+        const bool exp_surrogate =
+            (dynamic_cast<const ExponentialSurrogate*>(surrogate_gradient.get()) != nullptr);
+        if (auto* exp_surr = dynamic_cast<const ExponentialSurrogate*>(surrogate_gradient.get()))
+        {
+            sharpness = exp_surr->sharpness();
+        }
+        else if (auto* box_surr = dynamic_cast<const BoxcarSurrogate*>(surrogate_gradient.get()))
+        {
+            sharpness = box_surr->width();
+        }
 
-        // Gradient of the loss with respect to the pre-spike membrane potential (dL/dv_pre)
-        // This is the starting point for calculating other gradients via the chain rule.
+        Tensor surrogate_grad;
+        if constexpr (requires(const Backend& b, float t, float s) { b.lif_grad(t, s); })
+        {
+            if (exp_surrogate)
+            {
+                surrogate_grad =
+                    Tensor(v_mem_pre_spike.get_backend().lif_grad(threshold, sharpness));
+            }
+            else
+            {
+                Tensor diff = v_mem_pre_spike;
+                diff = diff.add_scalar(-threshold);
+                diff = diff.abs();
+                diff = diff.divide_scalar(sharpness);
+                diff = diff.multiply_scalar(-1.0f);
+                diff = diff.exp();
+                diff.multiply_scalar_inplace(1.0f / sharpness);
+                surrogate_grad = diff;
+            }
+        }
+        else
+        {
+            Tensor diff = v_mem_pre_spike;
+            diff = diff.add_scalar(-threshold);
+            diff = diff.abs();
+            diff = diff.divide_scalar(sharpness);
+            diff = diff.multiply_scalar(-1.0f);
+            diff = diff.exp();
+            diff.multiply_scalar_inplace(1.0f / sharpness);
+            surrogate_grad = diff;
+        }
+
         Tensor grad_v_pre_mat = grad_output.multiply(surrogate_grad);
 
         // --- Gradient for voltage_threshold ---

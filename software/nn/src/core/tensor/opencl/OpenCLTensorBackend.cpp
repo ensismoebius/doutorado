@@ -22,6 +22,7 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
 #include "nn/logging/Logger.hpp"
 #include "nn/tensor/opencl/DeviceMemory.hpp"
@@ -608,8 +609,7 @@ auto to_opencl_tensor(const nn::OpenCLTensorBackend& source) -> nn::OpenCLTensor
 }
 
 auto compute_opencl_reconstruction_mse(
-    const nn::OpenCLTensorBackend& prediction, const nn::OpenCLTensorBackend& target)
-    -> float
+    const nn::OpenCLTensorBackend& prediction, const nn::OpenCLTensorBackend& target) -> float
 {
     auto prediction_gpu = to_opencl_tensor(prediction);
     auto target_gpu = to_opencl_tensor(target);
@@ -628,7 +628,7 @@ auto compute_opencl_reconstruction_mse(
 } // namespace
 
 // Constructors
-OpenCLTensorBackend::OpenCLTensorBackend() = default;
+OpenCLTensorBackend::OpenCLTensorBackend() : m_backend(std::make_unique<OpenCLHostStorage>()) {}
 
 OpenCLTensorBackend::OpenCLTensorBackend(Index rows, Index cols)
     : m_backend(std::make_unique<OpenCLHostStorage>(rows, cols))
@@ -662,7 +662,7 @@ OpenCLTensorBackend::OpenCLTensorBackend(const std::vector<Index>& shape)
 
 OpenCLTensorBackend::OpenCLTensorBackend(const OpenCLTensorBackend& other)
 {
-    other.sync_gpu();
+    other.sync_gpu_if_needed();
     if (other.m_backend)
     {
         m_backend = std::make_unique<OpenCLHostStorage>(*other.m_backend);
@@ -698,7 +698,7 @@ OpenCLTensorBackend& OpenCLTensorBackend::operator=(const OpenCLTensorBackend& o
 {
     if (this != &other)
     {
-        other.sync_gpu();
+        other.sync_gpu_if_needed();
         m_backend =
             other.m_backend ? std::make_unique<OpenCLHostStorage>(*other.m_backend) : nullptr;
         m_grad_backend = other.m_grad_backend
@@ -814,8 +814,7 @@ OpenCLTensorBackend OpenCLTensorBackend::random(Index d1, Index d2, Index d3, st
 {
     OpenCLTensorBackend t(d1, d2, d3);
     std::uniform_real_distribution<float> dist(0.0F, 1.0F);
-    for (Index i = 0; i < t.size(); ++i)
-        t.m_backend->at(i) = dist(rng);
+    for (Index i = 0; i < t.size(); ++i) t.m_backend->at(i) = dist(rng);
     return t;
 }
 
@@ -856,66 +855,66 @@ Index OpenCLTensorBackend::size() const
 // N-D access
 float& OpenCLTensorBackend::at(Index i)
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     m_needs_sync_to_device = true;
     return m_backend->at(i);
 }
 
 const float& OpenCLTensorBackend::at(Index i) const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     return m_backend->at(i);
 }
 
 float& OpenCLTensorBackend::at(Index row, Index col)
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     m_needs_sync_to_device = true;
     return m_backend->at(row, col);
 }
 
 const float& OpenCLTensorBackend::at(Index row, Index col) const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     return m_backend->at(row, col);
 }
 
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3)
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     m_needs_sync_to_device = true;
     return m_backend->at(d1, d2, d3);
 }
 
 const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3) const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     return m_backend->at(d1, d2, d3);
 }
 
 float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4)
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     m_needs_sync_to_device = true;
     return m_backend->at(d1, d2, d3, d4);
 }
 
 const float& OpenCLTensorBackend::at(Index d1, Index d2, Index d3, Index d4) const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     return m_backend->at(d1, d2, d3, d4);
 }
 
 float& OpenCLTensorBackend::at(const std::vector<Index>& indices)
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     m_needs_sync_to_device = true;
     return m_backend->at(indices);
 }
 
 const float& OpenCLTensorBackend::at(const std::vector<Index>& indices) const
 {
-    sync_gpu();
+    sync_gpu_if_needed();
     return m_backend->at(indices);
 }
 
@@ -1147,6 +1146,51 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "add_inplace resident lhs");
+                    m_needs_sync_to_device = false;
+                }
+                if (other.m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "add_inplace resident rhs");
+                    other.m_needs_sync_to_device = false;
+                }
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("add_inplace_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "add_inplace");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "add_inplace");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "add_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "add_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "add_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -1308,6 +1352,54 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
             const auto n = size();
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
+
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "subtract_inplace resident lhs");
+                    m_needs_sync_to_device = false;
+                }
+                if (other.m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "subtract_inplace resident rhs");
+                    other.m_needs_sync_to_device = false;
+                }
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("subtract_inplace_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "subtract_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "subtract_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "subtract_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "subtract_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "subtract_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -1473,6 +1565,54 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "multiply_inplace resident lhs");
+                    m_needs_sync_to_device = false;
+                }
+                if (other.m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "multiply_inplace resident rhs");
+                    other.m_needs_sync_to_device = false;
+                }
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("multiply_inplace_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "multiply_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "multiply_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "multiply_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "multiply_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "multiply_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -1637,6 +1777,52 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
+                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            {
+                if (m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "divide_inplace resident lhs");
+                    m_needs_sync_to_device = false;
+                }
+                if (other.m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        other.m_gpu_buffer->buffer,
+                        other.m_backend->data_ptr(),
+                        bytes,
+                        "divide_inplace resident rhs");
+                    other.m_needs_sync_to_device = false;
+                }
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("divide_inplace_kernel");
+                const cl_mem a_mem = m_gpu_buffer->buffer;
+                const cl_mem b_mem = other.m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "divide_inplace");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "divide_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "divide_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "divide_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "divide_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -1795,6 +1981,33 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("add_scalar_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "add_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(float), &val), "add_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "add_scalar_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "add_scalar_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "add_scalar_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -1913,6 +2126,33 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
             const auto n = size();
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("multiply_scalar_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
+                    "multiply_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(float), &val), "multiply_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "multiply_scalar_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "multiply_scalar_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "multiply_scalar_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2034,6 +2274,33 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("divide_scalar_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "divide_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(float), &val), "divide_scalar_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "divide_scalar_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "divide_scalar_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "divide_scalar_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -2153,6 +2420,30 @@ void OpenCLTensorBackend::sqrt_inplace()
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("sqrt_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "sqrt_inplace");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_uint), &n_u32), "sqrt_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "sqrt_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "sqrt_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
             {
@@ -2256,9 +2547,136 @@ void OpenCLTensorBackend::sqrt_inplace()
 void OpenCLTensorBackend::fill(float value)
 {
     sync_gpu();
-    m_backend->fill(value);
-    m_needs_sync_to_device = true;
-    m_needs_sync_to_host = false;
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("fill"))
+    {
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const auto n = size();
+            if (n == 0) return;
+            const std::size_t bytes = n * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "fill");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &value), "fill");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "fill");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "fill");
+                finish_queue_if_not_batching(ctx.get_queue(), "fill");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto data_buf = pool->acquire(bytes);
+                if (data_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "fill",
+                        &h2d_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
+                    const cl_mem data_mem = data_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "fill");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &value), "fill");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "fill");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "fill");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "fill");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->mutable_data_ptr(),
+                        bytes,
+                        "fill",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+                    record_pending_gpu_op(d2h_evt);
+                    return;
+                }
+            }
+
+            opencl::DeviceMemory data_dev(bytes);
+            data_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
+            const cl_mem data_mem = data_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "fill");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &value), "fill");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "fill");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "fill");
+            finish_queue_if_not_batching(ctx.get_queue(), "fill");
+
+            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            return;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("fill", e.what());
+        }
+    }
+    throw_opencl_only_failure("fill", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::set_zero()
@@ -2278,6 +2696,220 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
     if (shape().size() != 2 || row.shape().size() != 2 || row.rows() != 1 || row.cols() != cols())
     {
         throw std::invalid_argument("add_row_broadcast_inplace requires lhs=(N,M) and row=(1,M)");
+    }
+
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("add_row_broadcast_inplace"))
+    {
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const auto num_rows = rows();
+            const auto num_cols = cols();
+            const auto n = size();
+            if (n == 0) return;
+            const std::size_t bytes = n * sizeof(float);
+            const std::size_t row_bytes = num_cols * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer && row.m_has_gpu_memory &&
+                row.m_gpu_buffer)
+            {
+                if (m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        m_gpu_buffer->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "add_row_broadcast_inplace resident data");
+                    m_needs_sync_to_device = false;
+                }
+                if (row.m_needs_sync_to_device)
+                {
+                    copy_host_to_device(ctx.get_queue(),
+                        row.m_gpu_buffer->buffer,
+                        row.m_backend->data_ptr(),
+                        row_bytes,
+                        "add_row_broadcast_inplace resident row");
+                    row.m_needs_sync_to_device = false;
+                }
+
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_mem row_mem = row.m_gpu_buffer->buffer;
+                const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+                const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
+                    "add_row_broadcast_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem),
+                    "add_row_broadcast_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                    "add_row_broadcast_inplace resident");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                    "add_row_broadcast_inplace resident");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "add_row_broadcast_inplace resident");
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto data_buf = pool->acquire(bytes);
+                auto row_buf = pool->acquire(row_bytes);
+                if (data_buf && row_buf)
+                {
+                    cl_event data_evt = nullptr;
+                    cl_event row_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "add_row_broadcast_inplace",
+                        &data_evt);
+                    copy_host_to_device_async(ctx.get_queue(),
+                        row_buf->buffer,
+                        row.m_backend->data_ptr(),
+                        row_bytes,
+                        "add_row_broadcast_inplace",
+                        &row_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
+                        "add_col_vector_to_rows_kernel");
+                    const cl_mem data_mem = data_buf->buffer;
+                    const cl_mem row_mem = row_buf->buffer;
+                    const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+                    const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem),
+                        "add_row_broadcast_inplace");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem),
+                        "add_row_broadcast_inplace");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32),
+                        "add_row_broadcast_inplace");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32),
+                        "add_row_broadcast_inplace");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (data_evt && row_evt)
+                    {
+                        cl_event wait_events[2] = {data_evt, row_evt};
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           2,
+                                           wait_events,
+                                           &kernel_evt),
+                            "add_row_broadcast_inplace");
+                    }
+                    else if (data_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &data_evt,
+                                           &kernel_evt),
+                            "add_row_broadcast_inplace");
+                    }
+                    else if (row_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &row_evt,
+                                           &kernel_evt),
+                            "add_row_broadcast_inplace");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "add_row_broadcast_inplace");
+                    }
+
+                    if (data_evt) clReleaseEvent(data_evt);
+                    if (row_evt) clReleaseEvent(row_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->mutable_data_ptr(),
+                        bytes,
+                        "add_row_broadcast_inplace",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+                    record_pending_gpu_op(d2h_evt);
+                    return;
+                }
+            }
+
+            opencl::DeviceMemory data_dev(bytes);
+            opencl::DeviceMemory row_dev(row_bytes);
+            data_dev.copy_to_device(m_backend->data_ptr());
+            row_dev.copy_to_device(row.m_backend->data_ptr());
+
+            cl_kernel kernel =
+                opencl::KernelManager::instance().get_kernel("add_col_vector_to_rows_kernel");
+            const cl_mem data_mem = data_dev.get_device_buffer();
+            const cl_mem row_mem = row_dev.get_device_buffer();
+            const cl_uint rows_u32 = static_cast<cl_uint>(num_rows);
+            const cl_uint cols_u32 = static_cast<cl_uint>(num_cols);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "add_row_broadcast_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &row_mem), "add_row_broadcast_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_uint), &rows_u32), "add_row_broadcast_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_uint), &cols_u32), "add_row_broadcast_inplace");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "add_row_broadcast_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "add_row_broadcast_inplace");
+
+            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            return;
+        }
+        catch (const std::exception& e)
+        {
+            warn_opencl_cpu_fallback_once(
+                "add_row_broadcast_inplace", std::string("OpenCL path failed: ") + e.what());
+        }
     }
 
     for (Index i = 0; i < rows(); ++i)
@@ -2311,6 +2943,31 @@ void OpenCLTensorBackend::square_inplace()
             const auto n = size();
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("square_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "square_inplace");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_uint), &n_u32), "square_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "square_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "square_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
             if (pool)
@@ -2706,6 +3363,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
                     t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                     t.set_gpu_resident(true);
                     t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
                     return t;
                 }
             }
@@ -2881,6 +3539,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
                     t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
                     t.set_gpu_resident(true);
                     t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
                     return t;
                 }
             }
@@ -4195,8 +4854,8 @@ OpenCLTensorBackend OpenCLTensorBackend::sum_cols() const
 
 float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target) const
 {
-    sync_gpu();
-    target.sync_gpu();
+    sync_gpu_if_needed();
+    target.sync_gpu_if_needed();
     if (shape() != target.shape())
     {
         throw std::invalid_argument("mean_squared_error requires equal shapes");
@@ -4205,13 +4864,173 @@ float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target)
     const auto n = size();
     if (n == 0) return 0.0F;
 
-    float sq = 0.0F;
-    for (Index i = 0; i < n; ++i)
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("mse"))
     {
-        const float d = m_backend->at(i) - target.m_backend->at(i);
-        sq += d * d;
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+            const std::size_t local = 256;
+            const std::size_t global = round_up(n, local);
+            const std::size_t num_groups = global / local;
+            const std::size_t partial_bytes = num_groups * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (pool && m_gpu_resident && m_has_gpu_memory && target.m_gpu_resident &&
+                target.m_has_gpu_memory && m_gpu_buffer && target.m_gpu_buffer)
+            {
+                auto partial_buf = pool->acquire(partial_bytes);
+                if (partial_buf)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("mse_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem tgt_mem = target.m_gpu_buffer->buffer;
+                    const cl_mem out_mem = partial_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &tgt_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "mse");
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "mse");
+
+                    std::vector<float> partials(num_groups);
+                    copy_device_to_host(ctx.get_queue(),
+                        partial_buf->buffer,
+                        partials.data(),
+                        partial_bytes,
+                        "mse");
+
+                    float sq = 0.0F;
+                    for (std::size_t i = 0; i < num_groups; ++i)
+                    {
+                        sq += partials[i];
+                    }
+                    return sq / static_cast<float>(n);
+                }
+            }
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto target_buf = pool->acquire(bytes);
+                auto partial_buf = pool->acquire(partial_bytes);
+                if (input_buf && target_buf && partial_buf)
+                {
+                    cl_event h2d_evt[2] = {nullptr, nullptr};
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "mse_input",
+                        &h2d_evt[0]);
+                    copy_host_to_device_async(ctx.get_queue(),
+                        target_buf->buffer,
+                        target.m_backend->data_ptr(),
+                        bytes,
+                        "mse_target",
+                        &h2d_evt[1]);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("mse_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem tgt_mem = target_buf->buffer;
+                    const cl_mem out_mem = partial_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &tgt_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem), "mse");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "mse");
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       2,
+                                       h2d_evt,
+                                       nullptr),
+                        "mse");
+
+                    if (h2d_evt[0]) clReleaseEvent(h2d_evt[0]);
+                    if (h2d_evt[1]) clReleaseEvent(h2d_evt[1]);
+
+                    std::vector<float> partials(num_groups);
+                    copy_device_to_host(ctx.get_queue(),
+                        partial_buf->buffer,
+                        partials.data(),
+                        partial_bytes,
+                        "mse_out");
+
+                    float sq = 0.0F;
+                    for (std::size_t i = 0; i < num_groups; ++i)
+                    {
+                        sq += partials[i];
+                    }
+                    return sq / static_cast<float>(n);
+                }
+            }
+
+            sync_gpu();
+            target.sync_gpu();
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory target_dev(bytes);
+            opencl::DeviceMemory partial_dev(partial_bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+            target_dev.copy_to_device(target.m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("mse_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem tgt_mem = target_dev.get_device_buffer();
+            const cl_mem out_mem = partial_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clSetKernelArg(mse, in)");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &tgt_mem), "clSetKernelArg(mse, target)");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem), "clSetKernelArg(mse, out)");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "clSetKernelArg(mse, size)");
+
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(mse)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(mse)");
+
+            std::vector<float> partials(num_groups);
+            partial_dev.copy_from_device(partials.data());
+
+            float sq = 0.0F;
+            for (std::size_t i = 0; i < num_groups; ++i)
+            {
+                sq += partials[i];
+            }
+            return sq / static_cast<float>(n);
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("mse", e.what());
+        }
     }
-    return sq / static_cast<float>(n);
+
+    throw_opencl_only_failure("mse", "OpenCL runtime unavailable");
 }
 
 float OpenCLTensorBackend::mean() const
@@ -4235,13 +5054,180 @@ float OpenCLTensorBackend::norm() const
 
 float OpenCLTensorBackend::sum() const
 {
-    sync_gpu();
-    float acc = 0.0F;
-    for (Index i = 0; i < size(); ++i)
+    sync_gpu_if_needed();
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("sum"))
     {
-        acc += m_backend->at(i);
+        try
+        {
+            const auto n = size();
+            if (n == 0) return 0.0F;
+
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+            const std::size_t local = 256;
+            const std::size_t global = round_up(n, local);
+            const std::size_t num_groups = global / local;
+            const std::size_t partial_bytes = num_groups * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (pool && m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                auto partial_buf = pool->acquire(partial_bytes);
+                if (partial_buf)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sum_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = partial_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "sum");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "sum");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "sum");
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "sum");
+
+                    std::vector<float> partials(num_groups);
+                    copy_device_to_host(ctx.get_queue(),
+                        partial_buf->buffer,
+                        partials.data(),
+                        partial_bytes,
+                        "sum");
+
+                    float result = 0.0F;
+                    for (std::size_t i = 0; i < num_groups; ++i)
+                    {
+                        result += partials[i];
+                    }
+                    return result;
+                }
+            }
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto partial_buf = pool->acquire(partial_bytes);
+                if (input_buf && partial_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "sum",
+                        &h2d_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sum_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = partial_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "sum");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "sum");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "sum");
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "sum");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "sum");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    std::vector<float> partials(num_groups);
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        partial_buf->buffer,
+                        partials.data(),
+                        partial_bytes,
+                        "sum",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+                    if (d2h_evt) clWaitForEvents(1, &d2h_evt);
+
+                    float result = 0.0F;
+                    for (std::size_t i = 0; i < num_groups; ++i)
+                    {
+                        result += partials[i];
+                    }
+                    return result;
+                }
+            }
+
+            sync_gpu();
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory partial_dev(partial_bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("sum_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = partial_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clSetKernelArg(sum, in)");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clSetKernelArg(sum, out)");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "clSetKernelArg(sum, size)");
+
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(sum)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(sum)");
+
+            std::vector<float> partials(num_groups);
+            partial_dev.copy_from_device(partials.data());
+
+            float result = 0.0F;
+            for (std::size_t i = 0; i < num_groups; ++i)
+            {
+                result += partials[i];
+            }
+            return result;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("sum", e.what());
+        }
     }
-    return acc;
+
+    throw_opencl_only_failure("sum", "OpenCL runtime unavailable");
 }
 
 bool OpenCLTensorBackend::hasNaN() const
@@ -4256,63 +5242,1049 @@ bool OpenCLTensorBackend::hasNaN() const
 
 OpenCLTensorBackend OpenCLTensorBackend::abs() const
 {
-    sync_gpu();
-    OpenCLTensorBackend out(*this);
-    for (Index i = 0; i < out.size(); ++i)
+    sync_gpu_if_needed();
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("abs"))
     {
-        out.m_backend->at(i) = std::abs(out.m_backend->at(i));
+        try
+        {
+            const auto n = size();
+            if (n == 0)
+            {
+                OpenCLTensorBackend empty(*this);
+                return empty;
+            }
+
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("abs_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "abs");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "abs");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "abs");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "abs");
+                    finish_queue_if_not_batching(ctx.get_queue(), "abs");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "abs",
+                        &h2d_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("abs_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "abs");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "abs");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "abs");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "abs");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "abs");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "abs",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("abs_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clSetKernelArg(abs, in)");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clSetKernelArg(abs, out)");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "clSetKernelArg(abs, size)");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(abs)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(abs)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("abs", e.what());
+        }
     }
-    out.m_needs_sync_to_device = true;
-    out.m_needs_sync_to_host = false;
-    return out;
+
+    throw_opencl_only_failure("abs", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::relu() const
 {
-    sync_gpu();
-    OpenCLTensorBackend out(*this);
-    for (Index i = 0; i < out.size(); ++i)
+    sync_gpu_if_needed();
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("relu"))
     {
-        const float v = out.m_backend->at(i);
-        out.m_backend->at(i) = std::max(v, 0.0F);
+        try
+        {
+            const auto n = size();
+            if (n == 0)
+            {
+                OpenCLTensorBackend empty(*this);
+                return empty;
+            }
+
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("relu_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "relu");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "relu");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "relu");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "relu");
+                    finish_queue_if_not_batching(ctx.get_queue(), "relu");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "relu",
+                        &h2d_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("relu_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "relu");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "relu");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "relu");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "relu");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "relu");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "relu",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("relu_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clSetKernelArg(relu, in)");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clSetKernelArg(relu, out)");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), "clSetKernelArg(relu, size)");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(relu)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(relu)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("relu", e.what());
+        }
     }
-    out.m_needs_sync_to_device = true;
-    out.m_needs_sync_to_host = false;
-    return out;
+
+    throw_opencl_only_failure("relu", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
 {
-    sync_gpu();
-    OpenCLTensorBackend out(*this);
-    for (Index i = 0; i < out.size(); ++i)
+    sync_gpu_if_needed();
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("leaky_relu"))
     {
-        const float v = out.m_backend->at(i);
-        out.m_backend->at(i) = (v > 0.0F) ? v : (alpha * v);
+        try
+        {
+            const auto n = size();
+            if (n == 0)
+            {
+                OpenCLTensorBackend empty(*this);
+                return empty;
+            }
+
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("leaky_relu_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(
+                        clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "leaky_relu");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "leaky_relu");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &alpha), "leaky_relu");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "leaky_relu");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "leaky_relu");
+                    finish_queue_if_not_batching(ctx.get_queue(), "leaky_relu");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "leaky_relu",
+                        &h2d_evt);
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("leaky_relu_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(
+                        clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "leaky_relu");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "leaky_relu");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &alpha), "leaky_relu");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "leaky_relu");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "leaky_relu");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "leaky_relu");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "leaky_relu",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("leaky_relu_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem),
+                "clSetKernelArg(leaky_relu, in)");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem),
+                "clSetKernelArg(leaky_relu, out)");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &alpha),
+                "clSetKernelArg(leaky_relu, alpha)");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32),
+                "clSetKernelArg(leaky_relu, size)");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(leaky_relu)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(leaky_relu)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("leaky_relu", e.what());
+        }
     }
-    out.m_needs_sync_to_device = true;
-    out.m_needs_sync_to_host = false;
-    return out;
+
+    throw_opencl_only_failure("leaky_relu", "OpenCL runtime unavailable");
+}
+
+void OpenCLTensorBackend::lif_step_inplace(const OpenCLTensorBackend& input,
+    OpenCLTensorBackend& output,
+    OpenCLTensorBackend* adapt_a,
+    float beta,
+    float threshold,
+    float reset_potential,
+    bool reset_zero,
+    float adapt_decay,
+    float adapt_coupling,
+    bool use_adaptation)
+{
+    sync_gpu_if_needed();
+    input.sync_gpu_if_needed();
+    output.sync_gpu_if_needed();
+
+    if (shape() != input.shape() || shape() != output.shape())
+    {
+        throw std::invalid_argument("lif_step_inplace requires v_mem/input/output with same shape");
+    }
+    if (use_adaptation)
+    {
+        if (adapt_a == nullptr)
+        {
+            throw std::invalid_argument(
+                "lif_step_inplace requires adapt_a when use_adaptation=true");
+        }
+        adapt_a->sync_gpu_if_needed();
+        if (shape() != adapt_a->shape())
+        {
+            throw std::invalid_argument("lif_step_inplace requires adapt_a with same shape");
+        }
+    }
+
+    const auto n = size();
+    if (n == 0)
+    {
+        return;
+    }
+
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("lif_step_inplace"))
+    {
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            opencl::DeviceMemory v_mem_dev(bytes);
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory output_dev(bytes);
+            std::unique_ptr<opencl::DeviceMemory> adapt_dev;
+
+            v_mem_dev.copy_to_device(m_backend->data_ptr());
+            input_dev.copy_to_device(input.m_backend->data_ptr());
+            if (use_adaptation)
+            {
+                adapt_dev = std::make_unique<opencl::DeviceMemory>(bytes);
+                adapt_dev->copy_to_device(adapt_a->m_backend->data_ptr());
+            }
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("lif_step_kernel");
+            const cl_mem v_mem = v_mem_dev.get_device_buffer();
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = output_dev.get_device_buffer();
+            cl_mem adapt_mem = nullptr;
+            if (adapt_dev)
+            {
+                adapt_mem = adapt_dev->get_device_buffer();
+            }
+
+            const cl_int reset_zero_i32 = reset_zero ? 1 : 0;
+            const cl_int use_adaptation_i32 = use_adaptation ? 1 : 0;
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &v_mem), "lif_step_inplace");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &in_mem), "lif_step_inplace");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_mem), &adapt_mem), "lif_step_inplace");
+            check_cl_error(clSetKernelArg(kernel, 4, sizeof(float), &beta), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 5, sizeof(float), &threshold), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 6, sizeof(float), &reset_potential), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 7, sizeof(cl_int), &reset_zero_i32), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 8, sizeof(float), &adapt_decay), "lif_step_inplace");
+            check_cl_error(
+                clSetKernelArg(kernel, 9, sizeof(float), &adapt_coupling), "lif_step_inplace");
+            check_cl_error(clSetKernelArg(kernel, 10, sizeof(cl_int), &use_adaptation_i32),
+                "lif_step_inplace");
+            check_cl_error(clSetKernelArg(kernel, 11, sizeof(cl_uint), &n_u32), "lif_step_inplace");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "lif_step_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "lif_step_inplace");
+
+            v_mem_dev.copy_from_device(m_backend->mutable_data_ptr());
+            output_dev.copy_from_device(output.m_backend->mutable_data_ptr());
+            if (use_adaptation)
+            {
+                adapt_dev->copy_from_device(adapt_a->m_backend->mutable_data_ptr());
+            }
+            return;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("lif_step_inplace", e.what());
+        }
+    }
+
+    throw_opencl_only_failure("lif_step_inplace", "OpenCL runtime unavailable");
+}
+
+OpenCLTensorBackend OpenCLTensorBackend::lif_grad(float threshold, float sharpness) const
+{
+    sync_gpu_if_needed();
+
+    const auto n = size();
+    if (n == 0)
+    {
+        OpenCLTensorBackend empty(*this);
+        return empty;
+    }
+
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("lif_grad"))
+    {
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            OpenCLHostStorage out(shape());
+
+            opencl::DeviceMemory v_pre_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
+            v_pre_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("lif_grad_kernel");
+            const cl_mem in_mem = v_pre_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "lif_grad");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "lif_grad");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &threshold), "lif_grad");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(float), &sharpness), "lif_grad");
+            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32), "lif_grad");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "lif_grad");
+            finish_queue_if_not_batching(ctx.get_queue(), "lif_grad");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("lif_grad", e.what());
+        }
+    }
+
+    throw_opencl_only_failure("lif_grad", "OpenCL runtime unavailable");
 }
 
 OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) const
 {
-    sync_gpu();
-    OpenCLTensorBackend out(*this);
-    out.clamp_inplace(min_val, max_val);
-    return out;
+    sync_gpu_if_needed();
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("clamp"))
+    {
+        try
+        {
+            const auto n = size();
+            if (n == 0)
+            {
+                OpenCLTensorBackend empty(*this);
+                return empty;
+            }
+
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const std::size_t bytes = n * sizeof(float);
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+
+            if (m_gpu_resident && m_has_gpu_memory && pool)
+            {
+                auto out_buf = pool->acquire(bytes);
+                if (out_buf && m_gpu_buffer)
+                {
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_kernel");
+                    const cl_mem in_mem = m_gpu_buffer->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &min_val), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(float), &max_val), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32), "clamp");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                       kernel,
+                                       1,
+                                       nullptr,
+                                       &global,
+                                       &local,
+                                       0,
+                                       nullptr,
+                                       nullptr),
+                        "clamp");
+                    finish_queue_if_not_batching(ctx.get_queue(), "clamp");
+
+                    OpenCLHostStorage out(shape());
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.m_has_gpu_memory = true;
+                    t.m_gpu_buffer = std::make_unique<tensor::GPUBuffer>(std::move(*out_buf));
+                    t.set_gpu_resident(true);
+                    t.m_needs_sync_to_host = true;
+                    t.m_needs_sync_to_device = false;
+                    return t;
+                }
+            }
+
+            sync_gpu();
+            OpenCLHostStorage out(shape());
+
+            if (pool)
+            {
+                auto input_buf = pool->acquire(bytes);
+                auto out_buf = pool->acquire(bytes);
+                if (input_buf && out_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        input_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clamp",
+                        &h2d_evt);
+
+                    cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_kernel");
+                    const cl_mem in_mem = input_buf->buffer;
+                    const cl_mem out_mem = out_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &min_val), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 3, sizeof(float), &max_val), "clamp");
+                    check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32), "clamp");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "clamp");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "clamp");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        out_buf->buffer,
+                        out.mutable_data_ptr(),
+                        bytes,
+                        "clamp",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+
+                    OpenCLTensorBackend t;
+                    t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+                    t.record_pending_gpu_op(d2h_evt);
+                    return t;
+                }
+            }
+
+            opencl::DeviceMemory input_dev(bytes);
+            opencl::DeviceMemory out_dev(bytes);
+            input_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_kernel");
+            const cl_mem in_mem = input_dev.get_device_buffer();
+            const cl_mem out_mem = out_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &in_mem), "clSetKernelArg(clamp, in)");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), "clSetKernelArg(clamp, out)");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(float), &min_val), "clSetKernelArg(clamp, min)");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(float), &max_val), "clSetKernelArg(clamp, max)");
+            check_cl_error(
+                clSetKernelArg(kernel, 4, sizeof(cl_uint), &n_u32), "clSetKernelArg(clamp, size)");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clEnqueueNDRangeKernel(clamp)");
+            finish_queue_if_not_batching(ctx.get_queue(), "clFinish(clamp)");
+
+            out_dev.copy_from_device(out.mutable_data_ptr());
+
+            OpenCLTensorBackend t;
+            t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
+            return t;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("clamp", e.what());
+        }
+    }
+
+    throw_opencl_only_failure("clamp", "OpenCL runtime unavailable");
 }
 
 void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
 {
     sync_gpu();
-    for (Index i = 0; i < size(); ++i)
+    // cppcheck-suppress knownConditionTrueFalse
+    if (can_use_opencl("clamp"))
     {
-        auto& v = m_backend->at(i);
-        v = std::clamp(v, min_val, max_val);
+        try
+        {
+            const auto& ctx = opencl::OpenCLContext::instance();
+            const auto n = size();
+            if (n == 0) return;
+            const std::size_t bytes = n * sizeof(float);
+
+            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            {
+                cl_kernel kernel =
+                    opencl::KernelManager::instance().get_kernel("clamp_inplace_kernel");
+                const cl_mem data_mem = m_gpu_buffer->buffer;
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "clamp_inplace");
+                check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &min_val), "clamp_inplace");
+                check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &max_val), "clamp_inplace");
+                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "clamp_inplace");
+
+                const std::size_t local = 256;
+                std::size_t global = round_up(n, local);
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                    "clamp_inplace");
+                finish_queue_if_not_batching(ctx.get_queue(), "clamp_inplace");
+
+                m_needs_sync_to_host = true;
+                m_needs_sync_to_device = false;
+                return;
+            }
+
+            tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
+            if (pool)
+            {
+                auto data_buf = pool->acquire(bytes);
+                if (data_buf)
+                {
+                    cl_event h2d_evt = nullptr;
+                    copy_host_to_device_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->data_ptr(),
+                        bytes,
+                        "clamp_inplace",
+                        &h2d_evt);
+
+                    cl_kernel kernel =
+                        opencl::KernelManager::instance().get_kernel("clamp_inplace_kernel");
+                    const cl_mem data_mem = data_buf->buffer;
+                    const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+                    check_cl_error(
+                        clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "clamp_inplace");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 1, sizeof(float), &min_val), "clamp_inplace");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 2, sizeof(float), &max_val), "clamp_inplace");
+                    check_cl_error(
+                        clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "clamp_inplace");
+
+                    const std::size_t local = 256;
+                    std::size_t global = round_up(n, local);
+
+                    cl_event kernel_evt = nullptr;
+                    if (h2d_evt)
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           1,
+                                           &h2d_evt,
+                                           &kernel_evt),
+                            "clamp_inplace");
+                    }
+                    else
+                    {
+                        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(),
+                                           kernel,
+                                           1,
+                                           nullptr,
+                                           &global,
+                                           &local,
+                                           0,
+                                           nullptr,
+                                           &kernel_evt),
+                            "clamp_inplace");
+                    }
+
+                    if (h2d_evt) clReleaseEvent(h2d_evt);
+
+                    cl_event d2h_evt = nullptr;
+                    copy_device_to_host_async(ctx.get_queue(),
+                        data_buf->buffer,
+                        m_backend->mutable_data_ptr(),
+                        bytes,
+                        "clamp_inplace",
+                        &d2h_evt);
+
+                    if (kernel_evt) clReleaseEvent(kernel_evt);
+                    record_pending_gpu_op(d2h_evt);
+                    return;
+                }
+            }
+
+            opencl::DeviceMemory data_dev(bytes);
+            data_dev.copy_to_device(m_backend->data_ptr());
+
+            cl_kernel kernel = opencl::KernelManager::instance().get_kernel("clamp_inplace_kernel");
+            const cl_mem data_mem = data_dev.get_device_buffer();
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &data_mem), "clamp_inplace");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &min_val), "clamp_inplace");
+            check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &max_val), "clamp_inplace");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), "clamp_inplace");
+
+            const std::size_t local = 256;
+            std::size_t global = round_up(n, local);
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+                "clamp_inplace");
+            finish_queue_if_not_batching(ctx.get_queue(), "clamp_inplace");
+
+            data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            return;
+        }
+        catch (const std::exception& e)
+        {
+            throw_opencl_only_failure("clamp_inplace", e.what());
+        }
     }
-    m_needs_sync_to_device = true;
-    m_needs_sync_to_host = false;
+    throw_opencl_only_failure("clamp_inplace", "OpenCL runtime unavailable");
 }
 
 // Linear algebra
@@ -6562,8 +8534,7 @@ OpenCLTensorBackend::RuntimeScope OpenCLTensorBackend::start_runtime_scope_or_th
     return scope;
 }
 
-void OpenCLTensorBackend::verify_runtime_activity_or_throw(
-    const OpenCLTensorBackend& prediction,
+void OpenCLTensorBackend::verify_runtime_activity_or_throw(const OpenCLTensorBackend& prediction,
     const OpenCLTensorBackend& target,
     std::string_view gpu_busy_percent_path)
 {

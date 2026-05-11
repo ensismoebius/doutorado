@@ -149,6 +149,40 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
     ASSERT_FLOAT_EQ(leaky.v_mem.at(0, 0), 1.0F); // 3.0 - 2.0
 }
 
+TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
+{
+    Leaky leaky(/*dt=*/1.0F,
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/false,
+        0.0F,
+        std::make_shared<ExponentialSurrogate>());
+
+    nn::Tensor step1(1, 1);
+    step1.at(0, 0) = 1.5F;
+    nn::Tensor out1{leaky.forward(step1, true)};
+
+    const float beta = std::exp(-1.0F / (5.0F * 1.0F));
+    const float expected_v1_pre = 0.0F * beta + 1.5F;
+    const float expected_s1 = (expected_v1_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_v1_post = expected_v1_pre - expected_s1 * 2.0F;
+
+    EXPECT_NEAR(out1.at(0, 0), expected_s1, 1e-6F);
+    EXPECT_NEAR(leaky.v_mem.at(0, 0), expected_v1_post, 1e-6F);
+
+    nn::Tensor step2(1, 1);
+    step2.at(0, 0) = 1.0F;
+    nn::Tensor out2{leaky.forward(step2, true)};
+
+    const float expected_v2_pre = expected_v1_post * beta + 1.0F;
+    const float expected_s2 = (expected_v2_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_v2_post = expected_v2_pre - expected_s2 * 2.0F;
+
+    EXPECT_NEAR(out2.at(0, 0), expected_s2, 1e-6F);
+    EXPECT_NEAR(leaky.v_mem.at(0, 0), expected_v2_post, 1e-6F);
+}
+
 TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
 {
     Leaky leaky(/*dt=*/1.0F,

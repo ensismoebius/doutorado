@@ -7,6 +7,7 @@
 
 #include <cmath>
 
+#include "nn/layers/spiking/Leaky.hpp"
 #include "nn/tensor/opencl/OpenCLContext.hpp"
 #include "nn/tensor/opencl/OpenCLProfiling.hpp"
 #include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
@@ -256,6 +257,323 @@ TEST(OpenCLTensorBackendTest, SqrtAndSquare)
     auto sq = a.square();
     EXPECT_NEAR(sq.at(0, 0), 16.0f, 1e-4f);
     EXPECT_NEAR(sq.at(1, 1), 625.0f, 1e-3f);
+}
+
+TEST(OpenCLTensorBackendTest, ReluAndLeakyReluCorrectness)
+{
+    nn::OpenCLTensorBackend a(1, 5);
+    a.at(0, 0) = -2.0f;
+    a.at(0, 1) = -1.0f;
+    a.at(0, 2) = 0.0f;
+    a.at(0, 3) = 1.0f;
+    a.at(0, 4) = 3.0f;
+
+    auto r = a.relu();
+    EXPECT_NEAR(r.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(r.at(0, 1), 0.0f, 1e-6f);
+    EXPECT_NEAR(r.at(0, 2), 0.0f, 1e-6f);
+    EXPECT_NEAR(r.at(0, 3), 1.0f, 1e-6f);
+    EXPECT_NEAR(r.at(0, 4), 3.0f, 1e-6f);
+
+    auto lr = a.leaky_relu(0.1f);
+    EXPECT_NEAR(lr.at(0, 0), -0.2f, 1e-6f);
+    EXPECT_NEAR(lr.at(0, 1), -0.1f, 1e-6f);
+    EXPECT_NEAR(lr.at(0, 2), 0.0f, 1e-6f);
+    EXPECT_NEAR(lr.at(0, 3), 1.0f, 1e-6f);
+    EXPECT_NEAR(lr.at(0, 4), 3.0f, 1e-6f);
+}
+
+TEST(OpenCLTensorBackendTest, SumAndMeanSquaredErrorCorrectness)
+{
+    nn::OpenCLTensorBackend a(2, 3);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(0, 2) = 3.0f;
+    a.at(1, 0) = 4.0f;
+    a.at(1, 1) = 5.0f;
+    a.at(1, 2) = 6.0f;
+
+    EXPECT_NEAR(a.sum(), 21.0f, 1e-5f);
+
+    nn::OpenCLTensorBackend target(2, 3);
+    target.at(0, 0) = 1.0f;
+    target.at(0, 1) = 1.0f;
+    target.at(0, 2) = 2.0f;
+    target.at(1, 0) = 3.0f;
+    target.at(1, 1) = 5.0f;
+    target.at(1, 2) = 7.0f;
+
+    // Squared diffs: [0,1,1,1,0,1] => sum=4, mse=4/6
+    EXPECT_NEAR(a.mean_squared_error(target), 4.0f / 6.0f, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, SumAndMseOnGpuResidentTensors)
+{
+    nn::OpenCLTensorBackend a(1, 5);
+    a.at(0, 0) = -2.0f;
+    a.at(0, 1) = -1.0f;
+    a.at(0, 2) = 0.0f;
+    a.at(0, 3) = 1.0f;
+    a.at(0, 4) = 3.0f;
+
+    // relu()/leaky_relu() produce OpenCL outputs that can stay GPU resident.
+    auto relu_out = a.relu();
+    auto leaky_out = a.leaky_relu(0.5f);
+
+    EXPECT_NEAR(relu_out.sum(), 4.0f, 1e-5f);
+    EXPECT_NEAR(relu_out.mean_squared_error(leaky_out), 0.25f, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, GpuResidentInplaceFillAndClamp)
+{
+    nn::OpenCLTensorBackend a(1, 4);
+    a.at(0, 0) = -2.0f;
+    a.at(0, 1) = -1.0f;
+    a.at(0, 2) = 2.0f;
+    a.at(0, 3) = 5.0f;
+
+    // relu() should create a GPU-accelerated output tensor.
+    auto t = a.relu();
+
+    t.clamp_inplace(0.5f, 1.5f);
+    EXPECT_NEAR(t.at(0, 0), 0.5f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 1), 0.5f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 2), 1.5f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 3), 1.5f, 1e-6f);
+
+    t.fill(2.0f);
+    EXPECT_NEAR(t.at(0, 0), 2.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 1), 2.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 2), 2.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 3), 2.0f, 1e-6f);
+}
+
+TEST(OpenCLTensorBackendTest, GpuResidentInplaceScalarAndMathOps)
+{
+    nn::OpenCLTensorBackend a(1, 4);
+    a.at(0, 0) = -1.0f;
+    a.at(0, 1) = 1.0f;
+    a.at(0, 2) = 2.0f;
+    a.at(0, 3) = 3.0f;
+
+    // Keep this tensor on GPU path first.
+    auto t = a.relu(); // [0,1,2,3]
+
+    t.add_scalar_inplace(1.0f);      // [1,2,3,4]
+    t.multiply_scalar_inplace(2.0f); // [2,4,6,8]
+    t.divide_scalar_inplace(2.0f);   // [1,2,3,4]
+
+    EXPECT_NEAR(t.at(0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 1), 2.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 2), 3.0f, 1e-6f);
+    EXPECT_NEAR(t.at(0, 3), 4.0f, 1e-6f);
+
+    t.square_inplace(); // [1,4,9,16]
+    t.sqrt_inplace();   // [1,2,3,4]
+
+    EXPECT_NEAR(t.at(0, 0), 1.0f, 1e-5f);
+    EXPECT_NEAR(t.at(0, 1), 2.0f, 1e-5f);
+    EXPECT_NEAR(t.at(0, 2), 3.0f, 1e-5f);
+    EXPECT_NEAR(t.at(0, 3), 4.0f, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, GpuResidentInplaceBinaryOps)
+{
+    nn::OpenCLTensorBackend a(1, 4);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(0, 2) = 3.0f;
+    a.at(0, 3) = 4.0f;
+
+    nn::OpenCLTensorBackend b(1, 4);
+    b.at(0, 0) = 2.0f;
+    b.at(0, 1) = 3.0f;
+    b.at(0, 2) = 4.0f;
+    b.at(0, 3) = 5.0f;
+
+    // Produce GPU-accelerated tensors first.
+    auto lhs = a.relu();
+    auto rhs = b.relu();
+
+    lhs.add_inplace(rhs); // [3,5,7,9]
+    EXPECT_NEAR(lhs.at(0, 0), 3.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 1), 5.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 2), 7.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 3), 9.0f, 1e-6f);
+
+    lhs.subtract_inplace(rhs); // [1,2,3,4]
+    EXPECT_NEAR(lhs.at(0, 0), 1.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 1), 2.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 2), 3.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 3), 4.0f, 1e-6f);
+
+    lhs.multiply_inplace(rhs); // [2,6,12,20]
+    EXPECT_NEAR(lhs.at(0, 0), 2.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 1), 6.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 2), 12.0f, 1e-6f);
+    EXPECT_NEAR(lhs.at(0, 3), 20.0f, 1e-6f);
+
+    lhs.divide_inplace(rhs); // [1,2,3,4]
+    EXPECT_NEAR(lhs.at(0, 0), 1.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(0, 1), 2.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(0, 2), 3.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(0, 3), 4.0f, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, GpuResidentAddRowBroadcastInplace)
+{
+    nn::OpenCLTensorBackend a(3, 2);
+    a.at(0, 0) = 1.0f;
+    a.at(0, 1) = 2.0f;
+    a.at(1, 0) = 3.0f;
+    a.at(1, 1) = 4.0f;
+    a.at(2, 0) = 5.0f;
+    a.at(2, 1) = 6.0f;
+
+    nn::OpenCLTensorBackend row(1, 2);
+    row.at(0, 0) = 10.0f;
+    row.at(0, 1) = 20.0f;
+
+    // Put both through OpenCL-producing ops before in-place broadcast.
+    auto lhs = a.relu();
+    auto bias = row.relu();
+
+    lhs.add_row_broadcast_inplace(bias);
+
+    EXPECT_NEAR(lhs.at(0, 0), 11.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(0, 1), 22.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(1, 0), 13.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(1, 1), 24.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(2, 0), 15.0f, 1e-5f);
+    EXPECT_NEAR(lhs.at(2, 1), 26.0f, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, LifStepHelperCorrectness)
+{
+    nn::OpenCLTensorBackend v_mem(1, 4);
+    v_mem.at(0, 0) = 0.0f;
+    v_mem.at(0, 1) = 0.4f;
+    v_mem.at(0, 2) = 0.8f;
+    v_mem.at(0, 3) = -0.5f;
+
+    nn::OpenCLTensorBackend input(1, 4);
+    input.at(0, 0) = 0.3f;
+    input.at(0, 1) = 0.3f;
+    input.at(0, 2) = 0.3f;
+    input.at(0, 3) = 0.3f;
+
+    nn::OpenCLTensorBackend spikes(1, 4);
+    spikes.fill(0.0f);
+
+    v_mem.lif_step_inplace(input, spikes, nullptr, 0.5f, 0.6f, 0.0f, true, 0.9f, 0.2f, false);
+
+    EXPECT_NEAR(spikes.at(0, 0), 0.0f, 1e-6f);
+    EXPECT_NEAR(spikes.at(0, 1), 0.0f, 1e-6f);
+    EXPECT_NEAR(spikes.at(0, 2), 1.0f, 1e-6f);
+    EXPECT_NEAR(spikes.at(0, 3), 0.0f, 1e-6f);
+
+    EXPECT_NEAR(v_mem.at(0, 0), 0.3f, 1e-6f);
+    EXPECT_NEAR(v_mem.at(0, 1), 0.5f, 1e-6f);
+    EXPECT_NEAR(v_mem.at(0, 2), 0.0f, 1e-6f);
+    EXPECT_NEAR(v_mem.at(0, 3), 0.05f, 1e-6f);
+}
+
+TEST(OpenCLTensorBackendTest, LifGradHelperCorrectness)
+{
+    nn::OpenCLTensorBackend v_pre(1, 3);
+    v_pre.at(0, 0) = 0.6f;
+    v_pre.at(0, 1) = 0.8f;
+    v_pre.at(0, 2) = 0.4f;
+
+    auto grad = v_pre.lif_grad(0.6f, 0.5f);
+
+    EXPECT_NEAR(grad.at(0, 0), 2.0f, 1e-5f);
+    const float off_center = 2.0f * std::exp(-0.4f);
+    EXPECT_NEAR(grad.at(0, 1), off_center, 1e-5f);
+    EXPECT_NEAR(grad.at(0, 2), off_center, 1e-5f);
+}
+
+TEST(OpenCLTensorBackendTest, LeakyLayerForwardParityOnOpenCLBackend)
+{
+    using OpenCLTensor = nn::TensorImpl<nn::OpenCLTensorBackend>;
+    ::LeakyImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/false,
+        /*reset_potential=*/0.0F,
+        std::make_shared<ExponentialSurrogate>(0.5F));
+
+    OpenCLTensor step1(1, 1);
+    step1.at(0, 0) = 1.5F;
+    auto out1 = leaky.forward(step1, true);
+
+    const float beta = std::exp(-1.0F / (5.0F * 1.0F));
+    const float expected_v1_pre = 0.0F * beta + 1.5F;
+    const float expected_s1 = (expected_v1_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_v1_post = expected_v1_pre - expected_s1 * 2.0F;
+
+    EXPECT_NEAR(out1.at(0, 0), expected_s1, 1e-6F);
+    EXPECT_NEAR(leaky.v_mem.at(0, 0), expected_v1_post, 1e-6F);
+
+    OpenCLTensor step2(1, 1);
+    step2.at(0, 0) = 1.0F;
+    auto out2 = leaky.forward(step2, true);
+
+    const float expected_v2_pre = expected_v1_post * beta + 1.0F;
+    const float expected_s2 = (expected_v2_pre > 2.0F) ? 1.0F : 0.0F;
+    const float expected_v2_post = expected_v2_pre - expected_s2 * 2.0F;
+
+    EXPECT_NEAR(out2.at(0, 0), expected_s2, 1e-6F);
+    EXPECT_NEAR(leaky.v_mem.at(0, 0), expected_v2_post, 1e-6F);
+}
+
+TEST(OpenCLTensorBackendTest, LeakyLayerBackwardExponentialSurrogateOnOpenCLBackend)
+{
+    using OpenCLTensor = nn::TensorImpl<nn::OpenCLTensorBackend>;
+    ::LeakyImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
+        /*R=*/5.0F,
+        /*C=*/1.0F,
+        /*V_thresh=*/2.0F,
+        /*reset_zero=*/false,
+        /*reset_potential=*/0.0F,
+        std::make_shared<ExponentialSurrogate>(0.5F));
+
+    OpenCLTensor input(1, 1);
+    input.at(0, 0) = 2.5F;
+    (void) leaky.forward(input, true);
+
+    OpenCLTensor grad_output(1, 1);
+    grad_output.at(0, 0) = 1.0F;
+    auto grad_input = leaky.backward(grad_output);
+
+    const float expected_surrogate = (1.0F / 0.5F) * std::exp(-std::abs(2.5F - 2.0F) / 0.5F);
+    EXPECT_NEAR(grad_input.at(0, 0), expected_surrogate, 1e-5F);
+    EXPECT_NEAR(leaky.voltage_threshold.grad().at(0, 0), -expected_surrogate, 1e-5F);
+}
+
+TEST(OpenCLTensorBackendTest, AbsAndClampCorrectness)
+{
+    nn::OpenCLTensorBackend a(1, 5);
+    a.at(0, 0) = -3.0f;
+    a.at(0, 1) = -0.5f;
+    a.at(0, 2) = 0.25f;
+    a.at(0, 3) = 1.5f;
+    a.at(0, 4) = 4.0f;
+
+    auto abs_v = a.abs();
+    EXPECT_NEAR(abs_v.at(0, 0), 3.0f, 1e-6f);
+    EXPECT_NEAR(abs_v.at(0, 1), 0.5f, 1e-6f);
+    EXPECT_NEAR(abs_v.at(0, 2), 0.25f, 1e-6f);
+    EXPECT_NEAR(abs_v.at(0, 3), 1.5f, 1e-6f);
+    EXPECT_NEAR(abs_v.at(0, 4), 4.0f, 1e-6f);
+
+    auto clamped = a.clamp(-1.0f, 1.0f);
+    EXPECT_NEAR(clamped.at(0, 0), -1.0f, 1e-6f);
+    EXPECT_NEAR(clamped.at(0, 1), -0.5f, 1e-6f);
+    EXPECT_NEAR(clamped.at(0, 2), 0.25f, 1e-6f);
+    EXPECT_NEAR(clamped.at(0, 3), 1.0f, 1e-6f);
+    EXPECT_NEAR(clamped.at(0, 4), 1.0f, 1e-6f);
 }
 
 TEST(OpenCLTensorBackendTest, InplaceArithmeticOps)

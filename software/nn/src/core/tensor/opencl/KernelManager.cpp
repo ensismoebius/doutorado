@@ -358,6 +358,16 @@ __kernel void square_inplace_kernel(
     data[idx] = data[idx] * data[idx];
 }
 
+__kernel void fill_kernel(
+    __global float* data,
+    const float value,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = value;
+}
+
 __kernel void add_col_vector_to_rows_kernel(
     __global float* data,
     __global const float* col_vector,
@@ -479,6 +489,50 @@ __kernel void compare_eq_scalar_kernel(
     if (idx >= size) return;
     output[idx] = fabs(input[idx] - value) < 1e-6f ? 1.0f : 0.0f;
 }
+
+__kernel void abs_kernel(
+    __global const float* input,
+    __global float* output,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = fabs(input[idx]);
+}
+
+__kernel void abs_inplace_kernel(
+    __global float* data,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    data[idx] = fabs(data[idx]);
+}
+
+__kernel void clamp_kernel(
+    __global const float* input,
+    __global float* output,
+    const float min_val,
+    const float max_val,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float v = input[idx];
+    output[idx] = v < min_val ? min_val : (v > max_val ? max_val : v);
+}
+
+__kernel void clamp_inplace_kernel(
+    __global float* data,
+    const float min_val,
+    const float max_val,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float v = data[idx];
+    data[idx] = v < min_val ? min_val : (v > max_val ? max_val : v);
+}
 )";
 
 static constexpr const char* KERNEL_SOURCE_REDUCTIONS = R"(
@@ -498,6 +552,34 @@ __kernel void rowwise_sum_kernel(
     }
 
     output[row] = sum;
+}
+
+__kernel void sum_kernel(
+    __global const float* input,
+    __global float* partial_sums,
+    const uint size
+) {
+    const uint lid = get_local_id(0);
+    const uint gid = get_global_id(0);
+    const uint lsize = get_local_size(0);
+
+    __local float local_buf[256];
+    local_buf[lid] = (gid < size) ? input[gid] : 0.0f;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (uint stride = lsize >> 1; stride > 0; stride >>= 1)
+    {
+        if (lid < stride)
+        {
+            local_buf[lid] += local_buf[lid + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (lid == 0)
+    {
+        partial_sums[get_group_id(0)] = local_buf[0];
+    }
 }
 )";
 
@@ -546,6 +628,17 @@ __kernel void relu_inplace_kernel(
     data[idx] = fmax(data[idx], 0.0f);
 }
 
+__kernel void leaky_relu_kernel(
+    __global const float* input,
+    __global float* output,
+    const float alpha,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    output[idx] = input[idx] > 0.0f ? input[idx] : alpha * input[idx];
+}
+
 __kernel void add_bias_kernel(
     __global const float* input,
     __global const float* bias,
@@ -589,6 +682,133 @@ __kernel void gelu_kernel(
     float x = input[idx];
     float cdf = 0.5f * (1.0f + tanh(0.7978845608f * (x + 0.044715f * x * x * x)));
     output[idx] = x * cdf;
+}
+
+__kernel void mse_kernel(
+    __global const float* input,
+    __global const float* target,
+    __global float* partial_sums,
+    const uint size
+) {
+    const uint lid = get_local_id(0);
+    const uint gid = get_global_id(0);
+    const uint lsize = get_local_size(0);
+
+    __local float local_buf[256];
+    float diff = (gid < size) ? input[gid] - target[gid] : 0.0f;
+    local_buf[lid] = diff * diff;
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    for (uint stride = lsize >> 1; stride > 0; stride >>= 1)
+    {
+        if (lid < stride)
+        {
+            local_buf[lid] += local_buf[lid + stride];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+
+    if (lid == 0)
+    {
+        partial_sums[get_group_id(0)] = local_buf[0];
+    }
+}
+
+__kernel void lif_step_kernel(
+    __global float* v_mem,
+    __global const float* input,
+    __global float* output,
+    __global float* adapt_a,
+    const float beta,
+    const float threshold,
+    const float reset_potential,
+    const int reset_zero,
+    const float adapt_decay,
+    const float adapt_coupling,
+    const int use_adaptation,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+
+    float v = v_mem[idx];
+    v = v * beta + input[idx];
+
+    float eff_thresh = threshold;
+    float a = 0.0f;
+    if (use_adaptation)
+    {
+        a = adapt_a[idx] * adapt_decay;
+        eff_thresh += a;
+    }
+
+    float spike = v > eff_thresh ? 1.0f : 0.0f;
+    output[idx] = spike;
+
+    if (spike > 0.5f)
+    {
+        v = reset_zero ? reset_potential : v - threshold;
+        if (use_adaptation) a += adapt_coupling;
+    }
+
+    v_mem[idx] = v;
+    if (use_adaptation) adapt_a[idx] = a;
+}
+
+__kernel void lif_grad_kernel(
+    __global const float* v_pre,
+    __global float* output,
+    const float threshold,
+    const float sharpness,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float diff = v_pre[idx] - threshold;
+    float abs_diff = fabs(diff);
+    output[idx] = (1.0f / sharpness) * exp(-abs_diff / sharpness);
+}
+
+__kernel void lif_grad_boxcar_kernel(
+    __global const float* v_pre,
+    __global float* output,
+    const float threshold,
+    const float half_window,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+    float diff = fabs(v_pre[idx] - threshold);
+    output[idx] = (diff < half_window) ? 1.0f : 0.0f;
+}
+
+__kernel void adam_step_kernel(
+    __global float* param,
+    __global float* moment1,
+    __global float* moment2,
+    __global const float* grad,
+    const float lr,
+    const float beta1,
+    const float beta2,
+    const float epsilon,
+    const float bias_correction1,
+    const float bias_correction2,
+    const uint size
+) {
+    const uint idx = get_global_id(0);
+    if (idx >= size) return;
+
+    float g = grad[idx];
+    float m = beta1 * moment1[idx] + (1.0f - beta1) * g;
+    float v = beta2 * moment2[idx] + (1.0f - beta2) * g * g;
+
+    moment1[idx] = m;
+    moment2[idx] = v;
+
+    float m_hat = m / bias_correction1;
+    float v_hat = v / bias_correction2;
+
+    param[idx] = param[idx] - lr * m_hat / (sqrt(v_hat) + epsilon);
 }
 )";
 
@@ -706,15 +926,23 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
              kernel_name.find("exp") != std::string::npos ||
              kernel_name.find("sqrt") != std::string::npos ||
              kernel_name.find("square") != std::string::npos ||
-             kernel_name.find("compare") != std::string::npos)
+             kernel_name.find("compare") != std::string::npos ||
+             kernel_name.find("fill") != std::string::npos ||
+             kernel_name.find("abs") != std::string::npos ||
+             kernel_name.find("clamp") != std::string::npos)
     {
         program_name = "element_wise";
     }
-    else if (kernel_name.find("rowwise_sum") != std::string::npos)
+    else if (kernel_name.find("rowwise_sum") != std::string::npos ||
+             kernel_name.find("sum") != std::string::npos)
     {
         program_name = "reductions";
     }
-    else if (kernel_name.find("mul_add") != std::string::npos)
+    else if (kernel_name.find("mul_add") != std::string::npos ||
+             kernel_name.find("relu") != std::string::npos ||
+             kernel_name.find("mse") != std::string::npos ||
+             kernel_name.find("lif") != std::string::npos ||
+             kernel_name.find("adam") != std::string::npos)
     {
         program_name = "fused";
     }

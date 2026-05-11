@@ -158,6 +158,19 @@ class OpenCLTensorBackend
     OpenCLTensorBackend relu() const;
     OpenCLTensorBackend leaky_relu(float alpha) const;
 
+    // OpenCL-only spiking helpers used by LIF layers.
+    void lif_step_inplace(const OpenCLTensorBackend& input,
+        OpenCLTensorBackend& output,
+        OpenCLTensorBackend* adapt_a,
+        float beta,
+        float threshold,
+        float reset_potential,
+        bool reset_zero,
+        float adapt_decay,
+        float adapt_coupling,
+        bool use_adaptation);
+    OpenCLTensorBackend lif_grad(float threshold, float sharpness) const;
+
     OpenCLTensorBackend add(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend subtract(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend multiply(const OpenCLTensorBackend& other) const;

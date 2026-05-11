@@ -39,6 +39,8 @@ class BoxcarSurrogate : public ISurrogateGradient
         return (diff_abs < half_window) ? 1.0F : 0.0F;
     }
 
+   [[nodiscard]] float width() const { return window_; }
+
    private:
     float window_;
 };

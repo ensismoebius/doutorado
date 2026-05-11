@@ -34,6 +34,26 @@ Top hotspot files from the latest scan:
 4. `src/experiments/04/tests/ComparativeExperiment_gtest.cpp` (23)
 5. `src/core/optimizers/tests/optimizers_gtest.cpp` (22)
 
+### OpenCL Leaky Integration Coverage Snapshot (2026-05-10)
+
+Coverage was collected from an instrumented build (`NN_ENABLE_COVERAGE=ON`) after running:
+
+- `build-coverage/src/core/tensor/tests/opencl_tensor_backend_gtest`
+
+Focused `lcov --extract` results for recently modified files:
+
+1. `include/nn/layers/spiking/Leaky.hpp`
+- Line coverage: 56.5% (124 lines)
+- Function coverage: 42.9% (7 functions)
+
+2. `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
+- Line coverage: 39.1% (4319 lines)
+- Function coverage: 66.7% (156 functions)
+
+Focused aggregate:
+- Line coverage: 39.6% (1760/4443)
+- Function coverage: 65.6% (107/163)
+
 ## SOTA-Aligned Test Quality Criteria
 
 These criteria are aligned with peer-reviewed testing literature and adapted to this codebase.

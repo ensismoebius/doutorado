@@ -95,6 +95,10 @@ The `nn` library is organized into several key components:
     Linear backward `dL/dW` on GPU.
 - See details in [Core/Tensor](./Core/Tensor.md) and benchmark evidence in
     [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../results/opencl_lhs_transposed_benchmark_2026-05-02.md).
+- OpenCL SNN integration now includes Leaky layer forward/backward tests running
+    against `OpenCLTensorBackend`, plus a stability fix for default-constructed
+    OpenCL tensor host storage.
+- See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
 
 ## Requirements
 
