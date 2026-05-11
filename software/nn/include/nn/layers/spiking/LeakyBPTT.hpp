@@ -246,7 +246,7 @@ struct LeakyBPTTImpl : public Module<Backend>
         }
 
         return output;
-    } // LCOV_EXCL_LINE
+    } //
 
     auto backward(const Tensor& grad_output) -> Tensor override
     {

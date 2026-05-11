@@ -125,7 +125,7 @@ struct LeakyImpl : public Module<Backend>
     [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
-    } // LCOV_EXCL_LINE
+    } // 
 
     auto state_dict() const -> std::map<std::string, Tensor> override
     {
@@ -133,8 +133,8 @@ struct LeakyImpl : public Module<Backend>
         d["resistance"] = resistance;
         d["capacitance"] = capacitance;
         d["voltage_threshold"] = voltage_threshold;
-        return d; // LCOV_EXCL_LINE
-    } // LCOV_EXCL_LINE
+        return d; // 
+    } // 
 
     void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {
@@ -212,8 +212,8 @@ struct LeakyImpl : public Module<Backend>
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
             [[unlikely]]
         {
-            v_mem = Tensor(input.rows(), input.cols()); // LCOV_EXCL_LINE
-            v_mem.setZero();                            // LCOV_EXCL_LINE
+            v_mem = Tensor(input.rows(), input.cols()); // 
+            v_mem.setZero();                            // 
         }
 
         // Ensure adapt_a is correctly sized (lazy init, same shape as v_mem)
@@ -241,10 +241,10 @@ struct LeakyImpl : public Module<Backend>
         // kept as-is for safety/clarity. If you refactor, ensure state semantics
         // remain identical.
         if (v_mem.size() == 0 || v_mem.rows() != input.rows() || v_mem.cols() != input.cols())
-            [[unlikely]] // LCOV_EXCL_LINE
+            [[unlikely]] // 
         {
-            v_mem = Tensor(input.rows(), input.cols()); // LCOV_EXCL_LINE
-            v_mem.setZero();                            // LCOV_EXCL_LINE
+            v_mem = Tensor(input.rows(), input.cols()); // 
+            v_mem.setZero();                            // 
         }
 
         // Cache the membrane potential from the previous time step, v(t-1), for the backward
@@ -375,14 +375,14 @@ struct LeakyImpl : public Module<Backend>
                     v_mem.at(i, j) = v_mem.at(i, j) - output.at(i, j) * base_threshold;
                     if (use_adaptation && output.at(i, j) == 1.0f)
                     {
-                        adapt_a.at(i, j) += adapt_coupling; // LCOV_EXCL_LINE
+                        adapt_a.at(i, j) += adapt_coupling; // 
                     }
                 }
             }
         }
 
-        return output; // LCOV_EXCL_LINE
-    } // LCOV_EXCL_LINE
+        return output; // 
+    } // 
 
     /**
      * @brief Backward pass for Leaky neuron.
@@ -410,10 +410,10 @@ struct LeakyImpl : public Module<Backend>
         {
             sharpness = exp_surr->sharpness();
         }
-        else if (auto* box_surr = dynamic_cast<const BoxcarSurrogate*>(
-                     surrogate_gradient.get())) // LCOV_EXCL_LINE
-        {
-            sharpness = box_surr->width(); // LCOV_EXCL_LINE
+        else if (auto* box_surr = dynamic_cast<const BoxcarSurrogate*>( // 
+                     surrogate_gradient.get())) // 
+        { // 
+            sharpness = box_surr->width(); // 
         }
 
         Tensor surrogate_grad;
@@ -424,17 +424,17 @@ struct LeakyImpl : public Module<Backend>
                 surrogate_grad =
                     Tensor(v_mem_pre_spike.get_backend().lif_grad(threshold, sharpness));
             }
-            else
-            {
-                Tensor diff = v_mem_pre_spike;                  // LCOV_EXCL_LINE
-                diff = diff.add_scalar(-threshold);             // LCOV_EXCL_LINE
-                diff = diff.abs();                              // LCOV_EXCL_LINE
-                diff = diff.divide_scalar(sharpness);           // LCOV_EXCL_LINE
-                diff = diff.multiply_scalar(-1.0f);             // LCOV_EXCL_LINE
-                diff = diff.exp();                              // LCOV_EXCL_LINE
-                diff.multiply_scalar_inplace(1.0f / sharpness); // LCOV_EXCL_LINE
-                surrogate_grad = diff;                          // LCOV_EXCL_LINE
-            } // LCOV_EXCL_LINE
+            else // 
+            { // 
+                Tensor diff = v_mem_pre_spike;                  // 
+                diff = diff.add_scalar(-threshold);             // 
+                diff = diff.abs();                              // 
+                diff = diff.divide_scalar(sharpness);           // 
+                diff = diff.multiply_scalar(-1.0f);             // 
+                diff = diff.exp();                              // 
+                diff.multiply_scalar_inplace(1.0f / sharpness); // 
+                surrogate_grad = diff;                          // 
+            } // 
         }
         else
         {
@@ -470,8 +470,8 @@ struct LeakyImpl : public Module<Backend>
         { // Avoid division by zero if R or C are zero
             const float beta = std::exp(-time_step / tau);
             // Keep gradient consistent with clamp-at-use semantics: once raw_R is in the
-            // clamped region, do not backprop through the clamped surrogate expression.
-            const float d_beta_dR =
+            // clamped region, do not backprop through the clamped surrogate expression. // 
+            const float d_beta_dR = // 
                 (raw_R > kMinPositiveParam) ? (beta * time_step) / (C * R * R) : 0.0F;
 
             // dL/dbeta = dL/dv_pre * dv_pre/dbeta = grad_v_pre * v(t-1)
@@ -486,22 +486,22 @@ struct LeakyImpl : public Module<Backend>
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
             // Same clamp-boundary rule for C: avoid artificial gradient amplification when
-            // the raw value is below the positive-stability floor.
-            const float d_beta_dC = // LCOV_EXCL_LINE
+            // the raw value is below the positive-stability floor. // 
+            const float d_beta_dC = // 
                 (raw_C > kMinPositiveParam) ? (beta * time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
             capacitance.set_grad(c_grad);
         }
-        else
-        {
-            Tensor r_grad(1, 1);
-            r_grad.set_zero();
-            resistance.set_grad(r_grad);
-            Tensor c_grad(1, 1);
-            c_grad.set_zero();
-            capacitance.set_grad(c_grad);
-        }
+        else // 
+        { // 
+            Tensor r_grad(1, 1); // 
+            r_grad.set_zero(); // 
+            resistance.set_grad(r_grad); // 
+            Tensor c_grad(1, 1); // 
+            c_grad.set_zero(); // 
+            capacitance.set_grad(c_grad); // 
+        } // 
 
         // Apply the chain rule: the gradient flowing to the input (`grad_input`) is
         // the gradient from the subsequent layer (`grad_output`) multiplied by this

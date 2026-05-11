@@ -25,7 +25,7 @@ static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor
         }
     }
     return t;
-} // LCOV_EXCL_LINE
+} //
 
 TEST(DataLoaderTest, DeterministicShuffle)
 {

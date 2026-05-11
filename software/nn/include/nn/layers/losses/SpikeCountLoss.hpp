@@ -122,7 +122,7 @@ class SpikeCountLossImpl : public Module<Backend>
             grad.add_scalar_inplace(d_reg);
         }
         return grad;
-    } // LCOV_EXCL_LINE
+    } //
 };
 
 #endif // NN_LAYERS_SPIKECOUNTLOSS_HPP

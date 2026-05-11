@@ -150,14 +150,14 @@ class TensorImpl
         TensorImpl t(rows, cols);
         t.fill(value);
         return t;
-    } // LCOV_EXCL_LINE
+    } //
     /// Create a 3-D tensor filled with `value`.
     static auto constant(Index d1, Index d2, Index d3, float value) -> TensorImpl
     {
         TensorImpl t(d1, d2, d3);
         t.fill(value);
         return t;
-    } // LCOV_EXCL_LINE
+    } //
     /// Create a zeros tensor.
     static auto zeros(Index rows, Index cols) -> TensorImpl
     {
@@ -170,7 +170,7 @@ class TensorImpl
         TensorImpl t(d1, d2, d3);
         t.fill(0.0f);
         return t;
-    } // LCOV_EXCL_LINE
+    } //
     /// Create a ones tensor.
     static auto ones(Index rows, Index cols) -> TensorImpl
     {
@@ -182,7 +182,7 @@ class TensorImpl
         TensorImpl t(d1, d2, d3);
         t.fill(1.0f);
         return t;
-    } // LCOV_EXCL_LINE
+    } //
 
     /// Create a tensor with uniform random values in [0,1).
     static auto rand(Index rows, Index cols) -> TensorImpl
@@ -231,7 +231,7 @@ class TensorImpl
         TensorImpl out(*this);
         out.reshape(new_shape);
         return out;
-    } // LCOV_EXCL_LINE
+    } //
     [[nodiscard]] auto rows() const noexcept -> Index
     {
         return backend_.rows();
@@ -819,7 +819,7 @@ template <typename Backend>
 auto TensorImpl<Backend>::operator<<(float value) -> CommaInitializer
 {
     return CommaInitializer(*this, value);
-} // LCOV_EXCL_LINE
+} //
 
 } // namespace nn
 

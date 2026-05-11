@@ -32,16 +32,16 @@ struct LeakyReLUImpl : public Module<Backend>
             leaky_grad = binary_mask;
             leaky_grad.add_scalar_inplace(alpha);
         }
-        // LCOV_EXCL_LINE
+        //
         return input.leaky_relu(alpha);
     }
 
     auto backward(const Tensor& grad_output) -> Tensor override
-    { // LCOV_EXCL_LINE
+    { //
         // Element-wise multiplication of grad_output with leaky_grad mask
         auto grad_input = grad_output.multiply(leaky_grad);
         return grad_input;
     }
 };
-// LCOV_EXCL_LINE
-#endif // LEAKYRELU_HPP // LCOV_EXCL_LINE
+//
+#endif // LEAKYRELU_HPP //

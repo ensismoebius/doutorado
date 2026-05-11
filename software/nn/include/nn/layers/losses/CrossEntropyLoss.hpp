@@ -128,7 +128,7 @@ class CrossEntropyLossImpl : public Module<Backend>
             }
         }
         return grad;
-    } // LCOV_EXCL_LINE
+    } //
 };
 
 #endif // NN_LAYERS_CROSSENTROPYLOSS_HPP

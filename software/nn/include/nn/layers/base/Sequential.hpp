@@ -89,7 +89,7 @@ struct SequentialImpl : Module<Backend>
             outputs.emplace_back(temp_input);
         }
         return temp_input;
-    } // LCOV_EXCL_LINE
+    } //
 
     // Backward pass
     auto backward(const Tensor& grad_output) -> Tensor override
@@ -101,7 +101,7 @@ struct SequentialImpl : Module<Backend>
             grad = layers[i]->backward(grad);
         }
         return grad;
-    } // LCOV_EXCL_LINE
+    } //
 
     // Number of layers (PyTorch: __len__)
     [[nodiscard]] auto size() const
@@ -133,7 +133,7 @@ struct SequentialImpl : Module<Backend>
             }
         }
         return out;
-    } // LCOV_EXCL_LINE
+    } //
 
     void load_state_dict(const std::map<std::string, Tensor>& sd) override
     {

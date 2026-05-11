@@ -35,7 +35,7 @@ inline std::string make_temp_file(const std::string& prefix = "nn_test_")
     int fd = mkstemp(buf.data());
     if (fd == -1)
     {
-        return std::string(); // LCOV_EXCL_LINE
+        return std::string(); //
     }
     // Close descriptor; caller will open if needed.
     close(fd);

@@ -136,7 +136,7 @@ TEST(LinearAlgebraTest, TestDerivativeLevels)
     EXPECT_NEAR(d1[1], 5.0, 1e-6);
     EXPECT_NEAR(d1[2], 7.0, 1e-6);
 
-    std::vector<double> empty; // LCOV_EXCL_LINE
+    std::vector<double> empty; //
     auto d_empty = linearAlgebra::derivative(empty, 2);
     ASSERT_EQ(d_empty.size(), 1U);
     EXPECT_NEAR(d_empty[0], 0.0, 1e-9);

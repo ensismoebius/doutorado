@@ -137,7 +137,7 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
             // --- Gradient for capacitance (symmetric to dL/dR) ---
             // dBeta/dC = beta * dt / (R * C^2)
             // Symmetric clamp-boundary handling for capacitance gradient.
-            const float d_beta_dC = // LCOV_EXCL_LINE
+            const float d_beta_dC = //
                 (raw_C > kMinPositiveParam) ? (beta * this->time_step) / (R * C * C) : 0.0F;
             Tensor c_grad(1, 1);
             c_grad.at(0, 0) = dL_dbeta * d_beta_dC;
@@ -156,7 +156,7 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
         }
 
         return grad_input;
-    } // LCOV_EXCL_LINE
+    } //
 };
 
 #endif // LEAKY_INTEGRATOR_HPP

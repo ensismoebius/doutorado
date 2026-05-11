@@ -27,8 +27,8 @@ static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Te
                 static_cast<float>((i * cols) + j);
         }
     }
-    return t; // LCOV_EXCL_LINE
-} // LCOV_EXCL_LINE
+    return t; //
+} //
 
 static auto wait_until(const std::function<bool()>& predicate, std::chrono::milliseconds timeout)
     -> bool

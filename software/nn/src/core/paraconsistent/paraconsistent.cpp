@@ -38,17 +38,17 @@ auto calculate_contradiction_degree_g2(double alpha, double beta) -> double
 /**
  * @brief Normalizes each feature subvector from a raw pointer matrix to sum 1.
  */
-static void normalizeFeatureVectors( // LCOV_EXCL_LINE
+static void normalizeFeatureVectors( //
     double**& featureVectors,
     unsigned int vectorSize,
     long subVectorsSize)
 {
-    for (unsigned int vi = 0; vi < vectorSize; vi++)                    // LCOV_EXCL_LINE
-    {                                                                   // LCOV_EXCL_LINE
-        linearAlgebra::normalize_vector_to_sum1(                        // LCOV_EXCL_LINE
-            {featureVectors[vi], static_cast<size_t>(subVectorsSize)}); // LCOV_EXCL_LINE
-    } // LCOV_EXCL_LINE
-} // LCOV_EXCL_LINE
+    for (unsigned int vi = 0; vi < vectorSize; vi++)                    //
+    {                                                                   //
+        linearAlgebra::normalize_vector_to_sum1(                        //
+            {featureVectors[vi], static_cast<size_t>(subVectorsSize)}); //
+    } //
+} //
 
 /**
  * @brief Normalizes each feature subvector from a nested vector container to sum 1.
@@ -65,33 +65,33 @@ static void normalizeFeatureVectors(
 /**
  * @brief Normalizes all class feature vectors from a triple-pointer structure.
  */
-void normalize_class_feature_vectors(unsigned int amountOfClasses, // LCOV_EXCL_LINE
+void normalize_class_feature_vectors(unsigned int amountOfClasses, //
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
     double*** arrClasses)
 {
-    for (unsigned int i = 0; i < amountOfClasses; i++) // LCOV_EXCL_LINE
-    {                                                  // LCOV_EXCL_LINE
-        normalizeFeatureVectors(                       // LCOV_EXCL_LINE
-            arrClasses[i],                             // LCOV_EXCL_LINE
-            featureVectorsPerClass,                    // LCOV_EXCL_LINE
-            featureVectorSize);                        // LCOV_EXCL_LINE
-    } // LCOV_EXCL_LINE
-} // LCOV_EXCL_LINE
+    for (unsigned int i = 0; i < amountOfClasses; i++) //
+    {                                                  //
+        normalizeFeatureVectors(                       //
+            arrClasses[i],                             //
+            featureVectorsPerClass,                    //
+            featureVectorSize);                        //
+    } //
+} //
 
 /**
  * @brief Normalizes all class feature vectors from nested vectors.
  */
-void normalize_class_feature_vectors(unsigned int amountOfClasses, // LCOV_EXCL_LINE
+void normalize_class_feature_vectors(unsigned int amountOfClasses, //
     unsigned int featureVectorsPerClass,
     unsigned int featureVectorSize,
     std::vector<std::vector<std::vector<double>>>& arrClasses)
 {
-    for (unsigned int i = 0; i < amountOfClasses; i++)                  // LCOV_EXCL_LINE
-    {                                                                   // LCOV_EXCL_LINE
-        normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass); // LCOV_EXCL_LINE
-    } // LCOV_EXCL_LINE
-} // LCOV_EXCL_LINE
+    for (unsigned int i = 0; i < amountOfClasses; i++)                  //
+    {                                                                   //
+        normalizeFeatureVectors(arrClasses[i], featureVectorsPerClass); //
+    } //
+} //
 
 /**
  * @brief Normalizes all class feature vectors from a class-keyed map.

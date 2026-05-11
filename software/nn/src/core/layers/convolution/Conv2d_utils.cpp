@@ -18,9 +18,9 @@ auto Conv2dImpl<Backend>::get_or_compute_indices(
     {
         std::lock_guard<std::mutex> lock(cache_mutex_);
         auto it = index_cache_.find(key);
-        if (it != index_cache_.end()) [[likely]] // LCOV_EXCL_LINE
+        if (it != index_cache_.end()) [[likely]] //
         {
-            return it->second; // LCOV_EXCL_LINE
+            return it->second; //
         }
     }
 
@@ -29,7 +29,7 @@ auto Conv2dImpl<Backend>::get_or_compute_indices(
 
     std::lock_guard<std::mutex> lock(cache_mutex_);
     return index_cache_[key] = std::move(indices);
-} // LCOV_EXCL_LINE
+} //
 
 template <typename Backend>
 auto Conv2dImpl<Backend>::compute_indices(int batch_size, int input_height, int input_width) const
@@ -84,7 +84,7 @@ auto Conv2dImpl<Backend>::compute_indices(int batch_size, int input_height, int 
         }
     }
     return indices;
-} // LCOV_EXCL_LINE
+} //
 
 template <typename Backend>
 void Conv2dImpl<Backend>::compute_indices_once(
@@ -95,7 +95,7 @@ void Conv2dImpl<Backend>::compute_indices_once(
         get_or_compute_indices(batch_size, input_height, input_width);
         indices_computed_ = true;
     }
-} // LCOV_EXCL_LINE
+} //
 
 // ============ Image-to-Column (im2col) Transformation ============
 
@@ -302,7 +302,7 @@ void Conv2dImpl<Backend>::add_bias_optimized(typename Conv2dImpl<Backend>::Tenso
     const auto bias_size = (bias.rows() == matrix.rows() && bias.cols() >= 1) ? bias.rows()
                            : (bias.cols() == matrix.rows() && bias.rows() >= 1)
                                ? bias.cols()
-                               : std::min(matrix.rows(), bias.size()); // LCOV_EXCL_LINE
+                               : std::min(matrix.rows(), bias.size()); //
 
     const auto n_rows = matrix.rows();
     const auto n_cols = matrix.cols();

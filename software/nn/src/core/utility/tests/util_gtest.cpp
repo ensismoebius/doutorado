@@ -27,7 +27,7 @@ auto make_random_tensor(size_t rows, size_t cols, float lower = -1.0F, float upp
     -> nn::Tensor
 {
     return test_helpers::make_random_tensor(rows, cols, lower, upper);
-} // LCOV_EXCL_LINE
+} //
 
 // LCOV_EXCL_START
 [[maybe_unused]] auto make_constant_tensor(size_t rows, size_t cols, float value) -> nn::Tensor

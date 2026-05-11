@@ -26,14 +26,14 @@ void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t wid
     if (width == 0) return;
     if (text.size() > width)
     {
-        if (width <= 3) // LCOV_EXCL_LINE
+        if (width <= 3) //
         {
-            os.write(text.data(), static_cast<std::streamsize>(width)); // LCOV_EXCL_LINE
-            return;                                                     // LCOV_EXCL_LINE
+            os.write(text.data(), static_cast<std::streamsize>(width)); //
+            return;                                                     //
         }
-        os.write(text.data(), static_cast<std::streamsize>(width - 3)); // LCOV_EXCL_LINE
-        os << "...";                                                    // LCOV_EXCL_LINE
-        return;                                                         // LCOV_EXCL_LINE
+        os.write(text.data(), static_cast<std::streamsize>(width - 3)); //
+        os << "...";                                                    //
+        return;                                                         //
     }
     os.write(text.data(), static_cast<std::streamsize>(text.size()));
     for (std::size_t i = text.size(); i < width; ++i) os.put(' ');
@@ -110,18 +110,18 @@ auto format_eta(int64_t start_ns, float current, float target, double ema_ns_per
     char buf[16];
     if (eta_s < 60)
         std::snprintf(buf, sizeof(buf), "%llds", static_cast<long long>(eta_s));
-    else if (eta_s < 3600) // LCOV_EXCL_LINE
-        std::snprintf(buf, // LCOV_EXCL_LINE
+    else if (eta_s < 3600) //
+        std::snprintf(buf, //
             sizeof(buf),
             "%lldm%02llds",
-            static_cast<long long>(eta_s / 60),  // LCOV_EXCL_LINE
-            static_cast<long long>(eta_s % 60)); // LCOV_EXCL_LINE
+            static_cast<long long>(eta_s / 60),  //
+            static_cast<long long>(eta_s % 60)); //
     else
-        std::snprintf(buf, // LCOV_EXCL_LINE
+        std::snprintf(buf, //
             sizeof(buf),
             "%lldh%02lldm",
-            static_cast<long long>(eta_s / 3600),         // LCOV_EXCL_LINE
-            static_cast<long long>((eta_s % 3600) / 60)); // LCOV_EXCL_LINE
+            static_cast<long long>(eta_s / 3600),         //
+            static_cast<long long>((eta_s % 3600) / 60)); //
     return buf;
 }
 

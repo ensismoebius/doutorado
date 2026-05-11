@@ -240,7 +240,7 @@ class LSTMLayerImpl : public Module<Backend>
             for (int t = 0; t < static_cast<int>(shape[0]); ++t)
                 for (int d = 0; d < input_size_; ++d) dx2d.at(t, d) = dx_3d.at(0, t, d);
             return dx2d;
-        } // LCOV_EXCL_LINE
+        } //
         return dx_3d;
     }
 

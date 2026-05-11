@@ -29,7 +29,7 @@ class BoxcarSurrogate : public ISurrogateGradient
             }
         }
         return result;
-    } // LCOV_EXCL_LINE
+    } //
 
     [[nodiscard]] auto calculate_scalar(float v_mem_pre_spike, float voltage_threshold) const
         -> float override

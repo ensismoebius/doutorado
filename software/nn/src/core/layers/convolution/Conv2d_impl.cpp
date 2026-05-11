@@ -50,13 +50,13 @@ Conv2dImpl<Backend>::Conv2dImpl(int in_channels,
       use_parallel_(use_parallel),
       weights_(Tensor(static_cast<size_t>(kernel_size) * kernel_size * in_channels, out_channels)),
       bias_(Tensor(1, out_channels)), // Bias should be 1 x out_channels
-      im2col_buffer_(std::make_unique<Tensor>(in_channels * kernel_size * kernel_size,
+      im2col_buffer_(std::make_unique<Tensor>(in_channels * kernel_size * kernel_size, // 
           max_batch_size * MAX_IMAGE_SIZE * MAX_IMAGE_SIZE)),
       col2im_buffer_(
           std::make_unique<Tensor>(max_batch_size, in_channels, COL2IM_SIZE, COL2IM_SIZE)),
       grad_output_buffer_(std::make_unique<Tensor>(max_batch_size,
           out_channels,
-          DEFAULT_SIZE - kernel_size + 1,
+          DEFAULT_SIZE - kernel_size + 1, // 
           DEFAULT_SIZE - kernel_size + 1))
 {
     // Initialize weights with He initialization
@@ -127,7 +127,7 @@ auto Conv2dImpl<Backend>::forward(const typename Conv2dImpl<Backend>::Tensor& in
                               im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols));
     if (need_resize) [[unlikely]]
     {
-        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols);
+        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols); // 
     }
 
     auto& im2col_tensor = *im2col_buffer_;
@@ -220,7 +220,7 @@ auto Conv2dImpl<Backend>::backward(const typename Conv2dImpl<Backend>::Tensor& g
     if (!im2col_buffer_ || im2col_buffer_->rows() < static_cast<nn::Index>(patch_rows) ||
         im2col_buffer_->cols() < static_cast<nn::Index>(total_patch_cols))
     {
-        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols);
+        im2col_buffer_ = std::make_unique<Tensor>(patch_rows, total_patch_cols); // 
     }
     auto& im2col_buffer = *im2col_buffer_;
 

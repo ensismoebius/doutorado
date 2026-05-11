@@ -66,7 +66,7 @@ auto make_default_sampler(                           //
                 options.seed);
     }
 
-    throw invalid_argument("DataLoader: unknown default sampler type."); // LCOV_EXCL_LINE
+    throw invalid_argument("DataLoader: unknown default sampler type."); //
 }
 
 } // namespace

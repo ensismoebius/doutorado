@@ -42,13 +42,13 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
 
 
 def _get_excluded_lines(source_file: Path) -> set[int]:
-    """Return set of 1-based line numbers annotated with LCOV_EXCL_LINE."""
+    """Return set of 1-based line numbers annotated with ."""
     excluded: set[int] = set()
     try:
         for i, src_line in enumerate(
             source_file.read_text(encoding="utf-8", errors="replace").splitlines(), 1
         ):
-            if "// LCOV_EXCL_LINE" in src_line or "/* LCOV_EXCL_LINE" in src_line:
+            if "// " in src_line or "/* " in src_line:
                 excluded.add(i)
     except OSError:
         pass
@@ -56,7 +56,7 @@ def _get_excluded_lines(source_file: Path) -> set[int]:
 
 
 def apply_source_exclusions(info_path: Path) -> None:
-    """Rewrite info file removing DA entries annotated LCOV_EXCL_LINE in source."""
+    """Rewrite info file removing DA entries annotated  in source."""
     content = info_path.read_text(encoding="utf-8", errors="replace")
 
     out_sections: list[str] = []

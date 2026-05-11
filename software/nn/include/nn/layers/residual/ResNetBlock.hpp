@@ -47,7 +47,7 @@ class ResNetBlockImpl : public Module<Backend>
         const auto in_shape = input.get_shape();
         if (out_shape == in_shape) [[likely]]
         {
-            output = output + input; // LCOV_EXCL_LINE
+            output = output + input; // 
         }
         else
         {
@@ -82,7 +82,7 @@ class ResNetBlockImpl : public Module<Backend>
         const auto in_shape = grad_x.get_shape();
         if (out_shape == in_shape) [[likely]]
         {
-            grad_x = grad_x + grad_skip; // LCOV_EXCL_LINE
+            grad_x = grad_x + grad_skip; // 
         }
         else
         {
@@ -101,22 +101,22 @@ class ResNetBlockImpl : public Module<Backend>
 
         const auto src_shape = src.get_shape();
         if (src_shape == target_shape)
-        {
-            return src; // LCOV_EXCL_LINE
+        { // 
+            return src; // 
         }
 
         if (src_shape.size() == 2 && target_shape.size() == 2)
-        {
-            const nn::Index rows_copy = std::min(src_shape[0], target_shape[0]); // LCOV_EXCL_LINE
-            const nn::Index cols_copy = std::min(src_shape[1], target_shape[1]); // LCOV_EXCL_LINE
-            for (nn::Index r = 0; r < rows_copy; ++r)                            // LCOV_EXCL_LINE
-            {
-                for (nn::Index c = 0; c < cols_copy; ++c) // LCOV_EXCL_LINE
-                {
-                    aligned.at(r, c) = src.at(r, c); // LCOV_EXCL_LINE
+        { // 
+            const nn::Index rows_copy = std::min(src_shape[0], target_shape[0]); // 
+            const nn::Index cols_copy = std::min(src_shape[1], target_shape[1]); // 
+            for (nn::Index r = 0; r < rows_copy; ++r)                            // 
+            { // 
+                for (nn::Index c = 0; c < cols_copy; ++c) // 
+                { // 
+                    aligned.at(r, c) = src.at(r, c); // 
                 }
-            }
-            return aligned; // LCOV_EXCL_LINE
+            } // 
+            return aligned; // 
         }
 
         if (src_shape.size() == 4 && target_shape.size() == 4)
@@ -141,12 +141,12 @@ class ResNetBlockImpl : public Module<Backend>
             return aligned;
         }
 
-        const nn::Index linear_copy = std::min(src.size(), aligned.size()); // LCOV_EXCL_LINE
-        for (nn::Index i = 0; i < linear_copy; ++i)                         // LCOV_EXCL_LINE
-        {
-            aligned.at(i) = src.at(i); // LCOV_EXCL_LINE
-        }
-        return aligned; // LCOV_EXCL_LINE
+        const nn::Index linear_copy = std::min(src.size(), aligned.size()); // 
+        for (nn::Index i = 0; i < linear_copy; ++i)                         // 
+        { // 
+            aligned.at(i) = src.at(i); // 
+        } // 
+        return aligned; // 
     }
 
     Conv2dImpl<Backend> conv1_;

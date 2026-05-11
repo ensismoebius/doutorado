@@ -148,7 +148,7 @@ class MaxPool2dImpl : public Module<Backend>
             }
         }
         return dx;
-    } // LCOV_EXCL_LINE
+    } //
 
    private:
     int kernel_size_;

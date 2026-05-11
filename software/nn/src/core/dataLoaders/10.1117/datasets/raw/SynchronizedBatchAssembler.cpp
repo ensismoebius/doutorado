@@ -125,8 +125,7 @@ static void processEegBlocksForTasks(size_t subject_index,
             const int stimulus_label = eeg_labels[1];
             if (task.audio_stimulus != stimulus_label)
             {
-                throw runtime_error(
-                    "Stimulus mismatch between audio and EEG in collate"); // LCOV_EXCL_LINE
+                throw runtime_error("Stimulus mismatch between audio and EEG in collate"); //
             }
 
             // Rebuild per-channel EEG matrix from flat signals.

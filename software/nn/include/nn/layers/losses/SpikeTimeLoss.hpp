@@ -65,7 +65,7 @@ class SpikeTimeLossImpl : public Module<Backend>
             }
         }
         return times;
-    } // LCOV_EXCL_LINE
+    } //
 
    public:
     explicit SpikeTimeLossImpl(int time_steps = 1) : time_steps_(time_steps) {}
