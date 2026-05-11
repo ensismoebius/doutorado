@@ -18,7 +18,7 @@ constexpr int kCol1Width = 45;
 constexpr int kCol2Width = 22;
 constexpr int kCol3Width = 26;
 constexpr int kCol4Width = 14;
-constexpr int kBarWidth  = kCol1Width - 2; // "  " + bar = kCol1Width
+constexpr int kBarWidth = kCol1Width - 2;      // "  " + bar = kCol1Width
 constexpr const char* kSep = " \xe2\x94\x82 "; // " │ " (U+2502)
 
 void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t width)
@@ -29,11 +29,11 @@ void append_fitted_cell(std::ostream& os, std::string_view text, std::size_t wid
         if (width <= 3) // LCOV_EXCL_LINE
         {
             os.write(text.data(), static_cast<std::streamsize>(width)); // LCOV_EXCL_LINE
-            return; // LCOV_EXCL_LINE
+            return;                                                     // LCOV_EXCL_LINE
         }
         os.write(text.data(), static_cast<std::streamsize>(width - 3)); // LCOV_EXCL_LINE
-        os << "..."; // LCOV_EXCL_LINE
-        return; // LCOV_EXCL_LINE
+        os << "...";                                                    // LCOV_EXCL_LINE
+        return;                                                         // LCOV_EXCL_LINE
     }
     os.write(text.data(), static_cast<std::streamsize>(text.size()));
     for (std::size_t i = text.size(); i < width; ++i) os.put(' ');
@@ -114,13 +114,13 @@ auto format_eta(int64_t start_ns, float current, float target, double ema_ns_per
         std::snprintf(buf, // LCOV_EXCL_LINE
             sizeof(buf),
             "%lldm%02llds",
-            static_cast<long long>(eta_s / 60), // LCOV_EXCL_LINE
+            static_cast<long long>(eta_s / 60),  // LCOV_EXCL_LINE
             static_cast<long long>(eta_s % 60)); // LCOV_EXCL_LINE
     else
         std::snprintf(buf, // LCOV_EXCL_LINE
             sizeof(buf),
             "%lldh%02lldm",
-            static_cast<long long>(eta_s / 3600), // LCOV_EXCL_LINE
+            static_cast<long long>(eta_s / 3600),         // LCOV_EXCL_LINE
             static_cast<long long>((eta_s % 3600) / 60)); // LCOV_EXCL_LINE
     return buf;
 }
@@ -188,12 +188,13 @@ void ProgressManager::update_bar(
                     const double ns_per_item =
                         static_cast<double>(now - entry->last_update_ns) / delta_items;
                     constexpr double kAlpha = 0.3;
-                    entry->ema_ns_per_item = (entry->ema_ns_per_item <= 0.0)
-                        ? ns_per_item
-                        : kAlpha * ns_per_item + (1.0 - kAlpha) * entry->ema_ns_per_item;
+                    entry->ema_ns_per_item =
+                        (entry->ema_ns_per_item <= 0.0)
+                            ? ns_per_item
+                            : kAlpha * ns_per_item + (1.0 - kAlpha) * entry->ema_ns_per_item;
                 }
             }
-            entry->last_update_ns    = now;
+            entry->last_update_ns = now;
             entry->last_update_value = value;
 
             entry->current_value.store(value);
@@ -322,8 +323,7 @@ void ProgressManager::begin_active_work(uint32_t id)
     {
         if (entry->id == id)
         {
-            entry->active_start_ns =
-                std::chrono::steady_clock::now().time_since_epoch().count();
+            entry->active_start_ns = std::chrono::steady_clock::now().time_since_epoch().count();
             return;
         }
     }
@@ -338,8 +338,7 @@ void ProgressManager::end_active_work(uint32_t id)
         {
             if (entry->active_start_ns != 0)
             {
-                const int64_t now =
-                    std::chrono::steady_clock::now().time_since_epoch().count();
+                const int64_t now = std::chrono::steady_clock::now().time_since_epoch().count();
                 entry->accumulated_active_ns += now - entry->active_start_ns;
                 entry->active_start_ns = 0;
                 ++entry->active_items_completed;
@@ -382,17 +381,17 @@ void ProgressManager::render_loop()
                         std::string col2 = entry->description;
                         std::string col3;
                         if (entry->fold_number > 0 || entry->total_folds > 1)
-                            col3 = "run " + std::to_string(entry->fold_number)
-                                + "/" + std::to_string(entry->total_folds);
+                            col3 = "run " + std::to_string(entry->fold_number) + "/" +
+                                   std::to_string(entry->total_folds);
                         if (!entry->loss_type.empty())
                             col3 += (col3.empty() ? "" : "  ") + entry->loss_type;
                         const std::string col4 =
                             format_phases(entry->phases, entry->current_phase_index);
 
-                        const int last_col = !col4.empty() ? 4
-                            : !col3.empty()                ? 3
-                            : !col2.empty()                ? 2
-                                                           : 1;
+                        const int last_col = !col4.empty()   ? 4
+                                             : !col3.empty() ? 3
+                                             : !col2.empty() ? 2
+                                                             : 1;
 
                         std::stringstream ss;
                         ss << "\033[2K\r";
@@ -404,16 +403,31 @@ void ProgressManager::render_loop()
                         {
                             append_bold_cell(ss, entry->label, kCol1Width);
                             ss << kSep;
-                            if (last_col == 2) { ss << col2; }
-                            else { append_fitted_cell(ss, col2, kCol2Width); }
+                            if (last_col == 2)
+                            {
+                                ss << col2;
+                            }
+                            else
+                            {
+                                append_fitted_cell(ss, col2, kCol2Width);
+                            }
                         }
                         if (last_col >= 3)
                         {
                             ss << kSep;
-                            if (last_col == 3) { ss << col3; }
-                            else { append_fitted_cell(ss, col3, kCol3Width); }
+                            if (last_col == 3)
+                            {
+                                ss << col3;
+                            }
+                            else
+                            {
+                                append_fitted_cell(ss, col3, kCol3Width);
+                            }
                         }
-                        if (last_col >= 4) { ss << kSep << col4; }
+                        if (last_col >= 4)
+                        {
+                            ss << kSep << col4;
+                        }
                         std::cout << ss.str() << "\n";
                         ++total_lines;
                     }

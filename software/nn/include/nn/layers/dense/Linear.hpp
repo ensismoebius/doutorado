@@ -175,7 +175,8 @@ struct LinearImpl : public Module<Backend>
         std::vector<nn::Index> out_shape = shape;
         out_shape.back() = (nn::Index) out_features;
 
-        // If input was 1D, result should be 2D (1, out_features) to maintain batch consistency // LCOV_EXCL_LINE
+        // If input was 1D, result should be 2D (1, out_features) to maintain batch consistency //
+        // LCOV_EXCL_LINE
         if (shape.size() == 1)
         {
             return result_flat;
@@ -327,7 +328,7 @@ struct LinearImpl : public Module<Backend>
         }
         auto itb = sd.find("bias");
         if (itb != sd.end())
-        { // LCOV_EXCL_LINE
+        {                       // LCOV_EXCL_LINE
             bias = itb->second; // LCOV_EXCL_LINE
         } // LCOV_EXCL_LINE
     } // LCOV_EXCL_LINE
