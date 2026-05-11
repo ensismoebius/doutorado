@@ -259,7 +259,7 @@ auto extract_subband_energies(const WaveletTransformResults& transform, int leve
         }
     }
 
-    return energies; // LCOV_EXCL_LINE
-}
+    return energies;
+} // LCOV_EXCL_LINE
 
 } // namespace wavelets

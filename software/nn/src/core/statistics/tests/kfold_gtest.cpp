@@ -169,3 +169,80 @@ TEST(KFoldCompatibilityTest, ExistingKFoldCrossValidationStillWorks)
 
     ASSERT_EQ(results.size(), 3U);
 }
+
+TEST(StratifiedKFoldTest, ShuffleIsDeterministicBySeed)
+{
+    std::vector<int> labels = {
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+    };
+
+    statistics::StratifiedKFold a(/*n_splits=*/3, /*shuffle=*/true, /*seed=*/99U);
+    statistics::StratifiedKFold b(/*n_splits=*/3, /*shuffle=*/true, /*seed=*/99U);
+
+    const auto folds_a = a.split(labels);
+    const auto folds_b = b.split(labels);
+    ASSERT_EQ(folds_a.size(), folds_b.size());
+    for (std::size_t i = 0; i < folds_a.size(); ++i)
+    {
+        EXPECT_EQ(folds_a[i].test_indices, folds_b[i].test_indices);
+        EXPECT_EQ(folds_a[i].train_indices, folds_b[i].train_indices);
+    }
+}
+
+TEST(NestedKFoldTest, ProducesConsistentOuterAndInnerSplits)
+{
+    statistics::NestedKFold splitter(/*outer=*/3, /*inner=*/2, /*shuffle=*/true, /*seed=*/7U);
+    const auto nested = splitter.split(/*n_samples=*/12U);
+
+    ASSERT_EQ(nested.size(), 3U);
+    for (const auto& outer : nested)
+    {
+        EXPECT_FALSE(outer.test_indices.empty());
+        ASSERT_EQ(outer.inner_splits.size(), 2U);
+
+        std::set<std::size_t> outer_test(outer.test_indices.begin(), outer.test_indices.end());
+        for (const auto& inner : outer.inner_splits)
+        {
+            // Inner splits are drawn from outer train set only.
+            for (std::size_t idx : inner.train_indices)
+            {
+                EXPECT_EQ(outer_test.count(idx), 0U);
+            }
+            for (std::size_t idx : inner.test_indices)
+            {
+                EXPECT_EQ(outer_test.count(idx), 0U);
+            }
+            EXPECT_FALSE(inner.train_indices.empty());
+            EXPECT_FALSE(inner.test_indices.empty());
+        }
+    }
+}
+
+TEST(NestedKFoldTest, InvalidParametersThrow)
+{
+    EXPECT_THROW(
+        {
+            const auto out = statistics::NestedKFold(1U, 2U, false, 1U).split(10U);
+            (void) out;
+        },
+        std::invalid_argument);
+
+    EXPECT_THROW(
+        {
+            // inner_n for each outer fold will be 8, so 9 is invalid.
+            const auto out = statistics::NestedKFold(5U, 9U, false, 1U).split(10U);
+            (void) out;
+        },
+        std::invalid_argument);
+}

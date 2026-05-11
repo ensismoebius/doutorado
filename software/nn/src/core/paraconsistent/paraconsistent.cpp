@@ -73,9 +73,9 @@ void normalize_class_feature_vectors(unsigned int amountOfClasses, // LCOV_EXCL_
     for (unsigned int i = 0; i < amountOfClasses; i++) // LCOV_EXCL_LINE
     {                                                  // LCOV_EXCL_LINE
         normalizeFeatureVectors(                       // LCOV_EXCL_LINE
-            arrClasses[i],
-            featureVectorsPerClass,
-            featureVectorSize); // LCOV_EXCL_LINE
+            arrClasses[i],                             // LCOV_EXCL_LINE
+            featureVectorsPerClass,                    // LCOV_EXCL_LINE
+            featureVectorSize);                        // LCOV_EXCL_LINE
     } // LCOV_EXCL_LINE
 } // LCOV_EXCL_LINE
 

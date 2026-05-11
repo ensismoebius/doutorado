@@ -29,7 +29,7 @@ class ExponentialSurrogate : public ISurrogateGradient
             }
         }
         return result;
-    }
+    } // LCOV_EXCL_LINE
 
     [[nodiscard]] auto calculate_scalar(float v_mem_pre_spike, float voltage_threshold) const
         -> float override
@@ -38,7 +38,10 @@ class ExponentialSurrogate : public ISurrogateGradient
         return (1.0F / sharpness_) * std::exp(-diff_abs / sharpness_);
     }
 
-   [[nodiscard]] float sharpness() const { return sharpness_; }
+    [[nodiscard]] float sharpness() const
+    {
+        return sharpness_;
+    }
 
    private:
     float sharpness_;

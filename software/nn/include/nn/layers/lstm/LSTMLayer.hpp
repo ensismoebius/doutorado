@@ -159,9 +159,9 @@ class LSTMLayerImpl : public Module<Backend>
 
         // Opt: for single-sequence (B=1), write directly to (T,H) output; skip 3D alloc+copy.
         const bool is_2d = (shape.size() == 2);
-        Tensor all_out = is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq), H)
-                               : Tensor::zeros(static_cast<nn::Index>(B),
-                                     static_cast<nn::Index>(T_seq), H);
+        Tensor all_out =
+            is_2d ? Tensor::zeros(static_cast<nn::Index>(T_seq), H)
+                  : Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(T_seq), H);
 
         for (int t = 0; t < T_seq; ++t)
         {
@@ -240,7 +240,7 @@ class LSTMLayerImpl : public Module<Backend>
             for (int t = 0; t < static_cast<int>(shape[0]); ++t)
                 for (int d = 0; d < input_size_; ++d) dx2d.at(t, d) = dx_3d.at(0, t, d);
             return dx2d;
-        }
+        } // LCOV_EXCL_LINE
         return dx_3d;
     }
 

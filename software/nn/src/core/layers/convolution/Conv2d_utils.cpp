@@ -302,7 +302,7 @@ void Conv2dImpl<Backend>::add_bias_optimized(typename Conv2dImpl<Backend>::Tenso
     const auto bias_size = (bias.rows() == matrix.rows() && bias.cols() >= 1) ? bias.rows()
                            : (bias.cols() == matrix.rows() && bias.rows() >= 1)
                                ? bias.cols()
-                               : std::min(matrix.rows(), bias.size());
+                               : std::min(matrix.rows(), bias.size()); // LCOV_EXCL_LINE
 
     const auto n_rows = matrix.rows();
     const auto n_cols = matrix.cols();

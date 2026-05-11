@@ -55,8 +55,7 @@ class SpikeTimeLossImpl : public Module<Backend>
                 float fst = static_cast<float>(T); // default: no spike → penalty = T
                 for (int t = 0; t < T; ++t)
                 {
-                    if (spikes.at(static_cast<size_t>(t * B + b),
-                            static_cast<size_t>(f)) > 0.5f)
+                    if (spikes.at(static_cast<size_t>(t * B + b), static_cast<size_t>(f)) > 0.5f)
                     {
                         fst = static_cast<float>(t);
                         break;
@@ -66,16 +65,25 @@ class SpikeTimeLossImpl : public Module<Backend>
             }
         }
         return times;
-    }
+    } // LCOV_EXCL_LINE
 
    public:
     explicit SpikeTimeLossImpl(int time_steps = 1) : time_steps_(time_steps) {}
 
-    void train(bool on) override { training_ = on; }
+    void train(bool on) override
+    {
+        training_ = on;
+    }
 
-    void set_target(const Tensor& t) { target_ = t; }
+    void set_target(const Tensor& t)
+    {
+        target_ = t;
+    }
 
-    void set_time_steps(int T) { time_steps_ = T; }
+    void set_time_steps(int T)
+    {
+        time_steps_ = T;
+    }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {

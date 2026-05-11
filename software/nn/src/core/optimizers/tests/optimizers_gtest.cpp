@@ -526,3 +526,51 @@ TEST(OptimizerComprehensiveTest, ConvergenceBehavior)
     for (size_t r = 0; r < param.rows(); ++r)
         for (size_t c = 0; c < param.cols(); ++c) EXPECT_NEAR(param.at(r, c), p10, 1e-4F);
 }
+// SGD null parameter guard in step() (SGD.hpp line 74)
+TEST(SGDNullParamTest, StepThrowsOnNullParam)
+{
+    SGD sgd(0.01f);
+    nn::Tensor p(2, 2);
+    nn::Tensor p2(2, 2);
+    p.fill(1.0f);
+    p2.fill(1.0f);
+    // Attach two valid params first (populates velocity vector)
+    std::vector<nn::Tensor*> valid_params = {&p, &p2};
+    sgd.attach(valid_params);
+    // Now step with second param replaced by null
+    nn::Tensor* null_ptr = nullptr;
+    std::vector<nn::Tensor*> params_with_null = {&p, null_ptr};
+    EXPECT_THROW(sgd.step(params_with_null), std::invalid_argument);
+}
+
+// SGD null parameter guard in zero_grad() (SGD.hpp line 90)
+TEST(SGDNullParamTest, ZeroGradThrowsOnNullParam)
+{
+    SGD sgd(0.01f);
+    nn::Tensor p(2, 2);
+    p.fill(1.0f);
+    nn::Tensor* null_ptr = nullptr;
+    std::vector<nn::Tensor*> params_with_null = {&p, null_ptr};
+    EXPECT_THROW(sgd.zero_grad(params_with_null), std::invalid_argument);
+}
+
+// SGDMinimal attach() with null param (SGDMinimal.hpp lines 71-81)
+TEST(SGDMinimalTest, AttachThrowsOnNullParam)
+{
+    SGDMinimal sgd(0.01f);
+    nn::Tensor p(2, 2);
+    p.fill(1.0f);
+    nn::Tensor* null_ptr = nullptr;
+    std::vector<nn::Tensor*> params_with_null = {&p, null_ptr};
+    EXPECT_THROW(sgd.attach(params_with_null), std::invalid_argument);
+}
+
+// SGDMinimal attach() with valid params (covers the attach() method body)
+TEST(SGDMinimalTest, AttachWithValidParams)
+{
+    SGDMinimal sgd(0.01f);
+    nn::Tensor p(2, 2);
+    p.fill(1.0f);
+    std::vector<nn::Tensor*> valid_params = {&p};
+    EXPECT_NO_THROW(sgd.attach(valid_params));
+}

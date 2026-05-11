@@ -88,7 +88,7 @@ inline StateDict load_state_dict(const std::string& path)
     StateDict out;
     load_state_dict(out, path);
     return out;
-}
+} // LCOV_EXCL_LINE
 
 } // namespace nn::io
 

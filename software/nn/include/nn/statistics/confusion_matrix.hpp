@@ -93,7 +93,7 @@ double truePositiveRate(double tp, double fn);
  * @param matrix
  * @return
  */
-double truePositiveRate(ConfusionMatrix& matrix);
+double truePositiveRate(const ConfusionMatrix& matrix);
 
 /**
  * Accuracy rate
@@ -110,7 +110,7 @@ double accuracyRate(double tp, double tn, double fp, double fn);
  * @param matrix
  * @return
  */
-double accuracyRate(ConfusionMatrix& matrix);
+double accuracyRate(const ConfusionMatrix& matrix);
 
 /**
  * Precision
@@ -125,7 +125,7 @@ double precision(double tp, double fp);
  * @param matrix
  * @return
  */
-double precision(ConfusionMatrix& matrix);
+double precision(const ConfusionMatrix& matrix);
 
 /**
  * Recall
@@ -140,7 +140,7 @@ double recall(double tp, double fn);
  * @param matrix
  * @return
  */
-double recall(ConfusionMatrix& matrix);
+double recall(const ConfusionMatrix& matrix);
 
 /**
  * Calculate the Equal Error Rate

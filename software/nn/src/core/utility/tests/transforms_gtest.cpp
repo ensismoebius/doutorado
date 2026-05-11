@@ -327,3 +327,16 @@ TEST(FusedModalityTransform, NullTransformLeavesColumnRangeUnmodified)
         for (nn::Index j = 0; j < kEeg; ++j)
             EXPECT_EQ(out.at(i, j), input.at(i, j)) << "EEG col " << j << " row " << i;
 }
+
+// AudioMeanStdNormalize: empty batch early return (AudioMeanStdNormalize.hpp line 31)
+TEST(AudioMeanStdNormalize, EmptyBatchIsIgnored)
+{
+    nn::transforms::AudioMeanStdNormalize norm;
+    // accumulate with an empty tensor - should return early without side effects
+    nn::Tensor empty_batch(0, 4);
+    norm.accumulate(empty_batch);
+    // Also accumulate a zero-col tensor
+    nn::Tensor zero_col(4, 0);
+    norm.accumulate(zero_col);
+    // No crash = pass (early return path is covered)
+}

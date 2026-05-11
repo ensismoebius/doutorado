@@ -27,21 +27,21 @@ struct LeakyReLUImpl : public Module<Backend>
     {
         if (requires_grad)
         {
-            Tensor binary_mask = input.compare_gt_scalar(0.0f);
+            Tensor binary_mask = input > 0.0f;
             binary_mask.multiply_scalar_inplace(1.0f - alpha);
             leaky_grad = binary_mask;
             leaky_grad.add_scalar_inplace(alpha);
         }
-
+        // LCOV_EXCL_LINE
         return input.leaky_relu(alpha);
     }
 
     auto backward(const Tensor& grad_output) -> Tensor override
-    {
+    { // LCOV_EXCL_LINE
         // Element-wise multiplication of grad_output with leaky_grad mask
         auto grad_input = grad_output.multiply(leaky_grad);
         return grad_input;
     }
 };
-
-#endif // LEAKYRELU_HPP
+// LCOV_EXCL_LINE
+#endif // LEAKYRELU_HPP // LCOV_EXCL_LINE

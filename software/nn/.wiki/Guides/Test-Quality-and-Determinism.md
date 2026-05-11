@@ -101,6 +101,23 @@ Some broad assertions remain valid when they express real contracts:
 - Replace broad range checks with exact expected mapping from fixture inputs.
 - Keep `EXPECT_NEAR` with rationale-based tolerance (precision + operation count).
 
+## Strict Core Coverage Gate
+
+To enforce the policy that core libraries must remain at full coverage, use an
+instrumented build and run the dedicated gate target:
+
+```bash
+cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DNN_ENABLE_COVERAGE=ON
+cmake --build build-coverage -j$(nproc)
+cmake --build build-coverage --target coverage-core-100
+```
+
+Behavior:
+- Runs `ctest` in the selected build directory.
+- Captures coverage with `lcov`.
+- Filters to core library implementation/header files and excludes test sources.
+- Fails if any file is below 100% line or 100% function coverage.
+
 ## References
 
 See [../References.md](../References.md), section "Software Testing and Test Quality".

@@ -51,3 +51,38 @@ TEST(InitializerTest, XavierZeroDimensions)
     ASSERT_EQ(bias_empty.rows(), 0);
     ASSERT_EQ(bias_empty.cols(), 1);
 }
+
+TEST(InitializerTest, XavierSeededSamplerMixingIsDeterministic)
+{
+    nn::Tensor w1(4, 2), b1(4, 1);
+    nn::Tensor w2(4, 2), b2(4, 1);
+    nn::Tensor w3(4, 2), b3(4, 1);
+
+    xavierInitializer(2, 4, w1, b1, 123U, "samplerA");
+    xavierInitializer(2, 4, w2, b2, 123U, "samplerA");
+    xavierInitializer(2, 4, w3, b3, 123U, "samplerB");
+
+    for (size_t r = 0; r < w1.rows(); ++r)
+    {
+        for (size_t c = 0; c < w1.cols(); ++c)
+        {
+            EXPECT_FLOAT_EQ(w1.at(r, c), w2.at(r, c));
+        }
+    }
+    EXPECT_NE(w1.sum(), w3.sum());
+}
+
+TEST(InitializerTest, XavierBiasDimensionMismatchReturnsWithoutChanges)
+{
+    nn::Tensor weights(4, 2);
+    nn::Tensor bias_wrong(4, 2); // expected shape is (out_features, 1)
+    weights.fill(7.0F);
+    bias_wrong.fill(9.0F);
+
+    xavierInitializer(2, 4, weights, bias_wrong, 1U, "sampler");
+
+    EXPECT_FLOAT_EQ(weights.at(0, 0), 7.0F);
+    EXPECT_FLOAT_EQ(weights.at(3, 1), 7.0F);
+    EXPECT_FLOAT_EQ(bias_wrong.at(0, 0), 9.0F);
+    EXPECT_FLOAT_EQ(bias_wrong.at(3, 1), 9.0F);
+}

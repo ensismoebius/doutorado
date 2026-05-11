@@ -1,3 +1,4 @@
+// Raw pointer variance error paths (statistics.cpp lines 53 and 57)
 /**
  * @file statistics_gtest.cpp
  * @brief Unit tests for basic statistics and multi-class metric helpers.
@@ -298,6 +299,46 @@ TEST(InferenceTests, WilcoxonApproxReturnsOneForInvalidPairs)
     EXPECT_FLOAT_EQ(statistics::wilcoxon_signed_rank_pvalue_approx(a, b), 1.0f);
 }
 
+TEST(InferenceTests, CohensDHandlesDegenerateInputs)
+{
+    const std::vector<float> empty;
+    const std::vector<float> non_empty = {1.0f, 2.0f};
+    EXPECT_FLOAT_EQ(statistics::cohens_d(empty, non_empty), 0.0f);
+
+    // Identical constant vectors -> pooled variance is zero, guard should return 0.
+    const std::vector<float> const_a = {2.0f, 2.0f, 2.0f};
+    const std::vector<float> const_b = {5.0f, 5.0f, 5.0f};
+    EXPECT_FLOAT_EQ(statistics::cohens_d(const_a, const_b), 0.0f);
+}
+
+TEST(InferenceTests, TTestApproxHandlesSmallAndZeroVarianceInputs)
+{
+    const std::vector<float> a1 = {1.0f};
+    const std::vector<float> b1 = {2.0f};
+    EXPECT_FLOAT_EQ(statistics::t_test_pvalue_approx(a1, b1), 1.0f);
+
+    // Zero within-group variance in both groups -> standard error guard should return 1.
+    const std::vector<float> a2 = {3.0f, 3.0f, 3.0f};
+    const std::vector<float> b2 = {7.0f, 7.0f, 7.0f};
+    EXPECT_FLOAT_EQ(statistics::t_test_pvalue_approx(a2, b2), 1.0f);
+}
+
+TEST(InferenceTests, WilcoxonApproxReturnsValidPValueOnPairedData)
+{
+    const std::vector<float> a = {1.0f, 2.5f, 3.2f, 4.8f, 5.0f};
+    const std::vector<float> b = {0.8f, 2.0f, 3.1f, 5.1f, 5.2f};
+    const float p = statistics::wilcoxon_signed_rank_pvalue_approx(a, b);
+    EXPECT_GE(p, 0.0f);
+    EXPECT_LE(p, 1.0f);
+}
+
+TEST(InferenceTests, WilcoxonApproxReturnsOneWhenAllDifferencesAreZero)
+{
+    const std::vector<float> a = {1.0f, 2.0f, 3.0f};
+    const std::vector<float> b = {1.0f, 2.0f, 3.0f};
+    EXPECT_FLOAT_EQ(statistics::wilcoxon_signed_rank_pvalue_approx(a, b), 1.0f);
+}
+
 // Numerical Edge Cases for Statistics
 TEST(StatisticsNumericalEdgeTest, NaNInfValues)
 {
@@ -476,4 +517,39 @@ TEST(StatisticsComprehensiveTest, KFoldCrossValidationDeterminism)
         EXPECT_NEAR(results1[i], results2[i], 1e-10);
         EXPECT_NEAR(results1[i], 1.0 / 3.0, 1e-10);
     }
+}
+// Raw pointer variance error paths (statistics.cpp lines 53 and 57)
+TEST(StatisticsExceptionTest, RawPointerVarianceNullPointerThrows)
+{
+    EXPECT_THROW(statistics::variance(nullptr, 5), std::invalid_argument);
+}
+
+TEST(StatisticsExceptionTest, RawPointerVarianceZeroLengthThrows)
+{
+    const double data[] = {1.0, 2.0, 3.0};
+    EXPECT_THROW(statistics::variance(data, 0), std::runtime_error);
+}
+
+// Binary class MCC calculation (multi_class_metrics.cpp lines 86-90)
+TEST(MultiClassMetricsTest, BinaryClassificationMCCIsComputed)
+{
+    // 2-class: tp=3, tn=3, fp=1, fn=1
+    std::vector<int> true_labels = {0, 0, 0, 0, 1, 1, 1, 1};
+    std::vector<int> pred_labels = {0, 0, 0, 1, 0, 1, 1, 1};
+    auto metrics = statistics::compute_classification_metrics(true_labels, pred_labels);
+    EXPECT_NEAR(metrics.mcc, 0.5, 1e-5);
+}
+
+// k_fold_cross_validation size mismatch (multi_class_metrics.hpp line 77)
+TEST(MultiClassMetricsTest, KFoldCrossValidationSizeMismatchThrows)
+{
+    std::vector<std::vector<double>> features = {{1.0}, {2.0}, {3.0}};
+    std::vector<int> labels = {0, 1};
+    EXPECT_THROW(statistics::k_fold_cross_validation<double>(features,
+                     labels,
+                     2,
+                     42,
+                     [](const auto& tf, const auto& tl, const auto& ef, const auto& el) -> double
+                     { return 0.0; }),
+        std::invalid_argument);
 }

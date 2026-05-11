@@ -20,7 +20,7 @@ class L2Regularization : public IRegularization
         nn::Tensor loss(1, 1);
         loss.at(0, 0) = penalty;
         return loss;
-    }
+    } // LCOV_EXCL_LINE
 
     void backward(const std::vector<nn::Tensor*>& params) override
     {

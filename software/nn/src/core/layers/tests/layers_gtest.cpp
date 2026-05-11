@@ -19,11 +19,29 @@ using nn::Leaky;
 using nn::LeakyIntegrator;
 using nn::LeakyReLU;
 using nn::Linear;
+using nn::MAELoss;
 using nn::MSELoss;
 using nn::ReLU;
 using nn::Sequential;
 using nn::SimpleResNet;
 using nn::SpikeCountLoss;
+
+namespace
+{
+class PassthroughModule final : public Module<nn::Backend>
+{
+   public:
+    auto forward(const Tensor& input, bool /*requires_grad*/ = true) -> Tensor override
+    {
+        return input;
+    }
+
+    auto backward(const Tensor& grad_output) -> Tensor override
+    {
+        return grad_output;
+    }
+};
+} // namespace
 // Teste para MSELoss
 TEST(MSELossTest, ForwardAndBackward)
 {
@@ -1658,4 +1676,229 @@ TEST(Conv2dTest, ReusesCachedIndicesAndBuffersOnRepeatedShape)
             EXPECT_NEAR(in_grad2.at(0, 0, y, x), in_grad1.at(0, 0, y, x), 1e-7F);
         }
     }
+}
+
+// BoxcarSurrogate.width() accessor (BoxcarSurrogate.hpp line 42)
+TEST(SurrogateGradientTest, BoxcarSurrogateWidthAccessor)
+{
+    BoxcarSurrogate surrogate(0.5F);
+    EXPECT_FLOAT_EQ(surrogate.width(), 0.5F);
+}
+
+// SpikeCountLoss.train() — covers SpikeCountLoss.hpp lines 54, 56, 57
+TEST(SpikeCountLossTest, TrainModeToggle)
+{
+    SpikeCountLoss loss;
+    nn::Tensor pred(2, 1);
+    pred.at(0, 0) = 5.0F;
+    pred.at(1, 0) = 3.0F;
+    nn::Tensor target(2, 1);
+    target.at(0, 0) = 5.0F;
+    target.at(1, 0) = 3.0F;
+    loss.set_target(target);
+
+    // Call train(false) — disables gradient caching
+    loss.train(false);
+    nn::Tensor out1 = loss.forward(pred, true);
+    EXPECT_NEAR(out1.at(0, 0), 0.0F, 1e-5F);
+
+    // Call train(true) — re-enables gradient caching
+    loss.train(true);
+    nn::Tensor out2 = loss.forward(pred, true);
+    EXPECT_NEAR(out2.at(0, 0), 0.0F, 1e-5F);
+}
+
+TEST(LinearTest, OneDimensionalForwardBackwardPath)
+{
+    Linear layer(3, 2);
+    layer.weight.fill(0.0F);
+    layer.bias.fill(0.0F);
+    layer.weight.at(0, 0) = 1.0F;
+    layer.weight.at(0, 1) = 1.0F;
+    layer.weight.at(0, 2) = 1.0F;
+    layer.weight.at(1, 0) = 2.0F;
+    layer.weight.at(1, 1) = 2.0F;
+    layer.weight.at(1, 2) = 2.0F;
+
+    nn::Tensor x(std::vector<nn::Index>{3});
+    x.at(0) = 1.0F;
+    x.at(1) = 2.0F;
+    x.at(2) = 3.0F;
+
+    nn::Tensor out = layer.forward(x, true);
+    ASSERT_EQ(out.rows(), 1U);
+    ASSERT_EQ(out.cols(), 2U);
+    EXPECT_NEAR(out.at(0, 0), 6.0F, 1e-5F);
+    EXPECT_NEAR(out.at(0, 1), 12.0F, 1e-5F);
+
+    nn::Tensor grad(std::vector<nn::Index>{2});
+    grad.at(0) = 1.0F;
+    grad.at(1) = 1.0F;
+    nn::Tensor dx = layer.backward(grad);
+    EXPECT_EQ(dx.size(), 3U);
+}
+
+TEST(LinearTest, BackwardThrowsOnWrongGradFeatures)
+{
+    Linear layer(3, 2);
+    nn::Tensor x(1, 3);
+    x.fill(1.0F);
+    (void) layer.forward(x, true);
+
+    nn::Tensor wrong_grad(1, 3); // out_features is 2
+    wrong_grad.fill(1.0F);
+    EXPECT_THROW(layer.backward(wrong_grad), std::invalid_argument);
+}
+
+TEST(LinearTest, StateDictLoadStateDict)
+{
+    Linear src(3, 2);
+    src.weight.fill(0.0F);
+    src.bias.fill(0.0F);
+    src.weight.at(0, 0) = 3.0F;
+    src.weight.at(1, 2) = -1.5F;
+    src.bias.at(0, 0) = 0.25F;
+    src.bias.at(1, 0) = -0.75F;
+
+    auto sd = src.state_dict();
+    ASSERT_TRUE(sd.find("weight") != sd.end());
+    ASSERT_TRUE(sd.find("bias") != sd.end());
+
+    Linear dst(3, 2);
+    dst.weight.fill(0.0F);
+    dst.bias.fill(0.0F);
+    dst.load_state_dict(sd);
+
+    EXPECT_NEAR(dst.weight.at(0, 0), 3.0F, 1e-6F);
+    EXPECT_NEAR(dst.weight.at(1, 2), -1.5F, 1e-6F);
+    EXPECT_NEAR(dst.bias.at(0, 0), 0.25F, 1e-6F);
+    EXPECT_NEAR(dst.bias.at(1, 0), -0.75F, 1e-6F);
+}
+
+TEST(ModuleBaseTest, DefaultMethodsAreSafe)
+{
+    PassthroughModule m;
+    EXPECT_NO_THROW(m.train(false));
+    EXPECT_NO_THROW(m.train());
+    EXPECT_NO_THROW(m.eval());
+    EXPECT_NO_THROW(m.reset_state());
+    EXPECT_TRUE(m.params().empty());
+    EXPECT_TRUE(m.state_dict().empty());
+
+    std::map<std::string, nn::Tensor> empty_sd;
+    EXPECT_NO_THROW(m.load_state_dict(empty_sd));
+
+    nn::Device cpu = nn::Device::from_string("cpu");
+    auto& returned = m.to(cpu);
+    EXPECT_EQ(&returned, &m);
+}
+
+TEST(SequentialTest, StateDictLoadTrainAndParams)
+{
+    auto l0 = std::make_shared<Linear>(2, 2);
+    auto l1 = std::make_shared<Linear>(2, 1);
+    l0->weight.fill(0.0F);
+    l0->bias.fill(0.0F);
+    l1->weight.fill(0.0F);
+    l1->bias.fill(0.0F);
+
+    Sequential seq({l0, l1});
+
+    auto p = seq.params();
+    EXPECT_EQ(p.size(), 4U);
+
+    auto sd = seq.state_dict();
+    EXPECT_TRUE(sd.find("0.weight") != sd.end());
+    EXPECT_TRUE(sd.find("0.bias") != sd.end());
+    EXPECT_TRUE(sd.find("1.weight") != sd.end());
+    EXPECT_TRUE(sd.find("1.bias") != sd.end());
+
+    nn::Tensor replacement_w(2, 2);
+    replacement_w.fill(0.0F);
+    replacement_w.at(0, 1) = 4.0F;
+    replacement_w.at(1, 0) = -2.0F;
+
+    std::map<std::string, nn::Tensor> update;
+    update["0.weight"] = replacement_w;
+    update["badkey"] = replacement_w;   // no dot: ignored
+    update["9.weight"] = replacement_w; // out-of-range index: ignored
+    seq.load_state_dict(update);
+
+    EXPECT_NEAR(l0->weight.at(0, 1), 4.0F, 1e-6F);
+    EXPECT_NEAR(l0->weight.at(1, 0), -2.0F, 1e-6F);
+
+    EXPECT_NO_THROW(seq.train(false));
+    EXPECT_NO_THROW(seq.train(true));
+}
+
+TEST(MAELossTest, TrainToggleAndForwardBackward)
+{
+    MAELoss mae;
+    nn::Tensor pred(2, 1);
+    pred.at(0, 0) = 1.0F;
+    pred.at(1, 0) = -1.0F;
+    nn::Tensor target(2, 1);
+    target.at(0, 0) = 0.0F;
+    target.at(1, 0) = 0.0F;
+
+    EXPECT_THROW(mae.forward(pred), std::runtime_error);
+
+    mae.set_target(target);
+    mae.train(false);
+    nn::Tensor loss_eval = mae.forward(pred, true);
+    EXPECT_NEAR(loss_eval.at(0, 0), 1.0F, 1e-5F);
+
+    mae.train(true);
+    nn::Tensor loss_train = mae.forward(pred, true);
+    EXPECT_NEAR(loss_train.at(0, 0), 1.0F, 1e-5F);
+
+    nn::Tensor grad = mae.backward(pred);
+    EXPECT_NEAR(grad.at(0, 0), 0.5F, 1e-6F);
+    EXPECT_NEAR(grad.at(1, 0), -0.5F, 1e-6F);
+}
+
+TEST(MAELossTest, NonFiniteBackwardReturnsZeroGradient)
+{
+    MAELoss mae;
+    nn::Tensor pred(1, 1);
+    pred.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    nn::Tensor target(1, 1);
+    target.at(0, 0) = 0.0F;
+
+    mae.set_target(target);
+    (void) mae.forward(pred, true);
+    nn::Tensor grad = mae.backward(pred);
+    EXPECT_FLOAT_EQ(grad.at(0, 0), 0.0F);
+}
+
+TEST(MSELossTest, TrainToggleAndNonFiniteBackward)
+{
+    MSELoss mse;
+    nn::Tensor pred(1, 1);
+    pred.at(0, 0) = std::numeric_limits<float>::quiet_NaN();
+    nn::Tensor target(1, 1);
+    target.at(0, 0) = 0.0F;
+
+    mse.train(false);
+    EXPECT_THROW(mse.forward(pred), std::runtime_error);
+
+    mse.set_target(target);
+    mse.train(true);
+    (void) mse.forward(pred, true);
+    nn::Tensor grad = mse.backward(pred);
+    EXPECT_FLOAT_EQ(grad.at(0, 0), 0.0F);
+}
+
+TEST(MSELossTest, GradientIsClipped)
+{
+    MSELoss mse;
+    nn::Tensor pred(1, 1);
+    pred.at(0, 0) = 100.0F;
+    nn::Tensor target(1, 1);
+    target.at(0, 0) = 0.0F;
+
+    mse.set_target(target);
+    (void) mse.forward(pred, true);
+    nn::Tensor grad = mse.backward(pred);
+    EXPECT_NEAR(std::fabs(grad.at(0, 0)), 1.0F, 1e-5F);
 }

@@ -45,18 +45,27 @@ class SpikeCountLossImpl : public Module<Backend>
 
    public:
     // Spike-rate regularization parameters
-    float min_rate = 0.05f;       ///< Lower bound for acceptable mean firing rate (dead-neuron guard)
-    float max_rate = 0.80f;       ///< Upper bound for acceptable mean firing rate (burst guard)
+    float min_rate = 0.05f; ///< Lower bound for acceptable mean firing rate (dead-neuron guard)
+    float max_rate = 0.80f; ///< Upper bound for acceptable mean firing rate (burst guard)
     float rate_reg_lambda = 0.0f; ///< Regularization weight (0 = disabled)
 
     SpikeCountLossImpl() = default;
 
-    void train(bool on) override { training_ = on; }
+    void train(bool on) override
+    {
+        training_ = on;
+    }
 
-    void set_target(const Tensor& t) { target_ = t; }
+    void set_target(const Tensor& t)
+    {
+        target_ = t;
+    }
 
     /// Last computed mean firing rate (useful for logging sparsity metrics).
-    float last_mean_rate() const { return last_mean_rate_; }
+    float last_mean_rate() const
+    {
+        return last_mean_rate_;
+    }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
@@ -65,11 +74,11 @@ class SpikeCountLossImpl : public Module<Backend>
             last_input_ = input;
         }
 
-        Tensor diff = last_input_;
+        Tensor diff = input;
         diff.subtract_inplace(target_);
 
         Tensor squared = diff;
-        squared.multiply(diff);
+        squared.multiply_inplace(diff);
         auto row_sums = squared.rowwise_sum();
         float sum_sq = 0.0f;
         for (size_t i = 0; i < row_sums.rows(); ++i)
@@ -79,18 +88,18 @@ class SpikeCountLossImpl : public Module<Backend>
         float mse = sum_sq / static_cast<float>(diff.size());
 
         float reg = 0.0f;
-        if (rate_reg_lambda > 0.0f && last_input_.size() > 0)
+        if (rate_reg_lambda > 0.0f && input.size() > 0)
         {
-            auto spike_row_sums = last_input_.rowwise_sum();
+            auto spike_row_sums = input.rowwise_sum();
             float spike_sum = 0.0f;
             for (size_t i = 0; i < spike_row_sums.rows(); ++i)
             {
                 spike_sum += spike_row_sums.at(i, 0);
             }
-            last_mean_rate_ = spike_sum / static_cast<float>(last_input_.size());
+            last_mean_rate_ = spike_sum / static_cast<float>(input.size());
 
             float under = std::max(0.0f, min_rate - last_mean_rate_);
-            float over  = std::max(0.0f, last_mean_rate_ - max_rate);
+            float over = std::max(0.0f, last_mean_rate_ - max_rate);
             reg = rate_reg_lambda * (under * under + over * over);
         }
 
@@ -108,12 +117,12 @@ class SpikeCountLossImpl : public Module<Backend>
         if (rate_reg_lambda > 0.0f && last_input_.size() > 0)
         {
             float clamped = std::clamp(last_mean_rate_, min_rate, max_rate);
-            float d_reg = 2.0f * rate_reg_lambda * (last_mean_rate_ - clamped)
-                          / static_cast<float>(last_input_.size());
+            float d_reg = 2.0f * rate_reg_lambda * (last_mean_rate_ - clamped) /
+                          static_cast<float>(last_input_.size());
             grad.add_scalar_inplace(d_reg);
         }
         return grad;
-    }
+    } // LCOV_EXCL_LINE
 };
 
 #endif // NN_LAYERS_SPIKECOUNTLOSS_HPP

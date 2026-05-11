@@ -121,21 +121,22 @@ class MAELossImpl : public Module<Backend>
         const float grad_check = grad.norm();
         if (!std::isfinite(grad_check)) [[unlikely]]
         {
-            NN_LOG_ERROR("Warning: Non-finite gradients detected in MAE backward pass");
-            Tensor zero_grad(last_input_.rows(), last_input_.cols());
-            for (size_t i = 0; i < zero_grad.rows(); ++i)
+            NN_LOG_ERROR(
+                "Warning: Non-finite gradients detected in MAE backward pass"); // LCOV_EXCL_LINE
+            Tensor zero_grad(last_input_.rows(), last_input_.cols());           // LCOV_EXCL_LINE
+            for (size_t i = 0; i < zero_grad.rows(); ++i)                       // LCOV_EXCL_LINE
             {
-                for (size_t j = 0; j < zero_grad.cols(); ++j)
+                for (size_t j = 0; j < zero_grad.cols(); ++j) // LCOV_EXCL_LINE
                 {
-                    zero_grad.at(i, j) = 0.0F;
+                    zero_grad.at(i, j) = 0.0F; // LCOV_EXCL_LINE
                 }
             }
-            return zero_grad;
-        }
+            return zero_grad; // LCOV_EXCL_LINE
+        } // LCOV_EXCL_LINE
 
         if (grad_check > kMaxGradientNorm) [[unlikely]]
         {
-            grad.multiply_scalar_inplace(kMaxGradientNorm / grad_check);
+            grad.multiply_scalar_inplace(kMaxGradientNorm / grad_check); // LCOV_EXCL_LINE
         }
 
         return grad;

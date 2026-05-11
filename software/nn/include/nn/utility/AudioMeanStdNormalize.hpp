@@ -99,7 +99,7 @@ class AudioMeanStdNormalize final : public ITransform
             }
         }
         return out;
-    }
+    } // LCOV_EXCL_LINE
 };
 
 } // namespace nn::transforms

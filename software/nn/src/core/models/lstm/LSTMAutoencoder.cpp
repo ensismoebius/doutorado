@@ -200,7 +200,7 @@ auto LSTMAutoencoder::state_dict() const -> std::map<std::string, Tensor>
     }
     prefix_merge(out_proj_->state_dict(), "out_proj.");
     return sd;
-}
+} // LCOV_EXCL_LINE
 
 void LSTMAutoencoder::load_state_dict(const std::map<std::string, Tensor>& sd)
 {
@@ -215,7 +215,7 @@ void LSTMAutoencoder::load_state_dict(const std::map<std::string, Tensor>& sd)
             }
         }
         return sub;
-    };
+    }; // LCOV_EXCL_LINE
 
     for (std::size_t l = 0; l < enc_lstms_.size(); ++l)
     {

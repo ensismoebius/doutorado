@@ -18,6 +18,7 @@
 # --------------------------------------------------------------------------------
 
 find_package(Python3 COMPONENTS Interpreter)
+find_program(LCOV_EXECUTABLE lcov)
 
 if(CCACHE_FOUND)
     add_custom_target(clean-cache
@@ -139,6 +140,18 @@ elseif(CPPCHECK_EXECUTABLE AND FLAWFINDER_EXECUTABLE)
         COMMENT "Running all analysis tools (cppcheck, flawfinder)..."
     )
     add_dependencies(analysis-all analysis-cppcheck analysis-flawfinder)
+endif()
+
+if(NN_ENABLE_COVERAGE AND Python3_Interpreter_FOUND AND LCOV_EXECUTABLE)
+    add_custom_target(coverage-core-100
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_SOURCE_DIR}/tools/check_core_coverage.py
+            --build-dir ${CMAKE_BINARY_DIR}
+            --line-threshold 100
+            --function-threshold 100
+        COMMENT "Running strict 100% coverage gate for core libraries"
+        USES_TERMINAL
+    )
 endif()
 
 

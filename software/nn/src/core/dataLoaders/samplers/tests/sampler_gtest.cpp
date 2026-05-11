@@ -251,3 +251,37 @@ TEST(SamplerTest, DistributedSamplerNonDropLastPadsByReplication)
     EXPECT_EQ(merged.size(), 6U);
     EXPECT_EQ(std::count(merged.begin(), merged.end(), 0U), 2);
 }
+
+// RandomSampler::index_count() — covers RandomSampler.cpp lines 22, 24
+TEST(SamplerTest, RandomSamplerIndexCount)
+{
+    RandomSampler sampler(7, 42u);
+    EXPECT_EQ(sampler.index_count(), 7U);
+}
+
+// SequentialSampler::set_epoch() — covers SequentialSampler.cpp lines 20, 23
+TEST(SamplerTest, SequentialSamplerSetEpochIsNoOp)
+{
+    SequentialSampler sampler(4);
+    sampler.set_epoch(3); // should not throw or change behavior
+    std::vector<std::size_t> out(sampler.index_count());
+    sampler.sample_into(out);
+    EXPECT_EQ(out, (std::vector<std::size_t>{0, 1, 2, 3}));
+}
+
+// FoldSampler::set_epoch() — covers FoldSampler.cpp lines 28, 31
+// FoldSampler::sample_into() throw — covers FoldSampler.cpp line 37
+TEST(SamplerThrowTest, FoldSamplerSetEpochAndSizeMismatch)
+{
+    statistics::FoldSplit split;
+    split.train_indices = {0, 2, 4};
+    split.test_indices = {1, 3};
+    FoldSampler sampler(split, FoldPartition::Train);
+
+    // set_epoch is a no-op for FoldSampler
+    EXPECT_NO_THROW(sampler.set_epoch(5));
+
+    // sample_into with wrong size should throw
+    std::vector<std::size_t> out(1); // wrong size (expected 3)
+    EXPECT_THROW(sampler.sample_into(out), std::invalid_argument);
+}

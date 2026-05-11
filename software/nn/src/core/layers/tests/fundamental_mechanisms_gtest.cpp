@@ -1651,3 +1651,136 @@ TEST(SimpleResNetTest, BackwardGradExactDepth0)
     EXPECT_NEAR(dx.at(0, 0), 6.0f, 1e-5f);
     EXPECT_NEAR(dx.at(0, 1), 6.0f, 1e-5f);
 }
+
+// Cover SpikeTimeLoss.train() method (SpikeTimeLoss.hpp line 74)
+TEST(SpikeTimeLossTest, TrainModeToggle)
+{
+    SpikeTimeLossImpl<Backend> loss(2);
+    loss.train(true); // enable training mode
+
+    Tensor spikes(4, 2);
+    spikes.setZero();
+    spikes.at(0, 0) = 1.0f;
+    spikes.at(2, 1) = 1.0f;
+
+    Tensor target = spikes;
+    loss.set_target(target);
+    loss.set_time_steps(2);
+
+    // Forward with train mode - should cache last_input_
+    Tensor out = loss.forward(spikes, true);
+    EXPECT_NEAR(out.at(0, 0), 0.0f, 1e-5f);
+
+    // Disable training mode - forward should not cache
+    loss.train(false);
+    Tensor out2 = loss.forward(spikes, false);
+    EXPECT_NEAR(out2.at(0, 0), 0.0f, 1e-5f);
+}
+
+// MaxPool1d exception: wrong number of input dimensions (MaxPool1d.hpp line 35)
+// MaxPool1d exception: wrong number of input dimensions (MaxPool1d.hpp line 35)
+TEST(MaxPoolTest, MaxPool1dThrowsOnWrongInputShape)
+{
+    MaxPool1dImpl<Backend> pool(2, 2);
+    Tensor x(4, 4); // 2D, not 3D
+    x.setZero();
+    EXPECT_THROW(pool.forward(x, false), std::invalid_argument);
+}
+
+// MaxPool1d exception: output length <= 0 (MaxPool1d.hpp line 43)
+TEST(MaxPoolTest, MaxPool1dThrowsOnOutputLengthZero)
+{
+    MaxPool1dImpl<Backend> pool(10, 1); // kernel=10 > length=4 -> L_out <= 0
+    Tensor x(1, 1, 4);                  // 3D: B=1, C=1, L=4
+    x.setZero();
+    EXPECT_THROW(pool.forward(x, false), std::invalid_argument);
+}
+
+// MaxPool2d exception: wrong number of input dimensions (MaxPool2d.hpp line 40)
+TEST(MaxPoolTest, MaxPool2dThrowsOnWrongInputShape)
+{
+    MaxPool2dImpl<Backend> pool(2, 2);
+    Tensor x(4, 4); // 2D, not 4D
+    x.setZero();
+    EXPECT_THROW(pool.forward(x, false), std::invalid_argument);
+}
+
+// MaxPool2d exception: output size <= 0 (MaxPool2d.hpp line 50)
+TEST(MaxPoolTest, MaxPool2dThrowsOnOutputSizeZero)
+{
+    MaxPool2dImpl<Backend> pool(10, 1); // kernel=10 > H=4 -> H_out <= 0
+    Tensor x(1, 1, 4, 4);               // 4D: B=1, C=1, H=4, W=4
+    x.setZero();
+    EXPECT_THROW(pool.forward(x, false), std::invalid_argument);
+}
+
+// SimpleResNet.train() mode toggle (SimpleResNet.hpp lines 83-86)
+TEST(SimpleResNetTest, TrainModeToggle)
+{
+    const int D = 2, H = 3, O = 2;
+    SimpleResNetImpl<Backend> net(D, H, O, /*depth=*/0);
+    // Default is training mode; toggle to eval and back
+    net.train(false); // covers SimpleResNet.hpp lines 83-86
+    net.train(true);
+    // Verify forward still works after mode toggle
+    Tensor x(1, D);
+    x.at(0, 0) = 1.0f;
+    x.at(0, 1) = 1.0f;
+    Tensor out = net.forward(x, false);
+    EXPECT_EQ(out.rows(), 1u);
+    EXPECT_EQ(out.cols(), static_cast<size_t>(O));
+}
+
+// LSTMLayer: wrong input dimension throws (LSTMLayer.hpp lines 137-138)
+TEST(LSTMLayerTest, ForwardThrowsOnInputDimMismatch)
+{
+    LSTMLayerImpl<Backend> lstm(4, 8); // input_size=4
+    // Create 3D input with wrong D: B=1, T=3, D=2 (should be 4)
+    Tensor x(1, 3, 2);
+    x.setZero();
+    EXPECT_THROW(lstm.forward(x, false), std::invalid_argument);
+}
+
+// LSTMLayer: backward before forward(requires_grad=true) throws (LSTMLayer.hpp line 208)
+TEST(LSTMLayerTest, BackwardBeforeForwardThrows)
+{
+    LSTMLayerImpl<Backend> lstm(4, 8);
+    Tensor grad(3, 8); // arbitrary gradient shape
+    grad.setZero();
+    EXPECT_THROW(lstm.backward(grad), std::runtime_error);
+}
+
+// Linear: 1D input (flat single sample) path (Linear.hpp lines 127, 178, 222, 237, 298)
+TEST(LinearTest, Forward1DInputFlattened)
+{
+    LinearImpl<Backend> layer(3, 2);
+    // Set weights and zero bias
+    layer.weight.fill(0.0f);
+    layer.bias.fill(0.0f);
+    layer.weight.at(0, 0) = 1.0f;
+    layer.weight.at(0, 1) = 1.0f;
+    layer.weight.at(0, 2) = 1.0f;
+    layer.weight.at(1, 0) = 2.0f;
+    layer.weight.at(1, 1) = 2.0f;
+    layer.weight.at(1, 2) = 2.0f;
+
+    // 1D input (in_features=3 as a flat vector) -> should be treated as (1, 3)
+    Tensor x(std::vector<nn::Index>{3}); // 1D tensor: shape=[3]
+    x.at(0) = 1.0f;
+    x.at(1) = 2.0f;
+    x.at(2) = 3.0f;
+
+    Tensor out = layer.forward(x, true); // requires_grad=true to cache
+    // out[0] = 1+2+3=6, out[1] = 2*(1+2+3)=12
+    EXPECT_NEAR(out.at(0, 0), 6.0f, 1e-5f);
+    EXPECT_NEAR(out.at(0, 1), 12.0f, 1e-5f);
+
+    // backward with 1D input path (lines 222, 237, 298)
+    // Pass 1D gradient to cover Linear.hpp line 222 (else branch: shape.size() <= 1)
+    Tensor grad(std::vector<nn::Index>{2}); // 1D gradient: shape=[2]
+    grad.at(0) = 1.0f;
+    grad.at(1) = 1.0f;
+    Tensor dx = layer.backward(grad);
+    // dx shape should be (1, 3) or reshaped to (3,)
+    EXPECT_EQ(dx.size(), 3u);
+}

@@ -28,8 +28,8 @@ class MaxPool2dImpl : public Module<Backend>
     MaxPool2dImpl(int kernel, int stride_val, int padding = 0, int dilation = 1)
         : kernel_size_(kernel), stride_(stride_val), padding_(padding), dilation_(dilation)
     {
-        (void)padding_;
-        (void)dilation_;
+        (void) padding_;
+        (void) dilation_;
     }
 
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
@@ -46,8 +46,7 @@ class MaxPool2dImpl : public Module<Backend>
         const int H_out = (H - kernel_size_) / stride_ + 1;
         const int W_out = (W - kernel_size_) / stride_ + 1;
 
-        if (H_out <= 0 || W_out <= 0)
-            throw std::invalid_argument("MaxPool2d: output size <= 0");
+        if (H_out <= 0 || W_out <= 0) throw std::invalid_argument("MaxPool2d: output size <= 0");
 
         Tensor output(static_cast<nn::Index>(B),
             static_cast<nn::Index>(C),
@@ -58,8 +57,12 @@ class MaxPool2dImpl : public Module<Backend>
         {
             argmax_h_.assign(static_cast<size_t>(B * C * H_out * W_out), 0);
             argmax_w_.assign(static_cast<size_t>(B * C * H_out * W_out), 0);
-            input_B_ = B; input_C_ = C; input_H_ = H; input_W_ = W;
-            input_H_out_ = H_out; input_W_out_ = W_out;
+            input_B_ = B;
+            input_C_ = C;
+            input_H_ = H;
+            input_W_ = W;
+            input_H_out_ = H_out;
+            input_W_out_ = W_out;
         }
 
         for (int b = 0; b < B; ++b)
@@ -128,26 +131,24 @@ class MaxPool2dImpl : public Module<Backend>
                 {
                     for (int wo = 0; wo < input_W_out_; ++wo)
                     {
-                        size_t idx = static_cast<size_t>(b * input_C_ * input_H_out_ *
-                                                              input_W_out_ +
-                                                          c * input_H_out_ * input_W_out_ +
-                                                          ho * input_W_out_ + wo);
+                        size_t idx = static_cast<size_t>(
+                            b * input_C_ * input_H_out_ * input_W_out_ +
+                            c * input_H_out_ * input_W_out_ + ho * input_W_out_ + wo);
                         int hi = argmax_h_[idx];
                         int wi = argmax_w_[idx];
                         dx.at(static_cast<nn::Index>(b),
                             static_cast<nn::Index>(c),
                             static_cast<nn::Index>(hi),
-                            static_cast<nn::Index>(wi)) +=
-                            grad_output.at(static_cast<nn::Index>(b),
-                                static_cast<nn::Index>(c),
-                                static_cast<nn::Index>(ho),
-                                static_cast<nn::Index>(wo));
+                            static_cast<nn::Index>(wi)) += grad_output.at(static_cast<nn::Index>(b),
+                            static_cast<nn::Index>(c),
+                            static_cast<nn::Index>(ho),
+                            static_cast<nn::Index>(wo));
                     }
                 }
             }
         }
         return dx;
-    }
+    } // LCOV_EXCL_LINE
 
    private:
     int kernel_size_;

@@ -42,9 +42,8 @@ class MaxPool1dImpl : public Module<Backend>
         if (L_out <= 0)
             throw std::invalid_argument("MaxPool1d: output length <= 0 for given kernel/stride/L");
 
-        Tensor output(static_cast<nn::Index>(B),
-            static_cast<nn::Index>(C),
-            static_cast<nn::Index>(L_out));
+        Tensor output(
+            static_cast<nn::Index>(B), static_cast<nn::Index>(C), static_cast<nn::Index>(L_out));
 
         if (requires_grad)
         {
@@ -72,7 +71,11 @@ class MaxPool1dImpl : public Module<Backend>
                             float v = input.at(static_cast<nn::Index>(b),
                                 static_cast<nn::Index>(c),
                                 static_cast<nn::Index>(li));
-                            if (v > max_val) { max_val = v; max_li = li; }
+                            if (v > max_val)
+                            {
+                                max_val = v;
+                                max_li = li;
+                            }
                         }
                     }
                     output.at(static_cast<nn::Index>(b),
@@ -103,19 +106,18 @@ class MaxPool1dImpl : public Module<Backend>
             {
                 for (int lo = 0; lo < input_L_out_; ++lo)
                 {
-                    int li = argmax_flat_[static_cast<size_t>(b * input_C_ * input_L_out_ +
-                                                               c * input_L_out_ + lo)];
+                    int li = argmax_flat_[static_cast<size_t>(
+                        b * input_C_ * input_L_out_ + c * input_L_out_ + lo)];
                     dx.at(static_cast<nn::Index>(b),
                         static_cast<nn::Index>(c),
-                        static_cast<nn::Index>(li)) +=
-                        grad_output.at(static_cast<nn::Index>(b),
-                            static_cast<nn::Index>(c),
-                            static_cast<nn::Index>(lo));
+                        static_cast<nn::Index>(li)) += grad_output.at(static_cast<nn::Index>(b),
+                        static_cast<nn::Index>(c),
+                        static_cast<nn::Index>(lo));
                 }
             }
         }
         return dx;
-    }
+    } // LCOV_EXCL_LINE
 
    private:
     int kernel_size_;

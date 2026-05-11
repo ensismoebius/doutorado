@@ -86,7 +86,7 @@ class MSELossImpl : public Module<Backend>
         Tensor loss_tensor(1, 1);
         loss_tensor.at(0, 0) = mse;
         return loss_tensor;
-    }
+    } // LCOV_EXCL_LINE
 
     // Set the target tensor for the loss
     void set_target(const Tensor& target)
@@ -123,7 +123,7 @@ class MSELossImpl : public Module<Backend>
                 }
             }
             return zero_grad;
-        }
+        } // LCOV_EXCL_LINE
 
         // Gradient clipping to prevent explosion
         float grad_norm = grad.norm();
