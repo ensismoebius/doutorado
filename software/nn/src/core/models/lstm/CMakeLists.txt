@@ -1,5 +1,5 @@
 # Core LSTM models library
-# Headers live in include/nn/models/lstm/; implementation here.
+# Headers live in include/models/lstm/; implementation here.
 
 add_library(lstm_models STATIC
     LSTMAutoencoder.cpp

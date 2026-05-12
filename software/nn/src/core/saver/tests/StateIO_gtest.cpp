@@ -9,7 +9,7 @@
 
 #include <filesystem>
 
-#include "nn/io/StateIO.hpp"
+#include "io/StateIO.hpp"
 
 using StateDict = nn::io::StateDict;
 using namespace nn::io;

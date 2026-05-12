@@ -10,7 +10,7 @@
 #include <filesystem>
 
 #include "nlohmann/json.hpp"
-#include "nn/io/ReportIO.hpp"
+#include "io/ReportIO.hpp"
 
 namespace experiment03
 {

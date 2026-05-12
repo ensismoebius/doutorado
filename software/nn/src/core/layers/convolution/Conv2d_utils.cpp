@@ -3,8 +3,8 @@
  * @brief Implementation details for `Conv2d` (index caching, im2col/col2im helpers).
  */
 
-#include "nn/Backend.hpp"
-#include "nn/layers/convolution/Conv2d.hpp"
+#include "Backend.hpp"
+#include "layers/convolution/Conv2d.hpp"
 
 // ============ Index Caching & Computation ============
 

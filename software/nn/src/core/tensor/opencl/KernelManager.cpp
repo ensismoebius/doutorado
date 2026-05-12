@@ -3,13 +3,13 @@
  * @brief OpenCL kernel compilation and caching implementation.
  */
 
-#include "nn/tensor/opencl/KernelManager.hpp"
+#include "tensor/opencl/KernelManager.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl
 {

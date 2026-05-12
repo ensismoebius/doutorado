@@ -12,11 +12,11 @@
 #include <cstddef>
 #include <vector>
 
-#include "nn/layers/Layers.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/statistics/multi_class_metrics.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/utility/batching.hpp"
+#include "layers/Layers.hpp"
+#include "optimizers/Adam.hpp"
+#include "statistics/multi_class_metrics.hpp"
+#include "tensor/Tensor.hpp"
+#include "utility/batching.hpp"
 
 using SNNResNet = nn::SimpleResNet;
 using nn::CrossEntropyLoss;

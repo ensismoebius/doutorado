@@ -8,8 +8,8 @@
 
 #include <cstdio>
 
-#include "nn/io/StateIO.hpp"
-#include "nn/testing/tempfile.hpp"
+#include "io/StateIO.hpp"
+#include "testing/tempfile.hpp"
 
 TEST(StateIO, RoundtripMap)
 {

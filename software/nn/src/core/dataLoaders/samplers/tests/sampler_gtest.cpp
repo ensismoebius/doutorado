@@ -10,11 +10,11 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
-#include "nn/dataLoaders/samplers/FoldSampler.hpp"
-#include "nn/dataLoaders/samplers/RandomSampler.hpp"
-#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
-#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
+#include "dataLoaders/samplers/DistributedSampler.hpp"
+#include "dataLoaders/samplers/FoldSampler.hpp"
+#include "dataLoaders/samplers/RandomSampler.hpp"
+#include "dataLoaders/samplers/SequentialSampler.hpp"
+#include "dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 TEST(SamplerTest, SequentialSamplerProducesOrderedIndices)
 {

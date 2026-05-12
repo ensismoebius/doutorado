@@ -8,10 +8,10 @@
 #include <type_traits>
 #include <vector>
 
-#include "nn/layers/dense/Linear.hpp"
-#include "nn/tensor/opencl/OpenCLContext.hpp"
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
-#include "nn/tensor/xtensor/XTensorBackend.hpp"
+#include "layers/dense/Linear.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
+#include "tensor/opencl/OpenCLTensorBackend.hpp"
+#include "tensor/xtensor/XTensorBackend.hpp"
 
 namespace
 {

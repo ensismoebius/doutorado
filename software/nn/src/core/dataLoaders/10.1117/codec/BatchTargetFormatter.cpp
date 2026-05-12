@@ -5,12 +5,12 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
+#include "dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
 
 #include <cstddef>
 #include <sstream>
 
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
 
 namespace nn::dataLoaders
 {

@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
+#include "dataLoaders/sources/SqliteBatchSource.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -14,11 +14,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/utility/batching.hpp"
-#include "nn/windowing/WindowSpec.hpp"
+#include "dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "logging/Logger.hpp"
+#include "utility/batching.hpp"
+#include "windowing/WindowSpec.hpp"
 
 using std::string;
 

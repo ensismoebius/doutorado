@@ -7,10 +7,10 @@
 
 #include <cmath>
 
-#include "nn/layers/spiking/Leaky.hpp"
-#include "nn/tensor/opencl/OpenCLContext.hpp"
-#include "nn/tensor/opencl/OpenCLProfiling.hpp"
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
+#include "layers/spiking/Leaky.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
+#include "tensor/opencl/OpenCLProfiling.hpp"
+#include "tensor/opencl/OpenCLTensorBackend.hpp"
 
 namespace
 {

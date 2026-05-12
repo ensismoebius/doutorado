@@ -20,12 +20,12 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/initializers/xavier.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/convolution/Conv2d.hpp"
-#include "nn/layers/convolution/MaxPool2d.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "initializers/xavier.hpp"
+#include "layers/Layers.hpp"
+#include "layers/convolution/Conv2d.hpp"
+#include "layers/convolution/MaxPool2d.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace experiment03::autoencoders
 {

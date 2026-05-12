@@ -21,7 +21,7 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 int main()
 {

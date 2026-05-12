@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "../../tests/MatTestUtils/MatTestUtils.h"
-#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "dataLoaders/10.1117/loaders/EEGLoader.h"
 
 using namespace nn::dataLoaders;
 using namespace nn::dataLoaders::test;

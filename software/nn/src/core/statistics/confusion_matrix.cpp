@@ -13,7 +13,7 @@
  *
  */
 
-#include "nn/statistics/confusion_matrix.hpp"
+#include "statistics/confusion_matrix.hpp"
 
 #include <algorithm>
 #include <cmath>

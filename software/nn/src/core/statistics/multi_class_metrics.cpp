@@ -12,13 +12,13 @@
  * Multi-class classification metrics implementation
  */
 
-#include "nn/statistics/multi_class_metrics.hpp"
+#include "statistics/multi_class_metrics.hpp"
 
 #include <algorithm>
 #include <numeric>
 #include <stdexcept>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace statistics
 {

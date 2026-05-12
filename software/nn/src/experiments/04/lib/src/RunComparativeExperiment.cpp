@@ -4,7 +4,7 @@
 #include <span>
 #include <string>
 
-#include "nn/logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
+#include "logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
 
 #include "../include/ComparativeCli.hpp"
 #include "../include/ComparativeDataset.hpp"
@@ -12,8 +12,8 @@
 #include "../include/ComparativeTraining.hpp"
 #include "../include/Experiment04Cli.hpp"
 #include "../include/RunCheckpoint.hpp"
-#include "nn/progress/ProgressManager.hpp"
-#include "nn/utility/progress.hpp"
+#include "progress/ProgressManager.hpp"
+#include "utility/progress.hpp"
 
 // Helper to extract sizes from layer specs
 auto extract_layer_sizes(const std::vector<std::string>& specs)

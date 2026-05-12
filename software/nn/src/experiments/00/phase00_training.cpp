@@ -19,8 +19,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/layers/Layers.hpp"
-#include "nn/optimizers/Adam.hpp"
+#include "layers/Layers.hpp"
+#include "optimizers/Adam.hpp"
 
 using nn::MSELoss;
 using nn::SimpleResNet;

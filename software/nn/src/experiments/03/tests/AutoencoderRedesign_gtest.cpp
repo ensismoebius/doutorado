@@ -13,10 +13,10 @@
 #include "FusedWindowSpikingAutoencoder.hpp"
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/base/Sequential.hpp"
-#include "nn/layers/spiking/Leaky.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/Layers.hpp"
+#include "layers/base/Sequential.hpp"
+#include "layers/spiking/Leaky.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace
 {

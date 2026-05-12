@@ -3,14 +3,14 @@
 #
 # Enforces architecture rule:
 # concrete backend implementation names must not be referenced outside
-# include/nn/Backend.hpp and backend implementation directories.
+# include/Backend.hpp and backend implementation directories.
 #
 # On violation, generates a C++ source with a compile-time #error using the
 # exact required message.
 # -----------------------------------------------------------------------------
 
 set(_NN_BACKEND_GUARD_MESSAGE
-    "Backend implementation must only be refereced inside include/nn/Backend.hpp !")
+    "Backend implementation must only be refereced inside include/Backend.hpp !")
 
 set(_NN_BACKEND_IMPL_TOKENS
     "XTensorBackend"
@@ -31,12 +31,12 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_NN_BACKEND_GUA
 
 set(_NN_BACKEND_GUARD_VIOLATIONS "")
 foreach(_NN_FILE IN LISTS _NN_BACKEND_GUARD_CANDIDATES)
-    if(_NN_FILE STREQUAL "${CMAKE_SOURCE_DIR}/include/nn/Backend.hpp")
+    if(_NN_FILE STREQUAL "${CMAKE_SOURCE_DIR}/include/Backend.hpp")
         continue()
     endif()
 
     # Allowed backend implementation/self-reference zones.
-    if(_NN_FILE MATCHES "/include/nn/tensor/"
+    if(_NN_FILE MATCHES "/include/tensor/"
        OR _NN_FILE MATCHES "/src/core/tensor/")
         continue()
     endif()

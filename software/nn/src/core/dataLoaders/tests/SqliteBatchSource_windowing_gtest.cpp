@@ -10,9 +10,9 @@
 
 #include <filesystem>
 
-#include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
-#include "nn/testing/SqliteTestHelpers.hpp"
-#include "nn/utility/batching.hpp"
+#include "dataLoaders/sources/SqliteBatchSource.hpp"
+#include "testing/SqliteTestHelpers.hpp"
+#include "utility/batching.hpp"
 
 using namespace nn::dataLoaders;
 

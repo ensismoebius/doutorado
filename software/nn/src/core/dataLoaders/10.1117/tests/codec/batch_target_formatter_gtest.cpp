@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
+#include "dataLoaders/10.1117/codec/BatchTargetFormatter.hpp"
 
 TEST(BatchTargetFormatterTest, FormatsKnownLabels)
 {

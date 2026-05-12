@@ -3,9 +3,9 @@
  * @brief Prints compile-time xtensor SIMD/vectorization support information.
  */
 
-#include "nn/utility/vectorizationCheck.hpp"
+#include "utility/vectorizationCheck.hpp"
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 void printVectorizationSupport()
 {

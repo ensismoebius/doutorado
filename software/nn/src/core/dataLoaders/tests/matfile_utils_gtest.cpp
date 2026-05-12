@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <vector>
 
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
+#include "dataLoaders/io/mat_file_utils.hpp"
 
 using namespace matioCpp;
 

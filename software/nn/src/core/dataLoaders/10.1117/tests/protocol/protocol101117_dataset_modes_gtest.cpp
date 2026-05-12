@@ -17,12 +17,12 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
-#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
-#include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
-#include "nn/testing/SqliteTestHelpers.hpp"
+#include "dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "testing/SqliteTestHelpers.hpp"
 #include "utils/MockImaginedSpeechDatasetGenerator.hpp"
 
 namespace

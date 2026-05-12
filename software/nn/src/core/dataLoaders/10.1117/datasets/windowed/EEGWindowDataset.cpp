@@ -10,14 +10,14 @@
  *   for c in [0, eeg_channels), t in [0, window_size).
  */
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
 
 #include <stdexcept>
 #include <string>
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/windowing/WindowingEngine.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "windowing/WindowingEngine.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::windowing::compute_windows;

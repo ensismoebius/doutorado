@@ -3,16 +3,16 @@
  * @brief Implementation of the `DataLoader` batching/iteration utilities.
  */
 
-#include "nn/dataLoaders/runtime/DataLoader.hpp"
+#include "dataLoaders/runtime/DataLoader.hpp"
 
 #include <algorithm>
 #include <stdexcept>
 #include <utility>
 
-#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
-#include "nn/dataLoaders/samplers/RandomSampler.hpp"
-#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
-#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
+#include "dataLoaders/samplers/DistributedSampler.hpp"
+#include "dataLoaders/samplers/RandomSampler.hpp"
+#include "dataLoaders/samplers/SequentialSampler.hpp"
+#include "dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 // Implementation notes:
 // - The `DataLoader` delegates sample-index generation to an `ISampler`.

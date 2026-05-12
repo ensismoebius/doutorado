@@ -6,7 +6,7 @@
  * while math operations execute through OpenCL kernels only.
  */
 
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
+#include "tensor/opencl/OpenCLTensorBackend.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -24,11 +24,11 @@
 #include <unordered_set>
 #include <vector>
 
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/opencl/DeviceMemory.hpp"
-#include "nn/tensor/opencl/KernelManager.hpp"
-#include "nn/tensor/opencl/OpenCLContext.hpp"
-#include "nn/tensor/opencl/OpenCLProfiling.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/opencl/DeviceMemory.hpp"
+#include "tensor/opencl/KernelManager.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
+#include "tensor/opencl/OpenCLProfiling.hpp"
 
 namespace nn
 {

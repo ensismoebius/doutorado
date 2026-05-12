@@ -6,8 +6,8 @@
 #include <cmath>
 #include <random>
 
-#include "nn/Backend.hpp"
-#include "nn/layers/convolution/Conv2d.hpp"
+#include "Backend.hpp"
+#include "layers/convolution/Conv2d.hpp"
 
 constexpr int DEFAULT_SIZE = 32;
 constexpr int MAX_IMAGE_SIZE = 256;

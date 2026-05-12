@@ -18,16 +18,16 @@
 #include <limits>
 #include <tuple>
 
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/saver/NetworkSerializer.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
-#include "nn/utility/XtensorParallel.hpp"
-#include "nn/utility/batching.hpp"
-#include "nn/utility/synthetic_spike_data.hpp"
-#include "nn/utility/vectorizationCheck.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "optimizers/Adam.hpp"
+#include "saver/NetworkSerializer.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
+#include "utility/XtensorParallel.hpp"
+#include "utility/batching.hpp"
+#include "utility/synthetic_spike_data.hpp"
+#include "utility/vectorizationCheck.hpp"
 
 using nn::LeakyReLU;
 using nn::Linear;

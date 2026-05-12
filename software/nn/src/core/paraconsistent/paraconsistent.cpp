@@ -16,8 +16,8 @@
 #include <string>
 #include <vector>
 
-#include "nn/linearAlgebra/linear_algebra.hpp"
-#include "nn/utility/comparison.h"
+#include "linearAlgebra/linear_algebra.hpp"
+#include "utility/comparison.h"
 
 /**
  * @brief Calculates certainty degree g1 from alpha and beta.

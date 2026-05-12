@@ -5,8 +5,8 @@
 #include <random>
 #include <stdexcept>
 
-#include "nn/utility/SignalPreprocessing.hpp"
-#include "nn/wave/Wav.h"
+#include "utility/SignalPreprocessing.hpp"
+#include "wave/Wav.h"
 
 namespace comparative_autoencoder_experiment
 {

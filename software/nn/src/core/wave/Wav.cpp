@@ -14,7 +14,7 @@
  *
  * 8 de ago de 2019
  */
-#include "nn/wave/Wav.h"
+#include "wave/Wav.h"
 
 #include <cmath>
 #include <cstddef>
@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 using std::floor;
 using std::pow;

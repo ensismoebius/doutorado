@@ -11,10 +11,10 @@
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/datasets/TensorDataset.hpp"
-#include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
-#include "nn/dataLoaders/sources/SqliteBatchSource.hpp"
-#include "nn/testing/SqliteTestHelpers.hpp"
+#include "dataLoaders/datasets/TensorDataset.hpp"
+#include "dataLoaders/runtime/BatchPrefetcher.hpp"
+#include "dataLoaders/sources/SqliteBatchSource.hpp"
+#include "testing/SqliteTestHelpers.hpp"
 
 static auto make_sequential_tensor(std::size_t rows, std::size_t cols) -> nn::Tensor
 {

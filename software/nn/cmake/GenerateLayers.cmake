@@ -1,6 +1,6 @@
 # cmake/GenerateLayers.cmake
-# Scans include/nn/layers/**/*.hpp, derives aliases (Foo -> FooImpl<Backend>),
-# and generates ${CMAKE_BINARY_DIR}/include/nn/layers/Layers.hpp via configure_file.
+# Scans include/layers/**/*.hpp, derives aliases (Foo -> FooImpl<Backend>),
+# and generates include/layers/Layers.hpp via configure_file.
 #
 # Convention: Foo.hpp must define FooImpl<Backend> for auto-aliasing.
 # Files that don't follow this convention are listed in _exclude_patterns.
@@ -9,8 +9,8 @@
 
 file(GLOB_RECURSE _all_layer_headers
     CONFIGURE_DEPENDS
-    "${CMAKE_SOURCE_DIR}/include/nn/layers/*.hpp"
-    "${CMAKE_SOURCE_DIR}/include/nn/layers/**/*.hpp")
+    "${CMAKE_SOURCE_DIR}/include/layers/*.hpp"
+    "${CMAKE_SOURCE_DIR}/include/layers/**/*.hpp")
 
 # Exclude non-Backend-templated files and utility headers
 set(_exclude_patterns
@@ -43,10 +43,10 @@ endforeach()
 
 # Non-template extras included verbatim (regularization + surrogate grab-bags)
 set(MANUAL_INCLUDES
-"#include \"nn/layers/regularization/Regularization.hpp\"
-#include \"nn/layers/spiking/SurrogateGradient.hpp\"")
+"#include \"layers/regularization/Regularization.hpp\"
+#include \"layers/spiking/SurrogateGradient.hpp\"")
 
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/Layers.hpp.in"
-    "${CMAKE_SOURCE_DIR}/include/nn/layers/Layers.hpp"
+    "${CMAKE_SOURCE_DIR}/include/layers/Layers.hpp"
     @ONLY)

@@ -5,13 +5,13 @@
 
  */
 
-#include "nn/dataLoaders/runtime/BatchPrefetcher.hpp"
+#include "dataLoaders/runtime/BatchPrefetcher.hpp"
 
 #include <chrono>
 #include <cstring>
 #include <utility>
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 using std::make_unique;
 

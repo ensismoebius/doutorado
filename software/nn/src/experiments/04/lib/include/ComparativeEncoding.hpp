@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace comparative_autoencoder_experiment
 {

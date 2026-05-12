@@ -25,9 +25,9 @@
 #include <string>
 #include <vector>
 
-#include "nn/Backend.hpp"
-#include "nn/layers/base/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "Backend.hpp"
+#include "layers/base/Module.hpp"
+#include "tensor/Tensor.hpp"
 
 /**
  * @namespace nn::models::autoencoder

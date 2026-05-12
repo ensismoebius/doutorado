@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-#include "nn/statistics/confusion_matrix.hpp"
+#include "statistics/confusion_matrix.hpp"
 
 TEST(ConfusionMatrixTest, FalsePositiveRate)
 {

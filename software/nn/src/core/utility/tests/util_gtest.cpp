@@ -13,12 +13,12 @@
 #include <set>
 
 #include "core/utility/tests/test_helpers.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/utility/SignalPreprocessing.hpp"
-#include "nn/utility/batching.hpp"
-#include "nn/utility/comparison.h"
-#include "nn/utility/synthetic_spike_data.hpp"
-#include "nn/utility/vectorizationCheck.hpp"
+#include "tensor/Tensor.hpp"
+#include "utility/SignalPreprocessing.hpp"
+#include "utility/batching.hpp"
+#include "utility/comparison.h"
+#include "utility/synthetic_spike_data.hpp"
+#include "utility/vectorizationCheck.hpp"
 
 namespace
 {

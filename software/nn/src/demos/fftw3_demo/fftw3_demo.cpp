@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "matplotlibcpp.h"
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 using std::vector;
 

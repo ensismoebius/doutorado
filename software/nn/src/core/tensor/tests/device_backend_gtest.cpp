@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/device/Device.hpp"
-#include "nn/tensor/DeviceTensorBackend.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "device/Device.hpp"
+#include "tensor/DeviceTensorBackend.hpp"
+#include "tensor/Tensor.hpp"
 
 using DeviceTensor = nn::TensorImpl<nn::DeviceTensorBackend>;
 

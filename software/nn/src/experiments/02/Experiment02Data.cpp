@@ -14,9 +14,9 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/wave/audioFeatureExtraction.h"
+#include "dataLoaders/io/mat_file_utils.hpp"
+#include "tensor/Tensor.hpp"
+#include "wave/audioFeatureExtraction.h"
 
 namespace
 {

@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/options/SamplerOptionResolution.hpp"
+#include "dataLoaders/options/SamplerOptionResolution.hpp"
 
 #include <algorithm>
 #include <cctype>

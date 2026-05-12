@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+#include "dataLoaders/samplers/SequentialSampler.hpp"
 
 #include <numeric>
 #include <stdexcept>

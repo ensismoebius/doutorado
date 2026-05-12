@@ -8,9 +8,9 @@
 #include <stdexcept>
 
 #include "gtest/gtest.h"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/spiking/BoxcarSurrogate.hpp"
-#include "nn/layers/spiking/ExponentialSurrogate.hpp"
+#include "layers/Layers.hpp"
+#include "layers/spiking/BoxcarSurrogate.hpp"
+#include "layers/spiking/ExponentialSurrogate.hpp"
 
 namespace
 {

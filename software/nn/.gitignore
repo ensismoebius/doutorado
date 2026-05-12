@@ -1,5 +1,5 @@
 # Auto-generated
-include/nn/layers/Layers.hpp
+include/layers/Layers.hpp
 
 # Build directories (prefer out/ via CMake presets)
 build-coverage/

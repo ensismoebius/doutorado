@@ -9,7 +9,7 @@
  */
 
 #include "Experiment02Pipeline.hpp"
-#include "nn/logging/StreamRedirector.hpp"
+#include "logging/StreamRedirector.hpp"
 
 auto main(int argc, char const* const* argv) -> int
 {

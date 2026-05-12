@@ -11,14 +11,14 @@
 #include <memory>
 #include <vector>
 
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
-#include "nn/utility/batching.hpp"
+#include "dataLoaders/io/mat_file_utils.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "logging/Logger.hpp"
+#include "optimizers/Adam.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
+#include "utility/batching.hpp"
 
 using nn::CrossEntropyLoss;
 using nn::Linear;

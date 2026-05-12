@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include "gtest/gtest.h"
-#include "nn/linearAlgebra/linear_algebra.hpp"
+#include "linearAlgebra/linear_algebra.hpp"
 TEST(LinearAlgebraTest, TestMinMaxNormalizeFeatures)
 {
     std::vector<std::vector<double>> features = {{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};

@@ -3,15 +3,15 @@
  * @brief OpenCL profiling helper implementations.
  */
 
-#include "nn/tensor/opencl/OpenCLProfiling.hpp"
+#include "tensor/opencl/OpenCLProfiling.hpp"
 
 #include <CL/cl.h>
 
 #include <atomic>
 #include <cstdint>
 
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
 
 namespace nn::opencl::profiling
 {

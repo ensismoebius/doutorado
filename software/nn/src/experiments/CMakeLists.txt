@@ -28,7 +28,6 @@ target_link_libraries(experiments_config
 
 # Add subdirectories for all experiments
 add_subdirectory(00)
-add_subdirectory(01)
 add_subdirectory(02)
 add_subdirectory(03)
 add_subdirectory(04)

@@ -14,9 +14,9 @@
 #include <vector>
 
 #include "matplotlibcpp.h"
-#include "nn/wavelet/Types.h"
-#include "nn/wavelet/WaveletTransformResults.h"
-#include "nn/wavelet/waveletOperations.h"
+#include "wavelet/Types.h"
+#include "wavelet/WaveletTransformResults.h"
+#include "wavelet/waveletOperations.h"
 
 namespace plt = matplotlibcpp;
 

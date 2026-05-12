@@ -16,10 +16,10 @@
 
 #include "imgui.h"
 #include "implot.h"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/spiking/Leaky.hpp"
-#include "nn/utility/imgui_glfw.hpp"
-#include "nn/utility/synthetic_spike_data.hpp"
+#include "layers/Layers.hpp"
+#include "layers/spiking/Leaky.hpp"
+#include "utility/imgui_glfw.hpp"
+#include "utility/synthetic_spike_data.hpp"
 
 using ImGui::Begin;
 using ImGui::End;

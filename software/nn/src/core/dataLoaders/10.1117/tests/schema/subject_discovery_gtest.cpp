@@ -12,7 +12,7 @@
 #include <stdexcept>
 #include <string>
 
-#include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 
 namespace
 {

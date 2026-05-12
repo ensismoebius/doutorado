@@ -11,8 +11,8 @@
 #include "../include/ComparativeMetrics.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "nn/training/EarlyStoppingCallback.hpp"
-#include "nn/training/ProgressCallback.hpp"
+#include "training/EarlyStoppingCallback.hpp"
+#include "training/ProgressCallback.hpp"
 
 namespace comparative_autoencoder_experiment
 {

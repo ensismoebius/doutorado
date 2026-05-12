@@ -13,11 +13,11 @@
 
 #include "../EpochResult.hpp"
 #include "../TrainerConfig.hpp"
-#include "nn/Backend.hpp"
-#include "nn/layers/losses/SpikeCountLoss.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/training/ITrainingCallback.hpp"
-#include "nn/utility/GradClip.hpp"
+#include "Backend.hpp"
+#include "layers/losses/SpikeCountLoss.hpp"
+#include "tensor/Tensor.hpp"
+#include "training/ITrainingCallback.hpp"
+#include "utility/GradClip.hpp"
 
 namespace
 {

@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/utility/SignalPreprocessing.hpp"
+#include "utility/SignalPreprocessing.hpp"
 
 namespace nn::utility
 {

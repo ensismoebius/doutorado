@@ -5,9 +5,9 @@
 #include <string>
 #include <thread>
 
-#include "nn/logging/Logger.hpp"
-#include "nn/progress/ProgressBar.hpp"
-#include "nn/progress/ProgressManager.hpp"
+#include "logging/Logger.hpp"
+#include "progress/ProgressBar.hpp"
+#include "progress/ProgressManager.hpp"
 
 TEST(ProgressTest, SingleBarUpdate)
 {

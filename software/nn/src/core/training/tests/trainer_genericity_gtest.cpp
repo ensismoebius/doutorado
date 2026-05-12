@@ -13,9 +13,9 @@
 #include "../EpochResult.hpp"
 #include "../Trainer.hpp"
 #include "../TrainerConfig.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/training/EarlyStoppingCallback.hpp"
-#include "nn/training/ITrainingCallback.hpp"
+#include "tensor/Tensor.hpp"
+#include "training/EarlyStoppingCallback.hpp"
+#include "training/ITrainingCallback.hpp"
 
 namespace
 {

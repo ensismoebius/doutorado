@@ -12,7 +12,7 @@
  * 12 de abr de 2020
  */
 
-#include "nn/wavelet/WaveletTransformResults.h"
+#include "wavelet/WaveletTransformResults.h"
 
 #include <cmath>
 #include <stdexcept>

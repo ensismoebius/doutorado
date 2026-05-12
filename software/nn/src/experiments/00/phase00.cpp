@@ -12,9 +12,9 @@
 
 #include <filesystem>
 
-#include "../../include/nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 #include "Config.hpp"
-#include "nn/logging/StreamRedirector.hpp"
+#include "logging/StreamRedirector.hpp"
 #include "phase00_data.hpp"
 #include "phase00_features.hpp"
 #include "phase00_training.hpp"

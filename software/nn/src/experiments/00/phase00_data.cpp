@@ -16,11 +16,11 @@
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
-#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "dataLoaders/10.1117/loaders/AudioLoader.h"
+#include "dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "dataLoaders/io/mat_file_utils.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/Tensor.hpp"
 #include "phase00_features.hpp"
 
 using matioCpp::utils::get_variable_dimensions;

@@ -3,7 +3,7 @@
  * @brief Implementation of the 10.1117-style EEG MAT loader.
  */
 
-#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "dataLoaders/10.1117/loaders/EEGLoader.h"
 
 #include <matio.h>
 #include <sqlite3.h>
@@ -18,10 +18,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
-#include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/10.1117/schema/SchemaIndexing.hpp"
+#include "tensor/Tensor.hpp"
 
 /*
  * EEGLoader implementation notes

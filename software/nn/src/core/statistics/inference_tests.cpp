@@ -3,7 +3,7 @@
  * @brief Deterministic approximations for common inference tests.
  */
 
-#include "nn/statistics/inference_tests.hpp"
+#include "statistics/inference_tests.hpp"
 
 #include <algorithm>
 #include <cmath>

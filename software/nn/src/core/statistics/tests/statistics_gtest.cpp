@@ -6,9 +6,9 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/statistics/inference_tests.hpp"
-#include "nn/statistics/multi_class_metrics.hpp"
-#include "nn/statistics/statistics.h"
+#include "statistics/inference_tests.hpp"
+#include "statistics/multi_class_metrics.hpp"
+#include "statistics/statistics.h"
 
 TEST(StatisticsTest, VarianceWithVector)
 {

@@ -17,16 +17,16 @@
 #include <string>
 #include <vector>
 
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
-#include "nn/utility/GradClip.hpp"
-#include "nn/utility/XtensorParallel.hpp"
-#include "nn/utility/reset.hpp"
-#include "nn/utility/synthetic_spike_data.hpp"
-#include "nn/utility/vectorizationCheck.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "optimizers/Adam.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
+#include "utility/GradClip.hpp"
+#include "utility/XtensorParallel.hpp"
+#include "utility/reset.hpp"
+#include "utility/synthetic_spike_data.hpp"
+#include "utility/vectorizationCheck.hpp"
 
 using namespace std;
 using ModuleXTensor = Module<nn::Backend>;

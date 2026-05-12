@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "MatTestUtils/MatTestUtils.h"
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
+#include "dataLoaders/io/mat_file_utils.hpp"
 
 using matioCpp::utils::countMatRows;
 

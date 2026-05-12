@@ -8,11 +8,11 @@
 #include <random>
 #include <vector>
 
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/base/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "layers/base/Module.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
 
 using nn::Index;
 using nn::LeakyBPTT;

@@ -9,13 +9,13 @@
  *   out[0, t] = audio[window_start + t, 0]   for t in [0, window_size).
  */
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
 
 #include <stdexcept>
 #include <string>
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 

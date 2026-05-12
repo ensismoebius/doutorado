@@ -11,9 +11,9 @@
 #include <filesystem>
 #include <string>
 
-#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
 #include "utils/MockImaginedSpeechDatasetGenerator.hpp"
 
 namespace

@@ -15,12 +15,12 @@
 
 // Use project headers from include/nn
 #include "codificacao.hpp"
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
-#include "nn/wave/Wav.h"
-#include "nn/wave/audioFeatureExtraction.h"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
+#include "wave/Wav.h"
+#include "wave/audioFeatureExtraction.h"
 
 namespace demo
 {

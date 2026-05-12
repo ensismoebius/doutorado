@@ -11,7 +11,7 @@
 
 #include "../include/Experiment04Cli.hpp"
 #include "experiments/04/lib/include/LstmAutoencoderExperiment.hpp"
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 using nn::logging::Level;
 using nn::logging::Logger;

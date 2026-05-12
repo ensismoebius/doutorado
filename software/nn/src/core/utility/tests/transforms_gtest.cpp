@@ -9,8 +9,8 @@
 #include <cmath>
 #include <memory>
 
-#include "nn/tensor/Tensor.hpp"
-#include "nn/utility/Transforms.hpp"
+#include "tensor/Tensor.hpp"
+#include "utility/Transforms.hpp"
 
 namespace
 {

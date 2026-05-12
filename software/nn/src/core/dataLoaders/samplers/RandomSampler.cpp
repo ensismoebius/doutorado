@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/samplers/RandomSampler.hpp"
+#include "dataLoaders/samplers/RandomSampler.hpp"
 
 #include <algorithm>
 #include <numeric>

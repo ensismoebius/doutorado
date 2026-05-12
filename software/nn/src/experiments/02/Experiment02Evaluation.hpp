@@ -14,7 +14,7 @@
 
 #include <vector>
 
-#include "nn/statistics/multi_class_metrics.hpp"
+#include "statistics/multi_class_metrics.hpp"
 
 struct ParaconsistentMetrics
 {

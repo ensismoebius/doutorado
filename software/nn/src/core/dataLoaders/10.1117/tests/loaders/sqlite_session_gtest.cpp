@@ -15,10 +15,10 @@
 #include <string>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
-#include "nn/dataLoaders/10.1117/loaders/EEGLoader.h"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/testing/SqliteTestHelpers.hpp"
+#include "dataLoaders/10.1117/loaders/AudioLoader.h"
+#include "dataLoaders/10.1117/loaders/EEGLoader.h"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "testing/SqliteTestHelpers.hpp"
 
 using namespace nn::dataLoaders;
 

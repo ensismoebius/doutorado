@@ -16,9 +16,9 @@
 #include "Experiment02Reporting.hpp"
 #include "Experiment02Training.hpp"
 #include "Experiment02Wavelets.hpp"
-#include "nn/linearAlgebra/linear_algebra.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/wavelet/waveletOperations.h"
+#include "linearAlgebra/linear_algebra.hpp"
+#include "logging/Logger.hpp"
+#include "wavelet/waveletOperations.h"
 
 namespace fs = std::filesystem;
 

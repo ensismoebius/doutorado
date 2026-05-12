@@ -3,7 +3,7 @@
  * @brief Conversions from matio-cpp variable types into `nn::Tensor`.
  */
 
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
+#include "dataLoaders/io/mat_file_utils.hpp"
 
 #include <matio.h>
 #include <matioCpp/File.h>
@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include "nn/dataLoaders/io/mat_file.hpp"
+#include "dataLoaders/io/mat_file.hpp"
 
 // Implementation strategy:
 // - matio-cpp reads variables and can convert them to raw data pointers.

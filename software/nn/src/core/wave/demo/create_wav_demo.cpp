@@ -9,7 +9,7 @@
 
 #include "../Wav.h"
 #include "../filter_operations.hpp"
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 using std::sin;
 

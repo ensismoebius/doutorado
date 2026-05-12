@@ -10,9 +10,9 @@
 
 #include <type_traits>
 
-#include "nn/tensor/DeviceTensorBackend.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/tensor/opencl/OpenCLTensorBackend.hpp"
+#include "tensor/DeviceTensorBackend.hpp"
+#include "tensor/Tensor.hpp"
+#include "tensor/opencl/OpenCLTensorBackend.hpp"
 
 template <typename Backend>
 using AnyTensor = nn::TensorImpl<Backend>;

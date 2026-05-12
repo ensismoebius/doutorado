@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "nn/training/ITrainingCallback.hpp"
+#include "training/ITrainingCallback.hpp"
 
 namespace comparative_autoencoder_experiment
 {

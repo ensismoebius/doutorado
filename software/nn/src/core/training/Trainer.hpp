@@ -36,15 +36,15 @@
 
 #include "core/training/EpochResult.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "nn/Backend.hpp"
-#include "nn/layers/losses/MSELoss.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/training/ITrainingCallback.hpp"
-#include "nn/utility/GradClip.hpp"
+#include "Backend.hpp"
+#include "layers/losses/MSELoss.hpp"
+#include "optimizers/Adam.hpp"
+#include "tensor/Tensor.hpp"
+#include "training/ITrainingCallback.hpp"
+#include "utility/GradClip.hpp"
 
 #if defined(NN_BACKEND_OPENCL)
-#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
 #endif
 
 namespace nn::training

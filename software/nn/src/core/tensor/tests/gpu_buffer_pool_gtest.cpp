@@ -9,7 +9,7 @@
 #include <limits>
 #include <vector>
 
-#include "nn/tensor/opencl/GPUBufferPool.hpp"
+#include "tensor/opencl/GPUBufferPool.hpp"
 
 using namespace nn::tensor;
 

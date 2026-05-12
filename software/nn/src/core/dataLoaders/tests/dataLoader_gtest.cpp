@@ -8,10 +8,10 @@
 #include <numeric>
 
 #include "gtest/gtest.h"
-#include "nn/dataLoaders/datasets/TensorDataset.hpp"
-#include "nn/dataLoaders/runtime/DataLoader.hpp"
-#include "nn/dataLoaders/samplers/DistributedSampler.hpp"
-#include "nn/dataLoaders/samplers/SequentialSampler.hpp"
+#include "dataLoaders/datasets/TensorDataset.hpp"
+#include "dataLoaders/runtime/DataLoader.hpp"
+#include "dataLoaders/samplers/DistributedSampler.hpp"
+#include "dataLoaders/samplers/SequentialSampler.hpp"
 
 // Helper to build a Tensor with sequential rows (N x D)
 static auto make_sequential_tensor(std::size_t N, std::size_t D) -> nn::Tensor

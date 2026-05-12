@@ -1,4 +1,4 @@
-#include "nn/progress/ProgressManager.hpp"
+#include "progress/ProgressManager.hpp"
 
 #include <algorithm>
 #include <chrono>

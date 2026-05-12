@@ -3,13 +3,13 @@
  * @brief Implementation of WindowingDatasetPrinter.
  */
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
 
 #include <iostream>
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
 using std::cout;
 

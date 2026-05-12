@@ -3,7 +3,7 @@
  * @brief Implementation of the `MatFile` RAII wrapper around matio.
  */
 
-#include "nn/dataLoaders/io/mat_file.hpp"
+#include "dataLoaders/io/mat_file.hpp"
 
 #include <matio.h>
 

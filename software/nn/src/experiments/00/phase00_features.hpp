@@ -9,7 +9,7 @@
 #include <tuple>
 #include <vector>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace phase00
 {

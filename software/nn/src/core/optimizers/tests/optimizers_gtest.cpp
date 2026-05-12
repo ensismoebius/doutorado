@@ -11,11 +11,11 @@
 #include <vector>
 
 #include "core/utility/tests/test_helpers.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/optimizers/OptimizerFactory.hpp"
-#include "nn/optimizers/SGD.hpp"
-#include "nn/optimizers/SGDMinimal.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "optimizers/Adam.hpp"
+#include "optimizers/OptimizerFactory.hpp"
+#include "optimizers/SGD.hpp"
+#include "optimizers/SGDMinimal.hpp"
+#include "tensor/Tensor.hpp"
 
 // Test Fixture for common optimizer setup
 class OptimizerTest : public ::testing::Test

@@ -25,8 +25,8 @@
 #include <random>
 #include <stdexcept>
 
-#include "nn/Backend.hpp"
-#include "nn/layers/convolution/Conv1d.hpp"
+#include "Backend.hpp"
+#include "layers/convolution/Conv1d.hpp"
 
 // ============ Constructor ============
 

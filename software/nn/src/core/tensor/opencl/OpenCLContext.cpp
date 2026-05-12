@@ -3,12 +3,12 @@
  * @brief OpenCL device and context management implementation.
  */
 
-#include "nn/tensor/opencl/OpenCLContext.hpp"
+#include "tensor/opencl/OpenCLContext.hpp"
 
 #include <cassert>
 #include <stdexcept>
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 namespace nn::opencl
 {

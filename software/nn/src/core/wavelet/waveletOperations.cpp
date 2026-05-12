@@ -3,7 +3,7 @@
  * @brief Wavelet transform operations (Mallat algorithm, regular/packet modes).
  */
 
-#include "nn/wavelet/waveletOperations.h"
+#include "wavelet/waveletOperations.h"
 
 #include <bit> // For std::bit_width (C++20)
 #include <cmath>
@@ -17,8 +17,8 @@
 #include <omp.h>
 #endif
 
-#include "nn/linearAlgebra/linear_algebra.hpp"
-#include "nn/wavelet/WaveletTransformResults.h"
+#include "linearAlgebra/linear_algebra.hpp"
+#include "wavelet/WaveletTransformResults.h"
 
 namespace wavelets
 {

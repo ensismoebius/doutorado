@@ -3,12 +3,12 @@
  * @brief Synthetic spike-train generators used by demos and unit tests.
  */
 
-#include "nn/utility/synthetic_spike_data.hpp"
+#include "utility/synthetic_spike_data.hpp"
 
 #include <algorithm>
 #include <random>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 // Global random engine and distribution
 // Note on determinism:

@@ -5,9 +5,9 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/layers/lstm/LSTMLayer.hpp"
-#include "nn/models/lstm/LSTMAutoencoder.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/lstm/LSTMLayer.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace
 {

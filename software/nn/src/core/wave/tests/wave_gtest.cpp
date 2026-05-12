@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "nn/wave/Wav.h"
-#include "nn/wave/audioFeatureExtraction.h"
-#include "nn/wave/filter_operations.hpp"
-#include "nn/wave/signal_operations.hpp"
+#include "wave/Wav.h"
+#include "wave/audioFeatureExtraction.h"
+#include "wave/filter_operations.hpp"
+#include "wave/signal_operations.hpp"
 
 TEST(SimpleSignalOperationsTest, TestAMDF)
 {

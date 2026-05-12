@@ -2,14 +2,14 @@ find_package(ZLIB REQUIRED)
 
 # Experiment 01 CMake configuration
 add_executable(exec_lfcc_pipeline
-    ${CMAKE_SOURCE_DIR}/include/nn/initializers/xavier.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGDMinimal.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/optimizers/Adam.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/optimizers/SGD.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/base/Sequential.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/dense/Linear.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/ReLU.hpp
-    ${CMAKE_SOURCE_DIR}/include/nn/layers/activations/LeakyReLU.hpp
+    ${CMAKE_SOURCE_DIR}/include/initializers/xavier.hpp
+    ${CMAKE_SOURCE_DIR}/include/optimizers/SGDMinimal.hpp
+    ${CMAKE_SOURCE_DIR}/include/optimizers/Adam.hpp
+    ${CMAKE_SOURCE_DIR}/include/optimizers/SGD.hpp
+    ${CMAKE_SOURCE_DIR}/include/layers/base/Sequential.hpp
+    ${CMAKE_SOURCE_DIR}/include/layers/dense/Linear.hpp
+    ${CMAKE_SOURCE_DIR}/include/layers/activations/ReLU.hpp
+    ${CMAKE_SOURCE_DIR}/include/layers/activations/LeakyReLU.hpp
     ${SRC_DIR}/core/dataLoaders/io/mat_file.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
     ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline.cpp

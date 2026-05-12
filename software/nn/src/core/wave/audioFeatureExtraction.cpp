@@ -3,7 +3,7 @@
  * @brief Audio feature extraction routines (framing, windowing, FFT-based features, etc.).
  */
 
-#include "nn/wave/audioFeatureExtraction.h"
+#include "wave/audioFeatureExtraction.h"
 
 #include <fftw3.h> // For FFTW library functions
 
@@ -13,8 +13,8 @@
 #include <numbers>   // For std::numbers::pi_v, std::numbers::sqrt2_v
 #include <vector>    // For std::vector
 
-#include "nn/tensor/Tensor.hpp" // For Tensor
-#include "nn/wave/filter_operations.hpp"
+#include "tensor/Tensor.hpp" // For Tensor
+#include "wave/filter_operations.hpp"
 
 using std::size_t;
 using std::vector;

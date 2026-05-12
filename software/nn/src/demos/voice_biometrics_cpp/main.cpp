@@ -21,14 +21,14 @@
 #include <vector>
 
 #include "codificacao.hpp"
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/base/Module.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
-#include "nn/wave/Wav.h"
-#include "nn/wavelet/waveletOperations.h"
+#include "initializers/kaiming_snn.hpp"
+#include "layers/Layers.hpp"
+#include "layers/base/Module.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
+#include "wave/Wav.h"
+#include "wavelet/waveletOperations.h"
 
 using argparse::ArgumentParser;
 using nn::Index;

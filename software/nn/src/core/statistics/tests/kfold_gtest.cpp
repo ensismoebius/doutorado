@@ -12,8 +12,8 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/statistics/kfold.hpp"
-#include "nn/statistics/multi_class_metrics.hpp"
+#include "statistics/kfold.hpp"
+#include "statistics/multi_class_metrics.hpp"
 
 namespace
 {

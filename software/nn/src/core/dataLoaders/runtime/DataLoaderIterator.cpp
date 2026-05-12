@@ -5,13 +5,13 @@
 
  */
 
-#include "nn/dataLoaders/runtime/DataLoaderIterator.hpp"
+#include "dataLoaders/runtime/DataLoaderIterator.hpp"
 
 #include <algorithm>
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/runtime/DataLoader.hpp"
+#include "dataLoaders/runtime/DataLoader.hpp"
 
 using std::size_t;
 using std::vector;

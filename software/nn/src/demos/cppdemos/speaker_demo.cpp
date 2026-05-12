@@ -15,7 +15,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 using argparse::ArgumentParser;
 using std::string;

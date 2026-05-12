@@ -5,21 +5,21 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "dataLoaders/10.1117/schema/SubjectDiscovery.hpp"
 
 #include <sqlite3.h>
 
 #include <algorithm>
 #include <filesystem>
-#include <nn/dataLoaders/io/mat_file.hpp>
+#include <dataLoaders/io/mat_file.hpp>
 #include <regex>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
-#include "nn/dataLoaders/io/mat_file_utils.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/io/mat_file_utils.hpp"
 
 using std::regex;
 using std::vector;

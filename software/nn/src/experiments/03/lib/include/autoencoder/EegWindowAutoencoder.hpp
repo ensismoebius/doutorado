@@ -4,9 +4,9 @@
 #include <vector>
 
 #include "AutoencoderConfig.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/base/Module.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/Layers.hpp"
+#include "layers/base/Module.hpp"
+#include "tensor/Tensor.hpp"
 
 /**
  * @file EegWindowAutoencoder.hpp

@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/statistics/kfold.hpp"
+#include "statistics/kfold.hpp"
 
 namespace experiment03
 {

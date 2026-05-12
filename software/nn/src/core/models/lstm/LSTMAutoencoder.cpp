@@ -7,13 +7,13 @@
  * reusable across all experiments rather than duplicated per-experiment.
  */
 
-#include "nn/models/lstm/LSTMAutoencoder.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
 
 #include <random>
 #include <string>
 
-#include "nn/layers/activations/Tanh.hpp"
-#include "nn/layers/lstm/LSTMLayer.hpp"
+#include "layers/activations/Tanh.hpp"
+#include "layers/lstm/LSTMLayer.hpp"
 
 namespace nn::models::lstm
 {

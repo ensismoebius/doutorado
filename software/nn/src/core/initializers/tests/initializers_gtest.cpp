@@ -5,10 +5,10 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/initializers/kaiming_snn.hpp"
-#include "nn/initializers/xavier.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "initializers/kaiming_snn.hpp"
+#include "initializers/xavier.hpp"
+#include "layers/Layers.hpp"
+#include "tensor/Tensor.hpp"
 
 using nn::Linear;
 

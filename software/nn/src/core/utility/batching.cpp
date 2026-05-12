@@ -3,7 +3,7 @@
  * @brief Batch construction helpers for simple dataset-in-memory workflows.
  */
 
-#include "nn/utility/batching.hpp"
+#include "utility/batching.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -13,7 +13,7 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 auto create_batches(std::span<const nn::Tensor> inputSamples,
     std::span<const nn::Tensor> targets,

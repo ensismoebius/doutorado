@@ -17,7 +17,7 @@
 #include <nlohmann/json.hpp>
 #include <sstream>
 
-#include "../../include/nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 auto Config::load(const std::string& path) -> std::optional<Config>
 {

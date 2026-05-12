@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp"
+#include "dataLoaders/10.1117/datasets/raw/SynchronizedBatchAssembler.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -13,9 +13,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
+#include "dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::schema101117::eegFeatureColumns;

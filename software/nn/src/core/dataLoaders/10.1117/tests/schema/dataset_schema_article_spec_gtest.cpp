@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
 
 TEST(DatasetSchemaArticleSpecTest, EEGDimensionsMatchArticle)
 {

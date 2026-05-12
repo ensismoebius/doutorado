@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "cli.hpp"
-#include "nn/dataLoaders/datasets/Dataset.hpp"
+#include "dataLoaders/datasets/Dataset.hpp"
 
 namespace experiment03
 {

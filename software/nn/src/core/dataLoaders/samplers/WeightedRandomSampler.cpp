@@ -5,7 +5,7 @@
 
  */
 
-#include "nn/dataLoaders/samplers/WeightedRandomSampler.hpp"
+#include "dataLoaders/samplers/WeightedRandomSampler.hpp"
 
 #include <algorithm>
 #include <random>

@@ -179,9 +179,9 @@ Gradient shape always matches forward input shape.
 
 ## Adding a new layer checklist
 
-1. Header in `include/nn/layers/<category>/MyLayer.hpp`
+1. Header in `include/layers/<category>/MyLayer.hpp`
 2. Inherit `Module<Backend>`, implement `forward`, `backward`, `params` (if trainable), `reset_state` (if stateful), `state_dict`/`load_state_dict` (if serialisable)
-3. Add to `include/nn/layers/Layers.hpp` convenience alias if needed
+3. Add to `include/layers/Layers.hpp` convenience alias if needed
 4. Add gtest in nearest `tests/` directory, named `mylayer_gtest.cpp`
 5. Wire test into `CMakeLists.txt` under `core_gtest` or relevant experiment test target
 6. Update `.wiki/Core/Layers.md` with new entry
@@ -210,7 +210,7 @@ NnSaver::save("prefix", weights, bias);  // → prefix_weights.npy, prefix_bias.
 ## Project layout
 
 ```
-include/nn/          Public headers (backend-agnostic interface)
+include/          Public headers (backend-agnostic interface)
   layers/
     activations/     ReLU, LeakyReLU, Sigmoid, Tanh
     base/            Module<Backend>
@@ -270,22 +270,22 @@ When adding/changing any layer, loss, optimizer, or training feature:
 
 | What | Where |
 |---|---|
-| LIF neuron (single-step) | `include/nn/layers/spiking/Leaky.hpp` |
-| LIF neuron (full BPTT) | `include/nn/layers/spiking/LeakyBPTT.hpp` |
-| tdBN | `include/nn/layers/spiking/ThresholdDependentBatchNorm.hpp` |
-| Poisson VAE latent | `include/nn/layers/spiking/PoissonLatentLayer.hpp` |
-| Spike count loss + reg | `include/nn/layers/losses/SpikeCountLoss.hpp` |
-| First-spike time loss | `include/nn/layers/losses/SpikeTimeLoss.hpp` |
-| Adam optimizer | `include/nn/optimizers/Adam.hpp` |
-| SGD optimizer | `include/nn/optimizers/SGD.hpp` |
-| Module base | `include/nn/layers/base/Module.hpp` |
-| Tensor | `include/nn/tensor/Tensor.hpp` |
-| KFold / NestedKFold | `include/nn/statistics/kfold.hpp` |
+| LIF neuron (single-step) | `include/layers/spiking/Leaky.hpp` |
+| LIF neuron (full BPTT) | `include/layers/spiking/LeakyBPTT.hpp` |
+| tdBN | `include/layers/spiking/ThresholdDependentBatchNorm.hpp` |
+| Poisson VAE latent | `include/layers/spiking/PoissonLatentLayer.hpp` |
+| Spike count loss + reg | `include/layers/losses/SpikeCountLoss.hpp` |
+| First-spike time loss | `include/layers/losses/SpikeTimeLoss.hpp` |
+| Adam optimizer | `include/optimizers/Adam.hpp` |
+| SGD optimizer | `include/optimizers/SGD.hpp` |
+| Module base | `include/layers/base/Module.hpp` |
+| Tensor | `include/tensor/Tensor.hpp` |
+| KFold / NestedKFold | `include/statistics/kfold.hpp` |
 | Trainer | `src/core/training/Trainer.hpp` |
 | TrainerConfig | `src/core/training/TrainerConfig.hpp` |
 | EpochResult | `src/core/training/EpochResult.hpp` |
-| Surrogate gradients | `include/nn/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` |
-| Paraconsistent logic | `include/nn/paraconsistent/` |
+| Surrogate gradients | `include/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` |
+| Paraconsistent logic | `include/paraconsistent/` |
 | Wiki | `.wiki/` |
 | Graphify output | `.wiki/graphify-out/` |
 | CMake presets | `CMakePresets.json` |

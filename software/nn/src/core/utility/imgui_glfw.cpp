@@ -3,9 +3,9 @@
  * @brief ImGui+GLFW application wrapper (snake_case translation unit).
  */
 
-#include "nn/utility/imgui_glfw.hpp"
+#include "utility/imgui_glfw.hpp"
 
-#include "nn/logging/Logger.hpp"
+#include "logging/Logger.hpp"
 
 ImGuiApp::ImGuiApp(const std::string& window_title, int window_width, int window_height)
     : window(nullptr), title(window_title), width(window_width), height(window_height)

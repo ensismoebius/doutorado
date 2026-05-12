@@ -3,12 +3,12 @@
  * @brief Implementation of Dataset101117Printer.
  */
 
-#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
+#include "dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp"
 
 #include <iomanip>
 #include <iostream>
 
-#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
 
 using std::cout;
 

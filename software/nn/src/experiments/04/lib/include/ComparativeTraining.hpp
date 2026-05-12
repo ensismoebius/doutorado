@@ -9,9 +9,9 @@
 #include "EpochHistory.hpp"
 #include "RunMetrics.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
-#include "nn/models/lstm/LSTMAutoencoder.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
+#include "optimizers/Adam.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace comparative_autoencoder_experiment
 {

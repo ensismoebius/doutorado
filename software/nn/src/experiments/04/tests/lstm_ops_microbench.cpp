@@ -2,8 +2,8 @@
 #include <iomanip>
 #include <iostream>
 
-#include "nn/layers/activations/FastActivations.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/activations/FastActivations.hpp"
+#include "tensor/Tensor.hpp"
 
 using Tensor = nn::Tensor;
 using Clock = std::chrono::high_resolution_clock;

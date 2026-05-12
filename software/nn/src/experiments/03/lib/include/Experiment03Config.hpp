@@ -12,10 +12,10 @@
 
 #include "AutoencoderConfig.hpp"
 #include "Experiment03AutoencoderType.hpp"
-#include "nn/dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/runtime/DataLoader.hpp"
-#include "nn/windowing/WindowSpec.hpp"
+#include "dataLoaders/10.1117/datasets/raw/Dataset101117.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/runtime/DataLoader.hpp"
+#include "windowing/WindowSpec.hpp"
 
 using std::optional;
 using std::string;

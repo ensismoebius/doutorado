@@ -13,15 +13,15 @@
  *   where W = eeg_window_size, M = audio_window_size.
  */
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
 #include <stdexcept>
 #include <string>
 #include <tuple>
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/SchemaIndexing.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/SchemaIndexing.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using nn::dataLoaders::schema101117::resolveEegRowIndex;

@@ -8,8 +8,8 @@
 #include <cmath>
 #include <vector>
 
-#include "nn/layers/lstm/LSTMLayer.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/lstm/LSTMLayer.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace
 {

@@ -8,11 +8,11 @@
 #include <memory>
 
 #include "core/utility/tests/test_helpers.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/convolution/Conv2d.hpp"
-#include "nn/layers/spiking/Leaky.hpp"
-#include "nn/layers/spiking/LeakyBPTT.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "layers/Layers.hpp"
+#include "layers/convolution/Conv2d.hpp"
+#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/LeakyBPTT.hpp"
+#include "tensor/Tensor.hpp"
 
 using nn::Conv2d;
 using nn::Leaky;

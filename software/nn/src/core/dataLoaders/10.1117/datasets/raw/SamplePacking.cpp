@@ -5,14 +5,14 @@
 
  */
 
-#include "nn/dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
+#include "dataLoaders/10.1117/datasets/raw/SamplePacking.hpp"
 
 #include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <vector>
 
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
 
 using nn::dataLoaders::ImaginedSpeechSchema_10_1117;
 using std::size_t;

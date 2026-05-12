@@ -8,8 +8,8 @@
 
 #include <random>
 
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing.hpp"
 
 namespace test_helpers
 {

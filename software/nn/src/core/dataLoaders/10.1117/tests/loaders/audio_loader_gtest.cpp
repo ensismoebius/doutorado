@@ -11,9 +11,9 @@
 #include <filesystem>
 #include <tuple>
 
-#include "nn/dataLoaders/10.1117/loaders/AudioLoader.h"
-#include "nn/dataLoaders/10.1117/schema/METADATA.hpp"
-#include "nn/dataLoaders/10.1117/schema/NAMES.hpp"
+#include "dataLoaders/10.1117/loaders/AudioLoader.h"
+#include "dataLoaders/10.1117/schema/METADATA.hpp"
+#include "dataLoaders/10.1117/schema/NAMES.hpp"
 
 namespace
 {

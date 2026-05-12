@@ -6,9 +6,9 @@
 #include <cstdio>
 
 #include "gtest/gtest.h"
-#include "nn/layers/Layers.hpp"
-#include "nn/layers/spiking/Leaky.hpp"
-#include "nn/saver/NetworkSerializer.hpp"
+#include "layers/Layers.hpp"
+#include "layers/spiking/Leaky.hpp"
+#include "saver/NetworkSerializer.hpp"
 
 using std::filesystem::temp_directory_path;
 

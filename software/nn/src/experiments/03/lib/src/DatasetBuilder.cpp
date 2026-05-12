@@ -7,9 +7,9 @@
 
 #include <stdexcept>
 
-#include "nn/dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
-#include "nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/AudioWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/EEGWindowDataset.hpp"
+#include "dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp"
 
 namespace experiment03
 {

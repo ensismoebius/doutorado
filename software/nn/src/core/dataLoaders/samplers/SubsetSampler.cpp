@@ -3,7 +3,7 @@
  * @brief Implementation of SubsetSampler.
  */
 
-#include "nn/dataLoaders/samplers/SubsetSampler.hpp"
+#include "dataLoaders/samplers/SubsetSampler.hpp"
 
 #include <algorithm>
 #include <stdexcept>

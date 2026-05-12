@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-#include "nn/tensor/Tensor.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace
 {
@@ -393,7 +393,7 @@ TEST(TensorBackendSwitchability, TensorHeaderHasNoConcreteBackendLeak)
 {
 #ifdef NN_PROJECT_ROOT
     const std::filesystem::path tensor_header =
-        std::filesystem::path(NN_PROJECT_ROOT) / "include/nn/tensor/Tensor.hpp";
+        std::filesystem::path(NN_PROJECT_ROOT) / "include/tensor/Tensor.hpp";
 #else
     GTEST_SKIP() << "NN_PROJECT_ROOT is not defined for this test target";
 #endif
@@ -407,7 +407,7 @@ TEST(TensorBackendSwitchability, TensorHeaderHasNoConcreteBackendLeak)
 
     EXPECT_EQ(contents.find("class OpenCLTensorBackend;"), std::string::npos);
     EXPECT_EQ(contents.find("template <typename Backend = XTensorBackend>"), std::string::npos);
-    EXPECT_EQ(contents.find("#include \"nn/tensor/xtensor/XTensorBackend.hpp\""),
+    EXPECT_EQ(contents.find("#include \"tensor/xtensor/XTensorBackend.hpp\""),
         std::string::npos);
 }
 

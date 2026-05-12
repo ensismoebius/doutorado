@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "nn/models/lstm/LSTMAutoencoder.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace comparative_autoencoder_experiment
 {

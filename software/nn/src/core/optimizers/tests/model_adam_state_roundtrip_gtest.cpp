@@ -7,10 +7,10 @@
 
 #include <gtest/gtest.h>
 
-#include "nn/io/StateIO.hpp"
-#include "nn/layers/Layers.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/testing/tempfile.hpp"
+#include "io/StateIO.hpp"
+#include "layers/Layers.hpp"
+#include "optimizers/Adam.hpp"
+#include "testing/tempfile.hpp"
 
 using namespace nn;
 

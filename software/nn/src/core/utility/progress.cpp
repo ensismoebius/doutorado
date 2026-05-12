@@ -8,7 +8,7 @@
  * it in-place so stacked Fold/Epoch/Batch bars remain stable.
  */
 
-#include "nn/utility/progress.hpp"
+#include "utility/progress.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -26,8 +26,8 @@
 #include <utility>
 #include <vector>
 
-#include "nn/logging/Logger.hpp"
-#include "nn/tensor/Tensor.hpp"
+#include "logging/Logger.hpp"
+#include "tensor/Tensor.hpp"
 
 namespace
 {

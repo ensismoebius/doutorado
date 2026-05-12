@@ -13,7 +13,7 @@
  *
  */
 
-#include "nn/linearAlgebra/linear_algebra.hpp"
+#include "linearAlgebra/linear_algebra.hpp"
 
 #include <algorithm>
 #include <cmath>

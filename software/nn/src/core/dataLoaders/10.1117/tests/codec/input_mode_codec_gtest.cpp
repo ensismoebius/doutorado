@@ -9,7 +9,7 @@
 
 #include <stdexcept>
 
-#include "nn/dataLoaders/10.1117/codec/InputModeCodec.hpp"
+#include "dataLoaders/10.1117/codec/InputModeCodec.hpp"
 
 TEST(InputModeCodecTest, EnumToTokenUsesCanonicalNames)
 {

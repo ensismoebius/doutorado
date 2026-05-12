@@ -9,10 +9,10 @@
 
 #include <cstdio>
 
-#include "nn/io/StateIO.hpp"
-#include "nn/optimizers/Adam.hpp"
-#include "nn/tensor/Tensor.hpp"
-#include "nn/testing/tempfile.hpp"
+#include "io/StateIO.hpp"
+#include "optimizers/Adam.hpp"
+#include "tensor/Tensor.hpp"
+#include "testing/tempfile.hpp"
 
 using namespace nn;
 

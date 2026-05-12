@@ -10,8 +10,8 @@
 #include <stdexcept>
 
 #include "nlohmann/json.hpp"
-#include "nn/io/ReportIO.hpp"
-#include "nn/statistics/inference_tests.hpp"
+#include "io/ReportIO.hpp"
+#include "statistics/inference_tests.hpp"
 
 namespace comparative_autoencoder_experiment
 {

@@ -3,7 +3,7 @@
  * @brief Implementation of FoldSampler.
  */
 
-#include "nn/dataLoaders/samplers/FoldSampler.hpp"
+#include "dataLoaders/samplers/FoldSampler.hpp"
 
 #include <algorithm>
 #include <stdexcept>

@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <stdexcept> // For std::runtime_error or std::invalid_argument
 
-#include "nn/dataLoaders/datasets/MatFileDataset.hpp"
+#include "dataLoaders/datasets/MatFileDataset.hpp"
 
 using namespace matioCpp;
 

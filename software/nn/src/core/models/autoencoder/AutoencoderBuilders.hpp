@@ -32,7 +32,7 @@
 #ifndef NN_MODELS_AUTOENCODER_BUILDERS_HPP
 #define NN_MODELS_AUTOENCODER_BUILDERS_HPP
 
-#include "nn/Backend.hpp"
+#include "Backend.hpp"
 #include <memory>
 
 #include "AutoencoderType.hpp"

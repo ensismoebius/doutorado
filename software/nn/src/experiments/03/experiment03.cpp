@@ -17,8 +17,8 @@
 
 #include "lib/include/ProfileLoader.hpp"
 #include "lib/include/cli.hpp"
-#include "nn/logging/Logger.hpp"
-#include "nn/logging/StreamRedirector.hpp"
+#include "logging/Logger.hpp"
+#include "logging/StreamRedirector.hpp"
 
 using nn::logging::Level;
 using nn::logging::Logger;

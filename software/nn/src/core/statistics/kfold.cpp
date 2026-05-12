@@ -3,7 +3,7 @@
  * @brief Implementation of KFold and StratifiedKFold splitters.
  */
 
-#include "nn/statistics/kfold.hpp"
+#include "statistics/kfold.hpp"
 
 #include <algorithm>
 #include <numeric>
