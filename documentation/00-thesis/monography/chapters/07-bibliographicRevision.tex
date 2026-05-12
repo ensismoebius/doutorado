@@ -1,8 +1,6 @@
 \chapter{Revisão de Bibliográfica}
 	\label{ch:revisao}
 	
-	\par APRESENTAR A FUNÇÃO Exponential / SuperSpike QUE ESTÁ SENDO USADA NA REDE NEURAL
-	
 	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as bases das interfaces Humano-Máquina para eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as redes neurais de pulso, autoencoders e redes neurais residuais.
 
 	\section{Conceitos utilizados}
@@ -377,8 +375,7 @@
 			\end{figure}
 		
 			\par Segundo \cite{bioengineering10060649} e \cite{pinto2012manual}, em se tratando da produção e articulação da fala, a área de Wernicke é responsável por garantir que a mesma faça sentido enquanto que a área de broca garante que seja produzida de forma fluente portanto, já que a investigação desse trabalho também envolve a fala fonada, uma atenção especial deve ser dada a essas regiões. De acordo com a \autoref{fig:loboparietal}, \autoref{fig:lobotemporal} e a \autoref{fig:1020standardandlobes} os eletrodos frontais e temporais esquerdos F7 e T5 podem estar mais próximos da área de Wernicke e os eletrodos Fp1, F3 e F7 da área de Broca.
-			%TODO Noo entanto a fala imaginada ocorre em todo o cérebro, citar fontes.
-			%TODO citar \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013} ?
+			\par No entanto, é importante ressaltar que a fala imaginada, diferentemente da fonada, não mobiliza os córtex motores de forma intensa, ativando de modo mais distribuído as regiões corticais associadas à linguagem e ao processamento fonológico. De acordo com \cite{doi:10.1073/pnas.1414491112} e \cite{DeWitt_Rauschecker_2013}, tais ativações se estendem por regiões temporais e parietais bilaterais, não se restringindo ao hemisfério dominante como ocorre na maioria dos processos de fala fonada.
 			
 			\begin{figure}[H]
 				\centering
@@ -633,7 +630,7 @@
 					&\int e^u du.\tau = \tau.\int e^u du = \tau . e^u + c = \tau . e^{\frac{t}{\tau}} + c \implies \\
 					&e^{\frac{t}{\tau}}.V_{mem}(t) = \frac{R.I_{in}(t)}{\tau}.\tau.e^{\frac{t}{\tau}} \implies \\
 					&V_{mem}(t) = \frac{R.I_{in}(t)}{\tau . e^{\frac{t}{\tau}}}.\tau.e^{\frac{t}{\tau}} \implies \\
-					& \text{Considering: } V_{mem}(t=0) = 0 \implies \\
+					& \text{Considerando: } V_{mem}(t=0) = 0 \implies \\
 					\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
 				\end{aligned}
 			\end{equation}
@@ -695,7 +692,27 @@
 				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
 				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
 			\end{itemize}
-		
+
+		\subsubsection{Retropropagação Através do Tempo em RNPs (BPTT)}
+
+			\par Em RNPs com processamento temporal, os pesos são atualizados por meio da Retropropagação Através do Tempo (do inglês, \textit{Backpropagation Through Time} --- BPTT) \cite{10242251}. O BPTT desenrola o grafo computacional ao longo das etapas temporais $t = 1, \ldots, T$, calculando os gradientes do erro em relação aos pesos em cada passo de tempo e acumulando-os. A regra de atualização para um parâmetro $w$ é:
+
+			\begin{equation}
+				\frac{\partial \mathcal{L}}{\partial w} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial w}
+			\end{equation}
+
+			\par Em RNPs, a função de ativação em degrau $S(V_{mem})$ não é diferenciável no ponto de limiar $V_{th}$, tornando o cálculo do gradiente indefinido nessa região. A solução adotada é a \textbf{Descida de Gradiente com Gradiente Substituto}: a derivada da função em degrau é substituída, somente durante a fase de retropropagação, por uma função suave e diferenciável. Durante a fase de \textit{feed-forward}, o comportamento original da função em degrau é preservado \cite{10242251}.
+
+		\subsubsection{Função Substituta Exponencial}
+
+			\par O gradiente substituto exponencial utilizado neste trabalho é definido como \cite{10242251}:
+
+			\begin{equation}
+				\frac{\partial \tilde{S}}{\partial V_{mem}} = \beta \cdot e^{-\beta \left| V_{mem} - V_{th} \right|}
+			\end{equation}
+
+			\par onde $\beta > 0$ controla a inclinação da aproximação em torno do limiar $V_{th}$. Valores maiores de $\beta$ produzem uma função mais próxima da derivada da função em degrau, enquanto valores menores resultam em uma aproximação mais suave e numericamente estável. A função é centrada em $V_{th}$ e decai exponencialmente ao se afastar do ponto de disparo, ponderando mais os gradientes próximos ao limiar do neurônio e atenuando contribuições distantes do mesmo.
+
 		\subsection{\textit{Autoencoders}}
 		
 			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem respectivamente em: Uma função codificadora $f(x)$ que gera um estado $h$, denotada como $h = f(x)$ e uma função decodificadora $g(x)$ que produz uma reconstrução $r$, denotada como $r = g(h)$. O estado $h$ representa um \textbf{código}, uma representação da entrada que pode ser comprimida ou não  \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder}.
@@ -828,12 +845,20 @@
 			
 				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes, essa estrutura pode ser usada multiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
 				
-		\subsection{por que LFCC e MGDF para biometria}
-			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovem o máximo de separabilidade entre indivíduos neste trablho é utilizado o LFCC en detrimento às escalas auditivas como MEL com a BARK pois estas excluem frequências que, embora não sejam perceptíveis para a maioria dos humanos, podem ser úteis para a autenticação com biometria. \textbf{<<Mais detalhes aqui e citar a referência>>}
-			
-			\par LFCC (Linear Frequency Cepstral Coefficients) são coeficientes cepstrais obtidos a partir de um banco de filtros com espaçamento linear em frequência. Mantêm resolução uniforme em todas as bandas e, portanto, preservam componentes de alta e baixa frequência relevantes para identificação do locutor. \textbf{<<fonte>>}.
-			
-			\par A escolha do LFCC também se dá pelo seus baixo custo computacional.
+		\subsection{Por que LFCC para biometria?}
+			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovam o máximo de separabilidade entre indivíduos, neste trabalho é utilizado o LFCC em detrimento às escalas auditivas perceptuais como MEL e BARK. As escalas MEL e BARK comprimem as frequências acima de $\sim$4\,kHz, modelando a percepção auditiva humana, porém descartando componentes de alta frequência que, embora não sejam percebidos com grande resolução pelo sistema auditivo humano, carregam características espectrais do trato vocal e da fonte glótica que são discriminativas entre locutores \cite{Hanilci2018}.
+
+			\par O LFCC (\textit{Linear Frequency Cepstral Coefficients}) utiliza um banco de $K$ filtros com centros equiespaçados linearmente entre $f_{min}$ e $f_{max}$:
+			\begin{equation}
+				f_k = f_{min} + k\,\frac{f_{max} - f_{min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
+			\end{equation}
+			Após o cálculo da energia em cada faixa, aplica-se a Transformada Discreta de Cosseno (DCT) para decorrelação dos coeficientes, da mesma forma que no MFCC \cite{ali2022speech}:
+			\begin{equation}
+				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad.
+			\end{equation}
+			O resultado é um vetor de $N$ coeficientes cepstrais. Ao manter resolução espectral uniforme em toda a faixa de frequências, o LFCC preserva componentes de alta frequência que escalas perceptuais descartam, sendo por isso indicado para verificação de locutores em detrimento do MFCC, voltado primariamente para o reconhecimento de fala.
+
+			\par A escolha do LFCC justifica-se ainda pelo seu baixo custo computacional, comparável ao do MFCC.
 			
 			
 
