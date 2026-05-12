@@ -65,12 +65,17 @@ The `nn` library is organized into several key components:
 - [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) - Cross-validation and nested k-fold for unbiased evaluation
 - [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) - Preventing dead/bursting neurons in SNN autoencoders
 - [Spike Encoding](./Concepts/Spike-Encoding.md) - Rate coding vs latency coding and matching loss functions
+- [LFCC](./Concepts/LFCC.md) - Linear Frequency Cepstral Coefficients for speaker verification
+- [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) - Neuroscience of covert speech and EEG biometrics
 
 ### Experiments
 - [Experiment00](./Experiments/Experiment00.md) - Wavelet + paraconsistent baseline (Phase 0)
 - [Experiment02](./Experiments/Experiment02.md) - Wavelet autoencoder pipeline
 - [Experiment03](./Experiments/Experiment03.md) - Autoencoder experiments (audio, EEG, fused)
 - [Experiment04](./Experiments/Experiment04.md) - SNN vs LSTM comparative with FSDD
+
+### Research Context
+- [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
 
 ### System Architecture
 - [Architecture](./Architecture.md) - High-level system design and module interactions

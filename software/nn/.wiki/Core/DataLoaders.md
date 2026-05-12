@@ -142,6 +142,38 @@ DataLoader train_loader(dataset, batch_size, fold_sampler.get_train_indices());
 DataLoader val_loader(dataset, batch_size, fold_sampler.get_val_indices());
 ```
 
+## Domain-specific Loaders
+
+### 10.1117/12.2255697 — EEG Imagined Speech (thesis dataset)
+
+Public dataset used for validation in the thesis. 15 Spanish-speaking subjects; vowels and directional commands; three modalities (phonated, imagined, mixed).
+
+```
+include/data_loaders/10.1117/
+  schema/
+    Metadata.hpp        # dataset-wide metadata constants
+    Names.hpp           # speaker/command name tables
+  loaders/
+    AudioLoader.hpp     # loads phonated speech WAVs
+    EEGLoader.hpp       # loads raw EEG channel data
+    AudioData.hpp       # AudioData value type
+    EEGData.hpp         # EEGData value type
+```
+
+```cpp
+#include "data_loaders/10.1117/loaders/AudioLoader.hpp"
+#include "data_loaders/10.1117/loaders/EEGLoader.hpp"
+
+auto audio = nn::dataLoaders::AudioLoader::load(root, speaker, command);
+auto eeg   = nn::dataLoaders::EEGLoader::load(root, speaker, command);
+```
+
+Relevant channels for imagined speech: F7, T5 (near Wernicke); Fp1, F3, F7 (near Broca).
+
+See [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) for the neuroscience context and [Research-Context](../Research-Context.md) for how this dataset fits the thesis.
+
+---
+
 ## Common Pitfalls
 
 1. **Batch Size**: Too large causes poor generalization; too small causes slow training
@@ -157,6 +189,8 @@ DataLoader val_loader(dataset, batch_size, fold_sampler.get_val_indices());
 - [Tensor](./Tensor.md) - Output tensor type
 - [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) - Cross-validation details
 - [Data Normalisation](../Concepts/Data-Normalisation.md) - Input preprocessing
+- [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) - EEG dataset context
+- [Research-Context](../Research-Context.md) - Thesis overview and dataset roles
 
 ## References
 
