@@ -33,3 +33,4 @@ target_link_libraries(data_loaders
 
 add_subdirectory(tests)
 add_subdirectory(10.1117)
+add_subdirectory(10.5281/zenodo.1342401)

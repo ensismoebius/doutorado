@@ -2,11 +2,12 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <numeric>
 #include <random>
 #include <stdexcept>
 
+#include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
-#include "wave/Wav.hpp"
 
 namespace comparative_autoencoder_experiment
 {
@@ -24,7 +25,6 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
         const std::size_t take =
             std::min<std::size_t>(remaining, static_cast<std::size_t>(window_size));
 
-        // Produce 2D {window_size, 1} tensors — expected by Linear/LSTM layers.
         nn::Tensor sample(static_cast<nn::Index>(window_size), 1);
         for (int t = 0; t < window_size; ++t)
         {
@@ -49,32 +49,20 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
     namespace fs = std::filesystem;
     const fs::path root = fs::path(cfg.dataset.dataset_root);
     if (!fs::exists(root))
-    {
         throw std::runtime_error("Dataset root does not exist: " + root.string());
-    }
 
     std::vector<fs::path> files;
     for (const auto& entry : fs::recursive_directory_iterator(root))
     {
         if (!entry.is_regular_file()) continue;
         const std::string path_str = entry.path().string();
-        const std::string ext = entry.path().extension().string();
+        const std::string ext      = entry.path().extension().string();
 
-        if (dataset == "fsdd")
+        if ((ext == ".csv" || ext == ".txt") &&
+            (path_str.find("physionet") != std::string::npos ||
+             path_str.find("PhysioNet") != std::string::npos))
         {
-            if (ext == ".wav")
-            {
-                files.push_back(entry.path());
-            }
-        }
-        else if (dataset == "physionet")
-        {
-            if ((ext == ".csv" || ext == ".txt") &&
-                (path_str.find("physionet") != std::string::npos ||
-                    path_str.find("PhysioNet") != std::string::npos))
-            {
-                files.push_back(entry.path());
-            }
+            files.push_back(entry.path());
         }
     }
 
@@ -84,64 +72,73 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
 
 auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> DatasetSplit
 {
-    DatasetSplit split;
-    const auto files = collect_signal_files(cfg, dataset);
-
-    if (files.empty())
-    {
-        throw std::runtime_error("No files found for dataset token: " + dataset);
-    }
-
+    DatasetSplit       split;
     std::vector<Tensor> all_samples;
-    for (const auto& file : files)
+    std::vector<int>    all_labels;
+
+    if (dataset == "fsdd")
     {
-        nn::Tensor signal;
-        if (dataset == "fsdd")
+        nn::dataLoaders::fsdd::FsddWindowDataset ds(cfg.dataset.dataset_root,
+                                                     cfg.dataset.window_size);
+        all_samples = ds.windows();
+        all_labels  = ds.labels();
+    }
+    else
+    {
+        const auto files = collect_signal_files(cfg, dataset);
+        if (files.empty())
+            throw std::runtime_error("No files found for dataset token: " + dataset);
+
+        for (const auto& file : files)
         {
-            Wav wav_file;
-            wav_file.read(file.string());
-            const auto& raw_data = wav_file.get_data();
-            signal = nn::Tensor(static_cast<nn::Index>(raw_data.size()), 1);
-            for (std::size_t i = 0; i < raw_data.size(); ++i)
-            {
-                signal.at(static_cast<nn::Index>(i), 0) = static_cast<float>(raw_data[i]);
-            }
+            const auto signal  = nn::utility::read_csv_signal(file);
+            const auto windows = to_window_tensor(signal, cfg.dataset.window_size);
+            all_samples.insert(all_samples.end(), windows.begin(), windows.end());
         }
-        else
-        {
-            signal = nn::utility::read_csv_signal(file);
-        }
-        const auto windows = to_window_tensor(signal, cfg.dataset.window_size);
-        all_samples.insert(all_samples.end(), windows.begin(), windows.end());
+        all_labels.assign(all_samples.size(), 0);
     }
 
     if (all_samples.empty())
-    {
         throw std::runtime_error("No windows created for dataset token: " + dataset);
-    }
 
     {
+        std::vector<std::size_t> idx(all_samples.size());
+        std::iota(idx.begin(), idx.end(), 0u);
         std::mt19937 rng(cfg.experiment.seed != 0u ? cfg.experiment.seed : 42u);
-        std::shuffle(all_samples.begin(), all_samples.end(), rng);
+        std::shuffle(idx.begin(), idx.end(), rng);
+
+        std::vector<Tensor> s(all_samples.size());
+        std::vector<int>    l(all_labels.size());
+        for (std::size_t i = 0; i < idx.size(); ++i)
+        {
+            s[i] = std::move(all_samples[idx[i]]);
+            l[i] = all_labels[idx[i]];
+        }
+        all_samples = std::move(s);
+        all_labels  = std::move(l);
     }
 
     const std::size_t max_total =
-        static_cast<std::size_t>(cfg.dataset.max_loaded_train_samples + cfg.dataset.max_validation_samples);
+        static_cast<std::size_t>(cfg.dataset.max_loaded_train_samples +
+                                 cfg.dataset.max_validation_samples);
     if (all_samples.size() > max_total)
     {
         all_samples.resize(max_total);
+        all_labels.resize(max_total);
     }
 
     const std::size_t val_count =
         std::min<std::size_t>(cfg.dataset.max_validation_samples, all_samples.size());
     const std::size_t train_count = all_samples.size() - val_count;
 
-    split.train_samples.assign(all_samples.begin(), all_samples.begin() + static_cast<long>(train_count));
-    split.val_samples.assign(all_samples.begin() + static_cast<long>(train_count), all_samples.end());
-    split.val_labels.assign(split.val_samples.size(), 0);
+    split.train_samples.assign(all_samples.begin(),
+                               all_samples.begin() + static_cast<long>(train_count));
+    split.val_samples.assign(all_samples.begin() + static_cast<long>(train_count),
+                             all_samples.end());
+    split.val_labels.assign(all_labels.begin() + static_cast<long>(train_count),
+                            all_labels.end());
 
     return split;
 }
 
 } // namespace comparative_autoencoder_experiment
-

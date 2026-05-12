@@ -78,6 +78,7 @@ target_include_directories(experiment04_lib
 target_link_libraries(experiment04_lib
     PUBLIC
         experiment03_lib
+        data_loaders_fsdd
 )
 
 nn_enable_target_pch(experiment03_lib)

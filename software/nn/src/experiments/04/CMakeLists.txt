@@ -21,6 +21,7 @@ target_link_libraries(experiment04
         dataLoaders_10_1117_windowing
         dataLoaders_10_1117
         data_loaders
+        data_loaders_fsdd
         matioCpp
         z
 )
