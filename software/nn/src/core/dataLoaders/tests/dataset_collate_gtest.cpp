@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include "nn/dataLoaders/datasets/Dataset.hpp"
+#include "nn/dataLoaders/interfaces/IBatchSource.hpp"
 
 // Minimal test dataset that returns single-row input/target tensors per index
 class TestDataset : public Dataset
@@ -39,6 +40,54 @@ class TestDataset : public Dataset
     std::size_t n_;
     std::size_t in_;
     std::size_t tg_;
+};
+
+class TrackingPrinter : public IDatasetPrinter
+{
+   public:
+    explicit TrackingPrinter(bool* destroyed = nullptr) : destroyed_(destroyed) {}
+
+    ~TrackingPrinter() override
+    {
+        if (destroyed_ != nullptr)
+        {
+            *destroyed_ = true;
+        }
+    }
+
+    void print_generic(const Dataset& /*dataset*/) override
+    {
+        generic_called = true;
+    }
+
+    bool generic_called{false};
+
+   private:
+    bool* destroyed_;
+};
+
+class DummyBatchSource : public IBatchSource
+{
+   public:
+    explicit DummyBatchSource(bool* destroyed) : destroyed_(destroyed) {}
+
+    ~DummyBatchSource() override
+    {
+        if (destroyed_ != nullptr)
+        {
+            *destroyed_ = true;
+        }
+    }
+
+    bool next(Batch& out) override
+    {
+        out.inputs = nn::Tensor(1, 1);
+        out.targets = nn::Tensor(1, 1);
+        return false;
+    }
+
+   private:
+    bool* destroyed_;
 };
 
 TEST(DatasetCollate, CollatesMultipleIndicesInOrder)
@@ -74,4 +123,35 @@ TEST(DatasetCollate, SizeReportsConfiguredLength)
 {
     TestDataset ds(7, 3, 2);
     EXPECT_EQ(ds.size(), 7U);
+}
+
+TEST(DatasetInterface, DefaultPrintCallsGenericPrinter)
+{
+    TestDataset ds(3, 2, 1);
+    TrackingPrinter printer;
+
+    ds.print(printer);
+
+    EXPECT_TRUE(printer.generic_called);
+}
+
+TEST(DatasetInterface, PrinterPolymorphicDeleteRunsDestructor)
+{
+    bool destroyed = false;
+    IDatasetPrinter* printer = new TrackingPrinter(&destroyed);
+    delete printer;
+    EXPECT_TRUE(destroyed);
+}
+
+TEST(BatchSourceInterface, DefaultResetEpochAndVirtualDestructor)
+{
+    bool destroyed = false;
+    IBatchSource* src = new DummyBatchSource(&destroyed);
+
+    Batch b;
+    EXPECT_FALSE(src->next(b));
+    src->reset_epoch(5);
+
+    delete src;
+    EXPECT_TRUE(destroyed);
 }

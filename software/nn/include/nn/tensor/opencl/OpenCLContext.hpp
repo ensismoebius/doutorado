@@ -200,8 +200,9 @@ class OpenCLContext
     cl_uint m_compute_units = 0;
     cl_ulong m_local_memory_size = 0;
 
-    // Batch mode: defer queue synchronization across multiple operations
-    static bool s_batching;
+    // Reference-counted batch mode: depth > 0 → no per-kernel clFinish.
+    // Nesting allows a full-network forward scope to absorb all per-layer scopes.
+    static int s_batch_depth;
 };
 
 } // namespace nn::opencl

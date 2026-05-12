@@ -43,6 +43,10 @@
 #include "nn/training/ITrainingCallback.hpp"
 #include "nn/utility/GradClip.hpp"
 
+#if defined(NN_BACKEND_OPENCL)
+#include "nn/tensor/opencl/OpenCLContext.hpp"
+#endif
+
 namespace nn::training
 {
 
@@ -311,19 +315,26 @@ class Trainer
                 // zero_grad BEFORE forward (bug 1 fix)
                 optimizer_.zero_grad(model_.params());
 
-                // Single forward+loss+backward (bug 2 fix)
-                Tensor output = model_.forward(batch, true);
-                state.batch_progress = 0.65F;
-                cb_batch_progress(state);
-                loss_.set_target(batch); // autoencoder: target = input
-                Tensor loss_tensor = loss_.forward(output, true);
-                const float loss_val = loss_tensor.at(0, 0);
-                state.batch_loss = loss_val;
-                state.batch_progress = 0.75F;
-                cb_batch_progress(state);
+                float loss_val = 0.0F;
+                {
+#if defined(NN_BACKEND_OPENCL)
+                    nn::opencl::OpenCLContext::BatchScope _gpu_batch;
+#endif
+                    // Single forward+loss+backward (bug 2 fix)
+                    Tensor output = model_.forward(batch, true);
+                    state.batch_progress = 0.65F;
+                    cb_batch_progress(state);
+                    loss_.set_target(batch); // autoencoder: target = input
+                    Tensor loss_tensor = loss_.forward(output, true);
+                    loss_val = loss_tensor.at(0, 0);
+                    state.batch_loss = loss_val;
+                    state.batch_progress = 0.75F;
+                    cb_batch_progress(state);
 
-                Tensor d_out = loss_.backward(output);
-                model_.backward(d_out);
+                    Tensor d_out = loss_.backward(output);
+                    model_.backward(d_out);
+                } // BatchScope destructs here: single clFinish per batch
+
                 state.batch_progress = 0.9F;
                 cb_batch_progress(state);
 
@@ -447,28 +458,34 @@ class Trainer
                 optimizer_.zero_grad(model_.params()); // zero BEFORE any forward
                 const std::size_t batch_sample_count = batch_end - batch_start;
 
-                for (std::size_t k = batch_start; k < batch_end; ++k)
                 {
-                    const std::size_t idx = indices[k];
-                    const Tensor inp = transform(train_inputs[idx], idx);
-                    const Tensor& tgt = train_targets[idx];
+#if defined(NN_BACKEND_OPENCL)
+                    nn::opencl::OpenCLContext::BatchScope _gpu_batch;
+#endif
+                    for (std::size_t k = batch_start; k < batch_end; ++k)
+                    {
+                        const std::size_t idx = indices[k];
+                        const Tensor inp = transform(train_inputs[idx], idx);
+                        const Tensor& tgt = train_targets[idx];
 
-                    Tensor output = model_.forward(inp, true);
-                    loss_.set_target(tgt);
-                    Tensor loss_t = loss_.forward(output, true);
-                    const float lv = loss_t.at(0, 0);
-                    batch_loss_sum += lv;
-                    state.batch_loss = batch_loss_sum / static_cast<float>((k - batch_start) + 1);
+                        Tensor output = model_.forward(inp, true);
+                        loss_.set_target(tgt);
+                        Tensor loss_t = loss_.forward(output, true);
+                        const float lv = loss_t.at(0, 0);
+                        batch_loss_sum += lv;
+                        state.batch_loss =
+                            batch_loss_sum / static_cast<float>((k - batch_start) + 1);
 
-                    Tensor d_out = loss_.backward(output);
-                    model_.backward(d_out);
+                        Tensor d_out = loss_.backward(output);
+                        model_.backward(d_out);
 
-                    const float sample_fraction =
-                        static_cast<float>((k - batch_start) + 1) /
-                        static_cast<float>(std::max<std::size_t>(batch_sample_count, 1));
-                    state.batch_progress = 0.85F * sample_fraction;
-                    cb_batch_progress(state);
-                }
+                        const float sample_fraction =
+                            static_cast<float>((k - batch_start) + 1) /
+                            static_cast<float>(std::max<std::size_t>(batch_sample_count, 1));
+                        state.batch_progress = 0.85F * sample_fraction;
+                        cb_batch_progress(state);
+                    }
+                } // BatchScope destructs here: single clFinish per mini-batch
 
                 if (cfg_.grad_clip_norm > 0.0F)
                     clip_grad_norm(model_.params(), cfg_.grad_clip_norm);

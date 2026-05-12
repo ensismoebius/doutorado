@@ -782,6 +782,97 @@ __kernel void lif_grad_boxcar_kernel(
     output[idx] = (diff < half_window) ? 1.0f : 0.0f;
 }
 
+__kernel void matmul_rhs_transposed_bias_sigmoid_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global const float* bias,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0);
+    const uint col = get_global_id(1);
+
+    if (row >= M || col >= N) return;
+
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        sum += A[row + i * M] * B[col + i * N];
+    }
+    float val = sum + bias[col];
+    C[row + col * M] = 1.0f / (1.0f + exp(-val));
+}
+
+__kernel void matmul_rhs_transposed_bias_tanh_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global const float* bias,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0);
+    const uint col = get_global_id(1);
+
+    if (row >= M || col >= N) return;
+
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        sum += A[row + i * M] * B[col + i * N];
+    }
+    float val = sum + bias[col];
+    C[row + col * M] = tanh(val);
+}
+
+__kernel void matmul_rhs_transposed_bias_relu_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global const float* bias,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K
+) {
+    const uint row = get_global_id(0);
+    const uint col = get_global_id(1);
+
+    if (row >= M || col >= N) return;
+
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        // A is (M x K) column-major: A(row,i) -> row + i*M
+        // B is (N x K) column-major; access B(col,i) -> col + i*N (RHS transposed)
+        sum += A[row + i * M] * B[col + i * N];
+    }
+    float val = sum + bias[col];
+    C[row + col * M] = val > 0.0f ? val : 0.0f;
+}
+
+__kernel void matmul_rhs_transposed_bias_leaky_relu_kernel(
+    __global const float* A,
+    __global const float* B,
+    __global const float* bias,
+    __global float* C,
+    const uint M,
+    const uint N,
+    const uint K,
+    const float alpha
+) {
+    const uint row = get_global_id(0);
+    const uint col = get_global_id(1);
+
+    if (row >= M || col >= N) return;
+
+    float sum = 0.0f;
+    for (uint i = 0; i < K; ++i) {
+        sum += A[row + i * M] * B[col + i * N];
+    }
+    float val = sum + bias[col];
+    C[row + col * M] = val > 0.0f ? val : alpha * val;
+}
+
 __kernel void adam_step_kernel(
     __global float* param,
     __global float* moment1,
@@ -914,7 +1005,14 @@ cl_kernel KernelManager::get_kernel(const std::string& kernel_name)
 
     // Determine which program this kernel belongs to
     std::string program_name;
-    if (kernel_name.find("matmul") != std::string::npos ||
+    if (kernel_name == "matmul_rhs_transposed_bias_relu_kernel" ||
+        kernel_name == "matmul_rhs_transposed_bias_leaky_relu_kernel" ||
+        kernel_name == "matmul_rhs_transposed_bias_sigmoid_kernel" ||
+        kernel_name == "matmul_rhs_transposed_bias_tanh_kernel")
+    {
+        program_name = "fused";
+    }
+    else if (kernel_name.find("matmul") != std::string::npos ||
         kernel_name.find("transpose") != std::string::npos)
     {
         program_name = "linear_algebra";

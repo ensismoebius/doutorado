@@ -789,3 +789,200 @@ TEST(OpenCLTensorBackendTest, FourDimConstructor)
     EXPECT_EQ(shape[2], 4u);
     EXPECT_EQ(shape[3], 5u);
 }
+
+// ---------------------------------------------------------------------------
+// Fused kernel correctness: matmul_transposed_add_col_bias_{relu,leaky_relu}
+//
+// Strategy: compute reference with two separate backend calls
+//   (matmul_transposed_add_col_bias + relu/leaky_relu),
+// then compare element-wise against the fused single call.
+// Threshold 1e-5 matches float precision with ~100 accumulations.
+// ---------------------------------------------------------------------------
+
+// Build a small (M x K) * (N x K)^T + bias tensor fixture shared by both tests.
+// M=4 batch rows, K=8 input features, N=6 output neurons.
+static void fill_fused_test_tensors(nn::OpenCLTensorBackend& A,
+    nn::OpenCLTensorBackend& B,
+    nn::OpenCLTensorBackend& bias)
+{
+    // Fill A (4 x 8) with incrementing values
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 8; ++c)
+            A.at(r, c) = static_cast<float>(r * 8 + c + 1) * 0.1f;
+
+    // Fill B (6 x 8) with decreasing values — stored as weight matrix
+    for (int r = 0; r < 6; ++r)
+        for (int c = 0; c < 8; ++c)
+            B.at(r, c) = static_cast<float>((6 - r) * 8 - c) * 0.05f;
+
+    // Fill bias (6 x 1)
+    for (int r = 0; r < 6; ++r)
+        bias.at(r, 0) = static_cast<float>(r - 3) * 0.2f;
+}
+
+TEST(OpenCLFusedKernelTest, MatmulBiasReluMatchesTwoKernels)
+{
+    nn::OpenCLTensorBackend A(4, 8);
+    nn::OpenCLTensorBackend B(6, 8);
+    nn::OpenCLTensorBackend bias(6, 1);
+    fill_fused_test_tensors(A, B, bias);
+
+    // Reference: unfused two-kernel path
+    auto ref_pre  = A.matmul_transposed_add_col_bias(B, bias);
+    auto ref_post = ref_pre.relu();
+
+    // Fused single-kernel path
+    auto fused = A.matmul_transposed_add_col_bias_relu(B, bias);
+
+    ASSERT_EQ(fused.rows(), 4);
+    ASSERT_EQ(fused.cols(), 6);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            EXPECT_NEAR(fused.at(r, c), ref_post.at(r, c), 1e-5f)
+                << "mismatch at (" << r << "," << c << ")";
+}
+
+TEST(OpenCLFusedKernelTest, MatmulBiasLeakyReluMatchesTwoKernels)
+{
+    const float alpha = 0.1f;
+    nn::OpenCLTensorBackend A(4, 8);
+    nn::OpenCLTensorBackend B(6, 8);
+    nn::OpenCLTensorBackend bias(6, 1);
+    fill_fused_test_tensors(A, B, bias);
+
+    // Reference: unfused two-kernel path
+    auto ref_pre  = A.matmul_transposed_add_col_bias(B, bias);
+    auto ref_post = ref_pre.leaky_relu(alpha);
+
+    // Fused single-kernel path
+    auto fused = A.matmul_transposed_add_col_bias_leaky_relu(B, bias, alpha);
+
+    ASSERT_EQ(fused.rows(), 4);
+    ASSERT_EQ(fused.cols(), 6);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            EXPECT_NEAR(fused.at(r, c), ref_post.at(r, c), 1e-5f)
+                << "mismatch at (" << r << "," << c << ")";
+}
+
+// ---------------------------------------------------------------------------
+// Benchmark: wall-clock timing of unfused vs fused for a layer-realistic size.
+// Sizes: batch=32, in=256, out=64 (typical dense layer in experiment04 SNN).
+// 10 warmup + 100 timed iterations; reports mean µs via test output.
+// This is an informational test — it never fails.
+// ---------------------------------------------------------------------------
+
+TEST(OpenCLFusedKernelTest, MatmulBiasSigmoidMatchesCpuRef)
+{
+    nn::OpenCLTensorBackend A(4, 8);
+    nn::OpenCLTensorBackend B(6, 8);
+    nn::OpenCLTensorBackend bias(6, 1);
+    fill_fused_test_tensors(A, B, bias);
+
+    // Reference: unfused matmul+bias, then CPU sigmoid
+    auto pre = A.matmul_transposed_add_col_bias(B, bias);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            pre.at(r, c) = 1.0f / (1.0f + std::exp(-pre.at(r, c)));
+
+    auto fused = A.matmul_transposed_add_col_bias_sigmoid(B, bias);
+
+    ASSERT_EQ(fused.rows(), 4);
+    ASSERT_EQ(fused.cols(), 6);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            EXPECT_NEAR(fused.at(r, c), pre.at(r, c), 1e-5f)
+                << "mismatch at (" << r << "," << c << ")";
+}
+
+TEST(OpenCLFusedKernelTest, MatmulBiasTanhMatchesCpuRef)
+{
+    nn::OpenCLTensorBackend A(4, 8);
+    nn::OpenCLTensorBackend B(6, 8);
+    nn::OpenCLTensorBackend bias(6, 1);
+    fill_fused_test_tensors(A, B, bias);
+
+    // Reference: unfused matmul+bias, then CPU tanh
+    auto pre = A.matmul_transposed_add_col_bias(B, bias);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            pre.at(r, c) = std::tanh(pre.at(r, c));
+
+    auto fused = A.matmul_transposed_add_col_bias_tanh(B, bias);
+
+    ASSERT_EQ(fused.rows(), 4);
+    ASSERT_EQ(fused.cols(), 6);
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 6; ++c)
+            EXPECT_NEAR(fused.at(r, c), pre.at(r, c), 1e-5f)
+                << "mismatch at (" << r << "," << c << ")";
+}
+
+TEST(OpenCLFusedKernelTest, BenchmarkFusedVsUnfused)
+{
+    const int M = 32, K = 256, N = 64;
+
+    nn::OpenCLTensorBackend A(M, K);
+    nn::OpenCLTensorBackend W(N, K);
+    nn::OpenCLTensorBackend bias(N, 1);
+
+    for (int r = 0; r < M; ++r)
+        for (int c = 0; c < K; ++c)
+            A.at(r, c) = static_cast<float>(r * K + c) / (M * K);
+
+    for (int r = 0; r < N; ++r)
+    {
+        for (int c = 0; c < K; ++c)
+            W.at(r, c) = static_cast<float>(r * K + c) / (N * K);
+        bias.at(r, 0) = static_cast<float>(r) / N;
+    }
+
+    const int warmup = 10;
+    const int iters  = 100;
+
+    // Warmup
+    for (int i = 0; i < warmup; ++i)
+    {
+        auto t1 = A.matmul_transposed_add_col_bias(W, bias).relu();
+        (void) t1;
+    }
+
+    // Time unfused (matmul_bias + relu)
+    auto t0_unfused = std::chrono::steady_clock::now();
+    for (int i = 0; i < iters; ++i)
+    {
+        auto t1 = A.matmul_transposed_add_col_bias(W, bias).relu();
+        (void) t1;
+    }
+    auto t1_unfused = std::chrono::steady_clock::now();
+    const double unfused_us =
+        std::chrono::duration<double, std::micro>(t1_unfused - t0_unfused).count() / iters;
+
+    // Warmup fused
+    for (int i = 0; i < warmup; ++i)
+    {
+        auto t1 = A.matmul_transposed_add_col_bias_relu(W, bias);
+        (void) t1;
+    }
+
+    // Time fused
+    auto t0_fused = std::chrono::steady_clock::now();
+    for (int i = 0; i < iters; ++i)
+    {
+        auto t1 = A.matmul_transposed_add_col_bias_relu(W, bias);
+        (void) t1;
+    }
+    auto t1_fused = std::chrono::steady_clock::now();
+    const double fused_us =
+        std::chrono::duration<double, std::micro>(t1_fused - t0_fused).count() / iters;
+
+    std::cout << "[BENCH] matmul+bias+relu  unfused: " << unfused_us << " µs/iter\n";
+    std::cout << "[BENCH] matmul+bias+relu   fused: " <<  fused_us   << " µs/iter\n";
+    if (fused_us < unfused_us)
+        std::cout << "[BENCH] speedup: " << unfused_us / fused_us << "×\n";
+    else
+        std::cout << "[BENCH] fused was slower (kernel launch overhead dominates at this size)\n";
+
+    // Test never fails — it is informational only
+    SUCCEED();
+}

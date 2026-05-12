@@ -197,26 +197,28 @@ void OpenCLContext::flush() const
     }
 }
 
-// Static batch mode control
-bool OpenCLContext::s_batching = false;
+// Reference-counted batch depth. Incremented by begin_batch(), decremented by end_batch().
+// clFinish fires only when depth returns to 0, so nested BatchScopes from individual
+// layers are absorbed by an enclosing network-level scope without extra syncs.
+int OpenCLContext::s_batch_depth = 0;
 
 void OpenCLContext::begin_batch()
 {
-    s_batching = true;
+    ++s_batch_depth;
 }
 
 void OpenCLContext::end_batch()
 {
-    if (s_batching)
+    if (s_batch_depth <= 0) return;
+    if (--s_batch_depth == 0)
     {
         OpenCLContext::instance().flush();
-        s_batching = false;
     }
 }
 
 bool OpenCLContext::is_batching()
 {
-    return s_batching;
+    return s_batch_depth > 0;
 }
 
 } // namespace nn::opencl

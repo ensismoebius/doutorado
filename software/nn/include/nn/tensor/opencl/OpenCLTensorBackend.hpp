@@ -204,6 +204,14 @@ class OpenCLTensorBackend
     OpenCLTensorBackend matmul_transposed(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend matmul_transposed_add_col_bias(
         const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
+    OpenCLTensorBackend matmul_transposed_add_col_bias_relu(
+        const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
+    OpenCLTensorBackend matmul_transposed_add_col_bias_leaky_relu(
+        const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias, float alpha) const;
+    OpenCLTensorBackend matmul_transposed_add_col_bias_sigmoid(
+        const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
+    OpenCLTensorBackend matmul_transposed_add_col_bias_tanh(
+        const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const;
     OpenCLTensorBackend transpose() const;
     OpenCLTensorBackend block(Index row, Index col, Index rows, Index cols) const;
 
