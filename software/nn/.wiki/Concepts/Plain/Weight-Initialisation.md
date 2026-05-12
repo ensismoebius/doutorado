@@ -66,7 +66,7 @@ scale = sqrt(2 / fan_in)
 
 The factor of 2 compensates for the halving effect of ReLU.
 
-For spiking neurons (LIF/Leaky), which also have a non-linear threshold and reset, the formula is adapted to account for the leak rate.
+For spiking neurons (LIF/Lif), which also have a non-linear threshold and reset, the formula is adapted to account for the leak rate.
 
 ---
 

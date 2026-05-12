@@ -19,7 +19,7 @@ Catch silent backward pass failures: shape mismatches, stale caches, and NaN/Inf
 ## Key Files to Audit
 
 - [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — `last_targets` cache vs batch size
-- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
+- [include/layers/spiking/LifBPTT.hpp](include/layers/spiking/LifBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
 - [include/layers/activations/LeakyReLU.hpp](include/layers/activations/LeakyReLU.hpp) — gradient mask shape
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — `clip_grad_norm` call site
 

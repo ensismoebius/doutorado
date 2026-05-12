@@ -109,15 +109,15 @@ public:
 };
 ```
 
-### Single-Step Spiking Neuron (LeakyImpl)
+### Single-Step Spiking Neuron (LifImpl)
 
-`LeakyImpl` keeps persistent membrane state across sequential `forward()` calls.
+`LifImpl` keeps persistent membrane state across sequential `forward()` calls.
 It is used in single-step pipelines where the caller advances the simulation manually.
 
 ```cpp
-// File: include/layers/spiking/Leaky.hpp
+// File: include/layers/spiking/Lif.hpp
 template <typename Backend>
-struct LeakyImpl : public Module<Backend>
+struct LifImpl : public Module<Backend>
 {
     float time_step = 1.0F;
     Tensor resistance;       // trainable: 1×1
@@ -131,7 +131,7 @@ struct LeakyImpl : public Module<Backend>
     Tensor adapt_a;               // adaptation variable (B×F)
 
     // Construction: all parameters have defaults; adaptation is off by default.
-    explicit LeakyImpl(float time_step_ = 1.0F,
+    explicit LifImpl(float time_step_ = 1.0F,
         float resistance_ = 1.0F, float capacitance_ = 1.0F,
         float voltage_threshold_ = 1.0F,
         bool reset_zero_ = true, float reset_potential_ = 0.0F,
@@ -151,15 +151,15 @@ Key forward mechanics:
 - `adapt_a` decays by `adapt_decay` each step; increments by `adapt_coupling` on spike
 - `reset_state()` clears both `v_mem` and `adapt_a`
 
-### BPTT Spiking Neuron (LeakyBPTTImpl)
+### BPTT Spiking Neuron (LifBPTTImpl)
 
-`LeakyBPTTImpl` unrolls the full time sequence in a single `forward()` call and
+`LifBPTTImpl` unrolls the full time sequence in a single `forward()` call and
 computes exact BPTT gradients through the recurrence.  Input shape: `(T*B, F)`.
 
 ```cpp
-// File: include/layers/spiking/LeakyBPTT.hpp
+// File: include/layers/spiking/LifBPTT.hpp
 template <typename Backend>
-struct LeakyBPTTImpl : public Module<Backend>
+struct LifBPTTImpl : public Module<Backend>
 {
     int time_steps;          // T
     float time_step = 1.0F;  // Δt
@@ -174,7 +174,7 @@ struct LeakyBPTTImpl : public Module<Backend>
     float adapt_coupling = 0.0F;
     Tensor adapt_a_bptt_;  // persistent across forward() calls (B×F)
 
-    explicit LeakyBPTTImpl(int time_steps_,
+    explicit LifBPTTImpl(int time_steps_,
         float time_step_ = 1.0F,
         float resistance_ = 1.0F, float capacitance_ = 1.0F,
         float voltage_threshold_ = 1.0F,
@@ -212,11 +212,11 @@ public:
 };
 ```
 
-Usage — insert between `Linear` and `LeakyBPTT` in deep SNN encoders:
+Usage — insert between `Linear` and `LifBPTT` in deep SNN encoders:
 ```cpp
 Linear<Backend>    fc(128, 64);
 ThresholdDependentBatchNormImpl<Backend> tdbn(64, /*vth=*/1.0f, /*T=*/10);
-LeakyBPTTImpl<Backend> lif(/*time_steps=*/10, ...);
+LifBPTTImpl<Backend> lif(/*time_steps=*/10, ...);
 
 auto h = fc.forward(input, true);
 h = tdbn.forward(h, true);          // normalise + threshold-dependent scale
@@ -302,7 +302,7 @@ flowchart TB
 
 3. **Adaptation without decay**: Setting `adapt_coupling > 0` with `adapt_decay = 1.0` causes the threshold to grow without bound.
 
-4. **BPTT vs single-step**: Use `LeakyBPTTImpl` when you need exact parameter gradients for R/C/V_th.  Use `LeakyImpl` for shallow/feed-forward pipelines where BPTT is approximated externally.
+4. **BPTT vs single-step**: Use `LifBPTTImpl` when you need exact parameter gradients for R/C/V_th.  Use `LifImpl` for shallow/feed-forward pipelines where BPTT is approximated externally.
 
 5. **Loss–encoding mismatch**: Rate-coded outputs require `SpikeCountLoss`; latency-coded outputs require `SpikeTimeLoss`.  Mixing them reverses gradient sign for some neurons.
 

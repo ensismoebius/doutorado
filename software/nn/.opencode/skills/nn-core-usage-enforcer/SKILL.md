@@ -13,7 +13,7 @@ Rules
   DO: Use existing `Tensor`, `Layer`, `Sequential`, and core modules.
   AVOID: Reimplementing core abstractions.
 - RULE: LAYER_REUSE
-  DO: Reuse existing layers (`Linear`, `ReLU`, `Leaky*`) before adding new ones.
+  DO: Reuse existing layers (`Linear`, `ReLU`, `Lif*`) before adding new ones.
   AVOID: Duplicate forward/backward logic.
 - RULE: API_COMPAT
   DO: Preserve core API semantics unless migration is explicitly requested.

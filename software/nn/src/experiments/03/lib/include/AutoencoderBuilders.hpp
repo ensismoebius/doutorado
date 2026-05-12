@@ -30,8 +30,8 @@
 namespace experiment03::autoencoders
 {
 
-using nn::Leaky;
-using nn::LeakyIntegrator;
+using nn::Lif;
+using nn::LifIntegrator;
 using nn::LeakyReLU;
 using nn::Linear;
 using nn::ReLU;
@@ -293,13 +293,13 @@ inline void append_snn_activation(
 {
     if (activation_type == "leaky")
     {
-        seq.add_module(std::make_shared<Leaky>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        seq.add_module(std::make_shared<Lif>(cfg.time_step, cfg.resistance, cfg.capacitance));
         return;
     }
     if (activation_type == "leaky_integrator")
     {
         seq.add_module(
-            std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
+            std::make_shared<LifIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
         return;
     }
     if (activation_type == "identity")
@@ -677,11 +677,11 @@ inline void append_snn_stage(Sequential& seq,
     seq.add_module(linear);
     if (readout)
     {
-        seq.add_module(std::make_shared<LeakyIntegrator>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifIntegrator>(time_step, resistance, capacitance));
     }
     else
     {
-        seq.add_module(std::make_shared<Leaky>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<Lif>(time_step, resistance, capacitance));
     }
 }
 
@@ -699,11 +699,11 @@ inline void append_snn_stage(const AutoencoderConfig& cfg,
     seq.add_module(linear);
     if (readout)
     {
-        seq.add_module(std::make_shared<LeakyIntegrator>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<LifIntegrator>(time_step, resistance, capacitance));
     }
     else
     {
-        seq.add_module(std::make_shared<Leaky>(time_step, resistance, capacitance));
+        seq.add_module(std::make_shared<Lif>(time_step, resistance, capacitance));
     }
 }
 
@@ -815,7 +815,7 @@ inline auto build_snn_decoder(const AutoencoderConfig& cfg, int output_size, int
     kaimingSNNInitializer(output_linear, cfg.initializer_seed, cfg.initializer_sampler_type);
     decoder.add_module(output_linear);
     decoder.add_module(
-        std::make_shared<LeakyIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        std::make_shared<LifIntegrator>(cfg.time_step, cfg.resistance, cfg.capacitance));
     return decoder;
 }
 

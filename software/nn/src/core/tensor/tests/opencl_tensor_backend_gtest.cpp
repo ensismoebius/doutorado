@@ -7,7 +7,7 @@
 
 #include <cmath>
 
-#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/Lif.hpp"
 #include "tensor/opencl/OpenCLContext.hpp"
 #include "tensor/opencl/OpenCLProfiling.hpp"
 #include "tensor/opencl/OpenCLTensorBackend.hpp"
@@ -496,7 +496,7 @@ TEST(OpenCLTensorBackendTest, LifGradHelperCorrectness)
 TEST(OpenCLTensorBackendTest, LeakyLayerForwardParityOnOpenCLBackend)
 {
     using OpenCLTensor = nn::TensorImpl<nn::OpenCLTensorBackend>;
-    ::LeakyImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
+    ::LifImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,
@@ -531,7 +531,7 @@ TEST(OpenCLTensorBackendTest, LeakyLayerForwardParityOnOpenCLBackend)
 TEST(OpenCLTensorBackendTest, LeakyLayerBackwardExponentialSurrogateOnOpenCLBackend)
 {
     using OpenCLTensor = nn::TensorImpl<nn::OpenCLTensorBackend>;
-    ::LeakyImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
+    ::LifImpl<nn::OpenCLTensorBackend> leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,

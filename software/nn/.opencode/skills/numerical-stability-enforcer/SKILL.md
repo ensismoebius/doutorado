@@ -20,8 +20,8 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 
 - [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — numeric-stable softmax, epsilon guards
 - [include/layers/losses/MSELoss.hpp](include/layers/losses/MSELoss.hpp) — NaN/Inf clipping
-- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
-- [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — per-step parameter clamping
+- [include/layers/spiking/LifBPTT.hpp](include/layers/spiking/LifBPTT.hpp) — R/C membrane clamping
+- [include/layers/spiking/Lif.hpp](include/layers/spiking/Lif.hpp) — per-step parameter clamping
 - [src/core/linear_algebra/linear_algebra.cpp](src/core/linear_algebra/linear_algebra.cpp) — raw numerical ops
 
 ## Audit Format

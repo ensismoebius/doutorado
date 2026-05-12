@@ -128,7 +128,7 @@ Accessible explanations without heavy math — good starting point before readin
     Linear backward `dL/dW` on GPU.
 - See details in [Core/Tensor](./Core/Tensor.md) and benchmark evidence in
     [results/opencl_lhs_transposed_benchmark_2026-05-02.md](../results/opencl_lhs_transposed_benchmark_2026-05-02.md).
-- OpenCL SNN integration now includes Leaky layer forward/backward tests running
+- OpenCL SNN integration now includes Lif layer forward/backward tests running
     against `OpenCLTensorBackend`, plus a stability fix for default-constructed
     OpenCL tensor host storage.
 - See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
@@ -166,7 +166,7 @@ Query from agent:
 ```
 /graphify query "tensor operations"
 /graphify path "Tensor" "Optimizer"
-/graphify explain "Leaky"
+/graphify explain "Lif"
 ```
 
 ## License

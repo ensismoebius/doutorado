@@ -1,5 +1,5 @@
-#ifndef LEAKY_BPTT_HPP
-#define LEAKY_BPTT_HPP
+#ifndef LIF_BPTT_HPP
+#define LIF_BPTT_HPP
 
 #include <algorithm>
 #include <cmath>
@@ -11,8 +11,8 @@
 #include "tensor/Tensor.hpp"
 
 /**
- * @file LeakyBPTT.hpp
- * @brief LIF/Leaky Integrate-and-Fire dynamics with a full (explicit) BPTT-style backward.
+ * @file LifBPTT.hpp
+ * @brief LIF/Lif Integrate-and-Fire dynamics with a full (explicit) BPTT-style backward.
  *
  * Design intent (snnTorch mental model):
  * - This is similar to snnTorch's leaky neuron module that is unrolled over time.
@@ -52,14 +52,14 @@
  *    (grad_v_pre = grad_out + grad_from_next * beta), preventing cross-contamination
  *    from the spiking branch. */
 /**
- * @brief Leaky Integrate-and-Fire (LIF) layer with Full Backpropagation Through Time (BPTT).
+ * @brief Lif Integrate-and-Fire (LIF) layer with Full Backpropagation Through Time (BPTT).
  *
  * This module expects a flattened time-series input of shape (Time * Batch, Features).
  * It unrolls the simulation over `time_steps`, maintaining state across the sequence,
  * and computes accurate gradients through time during the backward pass.
  */
 template <typename Backend>
-struct LeakyBPTTImpl : public Module<Backend>
+struct LifBPTTImpl : public Module<Backend>
 {
    public:
     /// Tensor type for the active compute backend.
@@ -93,7 +93,7 @@ struct LeakyBPTTImpl : public Module<Backend>
         false; ///< If true, outputs membrane potential instead of spikes (Regression)
     float reset_potential = 0.0F;
 
-    // Spike-frequency adaptation (same semantics as LeakyImpl)
+    // Spike-frequency adaptation (same semantics as LifImpl)
     // effective threshold = voltage_threshold + adapt_a[b,f]
     // adapt_a decays each step by adapt_decay, rises by adapt_coupling on each spike.
     float adapt_decay = 0.9F;
@@ -108,7 +108,7 @@ struct LeakyBPTTImpl : public Module<Backend>
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
     }
 
-    explicit LeakyBPTTImpl(int time_steps_,
+    explicit LifBPTTImpl(int time_steps_,
         float time_step_ = 1.0F,
         float resistance_ = 1.0F,
         float capacitance_ = 1.0F,
@@ -144,7 +144,7 @@ struct LeakyBPTTImpl : public Module<Backend>
         int total_rows = input.rows();
         if (total_rows % time_steps != 0)
         {
-            throw std::invalid_argument("LeakyBPTT: Input rows must be divisible by time_steps");
+            throw std::invalid_argument("LifBPTT: Input rows must be divisible by time_steps");
         }
         int batch_size = total_rows / time_steps;
         int features = input.cols();
@@ -374,4 +374,4 @@ struct LeakyBPTTImpl : public Module<Backend>
     }
 };
 
-#endif // LEAKY_BPTT_HPP
+#endif // LIF_BPTT_HPP

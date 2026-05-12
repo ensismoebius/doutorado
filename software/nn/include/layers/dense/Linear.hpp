@@ -15,7 +15,7 @@
  *
  * How it fits in the system:
  * - Linear layers implement the learnable synaptic connections.
- * - Spiking layers (`LeakyBPTT`, `Leaky`, etc.) provide the nonlinearity and temporal dynamics.
+ * - Spiking layers (`LifBPTT`, `Lif`, etc.) provide the nonlinearity and temporal dynamics.
  * - Most networks in this repo alternate: Linear → (spiking/nonlinear) → Linear → ...
  *
  * Shape convention used here:

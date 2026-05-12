@@ -1,7 +1,7 @@
 {
     "_profile_name": "article-snn-recurrent",
     "_network_type": "SNN autoencoder, recurrent LIF input transform",
-    "_architecture_summary": "Same network as article-snn-dense (Linear+Leaky x2 encoder, Linear+Leaky -> Linear+LeakyIntegrator decoder). Mode 'recurrent' applies a stand-alone LIF integration to the encoded input BEFORE the SNN: v[t] = alpha v[t-1] + x[t] - s[t-1] V_th, s[t] = 1[v[t] >= V_th]. Not a learned LSNN layer; no adaptive threshold.",
+    "_architecture_summary": "Same network as article-snn-dense (Linear+Lif x2 encoder, Linear+Lif -> Linear+LifIntegrator decoder). Mode 'recurrent' applies a stand-alone LIF integration to the encoded input BEFORE the SNN: v[t] = alpha v[t-1] + x[t] - s[t-1] V_th, s[t] = 1[v[t] >= V_th]. Not a learned LSNN layer; no adaptive threshold.",
     "_loss_function": "MSE reconstruction loss",
     "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score per window. Encoding then LIF integration (mode='recurrent') with the swept (V_th, alpha).",
     "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats.",

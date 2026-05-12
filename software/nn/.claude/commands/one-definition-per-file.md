@@ -9,7 +9,7 @@ Keep the codebase modular: each type in its own file. Improves build parallelism
 ## Project Context (nn framework)
 
 **Reference layout** (one class per file, followed correctly):
-- `include/layers/spiking/` — one LIF variant per file: `Leaky.hpp`, `LeakyBPTT.hpp`, `ThresholdDependentBatchNorm.hpp`, `PoissonLatentLayer.hpp`
+- `include/layers/spiking/` — one LIF variant per file: `Lif.hpp`, `LifBPTT.hpp`, `ThresholdDependentBatchNorm.hpp`, `PoissonLatentLayer.hpp`
 - `include/layers/activations/` — one activation per file: `ReLU.hpp`, `Sigmoid.hpp`, `Tanh.hpp`
 - `include/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` — one surrogate per file
 

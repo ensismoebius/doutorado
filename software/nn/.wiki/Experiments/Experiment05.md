@@ -68,7 +68,7 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 **LSTM-AE**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs the frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
-**SNN-AE**: deep spiking autoencoder. `LeakyBPTTImpl` layers in encoder and decoder. Latent vector = mean spike rate over time window. Surrogate gradient (exponential) enables end-to-end training. Lower energy footprint than LSTM-AE. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md).
+**SNN-AE**: deep spiking autoencoder. `LifBPTTImpl` layers in encoder and decoder. Latent vector = mean spike rate over time window. Surrogate gradient (exponential) enables end-to-end training. Lower energy footprint than LSTM-AE. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md).
 
 Both autoencoders are trained in an unsupervised manner — no speaker labels used. The learned latent representations then feed the paraconsistent ranking and subsequently the classifier.
 
@@ -81,7 +81,7 @@ $$\text{out} = F(x) + x$$
 
 where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss.
 
-**DSNN**: deep spiking network classifier. Multiple `LeakyBPTT` + `ThresholdDependentBatchNorm` stages. Output: spike-count per class, decoded by `SpikeCountLoss`. Naturally sparse and energy-efficient at inference. See [Layers](../Core/Layers.md).
+**DSNN**: deep spiking network classifier. Multiple `LifBPTT` + `ThresholdDependentBatchNorm` stages. Output: spike-count per class, decoded by `SpikeCountLoss`. Naturally sparse and energy-efficient at inference. See [Layers](../Core/Layers.md).
 
 ### Text-Dependent vs Text-Independent Evaluation
 

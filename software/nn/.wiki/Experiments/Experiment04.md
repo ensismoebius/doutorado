@@ -177,7 +177,7 @@ The most common layer used in Experiment04.
 - **Activation**: Optional.
     - **ANN Mode**: `relu`, `leaky_relu`, `identity`.
     - **SNN Mode**: `leaky` (LIF), `leaky_integrator`, `identity`.
-- **Example**: `linear:64:leaky` $\rightarrow$ A linear layer with 64 units and a Leaky ReLU/LIF activation.
+- **Example**: `linear:64:leaky` $\rightarrow$ A linear layer with 64 units and a LeakyReLU/LIF activation.
 
 #### 2. Convolutional, Pooling, Residual (ANN mode only)
 - **Conv1D**: `conv1d:<out_channels>:<kernel_size>[:<stride>[:<activation>]]`
@@ -204,7 +204,7 @@ These are **not** different network architectures — they are signal conditioni
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 
 **Example Encoder**: `["linear:128:leaky", "residual:2", "linear:32:identity"]`
-1. Linear(input $\rightarrow$ 128) $\rightarrow$ Leaky ReLU
+1. Linear(input $\rightarrow$ 128) $\rightarrow$ Lif ReLU
 2. 2x Residual Blocks (128 $\rightarrow$ 128)
 3. Linear(128 $\rightarrow$ 32) $\rightarrow$ Identity (Latent Bottleneck)
 

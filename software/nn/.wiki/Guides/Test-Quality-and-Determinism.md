@@ -34,7 +34,7 @@ Top hotspot files from the latest scan:
 4. `src/experiments/04/tests/ComparativeExperiment_gtest.cpp` (23)
 5. `src/core/optimizers/tests/optimizers_gtest.cpp` (22)
 
-### OpenCL Leaky Integration Coverage Snapshot (2026-05-10)
+### OpenCL Lif Integration Coverage Snapshot (2026-05-10)
 
 Coverage was collected from an instrumented build (`NN_ENABLE_COVERAGE=ON`) after running:
 
@@ -42,7 +42,7 @@ Coverage was collected from an instrumented build (`NN_ENABLE_COVERAGE=ON`) afte
 
 Focused `lcov --extract` results for recently modified files:
 
-1. `include/layers/spiking/Leaky.hpp`
+1. `include/layers/spiking/Lif.hpp`
 - Line coverage: 56.5% (124 lines)
 - Function coverage: 42.9% (7 functions)
 

@@ -32,9 +32,9 @@
 #include "layers/residual/ResNetBlock.hpp"
 #include "layers/residual/ResidualBlock.hpp"
 #include "layers/residual/SimpleResNet.hpp"
-#include "layers/spiking/Leaky.hpp"
-#include "layers/spiking/LeakyBPTT.hpp"
-#include "layers/spiking/LeakyIntegrator.hpp"
+#include "layers/spiking/Lif.hpp"
+#include "layers/spiking/LifBPTT.hpp"
+#include "layers/spiking/LifIntegrator.hpp"
 #include "layers/spiking/PoissonLatentLayer.hpp"
 #include "layers/spiking/ThresholdDependentBatchNorm.hpp"
 #include "tensor/Tensor.hpp"
@@ -1353,7 +1353,7 @@ TEST(LSTMGateTest, BiasGradExact)
 TEST(LeakyTest, VthreshGradExact)
 {
     // Two-step deterministic setup: warm-up to create nonzero v(t-1), then spike.
-    LeakyImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
+    LifImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
     Tensor x_warm(1, 1);
     x_warm.at(0, 0) = 0.3f;
     layer.forward(x_warm, false);
@@ -1375,7 +1375,7 @@ TEST(LeakyTest, AllParamsGradExact)
 {
     // For one feature: dVth=-surr, dR=dC=(surr*v_prev)*d_beta_d{R,C}, with
     // d_beta_dR=d_beta_dC=exp(-1).
-    LeakyImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
+    LifImpl<Backend> layer(1.0f, 1.0f, 1.0f, 0.5f);
     Tensor x_warm(1, 1);
     x_warm.at(0, 0) = 0.3f;
     layer.forward(x_warm, false);
@@ -1400,13 +1400,13 @@ TEST(LeakyTest, AllParamsGradExact)
 }
 
 // ===========================================================================
-// LeakyBPTTTest additions — training loop verification
+// LifBPTTTest additions — training loop verification
 // ===========================================================================
 
-TEST(LeakyBPTTTest, AllParamsGradExact)
+TEST(LifBPTTTest, AllParamsGradExact)
 {
     // T=2, B=1, F=1 deterministic sequence.
-    LeakyBPTTImpl<Backend> layer(2, 1.0f, 1.0f, 1.0f, 0.5f);
+    LifBPTTImpl<Backend> layer(2, 1.0f, 1.0f, 1.0f, 0.5f);
     Tensor x(2, 1);
     x.at(0, 0) = 0.3f;
     x.at(1, 0) = 3.0f;
@@ -1420,7 +1420,7 @@ TEST(LeakyBPTTTest, AllParamsGradExact)
     const float surr0 = std::exp(-std::abs(v0_pre - 0.5f));
     const float surr1 = std::exp(-std::abs(v1_pre - 0.5f));
 
-    // Derived from current LeakyBPTT backward equations for reset_zero=true.
+    // Derived from current LifBPTT backward equations for reset_zero=true.
     const float expected_dVth = -surr1 - surr0 + (surr1 * beta * (surr0 * (v0_pre - 0.0f)));
     const float expected_dR = surr1 * 0.3f * beta;
     const float expected_dC = surr1 * 0.3f * beta;
@@ -1431,16 +1431,16 @@ TEST(LeakyBPTTTest, AllParamsGradExact)
 }
 
 // ===========================================================================
-// LeakyIntegratorTest — known-value forward + V_th grad zero + RC training loop
+// LifIntegratorTest — known-value forward + V_th grad zero + RC training loop
 // ===========================================================================
 
-TEST(LeakyIntegratorTest, KnownValueForward)
+TEST(LifIntegratorTest, KnownValueForward)
 {
     // V[t] = beta * V[t-1] + input[t], beta = exp(-dt/(R*C)).
     // dt=1, R=1, C=1 → beta = exp(-1).
     // Step 1 from zero: V[0] = exp(-1)*0 + 2 = 2.
     // Step 2 same input: V[1] = exp(-1)*2 + 2.
-    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
+    LifIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
     Tensor x(1, 1);
     x.at(0, 0) = 2.0f;
 
@@ -1452,11 +1452,11 @@ TEST(LeakyIntegratorTest, KnownValueForward)
     EXPECT_NEAR(out2.at(0, 0), beta * 2.0f + 2.0f, 1e-4f);
 }
 
-TEST(LeakyIntegratorTest, VthreshGradAlwaysZero)
+TEST(LifIntegratorTest, VthreshGradAlwaysZero)
 {
-    // voltage_threshold is in params() (inherited from Leaky) but LeakyIntegrator
+    // voltage_threshold is in params() (inherited from Lif) but LifIntegrator
     // never uses it in forward/backward — its gradient must always be exactly zero.
-    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
+    LifIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
     Tensor x(1, 2);
     x.at(0, 0) = 1.0f;
     x.at(0, 1) = 2.0f;
@@ -1467,13 +1467,13 @@ TEST(LeakyIntegratorTest, VthreshGradAlwaysZero)
     layer.backward(go);
     // V_th gradient must be exactly 0 — no spike path, so surrogate is never evaluated
     EXPECT_EQ(layer.voltage_threshold.grad().at(0, 0), 0.0f)
-        << "LeakyIntegrator: V_th never used in forward/backward, gradient must be 0";
+        << "LifIntegrator: V_th never used in forward/backward, gradient must be 0";
 }
 
-TEST(LeakyIntegratorTest, RCParamsGradExact)
+TEST(LifIntegratorTest, RCParamsGradExact)
 {
     // Two-step deterministic protocol: warm-up to set v(t-1), then exact R/C gradients.
-    LeakyIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
+    LifIntegratorImpl<Backend> layer(1.0f, 1.0f, 1.0f);
 
     Tensor x_warm(1, 1);
     x_warm.at(0, 0) = 0.3f;

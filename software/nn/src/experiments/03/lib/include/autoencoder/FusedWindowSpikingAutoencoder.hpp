@@ -17,8 +17,8 @@
  * must equal `eeg_features + audio_features`.
  *
  * Architecture:
- *   Encoder: Linear(input → hidden) → Leaky → [×depth] → Linear(hidden → latent) → Leaky
- *   Decoder: Linear(latent → hidden) → LeakyIntegrator → [×depth] → Linear(hidden → input)
+ *   Encoder: Linear(input → hidden) → Lif → [×depth] → Linear(hidden → latent) → Lif
+ *   Decoder: Linear(latent → hidden) → LifIntegrator → [×depth] → Linear(hidden → input)
  */
 struct FusedWindowSpikingAutoencoder : Module<nn::Backend>
 {

@@ -100,14 +100,14 @@ Backward-path note (OpenCL):
 
 ### Spiking Neuron (Leaky Integrate-and-Fire)
 
-`LeakyImpl` keeps persistent membrane state across sequential `forward()` calls.
+`LifImpl` keeps persistent membrane state across sequential `forward()` calls.
 Trainable parameters: `resistance` (R), `capacitance` (C), `voltage_threshold` (V_th).
 Spike-frequency adaptation is available via `adapt_decay` / `adapt_coupling`.
 
 ```cpp
-// File: include/layers/spiking/Leaky.hpp
+// File: include/layers/spiking/Lif.hpp
 template <typename Backend>
-struct LeakyImpl : public Module<Backend>
+struct LifImpl : public Module<Backend>
 {
     float time_step = 1.0F;
     Tensor resistance, capacitance, voltage_threshold;  // trainable 1×1
@@ -122,12 +122,12 @@ struct LeakyImpl : public Module<Backend>
 };
 ```
 
-`LeakyBPTTImpl` unrolls the full sequence in one `forward(input (T*B,F))` call and
+`LifBPTTImpl` unrolls the full sequence in one `forward(input (T*B,F))` call and
 computes exact BPTT gradients for R, C, V_th including the recurrent reset path.
 See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) for full detail.
 
 OpenCL integration update (2026-05-10):
-- `LeakyImpl` now uses a backend-gated fast path when the active backend exposes
+- `LifImpl` now uses a backend-gated fast path when the active backend exposes
     fused helpers:
     - `lif_step_inplace(...)` for forward membrane update + spike generation
     - `lif_grad(...)` for exponential surrogate gradient in backward
@@ -161,7 +161,7 @@ public:
 };
 ```
 
-Insert between `Linear` and `LeakyBPTT` in deep SNN encoders:
+Insert between `Linear` and `LifBPTT` in deep SNN encoders:
 ```cpp
 ThresholdDependentBatchNormImpl<Backend> tdbn(64, /*vth=*/1.0f, /*T=*/10);
 auto h = tdbn.forward(fc.forward(input, true), true);

@@ -1,5 +1,5 @@
-#ifndef NN_LAYERS_LEAKY_HPP
-#define NN_LAYERS_LEAKY_HPP
+#ifndef NN_LAYERS_LIF_HPP
+#define NN_LAYERS_LIF_HPP
 
 #include <algorithm>
 #include <cmath>
@@ -16,11 +16,11 @@
 #endif
 
 /**
- * @file Leaky.hpp
- * @brief Leaky Integrate-and-Fire (LIF) layer.
+ * @file Lif.hpp
+ * @brief Lif Integrate-and-Fire (LIF) layer.
  *
  * This is the simplest (single-step) spiking neuron layer in the project.
- * Conceptually it matches snnTorch's `snn.Leaky` behavior: it keeps a persistent
+ * Conceptually it matches snnTorch's `snn.Lif` behavior: it keeps a persistent
  * membrane potential `v_mem` across calls to `forward()`, emits spikes when
  * crossing a threshold, and then resets.
  *
@@ -38,7 +38,7 @@
  */
 
 /**
- * @brief A layer of Leaky Integrate-and-Fire (LIF) neurons, a fundamental component for Spiking
+ * @brief A layer of Lif Integrate-and-Fire (LIF) neurons, a fundamental component for Spiking
  * Neural Networks (SNNs).
  *
  * This struct implements a layer of LIF neurons, which are a fundamental building
@@ -59,7 +59,7 @@
  *     All three are exposed via `params()` and receive gradient updates.
  */
 template <typename Backend>
-struct LeakyImpl : public Module<Backend>
+struct LifImpl : public Module<Backend>
 {
    public:
     /// Tensor type for the active compute backend.
@@ -167,7 +167,7 @@ struct LeakyImpl : public Module<Backend>
     }
 
     /**
-     * @brief Construct a new Leaky object
+     * @brief Construct a new Lif object
      *
      * @param time_step_ Time step
      * @param resistance_ Resistance
@@ -176,7 +176,7 @@ struct LeakyImpl : public Module<Backend>
      * @param reset_zero_ Whether to reset membrane potential to zero after spike
      * @param surrogate_grad The surrogate gradient implementation to use.
      */
-    explicit LeakyImpl(float time_step_ = 1.0F, // time step
+    explicit LifImpl(float time_step_ = 1.0F, // time step
         float resistance_ = 1.0F,               // resistance
         float capacitance_ = 1.0F,              // capacitance
         float voltage_threshold_ = 1.0F,        // voltage threshold
@@ -201,7 +201,7 @@ struct LeakyImpl : public Module<Backend>
     /**
      * @brief Simulates one time step of the neuron's dynamics.
      *
-     * This function performs the "Leaky", "Integrate", "Fire", and "Reset"
+     * This function performs the "Lif", "Integrate", "Fire", and "Reset"
      * steps for an entire layer of neurons in a vectorized manner. It follows the
      * discrete-time LIF neuron equation.
      * @param input The input current for this time step.
@@ -301,7 +301,7 @@ struct LeakyImpl : public Module<Backend>
             return output;
         }
 
-        // 1. Decay (Leaky): The membrane potential from the previous time step (`v_mem`)
+        // 1. Decay (Lif): The membrane potential from the previous time step (`v_mem`)
         // is decayed by a factor of `beta`. If there were no input, the potential
         // would exponentially decay toward its resting potential (0).
         v_mem = v_mem.multiply_scalar(beta);
@@ -385,7 +385,7 @@ struct LeakyImpl : public Module<Backend>
     } // 
 
     /**
-     * @brief Backward pass for Leaky neuron.
+     * @brief Backward pass for Lif neuron.
      *
      * The Problem: The derivative of the spike function in the forward pass is a
      * step function (zero almost everywhere, and infinite at the threshold). This
@@ -511,4 +511,4 @@ struct LeakyImpl : public Module<Backend>
     }
 };
 
-#endif // NN_LAYERS_LEAKY_HPP
+#endif // NN_LAYERS_LIF_HPP

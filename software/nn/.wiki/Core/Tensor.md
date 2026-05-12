@@ -149,13 +149,13 @@ The OpenCL backend and SNN layer integration were extended to validate LIF helpe
 Implementation points:
 - OpenCL backend default constructor now initializes empty host storage to avoid null host-state dereference during early shape checks.
     - `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
-- OpenCL tensor tests now include Leaky layer forward/backward integration cases instantiated on `OpenCLTensorBackend`.
+- OpenCL tensor tests now include Lif layer forward/backward integration cases instantiated on `OpenCLTensorBackend`.
     - `src/core/tensor/tests/opencl_tensor_backend_gtest.cpp`
 
 Observed behavior after the fix:
 - Direct helper tests (`lif_step_inplace`, `lif_grad`) pass.
-- Layer-level OpenCL tests for Leaky forward parity and exponential-surrogate backward also pass.
-- A previously reproducible segmentation fault in first-call Leaky forward is removed.
+- Layer-level OpenCL tests for Lif forward parity and exponential-surrogate backward also pass.
+- A previously reproducible segmentation fault in first-call Lif forward is removed.
 
 ## Common Pitfalls
 

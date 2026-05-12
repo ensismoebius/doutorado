@@ -18,7 +18,7 @@ using std::vector;
  * - Each element is a 2D tensor shaped (n_samples, input_dim) i.e. (B, F) for a single time slice.
  *
  * How demos typically consume this:
- * - Models like `LeakyBPTT` expect a flattened time-major matrix of shape (T*B, F).
+ * - Models like `LifBPTT` expect a flattened time-major matrix of shape (T*B, F).
  * - Common flattening: `flat(t * n_samples + b, f) = seq[t](b, f)`.
  *
  * Determinism note:
@@ -47,7 +47,7 @@ auto generate_autoencoder_spike_data(
  * - vectors of length `n_steps`
  * - each tensor is (n_samples, input_dim)
  *
- * For `LeakyBPTT` demos, you still typically flatten into a single (T*B, F) tensor.
+ * For `LifBPTT` demos, you still typically flatten into a single (T*B, F) tensor.
  * @brief Generates synthetic spike train data of ones.
  * @param n_samples Number of samples.
  * @param input_dim Number of input features.

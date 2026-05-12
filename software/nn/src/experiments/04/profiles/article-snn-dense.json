@@ -1,7 +1,7 @@
 {
     "_profile_name": "article-snn-dense",
     "_network_type": "SNN autoencoder, dense (identity) input pre-process",
-    "_architecture_summary": "Encoder: Linear(64)+Leaky -> Linear(32)+Identity -> latent z. Decoder: Linear(64)+Leaky -> Linear(256)+LeakyIntegrator -> reconstruction. Surrogate: exponential. R, C, V_th learnable; clamped 1e-6.",
+    "_architecture_summary": "Encoder: Linear(64)+Lif -> Linear(32)+Identity -> latent z. Decoder: Linear(64)+Lif -> Linear(256)+LifIntegrator -> reconstruction. Surrogate: exponential. R, C, V_th learnable; clamped 1e-6.",
     "_loss_function": "MSE reconstruction loss",
     "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score normalisation per window. Encodings swept: direct, Poisson, latency. Mode 'dense' applies no extra pre-process.",
     "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats (seeds 42,43,44).",

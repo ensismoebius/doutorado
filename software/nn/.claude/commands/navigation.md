@@ -13,8 +13,8 @@ Find the right file/symbol fast, with reproducible search steps.
 | What | Where |
 |---|---|
 | Module base | `include/layers/base/Module.hpp` |
-| LIF single-step | `include/layers/spiking/Leaky.hpp` |
-| LIF BPTT | `include/layers/spiking/LeakyBPTT.hpp` |
+| LIF single-step | `include/layers/spiking/Lif.hpp` |
+| LIF BPTT | `include/layers/spiking/LifBPTT.hpp` |
 | Trainer | `src/core/training/Trainer.hpp` |
 | Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
 | Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
@@ -22,7 +22,7 @@ Find the right file/symbol fast, with reproducible search steps.
 | OpenCL context | `include/tensor/opencl/OpenCLContext.hpp` |
 
 **SNN search anchors** — grep for these to find the relevant code:
-- `v_mem_history`, `spike_history` — membrane and spike recording in LeakyBPTT
+- `v_mem_history`, `spike_history` — membrane and spike recording in LifBPTT
 - `time_steps`, `surrogate_grad`, `readout_mode` — SNN config fields
 - `R_min`, `C_min` — biophysical parameter clamp sites
 

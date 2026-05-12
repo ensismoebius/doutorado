@@ -9,7 +9,7 @@ Minimize temporal overhead in spiking neural network pipelines.
 ## Project Context (nn framework)
 
 **Membrane buffer lifecycle** — correct pattern:
-- `v_mem_history` and `spike_history` pre-allocated in `LeakyBPTT::forward` **before** the time loop
+- `v_mem_history` and `spike_history` pre-allocated in `LifBPTT::forward` **before** the time loop
 - Re-allocation inside the loop = major regression; grep `v_mem_history` to verify
 
 **Experiment baselines** (AMD Renoir APU, 5-fold CV):

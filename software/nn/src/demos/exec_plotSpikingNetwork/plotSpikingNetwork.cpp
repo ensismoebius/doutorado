@@ -4,7 +4,7 @@
  *
  * This demo is meant for intuition-building:
  * - generate a Poisson-like spike input
- * - run a couple of `Leaky` neurons forward in time
+ * - run a couple of `Lif` neurons forward in time
  * - plot spike trains and membrane potentials
  */
 
@@ -17,7 +17,7 @@
 #include "imgui.h"
 #include "implot.h"
 #include "layers/Layers.hpp"
-#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/Lif.hpp"
 #include "utility/imgui_glfw.hpp"
 #include "utility/synthetic_spike_data.hpp"
 
@@ -32,7 +32,7 @@ using ImPlot::PlotScatter;
 using ImPlot::SetupAxes;
 
 using ImPlot::CreateContext;
-using nn::Leaky;
+using nn::Lif;
 using std::cerr;
 using std::to_string;
 using std::vector;
@@ -53,7 +53,7 @@ auto main() -> int
             generate_autoencoder_spike_data(1, 1, n_steps, max_rate, time_step);
 
         // Setup 1 hidden LIF neuron and 1 output neuron (LIF)
-        Leaky hidden_neuron(time_step,                   // dt
+        Lif hidden_neuron(time_step,                   // dt
             resistence,                                  // R
             capacitance,                                 // C
             v_threshold,                                 // reset to zero or subtract threshold
@@ -61,7 +61,7 @@ auto main() -> int
             0.0F,                                        // reset potential value
             std::make_shared<ExponentialSurrogate>(0.5F) // surrogate gradient
         );
-        Leaky output_neuron(time_step,                   // dt
+        Lif output_neuron(time_step,                   // dt
             resistence,                                  // R
             capacitance,                                 // C
             v_threshold,                                 // reset to zero or subtract threshold

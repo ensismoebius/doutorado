@@ -15,7 +15,7 @@
 #include "testing.hpp"
 
 using nn::Index;
-using nn::LeakyBPTT;
+using nn::LifBPTT;
 using nn::Linear;
 using nn::Sequential;
 using nn::Tensor;
@@ -55,15 +55,15 @@ auto lin(int in, int out) -> std::shared_ptr<ModuleXTensor>
     return make_shared<Linear>(in, out);
 };
 
-/** Create a LeakyBPTT layer */
+/** Create a LifBPTT layer */
 auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<ModuleXTensor>
 {
-    // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
+    // `LifBPTT` expects its input as a single matrix with shape (T*B, F)
     // (time-major flatten). This demo flattens the per-step tensors that way.
     //
     // In spiking mode it outputs spikes; in readout_mode it outputs the membrane value
     // (useful for continuous reconstruction at the final layer).
-    return make_shared<LeakyBPTT>( //
+    return make_shared<LifBPTT>( //
         cfg.num_steps,
         cfg.time_step,
         cfg.resistance,
@@ -76,7 +76,7 @@ auto leaky(const ModelConfig& cfg, bool readout = false) -> std::shared_ptr<Modu
 };
 
 // =============================================================================
-// Residual SNN Block: Linear -> Leaky -> Linear -> Leaky + skip connection
+// Residual SNN Block: Linear -> Lif -> Linear -> Lif + skip connection
 // =============================================================================
 struct ResidualSNNBlock : public ModuleXTensor
 {

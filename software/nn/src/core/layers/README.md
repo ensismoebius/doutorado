@@ -12,7 +12,7 @@ Layout
 	- `losses/`: objective layers (`MSELoss`, `MAELoss`, `CrossEntropyLoss`, `SpikeCountLoss`)
 	- `regularization/`: regularization helpers (`Regularization`)
 	- `residual/`: residual architecture blocks (`ResidualBlock`, `ResNetBlock`, `SimpleResNet`)
-	- `spiking/`: spiking neuron and surrogate-gradient layers (`Leaky`, `LeakyIntegrator`, `LeakyBPTT`, `SurrogateGradient`)
+	- `spiking/`: spiking neuron and surrogate-gradient layers (`Lif`, `LifIntegrator`, `LifBPTT`, `SurrogateGradient`)
 - Layer implementation TUs are organized by category under `src/core/layers/`:
 	- `convolution/Conv2d_impl.cpp`
 	- `convolution/Conv2d_utils.cpp`
@@ -31,8 +31,8 @@ Recent updates
 - `Linear::forward` now performs bias addition through a backend-level rowwise vectorized path instead of nested scalar loops.
 - `Conv2d` crash fixes: aligned Eigen/OpenMP compile definitions for the `layers` library with its test target using `configure_eigen_parallel_target(layers)` to prevent cross-target Eigen ABI mismatches that caused invalid frees in Conv2d tests.
 - `Conv2d::im2col_optimized` now writes via tensor accessors instead of manual raw-pointer indexing, reducing risk of storage-layout-dependent corruption.
-- SNN neuron safety: `Leaky` and `LeakyIntegrator` now evaluate decay using positive-clamped effective `R`/`C` values to keep `tau`/`beta` numerically stable when raw parameters approach non-positive regions.
-- `LeakyBPTT` updates: capacitance is now trainable and exposed in `params()`, and backward pass gradients were aligned with forward semantics (readout-mode recurrence consistency plus explicit threshold/reset-path contributions).
+- SNN neuron safety: `Lif` and `LifIntegrator` now evaluate decay using positive-clamped effective `R`/`C` values to keep `tau`/`beta` numerically stable when raw parameters approach non-positive regions.
+- `LifBPTT` updates: capacitance is now trainable and exposed in `params()`, and backward pass gradients were aligned with forward semantics (readout-mode recurrence consistency plus explicit threshold/reset-path contributions).
 - Surrogate gradient constructors now validate hyperparameters and reject non-positive `sharpness`/`window` values.
 
 Optimization techniques and references

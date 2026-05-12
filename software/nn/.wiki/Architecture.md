@@ -97,7 +97,7 @@ flowchart TB
 | Module | Purpose | Key Files |
 |--------|---------|------------|
 | `tensor/` | Tensor data structure and operations | `Tensor.hpp`, `XTensorBackend.hpp`, `OpenCLTensorBackend.cpp` |
-| `layers/` | Neural network layer implementations | `Linear.hpp`, `Conv2d.hpp`, `LeakyBPTT.hpp` |
+| `layers/` | Neural network layer implementations | `Linear.hpp`, `Conv2d.hpp`, `LifBPTT.hpp` |
 | `optimizers/` | Optimization algorithms | `Adam.hpp`, `SGD.hpp` |
 | `training/` | Training loop implementation | `Trainer.hpp`, `TrainerConfig.hpp` |
 | `initializers/` | Weight initialization | `xavier.hpp`, `kaiming_snn.hpp` |

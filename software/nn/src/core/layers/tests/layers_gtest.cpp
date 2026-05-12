@@ -10,13 +10,13 @@
 #include "core/utility/tests/test_helpers.hpp"
 #include "layers/Layers.hpp"
 #include "layers/convolution/Conv2d.hpp"
-#include "layers/spiking/Leaky.hpp"
-#include "layers/spiking/LeakyBPTT.hpp"
+#include "layers/spiking/Lif.hpp"
+#include "layers/spiking/LifBPTT.hpp"
 #include "tensor/Tensor.hpp"
 
 using nn::Conv2d;
-using nn::Leaky;
-using nn::LeakyIntegrator;
+using nn::Lif;
+using nn::LifIntegrator;
 using nn::LeakyReLU;
 using nn::Linear;
 using nn::MAELoss;
@@ -129,10 +129,10 @@ TEST(LinearLayerTest, ForwardSimple)
     ASSERT_FLOAT_EQ(out.at(0, 0), 9.0F);
 }
 
-// Teste para Leaky (LIF)
+// Teste para Lif (LIF)
 TEST(LeakyLayerTest, ForwardSpikeAndReset)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,
@@ -148,10 +148,10 @@ TEST(LeakyLayerTest, ForwardSpikeAndReset)
     ASSERT_FLOAT_EQ(leaky.v_mem.at(0, 0), 0.0F);
 }
 
-// Teste para Leaky sem reset para zero
+// Teste para Lif sem reset para zero
 TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,
@@ -169,7 +169,7 @@ TEST(LeakyLayerTest, ForwardSpikeNoResetZero)
 
 TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,
@@ -203,7 +203,7 @@ TEST(LeakyLayerTest, ForwardAnalyticParityAcrossSteps)
 
 TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/2.0F,
@@ -220,7 +220,7 @@ TEST(LeakyLayerTest, ParamsExposeTrainableCapacitance)
 
 TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/5.0F,
         /*C=*/1.0F,
         /*V_thresh=*/1.1F,
@@ -258,7 +258,7 @@ TEST(LeakyLayerTest, BackwardComputesCapacitanceGradient)
 
 TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/-2.0F,
         /*C=*/1.0F,
         /*V_thresh=*/100.0F,
@@ -283,7 +283,7 @@ TEST(LeakyLayerTest, NonPositiveResistanceUsesStableDecay)
 
 TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    Leaky leaky(/*dt=*/1.0F,
+    Lif leaky(/*dt=*/1.0F,
         /*R=*/-2.0F,
         /*C=*/-3.0F,
         /*V_thresh=*/100.0F,
@@ -307,9 +307,9 @@ TEST(LeakyLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
     EXPECT_NEAR(leaky.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
-TEST(LeakyIntegratorLayerTest, BackwardComputesCapacitanceGradient)
+TEST(LifIntegratorLayerTest, BackwardComputesCapacitanceGradient)
 {
-    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/2.0F, /*C=*/3.0F);
+    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/2.0F, /*C=*/3.0F);
 
     nn::Tensor first_input(1, 1);
     first_input.at(0, 0) = 2.0F;
@@ -337,9 +337,9 @@ TEST(LeakyIntegratorLayerTest, BackwardComputesCapacitanceGradient)
     EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
 }
 
-TEST(LeakyIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
+TEST(LifIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
 {
-    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/3.0F);
+    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/3.0F);
 
     nn::Tensor input(1, 1);
     input.at(0, 0) = 2.0F;
@@ -354,9 +354,9 @@ TEST(LeakyIntegratorLayerTest, NonPositiveResistanceUsesStableDecay)
     EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
-TEST(LeakyIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
+TEST(LifIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    LeakyIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/-3.0F);
+    LifIntegrator integrator(/*dt=*/1.0F, /*R=*/-2.0F, /*C=*/-3.0F);
 
     nn::Tensor first_input(1, 1);
     first_input.at(0, 0) = 2.0F;
@@ -374,9 +374,9 @@ TEST(LeakyIntegratorLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradient
     EXPECT_NEAR(integrator.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
-TEST(LeakyBPTTLayerTest, ParamsExposeTrainableCapacitance)
+TEST(LifBPTTLayerTest, ParamsExposeTrainableCapacitance)
 {
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -389,9 +389,9 @@ TEST(LeakyBPTTLayerTest, ParamsExposeTrainableCapacitance)
     EXPECT_EQ(parameters[2], &leaky_bptt.capacitance);
 }
 
-TEST(LeakyBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
+TEST(LifBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
 {
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -428,10 +428,10 @@ TEST(LeakyBPTTLayerTest, BackwardReadoutModeMatchesTemporalGradientRecurrence)
     EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), 0.0F, 1e-6F);
 }
 
-TEST(LeakyBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
+TEST(LifBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
 {
     // Large boxcar window keeps surrogate derivative at 1 over this test's voltage range.
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -467,9 +467,9 @@ TEST(LeakyBPTTLayerTest, BackwardSpikingModeUsesSurrogateAndTemporalRecurrence)
     EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), expected_dL_dC, 1e-6F);
 }
 
-TEST(LeakyBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
+TEST(LifBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
 {
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -492,9 +492,9 @@ TEST(LeakyBPTTLayerTest, ReadoutModeIgnoresThresholdEvenForSpikeLikeInputs)
     EXPECT_NEAR(leaky_bptt.voltage_threshold.grad().at(0, 0), 0.0F, 1e-6F);
 }
 
-TEST(LeakyBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
+TEST(LifBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
 {
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/-2.0F,
         /*capacitance=*/-3.0F,
@@ -521,7 +521,7 @@ TEST(LeakyBPTTLayerTest, ClampedNonPositiveParamsDoNotAccumulateRCGradients)
     EXPECT_NEAR(leaky_bptt.capacitance.grad().at(0, 0), 0.0F, 1e-7F);
 }
 
-TEST(LeakyBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
+TEST(LifBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
 {
     // Locks the soft-reset branch (reset_zero=false) threshold gradient against an analytic
     // derivation. This ensures the dvpost_dVth = (-spike + Vth*surr) term and the recurrent
@@ -543,7 +543,7 @@ TEST(LeakyBPTTLayerTest, SoftResetThresholdGradientMatchesAnalytic)
     // R/C gradients use v_post_history[0]=1.5:
     //   dL_dR = 1.5 * (beta/12)   [d_beta_dR = beta/(R^2*C) = beta/12]
     //   dL_dC = 1.5 * (beta/18)   [d_beta_dC = beta/(R*C^2) = beta/18]
-    LeakyBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
+    LifBPTTImpl<nn::Backend> leaky_bptt(/*time_steps=*/2,
         /*time_step=*/1.0F,
         /*resistance=*/2.0F,
         /*capacitance=*/3.0F,
@@ -1504,7 +1504,7 @@ TEST(LayerThreadSafetyTest, GradientAccumulation)
 // Additional Comprehensive Tests
 TEST(LayerComprehensiveTest, LeakyLayerStateManagement)
 {
-    Leaky leaky(1.0F, 5.0F, 1.0F, 2.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>());
+    Lif leaky(1.0F, 5.0F, 1.0F, 2.0F, true, 0.0F, std::make_shared<ExponentialSurrogate>());
 
     // Test state reset between forward passes
     nn::Tensor tensor1(1, 1);

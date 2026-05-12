@@ -10,10 +10,10 @@ Catch silent backward pass failures: shape mismatches, stale caches, and NaN/Inf
 
 **Layer cache patterns** — check these are populated before `backward()`:
 - `CrossEntropyLoss`: caches softmax output from `forward()`
-- `LeakyBPTT`: `spike_history` length must equal `time_steps`; `v_mem_history` same
+- `LifBPTT`: `spike_history` length must equal `time_steps`; `v_mem_history` same
 - `LinearImpl`: caches input tensor for weight gradient computation
 
-**Time-major grad invariant:** Gradient entering `LeakyBPTT::backward()` must be `(T*B, F)` — same shape as forward input. If BPTT history length ≠ `time_steps`, the off-by-one means backward reads past the allocated history.
+**Time-major grad invariant:** Gradient entering `LifBPTT::backward()` must be `(T*B, F)` — same shape as forward input. If BPTT history length ≠ `time_steps`, the off-by-one means backward reads past the allocated history.
 
 **Consequence of wrong history length:** Silent gradient corruption — spike gradients from wrong timestep are applied, loss appears to decrease but model diverges on longer sequences.
 
@@ -45,7 +45,7 @@ for n in g['nodes']:
 ## Key Files to Audit
 
 - [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — `last_targets` cache vs batch size
-- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
+- [include/layers/spiking/LifBPTT.hpp](include/layers/spiking/LifBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
 - [include/layers/activations/LeakyReLU.hpp](include/layers/activations/LeakyReLU.hpp) — gradient mask shape
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — `clip_grad_norm` call site
 

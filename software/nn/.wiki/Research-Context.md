@@ -130,7 +130,7 @@ See [Concepts/Imagined-Speech-and-EEG](./Concepts/Imagined-Speech-and-EEG.md).
 | Wavelet (DTWPT) | `include/wavelet/` | Classical feature extraction |
 | Wave / LFCC | `include/wave/` | Linear filterbank for speaker verification |
 | EEG loader | `include/data_loaders/10.1117/` | Public dataset I/O |
-| SNN (LeakyBPTT) | `include/layers/spiking/` | Spiking neural network classifier |
+| SNN (LifBPTT) | `include/layers/spiking/` | Spiking neural network classifier |
 | LSTM-AE / SNN-AE | `src/core/models/autoencoder/` | Learned feature extraction |
 | Experiment 00 | `src/experiments/00/` | DTWPT + paraconsistent baseline |
 | Experiment 02 | `src/experiments/02/` | Wavelet autoencoder pipeline |

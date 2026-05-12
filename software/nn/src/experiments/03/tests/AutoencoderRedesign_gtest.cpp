@@ -15,13 +15,13 @@
 #include "ProtocolSpikingAutoencoder.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Sequential.hpp"
-#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/Lif.hpp"
 #include "tensor/Tensor.hpp"
 
 namespace
 {
 
-using nn::Leaky;
+using nn::Lif;
 using nn::Sequential;
 
 auto make_fused_cfg() -> AutoencoderConfig
@@ -46,7 +46,7 @@ auto has_initialized_membrane_state(const std::vector<Sequential*>& blocks) -> b
     {
         for (const auto& layer : seq->layers)
         {
-            if (auto leaky = std::dynamic_pointer_cast<Leaky>(layer))
+            if (auto leaky = std::dynamic_pointer_cast<Lif>(layer))
             {
                 if (leaky->v_mem.size() > 0)
                 {
@@ -64,7 +64,7 @@ auto membrane_state_is_zeroed(const std::vector<Sequential*>& blocks) -> bool
     {
         for (const auto& layer : seq->layers)
         {
-            if (auto leaky = std::dynamic_pointer_cast<Leaky>(layer))
+            if (auto leaky = std::dynamic_pointer_cast<Lif>(layer))
             {
                 if (leaky->v_mem.size() > 0 && leaky->v_mem.sum() != 0.0F)
                 {

@@ -16,7 +16,7 @@ Minimize token usage while preserving actionable correctness.
 **Efficient search patterns:**
 ```bash
 # Find a symbol across all sources
-rg 'LeakyBPTT' include/ src/ --type cpp -l
+rg 'LifBPTT' include/ src/ --type cpp -l
 
 # Run only matching tests (avoid full suite)
 ctest --test-dir out/build/max-performance -R core_gtest --output-on-failure

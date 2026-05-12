@@ -30,7 +30,7 @@
 
 using namespace std;
 using ModuleXTensor = Module<nn::Backend>;
-using nn::LeakyBPTT;
+using nn::LifBPTT;
 using nn::Linear;
 using nn::MSELoss;
 using nn::Sequential;
@@ -76,12 +76,12 @@ class SpikeAutoEncoder : public ModuleXTensor
 
         auto leaky = [&](bool readout = false) -> std::shared_ptr<ModuleXTensor>
         {
-            // `LeakyBPTT` expects its input as a single matrix with shape (T*B, F)
+            // `LifBPTT` expects its input as a single matrix with shape (T*B, F)
             // (time-major flatten). This demo flattens the per-step tensors that way.
             //
             // In spiking mode it outputs spikes; in readout_mode it outputs the membrane value
             // (useful for continuous reconstruction at the final layer).
-            return make_shared<LeakyBPTT>( //
+            return make_shared<LifBPTT>( //
                 cfg.steps,
                 cfg.dt,
                 cfg.R,
@@ -238,7 +238,7 @@ auto main(int, char*[]) -> int
         // Data layout note:
         // - `generate_autoencoder_spike_data_*` returns a vector of length T.
         // - Each entry is a tensor of shape (B, F).
-        // - `LeakyBPTT` expects a single flattened tensor of shape (T*B, F), time-major.
+        // - `LifBPTT` expects a single flattened tensor of shape (T*B, F), time-major.
         //   So we stack time on the row axis: row = t*B + b.
         //
         // Demo note:

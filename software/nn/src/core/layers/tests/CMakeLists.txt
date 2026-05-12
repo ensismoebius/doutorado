@@ -61,7 +61,7 @@ configure_xtensor_parallel_target(fundamental_mechanisms_gtest)
 
 ##
 ## spiking_mechanisms_gtest: comprehensive spiking-specific behaviour tests
-## Covers: Leaky, LeakyIntegrator, LeakyBPTT (temporal integration, adaptation,
+## Covers: Lif, LifIntegrator, LifBPTT (temporal integration, adaptation,
 ##          hard/soft reset, state persistence), ThresholdDependentBatchNorm,
 ##          ExponentialSurrogate, BoxcarSurrogate.
 ##

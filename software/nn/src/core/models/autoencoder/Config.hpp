@@ -123,7 +123,7 @@ struct AutoencoderConfig
      * @name Spiking Neural Network Parameters
      *
      * These parameters are ignored by ANN (ReLU) models but used
-     * by SNN variants (LeakyIntegrator activation).
+     * by SNN variants (LifIntegrator activation).
      *
      * SNN Theory:
      *   - time_step: simulation discretisation (smaller = finer temporal resolution)

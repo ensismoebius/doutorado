@@ -9,7 +9,7 @@ add_executable(plotSpikingNetwork
     ${CMAKE_SOURCE_DIR}/include/optimizers/SGD.hpp
     ${CMAKE_SOURCE_DIR}/include/layers/base/Sequential.hpp
     ${CMAKE_SOURCE_DIR}/include/layers/dense/Linear.hpp
-    ${CMAKE_SOURCE_DIR}/include/layers/spiking/Leaky.hpp
+    ${CMAKE_SOURCE_DIR}/include/layers/spiking/Lif.hpp
     ${CMAKE_SOURCE_DIR}/include/layers/activations/ReLU.hpp
     ${CMAKE_SOURCE_DIR}/include/layers/activations/LeakyReLU.hpp
     ${SRC_DIR}/core/utility/imgui_glfw.cpp

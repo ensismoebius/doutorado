@@ -29,9 +29,9 @@ auto make_leaky(float resistance = 1.0F,
     float voltage_threshold = 1.0F,
     bool reset_zero = true,
     float adapt_decay = 0.9F,
-    float adapt_coupling = 0.0F) -> nn::Leaky
+    float adapt_coupling = 0.0F) -> nn::Lif
 {
-    return nn::Leaky(1.0F,
+    return nn::Lif(1.0F,
         resistance,
         capacitance,
         voltage_threshold,
@@ -47,9 +47,9 @@ auto make_bptt(int time_steps,
     bool reset_zero = true,
     bool readout_mode = false,
     float adapt_decay = 0.9F,
-    float adapt_coupling = 0.0F) -> nn::LeakyBPTT
+    float adapt_coupling = 0.0F) -> nn::LifBPTT
 {
-    return nn::LeakyBPTT(time_steps,
+    return nn::LifBPTT(time_steps,
         1.0F,
         1.0F,
         1.0F,
@@ -137,7 +137,7 @@ TEST(LeakySpikingMechanismTest, ResetStateClearsMembraneAndAdaptation)
 
 TEST(LeakySpikingMechanismTest, StateDictRoundTrip)
 {
-    nn::Leaky source(1.0F,
+    nn::Lif source(1.0F,
         2.5F,
         3.7F,
         0.8F,
@@ -146,7 +146,7 @@ TEST(LeakySpikingMechanismTest, StateDictRoundTrip)
         std::make_shared<ExponentialSurrogate>(1.0F),
         0.9F,
         0.0F);
-    nn::Leaky loaded(1.0F,
+    nn::Lif loaded(1.0F,
         1.0F,
         1.0F,
         1.0F,
@@ -167,9 +167,9 @@ TEST(LeakySpikingMechanismTest, ExactBetaDecaySpikeTiming)
     EXPECT_EQ(layer.forward(make_const(1, 1, 1.0F), false).at(0, 0), 1.0F);
 }
 
-TEST(LeakyIntegratorSpikingMechanismTest, NeverProducesSpike)
+TEST(LifIntegratorSpikingMechanismTest, NeverProducesSpike)
 {
-    nn::LeakyIntegrator layer(1.0F, 1.0F, 1.0F);
+    nn::LifIntegrator layer(1.0F, 1.0F, 1.0F);
     for (int i = 0; i < 10; ++i)
     {
         const float value = layer.forward(make_const(1, 1, 10.0F), false).at(0, 0);
@@ -178,23 +178,23 @@ TEST(LeakyIntegratorSpikingMechanismTest, NeverProducesSpike)
     }
 }
 
-TEST(LeakyIntegratorSpikingMechanismTest, ExactExponentialDecay)
+TEST(LifIntegratorSpikingMechanismTest, ExactExponentialDecay)
 {
-    nn::LeakyIntegrator layer(1.0F, 1.0F, 1.0F);
+    nn::LifIntegrator layer(1.0F, 1.0F, 1.0F);
     const float beta = std::exp(-1.0F);
     EXPECT_NEAR(layer.forward(make_const(1, 1, 2.0F), false).at(0, 0), 2.0F, kTol);
     EXPECT_NEAR(layer.forward(make_const(1, 1, 3.0F), false).at(0, 0), 2.0F * beta + 3.0F, kTol);
 }
 
-TEST(LeakyIntegratorSpikingMechanismTest, ResetStateClearsIntegration)
+TEST(LifIntegratorSpikingMechanismTest, ResetStateClearsIntegration)
 {
-    nn::LeakyIntegrator layer(1.0F, 1.0F, 1.0F);
+    nn::LifIntegrator layer(1.0F, 1.0F, 1.0F);
     for (int i = 0; i < 4; ++i) layer.forward(make_const(1, 1, 1.0F), false);
     layer.reset_state();
     EXPECT_NEAR(layer.forward(make_const(1, 1, 0.5F), false).at(0, 0), 0.5F, kTol);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, ThrowsOnInvalidInputShape)
+TEST(LifBPTTSpikingMechanismTest, ThrowsOnInvalidInputShape)
 {
     auto layer = make_bptt(3);
     nn::Tensor bad(5, 1);
@@ -202,7 +202,7 @@ TEST(LeakyBPTTSpikingMechanismTest, ThrowsOnInvalidInputShape)
     EXPECT_THROW(layer.forward(bad, false), std::invalid_argument);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, ExactSpikeOutputKnownSequence)
+TEST(LifBPTTSpikingMechanismTest, ExactSpikeOutputKnownSequence)
 {
     auto layer = make_bptt(2, 0.5F);
     nn::Tensor input(2, 1);
@@ -213,7 +213,7 @@ TEST(LeakyBPTTSpikingMechanismTest, ExactSpikeOutputKnownSequence)
     EXPECT_EQ(output.at(1, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, HardResetExactSequence)
+TEST(LifBPTTSpikingMechanismTest, HardResetExactSequence)
 {
     auto layer = make_bptt(2, 0.5F, true);
     nn::Tensor input(2, 1);
@@ -224,7 +224,7 @@ TEST(LeakyBPTTSpikingMechanismTest, HardResetExactSequence)
     EXPECT_EQ(output.at(1, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, SoftResetExactSequence)
+TEST(LifBPTTSpikingMechanismTest, SoftResetExactSequence)
 {
     auto layer = make_bptt(2, 1.0F, false);
     nn::Tensor input(2, 1);
@@ -235,7 +235,7 @@ TEST(LeakyBPTTSpikingMechanismTest, SoftResetExactSequence)
     EXPECT_EQ(output.at(1, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, StatePersistsAcrossForwardCalls)
+TEST(LifBPTTSpikingMechanismTest, StatePersistsAcrossForwardCalls)
 {
     auto layer = make_bptt(1, 100.0F);
     EXPECT_EQ(layer.forward(make_const(1, 1, 1.0F), false).at(0, 0), 0.0F);
@@ -243,7 +243,7 @@ TEST(LeakyBPTTSpikingMechanismTest, StatePersistsAcrossForwardCalls)
     EXPECT_EQ(layer.forward(make_const(1, 1, 0.0F), false).at(0, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, ResetStateClearsForFreshSequence)
+TEST(LifBPTTSpikingMechanismTest, ResetStateClearsForFreshSequence)
 {
     auto layer = make_bptt(1, 0.5F);
     layer.forward(make_const(1, 1, 1.0F), false);
@@ -251,7 +251,7 @@ TEST(LeakyBPTTSpikingMechanismTest, ResetStateClearsForFreshSequence)
     EXPECT_EQ(layer.forward(make_const(1, 1, 0.3F), false).at(0, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, AdaptationBPTTRaisesThreshold)
+TEST(LifBPTTSpikingMechanismTest, AdaptationBPTTRaisesThreshold)
 {
     auto layer = make_bptt(2, 1.0F, true, false, 0.9F, 0.5F);
     nn::Tensor input(2, 1);
@@ -262,7 +262,7 @@ TEST(LeakyBPTTSpikingMechanismTest, AdaptationBPTTRaisesThreshold)
     EXPECT_EQ(output.at(1, 0), 0.0F);
 }
 
-TEST(LeakyBPTTSpikingMechanismTest, ReadoutModeOutputsVMem)
+TEST(LifBPTTSpikingMechanismTest, ReadoutModeOutputsVMem)
 {
     auto layer = make_bptt(2, 100.0F, true, true);
     nn::Tensor input(2, 1);

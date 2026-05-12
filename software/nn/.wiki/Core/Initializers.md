@@ -24,7 +24,7 @@ $$W \sim \mathcal{N}\left(0, \frac{2}{n_{in}}\right)$$
 
 The factor of 2accounts for ReLU zeroing half the values [4].
 
-For Leaky ReLU with leak rate $\alpha$:
+For Lif ReLU with leak rate $\alpha$:
 
 $$W \sim \mathcal{N}\left(0, \frac{1}{1 - \alpha^2}\right)$$
 

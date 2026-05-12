@@ -25,7 +25,7 @@
 namespace demo
 {
 
-using nn::Leaky;
+using nn::Lif;
 using nn::Linear;
 using nn::Sequential;
 using nn::TensorImpl;
@@ -138,7 +138,7 @@ void cmd_demo(                      //
         int hidden = std::max(8, num_bands);
         auto m = std::make_shared<Sequential>();
         auto l1 = std::make_shared<Linear>(in_dim, hidden);
-        auto lk = std::make_shared<Leaky>(1.0f, 1.0f, 1.0f, 1.0f, true);
+        auto lk = std::make_shared<Lif>(1.0f, 1.0f, 1.0f, 1.0f, true);
         auto l2 = std::make_shared<Linear>(hidden, in_dim);
         m->add_module(l1);
         m->add_module(lk);

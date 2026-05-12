@@ -160,7 +160,7 @@ std::cout << "Mean firing rate: " << loss.last_mean_rate() << "\n";
 
 3. **λ = 0 default**: Regularization is disabled by default; explicitly set `rate_reg_lambda` for SNN autoencoders
 
-4. **Rate vs adaptation**: Spike-frequency adaptation (`adapt_coupling` in `LeakyImpl`) naturally suppresses burst mode; combine both mechanisms for best stability
+4. **Rate vs adaptation**: Spike-frequency adaptation (`adapt_coupling` in `LifImpl`) naturally suppresses burst mode; combine both mechanisms for best stability
 
 ---
 

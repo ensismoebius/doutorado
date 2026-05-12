@@ -17,7 +17,7 @@ Centralize runtime output and remove ad-hoc console/file diagnostics.
 - `WARN`: SNN biophysical param (R, C) hit clamp boundary
 
 **Never log inside:**
-- `LeakyBPTT` inner time loop — called `time_steps × batch_size` times per forward
+- `LifBPTT` inner time loop — called `time_steps × batch_size` times per forward
 - `matmul` inner K-loop — called `rows × cols × K` times
 - Any loop with >1000 iterations in typical workload
 

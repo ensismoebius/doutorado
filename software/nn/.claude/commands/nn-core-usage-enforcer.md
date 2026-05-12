@@ -40,7 +40,7 @@ for n in g['nodes']:
 ## Rules
 
 - **CORE_REUSE**: Use existing `Tensor`, `Layer`, `Sequential`, and core modules. No reimplementing core abstractions.
-- **LAYER_REUSE**: Reuse existing layers (`Linear`, `ReLU`, `Leaky*`, etc.) before adding new ones. No duplicate forward/backward logic.
+- **LAYER_REUSE**: Reuse existing layers (`Linear`, `ReLU`, `Lif*`, etc.) before adding new ones. No duplicate forward/backward logic.
 - **API_COMPAT**: Preserve core API semantics unless migration is explicitly requested. No silent behavior drift.
 
 ## Checklist (run before completing any task)

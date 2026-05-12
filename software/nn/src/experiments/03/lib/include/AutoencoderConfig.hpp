@@ -47,7 +47,7 @@ struct AutoencoderConfig
     int audio_features = 0;
 
     // SNN-specific parameters (ignored by ANN models).
-    float time_step = 1.0F;   ///< Simulation time step passed to Leaky/LeakyIntegrator.
+    float time_step = 1.0F;   ///< Simulation time step passed to Lif/LifIntegrator.
     float resistance = 1.0F;  ///< Membrane resistance.
     float capacitance = 1.0F; ///< Membrane capacitance.
 

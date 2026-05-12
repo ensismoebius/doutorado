@@ -1,27 +1,27 @@
-#ifndef LEAKY_INTEGRATOR_HPP
-#define LEAKY_INTEGRATOR_HPP
+#ifndef LIF_INTEGRATOR_HPP
+#define LIF_INTEGRATOR_HPP
 
 #include <algorithm>
 #include <cmath>
 
-#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/Lif.hpp"
 
 /**
- * @file LeakyIntegrator.hpp
+ * @file LifIntegrator.hpp
  * @brief Continuous (non-spiking) leaky integrator readout.
  *
- * This class derives from `Leaky` but overrides the spiking behavior:
+ * This class derives from `Lif` but overrides the spiking behavior:
  * it integrates with decay and returns the membrane potential directly.
  *
  * Practical use:
  * - Often used as a readout layer after spiking layers when you want continuous
  *   values (e.g., reconstruction, regression) instead of spike events.
- * - In this codebase, it is conceptually similar to using `LeakyBPTT` in
+ * - In this codebase, it is conceptually similar to using `LifBPTT` in
  *   `readout_mode=true`, but without explicit time-unrolling.
  */
 
 /**
- * @brief Leaky Integrator (Readout) Layer.
+ * @brief Lif Integrator (Readout) Layer.
  *
  * A non-spiking neuron model that accumulates input current into membrane potential
  * with decay, but never fires or resets.
@@ -38,19 +38,19 @@
  *   is typically captured via BPTT (or truncated BPTT approximations).
  */
 template <typename Backend>
-struct LeakyIntegratorImpl : public LeakyImpl<Backend>
+struct LifIntegratorImpl : public LifImpl<Backend>
 {
     /// Tensor type for the active compute backend.
-    using Tensor = typename LeakyImpl<Backend>::Tensor;
+    using Tensor = typename LifImpl<Backend>::Tensor;
 
     /**
-     * @brief Construct a new Leaky Integrator
+     * @brief Construct a new Lif Integrator
      * @param dt_ Time step
      * @param R_ Resistance
      * @param C_ Capacitance
      */
-    LeakyIntegratorImpl(float dt_, float R_, float C_)
-        : LeakyImpl<Backend>(dt_, R_, C_, 0.0f, false, 0.0f)
+    LifIntegratorImpl(float dt_, float R_, float C_)
+        : LifImpl<Backend>(dt_, R_, C_, 0.0f, false, 0.0f)
     {
     }
 
@@ -159,4 +159,4 @@ struct LeakyIntegratorImpl : public LeakyImpl<Backend>
     } //
 };
 
-#endif // LEAKY_INTEGRATOR_HPP
+#endif // LIF_INTEGRATOR_HPP

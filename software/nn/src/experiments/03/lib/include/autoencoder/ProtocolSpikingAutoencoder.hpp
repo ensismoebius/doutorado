@@ -13,8 +13,8 @@
  * @brief Spiking Neural Network (SNN) autoencoder for Protocol101117 features.
  *
  * Architecture:
- *   Encoder: Linear(input → hidden) → Leaky → [×depth] → Linear(hidden → latent) → Leaky
- *   Decoder: Linear(latent → hidden) → LeakyIntegrator → [×depth] → Linear(hidden → input)
+ *   Encoder: Linear(input → hidden) → Lif → [×depth] → Linear(hidden → latent) → Lif
+ *   Decoder: Linear(latent → hidden) → LifIntegrator → [×depth] → Linear(hidden → input)
  *
  * The encoder emits binary spike tensors; the decoder integrates spikes back to
  * continuous membrane potentials.  Call `reset_state()` between independent

@@ -1,7 +1,7 @@
 {
     "_profile_name": "article-snn-conv1d",
     "_network_type": "SNN autoencoder, 3-tap temporal smoothing input pre-process",
-    "_architecture_summary": "Same network as article-snn-dense (Linear+Leaky x2 encoder, Linear+Leaky -> Linear+LeakyIntegrator decoder). Mode 'conv1d' applies a fixed {0.25, 0.5, 0.25} 3-tap symmetric temporal smoothing to the encoded input BEFORE the SNN. Not a learned Conv1D layer.",
+    "_architecture_summary": "Same network as article-snn-dense (Linear+Lif x2 encoder, Linear+Lif -> Linear+LifIntegrator decoder). Mode 'conv1d' applies a fixed {0.25, 0.5, 0.25} 3-tap symmetric temporal smoothing to the encoded input BEFORE the SNN. Not a learned Conv1D layer.",
     "_loss_function": "MSE reconstruction loss",
     "_preprocessing": "Non-overlapping windows of 256 samples (32 ms @ 8 kHz). Z-score per window. Encoding then 3-tap smoothing (mode='conv1d').",
     "_total_runs_breakdown": "81 = 3 encodings x 3 V_th x 3 alpha x 3 repeats.",

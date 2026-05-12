@@ -68,7 +68,7 @@ The `EpochResult.sops` field tracks this per epoch.
 
 ## Combined with adaptation
 
-Spike-frequency adaptation (available in `LeakyImpl` via `adapt_coupling`) is a complementary mechanism: after each spike, the threshold rises temporarily, preventing immediate re-firing. This naturally suppresses burst mode.
+Spike-frequency adaptation (available in `LifImpl` via `adapt_coupling`) is a complementary mechanism: after each spike, the threshold rises temporarily, preventing immediate re-firing. This naturally suppresses burst mode.
 
 Using both adaptation and rate regularization together gives the best stability — adaptation handles individual neurons while regularization handles the network-wide average.
 

@@ -10,7 +10,7 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 
 **Unified epsilon** — location: `include/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
 
-**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LeakyBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
+**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LifBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
 
 **Loss guards:**
 - `SpikeCountLoss` / `SpikeTimeLoss`: `log(spike_count + kEps)` — guard against zero spikes
@@ -46,8 +46,8 @@ for n in g['nodes']:
 
 - [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — numeric-stable softmax, epsilon guards
 - [include/layers/losses/MSELoss.hpp](include/layers/losses/MSELoss.hpp) — NaN/Inf clipping
-- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
-- [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — per-step parameter clamping
+- [include/layers/spiking/LifBPTT.hpp](include/layers/spiking/LifBPTT.hpp) — R/C membrane clamping
+- [include/layers/spiking/Lif.hpp](include/layers/spiking/Lif.hpp) — per-step parameter clamping
 - [src/core/linear_algebra/linear_algebra.cpp](src/core/linear_algebra/linear_algebra.cpp) — raw numerical ops
 
 ## Audit Format

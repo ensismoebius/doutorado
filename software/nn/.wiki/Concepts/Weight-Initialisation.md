@@ -29,7 +29,7 @@ $$W \sim \mathcal{N}(0, \frac{2}{n_{in}})$$
 
 The factor of 2 accounts for the fact that ReLU zeros half the values.
 
-For SNN Leaky neurons:
+For SNN LIF neurons:
 $$W \sim \mathcal{N}\left(0, \frac{1}{1 - \alpha^2}\right)$$
 
 Where $\alpha$ is the leak rate.
@@ -73,7 +73,7 @@ public:
     {
         auto [fan_in, fan_out] = get_fan(weights);
 
-        // For Leaky: std = sqrt(2 / fan_in) / sqrt(1 - leak²)
+        // For Lif: std = sqrt(2 / fan_in) / sqrt(1 - leak²)
         float std = std::sqrt(2.0f / fan_in);
         if (leak_rate > 0.0f)
         {
@@ -144,7 +144,7 @@ public:
 ### SNN-Specific Initialization
 
 ```cpp
-// Initialize for Leaky spiking neurons
+// Initialize for Lif spiking neurons
 float leak_rate = 0.99f;
 KaimingSNNInitializer::initialize(weights, leak_rate);
 ```

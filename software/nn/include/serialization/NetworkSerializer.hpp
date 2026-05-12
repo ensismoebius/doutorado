@@ -17,7 +17,7 @@
 #include "layers/activations/ReLU.hpp"
 #include "layers/base/Sequential.hpp"
 #include "layers/dense/Linear.hpp"
-#include "layers/spiking/Leaky.hpp"
+#include "layers/spiking/Lif.hpp"
 #include "logging/Logger.hpp"
 #include "tensor/Tensor.hpp"
 
@@ -31,7 +31,7 @@
  *
  * Supported layers:
  * - `Linear` (weights + bias)
- * - `Leaky` (scalar 1x1 tensor params: resistance, voltage_threshold, capacitance)
+ * - `Lif` (scalar 1x1 tensor params: resistance, voltage_threshold, capacitance)
  * - `ReLU`, `LeakyReLU` (no parameters)
  *
  * Limitations / caveats:
@@ -45,7 +45,7 @@ using cnpy::NpyArray;
 using cnpy::npz_load;
 using cnpy::npz_save;
 using cnpy::npz_t;
-using nn::Leaky;
+using nn::Lif;
 using nn::LeakyReLU;
 using nn::Linear;
 using nn::ReLU;
@@ -89,14 +89,14 @@ class NetworkSerializer
         map<string, pair<vector<size_t>, const float*>>& params);
     static void _saveLeakyReLU(const shared_ptr<LeakyReLU>& layer, string& arch_str);
     static void _saveReLU(string& arch_str);
-    static void _saveLeaky(const shared_ptr<Leaky>& layer,
+    static void _saveLeaky(const shared_ptr<Lif>& layer,
         size_t index,
         string& arch_str,
         map<string, pair<vector<size_t>, const float*>>& params);
 
     // --- Load Handlers ---
     static void _loadLinearParams(const shared_ptr<Linear>& layer, size_t index, const npz_t& data);
-    static void _loadLeakyParams(const shared_ptr<Leaky>& layer, size_t index, const npz_t& data);
+    static void _loadLeakyParams(const shared_ptr<Lif>& layer, size_t index, const npz_t& data);
 
     // --- Helper for splitting strings ---
     static auto _split(const string& s, char delimiter) -> vector<string>
@@ -136,7 +136,7 @@ inline auto NetworkSerializer::saveNetwork(const Sequential& model, const string
             {
                 _saveLeakyReLU(leaky_relu, arch_metadata_str);
             }
-            else if (auto leaky = dynamic_pointer_cast<Leaky>(layer))
+            else if (auto leaky = dynamic_pointer_cast<Lif>(layer))
             {
                 _saveLeaky(leaky, layer_index, arch_metadata_str, parameters);
             }
@@ -196,12 +196,12 @@ inline void NetworkSerializer::_saveReLU(string& arch_str)
     arch_str += "ReLU\n";
 }
 
-inline void NetworkSerializer::_saveLeaky(const shared_ptr<Leaky>& layer,
+inline void NetworkSerializer::_saveLeaky(const shared_ptr<Lif>& layer,
     size_t index,
     string& arch_str,
     map<string, pair<vector<size_t>, const float*>>& params)
 {
-    arch_str += "Leaky:" + to_string(layer->time_step) + ":" +
+    arch_str += "Lif:" + to_string(layer->time_step) + ":" +
                 to_string(layer->resistance.at(0, 0)) + ":" +
                 to_string(layer->capacitance.at(0, 0)) + ":" +
                 to_string(layer->voltage_threshold.at(0, 0)) + ":" +
@@ -265,17 +265,17 @@ inline auto NetworkSerializer::loadNetwork(Sequential& model, const string& safe
             {
                 model.layers.push_back(make_shared<ReLU>());
             }
-            else if (line.rfind("Leaky:", 0) == 0)
+            else if (line.rfind("Lif:", 0) == 0)
             {
                 auto parts = _split(line, ':');
-                if (parts.size() < 7) throw runtime_error("Malformed Leaky metadata");
+                if (parts.size() < 7) throw runtime_error("Malformed Lif metadata");
                 float time_step = stof(parts[1]);
                 float resistance = stof(parts[2]);
                 float capacitance = stof(parts[3]);
                 float voltage_threshold = stof(parts[4]);
                 bool reset_zero = (parts[5] == "1");
                 float reset_potential = stof(parts[6]);
-                auto layer = make_shared<Leaky>(time_step,
+                auto layer = make_shared<Lif>(time_step,
                     resistance,
                     capacitance,
                     voltage_threshold,
@@ -351,7 +351,7 @@ inline void NetworkSerializer::_loadLinearParams(
 }
 
 inline void NetworkSerializer::_loadLeakyParams(
-    const std::shared_ptr<Leaky>& layer, size_t index, const cnpy::npz_t& data)
+    const std::shared_ptr<Lif>& layer, size_t index, const cnpy::npz_t& data)
 {
     std::string res_name = std::to_string(index) + ".resistance";
     auto r_it = data.find(res_name);

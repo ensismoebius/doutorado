@@ -32,7 +32,7 @@
 
 using argparse::ArgumentParser;
 using nn::Index;
-using nn::Leaky;
+using nn::Lif;
 using nn::Linear;
 using nn::Tensor;
 using ModuleXTensor = Module<nn::Backend>;
@@ -196,21 +196,21 @@ auto build_features(const std::vector<double>& audio, ExtractionConfig cfg)
     return features;
 }
 
-// --- SNN model (Linear + Leaky with optional residual blocks) ---
+// --- SNN model (Linear + Lif with optional residual blocks) ---
 
 struct ResidualSnnBlock : public ModuleXTensor
 {
     std::shared_ptr<Linear> fc1;
-    std::shared_ptr<Leaky> lif1;
+    std::shared_ptr<Lif> lif1;
     std::shared_ptr<Linear> fc2;
-    std::shared_ptr<Leaky> lif2;
+    std::shared_ptr<Lif> lif2;
     std::vector<Tensor*> param_ptrs_;
 
     explicit ResidualSnnBlock(int dim)
         : fc1(std::make_shared<Linear>(dim, dim)),
-          lif1(std::make_shared<Leaky>()),
+          lif1(std::make_shared<Lif>()),
           fc2(std::make_shared<Linear>(dim, dim)),
-          lif2(std::make_shared<Leaky>())
+          lif2(std::make_shared<Lif>())
     {
     }
 
@@ -256,17 +256,17 @@ struct ResidualSnnBlock : public ModuleXTensor
 struct SnnModel : public ModuleXTensor
 {
     std::shared_ptr<Linear> fc_in;
-    std::shared_ptr<Leaky> lif_in;
+    std::shared_ptr<Lif> lif_in;
     std::vector<shared_ptr<ResidualSnnBlock>> residual_blocks;
     std::shared_ptr<Linear> fc_out;
-    std::shared_ptr<Leaky> lif_out;
+    std::shared_ptr<Lif> lif_out;
     std::vector<Tensor*> param_ptrs_;
 
     SnnModel(int input_size, int output_size, int depth, int hidden_size, unsigned int seed)
         : fc_in(std::make_shared<Linear>(input_size, hidden_size)),
-          lif_in(std::make_shared<Leaky>()),
+          lif_in(std::make_shared<Lif>()),
           fc_out(std::make_shared<Linear>(hidden_size, output_size)),
-          lif_out(std::make_shared<Leaky>())
+          lif_out(std::make_shared<Lif>())
     {
         for (int i = 0; i < depth; ++i)
         {
