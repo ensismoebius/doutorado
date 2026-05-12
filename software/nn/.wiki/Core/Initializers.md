@@ -31,7 +31,7 @@ $$W \sim \mathcal{N}\left(0, \frac{1}{1 - \alpha^2}\right)$$
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/nn/initializers/xavier.hpp
+// File: include/initializers/xavier.hpp
 class XavierInitializer
 {
 public:
@@ -55,7 +55,7 @@ public:
 ```
 
 ```cpp
-// File: include/nn/initializers/kaiming_snn.hpp
+// File: include/initializers/kaiming_snn.hpp
 class KaimingSNNInitializer
 {
 public:

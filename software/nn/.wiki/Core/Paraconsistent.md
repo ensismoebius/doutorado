@@ -32,7 +32,7 @@ Where $\text{bel} + \text{dis} + \text{unc} = 1$
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/nn/paraconsistent/ParaconsistentFeatureExtractor.hpp
+// File: include/paraconsistent/ParaconsistentFeatureExtractor.hpp
 class ParaconsistentFeatureExtractor
 {
     float belief_threshold_;

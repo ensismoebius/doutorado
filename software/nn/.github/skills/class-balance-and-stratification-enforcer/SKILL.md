@@ -18,10 +18,10 @@ Ensure that class imbalance is handled explicitly: stratified splits are actuall
 ## Key Files to Fix
 
 - [src/experiments/02/Experiment02Config.hpp](src/experiments/02/Experiment02Config.hpp) — `stratified = true` field that needs enforcement
-- [include/nn/dataLoaders/samplers/](include/nn/dataLoaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
-- [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — stratified split implementation needed
-- [include/nn/statistics/multi_class_metrics.hpp](include/nn/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants
-- [include/nn/statistics/confusion_matrix.hpp](include/nn/statistics/confusion_matrix.hpp) — derive weighted F1 from confusion matrix
+- [include/dataLoaders/samplers/](include/dataLoaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
+- [include/statistics/kfold.hpp](include/statistics/kfold.hpp) — stratified split implementation needed
+- [include/statistics/multi_class_metrics.hpp](include/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants
+- [include/statistics/confusion_matrix.hpp](include/statistics/confusion_matrix.hpp) — derive weighted F1 from confusion matrix
 
 ## Stratified K-Fold Pattern
 
@@ -48,7 +48,7 @@ for (auto& fold : folds) {
 Project Context (nn framework)
 **Dataset context:** EEG/audio windows from the 10.1117 imagined speech dataset. Windows within a session are not inherently imbalanced — class counts depend on trial design (typically balanced). Default: use `KFold`, not `StratifiedKFold`, unless label distribution check shows imbalance.
 
-**KFold API location:** `include/nn/statistics/kfold.hpp`
+**KFold API location:** `include/statistics/kfold.hpp`
 - `KFold` — standard k-fold, no stratification
 - `StratifiedKFold` — stratified by label; use when any class < 80% of majority
 - `NestedKFold` — outer CV for model selection + inner CV for hyperparameter tuning

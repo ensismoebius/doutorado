@@ -44,9 +44,9 @@ for n in g['nodes']:
 
 ## Key Files to Audit
 
-- [include/nn/layers/losses/CrossEntropyLoss.hpp](include/nn/layers/losses/CrossEntropyLoss.hpp) — `last_targets` cache vs batch size
-- [include/nn/layers/spiking/LeakyBPTT.hpp](include/nn/layers/spiking/LeakyBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
-- [include/nn/layers/activations/LeakyReLU.hpp](include/nn/layers/activations/LeakyReLU.hpp) — gradient mask shape
+- [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — `last_targets` cache vs batch size
+- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — `v_post_history`, `v_mem_history` consistency
+- [include/layers/activations/LeakyReLU.hpp](include/layers/activations/LeakyReLU.hpp) — gradient mask shape
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — `clip_grad_norm` call site
 
 ## Checklist

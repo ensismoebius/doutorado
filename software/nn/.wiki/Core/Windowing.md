@@ -33,7 +33,7 @@ $$w[n] = 0.42 - 0.5 \cos\left(\frac{2\pi n}{N-1}\right) + 0.08 \cos\left(\frac{4
 ### Window Specification
 
 ```cpp
-// File: include/nn/windowing/WindowSpec.hpp
+// File: include/windowing/WindowSpec.hpp
 enum class WindowType
 {
     Rectangular,
@@ -55,7 +55,7 @@ struct WindowSpec
 ### Windowing Engine
 
 ```cpp
-// File: include/nn/windowing/WindowingEngine.hpp
+// File: include/windowing/WindowingEngine.hpp
 class WindowingEngine
 {
 public:

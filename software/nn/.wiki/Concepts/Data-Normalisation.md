@@ -28,7 +28,7 @@ $$x' = \frac{x - x_{min}}{x_{max} - x_{min}}$$
 ### Z-Score Normalizer
 
 ```cpp
-// File: include/nn/utility/AudioMeanStdNormalize.hpp
+// File: include/utility/AudioMeanStdNormalize.hpp
 class AudioMeanStdNormalize : public ITransform
 {
     Tensor mean_;      // Column means
@@ -46,7 +46,7 @@ class AudioMeanStdNormalize : public ITransform
 ### EEG Window Z-Score
 
 ```cpp
-// File: include/nn/utility/EEGWindowZScore.hpp
+// File: include/utility/EEGWindowZScore.hpp
 // Per-window (row) z-score normalization
 // Stateless: computes statistics on-the-fly
 ```
@@ -54,7 +54,7 @@ class AudioMeanStdNormalize : public ITransform
 ### Fused Modality Transform
 
 ```cpp
-// File: include/nn/utility/FusedModalityTransform.hpp
+// File: include/utility/FusedModalityTransform.hpp
 // Different normalization for EEG and audio in fused tensor
 ```
 

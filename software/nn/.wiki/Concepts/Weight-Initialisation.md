@@ -39,7 +39,7 @@ Where $\alpha$ is the leak rate.
 ### Xavier Initialization
 
 ```cpp
-// File: include/nn/initializers/xavier.hpp
+// File: include/initializers/xavier.hpp
 class XavierInitializer
 {
 public:
@@ -65,7 +65,7 @@ public:
 ### Kaiming Initialization
 
 ```cpp
-// File: include/nn/initializers/kaiming_snn.hpp
+// File: include/initializers/kaiming_snn.hpp
 class KaimingSNNInitializer
 {
 public:
@@ -122,7 +122,7 @@ flowchart TB
 ## Usage Example
 
 ```cpp
-// File: include/nn/layers/dense/Linear.hpp
+// File: include/layers/dense/Linear.hpp
 #include "nn/initializers/xavier.hpp"
 
 template <typename Backend>

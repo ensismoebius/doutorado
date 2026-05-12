@@ -29,7 +29,7 @@ OpenCL runtime initialization is expensive. Using lazy initialization:
 ### Device Type
 
 ```cpp
-// File: include/nn/device/DeviceType.hpp
+// File: include/device/DeviceType.hpp
 namespace nn
 {
 enum class DeviceType
@@ -43,7 +43,7 @@ enum class DeviceType
 ### Device
 
 ```cpp
-// File: include/nn/device/Device.hpp
+// File: include/device/Device.hpp
 struct Device
 {
     DeviceType type = DeviceType::CPU;
@@ -65,7 +65,7 @@ struct Device
 ### Device Runtime
 
 ```cpp
-// File: include/nn/device/DeviceRuntime.hpp
+// File: include/device/DeviceRuntime.hpp
 struct DeviceRuntime
 {
     // Lazy initialization - thread-safe

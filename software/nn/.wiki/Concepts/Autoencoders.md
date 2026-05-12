@@ -85,7 +85,7 @@ public:
 ### Poisson Latent Layer (SNN-VAE)
 
 ```cpp
-// File: include/nn/layers/spiking/PoissonLatentLayer.hpp
+// File: include/layers/spiking/PoissonLatentLayer.hpp
 template <typename Backend>
 class PoissonLatentLayerImpl : public Module<Backend>
 {
@@ -128,7 +128,7 @@ float total_loss = recon_loss + beta * latent.kl_loss();
 When using latency spike encoding (early spike = high magnitude), use `SpikeTimeLossImpl` instead of MSE or `SpikeCountLoss`.
 
 ```cpp
-// File: include/nn/layers/losses/SpikeTimeLoss.hpp
+// File: include/layers/losses/SpikeTimeLoss.hpp
 template <typename Backend>
 class SpikeTimeLossImpl : public Module<Backend>
 {
@@ -160,7 +160,7 @@ auto grad = stloss.backward(ones);
 
 For rate-coded or ANN autoencoders, standard MSE is used:
 ```cpp
-// File: include/nn/layers/losses/MSELoss.hpp
+// File: include/layers/losses/MSELoss.hpp
 auto loss = mse_loss.forward(reconstruction, target, true);
 ```
 

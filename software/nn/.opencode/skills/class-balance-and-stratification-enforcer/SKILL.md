@@ -18,10 +18,10 @@ Ensure that class imbalance is handled explicitly: stratified splits are actuall
 ## Key Files to Fix
 
 - [src/experiments/02/Experiment02Config.hpp](src/experiments/02/Experiment02Config.hpp) — `stratified = true` field that needs enforcement
-- [include/nn/dataLoaders/samplers/](include/nn/dataLoaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
-- [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — stratified split implementation needed
-- [include/nn/statistics/multi_class_metrics.hpp](include/nn/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants
-- [include/nn/statistics/confusion_matrix.hpp](include/nn/statistics/confusion_matrix.hpp) — derive weighted F1 from confusion matrix
+- [include/dataLoaders/samplers/](include/dataLoaders/samplers/) — `WeightedRandomSampler` needs class-weight auto-computation
+- [include/statistics/kfold.hpp](include/statistics/kfold.hpp) — stratified split implementation needed
+- [include/statistics/multi_class_metrics.hpp](include/statistics/multi_class_metrics.hpp) — add weighted/macro metric variants
+- [include/statistics/confusion_matrix.hpp](include/statistics/confusion_matrix.hpp) — derive weighted F1 from confusion matrix
 
 ## Stratified K-Fold Pattern
 

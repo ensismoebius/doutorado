@@ -22,7 +22,7 @@ Experiment03 implements three autoencoder architectures:
 ### Dataset
 
 ```cpp
-// File: include/nn/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp
+// File: include/dataLoaders/10.1117/datasets/windowed/FusedWindowDataset.hpp
 class FusedWindowDataset : public Dataset
 {
     EEGWindowDataset eeg_;

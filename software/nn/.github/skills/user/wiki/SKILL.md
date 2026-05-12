@@ -69,7 +69,7 @@ h) **"References"** section at bottom in IEEE format
 
 ### STEP 1 — RECONNAISSANCE
 - Run: `find . -type f \( -name "*.hpp" -o -name "*.cpp" -o -name "*.md" \) | sort`
-- Read every README.md and public header under include/nn/
+- Read every README.md and public header under include/
 - Read full source of every file under src/experiments/
 - Do NOT start writing until you have read the full codebase
 

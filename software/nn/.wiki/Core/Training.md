@@ -32,7 +32,7 @@ The codebase includes a non-blocking, thread-safe progress bar system for real-t
 ### ProgressBar (RAII Handle)
 
 ```cpp
-// File: include/nn/progress/ProgressBar.hpp
+// File: include/progress/ProgressBar.hpp
 namespace nn::progress
 {
 class ProgressBar
@@ -52,7 +52,7 @@ public:
 ### ProgressManager (Singleton Renderer)
 
 ```cpp
-// File: include/nn/progress/ProgressManager.hpp
+// File: include/progress/ProgressManager.hpp
 namespace nn::progress
 {
 class ProgressManager
@@ -283,7 +283,7 @@ for (const auto& r : history)
 Callbacks observe training at well-defined hook points. All output, early stopping, and metric logging go through callbacks — Trainer has no `cout`.
 
 ```cpp
-// File: include/nn/training/ITrainingCallback.hpp
+// File: include/training/ITrainingCallback.hpp
 namespace nn::training {
 
 struct TrainingState {
@@ -311,7 +311,7 @@ struct ITrainingCallback {
 **`ProgressCallback`** — wraps `nn::progress::ProgressManager` (thread-safe singleton):
 
 ```cpp
-// File: include/nn/training/ProgressCallback.hpp
+// File: include/training/ProgressCallback.hpp
 trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("LSTM run 1/5"));
 // Output: LSTM run 1/5  [=====               ] 25% | train_loss: 0.42 | val_loss: 0.38
 ```
@@ -319,7 +319,7 @@ trainer.add_callback(std::make_shared<nn::training::ProgressCallback>("LSTM run 
 **`EarlyStoppingCallback`** — stops training when validation loss stops improving:
 
 ```cpp
-// File: include/nn/training/EarlyStoppingCallback.hpp
+// File: include/training/EarlyStoppingCallback.hpp
 auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
     /*patience=*/20, /*min_delta=*/1e-8f);
 trainer.add_callback(stopper);

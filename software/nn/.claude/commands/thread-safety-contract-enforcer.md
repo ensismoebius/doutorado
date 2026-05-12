@@ -44,9 +44,9 @@ for n in g['nodes']:
 
 ## Key Files to Audit
 
-- [include/nn/dataLoaders/runtime/BatchPrefetcher.hpp](include/nn/dataLoaders/runtime/BatchPrefetcher.hpp) — producer thread lifecycle and exception handling
-- [include/nn/dataLoaders/runtime/DataLoader.hpp](include/nn/dataLoaders/runtime/DataLoader.hpp) — document thread-safety guarantee (or lack thereof)
-- [include/nn/utility/HighPerfSpscQueue.hpp](include/nn/utility/HighPerfSpscQueue.hpp) — assert single-producer-single-consumer contract
+- [include/dataLoaders/runtime/BatchPrefetcher.hpp](include/dataLoaders/runtime/BatchPrefetcher.hpp) — producer thread lifecycle and exception handling
+- [include/dataLoaders/runtime/DataLoader.hpp](include/dataLoaders/runtime/DataLoader.hpp) — document thread-safety guarantee (or lack thereof)
+- [include/utility/HighPerfSpscQueue.hpp](include/utility/HighPerfSpscQueue.hpp) — assert single-producer-single-consumer contract
 
 ## TSan Build Command
 

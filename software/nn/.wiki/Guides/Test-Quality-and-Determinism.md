@@ -42,7 +42,7 @@ Coverage was collected from an instrumented build (`NN_ENABLE_COVERAGE=ON`) afte
 
 Focused `lcov --extract` results for recently modified files:
 
-1. `include/nn/layers/spiking/Leaky.hpp`
+1. `include/layers/spiking/Leaky.hpp`
 - Line coverage: 56.5% (124 lines)
 - Function coverage: 42.9% (7 functions)
 

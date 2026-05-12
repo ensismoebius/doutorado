@@ -37,14 +37,14 @@ Project Context (nn framework)
 
 | What | Where |
 |---|---|
-| Module base | `include/nn/layers/base/Module.hpp` |
-| LIF single-step | `include/nn/layers/spiking/Leaky.hpp` |
-| LIF BPTT | `include/nn/layers/spiking/LeakyBPTT.hpp` |
+| Module base | `include/layers/base/Module.hpp` |
+| LIF single-step | `include/layers/spiking/Leaky.hpp` |
+| LIF BPTT | `include/layers/spiking/LeakyBPTT.hpp` |
 | Trainer | `src/core/training/Trainer.hpp` |
 | Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
 | Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
-| KFold / NestedKFold | `include/nn/statistics/kfold.hpp` |
-| OpenCL context | `include/nn/tensor/opencl/OpenCLContext.hpp` |
+| KFold / NestedKFold | `include/statistics/kfold.hpp` |
+| OpenCL context | `include/tensor/opencl/OpenCLContext.hpp` |
 
 **SNN search anchors** — grep for these to find the relevant code:
 - `v_mem_history`, `spike_history` — membrane and spike recording in LeakyBPTT

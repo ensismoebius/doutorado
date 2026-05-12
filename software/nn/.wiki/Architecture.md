@@ -104,7 +104,7 @@ flowchart TB
 | `linearAlgebra/` | Linear algebra utilities | `linear_algebra.hpp` |
 | `statistics/` | Metrics and statistics | `kfold.hpp`, `multi_class_metrics.hpp` |
 
-### Data Loaders (`include/nn/dataLoaders/`)
+### Data Loaders (`include/dataLoaders/`)
 
 | Module | Purpose |
 |--------|---------|
@@ -113,7 +113,7 @@ flowchart TB
 | `runtime/` | DataLoader and iteration |
 | `10.1117/` | Specific dataset (EEG/audio) handling |
 
-### Public Headers (`include/nn/`)
+### Public Headers (`include/`)
 
 | Path | Contents |
 |------|----------|

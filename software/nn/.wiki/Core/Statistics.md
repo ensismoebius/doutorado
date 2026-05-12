@@ -29,7 +29,7 @@ The dataset is split into $k$ equal-sized folds. Train on $k-1$, validate on 1, 
 ### K-Fold Splitters
 
 ```cpp
-// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+// File: include/statistics/kfold.hpp  (namespace statistics)
 
 struct FoldSplit {
     std::vector<std::size_t> train_indices;
@@ -58,7 +58,7 @@ public:
 For unbiased hyperparameter evaluation in biomedical ML [41]:
 
 ```cpp
-// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+// File: include/statistics/kfold.hpp  (namespace statistics)
 
 struct NestedFoldSplit {
     std::vector<std::size_t> test_indices;  // outer held-out test set
@@ -95,7 +95,7 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) for theory
 Lightweight interface for incremental metric accumulation (reset per epoch, update per batch):
 
 ```cpp
-// File: include/nn/statistics/IStatistic.hpp
+// File: include/statistics/IStatistic.hpp
 namespace nn::statistics {
 class IStatistic {
 public:
@@ -111,7 +111,7 @@ public:
 **`RunningMean`** — concrete `IStatistic` for per-epoch loss tracking:
 
 ```cpp
-// File: include/nn/statistics/RunningMean.hpp
+// File: include/statistics/RunningMean.hpp
 nn::statistics::RunningMean loss_stat("train_loss");
 loss_stat.reset();
 for (auto& batch : epoch_batches) {
@@ -124,7 +124,7 @@ float epoch_mean = loss_stat.value();
 ### Metrics
 
 ```cpp
-// File: include/nn/statistics/multi_class_metrics.hpp
+// File: include/statistics/multi_class_metrics.hpp
 
 // Classification accuracy
 auto accuracy(const Tensor& predictions, const Tensor& targets) -> float;
@@ -141,7 +141,7 @@ auto f1_score(const Tensor& predictions, const Tensor& targets, int num_classes)
 ### Regression Metrics
 
 ```cpp
-// File: include/nn/statistics/inference_tests.hpp
+// File: include/statistics/inference_tests.hpp
 
 // R² score (coefficient of determination)
 auto r2_score(const Tensor& predictions, const Tensor& targets) -> float;

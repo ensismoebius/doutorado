@@ -24,7 +24,7 @@ Common activations include:
 
 #### Fast Activation Approximations
 
-`include/nn/layers/activations/FastActivations.hpp` provides rational approximations that avoid `exp()`:
+`include/layers/activations/FastActivations.hpp` provides rational approximations that avoid `exp()`:
 
 | Function | Formula | Max error | Use case |
 |---|---|---|---|
@@ -52,7 +52,7 @@ Output length formula for 1D convolution: $L_{out} = \lfloor(L + 2P - K)/S\rfloo
 
 This preserves spatial structure in images.
 
-**Implementation status:** `Conv1dImpl` (file: `include/nn/layers/convolution/Conv1d.hpp`) and
+**Implementation status:** `Conv1dImpl` (file: `include/layers/convolution/Conv1d.hpp`) and
 `MaxPool1dImpl` / `MaxPool2dImpl` (files: `convolution/MaxPool1d.hpp`, `MaxPool2d.hpp`) are documented
 placeholders that validate input shape and return the input unchanged. Forward-only contract.
 Tests in `fundamental_mechanisms_gtest` document this placeholder behaviour.
@@ -62,7 +62,7 @@ Tests in `fundamental_mechanisms_gtest` document this placeholder behaviour.
 All layers inherit from `nn::Module`:
 
 ```cpp
-// File: include/nn/layers/base/Module.hpp
+// File: include/layers/base/Module.hpp
 template <typename Backend>
 class Module
 {
@@ -76,7 +76,7 @@ public:
 ### Dense (Linear) Layer
 
 ```cpp
-// File: include/nn/layers/dense/Linear.hpp
+// File: include/layers/dense/Linear.hpp
 template <typename Backend>
 class Linear : public Module<Backend>
 {
@@ -105,7 +105,7 @@ Trainable parameters: `resistance` (R), `capacitance` (C), `voltage_threshold` (
 Spike-frequency adaptation is available via `adapt_decay` / `adapt_coupling`.
 
 ```cpp
-// File: include/nn/layers/spiking/Leaky.hpp
+// File: include/layers/spiking/Leaky.hpp
 template <typename Backend>
 struct LeakyImpl : public Module<Backend>
 {
@@ -145,7 +145,7 @@ Normalises pre-spike membrane potentials per time step and rescales by $V_{th}/\
 enabling stable training of deep SNNs [33].
 
 ```cpp
-// File: include/nn/layers/spiking/ThresholdDependentBatchNorm.hpp
+// File: include/layers/spiking/ThresholdDependentBatchNorm.hpp
 template <typename Backend>
 class ThresholdDependentBatchNormImpl : public Module<Backend>
 {
@@ -187,7 +187,7 @@ Reparameterisable Poisson latent space for spiking variational autoencoders [29,
 > Caught by `PoissonLatentTest.KLNonNegative` in `fundamental_mechanisms_gtest`.
 
 ```cpp
-// File: include/nn/layers/spiking/PoissonLatentLayer.hpp
+// File: include/layers/spiking/PoissonLatentLayer.hpp
 template <typename Backend>
 class PoissonLatentLayerImpl : public Module<Backend>
 {
@@ -210,7 +210,7 @@ public:
 Single-layer LSTM with full BPTT [5, 6]. Gate equations and backward derivation
 verified against Hochreiter & Schmidhuber (1997) [5] and Greff et al. (2015) [6].
 
-**Location:** `include/nn/layers/lstm/LSTMLayer.hpp`
+**Location:** `include/layers/lstm/LSTMLayer.hpp`
 
 Weight layout (gates stacked [i|f|o|g] per [6]):
 - `W_` : (4H × D) — input-to-hidden
@@ -218,7 +218,7 @@ Weight layout (gates stacked [i|f|o|g] per [6]):
 - `b_` : (4H × 1) — bias; forget-gate slice initialised to 1 [7]
 
 ```cpp
-// File: include/nn/layers/lstm/LSTMLayer.hpp
+// File: include/layers/lstm/LSTMLayer.hpp
 // forward dispatches on input rank:
 //   (T, D)    → (T, H)     single sequence; persists h0_/c0_ across calls
 //   (B, T, D) → (B, T, H)  batch; each of B samples starts from zero state
@@ -276,7 +276,7 @@ flowchart TB
 ## Usage Example
 
 ```cpp
-// File: include/nn/layers/Layers.hpp
+// File: include/layers/Layers.hpp
 #include "nn/layers/dense/Linear.hpp"
 #include "nn/layers/activations/ReLU.hpp"
 

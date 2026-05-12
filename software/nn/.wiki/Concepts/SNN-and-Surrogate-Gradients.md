@@ -79,7 +79,7 @@ Straight-through gradient: $\partial L / \partial z \approx (\partial L / \parti
 ### Surrogate Gradient Interface
 
 ```cpp
-// File: include/nn/layers/spiking/ISurrogateGradient.hpp
+// File: include/layers/spiking/ISurrogateGradient.hpp
 class ISurrogateGradient
 {
 public:
@@ -93,7 +93,7 @@ public:
 ### Exponential Surrogate
 
 ```cpp
-// File: include/nn/layers/spiking/ExponentialSurrogate.hpp
+// File: include/layers/spiking/ExponentialSurrogate.hpp
 class ExponentialSurrogate : public ISurrogateGradient
 {
     float sharpness_ = 1.0f;
@@ -113,7 +113,7 @@ public:
 It is used in single-step pipelines where the caller advances the simulation manually.
 
 ```cpp
-// File: include/nn/layers/spiking/Leaky.hpp
+// File: include/layers/spiking/Leaky.hpp
 template <typename Backend>
 struct LeakyImpl : public Module<Backend>
 {
@@ -155,7 +155,7 @@ Key forward mechanics:
 computes exact BPTT gradients through the recurrence.  Input shape: `(T*B, F)`.
 
 ```cpp
-// File: include/nn/layers/spiking/LeakyBPTT.hpp
+// File: include/layers/spiking/LeakyBPTT.hpp
 template <typename Backend>
 struct LeakyBPTTImpl : public Module<Backend>
 {
@@ -191,7 +191,7 @@ BPTT backward loop (reverse time):
 ### Threshold-Dependent Batch Normalization (ThresholdDependentBatchNormImpl)
 
 ```cpp
-// File: include/nn/layers/spiking/ThresholdDependentBatchNorm.hpp
+// File: include/layers/spiking/ThresholdDependentBatchNorm.hpp
 template <typename Backend>
 class ThresholdDependentBatchNormImpl : public Module<Backend>
 {
@@ -224,7 +224,7 @@ auto spikes = lif.forward(h, true); // LIF receives well-conditioned input
 ### Poisson Latent Layer (PoissonLatentLayerImpl)
 
 ```cpp
-// File: include/nn/layers/spiking/PoissonLatentLayer.hpp
+// File: include/layers/spiking/PoissonLatentLayer.hpp
 template <typename Backend>
 class PoissonLatentLayerImpl : public Module<Backend>
 {

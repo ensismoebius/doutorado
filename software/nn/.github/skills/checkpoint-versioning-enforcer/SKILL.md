@@ -30,8 +30,8 @@ checkpoints/<experiment_id>/<timestamp>/
 
 ## Key Files to Update
 
-- [include/nn/saver/NnSaver.hpp](include/nn/saver/NnSaver.hpp) — add version + metadata write
-- [include/nn/saver/NetworkSerializer.hpp](include/nn/saver/NetworkSerializer.hpp) — add load-time compatibility check
+- [include/saver/NnSaver.hpp](include/saver/NnSaver.hpp) — add version + metadata write
+- [include/saver/NetworkSerializer.hpp](include/saver/NetworkSerializer.hpp) — add load-time compatibility check
 
 ## Validation
 
@@ -44,8 +44,8 @@ Project Context (nn framework)
 Example: `results/checkpoints/article_lstm_ae_xtensor_fsdd_r01.json`
 
 **Two serialization APIs:**
-- `NetworkSerializer` (`include/nn/saver/NetworkSerializer.hpp`) — full `state_dict` map → `.npz` file; preferred for new code
-- `NnSaver` (`include/nn/saver/NnSaver.hpp`) — legacy weight+bias pair → `_weights.npy` + `_bias.npy`; do not use for new layers
+- `NetworkSerializer` (`include/saver/NetworkSerializer.hpp`) — full `state_dict` map → `.npz` file; preferred for new code
+- `NnSaver` (`include/saver/NnSaver.hpp`) — legacy weight+bias pair → `_weights.npy` + `_bias.npy`; do not use for new layers
 
 **Load pattern:**
 ```cpp

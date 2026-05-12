@@ -15,7 +15,7 @@ src/
   core/                 ← reusable library modules (tensor, layers, optimizers, …)
   demos/                ← standalone demo executables
   experiments/          ← numbered experiment executables + libs (00–04)
-include/nn/             ← public headers for all core modules
+include/             ← public headers for all core modules
 ```
 
 ### CMake Module Responsibilities

@@ -25,7 +25,7 @@ Fold 4: [train train train] [val]
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/nn/dataLoaders/runtime/DataLoader.hpp
+// File: include/dataLoaders/runtime/DataLoader.hpp
 class DataLoader
 {
     std::shared_ptr<Dataset> dataset_;
@@ -43,7 +43,7 @@ public:
 ### Samplers
 
 ```cpp
-// File: include/nn/dataLoaders/samplers/ISampler.hpp
+// File: include/dataLoaders/samplers/ISampler.hpp
 class ISampler
 {
 public:
@@ -60,7 +60,7 @@ Available samplers:
 ### Dataset Interface
 
 ```cpp
-// File: include/nn/dataLoaders/datasets/Dataset.hpp
+// File: include/dataLoaders/datasets/Dataset.hpp
 class Dataset
 {
 public:
@@ -104,7 +104,7 @@ flowchart TB
 ## Usage Example
 
 ```cpp
-// File: include/nn/dataLoaders/runtime/DataLoader.hpp
+// File: include/dataLoaders/runtime/DataLoader.hpp
 #include "nn/dataLoaders/runtime/DataLoader.hpp"
 #include "nn/dataLoaders/datasets/MatFileDataset.hpp"
 
@@ -126,7 +126,7 @@ for (const auto& batch : loader)
 ### K-Fold Example
 
 ```cpp
-// File: include/nn/dataLoaders/samplers/FoldSampler.hpp
+// File: include/dataLoaders/samplers/FoldSampler.hpp
 #include "nn/dataLoaders/samplers/FoldSampler.hpp"
 
 // Create k-fold sampler

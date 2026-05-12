@@ -25,7 +25,7 @@ Validation
 Project Context (nn framework)
 **Canonical layout:**
 ```
-include/nn/layers/<category>/  — public layer headers (one per file)
+include/layers/<category>/  — public layer headers (one per file)
 src/core/                      — implementation + unit tests
 src/experiments/<id>/          — experiment binary + lib/ + tests/ + profiles/
 scripts/pipeline/              — paper generation chain

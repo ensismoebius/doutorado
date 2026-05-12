@@ -9,13 +9,13 @@ Keep the codebase modular: each type in its own file. Improves build parallelism
 ## Project Context (nn framework)
 
 **Reference layout** (one class per file, followed correctly):
-- `include/nn/layers/spiking/` — one LIF variant per file: `Leaky.hpp`, `LeakyBPTT.hpp`, `ThresholdDependentBatchNorm.hpp`, `PoissonLatentLayer.hpp`
-- `include/nn/layers/activations/` — one activation per file: `ReLU.hpp`, `Sigmoid.hpp`, `Tanh.hpp`
-- `include/nn/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` — one surrogate per file
+- `include/layers/spiking/` — one LIF variant per file: `Leaky.hpp`, `LeakyBPTT.hpp`, `ThresholdDependentBatchNorm.hpp`, `PoissonLatentLayer.hpp`
+- `include/layers/activations/` — one activation per file: `ReLU.hpp`, `Sigmoid.hpp`, `Tanh.hpp`
+- `include/layers/spiking/ExponentialSurrogate.hpp`, `BoxcarSurrogate.hpp` — one surrogate per file
 
 **Anti-pattern (already fixed):** Multiple surrogate gradient types in a single header. This was previously the case — do not revert.
 
-**Exception:** `include/nn/layers/Layers.hpp` is auto-generated and aggregates all layers; it is `#include`-only, not for editing. It is `.gitignore`d.
+**Exception:** `include/layers/Layers.hpp` is auto-generated and aggregates all layers; it is `#include`-only, not for editing. It is `.gitignore`d.
 
 **Wiki & knowledge graph:**
 - Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions

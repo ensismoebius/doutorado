@@ -39,7 +39,7 @@ $$\theta_{t+1} = \theta_t - \eta \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsi
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/nn/optimizers/Adam.hpp
+// File: include/optimizers/Adam.hpp
 class Adam
 {
     float learning_rate_ = 0.001f;
@@ -110,7 +110,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: include/nn/optimizers/Adam.hpp
+// File: include/optimizers/Adam.hpp
 #include "nn/optimizers/Adam.hpp"
 
 // Create optimizer

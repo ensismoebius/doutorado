@@ -10,7 +10,7 @@ Preserve repository modularity and discoverability. Every new file must land in 
 
 **Canonical layout:**
 ```
-include/nn/layers/<category>/  — public layer headers (one per file)
+include/layers/<category>/  — public layer headers (one per file)
 src/core/                      — implementation + unit tests
 src/experiments/<id>/          — experiment binary + lib/ + tests/ + profiles/
 scripts/pipeline/              — paper generation chain
@@ -50,7 +50,7 @@ for n in g['nodes']:
 ## Expected Layout
 
 ```
-include/nn/          ← public headers for core library
+include/          ← public headers for core library
 src/core/            ← core library implementations
 src/experiments/
   <id>/
@@ -64,10 +64,10 @@ profiles/            ← profiling artifacts
 
 ## Checklist
 
-1. Is the new file a shared primitive? → `include/nn/` + `src/core/`.
+1. Is the new file a shared primitive? → `include/` + `src/core/`.
 2. Is it experiment-specific and reusable within that experiment? → `src/experiments/<id>/lib/`.
 3. Is it a run artifact (JSON, binary, log)? → `results/<experiment_id>/<timestamp>/`.
-4. Does any new header duplicate something already in `include/nn/`?
+4. Does any new header duplicate something already in `include/`?
 
 ## Validation
 

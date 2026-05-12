@@ -22,7 +22,7 @@ PyTorch-style serialization stores:
 ### Network Serializer
 
 ```cpp
-// File: include/nn/saver/NetworkSerializer.hpp
+// File: include/saver/NetworkSerializer.hpp
 class NetworkSerializer
 {
 public:
@@ -47,7 +47,7 @@ public:
 ### YAML Configuration
 
 ```cpp
-// File: include/nn/io/StateIO.hpp
+// File: include/io/StateIO.hpp
 class StateIO
 {
 public:

@@ -17,7 +17,7 @@ These operations are compute-intensive and benefit from optimized libraries (xte
 ### Matrix Multiplication (GEMM)
 
 ```cpp
-// File: include/nn/linearAlgebra/linear_algebra.hpp
+// File: include/linearAlgebra/linear_algebra.hpp
 
 // General matrix multiplication
 // C = alpha * A * B + beta * C

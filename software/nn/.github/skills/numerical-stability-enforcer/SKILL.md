@@ -18,10 +18,10 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 
 ## Key Files to Audit
 
-- [include/nn/layers/losses/CrossEntropyLoss.hpp](include/nn/layers/losses/CrossEntropyLoss.hpp) — numeric-stable softmax, epsilon guards
-- [include/nn/layers/losses/MSELoss.hpp](include/nn/layers/losses/MSELoss.hpp) — NaN/Inf clipping
-- [include/nn/layers/spiking/LeakyBPTT.hpp](include/nn/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
-- [include/nn/layers/spiking/Leaky.hpp](include/nn/layers/spiking/Leaky.hpp) — per-step parameter clamping
+- [include/layers/losses/CrossEntropyLoss.hpp](include/layers/losses/CrossEntropyLoss.hpp) — numeric-stable softmax, epsilon guards
+- [include/layers/losses/MSELoss.hpp](include/layers/losses/MSELoss.hpp) — NaN/Inf clipping
+- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
+- [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — per-step parameter clamping
 - [src/core/linearAlgebra/linear_algebra.cpp](src/core/linearAlgebra/linear_algebra.cpp) — raw numerical ops
 
 ## Audit Format
@@ -40,7 +40,7 @@ Fix: <unified pattern to apply>
 - Loss value is checked for finiteness before every optimizer step.
 
 Project Context (nn framework)
-**Unified epsilon** — location: `include/nn/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
+**Unified epsilon** — location: `include/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
 
 **SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LeakyBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
 

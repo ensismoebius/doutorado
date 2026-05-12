@@ -36,7 +36,7 @@ Where:
 ### Wavelet Types
 
 ```cpp
-// File: include/nn/wavelet/Types.h
+// File: include/wavelet/Types.h
 enum class WaveletType 
 { 
     Haar,      // db1

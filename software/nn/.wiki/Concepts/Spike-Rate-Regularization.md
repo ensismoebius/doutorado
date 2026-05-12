@@ -47,7 +47,7 @@ where $l$ indexes layers and fan_out is the number of output connections per neu
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/nn/layers/losses/SpikeCountLoss.hpp
+// File: include/layers/losses/SpikeCountLoss.hpp
 template <typename Backend>
 class SpikeCountLossImpl : public Module<Backend>
 {

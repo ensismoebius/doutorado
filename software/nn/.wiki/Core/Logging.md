@@ -24,7 +24,7 @@ Structured logging uses severity levels:
 ### Logger
 
 ```cpp
-// File: include/nn/logging/Logger.hpp
+// File: include/logging/Logger.hpp
 namespace nn::logging
 {
 enum class Level

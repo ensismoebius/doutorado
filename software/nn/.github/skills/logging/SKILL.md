@@ -32,7 +32,7 @@ Validation
 - Output remains readable with progress UI.
 
 Project Context (nn framework)
-**Logger header:** `include/nn/logging/Logger.hpp` — macros: `NN_LOG_ERROR`, `NN_LOG_WARN`, `NN_LOG_INFO`, `NN_LOG_DEBUG`
+**Logger header:** `include/logging/Logger.hpp` — macros: `NN_LOG_ERROR`, `NN_LOG_WARN`, `NN_LOG_INFO`, `NN_LOG_DEBUG`
 
 **Key log points in `Trainer.hpp`:**
 - `INFO`: epoch start/end with loss values

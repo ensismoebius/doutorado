@@ -9,12 +9,12 @@ Keep new work aligned with existing `nn` core contracts.
 ## Project Context (nn framework)
 
 **Existing abstractions to reuse** (never reimplement):
-- `Module<Backend>` — base for all layers (`include/nn/layers/base/Module.hpp`)
-- `Tensor` — all tensor ops (`include/nn/tensor/Tensor.hpp`)
-- `Adam`, `SGD` — optimizers (`include/nn/optimizers/`)
-- `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/nn/statistics/kfold.hpp`)
-- `NetworkSerializer` — save/load model (`include/nn/saver/NetworkSerializer.hpp`)
-- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/nn/dataLoaders/`)
+- `Module<Backend>` — base for all layers (`include/layers/base/Module.hpp`)
+- `Tensor` — all tensor ops (`include/tensor/Tensor.hpp`)
+- `Adam`, `SGD` — optimizers (`include/optimizers/`)
+- `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/statistics/kfold.hpp`)
+- `NetworkSerializer` — save/load model (`include/saver/NetworkSerializer.hpp`)
+- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/dataLoaders/`)
 
 **Anti-patterns:**
 - Reimplementing matmul or normalization outside the `Tensor` interface → breaks backend abstraction
@@ -46,7 +46,7 @@ for n in g['nodes']:
 ## Checklist (run before completing any task)
 
 1. Search for the abstraction first: `rg "class <Candidate>" include/ src/`.
-2. Check `include/nn/` for existing headers covering the need.
+2. Check `include/` for existing headers covering the need.
 3. If a new class is truly needed, confirm it composes with existing core types.
 4. Verify no duplicate tensor or training loop implementations are introduced.
 

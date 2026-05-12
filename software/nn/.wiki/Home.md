@@ -31,7 +31,7 @@ auto history = trainer.fit_autoencoder(training_data, validation_data);
 The `nn` library is organized into several key components:
 
 - **Core Library** (`src/core/`) - Tensor operations, layers, optimizers
-- **Data Loaders** (`include/nn/dataLoaders/`) - EEG, audio, and multimodal datasets
+- **Data Loaders** (`include/dataLoaders/`) - EEG, audio, and multimodal datasets
 - **Experiments** (`src/experiments/`) - Research experiments with trained models
 
 ## Table of Contents

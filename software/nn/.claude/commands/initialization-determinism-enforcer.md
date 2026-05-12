@@ -8,7 +8,7 @@ Ensure every layer parameter initialization respects the `random_seed` declared 
 
 ## Project Context (nn framework)
 
-**Initializer location:** `include/nn/initializers/` — Glorot/Xavier, He, uniform, etc.
+**Initializer location:** `include/initializers/` — Glorot/Xavier, He, uniform, etc.
 
 **Seed flow:**
 `TrainerConfig::sampler_shuffle_seed` → `std::mt19937` in `Trainer` constructor → passed to data sampler and initializers
@@ -46,8 +46,8 @@ for n in g['nodes']:
 
 ## Key Files to Fix
 
-- [include/nn/initializers/xavier.hpp](include/nn/initializers/xavier.hpp) — two branches: with/without seed
-- [include/nn/initializers/kaiming_snn.hpp](include/nn/initializers/kaiming_snn.hpp) — `std::random_device` default
+- [include/initializers/xavier.hpp](include/initializers/xavier.hpp) — two branches: with/without seed
+- [include/initializers/kaiming_snn.hpp](include/initializers/kaiming_snn.hpp) — `std::random_device` default
 - [src/experiments/02/Experiment02Config.hpp](src/experiments/02/Experiment02Config.hpp) — `random_seed` declared but unused in init
 - [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — seed must be threaded into layer init
 

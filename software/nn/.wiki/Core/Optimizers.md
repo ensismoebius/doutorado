@@ -35,7 +35,7 @@ $$\theta_{t+1} = \theta_t - v_t$$
 ### Adam — Standard Usage
 
 ```cpp
-// File: include/nn/optimizers/Adam.hpp
+// File: include/optimizers/Adam.hpp
 struct Adam : public Optimizer
 {
     float learning_rate;
@@ -61,7 +61,7 @@ weight matrices.  Literature recommends a 10× reduction: lr_SNN ≈ 1e-4 when
 global lr = 1e-3 [37].  Use `attach_with_scales()` to set per-parameter lr multipliers:
 
 ```cpp
-// File: include/nn/optimizers/Adam.hpp
+// File: include/optimizers/Adam.hpp
 void attach_with_scales(std::span<nn::Tensor*> params, std::span<const float> lr_scales);
 ```
 
@@ -116,7 +116,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: include/nn/optimizers/Optimizer.hpp
+// File: include/optimizers/Optimizer.hpp
 #include "nn/optimizers/Adam.hpp"
 
 // Create optimizer with learning rate

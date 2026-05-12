@@ -22,10 +22,10 @@ All tensor operations are element-wise by default:
 
 ## How It Is Implemented Here
 
-The core tensor is defined in `include/nn/tensor/Tensor.hpp`:
+The core tensor is defined in `include/tensor/Tensor.hpp`:
 
 ```cpp
-// File: include/nn/tensor/Tensor.hpp
+// File: include/tensor/Tensor.hpp
 template <typename Backend>
 class TensorImpl
 {
@@ -48,7 +48,7 @@ class TensorImpl
 The tensor uses a backend system to dispatch operations:
 
 ```cpp
-// File: include/nn/tensor/Tensor.hpp (simplified)
+// File: include/tensor/Tensor.hpp (simplified)
 template <typename Backend>
 class Tensor {
     // Delegates to backend for actual computation
@@ -131,7 +131,7 @@ Implementation points:
 - Kernel source: `src/core/tensor/opencl/KernelManager.cpp`
 - Backend API: `OpenCLTensorBackend::matmul_lhs_transposed(...)` in
     `src/core/tensor/opencl/OpenCLTensorBackend.cpp`
-- Linear backward integration: `include/nn/layers/dense/Linear.hpp`
+- Linear backward integration: `include/layers/dense/Linear.hpp`
 
 Measured evidence (20-iteration samples on rusticl + AMD Radeon Graphics):
 - `opencl,grad_weight_matmul_512x1024x256`: 5.662 and 5.858 ms/iter

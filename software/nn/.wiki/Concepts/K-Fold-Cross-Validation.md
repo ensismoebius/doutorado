@@ -59,7 +59,7 @@ The outer-loop scores $\{m_1, \ldots, m_{K_\text{outer}}\}$ give an unbiased est
 ### K-Fold and Stratified K-Fold
 
 ```cpp
-// File: include/nn/statistics/kfold.hpp
+// File: include/statistics/kfold.hpp
 
 struct FoldSplit {
     std::vector<std::size_t> train_indices;
@@ -86,7 +86,7 @@ public:
 ### Nested K-Fold
 
 ```cpp
-// File: include/nn/statistics/kfold.hpp  (namespace statistics)
+// File: include/statistics/kfold.hpp  (namespace statistics)
 
 struct NestedFoldSplit {
     std::vector<std::size_t> test_indices;  // outer held-out test set

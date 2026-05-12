@@ -87,7 +87,7 @@ $$\frac{\partial L}{\partial x_t} = \delta\text{pre}_t \, W, \quad
 
 ## Implementation: `LSTMLayerImpl<Backend>`
 
-**File:** `include/nn/layers/lstm/LSTMLayer.hpp`
+**File:** `include/layers/lstm/LSTMLayer.hpp`
 
 ### Parameters
 

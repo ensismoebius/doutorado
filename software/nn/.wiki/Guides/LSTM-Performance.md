@@ -43,7 +43,7 @@ cmake --build out/build/max-performance --target lstm_ops_microbench -j$(nproc)
 
 ### Fix Applied
 
-Added `sigmoid_fast_block` and `tanh_fast_block` to `include/nn/layers/activations/FastActivations.hpp`:
+Added `sigmoid_fast_block` and `tanh_fast_block` to `include/layers/activations/FastActivations.hpp`:
 
 ```cpp
 // Fused: reads src[:,col_start:col_start+gate_size] directly, applies activation, no intermediate copy.

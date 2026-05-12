@@ -8,7 +8,7 @@ Prevent SNN parameter corruption: constrain R, C, and V_th before the optimizer 
 
 ## Project Context (nn framework)
 
-**Current clamping location:** `include/nn/layers/spiking/LeakyBPTT.hpp` inside `forward()` — forward-time clamping as a safety net. Post-optimizer clamping (as this skill recommends) is not yet implemented.
+**Current clamping location:** `include/layers/spiking/LeakyBPTT.hpp` inside `forward()` — forward-time clamping as a safety net. Post-optimizer clamping (as this skill recommends) is not yet implemented.
 
 **Current clamp values:**
 - `R_min = C_min = 1e-6` — prevents division by zero in β = exp(−Δt/(R·C))
@@ -47,9 +47,9 @@ for n in g['nodes']:
 
 ## Key Files to Fix
 
-- [include/nn/layers/spiking/LeakyBPTT.hpp](include/nn/layers/spiking/LeakyBPTT.hpp) — forward-time clamping of R/C (move to post-step projection)
-- [include/nn/layers/spiking/Leaky.hpp](include/nn/layers/spiking/Leaky.hpp) — same pattern
-- [include/nn/initializers/kaiming_snn.hpp](include/nn/initializers/kaiming_snn.hpp) — document valid initial ranges for V_th
+- [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — forward-time clamping of R/C (move to post-step projection)
+- [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — same pattern
+- [include/initializers/kaiming_snn.hpp](include/initializers/kaiming_snn.hpp) — document valid initial ranges for V_th
 - Optimizer step site in [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — add post-step projection call
 
 ## Post-Step Projection Pattern

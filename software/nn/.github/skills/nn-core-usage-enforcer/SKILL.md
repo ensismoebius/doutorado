@@ -25,12 +25,12 @@ Validation
 
 Project Context (nn framework)
 **Existing abstractions to reuse** (never reimplement):
-- `Module<Backend>` — base for all layers (`include/nn/layers/base/Module.hpp`)
-- `Tensor` — all tensor ops (`include/nn/tensor/Tensor.hpp`)
-- `Adam`, `SGD` — optimizers (`include/nn/optimizers/`)
-- `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/nn/statistics/kfold.hpp`)
-- `NetworkSerializer` — save/load model (`include/nn/saver/NetworkSerializer.hpp`)
-- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/nn/dataLoaders/`)
+- `Module<Backend>` — base for all layers (`include/layers/base/Module.hpp`)
+- `Tensor` — all tensor ops (`include/tensor/Tensor.hpp`)
+- `Adam`, `SGD` — optimizers (`include/optimizers/`)
+- `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/statistics/kfold.hpp`)
+- `NetworkSerializer` — save/load model (`include/saver/NetworkSerializer.hpp`)
+- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/dataLoaders/`)
 
 **Anti-patterns:**
 - Reimplementing matmul or normalization outside the `Tensor` interface → breaks backend abstraction

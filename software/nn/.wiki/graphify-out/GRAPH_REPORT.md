@@ -230,11 +230,11 @@
 - `print_generic()` --calls--> `size()`  [INFERRED]
   /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp
 - `TEST_F()` --calls--> `Dataset101117`  [INFERRED]
-  /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/nn/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp
+  /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp
 - `has_kernel()` --calls--> `end()`  [INFERRED]
   /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/KernelManager.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/runtime/DataLoader.cpp
 - `acquire()` --calls--> `GPUBuffer()`  [INFERRED]
-  /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/GPUBufferPool.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/nn/tensor/opencl/GPUBufferPool.hpp
+  /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/GPUBufferPool.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/tensor/opencl/GPUBufferPool.hpp
 - `backward()` --calls--> `cols()`  [INFERRED]
   /home/ensismoebius/Repos/doutorado/software/nn/src/experiments/03/lib/src/autoencoder/FusedWindowAutoencoder.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp
 

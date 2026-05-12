@@ -30,8 +30,8 @@ checkpoints/<experiment_id>/<timestamp>/
 
 ## Key Files to Update
 
-- [include/nn/saver/NnSaver.hpp](include/nn/saver/NnSaver.hpp) — add version + metadata write
-- [include/nn/saver/NetworkSerializer.hpp](include/nn/saver/NetworkSerializer.hpp) — add load-time compatibility check
+- [include/saver/NnSaver.hpp](include/saver/NnSaver.hpp) — add version + metadata write
+- [include/saver/NetworkSerializer.hpp](include/saver/NetworkSerializer.hpp) — add load-time compatibility check
 
 ## Validation
 

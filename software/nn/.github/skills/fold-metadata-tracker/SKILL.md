@@ -31,7 +31,7 @@ results/<experiment_id>/<timestamp>/
 
 ## Key Files to Fix
 
-- [include/nn/statistics/kfold.hpp](include/nn/statistics/kfold.hpp) — `FoldSplit` struct needs `fold_id` and `split_seed` fields
+- [include/statistics/kfold.hpp](include/statistics/kfold.hpp) — `FoldSplit` struct needs `fold_id` and `split_seed` fields
 - [src/experiments/02/Experiment02Training.cpp](src/experiments/02/Experiment02Training.cpp) — save per-fold metrics before averaging
 - [src/core/training/EpochResult.hpp](src/core/training/EpochResult.hpp) — add `fold_id` field
 
@@ -45,7 +45,7 @@ results/<experiment_id>/<timestamp>/
 Project Context (nn framework)
 **Fold results location:** `results/*_comparative_metrics.csv` — one row per (model, architecture, fold, epoch)
 
-**KFold API:** `include/nn/statistics/kfold.hpp`
+**KFold API:** `include/statistics/kfold.hpp`
 - `KFold`, `StratifiedKFold`, `NestedKFold`
 
 **CSV fold fields:**

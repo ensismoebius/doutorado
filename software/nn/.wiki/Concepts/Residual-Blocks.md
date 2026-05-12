@@ -30,7 +30,7 @@ The "+1" ensures gradient flow even when $\mathcal{F}$ learns zero.
 ### Residual Block
 
 ```cpp
-// File: include/nn/layers/residual/ResidualBlock.hpp
+// File: include/layers/residual/ResidualBlock.hpp
 template <typename Backend>
 class ResidualBlock : public Module<Backend>
 {
@@ -49,7 +49,7 @@ class ResidualBlock : public Module<Backend>
 ### ResNet Block
 
 ```cpp
-// File: include/nn/layers/residual/ResNetBlock.hpp
+// File: include/layers/residual/ResNetBlock.hpp
 // Pre-activation ResNet block
 class ResNetBlock : public Module<XtensorTensorBackend>
 {

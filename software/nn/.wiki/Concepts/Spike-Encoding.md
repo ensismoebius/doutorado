@@ -66,7 +66,7 @@ This captures rate-of-change events and is well-suited for EEG and audio signals
 ### SpikeCountLoss — Rate-Coded Outputs
 
 ```cpp
-// File: include/nn/layers/losses/SpikeCountLoss.hpp
+// File: include/layers/losses/SpikeCountLoss.hpp
 template <typename Backend>
 class SpikeCountLossImpl : public Module<Backend>
 {
@@ -87,7 +87,7 @@ Expected input shape: `(N, F)` — N samples, F features; values are spike count
 ### SpikeTimeLoss — Latency-Coded Outputs
 
 ```cpp
-// File: include/nn/layers/losses/SpikeTimeLoss.hpp
+// File: include/layers/losses/SpikeTimeLoss.hpp
 template <typename Backend>
 class SpikeTimeLossImpl : public Module<Backend>
 {
@@ -122,7 +122,7 @@ auto grad = stloss.backward(Tensor::ones(1, 1));
 For the latent space of an SNN-VAE, firing rate is parameterised via `softplus`:
 
 ```cpp
-// File: include/nn/layers/spiking/PoissonLatentLayer.hpp
+// File: include/layers/spiking/PoissonLatentLayer.hpp
 // λ = softplus(z) = log(1 + exp(z))
 // s ~ Poisson(λ * T) at training time
 // output = s / T   (continuous relaxation back to rate space)

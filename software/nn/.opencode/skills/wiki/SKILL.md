@@ -70,7 +70,7 @@ h) **"References"** — IEEE format citations
 find . -type f \( -name "*.hpp" -o -name "*.cpp" -o -name "*.md" \) \
   ! -path "./build/*" ! -path "./_deps/*" | sort
 ```
-Read every README.md and public header under `include/nn/`. Read full source of every file under `src/experiments/`. Do NOT start writing until the full codebase is read.
+Read every README.md and public header under `include/`. Read full source of every file under `src/experiments/`. Do NOT start writing until the full codebase is read.
 
 ### STEP 2 — WEB RESEARCH
 Collect canonical citations for: LSTM, BPTT, SNNs + surrogate gradients, Autoencoders, Adam, Xavier/Glorot init, Kaiming/He init, ResNet skip connections, k-fold cross-validation, ReduceLROnPlateau, EEG/BCI signal processing, imagined-speech EEG decoding.

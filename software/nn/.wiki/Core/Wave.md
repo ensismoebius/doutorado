@@ -44,7 +44,7 @@ The codebase includes a WAV reader for loading audio datasets like FSDD:
 ### Wav Class API
 
 ```cpp
-// File: include/nn/wave/Wav.h
+// File: include/wave/Wav.h
 class Wav
 {
 public:
@@ -89,7 +89,7 @@ for (std::size_t i = 0; i < raw_data.size(); ++i)
 ### Window Functions
 
 ```cpp
-// File: include/nn/wave/signal_operations.hpp
+// File: include/wave/signal_operations.hpp
 
 // Apply Hamming window to frame
 // w[n] = 0.54 - 0.46 * cos(2πn / (N-1))
@@ -103,7 +103,7 @@ auto apply_hann_window(Tensor& frame) -> Tensor;
 ### Filterbank
 
 ```cpp
-// File: include/nn/wave/audioTypes.h
+// File: include/wave/audioTypes.h
 struct FilterbankConfig
 {
     Tensor& filterbank;  // Mel filterbank matrix
@@ -119,7 +119,7 @@ auto mel_filterbank(const Tensor& power_spectrum,
 ### MFCC Extraction
 
 ```cpp
-// File: include/nn/wave/filter_operations.hpp
+// File: include/wave/filter_operations.hpp
 
 // Apply mel filterbank
 auto mel_filterbank(const Tensor& power_spectrum, 
