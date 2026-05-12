@@ -123,7 +123,7 @@ jobs:
         run: |
           cd build
           echo "Validating cppcheck results..."
-          python3 ../scripts/validate_static_analysis.py --report cppcheck-report.xml
+          python3 ../scripts/ci/validate_static_analysis.py --report cppcheck-report.xml
           if [ $? -ne 0 ]; then
             echo "❌ Cppcheck violations detected that are not in the approved list"
             exit 1
@@ -202,7 +202,7 @@ jobs:
               exit 1
             fi
 
-            bash ../scripts/check_core_coverage_gate.sh coverage.filtered.info
+            bash ../scripts/ci/check_core_coverage_gate.sh coverage.filtered.info
           else
             echo "Coverage file not found"
             exit 1

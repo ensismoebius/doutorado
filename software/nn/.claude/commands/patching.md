@@ -6,6 +6,31 @@ description: "Focused minimal diffs with compile/test validation before reportin
 
 Produce minimal, reviewable diffs with preserved behavior.
 
+## Project Context (nn framework)
+
+**Module<Backend> contract** — every layer must implement:
+- `forward(input, requires_grad)` — caches state for backward; call before `backward()`
+- `backward(grad_output)` — returns grad w.r.t. input; grad shape == forward input shape
+- `params()` → `std::span<nn::Tensor*>` — raw pointers to member tensors (not temporaries)
+- `reset_state()` — stateful layers (SNN/LSTM) must clear ALL hidden state between sequences
+
+**SNN invariants** (must not break when patching spiking layers):
+- Time-major layout: input shape `(T*B, F)`, not `(B, T, F)`
+- R, C clamped to `≥1e-6` in forward; grad zeroed in clamped region
+- β = exp(−Δt/(R·C)) recomputed each forward step
+
+**Build targets by patch type:**
+```bash
+# Core layer patch
+cmake --build out/build/max-performance --target core_gtest -j$(nproc)
+
+# Trainer or training loop patch
+cmake --build out/build/max-performance --target trainer_gtest -j$(nproc)
+
+# Profile JSON or Exp04 config patch
+cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+```
+
 ## Rules
 
 - **PATCH_SMALL**: Change only files required by the issue. No opportunistic refactors.

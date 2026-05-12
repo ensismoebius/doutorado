@@ -6,6 +6,17 @@ description: "Enforce consistent epsilon guards, NaN/Inf detection, and clamping
 
 Ensure all forward and backward passes use consistent, unified numerical safety patterns rather than ad-hoc per-layer strategies.
 
+## Project Context (nn framework)
+
+**Unified epsilon** — location: `include/nn/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
+
+**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LeakyBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
+
+**Loss guards:**
+- `SpikeCountLoss` / `SpikeTimeLoss`: `log(spike_count + kEps)` — guard against zero spikes
+- `SpikeTimeLoss`: latency must be clamped to `[0, T-1]`; out-of-range = undefined behavior
+- `CrossEntropyLoss`: `log(p + kEps)` in forward; already implemented
+
 ## Rules
 
 - **UNIFIED_EPSILON**: Use a single project-wide epsilon constant (e.g., `nn::kEps = 1e-7f`) instead of per-file magic numbers. No inline `1e-6`, `1e-8`, or similar literals scattered across layers.

@@ -6,6 +6,27 @@ description: "Enforce deterministic experiment metadata, config serialization, a
 
 Ensure every experiment run is reproducible and traceable.
 
+## Project Context (nn framework)
+
+**Article pipeline chain** (full paper reproduction):
+```
+scripts/pipeline/run_article_profiles.sh
+  → results/article_*_comparative_metrics.csv
+  → scripts/pipeline/build_paper_data.py
+  → documentation/.../data/article_*_*.dat
+  → pdflatex paper.tex
+```
+
+**Profile locations:** `src/experiments/04/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json`
+
+**Profile audit** — run after any profile edit:
+```bash
+cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
+```
+
+**`seed_deterministic` field** — set `false` in all article profiles (random init). Set `true` only for debugging/unit tests. Value recorded in CSV output for traceability.
+
 ## Rules
 
 - **EXPLICIT_CONFIG**: Persist run config in JSON/YAML artifacts alongside results. No implicit defaults without serialization.

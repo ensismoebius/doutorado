@@ -6,6 +6,19 @@ description: "Enforce fold ID, split seed, and sample index tracking in all K-fo
 
 Ensure K-fold results are never aggregated without first saving per-fold metadata, enabling fold-wise error analysis and significance testing.
 
+## Project Context (nn framework)
+
+**Fold results location:** `results/*_comparative_metrics.csv` — one row per (model, architecture, fold, epoch)
+
+**KFold API:** `include/nn/statistics/kfold.hpp`
+- `KFold`, `StratifiedKFold`, `NestedKFold`
+
+**CSV fold fields:**
+- `fold` — 0-indexed fold number
+- `run_id` — unique run identifier from profile `experiment.run_tag`
+- `model` — `"lstm-ae"` or `"snn-ae"`
+- `architecture` — `"dense"`, `"conv1d"`, or `"recurrent"`
+
 ## Rules
 
 - **FOLD_ID_IN_OUTPUT**: Every per-fold result (loss, metrics, predictions) must be tagged with its fold ID (0-indexed). No aggregating fold results before saving per-fold records.

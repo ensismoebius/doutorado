@@ -150,11 +150,11 @@ ctest --test-dir build-asan --output-on-failure -j1
 ### Enable Coverage
 
 ```bash
-cmake -S . -B build-coverage -DCMAKE_BUILD_TYPE=Debug -DNN_ENABLE_COVERAGE=ON
-cmake --build build-coverage -j$(nproc)
-ctest --test-dir build-coverage --output-on-failure -j4
+cmake --preset=Clang_20.1.8_x86_64-pc-linux-gnu -DNN_ENABLE_COVERAGE=ON
+cmake --build out/build/Clang_20.1.8_x86_64-pc-linux-gnu -j$(nproc)
+ctest --test-dir out/build/Clang_20.1.8_x86_64-pc-linux-gnu --output-on-failure -j4
 # Collect coverage with lcov (use --ignore-errors inconsistent for gtest macros)
-lcov --capture --directory build-coverage --output-file coverage.info \
+lcov --capture --directory out/build/Clang_20.1.8_x86_64-pc-linux-gnu --output-file coverage.info \
      --ignore-errors inconsistent
 lcov --remove coverage.info '/usr/*' '*/_deps/*' --output-file coverage.info
 genhtml coverage.info --output-directory coverage-html
@@ -202,7 +202,7 @@ Each module under `src/core/` has its own `CMakeLists.txt` and optional `tests/`
 | `paraconsistent/` | `paraconsistent` |
 | `saver/` | `saver` |
 | `utility/` | `utility` |
-| `tools/` | internal tools |
+| `scripts/` | pipeline, data, ci, dev scripts |
 | `training/` | `training` |
 
 All core modules are included from `src/core/CMakeLists.txt` via `add_subdirectory`.  
@@ -215,7 +215,6 @@ Shared config library `experiments_config` (JSON-backed) is built at the `src/ex
 | Experiment | Directory |
 |-----------|-----------|
 | 00 | `src/experiments/00/` |
-| 01 | `src/experiments/01/` |
 | 02 | `src/experiments/02/` |
 | 03 | `src/experiments/03/` (Autoencoder / SNN) |
 | 04 | `src/experiments/04/` (LSTM comparative) |

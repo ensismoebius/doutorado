@@ -23,10 +23,10 @@ for profile in "${PROFILES[@]}"; do
 done
 
 echo "[article-run] converting NPZ artifacts to PT"
-python3 scripts/npz_to_pytorch.py --models-dir results/models || true
+python3 scripts/data/npz_to_pytorch.py --models-dir results/models || true
 
 echo "[article-run] building paper aggregate CSV files"
-python3 scripts/build_paper_data.py \
+python3 scripts/pipeline/build_paper_data.py \
   --results-dir results \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

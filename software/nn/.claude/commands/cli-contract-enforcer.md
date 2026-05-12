@@ -6,6 +6,18 @@ description: "Enforce deterministic, side-effect-safe CLI argument validation an
 
 Keep CLI interfaces deterministic and safe across all entry points.
 
+## Project Context (nn framework)
+
+**Main CLI entry points:**
+- `experiment04 --comparative-config <profile.json>` — primary paper pipeline entry point
+- `experiment04 --help` — must list all flags, exit 0, no side effects
+- `experiment03 --help` — same requirement
+- `Phase00 [config.json]` — optional positional arg for config path
+
+**Profile JSON is the primary config surface** for Exp04. All training parameters (model, data, folds, hyperparams) come from the profile — no hidden defaults that differ between `--help` output and actual behavior.
+
+**No side effects on `--help`:** `--help` must not write files, touch the filesystem, or open OpenCL devices. Use `nn::logging::StreamRedirector` only after help check.
+
 ## Rules
 
 - **HELP_IS_PURE**: Make `--help` exit immediately with status 0. No side effects (file writes, network calls) on the help path.

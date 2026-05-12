@@ -6,6 +6,27 @@ description: "Meta-skill: produce concise, constraint-first, structured outputs.
 
 Minimize token usage while preserving actionable correctness.
 
+## Project Context (nn framework)
+
+**Project knowledge sources** (prefer over reading large source files):
+- `CLAUDE.md` — contracts, invariants, build commands, key file index
+- `.wiki/` — concepts, guides, experiment descriptions
+- Use `navigation` skill first to locate files before reading them
+
+**Efficient search patterns:**
+```bash
+# Find a symbol across all sources
+rg 'LeakyBPTT' include/ src/ --type cpp -l
+
+# Run only matching tests (avoid full suite)
+ctest --test-dir out/build/max-performance -R core_gtest --output-on-failure
+
+# Check specific profile field without reading entire file
+jq '.model.paradigm' src/experiments/04/profiles/article-lstm-ae.json
+```
+
+**Avoid reading** entire files when a grep or `jq` query suffices.
+
 ## Rules
 
 - **CONSTRAINT_FIRST**: Use compact `RULE/DO/AVOID` blocks. No long narrative explanations by default.

@@ -6,6 +6,19 @@ description: "Enforce seed propagation from experiment config through trainer in
 
 Ensure every layer parameter initialization respects the `random_seed` declared in experiment config, making runs reproducible from a fixed seed.
 
+## Project Context (nn framework)
+
+**Initializer location:** `include/nn/initializers/` — Glorot/Xavier, He, uniform, etc.
+
+**Seed flow:**
+`TrainerConfig::sampler_shuffle_seed` → `std::mt19937` in `Trainer` constructor → passed to data sampler and initializers
+
+**Layer init timing:** Layer parameters are initialized in the constructor, not in `forward()`. Do not re-initialize in `forward()` — it resets learned weights every step.
+
+**`seed_deterministic` field** in Exp04 profiles:
+- `false` — article runs (random init, multiple runs averaged)
+- `true` — debugging only (reproducible single run for diff comparison)
+
 ## Rules
 
 - **SEED_MANDATORY**: Every experiment config must declare `random_seed`. No initialization without an explicit seed in the config.

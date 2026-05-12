@@ -30,7 +30,7 @@ Approved suppressions for third-party header noise and valid runtime guards:
 
 List approved suppressions:
 ```bash
-python3 scripts/validate_static_analysis.py --list-approved
+python3 scripts/ci/validate_static_analysis.py --list-approved
 ```
 
 ### Adding Suppressions
@@ -41,7 +41,7 @@ python3 scripts/validate_static_analysis.py --list-approved
    // cppcheck-suppress knownConditionTrueFalse
    if (stop_requested_) { break; }
    ```
-3. Update `scripts/validate_static_analysis.py`
+3. Update `scripts/ci/validate_static_analysis.py`
 
 ## Clang-Tidy
 
@@ -90,7 +90,7 @@ Policy: **No Level 5 issues allowed in CI**
 
 ```bash
 cd build && ninja analysis-cppcheck
-python3 ../scripts/validate_static_analysis.py --report cppcheck-report.xml
+python3 ../scripts/ci/validate_static_analysis.py --report cppcheck-report.xml
 ```
 
 ## See Also

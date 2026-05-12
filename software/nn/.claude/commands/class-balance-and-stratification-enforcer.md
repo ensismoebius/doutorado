@@ -6,6 +6,15 @@ description: "Enforce stratified fold splitting when declared in config, auto-co
 
 Ensure that class imbalance is handled explicitly: stratified splits are actually used when declared, and evaluation metrics account for imbalance.
 
+## Project Context (nn framework)
+
+**Dataset context:** EEG/audio windows from the 10.1117 imagined speech dataset. Windows within a session are not inherently imbalanced — class counts depend on trial design (typically balanced). Default: use `KFold`, not `StratifiedKFold`, unless label distribution check shows imbalance.
+
+**KFold API location:** `include/nn/statistics/kfold.hpp`
+- `KFold` — standard k-fold, no stratification
+- `StratifiedKFold` — stratified by label; use when any class < 80% of majority
+- `NestedKFold` — outer CV for model selection + inner CV for hyperparameter tuning
+
 ## Rules
 
 - **STRATIFIED_MEANS_STRATIFIED**: If config declares `stratified: true`, a stratified sampler must be used — not a random sampler. No config flag that does nothing.

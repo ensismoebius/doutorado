@@ -6,6 +6,21 @@ description: "Create, update, review, and validate Claude Code command files (.c
 
 Create or update Claude Code command assets with minimal token usage and deterministic behavior.
 
+## Project Context (nn framework)
+
+**Skill file source of truth:** `.claude/commands/` — edit here first
+
+**Sync destinations** (via `scripts/dev/sync_cross_project_skills.sh`):
+- `.github/skills/` — for GitHub Copilot
+- `.opencode/skills/` — for OpenCode
+- `~/.claude/commands/` — global Claude Code commands
+
+**Convention:** Skill names match `/<skillname>` slash commands. File `build-test.md` → `/build-test`.
+
+**`CLAUDE.md`** defines project-wide conventions that all skills must respect — check it before adding new constraints that may conflict.
+
+**Adding a skill:** Create `.claude/commands/<skill-name>.md` with frontmatter `description:` field, then run `sync_cross_project_skills.sh` to propagate.
+
 ## Rules
 
 - **SCOPE_FIRST**: Default to project scope under `.claude/commands/`. Use `~/.claude/commands/` only when explicitly requested for user-wide scope.

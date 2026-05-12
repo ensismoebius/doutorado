@@ -6,6 +6,19 @@ description: "Standardize use of local CLI tools (rg, jq, entr, ctags) to reduce
 
 Use installed tooling to minimize repetitive manual steps and avoid token-heavy workarounds.
 
+## Project Context (nn framework)
+
+**Installed tools and their roles:**
+- `rg` (ripgrep) — primary code/text search; use instead of `find + grep`
+- `clang-format` — via `scripts/dev/clang-format-changed.sh`; staged files only
+- `ccache` — wired in CMake presets; clear with `cmake --build ... --target clean-cache`
+- `ctest` — test runner; use `-R <pattern>` to target specific tests
+- `graphify` — knowledge graph generation; see `.opencode/plugins/graphify.js`
+
+**Static analysis:**
+- `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy
+- `python3 scripts/ci/validate_static_analysis.py --list-approved` — show suppression allowlist
+
 ## Rules
 
 - **SEARCH_TOOLING**: Use `rg` for code/text search and file discovery. No slow broad `find` + `grep` combos when `rg` suffices.

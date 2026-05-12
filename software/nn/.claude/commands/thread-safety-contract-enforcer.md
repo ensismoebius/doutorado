@@ -6,6 +6,17 @@ description: "Enforce thread-safety contracts for DataLoader, BatchPrefetcher, a
 
 Ensure concurrent data loading is safe by making thread-safety contracts explicit, preventing shared-state races, and validating producer/consumer boundaries.
 
+## Project Context (nn framework)
+
+**`OpenCLContext::s_batch_depth`** — plain `int` (NOT `thread_local`, NOT atomic). Single-threaded GPU dispatch assumed: only one thread drives the OpenCL command queue. Never access this from multiple threads.
+
+**`ProgressManager`** — uses `std::mutex` for thread-safe progress updates. The Trainer calls it from the training thread; a display thread may read it concurrently. Contract: always lock before read or write.
+
+**`DataLoader`** SPSC queue ownership model:
+- One producer thread (`BatchPrefetcher`) writes batches into the queue
+- One consumer thread (training loop) reads batches
+- No shared `DataLoader` across threads; each thread owns its own instance
+
 ## Rules
 
 - **DATALOADER_NOT_SHARED**: A `DataLoader` instance must not be accessed from multiple threads concurrently. If parallel data loading is needed, each thread must own its own `DataLoader`. No implicit shared `DataLoader`.

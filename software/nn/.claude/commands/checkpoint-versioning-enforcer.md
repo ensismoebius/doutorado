@@ -6,6 +6,21 @@ description: "Enforce checkpoint format versioning, architecture metadata, and l
 
 Ensure model checkpoints are self-describing: they carry the format version and architecture shape needed to detect and reject incompatible loads.
 
+## Project Context (nn framework)
+
+**Checkpoint naming pattern:** `results/checkpoints/article_{model}_{backend}_{dataset}_{run_tag}.json`
+Example: `results/checkpoints/article_lstm_ae_xtensor_fsdd_r01.json`
+
+**Two serialization APIs:**
+- `NetworkSerializer` (`include/nn/saver/NetworkSerializer.hpp`) — full `state_dict` map → `.npz` file; preferred for new code
+- `NnSaver` (`include/nn/saver/NnSaver.hpp`) — legacy weight+bias pair → `_weights.npy` + `_bias.npy`; do not use for new layers
+
+**Load pattern:**
+```cpp
+model.load_state_dict(NetworkSerializer::load("model.npz"));
+```
+Validate architecture metadata from the checkpoint against the current model before loading.
+
 ## Rules
 
 - **VERSION_HEADER**: Every checkpoint must begin with a format version string (e.g., `"nn_checkpoint_v1"`). No loading a checkpoint without verifying this header first.

@@ -6,6 +6,17 @@ description: "Validate backward pass tensor shapes, cache consistency, and gradi
 
 Catch silent backward pass failures: shape mismatches, stale caches, and NaN/Inf gradients that corrupt weight updates.
 
+## Project Context (nn framework)
+
+**Layer cache patterns** — check these are populated before `backward()`:
+- `CrossEntropyLoss`: caches softmax output from `forward()`
+- `LeakyBPTT`: `spike_history` length must equal `time_steps`; `v_mem_history` same
+- `LinearImpl`: caches input tensor for weight gradient computation
+
+**Time-major grad invariant:** Gradient entering `LeakyBPTT::backward()` must be `(T*B, F)` — same shape as forward input. If BPTT history length ≠ `time_steps`, the off-by-one means backward reads past the allocated history.
+
+**Consequence of wrong history length:** Silent gradient corruption — spike gradients from wrong timestep are applied, loss appears to decrease but model diverges on longer sequences.
+
 ## Rules
 
 - **SHAPE_MATCH**: Gradient input to `backward()` must have the same shape as the output of the corresponding `forward()`. Assert or log mismatch explicitly. No silent shape mismatches.

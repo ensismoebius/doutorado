@@ -296,8 +296,8 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
 | Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/AutoencoderBuilders.hpp` |
 | Exp04 profile audit tests | `src/experiments/04/tests/profile_audit_gtest.cpp` |
-| Paper CSV aggregator | `scripts/build_paper_data.py` |
-| Article run script | `scripts/run_article_profiles.sh` |
+| Paper CSV aggregator | `scripts/pipeline/build_paper_data.py` |
+| Article run script | `scripts/pipeline/run_article_profiles.sh` |
 
 ---
 
@@ -308,12 +308,12 @@ Full chain from profiles to compiled PDF:
 ```bash
 # 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
 cd software/nn
-./scripts/run_article_profiles.sh
+./scripts/pipeline/run_article_profiles.sh
 # writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
 # writes .../conference71070Guaiaquil/data/article_*_*.dat  (pgfplots DAT files)
 
 # 2. Aggregate into paper_*.csv (called automatically by run_article_profiles.sh)
-python3 scripts/build_paper_data.py \
+python3 scripts/pipeline/build_paper_data.py \
   --results-dir results \
   --data-dir .../conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

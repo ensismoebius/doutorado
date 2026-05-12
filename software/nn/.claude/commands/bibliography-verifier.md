@@ -8,6 +8,21 @@ Audit every `@article`, `@inproceedings`, `@book`, and `@misc` entry in one or m
 For each entry check: authors exist, title matches actual publication, journal/venue is correct,
 year/volume/number/pages are accurate, DOI resolves to the stated paper.
 
+## Project Context (nn framework)
+
+**`.bib` file locations:**
+- `documentation/07-articlesProduced/conference71070Guaiaquil/paper.bib` — conference paper bibliography
+- `documentation/00-dissertation/monography/monography.bib` — thesis bibliography
+
+**Domain:** neuromorphic computing, SNN, EEG/BCI, wavelet signal processing, paraconsistent logic
+
+**Key topics to verify citations for:**
+- Surrogate gradients: Neftci et al. 2019 (IEEE Signal Processing Magazine)
+- LSNN: Bellec et al. 2018 (NeurIPS)
+- Spike encoding (rate/latency): various IEEE TNNLS and Frontiers in Neuroscience
+- Paraconsistent logic: Da Costa (foundational, mathematical logic journals)
+- 10.1117 dataset: the actual SPIE proceedings entry
+
 ## Rules
 
 - **DOI_FIRST**: Resolve DOI via `https://doi.org/<doi>` before any other source. DOI is ground truth.

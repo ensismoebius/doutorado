@@ -216,7 +216,7 @@ The total network is built by concatenating these specs.
   --comparative-config src/experiments/04/profiles/article-lstm-ae.json
 
 # Run all article profiles + build paper CSVs (~2.5 h)
-./scripts/run_article_profiles.sh
+./scripts/pipeline/run_article_profiles.sh
 ```
 
 Both `--comparative-config` and `--profile` are accepted as the flag name.
@@ -239,7 +239,7 @@ Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
 ```bash
 # After all article runs complete:
-python3 scripts/build_paper_data.py \
+python3 scripts/pipeline/build_paper_data.py \
   --results-dir results \
   --data-dir /path/to/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

@@ -6,6 +6,21 @@ description: "Migrate ad-hoc prints to nn::logging::Logger and enforce consisten
 
 Centralize runtime output and remove ad-hoc console/file diagnostics.
 
+## Project Context (nn framework)
+
+**Logger header:** `include/nn/logging/Logger.hpp` — macros: `NN_LOG_ERROR`, `NN_LOG_WARN`, `NN_LOG_INFO`, `NN_LOG_DEBUG`
+
+**Key log points in `Trainer.hpp`:**
+- `INFO`: epoch start/end with loss values
+- `DEBUG` (gated, not in hot path): per-batch loss when debug level enabled
+- `ERROR`: NaN loss detected — log and abort training
+- `WARN`: SNN biophysical param (R, C) hit clamp boundary
+
+**Never log inside:**
+- `LeakyBPTT` inner time loop — called `time_steps × batch_size` times per forward
+- `matmul` inner K-loop — called `rows × cols × K` times
+- Any loop with >1000 iterations in typical workload
+
 ## Rules
 
 - **LOGGER_ONLY**: Use `NN_LOG_ERROR` / `NN_LOG_WARN` / `NN_LOG_INFO` / `NN_LOG_DEBUG`. No new `std::cout`, `std::cerr`, or `/tmp/*.log` in core paths.

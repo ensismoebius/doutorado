@@ -6,6 +6,14 @@ description: "Enforce normalization scope (per-feature vs global), train-only fi
 
 Ensure that normalization is applied exactly as declared in experiment config — especially that statistics are never computed on validation or test data.
 
+## Project Context (nn framework)
+
+**Normalization sites in Exp04:**
+- **z-score per window:** `src/experiments/04/lib/src/ComparativeDataset.cpp:37` — applied to raw EEG/audio windows; statistics computed on training fold only ✓
+- **per-encoding min/max re-normalization:** `src/experiments/04/lib/src/ComparativeEncoding.cpp` — applied after input transform (dense/conv1d/recurrent); leakage risk here if stats are computed over full dataset
+
+**Leakage risk:** The encoding step in `ComparativeEncoding.cpp` must refit normalization stats on the training fold only. If the encoding transform changes the data distribution, verify that the re-normalization step uses only train-fold statistics.
+
 ## Rules
 
 - **FIT_TRAIN_ONLY**: Normalization statistics (mean, std, min, max) must be computed exclusively on the training fold. No fitting on validation or test subsets, even partially.

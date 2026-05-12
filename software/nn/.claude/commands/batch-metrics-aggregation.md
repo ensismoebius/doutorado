@@ -6,6 +6,18 @@ description: "Enforce a unified contract for batch-level metric accumulation (lo
 
 Replace per-experiment ad-hoc metric collection with a standard accumulator that works consistently across all training loops and experiment types.
 
+## Project Context (nn framework)
+
+**Exp04 CSV schema** (`results/article_*_comparative_metrics.csv`):
+- Columns: `model`, `architecture`, `fold`, `epoch`, `train_loss`, `val_loss`, `run_id`
+- One row per (model, architecture, fold, epoch)
+- `model` values: `"lstm-ae"`, `"snn-ae"`
+- `architecture` values: `"dense"`, `"conv1d"`, `"recurrent"`
+
+**`EpochResult` fields** (`src/core/training/EpochResult.hpp`): `train_loss`, `val_loss`, `epoch`, `fold_id`, `run_tag`
+
+**Results output path:** `results/` at repo root (relative to `software/nn/`). CSV files written by `ComparativeOutput.cpp`.
+
 ## Rules
 
 - **ACCUMULATOR_PATTERN**: Use a `MetricAccumulator` object per epoch (not ad-hoc running sums). Reset it at the start of each epoch. No manual `total_loss += batch_loss / n_batches` scatter across loop bodies.

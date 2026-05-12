@@ -6,6 +6,35 @@ description: "Locate files, symbols, tests, and targets quickly with minimal too
 
 Find the right file/symbol fast, with reproducible search steps.
 
+## Project Context (nn framework)
+
+**Key file index:**
+
+| What | Where |
+|---|---|
+| Module base | `include/nn/layers/base/Module.hpp` |
+| LIF single-step | `include/nn/layers/spiking/Leaky.hpp` |
+| LIF BPTT | `include/nn/layers/spiking/LeakyBPTT.hpp` |
+| Trainer | `src/core/training/Trainer.hpp` |
+| Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
+| Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
+| KFold / NestedKFold | `include/nn/statistics/kfold.hpp` |
+| OpenCL context | `include/nn/tensor/opencl/OpenCLContext.hpp` |
+
+**SNN search anchors** — grep for these to find the relevant code:
+- `v_mem_history`, `spike_history` — membrane and spike recording in LeakyBPTT
+- `time_steps`, `surrogate_grad`, `readout_mode` — SNN config fields
+- `R_min`, `C_min` — biophysical parameter clamp sites
+
+**Experiment paths:**
+- `src/experiments/00/` — wavelet + paraconsistent baseline
+- `src/experiments/02/` — wavelet autoencoder
+- `src/experiments/03/` — multimodal autoencoder
+- `src/experiments/04/` — LSTM vs SNN comparative
+
+**Article pipeline chain:**
+`scripts/pipeline/run_article_profiles.sh` → CSVs → `scripts/pipeline/build_paper_data.py` → DAT → `pdflatex paper.tex`
+
 ## Rules
 
 - **SEARCH_NARROWLY**: Start in `src/`, `include/`, `cmake/`, `scripts/`. Avoid `build/`, `_deps/`, generated outputs unless requested.

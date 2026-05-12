@@ -6,6 +6,22 @@ description: "Find and summarize state-of-the-art code references and implementa
 
 Retrieve high-quality, recent, and reproducible code references for a specific technical task.
 
+## Project Context (nn framework)
+
+**Domain:** neuromorphic computing + SNN autoencoders for EEG/BCI signal reconstruction
+
+**Key venues for relevant literature:**
+- NeurIPS, ICLR — surrogate gradients, SNN training methods
+- IEEE TNNLS, IEEE TNN — spiking neural network applications
+- Frontiers in Neuroscience — BCI, EEG decoding
+- SPIE proceedings — the 10.1117 dataset paper
+
+**Key foundational papers to verify are cited correctly:**
+- Surrogate gradients: Neftci, Mostafa, Zenke (2019) — IEEE Signal Processing Magazine
+- LSNN (adaptive SNNs): Bellec et al. (2018) — NeurIPS
+- Spike encoding (rate/latency): review papers in IEEE TNNLS
+- Paraconsistent logic: Da Costa foundational work (mathematical logic journals)
+
 ## Rules
 
 - **QUERY_PRECISION**: Build narrow queries with domain, method, metric, and constraints. No broad keyword-only searches.

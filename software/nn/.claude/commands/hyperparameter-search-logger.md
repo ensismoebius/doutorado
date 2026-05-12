@@ -6,6 +6,24 @@ description: "Enforce hyperparameter search space declaration, sampled-point log
 
 Ensure every hyperparameter search is reproducible: the search space, every sampled point, and the winning config are all recorded together.
 
+## Project Context (nn framework)
+
+**Sweep parameters in Exp04 article profiles:**
+- `article-snn-recurrent.json`: alpha sweep (surrogate gradient width)
+- `article-snn-dense.json`: v_th sweep (spike threshold)
+- Sweep range declared as a JSON array in the profile field
+
+**Sweep output:** `scripts/pipeline/build_paper_data.py` produces `results/paper_sweep_alpha.csv` and `results/paper_sweep_vth.csv` from the comparative metrics CSVs.
+
+**Profile sweep fields:**
+```json
+"model": {
+  "alpha_values": [0.5, 1.0, 2.0],
+  "v_th_values": [0.5, 1.0, 1.5]
+}
+```
+Each value in the array → one independent run with that hyperparameter fixed.
+
 ## Rules
 
 - **SPACE_DECLARED**: The hyperparameter search space must be declared as a JSON file (`search_space.json`) before search begins. No ad-hoc profile variants without a declared space.

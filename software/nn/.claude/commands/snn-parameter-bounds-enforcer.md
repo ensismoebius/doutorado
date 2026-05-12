@@ -6,6 +6,18 @@ description: "Enforce physical bounds on SNN parameters (R, C, V_th) at the opti
 
 Prevent SNN parameter corruption: constrain R, C, and V_th before the optimizer writes them so that gradient computation is never based on clamped-but-wrong values.
 
+## Project Context (nn framework)
+
+**Current clamping location:** `include/nn/layers/spiking/LeakyBPTT.hpp` inside `forward()` — forward-time clamping as a safety net. Post-optimizer clamping (as this skill recommends) is not yet implemented.
+
+**Current clamp values:**
+- `R_min = C_min = 1e-6` — prevents division by zero in β = exp(−Δt/(R·C))
+- `V_th`: convention ≥ 0.5 (enforced by construction/init, not dynamically clamped)
+
+**β computation:** `β = exp(−Δt / (R·C))` — computed each forward step. If optimizer drives R or C negative → β > 1 → membrane diverges. Clamp prevents this.
+
+**Grad zeroing:** Gradient w.r.t. R and C is zeroed when the forward clamp fires. Optimizer cannot pull them back from boundary — log a `WARN` if clamp fires frequently.
+
 ## Rules
 
 - **CLAMP_BEFORE_STEP**: Apply parameter bounds as a post-step projection (after `optimizer.step()`, before `forward()`). Never rely solely on forward-time clamping to fix optimizer-proposed invalid values.

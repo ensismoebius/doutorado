@@ -6,6 +6,21 @@ description: "Enforce reuse of existing nn core abstractions (Tensor, Layer, Seq
 
 Keep new work aligned with existing `nn` core contracts.
 
+## Project Context (nn framework)
+
+**Existing abstractions to reuse** (never reimplement):
+- `Module<Backend>` — base for all layers (`include/nn/layers/base/Module.hpp`)
+- `Tensor` — all tensor ops (`include/nn/tensor/Tensor.hpp`)
+- `Adam`, `SGD` — optimizers (`include/nn/optimizers/`)
+- `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/nn/statistics/kfold.hpp`)
+- `NetworkSerializer` — save/load model (`include/nn/saver/NetworkSerializer.hpp`)
+- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/nn/dataLoaders/`)
+
+**Anti-patterns:**
+- Reimplementing matmul or normalization outside the `Tensor` interface → breaks backend abstraction
+- Including `XTensorBackend.hpp` in `src/core/` targets → breaks portability
+- Calling `clEnqueueWriteBuffer` directly instead of using `Tensor` → bypasses buffer pool
+
 ## Rules
 
 - **CORE_REUSE**: Use existing `Tensor`, `Layer`, `Sequential`, and core modules. No reimplementing core abstractions.
