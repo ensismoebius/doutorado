@@ -15,17 +15,37 @@ The thesis proposes augmenting degraded-voice biometrics with **EEG signals capt
 
 ---
 
-## Thesis Goals
+## General Objective
 
-1. **Compare feature extraction strategies** for both speech and EEG:
-   - DTWPT (Discrete-Time Wavelet Packet Transform) + paraconsistent feature quality evaluation
-   - Autoencoder-based learned representations (LSTM-AE, SNN-AE)
+Design and implement biometric algorithms capable of authenticating individuals who can only produce potentially degraded speech, by adding EEG imagined-speech signals to the acoustic voice information.
 
-2. **Evaluate feature quality** before classifier training using the novel paraconsistent α/β metric — avoids expensive grid sweeps by ranking feature sets geometrically.
+---
 
-3. **Classify and authenticate** speakers via deep residual/recurrent neural networks including spiking neural networks (SNN).
+## Objectives
 
-4. **Demonstrate that EEG imagined-speech features complement degraded voice** and together achieve authentication accuracy above single-modality baselines.
+**1. Literature review**  
+Survey state-of-the-art in biometric speaker authentication (ABL) with severe laryngeal dysphonias (DLS) + BCI imagined-speech decoding strategies.
+
+**2. Study public databases**  
+Use the public EEG imagined-speech dataset `10.1117/12.2255697` to enable initial experiments and comparison with prior work.
+
+**3. Feature extraction — two approaches compared**  
+For both voice and imagined-speech (EEG) signals:
+- *Handcrafted extraction*: DTWPT sub-band energy, ZCR, entropy, Teager operator, jitter, shimmer, perturbation measures — guided by **paraconsistent feature engineering (EPC/α/β)**, which evaluates feature quality before any classifier is trained
+- *Feature learning*: autoencoders (LSTM-AE, SNN-AE) — investigate architecture topology and latent dimension
+
+**4. Authentication classifiers**  
+Authenticate speakers using feature vectors via **RNNs (Residual Neural Networks)** and **DSNNs (Deep Spiking Neural Networks)**.  
+Demonstrate that EEG imagined-speech features complement degraded voice, achieving accuracy above single-modality baselines. Compare accuracy and training cost. Two evaluation modes:
+- **Text-dependent**: same phrase spoken and imagined at train and test time
+- **Text-independent**: arbitrary utterances at train and test time
+
+**5. C/C++ implementation**  
+All algorithms in C/C++ for off-line operation, and real-time where feasible.
+
+**6. Disseminate results**  
+Conferences: ICASSP, Interspeech, MLSP.  
+Journals: *IEEE Signal Processing Magazine*, *IEEE TPAMI*, *Neurocomputing*, *Computers in Biology and Medicine*.
 
 ---
 
@@ -34,7 +54,7 @@ The thesis proposes augmenting degraded-voice biometrics with **EEG signals capt
 ```
                     ┌────────────────────────────────────────────┐
                     │            Input Signals                   │
-                    │   Speech (8 kHz WAV)   EEG (800 Hz)       │
+                    │  Speech (22050 Hz WAV)  EEG (800 Hz)       │
                     └──────────────┬──────────────┬─────────────┘
                                    │              │
                          ┌─────────▼──────┐  ┌───▼──────────────┐
@@ -77,25 +97,6 @@ The thesis proposes augmenting degraded-voice biometrics with **EEG signals capt
 - Three modalities: phonated speech, imagined speech (EEG only), mixed
 - Used for reproducibility and comparison with prior work
 - Loader: `include/data_loaders/10.1117/`
-
-### Author's Own Dataset (thesis primary)
-
-Collection protocol: two cycles per speaker (silent + noisy ambient)
-
-Modalities:
-1. Phonated speech — microphone, 8 kHz / 16-bit
-2. Imagined speech — EEG only (no microphone), 800 Hz / 16-bit
-3. Mixed — simultaneous phonation + EEG
-
-Sentences (Portuguese):
-- First name
-- Directional commands: *cima / baixo / esquerda / direita*
-- Invented password
-- Common phrases: *"Estou com fome"*, *"Sinto dor"*, *"Entrar no sistema"*
-
-Text modes:
-- **Text-dependent**: same phrase spoken and imagined
-- **Text-independent**: arbitrary utterances at train and test time
 
 ---
 
