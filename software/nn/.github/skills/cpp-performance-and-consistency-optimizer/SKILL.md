@@ -71,3 +71,32 @@ Non-Goals
 - No semantic changes without explicit justification.
 - No new external dependencies for optimization-only work.
 - No over-engineered abstractions.
+
+Project Context (nn framework)
+**Hot paths to profile first:**
+1. `LeakyBPTT::forward` time loop — `(T*B, F)` shaped input; `v_mem_history`/`spike_history` pre-allocated outside loop
+2. `Trainer` mini-batch loop — `BatchScope` wraps forward+backward; single `clFinish` per batch (OpenCL)
+3. `LinearImpl::forward` / `matmul_rhs_transposed_bias` — fused OpenCL kernels available (1.70× speedup)
+
+**Drift risks to check:**
+- Never include `XTensorBackend` headers in `src/core/` targets — breaks backend agnosticism
+- Time-major layout `(T*B, F)` must be preserved through all SNN layer transformations
+- OpenCL fused kernels: `matmul_transposed_add_col_bias_relu/leaky_relu/sigmoid/tanh` in `OpenCLTensorBackend`
+
+**Backend macro:** `#if defined(NN_BACKEND_OPENCL)` — guards GPU-only code paths
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

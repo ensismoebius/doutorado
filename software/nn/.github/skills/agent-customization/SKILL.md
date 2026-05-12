@@ -36,3 +36,33 @@ Validation
 - Frontmatter valid.
 - Constraints explicit.
 - No conflicting duplicate rules.
+
+Project Context (nn framework)
+**Skill file source of truth:** `.claude/commands/` — edit here first
+
+**Sync destinations** (via `scripts/dev/sync_cross_project_skills.sh`):
+- `.github/skills/` — for GitHub Copilot
+- `.opencode/skills/` — for OpenCode
+- `~/.claude/commands/` — global Claude Code commands
+
+**Convention:** Skill names match `/<skillname>` slash commands. File `build-test.md` → `/build-test`.
+
+**`CLAUDE.md`** defines project-wide conventions that all skills must respect — check it before adding new constraints that may conflict.
+
+**Adding a skill:** Create `.claude/commands/<skill-name>.md` with frontmatter `description:` field, then run `sync_cross_project_skills.sh` to propagate.
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

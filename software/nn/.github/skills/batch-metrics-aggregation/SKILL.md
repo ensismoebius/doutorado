@@ -42,3 +42,30 @@ EpochResult result = acc.finalize();
 - All experiments produce `EpochResult` with the same set of fields.
 - Loss is weighted by batch size (last batch size logged for verification).
 - `NaN` batch loss triggers `WARN`, not silent accumulation.
+
+Project Context (nn framework)
+**Exp04 CSV schema** (`results/article_*_comparative_metrics.csv`):
+- Columns: `model`, `architecture`, `fold`, `epoch`, `train_loss`, `val_loss`, `run_id`
+- One row per (model, architecture, fold, epoch)
+- `model` values: `"lstm-ae"`, `"snn-ae"`
+- `architecture` values: `"dense"`, `"conv1d"`, `"recurrent"`
+
+**`EpochResult` fields** (`src/core/training/EpochResult.hpp`): `train_loss`, `val_loss`, `epoch`, `fold_id`, `run_tag`
+
+**Results output path:** `results/` at repo root (relative to `software/nn/`). CSV files written by `ComparativeOutput.cpp`.
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

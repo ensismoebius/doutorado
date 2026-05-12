@@ -38,3 +38,29 @@ Fix: <unified pattern to apply>
 - No inline epsilon literals outside a shared constants header.
 - Forward pass of each modified layer produces finite output on representative inputs.
 - Loss value is checked for finiteness before every optimizer step.
+
+Project Context (nn framework)
+**Unified epsilon** — location: `include/nn/tensor/Tensor.hpp` (or adjacent constants header), symbol `nn::kEps`. Use this everywhere; no inline `1e-6` literals.
+
+**SNN clamp sites** — R and C are clamped to `≥1e-6` inside `LeakyBPTT::forward` (not post-optimizer). Grad is zeroed in the clamped region. If optimizer drives R or C negative, the clamp fires silently — add a `WARN` log if this happens frequently.
+
+**Loss guards:**
+- `SpikeCountLoss` / `SpikeTimeLoss`: `log(spike_count + kEps)` — guard against zero spikes
+- `SpikeTimeLoss`: latency must be clamped to `[0, T-1]`; out-of-range = undefined behavior
+- `CrossEntropyLoss`: `log(p + kEps)` in forward; already implemented
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

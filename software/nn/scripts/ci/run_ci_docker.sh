@@ -5,7 +5,7 @@ set -eu -o pipefail
 # Builds a Docker image and runs the CI build inside a container, mounting the
 # current repository. Outputs are written to ./ci-output on the host.
 
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 OUT_DIR="$REPO_ROOT/ci-output"
 mkdir -p "$OUT_DIR"
 

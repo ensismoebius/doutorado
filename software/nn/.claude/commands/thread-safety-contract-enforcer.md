@@ -17,6 +17,22 @@ Ensure concurrent data loading is safe by making thread-safety contracts explici
 - One consumer thread (training loop) reads batches
 - No shared `DataLoader` across threads; each thread owns its own instance
 
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
+
 ## Rules
 
 - **DATALOADER_NOT_SHARED**: A `DataLoader` instance must not be accessed from multiple threads concurrently. If parallel data loading is needed, each thread must own its own `DataLoader`. No implicit shared `DataLoader`.

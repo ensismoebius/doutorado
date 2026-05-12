@@ -41,3 +41,31 @@ results/<experiment_id>/<timestamp>/
 - `fold_<id>/indices.json` allows exact reproduction of the train/val split.
 - `summary.json` is written only after all per-fold files are flushed.
 - Re-running with same seed and same fold ID produces the same split.
+
+Project Context (nn framework)
+**Fold results location:** `results/*_comparative_metrics.csv` — one row per (model, architecture, fold, epoch)
+
+**KFold API:** `include/nn/statistics/kfold.hpp`
+- `KFold`, `StratifiedKFold`, `NestedKFold`
+
+**CSV fold fields:**
+- `fold` — 0-indexed fold number
+- `run_id` — unique run identifier from profile `experiment.run_tag`
+- `model` — `"lstm-ae"` or `"snn-ae"`
+- `architecture` — `"dense"`, `"conv1d"`, or `"recurrent"`
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

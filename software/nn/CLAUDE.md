@@ -33,7 +33,7 @@ Caveman active (full). Terse responses. Drop articles, filler, hedging. Technica
 
 ## Graphify knowledge graph
 
-Output: `.wiki/graphify-out/` — 1851 nodes, 4205 edges, 174 communities.
+Output: `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities.
 
 ```bash
 # Find nodes by label

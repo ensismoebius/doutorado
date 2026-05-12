@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 GITHUB_SKILLS_SRC="${REPO_ROOT}/.github/skills"
 CLAUDE_COMMANDS_SRC="${REPO_ROOT}/.claude/commands"

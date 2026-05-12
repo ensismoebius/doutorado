@@ -101,3 +101,36 @@ Every article must link to at least 2 other wiki articles using relative Markdow
 - [ ] Mermaid diagram has at least 4 nodes
 - [ ] No article references a non-existent file in the repository
 - [ ] References section uses IEEE format
+
+Project Context (nn framework)
+**Required Experiment pages** (`.wiki/Experiments/`): Experiment00 through Experiment04. All must be linked from `Home.md`.
+
+**Required Concepts pages** (`.wiki/Concepts/`):
+- `Paraconsistent-Logic.md` — Da Costa framework (novel thesis contribution)
+- `Time-Major-Layout.md` — `(T*B, F)` tensor convention
+- `Surrogate-Gradients.md` — exponential/boxcar surrogate for SNN backward
+- `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
+- `Wavelet-Decomposition.md` — wavelet packet feature extraction
+
+**Knowledge graph:** `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
+
+**Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
+```bash
+cd .wiki && python3 -c "
+import os, re
+pages = []
+for root, dirs, files in os.walk('.'):
+    dirs[:] = [d for d in dirs if d != 'graphify-out']
+    for f in files:
+        if f.endswith('.md'): pages.append(os.path.join(root,f).lstrip('./'))
+link_pat = re.compile(r'\[.*?\]\(([^)]+\.md[^)]*)\)')
+backlinks = {p: set() for p in pages}
+for src in pages:
+    for m in link_pat.finditer(open(src).read()):
+        href = m.group(1).split('#')[0]
+        tgt = os.path.normpath(os.path.join(os.path.dirname(src), href))
+        if tgt in backlinks: backlinks[tgt].add(src)
+orphans = [p for p in pages if not backlinks[p] and p != 'Home.md']
+print('Orphans:', orphans or 'none')
+"
+```

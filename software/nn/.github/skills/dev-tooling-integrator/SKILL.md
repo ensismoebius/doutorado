@@ -24,3 +24,15 @@ Rules
 
 Validation
 - Proposed workflows use existing local tools first.
+
+Project Context (nn framework)
+**Installed tools and their roles:**
+- `rg` (ripgrep) — primary code/text search; use instead of `find + grep`
+- `clang-format` — via `scripts/dev/clang-format-changed.sh`; staged files only
+- `ccache` — wired in CMake presets; clear with `cmake --build ... --target clean-cache`
+- `ctest` — test runner; use `-R <pattern>` to target specific tests
+- `graphify` — knowledge graph generation; see `.opencode/plugins/graphify.js`
+
+**Static analysis:**
+- `cmake --build ... --target analysis-all` — runs cppcheck + clang-tidy
+- `python3 scripts/ci/validate_static_analysis.py --list-approved` — show suppression allowlist

@@ -45,3 +45,30 @@ for (auto& layer : snn_layers) {
 - SNN trains without forward-time clamping ever triggering (R, C, V_th stay in bounds after projection).
 - Param-bound violations are logged with layer name and magnitude.
 - Forward pass of SNN layers contains no clamping logic (projection handles it upstream).
+
+Project Context (nn framework)
+**Current clamping location:** `include/nn/layers/spiking/LeakyBPTT.hpp` inside `forward()` — forward-time clamping as a safety net. Post-optimizer clamping (as this skill recommends) is not yet implemented.
+
+**Current clamp values:**
+- `R_min = C_min = 1e-6` — prevents division by zero in β = exp(−Δt/(R·C))
+- `V_th`: convention ≥ 0.5 (enforced by construction/init, not dynamically clamped)
+
+**β computation:** `β = exp(−Δt / (R·C))` — computed each forward step. If optimizer drives R or C negative → β > 1 → membrane diverges. Clamp prevents this.
+
+**Grad zeroing:** Gradient w.r.t. R and C is zeroed when the forward clamp fires. Optimizer cannot pull them back from boundary — log a `WARN` if clamp fires frequently.
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

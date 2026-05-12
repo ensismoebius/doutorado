@@ -39,3 +39,29 @@ cmake --build build-tsan --target <target> -j4
 - `BatchPrefetcher` destructor calls `stop()` and `join()` before returning.
 - SPSC queue has a static assertion or runtime check for single-producer use.
 - TSan reports zero data races on the prefetch path.
+
+Project Context (nn framework)
+**`OpenCLContext::s_batch_depth`** — plain `int` (NOT `thread_local`, NOT atomic). Single-threaded GPU dispatch assumed: only one thread drives the OpenCL command queue. Never access this from multiple threads.
+
+**`ProgressManager`** — uses `std::mutex` for thread-safe progress updates. The Trainer calls it from the training thread; a display thread may read it concurrently. Contract: always lock before read or write.
+
+**`DataLoader`** SPSC queue ownership model:
+- One producer thread (`BatchPrefetcher`) writes batches into the queue
+- One consumer thread (training loop) reads batches
+- No shared `DataLoader` across threads; each thread owns its own instance
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

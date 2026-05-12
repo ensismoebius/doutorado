@@ -41,3 +41,37 @@ jq '.random_seed, .classifier_paradigm, .normalization_method' spec.json
 - Invalid config (missing `random_seed`, bad `paradigm` value) aborts with a clear error before any layer is constructed.
 - `spec.yaml` and `spec.json` parse to equivalent objects (diff their JSON representations).
 - `schema.json` passes `jsonschema` meta-schema validation.
+
+Project Context (nn framework)
+**Exp04 profile required fields** (validated by `profile_audit_gtest`):
+- `experiment.run_tag` — unique identifier for CSV output
+- `model.paradigm` — `"lstm"` or `"snn"`
+- `training.batch_size`, `training.epochs`, `training.learning_rate`
+- `loss` — must be `"mse"` for all article profiles
+- `seed_deterministic` — must be `false` for article profiles
+
+**Profile audit target:**
+```bash
+cmake --build out/build/max-performance --target profile_audit_gtest -j$(nproc)
+ctest --test-dir out/build/max-performance -R profile_audit --output-on-failure
+```
+
+**5 article profiles:** `src/experiments/04/profiles/article-{lstm-ae,snn-dense,snn-conv1d,snn-recurrent}.json` + `article-backend-bench.json`
+
+**Profile parser:** `src/experiments/04/lib/include/ComparativeConfig.hpp`
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

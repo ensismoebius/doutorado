@@ -35,3 +35,29 @@ Catch silent backward pass failures: shape mismatches, stale caches, and NaN/Inf
 - No shape mismatch between `backward()` input and `forward()` output in any layer.
 - Gradient NaN/Inf triggers a log error and skips the optimizer step (or aborts training).
 - BPTT history length assertion fires on misconfigured `time_steps`.
+
+Project Context (nn framework)
+**Layer cache patterns** — check these are populated before `backward()`:
+- `CrossEntropyLoss`: caches softmax output from `forward()`
+- `LeakyBPTT`: `spike_history` length must equal `time_steps`; `v_mem_history` same
+- `LinearImpl`: caches input tensor for weight gradient computation
+
+**Time-major grad invariant:** Gradient entering `LeakyBPTT::backward()` must be `(T*B, F)` — same shape as forward input. If BPTT history length ≠ `time_steps`, the off-by-one means backward reads past the allocated history.
+
+**Consequence of wrong history length:** Silent gradient corruption — spike gradients from wrong timestep are applied, loss appears to decrease but model diverges on longer sequences.
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges

@@ -17,7 +17,7 @@ Create a complete, self-contained wiki documenting the nn project from theory to
 - `Membrane-Dynamics.md` — LIF RC circuit, β = exp(−Δt/(RC))
 - `Wavelet-Decomposition.md` — wavelet packet feature extraction
 
-**Knowledge graph:** `.wiki/graphify-out/` — 1851 nodes, 4205 edges, 174 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
+**Knowledge graph:** `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities. Auto-generated; do not manually edit. Re-run graphify when structure changes significantly.
 
 **Orphan check** — every wiki page must have ≥1 backlink (except `Home.md`):
 ```bash
