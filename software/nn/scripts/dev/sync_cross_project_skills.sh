@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# sync_cross_project_skills.sh — Sync agent skill files to global config dirs.
+#
+# Copies skill definitions from the repo's canonical locations to the
+# per-user config directories used by each agent:
+#
+#   Source (repo)                      Destination (user config)
+#   .github/skills/*/SKILL.md      →  ~/.copilot/skills/
+#   .claude/commands/*.md           →  ~/.claude/commands/
+#                                   →  ~/.claude/skills/
+#   (same .github skills)           →  ~/.config/opencode/skills/
+#
+# Usage:
+#   scripts/dev/sync_cross_project_skills.sh [--dry-run]
+#
+# Run after editing any skill file in .claude/commands/ or .github/skills/.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -1,10 +1,22 @@
 #!/bin/bash
-# Analyze completed grid search results and generate comprehensive tables
+# run_analysis.sh — Analyze Experiment 03 grid search results.
+#
+# Reads completed run CSVs from src/experiments/03/results/ and generates
+# comprehensive comparison tables under analysis/.  Runs the Python analysis
+# pipeline (scripts/data/ helpers) and prints a summary to stdout.
+#
+# Usage:
+#   scripts/dev/run_analysis.sh
+#
+# Run from the repo root (software/nn/) or any subdirectory; script resolves
+# PROJECT_ROOT via __BASH_SOURCE[0].
+#
+# Requires: Python 3 with pandas/numpy on PATH or in active venv.
 
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 RESULTS_DIR="$PROJECT_ROOT/src/experiments/03/results"
 ANALYSIS_DIR="$PROJECT_ROOT/analysis"
 

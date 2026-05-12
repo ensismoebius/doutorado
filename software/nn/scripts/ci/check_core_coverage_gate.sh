@@ -1,4 +1,14 @@
 #!/usr/bin/env bash
+# check_core_coverage_gate.sh — CI line-coverage gate for src/core/.
+#
+# Parses an lcov .info file and enforces 100% line coverage on every file
+# under src/core/. Exits non-zero if any core file has uncovered lines.
+#
+# Usage:
+#   scripts/ci/check_core_coverage_gate.sh <lcov-info-file>
+#
+# Typically called from .github/workflows/ci.yml after `lcov --capture`
+# produces coverage.info.
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then

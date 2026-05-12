@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# export_wiki_for_anytype.sh — Export .wiki/ Markdown to Anytype-compatible layout.
+#
+# Copies .wiki/ pages (optionally including graphify-out/) to out/anytype/wiki/
+# with filenames and structure compatible with Anytype import.
+#
+# Usage:
+#   scripts/dev/export_wiki_for_anytype.sh [options]
+#   scripts/dev/export_wiki_for_anytype.sh --help
+#
+# Options:
+#   --include-graphify   Include graphify-out/ directory in export
+#   --clean              Remove output dir before export
+#   --dry-run            Show what would be copied without copying
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

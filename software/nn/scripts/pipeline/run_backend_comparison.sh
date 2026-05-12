@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
+# run_backend_comparison.sh — XTensor vs OpenCL backend benchmark.
+#
+# Builds experiment04 with both the max-performance (XTensor CPU) and
+# max-performance-opencl (GPU) presets, runs the article-backend-bench
+# profile on each, and saves results as separate CSVs for comparison.
+#
+# Output files:
+#   results/article_backend_bench_xtensor_comparative_metrics.csv
+#   results/article_backend_bench_opencl_comparative_metrics.csv
+#
+# Usage:
+#   cd software/nn
+#   ./scripts/pipeline/run_backend_comparison.sh
+#
+# Requires: cmake, OpenCL runtime, XTensor dependencies.
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 PROFILE="src/experiments/04/profiles/article-backend-bench.json"

@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+"""dedup_master_table.py — Deduplicate grid-search CSV by profile signature.
+
+Reads analysis/master_comparison.csv (output of Experiment 03 grid search),
+strips the YYYYMMDD_HHMMSS timestamp prefix from profile names, groups rows by
+the remaining profile signature, and keeps only the first occurrence of each.
+Output written to analysis/master_comparison_dedup_by_profile.csv.
+
+Usage:
+    python scripts/data/dedup_master_table.py
+
+Input/output paths are hardcoded; run from the repo root (software/nn/).
+"""
 import csv
 from collections import defaultdict
 from pathlib import Path
