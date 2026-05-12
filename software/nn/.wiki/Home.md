@@ -77,6 +77,31 @@ The `nn` library is organized into several key components:
 ### Research Context
 - [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
 
+### Plain Language Guides
+Accessible explanations without heavy math — good starting point before reading the technical pages.
+
+**Concepts:**
+- [Adam Optimiser — Plain](./Concepts/Plain/Adam-Optimiser.md)
+- [Autoencoders — Plain](./Concepts/Plain/Autoencoders.md)
+- [Data Normalisation — Plain](./Concepts/Plain/Data-Normalisation.md)
+- [Imagined Speech and EEG — Plain](./Concepts/Plain/Imagined-Speech-and-EEG.md)
+- [K-Fold Cross-Validation — Plain](./Concepts/Plain/K-Fold-Cross-Validation.md)
+- [LFCC — Plain](./Concepts/Plain/LFCC.md)
+- [LSTM and BPTT — Plain](./Concepts/Plain/LSTM-and-BPTT.md)
+- [Residual Blocks — Plain](./Concepts/Plain/Residual-Blocks.md)
+- [SNN and Surrogate Gradients — Plain](./Concepts/Plain/SNN-and-Surrogate-Gradients.md)
+- [Spike Encoding — Plain](./Concepts/Plain/Spike-Encoding.md)
+- [Spike Rate Regularization — Plain](./Concepts/Plain/Spike-Rate-Regularization.md)
+- [Weight Initialisation — Plain](./Concepts/Plain/Weight-Initialisation.md)
+
+**Core Modules:**
+- [Tensor — Plain](./Core/Plain/Tensor.md)
+- [Wave (Audio Processing) — Plain](./Core/Plain/Wave.md)
+- [Wavelet Transform — Plain](./Core/Plain/Wavelet.md)
+- [Signal Windowing — Plain](./Core/Plain/Windowing.md)
+- [Paraconsistent Feature Engineering — Plain](./Core/Plain/Paraconsistent.md)
+- [Statistics and Metrics — Plain](./Core/Plain/Statistics.md)
+
 ### System Architecture
 - [Architecture](./Architecture.md) - High-level system design and module interactions
 

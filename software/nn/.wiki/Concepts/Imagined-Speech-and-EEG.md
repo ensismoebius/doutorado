@@ -1,5 +1,7 @@
 # Imagined Speech and EEG
 
+> **Plain language version:** [Imagined Speech and EEG — Plain Language Guide](./Plain/Imagined-Speech-and-EEG.md)
+
 Imagined speech (also called covert speech or inner speech) is the phenomenon where a person mentally articulates words or phrases without producing audible sound. Brain regions activated during imagined speech overlap substantially with those active during overt phonated speech, making EEG a viable signal source for capturing speech-related neural activity — including in speakers who cannot produce intelligible overt speech.
 
 This page documents the neuroscientific background underlying the thesis "Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela Imagined Speech" (A. Furlan, UNESP).

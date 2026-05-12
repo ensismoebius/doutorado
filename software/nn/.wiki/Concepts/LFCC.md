@@ -1,5 +1,7 @@
 # LFCC — Linear Frequency Cepstral Coefficients
 
+> **Plain language version:** [LFCC — Plain Language Guide](./Plain/LFCC.md)
+
 LFCC uses a linearly-spaced filterbank (as opposed to the perceptually-motivated non-linear Mel or Bark scales) to extract spectral envelope features from speech signals. It is preferred over MFCC for **speaker verification** tasks because it preserves high-frequency components that carry speaker-discriminative glottal and vocal tract characteristics.
 
 ## Why LFCC Instead of MFCC/BARK for Speaker Verification

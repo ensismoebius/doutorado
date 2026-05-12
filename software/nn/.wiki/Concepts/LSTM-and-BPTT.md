@@ -1,5 +1,7 @@
 # LSTM and Backpropagation Through Time (BPTT)
 
+> **Plain language version:** [LSTM and BPTT — Plain Language Guide](./Plain/LSTM-and-BPTT.md)
+
 ## Theoretical Background
 
 ### The Vanishing Gradient Problem

@@ -1,5 +1,7 @@
 # Paraconsistent Feature Engineering
 
+> **Plain language version:** [Paraconsistent — Plain Language Guide](./Plain/Paraconsistent.md)
+
 Paraconsistent feature engineering quantifies the quality of extracted feature vectors using da Costa paraconsistent logic [1]. It measures intraclass similarity (α) and interclass overlap (β) to determine whether features are naturally separable *before* any classifier is trained.
 
 This is the **primary novel contribution** of the thesis "Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela Imagined Speech" (A. Furlan, UNESP). The original method is published in [2].

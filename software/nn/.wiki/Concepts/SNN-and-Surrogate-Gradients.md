@@ -1,5 +1,7 @@
 # Spiking Neural Networks and Surrogate Gradients
 
+> **Plain language version:** [SNN and Surrogate Gradients — Plain Language Guide](./Plain/SNN-and-Surrogate-Gradients.md)
+
 Spiking Neural Networks (SNNs) are the third generation of neural networks, using discrete spikes instead of continuous values for information processing.
 
 ## Theoretical Background
