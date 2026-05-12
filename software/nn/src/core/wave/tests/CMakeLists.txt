@@ -12,7 +12,7 @@ target_link_libraries(wave_gtest
     PRIVATE 
        google_test
        waveCoreLib
-       linearAlgebra
+       linear_algebra
 )
 
 target_include_directories(wave_gtest 

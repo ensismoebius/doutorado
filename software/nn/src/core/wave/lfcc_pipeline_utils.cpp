@@ -5,7 +5,7 @@
 
 #define USE_MATH_DEFINES
 
-#include "wave/lfcc_pipeline_utils.h"
+#include "wave/lfcc_pipeline_utils.hpp"
 
 #include <fftw3.h>
 
@@ -14,8 +14,8 @@
 
 #include "logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
 
-#include "dataLoaders/10.1117/loaders/AudioLoader.h"
-#include "wave/audioFeatureExtraction.h"
+#include "data_loaders/10.1117/loaders/AudioLoader.hpp"
+#include "wave/audioFeatureExtraction.hpp"
 
 using nn::dataLoaders::loadAudioFromMat;
 using std::size_t;

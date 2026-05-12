@@ -22,7 +22,7 @@ PyTorch-style serialization stores:
 ### Network Serializer
 
 ```cpp
-// File: include/saver/NetworkSerializer.hpp
+// File: include/serialization/NetworkSerializer.hpp
 class NetworkSerializer
 {
 public:
@@ -102,7 +102,7 @@ flowchart LR
 ## Usage Example
 
 ```cpp
-// File: src/core/saver/tests/NetworkSerializer_gtest.cpp
+// File: src/core/serialization/tests/NetworkSerializer_gtest.cpp
 #include "nn/saver/NetworkSerializer.hpp"
 #include "nn/optimizers/Adam.hpp"
 

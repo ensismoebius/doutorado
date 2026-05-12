@@ -5,12 +5,12 @@ add_executable(wavelet_demo
   target_link_libraries(wavelet_demo PRIVATE
     xtensor xtensor-blas
     matioCpp
-    dataLoaders
+    data_loaders
     util
     tensor
     wavelet
-    linearAlgebra # Added missing dependency
-    saver
+    linear_algebra # Added missing dependency
+    serialization
     MatplotlibCpp::MatplotlibCpp
   )
 

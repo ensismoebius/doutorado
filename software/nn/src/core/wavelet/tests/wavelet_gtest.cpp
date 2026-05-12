@@ -4,9 +4,9 @@
  */
 
 #include "gtest/gtest.h"
-#include "wavelet/Types.h"
-#include "wavelet/WaveletTransformResults.h"
-#include "wavelet/waveletOperations.h"
+#include "wavelet/Types.hpp"
+#include "wavelet/WaveletTransformResults.hpp"
+#include "wavelet/waveletOperations.hpp"
 
 namespace wavelets::test
 {

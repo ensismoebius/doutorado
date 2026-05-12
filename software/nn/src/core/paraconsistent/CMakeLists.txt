@@ -13,7 +13,7 @@ target_include_directories(paraconsistent
 
 target_link_libraries(paraconsistent
     PRIVATE
-        linearAlgebra
+        linear_algebra
         util
 )
 

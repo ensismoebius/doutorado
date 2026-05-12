@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <string>
 
-#include "../Wav.h"
+#include "../Wav.hpp"
 #include "../filter_operations.hpp"
 #include "logging/Logger.hpp"
 

@@ -18,7 +18,7 @@ target_link_libraries(voice_biometrics_cpp PRIVATE
     wavelet
     waveCoreLib
     util
-    linearAlgebra
+    linear_algebra
 )
 
 configure_xtensor_parallel_target(voice_biometrics_cpp)

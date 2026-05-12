@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-#include "wavelet/waveletOperations.h"
+#include "wavelet/waveletOperations.hpp"
 
 auto get_wavelet_coeffs(
     const std::string& wavelet_name, const std::vector<double>& signal, int max_level)

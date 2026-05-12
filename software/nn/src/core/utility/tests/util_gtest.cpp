@@ -16,7 +16,7 @@
 #include "tensor/Tensor.hpp"
 #include "utility/SignalPreprocessing.hpp"
 #include "utility/batching.hpp"
-#include "utility/comparison.h"
+#include "utility/comparison.hpp"
 #include "utility/synthetic_spike_data.hpp"
 #include "utility/vectorizationCheck.hpp"
 

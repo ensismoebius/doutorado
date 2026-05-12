@@ -17,9 +17,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "paraconsistent/paraconsistent.h"
-#include "wavelet/Types.h"
-#include "wavelet/waveletOperations.h"
+#include "paraconsistent/paraconsistent.hpp"
+#include "wavelet/Types.hpp"
+#include "wavelet/waveletOperations.hpp"
 
 namespace phase00
 {

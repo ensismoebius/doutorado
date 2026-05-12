@@ -12,7 +12,7 @@
 #include "io/StateIO.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
-#include "testing/tempfile.hpp"
+#include "test_utils/tempfile.hpp"
 
 using namespace nn;
 

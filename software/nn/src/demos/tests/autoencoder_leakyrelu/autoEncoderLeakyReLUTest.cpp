@@ -21,7 +21,7 @@
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Layers.hpp"
 #include "optimizers/Adam.hpp"
-#include "saver/NetworkSerializer.hpp"
+#include "serialization/NetworkSerializer.hpp"
 #include "tensor/Tensor.hpp"
 #include "testing.hpp"
 #include "utility/XtensorParallel.hpp"

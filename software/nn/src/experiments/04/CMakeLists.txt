@@ -20,7 +20,7 @@ target_link_libraries(experiment04
         cnpy-static
         dataLoaders_10_1117_windowing
         dataLoaders_10_1117
-        dataLoaders
+        data_loaders
         matioCpp
         z
 )

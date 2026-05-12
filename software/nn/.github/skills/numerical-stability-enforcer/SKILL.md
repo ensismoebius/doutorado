@@ -22,7 +22,7 @@ Ensure all forward and backward passes use consistent, unified numerical safety 
 - [include/layers/losses/MSELoss.hpp](include/layers/losses/MSELoss.hpp) — NaN/Inf clipping
 - [include/layers/spiking/LeakyBPTT.hpp](include/layers/spiking/LeakyBPTT.hpp) — R/C membrane clamping
 - [include/layers/spiking/Leaky.hpp](include/layers/spiking/Leaky.hpp) — per-step parameter clamping
-- [src/core/linearAlgebra/linear_algebra.cpp](src/core/linearAlgebra/linear_algebra.cpp) — raw numerical ops
+- [src/core/linear_algebra/linear_algebra.cpp](src/core/linear_algebra/linear_algebra.cpp) — raw numerical ops
 
 ## Audit Format
 

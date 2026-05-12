@@ -223,7 +223,7 @@ include/          Public headers (backend-agnostic interface)
   optimizers/        Adam, SGD
   statistics/        kfold.hpp (KFold, StratifiedKFold, NestedKFold), metrics
   tensor/            Tensor.hpp, XTensorBackend, OpenCLTensorBackend
-  dataLoaders/       10.1117/ (audio+EEG), datasets, samplers, sources
+  data_loaders/       10.1117/ (audio+EEG), datasets, samplers, sources
   saver/             NnSaver, NetworkSerializer
   wave/              WAV I/O
   wavelet/           Wavelet packet decomposition

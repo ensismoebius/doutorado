@@ -39,7 +39,7 @@ target_link_libraries(experiment03_lib
         nlohmann_json_wrapper
         dataLoaders_10_1117
         dataLoaders_10_1117_windowing
-        dataLoaders
+        data_loaders
         matioCpp
         z
         xtensor xtensor-blas
@@ -106,7 +106,7 @@ target_link_libraries(experiment03
         experiment04_lib
         xtensor xtensor-blas
         cnpy-static
-        dataLoaders
+        data_loaders
         matioCpp
         z
 )

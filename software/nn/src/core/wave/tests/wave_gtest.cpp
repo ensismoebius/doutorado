@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "wave/Wav.h"
-#include "wave/audioFeatureExtraction.h"
+#include "wave/Wav.hpp"
+#include "wave/audioFeatureExtraction.hpp"
 #include "wave/filter_operations.hpp"
 #include "wave/signal_operations.hpp"
 

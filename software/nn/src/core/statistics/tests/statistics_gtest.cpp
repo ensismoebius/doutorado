@@ -8,7 +8,7 @@
 
 #include "statistics/inference_tests.hpp"
 #include "statistics/multi_class_metrics.hpp"
-#include "statistics/statistics.h"
+#include "statistics/statistics.hpp"
 
 TEST(StatisticsTest, VarianceWithVector)
 {

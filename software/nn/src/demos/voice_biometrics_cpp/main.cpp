@@ -27,8 +27,8 @@
 #include "logging/Logger.hpp"
 #include "tensor/Tensor.hpp"
 #include "testing.hpp"
-#include "wave/Wav.h"
-#include "wavelet/waveletOperations.h"
+#include "wave/Wav.hpp"
+#include "wavelet/waveletOperations.hpp"
 
 using argparse::ArgumentParser;
 using nn::Index;

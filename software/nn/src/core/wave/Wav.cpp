@@ -14,7 +14,7 @@
  *
  * 8 de ago de 2019
  */
-#include "wave/Wav.h"
+#include "wave/Wav.hpp"
 
 #include <cmath>
 #include <cstddef>

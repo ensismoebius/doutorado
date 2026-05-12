@@ -18,8 +18,8 @@ Ensure concurrent data loading is safe by making thread-safety contracts explici
 
 ## Key Files to Audit
 
-- [include/dataLoaders/runtime/BatchPrefetcher.hpp](include/dataLoaders/runtime/BatchPrefetcher.hpp) — producer thread lifecycle and exception handling
-- [include/dataLoaders/runtime/DataLoader.hpp](include/dataLoaders/runtime/DataLoader.hpp) — document thread-safety guarantee (or lack thereof)
+- [include/data_loaders/runtime/BatchPrefetcher.hpp](include/data_loaders/runtime/BatchPrefetcher.hpp) — producer thread lifecycle and exception handling
+- [include/data_loaders/runtime/DataLoader.hpp](include/data_loaders/runtime/DataLoader.hpp) — document thread-safety guarantee (or lack thereof)
 - [include/utility/HighPerfSpscQueue.hpp](include/utility/HighPerfSpscQueue.hpp) — assert single-producer-single-consumer contract
 
 ## TSan Build Command

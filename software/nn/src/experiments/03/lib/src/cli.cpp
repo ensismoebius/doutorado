@@ -14,7 +14,7 @@
 
 #include "../include/ProfileLoader.hpp"
 #include "CLI/CLI.hpp"
-#include "dataLoaders/options/SamplerOptionResolution.hpp"
+#include "data_loaders/options/SamplerOptionResolution.hpp"
 
 using CLI::App;
 

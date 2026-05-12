@@ -25,7 +25,7 @@ target_link_libraries(experiment_02_data_gtest
         waveCoreLib
         tensor
         matioCpp
-        dataLoaders
+        data_loaders
         util
         xtensor xtensor-blas
 )

@@ -25,7 +25,7 @@ Fold 4: [train train train] [val]
 ## How It Is Implemented Here
 
 ```cpp
-// File: include/dataLoaders/runtime/DataLoader.hpp
+// File: include/data_loaders/runtime/DataLoader.hpp
 class DataLoader
 {
     std::shared_ptr<Dataset> dataset_;
@@ -43,7 +43,7 @@ public:
 ### Samplers
 
 ```cpp
-// File: include/dataLoaders/samplers/ISampler.hpp
+// File: include/data_loaders/samplers/ISampler.hpp
 class ISampler
 {
 public:
@@ -60,7 +60,7 @@ Available samplers:
 ### Dataset Interface
 
 ```cpp
-// File: include/dataLoaders/datasets/Dataset.hpp
+// File: include/data_loaders/datasets/Dataset.hpp
 class Dataset
 {
 public:
@@ -104,12 +104,12 @@ flowchart TB
 ## Usage Example
 
 ```cpp
-// File: include/dataLoaders/runtime/DataLoader.hpp
-#include "nn/dataLoaders/runtime/DataLoader.hpp"
-#include "nn/dataLoaders/datasets/MatFileDataset.hpp"
+// File: include/data_loaders/runtime/DataLoader.hpp
+#include "nn/data_loaders/runtime/DataLoader.hpp"
+#include "nn/data_loaders/datasets/MatFileDataset.hpp"
 
 // Create dataset from MAT file
-auto dataset = std::make_shared<nn::dataLoaders::MatFileDataset>("data.mat");
+auto dataset = std::make_shared<nn::data_loaders::MatFileDataset>("data.mat");
 
 // Create data loader with random shuffling
 DataLoader loader(dataset, batch_size=32, do_shuffle=true, seed=42);
@@ -126,11 +126,11 @@ for (const auto& batch : loader)
 ### K-Fold Example
 
 ```cpp
-// File: include/dataLoaders/samplers/FoldSampler.hpp
-#include "nn/dataLoaders/samplers/FoldSampler.hpp"
+// File: include/data_loaders/samplers/FoldSampler.hpp
+#include "nn/data_loaders/samplers/FoldSampler.hpp"
 
 // Create k-fold sampler
-nn::dataLoaders::FoldSampler fold_sampler(
+nn::data_loaders::FoldSampler fold_sampler(
     dataset->size(),  // total samples
     5,                // number of folds
     fold_index,       // which fold is validation

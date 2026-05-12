@@ -13,7 +13,7 @@ target_link_libraries(wavelet_gtest
        google_test
        wavelet
        waveCoreLib
-       linearAlgebra
+       linear_algebra
 )
 
 target_include_directories(wavelet_gtest 

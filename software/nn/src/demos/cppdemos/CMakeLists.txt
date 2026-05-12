@@ -11,7 +11,7 @@ target_link_libraries(speaker_demo PRIVATE
     wavelet
     waveCoreLib
     util
-    linearAlgebra
+    linear_algebra
 )
 
 configure_xtensor_parallel_target(speaker_demo)

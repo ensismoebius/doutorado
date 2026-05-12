@@ -17,7 +17,7 @@ These operations are compute-intensive and benefit from optimized libraries (xte
 ### Matrix Multiplication (GEMM)
 
 ```cpp
-// File: include/linearAlgebra/linear_algebra.hpp
+// File: include/linear_algebra/linear_algebra.hpp
 
 // General matrix multiplication
 // C = alpha * A * B + beta * C
@@ -72,15 +72,15 @@ flowchart LR
 
 ```cpp
 // File: src/core/tensor/XtensorTensorBackend.cpp
-#include "nn/linearAlgebra/linear_algebra.hpp"
+#include "nn/linear_algebra/linear_algebra.hpp"
 
 // Matrix multiplication
 nn::Tensor A(3, 4);
 nn::Tensor B(4, 2);
-nn::Tensor C = nn::linearAlgebra::gemm(A, B);  // Result: 3x2
+nn::Tensor C = nn::linear_algebra::gemm(A, B);  // Result: 3x2
 
 // Transpose
-nn::Tensor At = nn::linearAlgebra::transpose(A);  // Result: 4x3
+nn::Tensor At = nn::linear_algebra::transpose(A);  // Result: 4x3
 ```
 
 ## Common Pitfalls

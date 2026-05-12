@@ -4,7 +4,7 @@ add_executable(create_wav_demo
 target_link_libraries(create_wav_demo 
     PRIVATE
         filtersOperationsLibStatic
-        linearAlgebra
+        linear_algebra
 )
 
 target_include_directories(create_wav_demo

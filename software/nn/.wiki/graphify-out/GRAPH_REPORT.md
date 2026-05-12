@@ -228,11 +228,11 @@
 
 ## Surprising Connections (you probably didn't know these)
 - `print_generic()` --calls--> `size()`  [INFERRED]
-  /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/datasets/windowed/WindowingDatasetPrinter.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp
+  /home/ensismoebius/Repos/doutorado/software/nn/src/core/data_loaders/10.1117/datasets/windowed/WindowingDatasetPrinter.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/OpenCLTensorBackend.cpp
 - `TEST_F()` --calls--> `Dataset101117`  [INFERRED]
-  /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/dataLoaders/10.1117/datasets/raw/Dataset101117Printer.hpp
+  /home/ensismoebius/Repos/doutorado/software/nn/src/core/data_loaders/10.1117/tests/protocol/protocol101117_dataset_modes_gtest.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/data_loaders/10.1117/datasets/raw/Dataset101117Printer.hpp
 - `has_kernel()` --calls--> `end()`  [INFERRED]
-  /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/KernelManager.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/dataLoaders/runtime/DataLoader.cpp
+  /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/KernelManager.cpp → /home/ensismoebius/Repos/doutorado/software/nn/src/core/data_loaders/runtime/DataLoader.cpp
 - `acquire()` --calls--> `GPUBuffer()`  [INFERRED]
   /home/ensismoebius/Repos/doutorado/software/nn/src/core/tensor/opencl/GPUBufferPool.cpp → /home/ensismoebius/Repos/doutorado/software/nn/include/tensor/opencl/GPUBufferPool.hpp
 - `backward()` --calls--> `cols()`  [INFERRED]
@@ -1071,13 +1071,13 @@ Nodes (0):
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 79`** (2 nodes): `SynchronizedBatchAssembler.hpp`, `SynchronizedBatchAssembler`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 80`** (2 nodes): `dataLoaders()`, `AudioData.h`
+- **Thin community `Community 80`** (2 nodes): `data_loaders()`, `AudioData.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 81`** (2 nodes): `dataLoaders()`, `EEGData.h`
+- **Thin community `Community 81`** (2 nodes): `data_loaders()`, `EEGData.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 82`** (2 nodes): `dataLoaders()`, `AudioLoader.h`
+- **Thin community `Community 82`** (2 nodes): `data_loaders()`, `AudioLoader.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 83`** (2 nodes): `dataLoaders()`, `EEGLoader.h`
+- **Thin community `Community 83`** (2 nodes): `data_loaders()`, `EEGLoader.h`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 84`** (2 nodes): `MatFileFlags.h`, `AudioFlag()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.

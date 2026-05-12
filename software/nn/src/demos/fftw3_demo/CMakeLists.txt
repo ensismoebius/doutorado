@@ -5,7 +5,7 @@ add_executable(fftw3_demo
   target_link_libraries(fftw3_demo PRIVATE
     xtensor xtensor-blas
     matioCpp
-    dataLoaders
+    data_loaders
     util
     tensor
     FFTW::FFTW

@@ -15,7 +15,7 @@
 
 #include "Experiment03Config.hpp"
 #include "Experiment03DatasetType.hpp"
-#include "dataLoaders/sources/SqliteBatchSource.hpp"
+#include "data_loaders/sources/SqliteBatchSource.hpp"
 #include "layers/Layers.hpp"
 #include "layers/base/Module.hpp"
 #include "utility/Transforms.hpp"

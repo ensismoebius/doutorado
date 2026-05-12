@@ -40,7 +40,7 @@ cmake --build out/build/max-performance --target Phase00 -j$(nproc)
 
 - `wavelet` — wavelet packet decomposition
 - `paraconsistent` — Da Costa paraconsistent logic
-- `dataLoaders_10_1117` — dataset loader for 10.1117 EEG/audio
+- `data_loaders_10_1117` — dataset loader for 10.1117 EEG/audio
 - `statistics` — k-fold, metrics
 
 ## Notes

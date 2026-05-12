@@ -22,8 +22,8 @@ target_link_libraries(experiment_02
         util
         matioCpp
         optimizers
-        dataLoaders
-        linearAlgebra
+        data_loaders
+        linear_algebra
         waveCoreLib
         xtensor xtensor-blas
         nlohmann_json_wrapper

@@ -12,8 +12,8 @@ Ensure model checkpoints are self-describing: they carry the format version and 
 Example: `results/checkpoints/article_lstm_ae_xtensor_fsdd_r01.json`
 
 **Two serialization APIs:**
-- `NetworkSerializer` (`include/saver/NetworkSerializer.hpp`) — full `state_dict` map → `.npz` file; preferred for new code
-- `NnSaver` (`include/saver/NnSaver.hpp`) — legacy weight+bias pair → `_weights.npy` + `_bias.npy`; do not use for new layers
+- `NetworkSerializer` (`include/serialization/NetworkSerializer.hpp`) — full `state_dict` map → `.npz` file; preferred for new code
+- `NnSaver` (`include/serialization/NnSaver.hpp`) — legacy weight+bias pair → `_weights.npy` + `_bias.npy`; do not use for new layers
 
 **Load pattern:**
 ```cpp
@@ -60,8 +60,8 @@ checkpoints/<experiment_id>/<timestamp>/
 
 ## Key Files to Update
 
-- [include/saver/NnSaver.hpp](include/saver/NnSaver.hpp) — add version + metadata write
-- [include/saver/NetworkSerializer.hpp](include/saver/NetworkSerializer.hpp) — add load-time compatibility check
+- [include/serialization/NnSaver.hpp](include/serialization/NnSaver.hpp) — add version + metadata write
+- [include/serialization/NetworkSerializer.hpp](include/serialization/NetworkSerializer.hpp) — add load-time compatibility check
 
 ## Validation
 

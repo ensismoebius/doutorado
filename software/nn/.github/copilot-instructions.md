@@ -28,7 +28,7 @@ Project conventions (quick)
 
 Where key code lives
 
-* Core library: `src/core/` (layers, tensor, optimizers, dataLoaders).
+* Core library: `src/core/` (layers, tensor, optimizers, data_loaders).
 * Experiments & CLI: `src/experiments/` (each experiment has a `lib/include` and `lib/src` for reusable components).
 * Demos: `src/demos/`.
 * CMake helpers and vendored patches: `cmake/`, `build/` subprojects.
@@ -50,7 +50,7 @@ Current project state
 
 * Recent additions: `include/nn/testing/tempfile.hpp` (TempFile RAII helper), `include/nn/logging/Logger.hpp`, and a consolidated `include/nn/io/StateIO.hpp`.
 * Tests & fixes: Added `src/core/serialization/tests/StateIO_gtest.cpp`;
-  updated tests to be DB - independent and AddressSanitizer - clean; fixed `src/core/dataLoaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
+  updated tests to be DB - independent and AddressSanitizer - clean; fixed `src/core/data_loaders/SqliteBatchSource.cpp` prepared-stmt/windowing and migrated tests to use the tempfile helper.
 * API ergonomics: Introduced PyTorch-like ergonomics (e.g., `model.to(device)`, `optimizer.step()` / `optimizer.zero_grad()`, `state_dict()` / `load_state_dict()`), plus Adam + model state roundtrip tests.
 * Coverage & CI notes: An instrumented coverage build (`build-coverage`) is used for HTML reports. We observed `lcov/geninfo` "inconsistent: mismatched end line" errors caused by mismatches between gtest `TEST()` macro declaration lines and the compiled `TestBody()` DWARF ranges; the current pragmatic workflow is to perform a clean instrumented rebuild, run tests to regenerate `.gcda`, and use `lcov --ignore-errors inconsistent` plus selective `lcov --remove` filtering (e.g., `/usr/*`, `*/_deps/*`) when strict capture fails. Per-TU diagnostics are available for stricter investigations.
 

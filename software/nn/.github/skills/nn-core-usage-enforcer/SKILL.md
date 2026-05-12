@@ -29,8 +29,8 @@ Project Context (nn framework)
 - `Tensor` — all tensor ops (`include/tensor/Tensor.hpp`)
 - `Adam`, `SGD` — optimizers (`include/optimizers/`)
 - `KFold`, `StratifiedKFold`, `NestedKFold` — cross-validation (`include/statistics/kfold.hpp`)
-- `NetworkSerializer` — save/load model (`include/saver/NetworkSerializer.hpp`)
-- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/dataLoaders/`)
+- `NetworkSerializer` — save/load model (`include/serialization/NetworkSerializer.hpp`)
+- `DataLoader`, `BatchPrefetcher` — data pipeline (`include/data_loaders/`)
 
 **Anti-patterns:**
 - Reimplementing matmul or normalization outside the `Tensor` interface → breaks backend abstraction

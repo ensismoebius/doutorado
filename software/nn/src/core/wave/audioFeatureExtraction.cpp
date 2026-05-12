@@ -3,7 +3,7 @@
  * @brief Audio feature extraction routines (framing, windowing, FFT-based features, etc.).
  */
 
-#include "wave/audioFeatureExtraction.h"
+#include "wave/audioFeatureExtraction.hpp"
 
 #include <fftw3.h> // For FFTW library functions
 

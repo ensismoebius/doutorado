@@ -14,7 +14,7 @@ target_link_libraries(experiment_04_comparative_gtest
         experiment03_lib
         tensor
         layers
-        dataLoaders
+        data_loaders
         util
         xtensor xtensor-blas
         statistics

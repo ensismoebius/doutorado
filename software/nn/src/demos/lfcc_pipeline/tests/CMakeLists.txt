@@ -14,7 +14,7 @@ target_link_libraries(lfcc_pipeline_utils_gtest
         google_test
         xtensor xtensor-blas
         tensor
-        dataLoaders
+        data_loaders
         util
         waveCoreLib # Link against the new waveCoreLib
 )

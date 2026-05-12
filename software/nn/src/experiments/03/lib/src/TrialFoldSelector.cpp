@@ -12,7 +12,7 @@
 #include <filesystem>
 #include <stdexcept>
 
-#include "dataLoaders/samplers/FoldSampler.hpp"
+#include "data_loaders/samplers/FoldSampler.hpp"
 
 namespace experiment03
 {

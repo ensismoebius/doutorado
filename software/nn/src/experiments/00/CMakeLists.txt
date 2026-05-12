@@ -23,7 +23,7 @@ target_link_libraries(Phase00
         tensor
         matioCpp
         optimizers
-        dataLoaders
+        data_loaders
         dataLoaders_10_1117  # Added to link the 10.1117 specific data loaders
         xtensor xtensor-blas
         nlohmann_json_wrapper

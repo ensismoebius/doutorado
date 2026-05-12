@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 #include "utility/SignalPreprocessing.hpp"
-#include "wave/Wav.h"
+#include "wave/Wav.hpp"
 
 namespace comparative_autoencoder_experiment
 {

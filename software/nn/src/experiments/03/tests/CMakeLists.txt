@@ -18,7 +18,7 @@ target_link_libraries(experiment_03_autoencoder_redesign_gtest
     tensor
     layers
         matioCpp
-        dataLoaders
+        data_loaders
         util
         xtensor xtensor-blas
 )

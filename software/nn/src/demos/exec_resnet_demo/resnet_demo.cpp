@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "dataLoaders/io/mat_file_utils.hpp"
+#include "data_loaders/mat_io/mat_file_utils.hpp"
 #include "initializers/kaiming_snn.hpp"
 #include "layers/Layers.hpp"
 #include "logging/Logger.hpp"

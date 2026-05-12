@@ -3,7 +3,7 @@
 This directory contains the project's core C++ components: data loaders, tensor operations, layers, optimizers, utilities, and related helpers used by experiments and demos.
 
 Structure
-- `dataLoaders/` – Dataset and DB-backed batch sources (mat, sqlite, windowing).
+- `data_loaders/` – Dataset and DB-backed batch sources (mat, sqlite, windowing).
 - `tensor/` – Tensor and linear algebra abstractions.
 - `layers/` – Neural network layers and layer utilities.
 - `optimizers/` – Optimizer implementations (Adam, SGD helpers).
@@ -12,7 +12,7 @@ Structure
 
 Usage
 - Include public headers from `include/nn/...` (e.g. `include/nn/tensor/...`, `include/nn/layers/...`).
-- Link against the appropriate CMake target (matching the folder name, e.g. `dataLoaders`, `layers`, `optimizers`).
+- Link against the appropriate CMake target (matching the folder name, e.g. `data_loaders`, `layers`, `optimizers`).
 
 Building and Tests
 - The project uses CMake. From the repo root:

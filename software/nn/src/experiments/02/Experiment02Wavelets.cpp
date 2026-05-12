@@ -13,8 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "wavelet/Types.h"
-#include "wavelet/waveletOperations.h"
+#include "wavelet/Types.hpp"
+#include "wavelet/waveletOperations.hpp"
 
 namespace
 {

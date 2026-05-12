@@ -9,8 +9,8 @@
 #include <filesystem>
 #include <string>
 
-#include "wave/audioTypes.h"
-#include "wave/lfcc_pipeline_utils.h"
+#include "wave/audioTypes.hpp"
+#include "wave/lfcc_pipeline_utils.hpp"
 
 using std::string;
 

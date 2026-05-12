@@ -11,9 +11,9 @@
 
 #include "Experiment03Config.hpp"
 #include "Backend.hpp"
-#include "dataLoaders/datasets/Dataset.hpp"
-#include "dataLoaders/runtime/BatchPrefetcher.hpp"
-#include "dataLoaders/runtime/DataLoader.hpp"
+#include "data_loaders/datasets/Dataset.hpp"
+#include "data_loaders/runtime/BatchPrefetcher.hpp"
+#include "data_loaders/runtime/DataLoader.hpp"
 #include "layers/base/Module.hpp"
 
 class Experiment03

@@ -5,7 +5,7 @@ add_executable(resnet_demo
   target_link_libraries(resnet_demo PRIVATE
     xtensor xtensor-blas
     matioCpp
-    dataLoaders
+    data_loaders
     util
     tensor
   )

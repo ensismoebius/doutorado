@@ -101,10 +101,10 @@ flowchart TB
 | `optimizers/` | Optimization algorithms | `Adam.hpp`, `SGD.hpp` |
 | `training/` | Training loop implementation | `Trainer.hpp`, `TrainerConfig.hpp` |
 | `initializers/` | Weight initialization | `xavier.hpp`, `kaiming_snn.hpp` |
-| `linearAlgebra/` | Linear algebra utilities | `linear_algebra.hpp` |
+| `linear_algebra/` | Linear algebra utilities | `linear_algebra.hpp` |
 | `statistics/` | Metrics and statistics | `kfold.hpp`, `multi_class_metrics.hpp` |
 
-### Data Loaders (`include/dataLoaders/`)
+### Data Loaders (`include/data_loaders/`)
 
 | Module | Purpose |
 |--------|---------|

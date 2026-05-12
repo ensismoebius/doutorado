@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include "paraconsistent/paraconsistent.h"
+#include "paraconsistent/paraconsistent.hpp"
 
 auto compute_paraconsistent_metrics(const std::vector<std::vector<double>>& features,
     const std::vector<int>& labels) -> ParaconsistentMetrics

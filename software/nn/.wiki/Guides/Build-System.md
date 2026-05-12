@@ -191,9 +191,9 @@ Each module under `src/core/` has its own `CMakeLists.txt` and optional `tests/`
 | `tensor/` | `tensor` |
 | `layers/` | `layers` |
 | `optimizers/` | `optimizers` |
-| `dataLoaders/` | `dataLoaders`, samplers, 10.1117 dataset |
+| `data_loaders/` | `data_loaders`, samplers, 10.1117 dataset |
 | `initializers/` | `initializers` |
-| `linearAlgebra/` | `linearAlgebra` |
+| `linear_algebra/` | `linear_algebra` |
 | `models/autoencoder/` | autoencoder model |
 | `models/lstm/` | LSTM model |
 | `statistics/` | `statistics` |
@@ -242,7 +242,7 @@ Each experiment may contain a `lib/` subdirectory for reusable components and a 
 ctest --preset=max-performance --output-on-failure -j4
 
 # Specific test suite by name pattern
-ctest --preset=max-performance -R dataLoaders_gtest
+ctest --preset=max-performance -R data_loaders_gtest
 ctest --preset=max-performance -R tensor_gtest
 ctest --preset=max-performance -R optimizers_gtest
 

@@ -18,7 +18,7 @@
 #include "ProtocolAutoencoder.hpp"
 #include "ProtocolSpikingAutoencoder.hpp"
 #include "Backend.hpp"
-#include "dataLoaders/runtime/BatchPrefetcher.hpp"
+#include "data_loaders/runtime/BatchPrefetcher.hpp"
 #include "logging/Logger.hpp"
 
 namespace experiment03

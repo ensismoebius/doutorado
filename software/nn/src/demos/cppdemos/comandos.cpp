@@ -19,8 +19,8 @@
 #include "layers/Layers.hpp"
 #include "tensor/Tensor.hpp"
 #include "testing.hpp"
-#include "wave/Wav.h"
-#include "wave/audioFeatureExtraction.h"
+#include "wave/Wav.hpp"
+#include "wave/audioFeatureExtraction.hpp"
 
 namespace demo
 {
