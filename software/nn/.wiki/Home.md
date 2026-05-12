@@ -73,6 +73,7 @@ The `nn` library is organized into several key components:
 - [Experiment02](./Experiments/Experiment02.md) - Wavelet autoencoder pipeline
 - [Experiment03](./Experiments/Experiment03.md) - Autoencoder experiments (audio, EEG, fused)
 - [Experiment04](./Experiments/Experiment04.md) - SNN vs LSTM comparative with FSDD
+- [Experiment05](./Experiments/Experiment05.md) - Biometric authentication of dysphonic speakers via imagined speech (thesis primary)
 
 ### Research Context
 - [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
