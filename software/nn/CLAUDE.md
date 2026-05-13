@@ -88,6 +88,9 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `experiment03_lib` | Experiment 03 library only |
 | `experiment04` | Experiment 04 binary |
 | `experiment04_lib` | Experiment 04 library only |
+| `experiment05` | Experiment 05 binary (thesis primary) |
+| `experiment05_lib` | Experiment 05 library only |
+| `e05_profile_audit_gtest` | 48 tests verifying all 8 E05 profiles parse + validate |
 | `experiment_02` | Experiment 02 binary |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
 | `profile_audit_gtest` | 25 tests verifying all 5 article profiles parse + validate |
@@ -296,6 +299,13 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
 | Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/AutoencoderBuilders.hpp` |
 | Exp04 profile audit tests | `src/experiments/04/tests/profile_audit_gtest.cpp` |
+| Exp05 config parser | `src/experiments/05/lib/include/E05Config.hpp` |
+| Exp05 dataset loader | `src/experiments/05/lib/src/E05Dataset.cpp` |
+| Exp05 feature extraction | `src/experiments/05/lib/src/E05FeatureExtraction.cpp` |
+| Exp05 paraconsistent ranking | `src/experiments/05/lib/src/E05Paraconsistent.cpp` |
+| Exp05 classifiers | `src/experiments/05/lib/src/E05Classifiers.cpp` |
+| Exp05 output writers | `src/experiments/05/lib/src/E05Output.cpp` |
+| Exp05 profile audit tests | `src/experiments/05/tests/e05_profile_audit_gtest.cpp` |
 | Paper CSV aggregator | `scripts/pipeline/build_paper_data.py` |
 | Article run script | `scripts/pipeline/run_article_profiles.sh` |
 

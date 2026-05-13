@@ -256,19 +256,24 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
         {
             const void* blob = sqlite3_column_blob(stmt, 0);
             int bytes = sqlite3_column_bytes(stmt, 0);
-            const size_t expected_bytes =
-                ImaginedSpeechSchema_10_1117.audioSamples() * sizeof(double);
-            if (static_cast<size_t>(bytes) != expected_bytes)
+            const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+            const size_t expected_float  = n * sizeof(float);
+            const size_t expected_double = n * sizeof(double);
+            float* dst = audioSamples.mutable_data_ptr();
+            if (static_cast<size_t>(bytes) == expected_float)
+            {
+                const float* src = reinterpret_cast<const float*>(blob);
+                for (size_t i = 0; i < n; ++i) dst[i] = src[i];
+            }
+            else if (static_cast<size_t>(bytes) == expected_double)
+            {
+                const double* src = reinterpret_cast<const double*>(blob);
+                for (size_t i = 0; i < n; ++i) dst[i] = static_cast<float>(src[i]);
+            }
+            else
             {
                 sqlite3_finalize(stmt);
                 throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
-            }
-            const double* src = reinterpret_cast<const double*>(blob);
-            float* dst = audioSamples.mutable_data_ptr();
-            const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
-            for (size_t i = 0; i < n; ++i)
-            {
-                dst[i] = static_cast<float>(src[i]);
             }
 
             // stimulus_id may be NULL

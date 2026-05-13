@@ -31,9 +31,8 @@
 template <typename Backend>
 class SimpleResNetImpl : public Module<Backend>
 {
-    using Tensor = typename Module<Backend>::Tensor;
-
    public:
+    using Tensor = typename Module<Backend>::Tensor;
     SimpleResNetImpl(int input_dim, int hidden_dim, int output_dim, int depth = 3)
     {
         // Build model: input -> Linear -> ReLU -> ResidualBlocks -> Linear(output)

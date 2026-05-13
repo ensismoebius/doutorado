@@ -282,26 +282,32 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
 
         if (sqlite3_step(stmt) == SQLITE_ROW)
         {
-            // For each channel column (0..5) read blob of doubles
+            // For each channel column (0..5) read blob (float32 in DB).
             for (int ch = 0; ch < 6; ++ch)
             {
                 const void* blob = sqlite3_column_blob(stmt, ch);
                 int bytes = sqlite3_column_bytes(stmt, ch);
-                const size_t expected_bytes =
-                    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel() *
-                    sizeof(double);
-                if (static_cast<size_t>(bytes) != expected_bytes)
+                const size_t n_samples =
+                    nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
+                // DB stores float32; fall back to double32 detection for older DBs.
+                const size_t expected_float  = n_samples * sizeof(float);
+                const size_t expected_double = n_samples * sizeof(double);
+                if (static_cast<size_t>(bytes) == expected_float)
+                {
+                    const float* src = reinterpret_cast<const float*>(blob);
+                    for (size_t s = 0; s < n_samples; ++s)
+                        eegChannels.at(ch, s) = src[s];
+                }
+                else if (static_cast<size_t>(bytes) == expected_double)
+                {
+                    const double* src = reinterpret_cast<const double*>(blob);
+                    for (size_t s = 0; s < n_samples; ++s)
+                        eegChannels.at(ch, s) = static_cast<float>(src[s]);
+                }
+                else
                 {
                     sqlite3_finalize(stmt);
                     throw std::runtime_error("EEGLoader(SQL): unexpected eeg channel blob size");
-                }
-                const double* src = reinterpret_cast<const double*>(blob);
-                for (size_t s = 0;
-                    s < static_cast<size_t>(
-                            nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel());
-                    ++s)
-                {
-                    eegChannels.at(ch, s) = static_cast<float>(src[s]);
                 }
             }
 
