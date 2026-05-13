@@ -453,38 +453,49 @@ class Trainer
                 state.batch_loss = 0.0F;
                 cb_batch_begin(state);
 
-                // Collect this mini-batch (bug 5 fix: per-sample forward inside batch)
+                // True-batch forward: stack samples into (B, D) then one fwd+bwd per batch.
                 float batch_loss_sum = 0.0F;
-                optimizer_.zero_grad(model_.params()); // zero BEFORE any forward
+                optimizer_.zero_grad(model_.params()); // zero BEFORE forward
                 const std::size_t batch_sample_count = batch_end - batch_start;
 
                 {
 #if defined(NN_BACKEND_OPENCL)
                     nn::opencl::OpenCLContext::BatchScope _gpu_batch;
 #endif
+                    const auto B = static_cast<nn::Index>(batch_sample_count);
+                    const nn::Index in_cols =
+                        transform(train_inputs[indices[batch_start]], indices[batch_start]).cols();
+                    const nn::Index tgt_cols = train_targets[indices[batch_start]].cols();
+
+                    Tensor batch_inp = Tensor::zeros(B, in_cols);
+                    Tensor batch_tgt = Tensor::zeros(B, tgt_cols);
                     for (std::size_t k = batch_start; k < batch_end; ++k)
                     {
                         const std::size_t idx = indices[k];
                         const Tensor inp = transform(train_inputs[idx], idx);
-                        const Tensor& tgt = train_targets[idx];
-
-                        Tensor output = model_.forward(inp, true);
-                        loss_.set_target(tgt);
-                        Tensor loss_t = loss_.forward(output, true);
-                        const float lv = loss_t.at(0, 0);
-                        batch_loss_sum += lv;
-                        state.batch_loss =
-                            batch_loss_sum / static_cast<float>((k - batch_start) + 1);
-
-                        Tensor d_out = loss_.backward(output);
-                        model_.backward(d_out);
-
-                        const float sample_fraction =
-                            static_cast<float>((k - batch_start) + 1) /
-                            static_cast<float>(std::max<std::size_t>(batch_sample_count, 1));
-                        state.batch_progress = 0.85F * sample_fraction;
-                        cb_batch_progress(state);
+                        const auto row = static_cast<nn::Index>(k - batch_start);
+                        batch_inp.setBlock(row, 0, inp);
+                        batch_tgt.setBlock(row, 0, train_targets[idx]);
                     }
+
+                    state.batch_progress = 0.3F;
+                    cb_batch_progress(state);
+
+                    Tensor output = model_.forward(batch_inp, true);
+                    state.batch_progress = 0.6F;
+                    cb_batch_progress(state);
+
+                    loss_.set_target(batch_tgt);
+                    Tensor loss_t = loss_.forward(output, true);
+                    batch_loss_sum = loss_t.at(0, 0) * static_cast<float>(B);
+                    state.batch_loss = loss_t.at(0, 0);
+                    state.batch_progress = 0.75F;
+                    cb_batch_progress(state);
+
+                    Tensor d_out = loss_.backward(output);
+                    model_.backward(d_out);
+                    state.batch_progress = 0.9F;
+                    cb_batch_progress(state);
                 } // BatchScope destructs here: single clFinish per mini-batch
 
                 if (cfg_.grad_clip_norm > 0.0F)
@@ -510,22 +521,24 @@ class Trainer
             const float avg_train_loss =
                 (n_train > 0) ? train_loss_sum / static_cast<float>(n_train) : 0.0F;
 
-            // Validation
+            // Validation — single batched forward pass over all val samples.
             float avg_val_loss = std::numeric_limits<float>::quiet_NaN();
             if (!val_inputs.empty())
             {
-                float val_sum = 0.0F;
-                int n_val = 0;
-
+                const auto Nv = static_cast<nn::Index>(val_inputs.size());
+                const nn::Index in_c = val_inputs[0].cols();
+                const nn::Index tgt_c = val_targets[0].cols();
+                Tensor val_inp = Tensor::zeros(Nv, in_c);
+                Tensor val_tgt = Tensor::zeros(Nv, tgt_c);
                 for (std::size_t k = 0; k < val_inputs.size(); ++k)
                 {
-                    Tensor vout = model_.forward(val_inputs[k], false);
-                    loss_.set_target(val_targets[k]);
-                    Tensor vloss_t = loss_.forward(vout, false);
-                    val_sum += vloss_t.at(0, 0);
-                    ++n_val;
+                    val_inp.setBlock(static_cast<nn::Index>(k), 0, val_inputs[k]);
+                    val_tgt.setBlock(static_cast<nn::Index>(k), 0, val_targets[k]);
                 }
-                avg_val_loss = val_sum / static_cast<float>(n_val);
+                Tensor vout = model_.forward(val_inp, false);
+                loss_.set_target(val_tgt);
+                Tensor vloss_t = loss_.forward(vout, false);
+                avg_val_loss = vloss_t.at(0, 0);
             }
 
             const auto t_end = std::chrono::steady_clock::now();
