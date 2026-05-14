@@ -209,9 +209,34 @@ public:
 2. Single forward+loss+backward per batch (was double-forward)
 3. Loss type pluggable via template (was hardcoded MSE)
 4. `snn_lr_scale` wired via `attach_with_scales()` (was silently ignored)
-5. Supervised batch: per-sample forward within batch loop (was merged-batch shape mismatch)
+5. Supervised batch: true `(B, D)` matrix forward+backward (was per-sample `(1, D)` loop; caused trivially small GPU kernels and low utilisation on small feature sets)
 6. `EpochResult.mean_spike_rate` populated when `LossType::last_mean_rate()` exists
 7. No `cout` inside Trainer — output goes through `ITrainingCallback`
+
+### True-batch supervised training (`fit_loop_supervised`)
+
+For each mini-batch the trainer stacks all B samples into a single `(B, D)` input tensor and a `(B, C)` target tensor, then does one forward+backward:
+
+```cpp
+// Stack batch
+Tensor batch_inp = Tensor::zeros(B, in_cols);
+Tensor batch_tgt = Tensor::zeros(B, tgt_cols);
+for (size_t k = batch_start; k < batch_end; ++k)
+{
+    batch_inp.setBlock(row, 0, transform(train_inputs[k], k));
+    batch_tgt.setBlock(row, 0, train_targets[k]);
+}
+// Single forward+backward — one GPU kernel per layer, not B
+Tensor output  = model_.forward(batch_inp, true);
+loss_.set_target(batch_tgt);
+Tensor loss_t  = loss_.forward(output, true);
+Tensor d_out   = loss_.backward(output);
+model_.backward(d_out);
+```
+
+This is mathematically equivalent to averaging B individual gradients (CrossEntropyLoss uses `mean` reduction over `x.rows()`). The gain is purely computational: one large kernel instead of B tiny ones.
+
+Validation is similarly batched: all val samples are stacked into `(Nv, D)` and forwarded once per epoch.
 
 ## Data Flow
 

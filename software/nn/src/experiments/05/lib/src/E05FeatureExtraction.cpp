@@ -191,18 +191,22 @@ auto extract_features(const E05DatasetView& view,
         fs.label = "handcrafted-" + cfg.handcrafted.scale;
         fs.vectors.reserve(view.samples.size());
 
-        const auto n_samples = static_cast<float>(view.samples.size());
+        const auto n_samples = static_cast<long>(view.samples.size());
         uint32_t feat_bar = nn::progress::ProgressManager::instance().create_bar(
-            "Feature extraction", n_samples);
+            "Feature extraction", static_cast<float>(n_samples));
         nn::progress::ProgressManager::instance().set_description(
             feat_bar, "DTWPT | scale=" + cfg.handcrafted.scale +
                       "  descriptors=" + std::to_string(cfg.handcrafted.descriptors.size()));
 
-        float feat_done = 0.0f;
-        for (const auto& sample : view.samples)
+        // Pre-size so parallel index assignment is safe (no push_back races).
+        fs.vectors.resize(static_cast<size_t>(n_samples));
+        long feat_done = 0;
+
+        #pragma omp parallel for schedule(dynamic, 4) shared(feat_done)
+        for (long i = 0; i < n_samples; ++i)
         {
+            const auto& sample = view.samples[static_cast<size_t>(i)];
             std::vector<double> sig;
-            // Default nn::Tensor is a 0-dim scalar (size=1, rows=0): check rows > 0.
             if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
                 sig = tensor_to_vec(sample.audio);
             else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
@@ -210,13 +214,17 @@ auto extract_features(const E05DatasetView& view,
             else
                 sig.assign(256, 0.0);
 
-            // Pad to next power of two for wavelet transform.
             size_t n = 1;
             while (n < sig.size()) n <<= 1;
             sig.resize(n, 0.0);
 
-            fs.vectors.push_back(extract_handcrafted(sig, cfg.handcrafted));
-            nn::progress::ProgressManager::instance().update_bar(feat_bar, ++feat_done);
+            fs.vectors[static_cast<size_t>(i)] = extract_handcrafted(sig, cfg.handcrafted);
+
+            long done = 0;
+            #pragma omp atomic capture
+            done = ++feat_done;
+            nn::progress::ProgressManager::instance().update_bar(
+                feat_bar, static_cast<float>(done));
         }
         nn::progress::ProgressManager::instance().complete_bar(feat_bar);
         result.push_back(std::move(fs));

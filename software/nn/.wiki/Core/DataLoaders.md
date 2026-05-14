@@ -170,6 +170,32 @@ auto eeg   = nn::dataLoaders::EEGLoader::load(root, speaker, command);
 
 Relevant channels for imagined speech: F7, T5 (near Wernicke); Fp1, F3, F7 (near Broca).
 
+#### Float32 blob detection (AudioLoader + EEGLoader)
+
+The SQLite database stores audio blobs as `float32` (4 bytes/sample), not `float64`. Both loaders detect the actual encoding by comparing the blob byte count against both expected sizes and branch accordingly:
+
+```cpp
+const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
+const size_t expected_float  = n * sizeof(float);
+const size_t expected_double = n * sizeof(double);
+float* dst = audioSamples.mutable_data_ptr();
+if (static_cast<size_t>(bytes) == expected_float)
+{
+    const float* src = reinterpret_cast<const float*>(blob);
+    for (size_t i = 0; i < n; ++i) dst[i] = src[i];
+}
+else if (static_cast<size_t>(bytes) == expected_double)
+{
+    const double* src = reinterpret_cast<const double*>(blob);
+    for (size_t i = 0; i < n; ++i) dst[i] = static_cast<float>(src[i]);
+}
+else
+    throw std::runtime_error("AudioLoader(SQL): unexpected audio blob size");
+```
+
+The same pattern applies in `EEGLoader.cpp`. Without this check the loader throws
+`"unexpected audio blob size"` when loaded from the original DB (705600 bytes = 176400 × 4, not × 8).
+
 See [Concepts/Imagined-Speech-and-EEG](../Concepts/Imagined-Speech-and-EEG.md) for the neuroscience context and [Research-Context](../Research-Context.md) for how this dataset fits the thesis.
 
 ---

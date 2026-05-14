@@ -149,7 +149,9 @@ src/experiments/05/
 │   ├── autoencoder-fused.json
 │   └── article-full.json
 └── tests/
-    └── e05_profile_audit_gtest.cpp
+    ├── e05_profile_audit_gtest.cpp        48 tests — all 8 profiles parse+validate
+    ├── e05_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
+    └── e05_classifiers_gtest.cpp          batch evaluate() + compute_aggregate_stats
 ```
 
 ### Profile schema
@@ -199,6 +201,18 @@ src/experiments/05/
 }
 ```
 
+### Progress bars (three levels)
+
+The experiment shows three concurrent progress bars during a run:
+
+| Bar | Created by | Tracks |
+|---|---|---|
+| `Feature extraction` | `extract_features()` | samples processed (OpenMP parallel) |
+| `Fold N/K \| <label>` | `ProgressCallback` (per outer fold) | epoch + batch within that fold |
+| `E05 \| <run_tag>` | `experiment05.cpp` main | outer folds completed across all feature sets |
+
+All bars are rendered by `nn::progress::ProgressManager` (background thread, ANSI escape codes). The global bar is completed and `ProgressManager::shutdown()` called before any output is written.
+
 ### Pipeline flow
 
 ```
@@ -227,6 +241,16 @@ src/experiments/05/
                     ▼
             Results: accuracy, EER, D_truth per combination
 ```
+
+### Performance notes
+
+**Parallel feature extraction** — `extract_features()` uses `#pragma omp parallel for schedule(dynamic, 4)` over samples. The DTWPT computation (`wavelets::malat`) has no global state, so parallelism is safe. Pre-sized `fs.vectors.resize(n_samples)` avoids `push_back` races; progress counter uses `#pragma omp atomic capture`.
+
+**Pre-built dataset tensors** — `run_classifier()` builds `(N, D)` input and `(N, C)` one-hot target tensors once via `mutable_data_ptr()` before the outer fold loop. Each fold slices row views via `Tensor::row(idx)` — cheap view, no copy.
+
+**True batch training** — `Trainer::fit_loop_supervised` stacks a `(B, D)` batch each iteration, doing one GPU kernel per layer instead of B tiny `(1, D)` kernels. Both `LinearImpl` and `CrossEntropyLoss` support arbitrary batch dimension. See [Training](../Core/Training.md#true-batch-supervised-training).
+
+**Batch evaluate()** — test-set evaluation stacks all test samples into one `(N_test, D)` tensor, one `model.forward()` call, then inline argmax + one-vs-rest confusion matrix.
 
 ---
 
@@ -288,6 +312,12 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 5. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
 
 6. **Nested CV inner fold must not see test fold.** Hyperparameter selection (early stopping patience, lr) must use inner-loop val loss only.
+
+7. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. `AudioLoader` and `EEGLoader` detect the encoding by comparing `sqlite3_column_bytes()` against both `n * sizeof(float)` and `n * sizeof(double)`. If this check fails, the loader throws `"unexpected audio blob size"`. Do not assume the DB format — always let the loader detect it.
+
+8. **`nn::Tensor` default is a 0-dim scalar** (`size()=1, rows()=0, cols()=0`). Guard audio/EEG samples with `rows() > 0 && cols() > 0`, not `size() > 0`.
+
+9. **`discoverSubjects` regex must have a capturing group.** Use `"^S(\\d+)$"` not `".*"`. Without the group `regex_groups_matches[1]` throws `std::out_of_range` at runtime.
 
 ---
 

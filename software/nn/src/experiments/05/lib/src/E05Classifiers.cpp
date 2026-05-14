@@ -1,14 +1,11 @@
 #include "E05Classifiers.hpp"
 
-#include <algorithm>
 #include <cmath>
-#include <numeric>
 #include <stdexcept>
 
 #include "Backend.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "layers/Layers.hpp"
 #include "layers/losses/CrossEntropyLoss.hpp"
 #include "layers/residual/SimpleResNet.hpp"
 #include "progress/ProgressManager.hpp"
@@ -23,77 +20,52 @@ namespace e05
 
 namespace
 {
-// Convert a flat feature vector to a (1 x D) nn::Tensor.
-nn::Tensor vec_to_row(const std::vector<double>& v)
-{
-    nn::Tensor t = nn::Tensor::zeros(1, static_cast<long>(v.size()));
-    for (long i = 0; i < static_cast<long>(v.size()); ++i)
-        t.at(0, i) = static_cast<float>(v[static_cast<size_t>(i)]);
-    return t;
-}
-
-// One-hot encode label as (1 x n_classes) tensor.
-nn::Tensor one_hot(int label, int n_classes)
-{
-    nn::Tensor t = nn::Tensor::zeros(1, n_classes);
-    t.at(0, label) = 1.0f;
-    return t;
-}
-
-// Return argmax of a (1 x N) tensor.
-int argmax(const nn::Tensor& t)
-{
-    int best = 0;
-    float best_val = t.at(0, 0);
-    for (long j = 1; j < t.cols(); ++j)
-    {
-        float v = t.at(0, j);
-        if (v > best_val)
-        {
-            best_val = v;
-            best = static_cast<int>(j);
-        }
-    }
-    return best;
-}
-
-// Evaluate classifier accuracy and EER on a set of (input, label) pairs.
+// Evaluate classifier accuracy and EER — single batched forward on (N, D).
 std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
     const std::vector<std::vector<double>>& inputs,
     const std::vector<int>& labels,
     int n_classes)
 {
+    if (inputs.empty()) return {0.0, 0.0};
+
+    // Stack all test samples into one (N, D) tensor — one GPU kernel instead of N.
+    const auto N = static_cast<nn::Index>(inputs.size());
+    const auto D = static_cast<nn::Index>(inputs[0].size());
+    nn::Tensor batch = nn::Tensor::zeros(N, D);
+    float* dst = batch.mutable_data_ptr();
+    for (size_t i = 0; i < inputs.size(); ++i)
+    {
+        float* row_ptr = dst + static_cast<ptrdiff_t>(i) * D;
+        for (nn::Index j = 0; j < D; ++j)
+            row_ptr[j] = static_cast<float>(inputs[i][static_cast<size_t>(j)]);
+    }
+
+    nn::Tensor all_logits = model.forward(batch, false); // (N, n_classes)
+
     int correct = 0;
-    std::vector<statistics::ConfusionMatrix> cms;
+    std::vector<statistics::ConfusionMatrix> cms(static_cast<size_t>(n_classes));
 
     for (size_t i = 0; i < inputs.size(); ++i)
     {
-        nn::Tensor x = vec_to_row(inputs[i]);
-        nn::Tensor logits = model.forward(x, false);
-        int pred = argmax(logits);
+        // argmax over logits row i
+        int pred = 0;
+        float best = all_logits.at(static_cast<nn::Index>(i), 0);
+        for (int j = 1; j < n_classes; ++j)
+        {
+            float v = all_logits.at(static_cast<nn::Index>(i), j);
+            if (v > best) { best = v; pred = j; }
+        }
         if (pred == labels[i]) ++correct;
 
-        // One-vs-rest confusion matrix per class.
         for (int c = 0; c < n_classes; ++c)
         {
-            bool is_c  = (labels[i] == c);
+            bool is_c   = (labels[i] == c);
             bool pred_c = (pred == c);
-            statistics::ConfusionMatrix cm{};
-            if (is_c  && pred_c)  ++cm.truePositive;
-            if (!is_c && pred_c)  ++cm.falsePositive;
-            if (is_c  && !pred_c) ++cm.falseNegative;
+            auto& cm = cms[static_cast<size_t>(c)];
+            if ( is_c &&  pred_c) ++cm.truePositive;
+            if (!is_c &&  pred_c) ++cm.falsePositive;
+            if ( is_c && !pred_c) ++cm.falseNegative;
             if (!is_c && !pred_c) ++cm.trueNegative;
-            if (c < static_cast<int>(cms.size()))
-            {
-                cms[static_cast<size_t>(c)].truePositive  += cm.truePositive;
-                cms[static_cast<size_t>(c)].falsePositive += cm.falsePositive;
-                cms[static_cast<size_t>(c)].falseNegative += cm.falseNegative;
-                cms[static_cast<size_t>(c)].trueNegative  += cm.trueNegative;
-            }
-            else
-            {
-                cms.push_back(cm);
-            }
         }
     }
 
@@ -162,13 +134,32 @@ auto run_classifier(const E05DatasetView& view,
     const int hidden_dim = 128;
     const int depth      = 2; // residual blocks
 
+    // Build full dataset tensors once — avoid per-fold reconstruction.
+    const auto N_all  = static_cast<nn::Index>(feature_vectors.size());
+    const auto D      = static_cast<nn::Index>(feat_dim);
+    const auto C      = static_cast<nn::Index>(n_speakers);
+
+    nn::Tensor all_inputs  = nn::Tensor::zeros(N_all, D);
+    nn::Tensor all_targets = nn::Tensor::zeros(N_all, C);
+    {
+        float* inp_ptr = all_inputs.mutable_data_ptr();
+        float* tgt_ptr = all_targets.mutable_data_ptr();
+        for (nn::Index i = 0; i < N_all; ++i)
+        {
+            const auto& fv = feature_vectors[static_cast<size_t>(i)];
+            for (nn::Index j = 0; j < D; ++j)
+                inp_ptr[i * D + j] = static_cast<float>(fv[static_cast<size_t>(j)]);
+            tgt_ptr[i * C + labels[static_cast<size_t>(i)]] = 1.0f;
+        }
+    }
+
     const int total_outer = static_cast<int>(nested_splits.size());
 
     for (size_t outer_idx = 0; outer_idx < nested_splits.size(); ++outer_idx)
     {
         const auto& outer = nested_splits[outer_idx];
 
-        // Collect test data.
+        // Collect test data (still as double vectors for evaluate()).
         std::vector<std::vector<double>> test_feats;
         std::vector<int> test_labels;
         for (size_t idx : outer.test_indices)
@@ -199,20 +190,22 @@ auto run_classifier(const E05DatasetView& view,
             trainer.add_callback(stopper);
         }
 
-        // Convert train data to SamplePair list.
+        // Slice pre-built tensors by fold index — no per-fold tensor construction.
         using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
         std::vector<SamplePair> train_pairs;
+        train_pairs.reserve(outer.inner_splits[0].train_indices.size());
         for (size_t idx : outer.inner_splits[0].train_indices)
         {
-            train_pairs.emplace_back(vec_to_row(feature_vectors[idx]),
-                one_hot(labels[idx], n_speakers));
+            train_pairs.emplace_back(all_inputs.row(static_cast<nn::Index>(idx)),
+                all_targets.row(static_cast<nn::Index>(idx)));
         }
 
         std::vector<SamplePair> val_pairs;
+        val_pairs.reserve(outer.inner_splits[0].test_indices.size());
         for (size_t idx : outer.inner_splits[0].test_indices)
         {
-            val_pairs.emplace_back(vec_to_row(feature_vectors[idx]),
-                one_hot(labels[idx], n_speakers));
+            val_pairs.emplace_back(all_inputs.row(static_cast<nn::Index>(idx)),
+                all_targets.row(static_cast<nn::Index>(idx)));
         }
 
         trainer.fit_supervised(train_pairs, val_pairs);
