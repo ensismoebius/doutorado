@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "data_loaders/10.1117/schema/SubjectDiscovery.hpp"
+#include "progress/ProgressManager.hpp"
 
 namespace e05
 {
@@ -40,6 +41,14 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
 
     std::unordered_set<int> stimuli_seen;
     int subjects_with_both = 0;
+
+    const auto n_subjects = static_cast<float>(subjects.size());
+    uint32_t load_bar = nn::progress::ProgressManager::instance().create_bar(
+        "Loading dataset", n_subjects);
+    nn::progress::ProgressManager::instance().set_description(
+        load_bar, "Pairing audio+EEG trials per subject");
+
+    int subjects_processed = 0;
 
     // Always load paired audio+EEG so every modality run operates on the
     // same set of trials. The modality field controls feature extraction, not
@@ -83,7 +92,12 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
         }
 
         if (paired > 0) ++subjects_with_both;
+
+        nn::progress::ProgressManager::instance().update_bar(
+            load_bar, static_cast<float>(++subjects_processed));
     }
+
+    nn::progress::ProgressManager::instance().complete_bar(load_bar);
 
     if (view.samples.empty())
         throw std::runtime_error(

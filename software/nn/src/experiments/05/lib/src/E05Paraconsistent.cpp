@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 #include "paraconsistent/paraconsistent.hpp"
+#include "progress/ProgressManager.hpp"
 
 namespace e05
 {
@@ -57,11 +58,21 @@ auto rank_feature_sets(const std::vector<E05Sample>& samples,
     std::vector<ParaconsistentScore> scores;
     scores.reserve(feature_sets.size());
 
+    uint32_t rank_bar = nn::progress::ProgressManager::instance().create_bar(
+        "Paraconsistent ranking", static_cast<float>(feature_sets.size()));
+    nn::progress::ProgressManager::instance().set_description(
+        rank_bar, "Computing α/β/D_truth per feature set");
+
+    int ranked = 0;
     for (const auto& fs : feature_sets)
     {
-        if (fs.vectors.empty()) continue; // skip placeholder (autoencoder, not trained yet)
-        scores.push_back(score_feature_set(samples, fs));
+        if (!fs.vectors.empty())
+            scores.push_back(score_feature_set(samples, fs));
+        nn::progress::ProgressManager::instance().update_bar(
+            rank_bar, static_cast<float>(++ranked));
     }
+
+    nn::progress::ProgressManager::instance().complete_bar(rank_bar);
 
     std::sort(scores.begin(), scores.end(),
         [](const ParaconsistentScore& a, const ParaconsistentScore& b)

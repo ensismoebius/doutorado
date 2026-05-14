@@ -92,8 +92,6 @@ void run_once(const e05::E05Config& cfg)
     }
 
     nn::progress::ProgressManager::instance().complete_bar(global_bar);
-    nn::progress::ProgressManager::instance().shutdown();
-    flushProgressAsync();
 
     // ── 6. Output ────────────────────────────────────────────────────────────
     const std::string& results_dir = cfg.dataset.results_dir;
@@ -157,6 +155,9 @@ auto main(int argc, char* argv[]) -> int
 
             run_once(rep_cfg);
         }
+
+        nn::progress::ProgressManager::instance().shutdown();
+        flushProgressAsync();
 
         return EXIT_SUCCESS;
     }
