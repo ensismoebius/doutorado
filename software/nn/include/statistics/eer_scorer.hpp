@@ -14,6 +14,7 @@
 #define NN_STATISTICS_EER_SCORER_HPP
 
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 namespace statistics
@@ -36,9 +37,31 @@ struct IEERScorer
 {
     virtual ~IEERScorer() = default;
 
+    /**
+     * @brief Compute Equal Error Rate.
+     * @return EER in [0, 1] or NaN when computation is degenerate.
+     */
     [[nodiscard]] virtual auto compute_eer(const std::vector<std::vector<float>>& embeddings,
         const std::vector<int>& labels,
         int n_classes) const -> double = 0;
+
+    /**
+     * @brief Compute AUC (Area Under the ROC curve) for speaker verification.
+     *
+     * Default implementation returns NaN.  Override in strategies that produce
+     * genuine/impostor score distributions (e.g. GenuineImpostorEERScorer).
+     *
+     * AUC is estimated via the Wilcoxon-Mann-Whitney statistic:
+     *   AUC = P(genuine_score > impostor_score)
+     * which equals the area under the ROC curve for the two score distributions.
+     */
+    [[nodiscard]] virtual auto compute_auc(const std::vector<std::vector<float>>& embeddings,
+        const std::vector<int>& labels,
+        int n_classes) const -> double
+    {
+        (void)embeddings; (void)labels; (void)n_classes;
+        return std::numeric_limits<double>::quiet_NaN();
+    }
 };
 
 // ── ClassificationEERScorer ───────────────────────────────────────────────────
@@ -88,6 +111,16 @@ public:
     explicit GenuineImpostorEERScorer(std::size_t n_enroll_per_speaker = 1U);
 
     [[nodiscard]] auto compute_eer(const std::vector<std::vector<float>>& embeddings,
+        const std::vector<int>& labels,
+        int n_classes) const -> double override;
+
+    /**
+     * @brief AUC via Wilcoxon-Mann-Whitney: P(genuine_score > impostor_score).
+     *
+     * Ties contribute 0.5.  Returns NaN when fewer than 2 speakers have valid
+     * templates (same degeneracy condition as compute_eer).
+     */
+    [[nodiscard]] auto compute_auc(const std::vector<std::vector<float>>& embeddings,
         const std::vector<int>& labels,
         int n_classes) const -> double override;
 

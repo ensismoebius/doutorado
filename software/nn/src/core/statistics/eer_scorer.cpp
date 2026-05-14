@@ -107,6 +107,97 @@ double eer_from_trials(std::vector<std::pair<float, bool>> trials)
     return std::numeric_limits<double>::quiet_NaN();
 }
 
+// AUC via Wilcoxon-Mann-Whitney statistic: P(genuine_score > impostor_score).
+// Ties count 0.5.  O(G log I) via sorted impostors + binary search.
+double mann_whitney_auc(const std::vector<std::pair<float, bool>>& trials)
+{
+    std::vector<float> genuine;
+    std::vector<float> impostor;
+    for (const auto& [s, g] : trials)
+        (g ? genuine : impostor).push_back(s);
+
+    if (genuine.empty() || impostor.empty())
+        return std::numeric_limits<double>::quiet_NaN();
+
+    std::sort(impostor.begin(), impostor.end());
+
+    double wins = 0.0;
+    for (float gs : genuine)
+    {
+        // impostors strictly below gs
+        auto lt = static_cast<double>(
+            std::lower_bound(impostor.begin(), impostor.end(), gs) - impostor.begin());
+        // impostors equal to gs
+        auto eq = static_cast<double>(
+            std::upper_bound(impostor.begin(), impostor.end(), gs) - impostor.begin()) - lt;
+        wins += lt + 0.5 * eq;
+    }
+    return wins / (static_cast<double>(genuine.size()) * static_cast<double>(impostor.size()));
+}
+
+// Build genuine/impostor cosine-similarity trial list for GenuineImpostorEERScorer.
+// Returns empty vector when too few samples or speakers.
+std::vector<std::pair<float, bool>> build_gi_trials(
+    const std::vector<std::vector<float>>& embeddings,
+    const std::vector<int>& labels,
+    std::size_t n_enroll)
+{
+    if (embeddings.empty()) return {};
+
+    // Group sample indices by speaker (stable insertion order).
+    std::vector<int> speaker_order;
+    std::unordered_map<int, std::vector<std::size_t>> spk_to_indices;
+    for (std::size_t i = 0; i < labels.size(); ++i)
+    {
+        if (spk_to_indices.find(labels[i]) == spk_to_indices.end())
+            speaker_order.push_back(labels[i]);
+        spk_to_indices[labels[i]].push_back(i);
+    }
+
+    // Build enrollment templates.
+    std::unordered_map<int, std::vector<float>> templates;
+    std::unordered_map<int, std::vector<std::size_t>> probe_indices;
+
+    for (int spk : speaker_order)
+    {
+        const auto& idxs = spk_to_indices.at(spk);
+        if (idxs.size() <= n_enroll) continue;
+
+        std::vector<std::vector<float>> enroll_vecs;
+        enroll_vecs.reserve(n_enroll);
+        for (std::size_t k = 0; k < n_enroll; ++k)
+            enroll_vecs.push_back(embeddings[idxs[k]]);
+
+        auto tmpl = mean_vec(enroll_vecs);
+        l2_normalize(tmpl);
+        templates[spk] = std::move(tmpl);
+
+        probe_indices[spk] = std::vector<std::size_t>(
+            idxs.begin() + static_cast<ptrdiff_t>(n_enroll), idxs.end());
+    }
+
+    if (templates.size() < 2U) return {};
+
+    // Score all probes against all templates.
+    std::vector<std::pair<float, bool>> trials;
+    for (int spk : speaker_order)
+    {
+        if (probe_indices.find(spk) == probe_indices.end()) continue;
+        for (std::size_t probe_idx : probe_indices.at(spk))
+        {
+            auto probe = embeddings[probe_idx];
+            l2_normalize(probe);
+            for (int tmpl_spk : speaker_order)
+            {
+                if (templates.find(tmpl_spk) == templates.end()) continue;
+                trials.emplace_back(cosine_sim(probe, templates.at(tmpl_spk)),
+                    tmpl_spk == spk);
+            }
+        }
+    }
+    return trials;
+}
+
 } // namespace
 
 // ── ClassificationEERScorer ───────────────────────────────────────────────────
@@ -163,70 +254,18 @@ auto GenuineImpostorEERScorer::compute_eer(const std::vector<std::vector<float>>
     const std::vector<int>& labels,
     int /*n_classes*/) const -> double
 {
-    if (embeddings.empty()) return std::numeric_limits<double>::quiet_NaN();
-
-    // Group sample indices by speaker label (stable insertion order).
-    std::vector<int> speaker_order;
-    std::unordered_map<int, std::vector<std::size_t>> spk_to_indices;
-    for (std::size_t i = 0; i < labels.size(); ++i)
-    {
-        if (spk_to_indices.find(labels[i]) == spk_to_indices.end())
-            speaker_order.push_back(labels[i]);
-        spk_to_indices[labels[i]].push_back(i);
-    }
-
-    // Build enrollment template per speaker.
-    std::unordered_map<int, std::vector<float>> templates;
-    std::unordered_map<int, std::vector<std::size_t>> probe_indices;
-
-    for (int spk : speaker_order)
-    {
-        const auto& idxs = spk_to_indices.at(spk);
-        if (idxs.size() <= n_enroll_) continue; // not enough probes — skip
-
-        // Enrollment: first n_enroll_ samples → mean → L2-normalise.
-        std::vector<std::vector<float>> enroll_vecs;
-        enroll_vecs.reserve(n_enroll_);
-        for (std::size_t k = 0; k < n_enroll_; ++k)
-            enroll_vecs.push_back(embeddings[idxs[k]]);
-
-        auto tmpl = mean_vec(enroll_vecs);
-        l2_normalize(tmpl);
-        templates[spk] = std::move(tmpl);
-
-        // Probes: remaining samples.
-        std::vector<std::size_t> probes(idxs.begin() + static_cast<ptrdiff_t>(n_enroll_),
-            idxs.end());
-        probe_indices[spk] = std::move(probes);
-    }
-
-    if (templates.size() < 2U)
-        return std::numeric_limits<double>::quiet_NaN(); // need >= 2 speakers for impostors
-
-    // Build trial list: (cosine_score, is_genuine).
-    std::vector<std::pair<float, bool>> trials;
-
-    for (int spk : speaker_order)
-    {
-        if (probe_indices.find(spk) == probe_indices.end()) continue;
-
-        for (std::size_t probe_idx : probe_indices.at(spk))
-        {
-            // L2-normalise probe embedding.
-            auto probe = embeddings[probe_idx];
-            l2_normalize(probe);
-
-            for (int tmpl_spk : speaker_order)
-            {
-                if (templates.find(tmpl_spk) == templates.end()) continue;
-                const float score = cosine_sim(probe, templates.at(tmpl_spk));
-                const bool is_genuine = (tmpl_spk == spk);
-                trials.emplace_back(score, is_genuine);
-            }
-        }
-    }
-
+    auto trials = build_gi_trials(embeddings, labels, n_enroll_);
+    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
     return eer_from_trials(std::move(trials));
+}
+
+auto GenuineImpostorEERScorer::compute_auc(const std::vector<std::vector<float>>& embeddings,
+    const std::vector<int>& labels,
+    int /*n_classes*/) const -> double
+{
+    const auto trials = build_gi_trials(embeddings, labels, n_enroll_);
+    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
+    return mann_whitney_auc(trials);
 }
 
 } // namespace statistics

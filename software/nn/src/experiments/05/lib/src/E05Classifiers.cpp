@@ -21,16 +21,26 @@ namespace e05
 
 namespace
 {
-// Single batched forward on (N, D); accuracy via argmax, EER via eer_scorer.
-std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
+
+struct EvalMetrics
+{
+    double accuracy  = 0.0;
+    double f1        = 0.0;
+    double precision = 0.0;
+    double recall    = 0.0;
+    double eer       = 0.0;
+    double auc       = 0.0;
+};
+
+// Single batched forward on (N, D); computes accuracy, macro F1/P/R, EER, AUC.
+EvalMetrics evaluate(SimpleResNetImpl<nn::Backend>& model,
     const std::vector<std::vector<double>>& inputs,
     const std::vector<int>& labels,
     int n_classes,
     const statistics::IEERScorer& eer_scorer)
 {
-    if (inputs.empty()) return {0.0, 0.0};
+    if (inputs.empty()) return {};
 
-    // Stack all test samples into one (N, D) tensor — one GPU kernel instead of N.
     const auto N = static_cast<nn::Index>(inputs.size());
     const auto D = static_cast<nn::Index>(inputs[0].size());
     nn::Tensor batch = nn::Tensor::zeros(N, D);
@@ -44,9 +54,10 @@ std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
 
     nn::Tensor all_logits = model.forward(batch, false); // (N, n_classes)
 
-    // Extract logit rows for accuracy (argmax) and EER scoring.
     int correct = 0;
+    std::vector<int> preds(static_cast<size_t>(N));
     std::vector<std::vector<float>> embeddings(static_cast<size_t>(N));
+
     for (size_t i = 0; i < static_cast<size_t>(N); ++i)
     {
         embeddings[i].resize(static_cast<size_t>(n_classes));
@@ -58,13 +69,53 @@ std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
             embeddings[i][static_cast<size_t>(j)] = v;
             if (v > best) { best = v; pred = j; }
         }
+        preds[i] = pred;
         if (pred == labels[i]) ++correct;
     }
 
-    double accuracy = static_cast<double>(correct) / static_cast<double>(N);
-    double eer = eer_scorer.compute_eer(embeddings, labels, n_classes);
-    return {accuracy, eer};
+    // Macro precision / recall / F1 across all classes.
+    std::vector<int> tp(static_cast<size_t>(n_classes), 0);
+    std::vector<int> fp(static_cast<size_t>(n_classes), 0);
+    std::vector<int> fn(static_cast<size_t>(n_classes), 0);
+    for (size_t i = 0; i < static_cast<size_t>(N); ++i)
+    {
+        const int p = preds[i];
+        const int t = labels[i];
+        if (p == t)
+            ++tp[static_cast<size_t>(p)];
+        else
+        {
+            ++fp[static_cast<size_t>(p)];
+            ++fn[static_cast<size_t>(t)];
+        }
+    }
+    double sum_p = 0.0, sum_r = 0.0, sum_f1 = 0.0;
+    for (int c = 0; c < n_classes; ++c)
+    {
+        const double p_c = (tp[static_cast<size_t>(c)] + fp[static_cast<size_t>(c)] > 0)
+            ? static_cast<double>(tp[static_cast<size_t>(c)]) /
+              static_cast<double>(tp[static_cast<size_t>(c)] + fp[static_cast<size_t>(c)])
+            : 0.0;
+        const double r_c = (tp[static_cast<size_t>(c)] + fn[static_cast<size_t>(c)] > 0)
+            ? static_cast<double>(tp[static_cast<size_t>(c)]) /
+              static_cast<double>(tp[static_cast<size_t>(c)] + fn[static_cast<size_t>(c)])
+            : 0.0;
+        sum_p  += p_c;
+        sum_r  += r_c;
+        sum_f1 += (p_c + r_c > 0.0) ? (2.0 * p_c * r_c / (p_c + r_c)) : 0.0;
+    }
+    const double nc = static_cast<double>(n_classes);
+
+    EvalMetrics m;
+    m.accuracy  = static_cast<double>(correct) / static_cast<double>(N);
+    m.precision = sum_p  / nc;
+    m.recall    = sum_r  / nc;
+    m.f1        = sum_f1 / nc;
+    m.eer       = eer_scorer.compute_eer(embeddings, labels, n_classes);
+    m.auc       = eer_scorer.compute_auc(embeddings, labels, n_classes);
+    return m;
 }
+
 } // namespace
 
 auto run_classifier(const E05DatasetView& view,
@@ -211,12 +262,16 @@ auto run_classifier(const E05DatasetView& view,
         const statistics::IEERScorer& scorer =
             (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
 
-        auto [acc, eer] = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+        auto em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
 
         FoldResult fr;
-        fr.fold     = static_cast<int>(outer_idx);
-        fr.accuracy = acc;
-        fr.eer      = eer;
+        fr.fold      = static_cast<int>(outer_idx);
+        fr.accuracy  = em.accuracy;
+        fr.f1        = em.f1;
+        fr.precision = em.precision;
+        fr.recall    = em.recall;
+        fr.eer       = em.eer;
+        fr.auc       = em.auc;
         result.outer_folds.push_back(fr);
 
         // Advance global bar after each completed outer fold.
@@ -235,24 +290,58 @@ void compute_aggregate_stats(ClassificationResult& result)
 {
     if (result.outer_folds.empty()) return;
 
-    double sum_acc = 0.0;
-    double sum_eer = 0.0;
+    const double n = static_cast<double>(result.outer_folds.size());
+
+    // Sums (NaN-safe: treat NaN fold values as 0 for mean, skip for std).
+    double sum_acc = 0.0, sum_f1 = 0.0, sum_p = 0.0, sum_r = 0.0;
+    double sum_eer = 0.0, sum_auc = 0.0;
+    int n_eer = 0, n_auc = 0;
+
     for (const auto& f : result.outer_folds)
     {
         sum_acc += f.accuracy;
-        sum_eer += f.eer;
+        sum_f1  += f.f1;
+        sum_p   += f.precision;
+        sum_r   += f.recall;
+        if (!std::isnan(f.eer)) { sum_eer += f.eer; ++n_eer; }
+        if (!std::isnan(f.auc)) { sum_auc += f.auc; ++n_auc; }
     }
-    double n = static_cast<double>(result.outer_folds.size());
-    result.mean_accuracy = sum_acc / n;
-    result.mean_eer      = sum_eer / n;
 
-    double var = 0.0;
+    result.mean_accuracy  = sum_acc / n;
+    result.mean_f1        = sum_f1  / n;
+    result.mean_precision = sum_p   / n;
+    result.mean_recall    = sum_r   / n;
+    result.mean_eer       = (n_eer > 0) ? sum_eer / n_eer : std::numeric_limits<double>::quiet_NaN();
+    result.mean_auc       = (n_auc > 0) ? sum_auc / n_auc : std::numeric_limits<double>::quiet_NaN();
+
+    // Variances.
+    double var_acc = 0.0, var_f1 = 0.0, var_eer = 0.0, var_auc = 0.0;
     for (const auto& f : result.outer_folds)
     {
-        double d = f.accuracy - result.mean_accuracy;
-        var += d * d;
+        double da = f.accuracy - result.mean_accuracy;
+        double df = f.f1       - result.mean_f1;
+        var_acc += da * da;
+        var_f1  += df * df;
+        if (!std::isnan(f.eer) && !std::isnan(result.mean_eer))
+        {
+            double de = f.eer - result.mean_eer;
+            var_eer += de * de;
+        }
+        if (!std::isnan(f.auc) && !std::isnan(result.mean_auc))
+        {
+            double du = f.auc - result.mean_auc;
+            var_auc += du * du;
+        }
     }
-    result.std_accuracy = std::sqrt(var / n);
+    result.std_accuracy = std::sqrt(var_acc / n);
+    result.std_f1       = std::sqrt(var_f1  / n);
+    result.std_eer      = (n_eer > 1) ? std::sqrt(var_eer / n_eer) : 0.0;
+    result.std_auc      = (n_auc > 1) ? std::sqrt(var_auc / n_auc) : 0.0;
+
+    // 95% CI (normal approximation): 1.96 × std / √n
+    const double inv_sqrt_n = 1.0 / std::sqrt(n);
+    result.ci95_accuracy = 1.96 * result.std_accuracy * inv_sqrt_n;
+    result.ci95_eer      = 1.96 * result.std_eer      * inv_sqrt_n;
 }
 
 } // namespace e05

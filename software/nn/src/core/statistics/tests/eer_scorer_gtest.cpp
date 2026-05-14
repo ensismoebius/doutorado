@@ -154,3 +154,49 @@ TEST(GenuineImpostorEERScorerTest, MultipleEnrollSamples)
     if (!std::isnan(eer))
         EXPECT_LT(eer, 0.1);
 }
+
+// ── GenuineImpostorEERScorer — AUC ───────────────────────────────────────────
+
+TEST(GenuineImpostorEERScorerTest, AucEmptyReturnsNaN)
+{
+    GenuineImpostorEERScorer s;
+    EXPECT_TRUE(std::isnan(s.compute_auc({}, {}, 2)));
+}
+
+TEST(GenuineImpostorEERScorerTest, AucPerfectSeparationNearOne)
+{
+    // Perfect cosine separation → genuine >> impostor → AUC near 1.
+    GenuineImpostorEERScorer s(1U);
+    const double auc = s.compute_auc(perfect_embeddings(6), perfect_labels(6), 2);
+    if (!std::isnan(auc))
+        EXPECT_GT(auc, 0.9);
+}
+
+TEST(GenuineImpostorEERScorer, AucTotalOverlapNearHalf)
+{
+    // Identical embeddings → AUC ≈ 0.5.
+    GenuineImpostorEERScorer s(1U);
+    std::vector<std::vector<float>> emb(8, {1.0f, 1.0f});
+    std::vector<int> lbl = {0, 0, 0, 0, 1, 1, 1, 1};
+    const double auc = s.compute_auc(emb, lbl, 2);
+    if (!std::isnan(auc))
+        EXPECT_NEAR(auc, 0.5, 0.15);
+}
+
+TEST(GenuineImpostorEERScorerTest, AucInUnitIntervalOrNaN)
+{
+    GenuineImpostorEERScorer s(1U);
+    const double auc = s.compute_auc(perfect_embeddings(6), perfect_labels(6), 2);
+    if (!std::isnan(auc))
+    {
+        EXPECT_GE(auc, 0.0);
+        EXPECT_LE(auc, 1.0);
+    }
+}
+
+// ClassificationEERScorer inherits default compute_auc → always NaN.
+TEST(ClassificationEERScorerTest, AucAlwaysNaN)
+{
+    ClassificationEERScorer s;
+    EXPECT_TRUE(std::isnan(s.compute_auc(perfect_embeddings(5), perfect_labels(5), 2)));
+}
