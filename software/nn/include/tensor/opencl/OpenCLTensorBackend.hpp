@@ -249,9 +249,9 @@ class OpenCLTensorBackend
     }
 
     /**
-     * @brief Get const reference to gradient (throws if not allocated).
+     * @brief Get gradient; returns a zero-initialised backend if no gradient has been allocated.
      */
-    auto get_grad() const -> const OpenCLTensorBackend&;
+    auto get_grad() const -> OpenCLTensorBackend;
 
     /**
      * @brief Replace stored gradient backend with a copy of the provided tensor.

@@ -192,7 +192,7 @@ class OpenCLHostStorage
         {
             throw std::out_of_range("Index out of range");
         }
-        const Index col_idx = d2 * m_shape[2] + d3;
+        const Index col_idx = d2 + d3 * m_shape[1];
         return d1 + (col_idx * m_shape[0]);
     }
 
@@ -207,7 +207,7 @@ class OpenCLHostStorage
             throw std::out_of_range("Index out of range");
         }
 
-        const Index col_idx = (d2 * (m_shape[2] * m_shape[3])) + (d3 * m_shape[3]) + d4;
+        const Index col_idx = d2 + (d3 + d4 * m_shape[2]) * m_shape[1];
         return d1 + (col_idx * m_shape[0]);
     }
 
@@ -1011,7 +1011,7 @@ void OpenCLTensorBackend::setBlock(Index row, Index col, const OpenCLTensorBacke
     }
     if (row + block.rows() > rows() || col + block.cols() > cols())
     {
-        throw std::out_of_range("setBlock exceeds tensor bounds");
+        throw std::invalid_argument("setBlock: block exceeds tensor bounds");
     }
 
     for (Index r = 0; r < block.rows(); ++r)
@@ -3796,7 +3796,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
 {
     if (shape() != other.shape())
     {
-        warn_opencl_cpu_fallback_once("add", "OpenCL path requires matching tensor shapes");
+        throw std::invalid_argument("add: tensor shapes must match");
     }
     // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("add"))
@@ -4069,7 +4069,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
 {
     if (shape() != other.shape())
     {
-        warn_opencl_cpu_fallback_once("multiply", "OpenCL path requires matching tensor shapes");
+        throw std::invalid_argument("multiply: tensor shapes must match");
     }
     // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("multiply"))
@@ -6292,11 +6292,11 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
 {
     if (shape().size() != 2 || other.shape().size() != 2)
     {
-        warn_opencl_cpu_fallback_once("matmul", "OpenCL path requires rank-2 tensors");
+        throw std::invalid_argument("matmul: both tensors must be rank-2");
     }
-    else if (cols() != other.rows())
+    if (cols() != other.rows())
     {
-        warn_opencl_cpu_fallback_once("matmul", "OpenCL path requires lhs.cols() == rhs.rows()");
+        throw std::invalid_argument("matmul: lhs.cols() must equal rhs.rows()");
     }
     // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("matmul"))
@@ -7137,9 +7137,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
     const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const
 {
-    if (!m_gpu_resident)         sync_gpu_if_needed();
-    if (!other.m_gpu_resident)   other.sync_gpu_if_needed();
-    if (!bias.m_gpu_resident)    bias.sync_gpu_if_needed();
+    if (!m_gpu_resident) sync_gpu_if_needed();
+    if (!other.m_gpu_resident) other.sync_gpu_if_needed();
+    if (!bias.m_gpu_resident) bias.sync_gpu_if_needed();
 
     if (shape().size() != 2 || other.shape().size() != 2 || bias.shape().size() != 2 ||
         cols() != other.cols() || bias.rows() != other.rows() || bias.cols() != 1 ||
@@ -7152,33 +7152,42 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
     {
         const auto& ctx = opencl::OpenCLContext::instance();
         const Index m = rows(), k = cols(), n = other.rows();
-        const std::size_t a_bytes    = m * k * sizeof(float);
-        const std::size_t b_bytes    = n * k * sizeof(float);
+        const std::size_t a_bytes = m * k * sizeof(float);
+        const std::size_t b_bytes = n * k * sizeof(float);
         const std::size_t bias_bytes = n * sizeof(float);
-        const std::size_t c_bytes    = m * n * sizeof(float);
+        const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
         constexpr const char* kname = "matmul_rhs_transposed_bias_sigmoid_kernel";
 
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident &&
-            m_has_gpu_memory && other.m_has_gpu_memory && bias.m_has_gpu_memory &&
-            m_gpu_buffer && other.m_gpu_buffer && bias.m_gpu_buffer)
+        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
+            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
+            bias.m_gpu_buffer)
         {
             if (m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), m_gpu_buffer->buffer,
-                    m_backend->data_ptr(), a_bytes, "matmul_bias_sigmoid a");
+                copy_host_to_device(ctx.get_queue(),
+                    m_gpu_buffer->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "matmul_bias_sigmoid a");
                 m_needs_sync_to_device = false;
             }
             if (other.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "matmul_bias_sigmoid b");
+                copy_host_to_device(ctx.get_queue(),
+                    other.m_gpu_buffer->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "matmul_bias_sigmoid b");
                 other.m_needs_sync_to_device = false;
             }
             if (bias.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "matmul_bias_sigmoid bias");
+                copy_host_to_device(ctx.get_queue(),
+                    bias.m_gpu_buffer->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "matmul_bias_sigmoid bias");
                 bias.m_needs_sync_to_device = false;
             }
             OpenCLTensorBackend t(m, n);
@@ -7188,17 +7197,27 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             const cl_mem bias_mem = bias.m_gpu_buffer->buffer, c_mem = t.m_gpu_buffer->buffer;
             const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                           k_u32 = static_cast<cl_uint>(k);
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_sigmoid 0");
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_sigmoid 1");
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_sigmoid 2");
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_sigmoid 3");
-            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_sigmoid 4");
-            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_sigmoid 5");
-            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_sigmoid 6");
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_sigmoid 0");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_sigmoid 1");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_sigmoid 2");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_sigmoid 3");
+            check_cl_error(
+                clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_sigmoid 4");
+            check_cl_error(
+                clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_sigmoid 5");
+            check_cl_error(
+                clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_sigmoid 6");
             const std::size_t global[2] = {m, n};
-            check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_sigmoid enqueue");
-            t.m_needs_sync_to_host = true; t.m_needs_sync_to_device = false;
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                "matmul_bias_sigmoid enqueue");
+            t.m_needs_sync_to_host = true;
+            t.m_needs_sync_to_device = false;
             return t;
         }
         tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
@@ -7208,26 +7227,51 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
             auto bias_buf = pool->acquire(bias_bytes), c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(), a_buf->buffer, m_backend->data_ptr(), a_bytes, "matmul_bias_sigmoid a");
-                copy_host_to_device(ctx.get_queue(), b_buf->buffer, other.m_backend->data_ptr(), b_bytes, "matmul_bias_sigmoid b");
-                copy_host_to_device(ctx.get_queue(), bias_buf->buffer, bias.m_backend->data_ptr(), bias_bytes, "matmul_bias_sigmoid bias");
+                copy_host_to_device(ctx.get_queue(),
+                    a_buf->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "matmul_bias_sigmoid a");
+                copy_host_to_device(ctx.get_queue(),
+                    b_buf->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "matmul_bias_sigmoid b");
+                copy_host_to_device(ctx.get_queue(),
+                    bias_buf->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "matmul_bias_sigmoid bias");
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
                 const cl_mem a_mem = a_buf->buffer, b_mem = b_buf->buffer;
                 const cl_mem bias_mem = bias_buf->buffer, c_mem = c_buf->buffer;
                 const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                               k_u32 = static_cast<cl_uint>(k);
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_sigmoid 0");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_sigmoid 1");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_sigmoid 2");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_sigmoid 3");
-                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_sigmoid 4");
-                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_sigmoid 5");
-                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_sigmoid 6");
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_sigmoid 0");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_sigmoid 1");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_sigmoid 2");
+                check_cl_error(
+                    clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_sigmoid 3");
+                check_cl_error(
+                    clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_sigmoid 4");
+                check_cl_error(
+                    clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_sigmoid 5");
+                check_cl_error(
+                    clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_sigmoid 6");
                 const std::size_t global[2] = {m, n};
-                check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                    nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_sigmoid enqueue");
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                    "matmul_bias_sigmoid enqueue");
                 finish_queue_if_not_batching(ctx.get_queue(), "matmul_bias_sigmoid finish");
-                copy_device_to_host(ctx.get_queue(), c_buf->buffer, out.mutable_data_ptr(), c_bytes, "matmul_bias_sigmoid read");
+                copy_device_to_host(ctx.get_queue(),
+                    c_buf->buffer,
+                    out.mutable_data_ptr(),
+                    c_bytes,
+                    "matmul_bias_sigmoid read");
                 OpenCLTensorBackend t;
                 t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                 return t;
@@ -7242,16 +7286,19 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
         const cl_mem bias_mem = bias_dev.get_device_buffer(), c_mem = out_dev.get_device_buffer();
         const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                       k_u32 = static_cast<cl_uint>(k);
-        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_sigmoid 0");
-        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_sigmoid 1");
-        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_sigmoid 2");
-        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_sigmoid 3");
-        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_sigmoid 4");
-        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_sigmoid 5");
-        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_sigmoid 6");
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_sigmoid 0");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_sigmoid 1");
+        check_cl_error(
+            clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_sigmoid 2");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_sigmoid 3");
+        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_sigmoid 4");
+        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_sigmoid 5");
+        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_sigmoid 6");
         const std::size_t global[2] = {m, n};
-        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-            nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_sigmoid enqueue");
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+            "matmul_bias_sigmoid enqueue");
         finish_queue_if_not_batching(ctx.get_queue(), "matmul_bias_sigmoid finish");
         out_dev.copy_from_device(out.mutable_data_ptr());
         OpenCLTensorBackend t;
@@ -7267,9 +7314,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
     const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const
 {
-    if (!m_gpu_resident)         sync_gpu_if_needed();
-    if (!other.m_gpu_resident)   other.sync_gpu_if_needed();
-    if (!bias.m_gpu_resident)    bias.sync_gpu_if_needed();
+    if (!m_gpu_resident) sync_gpu_if_needed();
+    if (!other.m_gpu_resident) other.sync_gpu_if_needed();
+    if (!bias.m_gpu_resident) bias.sync_gpu_if_needed();
 
     if (shape().size() != 2 || other.shape().size() != 2 || bias.shape().size() != 2 ||
         cols() != other.cols() || bias.rows() != other.rows() || bias.cols() != 1 ||
@@ -7282,33 +7329,42 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
     {
         const auto& ctx = opencl::OpenCLContext::instance();
         const Index m = rows(), k = cols(), n = other.rows();
-        const std::size_t a_bytes    = m * k * sizeof(float);
-        const std::size_t b_bytes    = n * k * sizeof(float);
+        const std::size_t a_bytes = m * k * sizeof(float);
+        const std::size_t b_bytes = n * k * sizeof(float);
         const std::size_t bias_bytes = n * sizeof(float);
-        const std::size_t c_bytes    = m * n * sizeof(float);
+        const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
         constexpr const char* kname = "matmul_rhs_transposed_bias_tanh_kernel";
 
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident &&
-            m_has_gpu_memory && other.m_has_gpu_memory && bias.m_has_gpu_memory &&
-            m_gpu_buffer && other.m_gpu_buffer && bias.m_gpu_buffer)
+        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
+            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
+            bias.m_gpu_buffer)
         {
             if (m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), m_gpu_buffer->buffer,
-                    m_backend->data_ptr(), a_bytes, "matmul_bias_tanh a");
+                copy_host_to_device(ctx.get_queue(),
+                    m_gpu_buffer->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "matmul_bias_tanh a");
                 m_needs_sync_to_device = false;
             }
             if (other.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "matmul_bias_tanh b");
+                copy_host_to_device(ctx.get_queue(),
+                    other.m_gpu_buffer->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "matmul_bias_tanh b");
                 other.m_needs_sync_to_device = false;
             }
             if (bias.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "matmul_bias_tanh bias");
+                copy_host_to_device(ctx.get_queue(),
+                    bias.m_gpu_buffer->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "matmul_bias_tanh bias");
                 bias.m_needs_sync_to_device = false;
             }
             OpenCLTensorBackend t(m, n);
@@ -7318,17 +7374,24 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             const cl_mem bias_mem = bias.m_gpu_buffer->buffer, c_mem = t.m_gpu_buffer->buffer;
             const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                           k_u32 = static_cast<cl_uint>(k);
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_tanh 0");
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_tanh 1");
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_tanh 2");
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_tanh 3");
-            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_tanh 4");
-            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_tanh 5");
-            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_tanh 6");
+            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_tanh 0");
+            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_tanh 1");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_tanh 2");
+            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_tanh 3");
+            check_cl_error(
+                clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_tanh 4");
+            check_cl_error(
+                clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_tanh 5");
+            check_cl_error(
+                clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_tanh 6");
             const std::size_t global[2] = {m, n};
-            check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_tanh enqueue");
-            t.m_needs_sync_to_host = true; t.m_needs_sync_to_device = false;
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                "matmul_bias_tanh enqueue");
+            t.m_needs_sync_to_host = true;
+            t.m_needs_sync_to_device = false;
             return t;
         }
         tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
@@ -7338,26 +7401,51 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
             auto bias_buf = pool->acquire(bias_bytes), c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(), a_buf->buffer, m_backend->data_ptr(), a_bytes, "matmul_bias_tanh a");
-                copy_host_to_device(ctx.get_queue(), b_buf->buffer, other.m_backend->data_ptr(), b_bytes, "matmul_bias_tanh b");
-                copy_host_to_device(ctx.get_queue(), bias_buf->buffer, bias.m_backend->data_ptr(), bias_bytes, "matmul_bias_tanh bias");
+                copy_host_to_device(ctx.get_queue(),
+                    a_buf->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "matmul_bias_tanh a");
+                copy_host_to_device(ctx.get_queue(),
+                    b_buf->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "matmul_bias_tanh b");
+                copy_host_to_device(ctx.get_queue(),
+                    bias_buf->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "matmul_bias_tanh bias");
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kname);
                 const cl_mem a_mem = a_buf->buffer, b_mem = b_buf->buffer;
                 const cl_mem bias_mem = bias_buf->buffer, c_mem = c_buf->buffer;
                 const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                               k_u32 = static_cast<cl_uint>(k);
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_tanh 0");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_tanh 1");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_tanh 2");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_tanh 3");
-                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_tanh 4");
-                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_tanh 5");
-                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_tanh 6");
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_tanh 0");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_tanh 1");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_tanh 2");
+                check_cl_error(
+                    clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_tanh 3");
+                check_cl_error(
+                    clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_tanh 4");
+                check_cl_error(
+                    clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_tanh 5");
+                check_cl_error(
+                    clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_tanh 6");
                 const std::size_t global[2] = {m, n};
-                check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                    nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_tanh enqueue");
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+                    "matmul_bias_tanh enqueue");
                 finish_queue_if_not_batching(ctx.get_queue(), "matmul_bias_tanh finish");
-                copy_device_to_host(ctx.get_queue(), c_buf->buffer, out.mutable_data_ptr(), c_bytes, "matmul_bias_tanh read");
+                copy_device_to_host(ctx.get_queue(),
+                    c_buf->buffer,
+                    out.mutable_data_ptr(),
+                    c_bytes,
+                    "matmul_bias_tanh read");
                 OpenCLTensorBackend t;
                 t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                 return t;
@@ -7372,16 +7460,18 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
         const cl_mem bias_mem = bias_dev.get_device_buffer(), c_mem = out_dev.get_device_buffer();
         const cl_uint m_u32 = static_cast<cl_uint>(m), n_u32 = static_cast<cl_uint>(n),
                       k_u32 = static_cast<cl_uint>(k);
-        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_tanh 0");
-        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_tanh 1");
-        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_tanh 2");
-        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_tanh 3");
-        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_tanh 4");
-        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_tanh 5");
-        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_tanh 6");
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_tanh 0");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_tanh 1");
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_tanh 2");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_tanh 3");
+        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_tanh 4");
+        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_tanh 5");
+        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_tanh 6");
         const std::size_t global[2] = {m, n};
-        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-            nullptr, global, nullptr, 0, nullptr, nullptr), "matmul_bias_tanh enqueue");
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
+            "matmul_bias_tanh enqueue");
         finish_queue_if_not_batching(ctx.get_queue(), "matmul_bias_tanh finish");
         out_dev.copy_from_device(out.mutable_data_ptr());
         OpenCLTensorBackend t;
@@ -7397,9 +7487,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
     const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias) const
 {
-    if (!m_gpu_resident)         sync_gpu_if_needed();
-    if (!other.m_gpu_resident)   other.sync_gpu_if_needed();
-    if (!bias.m_gpu_resident)    bias.sync_gpu_if_needed();
+    if (!m_gpu_resident) sync_gpu_if_needed();
+    if (!other.m_gpu_resident) other.sync_gpu_if_needed();
+    if (!bias.m_gpu_resident) bias.sync_gpu_if_needed();
 
     if (shape().size() != 2 || other.shape().size() != 2 || bias.shape().size() != 2 ||
         cols() != other.cols() || bias.rows() != other.rows() || bias.cols() != 1 ||
@@ -7416,33 +7506,42 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
         const Index k = cols();
         const Index n = other.rows();
 
-        const std::size_t a_bytes    = m * k * sizeof(float);
-        const std::size_t b_bytes    = n * k * sizeof(float);
+        const std::size_t a_bytes = m * k * sizeof(float);
+        const std::size_t b_bytes = n * k * sizeof(float);
         const std::size_t bias_bytes = n * sizeof(float);
-        const std::size_t c_bytes    = m * n * sizeof(float);
+        const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
 
         // GPU-resident fast path
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident &&
-            m_has_gpu_memory && other.m_has_gpu_memory && bias.m_has_gpu_memory &&
-            m_gpu_buffer && other.m_gpu_buffer && bias.m_gpu_buffer)
+        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
+            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
+            bias.m_gpu_buffer)
         {
             if (m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), m_gpu_buffer->buffer,
-                    m_backend->data_ptr(), a_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, a)");
+                copy_host_to_device(ctx.get_queue(),
+                    m_gpu_buffer->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, a)");
                 m_needs_sync_to_device = false;
             }
             if (other.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, b)");
+                copy_host_to_device(ctx.get_queue(),
+                    other.m_gpu_buffer->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, b)");
                 other.m_needs_sync_to_device = false;
             }
             if (bias.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
+                copy_host_to_device(ctx.get_queue(),
+                    bias.m_gpu_buffer->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
                 bias.m_needs_sync_to_device = false;
             }
 
@@ -7450,25 +7549,33 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
             t.set_gpu_resident(true);
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
                 "matmul_rhs_transposed_bias_relu_kernel");
-            const cl_mem a_mem    = m_gpu_buffer->buffer;
-            const cl_mem b_mem    = other.m_gpu_buffer->buffer;
+            const cl_mem a_mem = m_gpu_buffer->buffer;
+            const cl_mem b_mem = other.m_gpu_buffer->buffer;
             const cl_mem bias_mem = bias.m_gpu_buffer->buffer;
-            const cl_mem c_mem    = t.m_gpu_buffer->buffer;
-            const cl_uint m_u32   = static_cast<cl_uint>(m);
-            const cl_uint n_u32   = static_cast<cl_uint>(n);
-            const cl_uint k_u32   = static_cast<cl_uint>(k);
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),    "matmul_bias_relu arg0");
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),    "matmul_bias_relu arg1");
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),    "matmul_bias_relu arg3");
-            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),   "matmul_bias_relu arg4");
-            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),   "matmul_bias_relu arg5");
-            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),   "matmul_bias_relu arg6");
+            const cl_mem c_mem = t.m_gpu_buffer->buffer;
+            const cl_uint m_u32 = static_cast<cl_uint>(m);
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+            const cl_uint k_u32 = static_cast<cl_uint>(k);
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_relu arg0");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_relu arg1");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_relu arg3");
+            check_cl_error(
+                clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_relu arg4");
+            check_cl_error(
+                clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_relu arg5");
+            check_cl_error(
+                clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_relu arg6");
             const std::size_t global[2] = {m, n};
-            check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                nullptr, global, nullptr, 0, nullptr, nullptr),
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(matmul_bias_relu resident)");
-            t.m_needs_sync_to_host   = true;
+            t.m_needs_sync_to_host = true;
             t.m_needs_sync_to_device = false;
             return t;
         }
@@ -7477,42 +7584,62 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
         tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
         if (pool)
         {
-            auto a_buf    = pool->acquire(a_bytes);
-            auto b_buf    = pool->acquire(b_bytes);
+            auto a_buf = pool->acquire(a_bytes);
+            auto b_buf = pool->acquire(b_bytes);
             auto bias_buf = pool->acquire(bias_bytes);
-            auto c_buf    = pool->acquire(c_bytes);
+            auto c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(), a_buf->buffer,
-                    m_backend->data_ptr(), a_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, a)");
-                copy_host_to_device(ctx.get_queue(), b_buf->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, b)");
-                copy_host_to_device(ctx.get_queue(), bias_buf->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
+                copy_host_to_device(ctx.get_queue(),
+                    a_buf->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, a)");
+                copy_host_to_device(ctx.get_queue(),
+                    b_buf->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, b)");
+                copy_host_to_device(ctx.get_queue(),
+                    bias_buf->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_relu, bias)");
 
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
                     "matmul_rhs_transposed_bias_relu_kernel");
-                const cl_mem a_mem    = a_buf->buffer;
-                const cl_mem b_mem    = b_buf->buffer;
+                const cl_mem a_mem = a_buf->buffer;
+                const cl_mem b_mem = b_buf->buffer;
                 const cl_mem bias_mem = bias_buf->buffer;
-                const cl_mem c_mem    = c_buf->buffer;
-                const cl_uint m_u32   = static_cast<cl_uint>(m);
-                const cl_uint n_u32   = static_cast<cl_uint>(n);
-                const cl_uint k_u32   = static_cast<cl_uint>(k);
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),    "matmul_bias_relu arg0");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),    "matmul_bias_relu arg1");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),    "matmul_bias_relu arg3");
-                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),   "matmul_bias_relu arg4");
-                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),   "matmul_bias_relu arg5");
-                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),   "matmul_bias_relu arg6");
+                const cl_mem c_mem = c_buf->buffer;
+                const cl_uint m_u32 = static_cast<cl_uint>(m);
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+                const cl_uint k_u32 = static_cast<cl_uint>(k);
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_relu arg0");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_relu arg1");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
+                check_cl_error(
+                    clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_relu arg3");
+                check_cl_error(
+                    clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_relu arg4");
+                check_cl_error(
+                    clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_relu arg5");
+                check_cl_error(
+                    clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_relu arg6");
                 const std::size_t global[2] = {m, n};
-                check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                    nullptr, global, nullptr, 0, nullptr, nullptr),
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                     "clEnqueueNDRangeKernel(matmul_bias_relu)");
                 finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_bias_relu)");
-                copy_device_to_host(ctx.get_queue(), c_buf->buffer,
-                    out.mutable_data_ptr(), c_bytes, "clEnqueueReadBuffer(matmul_bias_relu, c)");
+                copy_device_to_host(ctx.get_queue(),
+                    c_buf->buffer,
+                    out.mutable_data_ptr(),
+                    c_bytes,
+                    "clEnqueueReadBuffer(matmul_bias_relu, c)");
                 OpenCLTensorBackend t;
                 t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                 return t;
@@ -7528,25 +7655,27 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
         b_dev.copy_to_device(other.m_backend->data_ptr());
         bias_dev.copy_to_device(bias.m_backend->data_ptr());
 
-        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
-            "matmul_rhs_transposed_bias_relu_kernel");
-        const cl_mem a_mem    = a_dev.get_device_buffer();
-        const cl_mem b_mem    = b_dev.get_device_buffer();
+        cl_kernel kernel =
+            opencl::KernelManager::instance().get_kernel("matmul_rhs_transposed_bias_relu_kernel");
+        const cl_mem a_mem = a_dev.get_device_buffer();
+        const cl_mem b_mem = b_dev.get_device_buffer();
         const cl_mem bias_mem = bias_dev.get_device_buffer();
-        const cl_mem c_mem    = out_dev.get_device_buffer();
-        const cl_uint m_u32   = static_cast<cl_uint>(m);
-        const cl_uint n_u32   = static_cast<cl_uint>(n);
-        const cl_uint k_u32   = static_cast<cl_uint>(k);
-        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem),    "matmul_bias_relu arg0");
-        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem),    "matmul_bias_relu arg1");
-        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
-        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem),    "matmul_bias_relu arg3");
-        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),   "matmul_bias_relu arg4");
-        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),   "matmul_bias_relu arg5");
-        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),   "matmul_bias_relu arg6");
+        const cl_mem c_mem = out_dev.get_device_buffer();
+        const cl_uint m_u32 = static_cast<cl_uint>(m);
+        const cl_uint n_u32 = static_cast<cl_uint>(n);
+        const cl_uint k_u32 = static_cast<cl_uint>(k);
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_relu arg0");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_relu arg1");
+        check_cl_error(
+            clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_relu arg2");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_relu arg3");
+        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_relu arg4");
+        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_relu arg5");
+        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_relu arg6");
         const std::size_t global[2] = {m, n};
-        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-            nullptr, global, nullptr, 0, nullptr, nullptr),
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
             "clEnqueueNDRangeKernel(matmul_bias_relu)");
         finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_bias_relu)");
         out_dev.copy_from_device(out.mutable_data_ptr());
@@ -7564,9 +7693,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
 OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_relu(
     const OpenCLTensorBackend& other, const OpenCLTensorBackend& bias, float alpha) const
 {
-    if (!m_gpu_resident)         sync_gpu_if_needed();
-    if (!other.m_gpu_resident)   other.sync_gpu_if_needed();
-    if (!bias.m_gpu_resident)    bias.sync_gpu_if_needed();
+    if (!m_gpu_resident) sync_gpu_if_needed();
+    if (!other.m_gpu_resident) other.sync_gpu_if_needed();
+    if (!bias.m_gpu_resident) bias.sync_gpu_if_needed();
 
     if (shape().size() != 2 || other.shape().size() != 2 || bias.shape().size() != 2 ||
         cols() != other.cols() || bias.rows() != other.rows() || bias.cols() != 1 ||
@@ -7583,33 +7712,42 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
         const Index k = cols();
         const Index n = other.rows();
 
-        const std::size_t a_bytes    = m * k * sizeof(float);
-        const std::size_t b_bytes    = n * k * sizeof(float);
+        const std::size_t a_bytes = m * k * sizeof(float);
+        const std::size_t b_bytes = n * k * sizeof(float);
         const std::size_t bias_bytes = n * sizeof(float);
-        const std::size_t c_bytes    = m * n * sizeof(float);
+        const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
 
         // GPU-resident fast path
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident &&
-            m_has_gpu_memory && other.m_has_gpu_memory && bias.m_has_gpu_memory &&
-            m_gpu_buffer && other.m_gpu_buffer && bias.m_gpu_buffer)
+        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
+            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
+            bias.m_gpu_buffer)
         {
             if (m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), m_gpu_buffer->buffer,
-                    m_backend->data_ptr(), a_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
+                copy_host_to_device(ctx.get_queue(),
+                    m_gpu_buffer->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
                 m_needs_sync_to_device = false;
             }
             if (other.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), other.m_gpu_buffer->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
+                copy_host_to_device(ctx.get_queue(),
+                    other.m_gpu_buffer->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
                 other.m_needs_sync_to_device = false;
             }
             if (bias.m_needs_sync_to_device)
             {
-                copy_host_to_device(ctx.get_queue(), bias.m_gpu_buffer->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
+                copy_host_to_device(ctx.get_queue(),
+                    bias.m_gpu_buffer->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
                 bias.m_needs_sync_to_device = false;
             }
 
@@ -7617,26 +7755,35 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
             t.set_gpu_resident(true);
             cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
                 "matmul_rhs_transposed_bias_leaky_relu_kernel");
-            const cl_mem a_mem    = m_gpu_buffer->buffer;
-            const cl_mem b_mem    = other.m_gpu_buffer->buffer;
+            const cl_mem a_mem = m_gpu_buffer->buffer;
+            const cl_mem b_mem = other.m_gpu_buffer->buffer;
             const cl_mem bias_mem = bias.m_gpu_buffer->buffer;
-            const cl_mem c_mem    = t.m_gpu_buffer->buffer;
-            const cl_uint m_u32   = static_cast<cl_uint>(m);
-            const cl_uint n_u32   = static_cast<cl_uint>(n);
-            const cl_uint k_u32   = static_cast<cl_uint>(k);
-            check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_lrelu arg0");
-            check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_lrelu arg1");
-            check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_lrelu arg2");
-            check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_lrelu arg3");
-            check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_lrelu arg4");
-            check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_lrelu arg5");
-            check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_lrelu arg6");
-            check_cl_error(clSetKernelArg(kernel, 7, sizeof(float),   &alpha),    "matmul_bias_lrelu arg7");
+            const cl_mem c_mem = t.m_gpu_buffer->buffer;
+            const cl_uint m_u32 = static_cast<cl_uint>(m);
+            const cl_uint n_u32 = static_cast<cl_uint>(n);
+            const cl_uint k_u32 = static_cast<cl_uint>(k);
+            check_cl_error(
+                clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_lrelu arg0");
+            check_cl_error(
+                clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_lrelu arg1");
+            check_cl_error(
+                clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_lrelu arg2");
+            check_cl_error(
+                clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_lrelu arg3");
+            check_cl_error(
+                clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_lrelu arg4");
+            check_cl_error(
+                clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_lrelu arg5");
+            check_cl_error(
+                clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_lrelu arg6");
+            check_cl_error(
+                clSetKernelArg(kernel, 7, sizeof(float), &alpha), "matmul_bias_lrelu arg7");
             const std::size_t global[2] = {m, n};
-            check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                nullptr, global, nullptr, 0, nullptr, nullptr),
+            check_cl_error(
+                clEnqueueNDRangeKernel(
+                    ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                 "clEnqueueNDRangeKernel(matmul_bias_lrelu resident)");
-            t.m_needs_sync_to_host   = true;
+            t.m_needs_sync_to_host = true;
             t.m_needs_sync_to_device = false;
             return t;
         }
@@ -7645,43 +7792,64 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
         tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
         if (pool)
         {
-            auto a_buf    = pool->acquire(a_bytes);
-            auto b_buf    = pool->acquire(b_bytes);
+            auto a_buf = pool->acquire(a_bytes);
+            auto b_buf = pool->acquire(b_bytes);
             auto bias_buf = pool->acquire(bias_bytes);
-            auto c_buf    = pool->acquire(c_bytes);
+            auto c_buf = pool->acquire(c_bytes);
             if (a_buf && b_buf && bias_buf && c_buf)
             {
-                copy_host_to_device(ctx.get_queue(), a_buf->buffer,
-                    m_backend->data_ptr(), a_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
-                copy_host_to_device(ctx.get_queue(), b_buf->buffer,
-                    other.m_backend->data_ptr(), b_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
-                copy_host_to_device(ctx.get_queue(), bias_buf->buffer,
-                    bias.m_backend->data_ptr(), bias_bytes, "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
+                copy_host_to_device(ctx.get_queue(),
+                    a_buf->buffer,
+                    m_backend->data_ptr(),
+                    a_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, a)");
+                copy_host_to_device(ctx.get_queue(),
+                    b_buf->buffer,
+                    other.m_backend->data_ptr(),
+                    b_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, b)");
+                copy_host_to_device(ctx.get_queue(),
+                    bias_buf->buffer,
+                    bias.m_backend->data_ptr(),
+                    bias_bytes,
+                    "clEnqueueWriteBuffer(matmul_bias_lrelu, bias)");
 
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
                     "matmul_rhs_transposed_bias_leaky_relu_kernel");
-                const cl_mem a_mem    = a_buf->buffer;
-                const cl_mem b_mem    = b_buf->buffer;
+                const cl_mem a_mem = a_buf->buffer;
+                const cl_mem b_mem = b_buf->buffer;
                 const cl_mem bias_mem = bias_buf->buffer;
-                const cl_mem c_mem    = c_buf->buffer;
-                const cl_uint m_u32   = static_cast<cl_uint>(m);
-                const cl_uint n_u32   = static_cast<cl_uint>(n);
-                const cl_uint k_u32   = static_cast<cl_uint>(k);
-                check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_lrelu arg0");
-                check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_lrelu arg1");
-                check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_lrelu arg2");
-                check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_lrelu arg3");
-                check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_lrelu arg4");
-                check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_lrelu arg5");
-                check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_lrelu arg6");
-                check_cl_error(clSetKernelArg(kernel, 7, sizeof(float),   &alpha),    "matmul_bias_lrelu arg7");
+                const cl_mem c_mem = c_buf->buffer;
+                const cl_uint m_u32 = static_cast<cl_uint>(m);
+                const cl_uint n_u32 = static_cast<cl_uint>(n);
+                const cl_uint k_u32 = static_cast<cl_uint>(k);
+                check_cl_error(
+                    clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_lrelu arg0");
+                check_cl_error(
+                    clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_lrelu arg1");
+                check_cl_error(
+                    clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_lrelu arg2");
+                check_cl_error(
+                    clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_lrelu arg3");
+                check_cl_error(
+                    clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_lrelu arg4");
+                check_cl_error(
+                    clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_lrelu arg5");
+                check_cl_error(
+                    clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_lrelu arg6");
+                check_cl_error(
+                    clSetKernelArg(kernel, 7, sizeof(float), &alpha), "matmul_bias_lrelu arg7");
                 const std::size_t global[2] = {m, n};
-                check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-                    nullptr, global, nullptr, 0, nullptr, nullptr),
+                check_cl_error(
+                    clEnqueueNDRangeKernel(
+                        ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
                     "clEnqueueNDRangeKernel(matmul_bias_lrelu)");
                 finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_bias_lrelu)");
-                copy_device_to_host(ctx.get_queue(), c_buf->buffer,
-                    out.mutable_data_ptr(), c_bytes, "clEnqueueReadBuffer(matmul_bias_lrelu, c)");
+                copy_device_to_host(ctx.get_queue(),
+                    c_buf->buffer,
+                    out.mutable_data_ptr(),
+                    c_bytes,
+                    "clEnqueueReadBuffer(matmul_bias_lrelu, c)");
                 OpenCLTensorBackend t;
                 t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
                 return t;
@@ -7699,24 +7867,29 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
 
         cl_kernel kernel = opencl::KernelManager::instance().get_kernel(
             "matmul_rhs_transposed_bias_leaky_relu_kernel");
-        const cl_mem a_mem    = a_dev.get_device_buffer();
-        const cl_mem b_mem    = b_dev.get_device_buffer();
+        const cl_mem a_mem = a_dev.get_device_buffer();
+        const cl_mem b_mem = b_dev.get_device_buffer();
         const cl_mem bias_mem = bias_dev.get_device_buffer();
-        const cl_mem c_mem    = out_dev.get_device_buffer();
-        const cl_uint m_u32   = static_cast<cl_uint>(m);
-        const cl_uint n_u32   = static_cast<cl_uint>(n);
-        const cl_uint k_u32   = static_cast<cl_uint>(k);
-        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem),  &a_mem),    "matmul_bias_lrelu arg0");
-        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem),  &b_mem),    "matmul_bias_lrelu arg1");
-        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem),  &bias_mem), "matmul_bias_lrelu arg2");
-        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem),  &c_mem),    "matmul_bias_lrelu arg3");
-        check_cl_error(clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32),    "matmul_bias_lrelu arg4");
-        check_cl_error(clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32),    "matmul_bias_lrelu arg5");
-        check_cl_error(clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32),    "matmul_bias_lrelu arg6");
-        check_cl_error(clSetKernelArg(kernel, 7, sizeof(float),   &alpha),    "matmul_bias_lrelu arg7");
+        const cl_mem c_mem = out_dev.get_device_buffer();
+        const cl_uint m_u32 = static_cast<cl_uint>(m);
+        const cl_uint n_u32 = static_cast<cl_uint>(n);
+        const cl_uint k_u32 = static_cast<cl_uint>(k);
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), "matmul_bias_lrelu arg0");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), "matmul_bias_lrelu arg1");
+        check_cl_error(
+            clSetKernelArg(kernel, 2, sizeof(cl_mem), &bias_mem), "matmul_bias_lrelu arg2");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &c_mem), "matmul_bias_lrelu arg3");
+        check_cl_error(
+            clSetKernelArg(kernel, 4, sizeof(cl_uint), &m_u32), "matmul_bias_lrelu arg4");
+        check_cl_error(
+            clSetKernelArg(kernel, 5, sizeof(cl_uint), &n_u32), "matmul_bias_lrelu arg5");
+        check_cl_error(
+            clSetKernelArg(kernel, 6, sizeof(cl_uint), &k_u32), "matmul_bias_lrelu arg6");
+        check_cl_error(clSetKernelArg(kernel, 7, sizeof(float), &alpha), "matmul_bias_lrelu arg7");
         const std::size_t global[2] = {m, n};
-        check_cl_error(clEnqueueNDRangeKernel(ctx.get_queue(), kernel, 2,
-            nullptr, global, nullptr, 0, nullptr, nullptr),
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 2, nullptr, global, nullptr, 0, nullptr, nullptr),
             "clEnqueueNDRangeKernel(matmul_bias_lrelu)");
         finish_queue_if_not_batching(ctx.get_queue(), "clFinish(matmul_bias_lrelu)");
         out_dev.copy_from_device(out.mutable_data_ptr());
@@ -7735,7 +7908,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 {
     if (shape().size() != 2)
     {
-        warn_opencl_cpu_fallback_once("transpose", "OpenCL path requires a rank-2 tensor");
+        throw std::invalid_argument("transpose: tensor must be rank-2");
     }
     // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("transpose"))
@@ -7892,7 +8065,34 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
 {
     if (shape() != other.shape())
     {
-        warn_opencl_cpu_fallback_once("compare_lt", "OpenCL path requires matching tensor shapes");
+        const auto& ls = shape();
+        const auto& rs = other.shape();
+        if (ls.size() != 2 || rs.size() != 2)
+            throw std::invalid_argument("compare_lt: broadcasting only supported for 2D tensors");
+        const bool rows_ok = (ls[0] == rs[0] || ls[0] == 1 || rs[0] == 1);
+        const bool cols_ok = (ls[1] == rs[1] || ls[1] == 1 || rs[1] == 1);
+        if (!rows_ok || !cols_ok)
+            throw std::invalid_argument("compare_lt: shapes are not broadcast-compatible");
+        const Index out_rows = std::max(ls[0], rs[0]);
+        const Index out_cols = std::max(ls[1], rs[1]);
+        sync_gpu();
+        other.sync_gpu();
+        OpenCLTensorBackend t(out_rows, out_cols);
+        for (Index r = 0; r < out_rows; ++r)
+        {
+            for (Index c = 0; c < out_cols; ++c)
+            {
+                const Index ar = (ls[0] == 1) ? 0 : r;
+                const Index ac = (ls[1] == 1) ? 0 : c;
+                const Index br = (rs[0] == 1) ? 0 : r;
+                const Index bc = (rs[1] == 1) ? 0 : c;
+                t.m_backend->at(r, c) =
+                    (m_backend->at(ar, ac) < other.m_backend->at(br, bc)) ? 1.0f : 0.0f;
+            }
+        }
+        t.m_needs_sync_to_device = true;
+        t.m_needs_sync_to_host = false;
+        return t;
     }
     // cppcheck-suppress knownConditionTrueFalse
     else if (can_use_opencl("compare_lt"))
@@ -9044,12 +9244,9 @@ OpenCLTensorBackend& OpenCLTensorBackend::grad_ref()
     return *m_grad_backend;
 }
 
-const OpenCLTensorBackend& OpenCLTensorBackend::get_grad() const
+OpenCLTensorBackend OpenCLTensorBackend::get_grad() const
 {
-    if (!m_grad_backend)
-    {
-        throw std::runtime_error("Gradient not allocated");
-    }
+    if (!m_grad_backend) return OpenCLTensorBackend(shape());
     return *m_grad_backend;
 }
 

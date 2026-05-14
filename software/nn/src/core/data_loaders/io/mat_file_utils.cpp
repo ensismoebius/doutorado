@@ -36,12 +36,11 @@ template <typename T>
 auto to_tensor_from_raw(const T* data, size_t rows, size_t cols) -> nn::Tensor
 {
     nn::Tensor result(rows, cols);
-    float* dst = result.mutable_data_ptr();
-    // MATLAB/matio stores column-major; nn::Tensor (xtensor) is row-major.
-    // Transpose during copy: src[col*rows + row] -> dst[row*cols + col]
+    // MATLAB/matio stores column-major; use backend-agnostic at() for safe writes.
     for (size_t r = 0; r < rows; ++r)
         for (size_t c = 0; c < cols; ++c)
-            dst[r * cols + c] = static_cast<float>(data[c * rows + r]);
+            result.at(static_cast<nn::Index>(r), static_cast<nn::Index>(c)) =
+                static_cast<float>(data[c * rows + r]);
     return result;
 }
 } // namespace

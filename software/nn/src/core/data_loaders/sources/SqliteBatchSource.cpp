@@ -244,12 +244,11 @@ bool SqliteBatchSource::emit_pending_window_batch(Batch& out)
             continue;
         }
 
-        std::memcpy(out.inputs.mutable_data_ptr() + row * sample_cols,
-            sample.data(),
-            sample_cols * sizeof(float));
-        std::memcpy(out.targets.mutable_data_ptr() + row * sample_cols,
-            sample.data(),
-            sample_cols * sizeof(float));
+        for (std::size_t col = 0; col < sample_cols; ++col)
+        {
+            out.inputs.at(static_cast<nn::Index>(row), static_cast<nn::Index>(col)) = sample[col];
+            out.targets.at(static_cast<nn::Index>(row), static_cast<nn::Index>(col)) = sample[col];
+        }
     }
 
     next_pending_sample_index_ += rows;
