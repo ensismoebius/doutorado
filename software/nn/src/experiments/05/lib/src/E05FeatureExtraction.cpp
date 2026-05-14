@@ -141,7 +141,7 @@ double hz_to_mel(double f)
 // of one frequency bin — ready for descriptor computation.
 std::vector<std::vector<double>> group_by_scale(
     wavelets::WaveletTransformResults& result,
-    long n_parts, long sig_len,
+    long n_parts,
     const std::string& scale, double sample_rate)
 {
     if (scale == "lfcc")
@@ -151,14 +151,13 @@ std::vector<std::vector<double>> group_by_scale(
         groups.reserve(static_cast<size_t>(n_parts));
         for (long p = 0; p < n_parts; ++p)
         {
-            long start = p * (sig_len / n_parts);
-            long end   = (p + 1) * (sig_len / n_parts);
-            groups.push_back(result.get_wavelet_packet_transforms(start, end, sig_len));
+            groups.push_back(wavelets::WaveletTransformResults::get_wavelet_packet_transforms(
+                result.transformedSignal, p, result.levelsOfTransformation));
         }
         return groups;
     }
 
-    const int n_bands   = (scale == "bark") ? 24 : 20;
+    const int n_bands    = (scale == "bark") ? 24 : 20;
     const double nyquist = sample_rate / 2.0;
     const double max_sv  = (scale == "bark") ? hz_to_bark(nyquist) : hz_to_mel(nyquist);
 
@@ -172,10 +171,9 @@ std::vector<std::vector<double>> group_by_scale(
         int band         = static_cast<int>(sv / max_sv * n_bands);
         band             = std::clamp(band, 0, n_bands - 1);
 
-        long start = p * (sig_len / n_parts);
-        long end   = (p + 1) * (sig_len / n_parts);
-        auto coefs = result.get_wavelet_packet_transforms(start, end, sig_len);
-        auto& g    = groups[static_cast<size_t>(band)];
+        auto coefs = wavelets::WaveletTransformResults::get_wavelet_packet_transforms(
+            result.transformedSignal, p, result.levelsOfTransformation);
+        auto& g = groups[static_cast<size_t>(band)];
         g.insert(g.end(), coefs.begin(), coefs.end());
     }
 
@@ -207,10 +205,9 @@ auto extract_handcrafted(const std::vector<double>& signal,
         static_cast<unsigned int>(cfg.dtwpt_level));
 
     long n_parts = result.get_wavelet_packet_amount_of_parts();
-    long sig_len = static_cast<long>(signal.size());
 
     // Group sub-bands according to the perceptual frequency scale.
-    auto groups = group_by_scale(result, n_parts, sig_len, cfg.scale, sample_rate);
+    auto groups = group_by_scale(result, n_parts, cfg.scale, sample_rate);
 
     const auto& descs = cfg.descriptors;
     bool want_energy  = std::find(descs.begin(), descs.end(), "energy")  != descs.end();

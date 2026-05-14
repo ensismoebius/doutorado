@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "lib/include/E05Classifiers.hpp"
@@ -41,28 +42,36 @@ std::string parse_config_path(int argc, char* argv[])
 // Run one full pipeline iteration with the given config (seed + run_tag already set).
 void run_once(const e05::E05Config& cfg)
 {
+    auto& pm = nn::progress::ProgressManager::instance();
+
     // ── 2. Load dataset ──────────────────────────────────────────────────────
     auto view = e05::load_dataset(cfg.dataset);
-    std::cout << "[E05] Loaded " << view.samples.size() << " samples from "
-              << view.n_subjects << " subjects, " << view.n_stimuli << " stimuli.\n";
+    {
+        std::ostringstream oss;
+        oss << "[E05] Loaded " << view.samples.size() << " samples from "
+            << view.n_subjects << " subjects, " << view.n_stimuli << " stimuli.";
+        pm.log(oss.str());
+    }
 
     // ── 3. Feature extraction ────────────────────────────────────────────────
     auto feature_sets = e05::extract_features(
         view, cfg.feature_extraction, cfg.dataset.modality);
-    std::cout << "[E05] Extracted " << feature_sets.size() << " feature set(s).\n";
+    pm.log("[E05] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
 
     // ── 4. Paraconsistent ranking ────────────────────────────────────────────
     std::vector<e05::ParaconsistentScore> scores;
     if (cfg.paraconsistent.enabled)
     {
         scores = e05::rank_feature_sets(view.samples, feature_sets);
-        std::cout << "[E05] Paraconsistent ranking:\n";
+        pm.log("[E05] Paraconsistent ranking:");
         for (const auto& s : scores)
         {
-            std::cout << "  " << s.label
-                      << " alpha=" << s.alpha
-                      << " beta=" << s.beta
-                      << " D_truth=" << s.d_truth << "\n";
+            std::ostringstream oss;
+            oss << "  " << s.label
+                << " alpha=" << s.alpha
+                << " beta="  << s.beta
+                << " D_truth=" << s.d_truth;
+            pm.log(oss.str());
         }
     }
 
@@ -73,11 +82,9 @@ void run_once(const e05::E05Config& cfg)
 
     const int total_outer_folds = n_usable_fs * cfg.training.k_folds;
     const uint32_t global_bar =
-        nn::progress::ProgressManager::instance().create_bar(
-            "E05 | " + cfg.experiment.run_tag,
-            static_cast<float>(total_outer_folds));
-    nn::progress::ProgressManager::instance().set_description(
-        global_bar,
+        pm.create_bar("E05 | " + cfg.experiment.run_tag,
+                      static_cast<float>(total_outer_folds));
+    pm.set_description(global_bar,
         cfg.classifier.type + " | " + cfg.classifier.text_mode +
         " | " + std::to_string(cfg.training.k_folds) + "-fold CV");
 
@@ -91,7 +98,7 @@ void run_once(const e05::E05Config& cfg)
         results.push_back(std::move(result));
     }
 
-    nn::progress::ProgressManager::instance().complete_bar(global_bar);
+    pm.complete_bar(global_bar);
 
     // ── 6. Output ────────────────────────────────────────────────────────────
     const std::string& results_dir = cfg.dataset.results_dir;
@@ -104,13 +111,15 @@ void run_once(const e05::E05Config& cfg)
 
     for (const auto& r : results)
     {
-        std::cout << "[E05] " << r.feature_set_label
-                  << "  acc="  << r.mean_accuracy
-                  << " ±"      << r.std_accuracy
-                  << "  EER="  << r.mean_eer
-                  << "  spec=" << r.mean_specificity << "\n";
+        std::ostringstream oss;
+        oss << "[E05] " << r.feature_set_label
+            << "  acc="  << r.mean_accuracy
+            << " ±"      << r.std_accuracy
+            << "  EER="  << r.mean_eer
+            << "  spec=" << r.mean_specificity;
+        pm.log(oss.str());
     }
-    std::cout << "[E05] Done. Results written to " << results_dir << "\n";
+    pm.log("[E05] Done. Results written to " + results_dir);
 }
 } // namespace
 
@@ -149,9 +158,13 @@ auto main(int argc, char* argv[]) -> int
                     cfg.experiment.run_tag + "_rep" + std::to_string(rep);
 
             if (cfg.experiment.repeats > 1)
-                std::cout << "[E05] === Repeat " << rep + 1
-                          << "/" << cfg.experiment.repeats
-                          << " (seed=" << rep_cfg.experiment.seed << ") ===\n";
+            {
+                std::ostringstream oss;
+                oss << "[E05] === Repeat " << rep + 1
+                    << "/" << cfg.experiment.repeats
+                    << " (seed=" << rep_cfg.experiment.seed << ") ===";
+                nn::progress::ProgressManager::instance().log(oss.str());
+            }
 
             run_once(rep_cfg);
         }

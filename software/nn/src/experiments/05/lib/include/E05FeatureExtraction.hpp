@@ -5,7 +5,6 @@
 
 #include "E05Config.hpp"
 #include "E05Dataset.hpp"
-#include "tensor/Tensor.hpp"
 
 namespace e05
 {

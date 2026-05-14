@@ -160,6 +160,33 @@ void parse_layer_spec(const std::vector<std::string>& spec,
     }
 }
 
+// Updates the global progress bar at each epoch end so the bar advances
+// smoothly throughout training, not only on fold completion.
+class GlobalBarFractionalCallback : public nn::training::ITrainingCallback
+{
+public:
+    GlobalBarFractionalCallback(uint32_t bar_id, float fold_base_folds)
+        : bar_id_(bar_id), fold_base_(fold_base_folds) {}
+
+    void on_train_begin(int total_epochs) override
+    {
+        total_epochs_ = std::max(total_epochs, 1);
+    }
+
+    void on_epoch_end(const nn::training::TrainingState& state,
+                      const nn::training::EpochResult&) override
+    {
+        const float progress = fold_base_ +
+            static_cast<float>(state.epoch) / static_cast<float>(total_epochs_);
+        nn::progress::ProgressManager::instance().update_bar(bar_id_, progress);
+    }
+
+private:
+    uint32_t bar_id_;
+    float    fold_base_;
+    int      total_epochs_ = 1;
+};
+
 } // namespace
 
 auto run_classifier(const E05DatasetView& view,
@@ -274,6 +301,12 @@ auto run_classifier(const E05DatasetView& view,
             prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
             trainer.add_callback(prog_cb);
 
+            if (global_bar_id != 0)
+            {
+                trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                    global_bar_id, static_cast<float>(outer_idx)));
+            }
+
             if (cfg.training.early_stop_patience > 0)
             {
                 auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
@@ -358,6 +391,11 @@ auto run_classifier(const E05DatasetView& view,
                 " | " + feature_label);
             prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
             trainer.add_callback(prog_cb);
+            if (global_bar_id != 0)
+            {
+                trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                    global_bar_id, static_cast<float>(outer_idx)));
+            }
             // Early stopping disabled without inner validation set.
 
             using SamplePair = std::pair<nn::Tensor, nn::Tensor>;

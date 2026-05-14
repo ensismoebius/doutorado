@@ -69,6 +69,9 @@ class ProgressManager
     void begin_active_work(uint32_t id);
     void end_active_work(uint32_t id);
 
+    // Thread-safe message log — rendered above bars; flushed to stdout on shutdown.
+    void log(const std::string& msg);
+
     // Metadata setters
     void set_description(uint32_t id, const std::string& description);
     void set_fold_info(uint32_t id, int fold_number, int total_folds);
@@ -87,6 +90,7 @@ class ProgressManager
     std::thread render_thread_;
     std::mutex manager_mutex_;
     std::vector<std::unique_ptr<ProgressEntry>> entries_;
+    std::vector<std::string> messages_;
     uint32_t next_id_{0};
 };
 

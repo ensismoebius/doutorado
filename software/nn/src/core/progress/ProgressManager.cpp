@@ -158,6 +158,12 @@ void ProgressManager::shutdown()
         std::cout << "\033[2J\033[H";
         std::cout.flush();
     }
+    // Flush accumulated log messages to stdout after bars are gone.
+    std::lock_guard<std::mutex> lock(manager_mutex_);
+    for (const auto& msg : messages_)
+        std::cout << msg << "\n";
+    if (!messages_.empty())
+        std::cout.flush();
 }
 
 uint32_t ProgressManager::create_bar(const std::string& label, float target)
@@ -228,10 +234,18 @@ void ProgressManager::complete_bar(uint32_t id)
     {
         if (entry->id == id)
         {
+            // Snap to 100% so the final render shows a full bar.
+            entry->current_value.store(entry->target_value);
             entry->completed.store(true);
             return;
         }
     }
+}
+
+void ProgressManager::log(const std::string& msg)
+{
+    std::lock_guard<std::mutex> lock(manager_mutex_);
+    messages_.push_back(msg);
 }
 
 void ProgressManager::remove_bar(uint32_t id)
@@ -361,9 +375,20 @@ void ProgressManager::render_loop()
             {
                 if (!screen_cleared_.exchange(true))
                 {
-                    std::cout << "\033[2J\033[H";
+                    // First render: clear screen so cursor is at a known origin.
+                    std::cout << "\033[2J";
                 }
-                int total_lines = 0;
+                // Jump to absolute cursor home every frame.
+                // This makes rendering immune to external stdout writes that
+                // shift the cursor — the next frame always starts at (1,1).
+                std::cout << "\033[H";
+
+                // Render accumulated log messages.
+                for (const auto& msg : messages_)
+                {
+                    std::cout << "\033[2K\r" << msg << "\n";
+                }
+
                 for (const auto& entry : entries_)
                 {
                     const float cv = entry->current_value.load();
@@ -429,7 +454,6 @@ void ProgressManager::render_loop()
                             ss << kSep << col4;
                         }
                         std::cout << ss.str() << "\n";
-                        ++total_lines;
                     }
 
                     // Progress line — always all 4 columns.
@@ -451,10 +475,20 @@ void ProgressManager::render_loop()
                         append_fitted_cell(
                             ss, eta.empty() ? "starting..." : "ETA: " + eta, kCol4Width);
                         std::cout << ss.str() << "\n";
-                        ++total_lines;
                     }
                 }
-                std::cout << "\033[" << total_lines << "A";
+
+                // Erase stale content from previous renders (handles bar removal /
+                // message growth — anything left below this point is stale).
+                std::cout << "\033[0J";
+                std::cout.flush();
+
+                // Auto-remove bars that were marked complete — rendered at 100%
+                // this frame, safe to drop.
+                entries_.erase(
+                    std::remove_if(entries_.begin(), entries_.end(),
+                        [](const auto& e) { return e->completed.load(); }),
+                    entries_.end());
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));

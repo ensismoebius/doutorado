@@ -4,7 +4,6 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
-#include <numeric>
 #include <vector>
 
 #include "../lib/include/E05Config.hpp"
@@ -137,7 +136,9 @@ TEST(E05Jitter, RegularSineNearZeroJitter)
 
     double j = compute_jitter(sig, sr);
     if (!std::isnan(j))
+    {
         EXPECT_LT(j, 0.05); // < 5% jitter for regular sine
+    }
 }
 
 // ─── compute_shimmer ─────────────────────────────────────────────────────────
@@ -159,7 +160,9 @@ TEST(E05Shimmer, RegularSineNearZeroShimmer)
 
     double s = compute_shimmer(sig, sr);
     if (!std::isnan(s))
+    {
         EXPECT_LT(s, 0.05);
+    }
 }
 
 // ─── extract_handcrafted ─────────────────────────────────────────────────────
@@ -190,8 +193,8 @@ TEST(E05HandcrafteExtract, EnergyOnly_DimMatchesBands)
 {
     auto cfg = make_hc_cfg({"energy"}, 2);
     auto sig = make_sine();
-    auto fv  = extract_handcrafted(sig, cfg);
-    // level-2 DTWPT → 4 leaf nodes → 4 energy values
+    auto fv  = extract_handcrafted(sig, cfg, 44100.0);
+    // level-2 DTWPT → 4 sub-bands; at 44100 Hz MEL scale all 4 map to distinct bins
     EXPECT_EQ(fv.size(), 4u);
 }
 
@@ -199,8 +202,8 @@ TEST(E05HandcrafteExtract, MultipleDescriptorsDimAdditive)
 {
     auto cfg = make_hc_cfg({"energy", "zcr", "entropy"}, 2);
     auto sig = make_sine();
-    auto fv  = extract_handcrafted(sig, cfg);
-    // 4 bands × 3 descriptors = 12
+    auto fv  = extract_handcrafted(sig, cfg, 44100.0);
+    // 4 MEL bins × 3 descriptors = 12
     EXPECT_EQ(fv.size(), 12u);
 }
 
@@ -208,8 +211,8 @@ TEST(E05HandcrafteExtract, AllDescriptors_NonEmpty)
 {
     auto cfg = make_hc_cfg({"energy", "zcr", "entropy", "teager", "jitter", "shimmer"}, 2);
     auto sig = make_sine(256, 100.0, 44100.0);
-    auto fv  = extract_handcrafted(sig, cfg);
-    // 4 bands × 6 descriptors = 24; no NaN (jitter/shimmer replaced by 0 when undefined)
+    auto fv  = extract_handcrafted(sig, cfg, 44100.0);
+    // 4 MEL bins × 6 descriptors = 24; no NaN (jitter/shimmer replaced by 0 when undefined)
     EXPECT_EQ(fv.size(), 24u);
     for (size_t i = 0; i < fv.size(); ++i)
         EXPECT_FALSE(std::isnan(fv[i])) << "NaN at index " << i;
@@ -220,14 +223,14 @@ TEST(E05HandcrafteExtract, Level3GivesMoreBands)
     auto cfg2 = make_hc_cfg({"energy"}, 2);
     auto cfg3 = make_hc_cfg({"energy"}, 3);
     auto sig  = make_sine(512);
-    EXPECT_LT(extract_handcrafted(sig, cfg2).size(),
-              extract_handcrafted(sig, cfg3).size());
+    EXPECT_LT(extract_handcrafted(sig, cfg2, 44100.0).size(),
+              extract_handcrafted(sig, cfg3, 44100.0).size());
 }
 
 TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
 {
     auto cfg = make_hc_cfg({"energy"}, 2);
     auto sig = make_sine();
-    for (double v : extract_handcrafted(sig, cfg))
+    for (double v : extract_handcrafted(sig, cfg, 44100.0))
         EXPECT_GE(v, 0.0);
 }
