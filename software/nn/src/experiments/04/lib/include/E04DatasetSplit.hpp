@@ -4,7 +4,7 @@
 
 #include "tensor/Tensor.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 using Tensor = nn::Tensor;
@@ -16,4 +16,4 @@ struct DatasetSplit
     std::vector<int> val_labels;
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

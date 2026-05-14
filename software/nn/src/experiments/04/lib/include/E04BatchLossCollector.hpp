@@ -4,7 +4,7 @@
 
 #include "training/ITrainingCallback.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 class BatchLossCollector : public nn::training::ITrainingCallback
@@ -23,4 +23,4 @@ class BatchLossCollector : public nn::training::ITrainingCallback
     }
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

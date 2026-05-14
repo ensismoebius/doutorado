@@ -1,4 +1,4 @@
-#include "../include/ComparativeOutput.hpp"
+#include "../include/E04Output.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -13,7 +13,7 @@
 #include "io/ReportIO.hpp"
 #include "statistics/inference_tests.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 namespace
@@ -105,7 +105,7 @@ void write_rows_csv(const std::filesystem::path& path, const std::vector<ResultR
 }
 
 void write_summary_json(const std::filesystem::path& path,
-    const ComparativeConfig& cfg,
+    const E04Config& cfg,
     std::size_t cfg_hash,
     const std::vector<ResultRow>& rows)
 {
@@ -188,7 +188,7 @@ void write_publication_table(const std::filesystem::path& path, const std::vecto
 
 void write_latex_exports(const std::filesystem::path& dir,
     const std::string& run_tag,
-    const ComparativeConfig& cfg,
+    const E04Config& cfg,
     const std::vector<ResultRow>& rows)
 {
     namespace fs = std::filesystem;
@@ -474,7 +474,7 @@ void write_batch_convergence_dat(const std::filesystem::path& path,
     }
 }
 
-void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector<ResultRow>& rows)
+void validate_repeat_determinism(const E04Config& cfg, const std::vector<ResultRow>& rows)
 {
     if (cfg.experiment.repeats <= 1) return;
 
@@ -552,4 +552,4 @@ void validate_repeat_determinism(const ComparativeConfig& cfg, const std::vector
     }
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

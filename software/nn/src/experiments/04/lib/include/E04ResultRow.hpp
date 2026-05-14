@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <string>
 
-#include "RunMetrics.hpp"
+#include "E04RunMetrics.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 struct ResultRow
@@ -28,4 +28,4 @@ struct ResultRow
     RunMetrics metrics;
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

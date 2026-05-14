@@ -1,5 +1,5 @@
 // Profile audit: every shipping article profile must parse cleanly via
-// ComparativeConfig::from_nested_json AND must populate the live config
+// E04Config::from_nested_json AND must populate the live config
 // fields with non-default values that the experiment harness will actually
 // consume. Catches silent profile-key drift (e.g. a future rename moving a
 // field outside the parser's lookup keys).
@@ -11,11 +11,11 @@
 #include <string>
 #include <vector>
 
-#include "../lib/include/ComparativeConfig.hpp"
+#include "../lib/include/E04Config.hpp"
 #include "nlohmann/json.hpp"
 
 namespace fs = std::filesystem;
-using comparative_autoencoder_experiment::ComparativeConfig;
+using e04::E04Config;
 
 namespace
 {
@@ -39,14 +39,14 @@ fs::path profiles_dir()
     return here.parent_path() / "profiles";
 }
 
-ComparativeConfig load(const std::string& name)
+E04Config load(const std::string& name)
 {
     const fs::path path = profiles_dir() / name;
     std::ifstream f(path);
     EXPECT_TRUE(f.is_open()) << "missing profile: " << path;
     nlohmann::json j;
     f >> j;
-    auto cfg = ComparativeConfig::from_nested_json(j);
+    auto cfg = E04Config::from_nested_json(j);
     cfg.validate();
     return cfg;
 }

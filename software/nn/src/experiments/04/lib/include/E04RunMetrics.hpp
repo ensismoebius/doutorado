@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 struct RunMetrics
@@ -25,4 +25,4 @@ struct RunMetrics
     std::size_t macs = 0;
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

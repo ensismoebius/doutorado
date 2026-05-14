@@ -6,12 +6,12 @@
 
 #include "logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
 
-#include "../include/ComparativeCli.hpp"
-#include "../include/ComparativeDataset.hpp"
-#include "../include/ComparativeOutput.hpp"
-#include "../include/ComparativeTraining.hpp"
-#include "../include/Experiment04Cli.hpp"
-#include "../include/RunCheckpoint.hpp"
+#include "../include/E04Cli.hpp"
+#include "../include/E04Dataset.hpp"
+#include "../include/E04Output.hpp"
+#include "../include/E04Training.hpp"
+#include "../include/E04Runner.hpp"
+#include "../include/E04Checkpoint.hpp"
 #include "progress/ProgressManager.hpp"
 #include "utility/progress.hpp"
 
@@ -131,12 +131,12 @@ auto save_parameter_list_text(
     return out.good();
 }
 
-namespace lstm_autoencoder_experiment
+namespace e04
 {
 
 auto run_comparative_experiment(int argc, char* argv[]) -> int
 {
-    using namespace comparative_autoencoder_experiment;
+    using namespace e04;
 
     try
     {
@@ -147,7 +147,7 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             return 0;
         }
 
-        const ComparativeConfig config = load_config(resolve_profile_path(cli), cli);
+        const E04Config config = load_config(resolve_profile_path(cli), cli);
         config.validate();
         const std::size_t cfg_hash = config_hash(config);
         const std::string backend_name = active_backend_name();
@@ -476,4 +476,4 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
     }
 }
 
-} // namespace lstm_autoencoder_experiment
+} // namespace e04

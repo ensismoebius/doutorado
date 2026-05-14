@@ -7,10 +7,10 @@
 
 #include "nlohmann/json.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
-struct ComparativeConfig
+struct E04Config
 {
     struct Experiment
     {
@@ -78,9 +78,9 @@ struct ComparativeConfig
 
     void validate() const;
 
-    static ComparativeConfig from_flat_json(const nlohmann::json& j)
+    static E04Config from_flat_json(const nlohmann::json& j)
     {
-        ComparativeConfig cfg;
+        E04Config cfg;
 
         auto get = [&](const std::string& key, auto& field)
         {
@@ -141,15 +141,15 @@ struct ComparativeConfig
         return cfg;
     }
 
-    static ComparativeConfig from_nested_json(const nlohmann::json& j)
+    static E04Config from_nested_json(const nlohmann::json& j)
     {
-        ComparativeConfig cfg;
+        E04Config cfg;
 
         for (const auto* section : {"experiment", "dataset", "training", "model", "evaluation"})
         {
             if (!j.contains(section))
                 throw std::invalid_argument(
-                    std::string("ComparativeConfig: required section missing: ") + section);
+                    std::string("E04Config: required section missing: ") + section);
         }
 
         const auto& exp = j["experiment"];
@@ -171,7 +171,7 @@ struct ComparativeConfig
         {
             if (!sec.contains(key))
                 throw std::invalid_argument(
-                    "ComparativeConfig: required field missing: " + section_name + "." + key);
+                    "E04Config: required field missing: " + section_name + "." + key);
             field = sec[key].get<std::decay_t<decltype(field)>>();
         };
 
@@ -230,4 +230,4 @@ struct ComparativeConfig
     }
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

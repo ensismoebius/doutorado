@@ -4,17 +4,17 @@
 #include <string>
 #include <vector>
 
-#include "ComparativeConfig.hpp"
-#include "DatasetSplit.hpp"
+#include "E04Config.hpp"
+#include "E04DatasetSplit.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<nn::Tensor>;
 
-auto collect_signal_files(const ComparativeConfig& cfg, const std::string& dataset)
+auto collect_signal_files(const E04Config& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>;
 
-auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> DatasetSplit;
+auto build_split(const E04Config& cfg, const std::string& dataset) -> DatasetSplit;
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

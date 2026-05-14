@@ -292,12 +292,12 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Wiki | `.wiki/` |
 | Graphify output | `.wiki/graphify-out/` |
 | CMake presets | `CMakePresets.json` |
-| Exp04 dataset loading | `src/experiments/04/lib/src/ComparativeDataset.cpp` |
-| Exp04 encoding transforms | `src/experiments/04/lib/src/ComparativeEncoding.cpp` |
-| Exp04 training loop | `src/experiments/04/lib/src/ComparativeTraining.cpp` |
-| Exp04 output / CSV / DAT writers | `src/experiments/04/lib/src/ComparativeOutput.cpp` |
-| Exp04 profile parser | `src/experiments/04/lib/include/ComparativeConfig.hpp` |
-| Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/AutoencoderBuilders.hpp` |
+| Exp04 dataset loading | `src/experiments/04/lib/src/E04Dataset.cpp` |
+| Exp04 encoding transforms | `src/experiments/04/lib/src/E04Encoding.cpp` |
+| Exp04 training loop | `src/experiments/04/lib/src/E04Training.cpp` |
+| Exp04 output / CSV / DAT writers | `src/experiments/04/lib/src/E04Output.cpp` |
+| Exp04 profile parser | `src/experiments/04/lib/include/E04Config.hpp` |
+| Exp04 SNN/LSTM builder | `src/experiments/04/lib/include/E04Training.hpp` |
 | Exp04 profile audit tests | `src/experiments/04/tests/profile_audit_gtest.cpp` |
 | Exp05 config parser | `src/experiments/05/lib/include/E05Config.hpp` |
 | Exp05 dataset loader | `src/experiments/05/lib/src/E05Dataset.cpp` |

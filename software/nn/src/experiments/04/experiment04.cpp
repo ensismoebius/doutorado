@@ -6,11 +6,9 @@
  */
 
 #include <cstdlib>
-#include <string>
 #include <string_view>
 
-#include "../include/Experiment04Cli.hpp"
-#include "experiments/04/lib/include/LstmAutoencoderExperiment.hpp"
+#include "../include/E04Runner.hpp"
 #include "logging/Logger.hpp"
 
 using nn::logging::Level;
@@ -59,7 +57,7 @@ auto main(int argc, char* argv[]) -> int
     {
         Logger::instance().set_level(parse_log_level_from_env());
 
-        return lstm_autoencoder_experiment::run_comparative_experiment(argc, argv);
+        return e04::run_comparative_experiment(argc, argv);
     }
     catch (const std::exception& e)
     {

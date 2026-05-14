@@ -1,13 +1,13 @@
-#include "../include/ComparativeConfig.hpp"
+#include "../include/E04Config.hpp"
 
 #include <algorithm>
 #include <sstream>
 #include <stdexcept>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
-void ComparativeConfig::validate() const
+void E04Config::validate() const
 {
     std::ostringstream errors;
     bool has_error = false;
@@ -189,8 +189,8 @@ void ComparativeConfig::validate() const
 
     if (has_error)
     {
-        throw std::invalid_argument("ComparativeConfig validation failed:\n" + errors.str());
+        throw std::invalid_argument("E04Config validation failed:\n" + errors.str());
     }
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

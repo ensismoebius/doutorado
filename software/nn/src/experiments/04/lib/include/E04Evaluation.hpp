@@ -5,12 +5,12 @@
 #include <string>
 #include <vector>
 
-#include "RunMetrics.hpp"
+#include "E04RunMetrics.hpp"
 #include "autoencoder/ProtocolSpikingAutoencoder.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 using Tensor = nn::Tensor;
@@ -38,4 +38,4 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     std::uint32_t seed,
     float infer_ms) -> RunMetrics;
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

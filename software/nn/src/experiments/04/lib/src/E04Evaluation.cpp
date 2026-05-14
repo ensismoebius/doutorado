@@ -1,12 +1,12 @@
-#include "../include/ComparativeEvaluation.hpp"
+#include "../include/E04Evaluation.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-#include "../include/ComparativeEncoding.hpp"
-#include "../include/ComparativeMetrics.hpp"
+#include "../include/E04Encoding.hpp"
+#include "../include/E04Metrics.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 using LstmTensor = nn::models::lstm::LSTMAutoencoder::Tensor;
@@ -172,4 +172,4 @@ auto evaluate_snn(ProtocolSpikingAutoencoder& model,
     return m;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

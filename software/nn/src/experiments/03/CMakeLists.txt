@@ -53,18 +53,18 @@ target_link_libraries(experiment03_lib
 
 # Experiment04 implementation library (used by both experiment03 and experiment04 executables).
 add_library(experiment04_lib STATIC
-    ${SRC_DIR}/experiments/04/lib/src/Experiment04Cli.cpp
-    ${SRC_DIR}/experiments/04/lib/src/LstmAutoencoderExperiment.cpp
-    ${SRC_DIR}/experiments/04/lib/src/RunComparativeExperiment.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeCli.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeConfig.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeDataset.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeEncoding.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeMetrics.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeEvaluation.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeTraining.cpp
-    ${SRC_DIR}/experiments/04/lib/src/ComparativeOutput.cpp
-    ${SRC_DIR}/experiments/04/lib/src/RunCheckpoint.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Runner.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04LstmAutoencoder.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Experiment.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Cli.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Config.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Dataset.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Encoding.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Metrics.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Evaluation.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Training.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Output.cpp
+    ${SRC_DIR}/experiments/04/lib/src/E04Checkpoint.cpp
 )
 
 target_include_directories(experiment04_lib

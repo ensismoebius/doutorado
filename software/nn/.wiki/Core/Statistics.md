@@ -120,31 +120,41 @@ Implement `ISplitPolicy::make_splits` to add time-ordered, stratified-grouped, o
 
 ### EER scoring strategies (`IEERScorer`)
 
-EER computation is pluggable via `statistics::IEERScorer`:
+EER and AUC computation is pluggable via `statistics::IEERScorer`:
 
 ```cpp
 // File: include/statistics/eer_scorer.hpp
 struct IEERScorer {
+    // Required: Equal Error Rate in [0,1] or NaN when degenerate.
     virtual auto compute_eer(const std::vector<std::vector<float>>& embeddings,
                              const std::vector<int>& labels,
                              int n_classes) const -> double = 0;
+
+    // Optional: AUC = P(genuine_score > impostor_score) via Wilcoxon-Mann-Whitney.
+    // Default returns NaN.  Override in strategies with genuine/impostor distributions.
+    virtual auto compute_auc(const std::vector<std::vector<float>>& embeddings,
+                             const std::vector<int>& labels,
+                             int n_classes) const -> double;
 };
 ```
 
 Two concrete implementations:
 
-| Class | Protocol | When to use |
-|---|---|---|
-| `GenuineImpostorEERScorer` | enrollment template + cosine-similarity genuine/impostor trial sweep | Production / thesis results |
-| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix → `calculateEER` | Legacy / ablation only |
+| Class | EER | AUC | When to use |
+|---|---|---|---|
+| `GenuineImpostorEERScorer` | enrollment template + cosine-similarity genuine/impostor trial sweep | Mann-Whitney P(genuine > impostor) | Production / thesis results |
+| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix → `calculateEER` | NaN (not applicable) | Legacy / ablation only |
 
 `GenuineImpostorEERScorer(n_enroll)` protocol:
 1. Per speaker: first `n_enroll` utterances → L2-normalised mean = enrollment template.  
 2. Remaining utterances = probes.  
 3. Each probe vs. all templates: cosine similarity → genuine or impostor trial.  
-4. Sort trials by score descending; sweep threshold → FAR/FRR; linear-interpolate crossing = EER.  
+4. **EER**: sort trials descending; sweep threshold → FAR/FRR curve; linear-interpolate crossing.
+5. **AUC**: Wilcoxon-Mann-Whitney — sort impostor scores; for each genuine score count impostors below it (ties = 0.5); `AUC = wins / (n_genuine × n_impostor)`.
 
 Returns `NaN` when a speaker has ≤ `n_enroll` samples (no probes) or fewer than 2 speakers have templates (no impostor trials).
+
+Internal implementation reuses `build_gi_trials()` for both `compute_eer()` and `compute_auc()` — template construction and cosine scoring run once.
 
 ### Statistic Interface
 

@@ -1,4 +1,4 @@
-#include "../include/ComparativeCli.hpp"
+#include "../include/E04Cli.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -7,16 +7,16 @@
 
 #include "nlohmann/json.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 constexpr const char* kDefaultComparativeProfileStem = "lstm-compare";
 
 static_assert(sizeof(float) == 4, "Experiment requires 32-bit float.");
 
-void infer_dimensions_from_layer_specs(ComparativeConfig& cfg)
+void infer_dimensions_from_layer_specs(E04Config& cfg)
 {
-    // This function is now deprecated as layer_sizes is removed from ComparativeConfig.
+    // This function is now deprecated as layer_sizes is removed from E04Config.
     // Dimensions are inferred on-the-fly in Training.
 }
 
@@ -118,9 +118,9 @@ auto resolve_profile_path(const CliOptions& opts) -> std::filesystem::path
     throw std::runtime_error("Cannot resolve comparative profile: " + profile_name);
 }
 
-auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> ComparativeConfig
+auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) -> E04Config
 {
-    ComparativeConfig cfg;
+    E04Config cfg;
 
     std::ifstream f(path);
     if (!f.is_open())
@@ -139,11 +139,11 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
 
     if (has_nested_keys(j))
     {
-        cfg = ComparativeConfig::from_nested_json(j);
+        cfg = E04Config::from_nested_json(j);
     }
     else
     {
-        cfg = ComparativeConfig::from_flat_json(j);
+        cfg = E04Config::from_flat_json(j);
     }
 
     if (!cli_opts.dataset_root.empty())
@@ -154,7 +154,7 @@ auto load_config(const std::filesystem::path& path, const CliOptions& cli_opts) 
     return cfg;
 }
 
-auto config_hash(const ComparativeConfig& cfg) -> std::size_t
+auto config_hash(const E04Config& cfg) -> std::size_t
 {
     nlohmann::json j;
     j["experiment"]["run_tag"] = cfg.experiment.run_tag;
@@ -197,4 +197,4 @@ auto should_run_comparative_cli(int argc, char* argv[]) -> bool
     return false;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

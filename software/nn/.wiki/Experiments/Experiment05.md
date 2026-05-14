@@ -304,10 +304,23 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 | File | Contents |
 |---|---|
-| `results/e05_*_metrics.csv` | Per-fold accuracy, EER, D_truth |
+| `results/e05_*_metrics.csv` | Per-fold: accuracy, F1, precision, recall, EER, AUC |
 | `results/e05_*_paraconsistent.csv` | α, β, G₁, G₂, D_truth per (strategy × modality × scale) |
-| `results/e05_*_summary.json` | Config, seed, aggregated stats |
-| `data/e05_*_comparison.dat` | pgfplots DAT for thesis figures |
+| `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for accuracy/F1/P/R/EER/AUC |
+| `data/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
+
+### Metric definitions
+
+| Metric | Formula | Notes |
+|---|---|---|
+| Accuracy | TP_all / N | Closed-set argmax |
+| Macro F1 | mean(2PR/(P+R)) per class | Unweighted, handles class imbalance |
+| Macro Precision | mean(TP/(TP+FP)) per class | — |
+| Macro Recall | mean(TP/(TP+FN)) per class | — |
+| EER | FAR = FRR threshold crossing | `GenuineImpostorEERScorer`: cosine similarity genuine/impostor trials |
+| AUC | P(genuine_score > impostor_score) | Wilcoxon-Mann-Whitney; complement to EER |
+| std_* | Population std over outer folds | `sqrt(Σ(xi-μ)²/n)` |
+| ci95_* | `1.96 × std / √n` | Normal approximation; valid for n≥5 folds |
 
 ---
 

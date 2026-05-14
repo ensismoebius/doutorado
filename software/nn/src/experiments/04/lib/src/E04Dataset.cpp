@@ -1,4 +1,4 @@
-#include "../include/ComparativeDataset.hpp"
+#include "../include/E04Dataset.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -9,7 +9,7 @@
 #include "data_loaders/10.5281/zenodo.1342401/datasets/FsddWindowDataset.hpp"
 #include "utility/SignalPreprocessing.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<nn::Tensor>
@@ -43,7 +43,7 @@ auto to_window_tensor(const nn::Tensor& signal, int window_size) -> std::vector<
     return windows;
 }
 
-auto collect_signal_files(const ComparativeConfig& cfg, const std::string& dataset)
+auto collect_signal_files(const E04Config& cfg, const std::string& dataset)
     -> std::vector<std::filesystem::path>
 {
     namespace fs = std::filesystem;
@@ -70,7 +70,7 @@ auto collect_signal_files(const ComparativeConfig& cfg, const std::string& datas
     return files;
 }
 
-auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> DatasetSplit
+auto build_split(const E04Config& cfg, const std::string& dataset) -> DatasetSplit
 {
     DatasetSplit       split;
     std::vector<Tensor> all_samples;
@@ -141,4 +141,4 @@ auto build_split(const ComparativeConfig& cfg, const std::string& dataset) -> Da
     return split;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

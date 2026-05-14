@@ -4,10 +4,10 @@
 #include <filesystem>
 #include <string>
 
-#include "EpochHistory.hpp"
-#include "ResultRow.hpp"
+#include "E04EpochHistory.hpp"
+#include "E04ResultRow.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 struct CheckpointKey
@@ -35,4 +35,4 @@ void checkpoint_save(const std::filesystem::path& path,
                      const EpochHistory& history,
                      std::size_t config_hash);
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

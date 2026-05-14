@@ -5,13 +5,13 @@
 #include <sstream>
 #include <vector>
 
-#include "../lib/include/ComparativeOutput.hpp"
-#include "../lib/include/EpochHistory.hpp"
-#include "../lib/include/ResultRow.hpp"
-#include "../lib/include/RunMetrics.hpp"
+#include "../lib/include/E04Output.hpp"
+#include "../lib/include/E04EpochHistory.hpp"
+#include "../lib/include/E04ResultRow.hpp"
+#include "../lib/include/E04RunMetrics.hpp"
 
 namespace fs = std::filesystem;
-using namespace comparative_autoencoder_experiment;
+using namespace e04;
 
 class DATWriterTest : public ::testing::Test
 {

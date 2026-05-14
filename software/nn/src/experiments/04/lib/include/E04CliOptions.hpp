@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 struct CliOptions
@@ -12,4 +12,4 @@ struct CliOptions
     bool help = false;
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

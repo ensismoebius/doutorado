@@ -1,4 +1,4 @@
-#include "../include/ComparativeEncoding.hpp"
+#include "../include/E04Encoding.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 #include <random>
 #include <stdexcept>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 auto encode_sample(const Tensor& sample, const std::string& encoding, std::uint32_t seed) -> Tensor
@@ -156,4 +156,4 @@ auto apply_snn_architecture_transform(
     return encoded;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

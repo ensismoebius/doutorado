@@ -1,4 +1,4 @@
-#include "RunCheckpoint.hpp"
+#include "E04Checkpoint.hpp"
 
 #include <cstdio>
 #include <filesystem>
@@ -7,7 +7,7 @@
 
 #include "nlohmann/json.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 namespace
@@ -156,4 +156,4 @@ void checkpoint_save(const std::filesystem::path& path,
     std::filesystem::rename(tmp, path);
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

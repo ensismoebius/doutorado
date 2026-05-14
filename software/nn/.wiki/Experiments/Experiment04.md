@@ -56,7 +56,7 @@ Config is loaded from a JSON profile. Top-level sections:
 
 Only listed keys are parsed. All other JSON keys (including `_`-prefixed doc strings) are silently ignored.
 
-Parsed by: `src/experiments/04/lib/include/ComparativeConfig.hpp` (`from_nested_json`).
+Parsed by: `src/experiments/04/lib/include/E04Config.hpp` (`from_nested_json`).
 
 ### Data Loading Limits
 
@@ -102,7 +102,7 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 ### WAV Loading
 
 ```cpp
-// File: src/experiments/04/lib/src/ComparativeDataset.cpp
+// File: src/experiments/04/lib/src/E04Dataset.cpp
 #include "nn/wave/Wav.h"
 
 // Load FSDD audio files
@@ -123,7 +123,7 @@ for (std::size_t i = 0; i < raw_data.size(); ++i)
 Real-time progress bars during training using `nn::utility::printProgress`:
 
 ```cpp
-// Inside ComparativeTraining.cpp
+// Inside E04Training.cpp
 printProgress(train_samples.size(),
     1,
     train_samples.size() * cfg.epochs,
@@ -199,7 +199,7 @@ The most common layer used in Experiment04.
 | `conv1d` | 3-tap smoothing filter: kernel `{0.25, 0.5, 0.25}` |
 | `recurrent` | Stand-alone LIF transform (stateless, fixed V_th/alpha) |
 
-These are **not** different network architectures — they are signal conditioning steps applied at `ComparativeEncoding.cpp:apply_snn_architecture_transform`.
+These are **not** different network architectures — they are signal conditioning steps applied at `E04Encoding.cpp:apply_snn_architecture_transform`.
 
 #### Building a Full Architecture
 The total network is built by concatenating these specs. 

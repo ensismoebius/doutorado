@@ -5,7 +5,7 @@
 
 #include "tensor/Tensor.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 using Tensor = nn::Tensor;
@@ -18,4 +18,4 @@ auto unflatten_time_series(const Tensor& flat, nn::Index rows, nn::Index cols) -
 auto apply_snn_architecture_transform(
     const Tensor& encoded, const std::string& architecture, float alpha, float v_th) -> Tensor;
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

@@ -3,10 +3,10 @@
 #include <filesystem>
 #include <fstream>
 
-#include "RunCheckpoint.hpp"
+#include "../lib/include/E04Checkpoint.hpp"
 
 namespace fs = std::filesystem;
-using namespace comparative_autoencoder_experiment;
+using namespace e04;
 
 namespace
 {

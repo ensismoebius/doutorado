@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 struct EpochHistory
@@ -18,4 +18,4 @@ struct EpochHistory
     std::vector<float> batch_epochs;  // which epoch each batch belongs to
 };
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

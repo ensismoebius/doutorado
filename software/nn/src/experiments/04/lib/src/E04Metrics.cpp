@@ -1,10 +1,10 @@
-#include "../include/ComparativeMetrics.hpp"
+#include "../include/E04Metrics.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 auto mse_between(const Tensor& a, const Tensor& b) -> float
@@ -84,4 +84,4 @@ auto estimate_snn_macs(std::size_t input_features, int hidden_size, int layers) 
     return in_proj + hidden_proj + out_proj;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04

@@ -8,7 +8,7 @@
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "tensor/Tensor.hpp"
 
-namespace comparative_autoencoder_experiment
+namespace e04
 {
 
 using Tensor = nn::Tensor;
@@ -37,4 +37,4 @@ auto parameter_count(std::span<T*> params) -> std::size_t
     return count;
 }
 
-} // namespace comparative_autoencoder_experiment
+} // namespace e04
