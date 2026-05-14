@@ -90,6 +90,62 @@ for (auto& outer : nkf.split(n_samples))
 
 See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md) for theory and the bias-reduction rationale.
 
+### Split policies (`ISplitPolicy`)
+
+`NestedKFold` accepts a pluggable split strategy via the policy constructor:
+
+```cpp
+// File: include/statistics/kfold.hpp
+struct ISplitPolicy {
+    virtual auto make_splits(std::size_t n_samples,
+                             const std::vector<int>& groups) const
+        -> std::vector<FoldSplit> = 0;
+};
+
+// Sample-level (default, backward compat)
+auto p = std::make_shared<statistics::SampleKFoldPolicy>(5, /*shuffle=*/true, seed);
+
+// Speaker-grouped: all samples of same group label stay in same fold
+auto p = std::make_shared<statistics::GroupKFoldPolicy>(5, /*shuffle=*/true, seed);
+
+// Policy-based NestedKFold
+statistics::NestedKFold nkf(5, 5, outer_policy, inner_policy);
+// Pass group labels (e.g. speaker IDs) at split time:
+auto splits = nkf.split(n_samples, group_ids);
+```
+
+`GroupKFoldPolicy` prevents **speaker data leakage**: with sample-level splitting, the same speaker's utterances appear in both train and test, giving optimistically biased accuracy and EER. `GroupKFoldPolicy` assigns all utterances of one speaker to one fold (sklearn `GroupKFold` round-robin behaviour).
+
+Implement `ISplitPolicy::make_splits` to add time-ordered, stratified-grouped, or any other custom split strategy.
+
+### EER scoring strategies (`IEERScorer`)
+
+EER computation is pluggable via `statistics::IEERScorer`:
+
+```cpp
+// File: include/statistics/eer_scorer.hpp
+struct IEERScorer {
+    virtual auto compute_eer(const std::vector<std::vector<float>>& embeddings,
+                             const std::vector<int>& labels,
+                             int n_classes) const -> double = 0;
+};
+```
+
+Two concrete implementations:
+
+| Class | Protocol | When to use |
+|---|---|---|
+| `GenuineImpostorEERScorer` | enrollment template + cosine-similarity genuine/impostor trial sweep | Production / thesis results |
+| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix → `calculateEER` | Legacy / ablation only |
+
+`GenuineImpostorEERScorer(n_enroll)` protocol:
+1. Per speaker: first `n_enroll` utterances → L2-normalised mean = enrollment template.  
+2. Remaining utterances = probes.  
+3. Each probe vs. all templates: cosine similarity → genuine or impostor trial.  
+4. Sort trials by score descending; sweep threshold → FAR/FRR; linear-interpolate crossing = EER.  
+
+Returns `NaN` when a speaker has ≤ `n_enroll` samples (no probes) or fewer than 2 speakers have templates (no impostor trials).
+
 ### Statistic Interface
 
 Lightweight interface for incremental metric accumulation (reset per epoch, update per batch):

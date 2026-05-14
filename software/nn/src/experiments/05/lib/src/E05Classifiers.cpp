@@ -1,6 +1,7 @@
 #include "E05Classifiers.hpp"
 
 #include <cmath>
+#include <memory>
 #include <stdexcept>
 
 #include "Backend.hpp"
@@ -9,7 +10,7 @@
 #include "layers/losses/CrossEntropyLoss.hpp"
 #include "layers/residual/SimpleResNet.hpp"
 #include "progress/ProgressManager.hpp"
-#include "statistics/confusion_matrix.hpp"
+#include "statistics/eer_scorer.hpp"
 #include "statistics/kfold.hpp"
 #include "tensor/Tensor.hpp"
 #include "training/EarlyStoppingCallback.hpp"
@@ -20,11 +21,12 @@ namespace e05
 
 namespace
 {
-// Evaluate classifier accuracy and EER — single batched forward on (N, D).
+// Single batched forward on (N, D); accuracy via argmax, EER via eer_scorer.
 std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
     const std::vector<std::vector<double>>& inputs,
     const std::vector<int>& labels,
-    int n_classes)
+    int n_classes,
+    const statistics::IEERScorer& eer_scorer)
 {
     if (inputs.empty()) return {0.0, 0.0};
 
@@ -42,39 +44,25 @@ std::pair<double, double> evaluate(SimpleResNetImpl<nn::Backend>& model,
 
     nn::Tensor all_logits = model.forward(batch, false); // (N, n_classes)
 
+    // Extract logit rows for accuracy (argmax) and EER scoring.
     int correct = 0;
-    std::vector<statistics::ConfusionMatrix> cms(static_cast<size_t>(n_classes));
-
-    for (size_t i = 0; i < inputs.size(); ++i)
+    std::vector<std::vector<float>> embeddings(static_cast<size_t>(N));
+    for (size_t i = 0; i < static_cast<size_t>(N); ++i)
     {
-        // argmax over logits row i
-        int pred = 0;
+        embeddings[i].resize(static_cast<size_t>(n_classes));
+        int pred   = 0;
         float best = all_logits.at(static_cast<nn::Index>(i), 0);
-        for (int j = 1; j < n_classes; ++j)
+        for (int j = 0; j < n_classes; ++j)
         {
             float v = all_logits.at(static_cast<nn::Index>(i), j);
+            embeddings[i][static_cast<size_t>(j)] = v;
             if (v > best) { best = v; pred = j; }
         }
         if (pred == labels[i]) ++correct;
-
-        for (int c = 0; c < n_classes; ++c)
-        {
-            bool is_c   = (labels[i] == c);
-            bool pred_c = (pred == c);
-            auto& cm = cms[static_cast<size_t>(c)];
-            if ( is_c &&  pred_c) ++cm.truePositive;
-            if (!is_c &&  pred_c) ++cm.falsePositive;
-            if ( is_c && !pred_c) ++cm.falseNegative;
-            if (!is_c && !pred_c) ++cm.trueNegative;
-        }
     }
 
-    double accuracy = static_cast<double>(correct) / static_cast<double>(inputs.size());
-    double eer = 0.0;
-    {
-        std::vector<double> fprs, fnrs;
-        statistics::calculateEER(cms, eer, fprs, fnrs);
-    }
+    double accuracy = static_cast<double>(correct) / static_cast<double>(N);
+    double eer = eer_scorer.compute_eer(embeddings, labels, n_classes);
     return {accuracy, eer};
 }
 } // namespace
@@ -83,6 +71,7 @@ auto run_classifier(const E05DatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
     const E05Config& cfg,
+    const statistics::IEERScorer* eer_scorer,
     uint32_t global_bar_id,
     int* global_completed) -> ClassificationResult
 {
@@ -117,14 +106,21 @@ auto run_classifier(const E05DatasetView& view,
     trainer_cfg.learning_rate    = cfg.training.learning_rate;
     trainer_cfg.batch_size       = cfg.training.samples_per_batch;
 
-    // Nested KFold.
-    statistics::NestedKFold nkf(
-        static_cast<size_t>(cfg.training.k_folds),
-        static_cast<size_t>(cfg.training.k_folds),
-        true,
-        cfg.experiment.seed);
+    // Build group labels: one speaker ID per sample — keeps all utterances
+    // from the same speaker in the same fold (prevents data leakage).
+    std::vector<int> groups;
+    groups.reserve(view.samples.size());
+    for (const auto& s : view.samples)
+        groups.push_back(s.subject_id);
 
-    auto nested_splits = nkf.split(view.samples.size());
+    const std::size_t k = static_cast<std::size_t>(cfg.training.k_folds);
+    auto outer_policy = std::make_shared<statistics::GroupKFoldPolicy>(
+        k, true, cfg.experiment.seed);
+    auto inner_policy = std::make_shared<statistics::GroupKFoldPolicy>(
+        k, true, cfg.experiment.seed ^ 0xDEADBEEFU);
+
+    statistics::NestedKFold nkf(k, k, outer_policy, inner_policy);
+    auto nested_splits = nkf.split(view.samples.size(), groups);
 
     ClassificationResult result;
     result.feature_set_label = feature_label;
@@ -210,7 +206,12 @@ auto run_classifier(const E05DatasetView& view,
 
         trainer.fit_supervised(train_pairs, val_pairs);
 
-        auto [acc, eer] = evaluate(model, test_feats, test_labels, n_speakers);
+        // Default scorer: genuine/impostor cosine-similarity (SOTA protocol).
+        statistics::GenuineImpostorEERScorer default_scorer;
+        const statistics::IEERScorer& scorer =
+            (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
+
+        auto [acc, eer] = evaluate(model, test_feats, test_labels, n_speakers, scorer);
 
         FoldResult fr;
         fr.fold     = static_cast<int>(outer_idx);

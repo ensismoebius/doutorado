@@ -105,7 +105,7 @@ auto main(int argc, char* argv[]) -> int
         {
             if (fs.vectors.empty()) continue;
             auto result = e05::run_classifier(
-                view, fs.vectors, fs.label, cfg, global_bar, &global_completed);
+                view, fs.vectors, fs.label, cfg, nullptr, global_bar, &global_completed);
             results.push_back(std::move(result));
         }
 

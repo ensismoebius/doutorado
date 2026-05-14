@@ -242,6 +242,33 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
             Results: accuracy, EER, D_truth per combination
 ```
 
+### EER scoring strategies (`IEERScorer`)
+
+EER computation is pluggable via `statistics::IEERScorer`:
+
+```cpp
+// Pass to run_classifier(); nullptr → GenuineImpostorEERScorer (default)
+statistics::GenuineImpostorEERScorer sota_scorer(/*n_enroll=*/1);
+auto result = e05::run_classifier(view, fvs, label, cfg, &sota_scorer);
+
+// Ablation — legacy closed-set EER
+statistics::ClassificationEERScorer legacy_scorer;
+auto result2 = e05::run_classifier(view, fvs, label, cfg, &legacy_scorer);
+```
+
+| Scorer | Protocol | EER source | SOTA? |
+|---|---|---|---|
+| `GenuineImpostorEERScorer` | enroll N utterances → cosine similarity genuine/impostor trials → FAR/FRR sweep | Score distribution | ✓ |
+| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix | Prediction counts | ✗ (legacy) |
+
+`GenuineImpostorEERScorer` protocol:
+1. Per speaker: first `n_enroll` utterances → L2-normalised mean embedding (template)
+2. Remaining utterances → probes
+3. Each probe scored vs. all templates: cosine similarity
+4. Genuine trials (own speaker) vs. impostor trials (other speakers) → sort → threshold sweep → interpolated crossing = EER
+
+See `include/statistics/eer_scorer.hpp` for the `ISplitPolicy`-style interface; add new strategies by implementing `IEERScorer::compute_eer(embeddings, labels, n_classes)`.
+
 ### Performance notes
 
 **Parallel feature extraction** — `extract_features()` uses `#pragma omp parallel for schedule(dynamic, 4)` over samples. The DTWPT computation (`wavelets::malat`) has no global state, so parallelism is safe. Pre-sized `fs.vectors.resize(n_samples)` avoids `push_back` races; progress counter uses `#pragma omp atomic capture`.
@@ -313,7 +340,9 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 6. **Nested CV inner fold must not see test fold.** Hyperparameter selection (early stopping patience, lr) must use inner-loop val loss only.
 
-7. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. `AudioLoader` and `EEGLoader` detect the encoding by comparing `sqlite3_column_bytes()` against both `n * sizeof(float)` and `n * sizeof(double)`. If this check fails, the loader throws `"unexpected audio blob size"`. Do not assume the DB format — always let the loader detect it.
+7. **EER is NaN with grouped CV + untrained model.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or when there is only one speaker in the test fold. This is correct behaviour — it surfaces degenerate folds rather than hiding them as 0 or 0.5. In production runs (15 speakers, k=5) every fold has ≥2 speakers with probes; NaN only appears in unit tests with tiny synthetic data. Pass `ClassificationEERScorer` to `run_classifier()` for ablation comparisons.
+
+8. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. `AudioLoader` and `EEGLoader` detect the encoding by comparing `sqlite3_column_bytes()` against both `n * sizeof(float)` and `n * sizeof(double)`. If this check fails, the loader throws `"unexpected audio blob size"`. Do not assume the DB format — always let the loader detect it.
 
 8. **`nn::Tensor` default is a 0-dim scalar** (`size()=1, rows()=0, cols()=0`). Guard audio/EEG samples with `rows() > 0 && cols() > 0`, not `size() > 0`.
 

@@ -6,6 +6,7 @@ add_library(statistics
     confusion_matrix.cpp
     multi_class_metrics.cpp
     kfold.cpp
+    eer_scorer.cpp
 )
 
 target_include_directories(statistics 

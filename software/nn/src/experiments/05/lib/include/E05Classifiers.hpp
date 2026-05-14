@@ -6,6 +6,7 @@
 
 #include "E05Config.hpp"
 #include "E05Dataset.hpp"
+#include "statistics/eer_scorer.hpp"
 
 namespace e05
 {
@@ -33,11 +34,13 @@ struct ClassificationResult
 
 // Train and evaluate the configured classifier using nested k-fold CV.
 // feature_vectors: one vector per sample (aligned with view.samples).
+// eer_scorer:      pluggable EER strategy; nullptr → GenuineImpostorEERScorer (SOTA default).
 // global_bar_id / global_completed: optional ProgressManager bar updated after each outer fold.
 auto run_classifier(const E05DatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
     const std::string& feature_label,
     const E05Config& cfg,
+    const statistics::IEERScorer* eer_scorer = nullptr,
     uint32_t global_bar_id = 0,
     int* global_completed = nullptr) -> ClassificationResult;
 
