@@ -84,6 +84,16 @@ class SimpleResNetImpl : public Module<Backend>
         model_->train(on);
     }
 
+    auto state_dict() const -> std::map<std::string, Tensor> override
+    {
+        return model_->state_dict();
+    }
+
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
+    {
+        model_->load_state_dict(sd);
+    }
+
    private:
     std::vector<std::shared_ptr<Module<Backend>>> layers_;
     std::unique_ptr<SequentialImpl<Backend>> model_;

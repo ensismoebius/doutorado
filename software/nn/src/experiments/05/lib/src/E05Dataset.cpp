@@ -37,60 +37,69 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
 
     E05DatasetView view;
     view.subject_files = subjects;
-    view.n_subjects = static_cast<int>(subjects.size());
-
-    bool load_audio = (dataset_cfg.modality == "voice" || dataset_cfg.modality == "fused");
-    bool load_eeg   = (dataset_cfg.modality == "eeg"   || dataset_cfg.modality == "fused");
 
     std::unordered_set<int> stimuli_seen;
+    int subjects_with_both = 0;
 
+    // Always load paired audio+EEG so every modality run operates on the
+    // same set of trials. The modality field controls feature extraction, not
+    // which samples are included. Samples where either audio or EEG data is
+    // absent are dropped to guarantee comparability across modality runs.
     for (const auto& sf : subjects)
     {
-        if (load_audio && !sf.audio_mat_path.empty())
+        if (sf.audio_mat_path.empty() || sf.eeg_mat_path.empty())
+            continue; // skip subjects missing either modality
+
+        nn::dataLoaders::AudioMatSession audio_session(sf.audio_mat_path, sf.subject_id);
+        nn::dataLoaders::EEGMatSession   eeg_session  (sf.eeg_mat_path,   sf.subject_id);
+
+        const size_t n_audio = audio_session.rowCount();
+        const size_t n_eeg   = eeg_session.rowCount();
+        if (n_audio == 0 || n_eeg == 0) continue;
+
+        int paired = 0;
+        for (size_t row = 0; row < n_audio; ++row)
         {
-            nn::dataLoaders::AudioMatSession audio_session(sf.audio_mat_path, sf.subject_id);
-            for (size_t row = 0; row < audio_session.rowCount(); ++row)
-            {
-                auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row);
-                E05Sample sample;
-                sample.audio = std::move(audio_tensor);
-                sample.stimulus = stimulus;
-                sample.subject_id = sf.subject_id;
-                sample.text_phrase = stimulus_to_phrase(stimulus);
-                stimuli_seen.insert(stimulus);
-                view.samples.push_back(std::move(sample));
-            }
+            auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row);
+
+            // eeg_index is 1-based in the dataset; convert to 0-based.
+            const size_t eeg_row = (eeg_index > 0)
+                ? static_cast<size_t>(eeg_index - 1)
+                : row; // fallback: same-row pairing
+
+            if (eeg_row >= n_eeg) continue; // eeg_index out of range — drop trial
+
+            auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
+
+            E05Sample sample;
+            sample.audio      = std::move(audio_tensor);
+            sample.eeg        = std::move(eeg_tensor);
+            sample.stimulus   = stimulus;
+            sample.subject_id = sf.subject_id;
+            sample.text_phrase = stimulus_to_phrase(stimulus);
+            stimuli_seen.insert(stimulus);
+            view.samples.push_back(std::move(sample));
+            ++paired;
         }
-        if (load_eeg && !sf.eeg_mat_path.empty())
-        {
-            nn::dataLoaders::EEGMatSession eeg_session(sf.eeg_mat_path, sf.subject_id);
-            for (size_t row = 0; row < eeg_session.rowCount(); ++row)
-            {
-                auto [eeg_tensor, labels] = eeg_session.readRow(row);
-                E05Sample sample;
-                sample.eeg = std::move(eeg_tensor);
-                sample.stimulus = labels[1]; // stimulus is index 1
-                sample.subject_id = sf.subject_id;
-                sample.text_phrase = stimulus_to_phrase(labels[1]);
-                stimuli_seen.insert(labels[1]);
-                view.samples.push_back(std::move(sample));
-            }
-        }
+
+        if (paired > 0) ++subjects_with_both;
     }
 
-    // For fused: second pass loads EEG by matching eeg_index from audio rows.
-    // (If fused and both passes ran, EEG was loaded from eeg-only pass above.
-    //  Proper fused loading requires correlation via eeg_index; simplified here
-    //  by loading audio and eeg independently and pairing by stimulus order.)
+    if (view.samples.empty())
+        throw std::runtime_error(
+            "E05Dataset: no paired audio+EEG samples found. "
+            "Check that each subject has both audio and EEG .mat files.");
 
-    // Apply max_samples limit if set (for debug runs).
+    view.n_subjects = subjects_with_both;
+    view.n_stimuli  = static_cast<int>(stimuli_seen.size());
+
+    // Apply max_samples limit (debug runs).
     if (dataset_cfg.max_samples > 0 &&
         static_cast<int>(view.samples.size()) > dataset_cfg.max_samples)
     {
         view.samples.resize(static_cast<size_t>(dataset_cfg.max_samples));
     }
 
-    view.n_stimuli = static_cast<int>(stimuli_seen.size());
     return view;
 }
 

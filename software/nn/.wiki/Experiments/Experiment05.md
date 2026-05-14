@@ -304,10 +304,26 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 | File | Contents |
 |---|---|
-| `results/e05_*_metrics.csv` | Per-fold: accuracy, F1, precision, recall, EER, AUC |
+| `results/e05_*_metrics.csv` | Per-fold: accuracy, F1, precision, recall, EER, AUC, model_path |
 | `results/e05_*_paraconsistent.csv` | α, β, G₁, G₂, D_truth per (strategy × modality × scale) |
-| `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for accuracy/F1/P/R/EER/AUC |
+| `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for all metrics + per-fold model paths |
 | `data/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
+| `results/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
+
+### Model checkpoints
+
+After each outer fold, `run_classifier()` serializes the trained `SimpleResNet` via `nn::io::save_state_dict(model.state_dict(), path)`. To reload:
+
+```cpp
+#include "io/StateIO.hpp"
+#include "layers/residual/SimpleResNet.hpp"
+
+SimpleResNetImpl<nn::Backend> model(feat_dim, 128, n_speakers, 2);
+auto sd = nn::io::load_state_dict("results/models/run/feat/fold_0.bin");
+model.load_state_dict(sd);
+```
+
+Path pattern: `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin`
 
 ### Metric definitions
 
@@ -341,7 +357,9 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 ## Common pitfalls
 
-1. **Normalise before paraconsistent.** α and β are range-based; unnormalised features give meaningless D_truth values.
+1. **Paired loading is always enforced.** `load_dataset()` always loads both audio and EEG for every trial, using the `eeg_index` column from the audio MAT to identify the correct EEG row. The `modality` field selects which signal is used during feature extraction — not which data is loaded. Subjects or trials missing either modality are silently dropped. This guarantees that voice-only, EEG-only, and fused runs operate on the **exact same set of subjects and trials**, making results directly comparable.
+
+2. **Normalise before paraconsistent.** α and β are range-based; unnormalised features give meaningless D_truth values.
 
 2. **EEG and voice window sizes differ.** EEG at 800 Hz needs different window parameters than voice at 22050 Hz. Do not reuse the same `window_size` across modalities.
 

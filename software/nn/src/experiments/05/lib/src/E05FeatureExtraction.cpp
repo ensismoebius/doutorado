@@ -61,7 +61,6 @@ auto compute_energy(const std::vector<double>& subband) -> double
 
 auto compute_jitter(const std::vector<double>& signal, double sample_rate) -> double
 {
-    // Detect positive zero-crossings as proxy for period boundaries.
     std::vector<size_t> peaks;
     for (size_t i = 1; i + 1 < signal.size(); ++i)
     {
@@ -110,16 +109,97 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
     return diff_sum / (static_cast<double>(peaks.size() - 1) * mean_A);
 }
 
+// ─── frequency scale helpers ────────────────────────────────────────────────
+
+namespace
+{
+
+// Traunmuller Bark formula.
+double hz_to_bark(double f)
+{
+    return 13.0 * std::atan(0.00076 * f) +
+           3.5  * std::atan(std::pow(f / 7500.0, 2.0));
+}
+
+// O'Shaughnessy MEL formula.
+double hz_to_mel(double f)
+{
+    return 2595.0 * std::log10(1.0 + f / 700.0);
+}
+
+// Group DTWPT sub-bands by perceptual frequency scale.
+//
+// "lfcc" → each sub-band is its own group (uniform linear spacing).
+// "bark" → 24 Bark groups.
+// "mel"  → 20 MEL groups.
+//
+// For Bark/MEL: each sub-band's center frequency is mapped to the scale;
+// sub-bands sharing the same scale bin have their coefficients concatenated
+// into a single group. Empty bins (no sub-bands mapped to them) are dropped.
+//
+// Returns a vector of groups; each group is the concatenated coefficients
+// of one frequency bin — ready for descriptor computation.
+std::vector<std::vector<double>> group_by_scale(
+    wavelets::WaveletTransformResults& result,
+    long n_parts, long sig_len,
+    const std::string& scale, double sample_rate)
+{
+    if (scale == "lfcc")
+    {
+        // Linear spacing: one group per DTWPT sub-band.
+        std::vector<std::vector<double>> groups;
+        groups.reserve(static_cast<size_t>(n_parts));
+        for (long p = 0; p < n_parts; ++p)
+        {
+            long start = p * (sig_len / n_parts);
+            long end   = (p + 1) * (sig_len / n_parts);
+            groups.push_back(result.get_wavelet_packet_transforms(start, end, sig_len));
+        }
+        return groups;
+    }
+
+    const int n_bands   = (scale == "bark") ? 24 : 20;
+    const double nyquist = sample_rate / 2.0;
+    const double max_sv  = (scale == "bark") ? hz_to_bark(nyquist) : hz_to_mel(nyquist);
+
+    std::vector<std::vector<double>> groups(static_cast<size_t>(n_bands));
+
+    for (long p = 0; p < n_parts; ++p)
+    {
+        // Center frequency of sub-band p (uniform partition of Nyquist).
+        double center_hz = (p + 0.5) * nyquist / static_cast<double>(n_parts);
+        double sv        = (scale == "bark") ? hz_to_bark(center_hz) : hz_to_mel(center_hz);
+        int band         = static_cast<int>(sv / max_sv * n_bands);
+        band             = std::clamp(band, 0, n_bands - 1);
+
+        long start = p * (sig_len / n_parts);
+        long end   = (p + 1) * (sig_len / n_parts);
+        auto coefs = result.get_wavelet_packet_transforms(start, end, sig_len);
+        auto& g    = groups[static_cast<size_t>(band)];
+        g.insert(g.end(), coefs.begin(), coefs.end());
+    }
+
+    // Drop empty bins — may occur when n_parts < n_bands (low DTWPT levels).
+    groups.erase(
+        std::remove_if(groups.begin(), groups.end(),
+            [](const std::vector<double>& g) { return g.empty(); }),
+        groups.end());
+
+    return groups;
+}
+
+} // namespace
+
 // ─── handcrafted extraction ─────────────────────────────────────────────────
 
 auto extract_handcrafted(const std::vector<double>& signal,
-    const E05Config::HandcraftedConfig& cfg) -> std::vector<double>
+    const E05Config::HandcraftedConfig& cfg,
+    double sample_rate) -> std::vector<double>
 {
     using wavelets::WaveletTraits;
     using wavelets::Daub4;
     using wavelets::PACKET_WAVELET;
 
-    // Use Daubechies-4 for DTWPT (good time-frequency localisation).
     auto& coeffs = WaveletTraits<Daub4>::coeffs;
     std::span<const double> filter(coeffs.data(), coeffs.size());
 
@@ -129,7 +209,8 @@ auto extract_handcrafted(const std::vector<double>& signal,
     long n_parts = result.get_wavelet_packet_amount_of_parts();
     long sig_len = static_cast<long>(signal.size());
 
-    std::vector<double> features;
+    // Group sub-bands according to the perceptual frequency scale.
+    auto groups = group_by_scale(result, n_parts, sig_len, cfg.scale, sample_rate);
 
     const auto& descs = cfg.descriptors;
     bool want_energy  = std::find(descs.begin(), descs.end(), "energy")  != descs.end();
@@ -139,24 +220,22 @@ auto extract_handcrafted(const std::vector<double>& signal,
     bool want_jitter  = std::find(descs.begin(), descs.end(), "jitter")  != descs.end();
     bool want_shimmer = std::find(descs.begin(), descs.end(), "shimmer") != descs.end();
 
-    for (long p = 0; p < n_parts; ++p)
-    {
-        long start = p * (sig_len / n_parts);
-        long end   = (p + 1) * (sig_len / n_parts);
-        auto subband = result.get_wavelet_packet_transforms(start, end, sig_len);
+    std::vector<double> features;
 
-        if (want_energy)  features.push_back(compute_energy(subband));
-        if (want_zcr)     features.push_back(compute_zcr(subband));
-        if (want_entropy) features.push_back(compute_entropy(subband));
-        if (want_teager)  features.push_back(compute_teager(subband));
+    for (const auto& group : groups)
+    {
+        if (want_energy)  features.push_back(compute_energy(group));
+        if (want_zcr)     features.push_back(compute_zcr(group));
+        if (want_entropy) features.push_back(compute_entropy(group));
+        if (want_teager)  features.push_back(compute_teager(group));
         if (want_jitter)
         {
-            double j = compute_jitter(subband, 44100.0);
+            double j = compute_jitter(group, sample_rate);
             features.push_back(std::isnan(j) ? 0.0 : j);
         }
         if (want_shimmer)
         {
-            double s = compute_shimmer(subband, 44100.0);
+            double s = compute_shimmer(group, sample_rate);
             features.push_back(std::isnan(s) ? 0.0 : s);
         }
     }
@@ -168,7 +247,6 @@ auto extract_handcrafted(const std::vector<double>& signal,
 
 namespace
 {
-// Convert nn::Tensor (float) to std::vector<double>.
 std::vector<double> tensor_to_vec(const nn::Tensor& t)
 {
     std::vector<double> v;
@@ -178,15 +256,25 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
             v.push_back(static_cast<double>(t.at(i, j)));
     return v;
 }
+
+// Nominal sample rates by modality (Hz).
+double modality_sample_rate(const std::string& modality)
+{
+    if (modality == "eeg") return 800.0;
+    return 22050.0; // "voice" and "fused" use voice rate
+}
 } // namespace
 
 auto extract_features(const E05DatasetView& view,
-    const E05Config::FeatureExtraction& cfg) -> std::vector<FeatureSet>
+    const E05Config::FeatureExtraction& cfg,
+    const std::string& modality) -> std::vector<FeatureSet>
 {
     std::vector<FeatureSet> result;
 
     if (cfg.strategy == "handcrafted")
     {
+        const double sample_rate = modality_sample_rate(modality);
+
         FeatureSet fs;
         fs.label = "handcrafted-" + cfg.handcrafted.scale;
         fs.vectors.reserve(view.samples.size());
@@ -198,7 +286,6 @@ auto extract_features(const E05DatasetView& view,
             feat_bar, "DTWPT | scale=" + cfg.handcrafted.scale +
                       "  descriptors=" + std::to_string(cfg.handcrafted.descriptors.size()));
 
-        // Pre-size so parallel index assignment is safe (no push_back races).
         fs.vectors.resize(static_cast<size_t>(n_samples));
         long feat_done = 0;
 
@@ -207,18 +294,35 @@ auto extract_features(const E05DatasetView& view,
         {
             const auto& sample = view.samples[static_cast<size_t>(i)];
             std::vector<double> sig;
-            if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
-                sig = tensor_to_vec(sample.audio);
-            else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
-                sig = tensor_to_vec(sample.eeg);
-            else
+
+            if (modality == "eeg")
+            {
+                if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
+                    sig = tensor_to_vec(sample.eeg);
+            }
+            else if (modality == "voice")
+            {
+                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
+                    sig = tensor_to_vec(sample.audio);
+            }
+            else // "fused": audio preferred, eeg fallback
+            {
+                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
+                    sig = tensor_to_vec(sample.audio);
+                else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
+                    sig = tensor_to_vec(sample.eeg);
+            }
+
+            if (sig.empty())
                 sig.assign(256, 0.0);
 
+            // Zero-pad to next power of two for DTWPT.
             size_t n = 1;
             while (n < sig.size()) n <<= 1;
             sig.resize(n, 0.0);
 
-            fs.vectors[static_cast<size_t>(i)] = extract_handcrafted(sig, cfg.handcrafted);
+            fs.vectors[static_cast<size_t>(i)] =
+                extract_handcrafted(sig, cfg.handcrafted, sample_rate);
 
             long done = 0;
             #pragma omp atomic capture
@@ -231,17 +335,14 @@ auto extract_features(const E05DatasetView& view,
     }
     else if (cfg.strategy == "autoencoder")
     {
-        // Autoencoder feature extraction is handled by the training loop via Trainer.
-        // Here we return an empty set as placeholder; callers invoke train_autoencoder()
-        // and then supply the latent vectors back as a FeatureSet.
-        FeatureSet fs;
-        fs.label = "autoencoder-" + cfg.autoencoder.model;
-        // Vectors populated externally after autoencoder training.
-        result.push_back(std::move(fs));
+        throw std::runtime_error(
+            "E05FeatureExtraction: autoencoder feature learning is not yet implemented. "
+            "Use strategy=\"handcrafted\" or implement autoencoder training.");
     }
     else
     {
-        throw std::invalid_argument("E05FeatureExtraction: unknown strategy " + cfg.strategy);
+        throw std::invalid_argument(
+            "E05FeatureExtraction: unknown strategy \"" + cfg.strategy + "\"");
     }
 
     return result;

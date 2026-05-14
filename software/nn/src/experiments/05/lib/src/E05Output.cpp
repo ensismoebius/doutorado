@@ -25,7 +25,8 @@ void write_metrics_csv(const std::string& results_dir,
     if (!f.is_open())
         throw std::runtime_error("E05Output: cannot write " + path);
 
-    f << "feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,eer,auc\n";
+    f << "feature_set,classifier,text_mode,fold,"
+      << "accuracy,f1,precision,recall,specificity,eer,auc,model_path\n";
     for (const auto& r : results)
     {
         for (const auto& fold : r.outer_folds)
@@ -35,12 +36,14 @@ void write_metrics_csv(const std::string& results_dir,
               << r.text_mode << ","
               << fold.fold << ","
               << std::fixed << std::setprecision(6)
-              << fold.accuracy  << ","
-              << fold.f1        << ","
-              << fold.precision << ","
-              << fold.recall    << ","
-              << fold.eer       << ","
-              << fold.auc       << "\n";
+              << fold.accuracy    << ","
+              << fold.f1          << ","
+              << fold.precision   << ","
+              << fold.recall      << ","
+              << fold.specificity << ","
+              << fold.eer         << ","
+              << fold.auc         << ","
+              << fold.model_path  << "\n";
         }
     }
 }
@@ -87,29 +90,41 @@ void write_summary_json(const std::string& results_dir,
     for (const auto& r : results)
     {
         nlohmann::json rj;
-        rj["feature_set"]     = r.feature_set_label;
-        rj["mean_accuracy"]   = r.mean_accuracy;
-        rj["std_accuracy"]    = r.std_accuracy;
-        rj["ci95_accuracy"]   = r.ci95_accuracy;
-        rj["mean_f1"]         = r.mean_f1;
-        rj["std_f1"]          = r.std_f1;
-        rj["mean_precision"]  = r.mean_precision;
-        rj["mean_recall"]     = r.mean_recall;
-        rj["mean_eer"]        = r.mean_eer;
-        rj["std_eer"]         = r.std_eer;
-        rj["ci95_eer"]        = r.ci95_eer;
-        rj["mean_auc"]        = r.mean_auc;
-        rj["std_auc"]         = r.std_auc;
+        rj["feature_set"]       = r.feature_set_label;
+        rj["mean_accuracy"]     = r.mean_accuracy;
+        rj["std_accuracy"]      = r.std_accuracy;
+        rj["ci95_accuracy"]     = r.ci95_accuracy;
+        rj["mean_f1"]           = r.mean_f1;
+        rj["std_f1"]            = r.std_f1;
+        rj["mean_precision"]    = r.mean_precision;
+        rj["mean_recall"]       = r.mean_recall;
+        rj["mean_specificity"]  = r.mean_specificity;
+        rj["std_specificity"]   = r.std_specificity;
+        rj["mean_eer"]          = r.mean_eer;
+        rj["std_eer"]           = r.std_eer;
+        rj["ci95_eer"]          = r.ci95_eer;
+        rj["mean_auc"]          = r.mean_auc;
+        rj["std_auc"]           = r.std_auc;
+
+        nlohmann::json folds_arr = nlohmann::json::array();
+        for (const auto& fold : r.outer_folds)
+        {
+            nlohmann::json fj;
+            fj["fold"]       = fold.fold;
+            fj["model_path"] = fold.model_path;
+            folds_arr.push_back(fj);
+        }
+        rj["fold_models"] = folds_arr;
         results_arr.push_back(rj);
     }
     j["results"] = results_arr;
 
     if (!scores.empty())
     {
-        j["best_feature_set"]  = scores[0].label;
-        j["best_d_truth"]      = scores[0].d_truth;
-        j["best_alpha"]        = scores[0].alpha;
-        j["best_beta"]         = scores[0].beta;
+        j["best_feature_set"] = scores[0].label;
+        j["best_d_truth"]     = scores[0].d_truth;
+        j["best_alpha"]       = scores[0].alpha;
+        j["best_beta"]        = scores[0].beta;
     }
 
     std::ofstream f(path);
@@ -128,26 +143,29 @@ void write_comparison_dat(const std::string& results_dir,
     if (!f.is_open())
         throw std::runtime_error("E05Output: cannot write " + path);
 
-    // pgfplots DAT: whitespace-delimited, header row starts with x (label index)
-    f << "x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall eer std_eer ci95_eer auc std_auc\n";
+    f << "x label accuracy std_accuracy ci95_accuracy"
+      << " f1 std_f1 precision recall specificity std_specificity"
+      << " eer std_eer ci95_eer auc std_auc\n";
     for (size_t i = 0; i < results.size(); ++i)
     {
         const auto& r = results[i];
         f << i << " "
           << r.feature_set_label << " "
           << std::fixed << std::setprecision(6)
-          << r.mean_accuracy  << " "
-          << r.std_accuracy   << " "
-          << r.ci95_accuracy  << " "
-          << r.mean_f1        << " "
-          << r.std_f1         << " "
-          << r.mean_precision << " "
-          << r.mean_recall    << " "
-          << r.mean_eer       << " "
-          << r.std_eer        << " "
-          << r.ci95_eer       << " "
-          << r.mean_auc       << " "
-          << r.std_auc        << "\n";
+          << r.mean_accuracy    << " "
+          << r.std_accuracy     << " "
+          << r.ci95_accuracy    << " "
+          << r.mean_f1          << " "
+          << r.std_f1           << " "
+          << r.mean_precision   << " "
+          << r.mean_recall      << " "
+          << r.mean_specificity << " "
+          << r.std_specificity  << " "
+          << r.mean_eer         << " "
+          << r.std_eer          << " "
+          << r.ci95_eer         << " "
+          << r.mean_auc         << " "
+          << r.std_auc          << "\n";
     }
 }
 

@@ -15,14 +15,15 @@ namespace e05
 struct FoldResult
 {
     int fold = 0;
-    double accuracy = 0.0;
-    double eer = 0.0;
-    double loss = 0.0;
-    // extended metrics
-    double f1 = 0.0;
-    double precision = 0.0;
-    double recall = 0.0;
-    double auc = 0.0;
+    double accuracy    = 0.0;
+    double eer         = 0.0;
+    double loss        = 0.0;
+    double f1          = 0.0;
+    double precision   = 0.0;
+    double recall      = 0.0;
+    double specificity = 0.0; // macro TN/(TN+FP)
+    double auc         = 0.0;
+    std::string model_path;
 };
 
 // Full classification result over nested CV.
@@ -32,18 +33,20 @@ struct ClassificationResult
     std::string classifier_type;
     std::string text_mode;
     std::vector<FoldResult> outer_folds;
-    double mean_accuracy = 0.0;
-    double std_accuracy = 0.0;
-    double ci95_accuracy = 0.0;
-    double mean_f1 = 0.0;
-    double std_f1 = 0.0;
-    double mean_precision = 0.0;
-    double mean_recall = 0.0;
-    double mean_eer = 0.0;
-    double std_eer = 0.0;
-    double ci95_eer = 0.0;
-    double mean_auc = 0.0;
-    double std_auc = 0.0;
+    double mean_accuracy    = 0.0;
+    double std_accuracy     = 0.0;
+    double ci95_accuracy    = 0.0;
+    double mean_f1          = 0.0;
+    double std_f1           = 0.0;
+    double mean_precision   = 0.0;
+    double mean_recall      = 0.0;
+    double mean_specificity = 0.0;
+    double std_specificity  = 0.0;
+    double mean_eer         = 0.0;
+    double std_eer          = 0.0;
+    double ci95_eer         = 0.0;
+    double mean_auc         = 0.0;
+    double std_auc          = 0.0;
 };
 
 // Train and evaluate the configured classifier using nested k-fold CV.

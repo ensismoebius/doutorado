@@ -18,16 +18,22 @@ struct FeatureSet
 };
 
 // Extract handcrafted features (DTWPT + descriptors) from a single signal.
-// signal: raw samples as doubles.
-// cfg: handcrafted extraction config.
+// signal:      raw samples as doubles.
+// cfg:         handcrafted extraction config.
+// sample_rate: Hz of the signal (22050 for voice, 800 for EEG).
+//              Used to map DTWPT sub-bands to Bark/MEL/LFCC frequency groups.
 // Returns a flat feature vector.
 auto extract_handcrafted(const std::vector<double>& signal,
-    const E05Config::HandcraftedConfig& cfg) -> std::vector<double>;
+    const E05Config::HandcraftedConfig& cfg,
+    double sample_rate) -> std::vector<double>;
 
 // Extract features from all samples using the configured strategy.
-// Returns one FeatureSet per (strategy × scale) combination evaluated.
+// modality: "voice" | "eeg" | "fused" — determines which tensor is processed
+//           and the sample rate passed to extract_handcrafted.
+// Returns one FeatureSet per strategy evaluated.
 auto extract_features(const E05DatasetView& view,
-    const E05Config::FeatureExtraction& cfg) -> std::vector<FeatureSet>;
+    const E05Config::FeatureExtraction& cfg,
+    const std::string& modality) -> std::vector<FeatureSet>;
 
 // Helper: compute ZCR for a signal.
 auto compute_zcr(const std::vector<double>& signal) -> double;
