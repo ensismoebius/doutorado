@@ -1,0 +1,79 @@
+
+# batch-metrics-aggregation
+
+Goal
+- Replace per-experiment ad-hoc metric collection with a standard accumulator that works consistently across all training loops and experiment types.
+
+Rules
+
+- RULE: ACCUMULATOR_PATTERN
+  DO: Use a `MetricAccumulator` object per epoch (not ad-hoc running sums). Reset it at the start of each epoch
+  AVOID: No manual `total_loss += batch_loss / n_batches` scatter across loop bodies
+- RULE: WEIGHTED_BY_BATCH_SIZE
+  DO: Accumulate loss weighted by batch size, not unweighted. The last batch may be smaller — unweighted averaging introduces bias
+  AVOID: No `mean_loss = sum_loss / n_batches`
+- RULE: VALIDITY_CHECK
+  DO: After each batch, assert that batch loss is finite and non-negative. Log `WARN` if loss increases by more than 10× between consecutive batches
+  AVOID: No silently accumulating garbage
+- RULE: UNIFIED_METRICS
+  DO: `EpochResult` must carry at minimum: `train_loss`, `val_loss`, `train_acc`, `val_acc`, `epoch_duration_ms`. Extending it is fine; removing fields is not without updating all consumers
+- RULE: CONFUSION_MATRIX_OPTIONAL
+  DO: When `compute_confusion_matrix: true` in config, the accumulator must collect predictions and targets for full confusion-matrix computation at epoch end
+  AVOID: No recomputing them in a separate pass
+- RULE: AUTOENCODER_MODE
+  DO: For autoencoder experiments, accumulate reconstruction loss only; accuracy is undefined and must not be reported as zero
+
+Validation
+
+- All experiments produce `EpochResult` with the same set of fields.
+- Loss is weighted by batch size (last batch size logged for verification).
+- `NaN` batch loss triggers `WARN`, not silent accumulation.
+
+Project Context (nn framework)
+
+**Exp04 CSV schema** (`results/article_*_comparative_metrics.csv`):
+- Columns: `model`, `architecture`, `fold`, `epoch`, `train_loss`, `val_loss`, `run_id`
+- One row per (model, architecture, fold, epoch)
+- `model` values: `"lstm-ae"`, `"snn-ae"`
+- `architecture` values: `"dense"`, `"conv1d"`, `"recurrent"`
+
+**`EpochResult` fields** (`src/core/training/EpochResult.hpp`): `train_loss`, `val_loss`, `epoch`, `fold_id`, `run_tag`
+
+**Results output path:** `results/` at repo root (relative to `software/nn/`). CSV files written by `ComparativeOutput.cpp`.
+
+**Wiki & knowledge graph:**
+- Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions
+- Graph output at `.wiki/graphify-out/` — 1926 nodes, 4987 edges, 203 communities
+- Find any symbol/concept:
+```bash
+python3 -c "
+import json,sys
+with open('.wiki/graphify-out/graph.json') as f: g=json.load(f)
+q=sys.argv[1].lower()
+for n in g['nodes']:
+    if q in n['id'].lower() or q in n.get('label','').lower():
+        print(n['id'],'|',n.get('source_file',''),'|',n.get('source_location',''))
+" <QUERY>
+```
+- Workflow: `GRAPH_REPORT.md` → community → node → `source_file` → read → follow edges
+
+Standard Accumulator Interface
+
+```cpp
+MetricAccumulator acc;
+for (auto& [x, y] : train_loader) {
+    auto loss = model.forward_loss(x, y);
+    auto preds = model.predict(x);
+    acc.update(loss.item(), preds, y, /*batch_size=*/x.rows());
+}
+EpochResult result = acc.finalize();
+// result.train_loss  ← weighted mean loss
+// result.train_acc   ← weighted mean accuracy
+// result.confusion   ← optional confusion matrix
+```
+
+Key Files to Fix
+
+- [src/core/training/EpochResult.hpp](src/core/training/EpochResult.hpp) — add `train_acc`, `val_acc`, `epoch_duration_ms`
+- [src/core/training/Trainer.hpp](src/core/training/Trainer.hpp) — replace ad-hoc accumulators with `MetricAccumulator`
+- [src/experiments/02/Experiment02Training.cpp](src/experiments/02/Experiment02Training.cpp) — uses different accumulation logic than Exp04
