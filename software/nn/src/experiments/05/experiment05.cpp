@@ -55,7 +55,7 @@ void run_once(const e05::E05Config& cfg)
 
     // ── 3. Feature extraction ────────────────────────────────────────────────
     auto feature_sets = e05::extract_features(
-        view, cfg.feature_extraction, cfg.dataset.modality);
+        view, cfg.feature_extraction, cfg.training, cfg.dataset.modality);
     pm.log("[E05] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
 
     // ── 4. Paraconsistent ranking ────────────────────────────────────────────

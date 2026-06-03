@@ -32,6 +32,7 @@ auto extract_handcrafted(const std::vector<double>& signal,
 // Returns one FeatureSet per strategy evaluated.
 auto extract_features(const E05DatasetView& view,
     const E05Config::FeatureExtraction& cfg,
+    const E05Config::Training& training,
     const std::string& modality) -> std::vector<FeatureSet>;
 
 // Helper: compute ZCR for a signal.

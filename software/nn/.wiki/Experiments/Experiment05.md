@@ -12,8 +12,8 @@ Experiment05 implements the full speaker-authentication pipeline for individuals
 
 The experiment consists of two stages:
 
-- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (LSTM-AE / SNN-AE)
-- **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested 5-fold cross-validation
+- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (LSTM-AE)
+- **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested or flat 5-fold cross-validation
 
 ---
 
@@ -66,11 +66,11 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 ### Learned Feature Extraction (Autoencoders)
 
-**LSTM-AE**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs the frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
+**LSTM-AE (implemented)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
-**SNN-AE**: deep spiking autoencoder. `LifBPTTImpl` layers in encoder and decoder. Latent vector = mean spike rate over time window. Surrogate gradient (exponential) enables end-to-end training. Lower energy footprint than LSTM-AE. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md).
+**SNN-AE (planned)**: deep spiking autoencoder variant documented in thesis context, not yet wired into Experiment05 executable path.
 
-Both autoencoders are trained in an unsupervised manner — no speaker labels used. The learned latent representations then feed the paraconsistent ranking and subsequently the classifier.
+Autoencoder training in Experiment05 is unsupervised (no speaker labels), and latent vectors feed paraconsistent ranking and downstream classifier.
 
 ### Authentication: Residual Network (RNN) and Deep SNN (DSNN)
 
@@ -81,7 +81,7 @@ $$\text{out} = F(x) + x$$
 
 where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss.
 
-**DSNN**: deep spiking network classifier. Multiple `LifBPTT` + `ThresholdDependentBatchNorm` stages. Output: spike-count per class, decoded by `SpikeCountLoss`. Naturally sparse and energy-efficient at inference. See [Layers](../Core/Layers.md).
+**DSNN**: deep spiking classifier implemented in Experiment05 as dense+LIF stack (Linear -> LIF -> ... -> Linear) trained with cross-entropy through surrogate gradients. Naturally sparse hidden activations and compatible with the same CV/output pipeline as RNN. See [Layers](../Core/Layers.md).
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -94,10 +94,12 @@ Both modes use the same architecture; only the data split changes. Text-independ
 
 ### Nested 5-Fold Cross-Validation
 
-To avoid optimistic bias from hyperparameter tuning on the test fold, a nested k-fold scheme is used:
+To avoid optimistic bias from hyperparameter tuning on the test fold, a nested k-fold scheme is used when `training.nested_cv=true`:
 
 - **Outer loop** (5 folds): hold out one fold as test set; report final metrics here
-- **Inner loop** (5 folds within training set): tune hyperparameters / early stopping
+- **Inner loop** (5 folds within training set): model selection by inner validation accuracy
+
+When `training.nested_cv=false`, flat grouped k-fold is used.
 
 See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 
@@ -148,10 +150,10 @@ src/experiments/05/
 │   ├── autoencoder-voice.json
 │   ├── autoencoder-fused.json
 │   └── article-full.json
-└── tests/
-    ├── e05_profile_audit_gtest.cpp        48 tests — all 8 profiles parse+validate
-    ├── e05_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
-    └── e05_classifiers_gtest.cpp          batch evaluate() + compute_aggregate_stats
+  └── tests/
+  ├── e05_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
+  ├── e05_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
+  └── e05_classifiers_gtest.cpp          batch evaluate() + aggregate stats + DSNN smoke path
 ```
 
 ### Profile schema
@@ -172,12 +174,12 @@ src/experiments/05/
   "feature_extraction": {
     "strategy": "handcrafted",  // "handcrafted" | "autoencoder"
     "handcrafted": {
-      "transform": "dtwpt",     // "dtwpt" | "lfcc" | "mfcc"
+      "transform": "dtwpt",     // only value accepted in current Experiment05 baseline
       "scale": "lfcc",          // "bark" | "mel" | "lfcc"
       "descriptors": ["energy", "zcr", "entropy", "teager", "jitter", "shimmer"]
     },
     "autoencoder": {
-      "model": "lstm-ae",       // "lstm-ae" | "snn-ae"
+      "model": "lstm-ae",       // only value accepted in current Experiment05 baseline
       "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
       "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"]
     }
@@ -221,12 +223,12 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
   ├── Phonated speech (22050 Hz WAV)
   │     └── preprocessing (normalization, pre-emphasis, windowing)
   │           ├── Handcrafted: DTWPT + ZCR + entropy + Teager + jitter/shimmer
-  │           └── Learned: LSTM-AE or SNN-AE → latent vectors
+  │           └── Learned: LSTM-AE latent vectors (SNN-AE planned)
   │
   └── Imagined speech EEG (800 Hz, 14 ch)
         └── preprocessing (bandpass 1–800 Hz, notch 60 Hz)
               ├── Handcrafted: DTWPT energy per EEG band (alpha/beta/theta)
-              └── Learned: LSTM-AE or SNN-AE → latent vectors
+              └── Learned: LSTM-AE latent vectors (SNN-AE planned)
                     │
                     ▼
             Paraconsistent evaluation (α/β → D_truth)
@@ -235,7 +237,7 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
                     │
                     ▼
             Classifier (RNN or DSNN)
-            Nested 5-fold cross-validation
+            Nested or flat 5-fold cross-validation
             Text-dependent + text-independent splits
                     │
                     ▼
@@ -307,12 +309,12 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 | `results/e05_*_metrics.csv` | Per-fold: accuracy, F1, precision, recall, EER, AUC, model_path |
 | `results/e05_*_paraconsistent.csv` | α, β, G₁, G₂, D_truth per (strategy × modality × scale) |
 | `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for all metrics + per-fold model paths |
-| `data/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
+| `results/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
 | `results/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
 
 ### Model checkpoints
 
-After each outer fold, `run_classifier()` serializes the trained `SimpleResNet` via `nn::io::save_state_dict(model.state_dict(), path)`. To reload:
+After each outer fold, `run_classifier()` serializes the trained classifier state dict (RNN or DSNN) via `nn::io::save_state_dict(model.state_dict(), path)`. To reload a RNN checkpoint:
 
 ```cpp
 #include "io/StateIO.hpp"
@@ -361,23 +363,23 @@ Path pattern: `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin`
 
 2. **Normalise before paraconsistent.** α and β are range-based; unnormalised features give meaningless D_truth values.
 
-2. **EEG and voice window sizes differ.** EEG at 800 Hz needs different window parameters than voice at 22050 Hz. Do not reuse the same `window_size` across modalities.
+3. **EEG and voice window sizes differ.** EEG at 800 Hz needs different window parameters than voice at 22050 Hz. Do not reuse the same `window_size` across modalities.
 
-3. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
+4. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
 
-4. **SNN autoencoder encoder spec must use `linear` only.** `conv1d`/`residual` entries in `encoder_layer_spec` throw `std::invalid_argument` at startup.
+5. **Autoencoder path currently supports `lstm-ae` only.** `feature_extraction.autoencoder.model` must be `lstm-ae`; `snn-ae` is planned.
 
-5. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
+6. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
 
-6. **Nested CV inner fold must not see test fold.** Hyperparameter selection (early stopping patience, lr) must use inner-loop val loss only.
+7. **Nested CV inner fold must not see test fold.** Hyperparameter selection must use inner-loop validation only.
 
-7. **EER is NaN with grouped CV + untrained model.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or when there is only one speaker in the test fold. This is correct behaviour — it surfaces degenerate folds rather than hiding them as 0 or 0.5. In production runs (15 speakers, k=5) every fold has ≥2 speakers with probes; NaN only appears in unit tests with tiny synthetic data. Pass `ClassificationEERScorer` to `run_classifier()` for ablation comparisons.
+8. **EER is NaN with grouped CV + degenerate fold.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or only one speaker in fold. This is correct behaviour.
 
-8. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. `AudioLoader` and `EEGLoader` detect the encoding by comparing `sqlite3_column_bytes()` against both `n * sizeof(float)` and `n * sizeof(double)`. If this check fails, the loader throws `"unexpected audio blob size"`. Do not assume the DB format — always let the loader detect it.
+9. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. Loaders detect encoding by byte-size checks; mismatches throw explicit runtime errors.
 
-8. **`nn::Tensor` default is a 0-dim scalar** (`size()=1, rows()=0, cols()=0`). Guard audio/EEG samples with `rows() > 0 && cols() > 0`, not `size() > 0`.
+10. **`nn::Tensor` default is a 0-dim scalar** (`size()=1, rows()=0, cols()=0`). Guard audio/EEG samples with `rows() > 0 && cols() > 0`, not `size() > 0`.
 
-9. **`discoverSubjects` regex must have a capturing group.** Use `"^S(\\d+)$"` not `".*"`. Without the group `regex_groups_matches[1]` throws `std::out_of_range` at runtime.
+11. **`discoverSubjects` regex must have a capturing group.** Use `"^S(\\d+)$"` not `".*"`.
 
 ---
 

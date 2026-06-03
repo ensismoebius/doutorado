@@ -4,7 +4,12 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
+#include "core/training/Trainer.hpp"
+#include "core/training/TrainerConfig.hpp"
+#include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "wavelet/Types.hpp"
 #include "wavelet/WaveletTransformResults.hpp"
@@ -260,10 +265,54 @@ double modality_sample_rate(const std::string& modality)
     if (modality == "eeg") return 800.0;
     return 22050.0; // "voice" and "fused" use voice rate
 }
+
+bool is_linear_spec(const std::string& s)
+{
+    return s.rfind("linear:", 0) == 0;
+}
+
+int extract_linear_dim(const std::string& spec, int fallback)
+{
+    if (!is_linear_spec(spec)) return fallback;
+    const auto first_colon = spec.find(':');
+    const auto second_colon = spec.find(':', first_colon + 1);
+    const std::string token = spec.substr(first_colon + 1, second_colon - first_colon - 1);
+    if (token == "output" || token == "N_speakers") return fallback;
+    try { return std::stoi(token); } catch (...) { return fallback; }
+}
+
+int first_encoder_dim(const std::vector<std::string>& spec, int fallback)
+{
+    for (const auto& s : spec)
+    {
+        const int dim = extract_linear_dim(s, fallback);
+        if (dim != fallback) return dim;
+    }
+    return fallback;
+}
+
+int last_encoder_dim(const std::vector<std::string>& spec, int fallback)
+{
+    for (auto it = spec.rbegin(); it != spec.rend(); ++it)
+    {
+        const int dim = extract_linear_dim(*it, fallback);
+        if (dim != fallback) return dim;
+    }
+    return fallback;
+}
+
+nn::Tensor vec_to_column_tensor(const std::vector<double>& sig)
+{
+    nn::Tensor t(static_cast<nn::Index>(sig.size()), 1);
+    for (nn::Index i = 0; i < static_cast<nn::Index>(sig.size()); ++i)
+        t.at(i, 0) = static_cast<float>(sig[static_cast<size_t>(i)]);
+    return t;
+}
 } // namespace
 
 auto extract_features(const E05DatasetView& view,
     const E05Config::FeatureExtraction& cfg,
+    const E05Config::Training& training,
     const std::string& modality) -> std::vector<FeatureSet>
 {
     std::vector<FeatureSet> result;
@@ -332,9 +381,86 @@ auto extract_features(const E05DatasetView& view,
     }
     else if (cfg.strategy == "autoencoder")
     {
-        throw std::runtime_error(
-            "E05FeatureExtraction: autoencoder feature learning is not yet implemented. "
-            "Use strategy=\"handcrafted\" or implement autoencoder training.");
+        if (cfg.autoencoder.model != "lstm-ae")
+        {
+            throw std::runtime_error(
+                "E05FeatureExtraction: only lstm-ae is implemented for autoencoder feature learning");
+        }
+
+        std::vector<std::vector<double>> raw_signals;
+        raw_signals.reserve(view.samples.size());
+
+        size_t max_len = 0;
+        for (const auto& sample : view.samples)
+        {
+            std::vector<double> sig;
+            if (modality == "eeg")
+            {
+                if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
+                    sig = tensor_to_vec(sample.eeg);
+            }
+            else if (modality == "voice")
+            {
+                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
+                    sig = tensor_to_vec(sample.audio);
+            }
+            else
+            {
+                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
+                    sig = tensor_to_vec(sample.audio);
+                else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
+                    sig = tensor_to_vec(sample.eeg);
+            }
+
+            if (sig.empty())
+                sig.assign(256, 0.0);
+
+            max_len = std::max(max_len, sig.size());
+            raw_signals.push_back(std::move(sig));
+        }
+
+        if (max_len == 0)
+            throw std::runtime_error("E05FeatureExtraction: no valid raw signals for autoencoder");
+
+        std::vector<nn::Tensor> train_samples;
+        train_samples.reserve(raw_signals.size());
+        for (auto& sig : raw_signals)
+        {
+            sig.resize(max_len, 0.0);
+            train_samples.push_back(vec_to_column_tensor(sig));
+        }
+
+        const int hidden_size = first_encoder_dim(cfg.autoencoder.encoder_layer_spec, 64);
+        const int latent_size = last_encoder_dim(cfg.autoencoder.encoder_layer_spec, 16);
+        const int num_layers = std::max<int>(1, static_cast<int>(cfg.autoencoder.encoder_layer_spec.size() / 2));
+
+        nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
+        ae_cfg.input_size = 1;
+        ae_cfg.seq_len = static_cast<int>(max_len);
+        ae_cfg.hidden_size = hidden_size;
+        ae_cfg.latent_size = latent_size;
+        ae_cfg.num_layers = num_layers;
+
+        nn::models::lstm::LSTMAutoencoder model(ae_cfg);
+
+        nn::training::TrainerConfig trainer_cfg;
+        trainer_cfg.epochs = training.epochs;
+        trainer_cfg.learning_rate = training.learning_rate;
+        trainer_cfg.batch_size = training.samples_per_batch;
+
+        nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
+        (void) trainer.fit_autoencoder(train_samples);
+
+        FeatureSet fs;
+        fs.label = "autoencoder-lstm";
+        fs.vectors.reserve(train_samples.size());
+        for (const auto& sample : train_samples)
+        {
+            auto latent = model.encode(sample, false);
+            fs.vectors.push_back(tensor_to_vec(latent));
+        }
+
+        result.push_back(std::move(fs));
     }
     else
     {

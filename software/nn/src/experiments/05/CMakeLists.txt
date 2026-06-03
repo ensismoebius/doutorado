@@ -31,6 +31,7 @@ target_link_libraries(experiment05_lib
         optimizers
         serialization
         nn_progress
+        lstm_models
         nlohmann_json_wrapper
         matioCpp
         cnpy-static

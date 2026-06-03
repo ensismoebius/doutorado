@@ -2,6 +2,8 @@
 
 **Tese de doutorado — experimento principal.**
 
+Auditoria de aderencia implementacao vs documentos: [GAP_ANALYSIS.md](./GAP_ANALYSIS.md).
+
 - **Tese:** Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela *Imagined Speech*
 - **Autor:** André Furlan — UNESP
 - **Orientador:** Prof. Dr. Eng. Rodrigo Capobianco Guido
@@ -20,6 +22,145 @@ oriundas da voz prejudicada.
 Esta implementação cobre os experimentos **E3** (extração de características) e **E4**
 (autenticação) do projeto de pesquisa, operando sobre a base de dados pública
 `10.1117/12.2255697`.
+
+---
+
+## Passo a passo para concluir a tese
+
+Use esta sequencia como plano de execucao. Cada etapa tem entregavel e criterio de pronto.
+
+### 1) Congelar escopo cientifico
+
+- [ ] Definir pergunta final, hipoteses H1/H2/H3 e contribuicoes declaradas da tese.
+- [x] Escopo atual de classificadores executaveis: `RNN + DSNN`.
+- [ ] Decidir escopo final de E3 automatico: implementar `LSTM-AE/SNN-AE` ou registrar como trabalho futuro.
+
+**Entregavel:** secao de escopo final no capitulo de metodologia + lista de contribuicoes.
+
+**Pronto quando:** nao existir item "talvez" no escopo experimental.
+
+### 2) Fechar base de dados e protocolo
+
+- [ ] Consolidar inventario da base publica usada (`10.1117/12.2255697`): sujeitos, modalidades, filtros, exclusoes.
+- [ ] Registrar claramente no texto se base propria com DLS entrou ou nao nos resultados desta versao.
+- [ ] Congelar regras de split: `text-dependent` e `text-independent`.
+
+**Entregavel:** tabela de dados no capitulo de resultados + subsecao de protocolo replicavel.
+
+**Pronto quando:** qualquer leitor consegue reproduzir o mesmo conjunto de amostras.
+
+### 3) Fechar implementacao do Experimento 05
+
+- [ ] Garantir que todos os perfis JSON usados no artigo/tese parseiam e validam.
+- [ ] Se escopo incluir E3 automatico: implementar treino e extracao latente real (hoje ainda marcador).
+- [x] Caminho `cfg.classifier.type = "dsnn"` implementado e coberto por teste.
+- [ ] Manter testes de regressao para feature extraction, classifier e agregacao de metricas.
+
+**Entregavel:** codigo compilando + testes `e05_*` passando.
+
+**Pronto quando:** `ctest -R e05 --output-on-failure` sem falhas.
+
+### 4) Rodar matriz experimental completa
+
+- [ ] Definir matriz minima: `voice`, `eeg`, `fused` x `dependent`, `independent` x estrategias de features escolhidas.
+- [ ] Rodar com `k_folds=5`, sementes fixas e `repeats` definido no escopo.
+- [ ] Salvar todos os artefatos em `results/` (CSV, JSON, DAT, modelos por dobra).
+
+**Entregavel:** pacote de resultados finais por `run_tag`.
+
+**Pronto quando:** nenhuma combinacao da matriz faltar.
+
+### 5) Fazer auditoria de qualidade dos resultados
+
+- [ ] Verificar consistencia entre `metrics.csv`, `summary.json` e `comparison.dat`.
+- [ ] Confirmar medias, desvios e IC95 para acuracia e EER.
+- [ ] Revisar sinais de vazamento de dados (split por locutor, frases disjuntas no modo independente).
+
+**Entregavel:** checklist de validacao assinado no repositorio (arquivo markdown em `results/`).
+
+**Pronto quando:** sem inconsistencias numericas entre arquivos.
+
+### 6) Gerar figuras e tabelas finais da tese
+
+- [ ] Tabela principal: comparacao por modalidade (voice/eeg/fused) e por modo de texto.
+- [ ] Figura principal: barras de `accuracy`, `F1`, `EER`, `AUC` com erro (dp ou IC95).
+- [ ] Tabela de ranking EPC: `alpha`, `beta`, `g1`, `g2`, `d_truth`.
+
+**Entregavel:** figuras e tabelas prontas em `documentation/00-thesis/monography/`.
+
+**Pronto quando:** todas as figuras citadas no texto estao geradas e versionadas.
+
+### 7) Escrever capitulo 9 (Testes e Resultados)
+
+- [ ] Descrever protocolo experimental completo (dados, preprocessamento, modelos, metricas).
+- [ ] Inserir resultados por dobra e agregados, com interpretacao critica.
+- [ ] Incluir comparacao com estado da arte e limites do estudo.
+
+**Entregavel:** `chapters/09-testsAndResults.tex` completo.
+
+**Pronto quando:** capitulo compila sem TODO/FIXME e sem referencias quebradas.
+
+### 8) Escrever capitulo 10 (Conclusoes)
+
+- [ ] Responder explicitamente cada objetivo especifico da tese.
+- [ ] Declarar contribuicoes tecnicas e cientificas validadas por dados.
+- [ ] Listar ameacas a validade e trabalhos futuros concretos.
+
+**Entregavel:** `chapters/10-conclusions.tex` completo.
+
+**Pronto quando:** conclusoes batem 1:1 com resultados apresentados.
+
+### 9) Fechar bibliografia e citacoes
+
+- [ ] Revisar `bibliography.bib` para DOI, ano, venue e duplicatas.
+- [ ] Garantir que toda afirmacao tecnica relevante tenha citacao.
+- [ ] Remover referencias nao usadas.
+
+**Entregavel:** bibliografia final limpa.
+
+**Pronto quando:** build LaTeX sem avisos graves de citacao.
+
+### 10) Atualizar arquivo principal da monografia
+
+- [ ] Descomentar inclusoes finais em `monografia.tex`:
+  - `\include{chapters/09-testsAndResults}`
+  - `\include{chapters/10-conclusions}`
+- [ ] Validar sumario, lista de figuras/tabelas e apendices.
+
+**Entregavel:** PDF final completo da tese.
+
+**Pronto quando:** `monografia.pdf` compila do inicio ao fim sem erro.
+
+### 11) Preparar pacote de reproducibilidade
+
+- [ ] Incluir comandos de build/run exatos e perfis usados.
+- [ ] Congelar seeds, versoes e hash de commit da rodada final.
+- [ ] Organizar resultados finais por pasta de submissao/defesa.
+
+**Entregavel:** pacote replicavel para banca e publicacoes.
+
+**Pronto quando:** terceiro reproduz resultados principais com instrucoes do repositorio.
+
+### 12) Preparar defesa e submissao
+
+- [ ] Gerar narrativa de defesa: problema, metodo, resultados, contribuicoes.
+- [ ] Criar 3 blocos de evidencias: tecnica, estatistica, impacto pratico.
+- [ ] Preparar versao curta (artigo) e versao longa (tese).
+
+**Entregavel:** slide deck + roteiro + tese final.
+
+**Pronto quando:** historia cientifica fecha sem lacunas entre objetivo, metodo e resultado.
+
+---
+
+## Ordem minima recomendada (execucao rapida)
+
+1. Fechar escopo (Passos 1-3).
+2. Rodar matriz final e auditoria (Passos 4-5).
+3. Gerar tabelas/figuras (Passo 6).
+4. Escrever capitulos 9 e 10 (Passos 7-8).
+5. Fechar bibliografia + build final (Passos 9-10).
+6. Empacotar reproducibilidade e defesa (Passos 11-12).
 
 ---
 
@@ -45,9 +186,9 @@ em `handcrafted.descriptors`:
 | Shimmer (`shimmer`) | $\frac{\overline{|A_i - A_{i+1}|}}{\bar{A}}$ (amplitude a amplitude, baseado em picos) |
 
 O campo `handcrafted.scale` é armazenado como sufixo no rótulo do conjunto de características
-(`"handcrafted-<scale>"`). **Ele não altera o algoritmo de extração** — serve para identificar
-a rodada no CSV/JSON/DAT de saída. As escalas previstas no manuscrito (Bark, MEL, LFCC) são
-comparadas rodando o experimento com diferentes perfis.
+(`"handcrafted-<scale>"`). As escalas Bark/MEL/LFCC **alteram o agrupamento espectral das
+sub-bandas DTWPT** antes do cálculo dos descritores, e também identificam a rodada no
+CSV/JSON/DAT de saída.
 
 O sinal processado por amostra é determinado por `dataset.modality`:
 - `"voice"` → tensor de áudio da amostra (`sample.audio`)
@@ -59,9 +200,10 @@ paralelizada por OpenMP (`schedule(dynamic,4)`) sobre as amostras.
 
 **Método automatizado (*feature learning*)**
 
-Previstos autoencoders LSTM-AE e SNN-AE para extração de VsCs latentes. **Ainda não
-implementado neste binário.** O perfil retorna um `FeatureSet` vazio (marcador), que é
-ignorado pela etapa de paraconsistência e pela classificação.
+Implementado com **LSTM-AE** (`feature_extraction.autoencoder.model = "lstm-ae"`).
+Cada amostra é padronizada para comprimento fixo por zero-padding, o autoencoder é treinado
+com MSE via `Trainer::fit_autoencoder`, e o vetor latente de `encode()` é usado como VsC.
+`snn-ae` permanece fora de escopo neste binário.
 
 ### EPC — Engenharia Paraconsistente de Características
 
@@ -94,15 +236,15 @@ Entrada (feat_dim)
 Implementado como `SimpleResNetImpl<nn::Backend>` com `hidden_dim=128`, `depth=2`.
 Perda: entropia cruzada (`CrossEntropyLossImpl`). Otimizador: Adam via `Trainer`.
 
-> **DSNN (Deep Spiking Neural Network)** está previsto no manuscrito como segunda opção
-> de classificador (`cfg.classifier.type = "dsnn"`). **Ainda não implementado.**
+> **DSNN (Deep Spiking Neural Network)** implementado como classificador alternativo
+> (`cfg.classifier.type = "dsnn"`) no mesmo pipeline de validacao cruzada.
 
 **Validação cruzada**
 
 `GroupKFoldPolicy` com `k_folds` dobras garante que todas as locuções de um mesmo locutor
-fiquem na mesma dobra, evitando vazamento de dados entre treino e teste. A dobra interna
-(primeira divisão interna da dobra externa) fornece o conjunto de validação para a parada
-antecipada.
+fiquem na mesma dobra, evitando vazamento de dados entre treino e teste. No modo `nested_cv`,
+todas as dobras internas da dobra externa são percorridas; o modelo com melhor acurácia de
+validação interna é selecionado para avaliação na dobra externa.
 
 Divisão de texto dentro de cada dobra:
 - `"dependent"` — 80 % das locuções para treino, 20 % para teste (embaralhado).
@@ -117,10 +259,10 @@ Divisão de texto dentro de cada dobra:
 | F1 macro | ✓ | Média não-ponderada de 2PR/(P+R) por classe |
 | Precisão macro | ✓ | Média de TP/(TP+FP) por classe |
 | Recall / Sensibilidade | ✓ | Média de TP/(TP+FN) por classe |
+| Especificidade | ✓ | Média de TN/(TN+FP) por classe |
 | EER | ✓ | Cruzamento FAR=FRR (`GenuineImpostorEERScorer`: similaridade cosseno genuíno/impostor) |
 | AUC-ROC | ✓ | P(score_genuíno > score_impostor) — estimador Wilcoxon–Mann–Whitney |
-| MSE | — | Usado no treino de autoencoders (E3 automático, não implementado ainda) |
-| Especificidade | — | Planejada |
+| MSE | ✓ (somente E3 autoencoder) | Função de reconstrução no treino LSTM-AE |
 
 Agregação sobre dobras externas: média, desvio padrão populacional, IC95 % (1,96 × dp / √n)
 para acurácia e EER; média e dp para F1, precisão, recall e AUC.
@@ -183,15 +325,15 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "max_samples": 0            // 0 = ilimitado; valor pequeno (ex.: 20) para depuração
   },
   "feature_extraction": {
-    "strategy": "handcrafted",  // "handcrafted" | "autoencoder" (autoencoder = marcador, não treinado)
+    "strategy": "handcrafted",  // "handcrafted" | "autoencoder"
     "handcrafted": {
       "transform": "dtwpt",     // único valor implementado
-      "scale": "bark",          // "bark" | "mel" | "lfcc" — apenas rótulo, não altera o algoritmo
+      "scale": "bark",          // "bark" | "mel" | "lfcc" — altera agrupamento das sub-bandas
       "descriptors": ["energy", "zcr", "entropy", "teager"]
                                 // opcionais: "jitter", "shimmer"
     },
     "autoencoder": {
-      "model": "lstm-ae",       // "lstm-ae" | "snn-ae" — não treinado neste binário
+      "model": "lstm-ae",       // único valor aceito neste binário
       "encoder_layer_spec": [],
       "decoder_layer_spec": []
     }
@@ -200,8 +342,8 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "enabled": true             // calcula D_verdade antes da classificação
   },
   "classifier": {
-    "type": "rnn",              // "rnn" implementado; "dsnn" planejado
-    "layer_spec": [],           // não parseado; arquitetura fixada: Linear→ReLU→2×Residual→Linear
+    "type": "rnn",              // "rnn" | "dsnn" implementados
+    "layer_spec": [],            // validado (primeiro linear, residual presente, último linear:N_speakers)
     "text_mode": "independent"  // "dependent" | "independent"
   },
   "training": {
@@ -210,7 +352,7 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "samples_per_batch": 32,
     "early_stop_patience": 10,  // 0 = desativado
     "k_folds": 5,
-    "nested_cv": true           // não parseado; validação cruzada aninhada sempre usada
+    "nested_cv": true           // parseado; usa nested CV quando true, flat K-fold quando false
   }
 }
 ```
@@ -229,7 +371,7 @@ Base pública 10.1117/12.2255697
   ┌────────────────────────────────────────┐
   │  E3 — Extração de Características (EC) │
   │  DTWPT + descritores (handcrafted)      │
-  │  OU autoencoder latente (planejado)     │
+  │  OU autoencoder latente (LSTM-AE)       │
   └────────────────────┬───────────────────┘
                        │  VsCs por amostra
           ▼
@@ -251,7 +393,7 @@ Base pública 10.1117/12.2255697
           Métricas: acurácia, F1, precisão, recall,
                     EER, AUC-ROC por dobra + agregados
 
-* DSNN planejado; apenas RNN implementado atualmente.
+* DSNN implementado junto do baseline RNN.
 ```
 
 ---
@@ -295,7 +437,7 @@ Base pública 10.1117/12.2255697
 │   ├── handcrafted-voice.json            ← DTWPT na voz (scale=bark)
 │   ├── handcrafted-eeg.json              ← DTWPT no EEG
 │   ├── handcrafted-fused.json            ← DTWPT na voz+EEG
-│   ├── autoencoder-voice.json            ← marcador (autoencoder não treinado)
+│   ├── autoencoder-voice.json            ← LSTM-AE na voz
 │   ├── autoencoder-eeg.json
 │   ├── autoencoder-fused.json
 │   └── article-full.json                 ← rodada completa de comparação

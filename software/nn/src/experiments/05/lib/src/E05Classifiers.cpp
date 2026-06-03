@@ -1,17 +1,23 @@
 #include "E05Classifiers.hpp"
 
 #include <cmath>
+#include <algorithm>
+#include <iterator>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <map>
 
 #include "Backend.hpp"
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "initializers/kaiming_snn.hpp"
 #include "io/StateIO.hpp"
+#include "layers/dense/Linear.hpp"
 #include "layers/losses/CrossEntropyLoss.hpp"
 #include "layers/residual/SimpleResNet.hpp"
+#include "layers/spiking/Lif.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/eer_scorer.hpp"
 #include "statistics/kfold.hpp"
@@ -25,6 +31,27 @@ namespace e05
 namespace
 {
 
+    static auto intersect_indices(const std::vector<size_t>& a, const std::vector<size_t>& b)
+        -> std::vector<size_t>
+    {
+        std::vector<size_t> out;
+        out.reserve(std::min(a.size(), b.size()));
+        std::set_intersection(a.begin(), a.end(), b.begin(), b.end(), std::back_inserter(out));
+        return out;
+    }
+
+    static auto make_pairs_from_indices(const nn::Tensor& inputs,
+        const nn::Tensor& targets,
+        const std::vector<size_t>& indices) -> std::vector<std::pair<nn::Tensor, nn::Tensor>>
+    {
+        std::vector<std::pair<nn::Tensor, nn::Tensor>> pairs;
+        pairs.reserve(indices.size());
+        for (size_t idx : indices)
+            pairs.emplace_back(inputs.row(static_cast<nn::Index>(idx)),
+                targets.row(static_cast<nn::Index>(idx)));
+        return pairs;
+    }
+
 struct EvalMetrics
 {
     double accuracy    = 0.0;
@@ -36,8 +63,154 @@ struct EvalMetrics
     double auc         = 0.0;
 };
 
+// Lightweight DSNN classifier for E05: Linear -> LIF -> (Linear -> LIF)* -> Linear.
+class E05DsnnClassifier : public Module<nn::Backend>
+{
+public:
+    using Tensor = nn::Tensor;
+
+    E05DsnnClassifier(int input_dim, int hidden_dim, int output_dim, int depth,
+                      std::uint32_t seed)
+        : fc_in_(std::make_shared<LinearImpl<nn::Backend>>(input_dim, hidden_dim)),
+          lif_in_(std::make_shared<LifImpl<nn::Backend>>()),
+          fc_out_(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, output_dim))
+    {
+        const int n_blocks = std::max(0, depth - 1);
+        hidden_fc_.reserve(static_cast<size_t>(n_blocks));
+        hidden_lif_.reserve(static_cast<size_t>(n_blocks));
+        for (int i = 0; i < n_blocks; ++i)
+        {
+            hidden_fc_.push_back(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, hidden_dim));
+            hidden_lif_.push_back(std::make_shared<LifImpl<nn::Backend>>());
+        }
+
+        kaimingSNNInitializer(fc_in_, seed + 1U, "e05_dsnn");
+        kaimingSNNInitializer(fc_out_, seed + 2U, "e05_dsnn");
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+            kaimingSNNInitializer(hidden_fc_[i], seed + 100U + static_cast<unsigned int>(i), "e05_dsnn");
+    }
+
+    auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
+    {
+        reset_state();
+        Tensor h = fc_in_->forward(input, requires_grad);
+        h = lif_in_->forward(h, requires_grad);
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            h = hidden_fc_[i]->forward(h, requires_grad);
+            h = hidden_lif_[i]->forward(h, requires_grad);
+        }
+        return fc_out_->forward(h, requires_grad);
+    }
+
+    auto backward(const Tensor& grad_output) -> Tensor override
+    {
+        Tensor g = fc_out_->backward(grad_output);
+        for (size_t i = hidden_fc_.size(); i-- > 0;)
+        {
+            g = hidden_lif_[i]->backward(g);
+            g = hidden_fc_[i]->backward(g);
+        }
+        g = lif_in_->backward(g);
+        return fc_in_->backward(g);
+    }
+
+    [[nodiscard]] auto params() -> std::span<Tensor*> override
+    {
+        param_ptrs_.clear();
+        auto in_p = fc_in_->params();
+        param_ptrs_.insert(param_ptrs_.end(), in_p.begin(), in_p.end());
+
+        auto lif_in_p = lif_in_->params();
+        param_ptrs_.insert(param_ptrs_.end(), lif_in_p.begin(), lif_in_p.end());
+
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            auto p_fc = hidden_fc_[i]->params();
+            param_ptrs_.insert(param_ptrs_.end(), p_fc.begin(), p_fc.end());
+            auto p_lif = hidden_lif_[i]->params();
+            param_ptrs_.insert(param_ptrs_.end(), p_lif.begin(), p_lif.end());
+        }
+
+        auto out_p = fc_out_->params();
+        param_ptrs_.insert(param_ptrs_.end(), out_p.begin(), out_p.end());
+        return {param_ptrs_.data(), param_ptrs_.size()};
+    }
+
+    auto state_dict() const -> std::map<std::string, Tensor> override
+    {
+        std::map<std::string, Tensor> out;
+        auto merge = [&out](const std::string& prefix, const std::map<std::string, Tensor>& sd)
+        {
+            for (const auto& kv : sd)
+                out[prefix + kv.first] = kv.second;
+        };
+
+        merge("fc_in.", fc_in_->state_dict());
+        merge("lif_in.", lif_in_->state_dict());
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            merge("hidden_fc." + std::to_string(i) + ".", hidden_fc_[i]->state_dict());
+            merge("hidden_lif." + std::to_string(i) + ".", hidden_lif_[i]->state_dict());
+        }
+        merge("fc_out.", fc_out_->state_dict());
+        return out;
+    }
+
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
+    {
+        auto load_prefix = [&sd](const std::string& prefix, auto& layer)
+        {
+            std::map<std::string, Tensor> sub;
+            for (const auto& kv : sd)
+            {
+                if (kv.first.rfind(prefix, 0) == 0)
+                    sub[kv.first.substr(prefix.size())] = kv.second;
+            }
+            layer->load_state_dict(sub);
+        };
+
+        load_prefix("fc_in.", fc_in_);
+        load_prefix("lif_in.", lif_in_);
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            load_prefix("hidden_fc." + std::to_string(i) + ".", hidden_fc_[i]);
+            load_prefix("hidden_lif." + std::to_string(i) + ".", hidden_lif_[i]);
+        }
+        load_prefix("fc_out.", fc_out_);
+    }
+
+    void train(bool on) override
+    {
+        fc_in_->train(on);
+        lif_in_->train(on);
+        for (size_t i = 0; i < hidden_fc_.size(); ++i)
+        {
+            hidden_fc_[i]->train(on);
+            hidden_lif_[i]->train(on);
+        }
+        fc_out_->train(on);
+    }
+
+    void reset_state() override
+    {
+        lif_in_->reset_state();
+        for (auto& l : hidden_lif_)
+            l->reset_state();
+    }
+
+private:
+    std::shared_ptr<LinearImpl<nn::Backend>> fc_in_;
+    std::shared_ptr<LifImpl<nn::Backend>> lif_in_;
+    std::vector<std::shared_ptr<LinearImpl<nn::Backend>>> hidden_fc_;
+    std::vector<std::shared_ptr<LifImpl<nn::Backend>>> hidden_lif_;
+    std::shared_ptr<LinearImpl<nn::Backend>> fc_out_;
+    std::vector<Tensor*> param_ptrs_;
+};
+
 // Single batched forward on (N, D); computes all metrics.
-EvalMetrics evaluate(SimpleResNetImpl<nn::Backend>& model,
+template <typename ModelType>
+EvalMetrics evaluate(ModelType& model,
     const std::vector<std::vector<double>>& inputs,
     const std::vector<int>& labels,
     int n_classes,
@@ -202,10 +375,10 @@ auto run_classifier(const E05DatasetView& view,
     if (feature_vectors.size() != view.samples.size())
         throw std::invalid_argument("E05Classifiers: features/samples size mismatch");
 
-    if (cfg.classifier.type != "rnn")
+    if (cfg.classifier.type != "rnn" && cfg.classifier.type != "dsnn")
         throw std::invalid_argument(
             "E05Classifiers: classifier type \"" + cfg.classifier.type +
-            "\" is not implemented. Supported: \"rnn\".");
+            "\" is not implemented. Supported: \"rnn\", \"dsnn\".");
 
     const int n_speakers = view.n_subjects;
     const int feat_dim   = static_cast<int>(feature_vectors[0].size());
@@ -267,6 +440,13 @@ auto run_classifier(const E05DatasetView& view,
         }
     }
 
+    const auto text_split = make_text_split(view.samples, cfg.classifier.text_mode,
+        cfg.experiment.seed);
+    std::vector<size_t> text_train_indices = text_split.train_indices;
+    std::vector<size_t> text_test_indices  = text_split.test_indices;
+    std::sort(text_train_indices.begin(), text_train_indices.end());
+    std::sort(text_test_indices.begin(), text_test_indices.end());
+
     // ── Nested CV ──────────────────────────────────────────────────────────
     if (cfg.training.nested_cv)
     {
@@ -281,59 +461,154 @@ auto run_classifier(const E05DatasetView& view,
         {
             const auto& outer = nested_splits[outer_idx];
 
+            std::vector<size_t> outer_train_indices;
+            outer_train_indices.reserve(view.samples.size() - outer.test_indices.size());
+            for (size_t i = 0; i < view.samples.size(); ++i)
+            {
+                if (!std::binary_search(outer.test_indices.begin(), outer.test_indices.end(), i))
+                    outer_train_indices.push_back(i);
+            }
+
+            const auto outer_test_indices = intersect_indices(outer.test_indices, text_test_indices);
+
+            if (outer_train_indices.empty() || outer_test_indices.empty())
+                continue;
+
             std::vector<std::vector<double>> test_feats;
             std::vector<int> test_labels;
-            for (size_t idx : outer.test_indices)
+            for (size_t idx : outer_test_indices)
             {
                 test_feats.push_back(feature_vectors[idx]);
                 test_labels.push_back(labels[idx]);
             }
 
-            SimpleResNetImpl<nn::Backend> model(feat_dim, hidden_dim, n_speakers, depth);
-            CrossEntropyLossImpl<nn::Backend> loss_fn;
-            nn::training::Trainer<SimpleResNetImpl<nn::Backend>,
-                CrossEntropyLossImpl<nn::Backend>> trainer(model, trainer_cfg, loss_fn);
-
-            const int fold_num = static_cast<int>(outer_idx) + 1;
-            auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
-                "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
-                " | " + feature_label);
-            prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
-            trainer.add_callback(prog_cb);
-
-            if (global_bar_id != 0)
-            {
-                trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
-                    global_bar_id, static_cast<float>(outer_idx)));
-            }
-
-            if (cfg.training.early_stop_patience > 0)
-            {
-                auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
-                    cfg.training.early_stop_patience);
-                trainer.add_callback(stopper);
-            }
-
-            using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
-            std::vector<SamplePair> train_pairs;
-            train_pairs.reserve(outer.inner_splits[0].train_indices.size());
-            for (size_t idx : outer.inner_splits[0].train_indices)
-                train_pairs.emplace_back(all_inputs.row(static_cast<nn::Index>(idx)),
-                    all_targets.row(static_cast<nn::Index>(idx)));
-
-            std::vector<SamplePair> val_pairs;
-            val_pairs.reserve(outer.inner_splits[0].test_indices.size());
-            for (size_t idx : outer.inner_splits[0].test_indices)
-                val_pairs.emplace_back(all_inputs.row(static_cast<nn::Index>(idx)),
-                    all_targets.row(static_cast<nn::Index>(idx)));
-
-            trainer.fit_supervised(train_pairs, val_pairs);
-
             statistics::GenuineImpostorEERScorer default_scorer;
             const statistics::IEERScorer& scorer =
                 (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
 
-            auto em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+            float best_val_accuracy = -1.0f;
+            std::map<std::string, nn::Tensor> best_state;
+
+            for (const auto& inner_ref : outer.inner_splits)
+            {
+                const auto inner_train_indices =
+                    intersect_indices(inner_ref.train_indices, outer_train_indices);
+                const auto inner_val_indices =
+                    intersect_indices(inner_ref.test_indices, outer_train_indices);
+
+                if (inner_train_indices.empty() || inner_val_indices.empty())
+                    continue;
+
+                auto train_pairs =
+                    make_pairs_from_indices(all_inputs, all_targets, inner_train_indices);
+                auto val_pairs =
+                    make_pairs_from_indices(all_inputs, all_targets, inner_val_indices);
+
+                std::vector<std::vector<double>> val_feats;
+                std::vector<int> val_labels;
+                val_feats.reserve(inner_val_indices.size());
+                val_labels.reserve(inner_val_indices.size());
+                for (size_t idx : inner_val_indices)
+                {
+                    val_feats.push_back(feature_vectors[idx]);
+                    val_labels.push_back(labels[idx]);
+                }
+
+                EvalMetrics val_metrics;
+                if (cfg.classifier.type == "rnn")
+                {
+                    SimpleResNetImpl<nn::Backend> candidate_model(feat_dim, hidden_dim, n_speakers, depth);
+                    CrossEntropyLossImpl<nn::Backend> loss_fn;
+                    nn::training::Trainer<SimpleResNetImpl<nn::Backend>,
+                        CrossEntropyLossImpl<nn::Backend>> trainer(candidate_model, trainer_cfg, loss_fn);
+
+                    const int fold_num = static_cast<int>(outer_idx) + 1;
+                    auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
+                        "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
+                        " | " + feature_label);
+                    prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
+                    trainer.add_callback(prog_cb);
+
+                    if (global_bar_id != 0)
+                    {
+                        trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                            global_bar_id, static_cast<float>(outer_idx)));
+                    }
+
+                    if (cfg.training.early_stop_patience > 0)
+                    {
+                        auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
+                            cfg.training.early_stop_patience);
+                        trainer.add_callback(stopper);
+                    }
+
+                    trainer.fit_supervised(train_pairs, val_pairs);
+                    val_metrics = evaluate(candidate_model, val_feats, val_labels, n_speakers, scorer);
+
+                    if (val_metrics.accuracy > best_val_accuracy)
+                    {
+                        best_val_accuracy = val_metrics.accuracy;
+                        best_state = candidate_model.state_dict();
+                    }
+                }
+                else
+                {
+                    E05DsnnClassifier candidate_model(
+                        feat_dim, hidden_dim, n_speakers, depth, cfg.experiment.seed);
+                    CrossEntropyLossImpl<nn::Backend> loss_fn;
+                    nn::training::Trainer<E05DsnnClassifier,
+                        CrossEntropyLossImpl<nn::Backend>> trainer(candidate_model, trainer_cfg, loss_fn);
+
+                    const int fold_num = static_cast<int>(outer_idx) + 1;
+                    auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
+                        "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
+                        " | " + feature_label);
+                    prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
+                    trainer.add_callback(prog_cb);
+
+                    if (global_bar_id != 0)
+                    {
+                        trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                            global_bar_id, static_cast<float>(outer_idx)));
+                    }
+
+                    if (cfg.training.early_stop_patience > 0)
+                    {
+                        auto stopper = std::make_shared<nn::training::EarlyStoppingCallback>(
+                            cfg.training.early_stop_patience);
+                        trainer.add_callback(stopper);
+                    }
+
+                    trainer.fit_supervised(train_pairs, val_pairs);
+                    val_metrics = evaluate(candidate_model, val_feats, val_labels, n_speakers, scorer);
+
+                    if (val_metrics.accuracy > best_val_accuracy)
+                    {
+                        best_val_accuracy = val_metrics.accuracy;
+                        best_state = candidate_model.state_dict();
+                    }
+                }
+            }
+
+            if (best_state.empty())
+                continue;
+
+            EvalMetrics em;
+            std::map<std::string, nn::Tensor> model_state_to_save;
+            if (cfg.classifier.type == "rnn")
+            {
+                SimpleResNetImpl<nn::Backend> model(feat_dim, hidden_dim, n_speakers, depth);
+                model.load_state_dict(best_state);
+                em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+                model_state_to_save = model.state_dict();
+            }
+            else
+            {
+                E05DsnnClassifier model(feat_dim, hidden_dim, n_speakers, depth, cfg.experiment.seed);
+                model.load_state_dict(best_state);
+                em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+                model_state_to_save = model.state_dict();
+            }
 
             FoldResult fr;
             fr.fold        = static_cast<int>(outer_idx);
@@ -351,7 +626,7 @@ auto run_classifier(const E05DatasetView& view,
                     cfg.experiment.run_tag + "/" + feature_label;
                 std::filesystem::create_directories(model_dir);
                 fr.model_path = model_dir + "/fold_" + std::to_string(fr.fold) + ".bin";
-                nn::io::save_state_dict(model.state_dict(), fr.model_path);
+                nn::io::save_state_dict(model_state_to_save, fr.model_path);
             }
 
             result.outer_folds.push_back(fr);
@@ -372,47 +647,70 @@ auto run_classifier(const E05DatasetView& view,
         {
             const auto& split = flat_splits[outer_idx];
 
+            const auto train_indices = intersect_indices(split.train_indices, text_train_indices);
+            const auto test_indices   = intersect_indices(split.test_indices, text_test_indices);
+
+            if (train_indices.empty() || test_indices.empty())
+                continue;
+
             std::vector<std::vector<double>> test_feats;
             std::vector<int> test_labels;
-            for (size_t idx : split.test_indices)
+            for (size_t idx : test_indices)
             {
                 test_feats.push_back(feature_vectors[idx]);
                 test_labels.push_back(labels[idx]);
             }
 
-            SimpleResNetImpl<nn::Backend> model(feat_dim, hidden_dim, n_speakers, depth);
-            CrossEntropyLossImpl<nn::Backend> loss_fn;
-            nn::training::Trainer<SimpleResNetImpl<nn::Backend>,
-                CrossEntropyLossImpl<nn::Backend>> trainer(model, trainer_cfg, loss_fn);
-
             const int fold_num = static_cast<int>(outer_idx) + 1;
-            auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
-                "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
-                " | " + feature_label);
-            prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
-            trainer.add_callback(prog_cb);
-            if (global_bar_id != 0)
-            {
-                trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
-                    global_bar_id, static_cast<float>(outer_idx)));
-            }
-            // Early stopping disabled without inner validation set.
-
-            using SamplePair = std::pair<nn::Tensor, nn::Tensor>;
-            std::vector<SamplePair> train_pairs;
-            train_pairs.reserve(split.train_indices.size());
-            for (size_t idx : split.train_indices)
-                train_pairs.emplace_back(all_inputs.row(static_cast<nn::Index>(idx)),
-                    all_targets.row(static_cast<nn::Index>(idx)));
-
-            // No validation set — pass empty; Trainer handles it gracefully.
-            trainer.fit_supervised(train_pairs, {});
-
+            auto train_pairs = make_pairs_from_indices(all_inputs, all_targets, train_indices);
             statistics::GenuineImpostorEERScorer default_scorer;
             const statistics::IEERScorer& scorer =
                 (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
 
-            auto em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+            EvalMetrics em;
+            std::map<std::string, nn::Tensor> model_state_to_save;
+            if (cfg.classifier.type == "rnn")
+            {
+                SimpleResNetImpl<nn::Backend> model(feat_dim, hidden_dim, n_speakers, depth);
+                CrossEntropyLossImpl<nn::Backend> loss_fn;
+                nn::training::Trainer<SimpleResNetImpl<nn::Backend>,
+                    CrossEntropyLossImpl<nn::Backend>> trainer(model, trainer_cfg, loss_fn);
+
+                auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
+                    "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
+                    " | " + feature_label);
+                prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
+                trainer.add_callback(prog_cb);
+                if (global_bar_id != 0)
+                {
+                    trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                        global_bar_id, static_cast<float>(outer_idx)));
+                }
+                trainer.fit_supervised(train_pairs, {});
+                em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+                model_state_to_save = model.state_dict();
+            }
+            else
+            {
+                E05DsnnClassifier model(feat_dim, hidden_dim, n_speakers, depth, cfg.experiment.seed);
+                CrossEntropyLossImpl<nn::Backend> loss_fn;
+                nn::training::Trainer<E05DsnnClassifier,
+                    CrossEntropyLossImpl<nn::Backend>> trainer(model, trainer_cfg, loss_fn);
+
+                auto prog_cb = std::make_shared<nn::training::ProgressCallback>(
+                    "Fold " + std::to_string(fold_num) + "/" + std::to_string(total_outer) +
+                    " | " + feature_label);
+                prog_cb->set_metadata(feature_label, fold_num, total_outer, "CrossEntropy");
+                trainer.add_callback(prog_cb);
+                if (global_bar_id != 0)
+                {
+                    trainer.add_callback(std::make_shared<GlobalBarFractionalCallback>(
+                        global_bar_id, static_cast<float>(outer_idx)));
+                }
+                trainer.fit_supervised(train_pairs, {});
+                em = evaluate(model, test_feats, test_labels, n_speakers, scorer);
+                model_state_to_save = model.state_dict();
+            }
 
             FoldResult fr;
             fr.fold        = static_cast<int>(outer_idx);
@@ -430,7 +728,7 @@ auto run_classifier(const E05DatasetView& view,
                     cfg.experiment.run_tag + "/" + feature_label;
                 std::filesystem::create_directories(model_dir);
                 fr.model_path = model_dir + "/fold_" + std::to_string(fr.fold) + ".bin";
-                nn::io::save_state_dict(model.state_dict(), fr.model_path);
+                nn::io::save_state_dict(model_state_to_save, fr.model_path);
             }
 
             result.outer_folds.push_back(fr);

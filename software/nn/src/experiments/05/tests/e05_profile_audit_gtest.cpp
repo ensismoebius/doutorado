@@ -57,6 +57,7 @@ class E05ProfileAuditTest : public ::testing::TestWithParam<std::string>
 TEST_P(E05ProfileAuditTest, ParsesCleanly)
 {
     auto cfg = load(GetParam());
+    cfg.validate();
     EXPECT_FALSE(cfg.experiment.run_tag.empty());
     EXPECT_NE(cfg.experiment.seed, 0u);
     EXPECT_GT(cfg.experiment.repeats, 0);

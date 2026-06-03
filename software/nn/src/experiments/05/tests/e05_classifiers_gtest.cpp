@@ -214,3 +214,18 @@ TEST(E05RunClassifier, FoldIndicesAreSequential)
     for (int i = 0; i < static_cast<int>(result.outer_folds.size()); ++i)
         EXPECT_EQ(result.outer_folds[static_cast<size_t>(i)].fold, i);
 }
+
+TEST(E05RunClassifier, DsnnPathRuns)
+{
+    auto view     = make_view(4, 6);
+    auto fvs      = make_features(view);
+    E05Config cfg = make_fast_cfg();
+    cfg.classifier.type = "dsnn";
+    statistics::ClassificationEERScorer scorer;
+
+    auto result = run_classifier(view, fvs, "synth-dsnn", cfg, &scorer);
+    EXPECT_EQ(result.classifier_type, "dsnn");
+    EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+    EXPECT_GE(result.mean_accuracy, 0.0);
+    EXPECT_LE(result.mean_accuracy, 1.0);
+}

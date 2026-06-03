@@ -19,6 +19,12 @@ The thesis proposes augmenting degraded-voice biometrics with **EEG signals capt
 
 Design and implement biometric algorithms capable of authenticating individuals who can only produce potentially degraded speech, by adding EEG imagined-speech signals to the acoustic voice information.
 
+### Current executable baseline (Experiment05)
+
+- E3 automatic: LSTM-AE implemented in pipeline
+- E3 automatic SNN-AE: planned (not yet wired in Experiment05 executable)
+- E4 classifiers: RNN and DSNN implemented in pipeline
+
 ---
 
 ## Objectives

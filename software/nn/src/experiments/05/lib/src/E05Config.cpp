@@ -1,6 +1,7 @@
 #include "E05Config.hpp"
 
 #include <fstream>
+#include <algorithm>
 #include <stdexcept>
 
 namespace e05
@@ -22,34 +23,68 @@ void E05Config::validate() const
     if (!valid_modality)
         throw std::invalid_argument("E05Config: dataset.modality must be voice/eeg/fused");
 
-    auto valid_strategy = feature_extraction.strategy == "handcrafted" ||
-                          feature_extraction.strategy == "autoencoder";
+    const bool valid_strategy = feature_extraction.strategy == "handcrafted" ||
+                                feature_extraction.strategy == "autoencoder";
     if (!valid_strategy)
-        throw std::invalid_argument("E05Config: feature_extraction.strategy must be handcrafted/autoencoder");
+        throw std::invalid_argument(
+            "E05Config: feature_extraction.strategy must be handcrafted or autoencoder");
 
-    if (feature_extraction.strategy == "autoencoder")
+    if (feature_extraction.strategy == "handcrafted")
     {
-        auto valid_model = feature_extraction.autoencoder.model == "lstm-ae" ||
-                           feature_extraction.autoencoder.model == "snn-ae";
-        if (!valid_model)
-            throw std::invalid_argument("E05Config: autoencoder.model must be lstm-ae/snn-ae");
+        if (feature_extraction.handcrafted.transform != "dtwpt")
+            throw std::invalid_argument("E05Config: handcrafted.transform must be dtwpt");
+
+        const auto valid_scale = feature_extraction.handcrafted.scale == "bark" ||
+                                 feature_extraction.handcrafted.scale == "mel" ||
+                                 feature_extraction.handcrafted.scale == "lfcc";
+        if (!valid_scale)
+            throw std::invalid_argument("E05Config: handcrafted.scale must be bark/mel/lfcc");
+
+        if (feature_extraction.handcrafted.descriptors.empty())
+            throw std::invalid_argument("E05Config: handcrafted.descriptors must not be empty");
+
+        if (feature_extraction.handcrafted.dtwpt_level < 1)
+            throw std::invalid_argument("E05Config: handcrafted.dtwpt_level must be >= 1");
+    }
+    else
+    {
+        if (feature_extraction.autoencoder.model != "lstm-ae")
+            throw std::invalid_argument("E05Config: autoencoder.model must be lstm-ae");
         if (feature_extraction.autoencoder.encoder_layer_spec.empty())
             throw std::invalid_argument("E05Config: autoencoder.encoder_layer_spec is required");
         if (feature_extraction.autoencoder.decoder_layer_spec.empty())
             throw std::invalid_argument("E05Config: autoencoder.decoder_layer_spec is required");
     }
 
-    auto valid_classifier = classifier.type == "rnn" || classifier.type == "dsnn";
-    if (!valid_classifier)
-        throw std::invalid_argument("E05Config: classifier.type must be rnn/dsnn");
+    if (classifier.type != "rnn" && classifier.type != "dsnn")
+        throw std::invalid_argument("E05Config: classifier.type must be rnn or dsnn");
 
     auto valid_text_mode = classifier.text_mode == "dependent" ||
                            classifier.text_mode == "independent";
     if (!valid_text_mode)
         throw std::invalid_argument("E05Config: classifier.text_mode must be dependent/independent");
 
-    if (classifier.layer_spec.empty())
-        throw std::invalid_argument("E05Config: classifier.layer_spec is required");
+    if (classifier.layer_spec.size() < 3)
+        throw std::invalid_argument(
+            "E05Config: classifier.layer_spec must have at least 3 items: "
+            "linear:H:act, residual:D, linear:N_speakers:identity");
+
+    const auto starts_with = [](const std::string& s, const std::string& p)
+    {
+        return s.rfind(p, 0) == 0;
+    };
+
+    if (!starts_with(classifier.layer_spec.front(), "linear:"))
+        throw std::invalid_argument("E05Config: first classifier.layer_spec item must start with linear:");
+
+    const bool has_residual = std::any_of(classifier.layer_spec.begin(), classifier.layer_spec.end(),
+        [&](const std::string& s) { return starts_with(s, "residual:"); });
+    if (!has_residual)
+        throw std::invalid_argument("E05Config: classifier.layer_spec must include residual:D item");
+
+    if (!starts_with(classifier.layer_spec.back(), "linear:N_speakers:"))
+        throw std::invalid_argument(
+            "E05Config: last classifier.layer_spec item must start with linear:N_speakers:");
 
     if (training.epochs <= 0)
         throw std::invalid_argument("E05Config: training.epochs must be > 0");
