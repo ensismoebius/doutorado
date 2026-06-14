@@ -31,18 +31,17 @@
 			\par A medição de $F_0$ está sujeita a contaminações surgidas das variações naturais de \textit{pitch} típicas da voz humana \cite{freitas2013avaliaccao}. A importância de se medir $F_0$ corretamente vem do fato de que, além de carregar boa parte da informação presente na fala, ela é a base para construção das outras medidas que compõe os sinais de voz, que são múltiplas de $F_0$.
 		
 		\subsubsection{Formantes}
-			\par O sinal de excitação que atravessa as pregas vocais é rico em harmônicas, isto é, frequências múltiplas da fundamental. Tais harmônicas podem ser atenuadas ou amplificadas, em função da estrutura do trato vocal e nasal de cada locutor. A primeira formante ($F_1$), relaciona-se à  amplificação  sonora  na  cavidade  oral  posterior  e  à  posição  da  língua  no  plano  vertical;  a segunda  formante  ($F_2$)  à  cavidade  oral  anterior  e  à  posição  da  língua  no  plano  horizontal; a terceira  formante  ($F_3$)  relaciona-se  às  cavidades  a  frente  e  atrás  do  ápice  da  língua e, finalmente,  a  quarta formante  ($F_4$) relaciona-se  ao  formato  da  laringe  e faringe  na  mesma  altura  \cite{valencca2014analise}. Formantes caracterizam fortemente os locutores, pois cada indivíduo possui um formato de trato vocal e nasal. Assim, tais frequências, que podem ser capturadas com ferramentas diversas, a exemplo da Transformada \textit{Wavelet}, são importantes para a verificação de locutores.
+			\par O sinal de excitação das pregas vocais é rico em harmônicas — frequências múltiplas da fundamental — que são atenuadas ou amplificadas pela geometria do trato vocal e nasal de cada locutor, gerando picos espectrais denominados formantes \cite{valencca2014analise,fant1960acoustic}. Independentemente do idioma, cada formante apresenta articulações universais: 
+			
+			\par A primeira ($F_1$), é associada à cavidade oral posterior, reflete a altura da língua (/i/: $\approx$240~Hz; /u/: $\approx$300~Hz; /a/: $\approx$700~Hz).
+			
+			\par A segunda ($F_2$), associada à cavidade oral anterior, codifica a posição horizontal da língua — vogais com recuo lingual e arredondamento labial apresentam $F_2$ baixo (/u/: $\approx$625~Hz; /o/: $\approx$780~Hz), vogais centrais apresentam $F_2$ intermediário (/a/: $\approx$1080~Hz) e vogais anteriores apresentam $F_2$ alto (/e/: $\approx$1800~Hz; /i/: $\approx$2250~Hz); articulações dentais e pré-palatais também elevam $F_2$, o arredondamento labial abaixa todas as formantes e a palatização eleva $F_2$ e $F_3$ e reduz $F_1$. 
+			
+			\par A terceira formante ($F_3$), está relacionada às cavidades em torno do ápice da língua, assume valores muito baixos (1500--1800~Hz) em articulações retroflexas — como no /r/ do inglês estadunidense — contra $\approx$2500~Hz nas vogais adjacentes.
 
-			\par Independentemente do idioma, as frequências das formantes obedecem às relações entre como o som é produzido (articulação: posição da língua, lábios, constrição do trato vocal) e o resultado acústico mensurável (frequências das formantes) estabelecidas em \cite{fant1960acoustic} a partir de estudos radiográficos do trato vocal:
+			\par Formantes acima de $F_3$ — notadamente $F_4$ ($\approx$3400--3570~Hz), está relacionada à geometria da laringe e faringe. $F_5$ ($\approx$4000--4655~Hz) — apresenta menor variação entre vogais e pouca distinção fonêmica, mas refletem propriedades anatômicas individuais do trato vocal \cite{fant1960acoustic}. 
 			
-			\par A primeira formante ($F_1$) reflete a altura da língua: vogais fechadas possuem $F_1$ baixo (/i/: $\approx$240 Hz; /u/: $\approx$300 Hz), enquanto vogais abertas possuem $F_1$ alto (/a/: $\approx$700 Hz). 
-			
-			
-			\par A segunda formante ($F_2$) codifica a posição horizontal da língua: vogais com recuo lingual e arredondamento labial apresentam $F_2$ baixo (/u/: $\approx$625 Hz; /o/: $\approx$780 Hz), vogais centrais apresentam $F_2$ intermediário (/a/: $\approx$1080 Hz), e vogais anteriores apresentam $F_2$ alto (/e/: $\approx$1800 Hz; /i/: $\approx$2250 Hz). Articulações dentais e pré-palatais também produzem $F_2$ elevado, enquanto o arredondamento labial abaixa todas as formantes simultaneamente. A palatização — fenômeno que ocorre quando vogais são produzidas adjacentes a consoantes palatalizadas — eleva $F_2$ e $F_3$ e reduz $F_1$. 
-			
-			\par A terceira formante ($F_3$) muito baixa é indicativa de articulação retroflexa (posição que se refere ao som produzido com o ápice da língua dobrado em direção ao palato duro, como no /r/ do inglês estadunidense), nesses sons, $F_3$ cai acentuadamente para valores entre 1500 e 1800 Hz, contra aproximadamente 2500 Hz nas vogais adjacentes.
-
-			\par Formantes acima de $F_3$ — notadamente $F_4$ ($\approx$3400--3570 Hz) e $F_5$ ($\approx$4000--4655 Hz) — apresentam menor variação entre vogais e contribuem pouco para distinções fonêmicas. Sua principal relevância está na qualidade vocal e nas características individuais do trato vocal: $F_4$ é parcialmente determinado pela ressonância do tubo laríngeo \cite{fant1960acoustic}, e formantes superiores refletem propriedades anatômicas do locutor, tornando-os úteis para verificação de identidade mesmo quando o conteúdo fonêmico varia.
+			\par Portanto, formantes caracterizam fortemente os locutores, e tais frequências, capturáveis pela Transformada \textit{Wavelet}, são de suma importância na verificação de locutores.
 				
 		\subsection{Escalas e energias dos sinais}
 			\par A energia de um sinal digital $s[\cdot]$ com $M$ amostras é definida como
