@@ -1,0 +1,66 @@
+% TikZ replacement for barkFeatureVect.png
+\begin{tikzpicture}[
+    >=stealth,
+    thick,
+    every node/.style={font=\small},
+    mbox/.style={
+        draw=blue!80!black, thick,
+        inner sep=7pt, align=center,
+        minimum height=0.8cm, minimum width=7.8cm
+    },
+]
+\colorlet{bb}{blue!80!black}
+
+\def\xL{-2.8}
+\def\xM{0}
+\def\xR{2.8}
+\def\xLbl{4.1}
+
+% ── Ellipse ───────────────────────────────────────────────────────────────────
+\node[draw=bb, thick, ellipse, minimum width=4cm, minimum height=0.9cm]
+    (sig) at (0,0) {Sinal de voz};
+
+% ── DFT box ───────────────────────────────────────────────────────────────────
+\node[mbox] (dftbox) at (0,-1.2) {Aplicação da DFT};
+\draw[->] (sig.south) -- (dftbox.north);
+
+% ── Branch lines with freq labels ─────────────────────────────────────────────
+\coordinate (fanL) at (-2.0,-1.6);
+\coordinate (fanM) at ( 0.0,-1.6);
+\coordinate (fanR) at ( 2.0,-1.6);
+\coordinate (bL) at (\xL,-2.8);
+\coordinate (bM) at (\xM,-2.8);
+\coordinate (bR) at (\xR,-2.8);
+
+\draw (fanL) -- (bL)
+    node[pos=0.45, left,  font=\footnotesize] {20--100\,Hz};
+\draw (fanM) -- (bM)
+    node[pos=0.45, right, font=\footnotesize] {\textbf{101}--200\,Hz};
+\draw (fanR) -- (bR)
+    node[pos=0.45, right, font=\footnotesize] {\textbf{12001}--15500\,Hz};
+
+% ── Energy sum row ────────────────────────────────────────────────────────────
+\node (sumL) at (\xL,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node (sumM) at (\xM,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node        at ({0.5*\xM+0.5*\xR},-3.6) {$\cdots\!\cdots$};
+\node (sumR) at (\xR,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node[right] at (\xLbl,-3.6) {Etapa de soma};
+
+\draw (bL) -- (sumL.north);
+\draw (bM) -- (sumM.north);
+\draw (bR) -- (sumR.north);
+
+% ── Normalisation box ─────────────────────────────────────────────────────────
+\node[mbox] (normbox) at (0,-5.2) {Etapa de normalização};
+
+\draw[->] (sumL.south) -- (sumL |- normbox.north);
+\draw[->] (sumM.south) -- (sumM |- normbox.north);
+\draw[->] (sumR.south) -- (sumR |- normbox.north);
+
+% ── Feature vector box ────────────────────────────────────────────────────────
+\node[mbox] (vbox) at (0,-6.8)
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_{24}$};
+\node[right, align=left] at (\xLbl,-6.8) {Vetor de\\características};
+\draw[->] (normbox.south) -- (vbox.north);
+
+\end{tikzpicture}

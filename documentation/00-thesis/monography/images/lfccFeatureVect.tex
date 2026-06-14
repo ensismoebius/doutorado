@@ -1,0 +1,80 @@
+% TikZ figure: LFCC feature vector computation pipeline
+\begin{tikzpicture}[
+    >=stealth,
+    thick,
+    every node/.style={font=\small},
+    mbox/.style={
+        draw=blue!80!black, thick,
+        inner sep=7pt, align=center,
+        minimum height=0.8cm, minimum width=7.8cm
+    },
+]
+\colorlet{bb}{blue!80!black}
+
+\def\xL{-2.8}
+\def\xM{0}
+\def\xR{2.8}
+\def\xLbl{4.1}
+
+% ── Ellipse ───────────────────────────────────────────────────────────────────
+\node[draw=bb, thick, ellipse, minimum width=4cm, minimum height=0.9cm]
+    (sig) at (0,0) {Sinal de voz};
+
+% ── DFT box ───────────────────────────────────────────────────────────────────
+\node[mbox] (dftbox) at (0,-1.2) {Aplicação da DFT};
+\draw[->] (sig.south) -- (dftbox.north);
+
+% ── Branch lines with linearly-spaced freq labels ─────────────────────────────
+\coordinate (fanL) at (-2.0,-1.6);
+\coordinate (fanM) at ( 0.0,-1.6);
+\coordinate (fanR) at ( 2.0,-1.6);
+\coordinate (bL) at (\xL,-2.8);
+\coordinate (bM) at (\xM,-2.8);
+\coordinate (bR) at (\xR,-2.8);
+
+\draw (fanL) -- (bL)
+    node[pos=0.45, left,  font=\footnotesize] {300--400\,Hz};
+\draw (fanM) -- (bM)
+    node[pos=0.45, right, font=\footnotesize] {1750--1850\,Hz};
+\draw (fanR) -- (bR)
+    node[pos=0.45, right, font=\footnotesize] {3300--3400\,Hz};
+
+% ── Energy sum row ────────────────────────────────────────────────────────────
+\node (sumL) at (\xL,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node (sumM) at (\xM,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node        at ({0.5*\xM+0.5*\xR},-3.6) {$\cdots\!\cdots$};
+\node (sumR) at (\xR,-3.6) {$\textstyle\sum_i(y_i)^2$};
+\node[right] at (\xLbl,-3.6) {Etapa de soma};
+
+\draw (bL) -- (sumL.north);
+\draw (bM) -- (sumM.north);
+\draw (bR) -- (sumR.north);
+
+% ── Log box ───────────────────────────────────────────────────────────────────
+\node[mbox] (logbox) at (0,-5.3)
+    {$\log(V_1)\quad\log(V_2)\quad\cdots\!\cdots\!\cdots\quad\log(V_N)$};
+
+\draw[->] (sumL.south) -- (sumL |- logbox.north);
+\draw[->] (sumM.south) -- (sumM |- logbox.north);
+\draw[->] (sumR.south) -- (sumR |- logbox.north);
+
+% ── Feature vector box (log energies) ─────────────────────────────────────────
+\node[mbox] (vbox1) at (0,-6.9)
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_N$};
+\node[right, align=left] at (\xLbl,-6.9) {Vetor de\\características};
+\draw[->] (logbox.south) -- (vbox1.north);
+
+% ── DCT box ───────────────────────────────────────────────────────────────────
+\node[mbox, minimum height=1.0cm] (dctbox) at (0,-8.4)
+    {Aplicação da DCT};
+\node[right, font=\footnotesize, align=left] at (\xLbl,-8.4)
+    {DCT -- \textit{Discrete cosine transformation}};
+\draw[->] (vbox1.south) -- (dctbox.north);
+
+% ── LFCC coefficient vector ───────────────────────────────────────────────────
+\node[mbox] (vbox2) at (0,-9.9)
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_N$};
+\node[right, align=left] at (\xLbl,-9.9) {Coeficientes\\LFCC};
+\draw[->] (dctbox.south) -- (vbox2.north);
+
+\end{tikzpicture}

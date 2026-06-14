@@ -56,7 +56,7 @@
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com BARK}
-				\includegraphics[width=0.6\linewidth]{images/barkFeatureVect}
+				\resizebox{0.6\linewidth}{!}{\input{images/barkFeatureVect.tex}}
 				\label{fig:barkfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
@@ -71,11 +71,24 @@
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com MEL}
-				\includegraphics[width=0.6\linewidth]{images/melFeatureVect}
+				\resizebox{0.6\linewidth}{!}{\input{images/melFeatureVect.tex}}
 				\label{fig:melfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
 	
+		\subsubsection{A escala LFCC}
+			\par A escala LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada no eixo de frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana \cite{zhou2011lfcc}. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas prejudicial para a verificação de locutores: características ligadas à geometria do trato vocal — em especial ao comprimento do trato vocal — manifestam-se predominantemente nas formantes superiores ($F_3$, $F_4$), cujo deslocamento em resposta a variações de comprimento é substancialmente maior do que o de $F_1$ \cite{zhou2011lfcc}. A escala Mel, ao reduzir a resolução espectral nessa faixa, suprime justamente as informações mais discriminativas para a identidade do locutor.
+
+			\par O cálculo dos coeficientes LFCC segue as etapas a seguir: o sinal é dividido em janelas igualmente espaçadas e, para cada janela, aplica-se a Transformada Discreta de Fourier (DFT). Em seguida, $N$ filtros passa-faixa triangulares com largura de banda constante são distribuídos igualmente entre $f_{\min}$ e $f_{\max}$ (tipicamente 300~Hz e 3400~Hz \cite{zhou2011lfcc}). A energia logarítmica de cada banda é calculada, e a Transformada Discreta Cosseno (DCT) é aplicada ao vetor de energias para decorrelacionar os componentes, resultando nos coeficientes LFCC. Assim como nas escalas BARK e MEL, as energias por banda podem por si mesmas constituir um vetor de características, ou os coeficientes pós-DCT podem ser utilizados, dependendo da configuração adotada. Experimentos no corpus NIST SRE 2010 demonstraram que LFCC supera consistentemente MFCC na verificação de locutores, com vantagem acentuada em locutrizes — cujo trato vocal mais curto eleva as frequências de formantes para a região de melhor resolução da escala linear \cite{zhou2011lfcc}.
+
+			\begin{figure}[h]
+				\centering
+				\caption{Cálculo de vetores de características com LFCC}
+				\resizebox{0.6\linewidth}{!}{\input{images/lfccFeatureVect.tex}}
+				\label{fig:lfccfeaturevect}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
+			\end{figure}
+
 		\subsection{Filtros digitais \textit{wavelet}}
 			\par Filtros digitais \textit{wavelet} têm sido utilizados com sucesso para suprir as deficiências de janelamento de sinal apresentadas pelas Transformadas de Fourier e de Fourier de Tempo Reduzido. \textit{Wavelets} contam com variadas funções-filtro e têm tamanho de janela variável, o que permite uma análise multirresolução \cite{Rod5254905}. Particularmente, as \textit{wavelets} proporcionam a análise do sinal de forma detalhada tanto no espectro de baixa frequência quanto no de alta contando com diferentes funções-base não periódicas diferentemente da tradicional transformada de Fourrier que utilizam somente as bases periódicas senoidal e cossenoidal.
 			
