@@ -3,13 +3,13 @@
 
 	\section{A Base de sinais}
    	\label{sec:baseDeSinais}
-		\par Serão coletadas, de forma isolada, as falas imaginadas, as falas fonadas e as falas simultaneamente imaginadas e fonadas, resultando em três bases de dados distintas permitindo comparar os dois tipos de sinais e suas interações com os sensores, tanto quando isolados quanto combinados. Assim, será possível obter dados sobre a fala imaginada sem a interferência dos músculos relacionados à fala, além de dados sobre a fala efetivamente pronunciada e a fala imaginada.
+		\par Serão coletadas, de forma isolada, as falas imaginadas, as falas fonadas e as falas simultaneamente imaginadas e fonadas, resultando em três bases de dados distintas, permitindo comparar os dois tipos de sinais e suas interações com os sensores, tanto quando isolados quanto combinados. Assim, será possível obter dados sobre a fala imaginada sem a interferência dos músculos relacionados à fala, além de dados sobre a fala efetivamente pronunciada e a fala imaginada.
 		
 		\par O objetivo é que haja uma ampla gama de dados para possibilitar pesquisas futuras tanto no campo da fala imaginada quanto na fala fonada, ou em ambas as áreas combinadas.
 		
 	    \subsection{Protocolo de coleta de dados}
 		    
-		    \par Os protocolos de coleta especificam dois ciclos: Um chamado de \textbf{ruidoso} esquematizado na \autoref{fig:coletaRuidosa}, no qual, durante a captura, serão reproduzidos ruídos comuns de lugares com pessoas conversando gravados previamente. E outro chamado \textbf{silencioso}, como mostrado na \autoref{fig:coletaSilenciosa}, no qual a captura se dará, na medida da disponibilidade dos equipamentos disponíveis, com o menor ruído ambiente possível. Dessa forma também se espera conseguir avaliar qual o impacto dessa variante na produção e classificação dos dados.
+		    \par Os protocolos de coleta especificam dois ciclos: Um chamado \textbf{ruidoso} esquematizado na \autoref{fig:coletaRuidosa}, no qual, durante a captura, serão reproduzidos ruídos comuns de lugares com pessoas conversando gravados previamente. E outro chamado \textbf{silencioso}, como mostrado na \autoref{fig:coletaSilenciosa}, no qual a captura se dará, na medida da disponibilidade dos equipamentos disponíveis, com o menor ruído ambiente possível. Dessa forma também se espera conseguir avaliar qual o impacto dessa variante na produção e classificação dos dados.
 		    
 		    \subsection{Sentenças coletadas}
 		    
@@ -37,9 +37,9 @@
 			    
 			\subsubsection{Taxa de amostragem}
 			
-				\par Embora, em ratos, neurônios biológicos saudáveis possam proporcionar leituras de EEG de até 2Khz, tal fenômeno não é documentado em cérebros humanos saudáveis e estudos anteriores indicam que leituras acima de 120Hz ocorrem em cérebros de pessoas epiléticas \cite{Moffett2017}. No entanto, apenas a ocorrência de altas frequências, não indica necessariamente uma patologia já que na região mais externa do telencéfalo conhecida como neocórtex podem ocorrer oscilações rápidas que podem atingir em torno de 200Hz \cite{hfreOscEngel}.
+				\par Embora, em ratos, neurônios biológicos saudáveis possam proporcionar leituras de EEG de até 2 kHz, tal fenômeno não é documentado em cérebros humanos saudáveis e estudos anteriores indicam que leituras acima de 120 Hz ocorrem em cérebros de pessoas epiléticas \cite{Moffett2017}. No entanto, apenas a ocorrência de altas frequências, não indica necessariamente uma patologia já que na região mais externa do telencéfalo conhecida como neocórtex podem ocorrer oscilações rápidas que podem atingir em torno de 200Hz \cite{hfreOscEngel}.
 				
-				\par Portanto, segundo o teorema de Nyquist, a taxa de amostragem mínima é de 400Hz, porém, dadas as possibilidades aventadas, há que se adotar uma certa margem de segurança, sendo assim, escolheu-se uma taxa de amostragem inicial de 800Hz com quantização de 16 bits.
+				\par Portanto, segundo o teorema de Nyquist, a taxa de amostragem mínima é de 400 Hz, porém, dadas as possibilidades aventadas, há que se adotar uma certa margem de segurança, sendo assim, escolheu-se uma taxa de amostragem inicial de 800 Hz com quantização de 16 bits.
 				
 				%TODO subamostrar depois?
 				
@@ -67,9 +67,9 @@
 		    
 		    \subsubsection{Protocolo de coleta da fala imaginada}
 		    	\label{sec:coletaFalaImaginada}
-  			    \par No caso específico da fala imaginada serão coletados 5 segundos de sinais cerebrais dos voluntários antes que qualquer um dos protocolos citados sejam executados, se espera dessa forma captar um padrão que talvez se modifique devido a tensão emocional causada pelos sinais sonoros e ordens dadas.
+  			    \par No caso específico da fala imaginada serão coletados 5 segundos de sinais cerebrais dos voluntários antes que qualquer um dos protocolos citados seja executado. Espera-se dessa forma captar um padrão que talvez se modifique devido a tensão emocional causada pelos sinais sonoros e ordens dadas.
   			    
-  			    \par Afim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa banda de 1 a 800Hz} \cite{JALALYBIDGOLY2020101788}, \cite{Moffett2017}, \cite{hfreOscEngel}, e outro para excluir a frequência de 60Hz, típica da rede elétrica brasileira, mantendo assim, por uma boa margem, as frequências operacionais típicas de um cérebro humano .
+  			    \par A fim de evitar as interferências intrínsecas à captação do sinal o mesmo deve passar por um \textbf{filtro passa banda de 1 a 800 Hz} \cite{JALALYBIDGOLY2020101788}, \cite{Moffett2017}, \cite{hfreOscEngel}, e outro para excluir a frequência de 60Hz, típica da rede elétrica brasileira, mantendo assim, por uma boa margem, as frequências operacionais típicas de um cérebro humano.
   			    %TODO \par Uma normalização dos valores também se faz necessária, 
 		    	
 			    \begin{enumerate}
@@ -77,7 +77,7 @@
 			    	\begin{enumerate}
 			    		\item em uma tela é exibido ao participante por 5 segundos a sentença que deve ser imaginada.\label{itm:exibePalavraImaginaSilencio}
 			    		\item um sinal é tocado por 1 segundo
-			    		\item Por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
+			    		\item por 5 segundos a sentença deve ser \textbf{imaginada} uma única vez.
 			    		\item volta para o \autoref{itm:exibePalavraImaginaSilencio} até que todas as sentenças sejam imaginadas.
 			    	\end{enumerate}
 			    	\item \textbf{ciclo ruidoso}.
@@ -93,7 +93,7 @@
 			    
 				\begin{figure}[H]
 					\centering
-					\caption[Protocolo de coleta de dados]{Protocolo de coleta de dados aplicado as falas fonadas, imaginadas e mistas}
+					\caption[Protocolo de coleta de dados]{Protocolo de coleta de dados aplicado às falas fonadas, imaginadas e mistas}
 					\subfloat[Protocolo de coleta silenciosa]{
 						\scalebox{0.6}{
 							\input{images/coletaSilenciosa.tex}
@@ -110,12 +110,12 @@
 				\end{figure}
 				
 			\subsubsection{Protocolo de coleta da fala mista}
-				\par Deve seguir os mesmos protocolos descritos anteriormente (\autoref{sec:coletaFalaFonada}, \autoref{sec:coletaFalaImaginada}) porém captando ambos os sinais fonados e imaginados simultaneamente;
+				\par Deve seguir os mesmos protocolos descritos anteriormente (\autoref{sec:coletaFalaFonada}, \autoref{sec:coletaFalaImaginada}) porém captando ambos os sinais fonados e imaginados simultaneamente.
 				
 
 	    \subsection{Organização da base de sinais}
 	   		 \label{sec:baseDeSinaisOrganizacao}
-	    	\par A organização da base dados deve se dividir em três categorias:
+	    	\par A organização da base de dados deve se dividir em três categorias:
 	    	\begin{itemize}
 	    		\item fonadas
 	    		\begin{itemize}
@@ -141,13 +141,13 @@
 		
 		\par Após as coletas dos sinais, os procedimentos adotados serão os seguintes:
 		
-		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos em três esquemas de particionamento espectral --- bandas lineares, bandas Mel e bandas Bark --- gerando, na Categoria~1, os vetores de \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies}, respectivamente. Para a Categoria~2, aplica-se adicionalmente o logaritmo e a DCT sobre cada um desses vetores, produzindo os coeficientes LFCC, MFCC e BFCC. Por fim, será conduzida a análise paraconsistente de características afim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
+		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos em três esquemas de particionamento espectral --- bandas lineares, bandas Mel e bandas Bark --- gerando, na Categoria~1, os vetores de \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies}, respectivamente. Para a Categoria~2, aplica-se adicionalmente o logaritmo e a DCT sobre cada um desses vetores, produzindo os coeficientes LFCC, MFCC e BFCC. Por fim, será conduzida a análise paraconsistente de características a fim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
 		
 		\par Em segundo lugar, tanto os dados de voz quanto os de EEG serão submetidos a autoencoders para extração de características.
 		
 		\par As características extraídas, tanto automatizadas quanto as manualmente obtidas, servirão de entrada para uma rede neural residual profunda de pulsos, que determinará as classes de cada um dos sinais.
 		
-		\par Uma visão geral do processo é mostrado na \autoref{fig:estruturaDaEstrategiaProposta}.		
+		\par Uma visão geral do processo é mostrada na \autoref{fig:estruturaDaEstrategiaProposta}.		
 		
 		\begin{figure}[h]
 			\centering
@@ -177,7 +177,7 @@
 			
 		\subsection{Métricas}
 		
-			\par Afim de garantir a comparação do estudo com outros serão adotadas as seguintes métricas:
+			\par A fim de garantir a comparação do estudo com outros serão adotadas as seguintes métricas:
 			
 			\begin{itemize}
 				\item acurácia
@@ -278,7 +278,7 @@
 
 \section{Resultados Esperados}
 
-	\par Espera-se desenvolver algoritmos de extração de características e classificação para voz e eletroencefalograma (EEG) que aprimorem a acurácia na identificação de indivíduos. Além disso, serão avaliadas se as alegações sobre o consumo energético e a eficácia das redes neurais de pulso (SNN) na classificação de informações temporais são confirmadas para o problema estudado. Será constituída uma base de dados contendo sinais de voz, EEG e sinais mistos que deve ser disponibilizada ao público. Por fim, pretende-se comparar o desempenho das técnicas de extração de características manuais com as automatizadas.
+	\par Espera-se desenvolver algoritmos de extração de características e classificação para voz e eletroencefalograma (EEG) que aprimorem a acurácia na identificação de indivíduos. Além disso, será avaliado se as alegações sobre o consumo energético e a eficácia das redes neurais de pulso (SNN) na classificação de informações temporais são confirmadas para o problema estudado. Será constituída uma base de dados contendo sinais de voz, EEG e sinais mistos que deve ser disponibilizada ao público. Por fim, pretende-se comparar o desempenho das técnicas de extração de características manuais com as automatizadas.
 
 
 %\section{Procedimentos}
