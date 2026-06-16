@@ -141,7 +141,7 @@
 		
 		\par Após as coletas dos sinais, os procedimentos adotados serão os seguintes:
 		
-		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos nas bandas Bark e MEL para a extração de características. Será conduzida a "análise paraconsistente de características" afim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
+		\par Primeiramente, os sinais serão decompostos utilizando a DTWT, em seguida, serão realizados os agrupamentos energéticos em três esquemas de particionamento espectral --- bandas lineares, bandas Mel e bandas Bark --- gerando, na Categoria~1, os vetores de \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies}, respectivamente. Para a Categoria~2, aplica-se adicionalmente o logaritmo e a DCT sobre cada um desses vetores, produzindo os coeficientes LFCC, MFCC e BFCC. Por fim, será conduzida a análise paraconsistente de características afim de se selecionar as melhores combinações entre agrupamento energético e \textit{wavelet}, visando gerar características as mais disjuntas possíveis.
 		
 		\par Em segundo lugar, tanto os dados de voz quanto os de EEG serão submetidos a autoencoders para extração de características.
 		

@@ -1,7 +1,7 @@
 \chapter{Revisão Bibliográfica}
 	\label{ch:revisao}
 	
-	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK e MEL. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as bases das interfaces Humano-Máquina para eletroencefalograma, que coletarão dados das regiões do cérebro. Concluída essa etapa, serão revisadas as redes neurais de pulso, autoencoders e redes neurais residuais.
+	\par Para desenvolver o trabalho, é necessário definir os conceitos de \textit{downsampling}, filtros digitais \textit{wavelets} e energia, que serão usados para a extração de características dos sinais. No processamento dos sinais de voz, serão revisadas as frequências fundamentais da voz, além das escalas BARK, MEL e Lineares. Também será revisada a engenharia paraconsistente de características, método utilizado para verificar a qualidade das características extraídas. Em seguida, serão estudadas as bases das interfaces Humano-Máquina para eletroencefalograma, que coletaram a dados das regiões do cérebro assim como as proprias regiões cerebrais. Concluída essa etapa, serão revisadas as redes neurais de pulso, autoencoders e redes neurais residuais.
 
 	\section{Conceitos utilizados}
 		\label{sec:conceitos}
@@ -44,48 +44,82 @@
 			\par Portanto, formantes caracterizam fortemente os locutores, e tais frequências, capturáveis pela Transformada \textit{Wavelet}, são de suma importância na verificação de locutores.
 				
 		\subsection{Escalas e energias dos sinais}
+		
+			% TODO vamos dar uma geral aqui pq tem muita coisa mal definida e estão falttando definições. MEL não é a mesma coisa que MFCC (esse é apenas um dos problemas, tenho um relatório completo do que mudar, no texto todo)	
 			\par A energia de um sinal digital $s[\cdot]$ com $M$ amostras é definida como
 			
 			\begin{equation}
 				E = \sum\limits_{i=0}^{M-1}(s_i)^2 \qquad.   
 			\end{equation}
 			
-			$E$ pode ainda sofrer normalizações e ter a sua mensuração restrita a uma parte específica do sinal sob análise. Possibilidades para tais restrições podem, por exemplo, envolver a escala BARK \cite{doi:10.1121-1.1908630} e MEL \cite{beranek1949acoustic} que serão utilizadas neste trabalho.
-		\subsubsection{A escala BARK}
-			\par BARK foi definida tendo em mente vários tipos de sinais acústicos. Essa escala corresponde ao conjunto de 25 bandas críticas da audição humana. Suas frequências-base de audiometria são, em Hz: \textbf{20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500} \cite{doi:10.1121-1.1908630}. Nessa escala,os sinais digitais no domínio temporal atravessam filtros passa-faixas \cite{bosi2002introduction} para os quais o início e o final da banda de passagem correspondem à frequências-base consecutivas resultando em um vetor de características com 24 coeficientes e, em seguida, as energias dos sinais filtrados são utilizadas como características descritivas de propriedades do sinal sob análise, como mostrado na  \autoref{fig:barkfeaturevect}.
+			$E$ pode ainda sofrer normalizações e ter a sua mensuração restrita a uma parte específica do sinal sob análise. Neste trabalho, as características extraídas são organizadas em três categorias: na \textbf{Categoria~1}, as energias por banda constituem diretamente o vetor de características; na \textbf{Categoria~2}, aplica-se adicionalmente o logaritmo e a Transformada Discreta Cosseno (DCT) sobre essas energias para obter coeficientes cepstrais. Por fim na \textbf{Categoria~3} utilizam-se  \textit{autoencoders} sobre os sinais janelados. As categorias 1 e 2 compreendem cada uma três esquemas de particionamento espectral --- linear, Mel e Bark --- resultando em seis tipos de representação descritos a seguir.
+
+		\subsubsection{Energias em bandas lineares}
+			\par No particionamento linear, as frequências são divididas em $N$ bandas de largura constante e igualmente espaçadas. Para cada banda, a energia dos coeficientes da transformada wavelet correspondentes é acumulada, resultando no vetor $[E_1, E_2, \ldots, E_N]$, como ilustrado na \autoref{fig:linearbandenergiefig}.
+
 			\begin{figure}[h]
 				\centering
-				\caption{Cálculo de vetores de características com BARK}
+				\caption{Cálculo de vetores de características com bandas lineares}
+				\resizebox{0.6\linewidth}{!}{\input{images/linearBandEnergies.tex}}
+				\label{fig:linearbandenergiefig}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
+			\end{figure}
+
+		\subsubsection{Energias em bandas Mel}
+			\par A escala Mel, advinda do termo \textit{melody}, é uma escala perceptual independente que mapeia as frequências em bandas tonais percebidas pelo ouvido humano. Dentre as várias implementações, a adotada neste trabalho utiliza os seguintes limites de banda em Hz: \textbf{20, 160, 394, 670, 1000, 1420, 1900, 2450, 3120, 4000, 5100, 6600, 9000, 14000} \cite{beranek1949acoustic}. As energias calculadas nos 13 intervalos resultantes constituem diretamente o vetor de características $[E_1, E_2, \ldots, E_{13}]$, como mostrado na \autoref{fig:melbandenergiefig}.
+
+			\begin{figure}[h]
+				\centering
+				\caption{Cálculo de vetores de características com bandas Mel}
+				\resizebox{0.6\linewidth}{!}{\input{images/melBandEnergies.tex}}
+				\label{fig:melbandenergiefig}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
+			\end{figure}
+
+		\subsubsection{Energias em bandas Bark}
+			\par A escala Bark foi definida tendo em mente vários tipos de sinais acústicos e corresponde ao conjunto de 25 bandas críticas da audição humana. Suas frequências-base de audiometria são, em Hz: \textbf{20, 100, 200, 300, 400, 510, 630, 770, 920, 1080, 1270, 1480, 1720, 2000, 2320, 2700, 3150, 3700, 4400, 5300, 6400, 7700, 9500, 12000, 15500} \cite{doi:10.1121-1.1908630}. Assim como nos agrupamentos energéticos anterioriores os sinal é separado nas bandas de frequências definidas \cite{bosi2002introduction}, resultando em um vetor de características com 24 componentes, como mostrado na \autoref{fig:barkfeaturevect}.
+
+			\begin{figure}[h]
+				\centering
+				\caption{Cálculo de vetores de características com bandas Bark}
 				\resizebox{0.6\linewidth}{!}{\input{images/barkFeatureVect.tex}}
 				\label{fig:barkfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
-		
-		\subsubsection{A escala MEL}
-			\par Escala Mel, advinda do termo \textit{melody}, é uma adaptação da escala Bark para sinais de voz. Dentre as várias implementações de bandas críticas a escolhida foi a implementação que contém os valores em Hz: \textbf{20, 160, 394, 670, 1000, 1420, 1900, 2450, 3120, 4000, 5100, 6600, 9000, 14000} \cite{beranek1949acoustic}.
-			
-			\par A variante que será usada neste trabalho é conhecida como \textit{Mel-frequency cepstral coefficients}(MFCC) a qual inclui, além dos intervalos definidos, uma diminuição da correlação entre os componentes gerados via aplicação da Transformada Discreta Cosseno (DCT) \cite{salomon2007data} ou da Análise de Componentes Principais (PCA) \cite{jolliffe2006principal} seguida de duas derivações no vetor de características resultando em um total de 11 coeficientes. Nesse trabalho foi escolhida a DCT, no entanto, PCA poderia também ser escolhida sem prejuízos, o uso de uma ou outra depende da preferência do autor.
-			
-			\par Novamente, desconsiderando qualquer etapa intermediária que possa ser adicionada, as energias calculadas nos intervalos definidos na escala MEL podem, por si mesmas, constituir um vetor de características, como mostrado na  \autoref{fig:barkfeaturevect}.
-			
-			\begin{figure}[h]
-				\centering
-				\caption{Cálculo de vetores de características com MEL}
-				\resizebox{0.6\linewidth}{!}{\input{images/melFeatureVect.tex}}
-				\label{fig:melfeaturevect}
-				\legend{Fonte: Elaborado pelo autor, 2022.}
-			\end{figure}
-	
-		\subsubsection{A escala LFCC}
-			\par A escala LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada no eixo de frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana \cite{zhou2011lfcc}. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas prejudicial para a verificação de locutores: características ligadas à geometria do trato vocal — em especial ao comprimento do trato vocal — manifestam-se predominantemente nas formantes superiores ($F_3$, $F_4$), cujo deslocamento em resposta a variações de comprimento é substancialmente maior do que o de $F_1$ \cite{zhou2011lfcc}. A escala Mel, ao reduzir a resolução espectral nessa faixa, suprime justamente as informações mais discriminativas para a identidade do locutor.
 
-			\par O cálculo dos coeficientes LFCC segue as etapas a seguir: o sinal é dividido em janelas igualmente espaçadas e, para cada janela, aplica-se a Transformada Discreta de Fourier (DFT). Em seguida, $N$ filtros passa-faixa triangulares com largura de banda constante são distribuídos igualmente entre $f_{\min}$ e $f_{\max}$ (tipicamente 300~Hz e 3400~Hz \cite{zhou2011lfcc}). A energia logarítmica de cada banda é calculada, e a Transformada Discreta Cosseno (DCT) é aplicada ao vetor de energias para decorrelacionar os componentes, resultando nos coeficientes LFCC. Assim como nas escalas BARK e MEL, as energias por banda podem por si mesmas constituir um vetor de características, ou os coeficientes pós-DCT podem ser utilizados, dependendo da configuração adotada. Experimentos no corpus NIST SRE 2010 demonstraram que LFCC supera consistentemente MFCC na verificação de locutores, com vantagem acentuada em locutrizes — cujo trato vocal mais curto eleva as frequências de formantes para a região de melhor resolução da escala linear \cite{zhou2011lfcc}.
+		\subsubsection{Coeficientes LFCC}
+			\par A escala LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada entre as frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas segundo \citeonline{zhou2011lfcc} é prejudicial para a verificação de locutores por essas estarem mais ligadas à características da geometria do trato vocal, em especial, ao comprimento do trato vocal que manifesta predominantemente as formantes superiores ($F_3$, $F_4$).
+			
+
+			\par O cálculo dos coeficientes LFCC segue as etapas a seguir: o sinal é dividido em bandas igualmente espaçadas e, para cada uma, aplica-se a Transformada Discreta de Fourier (DFT). Em seguida, $N$ filtros passa-faixa triangulares com largura de banda constante são distribuídos igualmente entre $f_{\min}$ e $f_{\max}$ (tipicamente 300~Hz e 3400~Hz \cite{zhou2011lfcc}). A energia logarítmica de cada banda é calculada, e a Transformada Discreta Cosseno (DCT) é aplicada ao vetor de energias para decorrelacionar os componentes, resultando nos coeficientes LFCC. O processo é ilustrado na \autoref{fig:lfccfeaturevect}.
 
 			\begin{figure}[h]
 				\centering
 				\caption{Cálculo de vetores de características com LFCC}
 				\resizebox{0.6\linewidth}{!}{\input{images/lfccFeatureVect.tex}}
 				\label{fig:lfccfeaturevect}
+				\legend{Fonte: Elaborado pelo autor, 2024.}
+			\end{figure}
+
+		\subsubsection{Coeficientes MFCC}
+			\par Os coeficientes MFCC (\textit{Mel-frequency cepstral coefficients}) são obtidos aplicando-se o logaritmo às energias das bandas Mel e em seguida a Transformada Discreta Cosseno (DCT) \cite{salomon2007data} para decorrelacionar os componentes, resultando em 13 coeficientes cepstrais ($V_1, V_2, \ldots, V_{13}$). Adicionalmente, são calculadas as primeiras e segundas derivadas temporais ($\Delta$ e $\Delta\Delta$), estendendo o vetor de características com informação dinâmica sobre a evolução temporal dos coeficientes, como ilustrado na \autoref{fig:melfeaturevect}.
+
+			\begin{figure}[h]
+				\centering
+				\caption{Cálculo de vetores de características com MFCC}
+				\resizebox{0.6\linewidth}{!}{\input{images/melFeatureVect.tex}}
+				\label{fig:melfeaturevect}
+				\legend{Fonte: Elaborado pelo autor, 2022.}
+			\end{figure}
+
+		\subsubsection{Coeficientes BFCC}
+			\par Os coeficientes BFCC (\textit{Bark-frequency cepstral coefficients}) são obtidos aplicando-se o logaritmo às energias das bandas Bark e em seguida a Transformada Discreta Cosseno (DCT) para decorrelacionar os componentes, resultando em 24 coeficientes cepstrais como ilustrado na \autoref{fig:bfccfeaturevect}.
+
+			\begin{figure}[h]
+				\centering
+				\caption{Cálculo de vetores de características com BFCC}
+				\resizebox{0.6\linewidth}{!}{\input{images/bfccFeatureVect.tex}}
+				\label{fig:bfccfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 			\end{figure}
 
@@ -129,7 +163,7 @@
 		\subsubsection{O algoritmo de Mallat para a Transformada \textit{Wavelet}}
 			\par Baseando-se no artigo \cite{7079589}, percebe-se que algoritmo de Mallat faz com que aplicação das \textit{wavelets} seja uma simples multiplicação de matrizes. O sinal que deve ser transformado se torna uma matriz linear vertical. Os filtros passa-baixa e passa-alta tornam-se, nessa ordem, linhas de uma matriz quadrada que será completada segundo regras que serão mostradas mais adiante. É importante que essa matriz quadrada tenha a mesma dimensão que o sinal a ser transformado.
 			
-			\par Interessantemente, para que seja possível a transformação \textit{wavelet}, basta ter disponível o vetor do filtro passa-baixas calculado a partir da \textit{mother wavelet}, que é a função geradora desse filtro, já que o passa-alta pode ser construído a partindo-se da ortogonalidade do primeiro.
+			\par Para que seja possível a transformação \textit{wavelet}, basta ter disponível o vetor do filtro passa-baixas calculado a partir da \textit{mother wavelet}, que é a função geradora desse filtro, já que o passa-alta pode ser construído a partindo-se da ortogonalidade do primeiro.
 			
 			\par Determinar a ortogonal de um vetor significa construir um vetor, tal que, o produto escalar do vetor original com sua respectiva ortogonal seja nulo.
 			
@@ -149,12 +183,12 @@
 			\par Se o tamanho do sinal a ser tratado é quatro e se pretende-se aplicar o filtro Haar, a seguinte matriz de coeficientes é construída:
 			\begin{equation}
 				\begin{pmatrix}
-					\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}, 0, 0\\
-					\frac{1}{\sqrt{2}}, \frac{-1}{\sqrt{2}}, 0, 0\\
-					0, 0, \frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}\\
-					0, 0, \frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}
-					\label{eq:haarFilters}
-				\end{pmatrix} 
+					\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} & 0 & 0\\
+					\frac{1}{\sqrt{2}} & \frac{-1}{\sqrt{2}} & 0 & 0\\
+					0 & 0 & \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}}\\
+					0 & 0 & \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}}
+				\end{pmatrix}
+				\label{eq:haarFilters}
 			\end{equation}
 		
 			\par Tendo em vista que a dimensão do sinal sob análise é diferente da dimensão do filtro, basta completar cada uma das linhas da matriz de coeficientes com zeros. A matriz é montada de forma que ela seja ortogonal.
@@ -162,18 +196,18 @@
 			\par Montada a matriz de filtros, segue-se com os cálculos da transformada:
 			\begin{equation}
 				\begin{pmatrix}
-					\frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}, 0, 0\\
-					\frac{1}{\sqrt{2}}, \frac{-1}{\sqrt{2}}, 0, 0\\
-					0, 0, \frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}\\
-					0, 0, \frac{1}{\sqrt{2}}, \frac{1}{\sqrt{2}}\\
-				\end{pmatrix} 
+					\frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}} & 0 & 0\\
+					\frac{1}{\sqrt{2}} & \frac{-1}{\sqrt{2}} & 0 & 0\\
+					0 & 0 & \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}}\\
+					0 & 0 & \frac{1}{\sqrt{2}} & \frac{1}{\sqrt{2}}\\
+				\end{pmatrix}
 				\cdot
 				\begin{pmatrix}
 					1\\
 					2\\
 					3\\
 					4\\
-				\end{pmatrix} 
+				\end{pmatrix}
 				=
 				\begin{pmatrix}
 					\frac{3}{\sqrt{2}}\\

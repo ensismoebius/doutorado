@@ -1,4 +1,5 @@
 \chapter{Introdução}
+	\label{chap:intro}
 	\section{Considerações Iniciais e Objetivos}
 
 		% \par Talvez eu use essa também \cite{Nguyen_2018}
@@ -8,12 +9,21 @@
 		\par A autenticação baseada em biometria vem despertando um interesse crescente, uma vez que se aproveita de características biométricas altamente correlacionadas com o indivíduo, resultando em um nível mais elevado de segurança. Algumas biometrias mostraram-se discriminatórias em relação a certos grupos, como indivíduos com pele mais escura \cite{grother2019frvt}, ou aqueles com deficiências físicas, que podem enfrentar dificuldades ao utilizá-las. Esse é o caso de boa parte dos tipos de biometrias utilizadas, incluindo a fala que é um dos focos desse estudo. Por outro lado, o eletroencefalograma (EEG) evita tais problemas, ao mesmo tempo, em que acrescenta algumas características únicas, como a exploração das variações neurais do usuário, criando, assim, uma contra-medida às pressões externas e complementando eventuais falhas ou faltas de outros métodos.
 	
 		\subsection{Objetivos}
-			\par Comparar o desempenho das estratégias de \textit{feature learnning} baseadas em \textit{autoencoders} com técnicas de análise como as \textit{Wavelet-Packet} de Tempo Discreto usando a engenharia paraconsistente de características.
-			\par O problema-alvo deste projeto é conceber algoritmos biométricos para autenticar, em princípio por meio da fala,  indivíduos com locuções severamente degradadas complementando tais informações com aquelas provenientes dos sinais cerebrais extraídos durante a fonação (imagined speech).
+			\par Comparar o desempenho das estratégias de \textit{feature learnning} baseadas em \textit{autoencoders} com técnicas de análise manuais como as \textit{Wavelet-Packet} de Tempo Discreto e agrupamentos energéticos usando a engenharia paraconsistente de características.
+
+			\par O problema-alvo deste projeto é conceber algoritmos biométricos para autenticar, em princípio por meio da fala,  indivíduos com locuções severamente degradadas complementando tais informações com aquelas provenientes dos sinais cerebrais extraídos durante a fonação (\textit{imagined speech}).
 			
-			\par Iniciar com a criação de vetores de características usando \textit{autoencoders} e análise com \textit{wavelets packet transform}, e classificá-los com redes neurais de pulso profundas residuais.
-			\par Text-dependent: Uma mesma frase é falada e imaginada
-			\par Text-independent: Pode ser falada qualquer coisa tanto no treinamento quanto nos testes.
+			\par Para guiar a avaliação dos métodos de extração de características, este trabalho investiga algumas questões:
+			\begin{description}
+				\item[Questão 1 --- Agrupamento espectral:] o esquema de particionamento espectral influencia a qualidade da representação dos sinais? Para responder a essa questão, comparam-se três representações de Categoria~1 --- \textit{Linear-band energies}, \textit{Mel-band energies} e \textit{Bark-band energies} --- que diferem segundo o critério de agrupamento das bandas de frequência sobre a representação wavelet.
+				
+				\item[Questão 2 --- Transformação cepstral:] a aplicação do logaritmo e da DCT sobre as energias por banda melhora a representação dos sinais? Para responder a essa questão, cada representação de Categoria~1 é comparada com seu correspondente cepstral de Categoria~2: \textit{Linear-band energies} versus LFCC, \textit{Mel-band energies} versus MFCC e \textit{Bark-band energies} versus BFCC. Em todos os pares, a única diferença entre as representações é a presença ou ausência da etapa cepstral.
+				
+				\item[Questão 3 --- Autoencoders:] os autoencoders conseguem gerar representações mais discriminativas do que as técnicas manuais? Para responder a essa questão, as representações de Categoria~1 e Categoria~2 são comparadas com as representações de Categoria~3, geradas por autoencoders. A comparação é feita usando a mesma arquitetura de rede neural para classificar as três categorias de representações.
+				
+				\item[Questão 4 --- Dependência de texto:] o desempenho dos métodos de extração de características é afetado pela dependência ou independência do texto? Para responder a essa questão, o desempenho dos métodos de extração de características é comparado entre os cenários text-dependent e text-independent. O cenário text-dependent é aquele em que a mesma frase é falada e imaginada, enquanto o cenário text-independent é aquele em que qualquer frase pode ser falada ou imaginada, tanto no treinamento quanto nos testes.
+			\end{description}
+
 	\section{Estrutura do trabalho}
 			% TODO revisitar aqui ao final da escrita e atualizar 
 			\par No \autoref{ch:revisao} a definição dos conceitos utilizados é feita na \autoref{sec:conceitos}, uma revisão do estado-da-arte se encontra em \autoref{sec:trabalhosMaisRecentes}. O \autoref{chap:propApproach} define a abordagem proposta e é dividido em: Organização da base de sinais (\autoref{sec:baseDeSinais}), Estrutura da estratégia proposta (\autoref{sec:estruturaDaEstrategiaProposta}) e por fim o cronograma previsto (\autoref{sec:cronograma}).

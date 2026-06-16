@@ -1,4 +1,4 @@
-% TikZ replacement for barkFeatureVect.png
+% TikZ figure: Linear-band energies computation pipeline
 \begin{tikzpicture}[
     >=stealth,
     thick,
@@ -20,17 +20,17 @@
 \node[draw=bb, thick, ellipse, minimum width=4cm, minimum height=0.9cm]
     (sig) at (0,0) {Sinal de voz};
 
-% ── Branch lines with freq labels ─────────────────────────────────────────────
+% ── Branch lines with linearly-spaced freq labels ─────────────────────────────
 \coordinate (bL) at (\xL,-1.8);
 \coordinate (bM) at (\xM,-1.8);
 \coordinate (bR) at (\xR,-1.8);
 
 \draw (sig.210) -- (bL)
-    node[pos=0.45, left,  font=\footnotesize] {20--100\,Hz};
+    node[pos=0.45, left,  font=\footnotesize] {300--400\,Hz};
 \draw (sig.270) -- (bM)
-    node[pos=0.45, font=\footnotesize] {\textbf{101}--200\,Hz};
+    node[pos=0.45, font=\footnotesize] {1750--1850\,Hz};
 \draw (sig.330) -- (bR)
-    node[pos=0.45, right, font=\footnotesize] {\textbf{12001}--15500\,Hz};
+    node[pos=0.45, right, font=\footnotesize] {3300--3400\,Hz};
 
 % ── Energy sum row ────────────────────────────────────────────────────────────
 \node (sumL) at (\xL,-2.6) {$\textstyle\sum_i(y_i)^2$};
@@ -43,17 +43,13 @@
 \draw (bM) -- (sumM.north);
 \draw (bR) -- (sumR.north);
 
-% ── Normalisation box ─────────────────────────────────────────────────────────
-\node[mbox] (normbox) at (0,-4.2) {Etapa de normalização};
-
-\draw[->] (sumL.south) -- (sumL |- normbox.north);
-\draw[->] (sumM.south) -- (sumM |- normbox.north);
-\draw[->] (sumR.south) -- (sumR |- normbox.north);
-
 % ── Feature vector box ────────────────────────────────────────────────────────
-\node[mbox] (vbox) at (0,-5.8)
-    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_{24}$};
-\node[right, align=left] at (\xLbl,-5.8) {Vetor de\\características};
-\draw[->] (normbox.south) -- (vbox.north);
+\node[mbox] (vbox) at (0,-4.2)
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_N$};
+\node[right, align=left] at (\xLbl,-4.2) {Vetor de\\características};
+
+\draw[->] (sumL.south) -- (sumL |- vbox.north);
+\draw[->] (sumM.south) -- (sumM |- vbox.north);
+\draw[->] (sumR.south) -- (sumR |- vbox.north);
 
 \end{tikzpicture}

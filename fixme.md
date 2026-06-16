@@ -1,10 +1,10 @@
 # Observações e Correções Fornecidas pelo Usuário
 
 1. Página 9: Incluir setas no fluxo da Figura 1 e citar o teorema de Nyquist. ok
+2. Página 11: Corrigir o uso da escala Bark com wavelet Haar, em vez de escala Bark com Mel. ok
+3. Página 11: Na legenda da figura, adicionar a referência original de onde a figura foi adaptada. ok
+4. Página 13: Na figura da escala Mel, adicionar a referência original. ok
 
-2. Página 11: Corrigir o uso da escala Bark com wavelet Haar, em vez de escala Bark com Mel.
-3. Página 11: Na legenda da figura, adicionar a referência original de onde a figura foi adaptada.
-4. Página 13: Na figura da escala Mel, adicionar a referência original.
 5. Página 15: Definir o que é uma matriz ortogonal.
 6. Página 16: Esclarecer que filtros normalizados são uma estratégia auxiliar e não uma condição fixa.
 7. Página 17: Incluir passo a passo do cálculo das transformadas wavelet packet.

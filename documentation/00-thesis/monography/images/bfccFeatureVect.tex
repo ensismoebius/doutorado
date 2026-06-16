@@ -1,4 +1,4 @@
-% TikZ figure: LFCC feature vector computation pipeline
+% TikZ figure: BFCC feature vector computation pipeline
 \begin{tikzpicture}[
     >=stealth,
     thick,
@@ -20,17 +20,17 @@
 \node[draw=bb, thick, ellipse, minimum width=4cm, minimum height=0.9cm]
     (sig) at (0,0) {Sinal de voz};
 
-% ── Branch lines with linearly-spaced freq labels ─────────────────────────────
+% ── Branch lines with Bark-scale freq labels ──────────────────────────────────
 \coordinate (bL) at (\xL,-1.8);
 \coordinate (bM) at (\xM,-1.8);
 \coordinate (bR) at (\xR,-1.8);
 
 \draw (sig.210) -- (bL)
-    node[pos=0.45, left,  font=\footnotesize] {300--400\,Hz};
+    node[pos=0.45, left,  font=\footnotesize] {20--100\,Hz};
 \draw (sig.270) -- (bM)
-    node[pos=0.45, font=\footnotesize] {1750--1850\,Hz};
+    node[pos=0.45, right, font=\footnotesize] {101--200\,Hz};
 \draw (sig.330) -- (bR)
-    node[pos=0.45, right, font=\footnotesize] {3300--3400\,Hz};
+    node[pos=0.45, right, font=\footnotesize] {12001--15500\,Hz};
 
 % ── Energy sum row ────────────────────────────────────────────────────────────
 \node (sumL) at (\xL,-2.6) {$\textstyle\sum_i(y_i)^2$};
@@ -45,7 +45,7 @@
 
 % ── Log box ───────────────────────────────────────────────────────────────────
 \node[mbox] (logbox) at (0,-4.3)
-    {$\log(V_1)\quad\log(V_2)\quad\cdots\!\cdots\!\cdots\quad\log(V_N)$};
+    {$\log(V_1)\quad\log(V_2)\quad\cdots\!\cdots\!\cdots\quad\log(V_{24})$};
 
 \draw[->] (sumL.south) -- (sumL |- logbox.north);
 \draw[->] (sumM.south) -- (sumM |- logbox.north);
@@ -53,7 +53,7 @@
 
 % ── Feature vector box (log energies) ─────────────────────────────────────────
 \node[mbox] (vbox1) at (0,-5.9)
-    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_N$};
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_{24}$};
 \node[right, align=left] at (\xLbl,-5.9) {Vetor de\\características};
 \draw[->] (logbox.south) -- (vbox1.north);
 
@@ -64,10 +64,10 @@
     {DCT -- \textit{Discrete cosine transformation}};
 \draw[->] (vbox1.south) -- (dctbox.north);
 
-% ── LFCC coefficient vector ───────────────────────────────────────────────────
+% ── BFCC coefficient vector ───────────────────────────────────────────────────
 \node[mbox] (vbox2) at (0,-8.9)
-    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_N$};
-\node[right, align=left] at (\xLbl,-8.9) {Coeficientes\\LFCC};
+    {$V_1\quad V_2\quad\cdots\!\cdots\!\cdots\quad V_{24}$};
+\node[right, align=left] at (\xLbl,-8.9) {Coeficientes\\BFCC};
 \draw[->] (dctbox.south) -- (vbox2.north);
 
 \end{tikzpicture}
