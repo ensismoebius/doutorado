@@ -247,12 +247,12 @@
 			
 			\par Os exemplos mostrados na \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF} permitem perceber como se dão as transformações na porção de \textbf{baixa} e de \textbf{alta} frequências, respectivamente, após a transformação \textit{wavelet-packet} de nível 1, 2, 3 e 4.
 			
-			\par Devido ao \textit{downsampling} aplicado às porções de alta frequência, essas partes acabam por ficar ``espelhadas'' no espectro \cite{Jensen_2001}, ou seja, suas sequências ficam invertidas. Para resolver esse problema e preservar a ordem das sub-bandas no sinal transformado, os filtros são aplicados em ordem inversa nas porções de alta frequência. Isso altera como o algoritmo de Mallat deve ser implementado para a Transformada \textit{Wavelet-Packet}, já que dessa vez é preciso se atentar a ordem da aplicação dos filtros passa-alta e passa-baixa.
+			\par O \textit{downsampling} aplicado às porções de alta frequência, fazem essas partes ficarem ``espelhadas'' no espectro \cite{Jensen_2001}, ou seja, suas sequências ficam invertidas. Para resolver esse problema e preservar a ordem das sub-bandas no sinal transformado, os filtros são aplicados em ordem inversa nas porções de alta frequência. Isso altera como o algoritmo de Mallat deve ser implementado para a Transformada \textit{Wavelet-Packet}, já que dessa vez é preciso se atentar a ordem da aplicação dos filtros passa-alta e passa-baixa.
 	
 			\input{tables/packetWaveletExample.tex}
 	
 		\subsection{Engenharia Paraconsistente de características}
-			\par Nos processos de classificação, frequentemente surge a questão: ``Os vetores de características criados proporcionam uma boa separação de classes?''. A Engenharia Paraconsistente de Características, recém publicada \cite{8588433}, que usa a paraconsistência \cite{da1998elementos},  \cite{COSTA2000} é, em meio a outras técnicas, uma ferramenta que pode ser usada para responder essa questão.
+			\par Nos processos de classificação, frequentemente surge a questão: ``Os vetores de características criados proporcionam uma boa separação de classes?''. A Engenharia Paraconsistente de Características \cite{8588433}, que usa a paraconsistência \cite{da1998elementos},  \cite{COSTA2000} é uma ferramenta que pode ser usada para responder essa questão.
 			
 			\par O processo inicia-se após a aquisição dos vetores de características para cada classe $C_n$. Se o número de classes presentes for, por exemplo, quatro então estas poderão ser representadas por $C_1, C_2, C_3, C_4$.
 			\par Em seguida é necessário o cálculo de duas grandezas:
@@ -262,7 +262,7 @@
 				\item a razão de sobreposição interclasse, $\beta$.
 			\end{itemize}
 	
-			\par $\alpha$ indica o quanto de similaridade os dados têm entre si, dentro de uma mesma classe, enquanto $\beta$ é a razão de sobreposição entre diferentes classes. Idealmente, $\alpha$ deve ser maximizada e $\beta$ minimizada para que classificadores extremamente modestos apresentem uma acurácia interessante.
+			\par $\alpha$ indica o quanto de similaridade os dados têm entre si, dentro de uma mesma classe, enquanto $\beta$ é a razão de sobreposição entre diferentes classes. Idealmente, $\alpha$ deve ser maximizada e $\beta$ minimizada assim, mesmo classificadores extremamente modestos podem apresentar um bom desempenho.
 			
 			\par Particularmente, para calcular $\alpha$ e $\beta$, é necessária a normalização dos vetores de características de forma que todos os seus componentes estejam no intervalo entre $0$ e $1$. Em seguida, a obtenção de $\alpha$ se dá selecionando-se os maiores e os menores valores de cada uma das posições de todos os vetores de características para cada classe, gerando assim um vetor para os valores maiores e outro para os menores.
 			
@@ -306,7 +306,26 @@
 				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 			
-			\par Considerando-se o plano paraconsistente \cite{8588433}, temos: 
+			\begin{figure}[H]
+				\centering
+				\caption[O plano paraconsistente]{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
+				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
+				\label{fig:paraconsistentplane}
+				\legend{Adaptado de \cite{8588433}}
+			\end{figure}
+			
+			\par O Plano Paraconsistente, para fins de visualização e maior rapidez na avaliação dos resultados, encontra-se ilustrado na  \autoref{fig:paraconsistentplane} e tem quatro arestas definidas:
+			
+			\begin{itemize}
+				\item (-1,0) $\rightarrow$ falsidade;
+				\item (1,0) $\rightarrow$ verdade;
+				\item (0,-1) $\rightarrow$ indefinição;
+				\item (0,1) $\rightarrow$ ambiguidade.
+			\end{itemize}
+			
+			\par A propósito de ilustração na  \autoref{fig:paraconsistentplane}, é possível ver um pequeno círculo indicando os graus dos quatro casos listados.
+			
+			\par Sendo assim no plano paraconsistente \cite{8588433}, temos: 
 			
 			\begin{itemize}
 				\item Verdade $\rightarrow$ fé total ($\alpha = 1$) e nenhum descrédito ($\beta = 0$)
@@ -326,15 +345,6 @@
 			
 			\par Os valores de $G_1$ e $G_2$, em conjunto, definem os graus entre verdade ($G_1=1$) e falsidade ($G_1=-1$) e também os graus entre indefinição ($G_2=-1$) e ambiguidade ($G_2=1$). Novamente, raramente tais valores inteiros serão alcançados já que $G_1$ e $G_2$ dependem de $\alpha$ e $\beta$.
 	
-			\par O Plano Paraconsistente, para fins de visualização e maior rapidez na avaliação dos resultados, encontra-se ilustrado na  \autoref{fig:paraconsistentplane} e tem quatro arestas precisamente definidas:
-			\begin{itemize}
-				\item (-1,0) $\rightarrow$ falsidade;
-				\item (1,0) $\rightarrow$ verdade;
-				\item (0,-1) $\rightarrow$ indefinição;
-				\item (0,1) $\rightarrow$ ambiguidade.
-			\end{itemize}
-			\par A propósito de ilustração na  \autoref{fig:paraconsistentplane}, é possível ver um pequeno círculo indicando os graus dos quatro casos listados.
-			
 			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas. Tais cálculos podem ser feitos da seguinte forma:
 	
 			\begin{equation}
@@ -350,13 +360,6 @@
 				D_{0,1}=\sqrt{(G_1)^2+(G_2-1)^2}\qquad.
 			\end{equation}		
 			
-			\begin{figure}[H]
-				\centering
-				\caption[O plano paraconsistente]{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
-				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
-				\label{fig:paraconsistentplane}
-				\legend{Adaptado de \cite{8588433}}
-			\end{figure}
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
 	
 		\subsection{Fala imaginada}

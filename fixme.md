@@ -11,10 +11,10 @@
 4. Página 13: Na figura da escala Mel, adicionar a referência original. ok
 5. Página 15: Definir o que é uma matriz ortogonal. ok
 6. Página 16: Esclarecer que filtros normalizados são uma estratégia auxiliar e não uma condição fixa. ok
+9. Página 18: Fazer revisão gramatical completa do documento. ok
+10. Página 19: Explicar o plano paraconsistente antes de utilizá-lo. ok
 
-
-9. Página 18: Fazer revisão gramatical completa do documento.
-10. Página 19: Explicar o plano paraconsistente antes de utilizá-lo.
+Pag 20 se tornou 24
 11. Página 20: Corrigir o vetor da classe C1 para (-4, -9, -7, -2).
 12. Página 21: Remover a listagem redundante do plano paraconsistente.
 13. Página 21: Adicionar uma label ao ponto P na Figura 8.
