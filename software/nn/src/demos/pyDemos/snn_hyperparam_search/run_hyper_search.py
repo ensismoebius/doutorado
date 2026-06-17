@@ -19,9 +19,7 @@ from typing import Any
 import pathlib
 import torch
 
-# Ensure local package root (src/demos/pydemos) is on sys.path so imports like
-# `core.configs` resolve when running this script directly.
-PKG_ROOT = pathlib.Path(__file__).resolve().parents[1]
+PKG_ROOT = pathlib.Path(__file__).resolve().parents[1] / "voice_biometrics_snn_py"
 sys.path.insert(0, str(PKG_ROOT))
 
 from core.configs import ConfigExtracao, ConfigSNN

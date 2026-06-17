@@ -19,9 +19,8 @@ import time
 import pathlib
 from typing import Any
 
-PKG_ROOT = pathlib.Path(__file__).resolve().parents[3]
-# PKG_ROOT resolves to src/demos/pydemos/.. so adjust
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+PKG_ROOT = pathlib.Path(__file__).resolve().parents[1] / "voice_biometrics_snn_py"
+sys.path.insert(0, str(PKG_ROOT))
 
 from core.configs import ConfigExtracao, ConfigSNN
 from services.identificacao_locutor import treinar_classificador_locutor

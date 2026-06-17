@@ -12,7 +12,7 @@ add_executable(exec_lfcc_pipeline
     ${CMAKE_SOURCE_DIR}/include/layers/activations/LeakyReLU.hpp
     ${SRC_DIR}/core/data_loaders/io/mat_file.cpp
     ${SRC_DIR}/core/wave/Wav.cpp
-    ${SRC_DIR}/demos/lfcc_pipeline/lfcc_pipeline.cpp
+    ${SRC_DIR}/demos/cppDemos/lfcc_feature_demo/lfcc_pipeline.cpp
 )
 
 # Include directories

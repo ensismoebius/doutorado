@@ -13,7 +13,7 @@ add_executable(plotSpikingNetwork
     ${CMAKE_SOURCE_DIR}/include/layers/activations/ReLU.hpp
     ${CMAKE_SOURCE_DIR}/include/layers/activations/LeakyReLU.hpp
     ${SRC_DIR}/core/utility/imgui_glfw.cpp
-    ${SRC_DIR}/demos/exec_plotSpikingNetwork/plotSpikingNetwork.cpp
+    ${SRC_DIR}/demos/cppDemos/snn_spike_plotter/plotSpikingNetwork.cpp
 )
 
 # Link libraries

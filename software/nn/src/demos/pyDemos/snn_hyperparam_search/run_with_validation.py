@@ -14,7 +14,7 @@ import time
 from typing import Any
 
 # ensure package root
-PKG_ROOT = pathlib.Path(__file__).resolve().parents[1]
+PKG_ROOT = pathlib.Path(__file__).resolve().parents[1] / "voice_biometrics_snn_py"
 sys.path.insert(0, str(PKG_ROOT))
 
 import torch

@@ -1,12 +1,12 @@
 add_executable(voice_biometrics_cpp
     main.cpp
-    ../cppdemos/codificacao.cpp
+    ../snn_speaker_demo/codificacao.cpp
 )
 
 target_include_directories(voice_biometrics_cpp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/..
-    ${CMAKE_CURRENT_SOURCE_DIR}/../cppdemos
+    ${CMAKE_CURRENT_SOURCE_DIR}/../snn_speaker_demo
     ${CMAKE_SOURCE_DIR}/include
 )
 

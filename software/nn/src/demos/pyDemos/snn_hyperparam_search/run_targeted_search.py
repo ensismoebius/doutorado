@@ -11,7 +11,7 @@ import pathlib
 import sys
 import time
 
-PKG_ROOT = pathlib.Path(__file__).resolve().parents[1]
+PKG_ROOT = pathlib.Path(__file__).resolve().parents[1] / "voice_biometrics_snn_py"
 sys.path.insert(0, str(PKG_ROOT))
 
 from core.configs import ConfigExtracao, ConfigSNN
