@@ -41,4 +41,4 @@ __pycache__/
 software/nn/tags
 software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
 *.sqlite
-software/nn/out
+software/nn/outdocumentation/06-BooksToRead/*.pdf
