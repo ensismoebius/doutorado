@@ -84,7 +84,7 @@ def cmd_demo(args: argparse.Namespace) -> None:
             )
 
             # Passa os spikes pela SNN.
-            pulsos_de_saida, estado = rede_neural(pulsos_de_entrada, estado)
+            pulsos_de_saida, estado, _ = rede_neural(pulsos_de_entrada, estado)
 
             # Para plotar por janela, agregamos os spikes ao longo dos passos.
             soma_dos_pulsos_por_janela = pulsos_de_saida.sum(dim=0)  # [1, num_bandas]

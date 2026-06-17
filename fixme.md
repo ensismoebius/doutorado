@@ -1,6 +1,7 @@
 # Adiadas / rejeitadas
 7. Página 17: Incluir passo a passo do cálculo das transformadas wavelet packet. (nem fodendo)
 8. Página 18: Listar outras técnicas além da engenharia paraconsistente para consistência de características. (por enquanto não)
+24. Página 31: Verificar consistência entre as equações do LIF e o código utilizado.
 
 
 # Observações e Correções Fornecidas pelo Usuário
@@ -13,24 +14,25 @@
 6. Página 16: Esclarecer que filtros normalizados são uma estratégia auxiliar e não uma condição fixa. ok
 9. Página 18: Fazer revisão gramatical completa do documento. ok
 10. Página 19: Explicar o plano paraconsistente antes de utilizá-lo. ok
+11. Página 20: Corrigir o vetor da classe C1 para (-4, -9, -7, -2). ok
+12. Página 21: Remover a listagem redundante do plano paraconsistente. ok
+13. Página 21: Adicionar uma label ao ponto P na Figura 8. ok
+14. Página 23: Inserir a palavra “geralmente” ao falar do intervalo de frequência cerebral.ok
+15. Página 23: Registrar que a amplitude da onda delta não foi fornecida pelas fontes.ok
+16. Página 23: Explicitar a ausência da amplitude da onda delta. ok
+17. Página 24: Verificar a referência “2023a”, possivelmente incorreta.ok
+18. Páginas 25 e 26: Redimensionar figuras que ocupam espaço excessivo.ok
+19. Página 28 (Figura 14): Trocar “área perisilviana” por “fissura de Silvio”.ok
+20. Página 29 (Figura 15): Definir claramente o que significa fala fluente e não  fluente.ok
+21. Página 30 (Figura 16): Adicionar descrição explicando o que a figura representa.ok
+22. Página 31 (Figura 17 – Modelo RC): Corrigir símbolo que parece letra “V”.ok
+23. Página 31: Explicar que a redução do custo computacional do neurônio LIF também vale para hardware convencional, não apenas neuromórfico.ok
+25. Figura 19: Explicar que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.ok
+26. Figura 19: Manter a figura antes da formalização matemática para fornecer intuição visual inicial.ok
 
 Pag 20 se tornou 24
-11. Página 20: Corrigir o vetor da classe C1 para (-4, -9, -7, -2).
-12. Página 21: Remover a listagem redundante do plano paraconsistente.
-13. Página 21: Adicionar uma label ao ponto P na Figura 8.
-14. Página 23: Inserir a palavra “geralmente” ao falar do intervalo de frequência cerebral.
-15. Página 23: Registrar que a amplitude da onda delta não foi fornecida pelas fontes.
-16. Página 23: Explicitar a ausência da amplitude da onda delta.
-17. Página 24: Verificar a referência “2023a”, possivelmente incorreta.
-18. Páginas 25 e 26: Redimensionar figuras que ocupam espaço excessivo.
-19. Página 28 (Figura 14): Trocar “área perisilviana” por “fissura de Silvio”.
-20. Página 29 (Figura 15): Definir claramente o que significa fala fluente e não fluente.
-21. Página 30 (Figura 16): Adicionar descrição explicando o que a figura representa.
-22. Página 31 (Figura 17 – Modelo RC): Corrigir símbolo que parece letra “V”.
-23. Página 31: Explicar que a redução do custo computacional do neurônio LIF também vale para hardware convencional, não apenas neuromórfico.
-24. Página 31: Verificar consistência entre as equações do LIF e o código utilizado.
-25. Figura 19: Explicar que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.
-26. Figura 19: Manter a figura antes da formalização matemática para fornecer intuição visual inicial.
+Figura 14 virou 18
+
 27. Página 34: Ao explicar o decaimento da voltagem/potencial da membrana, justificar por que essa explicação está sendo apresentada e qual sua relevância.
 28. Página 35 — Corrigir “equação ordinária de primeira ordem” para “equação diferencial ordinária (EDO) de primeira ordem” e verificar se é apropriado especificar que se trata de uma EDO linear de primeira ordem.
 29. Página 38 — Definir feedforward, backpropagation, Reservoir Computing, ESN e LSM e relacionar ESN/LSM com SNNs.

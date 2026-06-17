@@ -305,27 +305,8 @@
 				\label{fig:betacalculation}
 				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
-			
-			\begin{figure}[H]
-				\centering
-				\caption[O plano paraconsistente]{O plano paraconsistente: O pequeno círculo indica os graus de falsidade(-1,0), verdade(1,0), indefinição(0,-1) e ambiguidade(0,1)}
-				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
-				\label{fig:paraconsistentplane}
-				\legend{Adaptado de \cite{8588433}}
-			\end{figure}
-			
-			\par O Plano Paraconsistente, para fins de visualização e maior rapidez na avaliação dos resultados, encontra-se ilustrado na  \autoref{fig:paraconsistentplane} e tem quatro arestas definidas:
-			
-			\begin{itemize}
-				\item (-1,0) $\rightarrow$ falsidade;
-				\item (1,0) $\rightarrow$ verdade;
-				\item (0,-1) $\rightarrow$ indefinição;
-				\item (0,1) $\rightarrow$ ambiguidade.
-			\end{itemize}
-			
-			\par A propósito de ilustração na  \autoref{fig:paraconsistentplane}, é possível ver um pequeno círculo indicando os graus dos quatro casos listados.
-			
-			\par Sendo assim no plano paraconsistente \cite{8588433}, temos: 
+		
+			\par Considerando os valores máximos e mínimos que $\alpha$ e $\beta$ podem assumir é possível ter a seguinte interpretação:
 			
 			\begin{itemize}
 				\item Verdade $\rightarrow$ fé total ($\alpha = 1$) e nenhum descrédito ($\beta = 0$)
@@ -333,8 +314,21 @@
 				\item Falsidade $\rightarrow$ fé nula ($\alpha = 0$) e descrédito total ($\beta = 1$)
 				\item Indefinição $\rightarrow$ fé nula ($\alpha = 0$) e nenhum descrédito ($\beta = 0$) \qquad.
 			\end{itemize}
+			
+			\par No entanto, é improvável que os valores de $\alpha$ e $\beta$ assumam valores inteiros, como na listagem apresentada anteriormente, uma vez que $\alpha,\beta \in \mathbb{R}$ e estão restritos aos intervalos $0 \leqslant \alpha \leqslant 1$ e $0 \leqslant \beta \leqslant 1$, 
+			
+			\par Assim, para fins de visualização e maior rapidez na avaliação dos resultados, o \textbf{grau de certeza} ($G_1$) e o \textbf{grau de contradição} ($G_2$) devem ser calculados, esses valores são  utilizados para criar o chamado \textbf{plano paraconsistente} ilustrado na  \autoref{fig:paraconsistentplane}.
+			
+			\begin{figure}[H]
+				\centering
+				\caption[O plano paraconsistente]{O plano paraconsistente: O pequeno círculo $P(G_1, G_2)$ indica os graus de falsidade(-1,0), verdade(1, 0), indefinição(0,-1) e ambiguidade(0,1) de acordo com os valores do par ordenado $(G_1, G_2)$}
+				\includegraphics[angle=-90, width=0.69\linewidth]{images/paraconsistentPlane.pdf}
+				\label{fig:paraconsistentplane}
+				\legend{Adaptado de \cite{8588433}}
+			\end{figure}
 	
-			\par No entanto, raramente $\alpha$ e $\beta$ terão valores inteiros como os mostrados na listagem acima: Na maioria das ocasiões, $0 \leqslant \alpha \leqslant 1$ e $0 \leqslant \beta \leqslant 1$. Por isso, se torna necessário o cálculo do \textbf{grau de certeza}, isto é, $G_1$, e do \textbf{grau de contradição}, isto é, $G_2$, conforme segue:
+			\par $G_1$ e $G_2$ são obtidos pelas seguintes expressões:
+			
 			\begin{equation}
 				G_1=\alpha-\beta  \qquad,
 			\end{equation}
@@ -345,7 +339,7 @@
 			
 			\par Os valores de $G_1$ e $G_2$, em conjunto, definem os graus entre verdade ($G_1=1$) e falsidade ($G_1=-1$) e também os graus entre indefinição ($G_2=-1$) e ambiguidade ($G_2=1$). Novamente, raramente tais valores inteiros serão alcançados já que $G_1$ e $G_2$ dependem de $\alpha$ e $\beta$.
 	
-			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas. Tais cálculos podem ser feitos da seguinte forma:
+			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas da seguinte forma:
 	
 			\begin{equation}
 				D_{-1,0}=\sqrt{(G_1+1)^2+(G_2)^2}\qquad,
@@ -360,7 +354,7 @@
 				D_{0,1}=\sqrt{(G_1)^2+(G_2-1)^2}\qquad.
 			\end{equation}		
 			
-			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores sejam quais forem os classificadores usados.
+			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores.
 	
 		\subsection{Fala imaginada}
 			\par A fala imaginada é um fenômeno em que uma pessoa "ouve" a si mesma falando internamente, sem produzir som. As regiões cerebrais usadas na fala imaginada são similares às que estão envolvidas na fala verbal, englobando áreas do córtex motor e pré-motor, além de outras áreas associadas à linguagem e a fala.
@@ -384,26 +378,26 @@
 			
 			\par Entre os métodos de Interface Cérebro-Computador (BCI), o Eletroencefalograma (EEG) se destaca como o sistema mais econômico e simples de implementar. O EEG registra as atividades elétricas do cérebro captando-as através de eletrodos colocados ao longo do couro cabeludo. No entanto possui algumas peculiaridades como alta sensibilidade a interferência eletromagnética e dificuldade em capturar o sinal devido a posicionamentos subótimos dos eletrodos no couro cabeludo. Portanto, um dos aspectos fundamentais que qualquer sistema de processamento de EEG deve ter é a tolerância ao ruído \cite{JALALYBIDGOLY2020101788}.
 			
-			\par As atividades elétricas surgem dos fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788}. Para cada tipo de ação realizada, o cérebro trabalha segundo as bandas listadas logo abaixo \cite{sanei2021eeg}.
+			\par As atividades elétricas surgem dos fluxos de corrente iônica induzidos pela ativação sináptica sincronizada dos neurônios do cérebro. Elas se manifestam como flutuações de voltagem rítmicas com amplitude variando de 5 a 100$\mu V$ e com frequência entre 0,5 e 40 Hz \cite{JALALYBIDGOLY2020101788, Tatum2019NormalAwakeAdultEEG, Tatum2019NormalAwakeAdultEEG2}. Para cada tipo de ação realizada, o cérebro trabalha segundo as bandas listadas logo abaixo \cite{sanei2021eeg}.
 			
 			\par Para captação de sinais de EEG usam-se eletrodos que podem ser do tipo úmido ou seco. Os úmidos são colocados usando gel condutivo e são menos propensos a gerar artefatos provocados por movimentos no sinal captado. Artefatos são interferências eletromagnéticas causadas, por exemplo, pelos músculos ao piscar dos olhos. Os eletrodos secos não precisam do gel, mas são mais sensíveis a tais ruídos.
 			
 			\begin{itemize}
-				\item \textbf{Delta (1–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos.
+				\item \textbf{Delta (0,5–4Hz)}: A onda mais lenta e geralmente a de maior amplitude. A banda Delta é observada em bebês e durante o sono profundo em adultos com amplitude registrada de até 350 $\mu V$.
 				
 				\item \textbf{Theta (4–8Hz)}: Observada em crianças, adultos sonolentos e durante a recordação de memórias. A amplitude da onda Theta é tipicamente inferior a 100$\mu V$.
 				
-				\item \textbf{Alpha (8–12Hz)}: Geralmente a banda de frequência dominante, aparecendo durante a consciência relaxada ou quando os olhos estão fechados. A atenção focada ou a relaxamento com os olhos abertos reduzem a amplitude da banda Alpha. Essas ondas têm amplitudes normalmente inferiores a 50 $\mu V$.
+				\item \textbf{Alpha (8–12Hz)}: Geralmente a banda de frequência dominante, aparecendo durante a consciência relaxada ou quando os olhos estão fechados. Essas ondas têm amplitudes normalmente inferiores a 50 $\mu V$.
 				
 				\item \textbf{Beta (12–25Hz)}: Associada ao pensamento, concentração ativa e atenção focada. A amplitude da onda Beta é normalmente inferior a 30 $\mu V$.
 				
-				\item \textbf{Gamma (acima de 25Hz)}: Observada durante o processamento sensorial múltiplo. Os padrões Gamma têm a menor amplitude.
+				\item \textbf{Gamma (acima de 25Hz)}: Observada durante o processamento sensorial múltiplo. Os padrões Gamma têm a menor amplitude, no entanto, até o presente momento não foram encontradas fontes consensuais em relação a tais valores.
 				
 			\end{itemize}
 			
 			\par As amplitudes das bandas Delta e Gamma não foram encontradas quando procuradas nas principais bases de dados.
 			
-			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme visto na \autoref{tb:brainRegions}.
+			\par De acordo com \cite{JALALYBIDGOLY2020101788} e \cite{sistema10-20}, para a maioria das tarefas realizadas pelo cérebro, existem regiões associadas a elas, conforme pode ser visto na \autoref{tb:brainRegions}.
 			
 			\subsection{Sistema 10-20 e as áreas do cérebro}
 			\begin{table}[H]
@@ -456,7 +450,6 @@
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobofrontal}
 			\end{figure}
-			\newpage
 			
 			\begin{figure}[H]
 				\centering
@@ -482,7 +475,9 @@
 				\label{fig:teleencefalotudo}
 			\end{figure}
 			
-			\par O processamento fonológico se dá na região perissilviana do hemisfério dominante, já o semântico inclui áreas corticais de ambos os hemisférios para dar significado às palavras, nas áreas frontais, temporais e parietais, a articulação das palavras acontece. Quando se dá uma lesão em áreas como a de Wernicke, Broca ou em suas vizinhanças à condição resultante se dá o nome de \textbf{afasia} \cite{pinto2012manual}. Portanto a fala tanto fonada quanto imaginada se realiza em quase todo o telencéfalo tendo como diferença a mobilização dos córtex motores quando o locutor ou locutora emite algum som.
+			\newpage
+			
+			\par O processamento fonológico se dá na região perissilviana do hemisfério dominante, já o semântico inclui áreas corticais de ambos os hemisférios para dar significado às palavras, nas áreas frontais, temporais e parietais, a articulação das palavras acontece. Quando se dá uma lesão em áreas como a de Wernicke, Broca ou em suas vizinhanças à condição resultante se dá o nome de \textbf{afasia} que podem ser fluentes (fala com ritmo normal porém  incoerente) ou não-fluentes (dificuldade e esforço na produção da fala mas, preservam a compreensão) \cite{pinto2012manual}. Portanto a fala tanto fonada quanto imaginada se realiza em quase todo o telencéfalo tendo como diferença a mobilização dos córtex motores quando o locutor ou locutora emite algum som.
 			
 			\begin{figure}[h]
 				\centering
@@ -500,15 +495,15 @@
 
 			\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
 			
-			\par Sendo assim, para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP) assim como seus referenciais biológicos, em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} nas camadas de entrada, ocultas e de saída. As RNPs também podem ter entradas contínuas e manter suas propriedades.
+			\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP) assim como seus referenciais biológicos, em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} em suas camadas. As RNPs também podem ter entradas contínuas e manter suas propriedades.
 			
-			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas. Caso haja interesse em algo do tipo existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} ou ainda outros que exploram a não linearidade dos dendritos e outras características neurais \cite{jones2020single} criando modelos muito mais próximos aos neurônios naturais, obtendo resultados bastante interessantes.
+			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas que serão explicadas mais a diante. Caso haja interesse em algo do tipo existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} ou ainda outros que exploram a não linearidade dos dendritos e outras características neurais \cite{jones2020single} criando modelos muito mais próximos aos neurônios naturais, obtendo resultados bastante interessantes.
 			
 			\par Como pode ser visto na \autoref{fig:neuronspike}, os neurônios das RNPs, com os parâmetros corretos, são muito tolerantes a ruídos porque atuam como um \textbf{filtro passa-baixa}. Eles geram pulsos mesmo quando um nível considerável de interferência está presente. Tais neurônios são muito sensíveis ao tempo, sendo ótimos para processar fluxos de dados \cite{10242251}.
 			
 			\begin{figure}[h]
 				\centering
-				\caption{Pulsos de um sinal ruidoso.}
+				\caption[Pulsos de um sinal ruidoso.]{Sinal ruidoso e os respectivos pulsos produzidos, note que é necessário um acúmulo de sinal suficiente antes que os pulsos comecem a ser exibidos}
 				\includegraphics[width=0.6\linewidth]{images/neuronSpikes}
 				\label{fig:neuronspike}
 				\legend{Fonte: \cite{dan_goodman_2022_7044500}}
@@ -521,7 +516,7 @@
 			
 			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas, tal estrutura, assim como um neurônio de RN, recebe a soma das entradas ponderadas, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau o valor soma com o passar do tempo.
 			
-			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa o potencial acumulado e $v$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa o potencial acumulado e $\vartheta$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
 			\begin{figure}[h]
 				\centering
@@ -531,7 +526,7 @@
 				\legend{Fonte: \cite{10242251}}
 			\end{figure}
 			
-			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado na \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência computacional (em hardware neuromórfico) e o armazenamento necessário para executar uma RNP.
+			\par Ao contrário do neurônio Hodgkin-Huxley, os pulsos são representados como \textbf{uns} dispersamente distribuídos em uma sequência de \textbf{zeros}, como ilustrado na \autoref{fig:pulsossparsitystaticsupress} e \autoref{fig:sparsity}. Essa abordagem simplifica os modelos e reduz a potência  computacional necessária em hardware convencional e neuromórfico além de requerer menos armazenamento.
 			
 			\begin{figure}[h]
 				\centering
@@ -543,7 +538,7 @@
 			
 			\begin{figure}[h]
 				\centering
-				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número do neurônio (índice) na RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
+				\caption[Atividade dispersa de uma RNP]{Atividade dispersa de uma simulação RNP: O eixo horizontal representa o momento no qual os dados estão sendo processados e o vertical representa o número do neurônio (índice) na RNP. Note que, na maior parte do tempo, muito poucos neurônios são ativados.}
 				\includegraphics[width=.4\linewidth]{images/sparsity}
 				\legend{Fonte: Elaborado pelo autor, 2023.}
 				\label{fig:sparsity}
