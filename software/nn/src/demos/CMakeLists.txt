@@ -2,7 +2,7 @@
 include(../../cmake/SanitizerFlags.cmake)
 
 # Add subdirectories for all demos and experiments
-add_subdirectory(cppDemos/cppdemos)
+add_subdirectory(cppDemos/speaker_demo)
 add_subdirectory(cppDemos/fftw3_demo)
 add_subdirectory(cppDemos/wavelet_demo)
 add_subdirectory(cppDemos/lfcc_pipeline)
