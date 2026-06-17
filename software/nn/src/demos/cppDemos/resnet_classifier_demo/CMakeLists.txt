@@ -11,3 +11,5 @@ add_executable(resnet_demo
   )
 
   configure_xtensor_parallel_target(resnet_demo)
+
+add_subdirectory(tests)

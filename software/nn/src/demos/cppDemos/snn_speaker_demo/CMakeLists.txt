@@ -21,3 +21,5 @@ add_library(rede_snn SHARED rede_snn.cpp)
 set_target_properties(rede_snn PROPERTIES PREFIX "" OUTPUT_NAME "rede_snn")
 target_link_libraries(rede_snn PRIVATE tensor xtensor xtensor-blas)
 configure_xtensor_parallel_target(rede_snn)
+
+add_subdirectory(tests)

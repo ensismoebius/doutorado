@@ -73,3 +73,5 @@ target_include_directories(autoEncoderLeakyReLUAndSpikeTest
         ${cnpy_SOURCE_DIR}
 )
 configure_xtensor_parallel_target(autoEncoderLeakyReLUAndSpikeTest)
+
+add_subdirectory(tests)

@@ -13,3 +13,5 @@ add_executable(fftw3_demo
   )
 
   configure_xtensor_parallel_target(fftw3_demo)
+
+add_subdirectory(tests)

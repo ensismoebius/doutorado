@@ -22,3 +22,5 @@ target_link_libraries(voice_biometrics_cpp PRIVATE
 )
 
 configure_xtensor_parallel_target(voice_biometrics_cpp)
+
+add_subdirectory(tests)

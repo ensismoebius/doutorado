@@ -15,3 +15,5 @@ add_executable(wavelet_demo
   )
 
   configure_xtensor_parallel_target(wavelet_demo)
+
+add_subdirectory(tests)

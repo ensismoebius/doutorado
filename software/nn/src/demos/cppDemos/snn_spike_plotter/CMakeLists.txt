@@ -46,3 +46,5 @@ target_include_directories(plotSpikingNetwork
 
 # Configure xtensor parallelism for the target
 configure_xtensor_parallel_target(plotSpikingNetwork)
+
+add_subdirectory(tests)
