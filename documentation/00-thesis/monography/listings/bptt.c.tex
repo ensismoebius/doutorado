@@ -4,14 +4,14 @@ float h[T+1];
 h[0] = 0.0f;
 for (int t = 0; t < T; t++) {
     h[t+1] = tanh(W * h[t] + x[t]); /* recorrencia  */
-    y[t]   = V * h[t+1];            /* saida        */
+    y[t]   = W *h[t+1];            /* saida        */
 }
 /* ---- Backward: percorre ao contrario ---- */
 float dL_dW = 0.0f;
 float grad_h = 0.0f;  /* gradiente acumulado da etapa seguinte */
 for (int t = T-1; t >= 0; t--) {
     float dL_dy   = y[t] - alvo[t];        /* erro na saida       */
-    float dL_dh   = V * dL_dy + grad_h;    /* output + recorrencia*/
+    float dL_dh   = W *dL_dy + grad_h;    /* output + recorrencia*/
     float dtanh   = 1.0f - h[t+1] * h[t+1];/* derivada de tanh    */
     float dL_dpre = dL_dh * dtanh;
     dL_dW  += dL_dpre * h[t];  /* acumula gradiente de W              */

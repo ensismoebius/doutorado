@@ -31,7 +31,7 @@
     {$h[t{+}1] \leftarrow \tanh\!\bigl(W \cdot h[t] + x[t]\bigr)$};
 
 \node[proc, below=of updateHidden] (computeOutput)
-    {$y[t] \leftarrow V \cdot h[t{+}1]$};
+    {$y[t] \leftarrow W \cdot h[t{+}1]$};
     
 \node[proc, below=of computeOutput] (incrementT)
     {$t \leftarrow t + 1$};
@@ -52,7 +52,7 @@
 \node[proc, below=of checkBackward] (outputError)
     {$\mathit{dL\_dy} \leftarrow y[t] - \mathit{alvo}[t]$};
 \node[proc, below=of outputError] (hiddenGrad)
-    {$\mathit{dL\_dh} \leftarrow V \cdot \mathit{dL\_dy} + \mathit{grad\_h}$};
+    {$\mathit{dL\_dh} \leftarrow W \cdot \mathit{dL\_dy} + \mathit{grad\_h}$};
 
 \node[proc, below=of hiddenGrad] (tanhDeriv)
     {$\mathit{dtanh} \leftarrow 1 - h[t{+}1]^{2}$};

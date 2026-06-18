@@ -775,7 +775,7 @@
 				\label{fig:bptt}
 			\end{figure}
 
-			\par O \autoref{lst:bptt} apresenta o algoritmo simplificado: o loop \textit{forward} armazena os estados $h[t]$ na memória; o loop \textit{backward} percorre o tempo ao contrário acumulando o gradiente $\nabla_W$. Neste exemplo, $V$ denota os pesos da camada de saída, $y[t] = V \cdot h[t{+}1]$ a saída da rede no instante $t$, $\mathit{alvo}[t]$ o valor alvo correspondente e $\mathit{lr}$ a taxa de aprendizagem. A \autoref{fig:bptt-fluxogram} detalha o fluxo de execução completo com as duas fases e todas as variáveis envolvidas.
+			\par O \autoref{lst:bptt} apresenta o algoritmo simplificado: o loop \textit{forward} armazena os estados $h[t]$ na memória; o loop \textit{backward} percorre o tempo ao contrário acumulando o gradiente $\nabla_W$. Neste exemplo, $W$ denota os pesos da rede, $y[t] = W \cdot h[t{+}1]$ a saída da rede no instante $t$, $\mathit{alvo}[t]$ o valor alvo correspondente e $\mathit{lr}$ a taxa de aprendizagem. A \autoref{fig:bptt-fluxogram} detalha o fluxo de execução completo com as duas fases e todas as variáveis envolvidas.
 
 			\input{listings/bptt.c.tex}
 
