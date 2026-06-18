@@ -613,7 +613,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Agora o comportamento do decaimento da voltagem no neurônio quando não há entrada $I_{in} = 0$ pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
+			\par Quando não há corrente de entrada no neurônio $I_{in} = 0$ ocorre um decaimento em sua voltagem que pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
 			
 			\begin{equation}
 				\label{eq:expmembrane}
@@ -654,7 +654,7 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par A \autoref{eq:actionpotincrease0} se encaixa na categoria de Equação Ordinária de primeira ordem, portanto, para resolvê-la se determina o fator de integração $f$ definido na \autoref{eq:actionpotincrease1}:
+			\par A \autoref{eq:actionpotincrease0} se encaixa na categoria de equação diferencial ordinária (EDO) de primeira ordem, portanto, para resolvê-la se determina o fator de integração $f$ definido na \autoref{eq:actionpotincrease1}:
 			
 			\begin{equation}
 				\label{eq:actionpotincrease1}
@@ -747,9 +747,14 @@
 			
 			\begin{itemize}
 				\item \textbf{Plasticidade Dependente do Tempo de Pulsos (STDP)}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
+				
 				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
+				
 				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
-				\item \textbf{Reservatório/Computação Dinâmica}: \textbf{Redes de estado de eco} ou \textbf{Máquinas de estado líquido}, respectivamente.
+				
+				\item \textbf{Reservatório/Computação Dinâmica}: estratégia que evita treinar a rede recorrente mantendo o \textbf{reservatório} --- uma rede recorrente com pesos e conectividade fixos --- e treinando apenas a camada de saída \cite{kasabov2019time}.
+
+				\item \textbf{ESN e LSM}: as \textbf{Redes de estado de eco} (\textit{Echo State Networks} --- ESN) usam neurônios de saída contínua no reservatório; as \textbf{Máquinas de estado líquido} (\textit{Liquid State Machines} --- LSM) usam neurônios pulsantes no reservatório e uma camada de saída simples que lê apenas o estado atual \cite{6789852}.
 			\end{itemize}
 
 		\subsubsection{Retropropagação Através do Tempo em RNPs (BPTT)}

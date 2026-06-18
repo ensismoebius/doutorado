@@ -29,13 +29,13 @@
 23. Página 31: Explicar que a redução do custo computacional do neurônio LIF também vale para hardware convencional, não apenas neuromórfico.ok
 25. Figura 19: Explicar que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.ok
 26. Figura 19: Manter a figura antes da formalização matemática para fornecer intuição visual inicial.ok
+27. Página 34: Ao explicar o decaimento da voltagem/potencial da membrana, justificar por que essa explicação está sendo apresentada e qual sua relevância. ok
+28. Página 35 — Corrigir “equação ordinária de primeira ordem” para “equação diferencial ordinária (EDO) de primeira ordem” e verificar se é apropriado especificar que se trata de uma EDO linear de primeira ordem. ok
+29. Página 38 — Definir feedforward, backpropagation, Reservoir Computing, ESN e LSM e relacionar ESN/LSM com SNNs.ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-27. Página 34: Ao explicar o decaimento da voltagem/potencial da membrana, justificar por que essa explicação está sendo apresentada e qual sua relevância.
-28. Página 35 — Corrigir “equação ordinária de primeira ordem” para “equação diferencial ordinária (EDO) de primeira ordem” e verificar se é apropriado especificar que se trata de uma EDO linear de primeira ordem.
-29. Página 38 — Definir feedforward, backpropagation, Reservoir Computing, ESN e LSM e relacionar ESN/LSM com SNNs.
 30. Seção BPTT: Conferir referências e verificar cobertura de unrolling, gradientes, gradiente desaparecendo/explodindo e surrogate gradients.
 31. Seção BPTT: Incluir figura ilustrando o desenrolamento temporal.
 32. Página 38: Remover o último parágrafo por redundância.

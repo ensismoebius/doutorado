@@ -67,6 +67,8 @@ The `nn` library is organized into several key components:
 - [Spike Encoding](./Concepts/Spike-Encoding.md) - Rate coding vs latency coding and matching loss functions
 - [LFCC](./Concepts/LFCC.md) - Linear Frequency Cepstral Coefficients for speaker verification
 - [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) - Neuroscience of covert speech and EEG biometrics
+- [Time-Major Layout](./Concepts/Time-Major-Layout.md) - `(T*B, F)` tensor convention for SNN layers
+- [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) - LIF RC circuit, β = exp(−Δt/(RC)), β clamping
 
 ### Experiments
 - [Experiment00](./Experiments/Experiment00.md) - Wavelet + paraconsistent baseline (Phase 0)
@@ -77,6 +79,24 @@ The `nn` library is organized into several key components:
 
 ### Research Context
 - [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
+
+### Demos
+Runnable examples covering each major subsystem. See [Demos/Overview](./Demos/Overview.md) for the full listing with one-line descriptions.
+
+**C++ Demos:**
+- [FFT Demo](./Demos/fft-demo.md) - FFTW3 forward/inverse FFT correctness check
+- [Wavelet Demo](./Demos/wavelet-demo.md) - DWT and WPT decomposition visualisation
+- [LFCC Feature Demo](./Demos/lfcc-feature-demo.md) - Batch LFCC feature extraction pipeline
+- [ResNet Classifier Demo](./Demos/resnet-classifier-demo.md) - Residual MLP classifier on synthetic data
+- [SNN Speaker Demo](./Demos/snn-speaker-demo.md) - End-to-end SNN speaker identification CLI
+- [SNN Spike Plotter](./Demos/snn-spike-plotter.md) - Real-time ImGui/ImPlot LIF membrane visualiser
+- [WPT Voice Biometrics](./Demos/wpt-voice-biometrics.md) - WPT → Poisson → residual SNN biometrics
+- [Autoencoder LeakyReLU](./Demos/autoencoder-leakyrelu.md) - Spiking autoencoder BPTT validation
+
+**Python Demos:**
+- [Multimodal EEG + Audio](./Demos/multimodal-eeg-audio.md) - EEG/audio fusion with paraconsistent analysis
+- [SNN Hyperparameter Search](./Demos/snn-hyperparam-search.md) - 4-stage HyperBand-style search for SNN autoencoder
+- [Voice Biometrics SNN (Python)](./Demos/voice-biometrics-snn-py.md) - Python WPT → SNN speaker biometrics CLI
 
 ### Plain Language Guides
 Accessible explanations without heavy math — good starting point before reading the technical pages.
@@ -94,6 +114,8 @@ Accessible explanations without heavy math — good starting point before readin
 - [Spike Encoding — Plain](./Concepts/Plain/Spike-Encoding.md)
 - [Spike Rate Regularization — Plain](./Concepts/Plain/Spike-Rate-Regularization.md)
 - [Weight Initialisation — Plain](./Concepts/Plain/Weight-Initialisation.md)
+- [Time-Major Layout — Plain](./Concepts/Plain/Time-Major-Layout.md)
+- [Membrane Dynamics — Plain](./Concepts/Plain/Membrane-Dynamics.md)
 
 **Core Modules:**
 - [Tensor — Plain](./Core/Plain/Tensor.md)
@@ -113,6 +135,7 @@ Accessible explanations without heavy math — good starting point before readin
 - [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools and policies
 - [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
+- [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md) - Claude Code + OpenCode dual-agent workflow
 
 ## Key Features
 
