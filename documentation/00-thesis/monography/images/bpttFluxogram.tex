@@ -1,0 +1,101 @@
+\begin{tikzpicture}[
+    startstop/.style={
+        rectangle, rounded corners=4pt, draw, fill=orange,
+        text=black, minimum width=2.8cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    proc/.style={
+        rectangle, rounded corners, draw, fill=green,
+        minimum width=5.4cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    dec/.style={
+        diamond, draw, fill=yellow, text=black, aspect=3,
+        minimum height=0.8cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    arr/.style={->, >=stealth, draw=gray, line width=1.5mm},
+    lbl/.style={font=\tiny\sffamily\bfseries, text=black},
+    node distance=0.6cm and 6.4cm
+]
+
+%% ===== Fase 1: Propagação Direta =====
+\node[startstop] (start) {Início};
+\node[proc, below=of start] (initForward)
+    {$h[0] \leftarrow 0$,\quad $t \leftarrow 0$};
+
+\node[dec, below=of initForward] (checkForward)
+    {$t < T$?};
+    
+\node[proc, below=of checkForward] (updateHidden)
+    {$h[t{+}1] \leftarrow \tanh\!\bigl(W \cdot h[t] + x[t]\bigr)$};
+
+\node[proc, below=of updateHidden] (computeOutput)
+    {$y[t] \leftarrow V \cdot h[t{+}1]$};
+    
+\node[proc, below=of computeOutput] (incrementT)
+    {$t \leftarrow t + 1$};
+
+\draw[arr] (start)   -- (initForward);
+\draw[arr] (initForward) -- (checkForward);
+\draw[arr] (checkForward)  -- node[lbl, left]{Sim} (updateHidden);
+\draw[arr] (updateHidden)    -- (computeOutput);
+\draw[arr] (computeOutput)    -- (incrementT);
+%% loop-back: esquerda da coluna forward (x=-3.5, fora dos nós)
+\draw[arr] (incrementT.west) -- ++(-0.8,0) |- (checkForward.west);
+
+%% ===== Fase 2: Retropropagação =====
+\node[proc, right=of start] (initBackward)
+    {$\mathit{dL\_dW}\!\leftarrow\!0$,\ $\mathit{grad\_h}\!\leftarrow\!0$,\ $t\!\leftarrow\!T{-}1$};
+\node[dec, below=of initBackward] (checkBackward)
+    {$t \geq 0$?};
+\node[proc, below=of checkBackward] (outputError)
+    {$\mathit{dL\_dy} \leftarrow y[t] - \mathit{alvo}[t]$};
+\node[proc, below=of outputError] (hiddenGrad)
+    {$\mathit{dL\_dh} \leftarrow V \cdot \mathit{dL\_dy} + \mathit{grad\_h}$};
+
+\node[proc, below=of hiddenGrad] (tanhDeriv)
+    {$\mathit{dtanh} \leftarrow 1 - h[t{+}1]^{2}$};
+
+\node[proc, below=of tanhDeriv] (preActivationGrad)
+    {$\mathit{dL\_dpre} \rightarrow \mathit{dL\_dh} \cdot \mathit{dtanh}$};
+
+\node[proc, below=of preActivationGrad] (accumWeightGrad)
+    {$\mathit{dL\_dW} \mathrel{+}= \mathit{dL\_dpre} \cdot h[t]$};
+    
+\node[proc, below=of accumWeightGrad] (propagateHiddenGrad)
+    {$\mathit{grad\_h} \leftarrow W \cdot \mathit{dL\_dpre}$};
+
+\node[proc, below=of propagateHiddenGrad] (decrementT)
+    {$t \leftarrow t - 1$};
+
+\draw[arr] (initBackward)   -- (checkBackward);
+\draw[arr] (checkBackward)    -- node[lbl, left]{Sim} (outputError);
+\draw[arr] (outputError)    -- (hiddenGrad);
+\draw[arr] (hiddenGrad)    -- (tanhDeriv);
+\draw[arr] (tanhDeriv) -- (preActivationGrad);
+\draw[arr] (preActivationGrad)  -- (accumWeightGrad);
+\draw[arr] (accumWeightGrad) -- (propagateHiddenGrad);
+\draw[arr] (propagateHiddenGrad) -- (decrementT);
+%% loop-back: direita da coluna backward (x=9.9, fora dos nós)
+\draw[arr] (decrementT.east) -- ++(0.8,0) |- (checkBackward.east);
+
+%% Saída do loop backward: Não → atualiza W → Fim (abaixo de incrementT, coluna esquerda)
+\node[proc, below=of incrementT] (updateWeights)
+    {$W \mathrel{-}= \mathit{lr} \cdot \mathit{dL\_dW}$};
+\node[startstop, below=of updateWeights] (stop) {Fim};
+
+%% "Não" de checkBackward → updateWeights: desce pelo gap entre colunas (x=3.1)
+\draw[arr] (checkBackward.west) -- node[lbl, pos=0.1, above]{Não} ++(-2,0) |- (updateWeights.east);
+\draw[arr] (updateWeights) -- (stop);
+
+%% "Não" de checkForward → initBackward: sobe pelo gap entre colunas (x=3.2)
+\draw[arr] (checkForward.east) -- node[lbl, pos=0.1, above]{Não} ++(2,0) |- (initBackward.west);
+
+%% Rótulos das fases (alinhados verticalmente)
+\node[font=\footnotesize\bfseries, above=0.4cm of start] (labelForward)
+    {Fase 1 (\textit{Forward})};
+\node[font=\footnotesize\bfseries] at (labelForward -| initBackward)
+    {Fase 2 (\textit{Backward})};
+
+\end{tikzpicture}

@@ -1,0 +1,60 @@
+				\begin{tikzpicture}[
+	box/.style={draw, rectangle, rounded corners=3pt,
+		minimum width=1.2cm, minimum height=1.0cm,
+		fill=gray!15, font=\small},
+	fwd/.style={->, thick, blue!65!black},
+	bwd/.style={->, thick, dashed, red!65!black},
+	lbl/.style={font=\footnotesize}
+	]
+	% Forma compacta
+	\node[box] (rc) {$\mathbf{W}$};
+	\coordinate (xc) at ([yshift=0.9cm]rc.north);
+	\node[lbl, above] at (xc) {$x_t$};
+	\draw[fwd] (xc) -- (rc.north);
+	\coordinate (sc) at ([yshift=-0.9cm]rc.south);
+	\node[lbl, below] at (sc) {$s_t$};
+	\draw[fwd] (rc.south) -- (sc);
+	\draw[fwd] (rc.north east)
+	to[out=50,in=-50,looseness=3.5]
+	node[lbl, right] {$h_t$}
+	(rc.south east);
+	\node[lbl, below=2.4cm of rc, align=center] {Forma\\compacta};
+	
+	% Seta de equivalência
+	\node[right=1.6cm of rc, font=\Large] {$\Rightarrow$};
+	
+	% Forma desenrolada
+	\node[box, right=3.0cm of rc] (r1) {$\mathbf{W}$};
+	\node[box, right=2.2cm of r1]  (r2) {$\mathbf{W}$};
+	\node[lbl, right=1.4cm of r2]  (rd) {$\cdots$};
+	\node[box, right=1.4cm of rd]  (rT) {$\mathbf{W}$};
+	
+	% Entradas
+	\foreach \nd/\xi in {r1/1, r2/2, rT/T}{
+		\coordinate (inp\nd) at ([yshift=0.9cm]\nd.north);
+		\node[lbl, above] at (inp\nd) {$x_{\xi}$};
+		\draw[fwd] (inp\nd) -- (\nd.north);
+	}
+	
+	% Estado recorrente (forward)
+	\draw[fwd] (r1.east) -- node[lbl, above] {$h_1$} (r2.west);
+	\draw[fwd] (r2.east) -- node[lbl, above] {$h_2$} (rd.west);
+	\draw[fwd] (rd.east) -- node[lbl, above] {$h_{T-1}$} (rT.west);
+	
+	% Saídas e perdas
+	\foreach \nd/\xi in {r1/1, r2/2, rT/T}{
+		\node[lbl, below=0.8cm of \nd] (L\xi) {$\mathcal{L}_{\xi}$};
+		\draw[fwd] (\nd.south) -- (L\xi);
+	}
+	
+	% Retropropagação do gradiente
+	\draw[bwd] ([yshift=-0.3cm]r2.west) -- ([yshift=-0.3cm]r1.east);
+	\draw[bwd] ([yshift=-0.3cm]rd.west) -- ([yshift=-0.3cm]r2.east);
+	\draw[bwd] ([yshift=-0.3cm]rT.west) -- ([yshift=-0.3cm]rd.east);
+	
+	\node[lbl, below=1.6cm of r2, text=red!65!black]
+	{$\longleftarrow$ gradiente retropropagado};
+	\node[lbl, below=2.3cm of r2]
+	{pesos $W$ compartilhados em todas as cópias};
+	
+\end{tikzpicture}

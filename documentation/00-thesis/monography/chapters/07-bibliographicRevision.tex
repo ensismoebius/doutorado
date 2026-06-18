@@ -759,13 +759,33 @@
 
 		\subsubsection{Retropropagação Através do Tempo em RNPs (BPTT)}
 
-			\par Em RNPs com processamento temporal, os pesos são atualizados por meio da Retropropagação Através do Tempo (do inglês, \textit{Backpropagation Through Time} --- BPTT) \cite{10242251}. O BPTT desenrola o grafo computacional ao longo das etapas temporais $t = 1, \ldots, T$, calculando os gradientes do erro em relação aos pesos em cada passo de tempo e acumulando-os. A regra de atualização para um parâmetro $w$ é:
+			\par Redes recorrentes processam sequências: a saída em cada instante $t$ depende da entrada atual $x_t$ e do estado interno $h_{t-1}$ da etapa anterior. Isso cria dependências temporais que a retropropagação padrão não trata.
+
+			\par O BPTT resolve isso \textit{desenrolando} a rede no tempo, como ilustrado na \autoref{fig:bptt}: a rede é replicada $T$ vezes, sendo $T$ o passo temporal, com  todas essas cópias compartilhando os mesmos pesos $W$. Na propagação direta (\textit{forward}), o estado interno avança da esquerda para a direita: $h_t = f(h_{t-1}, x_t;\, W)$. Na retropropagação (\textit{backward}), o gradiente percorre o caminho inverso (da última cópia até a primeira) acumulando a contribuição de cada passo \cite{10242251}:
 
 			\begin{equation}
-				\frac{\partial \mathcal{L}}{\partial w} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial w}
+				\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial \mathbf{W}}
 			\end{equation}
+			
+			\begin{figure}[H]
+				\centering
+				\caption[Retropropagação Através do Tempo (BPTT)]{Retropropagação Através do Tempo: à esquerda, rede recorrente na forma compacta com conexão recorrente $h_t$; à direita, a mesma rede \textit{desenrolada} em $T$ cópias. Setas azuis: propagação direta; setas vermelhas tracejadas: retropropagação do gradiente. Os pesos $W$ são compartilhados em todas as cópias.}
+				\resizebox{\linewidth}{!}{\input{images/bptt.tex}}
+				\legend{Fonte: Elaborado pelo autor, 2025.}
+				\label{fig:bptt}
+			\end{figure}
 
-			\par Em RNPs, a função de ativação em degrau $S(V_{mem})$ não é diferenciável no ponto de limiar $V_{th}$, tornando o cálculo do gradiente indefinido nessa região. A solução adotada é a \textbf{Descida de Gradiente com Gradiente Substituto}: a derivada da função em degrau é substituída, somente durante a fase de retropropagação, por uma função suave e diferenciável. Durante a fase de \textit{feed-forward}, o comportamento original da função em degrau é preservado \cite{10242251}.
+			\par O \autoref{lst:bptt} apresenta o algoritmo simplificado: o loop \textit{forward} armazena os estados $h[t]$ na memória; o loop \textit{backward} percorre o tempo ao contrário acumulando o gradiente $\nabla_W$. Neste exemplo, $V$ denota os pesos da camada de saída, $y[t] = V \cdot h[t{+}1]$ a saída da rede no instante $t$, $\mathit{alvo}[t]$ o valor alvo correspondente e $\mathit{lr}$ a taxa de aprendizagem. A \autoref{fig:bptt-fluxogram} detalha o fluxo de execução completo com as duas fases e todas as variáveis envolvidas.
+
+			\input{listings/bptt.c.tex}
+
+			\begin{figure}[H]
+				\centering
+				\caption[Fluxograma do algoritmo BPTT]{Fluxograma do algoritmo BPTT simplificado. Fase 1 (\textit{forward}): computa e armazena $h[t]$ e $y[t]$ para cada passo $t$. Fase 2 (\textit{backward}): percorre os passos em ordem inversa, acumula o gradiente $\partial\mathcal{L}/\partial W$ e propaga $\mathit{grad\_h}$ para a etapa anterior.}
+				\resizebox{\linewidth}{!}{\input{images/bpttFluxogram.tex}}
+				\legend{Fonte: Elaborado pelo autor, 2025.}
+				\label{fig:bptt-fluxogram}
+			\end{figure}
 
 		\subsubsection{Função Substituta Exponencial}
 

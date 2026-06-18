@@ -2,6 +2,7 @@
 7. Página 17: Incluir passo a passo do cálculo das transformadas wavelet packet. (nem fodendo)
 8. Página 18: Listar outras técnicas além da engenharia paraconsistente para consistência de características. (por enquanto não)
 24. Página 31: Verificar consistência entre as equações do LIF e o código utilizado.
+30. Seção BPTT: ESTUDAR!!!!!
 
 
 # Observações e Correções Fornecidas pelo Usuário
@@ -32,11 +33,11 @@
 27. Página 34: Ao explicar o decaimento da voltagem/potencial da membrana, justificar por que essa explicação está sendo apresentada e qual sua relevância. ok
 28. Página 35 — Corrigir “equação ordinária de primeira ordem” para “equação diferencial ordinária (EDO) de primeira ordem” e verificar se é apropriado especificar que se trata de uma EDO linear de primeira ordem. ok
 29. Página 38 — Definir feedforward, backpropagation, Reservoir Computing, ESN e LSM e relacionar ESN/LSM com SNNs.ok
+30. Seção BPTT: Conferir referências e verificar cobertura de unrolling, gradientes, gradiente desaparecendo/explodindo e surrogate gradients. ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-30. Seção BPTT: Conferir referências e verificar cobertura de unrolling, gradientes, gradiente desaparecendo/explodindo e surrogate gradients.
 31. Seção BPTT: Incluir figura ilustrando o desenrolamento temporal.
 32. Página 38: Remover o último parágrafo por redundância.
 33. Seção BPTT: Reescrever e expandir significativamente a explicação.
