@@ -88,11 +88,18 @@
 			\end{figure}
 			
 		\subsubsection{Coeficientes LFCC}
-		
-			\par Os coeficientes LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada entre as frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas segundo \citeonline{zhou2011lfcc} é prejudicial para a verificação de locutores por estarem mais ligadas às características da geometria do trato vocal, em especial, ao comprimento do trato vocal que manifesta predominantemente as formantes superiores ($F_3$, $F_4$).
-			
 
-			\par O cálculo dos coeficientes LFCC segue as etapas a seguir: o sinal é dividido em bandas igualmente espaçadas e, para cada uma, aplica-se a Transformada Discreta de Fourier (DFT). Em seguida, $N$ filtros passa-faixa triangulares com largura de banda constante são distribuídos igualmente entre $f_{\min}$ e $f_{\max}$ (tipicamente 300~Hz e 3400~Hz \cite{zhou2011lfcc}). A energia logarítmica de cada banda é calculada, e a Transformada Discreta Cosseno (DCT) é aplicada ao vetor de energias para decorrelacionar os componentes, resultando nos coeficientes LFCC. O processo é ilustrado na \autoref{fig:lfccfeaturevect}.
+			\par Os coeficientes LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribuem os filtros de análise linearmente na faixa $[f_{\min}, f_{\max}]$, contrastando com as escalas Mel e Bark, que comprimem progressivamente as bandas em frequências mais altas para modelar a percepção auditiva humana. Essa compressão é vantajosa para reconhecimento de fala, mas prejudicial para verificação de locutores: as formantes superiores ($F_3$, $F_4$), associadas à geometria do trato vocal e à fonte glótica, são discriminativas entre indivíduos e residem justamente nas faixas descartadas pelas escalas perceptuais \cite{zhou2011lfcc,Hanilci2018}. Ao manter resolução espectral uniforme, o LFCC preserva esses componentes, sendo preferido ao MFCC para verificação de locutores, com custo computacional comparável \cite{ali2022speech}.
+
+			\par O cálculo segue as etapas ilustradas na \autoref{fig:lfccfeaturevect}: aplica-se a DFT ao sinal janelado e distribui-se um banco de $K$ filtros triangulares com centros equiespaçados linearmente (tipicamente entre 300~Hz e 3400~Hz \cite{zhou2011lfcc}):
+			\begin{equation}
+				f_k = f_{\min} + k\,\frac{f_{\max} - f_{\min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
+			\end{equation}
+			A energia logarítmica de cada banda é então decorrelacionada pela Transformada Discreta de Cosseno (DCT) \cite{ali2022speech}:
+			\begin{equation}
+				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad,
+			\end{equation}
+			resultando em um vetor de $N$ coeficientes cepstrais.
 
 			\begin{figure}[h]
 				\centering
@@ -101,26 +108,11 @@
 				\label{fig:lfccfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 			\end{figure}
-			
-			
-			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovam o máximo de separabilidade entre indivíduos, neste trabalho é utilizado o LFCC em detrimento às escalas auditivas perceptuais como MEL e BARK. As escalas MEL e BARK comprimem as frequências acima de $\sim$4\,kHz, modelando a percepção auditiva humana, porém descartando componentes de alta frequência que, embora não sejam percebidos com grande resolução pelo sistema auditivo humano, carregam características espectrais do trato vocal e da fonte glótica que são discriminativas entre locutores \cite{Hanilci2018}.
-			
-			\par O LFCC (\textit{Linear Frequency Cepstral Coefficients}) utiliza um banco de $K$ filtros com centros equiespaçados linearmente entre $f_{min}$ e $f_{max}$:
-			\begin{equation}
-				f_k = f_{min} + k\,\frac{f_{max} - f_{min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
-			\end{equation}
-			Após o cálculo da energia em cada faixa, aplica-se a Transformada Discreta de Cosseno (DCT) para decorrelação dos coeficientes, da mesma forma que no MFCC \cite{ali2022speech}:
-			\begin{equation}
-				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad.
-			\end{equation}
-			O resultado é um vetor de $N$ coeficientes cepstrais. Ao manter resolução espectral uniforme em toda a faixa de frequências, o LFCC preserva componentes de alta frequência que escalas perceptuais descartam, sendo por isso indicado para verificação de locutores em detrimento do MFCC, voltado primariamente para o reconhecimento de fala.
-			
-			\par A escolha do LFCC justifica-se ainda pelo seu baixo custo computacional, comparável ao do MFCC.
 
 		\subsubsection{Coeficientes MFCC}
 			\par Os coeficientes MFCC (\textit{Mel-frequency cepstral coefficients}) são obtidos aplicando-se o logaritmo às energias das bandas Mel e em seguida a Transformada Discreta Cosseno (DCT) \cite{salomon2007data} para decorrelacionar os componentes, resultando em 13 coeficientes cepstrais ($V_1, V_2, \ldots, V_{13}$). Adicionalmente, são calculadas as primeiras e segundas derivadas temporais ($\Delta$ e $\Delta\Delta$), estendendo o vetor de características com informação dinâmica sobre a evolução temporal dos coeficientes, como ilustrado na \autoref{fig:melfeaturevect}.
 
-			\begin{figure}[h]
+			\begin{figure}[H]
 				\centering
 				\caption{Cálculo de vetores de características com MFCC}
 				\resizebox{0.6\linewidth}{!}{\input{images/melFeatureVect.tex}}
@@ -131,7 +123,7 @@
 		\subsubsection{Coeficientes BFCC}
 			\par Os coeficientes BFCC (\textit{Bark-frequency cepstral coefficients}) são obtidos aplicando-se o logaritmo às energias das bandas Bark e em seguida a Transformada Discreta Cosseno (DCT) para decorrelacionar os componentes, resultando em 24 coeficientes cepstrais como ilustrado na \autoref{fig:bfccfeaturevect}.
 
-			\begin{figure}[h]
+			\begin{figure}[H]
 				\centering
 				\caption{Cálculo de vetores de características com BFCC}
 				\resizebox{0.6\linewidth}{!}{\input{images/bfccFeatureVect.tex}}
@@ -454,7 +446,7 @@
 			\begin{figure}[H]
 				\centering
 				\caption[Lobos Frontal, Parietal, Occipital e Temporal]{Principais regiões do cérebro: Lobos Frontal, Parietal, Occipital e Temporal}
-				\includegraphics[width=0.65\linewidth]{images/lobosTelencefalo}
+				\includegraphics[width=0.55\linewidth]{images/lobosTelencefalo}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobostelencefalo}
 			\end{figure}
@@ -462,7 +454,7 @@
 			\begin{figure}[H]
 				\centering
 				\caption[Lobo frontal]{Áreas relacionadas a fala no lobo frontal: A área de Broca geralmente se encontra no hemisfério esquerdo.}
-				\includegraphics[width=0.65\linewidth]{images/loboFrontal}
+				\includegraphics[width=0.55\linewidth]{images/loboFrontal}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobofrontal}
 			\end{figure}
@@ -470,7 +462,7 @@
 			\begin{figure}[H]
 				\centering
 				\caption[Lobo parietal]{Áreas relacionadas a fala no lobo parietal: A área de Wernicke também ocupa parte do lobo temporal e geralmente se encontra no hemisfério esquerdo.}
-				\includegraphics[width=0.72\linewidth]{images/loboparietal}
+				\includegraphics[width=0.6\linewidth]{images/loboparietal}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:loboparietal}
 			\end{figure}
@@ -478,7 +470,7 @@
 			\begin{figure}[H]
 				\centering
 				\caption[Lobo temporal]{Áreas relacionadas a fala no lobo temporal: A área de Wernicke também ocupa parte do lobo parietal e geralmente se encontra no hemisfério esquerdo.}
-				\includegraphics[width=0.72\linewidth]{images/loboTemporal}
+				\includegraphics[width=0.6\linewidth]{images/loboTemporal}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 				\label{fig:lobotemporal}
 			\end{figure}
@@ -957,7 +949,7 @@
 			\subsubsection{Critérios de inclusão e exclusão}
 			\label{sec:inclusaoCrit}
 			\begin{itemize}
-				\item publicados entre 30/03/2019 e 30/03/2024 (últimos 5 anos)
+				\item publicados entre 30/03/2019 e 30/03/2024 além de outros trabalhos relevantes para construção da base teórica.
 				\item que correspondam às palavras-chave de pesquisa constantes na listagem constante na \autoref{sec:baseEPalavras}
 				\item cujo \textit{abstract} contenha as bases de dados usadas, os resultados e a metodologia brevemente descritos.
 				\item que tratam de autenticação por EEG e/ou voz, e, quando da falta dos mesmos, que pelo menos auxiliem no tema estudado
