@@ -86,9 +86,10 @@
 				\label{fig:barkfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2022.}
 			\end{figure}
-
+			
 		\subsubsection{Coeficientes LFCC}
-			\par A escala LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada entre as frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas segundo \citeonline{zhou2011lfcc} é prejudicial para a verificação de locutores por estarem mais ligadas às características da geometria do trato vocal, em especial, ao comprimento do trato vocal que manifesta predominantemente as formantes superiores ($F_3$, $F_4$).
+		
+			\par Os coeficientes LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribui os filtros de análise de forma linearmente espaçada entre as frequências, contrastando com as escalas Bark e Mel, que comprimem progressivamente as bandas em frequências mais altas para aproximar a percepção auditiva humana. Essa compressão perceptual é vantajosa para o reconhecimento de fala, mas segundo \citeonline{zhou2011lfcc} é prejudicial para a verificação de locutores por estarem mais ligadas às características da geometria do trato vocal, em especial, ao comprimento do trato vocal que manifesta predominantemente as formantes superiores ($F_3$, $F_4$).
 			
 
 			\par O cálculo dos coeficientes LFCC segue as etapas a seguir: o sinal é dividido em bandas igualmente espaçadas e, para cada uma, aplica-se a Transformada Discreta de Fourier (DFT). Em seguida, $N$ filtros passa-faixa triangulares com largura de banda constante são distribuídos igualmente entre $f_{\min}$ e $f_{\max}$ (tipicamente 300~Hz e 3400~Hz \cite{zhou2011lfcc}). A energia logarítmica de cada banda é calculada, e a Transformada Discreta Cosseno (DCT) é aplicada ao vetor de energias para decorrelacionar os componentes, resultando nos coeficientes LFCC. O processo é ilustrado na \autoref{fig:lfccfeaturevect}.
@@ -100,6 +101,21 @@
 				\label{fig:lfccfeaturevect}
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 			\end{figure}
+			
+			
+			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovam o máximo de separabilidade entre indivíduos, neste trabalho é utilizado o LFCC em detrimento às escalas auditivas perceptuais como MEL e BARK. As escalas MEL e BARK comprimem as frequências acima de $\sim$4\,kHz, modelando a percepção auditiva humana, porém descartando componentes de alta frequência que, embora não sejam percebidos com grande resolução pelo sistema auditivo humano, carregam características espectrais do trato vocal e da fonte glótica que são discriminativas entre locutores \cite{Hanilci2018}.
+			
+			\par O LFCC (\textit{Linear Frequency Cepstral Coefficients}) utiliza um banco de $K$ filtros com centros equiespaçados linearmente entre $f_{min}$ e $f_{max}$:
+			\begin{equation}
+				f_k = f_{min} + k\,\frac{f_{max} - f_{min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
+			\end{equation}
+			Após o cálculo da energia em cada faixa, aplica-se a Transformada Discreta de Cosseno (DCT) para decorrelação dos coeficientes, da mesma forma que no MFCC \cite{ali2022speech}:
+			\begin{equation}
+				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad.
+			\end{equation}
+			O resultado é um vetor de $N$ coeficientes cepstrais. Ao manter resolução espectral uniforme em toda a faixa de frequências, o LFCC preserva componentes de alta frequência que escalas perceptuais descartam, sendo por isso indicado para verificação de locutores em detrimento do MFCC, voltado primariamente para o reconhecimento de fala.
+			
+			\par A escolha do LFCC justifica-se ainda pelo seu baixo custo computacional, comparável ao do MFCC.
 
 		\subsubsection{Coeficientes MFCC}
 			\par Os coeficientes MFCC (\textit{Mel-frequency cepstral coefficients}) são obtidos aplicando-se o logaritmo às energias das bandas Mel e em seguida a Transformada Discreta Cosseno (DCT) \cite{salomon2007data} para decorrelacionar os componentes, resultando em 13 coeficientes cepstrais ($V_1, V_2, \ldots, V_{13}$). Adicionalmente, são calculadas as primeiras e segundas derivadas temporais ($\Delta$ e $\Delta\Delta$), estendendo o vetor de características com informação dinâmica sobre a evolução temporal dos coeficientes, como ilustrado na \autoref{fig:melfeaturevect}.
@@ -750,7 +766,7 @@
 				
 				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
 				
-				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos mais aptos ao longo de muitas gerações de redes.
+				\item \textbf{Algoritmos Evolutivos}: Usam a seleção dos hiperparâmetros mais aptos ao longo de muitas gerações de redes.
 				
 				\item \textbf{Reservatório/Computação Dinâmica}: estratégia que evita treinar a rede recorrente mantendo o \textbf{reservatório} --- uma rede recorrente com pesos e conectividade fixos --- e treinando apenas a camada de saída \cite{kasabov2019time}.
 
@@ -787,7 +803,7 @@
 				\label{fig:bptt-fluxogram}
 			\end{figure}
 
-		\subsubsection{Função Substituta Exponencial}
+		\subsubsection{Gradiente substituto}
 
 			\par O gradiente substituto exponencial utilizado neste trabalho é definido como \cite{10242251}:
 
@@ -801,7 +817,7 @@
 		
 			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem respectivamente em: Uma função codificadora $f(x)$ que gera um estado $h$, denotada como $h = f(x)$ e uma função decodificadora $g(x)$ que produz uma reconstrução $r$, denotada como $r = g(h)$. O estado $h$ representa um \textbf{código}, uma representação da entrada que pode ser comprimida ou não  \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder}.
 			
-			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de \textbf{código} e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador. Geralmente, os \textit{autoencoders} são projetados para serem incapazes de copiar perfeitamente os dados de entrada pois isso os tornaria demasiadamente complexos e, em alguns casos, inúteis como será explicado adiante.
+			\par O principal objetivo de um \textit{autoencoder} é aprender uma representação dos dados de entrada na camada de \textbf{código} e, em seguida, reconstruir os dados de entrada com a maior precisão possível usando o decodificador.
 
 			\begin{figure}[h]
 				\centering
@@ -811,7 +827,7 @@
 				\label{fig:autoencoder}
 			\end{figure}
 		
-			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que o estado $h$ contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \cite{Goodfellow-et-al-2016} isso ainda não se verifica na prática.
+			\par Considerando-se que a reconstrução $r$ seja razoável, isso significa que o estado $h$ contém dados suficientes para representar a informação em sua essência, sendo assim, \textit{autoencoders} são ótimos produtores de vetores de características. Hipoteticamente é possível criar \textit{autoencoders} cuja camada de código seja apenas um número inteiro caso tanto o codificador quanto o decodificador sejam grandes e complexos o suficiente, mas isso se mostraria inútil caso se necessitasse algum tipo de representação da informação original que fosse significativa, ademais, excluindo-se casos triviais, segundo \cite{Goodfellow-et-al-2016} isso ainda não se verificou na prática.
 
 			\begin{figure}[h]
 				\centering
@@ -929,23 +945,6 @@
 			
 				\par O bloco residual mostrado na \autoref{fig:residuo} torna mais fácil para a rede se aproximar de funções identidade pois basta a mesma zerar os pesos constituintes das camadas representadas por $f(\cdot)$. $f(\cdot)$ é flexível e portanto pode ter $n$ camadas constituintes, essa estrutura pode ser usada múltiplas vezes sozinha ou em conjunto com outras estruturas em uma rede.
 				
-		\subsection{Por que LFCC para biometria?}
-			\par Considerando que a análise do sinal de áudio deve capturar componentes que promovam o máximo de separabilidade entre indivíduos, neste trabalho é utilizado o LFCC em detrimento às escalas auditivas perceptuais como MEL e BARK. As escalas MEL e BARK comprimem as frequências acima de $\sim$4\,kHz, modelando a percepção auditiva humana, porém descartando componentes de alta frequência que, embora não sejam percebidos com grande resolução pelo sistema auditivo humano, carregam características espectrais do trato vocal e da fonte glótica que são discriminativas entre locutores \cite{Hanilci2018}.
-
-			\par O LFCC (\textit{Linear Frequency Cepstral Coefficients}) utiliza um banco de $K$ filtros com centros equiespaçados linearmente entre $f_{min}$ e $f_{max}$:
-			\begin{equation}
-				f_k = f_{min} + k\,\frac{f_{max} - f_{min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
-			\end{equation}
-			Após o cálculo da energia em cada faixa, aplica-se a Transformada Discreta de Cosseno (DCT) para decorrelação dos coeficientes, da mesma forma que no MFCC \cite{ali2022speech}:
-			\begin{equation}
-				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad.
-			\end{equation}
-			O resultado é um vetor de $N$ coeficientes cepstrais. Ao manter resolução espectral uniforme em toda a faixa de frequências, o LFCC preserva componentes de alta frequência que escalas perceptuais descartam, sendo por isso indicado para verificação de locutores em detrimento do MFCC, voltado primariamente para o reconhecimento de fala.
-
-			\par A escolha do LFCC justifica-se ainda pelo seu baixo custo computacional, comparável ao do MFCC.
-			
-			
-
 	\section{Trabalhos mais recentes}
 		\label{sec:trabalhosMaisRecentes}
 	
