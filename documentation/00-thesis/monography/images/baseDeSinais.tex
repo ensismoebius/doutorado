@@ -1,0 +1,91 @@
+\begin{tikzpicture}[
+    rootfolder/.style={rectangle, rounded corners=3pt, draw, fill=orange, text=black,
+        minimum width=4.4cm, minimum height=0.65cm,
+        font=\footnotesize\sffamily\bfseries, align=center},
+    subfolder/.style={rectangle, rounded corners=3pt, draw, fill=orange!70, text=black,
+        minimum width=3.4cm, minimum height=0.60cm,
+        font=\scriptsize\sffamily\bfseries, align=center},
+    txtfile/.style={rectangle, draw, fill=gray!30, text=black,
+        minimum width=3.4cm, minimum height=0.55cm,
+        font=\scriptsize\sffamily, align=center},
+    matfile/.style={rectangle, rounded corners=2pt, draw, fill=green!60, text=black,
+        minimum width=3.2cm, minimum height=0.55cm,
+        font=\scriptsize\sffamily\bfseries, align=center},
+    sigblock/.style={rectangle, draw, fill=green!60, text=black,
+        minimum height=0.65cm,
+        font=\scriptsize\sffamily\bfseries, align=center, inner sep=4pt},
+    metablock/.style={rectangle, draw, fill=yellow, text=black,
+        minimum height=0.65cm,
+        font=\tiny\sffamily\bfseries, align=center, inner sep=2pt},
+    refblock/.style={rectangle, draw, fill=orange, text=black,
+        minimum height=0.65cm,
+        font=\tiny\sffamily\bfseries, align=center, inner sep=2pt},
+    arr/.style={->, >=stealth, draw=gray, line width=1.0mm},
+    darr/.style={->, >=stealth, dashed, draw=gray, line width=1.0mm},
+    treeline/.style={draw=gray!70, line width=0.5mm},
+    lbl/.style={font=\tiny\sffamily\bfseries, text=black},
+]
+
+%% ===== FOLDER TREE =====
+\node[rootfolder] (root) at (2.2, 0) {Imagined Speech Database};
+
+%% Root-level items (indent x=0.5)
+\node[txtfile, anchor=west]   (proto) at (0.5, -0.80) {Protocol.txt};
+\node[txtfile, anchor=west]   (subjs) at (0.5, -1.50) {Subjects.txt};
+\node[subfolder, anchor=west] (s01d)  at (0.5, -2.20) {S01/};
+
+%% S01 contents (indent x=1.1)
+\node[txtfile, minimum width=3.2cm, anchor=west] (s01txt) at (1.1, -3.00) {S01.txt};
+\node[matfile, anchor=west] (s01eeg) at (1.1, -3.70) {S01\_EEG.mat};
+\node[matfile, anchor=west] (s01aud) at (1.1, -4.40) {S01\_Audio.mat};
+
+%% Remaining subjects
+\node[subfolder, anchor=west] (s02d) at (0.5, -5.10) {S02/};
+\node[lbl, anchor=west] at (0.85, -5.75) {$\vdots$};
+\node[subfolder, anchor=west] (s15d) at (0.5, -6.30) {S15/};
+
+%% Tree lines: root trunk
+\draw[treeline] (0.20,-0.35) -- (0.20,-6.30);
+\foreach \cy in {-0.80,-1.50,-2.20,-5.10,-6.30} {
+    \draw[treeline] (0.20,\cy) -- (0.48,\cy);
+}
+%% S01 subtree trunk
+\draw[treeline] (0.80,-2.50) -- (0.80,-4.40);
+\foreach \cy in {-3.00,-3.70,-4.40} {
+    \draw[treeline] (0.80,\cy) -- (1.08,\cy);
+}
+
+%% ===== MATRIX ROW DIAGRAMS (x starts at 4.7) =====
+
+%% EEG matrix row
+\node[sigblock, anchor=west, minimum width=4.8cm] (eegsig)
+    at (4.7, -3.20)
+    {Sinal EEG \\ \tiny $6 \times 4096 = 24576$ col.};
+\node[lbl, below=0.03cm of eegsig.south, anchor=north]
+    {\tiny F3\;F4\;C3\;C4\;P3\;P4};
+\node[metablock, anchor=west, minimum width=0.80cm] (eegmode) at (eegsig.east) {modo};
+\node[metablock, anchor=west, minimum width=0.80cm] (eegstim) at (eegmode.east) {est.};
+\node[metablock, anchor=west, minimum width=1.00cm] (eegblink) at (eegstim.east) {pisc.};
+\node[lbl, above=0.04cm of eegsig.north west, anchor=south west]
+    {linha\,$=$\,1 trial (4\,s)};
+
+%% Audio matrix row
+\node[sigblock, anchor=west, minimum width=4.8cm] (audiosig)
+    at (4.7, -5.20)
+    {Sinal de áudio \\ \tiny $176400$ colunas};
+\node[metablock, anchor=west, minimum width=0.80cm] (audiostim) at (audiosig.east) {est.};
+\node[refblock, anchor=west, minimum width=2.50cm] (audioidx) at (audiostim.east) {índice EEG};
+\node[lbl, above=0.04cm of audiosig.north west, anchor=south west]
+    {linha\,$=$\,1 trial (4\,s)};
+
+%% Arrows: .mat files → matrix rows
+\draw[arr] (s01eeg.east) to[out=0,in=180] (eegsig.west);
+\draw[arr] (s01aud.east) to[out=0,in=180] (audiosig.west);
+
+%% Cross-reference arrow: audio index → EEG row
+\draw[darr] (audioidx.east) -- ++(0.35,0) |- (eegblink.east);
+\node[lbl, rotate=90, anchor=south]
+    at ([xshift=0.48cm, yshift=1.0cm] audioidx.east)
+    {ref.\ cruzada};
+
+\end{tikzpicture}
