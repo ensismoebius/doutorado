@@ -17,7 +17,7 @@
 #include "layers/dense/Linear.hpp"
 #include "layers/losses/CrossEntropyLoss.hpp"
 #include "layers/residual/SimpleResNet.hpp"
-#include "layers/spiking/Lif.hpp"
+#include "layers/spiking/LifBPTT.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/eer_scorer.hpp"
 #include "statistics/kfold.hpp"
@@ -63,7 +63,17 @@ struct EvalMetrics
     double auc         = 0.0;
 };
 
-// Lightweight DSNN classifier for E05: Linear -> LIF -> (Linear -> LIF)* -> Linear.
+// Number of simulation time steps for the temporal DSNN (audit M-4).
+constexpr int kSnnTimeSteps = 16;
+
+// Temporal Deep Spiking Neural Network for E05 (audit M-4).
+//
+// Unlike a single-step thresholding net, this unrolls genuine LIF dynamics over
+// kSnnTimeSteps. The static feature vector is rate-encoded by constant-current
+// injection: each of the T steps receives the same input row (time-major layout
+// (T*B, F) expected by LifBPTT). Spikes integrate over time through LifBPTT
+// neurons; the readout is the spike-count (mean firing rate over T) of the final
+// linear layer, giving class logits. Gradients flow through real BPTT.
 class E05DsnnClassifier : public Module<nn::Backend>
 {
 public:
@@ -72,7 +82,7 @@ public:
     E05DsnnClassifier(int input_dim, int hidden_dim, int output_dim, int depth,
                       std::uint32_t seed)
         : fc_in_(std::make_shared<LinearImpl<nn::Backend>>(input_dim, hidden_dim)),
-          lif_in_(std::make_shared<LifImpl<nn::Backend>>()),
+          lif_in_(std::make_shared<LifBPTTImpl<nn::Backend>>(kSnnTimeSteps)),
           fc_out_(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, output_dim))
     {
         const int n_blocks = std::max(0, depth - 1);
@@ -81,7 +91,7 @@ public:
         for (int i = 0; i < n_blocks; ++i)
         {
             hidden_fc_.push_back(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, hidden_dim));
-            hidden_lif_.push_back(std::make_shared<LifImpl<nn::Backend>>());
+            hidden_lif_.push_back(std::make_shared<LifBPTTImpl<nn::Backend>>(kSnnTimeSteps));
         }
 
         kaimingSNNInitializer(fc_in_, seed + 1U, "e05_dsnn");
@@ -90,29 +100,83 @@ public:
             kaimingSNNInitializer(hidden_fc_[i], seed + 100U + static_cast<unsigned int>(i), "e05_dsnn");
     }
 
+    // input: (B, D). Returns logits (B, output_dim) = mean spike rate over T steps.
     auto forward(const Tensor& input, bool requires_grad = true) -> Tensor override
     {
         reset_state();
-        Tensor h = fc_in_->forward(input, requires_grad);
+
+        const int B = static_cast<int>(input.rows());
+        const int D = static_cast<int>(input.cols());
+        const int T = kSnnTimeSteps;
+
+        // Rate-encode: tile the static input across T time steps (time-major).
+        Tensor x_t(static_cast<nn::Index>(T * B), static_cast<nn::Index>(D));
+        for (int t = 0; t < T; ++t)
+            for (int b = 0; b < B; ++b)
+                for (int d = 0; d < D; ++d)
+                    x_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(d)) =
+                        input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d));
+
+        Tensor h = fc_in_->forward(x_t, requires_grad);
         h = lif_in_->forward(h, requires_grad);
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
             h = hidden_fc_[i]->forward(h, requires_grad);
             h = hidden_lif_[i]->forward(h, requires_grad);
         }
-        return fc_out_->forward(h, requires_grad);
+        Tensor logits_t = fc_out_->forward(h, requires_grad); // (T*B, C)
+
+        const int C = static_cast<int>(logits_t.cols());
+        Tensor logits(static_cast<nn::Index>(B), static_cast<nn::Index>(C));
+        const float inv_T = 1.0f / static_cast<float>(T);
+        for (int b = 0; b < B; ++b)
+            for (int c = 0; c < C; ++c)
+            {
+                float s = 0.0f;
+                for (int t = 0; t < T; ++t)
+                    s += logits_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(c));
+                logits.at(static_cast<nn::Index>(b), static_cast<nn::Index>(c)) = s * inv_T;
+            }
+        return logits;
     }
 
+    // grad_output: (B, C). Returns grad w.r.t. input (B, D).
     auto backward(const Tensor& grad_output) -> Tensor override
     {
-        Tensor g = fc_out_->backward(grad_output);
+        const int B = static_cast<int>(grad_output.rows());
+        const int C = static_cast<int>(grad_output.cols());
+        const int T = kSnnTimeSteps;
+
+        // Distribute the mean-over-time readout gradient back to each time step.
+        Tensor grad_t(static_cast<nn::Index>(T * B), static_cast<nn::Index>(C));
+        const float inv_T = 1.0f / static_cast<float>(T);
+        for (int t = 0; t < T; ++t)
+            for (int b = 0; b < B; ++b)
+                for (int c = 0; c < C; ++c)
+                    grad_t.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(c)) =
+                        grad_output.at(static_cast<nn::Index>(b), static_cast<nn::Index>(c)) * inv_T;
+
+        Tensor g = fc_out_->backward(grad_t);
         for (size_t i = hidden_fc_.size(); i-- > 0;)
         {
             g = hidden_lif_[i]->backward(g);
             g = hidden_fc_[i]->backward(g);
         }
         g = lif_in_->backward(g);
-        return fc_in_->backward(g);
+        g = fc_in_->backward(g); // (T*B, D)
+
+        // Sum the per-step input gradients back onto the single static input.
+        const int D = static_cast<int>(g.cols());
+        Tensor grad_input(static_cast<nn::Index>(B), static_cast<nn::Index>(D));
+        for (int b = 0; b < B; ++b)
+            for (int d = 0; d < D; ++d)
+            {
+                float s = 0.0f;
+                for (int t = 0; t < T; ++t)
+                    s += g.at(static_cast<nn::Index>(t * B + b), static_cast<nn::Index>(d));
+                grad_input.at(static_cast<nn::Index>(b), static_cast<nn::Index>(d)) = s;
+            }
+        return grad_input;
     }
 
     [[nodiscard]] auto params() -> std::span<Tensor*> override
@@ -201,9 +265,9 @@ public:
 
 private:
     std::shared_ptr<LinearImpl<nn::Backend>> fc_in_;
-    std::shared_ptr<LifImpl<nn::Backend>> lif_in_;
+    std::shared_ptr<LifBPTTImpl<nn::Backend>> lif_in_;
     std::vector<std::shared_ptr<LinearImpl<nn::Backend>>> hidden_fc_;
-    std::vector<std::shared_ptr<LifImpl<nn::Backend>>> hidden_lif_;
+    std::vector<std::shared_ptr<LifBPTTImpl<nn::Backend>>> hidden_lif_;
     std::shared_ptr<LinearImpl<nn::Backend>> fc_out_;
     std::vector<Tensor*> param_ptrs_;
 };
@@ -231,76 +295,85 @@ EvalMetrics evaluate(ModelType& model,
 
     nn::Tensor all_logits = model.forward(batch, false);
 
-    int correct = 0;
-    std::vector<int> preds(static_cast<size_t>(N));
+    // Verification-only protocol (audit C-1): folds are speaker-disjoint
+    // (GroupKFold), so test speakers are never seen in training. Closed-set
+    // argmax accuracy/precision/recall/F1/specificity are structurally invalid
+    // for unseen speakers and are therefore NOT reported (set to NaN). The model
+    // output is used purely as an embedding for genuine/impostor EER/AUC, i.e.
+    // an x-vector-style verification protocol (train on background speakers,
+    // enrol unseen test speakers at evaluation time).
     std::vector<std::vector<float>> embeddings(static_cast<size_t>(N));
-
     for (size_t i = 0; i < static_cast<size_t>(N); ++i)
     {
         embeddings[i].resize(static_cast<size_t>(n_classes));
-        int pred   = 0;
-        float best = all_logits.at(static_cast<nn::Index>(i), 0);
         for (int j = 0; j < n_classes; ++j)
-        {
-            float v = all_logits.at(static_cast<nn::Index>(i), j);
-            embeddings[i][static_cast<size_t>(j)] = v;
-            if (v > best) { best = v; pred = j; }
-        }
-        preds[i] = pred;
-        if (pred == labels[i]) ++correct;
+            embeddings[i][static_cast<size_t>(j)] = all_logits.at(static_cast<nn::Index>(i), j);
     }
 
-    // Per-class TP, FP, FN, TN for macro metrics.
-    std::vector<int> tp(static_cast<size_t>(n_classes), 0);
-    std::vector<int> fp(static_cast<size_t>(n_classes), 0);
-    std::vector<int> fn(static_cast<size_t>(n_classes), 0);
-    for (size_t i = 0; i < static_cast<size_t>(N); ++i)
-    {
-        const int p = preds[i];
-        const int t = labels[i];
-        if (p == t)
-            ++tp[static_cast<size_t>(p)];
-        else
-        {
-            ++fp[static_cast<size_t>(p)];
-            ++fn[static_cast<size_t>(t)];
-        }
-    }
-
-    double sum_p = 0.0, sum_r = 0.0, sum_f1 = 0.0, sum_spec = 0.0;
-    const int total = static_cast<int>(N);
-    for (int c = 0; c < n_classes; ++c)
-    {
-        const int tn_c = total - tp[c] - fp[c] - fn[c];
-
-        const double prec_c = (tp[c] + fp[c] > 0)
-            ? static_cast<double>(tp[c]) / static_cast<double>(tp[c] + fp[c])
-            : 0.0;
-        const double rec_c  = (tp[c] + fn[c] > 0)
-            ? static_cast<double>(tp[c]) / static_cast<double>(tp[c] + fn[c])
-            : 0.0;
-        const double spec_c = (tn_c + fp[c] > 0)
-            ? static_cast<double>(tn_c) / static_cast<double>(tn_c + fp[c])
-            : 0.0;
-
-        sum_p    += prec_c;
-        sum_r    += rec_c;
-        sum_spec += spec_c;
-        sum_f1   += (prec_c + rec_c > 0.0)
-            ? (2.0 * prec_c * rec_c / (prec_c + rec_c))
-            : 0.0;
-    }
-    const double nc = static_cast<double>(n_classes);
+    const double kNaN = std::numeric_limits<double>::quiet_NaN();
 
     EvalMetrics m;
-    m.accuracy    = static_cast<double>(correct) / static_cast<double>(N);
-    m.precision   = sum_p    / nc;
-    m.recall      = sum_r    / nc;
-    m.specificity = sum_spec / nc;
-    m.f1          = sum_f1   / nc;
+    m.accuracy    = kNaN;
+    m.precision   = kNaN;
+    m.recall      = kNaN;
+    m.specificity = kNaN;
+    m.f1          = kNaN;
     m.eer         = eer_scorer.compute_eer(embeddings, labels, n_classes);
     m.auc         = eer_scorer.compute_auc(embeddings, labels, n_classes);
     return m;
+}
+
+// Verification-only model-selection score: higher is better. Prefers AUC; falls
+// back to (1 - EER) when AUC is unavailable; -inf when neither is defined.
+inline double selection_score(const EvalMetrics& m)
+{
+    if (!std::isnan(m.auc)) return m.auc;
+    if (!std::isnan(m.eer)) return 1.0 - m.eer;
+    return -std::numeric_limits<double>::infinity();
+}
+
+// Two-sided t critical value at 95% confidence (t_{0.975, df}). Small lookup
+// table for df 1..30; falls back to the normal quantile 1.96 for large df.
+// Used for fold-wise confidence intervals where n (folds) is small (audit M-3).
+inline double t_crit_95(int df)
+{
+    static const double kTable[] = {
+        12.706, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228,
+        2.201,  2.179, 2.160, 2.145, 2.131, 2.120, 2.110, 2.101, 2.093, 2.086,
+        2.080,  2.074, 2.069, 2.064, 2.060, 2.056, 2.052, 2.048, 2.045, 2.042};
+    if (df < 1) return 1.96;
+    if (df <= 30) return kTable[df - 1];
+    return 1.96;
+}
+
+// Aggregate one metric across folds: mean, sample SD (÷(count-1)) and 95% CI
+// (t_{0.975,count-1}·SD/√count) over the non-NaN fold values. NaN metrics
+// (e.g. closed-set accuracy under verification-only) yield NaN mean and 0 spread.
+struct MetricAgg
+{
+    double mean = std::numeric_limits<double>::quiet_NaN();
+    double std  = 0.0;
+    double ci95 = 0.0;
+};
+
+inline MetricAgg aggregate_metric(const std::vector<double>& values)
+{
+    double sum = 0.0;
+    int count = 0;
+    for (double v : values)
+        if (!std::isnan(v)) { sum += v; ++count; }
+
+    MetricAgg a;
+    if (count == 0) return a; // mean stays NaN, spread 0
+    a.mean = sum / count;
+
+    if (count < 2) return a; // SD/CI undefined for a single value → 0
+    double var = 0.0;
+    for (double v : values)
+        if (!std::isnan(v)) { const double d = v - a.mean; var += d * d; }
+    a.std  = std::sqrt(var / (count - 1));
+    a.ci95 = t_crit_95(count - 1) * a.std / std::sqrt(static_cast<double>(count));
+    return a;
 }
 
 // Parse layer_spec to extract hidden_dim and residual depth.
@@ -486,7 +559,7 @@ auto run_classifier(const E05DatasetView& view,
             const statistics::IEERScorer& scorer =
                 (eer_scorer != nullptr) ? *eer_scorer : default_scorer;
 
-            float best_val_accuracy = -1.0f;
+            double best_val_score = -std::numeric_limits<double>::infinity();
             std::map<std::string, nn::Tensor> best_state;
 
             for (const auto& inner_ref : outer.inner_splits)
@@ -545,9 +618,9 @@ auto run_classifier(const E05DatasetView& view,
                     trainer.fit_supervised(train_pairs, val_pairs);
                     val_metrics = evaluate(candidate_model, val_feats, val_labels, n_speakers, scorer);
 
-                    if (val_metrics.accuracy > best_val_accuracy)
+                    if (best_state.empty() || selection_score(val_metrics) > best_val_score)
                     {
-                        best_val_accuracy = val_metrics.accuracy;
+                        best_val_score = selection_score(val_metrics);
                         best_state = candidate_model.state_dict();
                     }
                 }
@@ -582,9 +655,9 @@ auto run_classifier(const E05DatasetView& view,
                     trainer.fit_supervised(train_pairs, val_pairs);
                     val_metrics = evaluate(candidate_model, val_feats, val_labels, n_speakers, scorer);
 
-                    if (val_metrics.accuracy > best_val_accuracy)
+                    if (best_state.empty() || selection_score(val_metrics) > best_val_score)
                     {
-                        best_val_accuracy = val_metrics.accuracy;
+                        best_val_score = selection_score(val_metrics);
                         best_state = candidate_model.state_dict();
                     }
                 }
@@ -749,62 +822,50 @@ void compute_aggregate_stats(ClassificationResult& result)
 {
     if (result.outer_folds.empty()) return;
 
-    const double n = static_cast<double>(result.outer_folds.size());
-
-    double sum_acc  = 0.0, sum_f1 = 0.0, sum_p   = 0.0;
-    double sum_r    = 0.0, sum_sp = 0.0;
-    double sum_eer  = 0.0, sum_auc = 0.0;
-    int n_eer = 0, n_auc = 0;
-
+    // Collect per-fold values, then aggregate each metric over its non-NaN folds
+    // with sample SD and a t-based 95% CI (audit M-3). Under verification-only
+    // (audit C-1) the closed-set metrics are NaN and aggregate to NaN.
+    std::vector<double> acc, f1, prec, rec, spec, eer, auc;
+    acc.reserve(result.outer_folds.size());
+    f1.reserve(result.outer_folds.size());
+    prec.reserve(result.outer_folds.size());
+    rec.reserve(result.outer_folds.size());
+    spec.reserve(result.outer_folds.size());
+    eer.reserve(result.outer_folds.size());
+    auc.reserve(result.outer_folds.size());
     for (const auto& f : result.outer_folds)
     {
-        sum_acc += f.accuracy;
-        sum_f1  += f.f1;
-        sum_p   += f.precision;
-        sum_r   += f.recall;
-        sum_sp  += f.specificity;
-        if (!std::isnan(f.eer)) { sum_eer += f.eer; ++n_eer; }
-        if (!std::isnan(f.auc)) { sum_auc += f.auc; ++n_auc; }
+        acc.push_back(f.accuracy);
+        f1.push_back(f.f1);
+        prec.push_back(f.precision);
+        rec.push_back(f.recall);
+        spec.push_back(f.specificity);
+        eer.push_back(f.eer);
+        auc.push_back(f.auc);
     }
 
-    result.mean_accuracy    = sum_acc / n;
-    result.mean_f1          = sum_f1  / n;
-    result.mean_precision   = sum_p   / n;
-    result.mean_recall      = sum_r   / n;
-    result.mean_specificity = sum_sp  / n;
-    result.mean_eer = (n_eer > 0) ? sum_eer / n_eer : std::numeric_limits<double>::quiet_NaN();
-    result.mean_auc = (n_auc > 0) ? sum_auc / n_auc : std::numeric_limits<double>::quiet_NaN();
+    const MetricAgg a_acc  = aggregate_metric(acc);
+    const MetricAgg a_f1   = aggregate_metric(f1);
+    const MetricAgg a_prec = aggregate_metric(prec);
+    const MetricAgg a_rec  = aggregate_metric(rec);
+    const MetricAgg a_spec = aggregate_metric(spec);
+    const MetricAgg a_eer  = aggregate_metric(eer);
+    const MetricAgg a_auc  = aggregate_metric(auc);
 
-    double var_acc  = 0.0, var_f1   = 0.0, var_sp  = 0.0;
-    double var_eer  = 0.0, var_auc  = 0.0;
-    for (const auto& f : result.outer_folds)
-    {
-        double da = f.accuracy    - result.mean_accuracy;
-        double df = f.f1          - result.mean_f1;
-        double ds = f.specificity - result.mean_specificity;
-        var_acc += da * da;
-        var_f1  += df * df;
-        var_sp  += ds * ds;
-        if (!std::isnan(f.eer) && !std::isnan(result.mean_eer))
-        {
-            double de = f.eer - result.mean_eer;
-            var_eer += de * de;
-        }
-        if (!std::isnan(f.auc) && !std::isnan(result.mean_auc))
-        {
-            double du = f.auc - result.mean_auc;
-            var_auc += du * du;
-        }
-    }
-    result.std_accuracy    = std::sqrt(var_acc / n);
-    result.std_f1          = std::sqrt(var_f1  / n);
-    result.std_specificity = std::sqrt(var_sp  / n);
-    result.std_eer         = (n_eer > 1) ? std::sqrt(var_eer / n_eer) : 0.0;
-    result.std_auc         = (n_auc > 1) ? std::sqrt(var_auc / n_auc) : 0.0;
-
-    const double inv_sqrt_n  = 1.0 / std::sqrt(n);
-    result.ci95_accuracy = 1.96 * result.std_accuracy * inv_sqrt_n;
-    result.ci95_eer      = 1.96 * result.std_eer      * inv_sqrt_n;
+    result.mean_accuracy    = a_acc.mean;
+    result.std_accuracy     = a_acc.std;
+    result.ci95_accuracy    = a_acc.ci95;
+    result.mean_f1          = a_f1.mean;
+    result.std_f1           = a_f1.std;
+    result.mean_precision   = a_prec.mean;
+    result.mean_recall      = a_rec.mean;
+    result.mean_specificity = a_spec.mean;
+    result.std_specificity  = a_spec.std;
+    result.mean_eer         = a_eer.mean;
+    result.std_eer          = a_eer.std;
+    result.ci95_eer         = a_eer.ci95;
+    result.mean_auc         = a_auc.mean;
+    result.std_auc          = a_auc.std;
 }
 
 } // namespace e05

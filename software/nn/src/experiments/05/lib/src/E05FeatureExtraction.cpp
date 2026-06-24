@@ -119,7 +119,7 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
 namespace
 {
 
-// Traunmuller Bark formula.
+// Zwicker & Terhardt (1980) Bark approximation.
 double hz_to_bark(double f)
 {
     return 13.0 * std::atan(0.00076 * f) +

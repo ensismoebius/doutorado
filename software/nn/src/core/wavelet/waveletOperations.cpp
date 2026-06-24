@@ -237,7 +237,7 @@ auto extract_subband_energies(const WaveletTransformResults& transform, int leve
             {
                 const double energy =
                     std::inner_product(part.begin(), part.end(), part.begin(), 0.0);
-                energies.push_back(std::sqrt(energy)); // RMS energy
+                energies.push_back(std::sqrt(energy)); // L2 norm = sqrt(Σx²) (root-energy, not RMS)
             }
         }
     }
@@ -254,7 +254,7 @@ auto extract_subband_energies(const WaveletTransformResults& transform, int leve
             {
                 const double energy =
                     std::inner_product(part.begin(), part.end(), part.begin(), 0.0);
-                energies.push_back(std::sqrt(energy)); // RMS energy
+                energies.push_back(std::sqrt(energy)); // L2 norm = sqrt(Σx²) (root-energy, not RMS)
             }
         }
     }

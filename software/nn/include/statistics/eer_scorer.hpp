@@ -67,19 +67,22 @@ struct IEERScorer
 // ── ClassificationEERScorer ───────────────────────────────────────────────────
 
 /**
- * @brief Legacy EER from closed-set classification confusion matrices.
+ * @brief Speaker-verification EER scorer (audit m-4: upgraded).
  *
- * Performs argmax on each embedding row, builds one-vs-rest ConfusionMatrix
- * per class, then calls calculateEER().  Non-standard for speaker verification
- * but preserved for backward compatibility and ablation comparisons.
- *
- * Known limitation: returns NaN when grouped CV places test speakers entirely
- * outside the training set and the model's argmax never predicts those classes.
+ * Historically this derived EER from closed-set confusion matrices (a
+ * non-standard, inferior protocol). It now delegates to the genuine/impostor
+ * cosine-similarity method (same as GenuineImpostorEERScorer with one
+ * enrollment utterance), so EER and AUC are computed from the score
+ * distribution. The class name is retained for backward compatibility.
  */
 class ClassificationEERScorer : public IEERScorer
 {
 public:
     [[nodiscard]] auto compute_eer(const std::vector<std::vector<float>>& embeddings,
+        const std::vector<int>& labels,
+        int n_classes) const -> double override;
+
+    [[nodiscard]] auto compute_auc(const std::vector<std::vector<float>>& embeddings,
         const std::vector<int>& labels,
         int n_classes) const -> double override;
 };

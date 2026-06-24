@@ -51,8 +51,9 @@ TEST(E05AggregateStats, TwoFoldsStd)
     r.outer_folds.push_back({0, 0.6, 0.0, 0.0});
     r.outer_folds.push_back({1, 0.8, 0.0, 0.0});
     compute_aggregate_stats(r);
-    // mean = 0.7; variance = ((0.6-0.7)^2 + (0.8-0.7)^2) / 2 = 0.01
-    EXPECT_NEAR(r.std_accuracy, 0.1, 1e-12);
+    // mean = 0.7; sample variance = ((0.6-0.7)^2 + (0.8-0.7)^2) / (2-1) = 0.02
+    // sample SD = sqrt(0.02) ≈ 0.141421356 (audit M-3: sample SD, not population).
+    EXPECT_NEAR(r.std_accuracy, 0.14142135623730953, 1e-12);
 }
 
 TEST(E05AggregateStats, AllSameMeanAndZeroStd)
@@ -177,8 +178,11 @@ TEST(E05RunClassifier, ReturnsFoldCountMatchingKFolds)
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
 }
 
-TEST(E05RunClassifier, MeanStdAreComputed)
+TEST(E05RunClassifier, VerificationOnlyAccuracyIsNaN)
 {
+    // Verification-only protocol (audit C-1): closed-set accuracy is not reported
+    // (speaker-disjoint folds), so mean_accuracy aggregates to NaN. The run must
+    // still produce one result per outer fold.
     auto view     = make_view(4, 6);
     auto fvs      = make_features(view);
     E05Config cfg = make_fast_cfg();
@@ -186,10 +190,8 @@ TEST(E05RunClassifier, MeanStdAreComputed)
 
     auto result = run_classifier(view, fvs, "synth", cfg, &scorer);
 
-    EXPECT_FALSE(std::isnan(result.mean_accuracy));
-    EXPECT_FALSE(std::isnan(result.std_accuracy));
-    EXPECT_GE(result.mean_accuracy, 0.0);
-    EXPECT_LE(result.mean_accuracy, 1.0);
+    EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+    EXPECT_TRUE(std::isnan(result.mean_accuracy));
 }
 
 TEST(E05RunClassifier, FeatureLabelPropagated)
@@ -226,6 +228,6 @@ TEST(E05RunClassifier, DsnnPathRuns)
     auto result = run_classifier(view, fvs, "synth-dsnn", cfg, &scorer);
     EXPECT_EQ(result.classifier_type, "dsnn");
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
-    EXPECT_GE(result.mean_accuracy, 0.0);
-    EXPECT_LE(result.mean_accuracy, 1.0);
+    // Verification-only: closed-set accuracy not reported (audit C-1).
+    EXPECT_TRUE(std::isnan(result.mean_accuracy));
 }

@@ -247,8 +247,10 @@ void build_linear_filterbank(int fft_points, FilterbankConfig& context)
     vector<int> bin_indices(context.loading_params.audio_params.number_of_filters + 2);
 
     // Maximum represented frequency (Nyquist frequency).
+    // Use target_sampling_rate (same rate used for bin mapping below) so the
+    // filterbank stays consistent if default_sampling_rate != target_sampling_rate.
     const float max_frequency =
-        static_cast<float>(context.loading_params.constants.default_sampling_rate) / 2.0F;
+        static_cast<float>(context.loading_params.audio_params.target_sampling_rate) / 2.0F;
 
     // Initialize filterbank tensor and center-frequency buffer.
     context.filterbank =

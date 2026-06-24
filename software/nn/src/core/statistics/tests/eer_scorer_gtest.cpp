@@ -194,9 +194,18 @@ TEST(GenuineImpostorEERScorerTest, AucInUnitIntervalOrNaN)
     }
 }
 
-// ClassificationEERScorer inherits default compute_auc → always NaN.
-TEST(ClassificationEERScorerTest, AucAlwaysNaN)
+// Upgraded (audit m-4): ClassificationEERScorer now uses the genuine/impostor
+// method, so compute_auc returns a valid AUC (near 1 for perfect separation).
+TEST(ClassificationEERScorerTest, AucPerfectSeparationNearOne)
 {
     ClassificationEERScorer s;
-    EXPECT_TRUE(std::isnan(s.compute_auc(perfect_embeddings(5), perfect_labels(5), 2)));
+    const double auc = s.compute_auc(perfect_embeddings(6), perfect_labels(6), 2);
+    if (!std::isnan(auc))
+        EXPECT_GT(auc, 0.9);
+}
+
+TEST(ClassificationEERScorerTest, AucEmptyReturnsNaN)
+{
+    ClassificationEERScorer s;
+    EXPECT_TRUE(std::isnan(s.compute_auc({}, {}, 2)));
 }

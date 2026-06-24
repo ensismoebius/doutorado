@@ -86,10 +86,10 @@ TEST(ConfusionMatrixTest, MatrixOverloadsMatchNumericOverloads)
     EXPECT_DOUBLE_EQ(
         statistics::recall(matrix), statistics::recall(matrix.truePositive, matrix.falseNegative));
 
-    // Note: current implementation wires matrix fields in reversed order for TPR.
-    // This assertion documents the behavior currently implemented in confusion_matrix.cpp.
+    // TPR(matrix) must use (truePositive, falseNegative) = tp/(tp+fn) (audit M-2).
     EXPECT_DOUBLE_EQ(statistics::truePositiveRate(matrix),
-        statistics::truePositiveRate(matrix.falseNegative, matrix.truePositive));
+        statistics::truePositiveRate(matrix.truePositive, matrix.falseNegative));
+    EXPECT_DOUBLE_EQ(statistics::truePositiveRate(matrix), 8.0 / 10.0);
 }
 
 TEST(ConfusionMatrixTest, CalculateEERFromRates)

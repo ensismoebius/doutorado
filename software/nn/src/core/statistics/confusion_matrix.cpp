@@ -87,7 +87,7 @@ double truePositiveRate(double tp, double fn)
  */
 double truePositiveRate(const ConfusionMatrix& matrix)
 {
-    return truePositiveRate(matrix.falseNegative, matrix.truePositive);
+    return truePositiveRate(matrix.truePositive, matrix.falseNegative);
 }
 
 /**

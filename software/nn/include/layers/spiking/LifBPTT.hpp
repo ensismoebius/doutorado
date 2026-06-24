@@ -68,10 +68,16 @@ struct LifBPTTImpl : public Module<Backend>
     /// @brief The simulation time step (time_step).
     float time_step = 1.0F;
 
-    /// @brief Membrane resistance (R).
+    // IDENTIFIABILITY NOTE (audit m-2): dynamics depend only on the membrane time
+    // constant tau = R * C (beta = exp(-dt/tau)). R and C are not separately
+    // identifiable — only their product matters — so training both is a redundant
+    // degree of freedom. Kept as two tensors for config/serialization backward
+    // compatibility. Treat tau = R*C as the single effective time constant.
+
+    /// @brief Membrane resistance (R). With C forms tau = R*C (the identifiable quantity).
     Tensor resistance = Tensor::constant(1, 1, 1.0F);
 
-    /// @brief Membrane capacitance (C).
+    /// @brief Membrane capacitance (C). With R forms tau = R*C; redundant alone (see note).
     Tensor capacitance = Tensor::constant(1, 1, 1.0F);
 
     /// @brief Voltage threshold.
@@ -106,6 +112,25 @@ struct LifBPTTImpl : public Module<Backend>
     [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
         return std::span<Tensor*>{param_ptrs_.data(), param_ptrs_.size()};
+    }
+
+    auto state_dict() const -> std::map<std::string, Tensor> override
+    {
+        std::map<std::string, Tensor> d;
+        d["resistance"] = resistance;
+        d["capacitance"] = capacitance;
+        d["voltage_threshold"] = voltage_threshold;
+        return d;
+    }
+
+    void load_state_dict(const std::map<std::string, Tensor>& sd) override
+    {
+        auto it = sd.find("resistance");
+        if (it != sd.end()) resistance = it->second;
+        it = sd.find("capacitance");
+        if (it != sd.end()) capacitance = it->second;
+        it = sd.find("voltage_threshold");
+        if (it != sd.end()) voltage_threshold = it->second;
     }
 
     explicit LifBPTTImpl(int time_steps_,

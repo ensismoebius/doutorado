@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "statistics/confusion_matrix.hpp"
-
 namespace statistics
 {
 
@@ -202,45 +200,25 @@ std::vector<std::pair<float, bool>> build_gi_trials(
 
 // ── ClassificationEERScorer ───────────────────────────────────────────────────
 
+// Upgraded (audit m-4): use the genuine/impostor cosine-similarity method
+// instead of the legacy closed-set confusion-matrix EER. One enrollment
+// utterance per speaker, matching GenuineImpostorEERScorer's default.
 auto ClassificationEERScorer::compute_eer(const std::vector<std::vector<float>>& embeddings,
     const std::vector<int>& labels,
-    int n_classes) const -> double
+    int /*n_classes*/) const -> double
 {
-    if (embeddings.empty()) return std::numeric_limits<double>::quiet_NaN();
+    auto trials = build_gi_trials(embeddings, labels, 1U);
+    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
+    return eer_from_trials(std::move(trials));
+}
 
-    std::vector<ConfusionMatrix> cms(static_cast<std::size_t>(n_classes));
-
-    for (std::size_t i = 0; i < embeddings.size(); ++i)
-    {
-        // argmax over embedding row
-        int pred   = 0;
-        float best = embeddings[i][0];
-        for (int j = 1; j < n_classes; ++j)
-        {
-            if (embeddings[i][static_cast<std::size_t>(j)] > best)
-            {
-                best = embeddings[i][static_cast<std::size_t>(j)];
-                pred = j;
-            }
-        }
-
-        for (int c = 0; c < n_classes; ++c)
-        {
-            const bool is_c   = (labels[i] == c);
-            const bool pred_c = (pred == c);
-            auto& cm = cms[static_cast<std::size_t>(c)];
-            if ( is_c &&  pred_c) ++cm.truePositive;
-            if (!is_c &&  pred_c) ++cm.falsePositive;
-            if ( is_c && !pred_c) ++cm.falseNegative;
-            if (!is_c && !pred_c) ++cm.trueNegative;
-        }
-    }
-
-    double eer = std::numeric_limits<double>::quiet_NaN();
-    std::vector<double> fprs;
-    std::vector<double> fnrs;
-    calculateEER(cms, eer, fprs, fnrs);
-    return eer;
+auto ClassificationEERScorer::compute_auc(const std::vector<std::vector<float>>& embeddings,
+    const std::vector<int>& labels,
+    int /*n_classes*/) const -> double
+{
+    const auto trials = build_gi_trials(embeddings, labels, 1U);
+    if (trials.empty()) return std::numeric_limits<double>::quiet_NaN();
+    return mann_whitney_auc(trials);
 }
 
 // ── GenuineImpostorEERScorer ──────────────────────────────────────────────────

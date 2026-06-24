@@ -29,11 +29,16 @@ Imagined (covert) speech circumvents this: the speaker mentally rehearses an utt
 
 Before training any classifier, the pipeline ranks all feature-strategy×modality combinations using the paraconsistent quality metric. This avoids expensive hyperparameter sweeps.
 
-Given N-class feature vectors normalised to [0,1]:
+Features are scaled **per dimension to [0,1] across all samples** before scoring
+(audit M-1), so every descriptor is commensurable and bounded. Then:
 
-$$\alpha = 1 - \max_c \left( \frac{\overline{\max} - \overline{\min}}{\text{global range}} \right) \quad \text{(intraclass similarity)}$$
+$$\alpha = \min_c \left( \frac{1}{F} \sum_{d=1}^{F} \big(1 - (\max_{c,d} - \min_{c,d})\big) \right) \quad \text{(intraclass similarity)}$$
 
-$$\beta = \frac{1}{N(N-1)} \sum_{i \neq j} R_{ij} / F \quad \text{(interclass overlap)}$$
+where $\max_{c,d}, \min_{c,d}$ are the per-dimension extrema within class $c$ over its $M$ feature vectors.
+
+$$\beta = \frac{R}{N\,(N-1)\,M\,F} \quad \text{(interclass overlap)}$$
+
+where $R$ counts — over all ordered class pairs — how many feature-vector components fall inside another class's per-dimension $[\min, \max]$ range; $N$ classes, $M$ vectors per class, $F$ dimensions.
 
 Map to paraconsistent plane:
 
@@ -81,7 +86,7 @@ $$\text{out} = F(x) + x$$
 
 where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss.
 
-**DSNN**: deep spiking classifier implemented in Experiment05 as dense+LIF stack (Linear -> LIF -> ... -> Linear) trained with cross-entropy through surrogate gradients. Naturally sparse hidden activations and compatible with the same CV/output pipeline as RNN. See [Layers](../Core/Layers.md).
+**DSNN**: temporal deep spiking classifier (audit M-4). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -261,7 +266,7 @@ auto result2 = e05::run_classifier(view, fvs, label, cfg, &legacy_scorer);
 | Scorer | Protocol | EER source | SOTA? |
 |---|---|---|---|
 | `GenuineImpostorEERScorer` | enroll N utterances → cosine similarity genuine/impostor trials → FAR/FRR sweep | Score distribution | ✓ |
-| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix | Prediction counts | ✗ (legacy) |
+| `ClassificationEERScorer` | upgraded (audit m-4): delegates to genuine/impostor with 1 enrollment utterance | Score distribution | ✓ |
 
 `GenuineImpostorEERScorer` protocol:
 1. Per speaker: first `n_enroll` utterances → L2-normalised mean embedding (template)
@@ -329,16 +334,20 @@ Path pattern: `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin`
 
 ### Metric definitions
 
+**Verification-only protocol (audit C-1).** Outer folds are speaker-disjoint
+(GroupKFold by `subject_id`): test speakers are never seen in training. This is
+an x-vector-style verification setup — train on background speakers, enrol the
+unseen test speakers at evaluation time. Closed-set identification metrics
+(accuracy / macro-F1 / precision / recall / specificity) are therefore **not
+reported** (emitted as NaN); **EER and AUC are the primary metrics**.
+
 | Metric | Formula | Notes |
 |---|---|---|
-| Accuracy | TP_all / N | Closed-set argmax |
-| Macro F1 | mean(2PR/(P+R)) per class | Unweighted, handles class imbalance |
-| Macro Precision | mean(TP/(TP+FP)) per class | — |
-| Macro Recall | mean(TP/(TP+FN)) per class | — |
-| EER | FAR = FRR threshold crossing | `GenuineImpostorEERScorer`: cosine similarity genuine/impostor trials |
-| AUC | P(genuine_score > impostor_score) | Wilcoxon-Mann-Whitney; complement to EER |
-| std_* | Population std over outer folds | `sqrt(Σ(xi-μ)²/n)` |
-| ci95_* | `1.96 × std / √n` | Normal approximation; valid for n≥5 folds |
+| Accuracy / macro-F1 / P / R / specificity | — | **Not reported** (NaN) under verification-only: closed-set argmax over unseen speakers is invalid (audit C-1) |
+| EER | FAR = FRR threshold crossing | **Primary.** `GenuineImpostorEERScorer`: cosine genuine/impostor trials |
+| AUC | P(genuine_score > impostor_score) | **Primary.** Wilcoxon–Mann–Whitney; complement to EER |
+| std_* | Sample std over folds | `sqrt(Σ(xi-μ)²/(n-1))` (audit M-3) |
+| ci95_* | `t_{0.975,n-1} × std / √n` | Student-t CI for small fold counts (audit M-3) |
 
 ---
 
@@ -348,7 +357,7 @@ Path pattern: `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin`
 |---|---|---|
 | Purpose | Congress paper (SNN vs LSTM reconstruction) | Thesis primary experiment |
 | Dataset | FSDD (spoken digits, 8 kHz, audio only) | 10.1117/12.2255697 (EEG + voice, 22050 Hz) |
-| Task | Autoencoder reconstruction (MSE) | Speaker authentication (accuracy, EER) |
+| Task | Autoencoder reconstruction (MSE) | Speaker verification (EER, AUC; speaker-disjoint folds) |
 | Signals | Audio only | Voice + EEG (bimodal) |
 | Feature selection | Fixed architecture sweep | Paraconsistent α/β ranking before any classifier |
 | Classifier | Autoencoder reconstruction loss | RNN / DSNN authentication |
@@ -361,7 +370,7 @@ Path pattern: `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin`
 
 1. **Paired loading is always enforced.** `load_dataset()` always loads both audio and EEG for every trial, using the `eeg_index` column from the audio MAT to identify the correct EEG row. The `modality` field selects which signal is used during feature extraction — not which data is loaded. Subjects or trials missing either modality are silently dropped. This guarantees that voice-only, EEG-only, and fused runs operate on the **exact same set of subjects and trials**, making results directly comparable.
 
-2. **Normalise before paraconsistent.** α and β are range-based; unnormalised features give meaningless D_truth values.
+2. **Per-dimension [0,1] scaling before paraconsistent.** α and β are range-based and assume commensurable features in [0,1]. `score_feature_set()` min-max scales each dimension across all samples (audit M-1). Do **not** use per-sample sum-1 normalization — it lets large-magnitude descriptors (energy) dominate and pushes signed descriptors (Teager) outside [0,1], breaking the α domain.
 
 3. **EEG and voice window sizes differ.** EEG at 800 Hz needs different window parameters than voice at 22050 Hz. Do not reuse the same `window_size` across modalities.
 

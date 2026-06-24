@@ -289,7 +289,9 @@ TEST(InferenceTests, TTestApproxReturnsSmallPForSeparatedMeans)
     const std::vector<float> a = {1.0f, 1.1f, 0.9f, 1.2f, 1.0f};
     const std::vector<float> b = {3.0f, 3.1f, 2.9f, 3.2f, 3.0f};
     const float p = statistics::t_test_pvalue_approx(a, b);
-    EXPECT_FLOAT_EQ(p, 0.0f);
+    // Well-separated means → very small (but nonzero) Student-t p-value.
+    EXPECT_GE(p, 0.0f);
+    EXPECT_LT(p, 1e-3f);
 }
 
 TEST(InferenceTests, WilcoxonApproxReturnsOneForInvalidPairs)

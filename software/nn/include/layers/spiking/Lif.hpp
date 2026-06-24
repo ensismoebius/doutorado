@@ -70,10 +70,18 @@ struct LifImpl : public Module<Backend>
     /// @brief The simulation time step (time_step).
     float time_step = 1.0F;
 
-    /// @brief Membrane resistance (R). Used to calculate the membrane time constant.
+    // IDENTIFIABILITY NOTE (audit m-2): the dynamics depend only on the membrane
+    // time constant tau = R * C (beta = exp(-dt/tau)). R and C are NOT separately
+    // identifiable — only their product affects the forward/backward result, so
+    // training both is a redundant degree of freedom. They are kept as two
+    // tensors for config/serialization backward compatibility (Exp03/04 profiles
+    // and saved checkpoints use "resistance"/"capacitance" keys). Treat tau = R*C
+    // as the single effective trainable membrane time constant.
+
+    /// @brief Membrane resistance (R). With C forms tau = R*C (the identifiable quantity).
     Tensor resistance = Tensor::constant(1, 1, 1.0F);
 
-    /// @brief Membrane capacitance (C). Used with R to calculate the membrane time constant.
+    /// @brief Membrane capacitance (C). With R forms tau = R*C; redundant alone (see note).
     /// Stored as a 1×1 trainable tensor so the optimizer can update it via backprop.
     Tensor capacitance = Tensor::constant(1, 1, 1.0F);
 

@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <map>
 #include <stdexcept>
+#include <vector>
 
 #include "paraconsistent/paraconsistent.hpp"
 #include "progress/ProgressManager.hpp"
@@ -11,18 +13,55 @@
 namespace e05
 {
 
+namespace
+{
+// Per-dimension min-max scaling of every feature vector into [0,1] across the
+// whole sample set (audit M-1). The paraconsistent α/β metric is defined on
+// commensurable features in [0,1]; the previous per-sample sum-1 normalization
+// let large-magnitude descriptors (e.g. energy) dominate and could push signed
+// descriptors (e.g. Teager) outside [0,1], breaking the α domain. Scaling each
+// dimension independently across samples keeps every component in [0,1] and
+// gives each descriptor comparable influence on the range-based metric.
+std::vector<std::vector<double>> min_max_per_dim(const std::vector<std::vector<double>>& vectors)
+{
+    if (vectors.empty()) return {};
+    const size_t dim = vectors[0].size();
+
+    std::vector<double> mn(dim, std::numeric_limits<double>::max());
+    std::vector<double> mx(dim, std::numeric_limits<double>::lowest());
+    for (const auto& v : vectors)
+        for (size_t d = 0; d < dim && d < v.size(); ++d)
+        {
+            mn[d] = std::min(mn[d], v[d]);
+            mx[d] = std::max(mx[d], v[d]);
+        }
+
+    std::vector<std::vector<double>> scaled(vectors.size(), std::vector<double>(dim, 0.0));
+    for (size_t i = 0; i < vectors.size(); ++i)
+        for (size_t d = 0; d < dim && d < vectors[i].size(); ++d)
+        {
+            const double range = mx[d] - mn[d];
+            scaled[i][d] = (range > 0.0) ? (vectors[i][d] - mn[d]) / range : 0.0;
+        }
+    return scaled;
+}
+} // namespace
+
 auto score_feature_set(const std::vector<E05Sample>& samples,
     const FeatureSet& fs) -> ParaconsistentScore
 {
     if (fs.vectors.empty() || samples.size() != fs.vectors.size())
         throw std::invalid_argument("E05Paraconsistent: empty or mismatched feature set");
 
+    // Scale features per-dimension to [0,1] before building class groups.
+    const auto scaled_vectors = min_max_per_dim(fs.vectors);
+
     // Build speaker-keyed map: "subject_N" -> [ [feat_vec], ... ]
     std::map<std::string, std::vector<std::vector<double>>> class_map;
     for (size_t i = 0; i < samples.size(); ++i)
     {
         std::string key = "subject_" + std::to_string(samples[i].subject_id);
-        class_map[key].push_back(fs.vectors[i]);
+        class_map[key].push_back(scaled_vectors[i]);
     }
 
     // Trim to equal-sized classes (minimum count across speakers).
@@ -39,8 +78,8 @@ auto score_feature_set(const std::vector<E05Sample>& samples,
     unsigned int n_per_class = static_cast<unsigned int>(min_count);
     unsigned int feat_dim = static_cast<unsigned int>(fs.vectors[0].size());
 
-    normalize_class_feature_vectors(n_classes, n_per_class, feat_dim, class_map);
-
+    // Features already scaled to [0,1] per dimension above (audit M-1);
+    // no further per-sample normalization is applied.
     double alpha = calculate_alpha(n_classes, n_per_class, feat_dim, class_map);
     double beta  = calculate_beta(n_classes, n_per_class, feat_dim, class_map);
     double g1    = calculate_certainty_degree_g1(alpha, beta);
