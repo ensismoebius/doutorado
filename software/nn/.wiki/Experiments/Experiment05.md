@@ -117,7 +117,7 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 - Utterances: vowels (`/a/ /e/ /i/ /o/ /u/`) + directional commands (`arriba/abajo/izquierda/derecha/adelante`)
 - Three modalities: phonated speech, imagined speech, mixed
 - Audio: 22050 Hz, 16-bit PCM WAV
-- EEG: 800 Hz, 14 channels, 10-20 system (emotiv epoc)
+- EEG: 800 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system
 - EEG preprocessing: bandpass 1–800 Hz, notch 60 Hz
 
 See [Data Loaders](../Core/DataLoaders.md) for the `E05Dataset` loader API and file layout.
@@ -230,7 +230,7 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
   │           ├── Handcrafted: DTWPT + ZCR + entropy + Teager + jitter/shimmer
   │           └── Learned: LSTM-AE latent vectors (SNN-AE planned)
   │
-  └── Imagined speech EEG (800 Hz, 14 ch)
+  └── Imagined speech EEG (800 Hz, 6 ch)
         └── preprocessing (bandpass 1–800 Hz, notch 60 Hz)
               ├── Handcrafted: DTWPT energy per EEG band (alpha/beta/theta)
               └── Learned: LSTM-AE latent vectors (SNN-AE planned)

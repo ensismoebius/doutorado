@@ -136,8 +136,9 @@ struct Adam : public Optimizer
         {
             throw std::invalid_argument("attach_with_scales: params and lr_scales must match");
         }
-        lr_scales_.assign(lr_scales.begin(), lr_scales.end());
+        // attach() resets lr_scales_ to empty (global lr), so assign scales AFTER it.
         attach(params);
+        lr_scales_.assign(lr_scales.begin(), lr_scales.end());
     }
 
     // Inicializa os vetores moment1 e moment2 para cada parâmetro, com zeros do mesmo shape dos
@@ -149,6 +150,9 @@ struct Adam : public Optimizer
 
         // Why attach(): Adam needs one moment1/moment2 tensor per parameter.
         // Pitfall: if `params` changes size/order, moment1/moment2 will no longer align.
+        // Reset per-param lr scales to global lr (audit a-1); attach_with_scales()
+        // re-assigns them after calling attach().
+        lr_scales_.clear();
         moment1.clear();
         moment2.clear();
         for (auto* param : params)

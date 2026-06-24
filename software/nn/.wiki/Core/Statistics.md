@@ -143,7 +143,9 @@ Two concrete implementations:
 | Class | EER | AUC | When to use |
 |---|---|---|---|
 | `GenuineImpostorEERScorer` | enrollment template + cosine-similarity genuine/impostor trial sweep | Mann-Whitney P(genuine > impostor) | Production / thesis results |
-| `ClassificationEERScorer` | argmax → one-vs-rest confusion matrix → `calculateEER` | NaN (not applicable) | Legacy / ablation only |
+| `ClassificationEERScorer` | genuine/impostor sweep with 1 enrollment utterance (delegates to the method above — audit m-4) | Mann-Whitney P(genuine > impostor) | Back-compat alias; same method as above |
+
+> Audit m-4: `ClassificationEERScorer` previously derived EER from closed-set confusion matrices (a non-standard, inferior protocol). It now delegates to the genuine/impostor cosine-similarity method, so both scorers compute EER and AUC from the score distribution.
 
 `GenuineImpostorEERScorer(n_enroll)` protocol:
 1. Per speaker: first `n_enroll` utterances → L2-normalised mean = enrollment template.  
@@ -155,6 +157,18 @@ Two concrete implementations:
 Returns `NaN` when a speaker has ≤ `n_enroll` samples (no probes) or fewer than 2 speakers have templates (no impostor trials).
 
 Internal implementation reuses `build_gi_trials()` for both `compute_eer()` and `compute_auc()` — template construction and cosine scoring run once.
+
+### Statistical Significance Tests
+
+For comparing models / feature sets across folds (`include/statistics/inference_tests.hpp`):
+
+- **`cohens_d(a, b)`** — effect size using the (n−1)-weighted pooled standard deviation.
+- **`t_test_pvalue_approx(a, b)`** — two-sided Welch t-test. The p-value uses the **Student-t CDF** (regularised incomplete beta) with Welch–Satterthwaite degrees of freedom — not a normal approximation (audit M-3).
+- **`wilcoxon_signed_rank_pvalue_approx(a, b)`** — paired signed-rank test with **average ranks for ties**, the tie-corrected variance, and a continuity correction (audit M-3).
+
+Fold-aggregate dispersion (`compute_aggregate_stats`, Experiment05) reports the **sample** standard deviation (÷(n−1)) and a **Student-t** 95 % CI (`t_{0.975,n−1}·s/√n`), appropriate for the small fold counts (k≈5) used in cross-validation.
+
+> Caveat: cross-validation fold metrics are not independent (overlapping training sets), so these tests remain approximate; prefer a corrected resampled-CV test (Nadeau & Bengio, 2003) for rigorous fold-wise comparison.
 
 ### Statistic Interface
 
