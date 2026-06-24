@@ -258,9 +258,9 @@ EER computation is pluggable via `statistics::IEERScorer`:
 statistics::GenuineImpostorEERScorer sota_scorer(/*n_enroll=*/1);
 auto result = e05::run_classifier(view, fvs, label, cfg, &sota_scorer);
 
-// Ablation — legacy closed-set EER
-statistics::ClassificationEERScorer legacy_scorer;
-auto result2 = e05::run_classifier(view, fvs, label, cfg, &legacy_scorer);
+// Back-compat alias — now delegates to the genuine/impostor method (audit m-4)
+statistics::ClassificationEERScorer alias_scorer;
+auto result2 = e05::run_classifier(view, fvs, label, cfg, &alias_scorer);
 ```
 
 | Scorer | Protocol | EER source | SOTA? |

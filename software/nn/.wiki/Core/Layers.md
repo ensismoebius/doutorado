@@ -124,7 +124,18 @@ struct LifImpl : public Module<Backend>
 
 `LifBPTTImpl` unrolls the full sequence in one `forward(input (T*B,F))` call and
 computes exact BPTT gradients for R, C, V_th including the recurrent reset path.
-See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) for full detail.
+It is serialisable: `state_dict`/`load_state_dict` persist `resistance`,
+`capacitance`, and `voltage_threshold` (audit M-4 — added so checkpoints retain
+LIF parameters; previously only `LifImpl` exposed them). See
+[SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) for full detail.
+
+> Note (audit m-2): R and C are not separately identifiable — only $\tau = R \cdot C$ matters. See [Membrane Dynamics](../Concepts/Membrane-Dynamics.md).
+
+**Temporal DSNN classifier (Experiment05).** `E05DsnnClassifier` stacks
+`Linear → LifBPTT → … → Linear` and runs the static feature vector over
+`kSnnTimeSteps` (default 16) via constant-current rate encoding (time-major
+`(T*B,F)`), reading out the mean spike rate over time as class logits (audit M-4).
+This is a genuine temporal SNN — see [Experiment05](../Experiments/Experiment05.md).
 
 OpenCL integration update (2026-05-10):
 - `LifImpl` now uses a backend-gated fast path when the active backend exposes

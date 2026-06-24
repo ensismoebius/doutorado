@@ -24,6 +24,8 @@ A soft-reset variant subtracts the threshold instead: $v[t] \leftarrow v[t] - V_
 
 Making $R$, $C$, $V_\text{th}$ learnable parameters was popularised by Fang et al. (2021), who showed that gradient-adapted membrane time constants ($\tau_m = R \cdot C$) significantly improve SNN accuracy on vision benchmarks [Fang et al., 2021]. The biological motivation traces to Mahowald & Douglas (1991), who demonstrated that analogue VLSI RC circuits accurately reproduce cortical neuron dynamics.
 
+**Identifiability note (audit m-2):** $R$ and $C$ affect the recurrence only through their product $\tau_m = R \cdot C$ (via $\beta = \exp(-\Delta t / (R \cdot C))$), so they are **not separately identifiable** — only $\tau_m$ changes the forward/backward result. Exposing both as trainable scalars is a redundant degree of freedom (their gradients are proportional). They are retained as two tensors for config/serialization backward compatibility (`Lif`/`LifBPTT` `state_dict` keys `"resistance"`/`"capacitance"`, and Exp03/04 profiles). Treat $\tau_m = R \cdot C$ as the single effective trainable membrane time constant.
+
 **Numerical stability guard:** during training, optimisers can drive raw $R$ or $C$ to non-positive values (e.g., Adam with a large learning rate). To prevent $\tau_m \leq 0$ and $\exp(-\Delta t / \tau_m) = \text{NaN}$, both parameters are clamped to $R, C \geq 10^{-6}$ before any forward or gradient computation.
 
 ---
