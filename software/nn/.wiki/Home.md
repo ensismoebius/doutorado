@@ -79,6 +79,7 @@ The `nn` library is organized into several key components:
 
 ### Research Context
 - [Research-Context](./Research-Context.md) - Thesis overview, goals, datasets, and pipeline
+- [Notebooks](./Notebooks.md) - Python/Jupyter prototyping notebooks (LFCC, MGDF, ML math)
 
 ### Demos
 Runnable examples covering each major subsystem. See [Demos/Overview](./Demos/Overview.md) for the full listing with one-line descriptions.
