@@ -93,6 +93,7 @@ class Trainer
           loss_(std::move(loss)),
           optimizer_(cfg.learning_rate, cfg.adam_beta1, cfg.adam_beta2, cfg.adam_epsilon)
     {
+        optimizer_.weight_decay = cfg_.weight_decay; // decoupled L2 (AdamW), 0 = off
         if (cfg_.snn_lr_scale != 1.0F)
         {
             auto params = model_.params();

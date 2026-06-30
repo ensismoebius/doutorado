@@ -96,6 +96,14 @@ void E05Config::validate() const
         throw std::invalid_argument("E05Config: training.early_stop_patience must be >= 0");
     if (training.k_folds < 2)
         throw std::invalid_argument("E05Config: training.k_folds must be >= 2");
+    if (training.weight_decay < 0.0f)
+        throw std::invalid_argument("E05Config: training.weight_decay must be >= 0");
+    if (training.firing_rate_reg_lambda < 0.0f)
+        throw std::invalid_argument("E05Config: training.firing_rate_reg_lambda must be >= 0");
+    if (training.firing_rate_min < 0.0f || training.firing_rate_max > 1.0f ||
+        training.firing_rate_min > training.firing_rate_max)
+        throw std::invalid_argument(
+            "E05Config: require 0 <= firing_rate_min <= firing_rate_max <= 1");
 }
 
 E05Config E05Config::from_json(const nlohmann::json& j)
@@ -176,6 +184,11 @@ E05Config E05Config::from_json(const nlohmann::json& j)
         if (t.contains("early_stop_patience")) cfg.training.early_stop_patience = t["early_stop_patience"];
         if (t.contains("k_folds")) cfg.training.k_folds = t["k_folds"];
         if (t.contains("nested_cv")) cfg.training.nested_cv = t["nested_cv"];
+        if (t.contains("weight_decay")) cfg.training.weight_decay = t["weight_decay"].get<float>();
+        if (t.contains("firing_rate_reg_lambda"))
+            cfg.training.firing_rate_reg_lambda = t["firing_rate_reg_lambda"].get<float>();
+        if (t.contains("firing_rate_min")) cfg.training.firing_rate_min = t["firing_rate_min"].get<float>();
+        if (t.contains("firing_rate_max")) cfg.training.firing_rate_max = t["firing_rate_max"].get<float>();
     }
 
     return cfg;

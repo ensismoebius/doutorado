@@ -41,6 +41,12 @@ struct Adam : public Optimizer
     float epsilon;            // Termo pequeno para evitar divisão por zero
     int time_step;            // Contador de iterações
 
+    /// Decoupled weight decay (AdamW). 0 = disabled. Applied only to 2-D weight
+    /// matrices (rows>1 && cols>1); biases and SNN biophysical scalars (R, C,
+    /// V_th, shape 1×1 or N×1) are skipped so tau=R·C and V_th are never decayed.
+    /// Reference: Loshchilov & Hutter, ICLR 2019 (Decoupled Weight Decay).
+    float weight_decay = 0.0F;
+
     std::vector<Tensor> moment1;   // Vetor de médias móveis dos gradientes
     std::vector<Tensor> moment2;   // Vetor de médias móveis dos quadrados dos gradientes
     std::vector<float> lr_scales_; // Per-parameter lr multipliers (1.0 = global lr)
@@ -227,6 +233,16 @@ struct Adam : public Optimizer
             Tensor update_step = m_hat_scaled.divide(v_hat_sqrt_eps);
 
             param = param.add(update_step.multiply_scalar(-1.0f));
+
+            // Decoupled weight decay (AdamW): θ ← θ - lr_i * weight_decay * θ.
+            // Decoupled (not folded into the gradient) so Adam's adaptive scaling
+            // does not distort the penalty. Restricted to 2-D weight matrices;
+            // biases (N×1) and SNN biophysical scalars (1×1: R, C, V_th) are
+            // skipped — decaying those would corrupt tau=R·C and the threshold.
+            if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
+            {
+                param = param.add(param.multiply_scalar(-lr_i * weight_decay));
+            }
         }
     }
 

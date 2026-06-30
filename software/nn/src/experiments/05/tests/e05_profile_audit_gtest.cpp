@@ -102,6 +102,16 @@ TEST_P(E05ProfileAuditTest, TrainingParamsPositive)
     EXPECT_GE(cfg.training.k_folds, 2);
 }
 
+TEST_P(E05ProfileAuditTest, RegularizationParamsValid)
+{
+    auto cfg = load(GetParam());
+    EXPECT_GE(cfg.training.weight_decay, 0.0f);
+    EXPECT_GE(cfg.training.firing_rate_reg_lambda, 0.0f);
+    EXPECT_GE(cfg.training.firing_rate_min, 0.0f);
+    EXPECT_LE(cfg.training.firing_rate_max, 1.0f);
+    EXPECT_LE(cfg.training.firing_rate_min, cfg.training.firing_rate_max);
+}
+
 TEST_P(E05ProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
 {
     const std::string name = GetParam();

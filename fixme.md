@@ -38,12 +38,12 @@
 33. Seção BPTT: Reescrever e expandir significativamente a explicação.ok
 35. Figura 24: Trocar círculos por blocos/retângulos para representar camadas.ok
 34. Função de Resposta Exponencial: Revisar e expandir a seção.
+37. Figura 27: Trocar círculos por retângulos para representar camadas. ok (não precisa)
+36. Apêndices — Técnicas de Regularização: Incluir L1, L2 e Ω. (apenas L2). ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-36. Apêndices — Técnicas de Regularização: Incluir L1, L2 e Ω.
-37. Figura 27: Trocar círculos por retângulos para representar camadas.
 38. Seção “Por que LFCC para Biometria?”: Mover para posição mais inicial e justificar a escolha da LFCC.
 39. Seção “Por que LFCC para Biometria?”: Adicionar figura mostrando o pipeline completo do cálculo da LFCC.
 40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.

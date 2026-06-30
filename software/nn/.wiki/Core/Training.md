@@ -108,6 +108,10 @@ struct TrainerConfig
     // Gradient clipping
     float grad_clip_norm = 0.0F;
 
+    // Decoupled L2 weight decay (AdamW). 0 = disabled. Applied only to 2-D
+    // weight matrices; biases and SNN scalars (R, C, V_th) are excluded [Loshchilov2019].
+    float weight_decay = 0.0F;
+
     // Batch
     int batch_size = 1;
     unsigned int sampler_shuffle_seed = 42;
@@ -126,6 +130,8 @@ struct TrainerConfig
 ```
 
 **SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics.  Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3.  Pass this scale to `Adam::attach_with_scales()`.
+
+**Weight decay rationale**: `weight_decay > 0` enables decoupled L2 regularization (AdamW). The `Trainer` constructor forwards it to `Adam::weight_decay`, which shrinks only 2-D weight matrices by `lr·weight_decay·θ` after each Adam step — biases and SNN scalars are skipped so `τ = R·C` and the threshold stay intact. See [Optimizers](Optimizers.md#decoupled-weight-decay-adamw).
 
 **Nested CV rationale**: Single-level k-fold cross-validation with hyperparameter tuning leads to optimistic performance estimates.  Nested k-fold [41] uses an outer loop for unbiased test estimation and an inner loop for hyperparameter selection.
 

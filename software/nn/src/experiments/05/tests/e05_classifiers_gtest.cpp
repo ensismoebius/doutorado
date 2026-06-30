@@ -231,3 +231,36 @@ TEST(E05RunClassifier, DsnnPathRuns)
     // Verification-only: closed-set accuracy not reported (audit C-1).
     EXPECT_TRUE(std::isnan(result.mean_accuracy));
 }
+
+// Regularization enabled (decoupled L2 weight decay + firing-rate band penalty)
+// on the dsnn path must train and produce one result per outer fold without
+// throwing — exercises Adam::weight_decay and E05DsnnClassifier::add_firing_rate_grad.
+TEST(E05RunClassifier, DsnnWithRegularizationRuns)
+{
+    auto view     = make_view(4, 6);
+    auto fvs      = make_features(view);
+    E05Config cfg = make_fast_cfg();
+    cfg.classifier.type                  = "dsnn";
+    cfg.training.weight_decay            = 1e-3f;
+    cfg.training.firing_rate_reg_lambda  = 0.05f;
+    cfg.training.firing_rate_min         = 0.05f;
+    cfg.training.firing_rate_max         = 0.80f;
+    statistics::ClassificationEERScorer scorer;
+
+    auto result = run_classifier(view, fvs, "synth-dsnn-reg", cfg, &scorer);
+    EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+}
+
+// Weight decay on the rnn path must also train cleanly (firing-rate reg is inert
+// for the non-spiking ResNet classifier).
+TEST(E05RunClassifier, RnnWithWeightDecayRuns)
+{
+    auto view     = make_view(4, 6);
+    auto fvs      = make_features(view);
+    E05Config cfg = make_fast_cfg();
+    cfg.training.weight_decay = 1e-3f;
+    statistics::ClassificationEERScorer scorer;
+
+    auto result = run_classifier(view, fvs, "synth-rnn-wd", cfg, &scorer);
+    EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+}

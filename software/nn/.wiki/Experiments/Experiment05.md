@@ -88,6 +88,13 @@ where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speak
 
 **DSNN**: temporal deep spiking classifier (audit M-4). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
+### Regularization
+
+Two regularizers guard generalisation on the small dysphonic-speaker dataset, both off by default and enabled per profile:
+
+- **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw).
+- **Firing-rate regularization** (`training.firing_rate_reg_lambda`, DSNN-only): pushes each `LifBPTT` layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same scheme as `SpikeCountLossImpl`. Inert when `λ = 0` or for the RNN classifier (no spiking layers).
+
 ### Text-Dependent vs Text-Independent Evaluation
 
 | Mode | Train phrases | Test phrases | Difficulty |
@@ -203,7 +210,11 @@ src/experiments/05/
     "samples_per_batch": 32,
     "early_stop_patience": 10,
     "k_folds": 5,
-    "nested_cv": true
+    "nested_cv": true,
+    "weight_decay": 1e-4,            // decoupled L2 (rnn + dsnn); 0 = off
+    "firing_rate_reg_lambda": 0.01,  // dsnn-only band penalty; 0 = off
+    "firing_rate_min": 0.05,
+    "firing_rate_max": 0.80
   }
 }
 ```

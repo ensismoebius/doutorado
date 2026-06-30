@@ -86,6 +86,33 @@ optimizer.step(all_params);
 `TrainerConfig::snn_lr_scale` (default 0.1) documents the intended scale; the caller
 is responsible for populating the `scales` vector accordingly.
 
+### Decoupled Weight Decay (AdamW)
+
+`Adam::weight_decay` (default `0.0F`, disabled) applies L2 regularization in the
+**decoupled** form of Loshchilov & Hutter (ICLR 2019). After the standard Adam
+update, each parameter is shrunk multiplicatively:
+
+$$\theta_i \leftarrow \theta_i - \eta_i \cdot \lambda_\text{wd} \cdot \theta_i$$
+
+Decoupling matters because folding the penalty into the gradient (classic L2)
+makes Adam's per-coordinate $1/\sqrt{\hat v}$ scaling distort the effective decay
+per weight; decoupled decay keeps a uniform shrink.
+
+**Shape guard** — decay is applied **only to 2-D weight matrices**
+(`rows > 1 && cols > 1`). Biases (`N×1`) and SNN biophysical scalars
+(`1×1`: R, C, V_th) are skipped, so the membrane time constant $\tau = R\cdot C$
+and the spike threshold are never pulled toward zero.
+
+```cpp
+// File: include/optimizers/Adam.hpp — inside step()
+if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
+    param = param.add(param.multiply_scalar(-lr_i * weight_decay));
+```
+
+Wired from `TrainerConfig::weight_decay` in the `Trainer` constructor
+(`optimizer_.weight_decay = cfg_.weight_decay;`). For Experiment05 it is set from
+`training.weight_decay` in the profile JSON.
+
 ## Data Flow
 
 ```mermaid

@@ -70,6 +70,20 @@ struct E05Config
         int early_stop_patience = 10;
         int k_folds = 5;
         bool nested_cv = true;
+
+        // ── Regularization ───────────────────────────────────────────────────
+        /// Decoupled L2 weight decay (AdamW). 0 = disabled. Applies to both the
+        /// rnn (ResNet) and dsnn classifiers; only 2-D weight matrices are
+        /// decayed (biases and SNN R/C/V_th scalars are excluded by the optimizer).
+        float weight_decay = 0.0f;
+
+        /// Firing-rate regularization weight for the dsnn classifier. 0 = disabled.
+        /// Pushes each spiking layer's mean firing rate into [firing_rate_min,
+        /// firing_rate_max], preventing dead (rate→0) and bursting (rate→1)
+        /// neurons. Ignored by the rnn classifier (no spiking layers).
+        float firing_rate_reg_lambda = 0.0f;
+        float firing_rate_min = 0.05f; ///< Lower band edge (dead-neuron guard).
+        float firing_rate_max = 0.80f; ///< Upper band edge (burst guard).
     };
 
     Experiment experiment;

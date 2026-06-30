@@ -28,6 +28,14 @@ struct TrainerConfig
     float adam_beta2 = 0.999F;
     float adam_epsilon = 1e-8F;
     float grad_clip_norm = 0.0F;
+
+    /// L2 weight decay (decoupled / AdamW-style). 0 = disabled.
+    /// Applied only to 2-D weight matrices; biases and SNN biophysical scalars
+    /// (R, C, V_th — shape 1×1 or N×1) are excluded so the membrane time
+    /// constant tau=R·C and the threshold are never pulled toward zero.
+    /// Reference: Loshchilov & Hutter, "Decoupled Weight Decay Regularization", ICLR 2019.
+    float weight_decay = 0.0F;
+
     int batch_size = 1;
     unsigned int sampler_shuffle_seed = 42;
 

@@ -259,6 +259,35 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
     return v;
 }
 
+// Pull the raw 1-D signal for the requested modality from a sample:
+//   "eeg"   → EEG channel
+//   "voice" → audio channel
+//   "fused" → audio if present, otherwise EEG
+// Returns 256 zeros when the chosen modality is absent, so downstream transforms
+// always receive a non-empty signal. Shared by both extraction strategies.
+std::vector<double> signal_for_modality(const E05Sample& sample, const std::string& modality)
+{
+    auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
+
+    std::vector<double> sig;
+    if (modality == "eeg")
+    {
+        if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
+    }
+    else if (modality == "voice")
+    {
+        if (present(sample.audio)) sig = tensor_to_vec(sample.audio);
+    }
+    else // "fused"
+    {
+        if (present(sample.audio))    sig = tensor_to_vec(sample.audio);
+        else if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
+    }
+
+    if (sig.empty()) sig.assign(256, 0.0);
+    return sig;
+}
+
 // Nominal sample rates by modality (Hz).
 double modality_sample_rate(const std::string& modality)
 {
@@ -339,28 +368,7 @@ auto extract_features(const E05DatasetView& view,
         for (long i = 0; i < n_samples; ++i)
         {
             const auto& sample = view.samples[static_cast<size_t>(i)];
-            std::vector<double> sig;
-
-            if (modality == "eeg")
-            {
-                if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
-                    sig = tensor_to_vec(sample.eeg);
-            }
-            else if (modality == "voice")
-            {
-                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
-                    sig = tensor_to_vec(sample.audio);
-            }
-            else // "fused": audio preferred, eeg fallback
-            {
-                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
-                    sig = tensor_to_vec(sample.audio);
-                else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
-                    sig = tensor_to_vec(sample.eeg);
-            }
-
-            if (sig.empty())
-                sig.assign(256, 0.0);
+            std::vector<double> sig = signal_for_modality(sample, modality);
 
             // Zero-pad to next power of two for DTWPT.
             size_t n = 1;
@@ -393,28 +401,7 @@ auto extract_features(const E05DatasetView& view,
         size_t max_len = 0;
         for (const auto& sample : view.samples)
         {
-            std::vector<double> sig;
-            if (modality == "eeg")
-            {
-                if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
-                    sig = tensor_to_vec(sample.eeg);
-            }
-            else if (modality == "voice")
-            {
-                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
-                    sig = tensor_to_vec(sample.audio);
-            }
-            else
-            {
-                if (sample.audio.rows() > 0 && sample.audio.cols() > 0)
-                    sig = tensor_to_vec(sample.audio);
-                else if (sample.eeg.rows() > 0 && sample.eeg.cols() > 0)
-                    sig = tensor_to_vec(sample.eeg);
-            }
-
-            if (sig.empty())
-                sig.assign(256, 0.0);
-
+            std::vector<double> sig = signal_for_modality(sample, modality);
             max_len = std::max(max_len, sig.size());
             raw_signals.push_back(std::move(sig));
         }

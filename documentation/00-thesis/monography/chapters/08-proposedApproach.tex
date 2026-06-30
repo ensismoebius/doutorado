@@ -75,6 +75,12 @@
 		\subsection{Desenvolvimento e Validação de Algoritmos}
 		
 			\par Quanto aos algoritmos de classificação, serão utilizadas redes neurais de pulso (SNN) em uma arquitetura de rede neural residual. Serão construídos modelos com o objetivo de minimizar o gasto de energia, memória e processamento, adequando-se a dispositivos com baixo poder computacional para garantir portabilidade e eficiência energética. Esses classificadores serão testados por meio de experimentos controlados (como exposto no início dessa seção) e comparados posteriormente com trabalhos do estado-da-arte.
+
+			\par No entanto há, um obstáculo prático: O número de locutores e de amostras por locutor é pequeno. Com poucos dados, a rede tende a ``decorar'' os exemplos de treino em vez de aprender padrões gerais --- o chamado \textit{overfitting}. Para combatê-lo, usam-se duas técnicas de regularização complementares, descritas em detalhe no \autoref{chap:regularizacao}.
+
+			\par A primeira é o \textbf{decaimento de peso L2}, que penaliza pesos muito grandes e, com isso, favorece soluções mais simples e que generalizam melhor. Nas redes de pulso, atua apenas sobre as matrizes de peso; os parâmetros biofísicos dos neurônios de pulso ($R$, $C$ e $V_{th}$) são preservados, pois reduzi-los descaracterizaria o neurônio.
+
+			\par A segunda é a \textbf{regularização da taxa de disparo}, exclusiva das redes de pulso. Ela mantém a frequência média de disparos de cada camada dentro de uma faixa saudável, evitando dois extremos: neurônios mortos, que param de disparar e interrompem o aprendizado, e neurônios saturados, que disparam o tempo todo e perdem a capacidade de distinguir entradas. Como bônus, ao incentivar disparos comedidos, essa técnica reforça a própria razão de ser das redes de pulso: a eficiência energética.
 			
 	\section{Cronograma}
 		\label{sec:cronograma}

@@ -683,3 +683,38 @@ TEST(AdamTest, StateDictRoundTripAndNullParamGuards)
     EXPECT_THROW(adam_dst.step(params_with_null), std::invalid_argument);
     EXPECT_THROW(adam_dst.zero_grad(params_with_null), std::invalid_argument);
 }
+
+// Decoupled weight decay (AdamW): with zero gradients the Adam moment update is
+// 0, so the parameter change is exactly the decoupled decay θ ← θ(1 - lr·wd).
+// Only the 2-D weight matrix is decayed; the bias (N×1) and a 1×1 biophysical
+// scalar (R/C/V_th proxy) must remain untouched.
+TEST(AdamWeightDecay, DecaysOnly2DWeights)
+{
+    nn::Tensor weight(2, 2);   // 2-D weight matrix → decayed
+    nn::Tensor bias(2, 1);     // bias column      → excluded
+    nn::Tensor scalar(1, 1);   // biophysical scalar → excluded
+    for (size_t i = 0; i < 2; ++i)
+        for (size_t j = 0; j < 2; ++j) weight.at(i, j) = 1.0F;
+    bias.at(0, 0) = 3.0F;
+    bias.at(1, 0) = -2.0F;
+    scalar.at(0, 0) = 5.0F;
+
+    // Zero gradients so the Adam adaptive term contributes nothing.
+    weight.set_grad(test_helpers::make_zeros_tensor(2, 2));
+    bias.set_grad(test_helpers::make_zeros_tensor(2, 1));
+    scalar.set_grad(test_helpers::make_zeros_tensor(1, 1));
+
+    std::vector<nn::Tensor*> params = {&weight, &bias, &scalar};
+
+    Adam adam(0.1F);
+    adam.weight_decay = 0.5F; // factor = 1 - lr*wd = 1 - 0.05 = 0.95
+    adam.attach(params);
+    adam.step(params);
+
+    EXPECT_NEAR(weight.at(0, 0), 0.95F, 1e-6F);
+    EXPECT_NEAR(weight.at(1, 1), 0.95F, 1e-6F);
+    // Bias and 1×1 scalar are excluded from decay (and grad=0 → unchanged).
+    EXPECT_NEAR(bias.at(0, 0), 3.0F, 1e-6F);
+    EXPECT_NEAR(bias.at(1, 0), -2.0F, 1e-6F);
+    EXPECT_NEAR(scalar.at(0, 0), 5.0F, 1e-6F);
+}
