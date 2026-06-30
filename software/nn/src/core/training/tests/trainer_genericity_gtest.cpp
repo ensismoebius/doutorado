@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <atomic>
 #include <memory>
 #include <span>
@@ -28,6 +29,10 @@ struct TinyModel
 
     nn::Tensor weight_{1, 1}; // single learnable scalar
     nn::Tensor last_input_;
+    // Member-owned pointer so params() returns a span valid for this instance.
+    // (A previous `static nn::Tensor* p = &weight_;` bound to the first model ever
+    // constructed, leaving later instances with a dangling pointer.)
+    std::array<nn::Tensor*, 1> param_ptrs_{{&weight_}};
 
     TinyModel()
     {
@@ -56,8 +61,7 @@ struct TinyModel
 
     std::span<nn::Tensor*> params()
     {
-        static nn::Tensor* p = &weight_;
-        return std::span<nn::Tensor*>(&p, 1);
+        return std::span<nn::Tensor*>(param_ptrs_.data(), param_ptrs_.size());
     }
 };
 

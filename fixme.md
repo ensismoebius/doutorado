@@ -4,6 +4,7 @@
 24. Página 31: Verificar consistência entre as equações do LIF e o código utilizado.
 25. Figura 19: Explicar que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.
 30. Seção BPTT: ESTUDAR!!!!!
+40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.
 
 # Observações e Correções Fornecidas pelo Usuário
 
@@ -40,14 +41,13 @@
 34. Função de Resposta Exponencial: Revisar e expandir a seção.
 37. Figura 27: Trocar círculos por retângulos para representar camadas. ok (não precisa)
 36. Apêndices — Técnicas de Regularização: Incluir L1, L2 e Ω. (apenas L2). ok
+38. Seção “Por que LFCC para Biometria?”: Mover para posição mais inicial e justificar a escolha da LFCC. ok
+39. Seção “Por que LFCC para Biometria?”: Adicionar figura mostrando o pipeline completo do cálculo da LFCC. ok
+41. Avaliar inclusão de comparação entre LFCC, Mel e Bark. ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-38. Seção “Por que LFCC para Biometria?”: Mover para posição mais inicial e justificar a escolha da LFCC.
-39. Seção “Por que LFCC para Biometria?”: Adicionar figura mostrando o pipeline completo do cálculo da LFCC.
-40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.
-41. Avaliar inclusão de comparação entre LFCC, Mel e Bark.
 42. Criar tabela comparativa entre métodos manuais, automatizados, escalas e wavelets.
 43. Inserir especificação da LFCC em paralelo às descrições de Mel e Bark.
 44. Expandir regularização para incluir L1, L2 e Ω.
