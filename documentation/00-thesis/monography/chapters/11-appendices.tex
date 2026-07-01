@@ -387,11 +387,10 @@
 
 	\section{Decaimento de Peso (Regularização L2)}
 		\label{Apend:regularization}
-		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos:
+		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Sejam $L_{\text{dados}}$ a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), $\lambda$ o parâmetro de regularização e $\|W\|_2^2$ a norma L2 dos pesos. Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos:
 		\begin{equation}
 			L_{\text{total}} = L_{\text{dados}} + \lambda \|W\|^2_2
 		\end{equation}
-		Aqui, \( L_{\text{dados}} \) representa a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), \( \lambda \) é o parâmetro de regularização, e \( \|W\|^2_2 \) é a norma L2 dos pesos.
 		Vamos supor que nossa matriz de pesos \( W \) seja:
 		\[ W = \begin{bmatrix} 
 			1 & 0.5 \\
@@ -402,11 +401,11 @@
 
 		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. Neste trabalho usa-se uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}).
 
-		\par A ideia é simples: em vez de modificar o gradiente, encolhe-se cada peso por uma pequena fração a cada passo de treinamento, logo após a atualização normal do otimizador:
+		\par A ideia é simples: em vez de modificar o gradiente, encolhe-se cada peso por uma pequena fração a cada passo de treinamento, logo após a atualização normal do otimizador. Sejam $\theta$ um peso qualquer da rede, $\eta$ a taxa de aprendizado e $\lambda$ o parâmetro que controla a força do decaimento:
 		\begin{equation}
 			\theta \leftarrow \theta - \eta\, \lambda\, \theta,
 		\end{equation}
-		em que $\eta$ é a taxa de aprendizado e $\lambda$ controla a força do decaimento. Em outras palavras, a cada iteração o peso perde uma fração $\eta\lambda$ do seu valor. Por exemplo, com $\eta = 0{,}01$ e $\lambda = 0{,}1$, cada peso é multiplicado por $(1 - 0{,}001) = 0{,}999$ a cada passo, sendo lentamente puxado em direção a zero. Pesos realmente úteis recebem gradientes que compensam esse encolhimento e sobrevivem; pesos irrelevantes, que quase não recebem gradiente, definham até desaparecer.
+		Em outras palavras, a cada iteração o peso perde uma fração $\eta\lambda$ do seu valor. Por exemplo, com $\eta = 0{,}01$ e $\lambda = 0{,}1$, cada peso é multiplicado por $(1 - 0{,}001) = 0{,}999$ a cada passo, sendo lentamente puxado em direção a zero. Pesos realmente úteis recebem gradientes que compensam esse encolhimento e sobrevivem; pesos irrelevantes, que quase não recebem gradiente, definham até desaparecer.
 
 		\par Por que separar o encolhimento do gradiente? O Adam divide cada gradiente por uma estimativa da sua própria escala (o fator $1/\sqrt{\hat{v}}$). Se a penalidade fosse somada ao gradiente, ela também seria dividida por esse fator e o decaimento ficaria mais forte para alguns pesos e mais fraco para outros. Mantendo o encolhimento à parte, todos os pesos diminuem na mesma proporção.
 
@@ -418,14 +417,11 @@
 
 		\par Suponha que tenhamos uma camada oculta com valores de ativação \( h = [0.9, 0.1, 0.8, 0.05] \).
 
-		\par O termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e a média da ativação de cada unidade oculta:
-			
+		\par O termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e $\hat{\rho}_i$, a média da ativação da unidade oculta $i$, somada sobre todas as unidades ocultas:
+
 		\begin{equation}
 			\Omega(h) = \sum_i (\rho \log(\rho / \hat{\rho}) + (1 - \rho) \log((1 - \rho) / (1 - \hat{\rho})))
 		\end{equation}
-		
-		
-		\par Aqui, $ \hat{\rho} $ é a média da ativação da unidade oculta $ i $.
 
 		\par  Vamos supor $ \rho = 0.2 $. Se a média da ativação da unidade oculta $ i $ for $ \hat{\rho}_i = 0.5 $, então a penalidade de esparsidade para essa unidade seria:
 		
@@ -447,22 +443,22 @@
 			\item \textbf{Neurônios saturados} (\textit{bursting neurons}): a taxa de disparo sobe para perto de um. O neurônio dispara em quase todo instante, responde igual a qualquer entrada (perde seletividade) e ainda gasta energia à toa --- o oposto da economia que motiva o uso de RNP.
 		\end{itemize}
 
-		\par A solução é tratar a taxa de disparo como algo que deve ficar dentro de uma faixa saudável $[r_{\min}, r_{\max}]$ --- nem baixa demais, nem alta demais. Adiciona-se à perda uma penalidade que só ``acende'' quando a taxa média $r_\ell$ de uma camada sai dessa faixa, funcionando como duas cercas elásticas que a empurram de volta:
+		\par A solução é tratar a taxa de disparo como algo que deve ficar dentro de uma faixa saudável $[r_{\min}, r_{\max}]$ --- nem baixa demais, nem alta demais. Seja $r_\ell$ a média dos pulsos ($0$ ou $1$) da camada $\ell$ sobre todos os neurônios e instantes de tempo, e $\lambda$ o parâmetro que regula a intensidade da penalidade. Adiciona-se à perda uma penalidade que só ``acende'' quando $r_\ell$ sai da faixa saudável, funcionando como duas cercas elásticas que a empurram de volta:
 		\begin{equation}
 			\label{eq:firingRateReg}
 			\Omega_{\text{disparo}} = \lambda \sum_{\ell\,\in\,\text{camadas}} \Big( \underbrace{\max(0,\; r_{\min} - r_\ell)^2}_{\text{pune taxa baixa}} + \underbrace{\max(0,\; r_\ell - r_{\max})^2}_{\text{pune taxa alta}} \Big),
 		\end{equation}
-		em que $r_\ell$ é a média dos pulsos ($0$ ou $1$) da camada $\ell$ sobre todos os neurônios e instantes de tempo, e $\lambda$ regula a intensidade da penalidade. Enquanto $r_\ell$ estiver dentro da faixa, os dois termos $\max(0, \cdot)$ valem zero e nada é penalizado; fora dela, a penalidade cresce com o quadrado da distância até a borda.
+		Enquanto $r_\ell$ estiver dentro da faixa, os dois termos $\max(0, \cdot)$ valem zero e nada é penalizado; fora dela, a penalidade cresce com o quadrado da distância até a borda.
 
 		\par Um exemplo torna isso concreto. Sejam $r_{\min}=0{,}05$, $r_{\max}=0{,}80$ e $\lambda = 0{,}01$. Para uma camada com taxa média $r_\ell = 0{,}02$ (quase morta), apenas o primeiro termo atua:
 		\begin{equation}
 			\Omega = 0{,}01 \times (0{,}05 - 0{,}02)^2 = 0{,}01 \times 0{,}0009 = 9 \times 10^{-6}.
 		\end{equation}
-		Já uma camada com $r_\ell = 0{,}40$, dentro da faixa, recebe penalidade nula. O gradiente dessa penalidade em relação a cada pulso é
+		Já uma camada com $r_\ell = 0{,}40$, dentro da faixa, recebe penalidade nula. Sejam $s_j$ o pulso ($0$ ou $1$) do $j$-ésimo neurônio-instante da camada, $n$ o número total desses elementos ($n$ neurônios $\times$ passos de tempo) e $\operatorname{clamp}(r_\ell, r_{\min}, r_{\max})$ a função que satura $r_\ell$ nos limites $r_{\min}$ e $r_{\max}$. O gradiente dessa penalidade em relação a cada pulso é
 		\begin{equation}
 			\frac{\partial \Omega_{\text{disparo}}}{\partial s_j} = \frac{2\lambda}{n}\big(r_\ell - \operatorname{clamp}(r_\ell, r_{\min}, r_{\max})\big),
 		\end{equation}
-		onde $n$ é o número de elementos da camada e $\operatorname{clamp}$ limita $r_\ell$ à faixa. Esse gradiente é somado ao que já chega a cada camada pulsante durante a retropropagação: se a taxa está baixa, ele empurra os neurônios a disparar mais; se está alta, a disparar menos. Em resumo, esta é uma forma de regularização de esparsidade adaptada ao mundo temporal e binário das RNP, complementar à penalidade de esparsidade da seção anterior.
+		Esse gradiente é somado ao que já chega a cada camada pulsante durante a retropropagação: se a taxa está baixa, ele empurra os neurônios a disparar mais; se está alta, a disparar menos. Em resumo, esta é uma forma de regularização de esparsidade adaptada ao mundo temporal e binário das RNP, complementar à penalidade de esparsidade da seção anterior.
 
 
 	\begin{landscape}

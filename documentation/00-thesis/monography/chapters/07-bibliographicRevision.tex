@@ -95,11 +95,11 @@
 			\begin{equation}
 				f_k = f_{\min} + k\,\frac{f_{\max} - f_{\min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
 			\end{equation}
-			A energia logarítmica de cada banda é então decorrelacionada pela Transformada Discreta de Cosseno (DCT) \cite{ali2022speech}:
+			Seja $E_k$ a energia logarítmica da banda $k$ e $N$ o número de coeficientes cepstrais desejado ($N \leqslant K$). $E_k$ é então decorrelacionada pela Transformada Discreta de Cosseno (DCT) \cite{ali2022speech}, produzindo o coeficiente $c_n$ de cada ordem $n$:
 			\begin{equation}
 				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad,
 			\end{equation}
-			resultando em um vetor de $N$ coeficientes cepstrais.
+			resultando no vetor final $[c_0, c_1, \ldots, c_{N-1}]$ de coeficientes LFCC.
 
 			\begin{figure}[h]
 				\centering
@@ -769,7 +769,7 @@
 
 			\par Redes recorrentes processam sequências: a saída em cada instante $t$ depende da entrada atual $x_t$ e do estado interno $h_{t-1}$ da etapa anterior. Isso cria dependências temporais que a retropropagação padrão não trata.
 
-			\par O BPTT resolve isso \textit{desenrolando} a rede no tempo, como ilustrado na \autoref{fig:bptt}: a rede é replicada $T$ vezes, sendo $T$ o passo temporal, com  todas essas cópias compartilhando os mesmos pesos $W$. Na propagação direta (\textit{forward}), o estado interno avança da esquerda para a direita: $h_t = f(h_{t-1}, x_t;\, W)$. Na retropropagação (\textit{backward}), o gradiente percorre o caminho inverso (da última cópia até a primeira) acumulando a contribuição de cada passo \cite{10242251}:
+			\par O BPTT resolve isso \textit{desenrolando} a rede no tempo, como ilustrado na \autoref{fig:bptt}: a rede é replicada $T$ vezes, sendo $T$ o passo temporal, com  todas essas cópias compartilhando os mesmos pesos $W$. Na propagação direta (\textit{forward}), o estado interno avança da esquerda para a direita: $h_t = f(h_{t-1}, x_t;\, W)$. Seja $\mathcal{L}$ a perda total da sequência e $\mathcal{L}_t$ a contribuição do passo $t$ para essa perda. Na retropropagação (\textit{backward}), o gradiente percorre o caminho inverso (da última cópia até a primeira) acumulando a contribuição de cada passo \cite{10242251}:
 
 			\begin{equation}
 				\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial \mathbf{W}}
@@ -797,13 +797,13 @@
 
 		\subsubsection{Gradiente substituto}
 
-			\par O gradiente substituto exponencial utilizado neste trabalho é definido como \cite{10242251}:
+			\par Antes da fórmula, definem-se os símbolos: $\tilde{S}$ é o pulso aproximado (a versão suave e diferenciável da função de disparo, usada apenas no \textit{backward}); $V_{mem}$ é o potencial de membrana já apresentado; $V_{th}$ é o limiar de disparo do neurônio; e $\beta>0$ é um hiperparâmetro que controla a inclinação da aproximação em torno de $V_{th}$. O gradiente substituto exponencial utilizado neste trabalho é definido como \cite{10242251}:
 
 			\begin{equation}
 				\frac{\partial \tilde{S}}{\partial V_{mem}} = \beta \cdot e^{-\beta \left| V_{mem} - V_{th} \right|}
 			\end{equation}
 
-			\par onde $\beta > 0$ controla a inclinação da aproximação em torno do limiar $V_{th}$. Valores maiores de $\beta$ produzem uma função mais próxima da derivada da função em degrau, enquanto valores menores resultam em uma aproximação mais suave e numericamente estável. A função é centrada em $V_{th}$ e decai exponencialmente ao se afastar do ponto de disparo, ponderando mais os gradientes próximos ao limiar do neurônio e atenuando contribuições distantes do mesmo.
+			\par Valores maiores de $\beta$ produzem uma função mais próxima da derivada da função em degrau, enquanto valores menores resultam em uma aproximação mais suave e numericamente estável. A função é centrada em $V_{th}$ e decai exponencialmente ao se afastar do ponto de disparo, ponderando mais os gradientes próximos ao limiar do neurônio e atenuando contribuições distantes do mesmo.
 
 			\subsubsection{Normalização em Lote Dependente do Limiar (tdBN)}
 				\label{sec:tdbn}
