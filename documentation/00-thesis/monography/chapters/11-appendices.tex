@@ -460,6 +460,8 @@
 		\begin{equation}
 			\frac{\partial \Omega_{\text{disparo}}}{\partial s_j} = \frac{2\lambda}{n}\big(r_\ell - \operatorname{clamp}(r_\ell, r_{\min}, r_{\max})\big),
 		\end{equation}
+		\par \textbf{Exemplo numérico.} Continuando o caso $r_\ell=0{,}02$ (quase morta) com $\lambda=0{,}01$, para uma camada de $n=20$ elementos (por exemplo, $4$ neurônios $\times$ $5$ passos de tempo): $\operatorname{clamp}(0{,}02,\,0{,}05,\,0{,}80)=0{,}05$ (satura no limite inferior), logo $\frac{\partial \Omega_{\text{disparo}}}{\partial s_j} = \frac{2\times0{,}01}{20}(0{,}02-0{,}05) = 0{,}001\times(-0{,}03) = -3\times10^{-5}$. O gradiente negativo empurra $s_j$ para cima durante a atualização (que subtrai o gradiente), ou seja, incentiva mais disparos --- consistente com a camada estar abaixo de $r_{\min}$.
+
 		Esse gradiente é somado ao que já chega a cada camada pulsante durante a retropropagação: se a taxa está baixa, ele empurra os neurônios a disparar mais; se está alta, a disparar menos. Em resumo, esta é uma forma de regularização de esparsidade adaptada ao mundo temporal e binário das RNP, complementar à penalidade de esparsidade da seção anterior.
 
 

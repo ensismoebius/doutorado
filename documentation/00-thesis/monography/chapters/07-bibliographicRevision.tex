@@ -95,10 +95,15 @@
 			\begin{equation}
 				f_k = f_{\min} + k\,\frac{f_{\max} - f_{\min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Para $f_{\min}=300$~Hz, $f_{\max}=3400$~Hz e $K=4$ filtros, tem-se $f_k = 300 + k\cdot\frac{3400-300}{5} = 300+620k$, resultando em $f_1=920$~Hz, $f_2=1540$~Hz, $f_3=2160$~Hz e $f_4=2780$~Hz.
 			Seja $E_k$ a energia logarítmica da banda $k$ e $N$ o número de coeficientes cepstrais desejado ($N \leqslant K$). $E_k$ é então decorrelacionada pela Transformada Discreta de Cosseno (DCT) \cite{ali2022speech}, produzindo o coeficiente $c_n$ de cada ordem $n$:
 			\begin{equation}
 				c_n = \sum_{k=1}^{K} \log(E_k)\,\cos\!\left(\pi n\,\frac{2k-1}{2K}\right), \qquad n = 0, \ldots, N-1 \qquad,
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Continuando com $K=4$, suponha-se as energias logarítmicas já calculadas $\log(E_1)=1$, $\log(E_2)=2$, $\log(E_3)=0{,}5$ e $\log(E_4)=0$, e deseja-se $N=2$ coeficientes ($c_0$ e $c_1$). Para $n=0$ todos os cossenos valem $1$, logo $c_0 = 1+2+0{,}5+0 = 3{,}5$. Para $n=1$ os pesos $\cos\!\big(\pi(2k-1)/8\big)$ valem, para $k=1,2,3,4$: $0{,}9239$, $0{,}3827$, $-0{,}3827$ e $-0{,}9239$; logo
+			\begin{equation*}
+				c_1 = 1(0{,}9239) + 2(0{,}3827) + 0{,}5(-0{,}3827) + 0(-0{,}9239) = 0{,}9239+0{,}7654-0{,}1914 = 1{,}4979
+			\end{equation*}
 			resultando no vetor final $[c_0, c_1, \ldots, c_{N-1}]$ de coeficientes LFCC.
 
 			\begin{figure}[h]
@@ -303,6 +308,7 @@
 			\begin{equation}
 				\beta=\dfrac{R}{F} \qquad.
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Para $N=4$ classes, $X=10$ vetores por classe e $T=5$ características por vetor, $F = 4\times3\times10\times5 = 600$. Se $R=45$ sobreposições forem contadas, $\beta = 45/600 = 0{,}075$.
 	
 			\par Neste ponto, é importante notar que $\alpha=1$ sugere fortemente que os vetores de características de cada classe são similares e representam suas respectivas classes precisamente. Complementarmente, $\beta=0$ sugere os vetores de características de classes diferentes não se sobrepõe \cite{8588433}.
 			
@@ -343,6 +349,7 @@
 			\begin{equation}
 				G_2=\alpha+\beta-1 \qquad,
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Continuando o exemplo anterior, seja $\alpha=0{,}92$ (menor similaridade intraclasse medida) e $\beta=0{,}075$ (calculado acima). Então $G_1 = 0{,}92-0{,}075 = 0{,}845$ e $G_2 = 0{,}92+0{,}075-1 = -0{,}005$: o ponto $(G_1,G_2)$ fica próximo de $(1,0)$, indicando boa separação entre classes.
 			onde: $-1 \leqslant G_1$ e  $1 \geqslant G_2$.
 			
 			\par Os valores de $G_1$ e $G_2$, em conjunto, definem os graus entre verdade ($G_1=1$) e falsidade ($G_1=-1$) e também os graus entre indefinição ($G_2=-1$) e ambiguidade ($G_2=1$). Novamente, raramente tais valores inteiros serão alcançados já que $G_1$ e $G_2$ dependem de $\alpha$ e $\beta$.
@@ -360,7 +367,17 @@
 			\end{equation}
 			\begin{equation}
 				D_{0,1}=\sqrt{(G_1)^2+(G_2-1)^2}\qquad.
-			\end{equation}		
+			\end{equation}
+			\par \textbf{Exemplo numérico.} Com $G_1=0{,}845$ e $G_2=-0{,}005$ do exemplo anterior:
+			\begin{equation*}
+				\begin{aligned}
+					D_{-1,0} &= \sqrt{(1{,}845)^2+(-0{,}005)^2} \approx 1{,}8451, \\
+					D_{1,0}  &= \sqrt{(-0{,}155)^2+(-0{,}005)^2} \approx 0{,}1551, \\
+					D_{0,-1} &= \sqrt{(0{,}845)^2+(0{,}995)^2} \approx 1{,}3054, \\
+					D_{0,1}  &= \sqrt{(0{,}845)^2+(-1{,}005)^2} \approx 1{,}3131.
+				\end{aligned}
+			\end{equation*}
+			$D_{1,0}$ é a menor distância, confirmando que $(G_1,G_2)$ está mais próximo do ponto \textit{``Verdade''}, ou seja, as classes deste exemplo estão bem separadas.
 			
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores.
 	
@@ -620,6 +637,7 @@
 					\Aboxed{\tau.\dfrac{dV_{mem}(t)}{dt} &= R.I_{in}(t) - V_{mem}(t)}
 				\end{aligned}
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Para $R=5\,\Omega$ e $C=1\,F$ (os mesmos valores usados nas implementações a seguir), a constante de tempo é $\tau = R.C = 5\times1 = 5$.
 			
 			\par Quando não há corrente de entrada no neurônio $I_{in} = 0$ ocorre um decaimento em sua voltagem que pode ser modelado, além disso, $R$ e $C$ não mudam e podem ser resumidos em $\tau = R.C$ que é uma constante. Portanto, atribuindo um potencial inicial $V_{mem}(0)$, se obtêm uma curva exponencial, como visto na \autoref{eq:expmembrane}.
 			
@@ -639,6 +657,7 @@
 					\Aboxed{V_{mem}(t) &= V_{mem}(0).e^{-\frac{t}{\tau}}}
 				\end{aligned}
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Com $\tau=5$ (do exemplo acima) e $V_{mem}(0)=1$, o potencial em $t=1$ é $V_{mem}(1) = 1\times e^{-1/5} = e^{-0{,}2} \approx 0{,}8187$. Repetindo a operação implementada no \autoref{lst:membranepotentialdecay}, a discretização de Euler com $dt=1$ dá $V_{mem}(1) = V_{mem}(0) + \frac{dt}{\tau}(-V_{mem}(0)) = 1 + \frac{1}{5}(-1) = 0{,}8$, próximo do valor exato $0{,}8187$.
 			
 			\par Então, pode-se dizer que: Na ausência de uma entrada $I_{in}$, o potencial da membrana decai exponencialmente, como ilustrado na  \autoref{fig:membranepotentialdecay} e implementado no \autoref{lst:membranepotentialdecay}.
 			
@@ -688,21 +707,27 @@
 				\end{aligned}
 			\end{equation}
 			
-			\par Que resolvendo pelo método da substituição na \autoref{eq:actionpotincrease3}:
+			\par Que resolvendo pelo método da substituição na \autoref{eq:actionpotincrease3}. É importante manter a constante de integração $c_1$ até o fim: descartá-la precocemente anula o termo exponencial e leva a um resultado que não decai com $t$, contradizendo o comportamento físico esperado.
 			
 			\begin{equation}
 				\label{eq:actionpotincrease3}
 				\begin{aligned}
-					&u=\frac{t}{\tau} \implies \dfrac{du}{dt} = \dfrac{t}{\tau}dt \implies dt = du.\tau \therefore \\
-					&\int e^u du.\tau = \tau.\int e^u du = \tau . e^u + c = \tau . e^{\frac{t}{\tau}} + c \implies \\
-					&e^{\frac{t}{\tau}}.V_{mem}(t) = \frac{R.I_{in}(t)}{\tau}.\tau.e^{\frac{t}{\tau}} \implies \\
-					&V_{mem}(t) = \frac{R.I_{in}(t)}{\tau . e^{\frac{t}{\tau}}}.\tau.e^{\frac{t}{\tau}} \implies \\
-					& \text{Considerando: } V_{mem}(t=0) = 0 \implies \\
-					\Aboxed{&V_{mem}(t) = I_{in}(t).R(1-e^{\frac{1}{\tau}})}
+					&u=\frac{t}{\tau} \implies \dfrac{du}{dt} = \dfrac{1}{\tau} \implies dt = du.\tau \therefore \\
+					&\int e^u du.\tau = \tau.\int e^u du = \tau . e^u + c_1 = \tau . e^{\frac{t}{\tau}} + c_1 \implies \\
+					&e^{\frac{t}{\tau}}.V_{mem}(t) = \frac{R.I_{in}(t)}{\tau}\left(\tau.e^{\frac{t}{\tau}} + c_1\right) = R.I_{in}(t).e^{\frac{t}{\tau}} + c_2 \implies \\
+					&V_{mem}(t) = R.I_{in}(t) + c_2.e^{-\frac{t}{\tau}} \implies \\
+					& \text{Considerando: } V_{mem}(t=0) = 0 \implies 0 = R.I_{in} + c_2 \implies c_2 = -R.I_{in} \implies \\
+					\Aboxed{&V_{mem}(t) = I_{in}(t).R\left(1-e^{-\frac{t}{\tau}}\right)}
 				\end{aligned}
 			\end{equation}
 			
 			
+			\par \textbf{Exemplo numérico.} Usando os mesmos valores do \autoref{lst:membranepotentialincrease} ($R=5$, $C=1$, logo $\tau=R.C=5$) com $I_{in}=1$ e $V_{mem}(0)=0$, o potencial em $t=1$ pela solução exata é
+			\begin{equation*}
+				V_{mem}(1) = 1 \times 5 \times \left(1-e^{-1/5}\right) = 5 \times (1-0{,}8187) = 5 \times 0{,}1813 \approx 0{,}9066.
+			\end{equation*}
+			Já a iteração discreta do \autoref{lst:membranepotentialincrease}, com passo $dt=1$, calcula $V_{mem}(1) = V_{mem}(0) + \frac{dt}{\tau}\big(-V_{mem}(0) + I_{in}.R\big) = 0 + \frac{1}{5}(0+5) = 1{,}0$: um passo de Euler tão grosseiro ($dt=\tau$) já se aproxima da assíntota $R.I_{in}=5$, superestimando ligeiramente o valor exato $0{,}9066$ --- a diferença entre as duas soluções é retomada na \autoref{eq:membraneDerivative}.
+
 			\par Note que quando os potenciais de ação aumentam, ainda há um comportamento exponencial, como se pode notar na   \autoref{fig:membranepotentialincrease} e no  \autoref{lst:membranepotentialincrease}.
 			
 			\input{listings/membranepotentialincrease.py}
@@ -746,6 +771,7 @@
 					\Aboxed{V_{\text{mem}}(t+\Delta t) &= V_{\text{mem}}(t) + \frac{\Delta t}{\tau} . (R.I_{\text{in}}(t) - V_{\text{mem}}(t))}
 				\end{aligned}
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Com $R=5$, $\tau=5$, $I_{\text{in}}=1$, $\Delta t=1$ e partindo de $V_{\text{mem}}(0)=0$: $V_{\text{mem}}(1) = 0 + \frac{1}{5}(5\times1 - 0) = 1{,}0$. Este é exatamente o passo de Euler já calculado ao final da seção anterior --- a \autoref{eq:membraneDerivative} é a regra geral por trás daquela iteração, e do \autoref{lst:membranepotentialfull}.
 
 		\subsubsection{Treinamento}
 		
@@ -774,6 +800,7 @@
 			\begin{equation}
 				\frac{\partial \mathcal{L}}{\partial \mathbf{W}} = \sum_{t=1}^{T} \frac{\partial \mathcal{L}_t}{\partial \mathbf{W}}
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Para uma sequência com $T=3$ passos e gradientes por passo $\partial\mathcal{L}_1/\partial W=0{,}2$, $\partial\mathcal{L}_2/\partial W=-0{,}5$ e $\partial\mathcal{L}_3/\partial W=0{,}9$, o gradiente total acumulado é $\partial\mathcal{L}/\partial W = 0{,}2-0{,}5+0{,}9 = 0{,}6$.
 			
 			\begin{figure}[H]
 				\centering
@@ -802,6 +829,7 @@
 			\begin{equation}
 				\frac{\partial \tilde{S}}{\partial V_{mem}} = \beta \cdot e^{-\beta \left| V_{mem} - V_{th} \right|}
 			\end{equation}
+			\par \textbf{Exemplo numérico.} Com $\beta=5$ e $V_{th}=1{,}0$: exatamente no limiar ($V_{mem}=1{,}0$) o gradiente vale seu máximo, $5\times e^{0} = 5{,}0$; a $0{,}2$ do limiar ($V_{mem}=1{,}2$) ele cai para $5\times e^{-5\times0{,}2} = 5\times e^{-1} \approx 5\times0{,}3679 = 1{,}8394$ --- ilustrando o decaimento rápido da influência do gradiente à medida que o potencial se afasta do limiar de disparo.
 
 			\par Valores maiores de $\beta$ produzem uma função mais próxima da derivada da função em degrau, enquanto valores menores resultam em uma aproximação mais suave e numericamente estável. A função é centrada em $V_{th}$ e decai exponencialmente ao se afastar do ponto de disparo, ponderando mais os gradientes próximos ao limiar do neurônio e atenuando contribuições distantes do mesmo.
 
@@ -1031,6 +1059,7 @@
 					\label{eq:residuoH}
 					h = r + x
 				\end{equation}
+				\par \textbf{Exemplo numérico.} Sejam $x=[0{,}80,\ 0{,}50]$ a entrada e $h=[0{,}85,\ 0{,}40]$ o estado intermediário desejado. Pela \autoref{eq:residuo}, o resíduo é $r = h-x = [0{,}05,\ -0{,}10]$. Aplicando a \autoref{eq:residuoH}, $h = r+x = [0{,}05+0{,}80,\ -0{,}10+0{,}50] = [0{,}85,\ 0{,}40]$, recuperando exatamente $h$: a camada só precisa aprender o pequeno ajuste $r$, não o estado $h$ inteiro.
 			
 				\par Se à rede não profunda forem adicionadas camadas cuja única função é receber uma entrada e devolvê-la sem modificações (função identidade) então é trivial que uma rede possa atingir grandes profundidades. No entanto segundo \cite{DBLP:journals/corr/HeZRS15} em redes profundas os otimizadores tem dificuldade em aprender tais funções identidade levando a degradação do desempenho como mostrado na \autoref{fig:teaser}. Nas redes residuais se os mapeamentos identidade (também chamados de conexões de atalho) forem ótimos os otimizadores podem simplesmente zerar todos os pesos das camadas intermediárias de um bloco residual.
 				
