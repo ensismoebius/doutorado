@@ -5,6 +5,8 @@
 25. Figura 19: Explicar que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.
 30. Seção BPTT: ESTUDAR!!!!!
 40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.
+42. Criar tabela comparativa entre métodos manuais, automatizados, escalas e wavelets.
+47. Criar seção específica para Threshold-Dependent Batch Normalization (TDBN). ok (ESTUDAR!!!)
 
 # Observações e Correções Fornecidas pelo Usuário
 
@@ -44,16 +46,14 @@
 38. Seção “Por que LFCC para Biometria?”: Mover para posição mais inicial e justificar a escolha da LFCC. ok
 39. Seção “Por que LFCC para Biometria?”: Adicionar figura mostrando o pipeline completo do cálculo da LFCC. ok
 41. Avaliar inclusão de comparação entre LFCC, Mel e Bark. ok
+43. Inserir especificação da LFCC em paralelo às descrições de Mel e Bark. ok
+44. Expandir regularização para incluir L1, L2 e Ω. (Apenas L2) ok
+45. Decidir se os modelos usarão regularização e justificar a escolha. ok
+46. Criar subseção específica para BPTT aplicado a SNNs. ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-42. Criar tabela comparativa entre métodos manuais, automatizados, escalas e wavelets.
-43. Inserir especificação da LFCC em paralelo às descrições de Mel e Bark.
-44. Expandir regularização para incluir L1, L2 e Ω.
-45. Decidir se os modelos usarão regularização e justificar a escolha.
-46. Criar subseção específica para BPTT aplicado a SNNs.
-47. Criar seção específica para Threshold-Dependent Batch Normalization (TDBN).
 48. Revisar toda a monografia/Wiki para garantir que toda variável seja explicitamente definida.
 49. Avaliar arquiteturas compactas de autoencoders para Raspberry Pi.
 50. Criar seção sobre inicialização de pesos em redes neurais.

@@ -18,6 +18,7 @@
 #include "layers/losses/CrossEntropyLoss.hpp"
 #include "layers/residual/SimpleResNet.hpp"
 #include "layers/spiking/LifBPTT.hpp"
+#include "layers/spiking/ThresholdDependentBatchNorm.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/eer_scorer.hpp"
 #include "statistics/kfold.hpp"
@@ -67,6 +68,10 @@ struct EvalMetrics
 // (Tracked as audit item M-4: use a genuine temporal SNN, not a 1-step net.)
 constexpr int kSnnTimeSteps = 16;
 
+// Firing threshold of the LIF layers (LifBPTT default). tdBN rescales the
+// pre-spike current to N(0,(α·V_th)²), so it must use the same V_th.
+constexpr float kSnnVth = 1.0f;
+
 // Temporal Deep Spiking Neural Network for E05.
 //
 // Unlike a single-step thresholding net, this unrolls genuine LIF dynamics over
@@ -91,11 +96,12 @@ public:
 
     E05DsnnClassifier(int input_dim, int hidden_dim, int output_dim, int depth,
                       std::uint32_t seed,
-                      float fr_lambda = 0.0f, float fr_min = 0.05f, float fr_max = 0.80f)
+                      float fr_lambda = 0.0f, float fr_min = 0.05f, float fr_max = 0.80f,
+                      bool use_tdbn = false, float tdbn_alpha = 1.0f)
         : fc_in_(std::make_shared<LinearImpl<nn::Backend>>(input_dim, hidden_dim)),
           lif_in_(std::make_shared<LifBPTTImpl<nn::Backend>>(kSnnTimeSteps)),
           fc_out_(std::make_shared<LinearImpl<nn::Backend>>(hidden_dim, output_dim)),
-          fr_lambda_(fr_lambda), fr_min_(fr_min), fr_max_(fr_max)
+          fr_lambda_(fr_lambda), fr_min_(fr_min), fr_max_(fr_max), use_tdbn_(use_tdbn)
     {
         const int n_blocks = std::max(0, depth - 1);
         hidden_fc_.reserve(static_cast<size_t>(n_blocks));
@@ -107,6 +113,19 @@ public:
         }
 
         spikes_hidden_.resize(static_cast<size_t>(n_blocks));
+
+        // tdBN (Zheng et al., AAAI 2021): one layer after each Linear, before the
+        // LIF it feeds, sized to that Linear's output (hidden_dim) and tied to the
+        // LIF threshold V_th so the pre-spike current is normalized to N(0,(α·V_th)²).
+        if (use_tdbn_)
+        {
+            tdbn_in_ = std::make_shared<ThresholdDependentBatchNormImpl<nn::Backend>>(
+                static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, tdbn_alpha);
+            tdbn_hidden_.reserve(static_cast<size_t>(n_blocks));
+            for (int i = 0; i < n_blocks; ++i)
+                tdbn_hidden_.push_back(std::make_shared<ThresholdDependentBatchNormImpl<nn::Backend>>(
+                    static_cast<size_t>(hidden_dim), kSnnVth, kSnnTimeSteps, tdbn_alpha));
+        }
 
         kaimingSNNInitializer(fc_in_, seed + 1U, "e05_dsnn");
         kaimingSNNInitializer(fc_out_, seed + 2U, "e05_dsnn");
@@ -134,11 +153,13 @@ public:
         const bool cache_spikes = requires_grad && fr_lambda_ > 0.0f;
 
         Tensor h = fc_in_->forward(x_t, requires_grad);
+        if (use_tdbn_) h = tdbn_in_->forward(h, requires_grad); // normalize pre-spike current
         h = lif_in_->forward(h, requires_grad);
         if (cache_spikes) spikes_in_ = h; // (T*B, hidden) spike train of input LIF
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
             h = hidden_fc_[i]->forward(h, requires_grad);
+            if (use_tdbn_) h = tdbn_hidden_[i]->forward(h, requires_grad);
             h = hidden_lif_[i]->forward(h, requires_grad);
             if (cache_spikes) spikes_hidden_[i] = h; // spike train of hidden LIF i
         }
@@ -179,10 +200,12 @@ public:
         {
             add_firing_rate_grad(g, spikes_hidden_[i]); // band penalty on hidden LIF i
             g = hidden_lif_[i]->backward(g);
+            if (use_tdbn_) g = tdbn_hidden_[i]->backward(g); // through tdBN (reverse of fwd)
             g = hidden_fc_[i]->backward(g);
         }
         add_firing_rate_grad(g, spikes_in_); // band penalty on input LIF
         g = lif_in_->backward(g);
+        if (use_tdbn_) g = tdbn_in_->backward(g);
         g = fc_in_->backward(g); // (T*B, D)
 
         // Sum the per-step input gradients back onto the single static input.
@@ -202,18 +225,18 @@ public:
     [[nodiscard]] auto params() -> std::span<Tensor*> override
     {
         param_ptrs_.clear();
-        auto in_p = fc_in_->params();
-        param_ptrs_.insert(param_ptrs_.end(), in_p.begin(), in_p.end());
+        auto add = [this](const std::span<Tensor*>& p)
+        { param_ptrs_.insert(param_ptrs_.end(), p.begin(), p.end()); };
 
-        auto lif_in_p = lif_in_->params();
-        param_ptrs_.insert(param_ptrs_.end(), lif_in_p.begin(), lif_in_p.end());
+        add(fc_in_->params());
+        if (use_tdbn_) add(tdbn_in_->params()); // γ, β of the input tdBN
+        add(lif_in_->params());
 
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
-            auto p_fc = hidden_fc_[i]->params();
-            param_ptrs_.insert(param_ptrs_.end(), p_fc.begin(), p_fc.end());
-            auto p_lif = hidden_lif_[i]->params();
-            param_ptrs_.insert(param_ptrs_.end(), p_lif.begin(), p_lif.end());
+            add(hidden_fc_[i]->params());
+            if (use_tdbn_) add(tdbn_hidden_[i]->params());
+            add(hidden_lif_[i]->params());
         }
 
         auto out_p = fc_out_->params();
@@ -231,10 +254,12 @@ public:
         };
 
         merge("fc_in.", fc_in_->state_dict());
+        if (use_tdbn_) merge("tdbn_in.", tdbn_in_->state_dict());
         merge("lif_in.", lif_in_->state_dict());
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
             merge("hidden_fc." + std::to_string(i) + ".", hidden_fc_[i]->state_dict());
+            if (use_tdbn_) merge("tdbn_hidden." + std::to_string(i) + ".", tdbn_hidden_[i]->state_dict());
             merge("hidden_lif." + std::to_string(i) + ".", hidden_lif_[i]->state_dict());
         }
         merge("fc_out.", fc_out_->state_dict());
@@ -255,10 +280,12 @@ public:
         };
 
         load_prefix("fc_in.", fc_in_);
+        if (use_tdbn_) load_prefix("tdbn_in.", tdbn_in_);
         load_prefix("lif_in.", lif_in_);
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
             load_prefix("hidden_fc." + std::to_string(i) + ".", hidden_fc_[i]);
+            if (use_tdbn_) load_prefix("tdbn_hidden." + std::to_string(i) + ".", tdbn_hidden_[i]);
             load_prefix("hidden_lif." + std::to_string(i) + ".", hidden_lif_[i]);
         }
         load_prefix("fc_out.", fc_out_);
@@ -267,10 +294,12 @@ public:
     void train(bool on) override
     {
         fc_in_->train(on);
+        if (use_tdbn_) tdbn_in_->train(on); // toggle batch vs running stats
         lif_in_->train(on);
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
             hidden_fc_[i]->train(on);
+            if (use_tdbn_) tdbn_hidden_[i]->train(on);
             hidden_lif_[i]->train(on);
         }
         fc_out_->train(on);
@@ -312,6 +341,11 @@ private:
     float fr_max_    = 0.80f;
     Tensor spikes_in_;                 // cached input-LIF spike train (training only)
     std::vector<Tensor> spikes_hidden_; // cached hidden-LIF spike trains
+
+    // tdBN layers (only constructed when use_tdbn_): one before each LIF.
+    bool use_tdbn_ = false;
+    std::shared_ptr<ThresholdDependentBatchNormImpl<nn::Backend>> tdbn_in_;
+    std::vector<std::shared_ptr<ThresholdDependentBatchNormImpl<nn::Backend>>> tdbn_hidden_;
 };
 
 // Single batched forward on (N, D); computes all metrics.
@@ -523,7 +557,9 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
     E05DsnnClassifier model(
         ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth, ctx.cfg.experiment.seed,
         ctx.cfg.training.firing_rate_reg_lambda, ctx.cfg.training.firing_rate_min,
-        ctx.cfg.training.firing_rate_max);
+        ctx.cfg.training.firing_rate_max,
+        ctx.cfg.training.batch_normalization == "threshold-dependent",
+        ctx.cfg.training.tdbn_alpha);
     return fn(model);
 }
 

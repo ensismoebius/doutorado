@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <iostream>
+#include <string>
 #include <vector>
 
 #include "../lib/include/E05Classifiers.hpp"
@@ -263,4 +265,61 @@ TEST(E05RunClassifier, RnnWithWeightDecayRuns)
 
     auto result = run_classifier(view, fvs, "synth-rnn-wd", cfg, &scorer);
     EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+}
+
+// tdBN enabled on the dsnn path must train and produce one result per outer fold
+// without throwing — exercises the tdBN forward/backward wired into the DSNN.
+TEST(E05RunClassifier, DsnnWithTdbnRuns)
+{
+    auto view     = make_view(4, 6);
+    auto fvs      = make_features(view);
+    E05Config cfg = make_fast_cfg();
+    cfg.classifier.type             = "dsnn";
+    cfg.training.batch_normalization = "threshold-dependent";
+    cfg.training.tdbn_alpha          = 1.0f;
+    statistics::ClassificationEERScorer scorer;
+
+    auto result = run_classifier(view, fvs, "synth-dsnn-tdbn", cfg, &scorer);
+    EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds);
+    EXPECT_FALSE(std::isnan(result.mean_eer)); // EER is the verification-protocol metric
+}
+
+// Comparative benchmark (Part 4): train the synthetic E05 DSNN three ways —
+// (a) no normalization, (b) tdBN with α·V_th = 1 (equivalent to conventional BN
+// at V_th=1, since the project has no standalone BatchNorm layer), and
+// (c) tdBN with α=2 (threshold-scaled). Records EER/AUC and asserts every variant
+// trains stably (finite metrics, full fold count). Closed-set accuracy/F1/etc. are
+// NaN by design under the verification-only protocol, so EER/AUC are reported.
+TEST(E05RunClassifier, TdbnComparativeBenchmark)
+{
+    auto view = make_view(4, 6);
+    auto fvs  = make_features(view);
+    statistics::ClassificationEERScorer scorer;
+
+    struct Variant { const char* name; const char* bn; float alpha; };
+    const Variant variants[] = {
+        {"none",      "none",                 1.0f},
+        {"bn(aV=1)",  "threshold-dependent",  1.0f},
+        {"tdBN(a=2)", "threshold-dependent",  2.0f},
+    };
+
+    std::cout << "\n[tdBN benchmark] variant     folds  mean_EER  mean_AUC\n";
+    for (const auto& v : variants)
+    {
+        E05Config cfg = make_fast_cfg();
+        cfg.classifier.type              = "dsnn";
+        cfg.training.batch_normalization = v.bn;
+        cfg.training.tdbn_alpha          = v.alpha;
+
+        auto result = run_classifier(view, fvs, std::string("synth-bench-") + v.name, cfg, &scorer);
+
+        EXPECT_EQ(static_cast<int>(result.outer_folds.size()), cfg.training.k_folds) << v.name;
+        EXPECT_FALSE(std::isnan(result.mean_eer)) << v.name;
+        EXPECT_GE(result.mean_eer, 0.0);
+        EXPECT_LE(result.mean_eer, 1.0);
+
+        std::cout << "[tdBN benchmark] " << v.name << "\t"
+                  << result.outer_folds.size() << "\t"
+                  << result.mean_eer << "\t" << result.mean_auc << "\n";
+    }
 }

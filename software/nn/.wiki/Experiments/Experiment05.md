@@ -88,12 +88,13 @@ where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speak
 
 **DSNN**: temporal deep spiking classifier (audit M-4). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
-### Regularization
+### Regularization & Normalization
 
-Two regularizers guard generalisation on the small dysphonic-speaker dataset, both off by default and enabled per profile:
+Three techniques guard generalisation / trainability on the small dysphonic-speaker dataset, all off by default and enabled per profile:
 
 - **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw).
 - **Firing-rate regularization** (`training.firing_rate_reg_lambda`, DSNN-only): pushes each `LifBPTT` layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same scheme as `SpikeCountLossImpl`. Inert when `λ = 0` or for the RNN classifier (no spiking layers).
+- **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, default 1), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -214,7 +215,9 @@ src/experiments/05/
     "weight_decay": 1e-4,            // decoupled L2 (rnn + dsnn); 0 = off
     "firing_rate_reg_lambda": 0.01,  // dsnn-only band penalty; 0 = off
     "firing_rate_min": 0.05,
-    "firing_rate_max": 0.80
+    "firing_rate_max": 0.80,
+    "batch_normalization": "threshold-dependent",  // dsnn-only tdBN; "none" = off
+    "tdbn_alpha": 1.0                // α: target std = α·V_th
   }
 }
 ```

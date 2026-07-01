@@ -1,0 +1,43 @@
+% Threshold-Dependent Batch Normalization (tdBN) — pipeline and distribution effect.
+% Pure TikZ (no extra libraries) for portability.
+\begin{tikzpicture}[
+    font=\small,
+    block/.style={draw, rounded corners, minimum height=1.05cm, minimum width=2.5cm,
+                  align=center, fill=blue!5},
+    flow/.style={->, thick, >=stealth}
+]
+    % ---- top row: data-flow pipeline ----
+    \node[block] (fc)   {Camada \\ Linear $\mathbf{W}x+\mathbf{b}$};
+    \node[block, fill=orange!12, right=1.2cm of fc] (tdbn)
+        {tdBN \\ $\gamma\,(\alpha V_{th}\hat{X})+\beta$};
+    \node[block, fill=green!8, right=1.2cm of tdbn] (lif) {Neurônio \\ LIF ($V_{th}$)};
+    \node[right=1.1cm of lif] (out) {pulsos};
+
+    \draw[flow] (fc)   -- node[above]{$X$}        (tdbn);
+    \draw[flow] (tdbn) -- node[above]{$Y$} (lif);
+    \draw[flow] (lif)  -- (out);
+
+    % ---- bottom: distribution before/after tdBN ----
+    % axis "before": off-centre, arbitrary scale
+    \begin{scope}[yshift=-2.9cm]
+        \draw[->] (-0.2,0) -- (3.6,0) node[right]{$X$};
+        \draw[thick, blue!60] plot[smooth, domain=0.3:3.2, samples=40]
+            (\x, {1.1*exp(-(\x-2.4)*(\x-2.4)/0.25)});
+        \draw[dashed] (1.0,0) -- (1.0,1.25) node[above, font=\scriptsize]{$V_{th}$};
+        \node[font=\scriptsize, align=center] at (1.8,-0.55)
+            {antes: média/variância\\ arbitrárias};
+    \end{scope}
+
+    % axis "after": centred at 0, std = alpha*V_th, fraction above V_th shaded
+    \begin{scope}[xshift=5.6cm, yshift=-2.9cm]
+        \draw[->] (-1.9,0) -- (2.2,0) node[right]{$Y$};
+        \draw[dashed] (-1.7,0) -- (1.7,0);
+        \draw[thick, orange!80] plot[smooth, domain=-1.7:1.7, samples=50]
+            (\x, {1.1*exp(-(\x)*(\x)/0.5)});
+        \draw[dashed] (0.7,0) -- (0.7,1.25) node[above, font=\scriptsize]{$V_{th}$};
+        \node[font=\scriptsize] at (0,-0.55) {depois: $N(0,(\alpha V_{th})^2)$};
+    \end{scope}
+
+    \draw[flow, gray] (2.0,-2.9) -- ++(2.0,0)
+        node[midway, above, font=\scriptsize, black]{tdBN};
+\end{tikzpicture}

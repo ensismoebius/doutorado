@@ -124,3 +124,13 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [46] Y. Jia and M. Harman, "An analysis and survey of the development of mutation testing," IEEE Transactions on Software Engineering, vol. 37, no. 5, pp. 649-678, 2011.
 
 [47] K. Claessen and J. Hughes, "QuickCheck: A lightweight tool for random testing of Haskell programs," in Proc. ACM SIGPLAN International Conference on Functional Programming (ICFP), 2000.
+
+## SNN Normalization Variants
+
+[48] Y. Wu, L. Deng, G. Li, J. Zhu, Y. Xie, and L. Shi, "Direct training for spiking neural networks: Faster, larger, better," in Proc. 33rd AAAI Conf. Artificial Intelligence (AAAI), 2019, pp. 1311–1318. (NeuNorm — channel-dimension normalization for SNNs)
+
+[49] Y. Kim and P. Panda, "Revisiting batch normalization for training low-latency deep spiking neural networks from scratch," Frontiers in Neuroscience, vol. 15, 2021. (Batch Normalization Through Time, BNTT)
+
+[50] C. Duan, J. Ding, S. Chen, Z. Yu, and T. Huang, "Temporal effective batch normalization in spiking neural networks," in Advances in Neural Information Processing Systems (NeurIPS), 2022. (Temporal Effective Batch Normalization, TEBN)
+
+[51] Y. Guo et al., "Membrane potential batch normalization for spiking neural networks," in Proc. IEEE/CVF International Conference on Computer Vision (ICCV), 2023. [Online]. Available: https://arxiv.org/abs/2308.08359 (MPBN)

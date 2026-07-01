@@ -284,6 +284,8 @@ TEST(ThresholdDependentBatchNormTest, ThrowsOnInvalidInputShape)
 
 TEST(ThresholdDependentBatchNormTest, ForwardOutputScaledByTdbnFactor)
 {
+    // Canonical scale is α·V_th (α=1, V_th=2 → 2), pooled over batch+time. The ±1
+    // inputs normalize to ±1, so the output is ±2 (no √T attenuation).
     nn::ThresholdDependentBatchNorm layer(1, 2.0F, 4);
     nn::Tensor input(8, 1);
     for (int t = 0; t < 4; ++t)
@@ -294,8 +296,8 @@ TEST(ThresholdDependentBatchNormTest, ForwardOutputScaledByTdbnFactor)
     const nn::Tensor output = layer.forward(input, false);
     for (int t = 0; t < 4; ++t)
     {
-        EXPECT_NEAR(output.at(static_cast<size_t>(t) * 2, 0), -1.0F, 1e-3F);
-        EXPECT_NEAR(output.at(static_cast<size_t>(t) * 2 + 1, 0), 1.0F, 1e-3F);
+        EXPECT_NEAR(output.at(static_cast<size_t>(t) * 2, 0), -2.0F, 1e-3F);
+        EXPECT_NEAR(output.at(static_cast<size_t>(t) * 2 + 1, 0), 2.0F, 1e-3F);
     }
 }
 

@@ -65,6 +65,7 @@ The `nn` library is organized into several key components:
 - [K-Fold Cross-Validation](./Concepts/K-Fold-Cross-Validation.md) - Cross-validation and nested k-fold for unbiased evaluation
 - [Spike Rate Regularization](./Concepts/Spike-Rate-Regularization.md) - Preventing dead/bursting neurons in SNN autoencoders
 - [Spike Encoding](./Concepts/Spike-Encoding.md) - Rate coding vs latency coding and matching loss functions
+- [Threshold-Dependent Batch Normalization](./Concepts/Threshold-Dependent-Batch-Normalization.md) - tdBN for deep SNNs: batch+time normalization scaled to V_th
 - [LFCC](./Concepts/LFCC.md) - Linear Frequency Cepstral Coefficients for speaker verification
 - [Imagined Speech and EEG](./Concepts/Imagined-Speech-and-EEG.md) - Neuroscience of covert speech and EEG biometrics
 - [Time-Major Layout](./Concepts/Time-Major-Layout.md) - `(T*B, F)` tensor convention for SNN layers

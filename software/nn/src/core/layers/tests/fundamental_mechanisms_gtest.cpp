@@ -556,20 +556,20 @@ TEST(MaxPoolTest, MaxPool2dKnownValues)
 // ===========================================================================
 // TdBNTest — ThresholdDependentBatchNorm
 // Ref: Zheng et al., AAAI 2021 (tdBN)
-// Formula: output = (γ·x_norm + β) · V_th / √T
+// Canonical formula: output = γ·(α·V_th·x_norm) + β, with mean/var pooled over
+// batch AND time (all T·B rows of a feature column), β unscaled. No √T factor.
 // ===========================================================================
 
 TEST(TdBNTest, ZeroMean)
 {
-    // With gamma=1, beta=0 and zero-mean input, output should be scaled by V_th/√T
+    // gamma=1, beta=0, zero-mean input → output scaled by α·V_th (α=1 here).
     const int F = 4;
     const float vth = 1.0f;
     const int T = 4;
     ThresholdDependentBatchNormImpl<Backend> tdbn(F, vth, T);
 
-    // Construct (T*B, F) input with B=2, zero mean per feature per time step
+    // (T*B, F) input with B=2, ±1 per feature → pooled mean 0, var 1.
     Tensor x(T * 2, F);
-    // For each time step t, set batch samples to ±1 (mean=0)
     for (int t = 0; t < T; ++t)
     {
         for (int f = 0; f < F; ++f)
@@ -580,10 +580,9 @@ TEST(TdBNTest, ZeroMean)
     }
     Tensor out = tdbn.forward(x, false);
 
-    // Normalized ±1/std scaled by vth/sqrt(T).
-    const float scale = vth / std::sqrt(static_cast<float>(T));
+    // Canonical scale is α·V_th (no √T). x_norm = ±1/sqrt(1+eps).
+    const float scale = 1.0f * vth; // α·V_th
     const float expected_abs = scale / std::sqrt(1.0f + 1e-5f);
-    // Verify output mean per time step ≈ 0 (zero mean input → zero mean output)
     for (int t = 0; t < T; ++t)
     {
         for (int f = 0; f < F; ++f)
@@ -597,9 +596,9 @@ TEST(TdBNTest, ZeroMean)
     }
 }
 
-TEST(TdBNTest, VthSqrtTScale)
+TEST(TdBNTest, VthScalesOutput)
 {
-    // Double V_th → double output magnitude
+    // Double V_th → double output magnitude (output ∝ α·V_th).
     const int F = 2;
     ThresholdDependentBatchNormImpl<Backend> tdbn1(F, 1.0f, 1);
     ThresholdDependentBatchNormImpl<Backend> tdbn2(F, 2.0f, 1);
@@ -618,14 +617,35 @@ TEST(TdBNTest, VthSqrtTScale)
             EXPECT_NEAR(out2.at(r, c), 2.0f * out1.at(r, c), 1e-4f);
 }
 
-TEST(TdBNTest, DoubleTReducesScale)
+TEST(TdBNTest, AlphaScalesOutput)
 {
-    // Double T → output multiplied by 1/√2
+    // Canonical α hyperparameter scales the output linearly (target std = α·V_th).
+    const int F = 2;
+    ThresholdDependentBatchNormImpl<Backend> tdbn_a1(F, 1.0f, 1, 1.0f);
+    ThresholdDependentBatchNormImpl<Backend> tdbn_a3(F, 1.0f, 1, 3.0f);
+
+    Tensor x(2, F);
+    x.at(0, 0) = 1.f;
+    x.at(0, 1) = 2.f;
+    x.at(1, 0) = -1.f;
+    x.at(1, 1) = -2.f;
+
+    Tensor o1 = tdbn_a1.forward(x, false);
+    Tensor o3 = tdbn_a3.forward(x, false);
+    for (size_t r = 0; r < 2; ++r)
+        for (size_t c = 0; c < static_cast<size_t>(F); ++c)
+            EXPECT_NEAR(o3.at(r, c), 3.0f * o1.at(r, c), 1e-4f);
+}
+
+TEST(TdBNTest, TimeStepsDoNotChangeScale)
+{
+    // Canonical tdBN pools statistics over batch AND time, so replicating the same
+    // per-feature distribution across more time steps leaves the output unchanged
+    // (contrast with the removed per-step V_th/√T heuristic).
     const int F = 2;
     ThresholdDependentBatchNormImpl<Backend> tdbn1(F, 1.0f, 1);
     ThresholdDependentBatchNormImpl<Backend> tdbn4(F, 1.0f, 4);
 
-    // Need T*B rows: T1 → 1*2=2, T4 → 4*2=8
     Tensor x1(2, F);
     x1.at(0, 0) = 1.f;
     x1.at(0, 1) = 2.f;
@@ -644,8 +664,9 @@ TEST(TdBNTest, DoubleTReducesScale)
     Tensor out1 = tdbn1.forward(x1, false);
     Tensor out4 = tdbn4.forward(x4, false);
 
-    // First time step of T=4 output should be out1/2 (√1/√4 = 0.5)
-    EXPECT_NEAR(out4.at(0, 0), out1.at(0, 0) * 0.5f, 1e-4f);
+    // Same distribution pooled over T·B rows → identical normalized output.
+    EXPECT_NEAR(out4.at(0, 0), out1.at(0, 0), 1e-4f);
+    EXPECT_NEAR(out4.at(0, 1), out1.at(0, 1), 1e-4f);
 }
 
 TEST(TdBNTest, GammaGradExact)
@@ -706,9 +727,126 @@ TEST(TdBNTest, BetaGradExact)
     tdbn.backward(go);
 
     Tensor dbeta = tdbn.beta.grad();
-    // d_beta = sum over batch of (1.0 * tdbn_scale) * 2 samples = 2 * vth/√T = 2*1/1 = 2
+    // d_beta = Σ dout over the 2 pooled samples = 2 (β is not scaled by α·V_th).
     EXPECT_NEAR(dbeta.at(0, 0), 2.0f, 1e-5f);
     EXPECT_NEAR(dbeta.at(0, 1), 2.0f, 1e-5f);
+}
+
+TEST(TdBNTest, PoolsStatisticsOverBatchAndTime)
+{
+    // Canonical tdBN pools mean/var over ALL T·B rows of a feature, not per time
+    // step. Build T=2, B=2 where the two time steps have different per-step means
+    // but a known pooled mean/var; verify normalization uses the pooled statistics.
+    const int F = 1;
+    const int T = 2;
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, T); // α=1, V_th=1 → scale 1
+
+    Tensor x(4, F); // rows: t0b0, t0b1, t1b0, t1b1
+    x.at(0, 0) = 0.f;
+    x.at(1, 0) = 2.f;  // t0 mean = 1
+    x.at(2, 0) = 4.f;
+    x.at(3, 0) = 6.f;  // t1 mean = 5  (per-step means differ: 1 vs 5)
+    Tensor out = tdbn.forward(x, false);
+
+    // Pooled stats over all 4 rows: mean = 3, var = (9+1+1+9)/4 = 5.
+    const float mean = 3.0f, var = 5.0f;
+    const float inv_std = 1.0f / std::sqrt(var + 1e-5f);
+    for (size_t r = 0; r < 4; ++r)
+        EXPECT_NEAR(out.at(r, 0), (x.at(r, 0) - mean) * inv_std, 1e-4f);
+}
+
+TEST(TdBNTest, InferenceUsesRunningStats)
+{
+    // After training-mode forwards accumulate running stats, eval mode (train(false))
+    // must normalize with those running stats, independent of the eval batch.
+    const int F = 1;
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1);
+    tdbn.momentum = 1.0f; // running stat := last batch stat (easy to predict)
+
+    Tensor train_x(2, F);
+    train_x.at(0, 0) = 0.f;
+    train_x.at(1, 0) = 4.f; // batch mean 2, var 4
+    tdbn.train(true);
+    tdbn.forward(train_x, false); // updates running_mean=2, running_var=4
+
+    EXPECT_NEAR(tdbn.running_mean.at(0, 0), 2.0f, 1e-5f);
+    EXPECT_NEAR(tdbn.running_var.at(0, 0), 4.0f, 1e-5f);
+
+    // Eval on a DIFFERENT batch: normalization must use running (2,4), not the new
+    // batch's own statistics.
+    tdbn.train(false);
+    Tensor eval_x(2, F);
+    eval_x.at(0, 0) = 2.f; // equals running mean → normalized to 0
+    eval_x.at(1, 0) = 6.f;
+    Tensor out = tdbn.forward(eval_x, false);
+    const float inv_std = 1.0f / std::sqrt(4.0f + 1e-5f);
+    EXPECT_NEAR(out.at(0, 0), (2.0f - 2.0f) * inv_std, 1e-4f);
+    EXPECT_NEAR(out.at(1, 0), (6.0f - 2.0f) * inv_std, 1e-4f);
+}
+
+TEST(TdBNTest, ZeroVarianceIsNumericallyStable)
+{
+    // Constant input → var 0; the eps guard must keep the output finite (no NaN/Inf).
+    const int F = 2;
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1);
+    Tensor x(3, F);
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < static_cast<size_t>(F); ++c) x.at(r, c) = 5.0f;
+    Tensor out = tdbn.forward(x, true);
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < static_cast<size_t>(F); ++c)
+            EXPECT_TRUE(std::isfinite(out.at(r, c)));
+
+    Tensor go(3, F);
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < static_cast<size_t>(F); ++c) go.at(r, c) = 1.0f;
+    Tensor gin = tdbn.backward(go);
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < static_cast<size_t>(F); ++c)
+            EXPECT_TRUE(std::isfinite(gin.at(r, c)));
+}
+
+TEST(TdBNTest, InputGradientMatchesFiniteDifference)
+{
+    // Validate the batch-norm input gradient (with batch+time coupling) against a
+    // central finite difference of the scalar loss L = Σ go·out.
+    const int F = 2;
+    const size_t N = 4; // pooled samples per feature
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.5f, 1, 1.0f); // scale α·V_th = 1.5
+
+    Tensor x(N, F);
+    const float vals[4][2] = {{1.0f, -2.0f}, {3.0f, 0.5f}, {-1.0f, 2.0f}, {2.0f, -0.5f}};
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < 2; ++c) x.at(r, c) = vals[r][c];
+
+    Tensor go(N, F);
+    const float gv[4][2] = {{0.5f, 1.0f}, {-1.0f, 0.25f}, {2.0f, -0.5f}, {0.75f, 1.5f}};
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < 2; ++c) go.at(r, c) = gv[r][c];
+
+    tdbn.forward(x, true);
+    Tensor analytic = tdbn.backward(go);
+
+    auto loss_at = [&](const Tensor& in) -> double
+    {
+        Tensor out = tdbn.forward(in, false); // batch stats (training_ still true)
+        double L = 0.0;
+        for (size_t r = 0; r < N; ++r)
+            for (size_t c = 0; c < 2; ++c) L += static_cast<double>(go.at(r, c) * out.at(r, c));
+        return L;
+    };
+
+    const float h = 1e-2f;
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < 2; ++c)
+        {
+            Tensor xp = x, xm = x;
+            xp.at(r, c) += h;
+            xm.at(r, c) -= h;
+            const double num = (loss_at(xp) - loss_at(xm)) / (2.0 * static_cast<double>(h));
+            EXPECT_NEAR(analytic.at(r, c), static_cast<float>(num), 2e-2f)
+                << "grad mismatch at (" << r << "," << c << ")";
+        }
 }
 
 // ===========================================================================
@@ -1502,7 +1640,8 @@ TEST(LifIntegratorTest, RCParamsGradExact)
 TEST(TdBNTest, GammaAndBetaGradsExact)
 {
     const int F = 3;
-    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1, 1e-5f);
+    // Default α=1, eps=1e-5 → scale α·V_th = 1, matching the expected values below.
+    ThresholdDependentBatchNormImpl<Backend> tdbn(F, 1.0f, 1);
 
     Tensor x(2, F);
     x.at(0, 0) = 1.f;

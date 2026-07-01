@@ -84,6 +84,15 @@ struct E05Config
         float firing_rate_reg_lambda = 0.0f;
         float firing_rate_min = 0.05f; ///< Lower band edge (dead-neuron guard).
         float firing_rate_max = 0.80f; ///< Upper band edge (burst guard).
+
+        /// Batch normalization for the dsnn classifier:
+        ///   "none"                → no normalization
+        ///   "threshold-dependent" → tdBN (Zheng et al., AAAI 2021): a tdBN layer
+        ///        is inserted after each Linear and before each LIF, normalizing the
+        ///        pre-spike current over batch+time and rescaling to N(0,(α·V_th)²).
+        /// Ignored by the rnn classifier (no spiking layers).
+        std::string batch_normalization = "none";
+        float tdbn_alpha = 1.0f; ///< α for tdBN (target std = α·V_th; paper default 1).
     };
 
     Experiment experiment;

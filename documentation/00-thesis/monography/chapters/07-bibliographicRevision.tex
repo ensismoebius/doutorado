@@ -805,6 +805,65 @@
 
 			\par onde $\beta > 0$ controla a inclinação da aproximação em torno do limiar $V_{th}$. Valores maiores de $\beta$ produzem uma função mais próxima da derivada da função em degrau, enquanto valores menores resultam em uma aproximação mais suave e numericamente estável. A função é centrada em $V_{th}$ e decai exponencialmente ao se afastar do ponto de disparo, ponderando mais os gradientes próximos ao limiar do neurônio e atenuando contribuições distantes do mesmo.
 
+			\subsubsection{Normalização em Lote Dependente do Limiar (tdBN)}
+				\label{sec:tdbn}
+
+				\par A \textbf{Normalização em Lote Dependente do Limiar} (\textit{Threshold-Dependent Batch Normalization}, tdBN) é uma camada de normalização proposta por \cite{zheng2021goingdeeper} para viabilizar o treinamento direto de Redes Neurais de Pulso (RNPs) profundas. Trata-se de uma adaptação da Normalização em Lote (\textit{Batch Normalization}, BN) \cite{ioffe2015batchnorm} ao domínio pulsante.
+
+				\par \textbf{Motivação.} A BN clássica normaliza uma pré-ativação para média zero e variância unitária, $N(0,1)$, considerando apenas a dimensão do lote. Em uma RNP, contudo, a corrente de membrana de um neurônio é uma distribuição sobre as amostras \textbf{e} sobre os $T$ passos de tempo, e o disparo depende da comparação dessa corrente com o limiar $V_{th}$. Normalizar para variância unitária é, portanto, cego ao limiar: se $V_{th}\neq 1$, a entrada normalizada ou raramente cruza o limiar (poucos disparos) ou o satura (disparos em excesso) \cite{zheng2021goingdeeper}. Além disso, ao empilhar muitas camadas pulsantes, o potencial de membrana --- e o gradiente retropropagado --- tende a desaparecer ou explodir, o que impede o treinamento de redes profundas e pode levar ao \textbf{problema da ausência de disparos} (\textit{No-Spike Problem}), em que uma camada inteira deixa de disparar e, como o gradiente substituto só é não-nulo em torno do limiar, deixa de ser ajustada \cite{zheng2021goingdeeper}.
+
+				\par \textbf{Formulação matemática.} Seja a pré-ativação em formato \textit{tempo-maior} $X \in \mathbb{R}^{(T\cdot B)\times F}$, em que $T$ é o número de passos de tempo, $B$ é o tamanho do lote e $F$ é o número de canais (características). Para o canal $k$, sejam $X_{k,i}$ os seus $N = T\cdot B$ valores agrupados sobre o lote e o tempo. Definem-se a média e a variância \textbf{por canal}, agrupadas sobre lote e tempo:
+
+				\begin{equation}
+					\label{eq:tdbn-stats}
+					\mu_k = \frac{1}{N}\sum_{i=1}^{N} X_{k,i}, \qquad
+					\sigma_k^2 = \frac{1}{N}\sum_{i=1}^{N}\left(X_{k,i}-\mu_k\right)^2,
+				\end{equation}
+
+				\par onde $\mu_k$ é a média do canal $k$ e $\sigma_k^2$ a sua variância. A normalização e a transformação afim dependente do limiar são
+
+				\begin{equation}
+					\label{eq:tdbn-out}
+					\hat{X}_{k,i} = \frac{X_{k,i}-\mu_k}{\sqrt{\sigma_k^2 + \varepsilon}}, \qquad
+					Y_{k,i} = \gamma_k\,\big(\alpha\,V_{th}\,\hat{X}_{k,i}\big) + \beta_k,
+				\end{equation}
+
+				\par em que $\hat{X}_{k,i}$ é o valor padronizado (média zero, variância unitária); $\varepsilon$ é uma constante de estabilidade numérica (padrão $10^{-5}$); $V_{th}$ é o limiar de disparo do neurônio LIF a jusante; $\alpha$ é um hiperparâmetro que define a dispersão alvo (padrão $\alpha=1$); e $\gamma_k$ e $\beta_k$ são, respectivamente, a escala e o deslocamento aprendíveis do canal $k$. Note-se que o fator $\alpha V_{th}$ multiplica \textbf{apenas} o termo normalizado --- o deslocamento $\beta_k$ não é escalonado. Com $\gamma_k=1$ e $\beta_k=0$, a saída segue a distribuição $N\!\big(0,(\alpha V_{th})^2\big)$, propriedade que define a tdBN \cite{zheng2021goingdeeper}.
+
+				\par \textbf{Derivação.} A tdBN decorre de duas modificações sobre a BN. Primeiro, as estatísticas (\autoref{eq:tdbn-stats}) são calculadas sobre $N=T\cdot B$ valores --- lote e tempo agrupados --- pois todos eles influenciam decisões de disparo; isso distingue a tdBN de esquemas por passo, como a BNTT \cite{kim2021bntt}. Segundo, deseja-se que uma fração fixa de neurônios dispare, independentemente da profundidade. Se $\hat{X}\sim N(0,1)$, então $\alpha V_{th}\hat{X}\sim N(0,(\alpha V_{th})^2)$ e a probabilidade de ultrapassar o limiar é
+
+				\begin{equation}
+					\label{eq:tdbn-prob}
+					P\big(\alpha V_{th}\,\hat{X} > V_{th}\big) = P\!\left(\hat{X} > \tfrac{1}{\alpha}\right) = 1 - \Phi\!\left(\tfrac{1}{\alpha}\right),
+				\end{equation}
+
+				\par onde $\Phi$ é a função de distribuição acumulada da normal padrão. Essa fração depende \textbf{somente} de $\alpha$ --- não da profundidade, de $T$ ou da escala da entrada. Para $\alpha=1$ obtém-se $1-\Phi(1)\approx 15{,}9\%$ de neurônios acima do limiar, um regime de disparo saudável e não-saturado. \cite{zheng2021goingdeeper} demonstram ainda, via teoria da \textit{Block Dynamical Isometry}, que esse fator $\alpha V_{th}$ mantém a norma do gradiente de cada bloco próxima da unidade, evitando o seu desaparecimento ou explosão e permitindo o treinamento de redes com dezenas de camadas.
+
+				\par \textbf{Exemplo numérico.} Considere-se um único canal ($F=1$), com $T=2$, $B=2$ (logo $N=4$), $\gamma=1$, $\beta=0$ e $\varepsilon=10^{-5}$. Sejam as entradas $X = [\,0,\ 2,\ 4,\ 6\,]$ (cujos dois passos de tempo têm médias distintas, $1$ e $5$, ilustrando o agrupamento sobre o tempo). Tem-se:
+
+				\begin{equation}
+					\begin{aligned}
+						\mu &= (0+2+4+6)/4 = 3, \\
+						\sigma^2 &= \big[(0-3)^2+(2-3)^2+(4-3)^2+(6-3)^2\big]/4 = 20/4 = 5, \\
+						1/\sqrt{\sigma^2+\varepsilon} &\approx 0{,}447214, \\
+						\hat{X} &= (X-3)\cdot 0{,}447214 = [-1{,}3416,\ -0{,}4472,\ 0{,}4472,\ 1{,}3416].
+					\end{aligned}
+				\end{equation}
+
+				\par Aplicando a escala dependente do limiar com $\alpha=1$: para $V_{th}=1$ (escala $1$) obtém-se $Y=[-1{,}3416,\ -0{,}4472,\ 0{,}4472,\ 1{,}3416]$, ou seja, $N(0,1)$; para $V_{th}=2$ (escala $2$) obtém-se $Y=[-2{,}6833,\ -0{,}8944,\ 0{,}8944,\ 2{,}6833]$, com desvio-padrão exatamente igual a $\alpha V_{th}=2$, isto é, $N(0,4)=N(0,(\alpha V_{th})^2)$. A \autoref{fig:tdbn} ilustra esse efeito: a tdBN recentra e reescala a corrente de modo que uma fração controlada da distribuição ultrapasse o limiar.
+
+				\begin{figure}[h]
+					\centering
+					\caption[Normalização em Lote Dependente do Limiar (tdBN)]{Normalização em Lote Dependente do Limiar (tdBN): inserida entre a camada Linear e o neurônio LIF, ela agrupa as estatísticas sobre lote e tempo e reescala a corrente para a distribuição $N(0,(\alpha V_{th})^2)$, mantendo uma fração controlada de neurônios acima do limiar $V_{th}$ a cada passo.}
+					\resizebox{0.85\linewidth}{!}{\input{images/tdbn.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:tdbn}
+				\end{figure}
+
+				\par \textbf{Vantagens.} Por compartilhar $\gamma$ e $\beta$ entre os passos de tempo, a transformação afim da tdBN pode ser \textbf{incorporada aos pesos} da camada Linear anterior em tempo de inferência, sem custo computacional adicional --- ao contrário de esquemas com parâmetros por passo, como BNTT \cite{kim2021bntt} e TEBN \cite{duan2022tebn} \cite{zheng2021goingdeeper}. Além disso, ao fixar a dispersão em $\alpha V_{th}$, a tdBN preserva a norma do gradiente em profundidade e mitiga estruturalmente o problema da ausência de disparos.
+
+				\par \textbf{Limitações.} Um único par escala/deslocamento por canal é menos expressivo do que esquemas que atribuem parâmetros distintos a cada passo de tempo; para valores muito pequenos de $T$, a TEBN \cite{duan2022tebn} pode superá-la. A tdBN também pressupõe uma população de lote e tempo suficientemente grande para estimativas estáveis de média e variância. Variantes posteriores, como a MPBN \cite{guo2023mpbn}, normalizam o potencial de membrana após a sua atualização, antes da função de disparo.
+
 		\subsection{\textit{Autoencoders}}
 		
 			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem respectivamente em: Uma função codificadora $f(x)$ que gera um estado $h$, denotada como $h = f(x)$ e uma função decodificadora $g(x)$ que produz uma reconstrução $r$, denotada como $r = g(h)$. O estado $h$ representa um \textbf{código}, uma representação da entrada que pode ser comprimida ou não  \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder}.

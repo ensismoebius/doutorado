@@ -104,6 +104,12 @@ void E05Config::validate() const
         training.firing_rate_min > training.firing_rate_max)
         throw std::invalid_argument(
             "E05Config: require 0 <= firing_rate_min <= firing_rate_max <= 1");
+    if (training.batch_normalization != "none" &&
+        training.batch_normalization != "threshold-dependent")
+        throw std::invalid_argument(
+            "E05Config: training.batch_normalization must be none or threshold-dependent");
+    if (training.tdbn_alpha <= 0.0f)
+        throw std::invalid_argument("E05Config: training.tdbn_alpha must be > 0");
 }
 
 E05Config E05Config::from_json(const nlohmann::json& j)
@@ -189,6 +195,8 @@ E05Config E05Config::from_json(const nlohmann::json& j)
             cfg.training.firing_rate_reg_lambda = t["firing_rate_reg_lambda"].get<float>();
         if (t.contains("firing_rate_min")) cfg.training.firing_rate_min = t["firing_rate_min"].get<float>();
         if (t.contains("firing_rate_max")) cfg.training.firing_rate_max = t["firing_rate_max"].get<float>();
+        if (t.contains("batch_normalization")) cfg.training.batch_normalization = t["batch_normalization"];
+        if (t.contains("tdbn_alpha")) cfg.training.tdbn_alpha = t["tdbn_alpha"].get<float>();
     }
 
     return cfg;

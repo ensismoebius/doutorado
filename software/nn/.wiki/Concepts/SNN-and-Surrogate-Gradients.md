@@ -52,12 +52,11 @@ where $d \in (0,1)$ is the decay factor (`adapt_decay`) and $c \geq 0$ is the co
 
 ### Threshold-Dependent Batch Normalization (tdBN)
 
-Deep SNNs without normalization suffer from membrane-potential explosion across layers.  tdBN [33] normalises the pre-spike potential at each time step and rescales by $V_{th}/\sqrt{T}$ so input magnitude is independent of network depth:
+Deep SNNs without normalization suffer from vanishing/exploding membrane potentials across layers.  tdBN [33] normalises the pre-spike current per channel — pooling statistics over **both the batch and the time dimension** — and rescales it by $\alpha V_{th}$ so the input to each LIF layer is distributed as $N(0,(\alpha V_{th})^2)$ regardless of depth:
 
-$$\hat{x}_{t,b,f} = \gamma_f \cdot \frac{x_{t,b,f} - \mu_{t,f}}{\sqrt{\sigma^2_{t,f} + \varepsilon}} + \beta_f$$
-$$y_{t,b,f} = \hat{x}_{t,b,f} \cdot \frac{V_{th}}{\sqrt{T}}$$
+$$\hat{X}_{k,i} = \frac{X_{k,i} - \mu_k}{\sqrt{\sigma^2_k + \varepsilon}}, \qquad Y_{k,i} = \gamma_k\,(\alpha\,V_{th}\,\hat{X}_{k,i}) + \beta_k$$
 
-where $\mu$ and $\sigma^2$ are computed over the batch dimension for each $(t, f)$ slice.  $\gamma$ and $\beta$ are learned per-feature affine parameters.
+where, for channel $k$, $\mu_k$ and $\sigma^2_k$ are computed over all $N = T\cdot B$ rows (batch and time pooled), $\alpha$ is a hyperparameter (paper default 1), $V_{th}$ is the downstream firing threshold, and $\gamma_k,\beta_k$ are learned per-channel affine parameters (the scale $\alpha V_{th}$ multiplies only the normalized term — $\beta$ is unscaled).  This is the canonical formulation of Zheng et al. [33]; see the dedicated page [Threshold-Dependent Batch Normalization](Threshold-Dependent-Batch-Normalization.md) for the derivation, a worked numerical example, and a comparison with BNTT [49], TEBN [50] and MPBN [51].
 
 ### Poisson Latent Space (SNN-VAE)
 
@@ -198,17 +197,20 @@ template <typename Backend>
 class ThresholdDependentBatchNormImpl : public Module<Backend>
 {
 public:
+    float alpha = 1.0F;              // α: target std = α·V_th (paper default 1)
     float voltage_threshold = 1.0F;  // V_th of downstream LIF layer
-    int time_steps = 1;              // T
+    int time_steps = 1;              // T (statistics pool over batch AND time)
     float eps = 1e-5F;
-    Tensor gamma;  // learned per-feature scale (1×F)
-    Tensor beta;   // learned per-feature shift (1×F)
+    float momentum = 0.1F;           // EMA rate for inference running stats
+    Tensor gamma;  // learned per-channel scale (1×F)
+    Tensor beta;   // learned per-channel shift (1×F)
 
     explicit ThresholdDependentBatchNormImpl(
-        size_t num_features, float vth = 1.0F, int T = 1, float eps_ = 1e-5F);
+        size_t num_features, float vth = 1.0F, int T = 1,
+        float alpha_ = 1.0F, float eps_ = 1e-5F, float momentum_ = 0.1F);
 
-    // forward: per-step per-feature BN, scaled by V_th/sqrt(T)
-    // backward: standard BN gradient through affine transform
+    // forward: per-channel BN pooled over batch+time, output = γ·(α·V_th·x̂) + β
+    // backward: standard BN gradient through the affine transform
 };
 ```
 

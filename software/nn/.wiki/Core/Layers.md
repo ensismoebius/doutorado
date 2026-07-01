@@ -152,8 +152,11 @@ Validation path:
 
 ### Threshold-Dependent Batch Normalization (tdBN)
 
-Normalises pre-spike membrane potentials per time step and rescales by $V_{th}/\sqrt{T}$,
-enabling stable training of deep SNNs [33].
+Normalises the pre-spike current per channel — pooling statistics over **batch and
+time** — and rescales by $\alpha V_{th}$ so the input to each LIF layer is distributed
+as $N(0,(\alpha V_{th})^2)$, enabling stable training of deep SNNs [33]. Output is
+$Y_k = \gamma_k(\alpha V_{th}\hat{X}_k) + \beta_k$ ($\beta$ unscaled). Full theory,
+derivation and a worked example: [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md).
 
 ```cpp
 // File: include/layers/spiking/ThresholdDependentBatchNorm.hpp
@@ -161,14 +164,18 @@ template <typename Backend>
 class ThresholdDependentBatchNormImpl : public Module<Backend>
 {
 public:
+    float alpha = 1.0F;              // α: target std = α·V_th (paper default 1)
     float voltage_threshold = 1.0F;  // V_th of the downstream LIF layer
-    int time_steps = 1;              // T: number of time steps
+    int time_steps = 1;              // T: statistics pool over batch AND time
     float eps = 1e-5F;
-    Tensor gamma;   // learned per-feature scale (1×F)
-    Tensor beta;    // learned per-feature shift (1×F)
+    float momentum = 0.1F;           // EMA rate for inference running stats
+    Tensor gamma;   // learned per-channel scale (1×F)
+    Tensor beta;    // learned per-channel shift (1×F)
+    Tensor running_mean, running_var; // inference buffers (1×F)
 
     explicit ThresholdDependentBatchNormImpl(
-        size_t num_features, float vth = 1.0F, int T = 1, float eps_ = 1e-5F);
+        size_t num_features, float vth = 1.0F, int T = 1,
+        float alpha_ = 1.0F, float eps_ = 1e-5F, float momentum_ = 0.1F);
 };
 ```
 
