@@ -65,3 +65,5 @@
 61. Fundamentar e referenciar adequadamente a seção “Why this range”. ok
 60. Expandir e fundamentar a seção “The no-spike problem”.ok
 59. Fundamentar teoricamente as estratégias de normalização utilizadas no projeto.ok
+
+--- Add contraditions bellow ---
