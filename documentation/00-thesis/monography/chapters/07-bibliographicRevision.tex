@@ -295,11 +295,11 @@
 				\item T o tamanho do vetor de características.
 			\end{itemize}
 			
-			\par Então, $F$, que é o número máximo de sobreposições possíveis entre classes, é dado por:
+			\par Então, $F$, que é o número máximo de sobreposições possíveis entre classes, é dado por \cite{8588433}:
 			\begin{equation}
 				F=N.(N-1).X.T \qquad.
 			\end{equation}
-			\par Finalmente, $\beta$ é calculado da seguinte forma:
+			\par Finalmente, $\beta$ é calculado da seguinte forma \cite{8588433}:
 			\begin{equation}
 				\beta=\dfrac{R}{F} \qquad.
 			\end{equation}
@@ -335,8 +335,8 @@
 				\legend{Adaptado de \cite{8588433}}
 			\end{figure}
 	
-			\par $G_1$ e $G_2$ são obtidos pelas seguintes expressões:
-			
+			\par $G_1$ e $G_2$ são obtidos pelas seguintes expressões \cite{8588433}:
+
 			\begin{equation}
 				G_1=\alpha-\beta  \qquad,
 			\end{equation}
@@ -347,7 +347,7 @@
 			
 			\par Os valores de $G_1$ e $G_2$, em conjunto, definem os graus entre verdade ($G_1=1$) e falsidade ($G_1=-1$) e também os graus entre indefinição ($G_2=-1$) e ambiguidade ($G_2=1$). Novamente, raramente tais valores inteiros serão alcançados já que $G_1$ e $G_2$ dependem de $\alpha$ e $\beta$.
 	
-			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas da seguinte forma:
+			\par Para se ter ideia em que área exatamente se encontram as classes avaliadas, as distâncias $(D)$ do ponto $P=(G_1,G_2)$ até o limites supracitados podem ser computadas da seguinte forma \cite{8588433}:
 	
 			\begin{equation}
 				D_{-1,0}=\sqrt{(G_1+1)^2+(G_2)^2}\qquad,
@@ -1017,7 +1017,7 @@
 			
 			\subsubsection{Aprendizado residual}
 			
-				\par Considerando então $x$ como a entrada de uma rede, $f(\cdot)$ como uma série de camadas cujas sucessivas aproximações, via treinamento, resultam em um desejado  estado intermediário na camada escondida $h$, então o que se convenciona chamar de resíduo $r$ é dado na \autoref{eq:residuo} considerando que $h$ e $x$ tenham a mesma dimensão.
+				\par Considerando então $x$ como a entrada de uma rede, $f(\cdot)$ como uma série de camadas cujas sucessivas aproximações, via treinamento, resultam em um desejado  estado intermediário na camada escondida $h$, então o que se convenciona chamar de resíduo $r$ é dado na \autoref{eq:residuo} considerando que $h$ e $x$ tenham a mesma dimensão. Esta é uma reformulação didática, feita pelo autor deste trabalho, da ideia central de \cite{DBLP:journals/corr/HeZRS15} --- o artigo original expressa o mesmo conceito através da função $y=F(x)+x$, em que $F(x)$ é o mapeamento residual aprendido pelas camadas.
 				
 				
 				\begin{equation}

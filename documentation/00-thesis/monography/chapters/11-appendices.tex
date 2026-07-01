@@ -387,7 +387,7 @@
 
 	\section{Decaimento de Peso (Regularização L2)}
 		\label{Apend:regularization}
-		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Sejam $L_{\text{dados}}$ a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), $\lambda$ o parâmetro de regularização e $\|W\|_2^2$ a norma L2 dos pesos. Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos:
+		\par Suponha que tenhamos uma rede neural simples com pesos \( W \). Sejam $L_{\text{dados}}$ a perda de dados (por exemplo, erro quadrático médio para tarefas de regressão), $\lambda$ o parâmetro de regularização e $\|W\|_2^2$ a norma L2 dos pesos. Durante o treinamento, adicionamos um termo de regularização à função de perda, que penaliza o quadrado dos pesos \cite{krogh1991simple}:
 		\begin{equation}
 			L_{\text{total}} = L_{\text{dados}} + \lambda \|W\|^2_2
 		\end{equation}
@@ -399,7 +399,7 @@
 		Se definirmos \( \lambda = 0.1 \), o termo de regularização seria \( 0.1 \times (1^2 + 0.5^2 + (-0.3)^2 + 0.8^2) = 0.1 \times (1 + 0.25 + 0.09 + 0.64) = 0.1 \times 1.98 = 0.198 \).
 		Durante o treinamento, o otimizador atualiza os pesos considerando tanto a perda de dados quanto o termo de regularização. O termo de regularização incentiva pesos menores, prevenindo o sobreajuste.
 
-		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. Neste trabalho usa-se uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}).
+		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. Neste trabalho usa-se uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}), proposto por \cite{loshchilov2019decoupled} no algoritmo AdamW.
 
 		\par A ideia é simples: em vez de modificar o gradiente, encolhe-se cada peso por uma pequena fração a cada passo de treinamento, logo após a atualização normal do otimizador. Sejam $\theta$ um peso qualquer da rede, $\eta$ a taxa de aprendizado e $\lambda$ o parâmetro que controla a força do decaimento:
 		\begin{equation}
@@ -417,7 +417,7 @@
 
 		\par Suponha que tenhamos uma camada oculta com valores de ativação \( h = [0.9, 0.1, 0.8, 0.05] \).
 
-		\par O termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e $\hat{\rho}_i$, a média da ativação da unidade oculta $i$, somada sobre todas as unidades ocultas:
+		\par Segundo \cite{ng2011sparse}, o termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e $\hat{\rho}_i$, a média da ativação da unidade oculta $i$, somada sobre todas as unidades ocultas:
 
 		\begin{equation}
 			\Omega(h) = \sum_i (\rho \log(\rho / \hat{\rho}) + (1 - \rho) \log((1 - \rho) / (1 - \hat{\rho})))
@@ -437,6 +437,8 @@
 
 	\section{Regularização da Taxa de Disparo em Redes Neurais de Pulso}
 		\label{Apend:firingRateReg}
+		\par A penalidade de taxa de disparo descrita nesta seção é uma técnica \textbf{proposta neste trabalho} para o treinamento das RNPs do \autoref{ch:revisao} --- não é uma reprodução de uma técnica publicada, mas uma adaptação da ideia geral de penalidade de esparsidade (seção anterior) ao caráter binário e temporal dos neurônios de pulso.
+
 		\par Diferentemente de um neurônio clássico, que produz um número real, um neurônio de pulso só pode emitir $0$ ou $1$ a cada instante. A informação que ele transmite está, portanto, na \textbf{frequência} com que dispara ao longo do tempo --- a chamada \textit{taxa de disparo}. Um detalhe simples ilustra o problema: se um neurônio quase nunca dispara, ou se dispara a toda hora, ele praticamente não distingue um exemplo de outro. Surgem assim dois extremos que prejudicam o aprendizado:
 		\begin{itemize}
 			\item \textbf{Neurônios mortos} (\textit{dead neurons}): a taxa de disparo cai para perto de zero. O neurônio para de contribuir para a saída. Pior: como o gradiente substituto só existe nas proximidades do limiar, deixa de chegar gradiente ao neurônio, que nunca mais é ajustado e fica ``preso'' inativo.

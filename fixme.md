@@ -10,6 +10,7 @@
 48. Revisar toda a monografia/Wiki para garantir que toda variável seja explicitamente definida.
 49. Avaliar arquiteturas compactas de autoencoders para Raspberry Pi.
 51. Avaliar opcionalmente diferentes algoritmos de otimização.
+53. Revisar sistematicamente e enriquecer a Wiki do projeto.
 
 # Observações e Correções Fornecidas pelo Usuário
 
@@ -54,14 +55,13 @@
 45. Decidir se os modelos usarão regularização e justificar a escolha. ok
 46. Criar subseção específica para BPTT aplicado a SNNs. ok
 50. Criar seção sobre inicialização de pesos em redes neurais.  ok
+52. Padronizar a apresentação de variáveis antes das equações. ok
+55. Demonstrar passo a passo a derivação das expressões matemáticas.ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-52. Padronizar a apresentação de variáveis antes das equações.
-53. Revisar sistematicamente e enriquecer a Wiki do projeto.
 54. Incluir exemplos numéricos completos.
-55. Demonstrar passo a passo a derivação das expressões matemáticas.
 56. Avaliar comparativamente diferentes arquiteturas de autoencoders utilizando Engenharia Paraconsistente de Características.
 57. Verificar e fundamentar a afirmação sobre taxas de aprendizado para parâmetros biofísicos em SNNs.
 58. Fundamentar a tabela de associação entre codificações e funções de perda.
