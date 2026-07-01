@@ -76,9 +76,13 @@ Using the wrong loss means the network tries to optimise the wrong thing. For ex
 
 ## The no-spike problem
 
-What happens in latency coding when the input is so low that the neuron never fires within the time window? The first-spike time is undefined.
+What happens in latency coding when the input is so low that the neuron never fires within the time window? The first-spike time is undefined — there's no "when" to measure.
 
-The implementation handles this by assigning a penalty time equal to the window length T. This is a finite (not infinite) penalty, which keeps the gradient well-defined. But it means the penalty for "never fires" equals the penalty for "fires at the last step" — if this distinction matters for your problem, you may need to tune T.
+The implementation handles this by assigning a penalty time equal to the window length T, as if the neuron had fired right at the last possible step. That keeps the loss finite (no NaN, no arbitrary infinite penalty) instead of special-casing "undefined." It's the convention used in the spiking-autoencoder literature this project draws on for latency coding [Comşa et al., 2021].
+
+**Why this is worse than it sounds.** It's not just that "never fires" and "fires at the last step" get the same score — a *predicted* output that never fires gets **zero gradient at all** from this loss. The gradient has to point at the time step where the spike actually happened; if there was no spike, there's nowhere to put it. So a latency-coded output neuron that goes silent early in training has no way to be corrected by this loss alone — it's stuck, the same way a dead neuron under [threshold-dependent batch norm](Threshold-Dependent-Batch-Normalization.md) is stuck, just for a different underlying reason (indexing into "no spike happened" here, vs. a near-zero surrogate gradient there).
+
+**What actually unsticks it:** pairing this loss with [spike-rate regularization](Spike-Rate-Regularization.md), which pushes on the *average* firing rate regardless of any single spike's timing, gives the network a gradient signal even when a unit is completely silent. If that's still not enough, Manna et al. (2024) treat this exact problem — training a spiking network to reliably produce a spike where one's expected — as worth its own purpose-built loss functions, rather than reusing a time-difference MSE.
 
 ---
 

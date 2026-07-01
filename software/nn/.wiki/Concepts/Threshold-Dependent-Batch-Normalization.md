@@ -6,7 +6,7 @@ Threshold-Dependent Batch Normalization (tdBN) is a normalization layer for deep
 
 ## Motivation
 
-Plain Batch Normalization (BN) was designed for analog (real-valued) activations and normalizes a pre-activation to zero mean and unit variance, $N(0,1)$ [reference: Ioffe & Szegedy, 2015]. Applying it unchanged inside an SNN is problematic for three reasons [33]:
+Plain Batch Normalization (BN) was designed for analog (real-valued) activations and normalizes a pre-activation to zero mean and unit variance, $N(0,1)$ [56]. Applying it unchanged inside an SNN is problematic for three reasons [33]:
 
 1. **It ignores the time axis.** An SNN processes a sequence of $T$ time steps; the membrane current of a neuron is a *distribution over both samples and time*. Vanilla BN normalizes each time step (or the batch only) and therefore does not control the statistics that actually drive firing across the whole sequence [33], [49].
 2. **It ignores the threshold.** Whether a neuron spikes depends on how its membrane potential compares to $V_{th}$. Normalizing to unit variance is blind to $V_{th}$: if $V_{th}\neq 1$, a unit-variance input either rarely crosses the threshold (too few spikes) or saturates it (too many) [33].
@@ -33,6 +33,8 @@ SNNs are trained by Backpropagation Through Time with surrogate gradients (see [
 ### The No-Spike Problem
 
 If a layer's pre-activations fall entirely below $V_{th}$, it emits **no spikes**. Then the surrogate gradient there is ≈ 0, so no learning signal flows back and the layer is permanently dead — the *No-Spike Problem*. tdBN guarantees, by construction, that the pre-activation has standard deviation $\alpha V_{th}$, so a predictable fraction of neurons crosses threshold and the layer keeps firing [33]. This complements the firing-rate regularizer used elsewhere in this project (see [Spike-Rate Regularization](Spike-Rate-Regularization.md)).
+
+> **Not the same failure mode as [Spike-Encoding's "No-Spike Problem"](Spike-Encoding.md#the-no-spike-problem).** Here the cause is the surrogate gradient of the LIF neuron itself going to ≈ 0 far from threshold. The `SpikeTimeLoss` version is caused by how the loss's straight-through estimator indexes into the spike tensor when a predicted unit never fires — a different mechanism, same "silence → zero gradient → stuck" symptom.
 
 ---
 
@@ -76,7 +78,7 @@ With the default $\gamma_k=1,\ \beta_k=0$, the output is distributed as $N\!\big
 
 tdBN follows from two requirements layered onto standard BN.
 
-**Step 1 — Standard BN.** BN computes $\hat{X} = (X-\mu)/\sqrt{\sigma^2+\varepsilon}$ and $Y=\gamma\hat{X}+\beta$, with $\mu,\sigma^2$ over the batch [Ioffe & Szegedy, 2015]. This yields $\mathrm{Var}(Y)=\gamma^2$, i.e. $N(0,1)$ when $\gamma=1$.
+**Step 1 — Standard BN.** BN computes $\hat{X} = (X-\mu)/\sqrt{\sigma^2+\varepsilon}$ and $Y=\gamma\hat{X}+\beta$, with $\mu,\sigma^2$ over the batch [56]. This yields $\mathrm{Var}(Y)=\gamma^2$, i.e. $N(0,1)$ when $\gamma=1$.
 
 **Step 2 — Pool over time.** In an SNN the relevant population for channel $k$ is *all* of its values across the $T$ time steps and $B$ samples, because every one of them drives a spike decision. So the statistics are taken over $N=T\cdot B$ rather than $B$ [33]. This is the only change from BN that touches the statistics, and it is what distinguishes tdBN from per-step normalizations such as BNTT [49] (which keep separate statistics per time step).
 
@@ -165,7 +167,7 @@ These exact numbers are asserted in `TdBNTest.PoolsStatisticsOverBatchAndTime` a
 
 | Method | Statistics pooled over | Output target | Per-time-step params? | Foldable at inference? | Notes |
 |---|---|---|---|---|---|
-| **Batch Norm** (vanilla) | batch only | $N(0,1)$ | no | yes | threshold-agnostic; ignores time [ref: Ioffe & Szegedy 2015] |
+| **Batch Norm** (vanilla) | batch only | $N(0,1)$ | no | yes | threshold-agnostic; ignores time [56] |
 | **Layer Norm** | features of one sample | $N(0,1)$ per sample | n/a | no | no batch coupling; rarely used in SNNs |
 | **NeuNorm** [48] | channel dimension | data-normalized | no | partial | early SNN normalization, precursor to tdBN |
 | **BNTT** [49] | batch, **separately per step** | per-step | **yes** ($\gamma_t,\beta_t$) | no | adapts to instantaneous dynamics; extra inference cost |
@@ -217,4 +219,4 @@ When enabled, the E05 deep spiking classifier inserts a tdBN layer after each `L
 
 [51] Y. Guo et al., "Membrane potential batch normalization for spiking neural networks," in *Proc. IEEE/CVF Int. Conf. Computer Vision (ICCV)*, 2023. (MPBN; arXiv:2308.08359)
 
-Background BN reference: S. Ioffe and C. Szegedy, "Batch normalization: Accelerating deep network training by reducing internal covariate shift," in *Proc. ICML*, 2015.
+[56] S. Ioffe and C. Szegedy, "Batch normalization: Accelerating deep network training by reducing internal covariate shift," in *Proc. 32nd Int. Conf. Machine Learning (ICML)*, 2015, pp. 448-456.

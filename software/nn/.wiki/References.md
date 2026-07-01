@@ -82,9 +82,9 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [30] C. Chen et al., "ESVAE: An efficient spiking variational autoencoder with reparameterizable Poisson spiking sampling," arXiv preprint arXiv:2310.14839, 2024. [Online]. Available: https://arxiv.org/abs/2310.14839
 
-[31] M. Radford and J. Stokel-Walker, "Training deep spiking auto-encoders without bursting or dying neurons through regularization," arXiv preprint arXiv:2109.11045, 2021. [Online]. Available: https://arxiv.org/abs/2109.11045
+[31] J. F. Hübotter, P. Lanillos, and J. M. Tomczak, "Training deep spiking auto-encoders without bursting or dying neurons through regularization," arXiv preprint arXiv:2109.11045, 2021. [Online]. Available: https://arxiv.org/abs/2109.11045
 
-[32] S. Comsa et al., "Spiking autoencoders with temporal coding," Frontiers in Neuroscience, vol. 15, p. 712667, 2021. [Online]. Available: https://doi.org/10.3389/fnins.2021.712667
+[32] I.-M. Comşa, L. Versari, T. Fischbacher, and J. Alakuijala, "Spiking autoencoders with temporal coding," Frontiers in Neuroscience, vol. 15, p. 712667, 2021. [Online]. Available: https://doi.org/10.3389/fnins.2021.712667
 
 ## Advanced SNN Neuron Models
 
@@ -111,7 +111,7 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," Radiology: Artificial Intelligence, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/
 
-[42] H. Yang et al., "Time series forecasting via derivative spike encoding and bespoke loss functions for spiking neural networks," Computers, vol. 13, no. 8, p. 202, 2024. [Online]. Available: https://doi.org/10.3390/computers13080202
+[42] D. L. Manna, A. Vicente-Sola, P. Kirkland, T. J. Bihl, and G. Di Caterina, "Time series forecasting via derivative spike encoding and bespoke loss functions for spiking neural networks," Computers, vol. 13, no. 8, p. 202, 2024. [Online]. Available: https://doi.org/10.3390/computers13080202
 
 [43] V. Mnih et al., "ADMM-based training for spiking neural networks," arXiv preprint arXiv:2505.05527, 2025. [Online]. Available: https://arxiv.org/abs/2505.05527
 
@@ -134,3 +134,23 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [50] C. Duan, J. Ding, S. Chen, Z. Yu, and T. Huang, "Temporal effective batch normalization in spiking neural networks," in Advances in Neural Information Processing Systems (NeurIPS), 2022. (Temporal Effective Batch Normalization, TEBN)
 
 [51] Y. Guo et al., "Membrane potential batch normalization for spiking neural networks," in Proc. IEEE/CVF International Conference on Computer Vision (ICCV), 2023. [Online]. Available: https://arxiv.org/abs/2308.08359 (MPBN)
+
+## Compiler Optimization
+
+[52] K. Pettis and R. C. Hansen, "Profile guided code positioning," in Proc. ACM SIGPLAN 1990 Conf. on Programming Language Design and Implementation (PLDI), White Plains, NY, 1990, pp. 16–27. [Online]. Available: https://doi.org/10.1145/93542.93550
+
+[53] P. P. Chang, S. A. Mahlke, and W. W. Hwu, "Using profile information to assist classic code optimizations," Software: Practice and Experience, vol. 21, no. 12, pp. 1301–1321, 1991. [Online]. Available: https://doi.org/10.1002/spe.4380211204
+
+[54] "Instrumentation Options," in Using the GNU Compiler Collection (GCC). [Online]. Available: https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html
+
+## Input Normalization
+
+[55] Y. LeCun, L. Bottou, G. B. Orr, and K.-R. Müller, "Efficient BackProp," in Neural Networks: Tricks of the Trade, Lecture Notes in Computer Science, vol. 1524, Springer, 1998, pp. 9–50.
+
+[56] S. Ioffe and C. Szegedy, "Batch normalization: Accelerating deep network training by reducing internal covariate shift," in Proc. 32nd Int. Conf. Machine Learning (ICML), 2015, pp. 448–456. [Online]. Available: https://arxiv.org/abs/1502.03167
+
+[57] O. Viikki and K. Laurila, "Cepstral domain segmental feature vector normalization for noise robust speech recognition," Speech Communication, vol. 25, no. 1–3, pp. 133–147, 1998. (Foundation of cepstral mean and variance normalization, CMVN)
+
+[58] F. Lotte, L. Bougrain, A. Cichocki, M. Clerc, M. Congedo, A. Rakotomamonjy, and F. Yger, "A review of classification algorithms for EEG-based brain-computer interfaces: A 10-year update," Journal of Neural Engineering, vol. 15, no. 3, p. 031005, 2018.
+
+[59] S. Kaufman, S. Rosset, C. Perlich, and O. Stitelman, "Leakage in data mining: Formulation, detection, and avoidance," ACM Transactions on Knowledge Discovery from Data, vol. 6, no. 4, pp. 1–21, 2012.

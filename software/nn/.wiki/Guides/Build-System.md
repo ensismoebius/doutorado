@@ -168,8 +168,10 @@ cmake --preset=pgo-generate
 cmake --build --preset=pgo-generate -j$(nproc)
 
 # 2. Run a representative workload to collect profiles
+# --profile takes a profile-name stem (resolved under src/experiments/03/profiles/),
+# not a path — this file doesn't need to exist as "sample.json"
 ./out/build/pgo-generate/src/experiments/03/experiment03 \
-    --profile src/experiments/03/profiles/sample.json
+    --profile sample-training-flow
 
 # 3. Final optimized build using collected profiles
 cmake --preset=pgo-use

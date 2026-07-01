@@ -26,10 +26,12 @@
  * - For each (b, f): first_spike_time = min t such that spike[t,b,f]==1, else T.
  * - Missing spike penalty = T (worst-case distance, not infinity, for numeric safety).
  *
- * Reference: [32] S. Comsa et al., "Spiking autoencoders with temporal coding,"
- * Frontiers in Neuroscience, vol. 15, p. 712667, 2021.
- * Also: [42] H. Yang et al., "Time series forecasting via derivative spike
- * encoding and bespoke loss functions for SNNs," Computers, 2024.
+ * Reference: [32] I.-M. Comşa, L. Versari, T. Fischbacher, and J. Alakuijala,
+ * "Spiking autoencoders with temporal coding," Frontiers in Neuroscience,
+ * vol. 15, p. 712667, 2021.
+ * Also: [42] D. L. Manna, A. Vicente-Sola, P. Kirkland, T. J. Bihl, and
+ * G. Di Caterina, "Time series forecasting via derivative spike encoding
+ * and bespoke loss functions for SNNs," Computers, 2024.
  */
 template <typename Backend>
 class SpikeTimeLossImpl : public Module<Backend>

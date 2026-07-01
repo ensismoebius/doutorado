@@ -1,0 +1,43 @@
+\begin{tikzpicture}[
+    startstop/.style={
+        rectangle, rounded corners=4pt, draw, fill=orange,
+        text=black, minimum width=3.0cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    proc/.style={
+        rectangle, rounded corners, draw, fill=green,
+        minimum width=5.6cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    warn/.style={
+        rectangle, rounded corners, draw, fill=red!60,
+        minimum width=5.6cm, minimum height=0.9cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    arr/.style={->, >=stealth, draw=gray, line width=1.2mm},
+    lbl/.style={font=\tiny\sffamily\bfseries, text=black},
+    node distance=0.6cm and 2.4cm
+]
+
+\node[startstop] (start) {Início};
+\node[proc, below=of start] (split)
+    {separar dados: treino / teste};
+\node[proc, below=of split] (fit)
+    {ajustar $\mu_j,\sigma_j$ \textbf{somente} com o treino};
+\node[proc, below=of fit] (applytrain)
+    {normalizar o treino com $\mu_j,\sigma_j$};
+\node[proc, below=of applytrain] (applytest)
+    {normalizar o teste com os \textbf{mesmos} $\mu_j,\sigma_j$};
+\node[startstop, below=of applytest] (stop) {Fim};
+
+\node[warn, right=of fit] (leak)
+    {Vazamento: ajustar $\mu_j,\sigma_j$ com dados de teste\\deixa estatísticas do teste vazarem para o treino};
+
+\draw[arr] (start)      -- (split);
+\draw[arr] (split)      -- (fit);
+\draw[arr] (fit)        -- (applytrain);
+\draw[arr] (applytrain) -- (applytest);
+\draw[arr] (applytest)  -- (stop);
+\draw[arr, dashed, red] (split.east) -- ++(1.0,0) |- node[lbl, pos=0.25, above]{evitar} (leak.west);
+
+\end{tikzpicture}

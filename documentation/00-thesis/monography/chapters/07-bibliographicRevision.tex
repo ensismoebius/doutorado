@@ -512,8 +512,71 @@
 			\end{figure}
 
 
+		\subsection{Normalização de Características de Entrada}
+			\label{sec:normalizacaoEntrada}
+
+			\par Não é possível somar metros com quilogramas sem antes convertê-los a uma unidade comum; uma rede neural tem o mesmo problema com características de entrada em escalas diferentes. Se uma característica varia entre $0$ e $1$ e outra entre $0$ e $10\,000$, o gradiente da segunda domina a atualização dos pesos, e a rede aprende com ela, ignorando a primeira. Reescalonar as entradas para uma faixa comparável, com média próxima de zero, remove essa assimetria e estabiliza e acelera o treinamento por gradiente \cite{lecun1998efficient}.
+
+			\par Este trabalho usa duas estratégias de normalização, uma para o áudio e outra para o EEG, porque as duas modalidades têm comportamentos estatísticos opostos, detalhados a seguir.
+
+			\par Antes de apresentar as fórmulas, definem-se os símbolos comuns às duas estratégias:
+			\begin{itemize}
+				\item $x_{i,j}$ --- valor bruto (não normalizado) na amostra/linha $i$ e característica/coluna $j$;
+				\item $x'_{i,j}$ --- valor normalizado correspondente;
+				\item $\varepsilon$ --- constante pequena de estabilidade numérica, que evita divisão por zero quando a dispersão calculada é nula (padrão $10^{-6}$).
+			\end{itemize}
+
+			\subsubsection{Normalização por característica (áudio)}
+
+				\par Em um vetor de características de áudio, cada coluna tem significado físico fixo. Como o significado da coluna não muda, sua escala também não muda de amostra para amostra: é uma propriedade da característica, não da amostra.
+
+				\par A estratégia decorrente é: medir, uma vez, a média e o desvio-padrão de cada coluna usando os dados de treino, e reutilizar essas duas constantes para normalizar qualquer amostra, de treino ou de teste. Sejam $\mu_j$ a média e $\sigma_j$ o desvio-padrão da característica (coluna) $j$, calculados sobre $M$ amostras de treino:
+
+				\begin{equation}
+					\label{eq:normAudio}
+					x'_{i,j} = \frac{x_{i,j}-\mu_j}{\sqrt{\sigma_j^2+\varepsilon}}, \qquad
+					\mu_j = \frac{1}{M}\sum_{i=1}^{M} x_{i,j}, \qquad
+					\sigma_j^2 = \frac{1}{M}\sum_{i=1}^{M}(x_{i,j}-\mu_j)^2,
+				\end{equation}
+				$\mu_j$ e $\sigma_j$ são calculados uma vez, a partir do treino, e depois reaplicados sem recálculo a qualquer amostra nova --- o porquê está na \autoref{sec:vazamentoNorm}. A técnica é conhecida na literatura de reconhecimento de fala como \textbf{normalização de média e variância no domínio cepstral} (\textit{Cepstral Mean and Variance Normalization}, CMVN), usada para tornar sistemas de reconhecimento robustos a variações de canal e ruído \cite{viikki1998cepstral}.
+
+			\subsubsection{Normalização por janela (EEG)}
+
+				\par O EEG tem o problema oposto. A amplitude de um sinal de EEG não é uma propriedade estável do canal: ela muda de sessão para sessão e de sujeito para sujeito, por impedância variável dos eletrodos, ganho diferente do amplificador e deslocamento da linha de base \cite{lotte2018review}. Duas gravações do mesmo canal, em sessões diferentes, podem ter amplitudes diferentes mesmo representando o mesmo tipo de atividade cerebral.
+
+				\par A estratégia do áudio não se aplica aqui: um par $(\mu,\sigma)$ fixo, calculado no treino, não prevê nem corrige o deslocamento de uma sessão nova. A solução inverte a lógica --- ao invés de normalizar \textbf{por coluna} usando estatísticas fixas do treino, normaliza-se \textbf{por linha} (por janela), recalculando a média e o desvio-padrão a cada janela, no momento em que ela é processada. Seja $F$ o número de pontos (características) dentro da janela $i$:
+
+				\begin{equation}
+					\label{eq:normEEG}
+					x'_{i,j} = \frac{x_{i,j}-\mu_i}{\sqrt{\sigma_i^2+\varepsilon}}, \qquad
+					\mu_i = \frac{1}{F}\sum_{j=1}^{F} x_{i,j}, \qquad
+					\sigma_i^2 = \frac{1}{F}\sum_{j=1}^{F}(x_{i,j}-\mu_i)^2,
+				\end{equation}
+				Cada janela corrige seu próprio nível DC e sua própria escala, o que torna o resultado robusto a variações entre sessões, ao custo da amplitude absoluta do sinal --- informação pouco confiável no EEG bruto \cite{lotte2018review}.
+
+			\subsubsection{Evitando vazamento de dados}
+				\label{sec:vazamentoNorm}
+
+				\par Imagine estudar para uma prova já sabendo as respostas certas: o desempenho na prova deixaria de refletir o quanto se aprendeu. É isso que acontece quando as estatísticas de normalização são calculadas usando dados que, depois, servirão para avaliar o modelo --- \textbf{vazamento de dados} (\textit{data leakage}): informação do conjunto de teste influenciando, ainda que indiretamente, o modelo treinado, o que infla as métricas de validação \cite{kaufman2012leakage}.
+
+				\par Por isso, na normalização por característica (\autoref{eq:normAudio}), $\mu_j$ e $\sigma_j$ são calculados exclusivamente com dados de treino e depois aplicados, sem reajuste, a amostras de teste. A \autoref{fig:normfitpipeline} ilustra o fluxo correto e o erro a evitar. A normalização por janela do EEG (\autoref{eq:normEEG}) está livre desse risco por construção: como nenhuma estatística global é ajustada a partir do treino, cada janela --- de treino ou de teste --- é normalizada de forma independente e idêntica.
+
+				\begin{figure}[H]
+					\centering
+					\caption[Fluxograma de ajuste/aplicação da normalização]{Fluxograma de ajuste (\textit{fit}) e aplicação (\textit{transform}) da normalização por característica: as estatísticas $\mu_j,\sigma_j$ são calculadas exclusivamente com o conjunto de treino e depois aplicadas, sem reajuste, tanto ao treino quanto ao teste. Ajustar as estatísticas usando dados de teste (caminho tracejado) causa vazamento de dados.}
+					\resizebox{0.75\linewidth}{!}{\input{images/normalizationFitTransform.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:normfitpipeline}
+				\end{figure}
+
+			\subsubsection{Exemplo numérico}
+
+				\par \textbf{Áudio (por característica).} Seja a característica $j$ observada em $M=4$ amostras de treino: $x_{\cdot,j} = [2,\ 4,\ 4,\ 6]$. Tem-se $\mu_j = (2+4+4+6)/4 = 4$ e $\sigma_j^2 = \big[(2-4)^2+(4-4)^2+(4-4)^2+(6-4)^2\big]/4 = 8/4 = 2$, logo $\sqrt{\sigma_j^2+\varepsilon}\approx 1{,}4142$. Uma amostra de teste com $x_{i,j}=5$ (nunca vista no ajuste) é normalizada com essas mesmas constantes: $x'_{i,j} = (5-4)/1{,}4142 \approx 0{,}7071$.
+
+				\par \textbf{EEG (por janela).} Seja uma janela com $F=4$ pontos: $x_{i,\cdot} = [10,\ 12,\ 14,\ 16]\,\mu V$. Tem-se $\mu_i = 13$ e $\sigma_i^2 = \big[(10-13)^2+(12-13)^2+(14-13)^2+(16-13)^2\big]/4 = 20/4 = 5$, logo $\sqrt{\sigma_i^2+\varepsilon}\approx 2{,}2361$. Cada ponto é normalizado com as estatísticas \textbf{da própria janela}: $x'_{i,1} = (10-13)/2{,}2361 \approx -1{,}3416$, e assim por diante --- se a próxima janela chegar com um deslocamento de linha de base de $+50\,\mu V$ (artefato comum entre sessões), ela recalcula sua própria $\mu_i$ e o resultado normalizado permanece na mesma escala, sem estatística herdada da janela anterior.
+
 		\subsection{Redes Neurais de Pulso (Spiking Neural Networks)}
-			
+
 			\par Redes Neurais (RNs), conforme definido aqui como \textit{uma rede multicamadas, totalmente conectada, com ou sem camadas recorrentes ou convolucionais}, exigem que todos os neurônios sejam ativados tanto na fase de \textit{feed-forward} quanto na de \textit{backpropagation}. Isso implica que cada unidade na rede deve processar alguns dados, resultando em consumo de energia \cite{10242251}.
 			
 			\par Em contrapartida o neurônio biológico dispara apenas quando um certo nível de sinais excitatórios (voltagem) se acumula acima de um limiar em seu citoplasma, permanecendo inativo quando não há sinal, portanto, esse tipo de processamento é muito eficiente em termos de consumo de energia.

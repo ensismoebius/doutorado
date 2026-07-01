@@ -22,12 +22,12 @@ In both cases, the neuron contributes nothing useful to the network's task.
 
 ## The solution: penalty for being out of range
 
-The fix is to add a soft penalty to the training loss that pushes the network-wide average firing rate toward a healthy target range — say, 5% to 30% of time steps.
+The fix is to add a soft penalty to the training loss that pushes the network-wide average firing rate toward a target band `[min_rate, max_rate]`.
 
 In plain terms:
-- **Below 5%?** Add a penalty proportional to how far below 5% you are. The gradient pushes neurons to fire more.
-- **Above 30%?** Add a penalty proportional to how far above 30% you are. The gradient pushes neurons to fire less.
-- **Between 5% and 30%?** No penalty. Let the reconstruction loss guide the network.
+- **Below `min_rate`?** Add a penalty proportional to how far below it you are. The gradient pushes neurons to fire more.
+- **Above `max_rate`?** Add a penalty proportional to how far above it you are. The gradient pushes neurons to fire less.
+- **Inside the band?** No penalty. Let the reconstruction loss guide the network.
 
 The total training loss becomes: `reconstruction_loss + λ × rate_penalty`
 
@@ -37,9 +37,12 @@ The weight λ controls how strongly the regularisation enforces the firing rate 
 
 ## Why this range?
 
-Research shows that networks with 10–30% mean firing rate achieve the best reconstruction while maintaining sparsity (and therefore energy efficiency). Below ~5%, neurons are effectively dead. Above ~80%, neurons are bursting.
+Two different numbers are involved, and they answer different questions — mixing them up is the most common source of confusion here:
 
-The bounds in this project default to: `min_rate = 0.05` (5%), `max_rate = 0.80` (80%).
+- **Guard-rail band (this project's default): 5%–80%.** `SpikeCountLossImpl` and Experiment05 both default `min_rate = 0.05`, `max_rate = 0.80`. This is a *loose* safety net: it only kicks in to stop the two pathological extremes (near-zero and near-total firing) described above. Anywhere inside 5–80% is left alone by default.
+- **Literature-recommended sweet spot: ~10–30%.** Hübotter, Lanillos, and Tomczak report that spiking autoencoders reconstruct best, while staying sparse (and therefore energy-efficient), when the mean firing rate sits in the 10–30% band — tighter than the default guard rail [Hübotter et al., 2021, arXiv:2109.11045]. Neurons firing below ~5% are effectively dead; above ~80% they're saturated/bursting, which is exactly why the default guard rail sits at those two extremes rather than at the tighter recommended band.
+
+If your goal is just to prevent dead/bursting collapse, the 5–80% default is enough. If your goal is the *best achievable reconstruction quality*, tighten `max_rate` toward 0.30 (see the Usage Example on the [technical reference page](../Spike-Rate-Regularization.md#usage-example)) — this is a deliberate, literature-motivated override of the default, not a bug.
 
 ---
 

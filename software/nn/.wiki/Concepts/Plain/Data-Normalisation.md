@@ -66,6 +66,16 @@ If you compute them from the whole dataset (including test), you introduce *data
 | Audio features | Z-score | Per feature (column-wise, fit on training) |
 | Paraconsistent input | Min-max [0, 1] | Required by the α/β algorithm |
 
+## Why EEG and audio get different treatment
+
+This isn't an arbitrary choice — it follows from how each signal actually behaves:
+
+**Audio features stay comparable across the whole dataset.** An LFCC coefficient in column 5 always means "energy in this frequency band," for every sample, every speaker, every recording. So it makes sense to compute one mean/std for that column from the training set and reuse it everywhere — that's the standard technique in speech recognition (it even has a name: Cepstral Mean and Variance Normalization).
+
+**EEG amplitude drifts between recordings.** Electrode contact, amplifier gain, and baseline voltage all shift session to session and person to person — a value of "20 µV" in one recording isn't directly comparable to "20 µV" in another. A single mean/std learned from training data wouldn't correct for a *new* session's drift. Normalizing each window against *its own* mean/std sidesteps this: every window self-corrects for whatever baseline/scale it happens to have, at the moment it's processed. The tradeoff is that absolute amplitude information gets thrown away — but in raw EEG that absolute level is mostly noise anyway, not signal.
+
+That's also why per-window EEG normalization has *no* fit step at all — there's nothing to leak, because nothing is learned from training data in the first place.
+
 ---
 
 ## See also

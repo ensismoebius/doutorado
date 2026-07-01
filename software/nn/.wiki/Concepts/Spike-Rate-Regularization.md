@@ -32,7 +32,7 @@ $$\frac{\partial L_\text{reg}}{\partial s_{i,f}} = \frac{2\lambda (\bar{\rho} - 
 
 This is zero when $\bar{\rho}$ is inside $[\rho_\text{min}, \rho_\text{max}]$, and a linear restoring force otherwise.
 
-**Recommended target range**: 5–30% mean firing rate per layer (literature reports 10–30% achieves best reconstruction with sparsity) [31].
+**Recommended target range**: 5–30% mean firing rate per layer (literature reports 10–30% achieves best reconstruction with sparsity) [31]. This is narrower than the class's own default guard rail (`min_rate=0.05`, `max_rate=0.80`, below) — the default is a loose safety net against the two pathological extremes, while 5–30% is the literature-backed target for best reconstruction quality; see the Usage Example for how to configure the tighter band.
 
 ### Synaptic Operations (SOPs) — Energy Efficiency
 
@@ -177,4 +177,4 @@ std::cout << "Mean firing rate: " << loss.last_mean_rate() << "\n";
 
 [26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023.
 
-[31] H. Le Gall et al., "Training deep spiking auto-encoders without bursting or dying neurons through regularization," arXiv:2109.11045, 2021. [Online]. Available: https://arxiv.org/abs/2109.11045
+[31] J. F. Hübotter, P. Lanillos, and J. M. Tomczak, "Training deep spiking auto-encoders without bursting or dying neurons through regularization," arXiv:2109.11045, 2021. [Online]. Available: https://arxiv.org/abs/2109.11045

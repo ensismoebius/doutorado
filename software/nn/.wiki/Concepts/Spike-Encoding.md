@@ -28,6 +28,34 @@ $$t_\text{spike}(x) = T - \lfloor x \cdot T \rfloor$$
 
 For reconstruction tasks, the decoder receives the first-spike time and reconstructs the original signal.
 
+### The No-Spike Problem
+
+Latency coding represents a value as *when* a spike happens — but if the input is low enough (or the network hasn't learned to fire yet), the first-spike time is undefined: the neuron never crosses threshold within the window. $t_\text{spike}=T-\lfloor x\cdot T\rfloor$ degenerates to $t=T$ as $x\to 0$, so this is the natural limiting case of the encoding, not a corner case that can be designed away [32].
+
+`SpikeTimeLoss` (`include/layers/losses/SpikeTimeLoss.hpp`) resolves this by definition rather than by special-casing it:
+
+```cpp
+// first_spike_times(): for each (batch, feature) pair
+float fst = static_cast<float>(T);      // default: no spike -> penalty = T
+for (int t = 0; t < T; ++t)
+    if (spikes.at(t * B + b, f) > 0.5f) { fst = static_cast<float>(t); break; }
+```
+
+A never-firing unit is scored as if it had fired at the last possible step ($t=T$). This keeps the MSE term finite — an undefined time would otherwise force a NaN or an arbitrary infinite penalty — but it also means "never fires" and "fires at the very last step" are indistinguishable to the loss. If that distinction matters for a given task, $T$ needs to be tuned so the two cases are close enough in practice not to matter, or the loss needs to be replaced.
+
+**A sharper consequence shows up in the backward pass**, and it is not just a "smaller penalty" — it is a dead end for gradient flow:
+
+```cpp
+// backward(): gradient is placed at the *predicted* spike's time index
+int t = static_cast<int>(pt);           // pt = predicted first-spike time
+if (t < T)                               // only assign gradient at the actual spike time
+    grad.at(t * B + b, f) = g;
+```
+
+The straight-through estimator needs an actual spike position to know *where* in the `(T·B, F)` tensor to place the gradient. When the predicted output never fires, `pt == T`, the condition `t < T` is false, and **no gradient is written for that unit at all** — regardless of what the target wanted. This is structurally the same failure mode as the tdBN [No-Spike Problem](Threshold-Dependent-Batch-Normalization.md#the-no-spike-problem) (silence → no gradient → permanently silent), but it arises here from how the loss's straight-through estimator indexes into the spike tensor, not from the surrogate gradient of the LIF neuron itself. In practice this means a latency-coded output unit that goes silent early in training cannot recover through `SpikeTimeLoss` alone — pairing it with [Spike-Rate Regularization](Spike-Rate-Regularization.md) (which supplies a non-zero gradient purely from the mean firing rate, independent of any single spike's position) or with tdBN upstream is what actually breaks the deadlock.
+
+Comşa et al. use exactly this finite-penalty-at-$T$ convention for temporal-coded spiking autoencoders [32]. Manna et al. treat the same underlying issue — training a latency/derivative-coded SNN to reliably produce a spike where one is expected — as a first-class design problem and propose loss functions purpose-built for spike prediction rather than reusing an MSE-on-time proxy [42]; if the plain $t=T$ penalty above proves insufficient for a given experiment, that is the natural next reference to consult.
+
 ### Derivative Spike Encoding
 
 For time-series data, spikes can encode the **derivative** of the signal rather than its absolute value [42]:
@@ -158,7 +186,7 @@ flowchart TB
 
 ## Common Pitfalls
 
-1. **No-spike penalty**: When a neuron never spikes, `SpikeTimeLoss` assigns time $T$ (the window length) as a finite penalty.  This avoids NaN but may underestimate the true cost of silence — tune $T$ to control the penalty magnitude.
+1. **No-spike penalty**: see [The No-Spike Problem](#the-no-spike-problem) above — a never-firing predicted unit gets zero gradient from `SpikeTimeLoss`, not just a smaller one.
 
 2. **Rate coding with few time steps**: Statistical averaging requires $T \gg 1$ for reliable rate estimation.  For $T \leq 4$, consider latency coding instead.
 
@@ -179,6 +207,6 @@ flowchart TB
 
 ## References
 
-[32] S. Comsa et al., "Spiking autoencoders with temporal coding," *Frontiers in Neuroscience*, vol. 15, p. 712667, 2021. [Online]. Available: https://www.frontiersin.org/articles/10.3389/fnins.2021.712667/full
+[32] I.-M. Comşa, L. Versari, T. Fischbacher, and J. Alakuijala, "Spiking autoencoders with temporal coding," *Frontiers in Neuroscience*, vol. 15, p. 712667, 2021. [Online]. Available: https://www.frontiersin.org/articles/10.3389/fnins.2021.712667/full
 
-[42] H. Yang et al., "Time series forecasting via derivative spike encoding and bespoke loss functions for spiking neural networks," *Computers*, vol. 13, no. 8, p. 202, 2024. [Online]. Available: https://www.mdpi.com/2073-431X/13/8/202
+[42] D. L. Manna, A. Vicente-Sola, P. Kirkland, T. J. Bihl, and G. Di Caterina, "Time series forecasting via derivative spike encoding and bespoke loss functions for spiking neural networks," *Computers*, vol. 13, no. 8, p. 202, 2024. [Online]. Available: https://www.mdpi.com/2073-431X/13/8/202

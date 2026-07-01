@@ -1,4 +1,4 @@
-# Adiadas / rejeitadas
+# Adiadas / rejeitadas / Aprofundar
 7. Página 17: Incluir passo a passo do cálculo das transformadas wavelet packet. (nem fodendo)
 8. Página 18: Listar outras técnicas além da engenharia paraconsistente para consistência de características. (por enquanto não)
 24. Página 31: Verificar consistência entre as equações do LIF e o código utilizado.
@@ -11,6 +11,9 @@
 49. Avaliar arquiteturas compactas de autoencoders para Raspberry Pi.
 51. Avaliar opcionalmente diferentes algoritmos de otimização.
 53. Revisar sistematicamente e enriquecer a Wiki do projeto.
+56. Avaliar comparativamente diferentes arquiteturas de autoencoders utilizando Engenharia Paraconsistente de Características.
+57. Verificar e fundamentar a afirmação sobre taxas de aprendizado para parâmetros biofísicos em SNNs.
+58. Fundamentar a tabela de associação entre codificações e funções de perda.
 
 # Observações e Correções Fornecidas pelo Usuário
 
@@ -57,15 +60,8 @@
 50. Criar seção sobre inicialização de pesos em redes neurais.  ok
 52. Padronizar a apresentação de variáveis antes das equações. ok
 55. Demonstrar passo a passo a derivação das expressões matemáticas.ok
-
-Pag 20 se tornou 24
-Figura 14 virou 18
-
-54. Incluir exemplos numéricos completos.
-56. Avaliar comparativamente diferentes arquiteturas de autoencoders utilizando Engenharia Paraconsistente de Características.
-57. Verificar e fundamentar a afirmação sobre taxas de aprendizado para parâmetros biofísicos em SNNs.
-58. Fundamentar a tabela de associação entre codificações e funções de perda.
-59. Fundamentar teoricamente as estratégias de normalização utilizadas no projeto.
-60. Expandir e fundamentar a seção “The No Spike Problem”.
-61. Fundamentar e referenciar adequadamente a seção “Why this range”.
-62. Expandir e fundamentar a seção “Profile Guided Optimization (PGO)”.
+54. Incluir exemplos numéricos completos.ok
+62. Expandir e fundamentar a seção “Profile Guided Optimization (PGO)”.ok
+61. Fundamentar e referenciar adequadamente a seção “Why this range”. ok
+60. Expandir e fundamentar a seção “The no-spike problem”.ok
+59. Fundamentar teoricamente as estratégias de normalização utilizadas no projeto.ok
