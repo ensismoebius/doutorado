@@ -1,0 +1,24 @@
+\begin{tikzpicture}[font=\small]
+    % eixos
+    \draw[->] (-4.2,0) -- (4.2,0) node[right] {$W_{ij}$};
+    \draw[->] (0,-0.15) -- (0,2.4) node[above] {densidade};
+
+    % densidade uniforme: caixa entre -l e +l com altura 1/(2l)
+    \def\lft{-3.0}
+    \def\rgt{3.0}
+    \def\hgt{1.8}
+    \draw[very thick, blue!70, fill=blue!8]
+        (\lft,0) -- (\lft,\hgt) -- (\rgt,\hgt) -- (\rgt,0);
+    % linhas tracejadas nas bordas
+    \draw[dashed] (\lft,0) -- (\lft,\hgt);
+    \draw[dashed] (\rgt,0) -- (\rgt,\hgt);
+    \draw[dashed] (0,\hgt) -- (\rgt,\hgt);
+
+    % rotulos
+    \node[below] at (\lft,0) {$-\ell$};
+    \node[below] at (\rgt,0) {$+\ell$};
+    \node[below] at (0,0) {$0$};
+    \node[left]  at (0,\hgt) {$\dfrac{1}{2\ell}$};
+    \node[align=center, font=\scriptsize] at (0,-0.9)
+        {$\ell = \sqrt{6/n_{in}}$ \; (ex.: $n_{in}=64 \Rightarrow \ell \approx 0{,}306$)};
+\end{tikzpicture}

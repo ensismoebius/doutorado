@@ -1,0 +1,19 @@
+\begin{lstlisting}[language=C, caption={Inicialização de He/Kaiming uniforme de uma camada, com gerador semeado para reprodutibilidade.}, label={lst:kaiming}]
+/* n_in   : numero de entradas do neuronio (fan-in)   */
+/* n_out  : numero de neuronios da camada             */
+/* semente: valor fixo -> mesmos pesos a cada execucao */
+void inicializa_kaiming(float W[n_out][n_in], float b[n_out],
+                        int n_in, int n_out, unsigned int semente)
+{
+    float limite = sqrtf(6.0f / (float) n_in); /* l = raiz(6 / n_in) */
+    semeia_gerador(semente);                    /* torna o sorteio determinista */
+
+    for (int i = 0; i < n_out; i++) {
+        for (int j = 0; j < n_in; j++) {
+            float u = sorteia_uniforme_0_1();   /* u em [0, 1)          */
+            W[i][j] = -limite + 2.0f * limite * u; /* u em [-l, +l]     */
+        }
+        b[i] = 0.0f;                            /* vies comeca em zero  */
+    }
+}
+\end{lstlisting}

@@ -1870,6 +1870,37 @@ TEST(SimpleResNetTest, TrainModeToggle)
     EXPECT_EQ(out.cols(), static_cast<size_t>(O));
 }
 
+// Seeded init is reproducible: same seed → identical weights; different seed →
+// different weights (guards the E05 rnn-path determinism fix).
+TEST(SimpleResNetTest, SeededInitIsDeterministic)
+{
+    const int D = 4, H = 5, O = 3, depth = 2;
+    SimpleResNetImpl<Backend> a(D, H, O, depth, /*seed=*/123U);
+    SimpleResNetImpl<Backend> b(D, H, O, depth, /*seed=*/123U);
+    SimpleResNetImpl<Backend> c(D, H, O, depth, /*seed=*/456U);
+
+    const auto sa = a.state_dict();
+    const auto sb = b.state_dict();
+    const auto sc = c.state_dict();
+    ASSERT_FALSE(sa.empty());
+
+    bool any_diff_same_seed = false;
+    bool any_diff_other_seed = false;
+    for (const auto& [key, ta] : sa)
+    {
+        const Tensor& tb = sb.at(key);
+        const Tensor& tc = sc.at(key);
+        for (size_t r = 0; r < ta.rows(); ++r)
+            for (size_t col = 0; col < ta.cols(); ++col)
+            {
+                if (ta.at(r, col) != tb.at(r, col)) any_diff_same_seed = true;
+                if (ta.at(r, col) != tc.at(r, col)) any_diff_other_seed = true;
+            }
+    }
+    EXPECT_FALSE(any_diff_same_seed); // same seed → bitwise-identical weights
+    EXPECT_TRUE(any_diff_other_seed); // different seed → different weights
+}
+
 // LSTMLayer: wrong input dimension throws (LSTMLayer.hpp lines 137-138)
 TEST(LSTMLayerTest, ForwardThrowsOnInputDimMismatch)
 {

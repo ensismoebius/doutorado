@@ -56,32 +56,25 @@ public:
 
 ```cpp
 // File: include/initializers/kaiming_snn.hpp
-class KaimingSNNInitializer
+// Free function that initializes a Linear layer in place with He-uniform weights
+// (limit ℓ = sqrt(6/fan_in), W ~ U(-ℓ,+ℓ)) and zero bias.
+template <typename Backend>
+void kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
+                           std::optional<unsigned int> seed = std::nullopt,
+                           const std::string& sampler_default_type = "")
 {
-public:
-    static void initialize(Tensor& weights, float leak_rate = 0.0f,
-                     unsigned int seed = std::random_device{}())
-    {
-        auto [fan_in, fan_out] = get_fan(weights);
-
-        float std = std::sqrt(2.0f / fan_in);
-        if (leak_rate > 0.0f)
-        {
-            std /= std::sqrt(1.0f - leak_rate * leak_rate);
-        }
-
-        std::mt19937 gen(seed);
-        std::normal_distribution<float> dist(0.0f, std);
-
-        for (size_t i = 0; i < weights.rows(); ++i)
-        {
-            for (size_t j = 0; j < weights.cols(); ++j)
-            {
-                weights.at(i, j) = dist(gen);
-            }
-        }
-    }
-};
+    const float limit = std::sqrt(6.0f / layer->in_features);
+    std::mt19937 gen;
+    if (seed.has_value())
+        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    else
+        gen.seed(std::random_device{}());                    // NON-deterministic
+    layer->weight = Tensor::rand(out, in, gen) * (2*limit) - limit;
+    layer->bias.fill(0.0f);
+}
+// Pass `seed` for reproducible experiments; omit it for the historical
+// random_device behavior. `SimpleResNetImpl` and `E05DsnnClassifier` both thread
+// the experiment seed through so E05 runs are deterministic.
 ```
 
 ## Data Flow

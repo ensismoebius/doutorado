@@ -8,6 +8,7 @@
 #ifndef NN_LAYERS_SIMPLERESNET_HPP
 #define NN_LAYERS_SIMPLERESNET_HPP
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "initializers/kaiming_snn.hpp"
@@ -33,7 +34,12 @@ class SimpleResNetImpl : public Module<Backend>
 {
    public:
     using Tensor = typename Module<Backend>::Tensor;
-    SimpleResNetImpl(int input_dim, int hidden_dim, int output_dim, int depth = 3)
+    // `seed`: when set, every Linear layer is Kaiming-initialized deterministically
+    // (each with a distinct per-layer offset of the base seed) so runs are
+    // reproducible. When nullopt (default), the initializer seeds itself from
+    // std::random_device, preserving the original non-deterministic behavior.
+    SimpleResNetImpl(int input_dim, int hidden_dim, int output_dim, int depth = 3,
+        std::optional<unsigned int> seed = std::nullopt)
     {
         // Build model: input -> Linear -> ReLU -> ResidualBlocks -> Linear(output)
         auto fc_in = std::make_shared<LinearImpl<Backend>>(input_dim, hidden_dim);
@@ -51,15 +57,23 @@ class SimpleResNetImpl : public Module<Backend>
 
         model_ = std::make_unique<SequentialImpl<Backend>>(layers_);
 
+        // Per-layer seed = base seed + offset (nullopt → non-deterministic).
+        auto layer_seed = [&seed](unsigned int offset) -> std::optional<unsigned int>
+        {
+            return seed.has_value() ? std::optional<unsigned int>(*seed + offset) : std::nullopt;
+        };
+
         // Initialize weights
-        kaimingSNNInitializer(fc_in);
-        kaimingSNNInitializer(fc_out);
+        kaimingSNNInitializer(fc_in, layer_seed(1U), "simple_resnet");
+        kaimingSNNInitializer(fc_out, layer_seed(2U), "simple_resnet");
+        unsigned int block = 0;
         for (auto& layer : layers_)
         {
             if (auto rb = std::dynamic_pointer_cast<ResidualBlockImpl<Backend>>(layer))
             {
-                kaimingSNNInitializer(rb->fc1);
-                kaimingSNNInitializer(rb->fc2);
+                kaimingSNNInitializer(rb->fc1, layer_seed(100U + 2U * block), "simple_resnet");
+                kaimingSNNInitializer(rb->fc2, layer_seed(101U + 2U * block), "simple_resnet");
+                ++block;
             }
         }
     }

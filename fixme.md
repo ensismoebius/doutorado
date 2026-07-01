@@ -7,6 +7,9 @@
 40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.
 42. Criar tabela comparativa entre métodos manuais, automatizados, escalas e wavelets.
 47. Criar seção específica para Threshold-Dependent Batch Normalization (TDBN). ok (ESTUDAR!!!)
+48. Revisar toda a monografia/Wiki para garantir que toda variável seja explicitamente definida.
+49. Avaliar arquiteturas compactas de autoencoders para Raspberry Pi.
+51. Avaliar opcionalmente diferentes algoritmos de otimização.
 
 # Observações e Correções Fornecidas pelo Usuário
 
@@ -50,14 +53,11 @@
 44. Expandir regularização para incluir L1, L2 e Ω. (Apenas L2) ok
 45. Decidir se os modelos usarão regularização e justificar a escolha. ok
 46. Criar subseção específica para BPTT aplicado a SNNs. ok
+50. Criar seção sobre inicialização de pesos em redes neurais.  ok
 
 Pag 20 se tornou 24
 Figura 14 virou 18
 
-48. Revisar toda a monografia/Wiki para garantir que toda variável seja explicitamente definida.
-49. Avaliar arquiteturas compactas de autoencoders para Raspberry Pi.
-50. Criar seção sobre inicialização de pesos em redes neurais.
-51. Avaliar opcionalmente diferentes algoritmos de otimização.
 52. Padronizar a apresentação de variáveis antes das equações.
 53. Revisar sistematicamente e enriquecer a Wiki do projeto.
 54. Incluir exemplos numéricos completos.

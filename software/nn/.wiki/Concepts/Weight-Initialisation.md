@@ -23,16 +23,15 @@ This maintains variance of activations and gradients across layers.
 
 ### Kaiming/He Initialization [4]
 
-Designed for ReLU and variants. Weights sampled from:
+Designed for ReLU-like and spiking activations. This project uses the **He-uniform**
+form: each weight is drawn from a uniform distribution and biases start at zero,
 
-$$W \sim \mathcal{N}(0, \frac{2}{n_{in}})$$
+$$\ell = \sqrt{\frac{6}{n_{in}}}, \qquad W_{ij} \sim \mathcal{U}(-\ell, +\ell), \qquad b = 0,$$
 
-The factor of 2 accounts for the fact that ReLU zeros half the values.
-
-For SNN LIF neurons:
-$$W \sim \mathcal{N}\left(0, \frac{1}{1 - \alpha^2}\right)$$
-
-Where $\alpha$ is the leak rate.
+where $n_{in}$ is the fan-in (number of inputs per neuron). The uniform on $[-\ell,\ell]$
+has variance $\ell^2/3 = 2/n_{in}$ — the He target that keeps activation variance stable
+across depth when the nonlinearity discards ~half the signal (ReLU, or the spike
+threshold). Larger fan-in → narrower interval, preventing large summed currents.
 
 ## How It Is Implemented Here
 
@@ -64,35 +63,38 @@ public:
 
 ### Kaiming Initialization
 
+The actual API is a free function (not a class) that initializes a `Linear` layer in
+place with He-uniform weights and zero bias:
+
 ```cpp
 // File: include/initializers/kaiming_snn.hpp
-class KaimingSNNInitializer
+template <typename Backend>
+void kaimingSNNInitializer(const std::shared_ptr<LinearImpl<Backend>>& layer,
+                           std::optional<unsigned int> seed = std::nullopt,
+                           const std::string& sampler_default_type = "")
 {
-public:
-    static void initialize(Tensor& weights, float leak_rate = 0.0f, unsigned int seed = std::random_device{}())
-    {
-        auto [fan_in, fan_out] = get_fan(weights);
-
-        // For Lif: std = sqrt(2 / fan_in) / sqrt(1 - leak²)
-        float std = std::sqrt(2.0f / fan_in);
-        if (leak_rate > 0.0f)
-        {
-            std /= std::sqrt(1.0f - leak_rate * leak_rate);
-        }
-
-        std::mt19937 gen(seed);
-        std::normal_distribution<float> dist(0.0f, std);
-
-        for (size_t i = 0; i < weights.rows(); ++i)
-        {
-            for (size_t j = 0; j < weights.cols(); ++j)
-            {
-                weights.at(i, j) = dist(gen);
-            }
-        }
-    }
-};
+    const float limit = std::sqrt(6.0f / layer->in_features);  // ℓ = sqrt(6 / fan_in)
+    std::mt19937 gen;
+    if (seed.has_value())
+        gen.seed(*seed ^ mix(sampler_default_type, *seed)); // deterministic
+    else
+        gen.seed(std::random_device{}());                    // NON-deterministic
+    layer->weight = Tensor::rand(out, in, gen) * (2*limit) - limit; // U(-ℓ, +ℓ)
+    layer->bias.fill(0.0f);
+}
 ```
+
+**Determinism.** When `seed` is omitted (`std::nullopt`), the generator is seeded from
+`std::random_device` — weights differ every run. Pass a seed for reproducible
+experiments. The `sampler_default_type` string is mixed into the seed so that layers
+sharing one base seed still get distinct-but-deterministic weights.
+
+**Experiment 05 usage.** Both classifiers thread the experiment seed into init:
+- **DSNN** (`E05DsnnClassifier`): each `Linear` seeded with `seed+1`, `seed+2`, `seed+100+i`.
+- **RNN** (`SimpleResNetImpl`): its constructor takes an optional `seed`; E05 passes
+  `cfg.experiment.seed`, so each Linear (input, output, residual `fc1`/`fc2`) is seeded
+  with a distinct offset. Without a seed the ResNet falls back to `random_device`
+  (the historical, non-reproducible behavior).
 
 ## Data Flow
 

@@ -864,6 +864,55 @@
 
 				\par \textbf{Limitações.} Um único par escala/deslocamento por canal é menos expressivo do que esquemas que atribuem parâmetros distintos a cada passo de tempo; para valores muito pequenos de $T$, a TEBN \cite{duan2022tebn} pode superá-la. A tdBN também pressupõe uma população de lote e tempo suficientemente grande para estimativas estáveis de média e variância. Variantes posteriores, como a MPBN \cite{guo2023mpbn}, normalizam o potencial de membrana após a sua atualização, antes da função de disparo.
 
+			\subsubsection{Inicialização de Pesos}
+				\label{sec:init}
+
+				\par Antes do treinamento, os pesos de cada camada precisam receber valores iniciais. Essa escolha não é um detalhe: se os pesos começam grandes demais, os sinais crescem a cada camada até saturar (explosão); se começam pequenos demais, os sinais encolhem até desaparecer (desvanecimento). Em ambos os casos o gradiente também degenera e a rede não aprende \cite{glorot2010understanding}. Uma boa inicialização mantém a variância do sinal aproximadamente constante ao longo da profundidade.
+
+				\par Antes de apresentar a fórmula, definem-se os símbolos utilizados:
+				\begin{itemize}
+					\item $W$ --- matriz de pesos de uma camada, com elemento $W_{ij}$;
+					\item $n_{in}$ --- número de entradas de cada neurônio (o \textit{fan-in}, isto é, o número de colunas de $W$);
+					\item $\mathcal{U}(a,b)$ --- distribuição uniforme contínua no intervalo $[a,b]$, da qual cada peso é sorteado;
+					\item $\ell$ --- o limite que delimita esse intervalo;
+					\item $b$ --- o vetor de vieses (\textit{bias}) da camada.
+				\end{itemize}
+
+				\par Este trabalho utiliza a inicialização de \textbf{He} (também chamada de \textbf{Kaiming}), na sua forma uniforme, indicada para ativações do tipo retificadora e para os neurônios de pulso \cite{he2015delving}. Cada peso é sorteado de forma independente e os vieses começam em zero:
+
+				\begin{equation}
+					\label{eq:kaiming}
+					\ell = \sqrt{\frac{6}{n_{in}}}, \qquad
+					W_{ij} \sim \mathcal{U}(-\ell,\,+\ell), \qquad
+					b = 0.
+				\end{equation}
+
+				\par A escolha de $\ell = \sqrt{6/n_{in}}$ não é arbitrária. Para a distribuição uniforme em $[-\ell,\ell]$, a variância de cada peso é $\ell^2/3 = 2/n_{in}$. Esse valor é justamente o que \cite{he2015delving} demonstram manter a variância das ativações estável entre camadas quando a não-linearidade descarta cerca de metade dos sinais (como o retificador ou o disparo do neurônio). Assim, quanto mais entradas um neurônio possui (maior $n_{in}$), menor o intervalo de sorteio --- evitando que a soma de muitas entradas cresça sem controle.
+
+				\par \textbf{Exemplo numérico.} Para uma camada com $n_{in}=64$ entradas, tem-se $\ell = \sqrt{6/64} = \sqrt{0{,}09375} \approx 0{,}306$. Portanto cada peso é sorteado uniformemente no intervalo $[-0{,}306,\ +0{,}306]$, como ilustra a \autoref{fig:kaimingdist}, e todos os vieses iniciam em $0$.
+
+				\begin{figure}[h]
+					\centering
+					\caption[Distribuição dos pesos na inicialização de He/Kaiming]{Distribuição uniforme dos pesos na inicialização de He/Kaiming: cada peso é igualmente provável dentro de $[-\ell,+\ell]$, com $\ell=\sqrt{6/n_{in}}$, e densidade constante igual a $1/(2\ell)$.}
+					\resizebox{0.6\linewidth}{!}{\input{images/kaimingDistribution.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:kaimingdist}
+				\end{figure}
+
+				\par \textbf{Reprodutibilidade.} O sorteio dos pesos usa um gerador de números pseudoaleatórios. Se esse gerador for iniciado a partir de uma \textbf{semente} fixa, a mesma sequência de pesos é obtida a cada execução, tornando os experimentos reprodutíveis. Neste trabalho, ambos os classificadores --- a rede residual e a Rede Neural de Pulso --- semeiam o gerador com a semente do experimento, de modo que uma mesma configuração produz sempre os mesmos pesos iniciais. O \autoref{lst:kaiming} descreve o procedimento em C simplificado, e a \autoref{fig:kaimingflux} apresenta o mesmo procedimento como fluxograma.
+
+				\input{listings/kaimingInit.c.tex}
+
+				\begin{figure}[h]
+					\centering
+					\caption[Fluxograma da inicialização de He/Kaiming]{Fluxograma da inicialização de He/Kaiming: calcula-se o limite $\ell$, semeia-se o gerador, percorrem-se todos os pesos sorteando cada um em $[-\ell,+\ell]$ e, ao final, zeram-se os vieses.}
+					\resizebox{0.55\linewidth}{!}{\input{images/kaimingInitFluxogram.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:kaimingflux}
+				\end{figure}
+
+				\par Vale registrar que a inicialização de He é uma evolução da inicialização de \textbf{Xavier} (ou Glorot), que usa $\ell = \sqrt{6/(n_{in}+n_{out})}$ e foi concebida para ativações simétricas como a tangente hiperbólica \cite{glorot2010understanding}. A forma de He ajusta o fator para não-linearidades retificadoras, sendo por isso a mais adequada às redes deste trabalho.
+
 		\subsection{\textit{Autoencoders}}
 		
 			\par Como ilustrado na  \autoref{fig:autoencoder} \textit{autoencoders} são redes neurais treinadas para reconstruir seus dados de entrada. Elas consistem respectivamente em: Uma função codificadora $f(x)$ que gera um estado $h$, denotada como $h = f(x)$ e uma função decodificadora $g(x)$ que produz uma reconstrução $r$, denotada como $r = g(h)$. O estado $h$ representa um \textbf{código}, uma representação da entrada que pode ser comprimida ou não  \cite{Goodfellow-et-al-2016}. Tais funções se traduzem em camadas como ilustrado na  \autoref{fig:autoencoder2} cujos neurônios são todos unidades ativas com ou sem funções de ativação. É importante destacar que um \textit{autoencoder} pode ser tão raso como o mostrado na \autoref{fig:autoencoder}.

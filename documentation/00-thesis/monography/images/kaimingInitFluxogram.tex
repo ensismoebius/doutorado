@@ -1,0 +1,55 @@
+\begin{tikzpicture}[
+    startstop/.style={
+        rectangle, rounded corners=4pt, draw, fill=orange,
+        text=black, minimum width=3.0cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    proc/.style={
+        rectangle, rounded corners, draw, fill=green,
+        minimum width=6.0cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    dec/.style={
+        diamond, draw, fill=yellow, text=black, aspect=3,
+        minimum height=0.8cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    arr/.style={->, >=stealth, draw=gray, line width=1.2mm},
+    lbl/.style={font=\tiny\sffamily\bfseries, text=black},
+    node distance=0.6cm and 2.2cm
+]
+
+\node[startstop] (start) {Início};
+\node[proc, below=of start] (limit)
+    {$\ell \leftarrow \sqrt{6 / n_{in}}$};
+\node[proc, below=of limit] (seed)
+    {semeia o gerador (semente fixa)};
+\node[proc, below=of seed] (initIndex)
+    {$i \leftarrow 0,\quad j \leftarrow 0$};
+\node[dec, below=of initIndex] (checkAll)
+    {resta peso?};
+\node[proc, below=of checkAll] (sample)
+    {$u \leftarrow \mathcal{U}(0,1)$};
+\node[proc, below=of sample] (scale)
+    {$W_{ij} \leftarrow -\ell + 2\ell\,u$};
+\node[proc, below=of scale] (nextIndex)
+    {avança para o próximo $(i,j)$};
+
+\node[proc, right=of checkAll] (bias)
+    {$b_i \leftarrow 0$ para todo $i$};
+\node[startstop, below=of bias] (stop) {Fim};
+
+\draw[arr] (start)      -- (limit);
+\draw[arr] (limit)      -- (seed);
+\draw[arr] (seed)       -- (initIndex);
+\draw[arr] (initIndex)  -- (checkAll);
+\draw[arr] (checkAll)   -- node[lbl, left]{Sim} (sample);
+\draw[arr] (sample)     -- (scale);
+\draw[arr] (scale)      -- (nextIndex);
+%% loop-back a esquerda
+\draw[arr] (nextIndex.west) -- ++(-1.2,0) |- (checkAll.west);
+%% saida do loop: Nao -> zera vieses -> Fim
+\draw[arr] (checkAll.east) -- node[lbl, pos=0.15, above]{Não} (bias.west);
+\draw[arr] (bias)       -- (stop);
+
+\end{tikzpicture}

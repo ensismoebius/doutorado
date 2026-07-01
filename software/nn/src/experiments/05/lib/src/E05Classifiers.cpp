@@ -550,8 +550,9 @@ auto with_classifier(const FoldContext& ctx, Fn&& fn)
 {
     if (ctx.cfg.classifier.type == "rnn")
     {
+        // Seed the Kaiming init so the ResNet is reproducible like the dsnn path.
         SimpleResNetImpl<nn::Backend> model(
-            ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth);
+            ctx.feat_dim, ctx.hidden_dim, ctx.n_speakers, ctx.depth, ctx.cfg.experiment.seed);
         return fn(model);
     }
     E05DsnnClassifier model(
