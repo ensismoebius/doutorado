@@ -14,3 +14,11 @@
 56. Avaliar comparativamente diferentes arquiteturas de autoencoders utilizando Engenharia Paraconsistente de Características.
 57. Verificar e fundamentar a afirmação sobre taxas de aprendizado para parâmetros biofísicos em SNNs.
 58. Fundamentar a tabela de associação entre codificações e funções de perda.
+
+# Contradições wiki x código
+
+C12. Wiki (`Experiment05.md`:134,390) diz que `modality=fused` concatena os vetores de características de voz+EEG. Código (`E05FeatureExtraction.cpp::signal_for_modality`, ramo `else // "fused"`) na verdade escolhe áudio se presente, senão EEG — um único sinal, sem concatenação. Não é fusão precoce (fundir sinal bruto antes do autoencoder/handcrafted) nem fusão tardia (concatenar vetores de características depois) — nenhuma fusão ocorre hoje.
+Action: 
+(a) implementar fusão tardia real
+(b) implementar fusão precoce
+(c) a distinção fusão-precoce-vs-tardia deve ser discutida na tese/wiki como eixo experimental

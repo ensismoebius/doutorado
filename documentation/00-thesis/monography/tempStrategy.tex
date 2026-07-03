@@ -1,0 +1,248 @@
+% tempStrategy.tex — Experiment05 pipeline axes/combinations dump (scratch, not \input anywhere)
+
+Modality (\texttt{dataset.modality}):
+\begin{itemize}
+    \item \texttt{voice} --- audio only
+    \item \texttt{eeg} --- EEG only
+    \item \texttt{fused} --- voice+EEG feature vectors concatenated (not a third recorded signal)
+\end{itemize}
+
+Feature-extraction strategy (\texttt{feature\_extraction.strategy}):
+\begin{itemize}
+    \item \texttt{handcrafted} --- DTWPT + descriptors
+    \item \texttt{autoencoder} --- currently only \texttt{lstm-ae} implemented (Guayaquil paper only). Thesis targets add SNN-AE, ANN-AE (not yet wired as values)
+\end{itemize}
+
+Handcrafted scale (\texttt{handcrafted.scale}, only if strategy=handcrafted):
+\begin{itemize}
+    \item \texttt{bark}
+    \item \texttt{mel}
+    \item \texttt{lfcc}
+\end{itemize}
+
+Handcrafted descriptors (\texttt{handcrafted.descriptors}, list, any subset):
+energy, zcr, entropy, teager, jitter, shimmer
+
+Classifier:
+\begin{itemize}
+    \item RNN (Residual Neural Network, non-spiking) --- Guayaquil paper only
+    \item DSNN (Deep residual Spiking NN) --- thesis only
+\end{itemize}
+
+Eval mode:
+\begin{itemize}
+    \item text-dependent
+    \item text-independent (primary contribution mode)
+\end{itemize}
+
+CV scheme (\texttt{training.nested\_cv}):
+\begin{itemize}
+    \item \texttt{true} $\to$ nested 5-fold (outer test / inner model selection)
+    \item \texttt{false} $\to$ flat grouped 5-fold
+\end{itemize}
+
+Optional regularization/normalization toggles (independent, all off by default):
+\begin{itemize}
+    \item weight\_decay (L2, AdamW-style)
+    \item firing\_rate\_reg\_lambda (DSNN only)
+    \item batch\_normalization = "threshold-dependent" (DSNN only)
+\end{itemize}
+
+Existing shipped profiles (modality $\times$ strategy, 6 total):
+handcrafted-eeg, handcrafted-voice, handcrafted-fused, autoencoder-eeg, autoencoder-voice, autoencoder-fused (+ debug, article-full)
+
+Full combinatorial space (handcrafted): 3 modality $\times$ 3 scale = 9 base combos $\times$ classifier(2) $\times$ eval mode(2) $\times$ CV(2) = 72.
+Autoencoder branch: 3 modality $\times$ classifier(2) $\times$ eval(2) $\times$ CV(2) = 24 (only lstm-ae value works today; SNN-AE/ANN-AE thesis-planned, not implemented).
+
+% ============================================================
+\section*{Thesis experimental grid --- what to actually test (2 phases)}
+% Grounded in chapters/08-proposedApproach.tex (secs. estruturaDaEstrategiaProposta, Métricas)
+% and chapters/06-Introduction.tex (Questão 4 --- text-dependent/independent).
+
+\subsection*{Phase 00 --- Feature-vector construction (best vector per signal, via paraconsistent EPC)}
+
+Goal: for \textbf{voice} and for \textbf{EEG} separately, find the feature-extraction method that
+maximizes paraconsistent separability ($D_{\text{truth}}$ minimal), before any classifier sees the data
+(ch08 \S estruturaDaEstrategiaProposta).
+
+Candidates per signal (voice, EEG each get their own ranking --- fused vectors are built \emph{after}
+this phase, by concatenating each side's winning vector):
+\begin{itemize}
+    \item \textbf{Handcrafted}, 6 spectral variants from DTWT band-energy grouping:
+    \begin{itemize}
+        \item Categoria 1 (energy only): Linear-band, Mel-band, Bark-band energies
+        \item Categoria 2 (+log +DCT): LFCC, MFCC, BFCC
+    \end{itemize}
+    each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
+    \item \textbf{SNN-AE} (spiking autoencoder, thesis target)
+    \item \textbf{ANN-AE} (conventional/non-spiking autoencoder, thesis target)
+\end{itemize}
+
+So Phase 00 combinations $=$ 2 signals (voice, EEG) $\times$ 8 candidate extractors
+(6 handcrafted variants + SNN-AE + ANN-AE) $=$ \textbf{16 rankings}, each scored by
+$\alpha,\beta,G_1,G_2,D_{\text{truth}}$ (\autoref{sec:conceitos}). Output of this phase: one winning
+feature vector for voice, one for EEG.
+LSTM-AE excluded here --- it is the Guayaquil-paper extractor, not a thesis Phase 00 candidate
+(scope note, ch08 \S39 / wiki Experiment05.md \S72--80).
+
+\subsection*{Phase 01 --- Authentication (DSNN classification, biometric ablation)}
+
+Goal: feed Phase 00's winning vectors into the \textbf{DSNN} (deep residual spiking classifier,
+thesis-only --- the plain RNN/ResNet classifier is Guayaquil-paper-only, ch08 \S82) and measure
+biometric verification performance under 3 signal-source modes, to isolate each source's
+contribution (ch08 \S32):
+
+\begin{enumerate}
+    \item[00] \textbf{voz + EEG (fundida)} --- concatenated vectors, primary/combined condition
+    \item[01] \textbf{apenas voz (fonada)} --- ablation, voice vector only
+    \item[02] \textbf{apenas EEG (imaginada)} --- ablation, EEG vector only
+\end{enumerate}
+
+Each of these 3 modes is additionally crossed with 2 axes explicitly required by the thesis's own
+research questions / metrics section:
+
+\begin{itemize}
+    \item \textbf{text-dependent vs.\ text-independent} (ch06, Questão 4): same phrase spoken+imagined
+    vs.\ arbitrary/mismatched phrase between train and test. Tests whether extraction-method
+    performance is text-sensitive.
+    \item \textbf{CV scheme}: nested 5-fold (unbiased hyperparameter selection) vs.\ flat grouped
+    5-fold. Both are speaker-disjoint (verification protocol, ch08 \S71) --- test speakers never
+    appear in training.
+\end{itemize}
+
+So Phase 01 core grid $=$ 3 modes $\times$ 2 (dependent/independent) $\times$ 2 (nested/flat)
+$=$ \textbf{12 DSNN runs} (using each mode's already-decided winning vector from Phase 00). If instead
+all 3 Phase-00 candidate families (handcrafted-winner, SNN-AE, ANN-AE) are \emph{each} pushed through
+Phase 01 rather than only the single overall winner (worth doing, since paraconsistent ranking and
+classifier accuracy are not guaranteed to agree) $\to$ 3 modes $\times$ 3 extractor families $\times$ 2
+$\times$ 2 $=$ \textbf{36 DSNN runs}.
+
+\textbf{Primary metrics} (ch08 \S71, verification protocol): EER and AUC. Closed-set metrics
+(accuracy/F1/precision/recall/specificity) only reported if a closed-set evaluation is also run
+alongside verification --- not the main claim. MSE is reconstruction-only (autoencoder training), not
+a classification metric.
+
+\subsection*{Observations / things easy to forget}
+
+\begin{itemize}
+    \item \textbf{Paired loading invariant}: the loader always pulls both audio+EEG per trial
+    (via \texttt{eeg\_index}); the \texttt{modality} field only selects what feeds extraction. This
+    guarantees voice-only / EEG-only / fused runs share the \emph{exact same} subject/trial set ---
+    otherwise the 3-mode ablation in Phase 01 would not be a fair comparison.
+    \item \textbf{Regularization is a training-config axis, not a method-combination axis} --- but it
+    must stay fixed (or itself be swept and reported) across Phase 01 runs to keep comparisons fair:
+    decoupled L2 weight decay (AdamW-style, spares biophysical $R,C,V_{th}$) and firing-rate
+    regularization (DSNN-only, keeps spike rate in $[0.05, 0.80]$, prevents dead/saturated neurons).
+    \item \textbf{Threshold-Dependent Batch Normalization (tdBN)} --- DSNN-only, stabilizes deep
+    spiking net training; also a fixed/swept training config, not a feature-extraction combination.
+    \item \textbf{Data leakage}: normalization statistics (CMVN for audio, per-window z-score for EEG)
+    must be fit on the training fold only, then applied to test --- true for every combination in both
+    phases, re-verified in ch07 \S normalizacaoEntrada.
+    \item \textbf{Pre-emphasis} ($\alpha=0.97$) applies to audio-derived vectors only, before energy/
+    spectral computation --- relevant to every voice-involving combo in both phases (fused included).
+    \item \textbf{LSTM-AE and plain RNN/ResNet classifier are out of thesis scope} --- they exist in
+    the Experiment05 code because both papers (Guayaquil congress) share the same pipeline, but are
+    not part of either phase's combination grid above.
+\end{itemize}
+
+% ============================================================
+\section*{TODO --- implementation checklist (verified against code, 2026-07-03)}
+% Status pulled from: src/experiments/05/lib/{include,src}/E05Config.{hpp,cpp},
+% E05FeatureExtraction.cpp, E05Classifiers.cpp, and profiles/*.json.
+% [x] = implemented AND has a shipped profile exercising it
+% [~] = implemented in code but NO shipped profile uses it yet (untested end-to-end)
+% [ ] = not implemented / rejected by validate()
+
+\subsection*{Phase 00 --- feature extraction (16 combos: 2 signals $\times$ 8 candidates)}
+
+\textbf{Known code gap, applies to all handcrafted rows below}: \texttt{handcrafted.scale} only
+groups DTWPT sub-bands by frequency (linear/Bark/Mel bins) and runs the descriptor set on each
+group --- there is \emph{no} log+DCT cepstral step in \texttt{E05FeatureExtraction.cpp}. So today's
+\texttt{scale=lfcc/mel/bark} produce grouped \emph{band-energy} vectors (thesis Categoria~1), not
+true LFCC/MFCC/BFCC cepstral coefficients (thesis Categoria~2). Categoria~2 is not implemented.
+
+Voice:
+\begin{itemize}
+    \item[$\square$] Linear-band energy (Categoria 1) --- code path exists (\texttt{scale=lfcc}
+    grouping = linear), but Categoria-1-vs-2 distinction not implemented; treat as \textbf{partial}
+    \item[$\square$] Mel-band energy (Categoria 1) --- same caveat (\texttt{scale=mel})
+    \item[$\square$] Bark-band energy (Categoria 1) --- same caveat (\texttt{scale=bark})
+    \item[$\square$] LFCC (Categoria 2, +log+DCT) --- \textbf{not implemented} (no DCT/log stage in code)
+    \item[$\square$] MFCC (Categoria 2, +log+DCT) --- \textbf{not implemented}
+    \item[$\square$] BFCC (Categoria 2, +log+DCT) --- \textbf{not implemented}
+    \item[$\square$] SNN-AE --- \textbf{not implemented}; \texttt{E05Config::validate()} throws
+    unless \texttt{autoencoder.model == "lstm-ae"}
+    \item[$\square$] ANN-AE --- \textbf{not implemented}, same validate() restriction
+\end{itemize}
+
+EEG: identical 8 items, identical status (same code path, signal-agnostic):
+\begin{itemize}
+    \item[$\square$] Linear-band energy (partial) \quad
+    \item[$\square$] Mel-band energy (partial) \quad
+    \item[$\square$] Bark-band energy (partial)
+    \item[$\square$] LFCC (Categoria 2) --- not implemented \quad
+    \item[$\square$] MFCC (Categoria 2) --- not implemented \quad
+    \item[$\square$] BFCC (Categoria 2) --- not implemented
+    \item[$\square$] SNN-AE --- not implemented \quad
+    \item[$\square$] ANN-AE --- not implemented
+\end{itemize}
+
+Paraconsistent ranking itself ($\alpha,\beta,G_1,G_2,D_{\text{truth}}$): \textbf{[x] implemented},
+\texttt{E05Paraconsistent.cpp}, exercised by \texttt{e05\_profile\_audit\_gtest}.
+
+\subsection*{Phase 01 --- DSNN authentication (12--36 runs depending on grid choice)}
+
+\textbf{Major gap}: every shipped profile (\texttt{profiles/*.json}) sets
+\texttt{classifier.type = "rnn"}. \textbf{Zero} shipped profiles use \texttt{"dsnn"} --- the
+thesis-primary classifier has no end-to-end-tested profile today, even though \texttt{E05DsnnClassifier}
+itself is implemented and unit-tested (\texttt{e05\_classifiers\_gtest}, 16/16 passing).
+
+Signal-source mode $\times$ classifier:
+\begin{itemize}
+    \item[$\blacksquare$] \textbf{[x]} fused, classifier=rnn --- \texttt{profiles/handcrafted-fused.json},
+    \texttt{autoencoder-fused.json}, \texttt{article-full.json}
+    \item[$\blacksquare$] \textbf{[x]} voice-only, classifier=rnn --- \texttt{handcrafted-voice.json},
+    \texttt{autoencoder-voice.json}
+    \item[$\blacksquare$] \textbf{[x]} eeg-only, classifier=rnn --- \texttt{handcrafted-eeg.json},
+    \texttt{autoencoder-eeg.json}, \texttt{debug.json}
+    \item[$\square$] fused, classifier=\textbf{dsnn} --- code ready, \textbf{no profile}
+    \item[$\square$] voice-only, classifier=\textbf{dsnn} --- code ready, \textbf{no profile}
+    \item[$\square$] eeg-only, classifier=\textbf{dsnn} --- code ready, \textbf{no profile}
+\end{itemize}
+
+\texttt{text\_mode}:
+\begin{itemize}
+    \item[$\blacksquare$] \textbf{[x]} \texttt{independent} --- used by every shipped profile except debug
+    \item[$\blacksquare$] \textbf{[x]} \texttt{dependent} --- used only by \texttt{debug.json}
+    (not paired with a real handcrafted/autoencoder $\times$ modality profile --- only smoke-tested)
+\end{itemize}
+
+\texttt{nested\_cv}:
+\begin{itemize}
+    \item[$\blacksquare$] \textbf{[x]} \texttt{true} (nested 5-fold) --- every shipped profile
+    \item[$\square$] \texttt{false} (flat grouped 5-fold) --- code path exists
+    (\texttt{E05Config.hpp:72} default \texttt{true}, code branches on the flag), \textbf{no shipped
+    profile sets it false}
+\end{itemize}
+
+Regularization/normalization toggles (fixed-config axis, not a combination per se, but currently
+\textbf{off in every shipped profile} --- worth an explicit ablation pass once DSNN profiles exist):
+\begin{itemize}
+    \item[$\square$] \texttt{training.weight\_decay} $>0$ tested --- not in any shipped profile
+    \item[$\square$] \texttt{training.firing\_rate\_reg\_lambda} $>0$ tested --- not in any shipped
+    profile (DSNN-only, moot until a DSNN profile exists)
+    \item[$\square$] \texttt{training.batch\_normalization = "threshold-dependent"} tested --- not in
+    any shipped profile (DSNN-only, moot until a DSNN profile exists)
+\end{itemize}
+
+\subsection*{Priority order to close the gaps}
+\begin{enumerate}
+    \item Ship at least one \texttt{classifier.type=dsnn} profile per signal-source mode (3 profiles)
+    --- this is the thesis-primary classifier and currently has zero coverage.
+    \item Decide whether Categoria 1 (raw band energy) vs Categoria 2 (LFCC/MFCC/BFCC cepstral) is
+    still in scope; if yes, implement the missing log+DCT stage in \texttt{E05FeatureExtraction.cpp}.
+    \item Implement SNN-AE / ANN-AE autoencoder models (currently rejected by \texttt{validate()}) ---
+    blocks all of Phase 00's autoencoder-side combinations.
+    \item Once DSNN profiles exist, sweep \texttt{nested\_cv=false}, \texttt{text\_mode=dependent}
+    paired with real (non-debug) data, and the 3 regularization toggles.
+\end{enumerate}
