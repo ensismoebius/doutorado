@@ -28,8 +28,17 @@
 		\par Em segundo lugar, tanto os dados de voz quanto os de EEG serão submetidos a autoencoders para extração de características.
 		
 		\par As características extraídas, tanto automatizadas quanto as manualmente obtidas, servirão de entrada para uma rede neural residual profunda de pulsos, que determinará as classes de cada um dos sinais.
-		
-		\par Uma visão geral do processo é mostrada na \autoref{fig:estruturaDaEstrategiaProposta}.		
+
+		\par Como o tema central deste trabalho é a autenticação biométrica combinando fala fonada e fala imaginada, cada configuração será avaliada em três modos, para medir a contribuição individual e conjunta das duas fontes:
+		\begin{itemize}
+			\item \textbf{apenas fala fonada}: somente o sinal de voz (áudio) alimenta o classificador;
+			\item \textbf{apenas fala imaginada}: somente o sinal de EEG alimenta o classificador;
+			\item \textbf{fonada + imaginada (fundida)}: os vetores de características das duas modalidades são concatenados antes da classificação.
+		\end{itemize}
+
+		\par Quanto à extração automatizada, serão comparados dois tipos de \textit{autoencoder} --- um de pulsos (SNN-AE) e um convencional (ANN-AE) --- e ambos serão confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
+
+		\par Uma visão geral do processo é mostrada na \autoref{fig:estruturaDaEstrategiaProposta}.
 		
 		\begin{figure}[h]
 			\centering
@@ -59,17 +68,13 @@
 			
 		\subsection{Métricas}
 		
-			\par A fim de garantir a comparação do estudo com outros serão adotadas as seguintes métricas:
-			
+			\par A autenticação segue o protocolo de \textbf{verificação} (\textit{verification}), no qual os locutores de teste não aparecem no treino: os grupos de validação cruzada são disjuntos por locutor. Nesse protocolo, as métricas primárias são a \textbf{Taxa de Erro Igual} (\textit{Equal Error Rate}, EER --- o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição) e a \textbf{área sob a curva ROC} (AUC). As métricas de classificação de conjunto fechado (acurácia, F1, precisão, recall, especificidade) só se aplicam quando as classes de teste também estão no treino; sob o protocolo de verificação elas não são reportadas. As seguintes métricas serão adotadas, garantindo a comparação com outros estudos:
+
 			\begin{itemize}
-				\item acurácia
-				\item pontuação F1
-				\item precisão
-				\item recall
-				\item Erro Médio Quadrático
-				\item área sob a Curva ROC
-				\item sensitividade
-				\item especificidade
+				\item \textbf{Taxa de Erro Igual (EER)} --- primária, protocolo de verificação;
+				\item \textbf{área sob a Curva ROC (AUC)} --- primária, protocolo de verificação;
+				\item acurácia, pontuação F1, precisão, recall, sensitividade, especificidade --- reportadas apenas em avaliações de classificação de conjunto fechado;
+				\item Erro Médio Quadrático (EQM) --- usado na reconstrução dos \textit{autoencoders}, não na classificação.
 			\end{itemize}
 			
 		\subsection{Desenvolvimento e Validação de Algoritmos}

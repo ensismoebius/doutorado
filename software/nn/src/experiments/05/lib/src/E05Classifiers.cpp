@@ -72,7 +72,7 @@ constexpr int kSnnTimeSteps = 16;
 // pre-spike current to N(0,(α·V_th)²), so it must use the same V_th.
 constexpr float kSnnVth = 1.0f;
 
-// Temporal Deep Spiking Neural Network for E05.
+// Temporal Deep Residual Spiking Neural Network for E05.
 //
 // Unlike a single-step thresholding net, this unrolls genuine LIF dynamics over
 // kSnnTimeSteps. The static feature vector is rate-encoded by constant-current
@@ -80,6 +80,13 @@ constexpr float kSnnVth = 1.0f;
 // (T*B, F) expected by LifBPTT). Spikes integrate over time through LifBPTT
 // neurons; the readout is the spike-count (mean firing rate over T) of the final
 // linear layer, giving class logits. Gradients flow through real BPTT.
+//
+// Residual structure: each hidden block (Linear→(tdBN)→LIF, all hidden_dim wide)
+// is wrapped in an identity skip connection h_out = block(h) + h. Skips are
+// parameter-free, so they add no state to serialization. The input stage
+// (fc_in: input_dim→hidden_dim) and output stage (fc_out) carry no skip because
+// their widths differ from hidden_dim. This matches the deep-residual-SNN design
+// of Zheng et al. (AAAI 2021) that tdBN was introduced to train.
 //
 // Firing-rate regularization (fr_lambda > 0): each spiking layer's mean firing
 // rate is pushed into the band [fr_min, fr_max], preventing dead neurons
@@ -158,10 +165,16 @@ public:
         if (cache_spikes) spikes_in_ = h; // (T*B, hidden) spike train of input LIF
         for (size_t i = 0; i < hidden_fc_.size(); ++i)
         {
-            h = hidden_fc_[i]->forward(h, requires_grad);
-            if (use_tdbn_) h = tdbn_hidden_[i]->forward(h, requires_grad);
-            h = hidden_lif_[i]->forward(h, requires_grad);
-            if (cache_spikes) spikes_hidden_[i] = h; // spike train of hidden LIF i
+            // Residual block: identity skip around Linear→(tdBN)→LIF. Both the skip
+            // and the block output are (T*B, hidden_dim), so the add is elementwise.
+            // The spike train regularized/back-propagated is the LIF output `b`
+            // (before the skip add); the skip carries only the task gradient.
+            const Tensor skip = h;
+            Tensor b = hidden_fc_[i]->forward(h, requires_grad);
+            if (use_tdbn_) b = tdbn_hidden_[i]->forward(b, requires_grad);
+            b = hidden_lif_[i]->forward(b, requires_grad);
+            if (cache_spikes) spikes_hidden_[i] = b; // spike train of hidden LIF i
+            h = b.add(skip); // residual connection
         }
         Tensor logits_t = fc_out_->forward(h, requires_grad); // (T*B, C)
 
@@ -198,10 +211,15 @@ public:
         Tensor g = fc_out_->backward(grad_t);
         for (size_t i = hidden_fc_.size(); i-- > 0;)
         {
+            // Reverse of h = b + skip: dL/dh_out flows to both paths. Copy it for
+            // the identity skip BEFORE any in-place mutation of g, then propagate
+            // the block path and add the skip gradient back (identity, no params).
+            const Tensor skip_grad = g; // deep copy (value-semantics backend)
             add_firing_rate_grad(g, spikes_hidden_[i]); // band penalty on hidden LIF i
             g = hidden_lif_[i]->backward(g);
             if (use_tdbn_) g = tdbn_hidden_[i]->backward(g); // through tdBN (reverse of fwd)
             g = hidden_fc_[i]->backward(g);
+            g.add_inplace(skip_grad); // + residual skip path
         }
         add_firing_rate_grad(g, spikes_in_); // band penalty on input LIF
         g = lif_in_->backward(g);

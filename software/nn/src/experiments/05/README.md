@@ -284,11 +284,11 @@ gravado em `<results_dir>/models/<run_tag>/<feature_label>/fold_<N>.bin` via
 **`10.1117/12.2255697`** (validação pública):
 
 - 15 locutores falantes de espanhol
-- Estímulos: vogais (/a/ /e/ /i/ /o/ /u/) e comandos direcionais (arriba / abajo / izquierda / derecha / adelante)
-- Três modalidades: fala fonada, fala imaginada (EEG), mista
-- Áudio: 22 050 Hz, 16 bits PCM WAV
-- EEG: 800 Hz, 14 canais, sistema 10-20 (Emotiv EPOC)
-- Pré-processamento EEG: passa-banda 1–800 Hz, notch 60 Hz
+- Estímulos: vogais (/a/ /e/ /i/ /o/ /u/) e 6 comandos direcionais (arriba / abajo / adelante / atras / derecha / izquierda)
+- Duas condições de fala: fonada (áudio + EEG simultâneos) e imaginada (apenas EEG)
+- Áudio: 44 100 Hz, canal único (presente apenas nos trials de fala fonada)
+- EEG: 1024 Hz, 6 canais (F3, F4, C3, C4, P3, P4), sistema 10-20; trial de 4 s = 4096 amostras/canal
+- Fonte: Pressel Coretto, Gareis, Rufiner, "Open access database of EEG signals recorded during imagined speech", Proc. SPIE 10160, 2017 (DOI 10.1117/12.2255697)
 
 > **Base de dados própria** (locutores com DLS, protocolo de coleta do Capítulo 3 da monografia)
 > **não está disponível ainda**. Este experimento opera exclusivamente sobre a base pública.
@@ -364,8 +364,8 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
 ```
 Base pública 10.1117/12.2255697
   │
-  ├── Fala fonada (22 050 Hz WAV)       ← sempre carregada
-  └── EEG imagined speech (800 Hz, 14 ch) ← sempre carregada e pareada por eeg_index
+  ├── Fala fonada (44 100 Hz, canal único) ← carregada quando há áudio
+  └── EEG imagined speech (1024 Hz, 6 ch)   ← sempre carregada e pareada por eeg_index
           │
           ▼   dataset.modality → seleciona qual sinal vai para a EC
   ┌────────────────────────────────────────┐
@@ -487,7 +487,7 @@ model.load_state_dict(sd);
 | Aspecto | Experimento 04 | Experimento 05 |
 |---|---|---|
 | Objetivo | Artigo de congresso (reconstrução SNN vs LSTM) | Experimento principal da tese |
-| Base de dados | FSDD (dígitos, 8 kHz, áudio) | 10.1117/12.2255697 (EEG + voz, 22 050 Hz) |
+| Base de dados | FSDD (dígitos, 8 kHz, áudio) | 10.1117/12.2255697 (EEG 1024 Hz + voz 44 100 Hz) |
 | Tarefa | Reconstrução autoencoder (MSE) | Autenticação de locutores (acurácia, EER, AUC) |
 | Sinais | Somente áudio | Voz + EEG, sempre carregados como ensaios pareados |
 | Seleção de características | Varredura de arquitetura fixa | Ranking paraconsistente EPC (α/β) antes de qualquer classificador |

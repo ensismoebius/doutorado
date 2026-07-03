@@ -56,9 +56,9 @@ For imagined speech classification, **Alpha, Beta, and Theta** bands are most co
 
 Biological EEG in healthy humans: typically 0.5–40 Hz dominant activity. High-frequency oscillations (HFOs) up to ~200 Hz occur in the neocortex [7, 8].
 
-By Nyquist: minimum rate = 400 Hz. With safety margin → **800 Hz / 16-bit** chosen as collection rate in the thesis protocol.
+By Nyquist, capturing activity up to ~200 Hz requires at least 400 Hz. The public dataset used in this project (Pressel Coretto et al., 2017) samples EEG at **1024 Hz**, well above that floor (Nyquist = 512 Hz).
 
-Powerline interference (60 Hz in Brazil) is removed with a notch filter; a 1–800 Hz bandpass filter removes DC drift and ultra-high-frequency noise [5, 9].
+Any anti-aliasing/bandpass upper cutoff must sit **below** the Nyquist frequency (i.e. below 512 Hz at 1024 Hz sampling); a highpass near 1 Hz removes DC drift, and a notch removes powerline interference (50/60 Hz depending on the acquisition site) [5, 9].
 
 ### The 10-20 Electrode System
 
@@ -121,7 +121,7 @@ Relevant channels for imagined speech: F7, T5 (Wernicke), F3, F7, Fp1 (Broca).
 ### Signal Preprocessing Pipeline
 
 ```
-EEG raw → bandpass 1–800 Hz → notch 60 Hz → feature extraction (DTWPT)
+EEG raw → highpass ~1 Hz + anti-alias lowpass (< Nyquist 512 Hz) → notch (50/60 Hz) → feature extraction (DTWPT)
                                             → energy bands (BARK / MEL / LFCC)
                                             → paraconsistent evaluation
                                             → SNN classifier

@@ -60,12 +60,12 @@ Journals: *IEEE Signal Processing Magazine*, *IEEE TPAMI*, *Neurocomputing*, *Co
 ```
                     ┌────────────────────────────────────────────┐
                     │            Input Signals                   │
-                    │  Speech (22050 Hz WAV)  EEG (800 Hz)       │
+                    │  Speech (44100 Hz)     EEG (1024 Hz, 6ch) │
                     └──────────────┬──────────────┬─────────────┘
                                    │              │
                          ┌─────────▼──────┐  ┌───▼──────────────┐
-                         │  DTWPT + LFCC  │  │ Bandpass + Notch  │
-                         │   filterbank   │  │  (1–800 Hz)       │
+                         │  DTWPT + LFCC  │  │  DTWPT + per-     │
+                         │   filterbank   │  │  window z-score   │
                          └────────┬───────┘  └───────┬───────────┘
                                   │                  │
                          ┌────────▼──────────────────▼──────────┐

@@ -259,10 +259,24 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
     return v;
 }
 
+// Pre-emphasis coefficient for the voice signal (first-order high-boost filter
+// y[n] = x[n] - alpha*x[n-1]). Compensates the ~-6 dB/octave glottal-source
+// spectral tilt so the speaker-discriminative upper formants are not attenuated
+// before feature extraction. Applied to audio only, never to EEG.
+constexpr double kPreEmphasisAlpha = 0.97;
+
+// In-place first-order pre-emphasis. Iterates back-to-front so each x[n-1] is the
+// still-unmodified original sample. y[0] is left equal to x[0].
+void apply_preemphasis(std::vector<double>& sig, double alpha)
+{
+    for (size_t n = sig.size(); n-- > 1;)
+        sig[n] -= alpha * sig[n - 1];
+}
+
 // Pull the raw 1-D signal for the requested modality from a sample:
-//   "eeg"   → EEG channel
-//   "voice" → audio channel
-//   "fused" → audio if present, otherwise EEG
+//   "eeg"   → EEG channel (no pre-emphasis)
+//   "voice" → audio channel (pre-emphasised)
+//   "fused" → audio if present (pre-emphasised), otherwise EEG
 // Returns 256 zeros when the chosen modality is absent, so downstream transforms
 // always receive a non-empty signal. Shared by both extraction strategies.
 std::vector<double> signal_for_modality(const E05Sample& sample, const std::string& modality)
@@ -270,29 +284,33 @@ std::vector<double> signal_for_modality(const E05Sample& sample, const std::stri
     auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
 
     std::vector<double> sig;
+    bool is_audio = false;
     if (modality == "eeg")
     {
         if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
     }
     else if (modality == "voice")
     {
-        if (present(sample.audio)) sig = tensor_to_vec(sample.audio);
+        if (present(sample.audio)) { sig = tensor_to_vec(sample.audio); is_audio = true; }
     }
     else // "fused"
     {
-        if (present(sample.audio))    sig = tensor_to_vec(sample.audio);
+        if (present(sample.audio))    { sig = tensor_to_vec(sample.audio); is_audio = true; }
         else if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
     }
+
+    if (is_audio) apply_preemphasis(sig, kPreEmphasisAlpha);
 
     if (sig.empty()) sig.assign(256, 0.0);
     return sig;
 }
 
-// Nominal sample rates by modality (Hz).
+// Nominal sample rates by modality (Hz), per the dataset protocol
+// (Pressel Coretto et al., SPIE 2017 / 10.1117/12.2255697).
 double modality_sample_rate(const std::string& modality)
 {
-    if (modality == "eeg") return 800.0;
-    return 22050.0; // "voice" and "fused" use voice rate
+    if (modality == "eeg") return 1024.0;
+    return 44100.0; // "voice" and "fused" use voice rate
 }
 
 bool is_linear_spec(const std::string& s)

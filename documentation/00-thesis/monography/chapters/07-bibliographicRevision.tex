@@ -44,9 +44,20 @@
 			\par Portanto, formantes caracterizam fortemente os locutores, e tais frequências, capturáveis pela Transformada \textit{Wavelet}, são de suma importância na verificação de locutores.
 				
 		\subsection{Escalas e energias dos sinais}
-		
-			% TODO vamos dar uma geral aqui pq tem muita coisa mal definida e estão falttando definições. MEL não é a mesma coisa que MFCC (esse é apenas um dos problemas, tenho um relatório completo do que mudar, no texto todo)	
-			\par A energia de um sinal digital $s[\cdot]$ com $M$ amostras é definida como
+
+			\subsubsection{Pré-ênfase do sinal de voz}
+				\par Antes de calcular energias e coeficientes espectrais do áudio, aplica-se a \textbf{pré-ênfase}, um filtro que realça as altas frequências. A motivação é física: no sinal de voz, a fonte glotal impõe uma queda espectral de cerca de $-6$~dB por oitava, de modo que as formantes superiores --- justamente as mais discriminativas entre locutores (\autoref{sec:conceitos}) --- chegam atenuadas. A pré-ênfase compensa essa inclinação, equilibrando a energia entre bandas baixas e altas antes da extração de características \cite{rabiner1993fundamentals}.
+
+				\par Sejam $x[n]$ a amostra de áudio no instante $n$, $y[n]$ a amostra após a pré-ênfase e $\alpha$ o coeficiente de pré-ênfase (tipicamente $0{,}95 \leqslant \alpha \leqslant 0{,}97$; este trabalho usa $\alpha=0{,}97$). O filtro é de primeira ordem:
+				\begin{equation}
+					\label{eq:preemphasis}
+					y[n] = x[n] - \alpha\, x[n-1] \qquad.
+				\end{equation}
+
+				\par \textbf{Exemplo numérico.} Para $\alpha=0{,}97$ e as amostras $x=[1{,}0,\ 0{,}9,\ 0{,}6]$: $y[1] = 0{,}9 - 0{,}97\times1{,}0 = -0{,}07$ e $y[2] = 0{,}6 - 0{,}97\times0{,}9 = -0{,}273$. Trechos de variação lenta (baixa frequência) produzem saída pequena; transições rápidas (alta frequência) são realçadas.
+
+			\subsubsection{Energia de um sinal}
+				\par A energia de um sinal digital $s[\cdot]$ com $M$ amostras é definida como
 			
 			\begin{equation}
 				E = \sum\limits_{i=0}^{M-1}(s_i)^2 \qquad.   
@@ -517,9 +528,9 @@
 
 			\par Não é possível somar metros com quilogramas sem antes convertê-los a uma unidade comum; uma rede neural tem o mesmo problema com características de entrada em escalas diferentes. Se uma característica varia entre $0$ e $1$ e outra entre $0$ e $10\,000$, o gradiente da segunda domina a atualização dos pesos, e a rede aprende com ela, ignorando a primeira. Reescalonar as entradas para uma faixa comparável, com média próxima de zero, remove essa assimetria e estabiliza e acelera o treinamento por gradiente \cite{lecun1998efficient}.
 
-			\par Este trabalho usa duas estratégias de normalização, uma para o áudio e outra para o EEG, porque as duas modalidades têm comportamentos estatísticos opostos, detalhados a seguir.
+			\par Para alimentar os classificadores, este trabalho usa duas estratégias de padronização (\textit{z-score}), uma para o áudio e outra para o EEG, porque as duas modalidades têm comportamentos estatísticos opostos, detalhados a seguir. Uma terceira normalização --- a escala mín-máx para o intervalo $[0,1]$ --- é usada em contexto distinto: a engenharia paraconsistente de características (\autoref{sec:conceitos}) exige que todos os componentes dos vetores estejam em $[0,1]$ para que os coeficientes $\alpha$ e $\beta$ fiquem bem definidos; essa escala é aplicada apenas na etapa de avaliação paraconsistente, não na entrada dos classificadores.
 
-			\par Antes de apresentar as fórmulas, definem-se os símbolos comuns às duas estratégias:
+			\par Antes de apresentar as fórmulas das duas padronizações \textit{z-score}, definem-se os símbolos comuns:
 			\begin{itemize}
 				\item $x_{i,j}$ --- valor bruto (não normalizado) na amostra/linha $i$ e característica/coluna $j$;
 				\item $x'_{i,j}$ --- valor normalizado correspondente;

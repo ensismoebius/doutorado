@@ -21,9 +21,9 @@ The experiment consists of two stages:
 
 ### Problem: Voice-Based Authentication Under Dysphonia
 
-Conventional speaker-verification systems assume a clean, periodic voice signal. In severe laryngeal dysphonia, the phonation mechanism is impaired: aperiodic vibration, breathiness, and noise dominate the signal. Standard MFCC+GMM or x-vector systems degrade sharply because the formant structure that encodes speaker identity is obscured.
+Conventional speaker-verification systems assume a clean, periodic voice signal. In severe laryngeal dysphonia, the phonation mechanism is impaired: aperiodic vibration, breathiness, and noise dominate the signal, obscuring the formant structure that encodes speaker identity.
 
-Imagined (covert) speech circumvents this: the speaker mentally rehearses an utterance without producing motor output. The same perisylvian network activates (Broca + Wernicke areas), and EEG captures the neural correlates. This neural signal is independent of laryngeal function — a severely dysphonic speaker produces identical imagined-speech EEG to a healthy speaker imagining the same utterance.
+Imagined (covert) speech is proposed here as a complementary signal: the speaker mentally rehearses an utterance without producing motor output. The perisylvian language network (Broca + Wernicke areas) activates and EEG captures neural correlates that do not depend on laryngeal phonation, so imagined-speech EEG remains available even when the voice signal is degraded.
 
 ### Paraconsistent Feature Selection (EPC/α/β)
 
@@ -71,22 +71,26 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 ### Learned Feature Extraction (Autoencoders)
 
+> **Scope note.** The **LSTM-AE** was built for the Guayaquil congress paper. The **thesis** compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder), and **ANN-AE** (non-spiking autoencoder). The LSTM-AE is the currently-wired learned extractor in the Experiment05 executable; SNN-AE / ANN-AE are the thesis targets.
+
 **LSTM-AE (implemented)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
-**SNN-AE (planned)**: deep spiking autoencoder variant documented in thesis context, not yet wired into Experiment05 executable path.
+**SNN-AE / ANN-AE (thesis)**: spiking and non-spiking autoencoder variants, compared against handcrafted features via paraconsistent α/β ranking.
 
 Autoencoder training in Experiment05 is unsupervised (no speaker labels), and latent vectors feed paraconsistent ranking and downstream classifier.
 
 ### Authentication: Residual Network (RNN) and Deep SNN (DSNN)
+
+> **Scope note.** The non-spiking **RNN** classifier was built for the Guayaquil congress paper. The **thesis** uses only the spiking classifier (**DSNN**). The RNN is documented here because both share the Experiment05 code path.
 
 **RNN** (here: Residual Neural Network, not recurrent):  
 Skip connections prevent vanishing gradients in deep classifiers. Residual block:
 
 $$\text{out} = F(x) + x$$
 
-where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss.
+where $F$ = 2 Linear layers with BatchNorm + ReLU. Output layer: `linear:N_speakers:identity` → cross-entropy loss. Implemented in `SimpleResNet.hpp`.
 
-**DSNN**: temporal deep spiking classifier (audit M-4). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
+**DSNN**: temporal deep **residual** spiking classifier (audit M-4). Each hidden block (`Linear → (tdBN) → LIF`, all `hidden_dim` wide) is wrapped in an identity skip connection `h_out = block(h) + h`; `residual:D` in the layer spec sets the number of such blocks. Skips are parameter-free (no added serialization state) and sit only around the equal-width hidden blocks — the input stage (`input_dim → hidden_dim`) and output stage carry none. This matches the deep-residual-SNN design that tdBN was introduced to train (Zheng et al., AAAI 2021). The static feature vector is **rate-encoded by constant-current injection over `kSnnTimeSteps` (default 16) time steps**; `LifBPTT` neurons integrate the resulting current over time (time-major `(T*B, F)` layout) through a `Linear → LIF → (Linear → LIF)* → Linear` stack. The readout is the **mean firing rate (spike-count / T)** of the final layer, yielding class logits; gradients flow via full backpropagation-through-time with surrogate spike derivatives. This is a genuine temporal SNN, not a single-step thresholding net. See [SNN and Surrogate Gradients](../Concepts/SNN-and-Surrogate-Gradients.md) and [Layers](../Core/Layers.md).
 
 ### Regularization & Normalization
 
@@ -122,11 +126,12 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 
 **10.1117/12.2255697** — EEG imagined speech (public):
 - 15 Spanish-speaking subjects
-- Utterances: vowels (`/a/ /e/ /i/ /o/ /u/`) + directional commands (`arriba/abajo/izquierda/derecha/adelante`)
-- Three modalities: phonated speech, imagined speech, mixed
-- Audio: 22050 Hz, 16-bit PCM WAV
-- EEG: 800 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system
-- EEG preprocessing: bandpass 1–800 Hz, notch 60 Hz
+- Utterances: vowels (`/a/ /e/ /i/ /o/ /u/`) + 6 directional commands (`arriba/abajo/adelante/atras/derecha/izquierda`)
+- Two speech conditions: **pronounced** (audio + EEG recorded simultaneously) and **imagined** (EEG only — no audio was recorded in the imagined condition)
+- Audio: 44100 Hz, single channel (present only for pronounced trials)
+- EEG: 1024 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system; each 4 s trial = 4096 samples/channel
+
+> The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. "Mixed"/fused means the voice and EEG feature vectors are concatenated, not a third recorded signal.
 
 See [Data Loaders](../Core/DataLoaders.md) for the `E05Dataset` loader API and file layout.
 
@@ -239,13 +244,13 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
 ```
 10.1117/12.2255697 dataset
   │
-  ├── Phonated speech (22050 Hz WAV)
+  ├── Pronounced speech (44100 Hz, single channel)
   │     └── preprocessing (normalization, pre-emphasis, windowing)
   │           ├── Handcrafted: DTWPT + ZCR + entropy + Teager + jitter/shimmer
-  │           └── Learned: LSTM-AE latent vectors (SNN-AE planned)
+  │           └── Learned: autoencoder latent vectors
   │
-  └── Imagined speech EEG (800 Hz, 6 ch)
-        └── preprocessing (bandpass 1–800 Hz, notch 60 Hz)
+  └── Imagined speech EEG (1024 Hz, 6 ch)
+        └── preprocessing (per-window z-score)
               ├── Handcrafted: DTWPT energy per EEG band (alpha/beta/theta)
               └── Learned: LSTM-AE latent vectors (SNN-AE planned)
                     │
@@ -370,7 +375,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 | Aspect | Experiment04 | Experiment05 |
 |---|---|---|
 | Purpose | Congress paper (SNN vs LSTM reconstruction) | Thesis primary experiment |
-| Dataset | FSDD (spoken digits, 8 kHz, audio only) | 10.1117/12.2255697 (EEG + voice, 22050 Hz) |
+| Dataset | FSDD (spoken digits, 8 kHz, audio only) | 10.1117/12.2255697 (EEG 1024 Hz + voice 44100 Hz) |
 | Task | Autoencoder reconstruction (MSE) | Speaker verification (EER, AUC; speaker-disjoint folds) |
 | Signals | Audio only | Voice + EEG (bimodal) |
 | Feature selection | Fixed architecture sweep | Paraconsistent α/β ranking before any classifier |
@@ -386,7 +391,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 2. **Per-dimension [0,1] scaling before paraconsistent.** α and β are range-based and assume commensurable features in [0,1]. `score_feature_set()` min-max scales each dimension across all samples (audit M-1). Do **not** use per-sample sum-1 normalization — it lets large-magnitude descriptors (energy) dominate and pushes signed descriptors (Teager) outside [0,1], breaking the α domain.
 
-3. **EEG and voice window sizes differ.** EEG at 800 Hz needs different window parameters than voice at 22050 Hz. Do not reuse the same `window_size` across modalities.
+3. **EEG and voice window sizes differ.** EEG at 1024 Hz needs different window parameters than voice at 44100 Hz. Do not reuse the same `window_size` across modalities.
 
 4. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
 
@@ -427,6 +432,6 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 [B] S. Zhao et al., "EEG-based imagined speech recognition using deep learning," *IEEE Trans. Neural Syst. Rehabil. Eng.*, 2021.
 
-[C] Dataset 10.1117/12.2255697: D. Benitez et al., "EEG signal database for imagined and real speech," *Proc. SPIE*, 2016.
+[C] Dataset 10.1117/12.2255697: G. A. Pressel Coretto, I. E. Gareis, and H. L. Rufiner, "Open access database of EEG signals recorded during imagined speech," in *Proc. SPIE 10160, 12th Int. Symp. Medical Information Processing and Analysis*, 2017. [Online]. Available: https://doi.org/10.1117/12.2255697
 
 [D] E. O. Neftci, H. Mostafa, and F. Zenke, "Surrogate gradient learning in spiking neural networks," *IEEE Signal Process. Mag.*, vol. 36, no. 6, pp. 51–63, 2019.
