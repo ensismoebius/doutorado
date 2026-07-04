@@ -21,12 +21,6 @@
 #include "cnpy.h"
 
 #include "layers/Layers.hpp"
-#include "layers/convolution/Conv1d.hpp"
-#include "layers/convolution/Conv2d.hpp"
-#include "layers/convolution/MaxPool1d.hpp"
-#include "layers/convolution/MaxPool2d.hpp"
-#include "layers/lstm/LSTMLayer.hpp"
-#include "layers/spiking/LifBPTT.hpp"
 #include "tensor/Tensor.hpp"
 
 namespace
@@ -321,16 +315,20 @@ TEST(PyTorchParity, LifBPTTReadoutBackward)
         nn::LifBPTT lif(T, prm[0], prm[1], prm[2], /*V_th=*/1.0F,
             /*reset_zero=*/false, /*reset_potential=*/0.0F, /*readout_mode=*/true);
 
-        // Arbitrary input; only the gradient path is checked. Use a fixed pattern.
+        // Arbitrary input; only the gradient path is checked (dL/dinput of a linear
+        // integrator is input-independent). Fill via the structured accessor.
         nn::Tensor x(static_cast<nn::Index>(T * B), static_cast<nn::Index>(F));
-        for (nn::Index k = 0; k < x.size(); ++k)
-            x.at(k) = 0.1F * static_cast<float>((k % 7) - 3);
+        for (nn::Index r = 0; r < static_cast<nn::Index>(T * B); ++r)
+            for (nn::Index c = 0; c < static_cast<nn::Index>(F); ++c)
+                x.at(r, c) = 0.1F * static_cast<float>(((r * F + c) % 7) - 3);
 
         lif.reset_state();
         (void) lif.forward(x, true);
         // loss = sum(all membranes) → dL/d(membrane)=1 everywhere.
         nn::Tensor grad_out(static_cast<nn::Index>(T * B), static_cast<nn::Index>(F));
-        for (nn::Index k = 0; k < grad_out.size(); ++k) grad_out.at(k) = 1.0F;
+        for (nn::Index r = 0; r < static_cast<nn::Index>(T * B); ++r)
+            for (nn::Index c = 0; c < static_cast<nn::Index>(F); ++c)
+                grad_out.at(r, c) = 1.0F;
 
         nn::Tensor grad_in = lif.backward(grad_out);
         expect_close(grad_in, arr(p + "grad_input"), p + "grad_input");
