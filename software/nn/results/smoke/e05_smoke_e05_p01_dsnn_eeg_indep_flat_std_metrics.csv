@@ -1,0 +1,3 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,model_path
+handcrafted-lfcc,dsnn,independent,0,nan,nan,nan,nan,nan,0.562500,0.616769,results/smoke/models/smoke_e05_p01_dsnn_eeg_indep_flat_std/handcrafted-lfcc/fold_0.bin
+handcrafted-lfcc,dsnn,independent,1,nan,nan,nan,nan,nan,0.600000,0.680533,results/smoke/models/smoke_e05_p01_dsnn_eeg_indep_flat_std/handcrafted-lfcc/fold_1.bin

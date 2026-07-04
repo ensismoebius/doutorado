@@ -1,6 +1,7 @@
 #include "E05Dataset.hpp"
 
 #include <algorithm>
+#include <map>
 #include <random>
 #include <stdexcept>
 #include <unordered_set>
@@ -107,11 +108,42 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
     view.n_subjects = subjects_with_both;
     view.n_stimuli  = static_cast<int>(stimuli_seen.size());
 
-    // Apply max_samples limit (debug runs).
+    // Apply max_samples limit (debug/smoke runs). Samples are stored
+    // subject-contiguous, so a plain resize() to the first N would keep only the
+    // first 2-3 speakers — which breaks speaker-disjoint (GroupKFold) folds,
+    // especially nested CV. Instead round-robin across subjects so the truncated
+    // set spans every speaker.
     if (dataset_cfg.max_samples > 0 &&
         static_cast<int>(view.samples.size()) > dataset_cfg.max_samples)
     {
-        view.samples.resize(static_cast<size_t>(dataset_cfg.max_samples));
+        std::map<int, std::vector<size_t>> by_subject;
+        for (size_t i = 0; i < view.samples.size(); ++i)
+            by_subject[view.samples[i].subject_id].push_back(i);
+
+        std::vector<size_t> keep;
+        keep.reserve(static_cast<size_t>(dataset_cfg.max_samples));
+        size_t round = 0;
+        bool added = true;
+        while (static_cast<int>(keep.size()) < dataset_cfg.max_samples && added)
+        {
+            added = false;
+            for (auto& [sid, idxs] : by_subject)
+            {
+                if (round < idxs.size())
+                {
+                    keep.push_back(idxs[round]);
+                    added = true;
+                    if (static_cast<int>(keep.size()) >= dataset_cfg.max_samples) break;
+                }
+            }
+            ++round;
+        }
+        std::sort(keep.begin(), keep.end());
+
+        std::vector<E05Sample> trimmed;
+        trimmed.reserve(keep.size());
+        for (size_t i : keep) trimmed.push_back(std::move(view.samples[i]));
+        view.samples = std::move(trimmed);
     }
 
     return view;

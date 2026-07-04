@@ -79,6 +79,8 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 **LSTM-AE (implemented)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
+> **Windowing + batching (AE-on-EEG fix).** The raw signal is *framed* into at most `kAeMaxFrames` (64) windows of `frame_len` samples each → AE input `(T_frames, frame_len)` with `input_size = frame_len`, `seq_len ≤ 64`. This replaced the earlier `input_size=1, seq_len=24576` wiring, which fed the whole flattened multi-channel EEG as one length-24576 sequence — both semantically wrong and far too long to unroll (and it crashed once the `LSTMAutoencoder` met the trainer's batched 3-D tensor). `LSTMAutoencoder` now handles both 2-D `(T,D)` and 3-D `(B,T,D)` inputs (`LSTMLayer` already did the batched BPTT; the projections/last-step/replicate were made batch-aware). Verified against snnTorch/PyTorch — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
+
 **Compact-AE capacity sweep (low-power design).** Phase 00 ships three compact LSTM-AE sizes per signal, all single-layer (shallow, edge-friendly) with a 2:1 hidden→latent compression ratio:
 
 | size | hidden | latent (= feature-vector dim) |
@@ -453,6 +455,17 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 7. **Nested CV inner fold must not see test fold.** Hyperparameter selection must use inner-loop validation only.
 
 8. **EER is NaN with grouped CV + degenerate fold.** `GenuineImpostorEERScorer` returns NaN when test speakers have no probes or only one speaker in fold. This is correct behaviour.
+
+9. **`max_samples` truncation round-robins across subjects.** Samples are stored subject-contiguous (~130 trials/speaker), so a first-N truncation would keep only 2–3 speakers and break speaker-disjoint (GroupKFold) folds — especially nested CV, whose inner fold would then have fewer groups than splits (`GroupKFoldPolicy: number of unique groups is less than n_splits`). `load_dataset()` therefore selects the capped subset round-robin across subjects so every speaker is represented. Found by the smoke suite — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
+
+## Testing
+
+Beyond the unit tests (`e05_*_gtest`), two extra layers guard this experiment:
+
+- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `e05_smoke_profiles` target when any source profile changes.
+- **PyTorch / snnTorch parity** — layer-level numerical ground truth (Linear, activations, MSE/CE losses, LSTM, LifBPTT, Conv1d/2d, MaxPool).
+
+Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
 9. **SQLite float32 blobs.** The 10.1117 database stores audio/EEG blobs as `float32`. Loaders detect encoding by byte-size checks; mismatches throw explicit runtime errors.
 

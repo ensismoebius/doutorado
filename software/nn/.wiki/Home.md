@@ -136,6 +136,7 @@ Accessible explanations without heavy math — good starting point before readin
 - [PGO](./Guides/PGO.md) - Profile-guided optimization workflow
 - [Static Analysis](./Guides/Static-Analysis.md) - Code quality tools and policies
 - [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
+- [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) - PyTorch/snnTorch parity tests + Experiment05 per-profile smoke runs
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
 - [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md) - Claude Code + OpenCode dual-agent workflow
 

@@ -77,4 +77,37 @@ if(E05_PROFILE_JSON)
     )
 endif()
 
+# ── smoke-test profile mirroring ─────────────────────────────────────────────
+# Regenerate profiles/smoke/ whenever any source profile (or the generator)
+# changes. make_smoke_profiles.py is stdlib-only (no torch/numpy), so any
+# python3 works. CONFIGURE_DEPENDS re-globs when profiles are added/removed.
+# Only the source phase directories are globbed (never profiles/smoke/) so the
+# generated mirror is not an input to its own generation.
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(NOT Python3_EXECUTABLE)
+    find_program(Python3_EXECUTABLE NAMES python3 python)
+endif()
+
+if(Python3_EXECUTABLE)
+    file(GLOB_RECURSE E05_SOURCE_PROFILES CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/profiles/phase00/*.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/profiles/phase01/*.json")
+    list(APPEND E05_SOURCE_PROFILES "${CMAKE_CURRENT_SOURCE_DIR}/profiles/debug.json")
+
+    set(E05_SMOKE_GEN "${CMAKE_SOURCE_DIR}/scripts/testing/make_smoke_profiles.py")
+    set(E05_SMOKE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/e05_smoke_profiles.stamp")
+
+    add_custom_command(
+        OUTPUT ${E05_SMOKE_STAMP}
+        COMMAND ${Python3_EXECUTABLE} ${E05_SMOKE_GEN}
+        COMMAND ${CMAKE_COMMAND} -E touch ${E05_SMOKE_STAMP}
+        DEPENDS ${E05_SOURCE_PROFILES} ${E05_SMOKE_GEN}
+        COMMENT "Mirroring Experiment05 smoke profiles (profiles/smoke/)"
+        VERBATIM)
+
+    add_custom_target(e05_smoke_profiles ALL DEPENDS ${E05_SMOKE_STAMP})
+else()
+    message(WARNING "python3 not found — Experiment05 smoke profiles will not auto-regenerate")
+endif()
+
 add_subdirectory(tests)
