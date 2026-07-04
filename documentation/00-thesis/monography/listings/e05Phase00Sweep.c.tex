@@ -1,0 +1,42 @@
+\begin{lstlisting}[language=C, caption={Fase 00 --- varredura de extratores e seleção do vencedor por sinal via engenharia paraconsistente. Executada uma vez para a voz e uma vez para o EEG.}, label={lst:e05Phase00}]
+/* WAVELETS: 23 wavelets-mae (haar, daub4, ..., daub46)          */
+/* ESCALAS : 3 escalas espectrais (bark, mel, lfcc)              */
+/* sinal   : vetor de amostras de um sinal (voz OU EEG)          */
+/* Retorna a melhor combinacao (menor D_verdade).                */
+
+Combinacao seleciona_vencedor(double sinal[], int n)
+{
+    Combinacao vencedor;
+    vencedor.d_verdade = INFINITO;      /* comeca no pior valor  */
+
+    /* 1) parte handcrafted: varre wavelet X escala             */
+    for (int w = 0; w < 23; w++) {
+        for (int e = 0; e < 3; e++) {
+            double vetor[MAX_CARACT];
+            int m = extrai_handcrafted(sinal, n, WAVELETS[w],
+                                       ESCALAS[e], vetor);
+
+            /* alpha, beta -> ponto no plano paraconsistente     */
+            double d = calcula_d_verdade(vetor, m);
+
+            if (d < vencedor.d_verdade) {   /* mais separavel    */
+                vencedor.d_verdade = d;
+                vencedor.estrategia = HANDCRAFTED;
+                vencedor.wavelet = WAVELETS[w];
+                vencedor.escala  = ESCALAS[e];
+            }
+        }
+    }
+
+    /* 2) parte automatizada: um autoencoder (sem wavelet/escala) */
+    double vetor_ae[MAX_CARACT];
+    int mae = extrai_autoencoder(sinal, n, vetor_ae);
+    double d_ae = calcula_d_verdade(vetor_ae, mae);
+    if (d_ae < vencedor.d_verdade) {
+        vencedor.d_verdade = d_ae;
+        vencedor.estrategia = AUTOENCODER;
+    }
+
+    return vencedor;                    /* NAO treina classificador */
+}
+\end{lstlisting}

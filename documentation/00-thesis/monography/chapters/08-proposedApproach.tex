@@ -56,7 +56,60 @@
 			\legend{Fonte: Elaborado pelo autor, 2024.}
 			\label{fig:estruturaDaEstrategiaProposta}
 		\end{figure}
-	
+
+		\subsection{Protocolo experimental em duas fases}
+			\label{sec:protocoloDuasFases}
+
+			\par O experimento é dividido em duas fases independentes, executadas em sequência. A \textbf{Fase 00} constrói o vetor de características e escolhe, por sinal, o melhor extrator segundo a engenharia paraconsistente. A \textbf{Fase 01} recebe apenas o vetor vencedor e treina o classificador para medir o desempenho de autenticação. A separação é controlada por um único parâmetro de configuração, \texttt{classifier.enabled}: quando falso, a execução para após o ranking (Fase 00); quando verdadeiro, o classificador é treinado (Fase 01). A \autoref{fig:e05PipelineTwoPhase} mostra o encadeamento completo.
+
+			\begin{figure}[h]
+				\centering
+				\caption[Pipeline em duas fases]{Encadeamento das duas fases e dos \textit{scripts} de transição}
+				\scalebox{0.9}{\input{images/e05PipelineTwoPhase.tex}}
+				\legend{Fonte: Elaborado pelo autor, 2026.}
+				\label{fig:e05PipelineTwoPhase}
+			\end{figure}
+
+			\subsubsection{Fase 00 --- construção e seleção do vetor de características}
+
+				\par A Fase 00 é aplicada separadamente à voz e ao EEG. Para o método manual, varrem-se duas escolhas: a \textbf{wavelet-mãe} da DTWPT (23 opções: \texttt{haar} e \texttt{daub4} a \texttt{daub46}) e a \textbf{escala} de agrupamento espectral (\textit{bark}, \textit{mel}, \textit{lfcc}). Isso dá $23 \times 3 = 69$ combinações manuais por sinal, às quais se soma o \textit{autoencoder} (uma combinação, sem wavelet ou escala). Cada combinação gera um vetor de características, avaliado pela distância $D_{\text{verdade}}$ --- a distância ao vértice \textit{Verdade} no plano paraconsistente (\autoref{sec:conceitos}); quanto menor, mais separáveis são as classes antes de qualquer classificador. O vencedor do sinal é a combinação de menor $D_{\text{verdade}}$. Nenhum classificador é treinado nesta fase. O \autoref{lst:e05Phase00} descreve o procedimento e a \autoref{fig:e05Phase00Flow} o resume.
+
+				\input{listings/e05Phase00Sweep.c.tex}
+
+				\begin{figure}[h]
+					\centering
+					\caption[Fluxograma da Fase 00]{Seleção do vetor vencedor de um sinal na Fase 00}
+					\scalebox{0.82}{\input{images/e05Phase00Flow.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:e05Phase00Flow}
+				\end{figure}
+
+				\par Considerando os dois sinais, a Fase 00 tem $2 \times (69 + 1) = 140$ execuções de ranking. O vetor fundido não é varrido aqui: ele é montado na Fase 01, a partir dos vencedores de cada sinal.
+
+			\subsubsection{Fase 01 --- autenticação com o vetor vencedor}
+
+				\par A Fase 01 usa \emph{apenas} a combinação vencedora da Fase 00 --- o eixo do extrator não é mais variado, pois a engenharia paraconsistente já o fixou. Variam-se três eixos: a \textbf{fonte} do sinal (apenas voz, apenas EEG, fundida-precoce, fundida-tardia), o \textbf{modo de texto} (dependente ou independente) e o \textbf{esquema de validação cruzada} (aninhada ou plana). São $4 \times 2 \times 2 = 16$ execuções, todas com o classificador DSNN. O \autoref{lst:e05Phase01} mostra a montagem da fonte e o laço de autenticação; a \autoref{fig:e05Phase01Flow} resume o fluxo.
+
+				\input{listings/e05Phase01Auth.c.tex}
+
+				\begin{figure}[h]
+					\centering
+					\caption[Fluxograma da Fase 01]{Autenticação DSNN na Fase 01}
+					\scalebox{0.82}{\input{images/e05Phase01Flow.tex}}
+					\legend{Fonte: Elaborado pelo autor, 2026.}
+					\label{fig:e05Phase01Flow}
+				\end{figure}
+
+			\subsubsection{Organização dos perfis e transição entre fases}
+
+				\par Cada execução é descrita por um \textit{perfil} em formato JSON. Os perfis ficam separados por fase: 140 perfis em \texttt{profiles/phase00/} (um por combinação varrida) e 16 em \texttt{profiles/phase01/} (um por fonte $\times$ texto $\times$ CV). O vencedor da Fase 00 só é conhecido após a execução; por isso os perfis da Fase 01 nascem com um extrator provisório, substituído pelo vencedor antes de rodar.
+
+				\par Dois \textit{scripts} automatizam a transição, evitando edição manual (\autoref{fig:e05PipelineTwoPhase}):
+				\begin{itemize}
+					\item \texttt{e05\_phase00\_rank.py}: lê os resultados paraconsistentes das 140 execuções, calcula a média de $D_{\text{verdade}}$ sobre as repetições e escreve o vencedor de cada sinal em \texttt{winners.json};
+					\item \texttt{e05\_apply\_winner.py}: injeta cada vencedor nos 16 perfis da Fase 01 --- voz recebe o vencedor da voz, EEG o do EEG, e as fontes fundidas recebem, por padrão, o vencedor da voz (sinal dominante em número de amostras).
+				\end{itemize}
+
 		\subsection{Coleta dos dados}
 			\par A coleta dos dados será realizada com software próprio desenvolvido para esse fim e com equipamentos de captação de voz e eletroencefalograma (EEG), montados a partir de componentes eletrônicos pré-fabricados, como placas de circuito integrado, eletrodos e microfones.
 	

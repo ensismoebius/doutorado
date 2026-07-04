@@ -1,0 +1,37 @@
+\begin{tikzpicture}[
+    startstop/.style={
+        rectangle, rounded corners=4pt, draw, fill=orange,
+        text=black, minimum width=6.0cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    proc/.style={
+        rectangle, rounded corners, draw, fill=green,
+        minimum width=6.0cm, minimum height=0.8cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    script/.style={
+        rectangle, draw, fill=blue!25,
+        minimum width=6.0cm, minimum height=0.8cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    arr/.style={->, >=stealth, draw=gray, line width=1.0mm},
+    node distance=0.55cm
+]
+
+\node[startstop] (start) {Base de sinais (voz + EEG pareados)};
+\node[proc, below=of start] (p00)
+    {\textbf{Fase 00} --- varrer $23$ wavelets $\times$ $3$ escalas $\times$ $2$ sinais\\ ($+$ autoencoder): $140$ execuções, \texttt{classifier.enabled=false}};
+\node[script, below=of p00] (rank)
+    {\texttt{e05\_phase00\_rank.py}\\ menor $D_{\text{verdade}}$ por sinal $\rightarrow$ \texttt{winners.json}};
+\node[script, below=of rank] (apply)
+    {\texttt{e05\_apply\_winner.py}\\ injeta o vencedor nos $16$ perfis da Fase 01};
+\node[proc, below=of apply] (p01)
+    {\textbf{Fase 01} --- DSNN sobre $4$ fontes $\times$ $2$ modos de texto\\ $\times$ $2$ esquemas de CV: $16$ execuções, \texttt{classifier.enabled=true}};
+\node[startstop, below=of p01] (stop) {Métricas de verificação (EER, AUC)};
+
+\draw[arr] (start) -- (p00);
+\draw[arr] (p00)   -- (rank);
+\draw[arr] (rank)  -- (apply);
+\draw[arr] (apply) -- (p01);
+\draw[arr] (p01)   -- (stop);
+\end{tikzpicture}

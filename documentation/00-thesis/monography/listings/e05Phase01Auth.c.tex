@@ -1,0 +1,41 @@
+\begin{lstlisting}[language=C, caption={Fase 01 --- autenticação com o vencedor da Fase 00. O extrator nao e mais variado: usa-se apenas a combinacao escolhida por sinal.}, label={lst:e05Phase01}]
+/* v_voz, v_eeg: vencedores da Fase 00 (um por sinal)            */
+/* fonte : VOZ | EEG | FUNDIDA_PRECOCE | FUNDIDA_TARDIA          */
+/* Preenche X (vetores de caracteristicas) e devolve a dimensao. */
+
+int monta_fonte(Amostra a, int fonte,
+                Combinacao v_voz, Combinacao v_eeg, double X[])
+{
+    if (fonte == VOZ)
+        return extrai(a.audio, v_voz, X);
+    if (fonte == EEG)
+        return extrai(a.eeg,   v_eeg, X);
+
+    if (fonte == FUNDIDA_PRECOCE) {         /* funde sinal bruto */
+        double s[MAX_AMOSTRAS];
+        int n = concatena(a.audio, a.eeg, s);
+        return extrai(s, v_voz, X);         /* uma extracao so   */
+    }
+    /* FUNDIDA_TARDIA: extrai cada sinal, concatena os vetores   */
+    double xv[MAX_CARACT], xe[MAX_CARACT];
+    int mv = extrai(a.audio, v_voz, xv);
+    int me = extrai(a.eeg,   v_eeg, xe);
+    return concatena_vetores(xv, mv, xe, me, X);
+}
+
+/* Loop de autenticacao: fonte X modo de texto X esquema de CV.  */
+Metricas autentica(Amostra base[], int fonte,
+                   int modo_texto, int cv_aninhada,
+                   Combinacao v_voz, Combinacao v_eeg)
+{
+    double X[MAX_AMOSTRAS][MAX_CARACT];
+    for (int i = 0; i < N_AMOSTRAS; i++)
+        monta_fonte(base[i], fonte, v_voz, v_eeg, X[i]);
+
+    /* grupos disjuntos por locutor (protocolo de verificacao)   */
+    Folds f = divide_por_locutor(base, modo_texto, cv_aninhada);
+
+    Metricas m = treina_e_avalia_dsnn(X, f);  /* LIF + BPTT       */
+    return m;                                 /* EER e AUC        */
+}
+\end{lstlisting}

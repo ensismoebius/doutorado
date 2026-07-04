@@ -1,0 +1,39 @@
+\begin{tikzpicture}[
+    startstop/.style={
+        rectangle, rounded corners=4pt, draw, fill=orange,
+        text=black, minimum width=3.4cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    proc/.style={
+        rectangle, rounded corners, draw, fill=green,
+        minimum width=5.2cm, minimum height=0.7cm,
+        font=\footnotesize\sffamily\bfseries, align=center
+    },
+    dec/.style={
+        diamond, aspect=2.2, draw, fill=yellow!70,
+        minimum width=3.0cm, inner sep=1pt,
+        font=\scriptsize\sffamily\bfseries, align=center
+    },
+    arr/.style={->, >=stealth, draw=gray, line width=1.0mm},
+    lbl/.style={font=\scriptsize\sffamily\bfseries, text=black},
+    node distance=0.5cm and 1.4cm
+]
+
+\node[startstop] (start) {Sinal (voz ou EEG)};
+\node[dec, below=of start] (loop)
+    {resta par\\ (wavelet, escala)?};
+\node[proc, below=1.1cm of loop] (extract)
+    {DTWPT com a wavelet $\rightarrow$ agrupar na escala\\ $\rightarrow$ descritores $\rightarrow$ vetor de características};
+\node[proc, below=of extract] (score)
+    {engenharia paraconsistente:\\ calcular $\alpha$, $\beta$, $D_{\text{verdade}}$};
+\node[proc, right=of loop] (pick)
+    {vencedor $=$ combinação\\ de menor $D_{\text{verdade}}$};
+\node[startstop, right=of pick] (stop) {Vetor vencedor do sinal};
+
+\draw[arr] (start)   -- (loop);
+\draw[arr] (loop)    -- node[lbl, right] {sim} (extract);
+\draw[arr] (extract) -- (score);
+\draw[arr] (score.west) -- ++(-1.4cm,0) |- (loop.west);
+\draw[arr] (loop)    -- node[lbl, above] {não} (pick);
+\draw[arr] (pick)    -- (stop);
+\end{tikzpicture}
