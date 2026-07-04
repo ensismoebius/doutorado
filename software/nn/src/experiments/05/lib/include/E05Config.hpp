@@ -26,6 +26,13 @@ struct E05Config
         std::string results_dir = "results";
         std::string modality = "fused"; // "voice" | "eeg" | "fused"
         int max_samples = 0;           // 0 = unlimited (for debug: set to small number)
+
+        /// Only meaningful when modality == "fused". Ignored otherwise.
+        ///   "early" → concatenate the raw voice+EEG signals into one signal
+        ///             before feature extraction (single extractor run).
+        ///   "late"  → run feature extraction independently per signal, then
+        ///             concatenate the resulting feature vectors.
+        std::string fusion_mode = "late"; // "early" | "late"
     };
 
     struct HandcraftedConfig
@@ -34,6 +41,11 @@ struct E05Config
         std::string scale = "lfcc";     // "bark" | "mel" | "lfcc"
         std::vector<std::string> descriptors = {"energy", "zcr", "entropy", "teager"};
         int dtwpt_level = 4;
+
+        /// Mother wavelet for the DTWPT filter. One of the tags with coefficient
+        /// traits in include/wavelet/Types.hpp: "haar" or "daubN" for even
+        /// N in [4, 46]. Swept in Phase 00 (feature-vector selection).
+        std::string wavelet = "daub4";
     };
 
     struct AutoencoderConfig
@@ -60,6 +72,12 @@ struct E05Config
         std::string type = "rnn";     // "rnn" | "dsnn"
         std::vector<std::string> layer_spec;
         std::string text_mode = "dependent"; // "dependent" | "independent"
+
+        /// Phase gate. When false, the pipeline stops after paraconsistent
+        /// ranking (Phase 00: feature-vector construction / EPC selection) and
+        /// never trains a classifier; layer_spec is then not required. When true
+        /// (Phase 01: authentication) the classifier runs as usual.
+        bool enabled = true;
     };
 
     struct Training

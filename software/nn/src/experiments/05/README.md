@@ -191,9 +191,11 @@ sub-bandas DTWPT** antes do cálculo dos descritores, e também identificam a ro
 CSV/JSON/DAT de saída.
 
 O sinal processado por amostra é determinado por `dataset.modality`:
-- `"voice"` → tensor de áudio da amostra (`sample.audio`)
+- `"voice"` → tensor de áudio da amostra (`sample.audio`), com pré-ênfase
 - `"eeg"` → tensor de EEG da amostra (`sample.eeg`)
-- `"fused"` → tensor de áudio se disponível, caso contrário tensor de EEG
+- `"fused"` → combina voz + EEG; *quando* combina depende de `dataset.fusion_mode`:
+  - `"early"` → sinais brutos concatenados (voz seguida de EEG) e extraídos numa única passagem
+  - `"late"` (padrão) → voz e EEG extraídos independentemente; os vetores de características resultantes são concatenados por amostra (`[voz ‖ eeg]`)
 
 O sinal é completado com zeros até a próxima potência de dois antes da DTWPT. A extração é
 paralelizada por OpenMP (`schedule(dynamic,4)`) sobre as amostras.
@@ -322,6 +324,7 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "modality": "voice",        // "voice" | "eeg" | "fused"
                                 // determina qual tensor é passado para a extração;
                                 // áudio e EEG são SEMPRE carregados e pareados
+    "fusion_mode": "late",      // "early" | "late" — só usado quando modality=fused
     "max_samples": 0            // 0 = ilimitado; valor pequeno (ex.: 20) para depuração
   },
   "feature_extraction": {
@@ -433,19 +436,52 @@ Base pública 10.1117/12.2255697
 │       ├── E05Classifiers.cpp            ← SimpleResNet + GroupKFold + EER/AUC
 │       └── E05Output.cpp
 ├── profiles/
-│   ├── debug.json                        ← teste rápido (2 épocas, poucas amostras)
-│   ├── handcrafted-voice.json            ← DTWPT na voz (scale=bark)
-│   ├── handcrafted-eeg.json              ← DTWPT no EEG
-│   ├── handcrafted-fused.json            ← DTWPT na voz+EEG
-│   ├── autoencoder-voice.json            ← LSTM-AE na voz
-│   ├── autoencoder-eeg.json
-│   ├── autoencoder-fused.json
-│   └── article-full.json                 ← rodada completa de comparação
+│   ├── debug.json                        ← teste rápido (RNN, 3 épocas, poucas amostras)
+│   ├── phase00/                          ← FASE 00: construção do vetor + ranking paraconsistente
+│   │   ├── p00_hc_<wavelet>_<scale>_<fonte>.json   varredura handcrafted
+│   │   │     wavelet ∈ {haar, daub4, daub6, ..., daub46}  (23, ver Types.hpp)
+│   │   │     scale   ∈ {bark, mel, lfcc};  fonte ∈ {voice, eeg}
+│   │   │     23 × 3 × 2 = 138 perfis
+│   │   └── p00_ae_<fonte>.json                     autoencoder (sem wavelet/scale) → 2 perfis
+│   │       (classifier.enabled=false; para após o ranking. 140 perfis no total)
+│   │       (fundido é construído DEPOIS, do vencedor de cada lado)
+│   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
+│       └── p01_dsnn_<fonte>_<texto>_<cv>.json   (todos classifier=dsnn)
+│           fonte ∈ {voice, eeg, fused-early, fused-late}
+│           texto ∈ {dep, indep}, cv ∈ {nested, flat}
+│           4 × 2 × 2 = 16 perfis
+│           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 48 testes: 8 perfis parseiam e validam
-    ├── e05_feature_extraction_gtest.cpp  ← funções de descritor + extract_handcrafted
+    ├── e05_profile_audit_gtest.cpp       ← 1099 testes: 157 perfis (140 fase00 + 16 fase01 + debug) parseiam e validam
+    ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
     └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```
+
+**Duas fases** (`classifier.enabled` controla o gate):
+- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × sinal, mais o autoencoder. `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
+- **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é um placeholder — substitua pela wavelet/escala (ou `strategy=autoencoder`) vencedora antes de rodar. Cruza fonte × modo de texto × esquema de CV.
+
+**Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):
+
+```bash
+# 1. Rode todos os perfis phase00/ (grava results/phase00/*_paraconsistent.csv)
+
+# 2. Ranqueie e escolha o vencedor por sinal (menor D_truth):
+python3 scripts/pipeline/e05_phase00_rank.py \
+    --profiles-dir src/experiments/05/profiles/phase00 \
+    --results-dir  results/phase00 \
+    --out          results/phase00/winners.json
+
+# 3. Injete o vencedor nos 16 perfis phase01/ (fused usa o vencedor da voz por padrão):
+python3 scripts/pipeline/e05_apply_winner.py \
+    --winners      results/phase00/winners.json \
+    --profiles-dir src/experiments/05/profiles/phase01 \
+    --fused        voice      # ou: eeg
+
+# 4. Rode os perfis phase01/ (já com o extrator vencedor).
+```
+
+O `rank` agrega os CSV por (wavelet × escala × sinal), faz média das repetições e reporta a tabela ordenada + o vencedor. O `apply` é idempotente: `voice→vencedor-voz`, `eeg→vencedor-eeg`, `fused-*→--fused`. Use `--dry-run` no `apply` para revisar sem gravar.
 
 ---
 

@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <limits>
+#include <span>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "core/training/Trainer.hpp"
@@ -132,6 +135,33 @@ double hz_to_mel(double f)
     return 2595.0 * std::log10(1.0 + f / 700.0);
 }
 
+// Runtime name → mother-wavelet decomposition filter. Coefficient arrays have
+// static storage (constexpr in Types.hpp), so returning spans over them is safe.
+// Only the tags listed here (all with WaveletTraits specializations) are valid;
+// E05Config::validate() rejects any other name before extraction runs.
+std::span<const double> wavelet_filter(const std::string& name)
+{
+    using namespace wavelets;
+    static const std::unordered_map<std::string, std::span<const double>> table = {
+        {"haar",   get_wavelet<Haar>()},
+        {"daub4",  get_wavelet<Daub4>()},   {"daub6",  get_wavelet<Daub6>()},
+        {"daub8",  get_wavelet<Daub8>()},   {"daub10", get_wavelet<Daub10>()},
+        {"daub12", get_wavelet<Daub12>()},  {"daub14", get_wavelet<Daub14>()},
+        {"daub16", get_wavelet<Daub16>()},  {"daub18", get_wavelet<Daub18>()},
+        {"daub20", get_wavelet<Daub20>()},  {"daub22", get_wavelet<Daub22>()},
+        {"daub24", get_wavelet<Daub24>()},  {"daub26", get_wavelet<Daub26>()},
+        {"daub28", get_wavelet<Daub28>()},  {"daub30", get_wavelet<Daub30>()},
+        {"daub32", get_wavelet<Daub32>()},  {"daub34", get_wavelet<Daub34>()},
+        {"daub36", get_wavelet<Daub36>()},  {"daub38", get_wavelet<Daub38>()},
+        {"daub40", get_wavelet<Daub40>()},  {"daub42", get_wavelet<Daub42>()},
+        {"daub44", get_wavelet<Daub44>()},  {"daub46", get_wavelet<Daub46>()},
+    };
+    const auto it = table.find(name);
+    if (it == table.end())
+        throw std::invalid_argument("E05FeatureExtraction: unknown wavelet \"" + name + "\"");
+    return it->second;
+}
+
 // Group DTWPT sub-bands by perceptual frequency scale.
 //
 // "lfcc" → each sub-band is its own group (uniform linear spacing).
@@ -199,12 +229,9 @@ auto extract_handcrafted(const std::vector<double>& signal,
     const E05Config::HandcraftedConfig& cfg,
     double sample_rate) -> std::vector<double>
 {
-    using wavelets::WaveletTraits;
-    using wavelets::Daub4;
     using wavelets::PACKET_WAVELET;
 
-    auto& coeffs = WaveletTraits<Daub4>::coeffs;
-    std::span<const double> filter(coeffs.data(), coeffs.size());
+    const std::span<const double> filter = wavelet_filter(cfg.wavelet);
 
     auto result = wavelets::malat(signal, filter, PACKET_WAVELET,
         static_cast<unsigned int>(cfg.dtwpt_level));
@@ -273,45 +300,52 @@ void apply_preemphasis(std::vector<double>& sig, double alpha)
         sig[n] -= alpha * sig[n - 1];
 }
 
-// Pull the raw 1-D signal for the requested modality from a sample:
-//   "eeg"   → EEG channel (no pre-emphasis)
-//   "voice" → audio channel (pre-emphasised)
-//   "fused" → audio if present (pre-emphasised), otherwise EEG
-// Returns 256 zeros when the chosen modality is absent, so downstream transforms
-// always receive a non-empty signal. Shared by both extraction strategies.
-std::vector<double> signal_for_modality(const E05Sample& sample, const std::string& modality)
+// Raw-signal accessors, one per recorded modality. Each returns 256 zeros when
+// the requested tensor is absent, so downstream transforms always receive a
+// non-empty signal. Pre-emphasis is audio-only (see kPreEmphasisAlpha above).
+using SignalGetter = std::function<std::vector<double>(const E05Sample&)>;
+
+std::vector<double> voice_signal(const E05Sample& sample)
 {
     auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
-
     std::vector<double> sig;
-    bool is_audio = false;
-    if (modality == "eeg")
+    if (present(sample.audio))
     {
-        if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
+        sig = tensor_to_vec(sample.audio);
+        apply_preemphasis(sig, kPreEmphasisAlpha);
     }
-    else if (modality == "voice")
-    {
-        if (present(sample.audio)) { sig = tensor_to_vec(sample.audio); is_audio = true; }
-    }
-    else // "fused"
-    {
-        if (present(sample.audio))    { sig = tensor_to_vec(sample.audio); is_audio = true; }
-        else if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
-    }
-
-    if (is_audio) apply_preemphasis(sig, kPreEmphasisAlpha);
-
     if (sig.empty()) sig.assign(256, 0.0);
+    return sig;
+}
+
+std::vector<double> eeg_signal(const E05Sample& sample)
+{
+    auto present = [](const nn::Tensor& t) { return t.rows() > 0 && t.cols() > 0; };
+    std::vector<double> sig;
+    if (present(sample.eeg)) sig = tensor_to_vec(sample.eeg);
+    if (sig.empty()) sig.assign(256, 0.0);
+    return sig;
+}
+
+// Early fusion: one signal = voice samples followed by EEG samples, extracted
+// through a single DTWPT/autoencoder pass (audit C12). The two halves have
+// different native sample rates (44100 Hz voice vs 1024 Hz EEG); the caller
+// applies the voice rate to the whole concatenation for frequency-scale mapping
+// since voice dominates the sample count (176400 vs 24576 per trial). This is
+// an approximation, not a resampling — documented here so it isn't mistaken for
+// a physically exact rate.
+std::vector<double> fused_early_signal(const E05Sample& sample)
+{
+    std::vector<double> sig = voice_signal(sample);
+    const std::vector<double> eeg = eeg_signal(sample);
+    sig.insert(sig.end(), eeg.begin(), eeg.end());
     return sig;
 }
 
 // Nominal sample rates by modality (Hz), per the dataset protocol
 // (Pressel Coretto et al., SPIE 2017 / 10.1117/12.2255697).
-double modality_sample_rate(const std::string& modality)
-{
-    if (modality == "eeg") return 1024.0;
-    return 44100.0; // "voice" and "fused" use voice rate
-}
+constexpr double kVoiceSampleRate = 44100.0;
+constexpr double kEegSampleRate = 1024.0;
 
 bool is_linear_spec(const std::string& s)
 {
@@ -357,19 +391,28 @@ nn::Tensor vec_to_column_tensor(const std::vector<double>& sig)
 }
 } // namespace
 
-auto extract_features(const E05DatasetView& view,
+namespace
+{
+
+// Runs the configured strategy (handcrafted or autoencoder) against whatever
+// single signal get_signal() returns per sample. Used directly for "voice"
+// and "eeg" modality, and reused twice by late fusion (once per signal) and
+// once by early fusion (on the pre-concatenated signal). label_suffix tags
+// the resulting FeatureSet so voice-part/EEG-part/fused variants stay
+// distinguishable in results output.
+auto extract_features_core(const E05DatasetView& view,
     const E05Config::FeatureExtraction& cfg,
     const E05Config::Training& training,
-    const std::string& modality) -> std::vector<FeatureSet>
+    const SignalGetter& get_signal,
+    double sample_rate,
+    const std::string& label_suffix) -> std::vector<FeatureSet>
 {
     std::vector<FeatureSet> result;
 
     if (cfg.strategy == "handcrafted")
     {
-        const double sample_rate = modality_sample_rate(modality);
-
         FeatureSet fs;
-        fs.label = "handcrafted-" + cfg.handcrafted.scale;
+        fs.label = "handcrafted-" + cfg.handcrafted.scale + label_suffix;
         fs.vectors.reserve(view.samples.size());
 
         const auto n_samples = static_cast<long>(view.samples.size());
@@ -386,7 +429,7 @@ auto extract_features(const E05DatasetView& view,
         for (long i = 0; i < n_samples; ++i)
         {
             const auto& sample = view.samples[static_cast<size_t>(i)];
-            std::vector<double> sig = signal_for_modality(sample, modality);
+            std::vector<double> sig = get_signal(sample);
 
             // Zero-pad to next power of two for DTWPT.
             size_t n = 1;
@@ -419,7 +462,7 @@ auto extract_features(const E05DatasetView& view,
         size_t max_len = 0;
         for (const auto& sample : view.samples)
         {
-            std::vector<double> sig = signal_for_modality(sample, modality);
+            std::vector<double> sig = get_signal(sample);
             max_len = std::max(max_len, sig.size());
             raw_signals.push_back(std::move(sig));
         }
@@ -457,7 +500,7 @@ auto extract_features(const E05DatasetView& view,
         (void) trainer.fit_autoencoder(train_samples);
 
         FeatureSet fs;
-        fs.label = "autoencoder-lstm";
+        fs.label = "autoencoder-lstm" + label_suffix;
         fs.vectors.reserve(train_samples.size());
         for (const auto& sample : train_samples)
         {
@@ -473,6 +516,65 @@ auto extract_features(const E05DatasetView& view,
             "E05FeatureExtraction: unknown strategy \"" + cfg.strategy + "\"");
     }
 
+    return result;
+}
+
+} // namespace
+
+auto extract_features(const E05DatasetView& view,
+    const E05Config::FeatureExtraction& cfg,
+    const E05Config::Training& training,
+    const std::string& modality,
+    const std::string& fusion_mode) -> std::vector<FeatureSet>
+{
+    if (modality == "voice")
+        return extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "");
+
+    if (modality == "eeg")
+        return extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "");
+
+    if (modality != "fused")
+        throw std::invalid_argument("E05FeatureExtraction: unknown modality \"" + modality + "\"");
+
+    if (fusion_mode == "early")
+    {
+        return extract_features_core(
+            view, cfg, training, fused_early_signal, kVoiceSampleRate, "-fused-early");
+    }
+
+    if (fusion_mode != "late")
+        throw std::invalid_argument("E05FeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
+
+    // Late fusion: extract independently per signal, then concatenate the
+    // resulting feature vectors sample-by-sample (audit C12).
+    auto voice_sets = extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "");
+    auto eeg_sets = extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "");
+
+    if (voice_sets.size() != eeg_sets.size())
+        throw std::runtime_error(
+            "E05FeatureExtraction: late fusion produced mismatched FeatureSet counts");
+
+    std::vector<FeatureSet> result;
+    result.reserve(voice_sets.size());
+    for (size_t k = 0; k < voice_sets.size(); ++k)
+    {
+        auto& vfs = voice_sets[k];
+        auto& efs = eeg_sets[k];
+        if (vfs.vectors.size() != efs.vectors.size())
+            throw std::runtime_error(
+                "E05FeatureExtraction: late fusion sample-count mismatch between voice and EEG");
+
+        FeatureSet fused;
+        fused.label = vfs.label + "-fused-late";
+        fused.vectors.resize(vfs.vectors.size());
+        for (size_t i = 0; i < vfs.vectors.size(); ++i)
+        {
+            fused.vectors[i] = vfs.vectors[i];
+            fused.vectors[i].insert(
+                fused.vectors[i].end(), efs.vectors[i].begin(), efs.vectors[i].end());
+        }
+        result.push_back(std::move(fused));
+    }
     return result;
 }
 

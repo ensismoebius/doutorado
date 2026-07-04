@@ -4,7 +4,9 @@ Modality (\texttt{dataset.modality}):
 \begin{itemize}
     \item \texttt{voice} --- audio only
     \item \texttt{eeg} --- EEG only
-    \item \texttt{fused} --- voice+EEG feature vectors concatenated (not a third recorded signal)
+    \item \texttt{fused} --- voice+EEG combined (not a third recorded signal); sub-axis
+    \texttt{fusion\_mode} = \texttt{early} (fuse raw signals before extraction) or \texttt{late}
+    (concatenate feature vectors after per-signal extraction, default)
 \end{itemize}
 
 Feature-extraction strategy (\texttt{feature\_extraction.strategy}):
@@ -18,6 +20,12 @@ Handcrafted scale (\texttt{handcrafted.scale}, only if strategy=handcrafted):
     \item \texttt{bark}
     \item \texttt{mel}
     \item \texttt{lfcc}
+\end{itemize}
+
+Handcrafted mother wavelet (\texttt{handcrafted.wavelet}, only if strategy=handcrafted) --- swept in Phase 00; 23 options with coefficient traits in \texttt{include/wavelet/Types.hpp}:
+\begin{itemize}
+    \item \texttt{haar}
+    \item \texttt{daub4}, \texttt{daub6}, \texttt{daub8}, \dots, \texttt{daub46} (even $N$)
 \end{itemize}
 
 Handcrafted descriptors (\texttt{handcrafted.descriptors}, list, any subset):
@@ -66,40 +74,42 @@ maximizes paraconsistent separability ($D_{\text{truth}}$ minimal), before any c
 (ch08 \S estruturaDaEstrategiaProposta).
 
 Candidates per signal (voice, EEG each get their own ranking --- fused vectors are built \emph{after}
-this phase, by concatenating each side's winning vector):
+this phase, from each side's winning vector):
 \begin{itemize}
-    \item \textbf{Handcrafted}, 6 spectral variants from DTWT band-energy grouping:
+    \item \textbf{Handcrafted}, swept over \emph{mother wavelet} $\times$ \emph{scale}:
     \begin{itemize}
-        \item Categoria 1 (energy only): Linear-band, Mel-band, Bark-band energies
-        \item Categoria 2 (+log +DCT): LFCC, MFCC, BFCC
+        \item wavelet: 23 options (\texttt{haar} + \texttt{daub4}\dots\texttt{daub46})
+        \item scale: bark, mel, lfcc (band-energy grouping; Categoria 2 LFCC/MFCC/BFCC cepstral not yet implemented)
     \end{itemize}
     each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
-    \item \textbf{SNN-AE} (spiking autoencoder, thesis target)
-    \item \textbf{ANN-AE} (conventional/non-spiking autoencoder, thesis target)
+    So $23 \times 3 = 69$ handcrafted variants per signal.
+    \item \textbf{Autoencoder} (LSTM-AE wired today; SNN-AE / ANN-AE are thesis targets) --- 1 variant.
 \end{itemize}
 
-So Phase 00 combinations $=$ 2 signals (voice, EEG) $\times$ 8 candidate extractors
-(6 handcrafted variants + SNN-AE + ANN-AE) $=$ \textbf{16 rankings}, each scored by
-$\alpha,\beta,G_1,G_2,D_{\text{truth}}$ (\autoref{sec:conceitos}). Output of this phase: one winning
-feature vector for voice, one for EEG.
+So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 1 autoencoder)
+$=$ \textbf{140 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
+(\autoref{sec:conceitos}). Output of this phase: one winning feature vector for voice, one for EEG.
+(The thesis's conceptual target still adds SNN-AE/ANN-AE and Categoria-2 cepstral variants once implemented.)
 LSTM-AE excluded here --- it is the Guayaquil-paper extractor, not a thesis Phase 00 candidate
 (scope note, ch08 \S39 / wiki Experiment05.md \S72--80).
 
 \subsection*{Phase 01 --- Authentication (DSNN classification, biometric ablation)}
 
-Goal: feed Phase 00's winning vectors into the \textbf{DSNN} (deep residual spiking classifier,
-thesis-only --- the plain RNN/ResNet classifier is Guayaquil-paper-only, ch08 \S82) and measure
-biometric verification performance under 3 signal-source modes, to isolate each source's
+Goal: feed \textbf{only Phase 00's single winning combination} (the wavelet$\times$scale or
+autoencoder chosen by the paraconsistent ranking) into the \textbf{DSNN} (deep residual spiking
+classifier, thesis-only --- the plain RNN/ResNet classifier is Guayaquil-paper-only, ch08 \S82) and
+measure biometric verification performance under 4 signal-source modes, to isolate each source's
 contribution (ch08 \S32):
 
 \begin{enumerate}
-    \item[00] \textbf{voz + EEG (fundida)} --- concatenated vectors, primary/combined condition
+    \item[00a] \textbf{voz + EEG, fusão precoce} (\texttt{fused-early}) --- raw voice+EEG concatenated before one extraction pass
+    \item[00b] \textbf{voz + EEG, fusão tardia} (\texttt{fused-late}) --- per-signal extraction, feature vectors concatenated after (audit C12)
     \item[01] \textbf{apenas voz (fonada)} --- ablation, voice vector only
     \item[02] \textbf{apenas EEG (imaginada)} --- ablation, EEG vector only
 \end{enumerate}
 
-Each of these 3 modes is additionally crossed with 2 axes explicitly required by the thesis's own
-research questions / metrics section:
+Each of these 4 source modes is additionally crossed with 2 axes explicitly required by the thesis's
+own research questions / metrics section:
 
 \begin{itemize}
     \item \textbf{text-dependent vs.\ text-independent} (ch06, Questão 4): same phrase spoken+imagined
@@ -110,12 +120,11 @@ research questions / metrics section:
     appear in training.
 \end{itemize}
 
-So Phase 01 core grid $=$ 3 modes $\times$ 2 (dependent/independent) $\times$ 2 (nested/flat)
-$=$ \textbf{12 DSNN runs} (using each mode's already-decided winning vector from Phase 00). If instead
-all 3 Phase-00 candidate families (handcrafted-winner, SNN-AE, ANN-AE) are \emph{each} pushed through
-Phase 01 rather than only the single overall winner (worth doing, since paraconsistent ranking and
-classifier accuracy are not guaranteed to agree) $\to$ 3 modes $\times$ 3 extractor families $\times$ 2
-$\times$ 2 $=$ \textbf{36 DSNN runs}.
+So Phase 01 grid $=$ 4 source modes $\times$ 2 (dependent/independent) $\times$ 2 (nested/flat)
+$=$ \textbf{16 DSNN runs}, all using the single Phase-00 winning combination (the extractor axis is
+\emph{not} swept in Phase 01 --- the paraconsistent ranking already picked it). The shipped
+\texttt{phase01/} profiles carry a placeholder \texttt{feature\_extraction} block to be replaced with
+that winner before running.
 
 \textbf{Primary metrics} (ch08 \S71, verification protocol): EER and AUC. Closed-set metrics
 (accuracy/F1/precision/recall/specificity) only reported if a closed-set evaluation is also run

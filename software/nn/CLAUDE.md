@@ -90,7 +90,7 @@ ctest --test-dir out/build/max-performance --output-on-failure -j4
 | `experiment04_lib` | Experiment 04 library only |
 | `experiment05` | Experiment 05 binary (thesis primary) |
 | `experiment05_lib` | Experiment 05 library only |
-| `e05_profile_audit_gtest` | 48 tests verifying all 8 E05 profiles parse + validate |
+| `e05_profile_audit_gtest` | 1099 tests verifying all 157 E05 profiles (140 phase00 wavelet×scale sweep + 16 phase01 + debug) parse + validate |
 | `experiment_02` | Experiment 02 binary |
 | `trainer_gtest` | Trainer/EpochResult/TrainerConfig tests |
 | `profile_audit_gtest` | 25 tests verifying all 5 article profiles parse + validate |

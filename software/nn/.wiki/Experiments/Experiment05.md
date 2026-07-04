@@ -56,6 +56,8 @@ The Discrete-Time Wavelet Packet Transform decomposes the signal into a full bin
 
 $$x[n] = \sum_{j,k} c_{j,k} \psi_{j,k}[n]$$
 
+The **mother wavelet** $\psi$ is a Phase-00 sweep axis (`handcrafted.wavelet`): any tag with coefficient traits in `include/wavelet/Types.hpp` — `haar` or `daubN` for even N in [4, 46] (23 in total). Shorter filters (e.g. Haar) localise sharp transients; longer Daubechies filters give smoother, more selective sub-bands. The best wavelet per signal is chosen by the paraconsistent ranking.
+
 At each leaf node (sub-band), the following descriptors are computed:
 
 | Descriptor | Formula | Sensitivity |
@@ -131,7 +133,14 @@ See [K-Fold Cross-Validation](../Concepts/K-Fold-Cross-Validation.md).
 - Audio: 44100 Hz, single channel (present only for pronounced trials)
 - EEG: 1024 Hz, 6 channels (F3, F4, C3, C4, P3, P4), 10-20 system; each 4 s trial = 4096 samples/channel
 
-> The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. "Mixed"/fused means the voice and EEG feature vectors are concatenated, not a third recorded signal.
+> The pipeline's `modality` field (`voice` | `eeg` | `fused`) selects which signal(s) feed feature extraction — it is not a dataset-level modality. Fusion is not a third recorded signal; it combines the two existing signals, and *when* the combination happens is a second axis, `fusion_mode` (only consulted for `modality=fused`):
+>
+> | `fusion_mode` | Where combination happens | Extractor runs | Result vector |
+> |---|---|---|---|
+> | `early` | Raw voice+EEG samples concatenated **before** extraction | one pass over the joined signal | features of the joined signal |
+> | `late` (default) | Voice and EEG extracted **independently**, feature vectors concatenated **after** | two passes (one per signal) | `[voice-features ‖ eeg-features]` |
+>
+> Early fusion lets the extractor model cross-modal interactions but forces one sample rate onto both halves (the voice rate, since audio dominates the sample count); late fusion keeps each signal at its native rate and its own extractor, at the cost of never seeing the two jointly. Both are worth comparing as an experimental axis. Implemented in `E05FeatureExtraction.cpp::extract_features` (audit C12).
 
 See [Data Loaders](../Core/DataLoaders.md) for the `E05Dataset` loader API and file layout.
 
@@ -160,14 +169,15 @@ src/experiments/05/
 │       ├── E05Classifiers.cpp
 │       └── E05Output.cpp
 ├── profiles/
-│   ├── debug.json
-│   ├── handcrafted-eeg.json
-│   ├── handcrafted-voice.json
-│   ├── handcrafted-fused.json
-│   ├── autoencoder-eeg.json
-│   ├── autoencoder-voice.json
-│   ├── autoencoder-fused.json
-│   └── article-full.json
+│   ├── debug.json                              (RNN quick smoke)
+│   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
+│   │   ├── p00_hc_<wavelet>_<scale>_<source>.json   wavelet ∈ {haar,daub4..daub46} (23) ×
+│   │   │                                            scale ∈ {bark,mel,lfcc} × source ∈ {voice,eeg} = 138
+│   │   └── p00_ae_<source>.json                     autoencoder (no wavelet/scale) = 2   → 140 total
+│   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
+│       └── p01_dsnn_<source>_<text>_<cv>.json   source ∈ {voice,eeg,fused-early,fused-late} ×
+│           text ∈ {dep,indep} × cv ∈ {nested,flat} = 16
+│           (feature_extraction = placeholder; set the Phase-00 winner before running)
   └── tests/
   ├── e05_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
   ├── e05_feature_extraction_gtest.cpp   descriptor functions + extract_handcrafted
@@ -187,7 +197,8 @@ src/experiments/05/
   "dataset": {
     "root": "/path/to/10.1117/",
     "results_dir": "results/",
-    "modality": "eeg"          // "voice" | "eeg" | "fused"
+    "modality": "eeg",         // "voice" | "eeg" | "fused"
+    "fusion_mode": "late"      // "early" | "late"  — only used when modality=fused
   },
   "feature_extraction": {
     "strategy": "handcrafted",  // "handcrafted" | "autoencoder"
@@ -316,13 +327,38 @@ cmake --preset=max-performance
 # Build experiment binary
 cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
-# Single profile
+# Phase 00 — rank feature extractors per signal (stops after paraconsistent ranking)
 ./out/build/max-performance/src/experiments/05/experiment05 \
-  --config src/experiments/05/profiles/handcrafted-eeg.json
+  --config src/experiments/05/profiles/phase00/p00_hc_daub4_lfcc_voice.json
+
+# Phase 01 — DSNN authentication with the chosen extractor
+./out/build/max-performance/src/experiments/05/experiment05 \
+  --config src/experiments/05/profiles/phase01/p01_dsnn_eeg_indep_nested.json
 
 # Full article run
 ./scripts/pipeline/run_experiment05.sh
 ```
+
+### Two-phase protocol
+
+The experiment is split into two profile sets, gated by `classifier.enabled`:
+
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`), plus the autoencoder, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme = 16.
+
+**Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:
+
+```bash
+# Rank Phase 00 results, pick the min-D_truth winner per signal:
+python3 scripts/pipeline/e05_phase00_rank.py \
+  --results-dir results/phase00 --out results/phase00/winners.json
+
+# Inject the winners into the 16 Phase 01 profiles (fused uses the voice winner by default):
+python3 scripts/pipeline/e05_apply_winner.py \
+  --winners results/phase00/winners.json --fused voice
+```
+
+`e05_phase00_rank.py` collates every `results/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
 
 ---
 

@@ -33,8 +33,15 @@
 		\begin{itemize}
 			\item \textbf{apenas fala fonada}: somente o sinal de voz (áudio) alimenta o classificador;
 			\item \textbf{apenas fala imaginada}: somente o sinal de EEG alimenta o classificador;
-			\item \textbf{fonada + imaginada (fundida)}: os vetores de características das duas modalidades são concatenados antes da classificação.
+			\item \textbf{fonada + imaginada (fundida)}: as duas fontes são combinadas antes da classificação.
 		\end{itemize}
+
+		\par No modo fundido, o \emph{instante} em que as duas fontes se combinam é, ele próprio, um eixo experimental, pois desloca a fronteira entre o que é modelado separadamente e o que é modelado em conjunto:
+		\begin{itemize}
+			\item \textbf{fusão precoce} (\textit{early fusion}): os sinais brutos de voz e EEG são concatenados \emph{antes} da extração de características, de modo que um único extrator opera sobre o sinal conjunto e pode capturar interações entre as modalidades. Em contrapartida, impõe uma taxa de amostragem comum às duas metades (adota-se a taxa da voz, dominante em número de amostras);
+			\item \textbf{fusão tardia} (\textit{late fusion}): cada sinal é submetido \emph{independentemente} à extração de características, e apenas os vetores resultantes são concatenados. Preserva a taxa nativa e o extrator próprio de cada fonte, ao custo de nunca observar as duas conjuntamente.
+		\end{itemize}
+		\par Ambas as estratégias serão comparadas, uma vez que não há garantia a priori de qual delas produz características mais separáveis segundo a engenharia paraconsistente.
 
 		\par Quanto à extração automatizada, serão comparados dois tipos de \textit{autoencoder} --- um de pulsos (SNN-AE) e um convencional (ANN-AE) --- e ambos serão confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
 

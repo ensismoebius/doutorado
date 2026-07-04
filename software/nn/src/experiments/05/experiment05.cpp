@@ -55,7 +55,8 @@ void run_once(const e05::E05Config& cfg)
 
     // ── 3. Feature extraction ────────────────────────────────────────────────
     auto feature_sets = e05::extract_features(
-        view, cfg.feature_extraction, cfg.training, cfg.dataset.modality);
+        view, cfg.feature_extraction, cfg.training, cfg.dataset.modality,
+        cfg.dataset.fusion_mode);
     pm.log("[E05] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
 
     // ── 4. Paraconsistent ranking ────────────────────────────────────────────
@@ -75,39 +76,52 @@ void run_once(const e05::E05Config& cfg)
         }
     }
 
-    // ── 5. Classification ────────────────────────────────────────────────────
-    int n_usable_fs = 0;
-    for (const auto& fs : feature_sets)
-        if (!fs.vectors.empty()) ++n_usable_fs;
-
-    const int total_outer_folds = n_usable_fs * cfg.training.k_folds;
-    const uint32_t global_bar =
-        pm.create_bar("E05 | " + cfg.experiment.run_tag,
-                      static_cast<float>(total_outer_folds));
-    pm.set_description(global_bar,
-        cfg.classifier.type + " | " + cfg.classifier.text_mode +
-        " | " + std::to_string(cfg.training.k_folds) + "-fold CV");
-
-    int global_completed = 0;
+    // ── 5. Classification (Phase 01 only) ────────────────────────────────────
+    // When classifier.enabled is false, this is a Phase 00 run: stop after
+    // paraconsistent ranking and emit only the ranking artefacts.
     std::vector<e05::ClassificationResult> results;
-    for (const auto& fs : feature_sets)
+    if (cfg.classifier.enabled)
     {
-        if (fs.vectors.empty()) continue;
-        auto result = e05::run_classifier(
-            view, fs.vectors, fs.label, cfg, nullptr, global_bar, &global_completed);
-        results.push_back(std::move(result));
-    }
+        int n_usable_fs = 0;
+        for (const auto& fs : feature_sets)
+            if (!fs.vectors.empty()) ++n_usable_fs;
 
-    pm.complete_bar(global_bar);
+        const int total_outer_folds = n_usable_fs * cfg.training.k_folds;
+        const uint32_t global_bar =
+            pm.create_bar("E05 | " + cfg.experiment.run_tag,
+                          static_cast<float>(total_outer_folds));
+        pm.set_description(global_bar,
+            cfg.classifier.type + " | " + cfg.classifier.text_mode +
+            " | " + std::to_string(cfg.training.k_folds) + "-fold CV");
+
+        int global_completed = 0;
+        for (const auto& fs : feature_sets)
+        {
+            if (fs.vectors.empty()) continue;
+            auto result = e05::run_classifier(
+                view, fs.vectors, fs.label, cfg, nullptr, global_bar, &global_completed);
+            results.push_back(std::move(result));
+        }
+
+        pm.complete_bar(global_bar);
+    }
+    else
+    {
+        pm.log("[E05] classifier.enabled=false — Phase 00 run, stopping after ranking.");
+    }
 
     // ── 6. Output ────────────────────────────────────────────────────────────
     const std::string& results_dir = cfg.dataset.results_dir;
     const std::string& tag         = cfg.experiment.run_tag;
 
-    e05::write_metrics_csv(results_dir, tag, results);
+    // Ranking artefacts are always written; classifier artefacts only when it ran.
     e05::write_paraconsistent_csv(results_dir, tag, scores);
     e05::write_summary_json(results_dir, tag, cfg, results, scores);
-    e05::write_comparison_dat(results_dir, tag, results);
+    if (cfg.classifier.enabled)
+    {
+        e05::write_metrics_csv(results_dir, tag, results);
+        e05::write_comparison_dat(results_dir, tag, results);
+    }
 
     for (const auto& r : results)
     {

@@ -23,6 +23,10 @@ void E05Config::validate() const
     if (!valid_modality)
         throw std::invalid_argument("E05Config: dataset.modality must be voice/eeg/fused");
 
+    auto valid_fusion_mode = dataset.fusion_mode == "early" || dataset.fusion_mode == "late";
+    if (!valid_fusion_mode)
+        throw std::invalid_argument("E05Config: dataset.fusion_mode must be early/late");
+
     const bool valid_strategy = feature_extraction.strategy == "handcrafted" ||
                                 feature_extraction.strategy == "autoencoder";
     if (!valid_strategy)
@@ -39,6 +43,17 @@ void E05Config::validate() const
                                  feature_extraction.handcrafted.scale == "lfcc";
         if (!valid_scale)
             throw std::invalid_argument("E05Config: handcrafted.scale must be bark/mel/lfcc");
+
+        // Mother wavelets with coefficient traits in include/wavelet/Types.hpp.
+        static const std::vector<std::string> valid_wavelets = {
+            "haar",   "daub4",  "daub6",  "daub8",  "daub10", "daub12",
+            "daub14", "daub16", "daub18", "daub20", "daub22", "daub24",
+            "daub26", "daub28", "daub30", "daub32", "daub34", "daub36",
+            "daub38", "daub40", "daub42", "daub44", "daub46"};
+        if (std::find(valid_wavelets.begin(), valid_wavelets.end(),
+                      feature_extraction.handcrafted.wavelet) == valid_wavelets.end())
+            throw std::invalid_argument(
+                "E05Config: handcrafted.wavelet must be haar or daubN (even N in [4,46])");
 
         if (feature_extraction.handcrafted.descriptors.empty())
             throw std::invalid_argument("E05Config: handcrafted.descriptors must not be empty");
@@ -64,27 +79,33 @@ void E05Config::validate() const
     if (!valid_text_mode)
         throw std::invalid_argument("E05Config: classifier.text_mode must be dependent/independent");
 
-    if (classifier.layer_spec.size() < 3)
-        throw std::invalid_argument(
-            "E05Config: classifier.layer_spec must have at least 3 items: "
-            "linear:H:act, residual:D, linear:N_speakers:identity");
-
-    const auto starts_with = [](const std::string& s, const std::string& p)
+    // layer_spec is only meaningful when the classifier actually runs (Phase 01).
+    // Phase 00 profiles (classifier.enabled=false) stop after paraconsistent
+    // ranking and may omit it.
+    if (classifier.enabled)
     {
-        return s.rfind(p, 0) == 0;
-    };
+        if (classifier.layer_spec.size() < 3)
+            throw std::invalid_argument(
+                "E05Config: classifier.layer_spec must have at least 3 items: "
+                "linear:H:act, residual:D, linear:N_speakers:identity");
 
-    if (!starts_with(classifier.layer_spec.front(), "linear:"))
-        throw std::invalid_argument("E05Config: first classifier.layer_spec item must start with linear:");
+        const auto starts_with = [](const std::string& s, const std::string& p)
+        {
+            return s.rfind(p, 0) == 0;
+        };
 
-    const bool has_residual = std::any_of(classifier.layer_spec.begin(), classifier.layer_spec.end(),
-        [&](const std::string& s) { return starts_with(s, "residual:"); });
-    if (!has_residual)
-        throw std::invalid_argument("E05Config: classifier.layer_spec must include residual:D item");
+        if (!starts_with(classifier.layer_spec.front(), "linear:"))
+            throw std::invalid_argument("E05Config: first classifier.layer_spec item must start with linear:");
 
-    if (!starts_with(classifier.layer_spec.back(), "linear:N_speakers:"))
-        throw std::invalid_argument(
-            "E05Config: last classifier.layer_spec item must start with linear:N_speakers:");
+        const bool has_residual = std::any_of(classifier.layer_spec.begin(), classifier.layer_spec.end(),
+            [&](const std::string& s) { return starts_with(s, "residual:"); });
+        if (!has_residual)
+            throw std::invalid_argument("E05Config: classifier.layer_spec must include residual:D item");
+
+        if (!starts_with(classifier.layer_spec.back(), "linear:N_speakers:"))
+            throw std::invalid_argument(
+                "E05Config: last classifier.layer_spec item must start with linear:N_speakers:");
+    }
 
     if (training.epochs <= 0)
         throw std::invalid_argument("E05Config: training.epochs must be > 0");
@@ -133,6 +154,7 @@ E05Config E05Config::from_json(const nlohmann::json& j)
         if (d.contains("root")) cfg.dataset.root = d["root"];
         if (d.contains("results_dir")) cfg.dataset.results_dir = d["results_dir"];
         if (d.contains("modality")) cfg.dataset.modality = d["modality"];
+        if (d.contains("fusion_mode")) cfg.dataset.fusion_mode = d["fusion_mode"];
         if (d.contains("max_samples")) cfg.dataset.max_samples = d["max_samples"];
     }
 
@@ -150,6 +172,7 @@ E05Config E05Config::from_json(const nlohmann::json& j)
             if (hc.contains("descriptors"))
                 cfg.feature_extraction.handcrafted.descriptors = hc["descriptors"].get<std::vector<std::string>>();
             if (hc.contains("dtwpt_level")) cfg.feature_extraction.handcrafted.dtwpt_level = hc["dtwpt_level"];
+            if (hc.contains("wavelet")) cfg.feature_extraction.handcrafted.wavelet = hc["wavelet"];
         }
 
         if (fe.contains("autoencoder"))
@@ -178,6 +201,7 @@ E05Config E05Config::from_json(const nlohmann::json& j)
         if (c.contains("layer_spec"))
             cfg.classifier.layer_spec = c["layer_spec"].get<std::vector<std::string>>();
         if (c.contains("text_mode")) cfg.classifier.text_mode = c["text_mode"];
+        if (c.contains("enabled")) cfg.classifier.enabled = c["enabled"];
     }
 
     // Training

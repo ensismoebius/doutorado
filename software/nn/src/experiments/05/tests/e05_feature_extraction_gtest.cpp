@@ -234,3 +234,138 @@ TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
     for (double v : extract_handcrafted(sig, cfg, 44100.0))
         EXPECT_GE(v, 0.0);
 }
+
+// ─── wavelet axis ────────────────────────────────────────────────────────────
+
+TEST(E05Wavelet, AllTraitWaveletsExtractFinite)
+{
+    // Every wavelet with coefficient traits in Types.hpp must run end-to-end and
+    // produce finite features. Longer filters need a longer signal than their
+    // support, so use 512 samples.
+    const std::vector<std::string> wavelets = {
+        "haar",   "daub4",  "daub6",  "daub8",  "daub10", "daub12",
+        "daub14", "daub16", "daub18", "daub20", "daub22", "daub24",
+        "daub26", "daub28", "daub30", "daub32", "daub34", "daub36",
+        "daub38", "daub40", "daub42", "daub44", "daub46"};
+
+    auto sig = make_sine(512, 100.0, 44100.0);
+    for (const auto& w : wavelets)
+    {
+        auto cfg = make_hc_cfg({"energy", "entropy"}, 3);
+        cfg.wavelet = w;
+        auto fv = extract_handcrafted(sig, cfg, 44100.0);
+        EXPECT_FALSE(fv.empty()) << "empty feature vector for wavelet " << w;
+        for (double v : fv)
+            EXPECT_TRUE(std::isfinite(v)) << "non-finite feature for wavelet " << w;
+    }
+}
+
+TEST(E05Wavelet, UnknownWaveletThrows)
+{
+    auto cfg = make_hc_cfg({"energy"}, 2);
+    cfg.wavelet = "not-a-wavelet";
+    auto sig = make_sine();
+    EXPECT_THROW(extract_handcrafted(sig, cfg, 44100.0), std::invalid_argument);
+}
+
+TEST(E05Wavelet, DifferentWaveletsDifferentFeatures)
+{
+    // Haar (2-tap) and Daub20 (20-tap) must not yield identical decompositions.
+    auto sig = make_sine(512, 100.0, 44100.0);
+    auto cfg_haar = make_hc_cfg({"energy"}, 3);
+    cfg_haar.wavelet = "haar";
+    auto cfg_d20 = make_hc_cfg({"energy"}, 3);
+    cfg_d20.wavelet = "daub20";
+    EXPECT_NE(extract_handcrafted(sig, cfg_haar, 44100.0),
+              extract_handcrafted(sig, cfg_d20, 44100.0));
+}
+
+// ─── voice/eeg/fused extraction via extract_features (audit C12) ──────────────
+
+namespace
+{
+nn::Tensor make_column_tensor(int n, double freq, double sr)
+{
+    nn::Tensor t(static_cast<nn::Index>(n), 1);
+    for (int i = 0; i < n; ++i)
+        t.at(i, 0) = static_cast<float>(std::sin(2.0 * M_PI * freq * i / sr));
+    return t;
+}
+
+// A minimal two-sample view whose samples each carry distinct audio + EEG.
+E05DatasetView make_paired_view()
+{
+    E05DatasetView view;
+    for (int s = 0; s < 2; ++s)
+    {
+        E05Sample sample;
+        sample.audio = make_column_tensor(256, 100.0 + s, 44100.0);
+        sample.eeg   = make_column_tensor(256, 10.0 + s, 1024.0);
+        sample.subject_id = s;
+        sample.stimulus = s;
+        sample.text_phrase = (s == 0) ? "a" : "e";
+        view.samples.push_back(std::move(sample));
+    }
+    view.n_subjects = 2;
+    view.n_stimuli = 2;
+    return view;
+}
+
+E05Config::FeatureExtraction make_hc_fe(const std::vector<std::string>& descs, int level = 2)
+{
+    E05Config::FeatureExtraction fe;
+    fe.strategy = "handcrafted";
+    fe.handcrafted = make_hc_cfg(descs, level);
+    return fe;
+}
+} // namespace
+
+TEST(E05Fusion, LateFusionDimIsVoicePlusEeg)
+{
+    auto view = make_paired_view();
+    auto fe = make_hc_fe({"energy"});
+    E05Config::Training tr; // defaults unused by handcrafted path
+
+    auto voice = extract_features(view, fe, tr, "voice");
+    auto eeg   = extract_features(view, fe, tr, "eeg");
+    auto late  = extract_features(view, fe, tr, "fused", "late");
+
+    ASSERT_EQ(voice.size(), 1u);
+    ASSERT_EQ(eeg.size(), 1u);
+    ASSERT_EQ(late.size(), 1u);
+    ASSERT_FALSE(late[0].vectors.empty());
+
+    // Late fusion concatenates the per-signal feature vectors sample-by-sample.
+    EXPECT_EQ(late[0].vectors[0].size(),
+              voice[0].vectors[0].size() + eeg[0].vectors[0].size());
+    // Concatenation order is voice-part then eeg-part.
+    for (size_t i = 0; i < voice[0].vectors[0].size(); ++i)
+        EXPECT_DOUBLE_EQ(late[0].vectors[0][i], voice[0].vectors[0][i]);
+}
+
+TEST(E05Fusion, EarlyFusionSingleExtractionDiffersFromLate)
+{
+    auto view = make_paired_view();
+    auto fe = make_hc_fe({"energy"});
+    E05Config::Training tr;
+
+    auto early = extract_features(view, fe, tr, "fused", "early");
+    auto late  = extract_features(view, fe, tr, "fused", "late");
+
+    ASSERT_EQ(early.size(), 1u);
+    ASSERT_EQ(late.size(), 1u);
+    // Early fuses raw signals (voice++eeg = 512 samples → padded to 512) into one
+    // DTWPT pass; late runs two independent passes. Dimensions must not coincide
+    // with the late-fusion sum in general, and labels must distinguish the modes.
+    EXPECT_NE(early[0].label, late[0].label);
+    EXPECT_NE(early[0].label.find("fused-early"), std::string::npos);
+    EXPECT_NE(late[0].label.find("fused-late"), std::string::npos);
+}
+
+TEST(E05Fusion, UnknownFusionModeThrows)
+{
+    auto view = make_paired_view();
+    auto fe = make_hc_fe({"energy"});
+    E05Config::Training tr;
+    EXPECT_THROW(extract_features(view, fe, tr, "fused", "bogus"), std::invalid_argument);
+}
