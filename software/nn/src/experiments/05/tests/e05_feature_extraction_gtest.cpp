@@ -235,6 +235,49 @@ TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
         EXPECT_GE(v, 0.0);
 }
 
+// ─── pre-emphasis ────────────────────────────────────────────────────────────
+
+TEST(E05PreEmphasis, MatchesThesisWorkedExample)
+{
+    // Thesis §Pré-ênfase: x=[1.0,0.9,0.6], alpha=0.97 → [1.0,-0.07,-0.273].
+    std::vector<double> sig = {1.0, 0.9, 0.6};
+    apply_preemphasis(sig, 0.97);
+    ASSERT_EQ(sig.size(), 3u);
+    EXPECT_NEAR(sig[0], 1.0, 1e-12);      // y[0] unchanged
+    EXPECT_NEAR(sig[1], -0.07, 1e-12);    // 0.9 - 0.97*1.0
+    EXPECT_NEAR(sig[2], -0.273, 1e-12);   // 0.6 - 0.97*0.9
+}
+
+TEST(E05PreEmphasis, UsesOriginalNotFilteredPredecessor)
+{
+    // Back-to-front order: y[2] must use the ORIGINAL x[1], not the filtered one.
+    std::vector<double> sig = {2.0, 2.0, 2.0};
+    apply_preemphasis(sig, 0.5);
+    EXPECT_NEAR(sig[0], 2.0, 1e-12);            // unchanged
+    EXPECT_NEAR(sig[1], 2.0 - 0.5 * 2.0, 1e-12); // 1.0
+    EXPECT_NEAR(sig[2], 2.0 - 0.5 * 2.0, 1e-12); // 1.0 (uses original x[1]=2.0)
+}
+
+TEST(E05PreEmphasis, AlphaZeroIsIdentity)
+{
+    std::vector<double> sig = {0.3, -0.5, 0.8, 1.0};
+    const std::vector<double> orig = sig;
+    apply_preemphasis(sig, 0.0);
+    EXPECT_EQ(sig, orig);
+}
+
+TEST(E05PreEmphasis, ShortSignalsUnchanged)
+{
+    std::vector<double> empty;
+    apply_preemphasis(empty, 0.97);
+    EXPECT_TRUE(empty.empty());
+
+    std::vector<double> one = {5.0};
+    apply_preemphasis(one, 0.97);
+    ASSERT_EQ(one.size(), 1u);
+    EXPECT_DOUBLE_EQ(one[0], 5.0); // y[0] never touched
+}
+
 // ─── wavelet axis ────────────────────────────────────────────────────────────
 
 TEST(E05Wavelet, AllTraitWaveletsExtractFinite)

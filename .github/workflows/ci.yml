@@ -40,3 +40,7 @@ jobs:
       run: |
         cd software/nn/build
         ctest
+
+    - name: Run pipeline script tests
+      run: |
+        python3 software/nn/scripts/pipeline/test_e05_phase_scripts.py

@@ -56,4 +56,9 @@ auto compute_energy(const std::vector<double>& subband) -> double;
 auto compute_jitter(const std::vector<double>& signal, double sample_rate) -> double;
 auto compute_shimmer(const std::vector<double>& signal, double sample_rate) -> double;
 
+// In-place first-order pre-emphasis y[n] = x[n] - alpha*x[n-1] (y[0] unchanged).
+// Applied to audio signals only, before feature extraction. Iterates back-to-front
+// so each x[n-1] is the still-unmodified original sample.
+void apply_preemphasis(std::vector<double>& signal, double alpha);
+
 } // namespace e05

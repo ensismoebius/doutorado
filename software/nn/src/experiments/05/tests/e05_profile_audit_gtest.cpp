@@ -272,6 +272,70 @@ TEST_P(E05ProfileAuditTest, SeedDeterministicFalseForArticleProfiles)
         << name << " should have seed_deterministic=false for reproducible sweeps";
 }
 
+// ─── classifier.enabled phase gate + handcrafted axis validation ─────────────
+// These are non-parametric: they exercise E05Config::from_json/validate on
+// synthetic configs rather than the shipped profiles.
+
+namespace
+{
+// Minimal config that validates: handcrafted, phase-01 style (classifier runs).
+nlohmann::json base_config()
+{
+    return nlohmann::json{
+        {"experiment", {{"run_tag", "t"}, {"seed", 42}}},
+        {"dataset", {{"root", "/x"}, {"modality", "voice"}}},
+        {"feature_extraction",
+            {{"strategy", "handcrafted"},
+             {"handcrafted", {{"scale", "lfcc"}, {"wavelet", "daub4"},
+                              {"descriptors", {"energy"}}}}}},
+        {"classifier",
+            {{"type", "dsnn"},
+             {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
+             {"text_mode", "independent"}, {"enabled", true}}},
+    };
+}
+} // namespace
+
+TEST(E05ConfigGate, Phase00OmitsLayerSpec)
+{
+    // classifier.enabled=false (Phase 00): layer_spec not required.
+    auto j = base_config();
+    j["classifier"] = nlohmann::json{{"enabled", false}};
+    auto cfg = E05Config::from_json(j);
+    EXPECT_FALSE(cfg.classifier.enabled);
+    EXPECT_NO_THROW(cfg.validate());
+}
+
+TEST(E05ConfigGate, Phase01RequiresLayerSpec)
+{
+    // classifier.enabled defaults true (Phase 01): missing layer_spec must throw.
+    auto j = base_config();
+    j["classifier"] = nlohmann::json{{"type", "dsnn"}, {"text_mode", "independent"}};
+    auto cfg = E05Config::from_json(j);
+    EXPECT_TRUE(cfg.classifier.enabled); // default
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+}
+
+TEST(E05ConfigGate, FusionModeValidated)
+{
+    auto j = base_config();
+    j["dataset"] = {{"root", "/x"}, {"modality", "fused"}, {"fusion_mode", "early"}};
+    EXPECT_NO_THROW(E05Config::from_json(j).validate());
+    j["dataset"]["fusion_mode"] = "bogus";
+    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+}
+
+TEST(E05ConfigGate, WaveletValidated)
+{
+    auto j = base_config();
+    j["feature_extraction"]["handcrafted"]["wavelet"] = "daub46";
+    EXPECT_NO_THROW(E05Config::from_json(j).validate());
+    j["feature_extraction"]["handcrafted"]["wavelet"] = "daub48"; // no traits
+    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+    j["feature_extraction"]["handcrafted"]["wavelet"] = "not-a-wavelet";
+    EXPECT_THROW(E05Config::from_json(j).validate(), std::invalid_argument);
+}
+
 INSTANTIATE_TEST_SUITE_P(AllProfiles,
     E05ProfileAuditTest,
     ::testing::ValuesIn(all_profiles()),

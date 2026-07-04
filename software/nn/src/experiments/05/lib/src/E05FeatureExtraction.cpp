@@ -117,6 +117,12 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
     return diff_sum / (static_cast<double>(peaks.size() - 1) * mean_A);
 }
 
+void apply_preemphasis(std::vector<double>& signal, double alpha)
+{
+    for (size_t n = signal.size(); n-- > 1;)
+        signal[n] -= alpha * signal[n - 1];
+}
+
 // ─── frequency scale helpers ────────────────────────────────────────────────
 
 namespace
@@ -291,14 +297,6 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
 // spectral tilt so the speaker-discriminative upper formants are not attenuated
 // before feature extraction. Applied to audio only, never to EEG.
 constexpr double kPreEmphasisAlpha = 0.97;
-
-// In-place first-order pre-emphasis. Iterates back-to-front so each x[n-1] is the
-// still-unmodified original sample. y[0] is left equal to x[0].
-void apply_preemphasis(std::vector<double>& sig, double alpha)
-{
-    for (size_t n = sig.size(); n-- > 1;)
-        sig[n] -= alpha * sig[n - 1];
-}
 
 // Raw-signal accessors, one per recorded modality. Each returns 256 zeros when
 // the requested tensor is absent, so downstream transforms always receive a
