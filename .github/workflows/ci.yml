@@ -5,42 +5,32 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: software/nn
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake ninja-build clang clang-tidy cppcheck libeigen3-dev libblas-dev liblapack-dev libopenblas-dev libsdl2-dev libomp-dev pkg-config libhdf5-dev libglfw3-dev
+        sudo apt-get install -y cmake ninja-build clang clang-tidy clang-tools cppcheck libeigen3-dev libblas-dev liblapack-dev libopenblas-dev libsdl2-dev libomp-dev pkg-config libhdf5-dev libglfw3-dev python3
 
     - name: Configure
-      run: |
-        cd software/nn
-        mkdir build
-        cd build
-        cmake .. -G Ninja
+      run: cmake --preset=max-performance
 
     - name: Build
-      run: |
-        cd software/nn/build
-        ninja
-
-    - name: Run clang-tidy
-      run: |
-        cd software/nn
-        run-clang-tidy
+      run: cmake --build --preset=max-performance -j$(nproc)
 
     - name: Run cppcheck
-      run: |
-        cd software/nn
-        cppcheck --project=build/compile_commands.json --output-file=cppcheck.xml --enable=all --suppress=missingIncludeSystem
+      run: cmake --build --preset=max-performance --target analysis-cppcheck -j$(nproc)
+
+    - name: Run clang-tidy
+      run: run-clang-tidy -p out/build/max-performance
 
     - name: Run tests
-      run: |
-        cd software/nn/build
-        ctest
+      run: ctest --test-dir out/build/max-performance --output-on-failure -j4
 
     - name: Run pipeline script tests
-      run: |
-        python3 software/nn/scripts/pipeline/test_e05_phase_scripts.py
+      run: python3 scripts/pipeline/test_e05_phase_scripts.py
