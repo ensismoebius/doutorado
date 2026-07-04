@@ -68,3 +68,13 @@ Then rebuild + run: `ctest --test-dir out/build/max-performance -R PyTorchParity
    `../../src/core/layers/tests/pytorch_parity_gtest.cpp` that loads those keys,
    sets the weights, runs the op, and compares.
 3. Regenerate the fixtures and rebuild.
+
+**Backend note (important).** These tests run on both the xtensor (row-major) and
+OpenCL (column-major) backends. Use only the *structured* accessors `at(i,j)` /
+`at(i,j,k)` / `at(i,j,k,l)` — never the linear `at(k)`, which exposes backend
+storage order and would transpose a tensor filled from row-major fixture data on
+OpenCL. The helpers (`make_from`, `fill_from`, `expect_close`) already enforce
+this; `expect_close` walks the tensor's own logical shape and reads the C-order
+fixture in lockstep, so it also tolerates a rank difference that flattens the same
+way (e.g. our 2-D `(T*B,F)` LIF output vs the 3-D `(T,B,F)` reference). New two-plus
+dimensional tensors must be filled/compared through these helpers, not by hand.

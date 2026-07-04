@@ -50,51 +50,104 @@ const cnpy::NpyArray& arr(const std::string& key)
     return it->second;
 }
 
-// Build a 2-D tensor from a fixture array (row-major, C order).
-nn::Tensor make2d(const cnpy::NpyArray& a)
+// IMPORTANT: use only the structured accessors at(i,j)/at(i,j,k)/at(i,j,k,l),
+// never the linear at(k). The linear accessor exposes backend storage order
+// (row-major for xtensor, column-major for the OpenCL backend), so filling a
+// tensor from row-major fixture data via at(k) would transpose it on OpenCL.
+// at(i,j)… address the same *logical* element on every backend. Fixture arrays
+// are numpy C-order, so a C-order multi-index walk matches them.
+using Shape = std::vector<nn::Index>;
+
+Shape shape_of(const cnpy::NpyArray& a)
 {
-    nn::Tensor t(static_cast<nn::Index>(a.shape[0]), static_cast<nn::Index>(a.shape[1]));
+    Shape s;
+    s.reserve(a.shape.size());
+    for (size_t d : a.shape) s.push_back(static_cast<nn::Index>(d));
+    return s;
+}
+
+float& elem(nn::Tensor& t, const Shape& i)
+{
+    switch (i.size())
+    {
+        case 2: return t.at(i[0], i[1]);
+        case 3: return t.at(i[0], i[1], i[2]);
+        case 4: return t.at(i[0], i[1], i[2], i[3]);
+        default: throw std::invalid_argument("parity test: unsupported tensor rank");
+    }
+}
+
+float elem(const nn::Tensor& t, const Shape& i)
+{
+    switch (i.size())
+    {
+        case 2: return t.at(i[0], i[1]);
+        case 3: return t.at(i[0], i[1], i[2]);
+        case 4: return t.at(i[0], i[1], i[2], i[3]);
+        default: throw std::invalid_argument("parity test: unsupported tensor rank");
+    }
+}
+
+// Advance a C-order multi-index; returns false after the last element.
+bool next_index(Shape& idx, const Shape& shape)
+{
+    for (int d = static_cast<int>(idx.size()) - 1; d >= 0; --d)
+    {
+        if (++idx[static_cast<size_t>(d)] < shape[static_cast<size_t>(d)]) return true;
+        idx[static_cast<size_t>(d)] = 0;
+    }
+    return false;
+}
+
+// Build a tensor of the fixture array's own shape, filled via structured indices.
+nn::Tensor make_from(const cnpy::NpyArray& a)
+{
+    const Shape s = shape_of(a);
+    nn::Tensor t = (s.size() == 2) ? nn::Tensor(s[0], s[1]) : nn::Tensor(s);
     const float* d = a.data<float>();
-    for (nn::Index k = 0; k < t.size(); ++k) t.at(k) = d[static_cast<size_t>(k)];
+    size_t k = 0;
+    Shape idx(s.size(), 0);
+    do { elem(t, idx) = d[k++]; } while (next_index(idx, s));
     return t;
 }
 
-// Build a 3-D (B,T,D) tensor from a fixture array.
-nn::Tensor make3d(const cnpy::NpyArray& a)
+// Build a 2-D (rows x cols) tensor from a flat C-order buffer of that shape.
+nn::Tensor make_2d_flat(const float* d, nn::Index rows, nn::Index cols)
 {
-    nn::Tensor t(std::vector<nn::Index>{static_cast<nn::Index>(a.shape[0]),
-        static_cast<nn::Index>(a.shape[1]), static_cast<nn::Index>(a.shape[2])});
-    const float* d = a.data<float>();
-    for (nn::Index k = 0; k < t.size(); ++k) t.at(k) = d[static_cast<size_t>(k)];
+    nn::Tensor t(rows, cols);
+    for (nn::Index i = 0; i < rows; ++i)
+        for (nn::Index j = 0; j < cols; ++j)
+            t.at(i, j) = d[static_cast<size_t>(i) * static_cast<size_t>(cols) + static_cast<size_t>(j)];
     return t;
 }
 
-// Build a tensor of the fixture array's own shape (any rank), row-major.
-nn::Tensor make_nd(const cnpy::NpyArray& a)
-{
-    std::vector<nn::Index> shape;
-    shape.reserve(a.shape.size());
-    for (size_t s : a.shape) shape.push_back(static_cast<nn::Index>(s));
-    nn::Tensor t(shape);
-    const float* d = a.data<float>();
-    for (nn::Index k = 0; k < t.size(); ++k) t.at(k) = d[static_cast<size_t>(k)];
-    return t;
-}
-
-// Overwrite an existing tensor's values from a fixture array (same element count).
+// Overwrite an existing tensor's values from a fixture array of the same shape.
 void fill_from(nn::Tensor& dst, const cnpy::NpyArray& a)
 {
+    const Shape s = shape_of(a);
     ASSERT_EQ(static_cast<size_t>(dst.size()), a.num_vals);
     const float* d = a.data<float>();
-    for (nn::Index k = 0; k < dst.size(); ++k) dst.at(k) = d[static_cast<size_t>(k)];
+    size_t k = 0;
+    Shape idx(s.size(), 0);
+    do { elem(dst, idx) = d[k++]; } while (next_index(idx, s));
 }
 
+// Compare `got` to a C-order fixture array. Iterates got's OWN logical shape and
+// reads the reference in lockstep C-order, so it is agnostic to backend storage
+// order AND to a rank difference that flattens the same way (e.g. our LIF output
+// is 2-D (T*B,F) while the reference is 3-D (T,B,F) — same C-order sequence).
 void expect_close(const nn::Tensor& got, const cnpy::NpyArray& ref, const std::string& what)
 {
     ASSERT_EQ(static_cast<size_t>(got.size()), ref.num_vals) << what << ": size mismatch";
+    const Shape s = got.get_shape();
     const float* d = ref.data<float>();
-    for (nn::Index k = 0; k < got.size(); ++k)
-        EXPECT_NEAR(got.at(k), d[static_cast<size_t>(k)], kTol) << what << " at flat index " << k;
+    size_t k = 0;
+    Shape idx(s.size(), 0);
+    do
+    {
+        EXPECT_NEAR(elem(got, idx), d[k], kTol) << what << " at C-index " << k;
+        ++k;
+    } while (next_index(idx, s));
 }
 } // namespace
 
@@ -113,11 +166,11 @@ TEST(PyTorchParity, Linear)
         fill_from(lin.weight, W);
         fill_from(lin.bias, arr(p + "bias"));
 
-        nn::Tensor x = make2d(arr(p + "input"));
+        nn::Tensor x = make_from(arr(p + "input"));
         nn::Tensor y = lin.forward(x, true);
         expect_close(y, arr(p + "output"), p + "output");
 
-        nn::Tensor go = make2d(arr(p + "grad_output"));
+        nn::Tensor go = make_from(arr(p + "grad_output"));
         nn::Tensor gi = lin.backward(go);
         expect_close(gi, arr(p + "grad_input"), p + "grad_input");
         expect_close(lin.weight.grad(), arr(p + "grad_weight"), p + "grad_weight");
@@ -131,11 +184,11 @@ void check_activation(const std::string& name)
 {
     const std::string p = "act_" + name + "_";
     Layer layer;
-    nn::Tensor x = make2d(arr(p + "input"));
+    nn::Tensor x = make_from(arr(p + "input"));
     nn::Tensor y = layer.forward(x, true);
     expect_close(y, arr(p + "output"), p + "output");
 
-    nn::Tensor go = make2d(arr(p + "grad_output"));
+    nn::Tensor go = make_from(arr(p + "grad_output"));
     nn::Tensor gi = layer.backward(go);
     expect_close(gi, arr(p + "grad_input"), p + "grad_input");
 }
@@ -149,8 +202,8 @@ TEST(PyTorchParity, LeakyReLU) { check_activation<nn::LeakyReLU>("leaky"); }
 TEST(PyTorchParity, MSELoss)
 {
     nn::MSELoss loss;
-    loss.set_target(make2d(arr("mse_target")));
-    nn::Tensor pred = make2d(arr("mse_pred"));
+    loss.set_target(make_from(arr("mse_target")));
+    nn::Tensor pred = make_from(arr("mse_pred"));
     nn::Tensor l = loss.forward(pred, true);
     EXPECT_NEAR(l.at(0, 0), arr("mse_loss").data<float>()[0], kTol);
 
@@ -184,7 +237,7 @@ TEST(PyTorchParity, LSTMLayerForward)
         fill_from(layer.U_, arr(p + "U"));
         fill_from(layer.b_, arr(p + "b"));
 
-        nn::Tensor x = make3d(arr(p + "input"));
+        nn::Tensor x = make_from(arr(p + "input"));
         layer.reset_state();
         nn::Tensor y = layer.forward(x, false);
 
@@ -196,8 +249,16 @@ TEST(PyTorchParity, LSTMLayerForward)
         ASSERT_EQ(static_cast<size_t>(y.size()), torch_out.num_vals);
         const float* d = torch_out.data<float>();
         float max_abs = 0.0F;
-        for (nn::Index k = 0; k < y.size(); ++k)
-            max_abs = std::max(max_abs, std::abs(y.at(k) - d[static_cast<size_t>(k)]));
+        {
+            const Shape s = shape_of(torch_out);
+            size_t k = 0;
+            Shape idx(s.size(), 0);
+            do
+            {
+                max_abs = std::max(max_abs, std::abs(elem(y, idx) - d[k]));
+                ++k;
+            } while (next_index(idx, s));
+        }
         EXPECT_LT(max_abs, kApproxBound)
             << p << "max deviation vs. exact PyTorch LSTM = " << max_abs;
     }
@@ -230,9 +291,8 @@ TEST(PyTorchParity, LifBPTTvsSnnTorch)
         // Fixture input is (T,B,F) C-order == time-major (T*B, F) rows (t0 batch,
         // then t1 batch, …) — exactly what LifBPTT expects.
         const auto& in = arr(p + "input");
-        nn::Tensor x(static_cast<nn::Index>(T * B), static_cast<nn::Index>(F));
-        const float* d = in.data<float>();
-        for (nn::Index k = 0; k < x.size(); ++k) x.at(k) = d[static_cast<size_t>(k)];
+        nn::Tensor x = make_2d_flat(in.data<float>(),
+            static_cast<nn::Index>(T * B), static_cast<nn::Index>(F));
 
         lif.reset_state();
         nn::Tensor y = lif.forward(x, false);
@@ -290,10 +350,10 @@ TEST(PyTorchParity, Conv1d)
         const int K = static_cast<int>(dims[4]);
 
         nn::Conv1d conv(Cin, Cout, K, /*stride=*/1, /*padding=*/0, /*dilation=*/1);
-        conv.set_weights(make2d(arr(p + "weight"))); // (Cin*K, Cout)
-        conv.set_bias(make2d(arr(p + "bias")));      // (1, Cout)
+        conv.set_weights(make_from(arr(p + "weight"))); // (Cin*K, Cout)
+        conv.set_bias(make_from(arr(p + "bias")));      // (1, Cout)
 
-        nn::Tensor x = make_nd(arr(p + "input"));    // (N, Cin, L)
+        nn::Tensor x = make_from(arr(p + "input"));    // (N, Cin, L)
         nn::Tensor y = conv.forward(x, false);       // (N, Cout, L-K+1)
         expect_close(y, arr(p + "output"), p + "output");
     }
@@ -312,10 +372,10 @@ TEST(PyTorchParity, Conv2d)
         const int K = static_cast<int>(dims[5]);
 
         nn::Conv2d conv(Cin, Cout, K, /*stride=*/1, /*padding=*/0, /*dilation=*/1);
-        conv.set_weights(make2d(arr(p + "weight"))); // (Cin*K*K, Cout)
-        conv.set_bias(make2d(arr(p + "bias")));      // (1, Cout)
+        conv.set_weights(make_from(arr(p + "weight"))); // (Cin*K*K, Cout)
+        conv.set_bias(make_from(arr(p + "bias")));      // (1, Cout)
 
-        nn::Tensor x = make_nd(arr(p + "input"));    // (N, Cin, H, W)
+        nn::Tensor x = make_from(arr(p + "input"));    // (N, Cin, H, W)
         nn::Tensor y = conv.forward(x, false);       // (N, Cout, H-K+1, W-K+1)
         expect_close(y, arr(p + "output"), p + "output");
     }
@@ -329,8 +389,8 @@ TEST(PyTorchParity, CrossEntropyLoss)
     {
         const std::string p = "ce_" + std::to_string(i) + "_";
         nn::CrossEntropyLoss loss;
-        loss.set_target(make2d(arr(p + "target"))); // one-hot (N,C)
-        nn::Tensor logits = make2d(arr(p + "logits"));
+        loss.set_target(make_from(arr(p + "target"))); // one-hot (N,C)
+        nn::Tensor logits = make_from(arr(p + "logits"));
         nn::Tensor l = loss.forward(logits, true);
         EXPECT_NEAR(l.at(0, 0), arr(p + "loss").data<float>()[0], kTol) << p << "loss";
         nn::Tensor g = loss.backward(logits);
@@ -347,7 +407,7 @@ TEST(PyTorchParity, MaxPool1d)
         const std::string p = "maxpool1d_" + std::to_string(i) + "_";
         const auto pr = arr(p + "params").data<int64_t>();
         nn::MaxPool1d pool(static_cast<int>(pr[0]), static_cast<int>(pr[1]));
-        nn::Tensor x = make_nd(arr(p + "input"));   // (N, C, L)
+        nn::Tensor x = make_from(arr(p + "input"));   // (N, C, L)
         nn::Tensor y = pool.forward(x, false);
         expect_close(y, arr(p + "output"), p + "output");
     }
@@ -361,7 +421,7 @@ TEST(PyTorchParity, MaxPool2d)
         const std::string p = "maxpool2d_" + std::to_string(i) + "_";
         const auto pr = arr(p + "params").data<int64_t>();
         nn::MaxPool2d pool(static_cast<int>(pr[0]), static_cast<int>(pr[1]));
-        nn::Tensor x = make_nd(arr(p + "input"));   // (N, C, H, W)
+        nn::Tensor x = make_from(arr(p + "input"));   // (N, C, H, W)
         nn::Tensor y = pool.forward(x, false);
         expect_close(y, arr(p + "output"), p + "output");
     }

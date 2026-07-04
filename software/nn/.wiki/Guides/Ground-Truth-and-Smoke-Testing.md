@@ -68,6 +68,14 @@ ctest --test-dir out/build/max-performance -R PyTorchParity
 Add a layer: add a case block in `gen_pytorch_refs.py` (save input/weights/output/
 grads), add a `TEST(PyTorchParity, <Layer>)` in `pytorch_parity_gtest.cpp`, regenerate.
 
+> **Backend gotcha.** The tests run on both the **xtensor (row-major)** and
+> **OpenCL (column-major)** backends. The linear `at(k)` accessor exposes storage
+> order, so a tensor filled from row-major fixture data via `at(k)` is transposed
+> on OpenCL — which silently broke every structure-dependent op (matmul, conv,
+> pool, LIF) while leaving elementwise ops (layout-invariant) passing. Always use
+> the structured accessors `at(i,j)` / `at(i,j,k[,l])`, which address the same
+> logical element on every backend; the test helpers enforce this.
+
 See `software/nn/scripts/testing/README.md` for the full contract.
 
 ---

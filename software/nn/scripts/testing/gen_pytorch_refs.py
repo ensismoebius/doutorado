@@ -49,13 +49,13 @@ for idx, (B, IN, OUT_F) in enumerate(LINEAR_CASES):
     y.backward(g)
     p = f"linear_{idx}_"
     put(p + "weight", lin.weight)          # (OUT_F, IN)
-    put(p + "bias", lin.bias)              # (OUT_F,)
+    put(p + "bias", lin.bias.reshape(OUT_F, 1))     # (OUT_F, 1) — matches our bias shape
     put(p + "input", x)                    # (B, IN)
     put(p + "output", y)                   # (B, OUT_F)
     put(p + "grad_output", g)              # (B, OUT_F)
     put(p + "grad_input", x.grad)          # (B, IN)
     put(p + "grad_weight", lin.weight.grad)  # (OUT_F, IN)
-    put(p + "grad_bias", lin.bias.grad)    # (OUT_F,)
+    put(p + "grad_bias", lin.bias.grad.reshape(OUT_F, 1))  # (OUT_F, 1)
 
 
 # ── Elementwise activations (forward + backward) ──────────────────────────────
