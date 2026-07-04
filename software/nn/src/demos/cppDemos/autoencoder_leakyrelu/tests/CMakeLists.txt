@@ -2,7 +2,9 @@
 ## Autoencoder LeakyReLU unit tests (GoogleTest)
 ## Tests dense MSE autoencoder and spike autoencoder output shape.
 ##
-find_package(GTest REQUIRED)
+if(NOT TARGET GTest::gtest OR NOT TARGET GTest::gtest_main)
+    find_package(GTest REQUIRED)
+endif()
 
 add_executable(autoencoder_leakyrelu_gtest
     autoencoder_leakyrelu_gtest.cpp

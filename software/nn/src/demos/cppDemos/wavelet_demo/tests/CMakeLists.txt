@@ -1,7 +1,9 @@
 ##
 ## Wavelet demo unit tests (GoogleTest)
 ##
-find_package(GTest REQUIRED)
+if(NOT TARGET GTest::gtest OR NOT TARGET GTest::gtest_main)
+    find_package(GTest REQUIRED)
+endif()
 
 add_executable(wavelet_demo_gtest
     wavelet_demo_gtest.cpp

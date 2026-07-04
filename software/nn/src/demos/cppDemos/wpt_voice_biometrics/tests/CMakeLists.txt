@@ -2,7 +2,9 @@
 ## WPT voice biometrics unit tests (GoogleTest)
 ## Functions replicated from main.cpp (no external linkage there).
 ##
-find_package(GTest REQUIRED)
+if(NOT TARGET GTest::gtest OR NOT TARGET GTest::gtest_main)
+    find_package(GTest REQUIRED)
+endif()
 
 add_executable(wpt_voice_biometrics_gtest
     wpt_voice_biometrics_gtest.cpp

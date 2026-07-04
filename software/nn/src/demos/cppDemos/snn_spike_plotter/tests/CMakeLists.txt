@@ -1,7 +1,9 @@
 ##
 ## SNN spike plotter unit tests (GoogleTest) — Lif layer only (no OpenGL/GLFW/ImGui)
 ##
-find_package(GTest REQUIRED)
+if(NOT TARGET GTest::gtest OR NOT TARGET GTest::gtest_main)
+    find_package(GTest REQUIRED)
+endif()
 
 add_executable(snn_spike_plotter_gtest
     snn_spike_plotter_gtest.cpp
