@@ -21,8 +21,12 @@ const std::vector<std::string>& all_profiles()
 {
     static const std::vector<std::string> profiles = {
         "debug.json",
-        "phase00/p00_ae_eeg.json",
-        "phase00/p00_ae_voice.json",
+        "phase00/p00_ae_base_eeg.json",
+        "phase00/p00_ae_base_voice.json",
+        "phase00/p00_ae_small_eeg.json",
+        "phase00/p00_ae_small_voice.json",
+        "phase00/p00_ae_tiny_eeg.json",
+        "phase00/p00_ae_tiny_voice.json",
         "phase00/p00_hc_daub10_bark_eeg.json",
         "phase00/p00_hc_daub10_bark_voice.json",
         "phase00/p00_hc_daub10_lfcc_eeg.json",

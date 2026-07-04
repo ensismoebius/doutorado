@@ -442,8 +442,9 @@ Base pública 10.1117/12.2255697
 │   │   │     wavelet ∈ {haar, daub4, daub6, ..., daub46}  (23, ver Types.hpp)
 │   │   │     scale   ∈ {bark, mel, lfcc};  fonte ∈ {voice, eeg}
 │   │   │     23 × 3 × 2 = 138 perfis
-│   │   └── p00_ae_<fonte>.json                     autoencoder (sem wavelet/scale) → 2 perfis
-│   │       (classifier.enabled=false; para após o ranking. 140 perfis no total)
+│   │   └── p00_ae_<tam>_<fonte>.json               autoencoder LSTM compacto → 6 perfis
+│   │         tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
+│   │       (classifier.enabled=false; para após o ranking. 144 perfis no total)
 │   │       (fundido é construído DEPOIS, do vencedor de cada lado)
 │   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
 │       └── p01_dsnn_<fonte>_<texto>_<cv>.json   (todos classifier=dsnn)
@@ -452,13 +453,23 @@ Base pública 10.1117/12.2255697
 │           4 × 2 × 2 = 16 perfis
 │           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 1099 testes: 157 perfis (140 fase00 + 16 fase01 + debug) parseiam e validam
+    ├── e05_profile_audit_gtest.cpp       ← 1131 testes: 161 perfis (144 fase00 + 16 fase01 + debug) parseiam e validam
     ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
     └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```
 
 **Duas fases** (`classifier.enabled` controla o gate):
-- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × sinal, mais o autoencoder. `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
+- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × sinal (138 perfis), mais um **sweep de autoencoders LSTM compactos** (6 perfis). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
+
+  **Autoencoders compactos (SOTA para dispositivos de baixo poder).** Três tamanhos por sinal, todos `lstm-ae` de uma camada (raso, adequado a borda), com razão de compressão 2:1 entre a camada oculta e o gargalo latente. O latente é o próprio vetor de características, então um gargalo menor gera vetor menor → classificador a jusante mais barato e melhor generalização:
+
+  | tamanho | oculto | latente (= dim. do vetor) |
+  |---|---|---|
+  | `tiny`  | 16 | 8  |
+  | `small` | 32 | 16 |
+  | `base`  | 64 | 32 |
+
+  Princípios (gargalo agressivo, razão ~2:1, pilha rasa) seguem a literatura de autoencoders leves para extração de características em borda. A escolha do modelo é limitada pelo código (apenas `lstm-ae`); variantes esparsas/quantizadas exigiriam extensão do `E05FeatureExtraction`.
 - **Fase 01** (`phase01/`): alimenta **apenas o melhor combo** (escolhido pela engenharia paraconsistente na Fase 00) no classificador DSNN e mede EER/AUC. `classifier.enabled=true`, `paraconsistent.enabled=false`. O bloco `feature_extraction` é um placeholder — substitua pela wavelet/escala (ou `strategy=autoencoder`) vencedora antes de rodar. Cruza fonte × modo de texto × esquema de CV.
 
 **Automação da transição Fase 00 → Fase 01** (dois scripts em `scripts/pipeline/`):

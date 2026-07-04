@@ -77,6 +77,16 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 **LSTM-AE (implemented)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
+**Compact-AE capacity sweep (low-power design).** Phase 00 ships three compact LSTM-AE sizes per signal, all single-layer (shallow, edge-friendly) with a 2:1 hidden→latent compression ratio:
+
+| size | hidden | latent (= feature-vector dim) |
+|---|---|---|
+| `tiny`  | 16 | 8  |
+| `small` | 32 | 16 |
+| `base`  | 64 | 32 |
+
+The latent layer *is* the feature vector, so a smaller bottleneck yields a smaller vector — cheaper downstream classifier and often better generalisation. These choices follow the lightweight-autoencoder-for-edge literature (aggressive bottleneck, ~2:1 compression, shallow stack). The model family is code-limited to `lstm-ae`; sparse/quantised variants would need an `E05FeatureExtraction` extension. See [Autoencoders](../Concepts/Autoencoders.md) and [Memory-Constrained Design](../Guides/LSTM-Performance.md).
+
 **SNN-AE / ANN-AE (thesis)**: spiking and non-spiking autoencoder variants, compared against handcrafted features via paraconsistent α/β ranking.
 
 Autoencoder training in Experiment05 is unsupervised (no speaker labels), and latent vectors feed paraconsistent ranking and downstream classifier.
@@ -173,7 +183,8 @@ src/experiments/05/
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
 │   │   ├── p00_hc_<wavelet>_<scale>_<source>.json   wavelet ∈ {haar,daub4..daub46} (23) ×
 │   │   │                                            scale ∈ {bark,mel,lfcc} × source ∈ {voice,eeg} = 138
-│   │   └── p00_ae_<source>.json                     autoencoder (no wavelet/scale) = 2   → 140 total
+│   │   └── p00_ae_<size>_<source>.json              compact LSTM-AE, size ∈ {tiny,small,base}
+│   │                                                (latent 8/16/32, 2:1 hidden) = 6   → 144 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>.json   source ∈ {voice,eeg,fused-early,fused-late} ×
 │           text ∈ {dep,indep} × cv ∈ {nested,flat} = 16
@@ -343,7 +354,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`), plus the autoencoder, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) = 138, plus the **compact LSTM-AE sweep** (`tiny`/`small`/`base`) = 6, for **144** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme = 16.
 
 **Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:

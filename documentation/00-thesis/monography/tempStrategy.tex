@@ -83,15 +83,14 @@ this phase, from each side's winning vector):
     \end{itemize}
     each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
     So $23 \times 3 = 69$ handcrafted variants per signal.
-    \item \textbf{Autoencoder} (LSTM-AE wired today; SNN-AE / ANN-AE are thesis targets) --- 1 variant.
+    \item \textbf{Autoencoder} --- 3 compact LSTM-AE sizes (tiny/small/base; latent 8/16/32, 2:1 hidden). SNN-AE / ANN-AE remain thesis targets.
 \end{itemize}
 
-So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 1 autoencoder)
-$=$ \textbf{140 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
+So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 3 autoencoder)
+$=$ \textbf{144 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
 (\autoref{sec:conceitos}). Output of this phase: one winning feature vector for voice, one for EEG.
-(The thesis's conceptual target still adds SNN-AE/ANN-AE and Categoria-2 cepstral variants once implemented.)
-LSTM-AE excluded here --- it is the Guayaquil-paper extractor, not a thesis Phase 00 candidate
-(scope note, ch08 \S39 / wiki Experiment05.md \S72--80).
+The 3 autoencoders are compact single-layer LSTM-AEs (the only AE family wired today); the thesis's
+conceptual target still adds SNN-AE/ANN-AE and Categoria-2 cepstral variants once implemented.
 
 \subsection*{Phase 01 --- Authentication (DSNN classification, biometric ablation)}
 
