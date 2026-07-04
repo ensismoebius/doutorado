@@ -1,0 +1,53 @@
+{
+  "experiment": {
+    "run_tag": "e05_p01_dsnn_voice_indep_nested_std",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/phase01",
+    "modality": "voice"
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "daub4",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "layer_spec": [
+      "linear:128:relu",
+      "residual:2",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "independent",
+    "enabled": true
+  },
+  "training": {
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "early_stop_patience": 10,
+    "k_folds": 5,
+    "nested_cv": true,
+    "standardize_features": true
+  }
+}

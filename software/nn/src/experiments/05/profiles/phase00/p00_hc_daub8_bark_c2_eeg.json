@@ -1,0 +1,45 @@
+{
+  "experiment": {
+    "run_tag": "e05_p00_hc_daub8_bark_c2_eeg",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/phase00",
+    "modality": "eeg"
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "bark",
+      "wavelet": "daub8",
+      "cepstral": true,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 50,
+    "learning_rate": 0.001,
+    "samples_per_batch": 32,
+    "early_stop_patience": 10,
+    "k_folds": 5,
+    "nested_cv": true
+  }
+}
