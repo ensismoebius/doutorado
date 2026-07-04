@@ -235,6 +235,33 @@ TEST(E05HandcrafteExtract, EnergyValuesNonNegative)
         EXPECT_GE(v, 0.0);
 }
 
+// ─── Category 2 cepstral (log + DCT) ─────────────────────────────────────────
+
+TEST(E05Cepstral, CepstralDiffersFromRawEnergy)
+{
+    // Category 1 (energy) vs Category 2 (cepstral): same dimension (one value per
+    // band), different values.
+    auto sig = make_sine(256, 100.0, 44100.0);
+    auto cfg1 = make_hc_cfg({"energy"}, 2);
+    auto cfg2 = make_hc_cfg({"energy"}, 2);
+    cfg2.cepstral = true;
+    auto f1 = extract_handcrafted(sig, cfg1, 44100.0);
+    auto f2 = extract_handcrafted(sig, cfg2, 44100.0);
+    ASSERT_EQ(f1.size(), f2.size());
+    EXPECT_NE(f1, f2);
+    for (double v : f2) EXPECT_TRUE(std::isfinite(v));
+}
+
+TEST(E05Cepstral, EnergyReplacedOtherDescriptorsAppended)
+{
+    // scale=mel, level 2 → 4 bands. cepstral (4 coeffs, energy subsumed) + zcr(4).
+    auto sig = make_sine(256, 100.0, 44100.0);
+    auto cfg = make_hc_cfg({"energy", "zcr"}, 2);
+    cfg.cepstral = true;
+    auto f = extract_handcrafted(sig, cfg, 44100.0);
+    EXPECT_EQ(f.size(), 8u);
+}
+
 // ─── pre-emphasis ────────────────────────────────────────────────────────────
 
 TEST(E05PreEmphasis, MatchesThesisWorkedExample)

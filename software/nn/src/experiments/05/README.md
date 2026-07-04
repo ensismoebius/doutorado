@@ -332,6 +332,8 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "handcrafted": {
       "transform": "dtwpt",     // único valor implementado
       "scale": "bark",          // "bark" | "mel" | "lfcc" — altera agrupamento das sub-bandas
+      "wavelet": "daub4",       // "haar" | "daubN" (N par em [4,46]) — wavelet-mãe da DTWPT
+      "cepstral": false,        // false = Categoria 1 (energias); true = Categoria 2 (log+DCT → LFCC/MFCC/BFCC)
       "descriptors": ["energy", "zcr", "entropy", "teager"]
                                 // opcionais: "jitter", "shimmer"
     },
@@ -355,7 +357,8 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
     "samples_per_batch": 32,
     "early_stop_patience": 10,  // 0 = desativado
     "k_folds": 5,
-    "nested_cv": true           // parseado; usa nested CV quando true, flat K-fold quando false
+    "nested_cv": true,          // parseado; usa nested CV quando true, flat K-fold quando false
+    "standardize_features": true // z-score por característica, ajustado só no treino de cada fold (anti-vazamento)
   }
 }
 ```
@@ -438,22 +441,23 @@ Base pública 10.1117/12.2255697
 ├── profiles/
 │   ├── debug.json                        ← teste rápido (RNN, 3 épocas, poucas amostras)
 │   ├── phase00/                          ← FASE 00: construção do vetor + ranking paraconsistente
-│   │   ├── p00_hc_<wavelet>_<scale>_<fonte>.json   varredura handcrafted
-│   │   │     wavelet ∈ {haar, daub4, daub6, ..., daub46}  (23, ver Types.hpp)
-│   │   │     scale   ∈ {bark, mel, lfcc};  fonte ∈ {voice, eeg}
-│   │   │     23 × 3 × 2 = 138 perfis
+│   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<fonte>.json   varredura handcrafted
+│   │   │     wavelet ∈ {haar, daub4, ..., daub46} (23);  scale ∈ {bark, mel, lfcc}
+│   │   │     cat ∈ {c1, c2}  (c1 = energias / Categoria 1; c2 = cepstral LFCC/MFCC/BFCC)
+│   │   │     fonte ∈ {voice, eeg};  23 × 3 × 2 × 2 = 276 perfis
 │   │   └── p00_ae_<tam>_<fonte>.json               autoencoder LSTM compacto → 6 perfis
 │   │         tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
-│   │       (classifier.enabled=false; para após o ranking. 144 perfis no total)
+│   │       (classifier.enabled=false; para após o ranking. 282 perfis no total)
 │   │       (fundido é construído DEPOIS, do vencedor de cada lado)
 │   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
-│       └── p01_dsnn_<fonte>_<texto>_<cv>.json   (todos classifier=dsnn)
+│       └── p01_dsnn_<fonte>_<texto>_<cv>_<std>.json   (todos classifier=dsnn)
 │           fonte ∈ {voice, eeg, fused-early, fused-late}
 │           texto ∈ {dep, indep}, cv ∈ {nested, flat}
-│           4 × 2 × 2 = 16 perfis
+│           std ∈ {std, raw}  (ablação: standardize_features on/off)
+│           4 × 2 × 2 × 2 = 32 perfis
 │           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 1131 testes: 161 perfis (144 fase00 + 16 fase01 + debug) parseiam e validam
+    ├── e05_profile_audit_gtest.cpp       ← 2209 testes: 315 perfis (282 fase00 + 32 fase01 + debug) parseiam e validam
     ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
     └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```

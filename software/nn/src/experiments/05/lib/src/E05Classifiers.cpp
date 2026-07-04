@@ -611,21 +611,6 @@ void train_model(ModelT& model, const FoldContext& ctx,
     trainer.fit_supervised(train_pairs, val_pairs);
 }
 
-// Collect the (feature vector, class label) pairs for a set of sample indices.
-void gather_subset(const FoldContext& ctx, const std::vector<size_t>& indices,
-    std::vector<std::vector<double>>& feats, std::vector<int>& labs)
-{
-    feats.clear();
-    labs.clear();
-    feats.reserve(indices.size());
-    labs.reserve(indices.size());
-    for (size_t idx : indices)
-    {
-        feats.push_back(ctx.feature_vectors[idx]);
-        labs.push_back(ctx.labels[idx]);
-    }
-}
-
 // Copy the seven evaluation metrics into a fold record.
 void set_fold_metrics(FoldResult& fr, const EvalMetrics& em)
 {
@@ -658,6 +643,95 @@ void advance_global_bar(const FoldContext& ctx)
             ctx.global_bar_id, static_cast<float>(++(*ctx.global_completed)));
 }
 
+// ── Per-feature standardization (audit G1) ───────────────────────────────────
+// Fit z-score statistics on a fold's TRAINING rows only, apply to train and test.
+// This is the input normalization the thesis describes (CMVN-style per-feature
+// z-score) and the leakage guard it requires (fit-on-train-only).
+struct FeatureScaler
+{
+    std::vector<double> mean;
+    std::vector<double> inv_std;
+};
+
+// Per-column mean and 1/std over the given rows of X. Constant columns
+// (std < eps) get inv_std = 0 → mapped to a constant 0 after centering.
+FeatureScaler fit_scaler(const nn::Tensor& X, const std::vector<size_t>& idx)
+{
+    const auto D = static_cast<size_t>(X.cols());
+    FeatureScaler s{std::vector<double>(D, 0.0), std::vector<double>(D, 0.0)};
+    if (idx.empty())
+    {
+        std::fill(s.inv_std.begin(), s.inv_std.end(), 1.0);
+        return s;
+    }
+    for (size_t i : idx)
+        for (size_t j = 0; j < D; ++j)
+            s.mean[j] += X.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j));
+    const double n = static_cast<double>(idx.size());
+    for (size_t j = 0; j < D; ++j) s.mean[j] /= n;
+
+    std::vector<double> var(D, 0.0);
+    for (size_t i : idx)
+        for (size_t j = 0; j < D; ++j)
+        {
+            const double d =
+                X.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j)) - s.mean[j];
+            var[j] += d * d;
+        }
+    for (size_t j = 0; j < D; ++j)
+    {
+        const double sd = std::sqrt(var[j] / n);
+        s.inv_std[j] = (sd > 1e-8) ? 1.0 / sd : 0.0;
+    }
+    return s;
+}
+
+// No-op scaler: mean 0, inv_std 1 (used when standardize_features is false).
+FeatureScaler identity_scaler(size_t D)
+{
+    return FeatureScaler{std::vector<double>(D, 0.0), std::vector<double>(D, 1.0)};
+}
+
+// Standardized deep copy of X: (x - mean) * inv_std per column.
+nn::Tensor apply_scaler(const nn::Tensor& X, const FeatureScaler& s)
+{
+    nn::Tensor Y = X; // value semantics → deep copy
+    for (nn::Index i = 0; i < X.rows(); ++i)
+        for (nn::Index j = 0; j < X.cols(); ++j)
+            Y.at(i, j) = static_cast<float>(
+                (static_cast<double>(X.at(i, j)) - s.mean[static_cast<size_t>(j)]) *
+                s.inv_std[static_cast<size_t>(j)]);
+    return Y;
+}
+
+// Fit the per-fold scaler on train_idx (identity when standardization is off).
+FeatureScaler make_fold_scaler(const FoldContext& ctx, const std::vector<size_t>& train_idx)
+{
+    return ctx.cfg.training.standardize_features
+        ? fit_scaler(ctx.all_inputs, train_idx)
+        : identity_scaler(static_cast<size_t>(ctx.all_inputs.cols()));
+}
+
+// (feature vector, label) subset pulled from a standardized matrix.
+void gather_subset_std(const nn::Tensor& Xn, const std::vector<int>& all_labels,
+    const std::vector<size_t>& idx,
+    std::vector<std::vector<double>>& feats, std::vector<int>& labs)
+{
+    feats.clear();
+    labs.clear();
+    feats.reserve(idx.size());
+    labs.reserve(idx.size());
+    const auto D = static_cast<size_t>(Xn.cols());
+    for (size_t i : idx)
+    {
+        std::vector<double> row(D);
+        for (size_t j = 0; j < D; ++j)
+            row[j] = Xn.at(static_cast<nn::Index>(i), static_cast<nn::Index>(j));
+        feats.push_back(std::move(row));
+        labs.push_back(all_labels[i]);
+    }
+}
+
 // Nested k-fold CV: an inner loop selects the best model by validation score; the
 // selected model is then scored once on the held-out outer test fold. Gives an
 // unbiased performance estimate when hyperparameters are tuned on the inner folds.
@@ -688,9 +762,15 @@ void run_nested_cv(const FoldContext& ctx, ClassificationResult& result,
         if (outer_train_indices.empty() || outer_test_indices.empty())
             continue;
 
+        // Standardize features with statistics fit on the outer-train rows only,
+        // so the outer test fold never leaks into the scaler (audit G1). One
+        // scaler per outer fold keeps the model and its test set on the same scale.
+        const FeatureScaler scaler = make_fold_scaler(ctx, outer_train_indices);
+        const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
+
         std::vector<std::vector<double>> test_feats;
         std::vector<int> test_labels;
-        gather_subset(ctx, outer_test_indices, test_feats, test_labels);
+        gather_subset_std(Xn, ctx.labels, outer_test_indices, test_feats, test_labels);
 
         // ── Inner loop: train one candidate per inner fold, keep the best ──
         double best_val_score = -std::numeric_limits<double>::infinity();
@@ -703,11 +783,11 @@ void run_nested_cv(const FoldContext& ctx, ClassificationResult& result,
             if (inner_train.empty() || inner_val.empty())
                 continue;
 
-            const auto train_pairs = make_pairs_from_indices(ctx.all_inputs, ctx.all_targets, inner_train);
-            const auto val_pairs   = make_pairs_from_indices(ctx.all_inputs, ctx.all_targets, inner_val);
+            const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, inner_train);
+            const auto val_pairs   = make_pairs_from_indices(Xn, ctx.all_targets, inner_val);
             std::vector<std::vector<double>> val_feats;
             std::vector<int> val_labels;
-            gather_subset(ctx, inner_val, val_feats, val_labels);
+            gather_subset_std(Xn, ctx.labels, inner_val, val_feats, val_labels);
 
             with_classifier(ctx, [&](auto& model)
             {
@@ -760,10 +840,14 @@ void run_flat_cv(const FoldContext& ctx, ClassificationResult& result,
         if (train_indices.empty() || test_indices.empty())
             continue;
 
+        // Fit the scaler on this fold's train rows only (audit G1).
+        const FeatureScaler scaler = make_fold_scaler(ctx, train_indices);
+        const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
+
         std::vector<std::vector<double>> test_feats;
         std::vector<int> test_labels;
-        gather_subset(ctx, test_indices, test_feats, test_labels);
-        const auto train_pairs = make_pairs_from_indices(ctx.all_inputs, ctx.all_targets, train_indices);
+        gather_subset_std(Xn, ctx.labels, test_indices, test_feats, test_labels);
+        const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, train_indices);
 
         FoldResult fr;
         fr.fold = static_cast<int>(outer_idx);

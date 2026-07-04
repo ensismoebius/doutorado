@@ -46,6 +46,12 @@ struct E05Config
         /// traits in include/wavelet/Types.hpp: "haar" or "daubN" for even
         /// N in [4, 46]. Swept in Phase 00 (feature-vector selection).
         std::string wavelet = "daub4";
+
+        /// Category 2 (cepstral) features. When false, per-band energies are used
+        /// directly (Category 1: linear/mel/bark-band energies). When true, a
+        /// log + DCT-II is applied across the band energies, yielding cepstral
+        /// coefficients (LFCC/MFCC/BFCC for scale = lfcc/mel/bark).
+        bool cepstral = false;
     };
 
     struct AutoencoderConfig
@@ -88,6 +94,11 @@ struct E05Config
         int early_stop_patience = 10;
         int k_folds = 5;
         bool nested_cv = true;
+
+        /// Per-feature z-score standardization of the classifier input. Statistics
+        /// (mean, std per dimension) are fit on the TRAINING rows of each fold only
+        /// and applied to train and test, preventing test-set leakage. Default on.
+        bool standardize_features = true;
 
         // ── Regularization ───────────────────────────────────────────────────
         /// Decoupled L2 weight decay (AdamW). 0 = disabled. Applies to both the

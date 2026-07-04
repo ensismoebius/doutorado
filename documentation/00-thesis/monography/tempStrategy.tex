@@ -79,7 +79,7 @@ this phase, from each side's winning vector):
     \item \textbf{Handcrafted}, swept over \emph{mother wavelet} $\times$ \emph{scale}:
     \begin{itemize}
         \item wavelet: 23 options (\texttt{haar} + \texttt{daub4}\dots\texttt{daub46})
-        \item scale: bark, mel, lfcc (band-energy grouping; Categoria 2 LFCC/MFCC/BFCC cepstral not yet implemented)
+        \item scale: bark, mel, lfcc; and \texttt{cepstral} (bool): false = Categoria 1 (band energies), true = Categoria 2 (log+DCT-II → LFCC/MFCC/BFCC)
     \end{itemize}
     each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
     So $23 \times 3 = 69$ handcrafted variants per signal.
@@ -143,9 +143,10 @@ a classification metric.
     regularization (DSNN-only, keeps spike rate in $[0.05, 0.80]$, prevents dead/saturated neurons).
     \item \textbf{Threshold-Dependent Batch Normalization (tdBN)} --- DSNN-only, stabilizes deep
     spiking net training; also a fixed/swept training config, not a feature-extraction combination.
-    \item \textbf{Data leakage}: normalization statistics (CMVN for audio, per-window z-score for EEG)
-    must be fit on the training fold only, then applied to test --- true for every combination in both
-    phases, re-verified in ch07 \S normalizacaoEntrada.
+    \item \textbf{Data leakage / input normalization} (audit G1, implemented): per-feature z-score
+    standardization of the classifier input, statistics fit on each fold's training rows only and
+    applied to train+test (\texttt{E05Classifiers.cpp}, \texttt{training.standardize\_features},
+    default on). Prevents test-set leakage. Matches ch07 \S normalizacaoEntrada.
     \item \textbf{Pre-emphasis} ($\alpha=0.97$) applies to audio-derived vectors only, before energy/
     spectral computation --- relevant to every voice-involving combo in both phases (fused included).
     \item \textbf{LSTM-AE and plain RNN/ResNet classifier are out of thesis scope} --- they exist in
@@ -163,21 +164,19 @@ a classification metric.
 
 \subsection*{Phase 00 --- feature extraction (16 combos: 2 signals $\times$ 8 candidates)}
 
-\textbf{Known code gap, applies to all handcrafted rows below}: \texttt{handcrafted.scale} only
-groups DTWPT sub-bands by frequency (linear/Bark/Mel bins) and runs the descriptor set on each
-group --- there is \emph{no} log+DCT cepstral step in \texttt{E05FeatureExtraction.cpp}. So today's
-\texttt{scale=lfcc/mel/bark} produce grouped \emph{band-energy} vectors (thesis Categoria~1), not
-true LFCC/MFCC/BFCC cepstral coefficients (thesis Categoria~2). Categoria~2 is not implemented.
+\textbf{Category 1 vs 2} (audit G2, implemented): \texttt{handcrafted.scale} groups DTWPT sub-bands
+by frequency (linear/Bark/Mel). With \texttt{cepstral=false} the per-band energies are used directly
+(Categoria~1); with \texttt{cepstral=true} a log+DCT-II stage over those energies yields the cepstral
+coefficients LFCC/MFCC/BFCC (Categoria~2). Both categories are now selectable.
 
 Voice:
 \begin{itemize}
-    \item[$\square$] Linear-band energy (Categoria 1) --- code path exists (\texttt{scale=lfcc}
-    grouping = linear), but Categoria-1-vs-2 distinction not implemented; treat as \textbf{partial}
-    \item[$\square$] Mel-band energy (Categoria 1) --- same caveat (\texttt{scale=mel})
-    \item[$\square$] Bark-band energy (Categoria 1) --- same caveat (\texttt{scale=bark})
-    \item[$\square$] LFCC (Categoria 2, +log+DCT) --- \textbf{not implemented} (no DCT/log stage in code)
-    \item[$\square$] MFCC (Categoria 2, +log+DCT) --- \textbf{not implemented}
-    \item[$\square$] BFCC (Categoria 2, +log+DCT) --- \textbf{not implemented}
+    \item[$\blacksquare$] Linear-band energy (Categoria 1) --- \texttt{scale=lfcc}, \texttt{cepstral=false}
+    \item[$\blacksquare$] Mel-band energy (Categoria 1) --- \texttt{scale=mel}, \texttt{cepstral=false}
+    \item[$\blacksquare$] Bark-band energy (Categoria 1) --- \texttt{scale=bark}, \texttt{cepstral=false}
+    \item[$\blacksquare$] LFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true} (audit G2)
+    \item[$\blacksquare$] MFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
+    \item[$\blacksquare$] BFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
     \item[$\square$] SNN-AE --- \textbf{not implemented}; \texttt{E05Config::validate()} throws
     unless \texttt{autoencoder.model == "lstm-ae"}
     \item[$\square$] ANN-AE --- \textbf{not implemented}, same validate() restriction
@@ -188,9 +187,9 @@ EEG: identical 8 items, identical status (same code path, signal-agnostic):
     \item[$\square$] Linear-band energy (partial) \quad
     \item[$\square$] Mel-band energy (partial) \quad
     \item[$\square$] Bark-band energy (partial)
-    \item[$\square$] LFCC (Categoria 2) --- not implemented \quad
-    \item[$\square$] MFCC (Categoria 2) --- not implemented \quad
-    \item[$\square$] BFCC (Categoria 2) --- not implemented
+    \item[$\blacksquare$] LFCC (Categoria 2) --- implemented (cepstral flag) \quad
+    \item[$\blacksquare$] MFCC (Categoria 2) --- implemented (cepstral flag) \quad
+    \item[$\blacksquare$] BFCC (Categoria 2) --- implemented (cepstral flag)
     \item[$\square$] SNN-AE --- not implemented \quad
     \item[$\square$] ANN-AE --- not implemented
 \end{itemize}

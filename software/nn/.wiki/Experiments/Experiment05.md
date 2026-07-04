@@ -71,6 +71,8 @@ At each leaf node (sub-band), the following descriptors are computed:
 
 Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/LFCC.md)).
 
+**Category 1 vs Category 2** (`handcrafted.cepstral`). With `cepstral=false` the per-band energies are the features (Category 1: linear/Mel/Bark-band energies). With `cepstral=true` a **log + DCT-II** is applied over the band energies, yielding cepstral coefficients — **LFCC / MFCC / BFCC** for `scale = lfcc / mel / bark` (Category 2). The cepstral coefficients replace the raw energy descriptor; other descriptors (ZCR, entropy, …) are still appended per band.
+
 ### Learned Feature Extraction (Autoencoders)
 
 > **Scope note.** The **LSTM-AE** was built for the Guayaquil congress paper. The **thesis** compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder), and **ANN-AE** (non-spiking autoencoder). The LSTM-AE is the currently-wired learned extractor in the Experiment05 executable; SNN-AE / ANN-AE are the thesis targets.
@@ -111,6 +113,8 @@ Three techniques guard generalisation / trainability on the small dysphonic-spea
 - **Decoupled L2 weight decay** (`training.weight_decay`, AdamW): applies to **both** the RNN and DSNN classifiers. Shrinks only 2-D weight matrices; biases and the SNN biophysical scalars (R, C, V_th) are excluded so `τ = R·C` and the firing threshold are never decayed. See [Optimizers](../Core/Optimizers.md#decoupled-weight-decay-adamw).
 - **Firing-rate regularization** (`training.firing_rate_reg_lambda`, DSNN-only): pushes each `LifBPTT` layer's mean firing rate into the band `[firing_rate_min, firing_rate_max]` (default `[0.05, 0.80]`), preventing **dead neurons** (rate → 0, the surrogate gradient vanishes) and **bursting neurons** (rate → 1, selectivity lost). The penalty $\lambda\sum_\text{layers}\big(\max(0, r_\text{min}-r)^2 + \max(0, r-r_\text{max})^2\big)$ is differentiated to `2λ(r − clamp(r, r_min, r_max))/n` and injected into the incoming gradient at each LIF spike output during backward — the same scheme as `SpikeCountLossImpl`. Inert when `λ = 0` or for the RNN classifier (no spiking layers).
 - **Threshold-Dependent Batch Normalization** (`training.batch_normalization = "threshold-dependent"`, DSNN-only): inserts a tdBN layer after each `Linear` and before each `LifBPTT` (`fc_in → tdBN → lif_in → (hidden_fc → tdBN → hidden_lif)* → fc_out`). It normalizes the pre-spike current over batch+time and rescales it to `N(0,(α·V_th)²)` (α = `training.tdbn_alpha`, default 1), stabilizing deep-SNN training and guarding against the No-Spike Problem. See [Threshold-Dependent Batch Normalization](../Concepts/Threshold-Dependent-Batch-Normalization.md). Inert for the RNN classifier.
+
+**Input feature standardization** (`training.standardize_features`, default **on**): before the classifier, each feature dimension is z-scored. The mean/std are fit on the **training rows of each fold only** and applied to train and test, so test statistics never leak into the scaler (`fit_scaler`/`apply_scaler` in `E05Classifiers.cpp`). This is the CMVN-style input normalization + leakage guard described in [Data Normalisation](../Concepts/Data-Normalisation.md); unlike the three techniques above it is a preprocessing step, not a classifier-only regularizer. Constant dimensions (std ≈ 0) map to 0.
 
 ### Text-Dependent vs Text-Independent Evaluation
 
@@ -181,13 +185,13 @@ src/experiments/05/
 ├── profiles/
 │   ├── debug.json                              (RNN quick smoke)
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
-│   │   ├── p00_hc_<wavelet>_<scale>_<source>.json   wavelet ∈ {haar,daub4..daub46} (23) ×
-│   │   │                                            scale ∈ {bark,mel,lfcc} × source ∈ {voice,eeg} = 138
+│   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<source>.json  wavelet(23) × scale(bark/mel/lfcc) ×
+│   │   │       cat ∈ {c1=energy, c2=cepstral LFCC/MFCC/BFCC} × source ∈ {voice,eeg} = 276
 │   │   └── p00_ae_<size>_<source>.json              compact LSTM-AE, size ∈ {tiny,small,base}
-│   │                                                (latent 8/16/32, 2:1 hidden) = 6   → 144 total
+│   │                                                (latent 8/16/32, 2:1 hidden) = 6   → 282 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
-│       └── p01_dsnn_<source>_<text>_<cv>.json   source ∈ {voice,eeg,fused-early,fused-late} ×
-│           text ∈ {dep,indep} × cv ∈ {nested,flat} = 16
+│       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
+│           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
 │           (feature_extraction = placeholder; set the Phase-00 winner before running)
   └── tests/
   ├── e05_profile_audit_gtest.cpp        profile schema and validate() audit (all official profiles)
@@ -354,8 +358,8 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) = 138, plus the **compact LSTM-AE sweep** (`tiny`/`small`/`base`) = 6, for **144** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
-- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme = 16.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact LSTM-AE sweep** (`tiny`/`small`/`base`) = 6, for **282** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
 **Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:
 

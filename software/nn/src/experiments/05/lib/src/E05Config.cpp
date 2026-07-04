@@ -173,6 +173,7 @@ E05Config E05Config::from_json(const nlohmann::json& j)
                 cfg.feature_extraction.handcrafted.descriptors = hc["descriptors"].get<std::vector<std::string>>();
             if (hc.contains("dtwpt_level")) cfg.feature_extraction.handcrafted.dtwpt_level = hc["dtwpt_level"];
             if (hc.contains("wavelet")) cfg.feature_extraction.handcrafted.wavelet = hc["wavelet"];
+            if (hc.contains("cepstral")) cfg.feature_extraction.handcrafted.cepstral = hc["cepstral"];
         }
 
         if (fe.contains("autoencoder"))
@@ -214,6 +215,7 @@ E05Config E05Config::from_json(const nlohmann::json& j)
         if (t.contains("early_stop_patience")) cfg.training.early_stop_patience = t["early_stop_patience"];
         if (t.contains("k_folds")) cfg.training.k_folds = t["k_folds"];
         if (t.contains("nested_cv")) cfg.training.nested_cv = t["nested_cv"];
+        if (t.contains("standardize_features")) cfg.training.standardize_features = t["standardize_features"];
         if (t.contains("weight_decay")) cfg.training.weight_decay = t["weight_decay"].get<float>();
         if (t.contains("firing_rate_reg_lambda"))
             cfg.training.firing_rate_reg_lambda = t["firing_rate_reg_lambda"].get<float>();

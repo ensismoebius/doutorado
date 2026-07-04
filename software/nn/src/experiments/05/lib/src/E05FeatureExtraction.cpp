@@ -168,6 +168,24 @@ std::span<const double> wavelet_filter(const std::string& name)
     return it->second;
 }
 
+// DCT-II of a real vector: C[k] = sum_n x[n] cos(pi/N (n+0.5) k), k=0..N-1.
+// Used for the Category-2 cepstral transform (log energies -> cepstral coeffs).
+std::vector<double> dct_ii(const std::vector<double>& x)
+{
+    const size_t N = x.size();
+    std::vector<double> c(N, 0.0);
+    if (N == 0) return c;
+    for (size_t k = 0; k < N; ++k)
+    {
+        double acc = 0.0;
+        for (size_t n = 0; n < N; ++n)
+            acc += x[n] * std::cos(M_PI / static_cast<double>(N) *
+                                   (static_cast<double>(n) + 0.5) * static_cast<double>(k));
+        c[k] = acc;
+    }
+    return c;
+}
+
 // Group DTWPT sub-bands by perceptual frequency scale.
 //
 // "lfcc" → each sub-band is its own group (uniform linear spacing).
@@ -257,9 +275,21 @@ auto extract_handcrafted(const std::vector<double>& signal,
 
     std::vector<double> features;
 
+    // Category 2: log + DCT-II over the band energies → cepstral coefficients
+    // (LFCC/MFCC/BFCC by scale). Replaces the raw per-band energy descriptor.
+    if (cfg.cepstral)
+    {
+        std::vector<double> log_energies;
+        log_energies.reserve(groups.size());
+        for (const auto& group : groups)
+            log_energies.push_back(std::log(compute_energy(group) + 1e-10));
+        const auto cepstral = dct_ii(log_energies);
+        features.insert(features.end(), cepstral.begin(), cepstral.end());
+    }
+
     for (const auto& group : groups)
     {
-        if (want_energy)  features.push_back(compute_energy(group));
+        if (want_energy && !cfg.cepstral) features.push_back(compute_energy(group));
         if (want_zcr)     features.push_back(compute_zcr(group));
         if (want_entropy) features.push_back(compute_entropy(group));
         if (want_teager)  features.push_back(compute_teager(group));
