@@ -1,3 +1,0 @@
-feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,model_path
-handcrafted-lfcc-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.600000,0.605469,results/smoke/models/smoke_e05_p01_dsnn_fused_late_dep_nested_raw/handcrafted-lfcc-fused-late/fold_0.bin
-handcrafted-lfcc-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.250000,0.687500,results/smoke/models/smoke_e05_p01_dsnn_fused_late_dep_nested_raw/handcrafted-lfcc-fused-late/fold_1.bin

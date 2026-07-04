@@ -12,6 +12,7 @@
 
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
+#include "training/ProgressCallback.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
 #include "progress/ProgressManager.hpp"
 #include "wavelet/Types.hpp"
@@ -545,6 +546,10 @@ auto extract_features_core(const E05DatasetView& view,
         trainer_cfg.batch_size = training.samples_per_batch;
 
         nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
+        // Per-epoch progress bar for the autoencoder training (Phase 00 has no
+        // classifier, so without this the AE profiles would train silently).
+        trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
+            "Autoencoder training" + label_suffix));
         (void) trainer.fit_autoencoder(train_samples);
 
         FeatureSet fs;

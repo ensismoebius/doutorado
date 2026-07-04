@@ -358,6 +358,8 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 ### Two-phase protocol
 
+> **Running it:** step-by-step commands (build → phase00 → rank → apply → phase01, with the `run_profiles.sh` runner and live progress) are in [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md).
+
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
 - **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact LSTM-AE sweep** (`tiny`/`small`/`base`) = 6, for **282** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
