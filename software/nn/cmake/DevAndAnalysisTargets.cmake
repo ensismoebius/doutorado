@@ -77,7 +77,6 @@ if(CPPCHECK_EXECUTABLE)
             --suppress=internalAstError
             --suppress=containerOutOfBounds
             --std=c++20
-            --cpp-header-probe
             --xml
             --output-file=${CMAKE_BINARY_DIR}/cppcheck-report.xml
             --error-exitcode=0
