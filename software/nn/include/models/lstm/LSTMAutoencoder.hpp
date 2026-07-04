@@ -77,6 +77,14 @@ class LSTMAutoencoder : public Module<nn::Backend>
     Tensor recon_cache_;      ///< reconstruction (T × D)
     bool requires_grad_ = false;
 
+    // Shape bookkeeping for the last forward, so backward can reshape 3-D batches.
+    // A 2-D (T × D) input is treated as a single sequence (B = 1); a 3-D
+    // (B × T × D) input is a batch. LSTMLayer already handles both natively; only
+    // the projections / last-step extraction / replicate need the distinction.
+    bool last_batched_ = false; ///< true when the last forward saw a 3-D (B,T,D) input
+    int last_B_ = 1;            ///< batch size of the last forward
+    int last_T_ = 0;            ///< sequence length of the last forward
+
     /// Construct and initialise all weights with N(0, 0.05).
     explicit LSTMAutoencoder(const LSTMAutoencoderConfig& cfg);
 

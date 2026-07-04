@@ -410,13 +410,24 @@ int last_encoder_dim(const std::vector<std::string>& spec, int fallback)
     return fallback;
 }
 
-nn::Tensor vec_to_column_tensor(const std::vector<double>& sig)
+// Frame a 1-D signal into a (T_frames × frame_len) matrix for the sequence AE:
+// row t, column w = sig[t*frame_len + w]. sig must have length >= T_frames*frame_len.
+// Windowing keeps the LSTM sequence short (T_frames steps of frame_len features)
+// instead of one step-per-sample sequence that is too long to unroll.
+nn::Tensor vec_to_frame_tensor(const std::vector<double>& sig, int T_frames, int frame_len)
 {
-    nn::Tensor t(static_cast<nn::Index>(sig.size()), 1);
-    for (nn::Index i = 0; i < static_cast<nn::Index>(sig.size()); ++i)
-        t.at(i, 0) = static_cast<float>(sig[static_cast<size_t>(i)]);
+    nn::Tensor t(static_cast<nn::Index>(T_frames), static_cast<nn::Index>(frame_len));
+    for (int f = 0; f < T_frames; ++f)
+        for (int w = 0; w < frame_len; ++w)
+            t.at(static_cast<nn::Index>(f), static_cast<nn::Index>(w)) =
+                static_cast<float>(sig[static_cast<size_t>(f) * static_cast<size_t>(frame_len)
+                                       + static_cast<size_t>(w)]);
     return t;
 }
+
+// Cap on the AE sequence length: signals are windowed into at most this many
+// frames, so seq_len stays small regardless of raw signal length.
+constexpr int kAeMaxFrames = 64;
 } // namespace
 
 namespace
@@ -498,12 +509,21 @@ auto extract_features_core(const E05DatasetView& view,
         if (max_len == 0)
             throw std::runtime_error("E05FeatureExtraction: no valid raw signals for autoencoder");
 
+        // Window each signal into at most kAeMaxFrames frames of frame_len samples.
+        // input_size = frame_len (features per step), seq_len = T_frames. This bounds
+        // the LSTM unroll length regardless of raw signal size, and gives the AE a
+        // real per-step feature vector instead of a single scalar.
+        const int frame_len = std::max<int>(1,
+            static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
+        const int T_frames = kAeMaxFrames;
+        const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
+
         std::vector<nn::Tensor> train_samples;
         train_samples.reserve(raw_signals.size());
         for (auto& sig : raw_signals)
         {
-            sig.resize(max_len, 0.0);
-            train_samples.push_back(vec_to_column_tensor(sig));
+            sig.resize(padded, 0.0);
+            train_samples.push_back(vec_to_frame_tensor(sig, T_frames, frame_len));
         }
 
         const int hidden_size = first_encoder_dim(cfg.autoencoder.encoder_layer_spec, 64);
@@ -511,8 +531,8 @@ auto extract_features_core(const E05DatasetView& view,
         const int num_layers = std::max<int>(1, static_cast<int>(cfg.autoencoder.encoder_layer_spec.size() / 2));
 
         nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
-        ae_cfg.input_size = 1;
-        ae_cfg.seq_len = static_cast<int>(max_len);
+        ae_cfg.input_size = frame_len;
+        ae_cfg.seq_len = T_frames;
         ae_cfg.hidden_size = hidden_size;
         ae_cfg.latent_size = latent_size;
         ae_cfg.num_layers = num_layers;
