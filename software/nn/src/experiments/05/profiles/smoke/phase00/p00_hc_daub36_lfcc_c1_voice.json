@@ -1,0 +1,46 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p00_hc_daub36_lfcc_c1_voice",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/smoke",
+    "modality": "voice",
+    "max_samples": 60
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "daub36",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": true
+  },
+  "classifier": {
+    "enabled": false
+  },
+  "training": {
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "samples_per_batch": 4,
+    "early_stop_patience": 1,
+    "k_folds": 2,
+    "nested_cv": true
+  }
+}

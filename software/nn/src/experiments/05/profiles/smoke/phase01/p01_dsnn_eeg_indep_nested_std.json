@@ -1,0 +1,54 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_p01_dsnn_eeg_indep_nested_std",
+    "seed": 42,
+    "repeats": 1,
+    "seed_deterministic": true
+  },
+  "dataset": {
+    "root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/baseDeDatosHablaImaginada/database.sqlite",
+    "results_dir": "results/smoke",
+    "modality": "eeg",
+    "max_samples": 120
+  },
+  "feature_extraction": {
+    "strategy": "handcrafted",
+    "handcrafted": {
+      "transform": "dtwpt",
+      "scale": "lfcc",
+      "wavelet": "daub4",
+      "cepstral": false,
+      "descriptors": [
+        "energy",
+        "zcr",
+        "entropy",
+        "teager",
+        "jitter",
+        "shimmer"
+      ],
+      "dtwpt_level": 4
+    }
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "layer_spec": [
+      "linear:128:relu",
+      "residual:2",
+      "linear:N_speakers:identity"
+    ],
+    "text_mode": "independent",
+    "enabled": true
+  },
+  "training": {
+    "epochs": 2,
+    "learning_rate": 0.001,
+    "samples_per_batch": 4,
+    "early_stop_patience": 1,
+    "k_folds": 2,
+    "nested_cv": true,
+    "standardize_features": true
+  }
+}
