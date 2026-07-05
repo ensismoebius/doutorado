@@ -15,6 +15,13 @@
 57. Verificar e fundamentar a afirmação sobre taxas de aprendizado para parâmetros biofísicos em SNNs.
 58. Fundamentar a tabela de associação entre codificações e funções de perda.
 
+# Next changes
+- If memory is avaiable run at least 2 profiles in paralel.
+- Im seeing that you are going to test only ae profile with 4 layers, but im pretty sure that SOTA for low end devices like raspberry pi b can use more layers. m i wrong ?
+- Check if snn torch has support for 3d tensors and, if positive, copy the implementation into our own.
+- Then update the thesis.
+
+
 # Contradições wiki x código
 
 C12. Wiki (`Experiment05.md`:134,390) diz que `modality=fused` concatena os vetores de características de voz+EEG. Código (`E05FeatureExtraction.cpp::signal_for_modality`, ramo `else // "fused"`) na verdade escolhe áudio se presente, senão EEG — um único sinal, sem concatenação. Não é fusão precoce (fundir sinal bruto antes do autoencoder/handcrafted) nem fusão tardia (concatenar vetores de características depois) — nenhuma fusão ocorre hoje.
