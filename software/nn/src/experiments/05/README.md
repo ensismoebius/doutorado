@@ -202,10 +202,10 @@ paralelizada por OpenMP (`schedule(dynamic,4)`) sobre as amostras.
 
 **Método automatizado (*feature learning*)**
 
-Implementado com **LSTM-AE** (`feature_extraction.autoencoder.model = "lstm-ae"`).
+Implementado com **SNN-AE** (`ProtocolSpikingAutoencoder`) e **ANN-AE** (`ProtocolAutoencoder`); `lstm-ae` ainda aceito mas não usado nos perfis. Entrada = sinal reduzido por pooling a um vetor plano de 256 dims; SNN-AE treina com `batch_size=1` (estado LIF por amostra).
 Cada amostra é padronizada para comprimento fixo por zero-padding, o autoencoder é treinado
 com MSE via `Trainer::fit_autoencoder`, e o vetor latente de `encode()` é usado como VsC.
-`snn-ae` permanece fora de escopo neste binário.
+`snn-ae` (spiking) e `ann-ae` (denso) são os extratores automáticos comparados na Fase 00.
 
 ### EPC — Engenharia Paraconsistente de Características
 
@@ -264,7 +264,7 @@ Divisão de texto dentro de cada dobra:
 | Especificidade | ✓ | Média de TN/(TN+FP) por classe |
 | EER | ✓ | Cruzamento FAR=FRR (`GenuineImpostorEERScorer`: similaridade cosseno genuíno/impostor) |
 | AUC-ROC | ✓ | P(score_genuíno > score_impostor) — estimador Wilcoxon–Mann–Whitney |
-| MSE | ✓ (somente E3 autoencoder) | Função de reconstrução no treino LSTM-AE |
+| MSE | ✓ (somente E3 autoencoder) | Função de reconstrução no treino do autoencoder (SNN-AE/ANN-AE) |
 
 Agregação sobre dobras externas: média, desvio padrão populacional, IC95 % (1,96 × dp / √n)
 para acurácia e EER; média e dp para F1, precisão, recall e AUC.
@@ -338,7 +338,7 @@ de locutores e ensaios, tornando os resultados diretamente comparáveis.
                                 // opcionais: "jitter", "shimmer"
     },
     "autoencoder": {
-      "model": "lstm-ae",       // único valor aceito neste binário
+      "model": "snn-ae",        // "snn-ae" (spiking) | "ann-ae" (denso) | "lstm-ae"
       "encoder_layer_spec": [],
       "decoder_layer_spec": []
     }
@@ -377,7 +377,7 @@ Base pública 10.1117/12.2255697
   ┌────────────────────────────────────────┐
   │  E3 — Extração de Características (EC) │
   │  DTWPT + descritores (handcrafted)      │
-  │  OU autoencoder latente (LSTM-AE)       │
+  │  OU autoencoder latente (SNN-AE / ANN-AE)│
   └────────────────────┬───────────────────┘
                        │  VsCs por amostra
           ▼
@@ -445,9 +445,10 @@ Base pública 10.1117/12.2255697
 │   │   │     wavelet ∈ {haar, daub4, ..., daub46} (23);  scale ∈ {bark, mel, lfcc}
 │   │   │     cat ∈ {c1, c2}  (c1 = energias / Categoria 1; c2 = cepstral LFCC/MFCC/BFCC)
 │   │   │     fonte ∈ {voice, eeg};  23 × 3 × 2 × 2 = 276 perfis
-│   │   └── p00_ae_<tam>_<fonte>.json               autoencoder LSTM compacto → 6 perfis
+│   │   └── p00_ae_<modelo>_<tam>_<fonte>.json       autoencoder compacto → 12 perfis
+│   │         modelo ∈ {snn, ann}  (SNN-AE spiking / ANN-AE denso)
 │   │         tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
-│   │       (classifier.enabled=false; para após o ranking. 282 perfis no total)
+│   │       (classifier.enabled=false; para após o ranking. 288 perfis no total)
 │   │       (fundido é construído DEPOIS, do vencedor de cada lado)
 │   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
 │       └── p01_dsnn_<fonte>_<texto>_<cv>_<std>.json   (todos classifier=dsnn)
@@ -457,13 +458,13 @@ Base pública 10.1117/12.2255697
 │           4 × 2 × 2 × 2 = 32 perfis
 │           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 2209 testes: 315 perfis (282 fase00 + 32 fase01 + debug) parseiam e validam
+    ├── e05_profile_audit_gtest.cpp       ← 2251 testes: 321 perfis (288 fase00 + 32 fase01 + debug) parseiam e validam
     ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
     └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```
 
 **Duas fases** (`classifier.enabled` controla o gate):
-- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × sinal (138 perfis), mais um **sweep de autoencoders LSTM compactos** (6 perfis). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
+- **Fase 00** (`phase00/`): extrai características por sinal (voz, EEG) e roda o ranking paraconsistente para escolher o melhor extrator por sinal. Varre a **wavelet-mãe** (`handcrafted.wavelet`, 23 opções de `Types.hpp`) × escala × categoria × sinal (276 perfis), mais um sweep de **autoencoders compactos SNN-AE + ANN-AE** (12 perfis). `classifier.enabled=false` → o pipeline para após o ranking; escreve apenas o CSV paraconsistente + JSON de resumo. Não precisa de `layer_spec`.
 
   **Autoencoders compactos (SOTA para dispositivos de baixo poder).** Três tamanhos por sinal, todos `lstm-ae` de uma camada (raso, adequado a borda), com razão de compressão 2:1 entre a camada oculta e o gargalo latente. O latente é o próprio vetor de características, então um gargalo menor gera vetor menor → classificador a jusante mais barato e melhor generalização:
 

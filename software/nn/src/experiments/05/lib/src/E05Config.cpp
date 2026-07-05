@@ -63,8 +63,10 @@ void E05Config::validate() const
     }
     else
     {
-        if (feature_extraction.autoencoder.model != "lstm-ae")
-            throw std::invalid_argument("E05Config: autoencoder.model must be lstm-ae");
+        const auto& ae_model = feature_extraction.autoencoder.model;
+        if (ae_model != "snn-ae" && ae_model != "ann-ae" && ae_model != "lstm-ae")
+            throw std::invalid_argument(
+                "E05Config: autoencoder.model must be snn-ae, ann-ae, or lstm-ae");
         if (feature_extraction.autoencoder.encoder_layer_spec.empty())
             throw std::invalid_argument("E05Config: autoencoder.encoder_layer_spec is required");
         if (feature_extraction.autoencoder.decoder_layer_spec.empty())

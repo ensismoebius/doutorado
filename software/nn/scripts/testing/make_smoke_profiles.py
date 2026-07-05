@@ -47,6 +47,11 @@ def smoke_overrides(prof):
 
 
 def main():
+    # Wipe the mirror first so removed/renamed source profiles don't leave stale
+    # smoke copies behind.
+    import shutil
+    shutil.rmtree(SMOKE, ignore_errors=True)
+
     sources = [os.path.join(PROFILES, "debug.json")]
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase00", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "phase01", "*.json")))

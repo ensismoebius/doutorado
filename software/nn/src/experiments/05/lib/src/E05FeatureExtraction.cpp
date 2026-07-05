@@ -14,6 +14,8 @@
 #include "core/training/TrainerConfig.hpp"
 #include "training/ProgressCallback.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
+#include "autoencoder/ProtocolAutoencoder.hpp"          // ANN-AE (non-spiking)
+#include "autoencoder/ProtocolSpikingAutoencoder.hpp"   // SNN-AE (spiking)
 #include "progress/ProgressManager.hpp"
 #include "wavelet/Types.hpp"
 #include "wavelet/WaveletTransformResults.hpp"
@@ -429,6 +431,82 @@ nn::Tensor vec_to_frame_tensor(const std::vector<double>& sig, int T_frames, int
 // Cap on the AE sequence length: signals are windowed into at most this many
 // frames, so seq_len stays small regardless of raw signal length.
 constexpr int kAeMaxFrames = 64;
+
+// Fixed flat input dimension for the Protocol (SNN-AE / ANN-AE) autoencoders,
+// which consume a single vector per sample (not a sequence). The raw signal is
+// average-pooled into this many contiguous bins.
+constexpr int kAeInputFeatures = 256;
+
+// Average-pool a 1-D signal into `out_dim` contiguous bins.
+std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
+{
+    std::vector<double> out(static_cast<size_t>(out_dim), 0.0);
+    if (sig.empty()) return out;
+    for (int b = 0; b < out_dim; ++b)
+    {
+        const size_t lo = static_cast<size_t>(b) * sig.size() / static_cast<size_t>(out_dim);
+        size_t hi = static_cast<size_t>(b + 1) * sig.size() / static_cast<size_t>(out_dim);
+        if (hi <= lo) hi = lo + 1;
+        double s = 0.0;
+        size_t n = 0;
+        for (size_t i = lo; i < hi && i < sig.size(); ++i) { s += sig[i]; ++n; }
+        out[static_cast<size_t>(b)] = (n > 0) ? s / static_cast<double>(n) : 0.0;
+    }
+    return out;
+}
+
+// Train a Protocol autoencoder (SNN-AE or ANN-AE) on flat pooled input vectors
+// and return the latent (bottleneck) vector per sample. AEType is a Module with
+// an AutoencoderConfig constructor and an encode() method (ProtocolAutoencoder
+// or ProtocolSpikingAutoencoder). hidden/latent/depth come from the profile's
+// encoder spec; input dimension is the fixed pooled size.
+template <typename AEType>
+std::vector<std::vector<double>> run_protocol_ae(
+    const std::vector<std::vector<double>>& raw_signals,
+    const E05Config::AutoencoderConfig& spec,
+    const E05Config::Training& training,
+    const std::string& label_suffix,
+    int batch_size)
+{
+    std::vector<nn::Tensor> train_samples;
+    train_samples.reserve(raw_signals.size());
+    for (const auto& sig : raw_signals)
+    {
+        const auto pooled = pool_signal(sig, kAeInputFeatures);
+        nn::Tensor t(1, static_cast<nn::Index>(kAeInputFeatures));
+        for (int j = 0; j < kAeInputFeatures; ++j)
+            t.at(0, static_cast<nn::Index>(j)) = static_cast<float>(pooled[static_cast<size_t>(j)]);
+        train_samples.push_back(std::move(t));
+    }
+
+    AutoencoderConfig ae_cfg;
+    ae_cfg.input_features = kAeInputFeatures;
+    ae_cfg.hidden_size = first_encoder_dim(spec.encoder_layer_spec, 64);
+    ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, 16);
+    ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
+    ae_cfg.loss_type = "mse";
+
+    AEType model(ae_cfg);
+
+    nn::training::TrainerConfig trainer_cfg;
+    trainer_cfg.epochs = training.epochs;
+    trainer_cfg.learning_rate = training.learning_rate;
+    trainer_cfg.batch_size = std::max(1, batch_size);
+
+    nn::training::Trainer<AEType> trainer(model, trainer_cfg);
+    trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
+        "Autoencoder training" + label_suffix));
+    (void) trainer.fit_autoencoder(train_samples);
+
+    std::vector<std::vector<double>> vectors;
+    vectors.reserve(train_samples.size());
+    for (const auto& s : train_samples)
+    {
+        model.reset_state();
+        vectors.push_back(tensor_to_vec(model.encode(s, false)));
+    }
+    return vectors;
+}
 } // namespace
 
 namespace
@@ -490,15 +568,10 @@ auto extract_features_core(const E05DatasetView& view,
     }
     else if (cfg.strategy == "autoencoder")
     {
-        if (cfg.autoencoder.model != "lstm-ae")
-        {
-            throw std::runtime_error(
-                "E05FeatureExtraction: only lstm-ae is implemented for autoencoder feature learning");
-        }
+        const std::string& ae_model = cfg.autoencoder.model;
 
         std::vector<std::vector<double>> raw_signals;
         raw_signals.reserve(view.samples.size());
-
         size_t max_len = 0;
         for (const auto& sample : view.samples)
         {
@@ -506,59 +579,65 @@ auto extract_features_core(const E05DatasetView& view,
             max_len = std::max(max_len, sig.size());
             raw_signals.push_back(std::move(sig));
         }
-
         if (max_len == 0)
             throw std::runtime_error("E05FeatureExtraction: no valid raw signals for autoencoder");
 
-        // Window each signal into at most kAeMaxFrames frames of frame_len samples.
-        // input_size = frame_len (features per step), seq_len = T_frames. This bounds
-        // the LSTM unroll length regardless of raw signal size, and gives the AE a
-        // real per-step feature vector instead of a single scalar.
-        const int frame_len = std::max<int>(1,
-            static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
-        const int T_frames = kAeMaxFrames;
-        const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
-
-        std::vector<nn::Tensor> train_samples;
-        train_samples.reserve(raw_signals.size());
-        for (auto& sig : raw_signals)
-        {
-            sig.resize(padded, 0.0);
-            train_samples.push_back(vec_to_frame_tensor(sig, T_frames, frame_len));
-        }
-
-        const int hidden_size = first_encoder_dim(cfg.autoencoder.encoder_layer_spec, 64);
-        const int latent_size = last_encoder_dim(cfg.autoencoder.encoder_layer_spec, 16);
-        const int num_layers = std::max<int>(1, static_cast<int>(cfg.autoencoder.encoder_layer_spec.size() / 2));
-
-        nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
-        ae_cfg.input_size = frame_len;
-        ae_cfg.seq_len = T_frames;
-        ae_cfg.hidden_size = hidden_size;
-        ae_cfg.latent_size = latent_size;
-        ae_cfg.num_layers = num_layers;
-
-        nn::models::lstm::LSTMAutoencoder model(ae_cfg);
-
-        nn::training::TrainerConfig trainer_cfg;
-        trainer_cfg.epochs = training.epochs;
-        trainer_cfg.learning_rate = training.learning_rate;
-        trainer_cfg.batch_size = training.samples_per_batch;
-
-        nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
-        // Per-epoch progress bar for the autoencoder training (Phase 00 has no
-        // classifier, so without this the AE profiles would train silently).
-        trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
-            "Autoencoder training" + label_suffix));
-        (void) trainer.fit_autoencoder(train_samples);
-
         FeatureSet fs;
-        fs.label = "autoencoder-lstm" + label_suffix;
-        fs.vectors.reserve(train_samples.size());
-        for (const auto& sample : train_samples)
+
+        if (ae_model == "snn-ae")
         {
-            auto latent = model.encode(sample, false);
-            fs.vectors.push_back(tensor_to_vec(latent));
+            fs.label = "autoencoder-snn" + label_suffix;
+            // Spiking AE holds per-sample LIF state and does not support a batched
+            // forward, so it is trained one sample at a time (batch_size = 1).
+            fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(
+                raw_signals, cfg.autoencoder, training, label_suffix, /*batch_size=*/1);
+        }
+        else if (ae_model == "ann-ae")
+        {
+            fs.label = "autoencoder-ann" + label_suffix;
+            fs.vectors = run_protocol_ae<ProtocolAutoencoder>(
+                raw_signals, cfg.autoencoder, training, label_suffix,
+                training.samples_per_batch);
+        }
+        else // "lstm-ae" — sequence AE on windowed frames (Guayaquil-paper extractor)
+        {
+            const int frame_len = std::max<int>(1,
+                static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
+            const int T_frames = kAeMaxFrames;
+            const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
+
+            std::vector<nn::Tensor> train_samples;
+            train_samples.reserve(raw_signals.size());
+            for (auto& sig : raw_signals)
+            {
+                sig.resize(padded, 0.0);
+                train_samples.push_back(vec_to_frame_tensor(sig, T_frames, frame_len));
+            }
+
+            nn::models::lstm::LSTMAutoencoderConfig ae_cfg;
+            ae_cfg.input_size = frame_len;
+            ae_cfg.seq_len = T_frames;
+            ae_cfg.hidden_size = first_encoder_dim(cfg.autoencoder.encoder_layer_spec, 64);
+            ae_cfg.latent_size = last_encoder_dim(cfg.autoencoder.encoder_layer_spec, 16);
+            ae_cfg.num_layers =
+                std::max<int>(1, static_cast<int>(cfg.autoencoder.encoder_layer_spec.size() / 2));
+
+            nn::models::lstm::LSTMAutoencoder model(ae_cfg);
+
+            nn::training::TrainerConfig trainer_cfg;
+            trainer_cfg.epochs = training.epochs;
+            trainer_cfg.learning_rate = training.learning_rate;
+            trainer_cfg.batch_size = training.samples_per_batch;
+
+            nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
+            trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
+                "Autoencoder training" + label_suffix));
+            (void) trainer.fit_autoencoder(train_samples);
+
+            fs.label = "autoencoder-lstm" + label_suffix;
+            fs.vectors.reserve(train_samples.size());
+            for (const auto& sample : train_samples)
+                fs.vectors.push_back(tensor_to_vec(model.encode(sample, false)));
         }
 
         result.push_back(std::move(fs));

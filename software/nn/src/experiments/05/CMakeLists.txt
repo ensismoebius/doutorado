@@ -14,6 +14,7 @@ target_include_directories(experiment05_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/include
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/src/experiments/03/lib/include  # Protocol (SNN/ANN) autoencoders
 )
 
 target_link_libraries(experiment05_lib
@@ -32,6 +33,7 @@ target_link_libraries(experiment05_lib
         serialization
         nn_progress
         lstm_models
+        experiment03_lib   # ProtocolAutoencoder (ANN-AE) + ProtocolSpikingAutoencoder (SNN-AE)
         nlohmann_json_wrapper
         matioCpp
         cnpy-static
