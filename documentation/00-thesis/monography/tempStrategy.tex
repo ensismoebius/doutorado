@@ -12,7 +12,7 @@ Modality (\texttt{dataset.modality}):
 Feature-extraction strategy (\texttt{feature\_extraction.strategy}):
 \begin{itemize}
     \item \texttt{handcrafted} --- DTWPT + descriptors
-    \item \texttt{autoencoder} --- currently only \texttt{lstm-ae} implemented (Guayaquil paper only). Thesis targets add SNN-AE, ANN-AE (not yet wired as values)
+    \item \texttt{autoencoder} --- \texttt{snn-ae} (spiking) and \texttt{ann-ae} (dense) implemented and wired into Phase 00; \texttt{lstm-ae} remains in code (Guayaquil paper) but no thesis profile uses it
 \end{itemize}
 
 Handcrafted scale (\texttt{handcrafted.scale}, only if strategy=handcrafted):
@@ -60,7 +60,7 @@ Existing shipped profiles (modality $\times$ strategy, 6 total):
 handcrafted-eeg, handcrafted-voice, handcrafted-fused, autoencoder-eeg, autoencoder-voice, autoencoder-fused (+ debug, article-full)
 
 Full combinatorial space (handcrafted): 3 modality $\times$ 3 scale = 9 base combos $\times$ classifier(2) $\times$ eval mode(2) $\times$ CV(2) = 72.
-Autoencoder branch: 3 modality $\times$ classifier(2) $\times$ eval(2) $\times$ CV(2) = 24 (only lstm-ae value works today; SNN-AE/ANN-AE thesis-planned, not implemented).
+Autoencoder branch: 3 modality $\times$ classifier(2) $\times$ eval(2) $\times$ CV(2) = 24 (SNN-AE and ANN-AE implemented and wired; lstm-ae present in code but unused by thesis profiles).
 
 % ============================================================
 \section*{Thesis experimental grid --- what to actually test (2 phases)}
@@ -83,14 +83,14 @@ this phase, from each side's winning vector):
     \end{itemize}
     each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
     So $23 \times 3 = 69$ handcrafted variants per signal.
-    \item \textbf{Autoencoder} --- 3 compact LSTM-AE sizes (tiny/small/base; latent 8/16/32, 2:1 hidden). SNN-AE / ANN-AE remain thesis targets.
+    \item \textbf{Autoencoder} --- 6 compact AEs: SNN-AE (spiking) and ANN-AE (dense), 3 sizes each (tiny/small/base; latent 8/16/32, 2:1 hidden).
 \end{itemize}
 
-So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 3 autoencoder)
-$=$ \textbf{144 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
+So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 6 autoencoder)
+$=$ \textbf{150 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
 (\autoref{sec:conceitos}). Output of this phase: one winning feature vector for voice, one for EEG.
-The 3 autoencoders are compact single-layer LSTM-AEs (the only AE family wired today); the thesis's
-conceptual target still adds SNN-AE/ANN-AE and Categoria-2 cepstral variants once implemented.
+The 6 autoencoders are compact single-layer SNN-AEs and ANN-AEs (both families wired); the
+Categoria-2 cepstral handcrafted variants are also implemented.
 
 \subsection*{Phase 01 --- Authentication (DSNN classification, biometric ablation)}
 
@@ -177,9 +177,8 @@ Voice:
     \item[$\blacksquare$] LFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true} (audit G2)
     \item[$\blacksquare$] MFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
     \item[$\blacksquare$] BFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
-    \item[$\square$] SNN-AE --- \textbf{not implemented}; \texttt{E05Config::validate()} throws
-    unless \texttt{autoencoder.model == "lstm-ae"}
-    \item[$\square$] ANN-AE --- \textbf{not implemented}, same validate() restriction
+    \item[$\blacksquare$] SNN-AE --- \textbf{implemented} (\texttt{ProtocolSpikingAutoencoder}); 3 sizes shipped in \texttt{profiles/phase00/}
+    \item[$\blacksquare$] ANN-AE --- \textbf{implemented} (\texttt{ProtocolAutoencoder}); 3 sizes shipped
 \end{itemize}
 
 EEG: identical 8 items, identical status (same code path, signal-agnostic):

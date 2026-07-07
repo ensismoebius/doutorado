@@ -587,10 +587,11 @@ auto extract_features_core(const E05DatasetView& view,
         if (ae_model == "snn-ae")
         {
             fs.label = "autoencoder-snn" + label_suffix;
-            // Spiking AE holds per-sample LIF state and does not support a batched
-            // forward, so it is trained one sample at a time (batch_size = 1).
+            // Spiking AE trains batched: row-vector samples stack into a 2D (B, F)
+            // batch (Trainer::create_batch), and Lif/LifIntegrator resize their
+            // membrane state to the batch shape. Same batch size as ANN-AE.
             fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(
-                raw_signals, cfg.autoencoder, training, label_suffix, /*batch_size=*/1);
+                raw_signals, cfg.autoencoder, training, label_suffix, training.samples_per_batch);
         }
         else if (ae_model == "ann-ae")
         {

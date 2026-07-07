@@ -12,7 +12,7 @@ Experiment05 implements the full speaker-authentication pipeline for individuals
 
 The experiment consists of two stages:
 
-- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (LSTM-AE)
+- **E3 — Feature Extraction**: handcrafted (DTWPT + classical descriptors, guided by paraconsistent quality ranking) vs. learned (SNN-AE, ANN-AE)
 - **E4 — Authentication**: RNN or DSNN classifier, text-dependent and text-independent modes, nested or flat 5-fold cross-validation
 
 ---
@@ -75,13 +75,17 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 ### Learned Feature Extraction (Autoencoders)
 
-> **Scope note.** The **LSTM-AE** was built for the Guayaquil congress paper. The **thesis** compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder), and **ANN-AE** (non-spiking autoencoder). The LSTM-AE is the currently-wired learned extractor in the Experiment05 executable; SNN-AE / ANN-AE are the thesis targets.
+> **Scope note.** The **thesis** Phase 00 compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder, `ProtocolSpikingAutoencoder`), and **ANN-AE** (non-spiking dense autoencoder, `ProtocolAutoencoder`). Both AE families are wired into the Experiment05 executable and shipped as Phase 00 profiles. The **LSTM-AE** remains in the code (built for the Guayaquil congress paper) but no thesis profile uses it.
 
-**LSTM-AE (implemented)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector. Decoder LSTM reconstructs frame sequence. Trained with MSE reconstruction loss + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
+**SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. Consumes a flat, fixed-size vector — the raw signal average-pooled to 256 bins. Trained **batched** with MSE reconstruction loss (row-vector samples stack into a 2-D `(B, 256)` batch; `Lif`/`LifIntegrator` resize their membrane state to the batch). The latent layer is the feature vector.
+
+**ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
+
+**LSTM-AE (legacy, Guayaquil paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
 
 > **Windowing + batching (AE-on-EEG fix).** The raw signal is *framed* into at most `kAeMaxFrames` (64) windows of `frame_len` samples each → AE input `(T_frames, frame_len)` with `input_size = frame_len`, `seq_len ≤ 64`. This replaced the earlier `input_size=1, seq_len=24576` wiring, which fed the whole flattened multi-channel EEG as one length-24576 sequence — both semantically wrong and far too long to unroll (and it crashed once the `LSTMAutoencoder` met the trainer's batched 3-D tensor). `LSTMAutoencoder` now handles both 2-D `(T,D)` and 3-D `(B,T,D)` inputs (`LSTMLayer` already did the batched BPTT; the projections/last-step/replicate were made batch-aware). Verified against snnTorch/PyTorch — see [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
-**Compact-AE capacity sweep (low-power design).** Phase 00 ships three compact LSTM-AE sizes per signal, all single-layer (shallow, edge-friendly) with a 2:1 hidden→latent compression ratio:
+**Compact-AE capacity sweep (low-power design).** Phase 00 ships two AE families (SNN-AE, ANN-AE) × three compact sizes per signal, all single-layer (shallow, edge-friendly) with a 2:1 hidden→latent compression ratio:
 
 | size | hidden | latent (= feature-vector dim) |
 |---|---|---|
@@ -89,9 +93,7 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 | `small` | 32 | 16 |
 | `base`  | 64 | 32 |
 
-The latent layer *is* the feature vector, so a smaller bottleneck yields a smaller vector — cheaper downstream classifier and often better generalisation. These choices follow the lightweight-autoencoder-for-edge literature (aggressive bottleneck, ~2:1 compression, shallow stack). The model family is code-limited to `lstm-ae`; sparse/quantised variants would need an `E05FeatureExtraction` extension. See [Autoencoders](../Concepts/Autoencoders.md) and [Memory-Constrained Design](../Guides/LSTM-Performance.md).
-
-**SNN-AE / ANN-AE (thesis)**: spiking and non-spiking autoencoder variants, compared against handcrafted features via paraconsistent α/β ranking.
+The latent layer *is* the feature vector, so a smaller bottleneck yields a smaller vector — cheaper downstream classifier and often better generalisation. These choices follow the lightweight-autoencoder-for-edge literature (aggressive bottleneck, ~2:1 compression, shallow stack). The wired families are `snn-ae` and `ann-ae` (each swept over the three sizes); `lstm-ae` is accepted by the config but no thesis profile ships it. See [Autoencoders](../Concepts/Autoencoders.md) and [Memory-Constrained Design](../Guides/LSTM-Performance.md).
 
 Autoencoder training in Experiment05 is unsupervised (no speaker labels), and latent vectors feed paraconsistent ranking and downstream classifier.
 
@@ -189,8 +191,9 @@ src/experiments/05/
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
 │   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<source>.json  wavelet(23) × scale(bark/mel/lfcc) ×
 │   │   │       cat ∈ {c1=energy, c2=cepstral LFCC/MFCC/BFCC} × source ∈ {voice,eeg} = 276
-│   │   └── p00_ae_<size>_<source>.json              compact LSTM-AE, size ∈ {tiny,small,base}
-│   │                                                (latent 8/16/32, 2:1 hidden) = 6   → 282 total
+│   │   └── p00_ae_<model>_<size>_<source>.json       compact AE, model ∈ {snn,ann},
+│   │                                                size ∈ {tiny,small,base} (latent 8/16/32,
+│   │                                                2:1 hidden) = 2×3×2 = 12   → 288 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
@@ -225,7 +228,7 @@ src/experiments/05/
       "descriptors": ["energy", "zcr", "entropy", "teager", "jitter", "shimmer"]
     },
     "autoencoder": {
-      "model": "lstm-ae",       // only value accepted in current Experiment05 baseline
+      "model": "snn-ae",        // snn-ae | ann-ae (thesis Phase 00); lstm-ae accepted but unused
       "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
       "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"]
     }
@@ -280,7 +283,7 @@ All bars are rendered by `nn::progress::ProgressManager` (background thread, ANS
   └── Imagined speech EEG (1024 Hz, 6 ch)
         └── preprocessing (per-window z-score)
               ├── Handcrafted: DTWPT energy per EEG band (alpha/beta/theta)
-              └── Learned: LSTM-AE latent vectors (SNN-AE planned)
+              └── Learned: SNN-AE / ANN-AE latent vectors
                     │
                     ▼
             Paraconsistent evaluation (α/β → D_truth)
@@ -362,7 +365,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact LSTM-AE sweep** (`tiny`/`small`/`base`) = 6, for **282** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact AE sweep** (`snn-ae`/`ann-ae` × `tiny`/`small`/`base`) = 12, for **288** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
 **Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:
@@ -450,7 +453,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 4. **`jitter`/`shimmer` require voiced frames.** Unvoiced frames produce undefined period estimates. Filter by voicing flag before computing perturbation measures.
 
-5. **Autoencoder path currently supports `lstm-ae` only.** `feature_extraction.autoencoder.model` must be `lstm-ae`; `snn-ae` is planned.
+5. **Autoencoder path wires `snn-ae` and `ann-ae`.** `feature_extraction.autoencoder.model` accepts `snn-ae`, `ann-ae`, or `lstm-ae`; the thesis Phase 00 profiles use `snn-ae`/`ann-ae` (`lstm-ae` is the legacy Guayaquil extractor, unused by any profile).
 
 6. **Text-independent split must not leak phrases.** Train and test splits must use disjoint phrase sets, not just disjoint utterances of the same phrase.
 

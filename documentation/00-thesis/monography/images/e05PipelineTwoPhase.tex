@@ -20,7 +20,7 @@
 
 \node[startstop] (start) {Base de sinais (voz + EEG pareados)};
 \node[proc, below=of start] (p00)
-    {\textbf{Fase 00} --- varrer $23$ wavelets $\times$ $3$ escalas $\times$ $2$ categorias $\times$ $2$ sinais\\ ($+$ 3 autoencoders compactos): $282$ execuções, \texttt{classifier.enabled=false}};
+    {\textbf{Fase 00} --- varrer $23$ wavelets $\times$ $3$ escalas $\times$ $2$ categorias $\times$ $2$ sinais\\ ($+$ 6 autoencoders compactos --- SNN-AE e ANN-AE): $288$ execuções, \texttt{classifier.enabled=false}};
 \node[script, below=of p00] (rank)
     {\texttt{e05\_phase00\_rank.py}\\ menor $D_{\text{verdade}}$ por sinal $\rightarrow$ \texttt{winners.json}};
 \node[script, below=of rank] (apply)

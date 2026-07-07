@@ -47,6 +47,26 @@ if [ -z "${BIN:-}" ] || [ ! -x "$BIN" ]; then
 fi
 echo "using binary: $BIN"
 
+# ── Parallelism (memory-gated) ───────────────────────────────────────────────
+# Run several profiles at once when RAM allows. Each profile is an independent
+# run (own result file by run_tag), so phase00/phase01 parallelise safely.
+# Job count = min(free_RAM / per-job, nproc), capped at 4 to avoid GPU
+# oversubscription. Override with E05_JOBS; tune per-job budget with
+# E05_JOB_MEM_MB (default 2048). JOBS=1 keeps the live progress-bar UX.
+avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
+[ -z "${avail_mb:-}" ] && avail_mb=2048
+per_mb=${E05_JOB_MEM_MB:-2048}
+jobs_mem=$(( avail_mb / per_mb )); [ "$jobs_mem" -lt 1 ] && jobs_mem=1
+cpus=$(nproc)
+if [ -n "${E05_JOBS:-}" ]; then
+    JOBS=$E05_JOBS
+else
+    JOBS=$(( jobs_mem < cpus ? jobs_mem : cpus ))
+    [ "$JOBS" -gt 4 ] && JOBS=4
+fi
+[ "$JOBS" -lt 1 ] && JOBS=1
+echo "parallelism: JOBS=$JOBS  (avail ${avail_mb}MB / ${per_mb}MB per job, ${cpus} cpus)"
+
 SCOPE="${1:-all}"
 case "$SCOPE" in
     phase00) ROOT="src/experiments/05/profiles/phase00" ;;
@@ -100,6 +120,29 @@ fi
 
 start=$(date +%s)
 tty_out=0; [ -t 1 ] && tty_out=1
+: > "$TMP/tally"      # one PASS/FAIL line per completed profile (parallel-safe)
+
+# Run one profile: execute, capture failure, checkpoint. State/tally/failure
+# writes are serialised via flock so parallel workers never interleave. The
+# per-profile output goes to its own log ($1 index) — no shared "out" file.
+run_profile() {
+    local i="$1" f="$2" name log ec sw err
+    name=$(basename "$f"); log="$TMP/log.$i"
+    "$BIN" --config "$f" > "$log" 2>&1; ec=$?
+    if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
+    (
+        flock 9
+        printf '%s %s\n' "$sw" "$f" >> "$STATE"   # resume checkpoint
+        echo "$sw" >> "$TMP/tally"
+        if [ "$sw" = FAIL ]; then
+            err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$log" \
+                  | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | tail -1)
+            { echo "FAIL: $f"; echo "   ${err:-<non-zero exit, no error line captured>}"; } >> "$TMP/failures"
+        fi
+    ) 9>"$TMP/lock"
+    printf '[%d/%d] %s  %s%s\n' "$i" "$total" "$sw" "$name" \
+        "$([ "$sw" = FAIL ] && printf ' -> %s' "${err:-<non-zero exit>}")"
+}
 
 echo "profiles: $total from $ROOT  (state: $STATE)"
 for f in "${PROFILES[@]}"; do
@@ -113,41 +156,39 @@ for f in "${PROFILES[@]}"; do
         continue
     fi
 
-    now=$(date +%s); elapsed=$((now - start))
-    # rough ETA from average time per completed profile
-    eta=""
-    ran=$((pass + fail))
-    if [ "$ran" -gt 0 ]; then
-        avg=$((elapsed / ran)); rem=$((avg * (total - i + 1)))
-        eta=$(printf ' eta~%02d:%02d' $((rem / 60)) $((rem % 60)))
-    fi
-    printf '[%d/%d] pass=%d fail=%d skip=%d  %02d:%02d%s  running: %s\n' \
-        "$i" "$total" "$pass" "$fail" "$skip" $((elapsed / 60)) $((elapsed % 60)) "$eta" "$name"
-
-    # On a terminal, let the binary's live progress bars (dataset / feature
-    # extraction / epochs / folds) render while tee captures output for failure
-    # diagnosis. In a pipe/CI, redirect to keep the log free of ANSI bar noise.
-    if [ "$tty_out" -eq 1 ]; then
-        "$BIN" --config "$f" 2>&1 | tee "$TMP/out"; ec=${PIPESTATUS[0]}
+    if [ "$JOBS" -le 1 ]; then
+        # Serial: live progress bars (dataset / feature / epochs / folds) render
+        # while tee captures output for failure diagnosis. Pipe/CI → redirect.
+        now=$(date +%s); elapsed=$((now - start))
+        printf '[%d/%d] skip=%d  %02d:%02d  running: %s\n' \
+            "$i" "$total" "$skip" $((elapsed / 60)) $((elapsed % 60)) "$name"
+        if [ "$tty_out" -eq 1 ]; then
+            "$BIN" --config "$f" 2>&1 | tee "$TMP/log.$i"; ec=${PIPESTATUS[0]}
+        else
+            "$BIN" --config "$f" > "$TMP/log.$i" 2>&1; ec=$?
+        fi
+        if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
+        printf '%s %s\n' "$sw" "$f" >> "$STATE"
+        echo "$sw" >> "$TMP/tally"
+        if [ "$sw" = FAIL ]; then
+            err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$TMP/log.$i" \
+                  | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | tail -1)
+            { echo "FAIL: $f"; echo "   ${err:-<non-zero exit, no error line captured>}"; } >> "$TMP/failures"
+            echo "FAIL [$i/$total] $name -> ${err:-<non-zero exit>}"
+        fi
     else
-        "$BIN" --config "$f" > "$TMP/out" 2>&1; ec=$?
+        # Parallel pool: keep at most JOBS workers in flight. wait -n returns as
+        # soon as any worker exits, freeing a slot for the next profile.
+        printf '[%d/%d] start: %s\n' "$i" "$total" "$name"
+        run_profile "$i" "$f" &
+        while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
     fi
-
-    if [ "$ec" -eq 0 ]; then
-        pass=$((pass + 1))
-        status_word=PASS
-    else
-        fail=$((fail + 1))
-        status_word=FAIL
-        err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$TMP/out" \
-              | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | tail -1)
-        { echo "FAIL: $f"; echo "   ${err:-<non-zero exit, no error line captured>}"; } >> "$TMP/failures"
-        echo "FAIL [$i/$total] $name -> ${err:-<non-zero exit>}"
-    fi
-
-    # Checkpoint: record completion so a resume skips this profile.
-    printf '%s %s\n' "$status_word" "$f" >> "$STATE"
 done
+wait   # drain remaining parallel workers
+
+# grep -c prints 0 (exit 1) when the tally is empty; set -u tolerates that.
+pass=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); pass=${pass:-0}
+fail=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); fail=${fail:-0}
 
 now=$(date +%s); elapsed=$((now - start))
 if [ "$tty_out" -eq 1 ]; then printf '\r\033[K'; fi

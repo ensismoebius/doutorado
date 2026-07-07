@@ -223,6 +223,19 @@ class Trainer
         if (shape.size() == 2)
         {
             const std::size_t R = shape[0], C = shape[1];
+            // Row-vector samples (1, C) stack into a 2D (B, C) batch — the natural
+            // dense/SNN layout. Stacking into (B, 1, C) breaks stateful layers whose
+            // membrane state is 2D (e.g. Lif). Only genuine 2D samples (R > 1, e.g.
+            // images) need a (B, R, C) 3D batch.
+            if (R == 1)
+            {
+                Tensor batch(static_cast<nn::Index>(B), static_cast<nn::Index>(C));
+                for (std::size_t i = start; i < end; ++i)
+                    for (std::size_t j = 0; j < C; ++j)
+                        batch.at(static_cast<nn::Index>(i - start), static_cast<nn::Index>(j)) =
+                            samples[i].at(static_cast<nn::Index>(j));
+                return batch;
+            }
             Tensor batch(std::vector<nn::Index>{
                 static_cast<nn::Index>(B), static_cast<nn::Index>(R), static_cast<nn::Index>(C)});
             for (std::size_t i = start; i < end; ++i)
