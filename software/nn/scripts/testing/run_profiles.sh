@@ -76,7 +76,8 @@ case "$SCOPE" in
 esac
 
 TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+# Clean the scratch dir and always restore the cursor (the monitor hides it).
+trap 'rm -rf "$TMP"; [ -t 1 ] && printf "\033[?25h"' EXIT INT TERM
 pass=0
 fail=0
 skip=0
@@ -121,13 +122,65 @@ fi
 start=$(date +%s)
 tty_out=0; [ -t 1 ] && tty_out=1
 : > "$TMP/tally"      # one PASS/FAIL line per completed profile (parallel-safe)
+mkdir -p "$TMP/active"
 
-# Run one profile: execute, capture failure, checkpoint. State/tally/failure
-# writes are serialised via flock so parallel workers never interleave. The
-# per-profile output goes to its own log ($1 index) — no shared "out" file.
+# Stable, human-reachable per-profile logs (overwritten each run) so you can
+# `tail -f results/run_logs/<profile>.log` to watch any single worker in full.
+LOGDIR="results/run_logs"
+mkdir -p "$LOGDIR"
+
+# Live dashboard: with JOBS>1 the workers' own progress bars are hidden in their
+# logs (concurrent bars can't share one terminal), so a monitor renders, in
+# place, the latest progress line of each running worker plus a pass/fail tally.
+# On a TTY it is on by default; E05_MONITOR=0 falls back to plain event lines.
+MON=0
+if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${E05_MONITOR:-1}" != 0 ]; then MON=1; fi
+
+# Last meaningful progress line of a worker log: split CR-updated bars into
+# lines, strip ANSI, drop blanks, keep the final one (truncated to terminal-ish).
+mon_extract() {
+    tr '\r' '\n' < "$1" 2>/dev/null | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' \
+        | grep -aE '[^[:space:]]' | tail -1 | cut -c1-110
+}
+
+# Background dashboard. Redraws in place (cursor-up) every E05_MONITOR_INTERVAL
+# seconds while $TMP/mon.on exists. It is the only thing printing to the TTY in
+# monitor mode (worker event lines are suppressed), so the redraw stays aligned.
+monitor_loop() {
+    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm pl p f d n k ln
+    local -a lines
+    printf '\033[?25l'   # hide cursor
+    while [ -e "$TMP/mon.on" ]; do
+        p=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); p=${p:-0}
+        f=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); f=${f:-0}
+        d=$((p + f))
+        lines=("$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
+            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
+        for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
+            nm=$(cat "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
+            pl=$(mon_extract "$LOGDIR/$nm.log")
+            lines+=("$(printf '  %-38.38s %s' "$nm" "${pl:-starting…}")")
+        done
+        [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
+        for ln in "${lines[@]}"; do printf '\033[2K%s\n' "$ln"; done
+        n=${#lines[@]}
+        if [ "$n" -lt "$prev" ]; then          # active set shrank — clear stale rows
+            for ((k = 0; k < prev - n; k++)); do printf '\033[2K\n'; done
+            printf '\033[%dA' $((prev - n))
+        fi
+        prev=$n
+        sleep "$interval"
+    done
+    printf '\033[?25h'   # restore cursor
+}
+
+# Run one profile: execute, capture failure, checkpoint, drop its active marker.
+# State/tally/failure writes are serialised via flock so parallel workers never
+# interleave. Output goes to the stable per-profile log. The trailing status
+# line is suppressed under the monitor (the dashboard shows it instead).
 run_profile() {
-    local i="$1" f="$2" name log ec sw err
-    name=$(basename "$f"); log="$TMP/log.$i"
+    local slot="$1" f="$2" name log ec sw err
+    name=$(basename "$f" .json); log="$LOGDIR/$name.log"
     "$BIN" --config "$f" > "$log" 2>&1; ec=$?
     if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
     (
@@ -140,58 +193,76 @@ run_profile() {
             { echo "FAIL: $f"; echo "   ${err:-<non-zero exit, no error line captured>}"; } >> "$TMP/failures"
         fi
     ) 9>"$TMP/lock"
-    printf '[%d/%d] %s  %s%s\n' "$i" "$total" "$sw" "$name" \
-        "$([ "$sw" = FAIL ] && printf ' -> %s' "${err:-<non-zero exit>}")"
+    rm -f "$TMP/active/$slot"                      # free the slot (worker done)
+    if [ "$MON" -eq 0 ]; then
+        printf '%s  %s%s\n' "$sw" "$name" \
+            "$([ "$sw" = FAIL ] && printf ' -> %s' "${err:-<non-zero exit>}")"
+    fi
 }
 
-echo "profiles: $total from $ROOT  (state: $STATE)"
+# Partition into pending vs. already-done (resume). Skips are printed up front,
+# before the monitor takes over the screen.
+PENDING=()
 for f in "${PROFILES[@]}"; do
-    i=$((i + 1))
-    name=$(basename "$f")
-
-    # Skip profiles already completed in a previous run (resume).
     if [ -n "${DONE[$f]:-}" ]; then
-        skip=$((skip + 1))
-        printf '[%d/%d] SKIP (done)  %s\n' "$i" "$total" "$name"
-        continue
+        skip=$((skip + 1)); printf 'SKIP (done)  %s\n' "$(basename "$f")"
+    else
+        PENDING+=("$f")
     fi
+done
+npending=${#PENDING[@]}
+echo "profiles: $total  (pending $npending, skipped $skip)  from $ROOT"
+echo "logs: $LOGDIR/<profile>.log   (tail -f to watch one worker in full)"
+echo "state: $STATE"
 
-    if [ "$JOBS" -le 1 ]; then
-        # Serial: live progress bars (dataset / feature / epochs / folds) render
-        # while tee captures output for failure diagnosis. Pipe/CI → redirect.
+if [ "$JOBS" -le 1 ]; then
+    # Serial: the binary's live progress bars render directly; tee also captures
+    # to the stable log. Pipe/CI → redirect (keeps the log free of ANSI noise).
+    for f in "${PENDING[@]}"; do
+        i=$((i + 1)); name=$(basename "$f" .json)
         now=$(date +%s); elapsed=$((now - start))
-        printf '[%d/%d] skip=%d  %02d:%02d  running: %s\n' \
-            "$i" "$total" "$skip" $((elapsed / 60)) $((elapsed % 60)) "$name"
+        printf '[%d/%d]  %02d:%02d  running: %s\n' \
+            "$i" "$npending" $((elapsed / 60)) $((elapsed % 60)) "$name"
         if [ "$tty_out" -eq 1 ]; then
-            "$BIN" --config "$f" 2>&1 | tee "$TMP/log.$i"; ec=${PIPESTATUS[0]}
+            "$BIN" --config "$f" 2>&1 | tee "$LOGDIR/$name.log"; ec=${PIPESTATUS[0]}
         else
-            "$BIN" --config "$f" > "$TMP/log.$i" 2>&1; ec=$?
+            "$BIN" --config "$f" > "$LOGDIR/$name.log" 2>&1; ec=$?
         fi
         if [ "$ec" -eq 0 ]; then sw=PASS; else sw=FAIL; fi
         printf '%s %s\n' "$sw" "$f" >> "$STATE"
         echo "$sw" >> "$TMP/tally"
         if [ "$sw" = FAIL ]; then
-            err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$TMP/log.$i" \
+            err=$(grep -aiE "Error|Exception|terminate|Assertion|what\(\)|abort" "$LOGDIR/$name.log" \
                   | sed 's/\x1b\[[0-9;]*[A-Za-z]//g; s/\r//g' | tail -1)
             { echo "FAIL: $f"; echo "   ${err:-<non-zero exit, no error line captured>}"; } >> "$TMP/failures"
-            echo "FAIL [$i/$total] $name -> ${err:-<non-zero exit>}"
+            echo "FAIL [$i/$npending] $name -> ${err:-<non-zero exit>}"
         fi
-    else
-        # Parallel pool: keep at most JOBS workers in flight. wait -n returns as
-        # soon as any worker exits, freeing a slot for the next profile.
-        printf '[%d/%d] start: %s\n' "$i" "$total" "$name"
-        run_profile "$i" "$f" &
-        while [ "$(jobs -rp | wc -l)" -ge "$JOBS" ]; do wait -n; done
-    fi
-done
-wait   # drain remaining parallel workers
+    done
+else
+    # Parallel pool: at most JOBS workers in flight. Slot occupancy is tracked by
+    # marker files in $TMP/active (the monitor is a background job too, so we
+    # count markers rather than `jobs` to avoid counting it as a worker).
+    [ "$MON" -eq 1 ] && { : > "$TMP/mon.on"; monitor_loop & mon_pid=$!; }
+    idx=0; worker_pids=()
+    for f in "${PENDING[@]}"; do
+        idx=$((idx + 1)); name=$(basename "$f" .json)
+        echo "$name" > "$TMP/active/$idx"
+        [ "$MON" -eq 0 ] && printf 'start: %s\n' "$name"
+        run_profile "$idx" "$f" &
+        worker_pids+=("$!")
+        while [ "$(ls "$TMP/active" 2>/dev/null | wc -l)" -ge "$JOBS" ]; do wait -n; done
+    done
+    # Drain workers ONLY (bare `wait` would also block on the monitor, which does
+    # not stop until mon.on is removed below — a deadlock).
+    [ "${#worker_pids[@]}" -gt 0 ] && wait "${worker_pids[@]}" 2>/dev/null || true
+    if [ "$MON" -eq 1 ]; then rm -f "$TMP/mon.on"; wait "$mon_pid" 2>/dev/null || true; fi
+fi
 
 # grep -c prints 0 (exit 1) when the tally is empty; set -u tolerates that.
 pass=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); pass=${pass:-0}
 fail=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); fail=${fail:-0}
 
 now=$(date +%s); elapsed=$((now - start))
-if [ "$tty_out" -eq 1 ]; then printf '\r\033[K'; fi
 echo "=== summary: $pass passed, $fail failed, $skip skipped of $total  (elapsed $((elapsed / 60))m$((elapsed % 60))s) ==="
 if [ $((pass + fail + skip)) -eq "$total" ] && [ "$fail" -eq 0 ]; then
     echo "all profiles complete — remove $STATE to force a full re-run next time."
