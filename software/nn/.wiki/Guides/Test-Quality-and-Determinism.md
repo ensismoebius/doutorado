@@ -118,6 +118,37 @@ Behavior:
 - Filters to core library implementation/header files and excludes test sources.
 - Fails if any file is below 100% line or 100% function coverage.
 
+## Backend numerical parity (XTensor vs OpenCL)
+
+`backend_parity_gtest` (`src/core/tensor/tests/backend_parity_gtest.cpp`) guards
+against the CPU (XTensor, row-major) and GPU (OpenCL, column-major) backends
+silently diverging. Every test builds identical deterministic inputs on both
+backends, runs the same operation through the shared `TensorImpl` / layer
+templates, and compares element-by-element via the backend-agnostic `at(i, j)`:
+
+- elementwise ops, matmul family, reductions, slicing/reshape
+- `Linear` forward/backward (incl. weight/bias gradients)
+- `Lif` batched multi-step state evolution + backward (R/C/V_th gradients) —
+  pits the OpenCL `lif_step_inplace` fast path against the XTensor generic path
+- `LifIntegrator` forward/backward
+- SNN-autoencoder-shaped chains (`Linear→Lif→Linear→LifIntegrator`), both with
+  intermediate comparisons and with **zero intermediate host reads**
+
+The no-host-reads variants matter: `at()` forces a device→host sync that can
+mask stale-buffer bugs. Two real defects were found and fixed by this suite:
+
+1. **Lazy-sync coherence** — binary/scalar/compare/transpose ops uploaded host
+   `data_ptr()` without `sync_gpu_if_needed()`, so a GPU-resident operand (e.g.
+   a fused `Linear` output) fed stale host data into the next op. All such ops
+   now sync both operands on entry (no-op when already coherent).
+2. **`reshape` semantics** — the OpenCL backend swapped shape metadata only,
+   reinterpreting its column-major buffer; XTensor reshapes in row-major order.
+   OpenCL `reshape` now physically permutes the buffer to preserve row-major
+   logical order (the backend-parity contract).
+
+The suite skips gracefully when no OpenCL device is present. Tolerances:
+`2e-4` per-op, `5e-4` for chained results (GPU fp32 rounding accumulates).
+
 ## References
 
 See [../References.md](../References.md), section "Software Testing and Test Quality".

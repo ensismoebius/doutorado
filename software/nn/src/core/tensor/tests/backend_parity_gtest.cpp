@@ -263,9 +263,21 @@ TEST_F(BackendParityTest, SnnAutoencoderChainEndToEnd)
     TC inc(kBatch, kIn);
     fill_pair(inx, inc, 105, 0.0f, 0.5f);
 
-    // forward
-    auto rx = intx.forward(decx.forward(lifx.forward(encx.forward(inx, true), true), true), true);
-    auto rc = intc.forward(decc.forward(lifc.forward(encc.forward(inc, true), true), true), true);
+    // forward — compare every intermediate stage so a divergence is localised
+    auto latx = encx.forward(inx, true);
+    auto latc = encc.forward(inc, true);
+    expect_parity(latx, latc, kOpTol, "AE encoder pre-activation");
+
+    auto spx = lifx.forward(latx, true);
+    auto spc = lifc.forward(latc, true);
+    expect_parity(spx, spc, kOpTol, "AE latent spikes");
+
+    auto dex = decx.forward(spx, true);
+    auto dec = decc.forward(spc, true);
+    expect_parity(dex, dec, kOpTol, "AE decoder pre-activation");
+
+    auto rx = intx.forward(dex, true);
+    auto rc = intc.forward(dec, true);
     expect_parity(rx, rc, kChainTol, "AE reconstruction");
 
     // MSE-style gradient: 2(recon − input)/N, identical on both by construction
@@ -278,6 +290,138 @@ TEST_F(BackendParityTest, SnnAutoencoderChainEndToEnd)
     expect_parity(ginx, ginc, kChainTol, "AE input grad");
     expect_parity(encx.weight.grad(), encc.weight.grad(), kChainTol, "AE encoder weight grad");
     expect_parity(decx.weight.grad(), decc.weight.grad(), kChainTol, "AE decoder weight grad");
+}
+
+TEST_F(BackendParityTest, ChainedOpsWithoutHostReads)
+{
+    // Regression guard for GPU/host memory coherence: chain layer calls with NO
+    // intermediate at() reads (at() forces a device→host sync that can mask
+    // stale-buffer bugs), then compare only the final result.
+    constexpr int kBatch = 8, kIn = 16, kLat = 4;
+
+    { // Linear → Linear
+        LinearImpl<XT> ax(kIn, kLat), bx(kLat, kIn);
+        LinearImpl<CL> ac(kIn, kLat), bc(kLat, kIn);
+        sync_linear(ax, ac, 201);
+        sync_linear(bx, bc, 203);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 205, 0.0f, 0.5f);
+        expect_parity(bx.forward(ax.forward(ix, true), true),
+            bc.forward(ac.forward(ic, true), true),
+            kChainTol,
+            "Linear→Linear (no reads)");
+    }
+    { // Linear → Lif
+        LinearImpl<XT> ax(kIn, kLat);
+        LinearImpl<CL> ac(kIn, kLat);
+        sync_linear(ax, ac, 201);
+        LifImpl<XT> lx(1.0f, 5.0f, 5.0f, 0.25f);
+        LifImpl<CL> lc(1.0f, 5.0f, 5.0f, 0.25f);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 205, 0.0f, 0.5f);
+        expect_parity(lx.forward(ax.forward(ix, true), true),
+            lc.forward(ac.forward(ic, true), true),
+            kChainTol,
+            "Linear→Lif (no reads)");
+    }
+    { // Lif → Linear
+        LinearImpl<XT> bx(kIn, kLat);
+        LinearImpl<CL> bc(kIn, kLat);
+        sync_linear(bx, bc, 203);
+        LifImpl<XT> lx(1.0f, 5.0f, 5.0f, 0.25f);
+        LifImpl<CL> lc(1.0f, 5.0f, 5.0f, 0.25f);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 205, 0.0f, 0.5f);
+        expect_parity(bx.forward(lx.forward(ix, true), true),
+            bc.forward(lc.forward(ic, true), true),
+            kChainTol,
+            "Lif→Linear (no reads)");
+    }
+}
+
+TEST_F(BackendParityTest, SnnAutoencoderChainNoHostReads)
+{
+    // Same 4-layer chain as SnnAutoencoderChainEndToEnd but with ZERO
+    // intermediate host reads — only the final reconstruction is compared.
+    constexpr int kBatch = 8, kIn = 16, kLatent = 4;
+    LinearImpl<XT> encx(kIn, kLatent);
+    LinearImpl<CL> encc(kIn, kLatent);
+    LifImpl<XT> lifx(1.0f, 5.0f, 5.0f, 0.25f);
+    LifImpl<CL> lifc(1.0f, 5.0f, 5.0f, 0.25f);
+    LinearImpl<XT> decx(kLatent, kIn);
+    LinearImpl<CL> decc(kLatent, kIn);
+    LifIntegratorImpl<XT> intx(1.0f, 5.0f, 5.0f);
+    LifIntegratorImpl<CL> intc(1.0f, 5.0f, 5.0f);
+    sync_linear(encx, encc, 101);
+    sync_linear(decx, decc, 103);
+
+    TX inx(kBatch, kIn);
+    TC inc(kBatch, kIn);
+    fill_pair(inx, inc, 105, 0.0f, 0.5f);
+
+    auto rx = intx.forward(decx.forward(lifx.forward(encx.forward(inx, true), true), true), true);
+    auto rc = intc.forward(decc.forward(lifc.forward(encc.forward(inc, true), true), true), true);
+    expect_parity(rx, rc, kChainTol, "AE reconstruction (no reads)");
+}
+
+TEST_F(BackendParityTest, ThreeLayerChainsNoHostReads)
+{
+    // Three-layer chains without intermediate host reads (bisection coverage
+    // that originally isolated the Linear→Linear→LifIntegrator coherence bug).
+    constexpr int kBatch = 8, kIn = 16, kLatent = 4;
+    { // Linear→Lif→Linear
+        LinearImpl<XT> ex(kIn, kLatent);
+        LinearImpl<CL> ec(kIn, kLatent);
+        LinearImpl<XT> dx(kLatent, kIn);
+        LinearImpl<CL> dc(kLatent, kIn);
+        LifImpl<XT> lx(1.0f, 5.0f, 5.0f, 0.25f);
+        LifImpl<CL> lc(1.0f, 5.0f, 5.0f, 0.25f);
+        sync_linear(ex, ec, 101);
+        sync_linear(dx, dc, 103);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 105, 0.0f, 0.5f);
+        expect_parity(dx.forward(lx.forward(ex.forward(ix, true), true), true),
+            dc.forward(lc.forward(ec.forward(ic, true), true), true),
+            kChainTol,
+            "L-Lif-L");
+    }
+    { // Linear→Lif→LifIntegrator
+        LinearImpl<XT> ex(kIn, kLatent);
+        LinearImpl<CL> ec(kIn, kLatent);
+        LifImpl<XT> lx(1.0f, 5.0f, 5.0f, 0.25f);
+        LifImpl<CL> lc(1.0f, 5.0f, 5.0f, 0.25f);
+        LifIntegratorImpl<XT> tx(1.0f, 5.0f, 5.0f);
+        LifIntegratorImpl<CL> tc(1.0f, 5.0f, 5.0f);
+        sync_linear(ex, ec, 101);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 105, 0.0f, 0.5f);
+        expect_parity(tx.forward(lx.forward(ex.forward(ix, true), true), true),
+            tc.forward(lc.forward(ec.forward(ic, true), true), true),
+            kChainTol,
+            "L-Lif-Int");
+    }
+    { // Linear→Linear→LifIntegrator (no spiking layer)
+        LinearImpl<XT> ex(kIn, kLatent);
+        LinearImpl<CL> ec(kIn, kLatent);
+        LinearImpl<XT> dx(kLatent, kIn);
+        LinearImpl<CL> dc(kLatent, kIn);
+        LifIntegratorImpl<XT> tx(1.0f, 5.0f, 5.0f);
+        LifIntegratorImpl<CL> tc(1.0f, 5.0f, 5.0f);
+        sync_linear(ex, ec, 101);
+        sync_linear(dx, dc, 103);
+        TX ix(kBatch, kIn);
+        TC ic(kBatch, kIn);
+        fill_pair(ix, ic, 105, 0.0f, 0.5f);
+        expect_parity(tx.forward(dx.forward(ex.forward(ix, true), true), true),
+            tc.forward(dc.forward(ec.forward(ic, true), true), true),
+            kChainTol,
+            "L-L-Int");
+    }
 }
 
 } // namespace

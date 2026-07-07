@@ -69,6 +69,23 @@ class OpenCLHostStorage
         {
             throw std::invalid_argument("Reshape total size mismatch");
         }
+        // Reshape must reinterpret the tensor in ROW-MAJOR logical order to
+        // match the XTensor backend (backend-parity contract). This storage is
+        // column-major, so a metadata-only shape swap would silently produce a
+        // different logical tensor. Permute the buffer so element k of the
+        // row-major traversal is preserved across the reshape. 1-D storage is
+        // layout-free; the permutation only matters when either side is >= 2-D.
+        if (m_shape.size() >= 2 || new_shape.size() >= 2)
+        {
+            std::vector<float> permuted(m_data.size());
+            const Index n = size();
+            for (Index k = 0; k < n; ++k)
+            {
+                permuted[row_major_to_storage(new_shape, k)] =
+                    m_data[row_major_to_storage(m_shape, k)];
+            }
+            m_data = std::move(permuted);
+        }
         m_shape = new_shape;
     }
 
@@ -161,6 +178,28 @@ class OpenCLHostStorage
     }
 
    private:
+    /// Row-major linear index k (XTensor logical order, last dim fastest) →
+    /// this storage's column-major offset (first dim fastest).
+    static Index row_major_to_storage(const std::vector<Index>& shape, Index k)
+    {
+        if (shape.size() <= 1)
+        {
+            return k;
+        }
+        std::vector<Index> idx(shape.size());
+        for (int d = static_cast<int>(shape.size()) - 1; d >= 0; --d)
+        {
+            idx[static_cast<std::size_t>(d)] = k % shape[static_cast<std::size_t>(d)];
+            k /= shape[static_cast<std::size_t>(d)];
+        }
+        Index off = 0;
+        for (int d = static_cast<int>(shape.size()) - 1; d >= 0; --d)
+        {
+            off = idx[static_cast<std::size_t>(d)] + shape[static_cast<std::size_t>(d)] * off;
+        }
+        return off;
+    }
+
     static Index total_size(const std::vector<Index>& shape)
     {
         return std::accumulate(shape.begin(),
@@ -834,7 +873,12 @@ const std::vector<Index>& OpenCLTensorBackend::shape() const
 
 void OpenCLTensorBackend::reshape(const std::vector<Index>& new_shape)
 {
+    // The permutation below reads/writes host data: pull any pending device
+    // result first, and mark the device copy stale afterwards.
+    sync_gpu_if_needed();
     m_backend->reshape(new_shape);
+    m_needs_sync_to_host = false;
+    m_needs_sync_to_device = true;
 }
 
 Index OpenCLTensorBackend::rows() const
@@ -3794,6 +3838,11 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
 
 OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         throw std::invalid_argument("add: tensor shapes must match");
@@ -3930,6 +3979,11 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
 
 OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("subtract", "OpenCL path requires matching tensor shapes");
@@ -4067,6 +4121,11 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         throw std::invalid_argument("multiply: tensor shapes must match");
@@ -4204,6 +4263,11 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("divide", "OpenCL path requires matching tensor shapes");
@@ -4341,6 +4405,10 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("add_scalar"))
     {
@@ -4448,6 +4516,10 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("multiply_scalar"))
     {
@@ -4556,6 +4628,10 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("divide_scalar"))
     {
@@ -6290,6 +6366,11 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
 // Linear algebra
 OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape().size() != 2 || other.shape().size() != 2)
     {
         throw std::invalid_argument("matmul: both tensors must be rank-2");
@@ -7906,6 +7987,10 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
 
 OpenCLTensorBackend OpenCLTensorBackend::transpose() const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     if (shape().size() != 2)
     {
         throw std::invalid_argument("transpose: tensor must be rank-2");
@@ -8063,6 +8148,11 @@ OpenCLTensorBackend OpenCLTensorBackend::block(
 // Comparisons
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         const auto& ls = shape();
@@ -8211,6 +8301,11 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("compare_gt", "OpenCL path requires matching tensor shapes");
@@ -8332,6 +8427,11 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("compare_le", "OpenCL path requires matching tensor shapes");
@@ -8453,6 +8553,11 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("compare_ge", "OpenCL path requires matching tensor shapes");
@@ -8574,6 +8679,11 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& other) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
+    other.sync_gpu_if_needed();
     if (shape() != other.shape())
     {
         warn_opencl_cpu_fallback_once("compare_eq", "OpenCL path requires matching tensor shapes");
@@ -8695,6 +8805,10 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_eq(const OpenCLTensorBackend& o
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_lt_scalar"))
     {
@@ -8803,6 +8917,10 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_lt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_gt_scalar"))
     {
@@ -8911,6 +9029,10 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_gt_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_le_scalar"))
     {
@@ -9019,6 +9141,10 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_le_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_ge_scalar"))
     {
@@ -9127,6 +9253,10 @@ OpenCLTensorBackend OpenCLTensorBackend::compare_ge_scalar(float value) const
 
 OpenCLTensorBackend OpenCLTensorBackend::compare_eq_scalar(float value) const
 {
+    // Lazy-sync guard: a GPU-resident operand may hold stale host data
+    // (m_needs_sync_to_host). This op reads host pointers, so pull the
+    // device result down first (no-op when already in sync).
+    sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("compare_eq_scalar"))
     {
