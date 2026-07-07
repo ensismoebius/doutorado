@@ -16,10 +16,7 @@
 58. Fundamentar a tabela de associação entre codificações e funções de perda.
 
 # Next changes
-- If memory is avaiable run at least 2 profiles in paralel.
 - Im seeing that you are going to test only ae profile with 4 layers, but im pretty sure that SOTA for low end devices like raspberry pi b can use more layers. m i wrong ?
-- Check if snn torch has support for 3d tensors and, if positive, copy the implementation into our own.
-- Then update the thesis.
 
 
 # Contradições wiki x código

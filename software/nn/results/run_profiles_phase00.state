@@ -1,2 +1,8 @@
 PASS src/experiments/05/profiles/phase00/p00_ae_ann_base_eeg.json
 PASS src/experiments/05/profiles/phase00/p00_ae_ann_base_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_ann_small_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_ann_small_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_ann_tiny_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_ann_tiny_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_base_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_base_voice.json
