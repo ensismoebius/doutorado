@@ -115,7 +115,14 @@ void run_once(const e05::E05Config& cfg)
 
     // Ranking artefacts are always written; classifier artefacts only when it ran.
     e05::write_paraconsistent_csv(results_dir, tag, scores);
-    e05::write_summary_json(results_dir, tag, cfg, results, scores);
+    e05::write_summary_json(results_dir,
+        tag,
+        cfg,
+        results,
+        scores,
+        view.n_subjects,
+        view.n_stimuli,
+        view.samples.size());
     if (cfg.classifier.enabled)
     {
         e05::write_metrics_csv(results_dir, tag, results);

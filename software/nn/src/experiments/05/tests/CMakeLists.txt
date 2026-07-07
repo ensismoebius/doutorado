@@ -64,3 +64,26 @@ target_link_libraries(e05_classifiers_gtest
 
 gtest_discover_tests(e05_classifiers_gtest)
 configure_xtensor_parallel_target(e05_classifiers_gtest)
+
+# ── Output-artifact contract tests ──────────────────────────────────────────
+add_executable(e05_output_gtest
+    e05_output_gtest.cpp
+)
+
+target_include_directories(e05_output_gtest
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+target_link_libraries(e05_output_gtest
+    PRIVATE
+        google_test
+        experiment05_lib
+        xtensor xtensor-blas
+        cnpy-static
+        OpenMP::OpenMP_CXX
+)
+
+gtest_discover_tests(e05_output_gtest)
+configure_xtensor_parallel_target(e05_output_gtest)

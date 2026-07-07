@@ -94,6 +94,26 @@ Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `
 
 **Encoding sweep (thesis comparison).** Phase 00 ships all three SNN-AE encodings — `poisson`, `latency`, `direct` — × the 3 compact sizes × 2 sources = 18 profiles (`p00_ae_snn_<encoding>_<size>_<source>.json`), so the thesis can directly compare rate coding, first-spike-time coding, and the (expected-degenerate) non-temporal baseline through the same paraconsistent ranking.
 
+All 18 profile names (`profiles/phase00/`):
+
+| encoding | tiny | small | base |
+|---|---|---|---|
+| `poisson` | `p00_ae_snn_poisson_tiny_eeg.json`, `..._voice.json` | `p00_ae_snn_poisson_small_eeg.json`, `..._voice.json` | `p00_ae_snn_poisson_base_eeg.json`, `..._voice.json` |
+| `latency` | `p00_ae_snn_latency_tiny_eeg.json`, `..._voice.json` | `p00_ae_snn_latency_small_eeg.json`, `..._voice.json` | `p00_ae_snn_latency_base_eeg.json`, `..._voice.json` |
+| `direct`  | `p00_ae_snn_direct_tiny_eeg.json`, `..._voice.json`  | `p00_ae_snn_direct_small_eeg.json`, `..._voice.json`  | `p00_ae_snn_direct_base_eeg.json`, `..._voice.json`  |
+
+Each profile is identical except `feature_extraction.autoencoder.{encoding, time_steps, voltage_threshold}` and `encoder_layer_spec`/`decoder_layer_spec` widths (per size, see table below). `direct` profiles use `time_steps: 1` (ignored by the encoder anyway — a single analog frame) and `voltage_threshold: 1.0` (the LIF default — appropriate since `direct` is meant to reproduce the *un-encoded* baseline, not a tuned spiking regime); `poisson`/`latency` use `time_steps: 16`, `voltage_threshold: 0.2`.
+
+**Measured separability (tiny/eeg, 20 epochs, 2-fold, `experiment.seed=42`)** — smaller `α` and larger `D_truth` mean better paraconsistent separability (α is the falsity/inconsistency degree; the ideal vertex is `α→0, D_truth` maximal):
+
+| encoding | α | D_truth | reading |
+|---|---|---|---|
+| `poisson` | 0.069 | 1.926 | best — rate coding gives the richest, most separable latent |
+| `latency` | 0.258 | 1.752 | worse than poisson, still clearly non-degenerate |
+| `direct`  | 0.875 | 1.425 | ≈coin-flip — confirms temporal/spike coding is what makes the SNN-AE work at all |
+
+This table is the empirical justification for defaulting Phase 00 to `poisson` while still shipping `latency`/`direct` as ablation baselines.
+
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
 **LSTM-AE (legacy, Guayaquil paper — not in the thesis Phase 00 grid)**: sequence-to-sequence autoencoder. Encoder LSTM processes windowed frames, final hidden state = latent vector; decoder LSTM reconstructs the frame sequence. Trained with MSE + BPTT. See [LSTM and BPTT](../Concepts/LSTM-and-BPTT.md).
@@ -413,6 +433,31 @@ python3 scripts/pipeline/e05_apply_winner.py \
 | `results/e05_*_summary.json` | Config, seed, mean±std±ci95 for all metrics + per-fold model paths |
 | `results/e05_*_comparison.dat` | pgfplots DAT: all aggregate metrics for thesis figures |
 | `results/models/<run_tag>/<feature_label>/fold_N.bin` | Trained model state dict per outer fold (binary, `nn::io` format) |
+
+### Data fed to each profile family, and its metadata
+
+Every profile pulls from the **same** paired audio+EEG trial set (`load_dataset` drops any trial missing either signal, so all modality runs are comparable — see [Dataset](#dataset)). What differs per profile family is *which signal(s)*, *what preprocessing*, and *what tensor shape* reaches the extractor:
+
+| Profile family | Input signal(s) | Preprocessing | Shape fed to the extractor | Sample rate used |
+|---|---|---|---|---|
+| Handcrafted (`p00_hc_*`) | `sample.audio` or `sample.eeg` per `dataset.modality` | Voice: pre-emphasis (`α=0.97`). EEG: none. Zero-padded to next power of two for DTWPT. | Flat 1-D signal (voice: 176400 samples; EEG: 6 ch × 4096 = 24576, **channel-major flattened** — all of ch0, then ch1, …) | Voice 44100 Hz, EEG 1024 Hz (nominal, per Pressel Coretto et al. 2017) |
+| ANN-AE (`p00_ae_ann_*`) | same as handcrafted, single signal | Average-pooled to 256 bins, **no normalization** (ReLU tolerates raw scale) | `(1, 256)` per sample, one forward pass | n/a (pooled, rate-agnostic) |
+| SNN-AE (`p00_ae_snn_*`) | same as handcrafted, single signal | Average-pooled to 256 bins, **min-max normalized to `[0,1]`**, then spike-encoded into `time_steps` frames (`poisson`/`latency`/`direct`) | `(1, 256)` **× T frames**, membrane state reset once per sample and integrated across all T frames | n/a (pooled) |
+| Fused-early (`*-fused-early`) | `sample.audio` ++ `sample.eeg` concatenated | Voice preprocessing applied to the whole concatenation (approximation — documented in code, not a physical resample) | Flat 1-D, voice length + EEG length | 44100 Hz applied to the whole signal |
+| Fused-late (`*-fused-late`) | both signals, extracted independently | Each signal's own preprocessing above | Two independent extractions, vectors concatenated **after** | each signal's own rate |
+| Phase 01 (`p01_dsnn_*`) | the Phase-00 winner's vectors (already extracted) | z-score standardization (`training.standardize_features`), fit on train folds only | `(N_samples, feature_dim)` | n/a — operates on feature vectors, not raw signal |
+
+**EEG flattening order matters**: `E05Sample::eeg` is `(N_channels=6, N_samples=4096)`; `tensor_to_vec` iterates rows-then-cols, so the flattened signal is channel-major (channel 0's full 4096-sample run, then channel 1's, …), **not** time-interleaved across channels. Anything reading a raw EEG feature vector must account for this layout.
+
+**Per-sample dataset metadata** (`E05Sample`, from `load_dataset`): `subject_id` (int, groups outer folds — GroupKFold, never split across train/test), `stimulus` (int, 1–10; mapped to `text_phrase` via `stimulus_to_phrase`: vowels `a/e/i/o/u` for 1–5, directional words `arriba/abajo/izquierda/derecha/adelante` for 6–10), `text_phrase` (string, drives `classifier.text_mode` dependent/independent splitting). These are **not** written per-row into the paraconsistent/metrics CSVs (which are aggregate-only); they are consumed internally by the fold-splitting and text-mode logic.
+
+**Run-level metadata written to `summary.json`** (self-describing result files — added so a run's config doesn't have to be cross-referenced against its source profile):
+- Always: `run_tag`, `seed`, `modality`, `strategy`, `classifier`, `text_mode`.
+- `dataset.{n_subjects, n_stimuli, n_samples}` — the **actual** composition used (post audio+EEG pairing drop, can be smaller than the raw `.mat` trial count).
+- `strategy=="handcrafted"` → `handcrafted.{wavelet, scale, cepstral, dtwpt_level, descriptors}`.
+- `strategy=="autoencoder"` → `autoencoder.{model, encoder_layer_spec, decoder_layer_spec}`, plus for `model=="snn-ae"`: `encoding`, `time_steps` (forced to `1` when `encoding=="direct"`, regardless of the profile's configured value — the summary records what actually ran, not the raw field), `voltage_threshold`.
+
+This closes the gap where all 18 SNN-AE profiles previously shared the identical FeatureSet label `"autoencoder-snn"` in the paraconsistent CSV — indistinguishable except by output *filename*. The label still doesn't carry encoding/size (labels are shared across the sweep by design, since paraconsistent ranking compares FeatureSets by label), but `summary.json` now does. Guarded by `E05Output.*` gtests (handcrafted vs. autoencoder field presence, snn-ae `direct` forcing `time_steps=1`, ann-ae omitting snn-only fields, dataset composition roundtrip).
 
 ### Model checkpoints
 

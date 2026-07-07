@@ -83,14 +83,20 @@ this phase, from each side's winning vector):
     \end{itemize}
     each carrying the descriptor set: energy, ZCR, entropy, Teager--Kaiser, jitter, shimmer.
     So $23 \times 3 = 69$ handcrafted variants per signal.
-    \item \textbf{Autoencoder} --- 6 compact AEs: SNN-AE (spiking) and ANN-AE (dense), 3 sizes each (tiny/small/base; latent 8/16/32, 2:1 hidden).
+    \item \textbf{Autoencoder} --- 12 compact AEs per signal: 9 SNN-AE (spiking; 3 sizes $\times$ 3 temporal encodings --- poisson/latency/direct) and 3 ANN-AE (dense; 3 sizes), latent 8/16/32, 2:1 hidden.
 \end{itemize}
 
-So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 6 autoencoder)
-$=$ \textbf{150 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
+So the \emph{implemented} Phase 00 grid $=$ 2 signals $\times$ (69 handcrafted $+$ 12 autoencoder)
+$=$ \textbf{162 rankings}, each scored by $\alpha,\beta,G_1,G_2,D_{\text{truth}}$
 (\autoref{sec:conceitos}). Output of this phase: one winning feature vector for voice, one for EEG.
-The 6 autoencoders are compact single-layer SNN-AEs and ANN-AEs (both families wired); the
-Categoria-2 cepstral handcrafted variants are also implemented.
+The 12 autoencoders per signal are compact single-layer SNN-AEs (poisson/latency/direct $\times$ 3 sizes)
+and ANN-AEs (3 sizes), both families wired; the Categoria-2 cepstral handcrafted variants are also
+implemented. SNN-AE spike frames use temporal integration (state reset once per sample, then
+integrated over \texttt{time\_steps}=16 frames, mean-latent readout) and a lowered encoder firing
+threshold (\texttt{voltage\_threshold}=0.2 for poisson/latency; the LIF default 1.0 for direct, which
+reproduces the un-encoded baseline). Measured on tiny/EEG: poisson $\alpha=0.069$, latency
+$\alpha=0.258$, direct $\alpha=0.875$ (near coin-flip) --- confirming temporal coding is what makes the
+SNN-AE separable at all.
 
 \subsection*{Phase 01 --- Authentication (DSNN classification, biometric ablation)}
 
@@ -177,7 +183,7 @@ Voice:
     \item[$\blacksquare$] LFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true} (audit G2)
     \item[$\blacksquare$] MFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
     \item[$\blacksquare$] BFCC (Categoria 2) --- \textbf{implemented} via \texttt{cepstral=true}
-    \item[$\blacksquare$] SNN-AE --- \textbf{implemented} (\texttt{ProtocolSpikingAutoencoder}); 3 sizes shipped in \texttt{profiles/phase00/}
+    \item[$\blacksquare$] SNN-AE --- \textbf{implemented} (\texttt{ProtocolSpikingAutoencoder}); 3 sizes $\times$ 3 temporal encodings (poisson/latency/direct) = 9 profiles shipped in \texttt{profiles/phase00/}
     \item[$\blacksquare$] ANN-AE --- \textbf{implemented} (\texttt{ProtocolAutoencoder}); 3 sizes shipped
 \end{itemize}
 
@@ -189,8 +195,8 @@ EEG: identical 8 items, identical status (same code path, signal-agnostic):
     \item[$\blacksquare$] LFCC (Categoria 2) --- implemented (cepstral flag) \quad
     \item[$\blacksquare$] MFCC (Categoria 2) --- implemented (cepstral flag) \quad
     \item[$\blacksquare$] BFCC (Categoria 2) --- implemented (cepstral flag)
-    \item[$\square$] SNN-AE --- not implemented \quad
-    \item[$\square$] ANN-AE --- not implemented
+    \item[$\blacksquare$] SNN-AE --- \textbf{implemented}; 9 profiles shipped (same as voice, signal-agnostic path)
+    \item[$\blacksquare$] ANN-AE --- \textbf{implemented}; 3 profiles shipped
 \end{itemize}
 
 Paraconsistent ranking itself ($\alpha,\beta,G_1,G_2,D_{\text{truth}}$): \textbf{[x] implemented},
@@ -247,8 +253,6 @@ Regularization/normalization toggles (fixed-config axis, not a combination per s
     --- this is the thesis-primary classifier and currently has zero coverage.
     \item Decide whether Categoria 1 (raw band energy) vs Categoria 2 (LFCC/MFCC/BFCC cepstral) is
     still in scope; if yes, implement the missing log+DCT stage in \texttt{E05FeatureExtraction.cpp}.
-    \item Implement SNN-AE / ANN-AE autoencoder models (currently rejected by \texttt{validate()}) ---
-    blocks all of Phase 00's autoencoder-side combinations.
     \item Once DSNN profiles exist, sweep \texttt{nested\_cv=false}, \texttt{text\_mode=dependent}
     paired with real (non-debug) data, and the 3 regularization toggles.
 \end{enumerate}
