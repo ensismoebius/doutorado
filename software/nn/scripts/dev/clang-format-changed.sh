@@ -24,7 +24,7 @@ if [ -z "$staged_files" ]; then
 fi
 
 # Filter to C/C++ sources and headers
-to_format=$(printf "%s\n" "$staged_files" | grep -E '\\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$' || true)
+to_format=$(printf "%s\n" "$staged_files" | grep -E '\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$' || true)
 
 if [ -n "$to_format" ]; then
   printf "%s\n" "$to_format" | xargs --no-run-if-empty clang-format -i

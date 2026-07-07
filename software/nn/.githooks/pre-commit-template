@@ -3,6 +3,6 @@
 # the clang-format-on-staged-files hook locally.
 
 repo_root="$(git rev-parse --show-toplevel)"
-"$repo_root/scripts/dev/clang-format-changed.sh"
+"$repo_root/software/nn/scripts/dev/clang-format-changed.sh"
 
 exit 0
