@@ -20,7 +20,9 @@
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
-# Usage:  ./scripts/testing/run_profiles.sh [phase00|phase01|all]   # default: all
+# Usage:  ./scripts/testing/run_profiles.sh [phase00|phase01|all]
+#         No argument on a terminal → interactive menu. No argument in a
+#         pipe/CI → defaults to `all`.
 # Binary selection (any CMake profile):
 #   auto: most recently built out/build/*/…/experiment05
 #   E05_BUILD=max-performance ./scripts/testing/run_profiles.sh phase00
@@ -66,8 +68,61 @@ else
 fi
 [ "$JOBS" -lt 1 ] && JOBS=1
 echo "parallelism: JOBS=$JOBS  (avail ${avail_mb}MB / ${per_mb}MB per job, ${cpus} cpus)"
+auto_jobs=$JOBS   # computed default, offered as the reset value in the menu
 
-SCOPE="${1:-all}"
+# ── What to run ──────────────────────────────────────────────────────────────
+# Scope may be passed as $1 (phase00|phase01|all) for automation/CI. With no
+# argument on a terminal, an interactive menu asks instead; in a pipe/CI with
+# no argument it defaults to `all` (unchanged non-interactive behaviour).
+SCOPE="${1:-}"
+if [ -z "$SCOPE" ]; then
+    if [ -t 0 ] && [ -t 1 ]; then
+        while :; do
+            cat <<MENU
+
+=== Experiment05 profile runner ===
+binary      : $BIN
+parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per job)
+
+What do you want to do?
+  1) phase00 — feature construction + paraconsistent ranking  (288 profiles)
+  2) phase01 — DSNN authentication                            (32 profiles)
+  3) all     — phase00 + phase01 + debug
+  j) set parallel job count (currently $JOBS; auto-detected default $auto_jobs)
+  b) (re)build the experiment05 binary first
+  q) quit
+MENU
+            read -r -p "choice [1/2/3/j/b/q]: " ans
+            case "$ans" in
+                1) SCOPE=phase00; break ;;
+                2) SCOPE=phase01; break ;;
+                3) SCOPE=all;     break ;;
+                j|J)
+                    read -r -p "parallel jobs [Enter = auto ($auto_jobs)]: " njobs
+                    if [ -z "$njobs" ]; then
+                        JOBS=$auto_jobs
+                    elif [[ "$njobs" =~ ^[0-9]+$ ]] && [ "$njobs" -ge 1 ]; then
+                        JOBS=$njobs
+                    else
+                        echo "not a positive integer — ignored"
+                    fi
+                    echo "parallelism now: JOBS=$JOBS" ;;
+                b|B)
+                    echo "building experiment05 …"
+                    if cmake --build out/build/max-performance --target experiment05 -j"$(nproc)"; then
+                        echo "build ok"
+                    else
+                        echo "build FAILED — fix errors, then choose again"
+                    fi ;;
+                q|Q) echo "aborted"; exit 0 ;;
+                *)   echo "pick 1, 2, 3, j, b, or q" ;;
+            esac
+        done
+    else
+        SCOPE=all   # non-interactive default
+    fi
+fi
+
 case "$SCOPE" in
     phase00) ROOT="src/experiments/05/profiles/phase00" ;;
     phase01) ROOT="src/experiments/05/profiles/phase01" ;;
@@ -137,29 +192,38 @@ MON=0
 if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${E05_MONITOR:-1}" != 0 ]; then MON=1; fi
 
 # Last meaningful progress line of a worker log: split CR-updated bars into
-# lines, strip ANSI, drop blanks, keep the final one (truncated to terminal-ish).
+# lines, strip ANSI, drop blanks, keep the final one.
 mon_extract() {
     tr '\r' '\n' < "$1" 2>/dev/null | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' \
-        | grep -aE '[^[:space:]]' | tail -1 | cut -c1-110
+        | grep -aE '[^[:space:]]' | tail -1
 }
 
 # Background dashboard. Redraws in place (cursor-up) every E05_MONITOR_INTERVAL
 # seconds while $TMP/mon.on exists. It is the only thing printing to the TTY in
 # monitor mode (worker event lines are suppressed), so the redraw stays aligned.
+#
+# Every rendered line is clamped to the terminal width. Without this, a line
+# longer than the terminal wraps onto a second physical row, which the
+# cursor-up math below doesn't account for (it assumes one row per logical
+# line) — the redraw then lands one row too high each frame, so old frames
+# are never overwritten and the screen appears to scroll continuously.
 monitor_loop() {
-    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm pl p f d n k ln
+    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm pl p f d n k ln cols
     local -a lines
     printf '\033[?25l'   # hide cursor
     while [ -e "$TMP/mon.on" ]; do
+        cols=$(tput cols 2>/dev/null); [ -z "$cols" ] && cols=80
         p=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); p=${p:-0}
         f=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); f=${f:-0}
         d=$((p + f))
-        lines=("$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
-            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
+        ln=$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
+            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")
+        lines=("${ln:0:cols}")
         for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
             nm=$(cat "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
             pl=$(mon_extract "$LOGDIR/$nm.log")
-            lines+=("$(printf '  %-38.38s %s' "$nm" "${pl:-starting…}")")
+            ln=$(printf '  %-38.38s %s' "$nm" "${pl:-starting…}")
+            lines+=("${ln:0:cols}")
         done
         [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
         for ln in "${lines[@]}"; do printf '\033[2K%s\n' "$ln"; done

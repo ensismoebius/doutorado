@@ -149,3 +149,21 @@ configure_xtensor_parallel_target(tensor_perf_bench)
 # )
 # 
 # gtest_discover_tests(tensor_mock_gtest)
+# XTensor vs OpenCL numerical parity (ops, layers, SNN-AE chain). Skips
+# gracefully when no OpenCL device is present.
+add_executable(backend_parity_gtest backend_parity_gtest.cpp)
+
+target_link_libraries(backend_parity_gtest
+    PRIVATE
+        google_test
+        xtensor xtensor-blas
+        tensor
+)
+
+target_include_directories(backend_parity_gtest
+    PRIVATE
+         ${CMAKE_SOURCE_DIR}/src
+)
+
+gtest_discover_tests(backend_parity_gtest)
+configure_xtensor_parallel_target(backend_parity_gtest)
