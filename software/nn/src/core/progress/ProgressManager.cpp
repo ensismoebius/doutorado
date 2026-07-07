@@ -128,7 +128,7 @@ auto format_eta(int64_t start_ns, float current, float target, double ema_ns_per
 void append_bold_cell(std::ostream& os, std::string_view text, std::size_t width)
 {
     const std::size_t vis = std::min(text.size(), width);
-    os << "\033[1m";
+    os << "\033[1;36m"; // bold cyan — label column, always the leftmost eye-catcher
     os.write(text.data(), static_cast<std::streamsize>(vis));
     os << "\033[0m";
     for (std::size_t i = vis; i < width; ++i) os.put(' ');
@@ -160,10 +160,8 @@ void ProgressManager::shutdown()
     }
     // Flush accumulated log messages to stdout after bars are gone.
     std::lock_guard<std::mutex> lock(manager_mutex_);
-    for (const auto& msg : messages_)
-        std::cout << msg << "\n";
-    if (!messages_.empty())
-        std::cout.flush();
+    for (const auto& msg : messages_) std::cout << msg << "\n";
+    if (!messages_.empty()) std::cout.flush();
 }
 
 uint32_t ProgressManager::create_bar(const std::string& label, float target)
@@ -221,6 +219,27 @@ void ProgressManager::set_target(uint32_t id, float target)
         if (entry->id == id)
         {
             entry->target_value = std::max(target, 1.0f);
+            return;
+        }
+    }
+}
+
+void ProgressManager::reset_for_epoch(uint32_t id, float target)
+{
+    // Sets target AND resets current_value under a single lock. Callers that
+    // instead call set_target() then update_bar(0) as two separate locked ops
+    // leave a window where the render thread can read the new (smaller) target
+    // together with the still-stale (larger, previous-epoch) current_value —
+    // producing nonsense like "16/6" for one frame.
+    std::lock_guard<std::mutex> lock(manager_mutex_);
+    for (auto& entry : entries_)
+    {
+        if (entry->id == id)
+        {
+            entry->target_value = std::max(target, 1.0f);
+            entry->current_value.store(0.0f);
+            entry->last_update_ns = 0;
+            entry->last_update_value = 0.0f;
             return;
         }
     }
@@ -462,18 +481,41 @@ void ProgressManager::render_loop()
                         ss << "\033[2K\r";
                         ss << "  ";
                         const int pos = static_cast<int>(kBarWidth * progress);
-                        for (int i = 0; i < kBarWidth; ++i) ss << (i < pos ? "█" : "░");
+                        // Green fill grows into the bar; unfilled track dims to gray so
+                        // the completed portion reads clearly at a glance.
+                        const char* fill_color = progress >= 1.0f ? "\033[36m" : "\033[32m";
+                        ss << fill_color;
+                        for (int i = 0; i < pos; ++i) ss << "█";
+                        ss << "\033[90m";
+                        for (int i = pos; i < kBarWidth; ++i) ss << "░";
+                        ss << "\033[0m";
                         ss << kSep;
+                        // Pad plain text to width FIRST, then wrap the padded result in
+                        // color codes — ANSI bytes must never enter append_fitted_cell's
+                        // truncation math, or a mid-escape cut leaves the terminal stuck
+                        // in a color state.
                         const std::string info =
                             format_percent(progress) + "  " + format_step(cv, tv);
-                        append_fitted_cell(ss, info, kCol2Width);
+                        {
+                            std::stringstream info_ss;
+                            append_fitted_cell(info_ss, info, kCol2Width);
+                            ss << "\033[1m" << info_ss.str() << "\033[0m";
+                        }
                         ss << kSep;
-                        append_fitted_cell(ss, format_metrics(metrics), kCol3Width);
+                        {
+                            std::stringstream metrics_ss;
+                            append_fitted_cell(metrics_ss, format_metrics(metrics), kCol3Width);
+                            ss << "\033[33m" << metrics_ss.str() << "\033[0m";
+                        }
                         ss << kSep;
                         const std::string eta =
                             format_eta(entry->start_ns, cv, tv, entry->ema_ns_per_item);
-                        append_fitted_cell(
-                            ss, eta.empty() ? "starting..." : "ETA: " + eta, kCol4Width);
+                        {
+                            std::stringstream eta_ss;
+                            append_fitted_cell(
+                                eta_ss, eta.empty() ? "starting..." : "ETA: " + eta, kCol4Width);
+                            ss << "\033[35m" << eta_ss.str() << "\033[0m";
+                        }
                         std::cout << ss.str() << "\n";
                     }
                 }
@@ -485,9 +527,9 @@ void ProgressManager::render_loop()
 
                 // Auto-remove bars that were marked complete — rendered at 100%
                 // this frame, safe to drop.
-                entries_.erase(
-                    std::remove_if(entries_.begin(), entries_.end(),
-                        [](const auto& e) { return e->completed.load(); }),
+                entries_.erase(std::remove_if(entries_.begin(),
+                                   entries_.end(),
+                                   [](const auto& e) { return e->completed.load(); }),
                     entries_.end());
             }
         }

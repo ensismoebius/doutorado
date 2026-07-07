@@ -22,13 +22,13 @@ struct ProgressEntry
 
     mutable std::mutex metrics_mutex;
     std::map<std::string, float> metrics;
-    int64_t start_ns{0}; // set once in create_bar(); nanoseconds since steady_clock epoch
+    int64_t start_ns{0};        // set once in create_bar(); nanoseconds since steady_clock epoch
     int64_t active_start_ns{0}; // timestamp when actively working (excluding cached/skipped)
-    int64_t accumulated_active_ns{0}; // total active nanoseconds for accurate ETA
+    int64_t accumulated_active_ns{0};  // total active nanoseconds for accurate ETA
     int32_t active_items_completed{0}; // number of items that required actual work
-    int64_t last_update_ns{0};   // timestamp of most recent update_bar call
-    float   last_update_value{0.0f}; // value at most recent update_bar call
-    double  ema_ns_per_item{0.0};    // EMA of nanoseconds per item (alpha=0.3)
+    int64_t last_update_ns{0};         // timestamp of most recent update_bar call
+    float last_update_value{0.0f};     // value at most recent update_bar call
+    double ema_ns_per_item{0.0};       // EMA of nanoseconds per item (alpha=0.3)
 
     // Metadata fields (protected by metadata_mutex)
     mutable std::mutex metadata_mutex;
@@ -62,6 +62,7 @@ class ProgressManager
     uint32_t create_bar(const std::string& label, float target);
     void update_bar(uint32_t id, float value, const std::map<std::string, float>& metrics = {});
     void set_target(uint32_t id, float target);
+    void reset_for_epoch(uint32_t id, float target);
     void complete_bar(uint32_t id);
     void remove_bar(uint32_t id);
     void shutdown();

@@ -200,19 +200,45 @@ mon_extract() {
         | grep -aE '[^[:space:]]' | tail -4
 }
 
-# Strip the ascii bar graphic (everything up to the first │) and compact the
-# remaining │-separated fields (pct/count, loss/status, ETA) into "a | b | c".
-# The bar graphic is decorative and, at real terminal widths, was exactly what
-# pushed the actually useful trailing ETA/loss value past the column clamp —
-# dropping it is what makes the ETA value survive on any terminal width.
+# Fixed-width (10-char) mini bar redrawn from a parsed percentage — NOT the
+# binary's own ~44-char ascii bar. A fixed small width means the bar itself
+# can never be what pushes the trailing ETA/loss value past the terminal-width
+# clamp; only its own 10 chars are at stake, and it stays readable at any size.
+mon_mini_bar() {
+    local pct="$1" width=10 filled ii bar="" fill_color
+    filled=$(printf '%.0f' "$pct" 2>/dev/null); : "${filled:=0}"
+    [ "$filled" -lt 0 ] 2>/dev/null && filled=0
+    [ "$filled" -gt 100 ] 2>/dev/null && filled=100
+    fill_color=$([ "$filled" -ge 100 ] && printf '\033[36m' || printf '\033[32m') # cyan at 100%, else green
+    filled=$((filled * width / 100))
+    bar="$fill_color"
+    for ((ii = 0; ii < width; ii++)); do
+        [ "$ii" -eq "$filled" ] && bar+='\033[90m'
+        if [ "$ii" -lt "$filled" ]; then bar+="#"; else bar+="-"; fi
+    done
+    bar+='\033[0m'
+    printf '%b' "$bar"
+}
+
+# Drop the binary's own ascii bar graphic (everything up to the first │) but
+# keep everything after it — pct/count, loss/status, ETA — compacted into
+# "a | b | c", then prefix a small redrawn bar ([##--------]) parsed from the
+# percentage in that text, so the row stays both visual and never truncates
+# the actually useful trailing ETA/loss value regardless of terminal width.
 mon_compact_bar() {
-    local s="$1"
+    local s="$1" pct=""
     if [[ "$s" == *"│"* ]]; then
         s="${s#*│}"          # drop the ascii bar graphic (first field)
         s="${s//│/|}"        # remaining separators -> plain "|"
     fi
     s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"  # trim
-    printf '%s' "$s" | sed -E 's/[[:space:]]{2,}/ /g'               # collapse runs
+    s=$(printf '%s' "$s" | sed -E 's/[[:space:]]{2,}/ /g')          # collapse runs
+    if [[ "$s" =~ ([0-9]+\.?[0-9]*)% ]]; then
+        pct="${BASH_REMATCH[1]}"
+        printf '\033[90m[\033[0m%s\033[90m]\033[0m \033[1m%s\033[0m' "$(mon_mini_bar "$pct")" "$s"
+    else
+        printf '%s' "$s"
+    fi
 }
 
 # Background dashboard. Redraws in place (cursor-up) every E05_MONITOR_INTERVAL
@@ -226,6 +252,33 @@ mon_compact_bar() {
 # are never overwritten and the screen appears to scroll continuously.
 fmt_mmss() {
     local s="$1"; printf '%02d:%02d' $((s / 60)) $((s % 60))
+}
+
+# Truncate to N *visible* columns, passing ANSI escape sequences through intact
+# (never cutting mid-escape — that would leak a color state into everything
+# printed after it) and always closing with a reset. Use this instead of
+# "${s:0:cols}" on any line that may contain color codes.
+vis_trunc() {
+    local s="$1" w="$2" out="" i=0 n ch esc printable=0
+    n=${#s} # separate statement: "local n=${#s}" on the same line as
+            # "local s=..." reads s's OLD value, not the one just assigned
+    while [ "$i" -lt "$n" ] && [ "$printable" -lt "$w" ]; do
+        ch="${s:$i:1}"
+        if [ "$ch" = $'\033' ]; then
+            esc="$ch"; i=$((i + 1))
+            if [ "${s:$i:1}" = "[" ]; then
+                esc+="["; i=$((i + 1))
+                while [ "$i" -lt "$n" ]; do
+                    ch="${s:$i:1}"; esc+="$ch"; i=$((i + 1))
+                    [[ "$ch" =~ [A-Za-z] ]] && break
+                done
+            fi
+            out+="$esc"
+        else
+            out+="$ch"; printable=$((printable + 1)); i=$((i + 1))
+        fi
+    done
+    printf '%s\033[0m' "$out"
 }
 
 monitor_loop() {
@@ -253,11 +306,11 @@ monitor_loop() {
         # risks the terminal-width clamp below cutting it off before the ETA
         # (the most useful field) — each line here is short enough on its own
         # to never need truncating.
-        lines=("$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
+        lines=("$(printf '\033[1;36m── e05 monitor ──\033[0m %s ── running %d · done \033[32m%d\033[0m/%d · pass \033[32m%d\033[0m · fail \033[31m%d\033[0m ──' \
             "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
-        lines+=("$(printf '    elapsed %s   overall ETA ~ %s' \
+        lines+=("$(printf '    elapsed %s   overall ETA ~ \033[35m%s\033[0m' \
             "$(fmt_mmss $((now_e - start)))" "$overall_eta")")
-        lines[0]="${lines[0]:0:cols}"; lines[1]="${lines[1]:0:cols}"
+        lines[0]="$(vis_trunc "${lines[0]}" "$cols")"; lines[1]="$(vis_trunc "${lines[1]}" "$cols")"
 
         for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
             nm=$(sed -n '1p' "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
@@ -277,15 +330,19 @@ monitor_loop() {
                 else
                     row="$lbl"
                 fi
+                # Pad plain (uncolored) fields to fixed width first, then wrap in
+                # color — printf's %-Ns width counts raw bytes, so coloring before
+                # padding would count escape bytes against the column budget.
                 if [ "$first_row" -eq 1 ]; then
-                    ln=$(printf '  %-30.30s %-9s %s' "$nm" "$worker_eta" "$row")
+                    ln=$(printf '  \033[1;36m%-30.30s\033[0m \033[35m%-9s\033[0m %s' \
+                        "$nm" "$worker_eta" "$row")
                     first_row=0
                 else
                     ln=$(printf '  %-30.30s %-9s %s' "" "" "$row")
                 fi
-                lines+=("${ln:0:cols}")
+                lines+=("$(vis_trunc "$ln" "$cols")")
             done
-            [ "${#pls[@]}" -eq 0 ] && lines+=("$(printf '  %-30.30s %-9s %s' "$nm" "$worker_eta" "starting…")")
+            [ "${#pls[@]}" -eq 0 ] && lines+=("$(printf '  \033[1;36m%-30.30s\033[0m \033[35m%-9s\033[0m starting…' "$nm" "$worker_eta")")
         done
         [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
         for ln in "${lines[@]}"; do printf '\033[2K%s\n' "$ln"; done

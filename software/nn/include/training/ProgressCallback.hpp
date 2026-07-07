@@ -67,8 +67,8 @@ class ProgressCallback : public ITrainingCallback
         epoch_bar_id_ = nn::progress::ProgressManager::instance().create_bar(
             label_, static_cast<float>(total_epochs));
         // Batch bar target is updated on the first on_epoch_begin call.
-        batch_bar_id_ = nn::progress::ProgressManager::instance().create_bar(
-            std::string("Batches done"), 1.0f);
+        batch_bar_id_ =
+            nn::progress::ProgressManager::instance().create_bar(std::string("Batches done"), 1.0f);
         // Flush metadata stored before training began (bar didn't exist yet).
         if (!description_.empty())
         {
@@ -83,10 +83,11 @@ class ProgressCallback : public ITrainingCallback
     void on_epoch_begin(const TrainingState& state) override
     {
         epoch_batches_ = state.total_batches > 0 ? state.total_batches : 1;
-        nn::progress::ProgressManager::instance().set_target(
+        // Single locked op — set_target()+update_bar(0) as two separate calls
+        // let the render thread catch the new (smaller) target paired with the
+        // still-stale previous-epoch value, e.g. "16/6".
+        nn::progress::ProgressManager::instance().reset_for_epoch(
             batch_bar_id_, static_cast<float>(epoch_batches_));
-        // Reset batch bar to zero at the start of each epoch.
-        nn::progress::ProgressManager::instance().update_bar(batch_bar_id_, 0.0f);
     }
 
     /// Anchors the bar at the start of the active batch.
