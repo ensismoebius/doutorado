@@ -25,7 +25,7 @@ struct E05Config
         std::string root;
         std::string results_dir = "results";
         std::string modality = "fused"; // "voice" | "eeg" | "fused"
-        int max_samples = 0;           // 0 = unlimited (for debug: set to small number)
+        int max_samples = 0;            // 0 = unlimited (for debug: set to small number)
 
         /// Only meaningful when modality == "fused". Ignored otherwise.
         ///   "early" → concatenate the raw voice+EEG signals into one signal
@@ -38,7 +38,7 @@ struct E05Config
     struct HandcraftedConfig
     {
         std::string transform = "dtwpt"; // "dtwpt" | "lfcc" | "mfcc"
-        std::string scale = "lfcc";     // "bark" | "mel" | "lfcc"
+        std::string scale = "lfcc";      // "bark" | "mel" | "lfcc"
         std::vector<std::string> descriptors = {"energy", "zcr", "entropy", "teager"};
         int dtwpt_level = 4;
 
@@ -56,9 +56,21 @@ struct E05Config
 
     struct AutoencoderConfig
     {
-        std::string model = "lstm-ae"; // "lstm-ae" | "snn-ae"
+        std::string model = "lstm-ae"; // "lstm-ae" | "snn-ae" | "ann-ae"
         std::vector<std::string> encoder_layer_spec;
         std::vector<std::string> decoder_layer_spec;
+
+        /// Temporal spike code for snn-ae (ignored by ann-ae / lstm-ae):
+        /// "poisson" (rate), "latency" (first-spike time), or "direct" (analog,
+        /// no spikes). Each sample is expanded into `time_steps` frames and the
+        /// per-sample feature is the mean latent spike-rate over them.
+        std::string encoding = "poisson";
+        int time_steps = 16;
+
+        /// Encoder LIF firing threshold (snn-ae). Spike frames are low-amplitude,
+        /// so the default is well below the LIF default (1.0) to ensure the
+        /// encoder neurons actually fire; otherwise the latent collapses to zero.
+        float voltage_threshold = 0.2f;
     };
 
     struct FeatureExtraction
@@ -75,7 +87,7 @@ struct E05Config
 
     struct Classifier
     {
-        std::string type = "rnn";     // "rnn" | "dsnn"
+        std::string type = "rnn"; // "rnn" | "dsnn"
         std::vector<std::string> layer_spec;
         std::string text_mode = "dependent"; // "dependent" | "independent"
 

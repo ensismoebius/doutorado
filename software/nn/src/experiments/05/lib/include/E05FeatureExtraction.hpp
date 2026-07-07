@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -12,8 +13,9 @@ namespace e05
 // A named feature set: the strategy+scale label and the extracted vectors.
 struct FeatureSet
 {
-    std::string label;                       // e.g. "handcrafted-lfcc-energy_zcr"
-    std::vector<std::vector<double>> vectors; // one per sample, aligned with E05DatasetView::samples
+    std::string label; // e.g. "handcrafted-lfcc-energy_zcr"
+    std::vector<std::vector<double>>
+        vectors; // one per sample, aligned with E05DatasetView::samples
 };
 
 // Extract handcrafted features (DTWPT + descriptors) from a single signal.
@@ -22,9 +24,9 @@ struct FeatureSet
 // sample_rate: Hz of the signal (44100 for voice, 1024 for EEG).
 //              Used to map DTWPT sub-bands to Bark/MEL/LFCC frequency groups.
 // Returns a flat feature vector.
-auto extract_handcrafted(const std::vector<double>& signal,
-    const E05Config::HandcraftedConfig& cfg,
-    double sample_rate) -> std::vector<double>;
+auto extract_handcrafted(
+    const std::vector<double>& signal, const E05Config::HandcraftedConfig& cfg, double sample_rate)
+    -> std::vector<double>;
 
 // Extract features from all samples using the configured strategy.
 // modality:     "voice" | "eeg" | "fused" — determines which signal(s) feed extraction.
@@ -38,7 +40,8 @@ auto extract_features(const E05DatasetView& view,
     const E05Config::FeatureExtraction& cfg,
     const E05Config::Training& training,
     const std::string& modality,
-    const std::string& fusion_mode = "late") -> std::vector<FeatureSet>;
+    const std::string& fusion_mode = "late",
+    std::uint32_t seed = 42u) -> std::vector<FeatureSet>;
 
 // Helper: compute ZCR for a signal.
 auto compute_zcr(const std::vector<double>& signal) -> double;

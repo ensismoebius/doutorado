@@ -27,12 +27,24 @@ const std::vector<std::string>& all_profiles()
         "phase00/p00_ae_ann_small_voice.json",
         "phase00/p00_ae_ann_tiny_eeg.json",
         "phase00/p00_ae_ann_tiny_voice.json",
-        "phase00/p00_ae_snn_base_eeg.json",
-        "phase00/p00_ae_snn_base_voice.json",
-        "phase00/p00_ae_snn_small_eeg.json",
-        "phase00/p00_ae_snn_small_voice.json",
-        "phase00/p00_ae_snn_tiny_eeg.json",
-        "phase00/p00_ae_snn_tiny_voice.json",
+        "phase00/p00_ae_snn_direct_base_eeg.json",
+        "phase00/p00_ae_snn_direct_base_voice.json",
+        "phase00/p00_ae_snn_direct_small_eeg.json",
+        "phase00/p00_ae_snn_direct_small_voice.json",
+        "phase00/p00_ae_snn_direct_tiny_eeg.json",
+        "phase00/p00_ae_snn_direct_tiny_voice.json",
+        "phase00/p00_ae_snn_latency_base_eeg.json",
+        "phase00/p00_ae_snn_latency_base_voice.json",
+        "phase00/p00_ae_snn_latency_small_eeg.json",
+        "phase00/p00_ae_snn_latency_small_voice.json",
+        "phase00/p00_ae_snn_latency_tiny_eeg.json",
+        "phase00/p00_ae_snn_latency_tiny_voice.json",
+        "phase00/p00_ae_snn_poisson_base_eeg.json",
+        "phase00/p00_ae_snn_poisson_base_voice.json",
+        "phase00/p00_ae_snn_poisson_small_eeg.json",
+        "phase00/p00_ae_snn_poisson_small_voice.json",
+        "phase00/p00_ae_snn_poisson_tiny_eeg.json",
+        "phase00/p00_ae_snn_poisson_tiny_voice.json",
         "phase00/p00_hc_daub10_bark_c1_eeg.json",
         "phase00/p00_hc_daub10_bark_c1_voice.json",
         "phase00/p00_hc_daub10_bark_c2_eeg.json",
@@ -380,8 +392,7 @@ TEST_P(E05ProfileAuditTest, ParsesCleanly)
 TEST_P(E05ProfileAuditTest, DatasetModalityValid)
 {
     auto cfg = load(GetParam());
-    EXPECT_TRUE(cfg.dataset.modality == "voice" ||
-                cfg.dataset.modality == "eeg"   ||
+    EXPECT_TRUE(cfg.dataset.modality == "voice" || cfg.dataset.modality == "eeg" ||
                 cfg.dataset.modality == "fused")
         << "unexpected modality: " << cfg.dataset.modality;
 }
@@ -400,10 +411,9 @@ TEST_P(E05ProfileAuditTest, ClassifierValid)
     EXPECT_TRUE(cfg.classifier.type == "rnn" || cfg.classifier.type == "dsnn")
         << "unexpected classifier type: " << cfg.classifier.type;
     // layer_spec is only required when the classifier runs (Phase 01).
-    if (cfg.classifier.enabled)
-        EXPECT_FALSE(cfg.classifier.layer_spec.empty());
-    EXPECT_TRUE(cfg.classifier.text_mode == "dependent" ||
-                cfg.classifier.text_mode == "independent")
+    if (cfg.classifier.enabled) EXPECT_FALSE(cfg.classifier.layer_spec.empty());
+    EXPECT_TRUE(
+        cfg.classifier.text_mode == "dependent" || cfg.classifier.text_mode == "independent")
         << "unexpected text_mode: " << cfg.classifier.text_mode;
 }
 
@@ -450,12 +460,13 @@ nlohmann::json base_config()
         {"dataset", {{"root", "/x"}, {"modality", "voice"}}},
         {"feature_extraction",
             {{"strategy", "handcrafted"},
-             {"handcrafted", {{"scale", "lfcc"}, {"wavelet", "daub4"},
-                              {"descriptors", {"energy"}}}}}},
+                {"handcrafted",
+                    {{"scale", "lfcc"}, {"wavelet", "daub4"}, {"descriptors", {"energy"}}}}}},
         {"classifier",
             {{"type", "dsnn"},
-             {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
-             {"text_mode", "independent"}, {"enabled", true}}},
+                {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
+                {"text_mode", "independent"},
+                {"enabled", true}}},
     };
 }
 } // namespace

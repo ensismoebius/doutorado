@@ -2,21 +2,23 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <limits>
+#include <random>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "autoencoder/ProtocolAutoencoder.hpp"        // ANN-AE (non-spiking)
+#include "autoencoder/ProtocolSpikingAutoencoder.hpp" // SNN-AE (spiking)
 #include "core/training/Trainer.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "training/ProgressCallback.hpp"
 #include "models/lstm/LSTMAutoencoder.hpp"
-#include "autoencoder/ProtocolAutoencoder.hpp"          // ANN-AE (non-spiking)
-#include "autoencoder/ProtocolSpikingAutoencoder.hpp"   // SNN-AE (spiking)
 #include "progress/ProgressManager.hpp"
+#include "training/ProgressCallback.hpp"
 #include "wavelet/Types.hpp"
 #include "wavelet/WaveletTransformResults.hpp"
 #include "wavelet/waveletOperations.hpp"
@@ -32,8 +34,7 @@ auto compute_zcr(const std::vector<double>& signal) -> double
     int crossings = 0;
     for (size_t i = 1; i < signal.size(); ++i)
     {
-        if ((signal[i] >= 0.0) != (signal[i - 1] >= 0.0))
-            ++crossings;
+        if ((signal[i] >= 0.0) != (signal[i - 1] >= 0.0)) ++crossings;
     }
     return static_cast<double>(crossings) / static_cast<double>(signal.size() - 1);
 }
@@ -112,8 +113,7 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
     for (size_t k = 0; k < peaks.size(); ++k)
     {
         amp_sum += signal[peaks[k]];
-        if (k > 0)
-            diff_sum += std::abs(signal[peaks[k]] - signal[peaks[k - 1]]);
+        if (k > 0) diff_sum += std::abs(signal[peaks[k]] - signal[peaks[k - 1]]);
     }
     double mean_A = amp_sum / static_cast<double>(peaks.size());
     if (mean_A == 0.0) return std::numeric_limits<double>::quiet_NaN();
@@ -122,8 +122,7 @@ auto compute_shimmer(const std::vector<double>& signal, double /*sample_rate*/) 
 
 void apply_preemphasis(std::vector<double>& signal, double alpha)
 {
-    for (size_t n = signal.size(); n-- > 1;)
-        signal[n] -= alpha * signal[n - 1];
+    for (size_t n = signal.size(); n-- > 1;) signal[n] -= alpha * signal[n - 1];
 }
 
 // ─── frequency scale helpers ────────────────────────────────────────────────
@@ -134,8 +133,7 @@ namespace
 // Zwicker & Terhardt (1980) Bark approximation.
 double hz_to_bark(double f)
 {
-    return 13.0 * std::atan(0.00076 * f) +
-           3.5  * std::atan(std::pow(f / 7500.0, 2.0));
+    return 13.0 * std::atan(0.00076 * f) + 3.5 * std::atan(std::pow(f / 7500.0, 2.0));
 }
 
 // O'Shaughnessy MEL formula.
@@ -152,18 +150,29 @@ std::span<const double> wavelet_filter(const std::string& name)
 {
     using namespace wavelets;
     static const std::unordered_map<std::string, std::span<const double>> table = {
-        {"haar",   get_wavelet<Haar>()},
-        {"daub4",  get_wavelet<Daub4>()},   {"daub6",  get_wavelet<Daub6>()},
-        {"daub8",  get_wavelet<Daub8>()},   {"daub10", get_wavelet<Daub10>()},
-        {"daub12", get_wavelet<Daub12>()},  {"daub14", get_wavelet<Daub14>()},
-        {"daub16", get_wavelet<Daub16>()},  {"daub18", get_wavelet<Daub18>()},
-        {"daub20", get_wavelet<Daub20>()},  {"daub22", get_wavelet<Daub22>()},
-        {"daub24", get_wavelet<Daub24>()},  {"daub26", get_wavelet<Daub26>()},
-        {"daub28", get_wavelet<Daub28>()},  {"daub30", get_wavelet<Daub30>()},
-        {"daub32", get_wavelet<Daub32>()},  {"daub34", get_wavelet<Daub34>()},
-        {"daub36", get_wavelet<Daub36>()},  {"daub38", get_wavelet<Daub38>()},
-        {"daub40", get_wavelet<Daub40>()},  {"daub42", get_wavelet<Daub42>()},
-        {"daub44", get_wavelet<Daub44>()},  {"daub46", get_wavelet<Daub46>()},
+        {"haar", get_wavelet<Haar>()},
+        {"daub4", get_wavelet<Daub4>()},
+        {"daub6", get_wavelet<Daub6>()},
+        {"daub8", get_wavelet<Daub8>()},
+        {"daub10", get_wavelet<Daub10>()},
+        {"daub12", get_wavelet<Daub12>()},
+        {"daub14", get_wavelet<Daub14>()},
+        {"daub16", get_wavelet<Daub16>()},
+        {"daub18", get_wavelet<Daub18>()},
+        {"daub20", get_wavelet<Daub20>()},
+        {"daub22", get_wavelet<Daub22>()},
+        {"daub24", get_wavelet<Daub24>()},
+        {"daub26", get_wavelet<Daub26>()},
+        {"daub28", get_wavelet<Daub28>()},
+        {"daub30", get_wavelet<Daub30>()},
+        {"daub32", get_wavelet<Daub32>()},
+        {"daub34", get_wavelet<Daub34>()},
+        {"daub36", get_wavelet<Daub36>()},
+        {"daub38", get_wavelet<Daub38>()},
+        {"daub40", get_wavelet<Daub40>()},
+        {"daub42", get_wavelet<Daub42>()},
+        {"daub44", get_wavelet<Daub44>()},
+        {"daub46", get_wavelet<Daub46>()},
     };
     const auto it = table.find(name);
     if (it == table.end())
@@ -182,8 +191,8 @@ std::vector<double> dct_ii(const std::vector<double>& x)
     {
         double acc = 0.0;
         for (size_t n = 0; n < N; ++n)
-            acc += x[n] * std::cos(M_PI / static_cast<double>(N) *
-                                   (static_cast<double>(n) + 0.5) * static_cast<double>(k));
+            acc += x[n] * std::cos(M_PI / static_cast<double>(N) * (static_cast<double>(n) + 0.5) *
+                                   static_cast<double>(k));
         c[k] = acc;
     }
     return c;
@@ -201,10 +210,10 @@ std::vector<double> dct_ii(const std::vector<double>& x)
 //
 // Returns a vector of groups; each group is the concatenated coefficients
 // of one frequency bin — ready for descriptor computation.
-std::vector<std::vector<double>> group_by_scale(
-    wavelets::WaveletTransformResults& result,
+std::vector<std::vector<double>> group_by_scale(wavelets::WaveletTransformResults& result,
     long n_parts,
-    const std::string& scale, double sample_rate)
+    const std::string& scale,
+    double sample_rate)
 {
     if (scale == "lfcc")
     {
@@ -219,9 +228,9 @@ std::vector<std::vector<double>> group_by_scale(
         return groups;
     }
 
-    const int n_bands    = (scale == "bark") ? 24 : 20;
+    const int n_bands = (scale == "bark") ? 24 : 20;
     const double nyquist = sample_rate / 2.0;
-    const double max_sv  = (scale == "bark") ? hz_to_bark(nyquist) : hz_to_mel(nyquist);
+    const double max_sv = (scale == "bark") ? hz_to_bark(nyquist) : hz_to_mel(nyquist);
 
     std::vector<std::vector<double>> groups(static_cast<size_t>(n_bands));
 
@@ -229,9 +238,9 @@ std::vector<std::vector<double>> group_by_scale(
     {
         // Center frequency of sub-band p (uniform partition of Nyquist).
         double center_hz = (p + 0.5) * nyquist / static_cast<double>(n_parts);
-        double sv        = (scale == "bark") ? hz_to_bark(center_hz) : hz_to_mel(center_hz);
-        int band         = static_cast<int>(sv / max_sv * n_bands);
-        band             = std::clamp(band, 0, n_bands - 1);
+        double sv = (scale == "bark") ? hz_to_bark(center_hz) : hz_to_mel(center_hz);
+        int band = static_cast<int>(sv / max_sv * n_bands);
+        band = std::clamp(band, 0, n_bands - 1);
 
         auto coefs = wavelets::WaveletTransformResults::get_wavelet_packet_transforms(
             result.transformedSignal, p, result.levelsOfTransformation);
@@ -241,8 +250,8 @@ std::vector<std::vector<double>> group_by_scale(
 
     // Drop empty bins — may occur when n_parts < n_bands (low DTWPT levels).
     groups.erase(
-        std::remove_if(groups.begin(), groups.end(),
-            [](const std::vector<double>& g) { return g.empty(); }),
+        std::remove_if(
+            groups.begin(), groups.end(), [](const std::vector<double>& g) { return g.empty(); }),
         groups.end());
 
     return groups;
@@ -252,16 +261,16 @@ std::vector<std::vector<double>> group_by_scale(
 
 // ─── handcrafted extraction ─────────────────────────────────────────────────
 
-auto extract_handcrafted(const std::vector<double>& signal,
-    const E05Config::HandcraftedConfig& cfg,
-    double sample_rate) -> std::vector<double>
+auto extract_handcrafted(
+    const std::vector<double>& signal, const E05Config::HandcraftedConfig& cfg, double sample_rate)
+    -> std::vector<double>
 {
     using wavelets::PACKET_WAVELET;
 
     const std::span<const double> filter = wavelet_filter(cfg.wavelet);
 
-    auto result = wavelets::malat(signal, filter, PACKET_WAVELET,
-        static_cast<unsigned int>(cfg.dtwpt_level));
+    auto result =
+        wavelets::malat(signal, filter, PACKET_WAVELET, static_cast<unsigned int>(cfg.dtwpt_level));
 
     long n_parts = result.get_wavelet_packet_amount_of_parts();
 
@@ -269,11 +278,11 @@ auto extract_handcrafted(const std::vector<double>& signal,
     auto groups = group_by_scale(result, n_parts, cfg.scale, sample_rate);
 
     const auto& descs = cfg.descriptors;
-    bool want_energy  = std::find(descs.begin(), descs.end(), "energy")  != descs.end();
-    bool want_zcr     = std::find(descs.begin(), descs.end(), "zcr")     != descs.end();
+    bool want_energy = std::find(descs.begin(), descs.end(), "energy") != descs.end();
+    bool want_zcr = std::find(descs.begin(), descs.end(), "zcr") != descs.end();
     bool want_entropy = std::find(descs.begin(), descs.end(), "entropy") != descs.end();
-    bool want_teager  = std::find(descs.begin(), descs.end(), "teager")  != descs.end();
-    bool want_jitter  = std::find(descs.begin(), descs.end(), "jitter")  != descs.end();
+    bool want_teager = std::find(descs.begin(), descs.end(), "teager") != descs.end();
+    bool want_jitter = std::find(descs.begin(), descs.end(), "jitter") != descs.end();
     bool want_shimmer = std::find(descs.begin(), descs.end(), "shimmer") != descs.end();
 
     std::vector<double> features;
@@ -293,9 +302,9 @@ auto extract_handcrafted(const std::vector<double>& signal,
     for (const auto& group : groups)
     {
         if (want_energy && !cfg.cepstral) features.push_back(compute_energy(group));
-        if (want_zcr)     features.push_back(compute_zcr(group));
+        if (want_zcr) features.push_back(compute_zcr(group));
         if (want_entropy) features.push_back(compute_entropy(group));
-        if (want_teager)  features.push_back(compute_teager(group));
+        if (want_teager) features.push_back(compute_teager(group));
         if (want_jitter)
         {
             double j = compute_jitter(group, sample_rate);
@@ -320,8 +329,7 @@ std::vector<double> tensor_to_vec(const nn::Tensor& t)
     std::vector<double> v;
     v.reserve(static_cast<size_t>(t.size()));
     for (long i = 0; i < t.rows(); ++i)
-        for (long j = 0; j < t.cols(); ++j)
-            v.push_back(static_cast<double>(t.at(i, j)));
+        for (long j = 0; j < t.cols(); ++j) v.push_back(static_cast<double>(t.at(i, j)));
     return v;
 }
 
@@ -390,7 +398,14 @@ int extract_linear_dim(const std::string& spec, int fallback)
     const auto second_colon = spec.find(':', first_colon + 1);
     const std::string token = spec.substr(first_colon + 1, second_colon - first_colon - 1);
     if (token == "output" || token == "N_speakers") return fallback;
-    try { return std::stoi(token); } catch (...) { return fallback; }
+    try
+    {
+        return std::stoi(token);
+    }
+    catch (...)
+    {
+        return fallback;
+    }
 }
 
 int first_encoder_dim(const std::vector<std::string>& spec, int fallback)
@@ -423,8 +438,8 @@ nn::Tensor vec_to_frame_tensor(const std::vector<double>& sig, int T_frames, int
     for (int f = 0; f < T_frames; ++f)
         for (int w = 0; w < frame_len; ++w)
             t.at(static_cast<nn::Index>(f), static_cast<nn::Index>(w)) =
-                static_cast<float>(sig[static_cast<size_t>(f) * static_cast<size_t>(frame_len)
-                                       + static_cast<size_t>(w)]);
+                static_cast<float>(sig[static_cast<size_t>(f) * static_cast<size_t>(frame_len) +
+                                       static_cast<size_t>(w)]);
     return t;
 }
 
@@ -449,35 +464,113 @@ std::vector<double> pool_signal(const std::vector<double>& sig, int out_dim)
         if (hi <= lo) hi = lo + 1;
         double s = 0.0;
         size_t n = 0;
-        for (size_t i = lo; i < hi && i < sig.size(); ++i) { s += sig[i]; ++n; }
+        for (size_t i = lo; i < hi && i < sig.size(); ++i)
+        {
+            s += sig[i];
+            ++n;
+        }
         out[static_cast<size_t>(b)] = (n > 0) ? s / static_cast<double>(n) : 0.0;
     }
     return out;
 }
 
-// Train a Protocol autoencoder (SNN-AE or ANN-AE) on flat pooled input vectors
-// and return the latent (bottleneck) vector per sample. AEType is a Module with
-// an AutoencoderConfig constructor and an encode() method (ProtocolAutoencoder
-// or ProtocolSpikingAutoencoder). hidden/latent/depth come from the profile's
-// encoder spec; input dimension is the fixed pooled size.
+// Min-max normalize a pooled vector into [0, 1]. Spike encoders (poisson,
+// latency) interpret each entry as a firing probability / spike-time fraction,
+// so raw amplitudes (EEG µV, wav in [-1, 1]) must be scaled first — otherwise
+// almost no encoder neuron reaches the LIF threshold and the SNN latent is all
+// zeros. Constant signals map to 0.
+std::vector<float> normalize01(const std::vector<double>& v)
+{
+    std::vector<float> out(v.size(), 0.0f);
+    if (v.empty()) return out;
+    const auto [lo_it, hi_it] = std::minmax_element(v.begin(), v.end());
+    const double lo = *lo_it;
+    const double range = std::max(*hi_it - lo, 1e-12);
+    for (size_t i = 0; i < v.size(); ++i) out[i] = static_cast<float>((v[i] - lo) / range);
+    return out;
+}
+
+// One spike frame (1, D) for time step t under the chosen temporal code.
+//   poisson — Bernoulli(value): rate code, value ≈ mean firing rate over T.
+//   latency — spike from t_spike = round((1-value)(T-1)) onward: stronger inputs
+//             fire earlier (matches the Experiment04 latency encoder).
+//   direct  — pass the analog value through unchanged (non-spiking; used for
+//             ANN-AE and as an SNN fallback).
+nn::Tensor spike_frame(const std::vector<float>& norm,
+    const std::string& encoding,
+    int t,
+    int time_steps,
+    std::mt19937& rng)
+{
+    const auto D = static_cast<nn::Index>(norm.size());
+    nn::Tensor frame(1, D);
+    if (encoding == "poisson")
+    {
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+        for (nn::Index d = 0; d < D; ++d)
+            frame.at(0, d) = (dist(rng) < norm[static_cast<size_t>(d)]) ? 1.0f : 0.0f;
+    }
+    else if (encoding == "latency")
+    {
+        const int last = std::max(1, time_steps - 1);
+        for (nn::Index d = 0; d < D; ++d)
+        {
+            const int t_spike =
+                static_cast<int>(std::lround((1.0f - norm[static_cast<size_t>(d)]) * last));
+            frame.at(0, d) = (t >= t_spike) ? 1.0f : 0.0f;
+        }
+    }
+    else // "direct"
+    {
+        for (nn::Index d = 0; d < D; ++d) frame.at(0, d) = norm[static_cast<size_t>(d)];
+    }
+    return frame;
+}
+
+// Train a Protocol autoencoder (SNN-AE or ANN-AE) on pooled+normalized input
+// vectors and return the latent (bottleneck) vector per sample. AEType is a
+// Module with an AutoencoderConfig constructor and an encode() method
+// (ProtocolAutoencoder or ProtocolSpikingAutoencoder).
+//
+// Temporal coding (SNN-AE): a LIF autoencoder only carries information through
+// spikes, so each sample is expanded into `time_steps` spike frames via the
+// `encoding` scheme. The AE is trained to reconstruct those frames, and the
+// per-sample feature is the MEAN latent (spike rate) over the T frames. With
+// `encoding == "direct"` (ANN-AE) the sample stays a single analog vector and
+// T is ignored — the original one-shot behaviour, just min-max normalized.
 template <typename AEType>
 std::vector<std::vector<double>> run_protocol_ae(
     const std::vector<std::vector<double>>& raw_signals,
     const E05Config::AutoencoderConfig& spec,
     const E05Config::Training& training,
     const std::string& label_suffix,
-    int batch_size)
+    int batch_size,
+    const std::string& encoding,
+    int time_steps,
+    std::uint32_t seed,
+    float voltage_threshold)
 {
-    std::vector<nn::Tensor> train_samples;
-    train_samples.reserve(raw_signals.size());
+    const bool temporal = (encoding != "direct");
+    const int T = temporal ? std::max(1, time_steps) : 1;
+
+    // Normalize every sample once; spike frames are drawn from these.
+    std::vector<std::vector<float>> normed;
+    normed.reserve(raw_signals.size());
     for (const auto& sig : raw_signals)
-    {
-        const auto pooled = pool_signal(sig, kAeInputFeatures);
-        nn::Tensor t(1, static_cast<nn::Index>(kAeInputFeatures));
-        for (int j = 0; j < kAeInputFeatures; ++j)
-            t.at(0, static_cast<nn::Index>(j)) = static_cast<float>(pooled[static_cast<size_t>(j)]);
-        train_samples.push_back(std::move(t));
-    }
+        normed.push_back(normalize01(pool_signal(sig, kAeInputFeatures)));
+
+    // Build the training set: T spike frames per sample (temporal), or one
+    // analog vector per sample (direct). Seed is derived per (sample, step) so
+    // the frames are reproducible for a given experiment seed.
+    std::vector<nn::Tensor> train_samples;
+    train_samples.reserve(normed.size() * static_cast<size_t>(T));
+    for (size_t s = 0; s < normed.size(); ++s)
+        for (int t = 0; t < T; ++t)
+        {
+            std::mt19937 rng(
+                seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
+            train_samples.push_back(spike_frame(normed[s], encoding, t, T, rng));
+        }
 
     AutoencoderConfig ae_cfg;
     ae_cfg.input_features = kAeInputFeatures;
@@ -485,6 +578,8 @@ std::vector<std::vector<double>> run_protocol_ae(
     ae_cfg.latent_size = last_encoder_dim(spec.encoder_layer_spec, 16);
     ae_cfg.depth = std::max<int>(1, static_cast<int>(spec.encoder_layer_spec.size()) - 1);
     ae_cfg.loss_type = "mse";
+    ae_cfg.time_step = 1.0f;
+    ae_cfg.voltage_threshold = voltage_threshold;
 
     AEType model(ae_cfg);
 
@@ -494,16 +589,33 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.batch_size = std::max(1, batch_size);
 
     nn::training::Trainer<AEType> trainer(model, trainer_cfg);
-    trainer.add_callback(std::make_shared<nn::training::ProgressCallback>(
-        "Autoencoder training" + label_suffix));
+    trainer.add_callback(
+        std::make_shared<nn::training::ProgressCallback>("Autoencoder training" + label_suffix));
     (void) trainer.fit_autoencoder(train_samples);
 
+    // Feature per sample = mean latent over its T spike frames. The membrane
+    // state is reset ONCE per sample and then integrates across the T frames
+    // (no reset between frames): this is the temporal integration that lets a
+    // weak, sub-threshold per-step current accumulate into spikes — the whole
+    // point of an SNN. Resetting every frame would make each step an isolated
+    // stochastic threshold and collapse the latent. Direct (T==1) is unchanged.
+    const auto latent_dim = static_cast<size_t>(ae_cfg.latent_size);
     std::vector<std::vector<double>> vectors;
-    vectors.reserve(train_samples.size());
-    for (const auto& s : train_samples)
+    vectors.reserve(normed.size());
+    for (size_t s = 0; s < normed.size(); ++s)
     {
+        std::vector<double> acc(latent_dim, 0.0);
         model.reset_state();
-        vectors.push_back(tensor_to_vec(model.encode(s, false)));
+        for (int t = 0; t < T; ++t)
+        {
+            std::mt19937 rng(
+                seed + static_cast<std::uint32_t>(s) * 1009u + static_cast<std::uint32_t>(t));
+            const nn::Tensor frame = spike_frame(normed[s], encoding, t, T, rng);
+            const auto lat = tensor_to_vec(model.encode(frame, false));
+            for (size_t k = 0; k < latent_dim && k < lat.size(); ++k) acc[k] += lat[k];
+        }
+        for (double& a : acc) a /= static_cast<double>(T);
+        vectors.push_back(std::move(acc));
     }
     return vectors;
 }
@@ -523,7 +635,8 @@ auto extract_features_core(const E05DatasetView& view,
     const E05Config::Training& training,
     const SignalGetter& get_signal,
     double sample_rate,
-    const std::string& label_suffix) -> std::vector<FeatureSet>
+    const std::string& label_suffix,
+    std::uint32_t seed) -> std::vector<FeatureSet>
 {
     std::vector<FeatureSet> result;
 
@@ -536,14 +649,14 @@ auto extract_features_core(const E05DatasetView& view,
         const auto n_samples = static_cast<long>(view.samples.size());
         uint32_t feat_bar = nn::progress::ProgressManager::instance().create_bar(
             "Feature extraction", static_cast<float>(n_samples));
-        nn::progress::ProgressManager::instance().set_description(
-            feat_bar, "DTWPT | scale=" + cfg.handcrafted.scale +
-                      "  descriptors=" + std::to_string(cfg.handcrafted.descriptors.size()));
+        nn::progress::ProgressManager::instance().set_description(feat_bar,
+            "DTWPT | scale=" + cfg.handcrafted.scale +
+                "  descriptors=" + std::to_string(cfg.handcrafted.descriptors.size()));
 
         fs.vectors.resize(static_cast<size_t>(n_samples));
         long feat_done = 0;
 
-        #pragma omp parallel for schedule(dynamic, 4) shared(feat_done)
+#pragma omp parallel for schedule(dynamic, 4) shared(feat_done)
         for (long i = 0; i < n_samples; ++i)
         {
             const auto& sample = view.samples[static_cast<size_t>(i)];
@@ -558,7 +671,7 @@ auto extract_features_core(const E05DatasetView& view,
                 extract_handcrafted(sig, cfg.handcrafted, sample_rate);
 
             long done = 0;
-            #pragma omp atomic capture
+#pragma omp atomic capture
             done = ++feat_done;
             nn::progress::ProgressManager::instance().update_bar(
                 feat_bar, static_cast<float>(done));
@@ -590,20 +703,34 @@ auto extract_features_core(const E05DatasetView& view,
             // Spiking AE trains batched: row-vector samples stack into a 2D (B, F)
             // batch (Trainer::create_batch), and Lif/LifIntegrator resize their
             // membrane state to the batch shape. Same batch size as ANN-AE.
-            fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(
-                raw_signals, cfg.autoencoder, training, label_suffix, training.samples_per_batch);
+            fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(raw_signals,
+                cfg.autoencoder,
+                training,
+                label_suffix,
+                training.samples_per_batch,
+                cfg.autoencoder.encoding,
+                cfg.autoencoder.time_steps,
+                seed,
+                cfg.autoencoder.voltage_threshold);
         }
         else if (ae_model == "ann-ae")
         {
             fs.label = "autoencoder-ann" + label_suffix;
-            fs.vectors = run_protocol_ae<ProtocolAutoencoder>(
-                raw_signals, cfg.autoencoder, training, label_suffix,
-                training.samples_per_batch);
+            // ANN-AE is non-spiking: always analog ("direct"), single frame.
+            fs.vectors = run_protocol_ae<ProtocolAutoencoder>(raw_signals,
+                cfg.autoencoder,
+                training,
+                label_suffix,
+                training.samples_per_batch,
+                "direct",
+                1,
+                seed,
+                1.0f);
         }
         else // "lstm-ae" — sequence AE on windowed frames (Guayaquil-paper extractor)
         {
-            const int frame_len = std::max<int>(1,
-                static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
+            const int frame_len =
+                std::max<int>(1, static_cast<int>((max_len + kAeMaxFrames - 1) / kAeMaxFrames));
             const int T_frames = kAeMaxFrames;
             const size_t padded = static_cast<size_t>(T_frames) * static_cast<size_t>(frame_len);
 
@@ -658,13 +785,14 @@ auto extract_features(const E05DatasetView& view,
     const E05Config::FeatureExtraction& cfg,
     const E05Config::Training& training,
     const std::string& modality,
-    const std::string& fusion_mode) -> std::vector<FeatureSet>
+    const std::string& fusion_mode,
+    std::uint32_t seed) -> std::vector<FeatureSet>
 {
     if (modality == "voice")
-        return extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "");
+        return extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "", seed);
 
     if (modality == "eeg")
-        return extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "");
+        return extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "", seed);
 
     if (modality != "fused")
         throw std::invalid_argument("E05FeatureExtraction: unknown modality \"" + modality + "\"");
@@ -672,16 +800,19 @@ auto extract_features(const E05DatasetView& view,
     if (fusion_mode == "early")
     {
         return extract_features_core(
-            view, cfg, training, fused_early_signal, kVoiceSampleRate, "-fused-early");
+            view, cfg, training, fused_early_signal, kVoiceSampleRate, "-fused-early", seed);
     }
 
     if (fusion_mode != "late")
-        throw std::invalid_argument("E05FeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
+        throw std::invalid_argument(
+            "E05FeatureExtraction: unknown fusion_mode \"" + fusion_mode + "\"");
 
     // Late fusion: extract independently per signal, then concatenate the
     // resulting feature vectors sample-by-sample (audit C12).
-    auto voice_sets = extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "");
-    auto eeg_sets = extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "");
+    auto voice_sets =
+        extract_features_core(view, cfg, training, voice_signal, kVoiceSampleRate, "", seed);
+    auto eeg_sets =
+        extract_features_core(view, cfg, training, eeg_signal, kEegSampleRate, "", seed);
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(

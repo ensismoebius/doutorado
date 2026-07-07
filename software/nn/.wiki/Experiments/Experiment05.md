@@ -77,7 +77,22 @@ Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/
 
 > **Scope note.** The **thesis** Phase 00 compares three feature-extraction routes through the paraconsistent ranking: **handcrafted**, **SNN-AE** (spiking autoencoder, `ProtocolSpikingAutoencoder`), and **ANN-AE** (non-spiking dense autoencoder, `ProtocolAutoencoder`). Both AE families are wired into the Experiment05 executable and shipped as Phase 00 profiles. The **LSTM-AE** remains in the code (built for the Guayaquil congress paper) but no thesis profile uses it.
 
-**SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. Consumes a flat, fixed-size vector — the raw signal average-pooled to 256 bins. Trained **batched** with MSE reconstruction loss (row-vector samples stack into a 2-D `(B, 256)` batch; `Lif`/`LifIntegrator` resize their membrane state to the batch). The latent layer is the feature vector.
+**SNN-AE (`ProtocolSpikingAutoencoder`, implemented)**: spiking autoencoder. Encoder `Linear → LIF`, decoder `Linear → LIF-integrator`. The raw signal is average-pooled to 256 bins and **min-max normalized to `[0,1]`**.
+
+*Temporal coding (required for a meaningful SNN).* A LIF autoencoder only carries information through spikes, so each normalized sample is expanded into `time_steps` (default 16) spike frames using `autoencoder.encoding`:
+- `poisson` — each entry spikes with Bernoulli probability = its value (rate code);
+- `latency` — stronger inputs fire earlier (`t_spike = round((1−v)(T−1))`, matches the Experiment04 encoder);
+- `direct` — analog pass-through, no spikes (used by ANN-AE; also an SNN fallback).
+
+The AE is trained (batched, MSE reconstruction) to reconstruct the spike frames. At readout the membrane state is **reset once per sample** and then **integrates across the T frames** (no reset between frames) — the temporal integration that lets weak, sub-threshold per-step current accumulate into spikes. The **per-sample feature is the mean latent over the T frames**.
+
+Two knobs make this work and both are profile-configurable:
+- `autoencoder.time_steps` (default 16) — integration window.
+- `autoencoder.voltage_threshold` (default **0.2**, vs the LIF default 1.0) — the encoder LIF threshold. Normalized spike frames are low-amplitude, so at `V_th=1` no encoder neuron fires and the latent collapses to all-zeros. That collapse (plus the old single-analog-vector, one-forward presentation) is why raw-vector SNN-AE ranked degenerately (`α≈0.5`, coin-flip separability).
+
+Spike frames are seeded from `experiment.seed` for reproducibility. Guarded by `E05SnnAe.*` tests (latent non-degenerate + varies across samples; encoding changes the feature).
+
+**Encoding sweep (thesis comparison).** Phase 00 ships all three SNN-AE encodings — `poisson`, `latency`, `direct` — × the 3 compact sizes × 2 sources = 18 profiles (`p00_ae_snn_<encoding>_<size>_<source>.json`), so the thesis can directly compare rate coding, first-spike-time coding, and the (expected-degenerate) non-temporal baseline through the same paraconsistent ranking.
 
 **ANN-AE (`ProtocolAutoencoder`, implemented)**: non-spiking dense autoencoder — same flat 256-dim pooled input and 2:1 compression, ReLU activations. Serves as the non-spiking baseline against SNN-AE.
 
@@ -191,9 +206,11 @@ src/experiments/05/
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
 │   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<source>.json  wavelet(23) × scale(bark/mel/lfcc) ×
 │   │   │       cat ∈ {c1=energy, c2=cepstral LFCC/MFCC/BFCC} × source ∈ {voice,eeg} = 276
-│   │   └── p00_ae_<model>_<size>_<source>.json       compact AE, model ∈ {snn,ann},
-│   │                                                size ∈ {tiny,small,base} (latent 8/16/32,
-│   │                                                2:1 hidden) = 2×3×2 = 12   → 288 total
+│   │   ├── p00_ae_ann_<size>_<source>.json           ANN-AE, size ∈ {tiny,small,base}
+│   │   │                                              (latent 8/16/32, 2:1 hidden) × source(2) = 6
+│   │   └── p00_ae_snn_<encoding>_<size>_<source>.json SNN-AE, encoding ∈ {poisson,latency,direct}
+│   │                                                × size ∈ {tiny,small,base} × source(2) = 18
+│   │                                                (6 ann + 18 snn = 24 AE)   → 300 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
@@ -230,7 +247,10 @@ src/experiments/05/
     "autoencoder": {
       "model": "snn-ae",        // snn-ae | ann-ae (thesis Phase 00); lstm-ae accepted but unused
       "encoder_layer_spec": ["linear:64:leaky", "linear:32:identity"],
-      "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"]
+      "decoder_layer_spec": ["linear:64:leaky", "linear:output:identity"],
+      "encoding": "poisson",    // snn-ae temporal code: poisson | latency | direct
+      "time_steps": 16,         // snn-ae integration window
+      "voltage_threshold": 0.2  // snn-ae encoder LIF threshold (below LIF default 1.0)
     }
   },
   "paraconsistent": {
@@ -365,7 +385,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact AE sweep** (`snn-ae`/`ann-ae` × `tiny`/`small`/`base`) = 12, for **288** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24, for **300** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
 **Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:

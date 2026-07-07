@@ -47,9 +47,12 @@ struct AutoencoderConfig
     int audio_features = 0;
 
     // SNN-specific parameters (ignored by ANN models).
-    float time_step = 1.0F;   ///< Simulation time step passed to Lif/LifIntegrator.
-    float resistance = 1.0F;  ///< Membrane resistance.
-    float capacitance = 1.0F; ///< Membrane capacitance.
+    float time_step = 1.0F;         ///< Simulation time step passed to Lif/LifIntegrator.
+    float resistance = 1.0F;        ///< Membrane resistance.
+    float capacitance = 1.0F;       ///< Membrane capacitance.
+    float voltage_threshold = 1.0F; ///< Spiking Lif firing threshold (encoder). Lower it when
+                                    ///< the input current is small (e.g. normalized spike frames)
+                                    ///< so encoder neurons actually fire.
 
     // Initializer controls propagated from sampler options for reproducibility.
     std::optional<unsigned int> initializer_seed = std::nullopt;

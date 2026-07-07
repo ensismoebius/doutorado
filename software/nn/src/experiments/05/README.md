@@ -445,10 +445,12 @@ Base pública 10.1117/12.2255697
 │   │   │     wavelet ∈ {haar, daub4, ..., daub46} (23);  scale ∈ {bark, mel, lfcc}
 │   │   │     cat ∈ {c1, c2}  (c1 = energias / Categoria 1; c2 = cepstral LFCC/MFCC/BFCC)
 │   │   │     fonte ∈ {voice, eeg};  23 × 3 × 2 × 2 = 276 perfis
-│   │   └── p00_ae_<modelo>_<tam>_<fonte>.json       autoencoder compacto → 12 perfis
-│   │         modelo ∈ {snn, ann}  (SNN-AE spiking / ANN-AE denso)
+│   │   ├── p00_ae_ann_<tam>_<fonte>.json             ANN-AE denso → 6 perfis
+│   │   │     tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
+│   │   └── p00_ae_snn_<encoding>_<tam>_<fonte>.json  SNN-AE spiking → 18 perfis
+│   │         encoding ∈ {poisson, latency, direct}  (comparação de codificação temporal)
 │   │         tam ∈ {tiny, small, base}  (latente = 8 / 16 / 32; oculto 2:1)
-│   │       (classifier.enabled=false; para após o ranking. 288 perfis no total)
+│   │       (6 ann + 18 snn = 24 AE; classifier.enabled=false; para após o ranking. 300 perfis no total)
 │   │       (fundido é construído DEPOIS, do vencedor de cada lado)
 │   └── phase01/                          ← FASE 01: autenticação DSNN (só o MELHOR combo)
 │       └── p01_dsnn_<fonte>_<texto>_<cv>_<std>.json   (todos classifier=dsnn)
@@ -458,7 +460,7 @@ Base pública 10.1117/12.2255697
 │           4 × 2 × 2 × 2 = 32 perfis
 │           extrator = PLACEHOLDER (handcrafted/lfcc/daub4) — trocar pelo vencedor da Fase 00
 └── tests/
-    ├── e05_profile_audit_gtest.cpp       ← 2251 testes: 321 perfis (288 fase00 + 32 fase01 + debug) parseiam e validam
+    ├── e05_profile_audit_gtest.cpp       ← 2335 testes: 333 perfis (300 fase00 + 32 fase01 + debug) parseiam e validam
     ├── e05_feature_extraction_gtest.cpp  ← descritores + extract_handcrafted + fusão early/late + varredura de wavelets
     └── e05_classifiers_gtest.cpp         ← compute_aggregate_stats + run_classifier (sintético)
 ```

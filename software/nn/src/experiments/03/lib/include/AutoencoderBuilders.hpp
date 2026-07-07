@@ -30,9 +30,9 @@
 namespace experiment03::autoencoders
 {
 
+using nn::LeakyReLU;
 using nn::Lif;
 using nn::LifIntegrator;
-using nn::LeakyReLU;
 using nn::Linear;
 using nn::ReLU;
 using nn::ResidualBlock;
@@ -293,7 +293,8 @@ inline void append_snn_activation(
 {
     if (activation_type == "leaky")
     {
-        seq.add_module(std::make_shared<Lif>(cfg.time_step, cfg.resistance, cfg.capacitance));
+        seq.add_module(std::make_shared<Lif>(
+            cfg.time_step, cfg.resistance, cfg.capacitance, cfg.voltage_threshold));
         return;
     }
     if (activation_type == "leaky_integrator")
@@ -840,8 +841,7 @@ inline auto concat_columns(const Tensor& left, const Tensor& right) -> Tensor
 inline auto join_params(std::initializer_list<std::vector<Tensor*>> groups) -> std::vector<Tensor*>
 {
     std::vector<Tensor*> params;
-    for (const auto& group : groups)
-        params.insert(params.end(), group.begin(), group.end());
+    for (const auto& group : groups) params.insert(params.end(), group.begin(), group.end());
     return params;
 }
 

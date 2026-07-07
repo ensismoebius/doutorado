@@ -33,8 +33,7 @@ std::string parse_config_path(int argc, char* argv[])
     for (int i = 1; i < argc - 1; ++i)
     {
         std::string arg(argv[i]);
-        if (arg == "--config")
-            return std::string(argv[i + 1]);
+        if (arg == "--config") return std::string(argv[i + 1]);
     }
     return {};
 }
@@ -48,15 +47,18 @@ void run_once(const e05::E05Config& cfg)
     auto view = e05::load_dataset(cfg.dataset);
     {
         std::ostringstream oss;
-        oss << "[E05] Loaded " << view.samples.size() << " samples from "
-            << view.n_subjects << " subjects, " << view.n_stimuli << " stimuli.";
+        oss << "[E05] Loaded " << view.samples.size() << " samples from " << view.n_subjects
+            << " subjects, " << view.n_stimuli << " stimuli.";
         pm.log(oss.str());
     }
 
     // ── 3. Feature extraction ────────────────────────────────────────────────
-    auto feature_sets = e05::extract_features(
-        view, cfg.feature_extraction, cfg.training, cfg.dataset.modality,
-        cfg.dataset.fusion_mode);
+    auto feature_sets = e05::extract_features(view,
+        cfg.feature_extraction,
+        cfg.training,
+        cfg.dataset.modality,
+        cfg.dataset.fusion_mode,
+        cfg.experiment.seed);
     pm.log("[E05] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
 
     // ── 4. Paraconsistent ranking ────────────────────────────────────────────
@@ -68,9 +70,7 @@ void run_once(const e05::E05Config& cfg)
         for (const auto& s : scores)
         {
             std::ostringstream oss;
-            oss << "  " << s.label
-                << " alpha=" << s.alpha
-                << " beta="  << s.beta
+            oss << "  " << s.label << " alpha=" << s.alpha << " beta=" << s.beta
                 << " D_truth=" << s.d_truth;
             pm.log(oss.str());
         }
@@ -88,11 +88,10 @@ void run_once(const e05::E05Config& cfg)
 
         const int total_outer_folds = n_usable_fs * cfg.training.k_folds;
         const uint32_t global_bar =
-            pm.create_bar("E05 | " + cfg.experiment.run_tag,
-                          static_cast<float>(total_outer_folds));
+            pm.create_bar("E05 | " + cfg.experiment.run_tag, static_cast<float>(total_outer_folds));
         pm.set_description(global_bar,
-            cfg.classifier.type + " | " + cfg.classifier.text_mode +
-            " | " + std::to_string(cfg.training.k_folds) + "-fold CV");
+            cfg.classifier.type + " | " + cfg.classifier.text_mode + " | " +
+                std::to_string(cfg.training.k_folds) + "-fold CV");
 
         int global_completed = 0;
         for (const auto& fs : feature_sets)
@@ -112,7 +111,7 @@ void run_once(const e05::E05Config& cfg)
 
     // ── 6. Output ────────────────────────────────────────────────────────────
     const std::string& results_dir = cfg.dataset.results_dir;
-    const std::string& tag         = cfg.experiment.run_tag;
+    const std::string& tag = cfg.experiment.run_tag;
 
     // Ranking artefacts are always written; classifier artefacts only when it ran.
     e05::write_paraconsistent_csv(results_dir, tag, scores);
@@ -126,11 +125,8 @@ void run_once(const e05::E05Config& cfg)
     for (const auto& r : results)
     {
         std::ostringstream oss;
-        oss << "[E05] " << r.feature_set_label
-            << "  acc="  << r.mean_accuracy
-            << " ±"      << r.std_accuracy
-            << "  EER="  << r.mean_eer
-            << "  spec=" << r.mean_specificity;
+        oss << "[E05] " << r.feature_set_label << "  acc=" << r.mean_accuracy << " ±"
+            << r.std_accuracy << "  EER=" << r.mean_eer << "  spec=" << r.mean_specificity;
         pm.log(oss.str());
     }
     pm.log("[E05] Done. Results written to " + results_dir);
@@ -153,9 +149,9 @@ auto main(int argc, char* argv[]) -> int
         cfg.validate();
 
         std::cout << "[E05] run_tag=" << cfg.experiment.run_tag
-                  << " modality="    << cfg.dataset.modality
-                  << " strategy="    << cfg.feature_extraction.strategy
-                  << " repeats="     << cfg.experiment.repeats << "\n";
+                  << " modality=" << cfg.dataset.modality
+                  << " strategy=" << cfg.feature_extraction.strategy
+                  << " repeats=" << cfg.experiment.repeats << "\n";
 
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = 0; rep < cfg.experiment.repeats; ++rep)
@@ -168,14 +164,12 @@ auto main(int argc, char* argv[]) -> int
 
             // Append repeat index to run_tag so output files don't overwrite.
             if (cfg.experiment.repeats > 1)
-                rep_cfg.experiment.run_tag =
-                    cfg.experiment.run_tag + "_rep" + std::to_string(rep);
+                rep_cfg.experiment.run_tag = cfg.experiment.run_tag + "_rep" + std::to_string(rep);
 
             if (cfg.experiment.repeats > 1)
             {
                 std::ostringstream oss;
-                oss << "[E05] === Repeat " << rep + 1
-                    << "/" << cfg.experiment.repeats
+                oss << "[E05] === Repeat " << rep + 1 << "/" << cfg.experiment.repeats
                     << " (seed=" << rep_cfg.experiment.seed << ") ===";
                 nn::progress::ProgressManager::instance().log(oss.str());
             }
