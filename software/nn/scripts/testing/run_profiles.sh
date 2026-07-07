@@ -191,11 +191,28 @@ mkdir -p "$LOGDIR"
 MON=0
 if [ "$JOBS" -gt 1 ] && [ "$tty_out" -eq 1 ] && [ "${E05_MONITOR:-1}" != 0 ]; then MON=1; fi
 
-# Last meaningful progress line of a worker log: split CR-updated bars into
-# lines, strip ANSI, drop blanks, keep the final one.
+# The binary renders TWO stacked progress bars at once — a label line ("Autoencoder
+# training" / "Batches done") followed by a data line
+# "  <ascii bar> │ pct%  count │ status/loss │ ETA: ..." (│ = U+2502). Grab the
+# last two label+data PAIRS (4 lines) from the most recent refresh.
 mon_extract() {
     tr '\r' '\n' < "$1" 2>/dev/null | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' \
-        | grep -aE '[^[:space:]]' | tail -1
+        | grep -aE '[^[:space:]]' | tail -4
+}
+
+# Strip the ascii bar graphic (everything up to the first │) and compact the
+# remaining │-separated fields (pct/count, loss/status, ETA) into "a | b | c".
+# The bar graphic is decorative and, at real terminal widths, was exactly what
+# pushed the actually useful trailing ETA/loss value past the column clamp —
+# dropping it is what makes the ETA value survive on any terminal width.
+mon_compact_bar() {
+    local s="$1"
+    if [[ "$s" == *"│"* ]]; then
+        s="${s#*│}"          # drop the ascii bar graphic (first field)
+        s="${s//│/|}"        # remaining separators -> plain "|"
+    fi
+    s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"  # trim
+    printf '%s' "$s" | sed -E 's/[[:space:]]{2,}/ /g'               # collapse runs
 }
 
 # Background dashboard. Redraws in place (cursor-up) every E05_MONITOR_INTERVAL
@@ -207,23 +224,68 @@ mon_extract() {
 # cursor-up math below doesn't account for (it assumes one row per logical
 # line) — the redraw then lands one row too high each frame, so old frames
 # are never overwritten and the screen appears to scroll continuously.
+fmt_mmss() {
+    local s="$1"; printf '%02d:%02d' $((s / 60)) $((s % 60))
+}
+
 monitor_loop() {
-    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm pl p f d n k ln cols
-    local -a lines
+    local prev=0 interval="${E05_MONITOR_INTERVAL:-2}" id nm st now_e p f d n k ln cols
+    local overall_eta worker_eta first_row k2 lbl dat row
+    local -a lines pls
     printf '\033[?25l'   # hide cursor
     while [ -e "$TMP/mon.on" ]; do
         cols=$(tput cols 2>/dev/null); [ -z "$cols" ] && cols=80
+        now_e=$(date +%s)
         p=$(grep -c '^PASS' "$TMP/tally" 2>/dev/null); p=${p:-0}
         f=$(grep -c '^FAIL' "$TMP/tally" 2>/dev/null); f=${f:-0}
         d=$((p + f))
-        ln=$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
-            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")
-        lines=("${ln:0:cols}")
+
+        # Overall ETA: mean wall-clock time per COMPLETED profile already
+        # reflects the JOBS-way concurrency (elapsed grows slower than serial
+        # while d grows the same), so no separate /JOBS factor is needed.
+        if [ "$d" -gt 0 ]; then
+            overall_eta="$(fmt_mmss $(( (now_e - start) * (npending - d) / d )))"
+        else
+            overall_eta="calculating"
+        fi
+
+        # Two short header lines instead of one long one: a single wide line
+        # risks the terminal-width clamp below cutting it off before the ETA
+        # (the most useful field) — each line here is short enough on its own
+        # to never need truncating.
+        lines=("$(printf '── e05 monitor ── %s ── running %d · done %d/%d · pass %d · fail %d ──' \
+            "$(date +%T)" "$(ls "$TMP/active" 2>/dev/null | wc -l)" "$d" "$npending" "$p" "$f")")
+        lines+=("$(printf '    elapsed %s   overall ETA ~ %s' \
+            "$(fmt_mmss $((now_e - start)))" "$overall_eta")")
+        lines[0]="${lines[0]:0:cols}"; lines[1]="${lines[1]:0:cols}"
+
         for id in $(ls "$TMP/active" 2>/dev/null | sort -n); do
-            nm=$(cat "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
-            pl=$(mon_extract "$LOGDIR/$nm.log")
-            ln=$(printf '  %-38.38s %s' "$nm" "${pl:-starting…}")
-            lines+=("${ln:0:cols}")
+            nm=$(sed -n '1p' "$TMP/active/$id" 2>/dev/null); [ -z "$nm" ] && continue
+            st=$(sed -n '2p' "$TMP/active/$id" 2>/dev/null); [ -z "$st" ] && st=$now_e
+            worker_eta="run $(fmt_mmss $((now_e - st)))"
+            mapfile -t pls < <(mon_extract "$LOGDIR/$nm.log")
+            # pls holds up to 4 raw lines: [outer-label, outer-data, inner-label,
+            # inner-data]. Pair them (label: compacted-data) and render one row
+            # per pair — up to 2 rows/worker (epoch bar, batch bar).
+            first_row=1
+            for ((k2 = 0; k2 < ${#pls[@]}; k2 += 2)); do
+                lbl="${pls[k2]}"
+                lbl="${lbl#"${lbl%%[![:space:]]*}"}"; lbl="${lbl%"${lbl##*[![:space:]]}"}"
+                dat="${pls[k2 + 1]:-}"
+                if [ -n "$dat" ]; then
+                    row="$lbl: $(mon_compact_bar "$dat")"
+                else
+                    row="$lbl"
+                fi
+                if [ "$first_row" -eq 1 ]; then
+                    ln=$(printf '  %-30.30s %-9s %s' "$nm" "$worker_eta" "$row")
+                    first_row=0
+                else
+                    ln=$(printf '  %-30.30s %-9s %s' "" "" "$row")
+                fi
+                lines+=("${ln:0:cols}")
+            done
+            [ "${#pls[@]}" -eq 0 ] && lines+=("$(printf '  %-30.30s %-9s %s' "$nm" "$worker_eta" "starting…")")
         done
         [ "$prev" -gt 0 ] && printf '\033[%dA' "$prev"
         for ln in "${lines[@]}"; do printf '\033[2K%s\n' "$ln"; done
@@ -285,8 +347,14 @@ if [ "$JOBS" -le 1 ]; then
     for f in "${PENDING[@]}"; do
         i=$((i + 1)); name=$(basename "$f" .json)
         now=$(date +%s); elapsed=$((now - start))
-        printf '[%d/%d]  %02d:%02d  running: %s\n' \
-            "$i" "$npending" $((elapsed / 60)) $((elapsed % 60)) "$name"
+        done_so_far=$((i - 1))
+        if [ "$done_so_far" -gt 0 ]; then
+            eta="eta~$(fmt_mmss $(( elapsed * (npending - done_so_far) / done_so_far )))"
+        else
+            eta="eta~calculating"
+        fi
+        printf '[%d/%d]  elapsed %s  %s  running: %s\n' \
+            "$i" "$npending" "$(fmt_mmss "$elapsed")" "$eta" "$name"
         if [ "$tty_out" -eq 1 ]; then
             "$BIN" --config "$f" 2>&1 | tee "$LOGDIR/$name.log"; ec=${PIPESTATUS[0]}
         else
@@ -310,7 +378,7 @@ else
     idx=0; worker_pids=()
     for f in "${PENDING[@]}"; do
         idx=$((idx + 1)); name=$(basename "$f" .json)
-        echo "$name" > "$TMP/active/$idx"
+        printf '%s\n%s\n' "$name" "$(date +%s)" > "$TMP/active/$idx"
         [ "$MON" -eq 0 ] && printf 'start: %s\n' "$name"
         run_profile "$idx" "$f" &
         worker_pids+=("$!")
