@@ -33,6 +33,7 @@
 #include "layers/spiking/LifIntegrator.hpp"
 #include "tensor/Tensor.hpp"
 #include "tensor/opencl/OpenCLTensorBackend.hpp"
+#include "tensor/xtensor/XTensorBackend.hpp"
 
 namespace
 {
