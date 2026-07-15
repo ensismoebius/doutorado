@@ -3,18 +3,20 @@
  * @brief SYCL 2020 kernels for SYCLTensorBackend.
  *
  * Requires a SYCL implementation (AdaptiveCpp or oneAPI DPC++); compiled only
- * when NN_BACKEND=SYCL. All ops are copy-in/copy-out against the host mirror:
- * correctness-first — no device-resident state to go stale. Every op falls
- * back to the XTensorBackend host implementation when no SYCL device exists.
+ * when NN_BACKEND=SYCL. All ops are copy-in/copy-out against the host mirror
+ * (correctness-first — no device-resident state to go stale), but there is no
+ * CPU fallback: if no SYCL device is available, every compute op throws.
+ * cmake/SyclGpuCapabilityCheck.cmake refuses to configure this backend at all
+ * on hardware known to make that likely (see its header comment for why);
+ * this throw is the last-resort guard for whatever that static check misses.
  */
 
 #include "tensor/sycl/SYCLTensorBackend.hpp"
 
 #include <cmath>
 #include <cstddef>
-#include <cstdlib>
 #include <stdexcept>
-#include <string_view>
+#include <string>
 #include <sycl/sycl.hpp>
 
 #include "logging/Logger.hpp"
@@ -22,65 +24,55 @@
 namespace
 {
 
-/// Device access is opt-in (NN_SYCL_ALLOW_DEVICE=1), not opt-out.
-///
-/// On AMD integrated GPUs without official ROCm support (this project's dev
-/// hardware: Renoir/Lucienne APU), AdaptiveCpp routes compute through the HIP
-/// backend and it has been observed to produce a genuine GPU hang ("HW
-/// Exception ... reason: GPU Hang" from the ROCm HSA runtime) under any kind
-/// of concurrent kernel submission — e.g. parallel ctest workers each running
-/// SYCL tests. A GPU hang on an integrated GPU takes the display compositor
-/// down with it (screen blanks/resets in a loop until the driver recovers).
-/// The CPU-only AdaptiveCpp OpenMP backend was tried as a supposedly safe
-/// fallback and found to silently return wrong numeric results (a separate
-/// bug in that backend's generic/SSCP JIT path on this install) — so it is
-/// not a safe default either. Until a stable SYCL device path is confirmed,
-/// stay on the XTensorBackend host mirror by default; anyone who has verified
-/// their own hardware/driver is safe can opt in explicitly.
-bool device_access_allowed()
+/// Either a working queue, or the error that prevented creating one. Queried
+/// once (function-local static init) and cached — device probing is not
+/// repeated on every call.
+struct QueueOrError
 {
-    const char* v = std::getenv("NN_SYCL_ALLOW_DEVICE");
-    return v != nullptr && std::string_view(v) == "1";
-}
+    sycl::queue* queue = nullptr;
+    std::string error;
+};
 
-/// Process-wide in-order queue; nullptr when no device could be initialized
-/// or device access is not opted into (see device_access_allowed()).
-///
-/// Deliberately heap-allocated and never freed (exception to the project's
-/// no-raw-new rule — see CLAUDE.md). A function-local *static* sycl::queue
-/// gets torn down by a normal C++ static destructor at process exit; under
-/// AdaptiveCpp's ROCm/generic backend on this integrated GPU, that teardown
-/// races with a concurrently-exiting sibling process doing the same thing
-/// (e.g. two ctest workers), reproducibly segfaulting inside the driver after
-/// the test itself has already passed. Never destructing the queue means the
-/// OS reclaims the GPU context at process exit instead of the runtime's own
-/// (racy, under concurrency) destructor path.
-sycl::queue* global_queue()
+const QueueOrError& global_queue_state()
 {
-    static sycl::queue* queue = []() -> sycl::queue*
+    // Deliberately heap-allocated and never freed (exception to the
+    // project's no-raw-new rule — see CLAUDE.md). A function-local *static*
+    // sycl::queue gets torn down by a normal C++ static destructor at
+    // process exit; under AdaptiveCpp's ROCm/generic backend on an
+    // integrated GPU, that teardown has been observed to race with a
+    // concurrently-exiting sibling process doing the same thing (e.g. two
+    // ctest workers), reproducibly segfaulting inside the driver after the
+    // test itself had already passed. Never destructing the queue means the
+    // OS reclaims the GPU context at process exit instead of the runtime's
+    // own (racy, under concurrency) destructor path.
+    static QueueOrError state = []() -> QueueOrError
     {
-        if (!device_access_allowed())
-        {
-            NN_LOG_INFO(
-                "SYCL backend: device access not opted into (set "
-                "NN_SYCL_ALLOW_DEVICE=1 to enable); using host execution");
-            return nullptr;
-        }
         try
         {
             auto* q = new sycl::queue(sycl::default_selector_v, sycl::property::queue::in_order{});
             NN_LOG_INFO("SYCL backend: using device '" +
                         q->get_device().get_info<sycl::info::device::name>() + "'");
-            return q;
+            return QueueOrError{q, {}};
         }
         catch (const std::exception& e)
         {
-            NN_LOG_WARN(std::string("SYCL backend: no device available (") + e.what() +
-                        "), falling back to host execution");
-            return nullptr;
+            return QueueOrError{nullptr, e.what()};
         }
     }();
-    return queue;
+    return state;
+}
+
+/// Returns the queue or throws — no CPU fallback. Every compute method routes
+/// through this; there is no "if device unavailable, use m_host" branch
+/// anywhere in this file by design (see file header).
+sycl::queue& global_queue()
+{
+    const QueueOrError& state = global_queue_state();
+    if (state.queue == nullptr)
+        throw std::runtime_error("SYCL backend: no usable device (" + state.error +
+                                 "). This backend has no CPU fallback by design — pick a different "
+                                 "NN_BACKEND preset if this machine has no working SYCL device.");
+    return *state.queue;
 }
 
 /// RAII USM device buffer. Never throws on free.
@@ -115,14 +107,16 @@ namespace nn
 
 bool SYCLTensorBackend::sycl_runtime_available()
 {
-    return global_queue() != nullptr;
+    // Status query only — does not throw, unlike global_queue(). Safe
+    // because it substitutes no computation; it just answers a question.
+    return global_queue_state().queue != nullptr;
 }
 
 std::string SYCLTensorBackend::device_description()
 {
-    sycl::queue* q = global_queue();
-    if (q == nullptr) return "host fallback";
-    const auto dev = q->get_device();
+    const QueueOrError& state = global_queue_state();
+    if (state.queue == nullptr) return "unavailable (" + state.error + ")";
+    const auto dev = state.queue->get_device();
     return dev.get_info<sycl::info::device::vendor>() + " " +
            dev.get_info<sycl::info::device::name>();
 }
@@ -139,7 +133,7 @@ XTensorBackend binary_op(const XTensorBackend& a, const XTensorBackend& b, Op op
     const std::size_t n = a.size();
     if (n == 0) return out;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, n), db(q, n), dr(q, n);
     q.memcpy(da.get(), a.data_ptr(), n * sizeof(float));
     q.memcpy(db.get(), b.data_ptr(), n * sizeof(float));
@@ -159,7 +153,7 @@ XTensorBackend unary_op(const XTensorBackend& a, Op op)
     const std::size_t n = a.size();
     if (n == 0) return out;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, n), dr(q, n);
     q.memcpy(da.get(), a.data_ptr(), n * sizeof(float));
     const float* pa = da.get();
@@ -177,7 +171,7 @@ float reduce_sum(const XTensorBackend& a, Xf xf)
     const std::size_t n = a.size();
     if (n == 0) return 0.0f;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, n), dsum(q, 1);
     q.memcpy(da.get(), a.data_ptr(), n * sizeof(float));
     q.memset(dsum.get(), 0, sizeof(float));
@@ -191,18 +185,14 @@ float reduce_sum(const XTensorBackend& a, Xf xf)
     return result;
 }
 
-bool device_ready()
-{
-    return global_queue() != nullptr;
-}
-
 } // namespace
 
 // ── Elementwise binary ───────────────────────────────────────────────────────
+// No CPU fallback: global_queue() (called inside binary_op/unary_op/reduce_sum)
+// throws if no device is available. See file header.
 
 SYCLTensorBackend SYCLTensorBackend::add(const SYCLTensorBackend& other) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.add(other.m_host));
     if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for add");
     return SYCLTensorBackend(
         binary_op(m_host, other.m_host, [](float a, float b) { return a + b; }));
@@ -210,7 +200,6 @@ SYCLTensorBackend SYCLTensorBackend::add(const SYCLTensorBackend& other) const
 
 SYCLTensorBackend SYCLTensorBackend::subtract(const SYCLTensorBackend& other) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.subtract(other.m_host));
     if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for subtract");
     return SYCLTensorBackend(
         binary_op(m_host, other.m_host, [](float a, float b) { return a - b; }));
@@ -218,7 +207,6 @@ SYCLTensorBackend SYCLTensorBackend::subtract(const SYCLTensorBackend& other) co
 
 SYCLTensorBackend SYCLTensorBackend::multiply(const SYCLTensorBackend& other) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.multiply(other.m_host));
     if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for multiply");
     return SYCLTensorBackend(
         binary_op(m_host, other.m_host, [](float a, float b) { return a * b; }));
@@ -226,51 +214,32 @@ SYCLTensorBackend SYCLTensorBackend::multiply(const SYCLTensorBackend& other) co
 
 SYCLTensorBackend SYCLTensorBackend::divide(const SYCLTensorBackend& other) const
 {
-    // XTensorBackend::divide performs no shape check (xtensor broadcasting);
-    // divergent shapes are rare and broadcasting is host-mirror territory.
-    if (!device_ready() || shape() != other.shape())
-        return SYCLTensorBackend(m_host.divide(other.m_host));
+    // Unlike XTensorBackend::divide (xtensor broadcasting), the device kernel
+    // requires identical shapes — no production call site in this codebase
+    // divides broadcast-shaped tensors (Tanh/Sigmoid/Adam/LSTM all divide
+    // same-shaped operands); this is a real feature gap, not a fallback.
+    if (shape() != other.shape()) throw std::invalid_argument("Shape mismatch for divide");
     return SYCLTensorBackend(
         binary_op(m_host, other.m_host, [](float a, float b) { return a / b; }));
 }
 
 void SYCLTensorBackend::add_inplace(const SYCLTensorBackend& other)
 {
-    if (!device_ready())
-    {
-        m_host.add_inplace(other.m_host);
-        return;
-    }
     *this = add(other);
 }
 
 void SYCLTensorBackend::subtract_inplace(const SYCLTensorBackend& other)
 {
-    if (!device_ready())
-    {
-        m_host.subtract_inplace(other.m_host);
-        return;
-    }
     *this = subtract(other);
 }
 
 void SYCLTensorBackend::multiply_inplace(const SYCLTensorBackend& other)
 {
-    if (!device_ready())
-    {
-        m_host.multiply_inplace(other.m_host);
-        return;
-    }
     *this = multiply(other);
 }
 
 void SYCLTensorBackend::divide_inplace(const SYCLTensorBackend& other)
 {
-    if (!device_ready())
-    {
-        m_host.divide_inplace(other.m_host);
-        return;
-    }
     *this = divide(other);
 }
 
@@ -278,49 +247,31 @@ void SYCLTensorBackend::divide_inplace(const SYCLTensorBackend& other)
 
 SYCLTensorBackend SYCLTensorBackend::add_scalar(float val) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.add_scalar(val));
     return SYCLTensorBackend(unary_op(m_host, [val](float a) { return a + val; }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::multiply_scalar(float val) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.multiply_scalar(val));
     return SYCLTensorBackend(unary_op(m_host, [val](float a) { return a * val; }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::divide_scalar(float val) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.divide_scalar(val));
     return SYCLTensorBackend(unary_op(m_host, [val](float a) { return a / val; }));
 }
 
 void SYCLTensorBackend::add_scalar_inplace(float val)
 {
-    if (!device_ready())
-    {
-        m_host.add_scalar_inplace(val);
-        return;
-    }
     *this = add_scalar(val);
 }
 
 void SYCLTensorBackend::multiply_scalar_inplace(float val)
 {
-    if (!device_ready())
-    {
-        m_host.multiply_scalar_inplace(val);
-        return;
-    }
     *this = multiply_scalar(val);
 }
 
 void SYCLTensorBackend::divide_scalar_inplace(float val)
 {
-    if (!device_ready())
-    {
-        m_host.divide_scalar_inplace(val);
-        return;
-    }
     *this = divide_scalar(val);
 }
 
@@ -328,58 +279,42 @@ void SYCLTensorBackend::divide_scalar_inplace(float val)
 
 SYCLTensorBackend SYCLTensorBackend::exp() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.exp());
     return SYCLTensorBackend(unary_op(m_host, [](float a) { return sycl::exp(a); }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::sqrt() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.sqrt());
     return SYCLTensorBackend(unary_op(m_host, [](float a) { return sycl::sqrt(a); }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::square() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.square());
     return SYCLTensorBackend(unary_op(m_host, [](float a) { return a * a; }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::abs() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.abs());
     return SYCLTensorBackend(unary_op(m_host, [](float a) { return sycl::fabs(a); }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::relu() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.relu());
     return SYCLTensorBackend(unary_op(m_host, [](float a) { return sycl::fmax(a, 0.0f); }));
 }
 
 SYCLTensorBackend SYCLTensorBackend::leaky_relu(float alpha) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.leaky_relu(alpha));
     return SYCLTensorBackend(
         unary_op(m_host, [alpha](float a) { return a > 0.0f ? a : alpha * a; }));
 }
 
 void SYCLTensorBackend::sqrt_inplace()
 {
-    if (!device_ready())
-    {
-        m_host.sqrt_inplace();
-        return;
-    }
     *this = sqrt();
 }
 
 void SYCLTensorBackend::square_inplace()
 {
-    if (!device_ready())
-    {
-        m_host.square_inplace();
-        return;
-    }
     *this = square();
 }
 
@@ -387,7 +322,6 @@ void SYCLTensorBackend::square_inplace()
 
 SYCLTensorBackend SYCLTensorBackend::matmul(const SYCLTensorBackend& other) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.matmul(other.m_host));
     if (shape().size() != 2 || other.shape().size() != 2)
         throw std::invalid_argument("Tensors must be 2D");
     if (cols() != other.rows()) throw std::invalid_argument("Dimension mismatch for matmul");
@@ -396,7 +330,7 @@ SYCLTensorBackend SYCLTensorBackend::matmul(const SYCLTensorBackend& other) cons
     SYCLTensorBackend out(M, N);
     if (M == 0 || N == 0) return out;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, M * K), db(q, K * N), dr(q, M * N);
     q.memcpy(da.get(), data_ptr(), M * K * sizeof(float));
     q.memcpy(db.get(), other.data_ptr(), K * N * sizeof(float));
@@ -417,7 +351,6 @@ SYCLTensorBackend SYCLTensorBackend::matmul(const SYCLTensorBackend& other) cons
 
 SYCLTensorBackend SYCLTensorBackend::matmul_transposed(const SYCLTensorBackend& other) const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.matmul_transposed(other.m_host));
     if (shape().size() != 2 || other.shape().size() != 2)
         throw std::invalid_argument("Tensors must be 2D");
     if (cols() != other.cols())
@@ -428,7 +361,7 @@ SYCLTensorBackend SYCLTensorBackend::matmul_transposed(const SYCLTensorBackend& 
     SYCLTensorBackend out(M, N);
     if (M == 0 || N == 0) return out;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, M * K), db(q, N * K), dr(q, M * N);
     q.memcpy(da.get(), data_ptr(), M * K * sizeof(float));
     q.memcpy(db.get(), other.data_ptr(), N * K * sizeof(float));
@@ -449,14 +382,13 @@ SYCLTensorBackend SYCLTensorBackend::matmul_transposed(const SYCLTensorBackend& 
 
 SYCLTensorBackend SYCLTensorBackend::transpose() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.transpose());
     if (shape().size() != 2) throw std::invalid_argument("Tensor must be 2D");
 
     const std::size_t R = rows(), C = cols();
     SYCLTensorBackend out(C, R);
     if (R == 0 || C == 0) return out;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, R * C), dr(q, R * C);
     q.memcpy(da.get(), data_ptr(), R * C * sizeof(float));
     const float* pa = da.get();
@@ -471,25 +403,22 @@ SYCLTensorBackend SYCLTensorBackend::transpose() const
 
 float SYCLTensorBackend::sum() const
 {
-    if (!device_ready()) return m_host.sum();
     return reduce_sum(m_host, [](float a) { return a; });
 }
 
 float SYCLTensorBackend::norm() const
 {
-    if (!device_ready()) return m_host.norm();
     return std::sqrt(reduce_sum(m_host, [](float a) { return a * a; }));
 }
 
 float SYCLTensorBackend::mean_squared_error(const SYCLTensorBackend& target) const
 {
-    if (!device_ready()) return m_host.mean_squared_error(target.m_host);
     if (size() != target.size())
         throw std::invalid_argument("Shape mismatch for mean_squared_error");
     const std::size_t n = size();
     if (n == 0) return 0.0f;
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, n), db(q, n), dsum(q, 1);
     q.memcpy(da.get(), data_ptr(), n * sizeof(float));
     q.memcpy(db.get(), target.data_ptr(), n * sizeof(float));
@@ -511,7 +440,6 @@ float SYCLTensorBackend::mean_squared_error(const SYCLTensorBackend& target) con
 
 SYCLTensorBackend SYCLTensorBackend::sum_rows() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.sum_rows());
     const std::size_t R = rows(), C = cols();
     SYCLTensorBackend out(R, 1);
     if (R == 0 || C == 0)
@@ -520,7 +448,7 @@ SYCLTensorBackend SYCLTensorBackend::sum_rows() const
         return out;
     }
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, R * C), dr(q, R);
     q.memcpy(da.get(), data_ptr(), R * C * sizeof(float));
     const float* pa = da.get();
@@ -538,7 +466,6 @@ SYCLTensorBackend SYCLTensorBackend::sum_rows() const
 
 SYCLTensorBackend SYCLTensorBackend::sum_cols() const
 {
-    if (!device_ready()) return SYCLTensorBackend(m_host.sum_cols());
     const std::size_t R = rows(), C = cols();
     SYCLTensorBackend out(1, C);
     if (R == 0 || C == 0)
@@ -547,7 +474,7 @@ SYCLTensorBackend SYCLTensorBackend::sum_cols() const
         return out;
     }
 
-    sycl::queue& q = *global_queue();
+    sycl::queue& q = global_queue();
     DevBuf da(q, R * C), dr(q, C);
     q.memcpy(da.get(), data_ptr(), R * C * sizeof(float));
     const float* pa = da.get();

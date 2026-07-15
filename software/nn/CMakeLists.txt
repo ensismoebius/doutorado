@@ -36,6 +36,21 @@ elseif(NN_BACKEND STREQUAL "SYCL")
 	add_compile_definitions(NN_BACKEND_SYCL)
 elseif(NN_BACKEND STREQUAL "Device")
 	add_compile_definitions(NN_BACKEND_DEVICE)
+	# DeviceTensorBackend (include/tensor/DeviceTensorBackend.hpp) is a
+	# documentation skeleton for contributors adding a new backend: it has no
+	# real device allocator, no real hardware to be "unsupported" on, and its
+	# math methods always delegate to an XTensorBackend host mirror (its
+	# simulated device buffer only exercises copy-semantics bookkeeping in
+	# tests). Warn loudly so selecting NN_BACKEND=Device is never mistaken for
+	# testing a real accelerator — the "no silent fallback" policy this
+	# project applies to SYCL/OpenCL doesn't map onto a backend that was never
+	# backed by hardware in the first place.
+	message(WARNING
+		"NN_BACKEND=Device selected: DeviceTensorBackend is a documentation "
+		"skeleton (see include/tensor/DeviceTensorBackend.hpp) — it always runs "
+		"on host (XTensorBackend) math, not a real accelerator. Use this only "
+		"as a template for implementing a new backend, not to benchmark or "
+		"validate GPU behaviour.")
 endif()
 
 message(STATUS "NN backend: ${NN_BACKEND}")

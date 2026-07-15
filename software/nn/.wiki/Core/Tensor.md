@@ -64,27 +64,66 @@ class Tensor {
 
 Supported backends (selected via `NN_BACKEND` CMake option; see `include/Backend.hpp`):
 - `nn::XTensorBackend` — CPU operations (xtensor + BLAS); the reference implementation
-- `nn::OpenCLTensorBackend` — GPU operations via OpenCL kernels with lazy sync
+- `nn::OpenCLTensorBackend` — GPU operations via OpenCL kernels with lazy sync.
+  **No CPU fallback**: despite the historical `warn_opencl_cpu_fallback_once`
+  naming in `OpenCLTensorBackend.cpp`, every compute method already ends in
+  `throw_opencl_only_failure(...)` when OpenCL is unavailable or unusable —
+  there is no host-math substitute hidden behind those checks. Preset:
+  `max-performance-opencl`. `cmake/OpenCLGpuCapabilityCheck.cmake` adds a
+  configure-time gate (parses `clinfo -l`) that refuses to configure with a
+  "BIG FAT WARNING" if no OpenCL device is present, mirroring the SYCL gate
+  below; override with `-DNN_OPENCL_ACKNOWLEDGE_NO_GPU=ON`. Unlike SYCL there
+  is no known-bad-hardware denylist — this project's dev machine already runs
+  this backend successfully via Mesa's rusticl driver, an unrelated driver
+  stack from AdaptiveCpp/HIP.
 - `nn::SYCLTensorBackend` — Khronos SYCL 2020 kernels (AdaptiveCpp / oneAPI DPC++);
-  copy-in/copy-out against an XTensorBackend host mirror. Preset:
-  `max-performance-sycl` (requires AdaptiveCpp; parity suite:
-  `sycl_backend_parity_gtest`).
-  **Device access is opt-in, not opt-out**: by default every op runs on the
-  host mirror (`sycl::queue` is never even constructed). Set
-  `NN_SYCL_ALLOW_DEVICE=1` to actually dispatch to a SYCL device. This
-  default exists because, on this project's dev hardware (an AMD
-  Renoir/Lucienne integrated GPU — not officially ROCm-supported),
-  AdaptiveCpp's HIP backend reproducibly triggered a genuine GPU hang
-  (`HW Exception ... reason: GPU Hang` from the ROCm HSA runtime) under
-  concurrent kernel submission (e.g. parallel ctest workers), which took the
-  display compositor down with it. The documented "safe" CPU-only escape
-  hatch, `ACPP_VISIBILITY_MASK=omp`, was also tried and found to silently
-  produce wrong numeric results (a separate bug in that AdaptiveCpp
-  install's generic/SSCP JIT path for the OpenMP backend) — so it is not a
-  safe default either. Only opt into `NN_SYCL_ALLOW_DEVICE=1` after
-  confirming your own hardware/driver combination is stable under
-  concurrent load.
-- `nn::DeviceTensorBackend` — documented skeleton for adding new device backends
+  copy-in/copy-out against an XTensorBackend host mirror for storage, but
+  **compute ops have no CPU fallback**: every math op throws if no SYCL
+  device is available. Preset: `max-performance-sycl` (requires AdaptiveCpp;
+  parity suite: `sycl_backend_parity_gtest`).
+  **No silent fallback, by policy**: this backend either runs on a real GPU
+  or refuses to run at all — it never silently substitutes host math while
+  claiming to be the SYCL/GPU backend. This is enforced twice:
+  1. **Configure time** — `cmake/SyclGpuCapabilityCheck.cmake` parses
+     `rocminfo` (grouping HSA agent blocks, matching each `GPU`-typed
+     agent's `Name:` field — the actual gfx ISA code, e.g. `gfx90c` — against
+     a denylist of chips confirmed unsafe) and refuses to configure
+     (`FATAL_ERROR`, with a large "BIG FAT WARNING" banner) if the only GPU
+     present is denylisted, or if no GPU is present at all. Override with
+     `-DNN_SYCL_ACKNOWLEDGE_UNSUPPORTED_GPU=ON` if you've personally verified
+     your exact machine handles concurrent SYCL kernel submission safely.
+  2. **Run time** — `SYCLTensorBackend.cpp`'s queue construction throws with
+     an actionable message if no SYCL device is available; there is no
+     `device_ready()`-guarded host-mirror path in the compute methods
+     anymore (removed; previously every op silently fell back to
+     `XTensorBackend` when the device wasn't usable).
+  Background: on this project's dev hardware (an AMD Renoir/Lucienne
+  integrated GPU, ISA `gfx90c` — not on ROCm's officially supported hardware
+  list), AdaptiveCpp routes SYCL compute through its HIP backend anyway,
+  which reproducibly triggered a genuine GPU hang (`HW Exception ... reason:
+  GPU Hang` from the ROCm HSA runtime) under concurrent kernel submission
+  (e.g. parallel ctest workers) — it froze the whole display compositor with
+  it, not just the test process. `acpp-info -l`'s device listing reports
+  only a generic marketing name ("AMD Radeon Graphics") for this chip with
+  no gfx-architecture codename, so the capability check uses `rocminfo`
+  instead, which does expose it. The commonly-cited `HSA_OVERRIDE_GFX_VERSION`
+  workaround (impersonate a supported chip) is documented elsewhere to
+  sometimes crash the GPU badly enough to need a reboot, so it is not
+  recommended as a fix. `ACPP_VISIBILITY_MASK=omp` (force CPU-only) was also
+  tried as a possible safe escape hatch and found to silently produce wrong
+  numeric results — a separate bug in this AdaptiveCpp install's
+  generic/SSCP JIT path for the OpenMP backend — so it is not viable either.
+  Net effect: on unsupported hardware, this backend simply cannot be built
+  without an explicit, informed override; there is no safe default that lets
+  it "just work."
+- `nn::DeviceTensorBackend` — documented skeleton for adding new device
+  backends. It always runs on an `XTensorBackend` host mirror — its
+  "simulated device buffer" only exercises copy-semantics bookkeeping for
+  tests, never real hardware. Since there's no real device to be
+  "unsupported" on, the no-fallback policy doesn't map onto it directly;
+  instead, selecting `NN_BACKEND=Device` prints a configure-time `WARNING`
+  (top-level `CMakeLists.txt`) so it's never mistaken for testing a real
+  accelerator.
 
 ## Data Flow
 

@@ -32,6 +32,13 @@ if(OpenCL_FOUND)
 	target_compile_definitions(tensor PUBLIC CL_TARGET_OPENCL_VERSION=200)
 endif()
 
+# When OpenCL is the active nn::Backend, refuse to configure without a real
+# device present rather than silently building a program whose tensor ops
+# will all throw at first use — see cmake/OpenCLGpuCapabilityCheck.cmake.
+if(NN_BACKEND STREQUAL "OpenCL")
+	include(${CMAKE_SOURCE_DIR}/cmake/OpenCLGpuCapabilityCheck.cmake)
+endif()
+
 # SYCL backend: the kernels TU needs a SYCL implementation (AdaptiveCpp or
 # oneAPI DPC++). Only compiled when the SYCL backend is selected so the other
 # presets never require the toolchain.
@@ -49,6 +56,24 @@ if(NN_BACKEND STREQUAL "SYCL")
 			"Install AdaptiveCpp (Arch: yay -S adaptivecpp) or oneAPI DPC++, "
 			"or pick another backend preset.")
 	endif()
+
+	# Refuses to configure on known-unsupported GPU hardware, or when no GPU
+	# is present at all — see cmake/SyclGpuCapabilityCheck.cmake for why.
+	include(${CMAKE_SOURCE_DIR}/cmake/SyclGpuCapabilityCheck.cmake)
+
+	# ThinLTO's final-link backend codegen for this TU goes through
+	# AdaptiveCpp's own bundled LLVM (independent of our -march=native), whose
+	# host-feature table doesn't recognize '-amx-transpose'/'-avx10.1-256'/
+	# '-avx10.2-256' — confirmed by reproducing the warnings even with
+	# -march=native removed entirely from project flags, so they aren't
+	# caused by anything this project passes. Excluding just this one TU from
+	# LTO sidesteps that codegen path entirely (confirmed: 0 occurrences vs.
+	# 24 with LTO enabled, parity tests still pass) at the cost of losing
+	# cross-TU inlining for this thin device-dispatch wrapper only — the hot
+	# math it delegates to (XTensorBackend, SYCL device kernels) is
+	# unaffected.
+	set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/sycl/SYCLTensorBackend.cpp
+		PROPERTIES COMPILE_OPTIONS "-fno-lto")
 
 	target_sources(tensor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/sycl/SYCLTensorBackend.cpp)
 	add_sycl_to_target(TARGET tensor
