@@ -39,26 +39,28 @@ std::string parse_config_path(int argc, char* argv[])
 }
 
 // Run one full pipeline iteration with the given config (seed + run_tag already set).
-void run_once(const e05::E05Config& cfg)
+// `view` is loaded once by the caller — dataset loading is seed-independent, so
+// repeats share it. `cached_features` is non-null when feature extraction is also
+// seed-independent (handcrafted strategy); AE strategies pass null and re-extract
+// per repeat because AE training depends on the repeat's seed.
+void run_once(const e05::E05Config& cfg,
+    const e05::E05DatasetView& view,
+    const std::vector<e05::FeatureSet>* cached_features)
 {
     auto& pm = nn::progress::ProgressManager::instance();
 
-    // ── 2. Load dataset ──────────────────────────────────────────────────────
-    auto view = e05::load_dataset(cfg.dataset);
-    {
-        std::ostringstream oss;
-        oss << "[E05] Loaded " << view.samples.size() << " samples from " << view.n_subjects
-            << " subjects, " << view.n_stimuli << " stimuli.";
-        pm.log(oss.str());
-    }
-
     // ── 3. Feature extraction ────────────────────────────────────────────────
-    auto feature_sets = e05::extract_features(view,
-        cfg.feature_extraction,
-        cfg.training,
-        cfg.dataset.modality,
-        cfg.dataset.fusion_mode,
-        cfg.experiment.seed);
+    std::vector<e05::FeatureSet> extracted;
+    if (cached_features == nullptr)
+    {
+        extracted = e05::extract_features(view,
+            cfg.feature_extraction,
+            cfg.training,
+            cfg.dataset.modality,
+            cfg.dataset.fusion_mode,
+            cfg.experiment.seed);
+    }
+    const auto& feature_sets = (cached_features != nullptr) ? *cached_features : extracted;
     pm.log("[E05] Extracted " + std::to_string(feature_sets.size()) + " feature set(s).");
 
     // ── 4. Paraconsistent ranking ────────────────────────────────────────────
@@ -160,6 +162,28 @@ auto main(int argc, char* argv[]) -> int
                   << " strategy=" << cfg.feature_extraction.strategy
                   << " repeats=" << cfg.experiment.repeats << "\n";
 
+        // ── 2. Load dataset (once — identical across repeats) ────────────────
+        auto view = e05::load_dataset(cfg.dataset);
+        {
+            std::ostringstream oss;
+            oss << "[E05] Loaded " << view.samples.size() << " samples from " << view.n_subjects
+                << " subjects, " << view.n_stimuli << " stimuli.";
+            nn::progress::ProgressManager::instance().log(oss.str());
+        }
+
+        // Handcrafted features are deterministic (no seed involved), so extract
+        // once and share across repeats. AE-based extraction trains a network per
+        // repeat seed and must stay inside the repeat loop.
+        std::vector<e05::FeatureSet> shared_features;
+        const bool features_seed_independent = (cfg.feature_extraction.strategy == "handcrafted");
+        if (features_seed_independent)
+            shared_features = e05::extract_features(view,
+                cfg.feature_extraction,
+                cfg.training,
+                cfg.dataset.modality,
+                cfg.dataset.fusion_mode,
+                cfg.experiment.seed);
+
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = 0; rep < cfg.experiment.repeats; ++rep)
         {
@@ -181,7 +205,7 @@ auto main(int argc, char* argv[]) -> int
                 nn::progress::ProgressManager::instance().log(oss.str());
             }
 
-            run_once(rep_cfg);
+            run_once(rep_cfg, view, features_seed_independent ? &shared_features : nullptr);
         }
 
         nn::progress::ProgressManager::instance().shutdown();
