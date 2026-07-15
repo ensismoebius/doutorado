@@ -13,6 +13,9 @@
 #include "tensor/DeviceTensorBackend.hpp"
 #include "tensor/Tensor.hpp"
 #include "tensor/opencl/OpenCLTensorBackend.hpp"
+#ifdef NN_BACKEND_SYCL
+#include "tensor/sycl/SYCLTensorBackend.hpp"
+#endif
 
 template <typename Backend>
 using AnyTensor = nn::TensorImpl<Backend>;
@@ -22,8 +25,19 @@ class TensorAllBackendsTest : public ::testing::Test
 {
 };
 
+// SYCLTensorBackend's accelerated ops are only linked into the `tensor`
+// library when NN_BACKEND=SYCL (see src/core/tensor/CMakeLists.txt), so it can
+// only join this cross-backend contract list under that preset — otherwise
+// this file must build under every preset (see class doc).
+#ifdef NN_BACKEND_SYCL
+using TensorBackendTypes = ::testing::Types<nn::XTensorBackend,
+    nn::DeviceTensorBackend,
+    nn::OpenCLTensorBackend,
+    nn::SYCLTensorBackend>;
+#else
 using TensorBackendTypes =
     ::testing::Types<nn::XTensorBackend, nn::DeviceTensorBackend, nn::OpenCLTensorBackend>;
+#endif
 
 TYPED_TEST_SUITE(TensorAllBackendsTest, TensorBackendTypes);
 

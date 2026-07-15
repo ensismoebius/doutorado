@@ -50,6 +50,19 @@
             }
         },
         {
+            "name": "max-performance-sycl",
+            "displayName": "Max Performance (SYCL backend)",
+            "description": "Configure max-performance build with SYCLTensorBackend as nn::Backend (requires AdaptiveCpp; clang compiler).",
+            "inherits": "max-performance",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "NN_BACKEND": "SYCL",
+                "CMAKE_C_COMPILER": "/usr/bin/clang",
+                "CMAKE_CXX_COMPILER": "/usr/bin/clang++",
+                "ACPP_TARGETS": "generic"
+            }
+        },
+        {
             "name": "pgo-generate",
             "displayName": "PGO - Generate Profile",
             "description": "Configure an instrumented build to generate PGO data (profile).",
@@ -97,6 +110,11 @@
             "name": "max-performance-device",
             "displayName": "Build (max-performance-device)",
             "configurePreset": "max-performance-device"
+        },
+        {
+            "name": "max-performance-sycl",
+            "displayName": "Build (max-performance-sycl)",
+            "configurePreset": "max-performance-sycl"
         },
         {
             "name": "pgo-generate",

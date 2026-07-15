@@ -62,9 +62,14 @@ class Tensor {
 };
 ```
 
-Supported backends:
-- `nn::XtensorTensorBackend` - CPU operations
-- `nn::OpenCLTensorBackend` - GPU operations with lazy sync
+Supported backends (selected via `NN_BACKEND` CMake option; see `include/Backend.hpp`):
+- `nn::XTensorBackend` — CPU operations (xtensor + BLAS); the reference implementation
+- `nn::OpenCLTensorBackend` — GPU operations via OpenCL kernels with lazy sync
+- `nn::SYCLTensorBackend` — Khronos SYCL 2020 kernels (AdaptiveCpp / oneAPI DPC++);
+  copy-in/copy-out against an XTensorBackend host mirror, automatic host fallback
+  when no SYCL device is present. Preset: `max-performance-sycl` (requires
+  AdaptiveCpp; parity suite: `sycl_backend_parity_gtest`)
+- `nn::DeviceTensorBackend` — documented skeleton for adding new device backends
 
 ## Data Flow
 

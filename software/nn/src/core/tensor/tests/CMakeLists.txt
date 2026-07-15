@@ -167,3 +167,24 @@ target_include_directories(backend_parity_gtest
 
 gtest_discover_tests(backend_parity_gtest)
 configure_xtensor_parallel_target(backend_parity_gtest)
+
+# SYCL parity suite: only meaningful (and only linkable) when the tensor lib
+# was built with the SYCL kernels TU, i.e. under NN_BACKEND=SYCL.
+if(NN_BACKEND STREQUAL "SYCL")
+    add_executable(sycl_backend_parity_gtest sycl_backend_parity_gtest.cpp)
+
+    target_link_libraries(sycl_backend_parity_gtest
+        PRIVATE
+            google_test
+            xtensor xtensor-blas
+            tensor
+    )
+
+    target_include_directories(sycl_backend_parity_gtest
+        PRIVATE
+             ${CMAKE_SOURCE_DIR}/src
+    )
+
+    gtest_discover_tests(sycl_backend_parity_gtest)
+    configure_xtensor_parallel_target(sycl_backend_parity_gtest)
+endif()

@@ -18,19 +18,22 @@ project(nn VERSION 0.2.0 LANGUAGES CXX C)
 enable_testing()
 
 # Backend selection for backend-agnostic modules.
-set(NN_BACKEND "XTensor" CACHE STRING "Primary tensor backend (XTensor, OpenCL, Device)")
-set_property(CACHE NN_BACKEND PROPERTY STRINGS XTensor OpenCL Device)
+set(NN_BACKEND "XTensor" CACHE STRING "Primary tensor backend (XTensor, OpenCL, SYCL, Device)")
+set_property(CACHE NN_BACKEND PROPERTY STRINGS XTensor OpenCL SYCL Device)
 
 if(NOT NN_BACKEND STREQUAL "XTensor" AND
 	 NOT NN_BACKEND STREQUAL "OpenCL" AND
+	 NOT NN_BACKEND STREQUAL "SYCL" AND
 	 NOT NN_BACKEND STREQUAL "Device")
-	message(FATAL_ERROR "NN_BACKEND must be one of: XTensor, OpenCL, Device")
+	message(FATAL_ERROR "NN_BACKEND must be one of: XTensor, OpenCL, SYCL, Device")
 endif()
 
 if(NN_BACKEND STREQUAL "XTensor")
 	add_compile_definitions(NN_BACKEND_XTENSOR)
 elseif(NN_BACKEND STREQUAL "OpenCL")
 	add_compile_definitions(NN_BACKEND_OPENCL)
+elseif(NN_BACKEND STREQUAL "SYCL")
+	add_compile_definitions(NN_BACKEND_SYCL)
 elseif(NN_BACKEND STREQUAL "Device")
 	add_compile_definitions(NN_BACKEND_DEVICE)
 endif()

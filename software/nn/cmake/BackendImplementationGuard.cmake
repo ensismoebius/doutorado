@@ -15,6 +15,7 @@ set(_NN_BACKEND_GUARD_MESSAGE
 set(_NN_BACKEND_IMPL_TOKENS
     "XTensorBackend"
     "OpenCLTensorBackend"
+    "SYCLTensorBackend"
     "DeviceTensorBackend")
 
 file(GLOB_RECURSE _NN_BACKEND_GUARD_CANDIDATES CONFIGURE_DEPENDS

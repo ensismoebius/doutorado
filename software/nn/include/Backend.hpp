@@ -10,6 +10,14 @@ namespace nn
 {
 using Backend = OpenCLTensorBackend;
 }
+#elif defined(NN_BACKEND_SYCL)
+// SYCL backend: Khronos SYCL 2020 kernels (AdaptiveCpp / oneAPI DPC++) with
+// XTensorBackend host mirror and automatic host fallback when no device exists.
+#include "tensor/sycl/SYCLTensorBackend.hpp"
+namespace nn
+{
+using Backend = SYCLTensorBackend;
+}
 #elif defined(NN_BACKEND_DEVICE)
 // Device backend: provides: Just a placeholder.
 #include "tensor/DeviceTensorBackend.hpp"
