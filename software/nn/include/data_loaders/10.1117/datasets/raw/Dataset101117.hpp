@@ -62,8 +62,8 @@ class Dataset101117 : public Dataset
     void ensureSubjectMatSessionsInitialized(std::size_t subject_index) const;
 
     std::vector<SubjectFiles> subjects_;
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>> eeg_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioSession>> audio_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>> eeg_sessions_;
     std::vector<std::size_t> prefix_audio_row_offsets_;
     Protocol101117InputMode input_mode_ = Protocol101117InputMode::Concatenated;
 };

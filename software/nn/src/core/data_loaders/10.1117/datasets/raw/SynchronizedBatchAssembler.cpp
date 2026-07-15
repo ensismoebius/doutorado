@@ -74,7 +74,7 @@ static void buildTasksFromAudioRun(const AudioRowsFlatT& audio_rows_flat,
 template <typename AudioRowsFlatT>
 static void processEegBlocksForTasks(size_t subject_index,
     const SubjectFiles& subject,
-    const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
+    const std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>>& eeg_sessions,
     const AudioRowsFlatT& audio_rows_flat,
     std::vector<BatchTask>& tasks,
     nn::Tensor& inputs,
@@ -170,11 +170,11 @@ static void processEegBlocksForTasks(size_t subject_index,
 
 } // namespace
 
-void SynchronizedBatchAssembler::assembleGrouped(                                         //
-    const std::vector<std::vector<RowRequest>>& grouped,                                  //
-    const std::vector<SubjectFiles>& subjects,                                            //
-    const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions, //
-    const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,     //
+void SynchronizedBatchAssembler::assembleGrouped(                                      //
+    const std::vector<std::vector<RowRequest>>& grouped,                               //
+    const std::vector<SubjectFiles>& subjects,                                         //
+    const std::vector<std::unique_ptr<nn::dataLoaders::AudioSession>>& audio_sessions, //
+    const std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>>& eeg_sessions,     //
     nn::Tensor& inputs,
     nn::Tensor& targets //
 )

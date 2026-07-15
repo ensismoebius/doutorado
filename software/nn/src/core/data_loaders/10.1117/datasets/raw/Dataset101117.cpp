@@ -62,8 +62,8 @@ auto locateSubjectAndAudioRow(const std::vector<std::size_t>& prefix_audio_row_o
 }
 
 auto readSynchronizedSampleFromSessions(const SubjectFiles& subject,
-    const nn::dataLoaders::AudioMatSession& audio_session,
-    const nn::dataLoaders::EEGMatSession& eeg_session,
+    const nn::dataLoaders::AudioSession& audio_session,
+    const nn::dataLoaders::EEGSession& eeg_session,
     size_t audio_row) -> RawSynchronizedSample
 {
     const auto [audio_tensor, audio_stimulus, eeg_index_label] = audio_session.readRow(audio_row);
@@ -288,7 +288,7 @@ void Dataset101117::print(IDatasetPrinter& printer) const
  * Ensure the MAT session objects for the given subject are opened and
  * initialized (lazy initialization).
  *
- * This function creates `AudioMatSession` and/or `EEGMatSession` instances
+ * This function creates `AudioSession` and/or `EEGSession` instances
  * for the subject at `subject_index` if they are not already present in the
  * mutable session caches. It is intended to be called by reader paths
  * (e.g. `get_sample` and `collate`) before accessing `audio_sessions_`/
@@ -309,30 +309,30 @@ void Dataset101117::ensureSubjectMatSessionsInitialized(size_t subject_index) co
     if (!audio_sessions_.at(subject_index))
     {
         // Auto-detect sqlite DB: if the path ends with .sqlite, pass subject id
-        if (!subject.audio_mat_path.empty() && subject.audio_mat_path.size() > 7 &&
-            subject.audio_mat_path.substr(subject.audio_mat_path.size() - 7) == ".sqlite")
+        if (!subject.audio_path.empty() && subject.audio_path.size() > 7 &&
+            subject.audio_path.substr(subject.audio_path.size() - 7) == ".sqlite")
         {
-            audio_sessions_.at(subject_index) = std::make_unique<nn::dataLoaders::AudioMatSession>(
-                subject.audio_mat_path, subject.subject_id);
+            audio_sessions_.at(subject_index) = std::make_unique<nn::dataLoaders::AudioSession>(
+                subject.audio_path, subject.subject_id);
         }
         else
         {
             audio_sessions_.at(subject_index) =
-                std::make_unique<nn::dataLoaders::AudioMatSession>(subject.audio_mat_path);
+                std::make_unique<nn::dataLoaders::AudioSession>(subject.audio_path);
         }
     }
     if (!eeg_sessions_.at(subject_index))
     {
-        if (!subject.eeg_mat_path.empty() && subject.eeg_mat_path.size() > 7 &&
-            subject.eeg_mat_path.substr(subject.eeg_mat_path.size() - 7) == ".sqlite")
+        if (!subject.eeg_path.empty() && subject.eeg_path.size() > 7 &&
+            subject.eeg_path.substr(subject.eeg_path.size() - 7) == ".sqlite")
         {
-            eeg_sessions_.at(subject_index) = std::make_unique<nn::dataLoaders::EEGMatSession>(
-                subject.eeg_mat_path, subject.subject_id);
+            eeg_sessions_.at(subject_index) =
+                std::make_unique<nn::dataLoaders::EEGSession>(subject.eeg_path, subject.subject_id);
         }
         else
         {
             eeg_sessions_.at(subject_index) =
-                std::make_unique<nn::dataLoaders::EEGMatSession>(subject.eeg_mat_path);
+                std::make_unique<nn::dataLoaders::EEGSession>(subject.eeg_path);
         }
     }
 }

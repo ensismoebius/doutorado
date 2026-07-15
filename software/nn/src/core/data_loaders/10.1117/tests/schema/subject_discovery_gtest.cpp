@@ -117,8 +117,8 @@ TEST_F(SubjectDiscoveryTest, SqliteAllowsNullSubjectNameAndMissingCountTables)
     ASSERT_EQ(subjects.size(), 1U);
     EXPECT_EQ(subjects[0].subject_id, 42);
     EXPECT_EQ(subjects[0].subject_name, "42");
-    EXPECT_EQ(subjects[0].eeg_mat_path, db_path.string());
-    EXPECT_EQ(subjects[0].audio_mat_path, db_path.string());
+    EXPECT_EQ(subjects[0].eeg_path, db_path.string());
+    EXPECT_EQ(subjects[0].audio_path, db_path.string());
     EXPECT_EQ(subjects[0].eeg_rows, 0U);
     EXPECT_EQ(subjects[0].audio_rows, 0U);
 }

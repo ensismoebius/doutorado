@@ -48,5 +48,5 @@ class EEGWindowDataset : public Dataset
     int windows_per_row_{0};
 
     std::vector<WindowIndex> index_table_;
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>> eeg_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>> eeg_sessions_;
 };

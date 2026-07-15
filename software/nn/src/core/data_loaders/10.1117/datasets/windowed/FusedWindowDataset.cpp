@@ -153,12 +153,11 @@ void FusedWindowDataset::ensure_sessions(std::size_t subject_idx) const
     if (!audio_sessions_[subject_idx])
     {
         audio_sessions_[subject_idx] =
-            std::make_unique<nn::dataLoaders::AudioMatSession>(sub.audio_mat_path);
+            std::make_unique<nn::dataLoaders::AudioSession>(sub.audio_path);
     }
     if (!eeg_sessions_[subject_idx])
     {
-        eeg_sessions_[subject_idx] =
-            std::make_unique<nn::dataLoaders::EEGMatSession>(sub.eeg_mat_path);
+        eeg_sessions_[subject_idx] = std::make_unique<nn::dataLoaders::EEGSession>(sub.eeg_path);
     }
 }
 

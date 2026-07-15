@@ -253,8 +253,8 @@ TEST_F(Dataset101117ModesTest, CollateFollowsModeConfigurationWithAlignedMapping
     SubjectFiles only_subject{};
     only_subject.subject_id = 99;
     only_subject.subject_name = "S99";
-    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
-    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_path = (subject_dir / "S99_Audio.mat").string();
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
@@ -293,8 +293,8 @@ TEST_F(Dataset101117ModesTest,
     SubjectFiles only_subject{};
     only_subject.subject_id = 99;
     only_subject.subject_name = "S99";
-    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
-    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_path = (subject_dir / "S99_Audio.mat").string();
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
@@ -360,8 +360,7 @@ TEST_F(Dataset101117ModesTest,
     }
 }
 
-TEST_F(
-    Dataset101117ModesTest, CollateConcatenatedModePreservesStackOrderAndLinearResampling)
+TEST_F(Dataset101117ModesTest, CollateConcatenatedModePreservesStackOrderAndLinearResampling)
 {
     const auto subject_dir = tmp_root_ / "S99";
     std::filesystem::create_directories(subject_dir);
@@ -370,8 +369,8 @@ TEST_F(
     SubjectFiles only_subject{};
     only_subject.subject_id = 99;
     only_subject.subject_name = "S99";
-    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
-    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_path = (subject_dir / "S99_Audio.mat").string();
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
@@ -489,8 +488,8 @@ TEST_F(Dataset101117ModesTest, CollateIntoResizesBatchBuffersPerMode)
     SubjectFiles only_subject{};
     only_subject.subject_id = 99;
     only_subject.subject_name = "S99";
-    only_subject.eeg_mat_path = (subject_dir / "S99_EEG.mat").string();
-    only_subject.audio_mat_path = (subject_dir / "S99_Audio.mat").string();
+    only_subject.eeg_path = (subject_dir / "S99_EEG.mat").string();
+    only_subject.audio_path = (subject_dir / "S99_Audio.mat").string();
     only_subject.eeg_rows = 3U;
     only_subject.audio_rows = 3U;
 
@@ -530,8 +529,8 @@ TEST_F(Dataset101117ModesTest, SqliteBackedSubjectsInitializeSessionsAndReadSamp
     SubjectFiles subject{};
     subject.subject_id = subject_id;
     subject.subject_name = "sqlite_subject";
-    subject.audio_mat_path = db_path;
-    subject.eeg_mat_path = db_path;
+    subject.audio_path = db_path;
+    subject.eeg_path = db_path;
     // Mock DB stores rows at audio_row={10,11}; use a range that includes them.
     subject.audio_rows = 12U;
     subject.eeg_rows = 2U;
@@ -557,8 +556,8 @@ TEST_F(Dataset101117ModesTest, GetSampleThrowsWhenStimulusLabelsAreMismatched)
     SubjectFiles only_subject{};
     only_subject.subject_id = 77;
     only_subject.subject_name = "S77";
-    only_subject.eeg_mat_path = (subject_dir / "S77_EEG.mat").string();
-    only_subject.audio_mat_path = (subject_dir / "S77_Audio.mat").string();
+    only_subject.eeg_path = (subject_dir / "S77_EEG.mat").string();
+    only_subject.audio_path = (subject_dir / "S77_Audio.mat").string();
     only_subject.eeg_rows = 1U;
     only_subject.audio_rows = 1U;
 

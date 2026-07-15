@@ -48,5 +48,5 @@ class AudioWindowDataset : public Dataset
     int windows_per_row_{0};
 
     std::vector<WindowIndex> index_table_;
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioSession>> audio_sessions_;
 };

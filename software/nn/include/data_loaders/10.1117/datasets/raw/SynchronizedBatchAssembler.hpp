@@ -26,8 +26,8 @@ class SynchronizedBatchAssembler
    public:
     static void assembleGrouped(const std::vector<std::vector<RowRequest>>& grouped,
         const std::vector<SubjectFiles>& subjects,
-        const std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>>& audio_sessions,
-        const std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>>& eeg_sessions,
+        const std::vector<std::unique_ptr<nn::dataLoaders::AudioSession>>& audio_sessions,
+        const std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>>& eeg_sessions,
         nn::Tensor& inputs,
         nn::Tensor& targets);
 };

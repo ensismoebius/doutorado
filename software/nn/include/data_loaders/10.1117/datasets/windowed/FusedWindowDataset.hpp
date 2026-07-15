@@ -62,6 +62,6 @@ class FusedWindowDataset : public Dataset
 
     std::vector<WindowIndex> index_table_;
 
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioMatSession>> audio_sessions_;
-    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGMatSession>> eeg_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::AudioSession>> audio_sessions_;
+    mutable std::vector<std::unique_ptr<nn::dataLoaders::EEGSession>> eeg_sessions_;
 };

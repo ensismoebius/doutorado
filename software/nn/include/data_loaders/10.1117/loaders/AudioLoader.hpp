@@ -26,20 +26,20 @@ struct AudioRowsFlat
     std::vector<int> eegIndices;
 };
 
-class AudioMatSession
+class AudioSession
 {
    public:
     // `filePath` may be either a path to a .mat file or a .sqlite database.
     // When using a sqlite DB, callers should provide `subject_id` so the
     // session can scope queries to a single subject. A value of -1 means
     // "no subject scope" (used for MAT-file mode).
-    explicit AudioMatSession(const std::string& filePath, int subject_id = -1);
-    ~AudioMatSession();
+    explicit AudioSession(const std::string& filePath, int subject_id = -1);
+    ~AudioSession();
 
-    AudioMatSession(const AudioMatSession&) = delete;
-    AudioMatSession& operator=(const AudioMatSession&) = delete;
-    AudioMatSession(AudioMatSession&&) noexcept;
-    AudioMatSession& operator=(AudioMatSession&&) noexcept;
+    AudioSession(const AudioSession&) = delete;
+    AudioSession& operator=(const AudioSession&) = delete;
+    AudioSession(AudioSession&&) noexcept;
+    AudioSession& operator=(AudioSession&&) noexcept;
 
     auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>;
     auto readRows(size_t startRow, size_t rowCount) const

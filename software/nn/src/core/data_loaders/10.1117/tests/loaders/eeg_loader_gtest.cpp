@@ -66,7 +66,7 @@ TEST(EEGLoaderTest, SessionSupportsRowsFlatMetadataAndCache)
 
     ASSERT_TRUE(writeMatDouble(fname, "EEG", rows, cols, data.data()));
 
-    nn::dataLoaders::EEGMatSession session(fname);
+    nn::dataLoaders::EEGSession session(fname);
     EXPECT_EQ(session.filePath(), fname);
     EXPECT_EQ(session.rowCount(), rows);
 
@@ -157,7 +157,7 @@ TEST(EEGLoaderTest, SessionConstructorRejectsMissingVariable)
     std::vector<double> data(rows * cols, 1.0);
     ASSERT_TRUE(writeMatDouble(fname, "NotEEG", rows, cols, data.data()));
 
-    EXPECT_THROW((void) nn::dataLoaders::EEGMatSession(fname), std::runtime_error);
+    EXPECT_THROW((void) nn::dataLoaders::EEGSession(fname), std::runtime_error);
     remove(fname.c_str());
 }
 
@@ -170,7 +170,7 @@ TEST(EEGLoaderTest, SessionConstructorRejectsWrongDimensionsAndType)
         const size_t cols = 24578;
         std::vector<double> data(rows * cols, 1.0);
         ASSERT_TRUE(writeMatDouble(bad_dims, "EEG", rows, cols, data.data()));
-        EXPECT_THROW((void) nn::dataLoaders::EEGMatSession(bad_dims), std::runtime_error);
+        EXPECT_THROW((void) nn::dataLoaders::EEGSession(bad_dims), std::runtime_error);
         remove(bad_dims.c_str());
     }
 
@@ -181,7 +181,7 @@ TEST(EEGLoaderTest, SessionConstructorRejectsWrongDimensionsAndType)
         const size_t cols = 24579;
         std::vector<float> data(rows * cols, 1.0F);
         ASSERT_TRUE(writeMatFloat(bad_type, "EEG", rows, cols, data.data()));
-        EXPECT_THROW((void) nn::dataLoaders::EEGMatSession(bad_type), std::runtime_error);
+        EXPECT_THROW((void) nn::dataLoaders::EEGSession(bad_type), std::runtime_error);
         remove(bad_type.c_str());
     }
 }
@@ -213,7 +213,7 @@ TEST(EEGLoaderTest, SessionCacheEvictionPath)
 
     ASSERT_TRUE(writeMatDouble(fname, "EEG", rows, cols, data.data()));
 
-    nn::dataLoaders::EEGMatSession session(fname);
+    nn::dataLoaders::EEGSession session(fname);
     for (size_t r = 0; r < rows; ++r)
     {
         auto [tensor, labels] = session.readRow(r);

@@ -2,7 +2,7 @@
  * @file AudioWindowDataset.cpp
  * @brief Implementation of AudioWindowDataset.
  *
- * Audio tensor from `AudioMatSession::readRow` has shape (audio_samples, 1),
+ * Audio tensor from `AudioSession::readRow` has shape (audio_samples, 1),
  * i.e., a column vector with 176 400 rows for the 10.1117 dataset.
  *
  * Window extraction:
@@ -90,8 +90,8 @@ void AudioWindowDataset::ensure_session(std::size_t subject_idx) const
 {
     if (!audio_sessions_[subject_idx])
     {
-        audio_sessions_[subject_idx] = std::make_unique<nn::dataLoaders::AudioMatSession>(
-            subjects_[subject_idx].audio_mat_path);
+        audio_sessions_[subject_idx] =
+            std::make_unique<nn::dataLoaders::AudioSession>(subjects_[subject_idx].audio_path);
     }
 }
 

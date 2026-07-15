@@ -2,7 +2,7 @@
  * @file EEGWindowDataset.cpp
  * @brief Implementation of EEGWindowDataset.
  *
- * EEG tensor from `EEGMatSession::readRow` has shape (eeg_channels, eeg_samples).
+ * EEG tensor from `EEGSession::readRow` has shape (eeg_channels, eeg_samples).
  * For the 10.1117 dataset: (6, 4096).
  *
  * Window extraction (channel-major output):
@@ -107,7 +107,7 @@ void EEGWindowDataset::ensure_session(std::size_t subject_idx) const
     if (!eeg_sessions_[subject_idx])
     {
         eeg_sessions_[subject_idx] =
-            std::make_unique<nn::dataLoaders::EEGMatSession>(subjects_[subject_idx].eeg_mat_path);
+            std::make_unique<nn::dataLoaders::EEGSession>(subjects_[subject_idx].eeg_path);
     }
 }
 

@@ -37,7 +37,7 @@ TEST(SqliteSession, AudioSessionMatchesBlobs)
     ASSERT_EQ(SQLITE_OK, sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr));
 
     // instantiate session for the subject
-    AudioMatSession session(db_path, subject_id);
+    AudioSession session(db_path, subject_id);
 
     // get up to 2 audio rows for this subject
     sqlite3_stmt* q = nullptr;
@@ -95,7 +95,7 @@ TEST(SqliteSession, EEGSessionMatchesBlobs)
     sqlite3* db = nullptr;
     ASSERT_EQ(SQLITE_OK, sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READONLY, nullptr));
 
-    EEGMatSession session(db_path, subject_id);
+    EEGSession session(db_path, subject_id);
 
     // select up to 2 trials that have original_row
     sqlite3_stmt* q = nullptr;

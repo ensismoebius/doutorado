@@ -131,7 +131,7 @@ auto readRowsAsDoubles(const mat_t* file, matvar_t* var, size_t startRow, size_t
 }
 } // namespace
 
-struct AudioMatSession::Impl
+struct AudioSession::Impl
 {
     std::string filePath;
     MatFilePtr matFile{nullptr};
@@ -144,7 +144,7 @@ struct AudioMatSession::Impl
     // shard support removed: always use MAT files
 };
 
-AudioMatSession::AudioMatSession(const std::string& filePath, int subject_id)
+AudioSession::AudioSession(const std::string& filePath, int subject_id)
     : impl_(std::make_unique<Impl>())
 {
     impl_->filePath = filePath;
@@ -205,7 +205,7 @@ AudioMatSession::AudioMatSession(const std::string& filePath, int subject_id)
     }
 }
 
-AudioMatSession::~AudioMatSession()
+AudioSession::~AudioSession()
 {
     if (impl_ && impl_->is_sqlite && impl_->db)
     {
@@ -213,10 +213,10 @@ AudioMatSession::~AudioMatSession()
         impl_->db = nullptr;
     }
 }
-AudioMatSession::AudioMatSession(AudioMatSession&&) noexcept = default;
-auto AudioMatSession::operator=(AudioMatSession&&) noexcept -> AudioMatSession& = default;
+AudioSession::AudioSession(AudioSession&&) noexcept = default;
+auto AudioSession::operator=(AudioSession&&) noexcept -> AudioSession& = default;
 
-auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
+auto AudioSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, int, int>
 {
     if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
     {
@@ -257,7 +257,7 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
             const void* blob = sqlite3_column_blob(stmt, 0);
             int bytes = sqlite3_column_bytes(stmt, 0);
             const size_t n = ImaginedSpeechSchema_10_1117.audioSamples();
-            const size_t expected_float  = n * sizeof(float);
+            const size_t expected_float = n * sizeof(float);
             const size_t expected_double = n * sizeof(double);
             float* dst = audioSamples.mutable_data_ptr();
             if (static_cast<size_t>(bytes) == expected_float)
@@ -338,7 +338,7 @@ auto AudioMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, i
     return result;
 }
 
-auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
+auto AudioSession::readRows(size_t startRow, size_t rowCount) const
     -> std::vector<std::tuple<nn::Tensor, int, int>>
 {
     if (rowCount == 0)
@@ -416,7 +416,7 @@ auto AudioMatSession::readRows(size_t startRow, size_t rowCount) const
     return out;
 }
 
-auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> AudioRowsFlat
+auto AudioSession::readRowsFlat(size_t startRow, size_t rowCount) const -> AudioRowsFlat
 {
     AudioRowsFlat out{};
     if (rowCount == 0)
@@ -470,7 +470,7 @@ auto AudioMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> Au
     return out;
 }
 
-auto AudioMatSession::rowCount() const -> size_t
+auto AudioSession::rowCount() const -> size_t
 {
     if (impl_->is_sqlite)
     {
@@ -492,7 +492,7 @@ auto AudioMatSession::rowCount() const -> size_t
     return impl_->audioVar ? impl_->audioVar->dims[0] : 0;
 }
 
-auto AudioMatSession::filePath() const -> const std::string&
+auto AudioSession::filePath() const -> const std::string&
 {
     return impl_->filePath;
 }
@@ -500,7 +500,7 @@ auto AudioMatSession::filePath() const -> const std::string&
 auto loadAudioFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<nn::Tensor, int, int>
 {
-    AudioMatSession session(filePath);
+    AudioSession session(filePath);
     return session.readRow(rowIndex);
 }
 

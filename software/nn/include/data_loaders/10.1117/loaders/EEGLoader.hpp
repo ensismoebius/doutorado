@@ -28,20 +28,20 @@ struct EEGRowsFlat
     std::vector<std::array<int, 3>> labels;
 };
 
-class EEGMatSession
+class EEGSession
 {
    public:
     // `filePath` may be either a path to a .mat file or a .sqlite database.
     // When using a sqlite DB, callers should provide `subject_id` so the
     // session can scope queries to a single subject. A value of -1 means
     // "no subject scope" (used for MAT-file mode).
-    explicit EEGMatSession(const std::string& filePath, int subject_id = -1);
-    ~EEGMatSession();
+    explicit EEGSession(const std::string& filePath, int subject_id = -1);
+    ~EEGSession();
 
-    EEGMatSession(const EEGMatSession&) = delete;
-    EEGMatSession& operator=(const EEGMatSession&) = delete;
-    EEGMatSession(EEGMatSession&&) noexcept;
-    EEGMatSession& operator=(EEGMatSession&&) noexcept;
+    EEGSession(const EEGSession&) = delete;
+    EEGSession& operator=(const EEGSession&) = delete;
+    EEGSession(EEGSession&&) noexcept;
+    EEGSession& operator=(EEGSession&&) noexcept;
 
     auto readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>;
     auto readRowsFlat(size_t startRow, size_t rowCount) const -> EEGRowsFlat;

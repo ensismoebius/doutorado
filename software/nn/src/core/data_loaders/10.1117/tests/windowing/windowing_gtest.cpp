@@ -352,8 +352,8 @@ class WindowingDatasetIntegrationTest : public ::testing::Test
 
         subject.subject_id = 1;
         subject.subject_name = "S01";
-        subject.eeg_mat_path = eeg.string();
-        subject.audio_mat_path = audio.string();
+        subject.eeg_path = eeg.string();
+        subject.audio_path = audio.string();
         subject.eeg_rows = 2U;
         subject.audio_rows = 2U;
     }

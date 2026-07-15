@@ -10,8 +10,8 @@
 #include <sqlite3.h>
 
 #include <algorithm>
-#include <filesystem>
 #include <data_loaders/mat_io/mat_file.hpp>
+#include <filesystem>
 #include <regex>
 #include <stdexcept>
 #include <string>
@@ -73,8 +73,8 @@ auto discoverSubjects(                       //
             const unsigned char* name = sqlite3_column_text(stmt, 1);
             info.subject_name =
                 name ? reinterpret_cast<const char*>(name) : std::to_string(info.subject_id);
-            info.eeg_mat_path = root_path.string();
-            info.audio_mat_path = root_path.string();
+            info.eeg_path = root_path.string();
+            info.audio_path = root_path.string();
 
             // Count eeg rows (trials with original_row not null) and audio rows
             sqlite3_stmt* cstmt = nullptr;
@@ -170,16 +170,16 @@ auto discoverSubjects(                       //
         SubjectFiles info{};
         info.subject_id = subject_id;
         info.subject_name = dir_name;
-        info.eeg_mat_path = eeg_path.string();
-        info.audio_mat_path = audio_path.string();
+        info.eeg_path = eeg_path.string();
+        info.audio_path = audio_path.string();
 
         try
         {
-            info.eeg_rows = eeg_is_shard ? matioCpp::utils::countShardRows(info.eeg_mat_path, "eeg")
-                                         : countMatRows(info.eeg_mat_path, kEegMatVariableName);
+            info.eeg_rows = eeg_is_shard ? matioCpp::utils::countShardRows(info.eeg_path, "eeg")
+                                         : countMatRows(info.eeg_path, kEegMatVariableName);
             info.audio_rows = audio_is_shard
-                                  ? matioCpp::utils::countShardRows(info.audio_mat_path, "audio")
-                                  : countMatRows(info.audio_mat_path, kAudioMatVariableName);
+                                  ? matioCpp::utils::countShardRows(info.audio_path, "audio")
+                                  : countMatRows(info.audio_path, kAudioMatVariableName);
         }
         catch (const std::exception&)
         {

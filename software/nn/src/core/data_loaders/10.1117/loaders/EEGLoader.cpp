@@ -153,7 +153,7 @@ auto readMatRows(const mat_t* matFile, matvar_t* var, size_t startRow, size_t ro
 }
 } // namespace
 
-struct EEGMatSession::Impl
+struct EEGSession::Impl
 {
     std::string filePath;
     SessionMatFilePtr matFile{nullptr};
@@ -166,7 +166,7 @@ struct EEGMatSession::Impl
     int subject_id = -1;
 };
 
-EEGMatSession::EEGMatSession(const std::string& filePath, int subject_id)
+EEGSession::EEGSession(const std::string& filePath, int subject_id)
     : impl_(std::make_unique<Impl>())
 {
     impl_->filePath = filePath;
@@ -229,7 +229,7 @@ EEGMatSession::EEGMatSession(const std::string& filePath, int subject_id)
     }
 }
 
-EEGMatSession::~EEGMatSession()
+EEGSession::~EEGSession()
 {
     if (impl_ && impl_->is_sqlite && impl_->db)
     {
@@ -237,10 +237,10 @@ EEGMatSession::~EEGMatSession()
         impl_->db = nullptr;
     }
 }
-EEGMatSession::EEGMatSession(EEGMatSession&&) noexcept = default;
-auto EEGMatSession::operator=(EEGMatSession&&) noexcept -> EEGMatSession& = default;
+EEGSession::EEGSession(EEGSession&&) noexcept = default;
+auto EEGSession::operator=(EEGSession&&) noexcept -> EEGSession& = default;
 
-auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
+auto EEGSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std::array<int, 3>>
 {
     if (const auto it = impl_->rowCache.find(rowIndex); it != impl_->rowCache.end())
     {
@@ -290,13 +290,12 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
                 const size_t n_samples =
                     nn::dataLoaders::ImaginedSpeechSchema_10_1117.eegSamplesPerChannel();
                 // DB stores float32; fall back to double32 detection for older DBs.
-                const size_t expected_float  = n_samples * sizeof(float);
+                const size_t expected_float = n_samples * sizeof(float);
                 const size_t expected_double = n_samples * sizeof(double);
                 if (static_cast<size_t>(bytes) == expected_float)
                 {
                     const float* src = reinterpret_cast<const float*>(blob);
-                    for (size_t s = 0; s < n_samples; ++s)
-                        eegChannels.at(ch, s) = src[s];
+                    for (size_t s = 0; s < n_samples; ++s) eegChannels.at(ch, s) = src[s];
                 }
                 else if (static_cast<size_t>(bytes) == expected_double)
                 {
@@ -379,7 +378,7 @@ auto EEGMatSession::readRow(size_t rowIndex) const -> std::tuple<nn::Tensor, std
     return result;
 }
 
-auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
+auto EEGSession::readRows(size_t startRow, size_t rowCount) const
     -> std::vector<std::tuple<nn::Tensor, std::array<int, 3>>>
 {
     if (rowCount == 0)
@@ -446,7 +445,7 @@ auto EEGMatSession::readRows(size_t startRow, size_t rowCount) const
     return out;
 }
 
-auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGRowsFlat
+auto EEGSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGRowsFlat
 {
     EEGRowsFlat out{};
     if (rowCount == 0)
@@ -509,7 +508,7 @@ auto EEGMatSession::readRowsFlat(size_t startRow, size_t rowCount) const -> EEGR
     return out;
 }
 
-auto EEGMatSession::rowCount() const -> size_t
+auto EEGSession::rowCount() const -> size_t
 {
     if (impl_->is_sqlite)
     {
@@ -531,7 +530,7 @@ auto EEGMatSession::rowCount() const -> size_t
     return impl_->eegVar ? impl_->eegVar->dims[0] : 0;
 }
 
-auto EEGMatSession::filePath() const -> const std::string&
+auto EEGSession::filePath() const -> const std::string&
 {
     return impl_->filePath;
 }
@@ -605,7 +604,7 @@ auto EEGLoader::readVariable(const std::string& name)
 auto loadEEGFromMat(const std::string& filePath, size_t rowIndex)
     -> std::tuple<nn::Tensor, std::array<int, 3>>
 {
-    EEGMatSession session(filePath);
+    EEGSession session(filePath);
     return session.readRow(rowIndex);
 }
 } // namespace nn::dataLoaders

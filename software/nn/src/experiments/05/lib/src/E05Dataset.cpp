@@ -17,11 +17,17 @@ namespace
 // Stimulus → text phrase mapping for the 10.1117 dataset.
 // Stimuli 1-5: vowels /a/ /e/ /i/ /o/ /u/
 // Stimuli 6-10: directional words
-static const std::vector<std::string> kStimulToPhrase = {
-    "",         // index 0 unused
-    "a", "e", "i", "o", "u",
-    "arriba", "abajo", "izquierda", "derecha", "adelante"
-};
+static const std::vector<std::string> kStimulToPhrase = {"", // index 0 unused
+    "a",
+    "e",
+    "i",
+    "o",
+    "u",
+    "arriba",
+    "abajo",
+    "izquierda",
+    "derecha",
+    "adelante"};
 
 std::string stimulus_to_phrase(int stim)
 {
@@ -44,8 +50,8 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
     int subjects_with_both = 0;
 
     const auto n_subjects = static_cast<float>(subjects.size());
-    uint32_t load_bar = nn::progress::ProgressManager::instance().create_bar(
-        "Loading dataset", n_subjects);
+    uint32_t load_bar =
+        nn::progress::ProgressManager::instance().create_bar("Loading dataset", n_subjects);
     nn::progress::ProgressManager::instance().set_description(
         load_bar, "Pairing audio+EEG trials per subject");
 
@@ -57,14 +63,14 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
     // absent are dropped to guarantee comparability across modality runs.
     for (const auto& sf : subjects)
     {
-        if (sf.audio_mat_path.empty() || sf.eeg_mat_path.empty())
+        if (sf.audio_path.empty() || sf.eeg_path.empty())
             continue; // skip subjects missing either modality
 
-        nn::dataLoaders::AudioMatSession audio_session(sf.audio_mat_path, sf.subject_id);
-        nn::dataLoaders::EEGMatSession   eeg_session  (sf.eeg_mat_path,   sf.subject_id);
+        nn::dataLoaders::AudioSession audio_session(sf.audio_path, sf.subject_id);
+        nn::dataLoaders::EEGSession eeg_session(sf.eeg_path, sf.subject_id);
 
         const size_t n_audio = audio_session.rowCount();
-        const size_t n_eeg   = eeg_session.rowCount();
+        const size_t n_eeg = eeg_session.rowCount();
         if (n_audio == 0 || n_eeg == 0) continue;
 
         int paired = 0;
@@ -73,18 +79,17 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
             auto [audio_tensor, stimulus, eeg_index] = audio_session.readRow(row);
 
             // eeg_index is 1-based in the dataset; convert to 0-based.
-            const size_t eeg_row = (eeg_index > 0)
-                ? static_cast<size_t>(eeg_index - 1)
-                : row; // fallback: same-row pairing
+            const size_t eeg_row = (eeg_index > 0) ? static_cast<size_t>(eeg_index - 1)
+                                                   : row; // fallback: same-row pairing
 
             if (eeg_row >= n_eeg) continue; // eeg_index out of range — drop trial
 
             auto [eeg_tensor, eeg_labels] = eeg_session.readRow(eeg_row);
 
             E05Sample sample;
-            sample.audio      = std::move(audio_tensor);
-            sample.eeg        = std::move(eeg_tensor);
-            sample.stimulus   = stimulus;
+            sample.audio = std::move(audio_tensor);
+            sample.eeg = std::move(eeg_tensor);
+            sample.stimulus = stimulus;
             sample.subject_id = sf.subject_id;
             sample.text_phrase = stimulus_to_phrase(stimulus);
             stimuli_seen.insert(stimulus);
@@ -106,7 +111,7 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
             "Check that each subject has both audio and EEG .mat files.");
 
     view.n_subjects = subjects_with_both;
-    view.n_stimuli  = static_cast<int>(stimuli_seen.size());
+    view.n_stimuli = static_cast<int>(stimuli_seen.size());
 
     // Apply max_samples limit (debug/smoke runs). Samples are stored
     // subject-contiguous, so a plain resize() to the first N would keep only the
@@ -149,9 +154,8 @@ auto load_dataset(const E05Config::Dataset& dataset_cfg) -> E05DatasetView
     return view;
 }
 
-auto make_text_split(const std::vector<E05Sample>& samples,
-    const std::string& text_mode,
-    uint32_t seed) -> TextSplit
+auto make_text_split(
+    const std::vector<E05Sample>& samples, const std::string& text_mode, uint32_t seed) -> TextSplit
 {
     if (text_mode == "dependent")
     {
@@ -163,7 +167,7 @@ auto make_text_split(const std::vector<E05Sample>& samples,
         size_t split_point = indices.size() * 8 / 10; // 80/20
         TextSplit ts;
         ts.train_indices = {indices.begin(), indices.begin() + static_cast<ptrdiff_t>(split_point)};
-        ts.test_indices  = {indices.begin() + static_cast<ptrdiff_t>(split_point), indices.end()};
+        ts.test_indices = {indices.begin() + static_cast<ptrdiff_t>(split_point), indices.end()};
         return ts;
     }
 
@@ -179,8 +183,8 @@ auto make_text_split(const std::vector<E05Sample>& samples,
         std::mt19937 rng(seed);
         std::shuffle(phrases.begin(), phrases.end(), rng);
         size_t phrase_split = phrases.size() / 2;
-        std::unordered_set<std::string> train_phrases(phrases.begin(),
-            phrases.begin() + static_cast<ptrdiff_t>(phrase_split));
+        std::unordered_set<std::string> train_phrases(
+            phrases.begin(), phrases.begin() + static_cast<ptrdiff_t>(phrase_split));
 
         TextSplit ts;
         for (size_t i = 0; i < samples.size(); ++i)

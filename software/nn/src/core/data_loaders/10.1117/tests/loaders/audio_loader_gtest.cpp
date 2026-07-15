@@ -110,7 +110,7 @@ TEST_F(AudioLoaderTest, ThrowsOnInvalidRowIndex)
 
 TEST_F(AudioLoaderTest, SessionSupportsRowsFlatAndMetadata)
 {
-    nn::dataLoaders::AudioMatSession session(testFile);
+    nn::dataLoaders::AudioSession session(testFile);
 
     EXPECT_EQ(session.filePath(), testFile);
     EXPECT_EQ(session.rowCount(), kNumRows);
@@ -136,7 +136,7 @@ TEST_F(AudioLoaderTest, SessionSupportsRowsFlatAndMetadata)
 
 TEST_F(AudioLoaderTest, SessionHandlesCacheAndRangeValidation)
 {
-    nn::dataLoaders::AudioMatSession session(testFile);
+    nn::dataLoaders::AudioSession session(testFile);
 
     auto first = session.readRows(0, 2);
     auto second = session.readRows(0, 2);
@@ -172,7 +172,7 @@ TEST(AudioLoaderStandaloneTest, SessionConstructorRejectsMissingVariable)
     file.write(wrong_var);
     file.close();
 
-    EXPECT_THROW((void) nn::dataLoaders::AudioMatSession(path), std::runtime_error);
+    EXPECT_THROW((void) nn::dataLoaders::AudioSession(path), std::runtime_error);
     std::remove(path.c_str());
 }
 
@@ -191,7 +191,7 @@ TEST(AudioLoaderStandaloneTest, SessionConstructorRejectsWrongDimensions)
     file.write(audio_data);
     file.close();
 
-    EXPECT_THROW((void) nn::dataLoaders::AudioMatSession(path), std::runtime_error);
+    EXPECT_THROW((void) nn::dataLoaders::AudioSession(path), std::runtime_error);
     std::remove(path.c_str());
 }
 
@@ -210,7 +210,7 @@ TEST(AudioLoaderStandaloneTest, SessionConstructorRejectsWrongType)
     file.write(audio_data);
     file.close();
 
-    EXPECT_THROW((void) nn::dataLoaders::AudioMatSession(path), std::runtime_error);
+    EXPECT_THROW((void) nn::dataLoaders::AudioSession(path), std::runtime_error);
     std::remove(path.c_str());
 }
 
@@ -239,7 +239,7 @@ TEST(AudioLoaderStandaloneTest, SessionCacheEvictionPath)
     file.write(audio_data);
     file.close();
 
-    nn::dataLoaders::AudioMatSession session(path);
+    nn::dataLoaders::AudioSession session(path);
     for (size_t r = 0; r < rows; ++r)
     {
         auto [samples, stimulus, eeg] = session.readRow(r);
