@@ -268,6 +268,50 @@ warnings. A full `cmake --build` reconfigure is currently blocked by an
 unrelated stale Python venv (`venv/bin/python` missing after a system Python
 upgrade to 3.14.6); not yet fixed.
 
+## OpenCL Device-Resident Fast Path (2026-07-15)
+
+Found while investigating why an SNN-AE Experiment05 profile ran ~9× slower
+under the `NN_BACKEND=OpenCL` preset than on the CPU backend (~0.4s per
+batch of 32×256 through a 3-layer autoencoder — transfer-bound, ~0% GPU
+compute): **every op paid a full host↔device round-trip on its inputs**.
+Each op began with `sync_gpu_if_needed()` (a blocking device→host download
+of whatever the previous kernel just produced), then re-uploaded both
+operands from the host mirror into pooled staging buffers — ignoring the
+operand's own live `m_gpu_buffer`. The file's latent "GPU-resident" branches
+(gated on `m_gpu_resident`) were unreachable in practice because training
+tensors are host-built and nothing ever set the flag.
+
+Fix, in `OpenCLTensorBackend.cpp`:
+
+- **`ensure_device_current(what)`** — makes the tensor's own persistent
+  buffer (allocated in the constructors) hold current data, uploading from
+  host only when `m_needs_sync_to_device`; marks the tensor resident so
+  later device-side writes are lazily pulled back by `sync_gpu_if_needed()`.
+- **Elementwise/inplace ops** (`add`, `subtract`, `multiply`, `divide`,
+  `exp`, `sqrt`, `square`, `abs`, `*_scalar`, `*_inplace`) got a uniform
+  fast path via 5 generic launchers (`launch_binary_resident` etc.) that
+  feed operands' buffers straight to kernels and leave results
+  device-resident — zero transfers for chained ops.
+- **All 35 latent resident gates** (matmul family, transpose, LIF, fill,
+  reductions, fused bias+activation variants) rewritten from
+  flag-checks to `ensure_device_current()`-based gates, making them
+  reachable for any tensor.
+- **Coherence fix this exposed**: ~29 sites wrote results back into host
+  storage via `m_backend->mutable_data_ptr()` (bypassing the flag-setting
+  wrapper) — harmless when every op re-uploaded from host, but stale-device
+  poison once ops trust `m_needs_sync_to_device`. All now call
+  `mark_host_dirty()` after the writeback. Caught by
+  `backend_parity_gtest`'s `ChainedOpsWithoutHostReads` (LIF spike
+  divergence) and `tensor_gtest`'s factory tests.
+
+Measured on the same 3-epoch SNN-AE probe: **~400s/epoch → ~82s/epoch
+(~5×)**. CPU (XTensor) still wins for these tiny tensors (~43s/epoch,
+kernel-launch overhead is irreducible), but the GPU path is no longer
+transfer-bound and scales properly with model size. Verified:
+`opencl_tensor_backend_gtest` (37), `backend_parity_gtest` (11),
+`pytorch_parity_gtest` (42), `tensor_gtest` (38) all pass under both the
+OpenCL and XTensor presets.
+
 ## Concurrent GPU Test Serialization (2026-07-15, revised same day)
 
 Two hard, reboot-requiring freezes hit this project's dev machine (AMD Renoir/

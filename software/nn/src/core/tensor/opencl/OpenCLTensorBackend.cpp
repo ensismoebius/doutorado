@@ -1174,6 +1174,11 @@ void OpenCLTensorBackend::set_time_slice(Index t, const OpenCLTensorBackend& val
 // In-place operations
 void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (shape() == other.shape() &&
+        launch_inplace_binary_resident("add_inplace_kernel", *this, other, "add_inplace"))
+        return;
+
     sync_gpu();
     other.sync_gpu();
     if (shape() != other.shape())
@@ -1190,8 +1195,8 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -1338,6 +1343,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
                         bytes,
                         "add_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -1368,6 +1374,7 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
             finish_queue_if_not_batching(ctx.get_queue(), "add_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -1380,6 +1387,11 @@ void OpenCLTensorBackend::add_inplace(const OpenCLTensorBackend& other)
 
 void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (shape() == other.shape() &&
+        launch_inplace_binary_resident("subtract_inplace_kernel", *this, other, "subtract_inplace"))
+        return;
+
     sync_gpu();
     other.sync_gpu();
     if (shape() != other.shape())
@@ -1397,8 +1409,8 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -1548,6 +1560,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
                         bytes,
                         "subtract_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -1579,6 +1592,7 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
             finish_queue_if_not_batching(ctx.get_queue(), "subtract_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -1592,6 +1606,11 @@ void OpenCLTensorBackend::subtract_inplace(const OpenCLTensorBackend& other)
 
 void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (shape() == other.shape() &&
+        launch_inplace_binary_resident("multiply_inplace_kernel", *this, other, "multiply_inplace"))
+        return;
+
     sync_gpu();
     other.sync_gpu();
     if (shape() != other.shape())
@@ -1609,8 +1628,8 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -1760,6 +1779,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
                         bytes,
                         "multiply_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -1791,6 +1811,7 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
             finish_queue_if_not_batching(ctx.get_queue(), "multiply_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -1804,6 +1825,11 @@ void OpenCLTensorBackend::multiply_inplace(const OpenCLTensorBackend& other)
 
 void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (shape() == other.shape() &&
+        launch_inplace_binary_resident("divide_inplace_kernel", *this, other, "divide_inplace"))
+        return;
+
     sync_gpu();
     other.sync_gpu();
     if (shape() != other.shape())
@@ -1821,8 +1847,8 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -1970,6 +1996,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
                         bytes,
                         "divide_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2001,6 +2028,7 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
             finish_queue_if_not_batching(ctx.get_queue(), "divide_inplace");
 
             a_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2014,6 +2042,11 @@ void OpenCLTensorBackend::divide_inplace(const OpenCLTensorBackend& other)
 
 void OpenCLTensorBackend::add_scalar_inplace(float val)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (launch_inplace_scalar_resident(
+            "add_scalar_inplace_kernel", *this, val, "add_scalar_inplace"))
+        return;
+
     sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("add_scalar_inplace"))
@@ -2025,7 +2058,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("add_scalar_inplace_kernel");
@@ -2118,6 +2151,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
                         bytes,
                         "add_scalar_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2148,6 +2182,7 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
             finish_queue_if_not_batching(ctx.get_queue(), "add_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2160,6 +2195,11 @@ void OpenCLTensorBackend::add_scalar_inplace(float val)
 
 void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (launch_inplace_scalar_resident(
+            "multiply_scalar_inplace_kernel", *this, val, "multiply_scalar_inplace"))
+        return;
+
     sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("multiply_scalar_inplace"))
@@ -2171,7 +2211,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("multiply_scalar_inplace_kernel");
@@ -2264,6 +2304,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
                         bytes,
                         "multiply_scalar_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2295,6 +2336,7 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
             finish_queue_if_not_batching(ctx.get_queue(), "multiply_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2307,6 +2349,11 @@ void OpenCLTensorBackend::multiply_scalar_inplace(float val)
 
 void OpenCLTensorBackend::divide_scalar_inplace(float val)
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    if (launch_inplace_scalar_resident(
+            "divide_scalar_inplace_kernel", *this, val, "divide_scalar_inplace"))
+        return;
+
     sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("divide_scalar_inplace"))
@@ -2318,7 +2365,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("divide_scalar_inplace_kernel");
@@ -2411,6 +2458,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
                         bytes,
                         "divide_scalar_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2441,6 +2489,7 @@ void OpenCLTensorBackend::divide_scalar_inplace(float val)
             finish_queue_if_not_batching(ctx.get_queue(), "divide_scalar_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2464,7 +2513,7 @@ void OpenCLTensorBackend::sqrt_inplace()
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("sqrt_inplace_kernel");
@@ -2552,6 +2601,7 @@ void OpenCLTensorBackend::sqrt_inplace()
                         bytes,
                         "sqrt_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2578,6 +2628,7 @@ void OpenCLTensorBackend::sqrt_inplace()
             finish_queue_if_not_batching(ctx.get_queue(), "sqrt_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2601,7 +2652,7 @@ void OpenCLTensorBackend::fill(float value)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel = opencl::KernelManager::instance().get_kernel("fill_kernel");
                 const cl_mem data_mem = m_gpu_buffer->buffer;
@@ -2686,6 +2737,7 @@ void OpenCLTensorBackend::fill(float value)
                         bytes,
                         "fill",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2713,6 +2765,7 @@ void OpenCLTensorBackend::fill(float value)
             finish_queue_if_not_batching(ctx.get_queue(), "fill");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2755,8 +2808,8 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
             const std::size_t bytes = n * sizeof(float);
             const std::size_t row_bytes = num_cols * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer && row.m_has_gpu_memory &&
-                row.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                row.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -2910,6 +2963,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
                         bytes,
                         "add_row_broadcast_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -2947,6 +3001,7 @@ void OpenCLTensorBackend::add_row_broadcast_inplace(const OpenCLTensorBackend& r
             finish_queue_if_not_batching(ctx.get_queue(), "add_row_broadcast_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -2988,7 +3043,7 @@ void OpenCLTensorBackend::square_inplace()
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("square_inplace_kernel");
@@ -3077,6 +3132,7 @@ void OpenCLTensorBackend::square_inplace()
                         bytes,
                         "square_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -3104,6 +3160,7 @@ void OpenCLTensorBackend::square_inplace()
             finish_queue_if_not_batching(ctx.get_queue(), "square_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -3147,8 +3204,8 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
             const std::size_t bytes = n * sizeof(float);
             const std::size_t col_bytes = num_cols * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer && col_vector.m_has_gpu_memory &&
-                col_vector.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                col_vector.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -3302,6 +3359,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
                         bytes,
                         "add_col_vector_to_rows_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -3339,6 +3397,7 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
             finish_queue_if_not_batching(ctx.get_queue(), "add_col_vector_to_rows_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -3353,6 +3412,12 @@ void OpenCLTensorBackend::add_col_vector_to_rows_inplace(const OpenCLTensorBacke
 // Element-wise operations
 OpenCLTensorBackend OpenCLTensorBackend::exp() const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_resident("exp_kernel", *this, fast_out, "exp")) return fast_out;
+    }
+
     sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("exp"))
@@ -3371,7 +3436,7 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -3529,6 +3594,12 @@ OpenCLTensorBackend OpenCLTensorBackend::exp() const
 
 OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_resident("sqrt_kernel", *this, fast_out, "sqrt")) return fast_out;
+    }
+
     sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("sqrt"))
@@ -3547,7 +3618,7 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -3705,6 +3776,12 @@ OpenCLTensorBackend OpenCLTensorBackend::sqrt() const
 
 OpenCLTensorBackend OpenCLTensorBackend::square() const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_resident("square_kernel", *this, fast_out, "square")) return fast_out;
+    }
+
     sync_gpu();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("square"))
@@ -3838,6 +3915,15 @@ OpenCLTensorBackend OpenCLTensorBackend::square() const
 
 OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) const
 {
+    // Device-resident fast path: operands' device copies are used directly
+    // (uploaded once into their persistent buffers when stale); the result
+    // stays on the GPU and is synced to host lazily.
+    if (shape() == other.shape())
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_binary_resident("add_kernel", *this, other, fast_out, "add")) return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -3906,7 +3992,7 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
                     finish_queue_if_not_batching(ctx.get_queue(), "clFinish(add)");
 
                     // GPU-resident mode: keep result on GPU
-                    if (m_gpu_resident)
+                    if (ensure_device_current("resident gate"))
                     {
                         OpenCLTensorBackend t;
                         t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
@@ -3979,6 +4065,16 @@ OpenCLTensorBackend OpenCLTensorBackend::add(const OpenCLTensorBackend& other) c
 
 OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& other) const
 {
+    // Device-resident fast path: operands' device copies are used directly
+    // (uploaded once into their persistent buffers when stale); the result
+    // stays on the GPU and is synced to host lazily.
+    if (shape() == other.shape())
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_binary_resident("subtract_kernel", *this, other, fast_out, "subtract"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4048,7 +4144,7 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
                     finish_queue_if_not_batching(ctx.get_queue(), "clFinish(subtract)");
 
                     // GPU-resident mode: keep result on GPU
-                    if (m_gpu_resident)
+                    if (ensure_device_current("resident gate"))
                     {
                         OpenCLTensorBackend t;
                         t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
@@ -4121,6 +4217,16 @@ OpenCLTensorBackend OpenCLTensorBackend::subtract(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& other) const
 {
+    // Device-resident fast path: operands' device copies are used directly
+    // (uploaded once into their persistent buffers when stale); the result
+    // stays on the GPU and is synced to host lazily.
+    if (shape() == other.shape())
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_binary_resident("multiply_kernel", *this, other, fast_out, "multiply"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4190,7 +4296,7 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
                     finish_queue_if_not_batching(ctx.get_queue(), "clFinish(multiply)");
 
                     // GPU-resident mode: keep result on GPU
-                    if (m_gpu_resident)
+                    if (ensure_device_current("resident gate"))
                     {
                         OpenCLTensorBackend t;
                         t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
@@ -4263,6 +4369,16 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply(const OpenCLTensorBackend& oth
 
 OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other) const
 {
+    // Device-resident fast path: operands' device copies are used directly
+    // (uploaded once into their persistent buffers when stale); the result
+    // stays on the GPU and is synced to host lazily.
+    if (shape() == other.shape())
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_binary_resident("divide_kernel", *this, other, fast_out, "divide"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4332,7 +4448,7 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
                     finish_queue_if_not_batching(ctx.get_queue(), "clFinish(divide)");
 
                     // GPU-resident mode: keep result on GPU
-                    if (m_gpu_resident)
+                    if (ensure_device_current("resident gate"))
                     {
                         OpenCLTensorBackend t;
                         t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
@@ -4405,6 +4521,13 @@ OpenCLTensorBackend OpenCLTensorBackend::divide(const OpenCLTensorBackend& other
 
 OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_scalar_resident("add_scalar_kernel", *this, val, fast_out, "add_scalar"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4516,6 +4639,14 @@ OpenCLTensorBackend OpenCLTensorBackend::add_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_scalar_resident(
+                "multiply_scalar_kernel", *this, val, fast_out, "multiply_scalar"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4628,6 +4759,14 @@ OpenCLTensorBackend OpenCLTensorBackend::multiply_scalar(float val) const
 
 OpenCLTensorBackend OpenCLTensorBackend::divide_scalar(float val) const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_scalar_resident(
+                "divide_scalar_kernel", *this, val, fast_out, "divide_scalar"))
+            return fast_out;
+    }
+
     // Lazy-sync guard: a GPU-resident operand may hold stale host data
     // (m_needs_sync_to_host). This op reads host pointers, so pull the
     // device result down first (no-op when already in sync).
@@ -4761,7 +4900,7 @@ OpenCLTensorBackend OpenCLTensorBackend::rowwise_sum() const
 
             OpenCLHostStorage out(num_rows, 1);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -4954,8 +5093,8 @@ float OpenCLTensorBackend::mean_squared_error(const OpenCLTensorBackend& target)
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (pool && m_gpu_resident && m_has_gpu_memory && target.m_gpu_resident &&
-                target.m_has_gpu_memory && m_gpu_buffer && target.m_gpu_buffer)
+            if (pool && ensure_device_current("resident gate") &&
+                target.ensure_device_current("resident gate"))
             {
                 auto partial_buf = pool->acquire(partial_bytes);
                 if (partial_buf)
@@ -5148,7 +5287,7 @@ float OpenCLTensorBackend::sum() const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (pool && m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto partial_buf = pool->acquire(partial_bytes);
                 if (partial_buf)
@@ -5318,6 +5457,12 @@ bool OpenCLTensorBackend::hasNaN() const
 
 OpenCLTensorBackend OpenCLTensorBackend::abs() const
 {
+    // Device-resident fast path (see add() for the pattern rationale).
+    {
+        OpenCLTensorBackend fast_out(shape());
+        if (launch_unary_resident("abs_kernel", *this, fast_out, "abs")) return fast_out;
+    }
+
     sync_gpu_if_needed();
     // cppcheck-suppress knownConditionTrueFalse
     if (can_use_opencl("abs"))
@@ -5336,7 +5481,7 @@ OpenCLTensorBackend OpenCLTensorBackend::abs() const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -5512,7 +5657,7 @@ OpenCLTensorBackend OpenCLTensorBackend::relu() const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -5688,7 +5833,7 @@ OpenCLTensorBackend OpenCLTensorBackend::leaky_relu(float alpha) const
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -5959,10 +6104,13 @@ void OpenCLTensorBackend::lif_step_inplace(const OpenCLTensorBackend& input,
             finish_queue_if_not_batching(ctx.get_queue(), "lif_step_inplace");
 
             v_mem_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             output_dev.copy_from_device(output.m_backend->mutable_data_ptr());
+            output.mark_host_dirty();
             if (use_adaptation)
             {
                 adapt_dev->copy_from_device(adapt_a->m_backend->mutable_data_ptr());
+                adapt_a->mark_host_dirty();
             }
             return;
         }
@@ -6054,7 +6202,7 @@ OpenCLTensorBackend OpenCLTensorBackend::clamp(float min_val, float max_val) con
 
             tensor::GPUBufferPool* pool = OpenCLTensorBackend::get_buffer_pool();
 
-            if (m_gpu_resident && m_has_gpu_memory && pool)
+            if (pool && ensure_device_current("resident gate"))
             {
                 auto out_buf = pool->acquire(bytes);
                 if (out_buf && m_gpu_buffer)
@@ -6231,7 +6379,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
             if (n == 0) return;
             const std::size_t bytes = n * sizeof(float);
 
-            if (m_gpu_resident && m_has_gpu_memory && m_gpu_buffer)
+            if (ensure_device_current("resident gate"))
             {
                 cl_kernel kernel =
                     opencl::KernelManager::instance().get_kernel("clamp_inplace_kernel");
@@ -6325,6 +6473,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
                         bytes,
                         "clamp_inplace",
                         &d2h_evt);
+                    mark_host_dirty();
 
                     if (kernel_evt) clReleaseEvent(kernel_evt);
                     record_pending_gpu_op(d2h_evt);
@@ -6353,6 +6502,7 @@ void OpenCLTensorBackend::clamp_inplace(float min_val, float max_val)
             finish_queue_if_not_batching(ctx.get_queue(), "clamp_inplace");
 
             data_dev.copy_from_device(m_backend->mutable_data_ptr());
+            mark_host_dirty();
             return;
         }
         catch (const std::exception& e)
@@ -6394,8 +6544,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul(const OpenCLTensorBackend& other
             const std::size_t c_bytes = m * n * sizeof(float);
             OpenCLHostStorage out(m, n);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -6596,8 +6746,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed(const OpenCLTensorBac
             const std::size_t c_bytes = m * n * sizeof(float);
             OpenCLHostStorage out(m, n);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -6800,8 +6950,8 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_lhs_transposed(
             const std::size_t c_bytes = k * n * sizeof(float);
             OpenCLHostStorage out(k, n);
 
-            if (m_gpu_resident && other.m_gpu_resident && m_has_gpu_memory &&
-                other.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer)
+            if (ensure_device_current("resident gate") &&
+                other.ensure_device_current("resident gate"))
             {
                 if (m_needs_sync_to_device)
                 {
@@ -7023,9 +7173,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias(
         const std::size_t c_bytes = m * n * sizeof(float);
         OpenCLHostStorage out(m, n);
 
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
-            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
-            bias.m_gpu_buffer)
+        if (ensure_device_current("resident gate") &&
+            other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate"))
         {
             if (m_needs_sync_to_device)
             {
@@ -7240,9 +7390,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_sigmoid(
         OpenCLHostStorage out(m, n);
         constexpr const char* kname = "matmul_rhs_transposed_bias_sigmoid_kernel";
 
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
-            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
-            bias.m_gpu_buffer)
+        if (ensure_device_current("resident gate") &&
+            other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate"))
         {
             if (m_needs_sync_to_device)
             {
@@ -7417,9 +7567,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_tanh(
         OpenCLHostStorage out(m, n);
         constexpr const char* kname = "matmul_rhs_transposed_bias_tanh_kernel";
 
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
-            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
-            bias.m_gpu_buffer)
+        if (ensure_device_current("resident gate") &&
+            other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate"))
         {
             if (m_needs_sync_to_device)
             {
@@ -7594,9 +7744,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_relu(
         OpenCLHostStorage out(m, n);
 
         // GPU-resident fast path
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
-            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
-            bias.m_gpu_buffer)
+        if (ensure_device_current("resident gate") &&
+            other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate"))
         {
             if (m_needs_sync_to_device)
             {
@@ -7800,9 +7950,9 @@ OpenCLTensorBackend OpenCLTensorBackend::matmul_transposed_add_col_bias_leaky_re
         OpenCLHostStorage out(m, n);
 
         // GPU-resident fast path
-        if (m_gpu_resident && other.m_gpu_resident && bias.m_gpu_resident && m_has_gpu_memory &&
-            other.m_has_gpu_memory && bias.m_has_gpu_memory && m_gpu_buffer && other.m_gpu_buffer &&
-            bias.m_gpu_buffer)
+        if (ensure_device_current("resident gate") &&
+            other.ensure_device_current("resident gate") &&
+            bias.ensure_device_current("resident gate"))
         {
             if (m_needs_sync_to_device)
             {
@@ -8049,7 +8199,7 @@ OpenCLTensorBackend OpenCLTensorBackend::transpose() const
                     finish_queue_if_not_batching(ctx.get_queue(), "clFinish(transpose)");
 
                     // GPU-resident mode: keep result on GPU
-                    if (m_gpu_resident)
+                    if (ensure_device_current("resident gate"))
                     {
                         OpenCLTensorBackend t;
                         t.m_backend = std::make_unique<OpenCLHostStorage>(std::move(out));
@@ -9519,6 +9669,249 @@ tensor::GPUBufferPool* OpenCLTensorBackend::get_buffer_pool()
 {
     std::lock_guard<std::mutex> lock(g_buffer_pool_mutex);
     return g_buffer_pool.get();
+}
+
+// ── Device-resident fast path (see header) ─────────────────────────────────
+
+bool OpenCLTensorBackend::ensure_device_current(const char* what) const
+{
+    if (!m_backend || size() == 0) return false;
+    if (!m_has_gpu_memory || !m_gpu_buffer)
+    {
+        // Lazily allocating the persistent buffer is logically non-mutating
+        // (a cache of the same value), hence the const_cast — same rationale
+        // as the mutable sync flags.
+        auto* self = const_cast<OpenCLTensorBackend*>(this);
+        self->try_allocate_gpu_buffer(size());
+        if (!m_has_gpu_memory || !m_gpu_buffer) return false;
+    }
+    if (m_needs_sync_to_device)
+    {
+        const auto& ctx = opencl::OpenCLContext::instance();
+        copy_host_to_device(ctx.get_queue(),
+            m_gpu_buffer->buffer,
+            m_backend->data_ptr(),
+            size() * sizeof(float),
+            what);
+        m_needs_sync_to_device = false;
+    }
+    // The device copy is now current: opt this tensor into the resident
+    // lifecycle so a later device-side write (which sets
+    // m_needs_sync_to_host) is lazily pulled back by sync_gpu_if_needed().
+    // Without this, kernels writing into a tensor that entered non-resident
+    // would leave host reads (at(), data_ptr()) permanently stale.
+    const_cast<OpenCLTensorBackend*>(this)->m_gpu_resident = true;
+    return true;
+}
+
+bool OpenCLTensorBackend::launch_binary_resident(const char* kernel_name,
+    const OpenCLTensorBackend& a,
+    const OpenCLTensorBackend& b,
+    OpenCLTensorBackend& out,
+    const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    try
+    {
+        if (!a.ensure_device_current(what) || !b.ensure_device_current(what)) return false;
+        if (!out.m_gpu_buffer)
+        {
+            out.try_allocate_gpu_buffer(out.size());
+            if (!out.m_gpu_buffer) return false;
+        }
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+        const cl_mem a_mem = a.m_gpu_buffer->buffer;
+        const cl_mem b_mem = b.m_gpu_buffer->buffer;
+        const cl_mem out_mem = out.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(a.size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &out_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), what);
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(a.size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        out.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("resident fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
+}
+
+bool OpenCLTensorBackend::launch_unary_resident(const char* kernel_name,
+    const OpenCLTensorBackend& a,
+    OpenCLTensorBackend& out,
+    const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    try
+    {
+        if (!a.ensure_device_current(what)) return false;
+        if (!out.m_gpu_buffer)
+        {
+            out.try_allocate_gpu_buffer(out.size());
+            if (!out.m_gpu_buffer) return false;
+        }
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+        const cl_mem a_mem = a.m_gpu_buffer->buffer;
+        const cl_mem out_mem = out.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(a.size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), what);
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(a.size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        out.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("resident fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
+}
+
+bool OpenCLTensorBackend::launch_unary_scalar_resident(const char* kernel_name,
+    const OpenCLTensorBackend& a,
+    float scalar,
+    OpenCLTensorBackend& out,
+    const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    try
+    {
+        if (!a.ensure_device_current(what)) return false;
+        if (!out.m_gpu_buffer)
+        {
+            out.try_allocate_gpu_buffer(out.size());
+            if (!out.m_gpu_buffer) return false;
+        }
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+        const cl_mem a_mem = a.m_gpu_buffer->buffer;
+        const cl_mem out_mem = out.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(a.size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &out_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(float), &scalar), what);
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_uint), &n_u32), what);
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(a.size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        out.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("resident fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
+}
+
+bool OpenCLTensorBackend::launch_inplace_binary_resident(
+    const char* kernel_name, OpenCLTensorBackend& a, const OpenCLTensorBackend& b, const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    try
+    {
+        if (!a.ensure_device_current(what) || !b.ensure_device_current(what)) return false;
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+        const cl_mem a_mem = a.m_gpu_buffer->buffer;
+        const cl_mem b_mem = b.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(a.size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &b_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), what);
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(a.size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        a.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("resident fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
+}
+
+bool OpenCLTensorBackend::launch_inplace_scalar_resident(
+    const char* kernel_name, OpenCLTensorBackend& a, float scalar, const char* what)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl(what)) return false;
+    try
+    {
+        if (!a.ensure_device_current(what)) return false;
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel(kernel_name);
+        const cl_mem a_mem = a.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(a.size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &a_mem), what);
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(float), &scalar), what);
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_uint), &n_u32), what);
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(a.size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            what);
+        finish_queue_if_not_batching(ctx.get_queue(), what);
+        a.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(
+            std::string("resident fast path failed, falling back: ") + what + ": " + e.what());
+        return false;
+    }
 }
 
 void OpenCLTensorBackend::sync_gpu() const

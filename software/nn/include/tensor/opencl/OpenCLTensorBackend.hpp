@@ -410,6 +410,54 @@ class OpenCLTensorBackend
     }
 
    private:
+    // ── Device-resident fast path ────────────────────────────────────────────
+    // Every tensor owns a persistent GPU buffer (allocated in the constructors
+    // via try_allocate_gpu_buffer). ensure_device_current() makes that buffer
+    // hold the tensor's current data, uploading from host only when the host
+    // copy is newer (m_needs_sync_to_device). Ops then feed operands' own
+    // buffers straight to kernels — no per-op host round-trip — and leave the
+    // result device-resident (host mirror synced lazily on first host access).
+    // Returns false when no buffer could be allocated; callers fall back to
+    // the legacy host-staged path.
+    bool ensure_device_current(const char* what) const;
+
+    // Kernel launchers over resident buffers. Each returns false (after
+    // logging) when the fast path can't run — OpenCL unavailable, a buffer
+    // missing, or a CL call failed — so call sites fall back to the legacy
+    // path. Kernel arg orders match KernelManager.cpp:
+    //   binary:        (A, B, out, n)      unary:         (in, out, n)
+    //   unary_scalar:  (in, out, scalar, n)
+    //   inplace_binary:(A, B, n)           inplace_scalar:(A, scalar, n)
+    static bool launch_binary_resident(const char* kernel_name,
+        const OpenCLTensorBackend& a,
+        const OpenCLTensorBackend& b,
+        OpenCLTensorBackend& out,
+        const char* what);
+    static bool launch_unary_resident(const char* kernel_name,
+        const OpenCLTensorBackend& a,
+        OpenCLTensorBackend& out,
+        const char* what);
+    static bool launch_unary_scalar_resident(const char* kernel_name,
+        const OpenCLTensorBackend& a,
+        float scalar,
+        OpenCLTensorBackend& out,
+        const char* what);
+    static bool launch_inplace_binary_resident(const char* kernel_name,
+        OpenCLTensorBackend& a,
+        const OpenCLTensorBackend& b,
+        const char* what);
+    static bool launch_inplace_scalar_resident(
+        const char* kernel_name, OpenCLTensorBackend& a, float scalar, const char* what);
+
+    // Marks the result of a device kernel: device copy is authoritative,
+    // host mirror stale until lazily synced.
+    void mark_device_result()
+    {
+        m_gpu_resident = true;
+        m_needs_sync_to_host = true;
+        m_needs_sync_to_device = false;
+    }
+
     std::unique_ptr<OpenCLHostStorage> m_backend;
     std::unique_ptr<OpenCLTensorBackend> m_grad_backend;
     std::unique_ptr<tensor::GPUBuffer> m_gpu_buffer;
