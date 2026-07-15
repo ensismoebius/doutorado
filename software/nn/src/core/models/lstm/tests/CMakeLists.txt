@@ -26,7 +26,7 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/models
 )
 
-gtest_discover_tests(lstm_autoencoder_gtest)
+nn_gtest_discover_tests(lstm_autoencoder_gtest)
 
 ##
 ## lstm_batch_gtest: tests for LSTMLayer batch support (forward_batch / backward_batch)
@@ -52,4 +52,4 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/models
 )
 
-gtest_discover_tests(lstm_batch_gtest)
+nn_gtest_discover_tests(lstm_batch_gtest)

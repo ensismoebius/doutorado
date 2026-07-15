@@ -29,4 +29,4 @@ target_include_directories(fft_demo_gtest
 configure_xtensor_parallel_target(fft_demo_gtest)
 
 include(GoogleTest)
-gtest_discover_tests(fft_demo_gtest)
+nn_gtest_discover_tests(fft_demo_gtest)

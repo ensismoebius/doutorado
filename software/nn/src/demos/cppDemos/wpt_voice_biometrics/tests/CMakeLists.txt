@@ -34,4 +34,4 @@ target_include_directories(wpt_voice_biometrics_gtest
 configure_xtensor_parallel_target(wpt_voice_biometrics_gtest)
 
 include(GoogleTest)
-gtest_discover_tests(wpt_voice_biometrics_gtest)
+nn_gtest_discover_tests(wpt_voice_biometrics_gtest)

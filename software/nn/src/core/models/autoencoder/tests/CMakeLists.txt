@@ -27,4 +27,4 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/models
 )
 
-gtest_discover_tests(autoencoder_config_gtest)
+nn_gtest_discover_tests(autoencoder_config_gtest)

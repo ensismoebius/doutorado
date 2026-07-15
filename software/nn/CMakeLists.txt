@@ -73,6 +73,12 @@ include(cmake/DevAndAnalysisTargets.cmake)
 # Enforce backend implementation reference boundaries.
 include(cmake/BackendImplementationGuard.cmake)
 
+# nn_gtest_discover_tests(): serializes GPU-touching tests against each other
+# so `ctest -jN` can't submit concurrent GPU kernels from independent
+# processes — this has caused hard, reboot-requiring hangs on this project's
+# dev hardware. Every gtest_discover_tests() call should use this wrapper.
+include(cmake/GpuTestSerialization.cmake)
+
 # Sets up the flags for CMake and compiler
 include(cmake/Flags.cmake)
 

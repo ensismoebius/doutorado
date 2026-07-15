@@ -17,7 +17,7 @@ target_link_libraries(e05_profile_audit_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(e05_profile_audit_gtest)
+nn_gtest_discover_tests(e05_profile_audit_gtest)
 configure_xtensor_parallel_target(e05_profile_audit_gtest)
 
 # ── Feature extraction unit tests ────────────────────────────────────────────
@@ -39,7 +39,7 @@ target_link_libraries(e05_feature_extraction_gtest
         cnpy-static
 )
 
-gtest_discover_tests(e05_feature_extraction_gtest)
+nn_gtest_discover_tests(e05_feature_extraction_gtest)
 configure_xtensor_parallel_target(e05_feature_extraction_gtest)
 
 # ── Classifier unit tests ────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ target_link_libraries(e05_classifiers_gtest
         OpenMP::OpenMP_CXX
 )
 
-gtest_discover_tests(e05_classifiers_gtest)
+nn_gtest_discover_tests(e05_classifiers_gtest)
 configure_xtensor_parallel_target(e05_classifiers_gtest)
 
 # ── Output-artifact contract tests ──────────────────────────────────────────
@@ -85,5 +85,5 @@ target_link_libraries(e05_output_gtest
         OpenMP::OpenMP_CXX
 )
 
-gtest_discover_tests(e05_output_gtest)
+nn_gtest_discover_tests(e05_output_gtest)
 configure_xtensor_parallel_target(e05_output_gtest)

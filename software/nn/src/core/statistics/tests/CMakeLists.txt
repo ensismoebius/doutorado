@@ -37,9 +37,9 @@ target_link_libraries(kfold_gtest
         google_test
 )
 
-gtest_discover_tests(statistics_gtest)
-gtest_discover_tests(confusionMatrix_gtest)
-gtest_discover_tests(kfold_gtest)
+nn_gtest_discover_tests(statistics_gtest)
+nn_gtest_discover_tests(confusionMatrix_gtest)
+nn_gtest_discover_tests(kfold_gtest)
 
 add_executable(eer_scorer_gtest
     eer_scorer_gtest.cpp
@@ -51,4 +51,4 @@ target_link_libraries(eer_scorer_gtest
         google_test
 )
 
-gtest_discover_tests(eer_scorer_gtest)
+nn_gtest_discover_tests(eer_scorer_gtest)

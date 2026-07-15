@@ -24,5 +24,5 @@ target_link_libraries(experiment_03_autoencoder_redesign_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(experiment_03_autoencoder_redesign_gtest)
+nn_gtest_discover_tests(experiment_03_autoencoder_redesign_gtest)
 configure_xtensor_parallel_target(experiment_03_autoencoder_redesign_gtest)

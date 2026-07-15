@@ -35,4 +35,4 @@ target_include_directories(core_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(core_gtest)
+nn_gtest_discover_tests(core_gtest)

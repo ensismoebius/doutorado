@@ -23,7 +23,7 @@ target_include_directories(tensor_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(tensor_gtest)
+nn_gtest_discover_tests(tensor_gtest)
 configure_xtensor_parallel_target(tensor_gtest)
 
 add_executable(tensor_all_backends_gtest tensor_all_backends_gtest.cpp)
@@ -40,7 +40,7 @@ target_include_directories(tensor_all_backends_gtest
         ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(tensor_all_backends_gtest)
+nn_gtest_discover_tests(tensor_all_backends_gtest)
 configure_xtensor_parallel_target(tensor_all_backends_gtest)
 
 # Device backend tests (skeleton implementation delegated to xtensor host mirror)
@@ -58,7 +58,7 @@ target_include_directories(device_backend_gtest
          ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(device_backend_gtest)
+nn_gtest_discover_tests(device_backend_gtest)
 configure_xtensor_parallel_target(device_backend_gtest)
 
 add_executable(opencl_tensor_backend_gtest opencl_tensor_backend_gtest.cpp)
@@ -75,7 +75,7 @@ target_include_directories(opencl_tensor_backend_gtest
          ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(opencl_tensor_backend_gtest)
+nn_gtest_discover_tests(opencl_tensor_backend_gtest)
 configure_xtensor_parallel_target(opencl_tensor_backend_gtest)
 
 add_executable(tensor_backend_switchability_gtest tensor_backend_switchability_gtest.cpp)
@@ -97,7 +97,7 @@ target_compile_definitions(tensor_backend_switchability_gtest
         NN_PROJECT_ROOT="${CMAKE_SOURCE_DIR}"
 )
 
-gtest_discover_tests(tensor_backend_switchability_gtest)
+nn_gtest_discover_tests(tensor_backend_switchability_gtest)
 configure_xtensor_parallel_target(tensor_backend_switchability_gtest)
 
 add_executable(gpu_buffer_pool_gtest gpu_buffer_pool_gtest.cpp)
@@ -113,7 +113,7 @@ target_include_directories(gpu_buffer_pool_gtest
         ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(gpu_buffer_pool_gtest)
+nn_gtest_discover_tests(gpu_buffer_pool_gtest)
 
 add_executable(tensor_perf_bench tensor_perf_bench.cpp)
 
@@ -165,7 +165,7 @@ target_include_directories(backend_parity_gtest
          ${CMAKE_SOURCE_DIR}/src
 )
 
-gtest_discover_tests(backend_parity_gtest)
+nn_gtest_discover_tests(backend_parity_gtest)
 configure_xtensor_parallel_target(backend_parity_gtest)
 
 # SYCL parity suite: only meaningful (and only linkable) when the tensor lib
@@ -185,7 +185,7 @@ if(NN_BACKEND STREQUAL "SYCL")
              ${CMAKE_SOURCE_DIR}/src
     )
 
-    gtest_discover_tests(sycl_backend_parity_gtest)
+    nn_gtest_discover_tests(sycl_backend_parity_gtest FORCE_GPU_LOCK)
     configure_xtensor_parallel_target(sycl_backend_parity_gtest)
 endif()
 
@@ -218,5 +218,5 @@ target_include_directories(pytorch_parity_gtest
 
 set_target_properties(pytorch_parity_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-gtest_discover_tests(pytorch_parity_gtest)
+nn_gtest_discover_tests(pytorch_parity_gtest FORCE_GPU_LOCK)
 configure_xtensor_parallel_target(pytorch_parity_gtest)

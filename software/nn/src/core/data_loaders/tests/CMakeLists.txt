@@ -46,6 +46,6 @@ target_link_libraries(dataLoaders_gtest
 
 configure_xtensor_parallel_target(dataLoaders_gtest)
 include(GoogleTest)
-gtest_discover_tests(dataLoaders_gtest)
+nn_gtest_discover_tests(dataLoaders_gtest)
 
 add_subdirectory(MatTestUtils)

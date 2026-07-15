@@ -30,7 +30,7 @@ target_include_directories(
 set_target_properties(layers_gtest PROPERTIES CXX_CLANG_TIDY "")
 
 include(GoogleTest)
-gtest_discover_tests(layers_gtest)
+nn_gtest_discover_tests(layers_gtest)
 configure_xtensor_parallel_target(layers_gtest)
 
 ##
@@ -56,7 +56,7 @@ target_include_directories(fundamental_mechanisms_gtest
 
 set_target_properties(fundamental_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-gtest_discover_tests(fundamental_mechanisms_gtest)
+nn_gtest_discover_tests(fundamental_mechanisms_gtest)
 configure_xtensor_parallel_target(fundamental_mechanisms_gtest)
 
 ##
@@ -85,7 +85,7 @@ target_include_directories(spiking_mechanisms_gtest
 
 set_target_properties(spiking_mechanisms_gtest PROPERTIES CXX_CLANG_TIDY "")
 
-gtest_discover_tests(spiking_mechanisms_gtest)
+nn_gtest_discover_tests(spiking_mechanisms_gtest)
 configure_xtensor_parallel_target(spiking_mechanisms_gtest)
 
 # pytorch_parity_gtest moved to src/core/tensor/tests/ — it references concrete

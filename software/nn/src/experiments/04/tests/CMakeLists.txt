@@ -25,7 +25,7 @@ target_link_libraries(experiment_04_comparative_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(experiment_04_comparative_gtest)
+nn_gtest_discover_tests(experiment_04_comparative_gtest)
 configure_xtensor_parallel_target(experiment_04_comparative_gtest)
 
 # DAT writer tests
@@ -50,7 +50,7 @@ target_link_libraries(dat_writer_gtest
         cnpy-static
 )
 
-gtest_discover_tests(dat_writer_gtest)
+nn_gtest_discover_tests(dat_writer_gtest)
 configure_xtensor_parallel_target(dat_writer_gtest)
 
 # Checkpoint round-trip / resilience tests
@@ -73,7 +73,7 @@ target_link_libraries(checkpoint_gtest
         cnpy-static
 )
 
-gtest_discover_tests(checkpoint_gtest)
+nn_gtest_discover_tests(checkpoint_gtest)
 configure_xtensor_parallel_target(checkpoint_gtest)
 
 # Profile audit: every shipping JSON profile must parse, validate, and
@@ -97,7 +97,7 @@ target_link_libraries(profile_audit_gtest
         cnpy-static
 )
 
-gtest_discover_tests(profile_audit_gtest)
+nn_gtest_discover_tests(profile_audit_gtest)
 configure_xtensor_parallel_target(profile_audit_gtest)
 
 # LSTM microbench (ops breakdown)

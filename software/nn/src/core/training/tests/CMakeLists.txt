@@ -28,7 +28,7 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/training
 )
 
-gtest_discover_tests(trainer_gtest)
+nn_gtest_discover_tests(trainer_gtest)
 
 ##
 ## trainer_genericity_gtest: tests for Trainer<ModelType, LossType>, callbacks, EarlyStopping
@@ -54,4 +54,4 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/core/training
 )
 
-gtest_discover_tests(trainer_genericity_gtest)
+nn_gtest_discover_tests(trainer_genericity_gtest)

@@ -268,6 +268,52 @@ warnings. A full `cmake --build` reconfigure is currently blocked by an
 unrelated stale Python venv (`venv/bin/python` missing after a system Python
 upgrade to 3.14.6); not yet fixed.
 
+## Concurrent GPU Test Serialization (2026-07-15, revised same day)
+
+Two hard, reboot-requiring freezes hit this project's dev machine (AMD Renoir/
+Lucienne integrated GPU) during this work cycle:
+
+1. AdaptiveCpp's HIP backend, under concurrent SYCL ctest workers.
+2. Immediately after, running the **full** ctest suite at high parallelism
+   (`ctest -j$(nproc)`) under the `NN_BACKEND=OpenCL` preset.
+
+Initial diagnosis treated both as the same root cause (concurrent kernel
+submission from independent processes, different driver stacks) and locked
+every test under both `NN_BACKEND=OpenCL` and `NN_BACKEND=SYCL` behind a
+shared CTest `RESOURCE_LOCK`. That diagnosis was **wrong for OpenCL**: the
+user determined incident 2 was residual fallout from incident 1 (SYCL/HIP),
+not OpenCL concurrency itself — OpenCL-touching tests had already run fine at
+high parallelism earlier in the same session (mixed into the default XTensor
+preset's full suite). Re-running the full 3418-test suite at
+`ctest -j$(nproc)` under the `NN_BACKEND=OpenCL` preset with the lock removed
+confirmed this: clean pass in 45s, no freeze, no reboot.
+
+Fix (revised): `cmake/GpuTestSerialization.cmake` provides
+`nn_gtest_discover_tests()`, a drop-in wrapper around `gtest_discover_tests()`
+that every test `CMakeLists.txt` in the project uses instead of calling it
+directly. It attaches a shared CTest `RESOURCE_LOCK` (`nn_gpu_device`) only
+where the actual reproduced hazard (SYCL/HIP) applies:
+
+- The lock applies automatically to **every** discovered test only when
+  `NN_BACKEND` is `SYCL` (every test binary in that preset uses it as
+  `nn::Backend`, and it's the driver stack that actually reproduced the
+  hang). `NN_BACKEND=OpenCL` no longer auto-locks.
+- Pass `FORCE_GPU_LOCK` for a target that explicitly instantiates
+  `SYCLTensorBackend` regardless of the selected `nn::Backend` — e.g.
+  `pytorch_parity_gtest`, `sycl_backend_parity_gtest`. These touch a real
+  SYCL device even under `NN_BACKEND=XTensor`/`OpenCL`/`Device`.
+- Targets that only ever touch `OpenCLTensorBackend` directly
+  (`backend_parity_gtest`, `tensor_all_backends_gtest`,
+  `tensor_backend_switchability_gtest`, `opencl_tensor_backend_gtest`,
+  `gpu_buffer_pool_gtest`) are **not** force-locked — OpenCL concurrency is
+  not believed to be a hang trigger on this hardware.
+- `device_backend_gtest` remains unlocked — `DeviceTensorBackend` is pure
+  host math (see above), never touches real hardware.
+
+Net effect: `ctest -j$(nproc)` under `NN_BACKEND=OpenCL` runs the full suite
+at full parallelism again. Only `NN_BACKEND=SYCL` (and the two
+SYCL-instantiating targets, under any preset) still serialize.
+
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$

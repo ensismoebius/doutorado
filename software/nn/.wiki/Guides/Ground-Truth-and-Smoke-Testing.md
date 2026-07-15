@@ -93,6 +93,17 @@ Convolution weights are stored **pre-permuted into our im2col layout** so the C+
 test can `set_weights()`:
 `Conv1d[ic*K+k,oc]=torch[oc,ic,k]`, `Conv2d[ic*K*K+ky*K+kx,oc]=torch[oc,ic,ky,kx]`.
 
+> **GPU test concurrency.** `pytorch_parity_gtest` instantiates
+> `SYCLTensorBackend` directly, so it carries a shared CTest `RESOURCE_LOCK`
+> (`cmake/GpuTestSerialization.cmake`) that serializes it against every other
+> SYCL-touching test — this exists because concurrent kernel submission under
+> AdaptiveCpp's HIP backend hung this dev machine hard enough to need a
+> reboot. The lock does **not** apply to OpenCL: a full-suite freeze initially
+> attributed to concurrent OpenCL kernel submission turned out to be residual
+> fallout from that same SYCL/HIP incident — `ctest -j$(nproc)` under
+> `NN_BACKEND=OpenCL` re-ran clean afterward. See
+> [Tensor](../Core/Tensor.md#concurrent-gpu-test-serialization-2026-07-15-revised-same-day).
+
 ### Regenerate / extend
 
 ```bash

@@ -22,4 +22,4 @@ target_include_directories(wavelet_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(wavelet_gtest)
+nn_gtest_discover_tests(wavelet_gtest)

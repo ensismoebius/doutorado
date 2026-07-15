@@ -30,4 +30,4 @@ target_include_directories(util_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(util_gtest)
+nn_gtest_discover_tests(util_gtest)

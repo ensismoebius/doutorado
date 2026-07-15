@@ -20,4 +20,4 @@ target_include_directories(linearAlgebra_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(linearAlgebra_gtest)
+nn_gtest_discover_tests(linearAlgebra_gtest)

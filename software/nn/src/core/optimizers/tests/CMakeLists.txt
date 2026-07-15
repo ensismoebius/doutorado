@@ -27,5 +27,5 @@ target_include_directories(optimizers_gtest
 )
 
 include(GoogleTest)
-gtest_discover_tests(optimizers_gtest)
+nn_gtest_discover_tests(optimizers_gtest)
 configure_xtensor_parallel_target(optimizers_gtest)

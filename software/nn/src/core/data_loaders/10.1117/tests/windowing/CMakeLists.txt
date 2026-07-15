@@ -30,4 +30,4 @@ target_link_libraries(windowing_gtest
 configure_xtensor_parallel_target(windowing_gtest)
 
 include(GoogleTest)
-gtest_discover_tests(windowing_gtest)
+nn_gtest_discover_tests(windowing_gtest)
