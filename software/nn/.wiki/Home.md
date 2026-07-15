@@ -138,6 +138,7 @@ Accessible explanations without heavy math — good starting point before readin
 - [Test Quality and Determinism](./Guides/Test-Quality-and-Determinism.md) - Deterministic and SOTA-aligned testing criteria, outcomes, and next steps
 - [Ground-Truth and Smoke Testing](./Guides/Ground-Truth-and-Smoke-Testing.md) - PyTorch/snnTorch parity tests + Experiment05 per-profile smoke runs
 - [Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md) - Full pipeline: phase00 ranking → apply winner → phase01 authentication
+- [Memory Diagnostics](./Guides/Memory-Diagnostics.md) - Telling an active leak apart from a bounded high-water-mark; VmRSS/VmSwap sampling method
 - [Naming Conventions](./Development/Naming-Conventions.md) - C++ code style guidelines
 - [Dual-Agent Consensus](./Development/Dual-Agent-Consensus.md) - Claude Code + OpenCode dual-agent workflow
 
@@ -159,6 +160,14 @@ Accessible explanations without heavy math — good starting point before readin
     against `OpenCLTensorBackend`, plus a stability fix for default-constructed
     OpenCL tensor host storage.
 - See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
+- `GPUBufferPool` gained a 1 GiB global cache ceiling (previously only
+    capped per-bucket, letting cached pinned buffers accumulate unbounded over
+    a long run). `run_profiles.sh`'s per-job memory budget was also bumped
+    2048MB → 5120MB after measuring real `experiment05` phase00 peaks
+    (~4.4GB for voice, ~2.1GB for EEG) — the old default let 4 heavy jobs
+    oversubscribe a 17GB box into swap thrashing.
+- See [Core/Tensor](./Core/Tensor.md) and
+    [Guides/Running Experiment05 Profiles](./Guides/Running-Experiment05-Profiles.md).
 
 ## Requirements
 

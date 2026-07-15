@@ -57,34 +57,15 @@ if(NOT EXISTS "${MATPLOTLIBCPP_SRC_DIR}/matplotlibcpp.h")
     message(FATAL_ERROR "matplotlib-cpp headers not found after FetchContent.")
 endif()
 
-# Configure the target (defined by FetchContent_MakeAvailable)
-if(TARGET matplotlib_cpp)
-    target_compile_features(matplotlib_cpp INTERFACE cxx_std_11)
-    
-    # Python dependencies
-    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-    # CMP0079 allows linking to targets created in other directories
-    cmake_policy(PUSH)
-    if(POLICY CMP0079)
-        cmake_policy(SET CMP0079 NEW)
-    endif()
-    target_link_libraries(matplotlib_cpp INTERFACE Python3::Python Python3::Module)
-    
-    find_package(Python3 COMPONENTS NumPy)
-    if(Python3_NumPy_FOUND)
-        target_link_libraries(matplotlib_cpp INTERFACE Python3::NumPy)
-    else()
-        target_compile_definitions(matplotlib_cpp INTERFACE WITHOUT_NUMPY)
-    endif()
-    cmake_policy(POP)
-
-    # Suppress clang-tidy
-    set_target_properties(matplotlib_cpp PROPERTIES CXX_CLANG_TIDY "")
-endif()
-
 # ------------------------------------------------------------
 # Find system Python (bootstrap)
 # ------------------------------------------------------------
+# NOTE: this whole bootstrap block MUST run before any find_package(Python3 ...)
+# call below. find_package() caches Python3_EXECUTABLE; if a prior configure
+# left a broken/partial venv (interrupted run, deleted venv dir, system Python
+# upgrade invalidating the venv's interpreter symlink), a cached-but-broken
+# path makes find_package() fail fatally before we ever get a chance to
+# detect and repair it.
 find_program(_SYSTEM_PYTHON_EXECUTABLE NAMES python3 python REQUIRED)
 
 # ------------------------------------------------------------
@@ -97,14 +78,42 @@ else()
 endif()
 
 # ------------------------------------------------------------
-# Create venv if requested
+# Create (or repair) venv if requested
 # ------------------------------------------------------------
 if(MATPLOTLIBCPP_CREATE_VENV)
+    set(_venv_needs_bootstrap FALSE)
+
     if(NOT EXISTS "${_VENV_PY}")
+        set(_venv_needs_bootstrap TRUE)
+    else()
+        # EXISTS alone isn't enough: a broken symlink (e.g. venv created
+        # against a system Python that was since upgraded/removed) or a
+        # partial venv from an interrupted configure can leave a path that
+        # exists but doesn't run. Probe it and rebuild if it's dead.
+        execute_process(
+            COMMAND "${_VENV_PY}" -c "import sys"
+            RESULT_VARIABLE _venv_probe_res
+            OUTPUT_QUIET
+            ERROR_QUIET
+        )
+        if(NOT _venv_probe_res EQUAL 0)
+            message(WARNING "MATPLOTLIBCPP: existing venv at ${MATPLOTLIBCPP_VENV_DIR} is broken, recreating")
+            file(REMOVE_RECURSE "${MATPLOTLIBCPP_VENV_DIR}")
+            set(_venv_needs_bootstrap TRUE)
+        endif()
+    endif()
+
+    if(_venv_needs_bootstrap)
         message(STATUS "MATPLOTLIBCPP: creating venv at ${MATPLOTLIBCPP_VENV_DIR}")
 
+        # `python -m venv` does not overwrite files that already exist, so a
+        # stale/partial tree left behind by an earlier interrupted or broken
+        # bootstrap (e.g. a half-copied `pip` package missing __main__.py)
+        # would otherwise persist across repeated "repair" attempts.
+        file(REMOVE_RECURSE "${MATPLOTLIBCPP_VENV_DIR}")
+
         execute_process(
-            COMMAND "${_SYSTEM_PYTHON_EXECUTABLE}" -m venv "${MATPLOTLIBCPP_VENV_DIR}"
+            COMMAND "${_SYSTEM_PYTHON_EXECUTABLE}" -m venv --clear "${MATPLOTLIBCPP_VENV_DIR}"
             RESULT_VARIABLE _venv_res
         )
         if(NOT _venv_res EQUAL 0)
@@ -140,6 +149,28 @@ find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 
 if(NOT Python3_NumPy_INCLUDE_DIRS)
     message(FATAL_ERROR "NumPy headers not found.")
+endif()
+
+# Configure the target (defined by FetchContent_MakeAvailable)
+if(TARGET matplotlib_cpp)
+    target_compile_features(matplotlib_cpp INTERFACE cxx_std_11)
+
+    # CMP0079 allows linking to targets created in other directories
+    cmake_policy(PUSH)
+    if(POLICY CMP0079)
+        cmake_policy(SET CMP0079 NEW)
+    endif()
+    target_link_libraries(matplotlib_cpp INTERFACE Python3::Python Python3::Module)
+
+    if(Python3_NumPy_FOUND)
+        target_link_libraries(matplotlib_cpp INTERFACE Python3::NumPy)
+    else()
+        target_compile_definitions(matplotlib_cpp INTERFACE WITHOUT_NUMPY)
+    endif()
+    cmake_policy(POP)
+
+    # Suppress clang-tidy
+    set_target_properties(matplotlib_cpp PROPERTIES CXX_CLANG_TIDY "")
 endif()
 
 # ------------------------------------------------------------

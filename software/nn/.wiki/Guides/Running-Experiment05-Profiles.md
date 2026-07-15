@@ -38,6 +38,36 @@ feature extraction, training epochs, and CV folds** (driven by `ProgressManager`
 a pipe/CI the ANSI bars are redirected to keep logs clean. Failures print
 immediately and are listed in the final summary.
 
+## Parallelism (memory-gated)
+
+`run_profiles.sh` runs several profiles at once — each is an independent
+process with its own `run_tag`, so phase00/phase01 parallelise safely as far
+as *correctness* goes. Job count is computed as:
+
+```
+JOBS = min(MemAvailable / E05_JOB_MEM_MB, nproc), capped at 4
+```
+
+Override with `E05_JOBS` directly, or tune the per-job budget with
+`E05_JOB_MEM_MB` (default **5120**).
+
+**2026-07-14 fix**: the default used to be 2048MB. Measured peak RSS+swap for
+real phase00 profiles: `snn-ae`/poisson **voice** profiles plateau around
+**4.4GB**, EEG profiles around **2.1GB** (`kAeInputFeatures=256`,
+`time_steps=16`, ~1974 voice samples → 31,584 spike frames trained for
+`epochs=100`). With the old 2048MB budget the script would happily launch 4
+voice jobs in parallel on a machine that could only actually hold 1–2,
+pushing the box into heavy swap (14GB+ swap used on a 17GB machine). The
+budget is now 5120MB so `JOBS` auto-throttles correctly; if you profile a
+config with a different memory footprint, pass `E05_JOB_MEM_MB` explicitly
+rather than trusting the default blindly.
+
+The 2GB-per-job assumption wasn't a leak in `experiment05` itself — see
+[Core/Tensor § Recent OpenCL Buffer Pool Memory Cap](../Core/Tensor.md#recent-opencl-buffer-pool-memory-cap-2026-07-14)
+for the related (secondary) buffer-pool bound that was tightened at the same
+time, and [Memory Diagnostics](./Memory-Diagnostics.md) for the full
+investigation writeup and the general leak-vs-plateau method.
+
 ## Crash / power-loss recovery
 
 `run_profiles.sh` checkpoints every completed profile to
@@ -132,3 +162,4 @@ Writes EER/AUC to `results/phase01/`.
 - [Experiment05](../Experiments/Experiment05.md)
 - [Ground-Truth and Smoke Testing](./Ground-Truth-and-Smoke-Testing.md)
 - [Grid Runbook](./Grid-Runbook.md)
+- [Memory Diagnostics](./Memory-Diagnostics.md)

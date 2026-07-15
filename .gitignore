@@ -44,3 +44,4 @@ software/nn/tags
 software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
 *.sqlite
 documentation/06-BooksToRead/*.pdf
+.opencode/node_modules

@@ -10,3 +10,9 @@ PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_small_eeg.json
 PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_small_voice.json
 PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_tiny_eeg.json
 PASS src/experiments/05/profiles/phase00/p00_ae_snn_direct_tiny_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_base_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_small_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_small_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_base_voice.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_tiny_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_ae_snn_latency_tiny_voice.json

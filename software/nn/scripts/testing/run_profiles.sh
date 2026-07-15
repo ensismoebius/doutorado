@@ -54,10 +54,13 @@ echo "using binary: $BIN"
 # run (own result file by run_tag), so phase00/phase01 parallelise safely.
 # Job count = min(free_RAM / per-job, nproc), capped at 4 to avoid GPU
 # oversubscription. Override with E05_JOBS; tune per-job budget with
-# E05_JOB_MEM_MB (default 2048). JOBS=1 keeps the live progress-bar UX.
+# E05_JOB_MEM_MB (default 5120 — measured snn-ae/poisson voice profiles peak
+# ~4.4GB RSS+swap each, EEG profiles ~2.1GB; the old 2048 default let 4 voice
+# jobs oversubscribe a 17GB box into heavy swap). JOBS=1 keeps the live
+# progress-bar UX.
 avail_mb=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
 [ -z "${avail_mb:-}" ] && avail_mb=2048
-per_mb=${E05_JOB_MEM_MB:-2048}
+per_mb=${E05_JOB_MEM_MB:-5120}
 jobs_mem=$(( avail_mb / per_mb )); [ "$jobs_mem" -lt 1 ] && jobs_mem=1
 cpus=$(nproc)
 if [ -n "${E05_JOBS:-}" ]; then

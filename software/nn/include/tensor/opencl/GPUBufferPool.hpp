@@ -117,13 +117,24 @@ class GPUBufferPoolHandle
 class GPUBufferPool
 {
    public:
+    // Cache ceiling: once cached (idle, available-for-reuse) buffers reach this many
+    // bytes, further releases are dropped instead of pooled. Without this, a run that
+    // touches many distinct tensor shapes accumulates buffers forever — each bucket is
+    // capped at 20 buffers individually, but nothing capped the bucket count, so pinned
+    // (real host RAM) memory could grow unbounded over a long training run.
+    static constexpr size_t kDefaultMaxPoolBytes = 1ull << 30; // 1 GiB
+
     /**
      * Initialize the pool with a context and command queue.
      * @param context OpenCL context for allocation
      * @param queue OpenCL command queue (used for synchronization if needed)
      * @param use_pinned If true, use CL_MEM_ALLOC_HOST_PTR for pinned memory (faster transfers)
+     * @param max_pool_bytes Ceiling on total bytes held in idle/cached buffers
      */
-    explicit GPUBufferPool(cl_context context, cl_command_queue queue, bool use_pinned = true);
+    explicit GPUBufferPool(cl_context context,
+        cl_command_queue queue,
+        bool use_pinned = true,
+        size_t max_pool_bytes = kDefaultMaxPoolBytes);
 
     ~GPUBufferPool();
 
@@ -156,10 +167,12 @@ class GPUBufferPool
     cl_context context_;
     cl_command_queue queue_;
     bool use_pinned_memory_;
+    size_t max_pool_bytes_;
 
     mutable std::mutex mutex_;
     // Buffers organized by size ranges: 64B, 256B, 1KB, 4KB, etc.
     std::unordered_map<size_t, std::deque<GPUBuffer>> pools_;
+    size_t cached_bytes_ = 0; // sum of pool_size * count over all buckets
 
     static size_t get_pool_size(size_t requested);
 };

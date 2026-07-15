@@ -157,6 +157,50 @@ Observed behavior after the fix:
 - Layer-level OpenCL tests for Lif forward parity and exponential-surrogate backward also pass.
 - A previously reproducible segmentation fault in first-call Lif forward is removed.
 
+## Recent OpenCL Buffer Pool Memory Cap (2026-07-14)
+
+`OpenCLTensorBackend` allocates device buffers through a static, process-wide
+`GPUBufferPool` (`include/tensor/opencl/GPUBufferPool.hpp`) that buckets
+requests into fixed size classes (1KB … 64MB, then 64MB-aligned) and caches
+idle buffers for reuse instead of calling `clCreateBuffer`/`clReleaseMemObject`
+per tensor. Each bucket was already capped at 20 idle buffers, but nothing
+capped the *number of buckets* — a long training run that touches many
+distinct tensor shapes (per-layer activations, gradients, optimizer moments,
+per-timestep SNN state) kept a growing set of buckets alive for the whole
+process lifetime and never shrank.
+
+This was found while investigating a memory report: four parallel
+`experiment05` phase00 runs each plateaued at 2.1–4.4GB RSS+swap for a tiny
+256→64→32 autoencoder — disproportionate for the actual weight/activation
+sizes involved. Buffers use `CL_MEM_ALLOC_HOST_PTR` (pinned) by default, so on
+this (integrated-GPU / unified-memory) hardware the pool's memory is real host
+RAM, not separate VRAM — it shows up directly in `ps`/`free`.
+
+It wasn't an active leak (memory was confirmed flat over repeated sampling
+once a run plateaued) — the real trigger was `scripts/testing/run_profiles.sh`
+under-budgeting per-job RAM and oversubscribing concurrency (see
+[Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md)).
+This pool fix is a bound on the secondary inefficiency, not the root cause.
+
+Implementation points:
+- Added `GPUBufferPool::kDefaultMaxPoolBytes` (1 GiB) and a `max_pool_bytes`
+  constructor parameter — `include/tensor/opencl/GPUBufferPool.hpp`.
+- `release()` now only caches a returned buffer if the per-bucket count is
+  under 20 **and** the pool's total cached bytes (`cached_bytes_`) would stay
+  under the ceiling; otherwise the buffer is dropped immediately (destructor
+  calls `clReleaseMemObject`) instead of being retained forever —
+  `src/core/tensor/opencl/GPUBufferPool.cpp`.
+- `acquire()` decrements `cached_bytes_` when reusing a pooled buffer; `clear()`
+  resets it to 0.
+- No API break: `OpenCLTensorBackend::init_buffer_pool()` still constructs the
+  pool with the two required args; the new parameter defaults to 1 GiB.
+
+Verification: the pool's translation unit was compiled directly against the
+project's recorded compiler flags (`compile_commands.json`) — clean, no
+warnings. A full `cmake --build` reconfigure is currently blocked by an
+unrelated stale Python venv (`venv/bin/python` missing after a system Python
+upgrade to 3.14.6); not yet fixed.
+
 ## Common Pitfalls
 
 1. **Shape Mismatch**: Ensure matrix multiply dimensions align: $A_{m \times n} \cdot B_{n \times p} = C_{m \times p}$
