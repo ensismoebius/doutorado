@@ -411,7 +411,10 @@ TEST_P(E05ProfileAuditTest, ClassifierValid)
     EXPECT_TRUE(cfg.classifier.type == "rnn" || cfg.classifier.type == "dsnn")
         << "unexpected classifier type: " << cfg.classifier.type;
     // layer_spec is only required when the classifier runs (Phase 01).
-    if (cfg.classifier.enabled) EXPECT_FALSE(cfg.classifier.layer_spec.empty());
+    if (cfg.classifier.enabled)
+    {
+        EXPECT_FALSE(cfg.classifier.layer_spec.empty());
+    }
     EXPECT_TRUE(
         cfg.classifier.text_mode == "dependent" || cfg.classifier.text_mode == "independent")
         << "unexpected text_mode: " << cfg.classifier.text_mode;
