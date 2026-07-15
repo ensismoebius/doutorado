@@ -12,7 +12,9 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <stdexcept>
+#include <string_view>
 #include <sycl/sycl.hpp>
 
 #include "logging/Logger.hpp"
@@ -20,17 +22,56 @@
 namespace
 {
 
-/// Process-wide in-order queue; nullptr when no device could be initialized.
+/// Device access is opt-in (NN_SYCL_ALLOW_DEVICE=1), not opt-out.
+///
+/// On AMD integrated GPUs without official ROCm support (this project's dev
+/// hardware: Renoir/Lucienne APU), AdaptiveCpp routes compute through the HIP
+/// backend and it has been observed to produce a genuine GPU hang ("HW
+/// Exception ... reason: GPU Hang" from the ROCm HSA runtime) under any kind
+/// of concurrent kernel submission — e.g. parallel ctest workers each running
+/// SYCL tests. A GPU hang on an integrated GPU takes the display compositor
+/// down with it (screen blanks/resets in a loop until the driver recovers).
+/// The CPU-only AdaptiveCpp OpenMP backend was tried as a supposedly safe
+/// fallback and found to silently return wrong numeric results (a separate
+/// bug in that backend's generic/SSCP JIT path on this install) — so it is
+/// not a safe default either. Until a stable SYCL device path is confirmed,
+/// stay on the XTensorBackend host mirror by default; anyone who has verified
+/// their own hardware/driver is safe can opt in explicitly.
+bool device_access_allowed()
+{
+    const char* v = std::getenv("NN_SYCL_ALLOW_DEVICE");
+    return v != nullptr && std::string_view(v) == "1";
+}
+
+/// Process-wide in-order queue; nullptr when no device could be initialized
+/// or device access is not opted into (see device_access_allowed()).
+///
+/// Deliberately heap-allocated and never freed (exception to the project's
+/// no-raw-new rule — see CLAUDE.md). A function-local *static* sycl::queue
+/// gets torn down by a normal C++ static destructor at process exit; under
+/// AdaptiveCpp's ROCm/generic backend on this integrated GPU, that teardown
+/// races with a concurrently-exiting sibling process doing the same thing
+/// (e.g. two ctest workers), reproducibly segfaulting inside the driver after
+/// the test itself has already passed. Never destructing the queue means the
+/// OS reclaims the GPU context at process exit instead of the runtime's own
+/// (racy, under concurrency) destructor path.
 sycl::queue* global_queue()
 {
     static sycl::queue* queue = []() -> sycl::queue*
     {
+        if (!device_access_allowed())
+        {
+            NN_LOG_INFO(
+                "SYCL backend: device access not opted into (set "
+                "NN_SYCL_ALLOW_DEVICE=1 to enable); using host execution");
+            return nullptr;
+        }
         try
         {
-            static sycl::queue q{sycl::default_selector_v, sycl::property::queue::in_order{}};
+            auto* q = new sycl::queue(sycl::default_selector_v, sycl::property::queue::in_order{});
             NN_LOG_INFO("SYCL backend: using device '" +
-                        q.get_device().get_info<sycl::info::device::name>() + "'");
-            return &q;
+                        q->get_device().get_info<sycl::info::device::name>() + "'");
+            return q;
         }
         catch (const std::exception& e)
         {

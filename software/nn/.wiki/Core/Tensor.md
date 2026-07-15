@@ -66,9 +66,24 @@ Supported backends (selected via `NN_BACKEND` CMake option; see `include/Backend
 - `nn::XTensorBackend` — CPU operations (xtensor + BLAS); the reference implementation
 - `nn::OpenCLTensorBackend` — GPU operations via OpenCL kernels with lazy sync
 - `nn::SYCLTensorBackend` — Khronos SYCL 2020 kernels (AdaptiveCpp / oneAPI DPC++);
-  copy-in/copy-out against an XTensorBackend host mirror, automatic host fallback
-  when no SYCL device is present. Preset: `max-performance-sycl` (requires
-  AdaptiveCpp; parity suite: `sycl_backend_parity_gtest`)
+  copy-in/copy-out against an XTensorBackend host mirror. Preset:
+  `max-performance-sycl` (requires AdaptiveCpp; parity suite:
+  `sycl_backend_parity_gtest`).
+  **Device access is opt-in, not opt-out**: by default every op runs on the
+  host mirror (`sycl::queue` is never even constructed). Set
+  `NN_SYCL_ALLOW_DEVICE=1` to actually dispatch to a SYCL device. This
+  default exists because, on this project's dev hardware (an AMD
+  Renoir/Lucienne integrated GPU — not officially ROCm-supported),
+  AdaptiveCpp's HIP backend reproducibly triggered a genuine GPU hang
+  (`HW Exception ... reason: GPU Hang` from the ROCm HSA runtime) under
+  concurrent kernel submission (e.g. parallel ctest workers), which took the
+  display compositor down with it. The documented "safe" CPU-only escape
+  hatch, `ACPP_VISIBILITY_MASK=omp`, was also tried and found to silently
+  produce wrong numeric results (a separate bug in that AdaptiveCpp
+  install's generic/SSCP JIT path for the OpenMP backend) — so it is not a
+  safe default either. Only opt into `NN_SYCL_ALLOW_DEVICE=1` after
+  confirming your own hardware/driver combination is stable under
+  concurrent load.
 - `nn::DeviceTensorBackend` — documented skeleton for adding new device backends
 
 ## Data Flow
