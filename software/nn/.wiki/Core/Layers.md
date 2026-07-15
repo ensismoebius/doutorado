@@ -42,6 +42,8 @@ nn::activations::tanh_fast_block(pre, col_start, gate_size);
 
 **Performance impact (B=1, D=128, H=32):** Gate computation fell from 43.7% → 1.1% of full LSTM timestep. Full timestep **2.85× faster**. See [LSTM-and-BPTT](../Concepts/LSTM-and-BPTT.md#performance-characteristics-and-optimizations) for full microbenchmark data.
 
+**Backend-generic since the cross-backend ground-truth pass (2026-07-15):** all four functions above are templated on `Backend` (`nn::TensorImpl<Backend>` argument/return), not hardcoded to `nn::Tensor`. Before that fix they only compiled for whichever single backend the build had selected as `nn::Backend` — `LSTMLayerImpl<Backend>` (which calls `sigmoid_fast_block`/`tanh_fast_block` internally) silently failed to compile for any other backend, and nothing had ever instantiated it otherwise to catch this. Found by `pytorch_parity_gtest` (see [Ground-Truth-and-Smoke-Testing](../Guides/Ground-Truth-and-Smoke-Testing.md)), which now runs `LSTMLayerImpl<XT>/<CL>/<Device>/<SY>` side-by-side against the same PyTorch fixture.
+
 ### Convolutional Layers
 
 Convolutional layers apply local filters:

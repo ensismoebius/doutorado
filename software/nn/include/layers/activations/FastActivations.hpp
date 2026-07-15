@@ -43,10 +43,16 @@ inline auto tanh_grad_fast(float y) -> float
     return 1.0f - y * y;
 }
 
-// Vectorized versions operating on Tensors
-inline auto sigmoid_fast_tensor(const nn::Tensor& x) -> nn::Tensor
+// Vectorized versions operating on Tensors. Templated on Backend (rather than
+// hardcoded to nn::Tensor == TensorImpl<nn::Backend>) because LSTMLayerImpl<Backend>
+// calls these for whichever Backend it was instantiated with — hardcoding here
+// silently broke every backend except the one currently selected as nn::Backend
+// (caught via src/core/tensor/tests/pytorch_parity_gtest.cpp, which instantiates
+// LSTMLayerImpl for every concrete backend side-by-side).
+template <typename Backend>
+inline auto sigmoid_fast_tensor(const nn::TensorImpl<Backend>& x) -> nn::TensorImpl<Backend>
 {
-    nn::Tensor result(x.rows(), x.cols());
+    nn::TensorImpl<Backend> result(x.rows(), x.cols());
     for (nn::Index i = 0; i < x.rows(); ++i)
     {
         for (nn::Index j = 0; j < x.cols(); ++j)
@@ -57,9 +63,10 @@ inline auto sigmoid_fast_tensor(const nn::Tensor& x) -> nn::Tensor
     return result;
 }
 
-inline auto tanh_fast_tensor(const nn::Tensor& x) -> nn::Tensor
+template <typename Backend>
+inline auto tanh_fast_tensor(const nn::TensorImpl<Backend>& x) -> nn::TensorImpl<Backend>
 {
-    nn::Tensor result(x.rows(), x.cols());
+    nn::TensorImpl<Backend> result(x.rows(), x.cols());
     for (nn::Index i = 0; i < x.rows(); ++i)
     {
         for (nn::Index j = 0; j < x.cols(); ++j)
@@ -72,20 +79,24 @@ inline auto tanh_fast_tensor(const nn::Tensor& x) -> nn::Tensor
 
 // Fused block+activation: reads column range [col_start, col_start+gate_size) from src directly.
 // Avoids the intermediate Tensor copy that block() creates — eliminates one alloc + one read pass.
-inline auto sigmoid_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size)
-    -> nn::Tensor
+template <typename Backend>
+inline auto sigmoid_fast_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::TensorImpl<Backend>
 {
-    nn::Tensor result(src.rows(), gate_size);
+    nn::TensorImpl<Backend> result(src.rows(), gate_size);
     for (nn::Index i = 0; i < src.rows(); ++i)
         for (nn::Index j = 0; j < gate_size; ++j)
             result.at(i, j) = sigmoid_fast(src.at(i, col_start + j));
     return result;
 } //
 
-inline auto tanh_fast_block(const nn::Tensor& src, nn::Index col_start, nn::Index gate_size)
-    -> nn::Tensor
+template <typename Backend>
+inline auto tanh_fast_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::TensorImpl<Backend>
 {
-    nn::Tensor result(src.rows(), gate_size);
+    nn::TensorImpl<Backend> result(src.rows(), gate_size);
     for (nn::Index i = 0; i < src.rows(); ++i)
         for (nn::Index j = 0; j < gate_size; ++j)
             result.at(i, j) = tanh_fast(src.at(i, col_start + j));

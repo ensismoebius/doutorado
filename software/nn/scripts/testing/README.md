@@ -7,12 +7,23 @@ Ground-truth tests that compare this C++ library against PyTorch.
 - `gen_pytorch_refs.py` (developer step, needs `torch`) builds each covered layer
   in PyTorch with fixed seeded weights, runs forward/backward, and writes the
   inputs/weights/outputs/gradients as float32 arrays into
-  `../../src/core/layers/tests/fixtures/pytorch_refs.npz` (committed).
+  `../../src/core/tensor/tests/fixtures/pytorch_refs.npz` (committed).
 - `pytorch_parity_gtest` (C++, no torch needed) loads that `.npz` with cnpy, sets
   the same weights + input into our layers, runs forward/backward, and asserts
   `EXPECT_NEAR` against the PyTorch references. Runs in CI via ctest.
 
 The `.npz` is committed (whitelisted in `.gitignore`) so CI needs no torch.
+
+Every test is a `TYPED_TEST` run once per concrete tensor backend
+(`XTensorBackend`, `OpenCLTensorBackend`, `DeviceTensorBackend`, and
+`SYCLTensorBackend` when `NN_BACKEND=SYCL`) against the same fixture — not
+just whichever backend the current build selected as `nn::Backend`. Lives
+under `src/core/tensor/tests/` (not `src/core/layers/tests/`) because naming
+concrete backend types is restricted to that zone by
+`cmake/BackendImplementationGuard.cmake`. See
+`.wiki/Guides/Ground-Truth-and-Smoke-Testing.md` for the two real bugs this
+cross-backend run caught (a hardcoded-`nn::Tensor` bug in
+`FastActivations.hpp` and missing contract methods on `DeviceTensorBackend`).
 
 ## Coverage
 
@@ -64,13 +75,17 @@ Then rebuild + run: `ctest --test-dir out/build/max-performance -R PyTorchParity
 ## Add a new layer
 
 1. Add a case block in `gen_pytorch_refs.py` (save input/weights/output/grads).
-2. Add a `TEST(PyTorchParity, <Layer>)` in
-   `../../src/core/layers/tests/pytorch_parity_gtest.cpp` that loads those keys,
-   sets the weights, runs the op, and compares.
+2. Add a `TYPED_TEST(PyTorchParityTyped, <Layer>)` in
+   `../../src/core/tensor/tests/pytorch_parity_gtest.cpp` using the layer's
+   `Impl<B>` template (e.g. `LinearImpl<B>`, not the `nn::Linear` alias, which
+   is tied to whichever single backend is currently selected) that loads those
+   keys, sets the weights, runs the op, and compares.
 3. Regenerate the fixtures and rebuild.
 
-**Backend note (important).** These tests run on both the xtensor (row-major) and
-OpenCL (column-major) backends. Use only the *structured* accessors `at(i,j)` /
+**Backend note (important).** These tests run on all four backends: xtensor
+(row-major), OpenCL (column-major), Device (row-major, host mirror), and SYCL
+(row-major, host mirror + optional device dispatch). Use only the *structured*
+accessors `at(i,j)` /
 `at(i,j,k)` / `at(i,j,k,l)` — never the linear `at(k)`, which exposes backend
 storage order and would transpose a tensor filled from row-major fixture data on
 OpenCL. The helpers (`make_from`, `fill_from`, `expect_close`) already enforce

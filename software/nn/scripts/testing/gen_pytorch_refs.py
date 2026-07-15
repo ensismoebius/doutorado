@@ -10,7 +10,7 @@ runs forward/backward, and asserts EXPECT_NEAR against these references.
 Run (developer step; requires torch — CI consumes the committed .npz):
     software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
 
-Output: software/nn/src/core/layers/tests/fixtures/pytorch_refs.npz
+Output: software/nn/src/core/tensor/tests/fixtures/pytorch_refs.npz
 """
 import math
 import os
@@ -21,7 +21,7 @@ import torch
 
 torch.manual_seed(0)
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                   "..", "..", "src", "core", "layers", "tests", "fixtures",
+                   "..", "..", "src", "core", "tensor", "tests", "fixtures",
                    "pytorch_refs.npz")
 OUT = os.path.normpath(OUT)
 

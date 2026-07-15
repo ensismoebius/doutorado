@@ -2,6 +2,7 @@
 #define DEVICE_TENSOR_BACKEND_HPP
 
 #include <algorithm>
+#include <random>
 
 #include "tensor/xtensor/XTensorBackend.hpp"
 
@@ -92,6 +93,22 @@ class DeviceTensorBackend
     static DeviceTensorBackend ones(Index rows, Index cols)
     {
         return DeviceTensorBackend(XTensorBackend::ones(rows, cols));
+    }
+    static DeviceTensorBackend random(Index rows, Index cols)
+    {
+        return DeviceTensorBackend(XTensorBackend::random(rows, cols));
+    }
+    static DeviceTensorBackend random(Index rows, Index cols, std::mt19937& rng)
+    {
+        return DeviceTensorBackend(XTensorBackend::random(rows, cols, rng));
+    }
+    static DeviceTensorBackend random(Index d1, Index d2, Index d3)
+    {
+        return DeviceTensorBackend(XTensorBackend::random(d1, d2, d3));
+    }
+    static DeviceTensorBackend random(Index d1, Index d2, Index d3, std::mt19937& rng)
+    {
+        return DeviceTensorBackend(XTensorBackend::random(d1, d2, d3, rng));
     }
 
     // Construct from an xtensor host backend directly. This is useful for
@@ -213,6 +230,64 @@ class DeviceTensorBackend
     {
         m_host.add_row_broadcast_inplace(row.m_host);
     }
+    void add_col_vector_to_rows_inplace(const DeviceTensorBackend& col_vector)
+    {
+        m_host.add_col_vector_to_rows_inplace(col_vector.m_host);
+    }
+
+    // -- Comparisons / clamp / mean (host mirror) ----------------------------
+    DeviceTensorBackend compare_lt(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.compare_lt(other.m_host));
+    }
+    DeviceTensorBackend compare_gt(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.compare_gt(other.m_host));
+    }
+    DeviceTensorBackend compare_le(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.compare_le(other.m_host));
+    }
+    DeviceTensorBackend compare_ge(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.compare_ge(other.m_host));
+    }
+    DeviceTensorBackend compare_eq(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.compare_eq(other.m_host));
+    }
+    DeviceTensorBackend compare_lt_scalar(float v) const
+    {
+        return DeviceTensorBackend(m_host.compare_lt_scalar(v));
+    }
+    DeviceTensorBackend compare_gt_scalar(float v) const
+    {
+        return DeviceTensorBackend(m_host.compare_gt_scalar(v));
+    }
+    DeviceTensorBackend compare_le_scalar(float v) const
+    {
+        return DeviceTensorBackend(m_host.compare_le_scalar(v));
+    }
+    DeviceTensorBackend compare_ge_scalar(float v) const
+    {
+        return DeviceTensorBackend(m_host.compare_ge_scalar(v));
+    }
+    DeviceTensorBackend compare_eq_scalar(float v) const
+    {
+        return DeviceTensorBackend(m_host.compare_eq_scalar(v));
+    }
+    DeviceTensorBackend clamp(float min_val, float max_val) const
+    {
+        return DeviceTensorBackend(m_host.clamp(min_val, max_val));
+    }
+    void clamp_inplace(float min_val, float max_val)
+    {
+        m_host.clamp_inplace(min_val, max_val);
+    }
+    float mean() const
+    {
+        return m_host.mean();
+    }
 
     DeviceTensorBackend exp() const
     {
@@ -238,6 +313,10 @@ class DeviceTensorBackend
     DeviceTensorBackend multiply(const DeviceTensorBackend& other) const
     {
         return DeviceTensorBackend(m_host.multiply(other.m_host));
+    }
+    DeviceTensorBackend divide(const DeviceTensorBackend& other) const
+    {
+        return DeviceTensorBackend(m_host.divide(other.m_host));
     }
 
     // Matrix multiply: implement a device-accelerated path (cuBLAS/hipBLAS)

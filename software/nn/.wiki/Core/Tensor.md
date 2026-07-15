@@ -124,6 +124,14 @@ Supported backends (selected via `NN_BACKEND` CMake option; see `include/Backend
   instead, selecting `NN_BACKEND=Device` prints a configure-time `WARNING`
   (top-level `CMakeLists.txt`) so it's never mistaken for testing a real
   accelerator.
+  **Full `TensorBackendParityContract` coverage since 2026-07-15**: `divide`,
+  `add_col_vector_to_rows_inplace`, all ten `compare_*`/`compare_*_scalar`
+  variants, `clamp`/`clamp_inplace`, `mean()`, and the four `random(...)`
+  overloads were missing (all delegating to `m_host` like every other method
+  in the file, now added) — found because `pytorch_parity_gtest` instantiates
+  every layer against every concrete backend, including `Device`, and those
+  gaps were simple compile failures once something actually exercised them.
+  See [Ground-Truth-and-Smoke-Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).
 
 ## Data Flow
 

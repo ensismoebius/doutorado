@@ -17,12 +17,49 @@ element-by-element.
 - `scripts/testing/gen_pytorch_refs.py` (developer step, needs `torch` + `snntorch`)
   builds each covered layer with fixed seeded weights, runs forward/backward, and
   writes inputs/weights/outputs/gradients as float32 arrays into
-  `src/core/layers/tests/fixtures/pytorch_refs.npz` (committed).
+  `src/core/tensor/tests/fixtures/pytorch_refs.npz` (committed).
 - `pytorch_parity_gtest` (C++, no torch at build/CI time) loads that `.npz` with
   cnpy, sets the same weights + input into our layers, runs forward/backward, and
   asserts `EXPECT_NEAR` against the references. Registered in ctest, runs in CI.
 
 The `.npz` is committed (whitelisted in `.gitignore`) so CI needs no torch.
+
+**Every concrete backend, not just whichever one is `nn::Backend`.** Every test
+is a `TYPED_TEST` run once per `XTensorBackend`, `OpenCLTensorBackend`,
+`DeviceTensorBackend`, and `SYCLTensorBackend` (the last only when
+`NN_BACKEND=SYCL`, since its kernels TU is only compiled then) — each backend's
+`LinearImpl<X>`/`Conv1dImpl<X>`/etc. is checked against the *same* PyTorch/
+snnTorch fixture, independent of which single backend the rest of the project
+happens to have selected in that build. OpenCL/SYCL skip gracefully
+(`GTEST_SKIP`) when no device is present at run time rather than failing;
+XTensor and Device never skip (host math only). Lives in
+`src/core/tensor/tests/` rather than `src/core/layers/tests/` because
+naming four concrete backend types side-by-side is exactly what
+`cmake/BackendImplementationGuard.cmake` restricts to `include/tensor/` /
+`src/core/tensor/` — see that file's comments for the "layers stay
+backend-agnostic" rule this test is deliberately exempt from.
+
+This cross-backend run caught two real, previously-latent bugs no prior test
+exercised (nothing had ever instantiated these templates for a non-default
+backend before):
+- `FastActivations.hpp`'s `sigmoid_fast_tensor`/`tanh_fast_tensor`/
+  `sigmoid_fast_block`/`tanh_fast_block` were hardcoded to `nn::Tensor` (==
+  `TensorImpl<nn::Backend>`), so `LSTMLayerImpl<Backend>` silently failed to
+  compile for any backend other than whichever one was currently selected.
+  Fixed by templating them on `Backend` (`nn::TensorImpl<Backend>`); existing
+  call sites deduce `Backend` from their argument, unchanged.
+- `DeviceTensorBackend` (the documentation skeleton backend, see
+  [Tensor](../Core/Tensor.md)) was missing several `TensorBackendParityContract`
+  methods (`divide`, `add_col_vector_to_rows_inplace`, all ten `compare_*`/
+  `compare_*_scalar` variants, `clamp`/`clamp_inplace`, `mean()`, the four
+  `random(...)` overloads) — added, all delegating to its `m_host`
+  `XTensorBackend` mirror like every other method in that file.
+`Conv1dImpl`/`Conv2dImpl` also needed explicit template instantiation for
+every concrete backend (not just `nn::Backend`) added in
+`Conv1d_impl.cpp`/`Conv2d_impl.cpp`/`Conv2d_utils.cpp` — unlike header-only
+layers (Linear, activations, LSTM, LifBPTT, losses, pooling), their method
+bodies live in a separate `.cpp`, so other backends need their own explicit
+instantiation to be linkable at all.
 
 ### Coverage
 
@@ -62,19 +99,27 @@ test can `set_weights()`:
 software/nn/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 software/nn/.venv/bin/python -m pip install snntorch
 software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
-ctest --test-dir out/build/max-performance -R PyTorchParity
+ctest --test-dir out/build/max-performance -R PyTorchParity   # XTensor/OpenCL/Device
+# SYCL needs its own preset + the safety override (see cmake/SyclGpuCapabilityCheck.cmake):
+cmake --preset=max-performance-sycl -DNN_SYCL_ACKNOWLEDGE_UNSUPPORTED_GPU=ON
+cmake --build out/build/max-performance-sycl --target pytorch_parity_gtest -j$(nproc)
+./out/build/max-performance-sycl/src/core/tensor/tests/pytorch_parity_gtest  # run single-threaded
 ```
 
 Add a layer: add a case block in `gen_pytorch_refs.py` (save input/weights/output/
-grads), add a `TEST(PyTorchParity, <Layer>)` in `pytorch_parity_gtest.cpp`, regenerate.
+grads), add a `TYPED_TEST(PyTorchParityTyped, <Layer>)` in `pytorch_parity_gtest.cpp`
+using `nn::<Layer>Impl<B>` (the template, not the `nn::<Layer>` alias tied to the
+single selected `nn::Backend`), regenerate.
 
-> **Backend gotcha.** The tests run on both the **xtensor (row-major)** and
-> **OpenCL (column-major)** backends. The linear `at(k)` accessor exposes storage
-> order, so a tensor filled from row-major fixture data via `at(k)` is transposed
-> on OpenCL — which silently broke every structure-dependent op (matmul, conv,
-> pool, LIF) while leaving elementwise ops (layout-invariant) passing. Always use
-> the structured accessors `at(i,j)` / `at(i,j,k[,l])`, which address the same
-> logical element on every backend; the test helpers enforce this.
+> **Backend gotcha.** The tests run on **all four backends**: xtensor
+> (row-major), OpenCL (column-major), Device (row-major, host mirror), and
+> SYCL (row-major, host mirror + optional device dispatch). The linear `at(k)`
+> accessor exposes storage order, so a tensor filled from row-major fixture
+> data via `at(k)` is transposed on OpenCL — which silently broke every
+> structure-dependent op (matmul, conv, pool, LIF) while leaving elementwise
+> ops (layout-invariant) passing. Always use the structured accessors
+> `at(i,j)` / `at(i,j,k[,l])`, which address the same logical element on every
+> backend; the test helpers enforce this.
 
 See `software/nn/scripts/testing/README.md` for the full contract.
 

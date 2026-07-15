@@ -42,6 +42,22 @@ foreach(_NN_FILE IN LISTS _NN_BACKEND_GUARD_CANDIDATES)
         continue()
     endif()
 
+    # Narrow exception: Conv1d/Conv2d split their template definitions into a
+    # separate .cpp (unlike header-only layers such as Linear), so making them
+    # available for every backend — not just the single currently-selected
+    # nn::Backend — requires naming each concrete backend in an explicit
+    # `template class Conv*dImpl<Backend>;` instantiation directive here. This
+    # is instantiation-only: no per-backend branching or backend-specific math
+    # is introduced, so it doesn't defeat the rule's purpose (keeping layer
+    # *logic* backend-agnostic). See src/core/tensor/tests/pytorch_parity_gtest.cpp,
+    # which needs Conv1dImpl<X>/Conv2dImpl<X> linkable for every backend X to
+    # validate them against PyTorch ground truth.
+    if(_NN_FILE MATCHES "/src/core/layers/convolution/Conv1d_impl\\.cpp$"
+       OR _NN_FILE MATCHES "/src/core/layers/convolution/Conv2d_impl\\.cpp$"
+       OR _NN_FILE MATCHES "/src/core/layers/convolution/Conv2d_utils\\.cpp$")
+        continue()
+    endif()
+
     file(READ "${_NN_FILE}" _NN_CONTENT)
     foreach(_NN_TOKEN IN LISTS _NN_BACKEND_IMPL_TOKENS)
         string(REGEX MATCH "(^|[^A-Za-z0-9_])${_NN_TOKEN}([^A-Za-z0-9_]|$)" _NN_HIT "${_NN_CONTENT}")

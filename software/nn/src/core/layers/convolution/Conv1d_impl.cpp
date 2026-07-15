@@ -25,18 +25,19 @@
 #include <random>
 #include <stdexcept>
 
-#include "Backend.hpp"
 #include "layers/convolution/Conv1d.hpp"
+#include "tensor/DeviceTensorBackend.hpp"
+#include "tensor/opencl/OpenCLTensorBackend.hpp"
+#include "tensor/xtensor/XTensorBackend.hpp"
+#ifdef NN_BACKEND_SYCL
+#include "tensor/sycl/SYCLTensorBackend.hpp"
+#endif
 
 // ============ Constructor ============
 
 template <typename Backend>
-Conv1dImpl<Backend>::Conv1dImpl(int in_channels,
-    int out_channels,
-    int kernel_size,
-    int stride,
-    int padding,
-    int dilation)
+Conv1dImpl<Backend>::Conv1dImpl(
+    int in_channels, int out_channels, int kernel_size, int stride, int padding, int dilation)
     : in_channels_(in_channels),
       out_channels_(out_channels),
       kernel_size_(kernel_size),
@@ -44,8 +45,8 @@ Conv1dImpl<Backend>::Conv1dImpl(int in_channels,
       padding_(padding),
       dilation_(dilation),
       // Weights: (C_in * K, C_out); bias: (1, C_out)
-      weights_(Tensor(static_cast<nn::Index>(in_channels * kernel_size),
-                      static_cast<nn::Index>(out_channels))),
+      weights_(Tensor(
+          static_cast<nn::Index>(in_channels * kernel_size), static_cast<nn::Index>(out_channels))),
       bias_(Tensor(1, static_cast<nn::Index>(out_channels)))
 {
     initialize_weights_he();
@@ -59,34 +60,29 @@ auto Conv1dImpl<Backend>::forward(const typename Conv1dImpl<Backend>::Tensor& in
 {
     const auto shape = input.get_shape();
 
-    if (shape.size() != 3)
-        throw std::invalid_argument("Conv1d: input must be 3-D (B, C_in, L)");
+    if (shape.size() != 3) throw std::invalid_argument("Conv1d: input must be 3-D (B, C_in, L)");
 
-    const int B   = static_cast<int>(shape[0]);
+    const int B = static_cast<int>(shape[0]);
     const int C_in = static_cast<int>(shape[1]);
-    const int L   = static_cast<int>(shape[2]);
+    const int L = static_cast<int>(shape[2]);
 
-    if (C_in != in_channels_)
-        throw std::invalid_argument("Conv1d: input channels mismatch");
+    if (C_in != in_channels_) throw std::invalid_argument("Conv1d: input channels mismatch");
 
     const int L_out = compute_output_length(L);
-    if (L_out <= 0)
-        throw std::invalid_argument("Conv1d: output length <= 0");
+    if (L_out <= 0) throw std::invalid_argument("Conv1d: output length <= 0");
 
     const int K = kernel_size_, S = stride_, P = padding_, D = dilation_;
     const int C_out = out_channels_;
 
     if (requires_grad) input_cache_ = input;
 
-    Tensor output(static_cast<nn::Index>(B),
-                  static_cast<nn::Index>(C_out),
-                  static_cast<nn::Index>(L_out));
+    Tensor output(
+        static_cast<nn::Index>(B), static_cast<nn::Index>(C_out), static_cast<nn::Index>(L_out));
 
     for (int b = 0; b < B; ++b)
     {
         // im2col: (L_out, C_in * K)
-        Tensor col(static_cast<nn::Index>(L_out),
-                   static_cast<nn::Index>(C_in * K));
+        Tensor col(static_cast<nn::Index>(L_out), static_cast<nn::Index>(C_in * K));
 
         for (int lo = 0; lo < L_out; ++lo)
         {
@@ -95,13 +91,11 @@ auto Conv1dImpl<Backend>::forward(const typename Conv1dImpl<Backend>::Tensor& in
                 for (int k = 0; k < K; ++k)
                 {
                     int li = lo * S - P + k * D;
-                    float v = (li >= 0 && li < L)
-                        ? input.at(static_cast<nn::Index>(b),
-                                   static_cast<nn::Index>(ic),
-                                   static_cast<nn::Index>(li))
-                        : 0.0f;
-                    col.at(static_cast<nn::Index>(lo),
-                           static_cast<nn::Index>(ic * K + k)) = v;
+                    float v = (li >= 0 && li < L) ? input.at(static_cast<nn::Index>(b),
+                                                        static_cast<nn::Index>(ic),
+                                                        static_cast<nn::Index>(li))
+                                                  : 0.0f;
+                    col.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(ic * K + k)) = v;
                 }
             }
         }
@@ -115,10 +109,9 @@ auto Conv1dImpl<Backend>::forward(const typename Conv1dImpl<Backend>::Tensor& in
         for (int oc = 0; oc < C_out; ++oc)
             for (int lo = 0; lo < L_out; ++lo)
                 output.at(static_cast<nn::Index>(b),
-                           static_cast<nn::Index>(oc),
-                           static_cast<nn::Index>(lo)) =
-                    out_2d.at(static_cast<nn::Index>(lo),
-                               static_cast<nn::Index>(oc));
+                    static_cast<nn::Index>(oc),
+                    static_cast<nn::Index>(lo)) =
+                    out_2d.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(oc));
     }
 
     return output;
@@ -127,22 +120,19 @@ auto Conv1dImpl<Backend>::forward(const typename Conv1dImpl<Backend>::Tensor& in
 // ============ Backward ============
 
 template <typename Backend>
-auto Conv1dImpl<Backend>::backward(
-    const typename Conv1dImpl<Backend>::Tensor& grad_output)
-    -> typename Conv1dImpl<Backend>::Tensor
+auto Conv1dImpl<Backend>::backward(const typename Conv1dImpl<Backend>::Tensor& grad_output) ->
+    typename Conv1dImpl<Backend>::Tensor
 {
     const auto shape = input_cache_.get_shape();
-    const int B    = static_cast<int>(shape[0]);
+    const int B = static_cast<int>(shape[0]);
     const int C_in = static_cast<int>(shape[1]);
-    const int L    = static_cast<int>(shape[2]);
+    const int L = static_cast<int>(shape[2]);
     const int L_out = compute_output_length(L);
 
     const int K = kernel_size_, S = stride_, P = padding_, D = dilation_;
     const int C_out = out_channels_;
 
-    Tensor dx(static_cast<nn::Index>(B),
-              static_cast<nn::Index>(C_in),
-              static_cast<nn::Index>(L));
+    Tensor dx(static_cast<nn::Index>(B), static_cast<nn::Index>(C_in), static_cast<nn::Index>(L));
     dx.setZero();
 
     Tensor d_weights(weights_.rows(), weights_.cols());
@@ -154,33 +144,28 @@ auto Conv1dImpl<Backend>::backward(
     for (int b = 0; b < B; ++b)
     {
         // Rebuild im2col for this batch item
-        Tensor col(static_cast<nn::Index>(L_out),
-                   static_cast<nn::Index>(C_in * K));
+        Tensor col(static_cast<nn::Index>(L_out), static_cast<nn::Index>(C_in * K));
 
         for (int lo = 0; lo < L_out; ++lo)
             for (int ic = 0; ic < C_in; ++ic)
                 for (int k = 0; k < K; ++k)
                 {
                     int li = lo * S - P + k * D;
-                    float v = (li >= 0 && li < L)
-                        ? input_cache_.at(static_cast<nn::Index>(b),
-                                          static_cast<nn::Index>(ic),
-                                          static_cast<nn::Index>(li))
-                        : 0.0f;
-                    col.at(static_cast<nn::Index>(lo),
-                           static_cast<nn::Index>(ic * K + k)) = v;
+                    float v = (li >= 0 && li < L) ? input_cache_.at(static_cast<nn::Index>(b),
+                                                        static_cast<nn::Index>(ic),
+                                                        static_cast<nn::Index>(li))
+                                                  : 0.0f;
+                    col.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(ic * K + k)) = v;
                 }
 
         // Gather d_out: (L_out, C_out) from grad_output[b, oc, lo]
-        Tensor d_out(static_cast<nn::Index>(L_out),
-                     static_cast<nn::Index>(C_out));
+        Tensor d_out(static_cast<nn::Index>(L_out), static_cast<nn::Index>(C_out));
         for (int oc = 0; oc < C_out; ++oc)
             for (int lo = 0; lo < L_out; ++lo)
-                d_out.at(static_cast<nn::Index>(lo),
-                          static_cast<nn::Index>(oc)) =
+                d_out.at(static_cast<nn::Index>(lo), static_cast<nn::Index>(oc)) =
                     grad_output.at(static_cast<nn::Index>(b),
-                                    static_cast<nn::Index>(oc),
-                                    static_cast<nn::Index>(lo));
+                        static_cast<nn::Index>(oc),
+                        static_cast<nn::Index>(lo));
 
         // d_weights += col.T @ d_out : (C_in*K, L_out) @ (L_out, C_out) = (C_in*K, C_out)
         d_weights.add_inplace(col.transpose().matmul(d_out));
@@ -205,10 +190,9 @@ auto Conv1dImpl<Backend>::backward(
                     int li = lo * S - P + k * D;
                     if (li >= 0 && li < L)
                         dx.at(static_cast<nn::Index>(b),
-                               static_cast<nn::Index>(ic),
-                               static_cast<nn::Index>(li)) +=
-                            d_col.at(static_cast<nn::Index>(lo),
-                                      static_cast<nn::Index>(ic * K + k));
+                            static_cast<nn::Index>(ic),
+                            static_cast<nn::Index>(li)) += d_col.at(static_cast<nn::Index>(lo),
+                            static_cast<nn::Index>(ic * K + k));
                 }
     }
 
@@ -221,8 +205,7 @@ auto Conv1dImpl<Backend>::backward(
 // ============ Getters / Setters ============
 
 template <typename Backend>
-auto Conv1dImpl<Backend>::get_weights() const
-    -> const typename Conv1dImpl<Backend>::Tensor&
+auto Conv1dImpl<Backend>::get_weights() const -> const typename Conv1dImpl<Backend>::Tensor&
 {
     return weights_;
 }
@@ -271,8 +254,7 @@ void Conv1dImpl<Backend>::initialize_weights_he()
     for (nn::Index i = 0; i < static_cast<nn::Index>(weights_.size()); ++i)
         weights_.at(i) = dist(gen);
 
-    for (nn::Index i = 0; i < static_cast<nn::Index>(bias_.size()); ++i)
-        bias_.at(i) = 0.0f;
+    for (nn::Index i = 0; i < static_cast<nn::Index>(bias_.size()); ++i) bias_.at(i) = 0.0f;
 }
 
 template <typename Backend>
@@ -281,4 +263,16 @@ auto Conv1dImpl<Backend>::compute_output_length(int input_length) const -> int
     return (input_length + 2 * padding_ - dilation_ * (kernel_size_ - 1) - 1) / stride_ + 1;
 }
 
-template class Conv1dImpl<nn::Backend>;
+// Explicitly instantiated for every concrete backend (not just the one
+// currently selected as nn::Backend) so ground-truth parity tests can
+// instantiate Conv1dImpl<XT>/<CL>/<Device>/<SY> side-by-side in one binary —
+// see src/core/layers/tests/pytorch_parity_gtest.cpp. The forward/backward
+// math above uses only the structured at(i,j,...) accessor, so it is already
+// backend-generic; this just makes the other backends' object code available
+// to link against.
+template class Conv1dImpl<nn::XTensorBackend>;
+template class Conv1dImpl<nn::OpenCLTensorBackend>;
+template class Conv1dImpl<nn::DeviceTensorBackend>;
+#ifdef NN_BACKEND_SYCL
+template class Conv1dImpl<nn::SYCLTensorBackend>;
+#endif
