@@ -6,7 +6,7 @@
 |---|---|---|---|
 | ~~D1~~ | ~~Critério da Fase 00 premia AE morto~~ → **RESOLVIDO** (métrica `d_penalized`) | ✅ | --- |
 | D2 | Conclusão do §08 confundida por D1 | 🔴 crítico | fechar §08 |
-| D3 | `snn_lr_scale` quebrado | 🟡 médio | D4, reprodutibilidade |
+| D3 | ~~`snn_lr_scale` quebrado~~ → **CORRIGIDO no código**, também afeta o artigo E04 (Guaiaquil, rascunho) | 🟡 re-execução pendente | D4, reprodutibilidade, artigo E04 |
 | D4 | Seção da tese sobre lr por grupo | 🟢 baixo | --- (depende de D3) |
 | D5 | Item 51: otimizadores | 🟢 baixo | --- |
 | D6 | Eixo `scale` do EEG é inócuo | 🟡 médio | contagem da grade na tese |
@@ -81,34 +81,51 @@ O ponto central é: a codificação `poisson` introduz um **ruído aleatório no
 
 ---
 
-### D3 --- `snn_lr_scale` está quebrado 🟡
+### D3 --- `snn_lr_scale` está quebrado 🟡 --- **CORRIGIDO (2026-07-16), re-execução pendente**
 
-O parâmetro promete uma taxa de aprendizado por grupo (menor para R, C e V_th do que para os pesos), mas na prática é um multiplicador global:
+O parâmetro promete uma taxa de aprendizado por grupo (menor para R, C e V_th do que para os pesos), mas na prática era um multiplicador global:
 
 ```cpp
-// Trainer.hpp:100 --- preenche TODOS os params, não só R/C/V_th
+// Trainer.hpp:100 (antes da correção) --- preenche TODOS os params, não só R/C/V_th
 std::vector<float> scales(params.size(), cfg_.snn_lr_scale);
 ```
 
-Como o default é `0.1F` (`TrainerConfig.hpp:45`) e o E05 nunca o sobrescreve, as 300 execuções rodaram com taxa efetiva de **1e-4**, embora os perfis declarem **1e-3**. Ou seja, o que está publicado não é o que foi executado.
+**Escopo real, corrigido:** o texto anterior desta seção dizia que só os 24 perfis de autoencoder do E05 eram afetados e que "o Experimento 04 escapa". **A segunda afirmação está errada.** `make_trainer_config` (E04Training.cpp) tem dois pontos de entrada: o ramo LSTM chama com o default `1.0F` (inofensivo), mas o ramo SNN chama com `0.1F`, e esse valor é **sobrescrito** sempre que o perfil define `learning_rate_biophysical`:
 
-O alcance do problema é menor do que parece: só os **24 perfis de autoencoder** (6 ANN + 18 SNN) são afetados, porque o ramo handcrafted não treina rede nenhuma. O Experimento 04 escapa por passar `1.0F` explicitamente (`E04Training.cpp:148`).
+```cpp
+tcfg.snn_lr_scale = (cfg.training.learning_rate_biophysical > 0.0f)
+    ? cfg.training.learning_rate_biophysical / cfg.training.learning_rate
+    : snn_lr_scale;
+```
 
-São três as opções:
+E os três perfis usados no **artigo da conferência de Guaiaquil** (`article-snn-dense.json`, `article-snn-conv1d.json`, `article-snn-recurrent.json`) **definem** `learning_rate_biophysical=0.0001` com `learning_rate=0.001` --- exatamente a mesma razão 0,1 do bug do E05. Ou seja, o artigo (ainda rascunho, confirmado com o autor) comparou LSTM-AE treinado a 1e-3 contra SNN-dense/conv1d/recurrent com **todos os pesos** treinados a 1e-4, não só R/C/V_th --- uma comparação estruturalmente injusta contra a própria contribuição do artigo. Isso é mais sério do que o problema original do E05: ali são só 24 perfis de uma tese ainda em andamento; aqui é uma tabela de comparação de um artigo já escrito.
 
-- (a) **Relabel honesto.** Colocar `snn_lr_scale=1.0` e `learning_rate=0.0001` nos perfis de AE. A taxa efetiva continua a mesma, então os resultados ficam idênticos e nenhuma re-execução é necessária --- muda apenas que o perfil passa a declarar a verdade. O custo é abandonar de vez a ideia de taxa por grupo.
-- (b) **Implementar a taxa por grupo de verdade.** Exige mudar o contrato do `Module` para etiquetar quais parâmetros são biofísicos dentro do `params()` achatado, e depois re-rodar os 24 perfis.
-- (c) **Manter 1e-3 e re-rodar.** A varredura mostra que isso destrói o `direct`, que colapsa para α=0.
+**Escopo completo, agora confirmado:** os 24 perfis de autoencoder do E05 (6 ANN + 18 SNN --- o ramo ANN também sofre, pois usa o mesmo `Trainer` com o mesmo default; só o handcrafted escapa por não treinar rede nenhuma) **e** os 3 perfis `article-snn-*` do E04. O DSNN do E05 (`E05Classifiers.cpp`, Fase 01) usa a mesma `TrainerConfig` default (nunca sobrescreve `snn_lr_scale`) e portanto está igualmente exposto --- mas a Fase 01 ainda não produziu nenhum resultado real (perfis são placeholder, bloqueados até a Fase 00 escolher o vencedor), então não há números publicados para corrigir ali, só o comportamento futuro.
+
+**Correção implementada:** em vez de etiquetar parâmetros biofísicos no contrato do `Module` (opção (b) do texto anterior, que exigiria mudar a assinatura de `params()` em toda a base de código), a correção aproveita um fato já verdadeiro hoje: R, C e V_th são **sempre** tensores escalares 1×1 (`LifImpl`/`LifBPTTImpl`), enquanto pesos e vieses nunca são --- o mesmo critério de tamanho que `Adam`'s `weight_decay` já usa para excluir vieses/biofísicos do decaimento (`param.rows() > 1 && param.cols() > 1`). `Trainer.hpp`'s construtor agora monta o vetor de escalas por parâmetro:
+
+```cpp
+std::vector<float> scales(params.size(), 1.0F);
+for (std::size_t i = 0; i < params.size(); ++i)
+    if (params[i]->size() == 1) scales[i] = cfg_.snn_lr_scale;
+```
+
+Sem mudança de interface, sem tocar `Module`. **Teste de regressão** adicionado (`trainer_genericity_gtest.cpp`, `SnnLrScaleOnlyAppliesToSizeOneParams`): um modelo com um parâmetro 1×1 e um parâmetro 2×2, ambos recebendo o mesmo gradiente fixo, confirma que após um passo do Adam o parâmetro 1×1 se move por `lr·snn_lr_scale` e o 2×2 se move pelo `lr` completo --- exatamente o que o bug violava. Suites verificadas sem regressão: `trainer_genericity_gtest` (6/6), `trainer_gtest` (13/13), `optimizers_gtest` (27/27), `experiment_03_autoencoder_redesign_gtest` (49/49), `e05_profile_audit_gtest` (2335/2335).
+
+**Pendente --- decisão de re-execução (dois lotes independentes, ambos caros):**
+
+- **E04 (prioridade alta --- artigo ainda em rascunho):** re-rodar `article-snn-dense.json`, `article-snn-conv1d.json`, `article-snn-recurrent.json` (`01_e04_run_article_profiles.sh`, ~2,5h documentado no CLAUDE.md) e reconstruir `paper_*.csv`/as tabelas do artigo antes de considerar o rascunho pronto para submissão. Sem isso, a tabela atual do artigo compara SNN artificialmente lento contra LSTM em velocidade plena.
+- **E05 (prioridade mais baixa --- tese ainda em Fase 00):** re-rodar os 24 perfis de autoencoder da Fase 00 (6 ANN + 18 SNN) e re-rankear com `d_penalized`. Mesma ressalva de custo já registrada em D1/D2 (`poisson`/`latency` a T=16 já passam de 2h cada nos testes desta sessão).
+
+Nenhum dos dois lotes foi disparado --- ambos exigem confirmação explícita do autor antes de rodar, por serem execuções longas (guard do `CLAUDE.md`).
 
 ---
 
-### D4 --- Seção da tese sobre taxa de aprendizado por grupo 🟢
+### D4 --- Seção da tese sobre taxa de aprendizado por grupo 🟢 --- desbloqueada por D3
 
-Essa seção foi pedida durante a sessão, mas **deixei de escrevê-la de propósito**.
+Essa seção foi pedida durante a sessão, mas **deixei de escrevê-la de propósito**: o código, até D3 ser corrigido, não implementava taxa por grupo --- implementava uma escala global disfarçada. Escrever a seção antes disso documentaria uma intenção que o código não honrava.
 
-O motivo é que o código não implementa taxa por grupo --- implementa uma escala global. Escrever a seção agora documentaria uma intenção que o código não honra, que é exatamente a falha corrigida nos itens 24, 57 e 59.
-
-A decisão depende de D3. Se a escolha for a opção (a), a seção honesta passa a ser sobre *por que não* existe diferenciação entre os grupos de parâmetros.
+**Agora que D3 está corrigido de verdade** (`Trainer.hpp` aplica `snn_lr_scale` só aos parâmetros 1×1 --- R, C, V_th --- e não mais a pesos/vieses), a seção passa a descrever um mecanismo real, não mais uma aspiração. Ainda não escrevi o texto --- fica pendente, mas agora **desbloqueada**: pode ser escrita já com a fórmula do critério de tamanho (`param.size() == 1`), o mesmo critério que o decaimento de peso do Adam já usa, e com o exemplo da regressão do E04 (artigo de Guaiaquil) como motivação concreta de por que a diferenciação por grupo importa na prática.
 
 ---
 
