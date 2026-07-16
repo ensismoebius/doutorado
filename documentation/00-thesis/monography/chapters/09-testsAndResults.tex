@@ -9,19 +9,51 @@
 	do Experimento 05, ordenadas de forma decrescente pelo grau de verdade
 	paraconsistente médio ($\bar{d}$, Seção~\ref{chap:propApproach}),
 	calculado a partir dos três valores de $\alpha$ (grau de crença) e $\beta$
-	(grau de descrença) obtidos nas repetições de cada configuração. As
+	(grau de descrença) obtidos nas repetições de cada configuração; $\bar\alpha$
+	e $\bar\beta$ são as médias de $\alpha$ e $\beta$ nessas mesmas repetições, e
+	$\sigma_d$ é o desvio padrão populacional de $d$ entre as três repetições,
+	indicando a estabilidade do grau de verdade da configuração. As
 	Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} comparam as
 	variantes de \textit{autoencoder} (ANN-AE e SNN-AE nas codificações direta,
 	de latência e de Poisson) para EEG e voz, respectivamente. As
 	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice} comparam as
 	configurações de características manuais (família \textit{wavelet}
 	$\times$ característica espectral $\times$ categoria) para EEG e voz.
-	As tabelas são geradas automaticamente pelo script
+	Os dados das tabelas são gerados automaticamente pelo script
 	\texttt{software/nn/scripts/pipeline/\allowbreak e05\_build\_phase00\_paraconsistent\_tables.py}
 	a partir dos arquivos \texttt{results/phase00/*\_summary.json}, e devem ser
-	regeneradas sempre que a fase 00 for reexecutada.
+	regenerados sempre que a fase 00 for reexecutada; o script escreve apenas
+	os arquivos \texttt{.csv} em \texttt{tables/}.
 
-	\input{tables/phase00_ae_eeg.tex}
-	\input{tables/phase00_ae_voice.tex}
-	\input{tables/phase00_hc_eeg.tex}
-	\input{tables/phase00_hc_voice.tex}
+	% Cria um longtable a partir de um CSV com colunas:
+	% rank,configuration,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+	\newcommand{\Phasezerotable}[3]{%
+		\begin{longtable}{@{}rlrrrr@{}}
+			\caption{#2} \label{#3} \\
+			\toprule
+			\textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\midrule
+			\endfirsthead
+			\toprule
+			\textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\midrule
+			\endhead
+			\bottomrule
+			\endfoot
+			\csvreader{#1}{}%
+				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
+		\end{longtable}%
+	}
+
+	\Phasezerotable{tables/phase00_ae_eeg.csv}%
+		{Configurações de autoencoder (EEG) ordenadas por grau de verdade $d$}%
+		{tab:phase00ae_eeg}
+	\Phasezerotable{tables/phase00_ae_voice.csv}%
+		{Configurações de autoencoder (voz) ordenadas por grau de verdade $d$}%
+		{tab:phase00ae_voice}
+	\Phasezerotable{tables/phase00_hc_eeg.csv}%
+		{Configurações de características manuais (EEG) ordenadas por grau de verdade $d$}%
+		{tab:phase00hc_eeg}
+	\Phasezerotable{tables/phase00_hc_voice.csv}%
+		{Configurações de características manuais (voz) ordenadas por grau de verdade $d$}%
+		{tab:phase00hc_voice}
