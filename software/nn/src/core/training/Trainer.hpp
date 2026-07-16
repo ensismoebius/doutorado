@@ -96,8 +96,14 @@ class Trainer
         optimizer_.weight_decay = cfg_.weight_decay; // decoupled L2 (AdamW), 0 = off
         if (cfg_.snn_lr_scale != 1.0F)
         {
+            // snn_lr_scale must only reduce the lr of SNN biophysical scalars
+            // (R, C, V_th — always constructed as 1x1 tensors, see LifImpl/LifBPTTImpl),
+            // not every parameter. A uniform fill here silently turned this into a
+            // global lr multiplier for the whole model (fixme.md D3).
             auto params = model_.params();
-            std::vector<float> scales(params.size(), cfg_.snn_lr_scale);
+            std::vector<float> scales(params.size(), 1.0F);
+            for (std::size_t i = 0; i < params.size(); ++i)
+                if (params[i]->size() == 1) scales[i] = cfg_.snn_lr_scale;
             optimizer_.attach_with_scales(params, scales);
         }
         else

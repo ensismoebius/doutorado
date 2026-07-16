@@ -65,6 +65,51 @@ struct TinyModel
     }
 };
 
+// Model with one 1x1 "biophysical" scalar (stand-in for Lif's R/C/V_th) and one
+// 2x2 "weight" matrix. backward() ignores the incoming loss gradient and injects
+// a fixed gradient of 1.0 onto both params directly, so the only thing that can
+// make the two params move by different amounts is Trainer's own per-parameter
+// lr scaling (fixme.md D3: snn_lr_scale must hit only size==1 params).
+struct MixedParamModel
+{
+    using Tensor = nn::Tensor;
+
+    nn::Tensor scalar_{1, 1};
+    nn::Tensor matrix_{2, 2};
+    std::array<nn::Tensor*, 2> param_ptrs_{{&scalar_, &matrix_}};
+
+    MixedParamModel()
+    {
+        scalar_.at(0, 0) = 0.0F;
+        for (std::size_t i = 0; i < 2; ++i)
+            for (std::size_t j = 0; j < 2; ++j) matrix_.at(i, j) = 0.0F;
+    }
+
+    nn::Tensor forward(const nn::Tensor& input, bool /*requires_grad*/)
+    {
+        return input;
+    }
+
+    void backward(const nn::Tensor& /*grad_out*/)
+    {
+        // grad() returns a *copy* (see Tensor.hpp) — the gradient tensor must be
+        // fully built before calling set_grad(), not mutated through the getter.
+        nn::Tensor scalar_grad(1, 1);
+        scalar_grad.at(0, 0) = 1.0F;
+        scalar_.set_grad(scalar_grad);
+
+        nn::Tensor matrix_grad(2, 2);
+        for (std::size_t i = 0; i < 2; ++i)
+            for (std::size_t j = 0; j < 2; ++j) matrix_grad.at(i, j) = 1.0F;
+        matrix_.set_grad(matrix_grad);
+    }
+
+    std::span<nn::Tensor*> params()
+    {
+        return std::span<nn::Tensor*>(param_ptrs_.data(), param_ptrs_.size());
+    }
+};
+
 // ---- Counting callback ----
 
 struct CountingCallback : nn::training::ITrainingCallback
@@ -289,6 +334,42 @@ TEST(TrainerGenericity, NoForwardDoubling)
     // We can't inspect loss_ directly (it's private), but test passes if compile succeeds
     // and no double-computation assertion fires. Forward count verified via CountingLoss.
     SUCCEED();
+}
+
+// fixme.md D3 regression guard: snn_lr_scale must only reduce the lr of size==1
+// ("biophysical") parameters, not every parameter in the model. Both params here
+// receive an identical, fixed gradient of 1.0 (MixedParamModel::backward), so with
+// zero-initialized Adam moments the first optimizer step moves each parameter by
+// ~= learning_rate * (that parameter's scale) — any difference between the two
+// deltas is attributable to Trainer's per-parameter scaling alone.
+TEST(TrainerGenericity, SnnLrScaleOnlyAppliesToSizeOneParams)
+{
+    MixedParamModel model;
+    nn::training::TrainerConfig cfg;
+    cfg.epochs = 1;
+    cfg.batch_size = 1;
+    cfg.learning_rate = 0.01F;
+    cfg.snn_lr_scale = 0.1F;
+
+    nn::training::Trainer<MixedParamModel> trainer(model, cfg);
+
+    std::vector<nn::Tensor> data;
+    nn::Tensor t(1, 1);
+    t.at(0, 0) = 0.5F;
+    data.push_back(t);
+
+    trainer.fit_autoencoder(data);
+
+    const float scalar_delta = std::abs(model.scalar_.at(0, 0));
+    const float matrix_delta = std::abs(model.matrix_.at(0, 0));
+
+    // The 1x1 "biophysical" param must move by ~= learning_rate * snn_lr_scale.
+    EXPECT_NEAR(scalar_delta, cfg.learning_rate * cfg.snn_lr_scale, 1e-4F);
+    // The 2x2 "weight" param must move by the FULL learning_rate, unaffected by
+    // snn_lr_scale (this is exactly what the pre-fix uniform-fill bug violated).
+    EXPECT_NEAR(matrix_delta, cfg.learning_rate, 1e-4F);
+    // Directly assert the two are NOT scaled the same way.
+    EXPECT_GT(matrix_delta, scalar_delta * 5.0F);
 }
 
 } // namespace
