@@ -87,6 +87,19 @@ This captures rate-of-change events and is well-suited for EEG and audio signals
 | Latency (first-spike) | `SpikeTimeLoss` (MSE on first-spike times) | `SpikeCountLoss` treats absent spikes as zero count, incorrect gradient for late spikes |
 | Direct / continuous | MSE | Either spike loss treats ANN outputs as binary events |
 
+**Why the mismatched rows actually break training** (grounded directly in the loss
+implementations under "How It Is Implemented Here" below, not just in general
+principle): `SpikeCountLossImpl::forward` computes MSE against $\sum_t s[t]$ — the
+*total* spike count — so on a rate-coded train it is well-defined, but on a
+latency-coded train (at most one spike per unit) it degenerates to a 0/1 target and
+throws away exactly the timing information the encoding carries. Conversely,
+`SpikeTimeLossImpl::backward` writes a gradient at *one* time index, the predicted
+first-spike position (`t = pt`, see the code excerpt above) — on a rate-coded train
+with many spikes this only ever attends to the earliest one and is blind to the
+count-carried information in the rest of the window. This is the same underlying
+indexing behaviour documented for the no-spike case above [32], generalized to the
+mismatched-encoding case.
+
 ---
 
 ## How It Is Implemented Here

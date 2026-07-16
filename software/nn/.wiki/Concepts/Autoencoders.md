@@ -172,9 +172,9 @@ auto loss = mse_loss.forward(reconstruction, target, true);
 |---|---|---|
 | Rate coding (spike count) | `SpikeCountLoss` | `SpikeTimeLoss` |
 | Latency coding (first-spike time) | `SpikeTimeLoss` | `SpikeCountLoss` |
-| Continuous (ANN) | MSE | `SpikeCountLoss` |
+| Continuous (ANN) | MSE | Either spike loss treats ANN outputs as binary events |
 
-Mixing encoding and loss types reverses or zeros gradient directions for some neurons.
+Mixing encoding and loss types reverses or zeros gradient directions for some neurons — see [Spike Encoding: Critical Invariant](./Spike-Encoding.md#critical-invariant-encoding-must-match-loss) for the mechanistic reason each mismatch fails, grounded in the loss implementations and in Comşa et al. [32].
 
 ---
 
