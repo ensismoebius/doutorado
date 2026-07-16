@@ -40,6 +40,7 @@ __pycache__/
 *.npz
 # PyTorch parity test fixtures must be committed (CI has no torch to regenerate).
 !software/nn/src/core/tensor/tests/fixtures/pytorch_refs.npz
+!software/nn/src/core/wavelet/tests/fixtures/pywt_refs.npz
 software/nn/tags
 software/nn/docs/Open_access_database_of_EEG_signals_recorded_durin.pdf
 *.sqlite

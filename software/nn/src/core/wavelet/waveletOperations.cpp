@@ -94,6 +94,15 @@ auto malat(const std::vector<double>& signal,
     // Loop `level` times for each decomposition level.
     for (unsigned int l = 0; l < level; ++l)
     {
+        // Seed this level's output with the current state: the task loop only
+        // writes the segments it decomposes, and the swap below exchanges the
+        // WHOLE buffers — without this copy, every untouched region (e.g. the
+        // detail bands regular DWT carries along) resurfaces stale data from
+        // two levels ago after the swap. At 3 levels that silently replaced
+        // cD2 with the second half of cA1. Found by pywt_parity_gtest; packet
+        // mode was never affected (its tasks cover the full signal each level).
+        temp_buffer = results.transformedSignal;
+
         // `tasks_for_next_level` stores new segments to be processed in the next iteration.
         // Optimization: Pre-allocated and cleared, reducing dynamic allocations.
         std::vector<Task> tasks_for_next_level;
