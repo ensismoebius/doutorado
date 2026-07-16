@@ -2,13 +2,13 @@
 		\begin{tikzpicture}
 			
 			% Estilos das setas
-			\tikzstyle{seta} = [thick,->,>=stealth, draw=gray, line width=1.5mm]
+			\tikzstyle{seta} = [thick,->,>=stealth, draw=flowArrowColor, line width=1.5mm]
 			
 			% Estilos do processo
-			\tikzstyle{processo} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=green, font=\sffamily\bfseries, inner sep=0.4cm]
+			\tikzstyle{processo} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=flowProcessColor, font=\sffamily\bfseries, inner sep=0.4cm]
 			
 			% Estilos Início / Fim
-			\tikzstyle{iniFim} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=orange, text=black, font=\sffamily\bfseries]
+			\tikzstyle{iniFim} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=flowStartEndColor, text=black, font=\sffamily\bfseries]
 			
 			% Sinal de entrada
 			\node (entrada)[iniFim]{\shortstack{Sinal de entrada\\ sob análise}}; 

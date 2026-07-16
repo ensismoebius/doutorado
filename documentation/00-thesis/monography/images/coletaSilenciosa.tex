@@ -2,16 +2,16 @@
 	% Definindo estilos de nós
 	
 	% Início
-	\tikzstyle{startstop} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=orange, text=black, font=\sffamily\bfseries]
+	\tikzstyle{startstop} = [circle, rounded corners, minimum width=1cm, minimum height=1cm, text centered, fill=flowStartEndColor, text=black, font=\sffamily\bfseries]
 	
 	% Processo
-	\tikzstyle{process} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=green, font=\sffamily\bfseries, inner sep=0.4cm]
+	\tikzstyle{process} = [rectangle, rounded corners, minimum width=3cm, minimum height=1cm, text centered, fill=flowProcessColor, font=\sffamily\bfseries, inner sep=0.4cm]
 	
 	% Decisão
-	\tikzstyle{decision} = [diamond, minimum width=3cm, minimum height=1cm, text centered, fill=yellow, text=black, font=\sffamily\bfseries, aspect=3]
+	\tikzstyle{decision} = [diamond, minimum width=3cm, minimum height=1cm, text centered, fill=flowDecisionColor, text=black, font=\sffamily\bfseries, aspect=3]
 	
 	% Estilos das setas
-	\tikzstyle{arrow} = [thick,->,>=stealth, draw=gray, line width=1.5mm]
+	\tikzstyle{arrow} = [thick,->,>=stealth, draw=flowArrowColor, line width=1.5mm]
 	
 	% Nós
 	\node (start) [startstop] {Início};

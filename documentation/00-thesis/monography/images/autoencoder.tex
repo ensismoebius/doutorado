@@ -1,10 +1,10 @@
 \begin{tikzpicture}[node distance=3cm, every edge/.style={draw=black,->}]
 	% Nodes
-	\node[draw, circle, fill=gray] (x) {$x$};
+	\node[draw, circle, fill=diagramInputColor] (x) {$x$};
 	\node[draw, rectangle, above right=0.7cm and 1cm of x] (encoder) {f(x)};
-	\node[draw, circle, above right=0.7cm and 1cm of encoder, fill=yellow] (h) {$h$};
+	\node[draw, circle, above right=0.7cm and 1cm of encoder, fill=diagramHiddenColor] (h) {$h$};
 	\node[draw, rectangle, below right=0.7cm and 1cm of h] (decoder) {g(h)};
-	\node[draw, circle, below right=0.7cm and 1cm of decoder, fill=red] (r) {$r$};
+	\node[draw, circle, below right=0.7cm and 1cm of decoder, fill=diagramOutputColor] (r) {$r$};
 	
 	% Arrows
 	\draw (x) edge (encoder);

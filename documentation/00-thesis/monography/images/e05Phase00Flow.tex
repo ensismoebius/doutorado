@@ -1,20 +1,20 @@
 \begin{tikzpicture}[
     startstop/.style={
-        rectangle, rounded corners=4pt, draw, fill=orange,
+        rectangle, rounded corners=4pt, draw, fill=flowStartEndColor,
         text=black, minimum width=3.4cm, minimum height=0.7cm,
         font=\footnotesize\sffamily\bfseries, align=center
     },
     proc/.style={
-        rectangle, rounded corners, draw, fill=green,
+        rectangle, rounded corners, draw, fill=flowProcessColor,
         minimum width=5.2cm, minimum height=0.7cm,
         font=\footnotesize\sffamily\bfseries, align=center
     },
     dec/.style={
-        diamond, aspect=2.2, draw, fill=yellow!70,
+        diamond, aspect=2.2, draw, fill=flowDecisionColor!70,
         minimum width=3.0cm, inner sep=1pt,
         font=\scriptsize\sffamily\bfseries, align=center
     },
-    arr/.style={->, >=stealth, draw=gray, line width=1.0mm},
+    arr/.style={->, >=stealth, draw=flowArrowColor, line width=1.0mm},
     lbl/.style={font=\scriptsize\sffamily\bfseries, text=black},
     node distance=0.5cm and 1.4cm
 ]

@@ -7,7 +7,7 @@
 	%input layer
 	\foreach \i in {0,1,2} {
 		\node (input_node\i) at (0,\i*\inputscale) {}; 
-		\filldraw[fill=gray] (input_node\i) circle (0.15cm);
+		\filldraw[fill=diagramInputColor] (input_node\i) circle (0.15cm);
 		\node at (input_node\i) {\tiny $x_\i$};
 		
 		\draw[->,in=180,out=0] (-0.5,\i*\inputscale) to (input_node\i);
@@ -16,14 +16,14 @@
 	%hidden layer
 	\foreach \i in {0,1,2,3,4} {
 		\node (hidden_node\i) at (1.5,\i*\hiddenscale-0.65) {}; 
-		\filldraw[fill=yellow] (hidden_node\i) circle (0.15cm);
+		\filldraw[fill=diagramHiddenColor] (hidden_node\i) circle (0.15cm);
 		\node at (hidden_node\i) {\tiny $h_\i$};
 	}
 	
 	%output layer
 	\foreach \i in {0,1,2} {
 		\node (output_node\i) at (3,\i*\outputscale) {}; 
-		\filldraw[fill=red] (output_node\i) circle (0.15cm);
+		\filldraw[fill=diagramOutputColor] (output_node\i) circle (0.15cm);
 		\node at (output_node\i) {\tiny $r_\i$};
 	}
 	

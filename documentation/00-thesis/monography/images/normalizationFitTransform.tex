@@ -1,20 +1,20 @@
 \begin{tikzpicture}[
     startstop/.style={
-        rectangle, rounded corners=4pt, draw, fill=orange,
+        rectangle, rounded corners=4pt, draw, fill=flowStartEndColor,
         text=black, minimum width=3.0cm, minimum height=0.7cm,
         font=\footnotesize\sffamily\bfseries, align=center
     },
     proc/.style={
-        rectangle, rounded corners, draw, fill=green,
+        rectangle, rounded corners, draw, fill=flowProcessColor,
         minimum width=5.6cm, minimum height=0.7cm,
         font=\footnotesize\sffamily\bfseries, align=center
     },
     warn/.style={
-        rectangle, rounded corners, draw, fill=red!60,
+        rectangle, rounded corners, draw, fill=cbVermillion!60,
         minimum width=5.6cm, minimum height=0.9cm,
         font=\footnotesize\sffamily\bfseries, align=center
     },
-    arr/.style={->, >=stealth, draw=gray, line width=1.2mm},
+    arr/.style={->, >=stealth, draw=flowArrowColor, line width=1.2mm},
     lbl/.style={font=\tiny\sffamily\bfseries, text=black},
     node distance=0.6cm and 2.4cm
 ]

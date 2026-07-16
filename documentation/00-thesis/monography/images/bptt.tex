@@ -1,9 +1,9 @@
 				\begin{tikzpicture}[
 	box/.style={draw, rectangle, rounded corners=3pt,
 		minimum width=1.2cm, minimum height=1.0cm,
-		fill=green, font=\small\sffamily\bfseries},
-	fwd/.style={->, >=stealth, draw=gray, line width=1.5mm},
-	bwd/.style={->, >=stealth, dashed, draw=gray, line width=1.5mm},
+		fill=flowProcessColor, font=\small\sffamily\bfseries},
+	fwd/.style={->, >=stealth, draw=flowArrowColor, line width=1.5mm},
+	bwd/.style={->, >=stealth, dashed, draw=flowArrowColor, line width=1.5mm},
 	lbl/.style={font=\tiny\sffamily\bfseries, text=black}
 	]
 	% Forma compacta
@@ -53,7 +53,7 @@
 	\draw[bwd] ([yshift=-0.3cm]rT.west) -- ([yshift=-0.3cm]rd.east);
 	
 	\node[lbl, below=1.6cm of r2, text=black]
-	{\tikz[baseline=-0.5ex]\draw[->,>=stealth,dashed,draw=gray,line width=1.5mm](1.2cm,0)--(0,0); gradiente retropropagado};
+	{\tikz[baseline=-0.5ex]\draw[->,>=stealth,dashed,draw=flowArrowColor,line width=1.5mm](1.2cm,0)--(0,0); gradiente retropropagado};
 	\node[lbl, below=2.3cm of r2]
 	{pesos $W$ compartilhados em todas as cópias};
 	

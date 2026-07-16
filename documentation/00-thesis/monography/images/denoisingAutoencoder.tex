@@ -1,18 +1,18 @@
 \begin{tikzpicture}[node distance=3cm, every edge/.style={draw=black,->}]
 	% Nodes
-	\node[draw, rectangle, fill=green] (x) {$x$};
-	
+	\node[draw, rectangle, fill=diagramInputColor] (x) {$x$};
+
 	\node[draw, rectangle, above right=-.6cm and 1cm of x] (noiser) {$n(x)$};
-	
-	\node[draw, circle, above right=-.6cm and 1cm of noiser, fill=gray] (x_hat) {$\hat{x}$};
+
+	\node[draw, circle, above right=-.6cm and 1cm of noiser, fill=diagramIntermediateColor] (x_hat) {$\hat{x}$};
 	
 	\node[draw, rectangle, above right=0.7cm and 1cm of x_hat] (encoder) {$f(\hat{x})$};
 	
-	\node[draw, circle, above right=0.7cm and 1cm of encoder, fill=yellow] (h) {$h$};
+	\node[draw, circle, above right=0.7cm and 1cm of encoder, fill=diagramHiddenColor] (h) {$h$};
 	
 	\node[draw, rectangle, below right=0.7cm and 1cm of h] (decoder) {g(h)};
 	
-	\node[draw, circle, below right=0.7cm and 1cm of decoder, fill=red] (r) {$r$};
+	\node[draw, circle, below right=0.7cm and 1cm of decoder, fill=diagramOutputColor] (r) {$r$};
 	
 	% Arrows
 	\draw (x) edge (noiser);

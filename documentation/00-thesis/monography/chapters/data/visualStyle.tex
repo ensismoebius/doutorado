@@ -1,10 +1,13 @@
-% tableStyle.tex — Single source of truth for table/figure colors and
-% header/zebra styling used across the whole thesis.
+% visualStyle.tex — Single source of truth for every color used in the
+% thesis: tables, the Gantt chart, and TikZ diagrams (images/*.tex).
 %
 % Palette: Okabe & Ito (2008), "Color Universal Design" — the standard
 % categorical palette distinguishable under protanopia, deuteranopia and
-% tritanopia. Every table/gantt-chart color in the thesis must come from
-% here; do not \definecolor ad hoc inside chapters/tables/*.tex.
+% tritanopia. Every color in the thesis must come from here; do not
+% \definecolor or use raw color names (fill=orange, fill=green, fill=red, ...)
+% ad hoc inside chapters/, tables/*.tex or images/*.tex. Raw xcolor names in
+% particular (plain "red"/"green"/"yellow") are NOT CVD-safe — red/green is
+% the single most common color-blindness confusion pair.
 
 % ── Okabe-Ito base palette ────────────────────────────────────────────────
 \definecolor{cbOrange}{RGB}{230,159,0}
@@ -76,3 +79,36 @@
 % column type Y{<width>} instead of p{<width>} in any column spec that will
 % share a row with \tableHeaderRow, e.g. \begin{tabular}{@{}Y{10cm}cc@{}}.
 \newcolumntype{Y}[1]{>{\raggedright\arraybackslash}m{#1}}
+
+% ── Diagram / flowchart semantic roles (images/*.tex) ─────────────────────
+% The thesis has ~20 TikZ flowcharts and node diagrams that all reuse the
+% same handful of roles (start/end bubble, process box, decision diamond,
+% arrows, autoencoder layer nodes). They used to \definecolor / fill= with
+% raw xcolor names (orange, green, yellow, red, gray) independently per
+% file — not CVD-safe (plain red/green/yellow is the classic confusion
+% triple) and impossible to re-theme consistently. Every images/*.tex file
+% must reference these instead of a raw color name.
+\colorlet{flowStartEndColor}{cbOrange}
+\colorlet{flowProcessColor}{cbGreen}
+\colorlet{flowDecisionColor}{cbYellow}
+\colorlet{flowArrowColor}{cbGrey}
+% Autoencoder-style node diagrams (images/{autoencoder,denoisingAutoencoder,residuo}*.tex):
+% grey = input, yellow = hidden/code/latent layer, vermillion = output/reconstruction.
+% (Vermillion replaces the original "red" — true red is excluded from the
+% Okabe-Ito set for the same red/green confusion reason.)
+\colorlet{diagramInputColor}{cbGrey}
+\colorlet{diagramHiddenColor}{cbYellow}
+\colorlet{diagramOutputColor}{cbVermillion}
+% Intermediate/corrupted stage between input and hidden layer (e.g. the
+% noised x_hat in images/denoisingAutoencoder.tex, or the pre-activation
+% sum in images/residuo.tex) — kept visually distinct from all three roles
+% above.
+\colorlet{diagramIntermediateColor}{cbSkyBlue}
+% Tree diagrams (images/afasias.tex): darker tints so white text keeps
+% AA contrast on non-header-sized diagram text.
+\colorlet{diagramBranchColor}{cbGreen!80!black}
+\colorlet{diagramLeafColor}{cbBlue!80!black}
+% Feature-vector pipeline diagrams (images/{bark,mel,linear,lfcc,bfcc}...Vect.tex,
+% images/{mel,linear}BandEnergies.tex): single accent color for box/ellipse
+% outlines. Okabe-Ito blue, darkened for outline contrast against white fill.
+\colorlet{diagramOutlineColor}{cbBlue!80!black}
