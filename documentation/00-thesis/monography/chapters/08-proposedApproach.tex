@@ -43,7 +43,7 @@
 		\end{itemize}
 		\par Ambas as estratégias serão comparadas, uma vez que não há garantia a priori de qual delas produz características mais separáveis segundo a engenharia paraconsistente.
 
-		\par Quanto à extração automatizada, serão comparados dois tipos de \textit{autoencoder} --- um de pulsos (SNN-AE) e um convencional (ANN-AE) --- e ambos serão confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
+		\par Quanto à extração automatizada, serão comparados dois tipos de \textit{autoencoder} --- um de pulsos (\ac{SNN}-AE) e um convencional (\ac{ANN}-AE) --- e ambos serão confrontados com a extração manual (\textit{handcrafted}), usando a engenharia paraconsistente de características como critério de comparação (\autoref{sec:conceitos}).
 
 		\par Uma visão geral do processo é mostrada na \autoref{fig:estruturaDaEstrategiaProposta}.
 		
@@ -115,7 +115,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 			\subsubsection{Fase 01 --- autenticação com o vetor vencedor}
 
-				\par A Fase 01 usa \emph{apenas} a combinação vencedora da Fase 00 --- o eixo do extrator não é mais variado, pois a engenharia paraconsistente já o fixou. Variam-se quatro eixos: a \textbf{fonte} do sinal (apenas voz, apenas EEG, fundida-precoce, fundida-tardia), o \textbf{modo de texto} (dependente ou independente), o \textbf{esquema de validação cruzada} (aninhada ou plana) e a \textbf{padronização das características} (z-score por característica ligado ou desligado, ajustado apenas no treino de cada \textit{fold}, como ablação do efeito da normalização). São $4 \times 2 \times 2 \times 2 = 32$ execuções, todas com o classificador DSNN. O \autoref{lst:e05Phase01} mostra a montagem da fonte e o laço de autenticação; a \autoref{fig:e05Phase01Flow} resume o fluxo.
+				\par A Fase 01 usa \emph{apenas} a combinação vencedora da Fase 00 --- o eixo do extrator não é mais variado, pois a engenharia paraconsistente já o fixou. Variam-se quatro eixos: a \textbf{fonte} do sinal (apenas voz, apenas EEG, fundida-precoce, fundida-tardia), o \textbf{modo de texto} (dependente ou independente), o \textbf{esquema de validação cruzada} (aninhada ou plana) e a \textbf{padronização das características} (z-score por característica ligado ou desligado, ajustado apenas no treino de cada \textit{fold}, como ablação do efeito da normalização). São $4 \times 2 \times 2 \times 2 = 32$ execuções, todas com o classificador \ac{DSNN}. O \autoref{lst:e05Phase01} mostra a montagem da fonte e o laço de autenticação; a \autoref{fig:e05Phase01Flow} resume o fluxo.
 
 				\input{listings/e05Phase01Auth.c.tex}
 
@@ -129,7 +129,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 
 			\subsubsection{Organização dos perfis e transição entre fases}
 
-				\par Cada execução é descrita por um \textit{perfil} em formato JSON. Os perfis ficam separados por fase: 300 perfis em \texttt{profiles/phase00/} (um por combinação varrida) e 32 em \texttt{profiles/phase01/} (fonte $\times$ texto $\times$ CV $\times$ padronização). O vencedor da Fase 00 só é conhecido após a execução; por isso os perfis da Fase 01 nascem com um extrator provisório, substituído pelo vencedor antes de rodar.
+				\par Cada execução é descrita por um \textit{perfil} em formato \ac{JSON}. Os perfis ficam separados por fase: 300 perfis em \texttt{profiles/phase00/} (um por combinação varrida) e 32 em \texttt{profiles/phase01/} (fonte $\times$ texto $\times$ \ac{CV} $\times$ padronização). O vencedor da Fase 00 só é conhecido após a execução; por isso os perfis da Fase 01 nascem com um extrator provisório, substituído pelo vencedor antes de rodar.
 
 				\par Dois \textit{scripts} automatizam a transição, evitando edição manual (\autoref{fig:e05PipelineTwoPhase}):
 				\begin{itemize}
@@ -155,7 +155,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 			
 		\subsection{Métricas}
 		
-			\par A autenticação segue o protocolo de \textbf{verificação} (\textit{verification}), no qual os locutores de teste não aparecem no treino: os grupos de validação cruzada são disjuntos por locutor. Nesse protocolo, as métricas primárias são a \textbf{Taxa de Erro Igual} (\textit{Equal Error Rate}, EER --- o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição) e a \textbf{área sob a curva ROC} (AUC). As métricas de classificação de conjunto fechado (acurácia, F1, precisão, recall, especificidade) só se aplicam quando as classes de teste também estão no treino; sob o protocolo de verificação elas não são reportadas. As seguintes métricas serão adotadas, garantindo a comparação com outros estudos:
+			\par A autenticação segue o protocolo de \textbf{verificação} (\textit{verification}), no qual os locutores de teste não aparecem no treino: os grupos de validação cruzada são disjuntos por locutor. Nesse protocolo, as métricas primárias são a \textbf{\ac{EER}} (o ponto em que a taxa de falsa aceitação iguala a de falsa rejeição) e a \textbf{área sob a curva \ac{ROC}} (\ac{AUC}). As métricas de classificação de conjunto fechado (acurácia, F1, precisão, recall, especificidade) só se aplicam quando as classes de teste também estão no treino; sob o protocolo de verificação elas não são reportadas. As seguintes métricas serão adotadas, garantindo a comparação com outros estudos:
 
 			\begin{itemize}
 				\item \textbf{Taxa de Erro Igual (EER)} --- primária, protocolo de verificação;

@@ -102,7 +102,7 @@
 
 			\par Os coeficientes LFCC (\textit{Linear Frequency Cepstral Coefficients}) distribuem os filtros de análise linearmente na faixa $[f_{\min}, f_{\max}]$, contrastando com as escalas Mel e Bark, que comprimem progressivamente as bandas em frequências mais altas para modelar a percepção auditiva humana. Essa compressão é vantajosa para reconhecimento de fala, mas prejudicial para verificação de locutores: as formantes superiores ($F_3$, $F_4$), associadas à geometria do trato vocal e à fonte glótica, são discriminativas entre indivíduos e residem justamente nas faixas descartadas pelas escalas perceptuais \cite{zhou2011lfcc,Hanilci2018}. Ao manter resolução espectral uniforme, o LFCC preserva esses componentes, sendo preferido ao MFCC para verificação de locutores, com custo computacional comparável \cite{ali2022speech}.
 
-			\par O cálculo segue as etapas ilustradas na \autoref{fig:lfccfeaturevect}: aplica-se a DFT ao sinal janelado e distribui-se um banco de $K$ filtros triangulares com centros equiespaçados linearmente (tipicamente entre 300~Hz e 3400~Hz \cite{zhou2011lfcc}):
+			\par O cálculo segue as etapas ilustradas na \autoref{fig:lfccfeaturevect}: aplica-se a \ac{DFT} ao sinal janelado e distribui-se um banco de $K$ filtros triangulares com centros equiespaçados linearmente (tipicamente entre 300~Hz e 3400~Hz \cite{zhou2011lfcc}):
 			\begin{equation}
 				f_k = f_{\min} + k\,\frac{f_{\max} - f_{\min}}{K + 1}, \qquad k = 1, \ldots, K \qquad.
 			\end{equation}
@@ -588,7 +588,7 @@
 
 			\par O sistema sensorial dos sistemas neurológicos biológicos converte dados externos, como luz, odores, toque, sabores e outros, em pulsos. Um pulso é uma alteração na voltagem que é propagada transmitindo informações \cite{kasabov2019time}. Esses pulsos são então transmitidos ao longo da cadeia neuronal sendo processados, gerando uma resposta ao ambiente.
 			
-			\par Para obter as vantagens mencionadas, as Redes Neurais de Pulso (RNP) assim como seus referenciais biológicos, em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} em suas camadas. As RNPs também podem ter entradas contínuas e manter suas propriedades.
+			\par Para obter as vantagens mencionadas, as \ac{RNP} assim como seus referenciais biológicos, em vez de empregar valores de ativação contínuos, como as RNs, utilizam \textbf{pulsos} em suas camadas. As RNPs também podem ter entradas contínuas e manter suas propriedades.
 			
 			\par Uma RNP \textbf{não é} uma simulação um-para-um de neurônios. Em vez disso, ela aproxima certas capacidades computacionais de propriedades biológicas específicas que serão explicadas mais a diante. Caso haja interesse em algo do tipo existem modelos mais biologicamente precisos como o \textbf{neurônio Hodgkin-Huxley} \cite{gerstner2014neuronal} ou ainda outros que exploram a não linearidade dos dendritos e outras características neurais \cite{jones2020single} criando modelos muito mais próximos aos neurônios naturais, obtendo resultados bastante interessantes.
 			
@@ -603,13 +603,13 @@
 			\end{figure}
 				
 			\subsubsection{Neurônio de Pulso}
-				\par O foco deste trabalho é nos \textit{Leaky Integrate and Fire Neurons} (LIF) porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}.
+				\par O foco deste trabalho é nos neurônios \ac{LIF} porque são mais simples, mais eficientes e atualmente generalizam melhor para a maioria dos problemas \cite{dan_goodman_2022_7044500}.
 		
 		\subsubsection{Entendendo e modelando o LIF}
 			
 			\par O LIF é um dos modelos de neurônios mais simples em RNPs, ainda assim, pode ser aplicado com sucesso na maioria dos problemas em que as RNPs podem ser usadas, tal estrutura, assim como um neurônio de RN, recebe a soma das entradas ponderadas, mas, em vez de passá-lo diretamente para sua função de ativação, algum \textit{vazamento} é aplicado, diminuindo em algum grau o valor soma com o passar do tempo.
 			
-			\par O LIF se assemelha com circuitos Resistor-Capacitor, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa o potencial acumulado e $\vartheta$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
+			\par O LIF se assemelha com circuitos \ac{RC}, como pode ser visto na  \autoref{fig:rcmodel}. Aqui, $R$ é a resistência ao vazamento da corrente, $I_{in}$ é a corrente de entrada, $C$ é a capacitância, $U_{mem}$ representa o potencial acumulado e $\vartheta$ é um interruptor que permite que o capacitor se descarregue (ou seja, emita um pulso) quando um determinado limiar de potencial é alcançado.
 			
 			\begin{figure}[h]
 				\centering
@@ -848,7 +848,7 @@
 			\par Mas existem algumas ideias que podem lançar alguma luz sobre este assunto: algumas observações \textit{in vivo/in vitro} mostram que os cérebros, em geral, aprendem fortalecendo/enfraquecendo e adicionando/removendo sinapses, criando novos neurônios ou adotando até mesmo outros mecanismos como pacotes de RNA; contudo, segundo \cite{kasabov2019time}, há outras formas empregadas:
 			
 			\begin{itemize}
-				\item \textbf{Plasticidade Dependente do Tempo de Pulsos (STDP)}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
+				\item \textbf{\ac{STDP}}: Se um neurônio pré-sináptico dispara \textbf{antes} do pós-sináptico, há um fortalecimento na conexão, mas se o neurônio pós-sináptico disparar antes, então há um enfraquecimento.
 				
 				\item \textbf{Descida de Gradiente Emprestada}: Aproxima a função de passo usando outra função matemática, que é diferenciável (como uma sigmoide), para treinar a rede. Essas aproximações são usadas apenas na fase de \textit{backpropagation}, enquanto mantêm o comportamento original na fase do \textit{feed-forward}.
 				
@@ -859,7 +859,7 @@
 				\item \textbf{ESN e LSM}: as \textbf{Redes de estado de eco} (\textit{Echo State Networks} --- ESN) usam neurônios de saída contínua no reservatório; as \textbf{Máquinas de estado líquido} (\textit{Liquid State Machines} --- LSM) usam neurônios pulsantes no reservatório e uma camada de saída simples que lê apenas o estado atual \cite{6789852}.
 			\end{itemize}
 
-		\subsubsection{Retropropagação Através do Tempo em RNPs (BPTT)}
+		\subsubsection{\ac{BPTT} em RNPs}
 
 			\par Redes recorrentes processam sequências: a saída em cada instante $t$ depende da entrada atual $x_t$ e do estado interno $h_{t-1}$ da etapa anterior. Isso cria dependências temporais que a retropropagação padrão não trata.
 
@@ -904,7 +904,7 @@
 			\subsubsection{Normalização em Lote Dependente do Limiar (tdBN)}
 				\label{sec:tdbn}
 
-				\par A \textbf{Normalização em Lote Dependente do Limiar} (\textit{Threshold-Dependent Batch Normalization}, tdBN) é uma camada de normalização proposta por \cite{zheng2021goingdeeper} para viabilizar o treinamento direto de Redes Neurais de Pulso (RNPs) profundas. Trata-se de uma adaptação da Normalização em Lote (\textit{Batch Normalization}, BN) \cite{ioffe2015batchnorm} ao domínio pulsante.
+				\par A \textbf{\ac{TDBN}} é uma camada de normalização proposta por \cite{zheng2021goingdeeper} para viabilizar o treinamento direto de RNPs profundas. Trata-se de uma adaptação da \ac{BN} \cite{ioffe2015batchnorm} ao domínio pulsante.
 
 				\par \textbf{Motivação.} A BN clássica normaliza uma pré-ativação para média zero e variância unitária, $N(0,1)$, considerando apenas a dimensão do lote. Em uma RNP, contudo, a corrente de membrana de um neurônio é uma distribuição sobre as amostras \textbf{e} sobre os $T$ passos de tempo, e o disparo depende da comparação dessa corrente com o limiar $V_{th}$. Normalizar para variância unitária é, portanto, cego ao limiar: se $V_{th}\neq 1$, a entrada normalizada ou raramente cruza o limiar (poucos disparos) ou o satura (disparos em excesso) \cite{zheng2021goingdeeper}. Além disso, ao empilhar muitas camadas pulsantes, o potencial de membrana --- e o gradiente retropropagado --- tende a desaparecer ou explodir, o que impede o treinamento de redes profundas e pode levar ao \textbf{problema da ausência de disparos} (\textit{No-Spike Problem}), em que uma camada inteira deixa de disparar e, como o gradiente substituto só é não-nulo em torno do limiar, deixa de ser ajustada \cite{zheng2021goingdeeper}.
 
@@ -1187,11 +1187,11 @@
 				\end{itemize}
 			\end{itemize}
 		
-			\par O primeiro estudo consultado \cite{ParkHyeong-jun2023Mcoi} aborda o uso de EEG para captação de fala imaginada usando as técnicas de decomposição de sinal NA-MEMD (\textit{multivariate empirical mode decomposition}) e DTWPT (Discrete time Wavelet Package Transform) e a arquitetura de redes neurais MRF-CNN. A NA-MEMD é uma extensão do EMD (\textit{Empirical mode decomposition}) para sinais multivariados permitindo a decomposição de sinais. O MRF-CNN é uma arquitetura de rede neural convolucional profunda que utiliza características estatísticas extraídas dos sinais decompostos como entrada para o classificador. Foram utilizadas técnicas de validação cruzada e divisão de dados para treinamento e teste do classificador. Os dados EEG foram coletados dos nove participantes saudáveis, estes tiveram que imaginar as vogais "a", "e", "i", "o", "u". O estudo atingiu uma média de 80,41\% de classificações corretas.
+			\par O primeiro estudo consultado \cite{ParkHyeong-jun2023Mcoi} aborda o uso de EEG para captação de fala imaginada usando as técnicas de decomposição de sinal NA-MEMD (\textit{multivariate empirical mode decomposition}) e \ac{DTWPT} e a arquitetura de redes neurais MRF-CNN. A NA-MEMD é uma extensão do EMD (\textit{Empirical mode decomposition}) para sinais multivariados permitindo a decomposição de sinais. O MRF-CNN é uma arquitetura de rede neural convolucional profunda que utiliza características estatísticas extraídas dos sinais decompostos como entrada para o classificador. Foram utilizadas técnicas de validação cruzada e divisão de dados para treinamento e teste do classificador. Os dados EEG foram coletados dos nove participantes saudáveis, estes tiveram que imaginar as vogais "a", "e", "i", "o", "u". O estudo atingiu uma média de 80,41\% de classificações corretas.
 			
 			\par Em \cite{AbdulghaniMokhlesM2023ISCU} usa \textit{Wavelet Scattering Transform} (WST), técnica que aplica sobre o sinal transformadas wavelet combinadas com operações não lineares, para extração de características para posterior classificação por uma Rede Neural LSTM(\textit{Long-Short term memory}) recorrente. Os quatro participantes imaginaram as seguintes expressões: \textit{"up", "down", "left" e "right"}. Em testes a acurácia alcançada foi 92,50\%.
 			
-			\par Com o fim de remover ruídos e artefatos causados por movimentos musculares relacionados à região da cabeça em \cite{MahapatraNrushinghCharan2023Ecoi} foi usada a DTWT (\textit{Discrete Time Wavelet Transform}) para processar os sinais EEG, que foram obtidos a partir das bases de dados EPOC e MUSES \cite{mindbigdata}. Depois da filtragem e geração de características, variações de Redes Neurais Recorrentes Bidirecionais foram empregadas na classificação das classes compostas pelos dígitos de 0 a 9. Foram alcançadas acurácias máximas de 98,18\% na base MUSE e 71,60\% na EPOC.
+			\par Com o fim de remover ruídos e artefatos causados por movimentos musculares relacionados à região da cabeça em \cite{MahapatraNrushinghCharan2023Ecoi} foi usada a \ac{DTWT} para processar os sinais EEG, que foram obtidos a partir das bases de dados EPOC e MUSES \cite{mindbigdata}. Depois da filtragem e geração de características, variações de Redes Neurais Recorrentes Bidirecionais foram empregadas na classificação das classes compostas pelos dígitos de 0 a 9. Foram alcançadas acurácias máximas de 98,18\% na base MUSE e 71,60\% na EPOC.
 			
 			\par Nesta revisão \cite{ShahUzair2022TRoA} que foi feita segundo as orientações constantes no protocolo PRISMA-ScR foram selecionados 34 trabalhos que analisaram palavras e expressões imaginadas, nestes, a técnica mais usada para extração de características foram os filtros Wavelet e os algoritmos de classificação mais proeminentes foram as \textit{Support Vector Machines}(SVM) e as Redes Neurais Convolucionais. É reportado que os estudos utilizam poucos tipos de métricas limitando-se na maioria dos casos a acurácia, a revisão sugere que também sejam usadas métricas como: Precisão, \textit{Recall}, Taxa de erro de palavras (Word Error Rate), AUC (Área Under the Curve), Sensitividade, Especificidade e Média Quadrática a fim de se oferecer uma visão mais geral dos resultados. 
 			
