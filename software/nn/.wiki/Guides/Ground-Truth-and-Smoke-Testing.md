@@ -1,9 +1,16 @@
 # Ground-Truth and Smoke Testing
 
-Two testing layers added to catch classes of bugs that unit tests and compilation miss:
+Testing layers added to catch classes of bugs that unit tests and compilation miss:
 
 1. **PyTorch / snnTorch parity** — numerical ground-truth for individual layers.
-2. **Experiment05 smoke tests** — end-to-end runs of every profile to surface runtime errors.
+2. **PyWavelets parity** — ground-truth for the wavelet transforms (see
+   [Wavelet](../Core/Wavelet.md#ground-truth-vs-pywavelets-2026-07-15)); it
+   caught a `malat` DWT buffer-corruption bug and three corrupted Daubechies
+   filter tables.
+3. **Experiment05 smoke tests** — end-to-end runs of every profile to surface runtime errors.
+
+Each compares against a mature reference library, stores committed `.npz`
+fixtures (so CI needs no Python), and reloads them with cnpy on the C++ side.
 
 ---
 

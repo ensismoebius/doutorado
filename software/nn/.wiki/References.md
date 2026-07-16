@@ -154,3 +154,11 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 [58] F. Lotte, L. Bougrain, A. Cichocki, M. Clerc, M. Congedo, A. Rakotomamonjy, and F. Yger, "A review of classification algorithms for EEG-based brain-computer interfaces: A 10-year update," Journal of Neural Engineering, vol. 15, no. 3, p. 031005, 2018.
 
 [59] S. Kaufman, S. Rosset, C. Perlich, and O. Stitelman, "Leakage in data mining: Formulation, detection, and avoidance," ACM Transactions on Knowledge Discovery from Data, vol. 6, no. 4, pp. 1–21, 2012.
+
+## Wavelets
+
+[60] S. Mallat, *A Wavelet Tour of Signal Processing*, 3rd ed. Academic Press, 2009.
+
+[61] I. Daubechies, *Ten Lectures on Wavelets*. Society for Industrial and Applied Mathematics, 1992.
+
+[62] G. R. Lee, R. Gommers, F. Waselewski, K. Wohlfahrt, and A. O'Leary, "PyWavelets: A Python package for wavelet analysis," *Journal of Open Source Software*, vol. 4, no. 36, p. 1237, 2019. [Online]. Available: https://doi.org/10.21105/joss.01237 (Ground-truth reference for `pywt_parity_gtest`.)

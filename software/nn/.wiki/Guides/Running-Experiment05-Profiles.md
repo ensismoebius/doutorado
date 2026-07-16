@@ -68,6 +68,20 @@ for the related (secondary) buffer-pool bound that was tightened at the same
 time, and [Memory Diagnostics](./Memory-Diagnostics.md) for the full
 investigation writeup and the general leak-vs-plateau method.
 
+**2026-07-15 fixes** (both in `run_profiles.sh`):
+- **Throttle correctness.** The parallel pool used to gate on `$TMP/active`
+  marker files. A worker stopped by `SIGTTOU`/`SIGTTIN` (the script
+  backgrounded while something touches the TTY) never removes its marker, and
+  a signal-interrupted `wait -n` returns without reaping — so the gate spun
+  through and launched **every** pending profile at once (observed twice:
+  ~30 concurrent `experiment05` processes, OOM-killing unrelated work). It now
+  throttles on live worker PIDs, which is immune to both.
+- **Binary auto-pick.** Auto-pick now prefers the `max-performance` (CPU) build
+  when present, instead of "most recently built". These profiles' networks are
+  tiny and kernel-launch-bound on the GPU, so a stray OpenCL rebuild used to
+  silently switch runs onto the slower backend. Override with `E05_BUILD` /
+  `E05_BIN` to target a specific backend.
+
 ## Crash / power-loss recovery
 
 `run_profiles.sh` checkpoints every completed profile to

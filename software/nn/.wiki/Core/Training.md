@@ -244,6 +244,20 @@ This is mathematically equivalent to averaging B individual gradients (CrossEntr
 
 Validation is similarly batched: all val samples are stacked into `(Nv, D)` and forwarded once per epoch.
 
+### OpenCL batch scope (2026-07-15)
+
+Under `NN_BACKEND=OpenCL`, both training loops wrap the whole per-batch
+critical section — `zero_grad` → forward → loss → backward → gradient clip →
+`optimizer_.step()` — in a single `OpenCLContext::BatchScope`, which suppresses
+the per-op `clFinish` so the batch flushes to the GPU once. Previously the
+optimizer step ran *outside* the scope, so Adam's ~15 elementwise ops per
+parameter each forced a full `clFinish` (~250 device round-trips per batch on
+the SNN-AE). Together with the fused
+[`adam_step_inplace`](./Optimizers.md#fused-backend-step-2026-07-15) kernel and
+the [device-resident tensor fast path](./Tensor.md#opencl-device-resident-fast-path-2026-07-15),
+this removed the transfer-bound overhead that made the OpenCL preset slower
+than the CPU backend for small networks.
+
 ## Data Flow
 
 ```mermaid
