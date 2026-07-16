@@ -29,9 +29,9 @@ Project Context (nn framework)
 
 **Article pipeline chain** (full paper reproduction):
 ```
-scripts/pipeline/e04_run_article_profiles.sh
+scripts/pipeline/e04/01_e04_run_article_profiles.sh
   → results/article_*_comparative_metrics.csv
-  → scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py
+  → scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py
   → documentation/.../data/article_*_*.dat
   → pdflatex paper.tex
 ```

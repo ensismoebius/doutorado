@@ -11,12 +11,12 @@ to the paraconsistent "Truth" corner -> best speaker separability before any
 classifier is trained).
 
 Usage:
-    python3 scripts/pipeline/e05_phase00_rank.py \
+    python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
         --profiles-dir src/experiments/05/profiles/phase00 \
         --results-dir  results/phase00 \
         --out          results/phase00/winners.json
 
-The --out JSON feeds e05_apply_winner.py, which injects each winner into the
+The --out JSON feeds 02_e05_apply_winner.py, which injects each winner into the
 Phase 01 profiles.
 """
 import argparse
@@ -122,7 +122,7 @@ def main():
             json.dump(winners, f, indent=2)
             f.write("\n")
         print(f"\nWinners written to {args.out}")
-        print("Next: python3 scripts/pipeline/e05_apply_winner.py "
+        print("Next: python3 scripts/pipeline/e05/02_e05_apply_winner.py "
               f"--winners {args.out}")
 
 

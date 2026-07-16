@@ -25,7 +25,7 @@ cmake --build out/build/max-performance --target experiment04 -j$(nproc)
   --comparative-config src/experiments/04/profiles/article-lstm-ae.json
 
 # Full article pipeline (all 4 models, ~2.5 h)
-./scripts/pipeline/e04_run_article_profiles.sh
+./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
 
 ## Profiles (`profiles/`)
@@ -72,10 +72,10 @@ layer specs are valid in `encoder_layer_spec` / `decoder_layer_spec`.
 
 ```bash
 # 1. Run all profiles
-./scripts/pipeline/e04_run_article_profiles.sh
+./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 
 # 2. Aggregate CSVs → paper DAT files (called automatically by step 1)
-python3 scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /path/to/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

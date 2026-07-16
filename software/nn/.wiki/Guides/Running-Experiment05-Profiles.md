@@ -130,7 +130,7 @@ nohup ./scripts/testing/run_e05_profiles.sh phase00 > phase00_run.log 2>&1 &
 ### 2. Rank → winner per signal
 
 ```bash
-.venv/bin/python scripts/pipeline/e05_phase00_rank.py \
+.venv/bin/python scripts/pipeline/e05/01_e05_phase00_rank.py \
   --results-dir results/phase00 --out results/phase00/winners.json
 ```
 
@@ -142,7 +142,7 @@ and writes `winners.json` (carries each winner's full `feature_extraction` block
 The shipped phase01 profiles carry a **placeholder** extractor until this runs.
 
 ```bash
-.venv/bin/python scripts/pipeline/e05_apply_winner.py \
+.venv/bin/python scripts/pipeline/e05/02_e05_apply_winner.py \
   --winners results/phase00/winners.json --fused voice   # or: --fused eeg
 ```
 

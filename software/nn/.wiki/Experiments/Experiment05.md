@@ -412,15 +412,15 @@ The experiment is split into two profile sets, gated by `classifier.enabled`:
 
 ```bash
 # Rank Phase 00 results, pick the min-D_truth winner per signal:
-python3 scripts/pipeline/e05_phase00_rank.py \
+python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
   --results-dir results/phase00 --out results/phase00/winners.json
 
 # Inject the winners into the 16 Phase 01 profiles (fused uses the voice winner by default):
-python3 scripts/pipeline/e05_apply_winner.py \
+python3 scripts/pipeline/e05/02_e05_apply_winner.py \
   --winners results/phase00/winners.json --fused voice
 ```
 
-`e05_phase00_rank.py` collates every `results/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
+`01_e05_phase00_rank.py` collates every `results/phase00/*_paraconsistent.csv`, averages `D_truth` across repeat runs, ranks per signal, and writes `winners.json` (each winner carries its full `feature_extraction` block). `02_e05_apply_winner.py` rewrites each Phase 01 profile's `feature_extraction` to its source's winner (`voice→voice`, `eeg→eeg`, `fused-*→--fused`); it is idempotent and supports `--dry-run`.
 
 ---
 

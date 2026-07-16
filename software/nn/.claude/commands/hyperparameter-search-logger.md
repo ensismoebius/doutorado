@@ -13,7 +13,7 @@ Ensure every hyperparameter search is reproducible: the search space, every samp
 - `article-snn-dense.json`: v_th sweep (spike threshold)
 - Sweep range declared as a JSON array in the profile field
 
-**Sweep output:** `scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py` produces `results/paper_sweep_alpha.csv` and `results/paper_sweep_vth.csv` from the comparative metrics CSVs.
+**Sweep output:** `scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py` produces `results/paper_sweep_alpha.csv` and `results/paper_sweep_vth.csv` from the comparative metrics CSVs.
 
 **Profile sweep fields:**
 ```json

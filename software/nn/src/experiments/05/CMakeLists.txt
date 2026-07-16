@@ -122,7 +122,7 @@ if(Python3_EXECUTABLE)
     file(GLOB E05_PHASE00_RESULTS CONFIGURE_DEPENDS
         "${CMAKE_SOURCE_DIR}/results/phase00/*_summary.json")
 
-    set(E05_PHASE00_TABLES_GEN "${CMAKE_SOURCE_DIR}/scripts/pipeline/e05_build_phase00_paraconsistent_tables.py")
+    set(E05_PHASE00_TABLES_GEN "${CMAKE_SOURCE_DIR}/scripts/pipeline/e05/e05_build_phase00_paraconsistent_tables.py")
     set(E05_PHASE00_RESULTS_DIR "${CMAKE_SOURCE_DIR}/results/phase00")
     set(E05_PHASE00_TABLES_DIR "${CMAKE_SOURCE_DIR}/../../documentation/00-thesis/monography/tables")
     set(E05_PHASE00_TABLES_STAMP "${CMAKE_CURRENT_BINARY_DIR}/e05_phase00_paraconsistent_tables.stamp")

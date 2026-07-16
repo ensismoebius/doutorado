@@ -11,12 +11,12 @@
 #
 # Usage:
 #   cd software/nn
-#   ./scripts/pipeline/e04_run_backend_comparison.sh
+#   ./scripts/pipeline/e04/e04_run_backend_comparison.sh
 #
 # Requires: cmake, OpenCL runtime, XTensor dependencies.
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 PROFILE="src/experiments/04/profiles/article-backend-bench.json"
@@ -41,7 +41,7 @@ echo "[backend-run] running opencl benchmark"
 cp "$BASE_OUT" "results/article_backend_bench_opencl_comparative_metrics.csv"
 
 echo "[backend-run] updating backend table"
-python3 scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py \
+python3 scripts/pipeline/e04/02_e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

@@ -4,7 +4,9 @@ All scripts are organized into five subdirectories by purpose.
 
 ```
 scripts/
-  pipeline/   paper/thesis generation chains (e04 article, e05 phase00→phase01)
+  pipeline/
+    e04/      Guayaquil article chain (numbered by execution order)
+    e05/      thesis phase00→phase01 chain (numbered by execution order)
   data/       dataset handling & format conversion
   ci/         CI gates (called by ci.yml and coverage builds)
   dev/        developer workflow & tooling
@@ -17,33 +19,38 @@ scripts/
 
 ## pipeline/ — Paper/thesis generation chains
 
-### e04 — Guayaquil article
+Scripts are grouped into `e04/` and `e05/` subdirectories, one per experiment.
+Within each, filenames are prefixed with their execution order (`01_`, `02_`,
+...) when the chain has a fixed sequence; a script with no numeric prefix runs
+standalone (not part of that ordered chain).
 
-Full chain: `e04_run_article_profiles.sh` → CSVs → `e04_build_lstm_vs_snn_paper_data.py` → DAT files → `pdflatex`
+### e04/ — Guayaquil article
+
+Full chain: `01_e04_run_article_profiles.sh` → CSVs → `02_e04_build_lstm_vs_snn_paper_data.py` → DAT files → `pdflatex`
 
 | Script | Role |
 |---|---|
-| `e04_run_article_profiles.sh` | Run all 4 article profiles; calls `e04_build_lstm_vs_snn_paper_data.py` when done |
-| `e04_run_backend_comparison.sh` | Run CPU vs OpenCL backend comparison |
-| `e04_build_lstm_vs_snn_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
+| `01_e04_run_article_profiles.sh` | Run all 4 article profiles; calls `02_e04_build_lstm_vs_snn_paper_data.py` when done |
+| `02_e04_build_lstm_vs_snn_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
+| `e04_run_backend_comparison.sh` | Standalone: run CPU vs OpenCL backend comparison (also calls the step-02 aggregator itself, but isn't part of the numbered chain) |
 
 Quick start:
 ```bash
 cd software/nn
-./scripts/pipeline/e04_run_article_profiles.sh
+./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
 
-### e05 — Thesis phase00 → phase01 chain
+### e05/ — Thesis phase00 → phase01 chain
 
-Full chain: `run_e05_profiles.sh phase00` (scripts/testing/) → `e05_phase00_rank.py` → `winners.json` → `e05_apply_winner.py` → `run_e05_profiles.sh phase01`
+Full chain: `run_e05_profiles.sh phase00` (scripts/testing/) → `01_e05_phase00_rank.py` → `winners.json` → `02_e05_apply_winner.py` → `run_e05_profiles.sh phase01`
 
 | Script | Role |
 |---|---|
-| `e05_phase00_rank.py` | Read `results/phase00/*_summary.json`, pick the per-signal paraconsistent winner, write `winners.json` |
-| `e05_apply_winner.py` | Inject `winners.json`'s winning `feature_extraction` block into the phase01 profiles' placeholder |
-| `e05_build_phase00_paraconsistent_tables.py` | Generate the thesis's ranked phase00 comparison tables (`tables/phase00_*.csv`) from `results/phase00/*_summary.json`, consumed by `chapters/09-testsAndResults.tex` |
+| `01_e05_phase00_rank.py` | Read `results/phase00/*_summary.json`, pick the per-signal paraconsistent winner, write `winners.json` |
+| `02_e05_apply_winner.py` | Inject `winners.json`'s winning `feature_extraction` block into the phase01 profiles' placeholder |
+| `e05_build_phase00_paraconsistent_tables.py` | Standalone: generate the thesis's ranked phase00 comparison tables (`tables/phase00_*.csv`) from `results/phase00/*_summary.json`, consumed by `chapters/09-testsAndResults.tex` — branches off the same phase00 results as step 01 but isn't part of the rank→apply sequence |
 
-Tests for the first two live in `scripts/testing/test_e05_phase_scripts.py` (see below) — kept out of `pipeline/` since it's a test, not a pipeline step.
+Tests for the numbered pair live in `scripts/testing/test_e05_phase_scripts.py` (see below) — kept out of `pipeline/` since it's a test, not a pipeline step.
 
 ---
 
@@ -129,7 +136,7 @@ Full docs for the PyTorch/PyWavelets parity fixtures: `testing/README.md`.
 | `e05_make_smoke_profiles.py` | Mirror every Experiment05 profile into `profiles/smoke/` with tiny run parameters, same code paths |
 | `run_e05_smoke.sh` | Smoke-run every profile under `profiles/smoke/` — fast, surfaces runtime errors compilation can't catch |
 | `run_e05_profiles.sh` | Run the REAL Experiment05 profiles (`phase00`/`phase01`/`all`) — the actual experiment, resumable, checkpointed |
-| `test_e05_phase_scripts.py` | Stdlib-unittest coverage for `pipeline/e05_phase00_rank.py` + `pipeline/e05_apply_winner.py`; also run in CI |
+| `test_e05_phase_scripts.py` | Stdlib-unittest coverage for `pipeline/e05/01_e05_phase00_rank.py` + `pipeline/e05/02_e05_apply_winner.py`; also run in CI |
 
 ```bash
 cd software/nn

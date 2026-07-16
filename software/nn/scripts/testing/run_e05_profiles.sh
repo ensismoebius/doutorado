@@ -4,10 +4,10 @@
 # experiment, not the smoke mirror). Shows live progress and captures failures.
 #
 # Pipeline order:
-#   1) run_e05_profiles.sh phase00     → paraconsistent ranking CSVs in results/phase00
-#   2) e05_phase00_rank.py         → winners.json
-#   3) e05_apply_winner.py         → injects the winner into the phase01 profiles
-#   4) run_e05_profiles.sh phase01     → DSNN authentication, EER/AUC in results/phase01
+#   1) run_e05_profiles.sh phase00              → paraconsistent ranking CSVs in results/phase00
+#   2) pipeline/e05/01_e05_phase00_rank.py      → winners.json
+#   3) pipeline/e05/02_e05_apply_winner.py      → injects the winner into the phase01 profiles
+#   4) run_e05_profiles.sh phase01              → DSNN authentication, EER/AUC in results/phase01
 #
 # Requires: experiment05 built, and the dataset (dataset.root) present.
 # HEAVY: phase00 = 300 profiles, phase01 = 32, each with experiment.repeats runs.

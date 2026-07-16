@@ -485,13 +485,13 @@ Base pública 10.1117/12.2255697
 # 1. Rode todos os perfis phase00/ (grava results/phase00/*_paraconsistent.csv)
 
 # 2. Ranqueie e escolha o vencedor por sinal (menor D_truth):
-python3 scripts/pipeline/e05_phase00_rank.py \
+python3 scripts/pipeline/e05/01_e05_phase00_rank.py \
     --profiles-dir src/experiments/05/profiles/phase00 \
     --results-dir  results/phase00 \
     --out          results/phase00/winners.json
 
 # 3. Injete o vencedor nos 16 perfis phase01/ (fused usa o vencedor da voz por padrão):
-python3 scripts/pipeline/e05_apply_winner.py \
+python3 scripts/pipeline/e05/02_e05_apply_winner.py \
     --winners      results/phase00/winners.json \
     --profiles-dir src/experiments/05/profiles/phase01 \
     --fused        voice      # ou: eeg

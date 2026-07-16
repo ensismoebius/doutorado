@@ -2,8 +2,8 @@
 
 ## Pipeline Experiment05 (crítico para a tese, ordem de prioridade)
 
-1. Rodar `e05_phase00_rank.py` sobre o conjunto de 300 perfis agora completo para produzir `winners.json`.
-2. Rodar `e05_apply_winner.py` para injetar o vencedor real nos 32 perfis da phase01, substituindo o bloco `feature_extraction` provisório.
+1. Rodar `01_e05_phase00_rank.py` sobre o conjunto de 300 perfis agora completo para produzir `winners.json`.
+2. Rodar `02_e05_apply_winner.py` para injetar o vencedor real nos 32 perfis da phase01, substituindo o bloco `feature_extraction` provisório.
 3. Executar os 32 perfis `classifier.type=dsnn` da phase01 (`run_e05_profiles.sh phase01`) --- este é o experimento de autenticação real da tese e atualmente não tem nenhum resultado.
 4. Com resultados reais do DSNN em mãos, considerar uma rodada explícita de ablação para `weight_decay`, `firing_rate_reg_lambda` e tdBN --- nenhum dos três jamais foi exercitado fora do perfil debug/smoke:
    - [ ] `training.weight_decay` > 0 --- só configurado em `debug.json`/`smoke/debug.json`; não está em nenhum perfil real da phase01
@@ -148,7 +148,7 @@ Cada um desses 4 modos de fonte é adicionalmente cruzado com 2 eixos exigidos e
 - **text-dependent vs. text-independent** (ch06, Questão 4): mesma frase falada+imaginada vs. frase arbitrária/não coincidente entre treino e teste. Testa se o desempenho do método de extração é sensível ao texto.
 - **Esquema de CV**: nested 5-fold (seleção de hiperparâmetro sem viés) vs. flat grouped 5-fold. Ambos são disjuntos por locutor (protocolo de verificação, ch08 §71) --- locutores de teste nunca aparecem no treino.
 
-A grade publicada também cruza um terceiro eixo fora do plano original, `training.standardize_features` (bruto vs. z-score por fold, auditoria G1), logo a grade da Phase 01 = 4 modos de fonte × 2 (dependent/independent) × 2 (nested/flat) × 2 (raw/std) = **32 perfis DSNN**, todos publicados em `profiles/phase01/` (`classifier.type=dsnn`), usando a combinação vencedora única da Phase 00 (o eixo do extrator *não* é varrido na Phase 01 --- o ranking paraconsistente já o escolheu). Os perfis publicados ainda carregam um bloco `feature_extraction` provisório (`daub4/lfcc`) a ser substituído pelo vencedor real da Phase 00 via `e05_apply_winner.py` antes de rodar.
+A grade publicada também cruza um terceiro eixo fora do plano original, `training.standardize_features` (bruto vs. z-score por fold, auditoria G1), logo a grade da Phase 01 = 4 modos de fonte × 2 (dependent/independent) × 2 (nested/flat) × 2 (raw/std) = **32 perfis DSNN**, todos publicados em `profiles/phase01/` (`classifier.type=dsnn`), usando a combinação vencedora única da Phase 00 (o eixo do extrator *não* é varrido na Phase 01 --- o ranking paraconsistente já o escolheu). Os perfis publicados ainda carregam um bloco `feature_extraction` provisório (`daub4/lfcc`) a ser substituído pelo vencedor real da Phase 00 via `02_e05_apply_winner.py` antes de rodar.
 
 **Métricas primárias** (ch08 §71, protocolo de verificação): EER e AUC. Métricas de conjunto fechado (acurácia/F1/precisão/recall/especificidade) só reportadas se uma avaliação de conjunto fechado também for rodada junto com a verificação --- não é a alegação principal. MSE é apenas de reconstrução (treino do autoencoder), não é métrica de classificação.
 
@@ -182,7 +182,7 @@ O próprio ranking paraconsistente (α, β, G1, G2, D_truth): **[x] implementado
 
 **Phase 00 está totalmente executada**: `results/run_profiles_phase00.state` mostra **300/300 PASS** (ver "Resolvidas" acima sobre os 4 perfis daub32 que precisaram de reexecução). Todo perfil tem seu CSV/JSON de ranking paraconsistente de 3 repetições em `results/phase00/`.
 
-**Lacuna restante**: `scripts/pipeline/e05_phase00_rank.py` (lê os 300 resultados, escolhe o vencedor por sinal, grava `winners.json`) ainda não foi rodado contra o conjunto de resultados agora completo --- `winners.json` não existe. Os perfis da Phase 01 ainda carregam um extrator provisório `daub4/lfcc` em vez do vencedor real da Phase 00. → item 1 do TODO.
+**Lacuna restante**: `scripts/pipeline/e05/01_e05_phase00_rank.py` (lê os 300 resultados, escolhe o vencedor por sinal, grava `winners.json`) ainda não foi rodado contra o conjunto de resultados agora completo --- `winners.json` não existe. Os perfis da Phase 01 ainda carregam um extrator provisório `daub4/lfcc` em vez do vencedor real da Phase 00. → item 1 do TODO.
 
 ## Phase 01 --- autenticação DSNN (32 perfis: 4 modos de fonte × 2 text_mode × 2 CV × 2 standardize_features)
 
@@ -193,6 +193,6 @@ Todo `profiles/phase01/*.json` define `classifier.type = "dsnn"` (32 perfis; os 
 - [~] `nested_cv`: `true` (nested 5-fold) e `false` (flat grouped 5-fold) --- publicados, **ainda não executados**
 - [~] `training.standardize_features`: `true` e `false` --- publicados, **ainda não executados**
 
-**Maior lacuna restante**: `results/phase01/` não existe --- **nenhum dos 32 perfis DSNN foi executado**. O classificador primário da tese tem cobertura completa de código + perfis mas nenhum resultado. Bloqueado pela lacuna do `winners.json` acima (substituir o extrator provisório via `e05_apply_winner.py` antes de rodar). → itens 2--3 do TODO.
+**Maior lacuna restante**: `results/phase01/` não existe --- **nenhum dos 32 perfis DSNN foi executado**. O classificador primário da tese tem cobertura completa de código + perfis mas nenhum resultado. Bloqueado pela lacuna do `winners.json` acima (substituir o extrator provisório via `02_e05_apply_winner.py` antes de rodar). → itens 2--3 do TODO.
 
 Chaves de regularização/normalização: ver item 4 do TODO acima (weight_decay / firing_rate_reg_lambda / tdBN, nenhum exercitado fora do debug/smoke).
