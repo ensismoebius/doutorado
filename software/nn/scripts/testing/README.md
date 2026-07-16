@@ -1,3 +1,19 @@
+# testing/
+
+This directory holds two unrelated things, both under "testing": ground-truth
+parity fixtures (this README) and the Experiment05 profile runners. See the
+top-level `scripts/README.md` for the full file table; summary:
+
+| Script | Role |
+|---|---|
+| `gen_pytorch_refs.py` | PyTorch parity fixtures (documented below) |
+| `gen_pywt_refs.py` | PyWavelets ground-truth fixtures for the C++ wavelet ops (needs `pywt`); see header comment for the periodization/DaubN conventions mapped from `waveletOperations.cpp` |
+| `e05_make_smoke_profiles.py` + `run_e05_smoke.sh` | Fast smoke pass over every Experiment05 profile (tiny params, same code paths) |
+| `run_e05_profiles.sh` | The real (heavy) Experiment05 phase00/phase01 runner — resumable, checkpointed |
+| `test_e05_phase_scripts.py` | Unit tests for `../pipeline/e05_phase00_rank.py` + `../pipeline/e05_apply_winner.py` |
+
+---
+
 # PyTorch parity tests
 
 Ground-truth tests that compare this C++ library against PyTorch.

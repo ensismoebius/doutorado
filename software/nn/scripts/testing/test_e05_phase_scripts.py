@@ -5,7 +5,7 @@ Stdlib unittest (no pytest needed). Drives both scripts end-to-end on synthetic
 Phase 00 profiles + paraconsistent CSVs, then checks winner selection and the
 injection into Phase 01 profiles.
 
-Run:  python3 scripts/pipeline/test_e05_phase_scripts.py
+Run:  python3 scripts/testing/test_e05_phase_scripts.py
 """
 import json
 import os
@@ -15,8 +15,9 @@ import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RANK = os.path.join(HERE, "e05_phase00_rank.py")
-APPLY = os.path.join(HERE, "e05_apply_winner.py")
+PIPELINE_DIR = os.path.join(os.path.dirname(HERE), "pipeline")
+RANK = os.path.join(PIPELINE_DIR, "e05_phase00_rank.py")
+APPLY = os.path.join(PIPELINE_DIR, "e05_apply_winner.py")
 
 
 def hc_profile(tag, signal, wavelet, scale):
