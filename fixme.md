@@ -4,7 +4,7 @@
 
 | # | Assunto | Gravidade | Bloqueia |
 |---|---|---|---|
-| D1 | Critério da Fase 00 premia AE morto | 🔴 crítico | item 1 do pipeline |
+| ~~D1~~ | ~~Critério da Fase 00 premia AE morto~~ → **RESOLVIDO** (métrica `d_penalized`) | ✅ | --- |
 | D2 | Conclusão do §08 confundida por D1 | 🔴 crítico | fechar §08 |
 | D3 | `snn_lr_scale` quebrado | 🟡 médio | D4, reprodutibilidade |
 | D4 | Seção da tese sobre lr por grupo | 🟢 baixo | --- (depende de D3) |
@@ -13,22 +13,25 @@
 
 ---
 
-### D1 --- O critério da Fase 00 premia autoencoder morto 🔴
+### D1 --- O critério da Fase 00 premia autoencoder morto ✅ RESOLVIDO
 
-Ao escolher o vencedor pelo menor $D_{\text{verdade}}$, a Fase 00 acaba selecionando, no ramo dos autoencoders, justamente a rede que menos aprendeu.
+**Problema (mantido para registro):** ao escolher o vencedor pelo menor $D_{\text{verdade}}$, a Fase 00 selecionava, no ramo dos autoencoders, justamente a rede que menos aprendeu. Um latente morto (α=1, β=1, o vértice *Ambiguidade*) pontuava d=1,4142 e ganharia o EEG, batendo o melhor real (`ann_tiny`, d=1,4861). A causa é a saturação do β (~0,99 nos AEs), que reduz o $d$ a função só de α, e α é máximo quando a saída é constante.
 
-A demonstração é direta. Quando o `direct_tiny_eeg` é treinado com taxa de aprendizado efetiva de 1e-5, ele pontua α=1,0000 e β=1,0000 --- exatamente o vértice *Ambiguidade*, como definido em `Core/Paraconsistent.md:67`. Esse par de valores descreve um latente morto: α=1 significa dispersão intraclasse zero, e β=1 significa que todas as classes ocupam o mesmo ponto. Em outras palavras, toda amostra produz o mesmo vetor de características, independentemente da classe. Ainda assim, essa configuração pontua d=1,4142, o que lhe daria o primeiro lugar do EEG --- o melhor resultado real hoje é o do `ann_tiny`, com d=1,4861.
+**Solução implementada (2026-07-16):** nova métrica de seleção `d_penalized`, seguindo a orientação do autor (manter o $D_{\text{verdade}}$, penalizar ambiguidade e indefinição):
 
-A causa está na saturação do β. Nos autoencoders ele fica preso em torno de 0,99 e, com isso, o $d$ deixa de depender de duas grandezas e passa a ser função apenas de α. Como α é máximo quando a saída é constante, minimizar $d$ equivale a premiar o colapso do latente.
+$$D_{\text{penalizado}} = D_{\text{verdade}} + \lambda \cdot |G_2|, \qquad \lambda = 2 - \sqrt{2} \approx 0{,}586$$
 
-O problema não atinge o ramo handcrafted, onde o β gira em torno de 0,78 e portanto ainda carrega informação. Os 276 perfis handcrafted continuam válidos.
+$|G_2| = |\alpha+\beta-1|$ é o grau de contradição, cujos dois polos são exatamente os vértices *Ambiguidade* e *Indefinição*. O λ foi escolhido de forma principiada: com $\lambda = 2-\sqrt2$, os três vértices não-Verdade (*Falsidade*, *Ambiguidade*, *Indefinição*) pontuam todos exatamente 2,0, e *Verdade* pontua 0 --- ou seja, penaliza as três formas de degeneração igualmente, sem viés direcional.
 
-Há quatro caminhos possíveis:
+**Validado** contra as 300 execuções: o latente morto cai para o último lugar (#151/151) nos dois sinais; o vencedor passa a ser handcrafted (`haar_bark_c1` no EEG, `haar_lfcc_c1` na voz). Foi testada também a fórmula literal $D_A + D_I - D_T$ (recompensar Verdade, penalizar só Ambiguidade+Indefinição) e ela **abre um exploit novo**: sem penalizar Falsidade, o otimizador foge para lá e a `poisson` (a pior, colada na Falsidade) passa a "vencer". Por isso a fórmula adotada mantém o $D_{\text{verdade}}$, que já penaliza a Falsidade.
 
-- (a) rejeitar explicitamente as configurações com α≈1 e β≈1;
-- (b) redefinir α a partir da variância, em vez da amplitude (mínimo--máximo);
-- (c) acrescentar uma guarda de colapso que exija variância mínima do latente;
-- (d) aceitar a limitação e documentá-la.
+**Importante:** `d_penalized` é função pura de (α, β), ambos já gravados em todo summary. Logo a re-classificação das 300 execuções **não exige re-execução** --- o script de ranking recalcula a métrica a partir do `g2` já gravado nos CSVs antigos.
+
+**Arquivos alterados:** `E05Paraconsistent.{hpp,cpp}` (campo + cálculo + ordenação), `E05Output.cpp` (coluna CSV `d_penalized` + `best_d_penalized` no JSON), `01_e05_phase00_rank.py` (seleciona por `d_penalized`, com backfill para CSVs antigos), `02_e05_apply_winner.py`, `.wiki/Core/Paraconsistent.md`. Testes verdes (e05_output 5/5, e05_profile_audit 2335/2335).
+
+**Tese (2026-07-16):** adicionada nova subseção "Vulnerabilidade de $D_{1,0}$ isolado e métrica penalizada por contradição" (`chapters/07-bibliographicRevision.tex`, §2.1.5.1, logo após o exemplo numérico original de $D_{1,0}$/plano paraconsistente). Conteúdo: (1) por que $D_{1,0}$ isolado é vulnerável --- uma saída constante do autoencoder força $\alpha=1$ e, pela definição de $\beta$, também $\beta=1$, caindo no vértice Ambiguidade com $D_{1,0}=\sqrt2\approx1{,}4142$, valor baixo o bastante para vencer extratores genuinamente separáveis; (2) o caso real observado durante os experimentos (variante do SNN-AE em lr baixo atingindo exatamente $\alpha=\beta=1$); (3) a generalização --- $\alpha=\beta$ desliza sobre o eixo que liga Ambiguidade e Indefinição, ao qual $D_{1,0}$ é cego; (4) a tentativa descartada ($D_{0,1}+D_{0,-1}-D_{1,0}$, maximizar) e por que ela abre um exploit novo em direção à Falsidade; (5) a métrica adotada, $D_{\text{penalizado}}=D_{1,0}+\lambda|G_2|$; (6) a dedução de $\lambda=2-\sqrt2$ exigindo que os três vértices não-Verdade sejam igualmente penalizados; (7) exemplos numéricos (caso degenerado e caso já-bom); (8) nota de que a métrica é recalculável sobre os 300 resultados existentes sem reexecução. Tese recompila limpo (115 pág.).
+
+**Ainda pendente (propagação de narrativa, atada a D2):** o gerador de tabelas da tese (`e05_build_phase00_paraconsistent_tables.py`) e o texto de §08/§09 ainda refletem o `d_truth` sem `d_penalized`, e a nova subseção do §07 aponta para o cap. 4 (Testes e Resultados) para a discussão do impacto no vencedor --- discussão essa ainda não escrita, pois depende de D2. A **decisão do autor foi "implementar S2 ajustando λ primeiro"** --- λ ajustado e implementado, com fundamentação agora também na tese; falta a decisão de narrativa em D2 antes de reescrever §08/§09.
 
 ---
 

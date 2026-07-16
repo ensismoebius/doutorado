@@ -69,15 +69,44 @@ The four corners of the paraconsistent plane:
 
 ### Distance to Truth
 
-The primary quality metric — Euclidean distance from $(G_1, G_2)$ to the truth vertex:
+Euclidean distance from $(G_1, G_2)$ to the truth vertex:
 
 $$D_{\text{truth}} = \sqrt{(G_1 - 1)^2 + G_2^2}$$
 
-Smaller $D_{\text{truth}}$ → better feature set. Distances to all four corners:
+Smaller $D_{\text{truth}}$ → closer to Truth. Distances to all four corners:
 
 $$D_{\text{false}} = \sqrt{(G_1+1)^2 + G_2^2}, \quad
   D_{\text{indef}} = \sqrt{G_1^2 + (G_2+1)^2}, \quad
   D_{\text{ambig}} = \sqrt{G_1^2 + (G_2-1)^2}$$
+
+### Selection metric: contradiction-penalized truth distance
+
+$D_{\text{truth}}$ **alone is not used to select the winner**, because it is
+exploitable. A collapsed ("dead") latent — one that emits the same vector for
+every sample regardless of class — lands on the **Ambiguity** vertex
+($\alpha=\beta=1$) and scores $D_{\text{truth}}=\sqrt2\approx1.41$, which can
+*beat* genuinely informative feature sets despite carrying zero class
+information. (This is a real failure mode: an SNN autoencoder trained at a low
+learning rate reaches exactly $\alpha=\beta=1$.)
+
+The primary metric is therefore $D_{\text{truth}}$ plus a penalty on the
+**contradiction degree** $|G_2| = |\alpha+\beta-1|$, whose two poles are exactly
+the degenerate Ambiguity ($G_2=+1$) and Indefinition ($G_2=-1$) vertices:
+
+$$D_{\text{penalized}} = D_{\text{truth}} + \lambda\,|G_2|,
+  \qquad \lambda = 2 - \sqrt2 \approx 0.586$$
+
+Smaller $D_{\text{penalized}}$ → better feature set. The weight $\lambda=2-\sqrt2$
+is chosen so that the three non-Truth vertices are penalized **equally**: Falsity,
+Ambiguity and Indefinition all score exactly $2.0$, while Truth scores $0$. The
+retained $D_{\text{truth}}$ term is what keeps Falsity penalized — dropping it
+(penalizing only Ambiguity and Indefinition) would let a degenerate solution flee
+to the Falsity vertex instead, so the full $D_{\text{truth}}$ must stay.
+
+`kContradictionPenalty` in `E05Paraconsistent.hpp` holds $\lambda$;
+`ParaconsistentScore::d_penalized` holds the value; `rank_feature_sets` sorts by
+it. Because it is a pure function of $(\alpha,\beta)$, existing results can be
+re-ranked without re-running any experiment.
 
 ### Intuition
 
@@ -112,7 +141,8 @@ struct ParaconsistentResult {
     float beta;     // interclass overlap   ∈ [0,1]
     float G1;       // degree of certainty  ∈ [-1,1]
     float G2;       // degree of contradiction ∈ [-1,1]
-    float D_truth;  // distance to (1,0) — primary quality metric
+    float D_truth;  // distance to (1,0); NOT used alone to select — see
+                    // "Selection metric" above (D_penalized adds a |G2| penalty)
     float D_false;
     float D_indef;
     float D_ambig;

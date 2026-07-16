@@ -355,9 +355,11 @@
 			\par $G_1$ e $G_2$ são obtidos pelas seguintes expressões \cite{8588433}:
 
 			\begin{equation}
+				\label{eq:g1def}
 				G_1=\alpha-\beta  \qquad,
 			\end{equation}
 			\begin{equation}
+				\label{eq:g2reuse}
 				G_2=\alpha+\beta-1 \qquad,
 			\end{equation}
 			\par \textbf{Exemplo numérico.} Continuando o exemplo anterior, seja $\alpha=0{,}92$ (menor similaridade intraclasse medida) e $\beta=0{,}075$ (calculado acima). Então $G_1 = 0{,}92-0{,}075 = 0{,}845$ e $G_2 = 0{,}92+0{,}075-1 = -0{,}005$: o ponto $(G_1,G_2)$ fica próximo de $(1,0)$, indicando boa separação entre classes.
@@ -391,7 +393,46 @@
 			$D_{1,0}$ é a menor distância, confirmando que $(G_1,G_2)$ está mais próximo do ponto \textit{``Verdade''}, ou seja, as classes deste exemplo estão bem separadas.
 			
 			\par Na prática, ou seja, para fins de classificação, geralmente considera-se a distância em relação ao ponto \textit{``(1,0) $\rightarrow$ Verdade''}, que é o ponto ótimo: quanto mais próximo o ponto $(G_1,G_2)$ estiver de $(1,0)$, mais os vetores de características das diferentes classes estão naturalmente separados. Isso implica, dentro da limitação de cada algoritmo, em resultados melhores.
-	
+
+			\subsubsection{Vulnerabilidade de $D_{1,0}$ isolado e métrica penalizada por contradição}
+				\label{sec:dPenalizado}
+
+				\par $D_{1,0}$, usado isoladamente como critério de seleção na Fase~00 (\autoref{chap:propApproach}), tem uma fragilidade que só se manifesta quando um dos ramos de extração --- os \textit{autoencoders} --- é capaz de produzir uma saída praticamente constante, o que ocorre quando o treinamento é insuficiente ou a taxa de aprendizado é excessivamente pequena. Como $\alpha$ mede a similaridade \emph{dentro} de cada classe, uma rede que gera o mesmo vetor de características para toda e qualquer entrada atinge $\alpha=1$ (dispersão intraclasse nula) --- mas, pela própria definição de $\beta$ como razão de sobreposição \emph{entre} classes, essa mesma saída constante também força $\beta=1$: se todas as classes ocupam o mesmo ponto do espaço de características, cada vetor de uma classe está necessariamente contido no intervalo de qualquer outra. O par $(\alpha,\beta)=(1,1)$ corresponde exatamente ao vértice \textit{Ambiguidade} do plano paraconsistente e produz
+				\begin{equation}
+					D_{1,0}\big|_{\alpha=\beta=1} = \sqrt{(1-1)^2+1^2} = \sqrt2 \approx 1{,}4142 \qquad,
+				\end{equation}
+				valor que, por ser relativamente baixo, pode colocar essa rede \textbf{sem nenhuma informação de classe} à frente de extratores genuinamente separáveis no ranking --- o critério confunde ``vetores idênticos entre si'' (que também são, trivialmente, muito parecidos dentro de cada classe) com ``vetores bem separados entre classes''.
+
+				\par Esse não é um risco hipotético: durante os experimentos desta tese, uma variante do \textit{autoencoder} de pulso treinada com uma taxa de aprendizado efetiva substancialmente menor que a configurada atingiu exatamente $\alpha=1{,}0000$ e $\beta=1{,}0000$, pontuando $D_{1,0}=1{,}4142$ --- o que a colocaria em primeiro lugar entre as 150 configurações avaliadas para o sinal de EEG, superando inclusive o extrator manual vencedor. A causa raiz --- uma taxa de aprendizado configurada incorretamente para os parâmetros biofísicos dos neurônios de pulso --- é discutida à parte; o ponto relevante aqui é que o critério de seleção, por si só, não protegia contra esse tipo de degenerescência.
+
+				\par A generalização do problema fica clara ao observar que $\alpha=\beta$ força $G_2=\alpha+\beta-1=2\alpha-1$ e $G_1=\alpha-\beta=0$, ou seja, $(\alpha,\beta)=(k,k)$ desliza sobre o eixo $G_1=0$ conforme $k$ varia --- o eixo que liga exatamente os vértices \textit{Ambiguidade} $(0,1)$ e \textit{Indefinição} $(0,-1)$. Como $D_{1,0}$ só enxerga a distância até \textit{Verdade}, ele é cego à proximidade de um ponto desse eixo, que é sempre um estado degenerado: em $(0,1)$ há concordância perfeita mas sem qualquer poder discriminativo (\textit{Ambiguidade}); em $(0,-1)$ não há concordância nem estrutura alguma (\textit{Indefinição}).
+
+				\par A correção, portanto, precisa penalizar a proximidade desse eixo sem abrir mão da informação já contida em $D_{1,0}$. O grau de contradição $G_2$ (\autoref{eq:g2reuse}) é exatamente a coordenada que mede essa proximidade: seus dois polos, $G_2=+1$ e $G_2=-1$, são justamente os vértices \textit{Ambiguidade} e \textit{Indefinição}. Uma primeira tentativa, mais literal --- recompensar a proximidade de \textit{Verdade} e penalizar apenas a proximidade de \textit{Ambiguidade} e \textit{Indefinição}, isto é, maximizar $D_{0,1}+D_{0,-1}-D_{1,0}$ --- foi testada e descartada: por não penalizar $G_2=0$ oposto, isto é, o eixo $G_1$, essa formulação deixa de penalizar a proximidade do vértice \textit{Falsidade} $(-1,0)$, e o critério simplesmente desloca o problema --- passa a favorecer configurações próximas de \textit{Falsidade} em vez de \textit{Ambiguidade}, já que nada as distingue nessa fórmula. Confirmou-se isso empiricamente: sob essa métrica, a pior codificação testada (a mais próxima de \textit{Falsidade} entre as avaliadas) passava a vencer o ranking.
+
+				\par A métrica adotada preserva $D_{1,0}$ --- que já penaliza \textit{Falsidade}, por ser o vértice mais distante de \textit{Verdade} --- e soma a ele um termo proporcional a $|G_2|$, o valor absoluto do grau de contradição:
+				\begin{equation}
+					\label{eq:dpenalizado}
+					D_{\text{penalizado}} = D_{1,0} + \lambda\,|G_2| \qquad,
+				\end{equation}
+				em que $\lambda$ é um peso a determinar. Um critério natural para escolher $\lambda$ é exigir que os três vértices não-\textit{Verdade} --- \textit{Falsidade}, \textit{Ambiguidade} e \textit{Indefinição} --- sejam penalizados igualmente, sem viés entre as três formas de degenerescência. Calculando $D_{\text{penalizado}}$ em cada um:
+				\begin{equation*}
+					\begin{aligned}
+						\text{Falsidade } (-1,0): &\quad D_{1,0}=2,\ G_2=0 \ \Rightarrow\ D_{\text{penalizado}}=2, \\
+						\text{Ambiguidade } (0,1): &\quad D_{1,0}=\sqrt2,\ G_2=1 \ \Rightarrow\ D_{\text{penalizado}}=\sqrt2+\lambda, \\
+						\text{Indefinição } (0,-1): &\quad D_{1,0}=\sqrt2,\ G_2=-1 \ \Rightarrow\ D_{\text{penalizado}}=\sqrt2+\lambda \qquad.
+					\end{aligned}
+				\end{equation*}
+				Ambiguidade e Indefinição já chegam empatadas por simetria; impondo que também se igualem a Falsidade,
+				\begin{equation}
+					\sqrt2+\lambda = 2 \ \Longrightarrow\ \lambda = 2-\sqrt2 \approx 0{,}5858 \qquad,
+					\label{eq:lambdaPenalizado}
+				\end{equation}
+				valor que torna os três vértices degenerados igualmente penalizados ($D_{\text{penalizado}}=2$), preservando $D_{\text{penalizado}}=0$ apenas em \textit{Verdade}.
+
+				\par \textbf{Exemplo numérico.} Para o caso degenerado discutido acima ($\alpha=\beta=1$, $G_1=0$, $G_2=1$, $D_{1,0}=\sqrt2$): $D_{\text{penalizado}} = \sqrt2 + 0{,}5858\times1 \approx 2{,}4142$ --- o pior valor possível, e não mais um dos melhores. Já para o exemplo numérico apresentado mais acima nesta seção ($G_1=0{,}845$, $G_2=-0{,}005$, $D_{1,0}\approx0{,}1551$): $D_{\text{penalizado}} \approx 0{,}1551 + 0{,}5858\times0{,}005 \approx 0{,}1580$ --- praticamente inalterado, pois esse ponto já está longe do eixo Ambiguidade--Indefinição.
+
+				\par A verificação sobre as 300 combinações já avaliadas na Fase~00 (\autoref{chap:testsResults}) confirma o efeito pretendido: a configuração degenerada citada acima cai da primeira para a última posição do ranking em ambos os sinais, e nenhuma outra configuração é afetada de forma perceptível, exceto aquelas cujo $\beta$ já estava próximo de $1$. Como $D_{\text{penalizado}}$ é função apenas de $\alpha$ e $\beta$ --- ambos já registrados para cada execução --- a nova métrica pôde ser recalculada sobre os resultados existentes sem a necessidade de repetir nenhum experimento. As implicações dessa mudança de critério sobre o vencedor de cada sinal e sobre a leitura dos resultados da Fase~00 são discutidas no \autoref{chap:testsResults}.
+
 		\subsection{Fala imaginada}
 			\par A fala imaginada é um fenômeno em que uma pessoa "ouve" a si mesma falando internamente, sem produzir som. As regiões cerebrais usadas na fala imaginada são similares às que estão envolvidas na fala verbal, englobando áreas do córtex motor e pré-motor, além de outras áreas associadas à linguagem e a fala.
 			

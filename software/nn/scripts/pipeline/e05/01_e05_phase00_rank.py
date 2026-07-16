@@ -23,13 +23,26 @@ import argparse
 import csv
 import glob
 import json
+import math
 import os
 import re
 import sys
 
 
-def load_d_truth(csv_path):
-    """Return the D_truth of the first data row, or None if unreadable/empty."""
+# Contradiction penalty weight (must match kContradictionPenalty in
+# E05Paraconsistent.hpp): 2 - sqrt(2), so the three non-Truth vertices are
+# penalized equally.
+CONTRADICTION_PENALTY = 2.0 - math.sqrt(2.0)
+
+
+def load_scores(csv_path):
+    """Return (d_truth, d_penalized) of the first data row, or None.
+
+    d_penalized is the primary selection metric. Newer CSVs carry it as a
+    column; for older CSVs (written before the column existed) we recompute it
+    from d_truth and g2 — d_penalized = d_truth + PENALTY*|g2| is a pure
+    function of values already stored, so no re-run is needed to re-rank.
+    """
     try:
         with open(csv_path, newline="") as f:
             rows = list(csv.DictReader(f))
@@ -38,9 +51,18 @@ def load_d_truth(csv_path):
     if not rows:
         return None
     try:
-        return float(rows[0]["d_truth"])
+        d_truth = float(rows[0]["d_truth"])
     except (KeyError, ValueError):
         return None
+    try:
+        d_penalized = float(rows[0]["d_penalized"])
+    except (KeyError, ValueError):
+        try:
+            g2 = float(rows[0]["g2"])
+            d_penalized = d_truth + CONTRADICTION_PENALTY * abs(g2)
+        except (KeyError, ValueError):
+            d_penalized = d_truth  # neither column present: degrade gracefully
+    return d_truth, d_penalized
 
 
 def extractor_label(fe):
@@ -79,16 +101,18 @@ def main():
         # Match both the no-repeat file and the _repK variants.
         pattern = os.path.join(args.results_dir, f"e05_{tag}*_paraconsistent.csv")
         csvs = sorted(glob.glob(pattern))
-        d_truths = [d for d in (load_d_truth(c) for c in csvs) if d is not None]
-        if not d_truths:
+        scored = [s for s in (load_scores(c) for c in csvs) if s is not None]
+        if not scored:
             missing.append(tag)
             continue
 
+        n = len(scored)
         per_signal.setdefault(signal, []).append({
             "label": extractor_label(fe),
             "signal": signal,
-            "d_truth": sum(d_truths) / len(d_truths),
-            "n_reps": len(d_truths),
+            "d_truth": sum(s[0] for s in scored) / n,
+            "d_penalized": sum(s[1] for s in scored) / n,
+            "n_reps": n,
             "feature_extraction": fe,
             "profile": os.path.relpath(prof_path),
         })
@@ -99,18 +123,22 @@ def main():
 
     winners = {}
     for signal in sorted(per_signal):
-        ranked = sorted(per_signal[signal], key=lambda e: e["d_truth"])
+        # Selection is by d_penalized (contradiction-penalized truth distance),
+        # not raw d_truth: the latter can be gamed by a collapsed latent.
+        ranked = sorted(per_signal[signal], key=lambda e: e["d_penalized"])
         winners[signal] = {
             "profile": ranked[0]["profile"],
             "label": ranked[0]["label"],
+            "d_penalized": ranked[0]["d_penalized"],
             "d_truth": ranked[0]["d_truth"],
             "feature_extraction": ranked[0]["feature_extraction"],
         }
         print(f"\n=== {signal}  ({len(ranked)} combinations ranked) ===")
-        print(f"{'rank':>4}  {'D_truth':>12}  {'reps':>4}  extractor")
+        print(f"{'rank':>4}  {'D_penalized':>12}  {'D_truth':>12}  {'reps':>4}  extractor")
         for i, e in enumerate(ranked[:args.top]):
             mark = "  <-- winner" if i == 0 else ""
-            print(f"{i + 1:>4}  {e['d_truth']:>12.8f}  {e['n_reps']:>4}  {e['label']}{mark}")
+            print(f"{i + 1:>4}  {e['d_penalized']:>12.8f}  {e['d_truth']:>12.8f}  "
+                  f"{e['n_reps']:>4}  {e['label']}{mark}")
 
     if missing:
         print(f"\n[warn] {len(missing)} profile(s) had no results yet "

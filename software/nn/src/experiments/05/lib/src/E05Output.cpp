@@ -47,11 +47,11 @@ void write_paraconsistent_csv(const std::string& results_dir,
     std::ofstream f(path);
     if (!f.is_open()) throw std::runtime_error("E05Output: cannot write " + path);
 
-    f << "label,alpha,beta,g1,g2,d_truth\n";
+    f << "label,alpha,beta,g1,g2,d_truth,d_penalized\n";
     for (const auto& s : scores)
     {
         f << s.label << "," << std::fixed << std::setprecision(8) << s.alpha << "," << s.beta << ","
-          << s.g1 << "," << s.g2 << "," << s.d_truth << "\n";
+          << s.g1 << "," << s.g2 << "," << s.d_truth << "," << s.d_penalized << "\n";
     }
 }
 
@@ -153,6 +153,7 @@ void write_summary_json(const std::string& results_dir,
     {
         j["best_feature_set"] = scores[0].label;
         j["best_d_truth"] = scores[0].d_truth;
+        j["best_d_penalized"] = scores[0].d_penalized;
         j["best_alpha"] = scores[0].alpha;
         j["best_beta"] = scores[0].beta;
     }

@@ -75,8 +75,9 @@ def main():
 
         prof["feature_extraction"] = fe
         changed += 1
+        dpen = winner.get("d_penalized", winner.get("d_truth"))
         print(f"{os.path.basename(prof_path):45s}  <- {winner_key}: {winner['label']} "
-              f"(D_truth={winner['d_truth']:.6f})")
+              f"(D_penalized={dpen:.6f})")
         if not args.dry_run:
             with open(prof_path, "w") as f:
                 json.dump(prof, f, indent=2)
