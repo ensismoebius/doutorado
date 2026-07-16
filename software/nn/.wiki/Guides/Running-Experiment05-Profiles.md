@@ -144,6 +144,29 @@ Writes EER/AUC to `results/phase01/`.
 ./scripts/testing/run_profiles.sh phase01
 ```
 
+## Decoded-dataset cache
+
+The first profile of a run decodes every subject's audio+EEG from source
+(`load_dataset` → `.mat`/sqlite), which dominates startup and is identical for
+every profile and repeat since the raw set never changes. `E05Dataset.cpp`
+caches the fully-decoded sample set to a flat binary sidecar next to the
+dataset root (`<root>.e05dscache`) on the first run and reloads it directly
+afterwards — no re-decode. Measured on the 1974-sample set: **~27 s cold →
+~1.5 s warm** (the load phase itself drops from ~25 s to sub-second). The OS
+page cache keeps the file resident across the runner's parallel workers.
+
+- The cache stores the **full** set (before `max_samples`), so one file serves
+  every `max_samples` value; truncation is always applied after loading.
+- **Invalidation** is automatic: a structural signature (each source file's
+  size + mtime, computed from the cheap subject-discovery pass) is stored in
+  the header and re-checked on load. Editing/replacing the dataset re-decodes
+  and rewrites. With a single-`.sqlite` root, the signature keys on that file.
+- Writes are atomic (per-process temp + rename), so parallel cold-starts and
+  crashes never leave a torn cache; any mismatch or read error silently falls
+  back to a normal decode. The file is ~1.6 GB for the full set — it lives
+  beside the dataset, not in the repo.
+- Set **`E05_NO_DATASET_CACHE=1`** to bypass entirely.
+
 ## Notes
 
 - **`run_profiles.sh all`** runs phase00 + phase01 + debug but **skips steps 2–3**,
