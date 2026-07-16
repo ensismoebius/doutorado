@@ -53,11 +53,31 @@ Novos campos, com o mesmo default "desligado" (`0.0`) do classificador, para nã
 
 ### D2 --- A conclusão do §08 está confundida por D1 🔴
 
-O item 59 corrigiu a ordem das codificações (`direct` > `latency` > `poisson`), e essa ordem descreve fielmente os dados armazenados. O problema está na interpretação que escrevi junto: atribuí o resultado ao ruído estocástico da codificação derrubando o α, o que é verdade, mas é apenas parte da história.
+O item 59 corrigiu a ordem das codificações (`direct` > `latency` > `poisson`), e essa ordem descreve fielmente os dados armazenados.
 
-Como mostra D1, o ranking também mede o quanto cada codificador deixou de aprender. Já que o critério pune qualquer latente com variância, a codificação `poisson` pode simplesmente nunca ter tido um teste justo --- ela é penalizada por produzir variação, que é exatamente o que se espera de uma codificação estocástica.
+**Reavaliação à luz de D1 (2026-07-16):** recomputei `d_penalized` sobre os mesmos três encodings, a partir dos CSVs já armazenados (nenhuma reexecução necessária):
 
-A consequência é que o "resultado negativo para codificação temporal" que registrei **não está estabelecido**. O §08 precisa ser revisto, mas só depois que D1 for decidido, já que a redação correta depende de qual critério passará a valer.
+| encoding | D_truth (média 3 reps) | D_penalized (média 3 reps) |
+|---|---|---|
+| `direct`  | 1,4926 | 1,8764 |
+| `latency` | 1,8748 | 1,9352 |
+| `poisson` | 1,9972 | 1,9988 |
+
+A ordem **não muda**: `direct` continua o melhor e `poisson` continua o pior, com ou sem a correção de D1. Isso é o esperado, e é importante entender por quê: **D1 e D2 são dois defeitos diferentes do mesmo critério geométrico, não o mesmo defeito com duas faces.** D1 mostrou que o critério **recompensa indevidamente variância zero** (uma saída constante cai no vértice Ambiguidade e pontua bem). D2 é sobre o oposto: o critério pode estar **punindo indevidamente uma variância real**, que existe de fato nos vetores de característica mas não significa que a rede aprendeu pior. A correção de D1 (que só adiciona uma penalidade em `|G_2|`, quase nula para os três encodings acima, já que nenhum deles está perto dos vértices degenerados) não tinha por que alterar essa comparação --- e, de fato, não altera. **D1 resolvido não resolve D2**: eram problemas independentes que só pareciam entrelaçados porque o ramo AE, antes da correção, tinha configurações mortas contaminando a mesma tabela.
+
+**Por que a `poisson` pode nunca ter tido um teste justo --- explicação refeita, mais direta:**
+
+O ponto central é: a codificação `poisson` introduz um **ruído aleatório novo a cada apresentação da amostra**, e esse ruído tem uma magnitude que dá para calcular exatamente --- ele não depende de quão bem a rede foi treinada.
+
+1. **O mecanismo.** Para cada dimensão normalizada $v \in [0,1]$ da amostra, a codificação `poisson` sorteia, em cada um dos $T=16$ passos de tempo, um disparo com probabilidade $v$ (`E05FeatureExtraction.cpp::spike_frame`, ramo `poisson`: `(dist(rng) < norm[d]) ? 1 : 0`, um sorteio de Bernoulli **novo e independente a cada passo**). A `latency`, em contraste, calcula um único instante de disparo determinístico $t_{\text{disparo}} = \text{arred}((1-v)(T-1))$ --- não há sorteio algum, o mesmo $v$ sempre produz o mesmo padrão de disparo. A `direct` nem sequer discretiza: o valor analógico passa direto.
+
+2. **A consequência estatística.** Uma média de $T$ sorteios de Bernoulli$(v)$ tem variância $v(1-v)/T$. Com $T=16$ e $v=0{,}5$ (o pior caso, no meio da faixa), essa variância vale $0{,}25/16 = 0{,}015625$, ou seja, um desvio-padrão de $\approx 0{,}125$ --- **12,5% da faixa total $[0,1]$ da característica**, adicionado a cada amostra, de forma independente e aleatória, só porque a amostra passou pela codificação `poisson`. A `latency`, para o mesmo $v$, tem um erro de quantização de no máximo meio degrau, $\tfrac{1}{2}\cdot\tfrac{1}{T-1} \approx 0{,}033$ --- quase quatro vezes menor --- e, principalmente, **determinístico**: a mesma entrada $v$ sempre cai no mesmo degrau, então esse erro não varia de amostra para amostra da mesma classe (só a variação biológica real do sinal entre tentativas contribui). A `direct` tem ruído de codificação zero.
+
+3. **Por que isso ataca exatamente o que α mede.** $\alpha$ é a compactância intraclasse --- $1$ menos a maior amplitude (máximo menos mínimo) de cada dimensão dentro de uma classe (`calculate_alpha`, `paraconsistent.cpp`). O ruído de Bernoulli da `poisson` soma-se, amostra a amostra, diretamente a essa amplitude --- é uma fonte de dispersão *que existiria mesmo se a rede codificadora fosse perfeita*, pois ela nasce na entrada, antes de qualquer aprendizado. Isso explica tanto a direção quanto a **magnitude relativa** do resultado observado: `direct` (ruído zero) $\to \alpha=0{,}667$; `latency` (quantização pequena e determinística) $\to \alpha=0{,}116$; `poisson` (ruído aleatório grande) $\to \alpha=0{,}000$ --- a mesma ordem, e a mesma escala de degradação, que a magnitude do ruído injetado prevê.
+
+4. **A consequência prática.** Um piso de ruído que não depende da qualidade do aprendizado não pode ser removido treinando melhor a rede --- só aumentando $T$ (a variância cai como $1/T$) ou usando uma métrica de seleção que descarte essa dispersão conhecida em vez de puni-la como se fosse falta de separabilidade. Além disso, um classificador treinado sobre muitas amostras poderia aprender a ser robusto a esse ruído de entrada (marginalizando sobre ele), algo que o critério geométrico de α, aplicado a um único vetor médio por amostra, não tem como enxergar. Por isso a frase "resultado negativo para codificação temporal" **continua não estabelecida**: o que os dados mostram com certeza é que, **neste $T=16$ e sob este critério geométrico**, `poisson` carrega um piso de dispersão estatístico que os outros dois encodings não têm --- não que a informação discriminativa codificada por `poisson` seja pior.
+
+**Situação:** D2 permanece aberto. O §08 precisa ser revisto para substituir a explicação vaga ("penaliza variância") por esta --- mecanística, quantitativa e testável --- e para deixar explícito que D1 e D2 são independentes. Decisão ainda pendente do autor: (a) apenas reescrever o texto reconhecendo o viés sem testar `T` maior; ou (b) rodar `poisson` com $T$ maior (ex. 64 ou 128, o que reduziria a variância projetada por um fator de 4--8) para verificar empiricamente se α sobe como a fórmula prevê --- essa segunda opção é um experimento real (mesma ressalva de custo de D1: `poisson`/`latency` a T=16 já levam horas; T maior custa proporcionalmente mais) e exigiria confirmação explícita antes de ser disparada.
 
 ---
 
