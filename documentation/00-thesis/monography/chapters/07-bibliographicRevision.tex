@@ -841,6 +841,14 @@
 			\end{equation}
 			\par \textbf{Exemplo numérico.} Com $R=5$, $\tau=5$, $I_{\text{in}}=1$, $\Delta t=1$ e partindo de $V_{\text{mem}}(0)=0$: $V_{\text{mem}}(1) = 0 + \frac{1}{5}(5\times1 - 0) = 1{,}0$. Este é exatamente o passo de Euler já calculado ao final da seção anterior --- a \autoref{eq:membraneDerivative} é a regra geral por trás daquela iteração, e do \autoref{lst:membranepotentialfull}.
 
+			% TODO - Revisar
+			\par \textbf{Nota de implementação.} A \autoref{eq:membraneDerivative} e o \autoref{lst:membranepotentialfull} têm propósito didático: expõem o circuito RC subjacente e sua discretização por Euler explícito, na qual a corrente de entrada é escalada por $R$. A implementação do neurônio LIF de fato usada para gerar todos os resultados experimentais deste trabalho --- tanto na forma de passo único quanto na variante desenrolada no tempo usada para BPTT (próxima seção) --- adota, em vez disso, a recorrência exata do decaimento exponencial por passo:
+			\begin{equation}
+				\label{eq:lifExactRecurrence}
+				V_{\text{mem}}(t+\Delta t) = \beta \cdot V_{\text{mem}}(t) + I_{\text{in}}(t) \text{,} \qquad \beta = e^{-\Delta t/\tau} \text{,} \qquad \tau = R.C \text{.}
+			\end{equation}
+			Essa forma é a solução exata da parte homogênea (o decaimento) da \autoref{eq:finalMem} a cada passo --- mais precisa que o passo de Euler linear $(1-\Delta t/\tau)$ da \autoref{eq:membraneDerivative} --- e corresponde à convenção usual da literatura de RNPs treináveis, também adotada pela biblioteca \textit{snnTorch} \cite{10242251}, usada como referência de corretude para essa camada durante o desenvolvimento deste trabalho. Diferentemente da \autoref{eq:membraneDerivative}, $R$ não escala $I_{\text{in}}(t)$ nessa recorrência --- $R$ (junto com $C$) influencia \textbf{apenas} a taxa de decaimento $\beta$ via $\tau=R.C$; a corrente de entrada é somada diretamente ao potencial já decaído. Isso é uma simplificação deliberada em relação ao circuito RC ideal (cuja solução exata seria $V_{\text{mem}}(t+\Delta t) = \beta \cdot V_{\text{mem}}(t) + R.I_{\text{in}}(t).(1-\beta)$), não um erro de discretização: por não reintroduzir o termo $R.(1-\beta)$, o ganho efetivo do sinal de entrada permanece constante e independente de $\tau$, o que simplifica o treinamento de $R$, $C$ e $V_{th}$ como parâmetros aprendíveis sem acoplar sua otimização à escala da entrada.
+
 		\subsubsection{Treinamento}
 		
 			\par \textbf{Como as RNPs são treinadas?} Esta ainda é uma questão com múltiplas respostas. Um neurônio RNP tem o comportamento de sua função de ativação parecido com uma \textbf{função de passo}. Portanto, em princípio, não podemos usar soluções baseadas em descida de gradiente porque esse tipo de função \textbf{não é} diferenciável \cite{kasabov2019time}.

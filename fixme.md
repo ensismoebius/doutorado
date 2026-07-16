@@ -18,7 +18,7 @@ Status completo verificado: ver "Log de status do Experiment05" abaixo.
 
 ## Aprofundar (revisão de texto/tese)
 
-- [ ] 24. Verificar consistência entre as equações do LIF e o código utilizado.
+- [x] 24. Verificar consistência entre as equações do LIF e o código utilizado. ✓ feito --- inconsistência real encontrada: a tese deriva um passo de Euler explícito $V_{mem}(t+\Delta t) = V_{mem}(t) + \frac{\Delta t}{\tau}(R.I_{in}(t) - V_{mem}(t))$ (\autoref{eq:membraneDerivative}, `lst:membranepotentialfull`), mas `LifImpl`/`LifBPTTImpl`/`LifIntegrator` (`include/layers/spiking/*.hpp`) na verdade usam a recorrência exata $V_{mem}(t+\Delta t) = \beta \cdot V_{mem}(t) + I_{in}(t)$, $\beta=e^{-\Delta t/\tau}$ --- sem escalar $I_{in}$ por $R$. Adicionado parágrafo "Nota de implementação" em `chapters/07-bibliographicRevision.tex` (após a Equação 2.31, antes de "Treinamento") explicando a diferença e por que é uma simplificação deliberada (desacopla o ganho de entrada de $\tau$, facilitando treinar $R,C,V_{th}$). Tese recompila limpo (111 pág.).
 - [ ] 25. Explicar, na figura dos pulsos do neurônio LIF, que os pulsos apresentados são resultado de uma simulação de neurônios de pulso/RNP.
 - [ ] 30. Seção BPTT: ESTUDAR!!!!!
 - [ ] 40. Revisar todo o trabalho para garantir que LFCC seja a representação espectral principal.
