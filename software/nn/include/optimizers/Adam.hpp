@@ -134,8 +134,8 @@ struct Adam : public Optimizer
      * @param lr_scales  Per-parameter lr multiplier (same size as params).
      *                   Effective lr for param i = learning_rate * lr_scales[i].
      *
-     * Reference: Frontiers Neuroscience 2025 [37]; SNN lr guidance lr=1e-4 for
-     * biophysical params vs lr=1e-3 for weight matrices.
+     * Guidance (this project's own empirical default, not literature-sourced):
+     * lr=1e-4 for biophysical params vs lr=1e-3 for weight matrices.
      */
     void attach_with_scales(std::span<Tensor*> params, std::span<const float> lr_scales)
     {

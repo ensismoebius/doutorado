@@ -1,6 +1,6 @@
 # Membrane Dynamics
 
-The Leaky Integrate-and-Fire (LIF) neuron models the membrane potential of a biological neuron as a resistor-capacitor (RC) circuit. In discrete time, the membrane update rule is $v[t] = \beta \cdot v[t-1] + R \cdot I[t]$ where $\beta = \exp(-\Delta t / (R \cdot C))$ is the decay factor. When the potential exceeds a threshold $V_\text{th}$ the neuron emits a spike and the membrane is reset. This framework makes $R$, $C$, and $V_\text{th}$ trainable scalar parameters so the time constant adapts during learning.
+The Leaky Integrate-and-Fire (LIF) neuron models the membrane potential of a biological neuron as a resistor-capacitor (RC) circuit. In discrete time, the membrane update rule implemented here is $v[t] = \beta \cdot v[t-1] + I[t]$ where $\beta = \exp(-\Delta t / (R \cdot C))$ is the decay factor — note that $I[t]$ is added directly, **not** scaled by $R$ (see "Theoretical vs. implemented recurrence" below). When the potential exceeds a threshold $V_\text{th}$ the neuron emits a spike and the membrane is reset. This framework makes $R$, $C$, and $V_\text{th}$ trainable scalar parameters so the time constant adapts during learning.
 
 ---
 
@@ -12,9 +12,15 @@ $$C \frac{dv}{dt} = -\frac{v}{R} + I(t)$$
 
 where $v$ is the membrane potential, $R$ is the membrane resistance (M$\Omega$), $C$ is the membrane capacitance (pF), and $I(t)$ is the synaptic input current. The solution for constant $I$ decays exponentially with time constant $\tau_m = R \cdot C$.
 
-Discretising with step $\Delta t$ via the Euler method yields:
+The exact solution of the homogeneous (decay) part of this ODE over a step $\Delta t$ gives the exponential decay factor $\beta = e^{-\Delta t/\tau_m}$. A textbook Euler discretisation that also carries $R$ through the input term would read:
 
-$$v[t] = \underbrace{e^{-\Delta t / \tau_m}}_{\beta} \cdot v[t-1] + R \cdot I[t]$$
+$$v[t] = \underbrace{e^{-\Delta t / \tau_m}}_{\beta} \cdot v[t-1] + R \cdot I[t] \cdot (1-\beta)$$
+
+**This is not what is implemented here.** The recurrence actually used by `Lif`/`LifBPTT` (see "How It Is Implemented Here" below) is:
+
+$$v[t] = \beta \cdot v[t-1] + I[t]$$
+
+i.e. $R$ (jointly with $C$, via $\tau_m = R \cdot C$) affects **only** the decay rate $\beta$; the input current is added directly to the already-decayed potential, with no $R$ or $(1-\beta)$ factor on it. This is a deliberate simplification, not a discretisation bug: it keeps the effective input gain constant and independent of $\tau_m$, decoupling the optimisation of $R$, $C$, $V_\text{th}$ from the scale of the input during training. (Same convention as the `snnTorch` library, and the same point documented in the thesis, Seção "Nota de implementação" after Eq. 2.31 of `chapters/07-bibliographicRevision.tex`.)
 
 The spike condition and hard reset are:
 

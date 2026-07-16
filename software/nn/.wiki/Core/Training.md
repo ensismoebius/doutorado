@@ -118,7 +118,8 @@ struct TrainerConfig
 
     // SNN-specific: per-group learning rate for biophysical parameters (R, C, V_th).
     // Effective SNN lr = learning_rate * snn_lr_scale.
-    // Literature recommends 0.1 (10× smaller than weight lr) [37].
+    // 0.1 (10× smaller than weight lr) is this project's own empirical default,
+    // not a literature-sourced figure (audit m-3).
     float snn_lr_scale = 0.1F;
 
     // Nested k-fold cross-validation (0 = disabled, plain k-fold).
@@ -129,7 +130,7 @@ struct TrainerConfig
 }
 ```
 
-**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics.  Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3.  Pass this scale to `Adam::attach_with_scales()`.
+**SNN learning rate rationale**: SNN biophysical parameters (R, C, V_th) are more sensitive to large gradient updates than weight matrices because they control the spike generation threshold and membrane dynamics — large updates can push them into the `1e-6` clamp guard (see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)), destabilizing $\tau=R\cdot C$. Setting `snn_lr_scale = 0.1` gives lr ≈ 1e-4 for SNN params when global lr = 1e-3 — this is this project's own empirical default, not a value drawn from a specific literature source. Pass this scale to `Adam::attach_with_scales()`.
 
 **Weight decay rationale**: `weight_decay > 0` enables decoupled L2 regularization (AdamW). The `Trainer` constructor forwards it to `Adam::weight_decay`, which shrinks only 2-D weight matrices by `lr·weight_decay·θ` after each Adam step — biases and SNN scalars are skipped so `τ = R·C` and the threshold stay intact. See [Optimizers](Optimizers.md#decoupled-weight-decay-adamw).
 
@@ -415,7 +416,5 @@ Transform is applied in **both** training and validation loops, immediately befo
 [2] L. Bottou, "Large-scale machine learning with stochastic gradient descent," in *Proc. 19th Int. Conf. Computational Statistics (COMPSTAT)*, 2010, pp. 177–186.
 
 [26] W. Fang et al., "SpikingJelly: An open-source machine learning infrastructure platform for spike-based intelligence," *Science Advances*, vol. 9, no. 40, eadi1480, 2023.
-
-[37] Y. Cao et al., "Direct training of spiking neural networks: Challenges and insights," *Frontiers in Neuroscience*, 2025.
 
 [41] A. Leal et al., "A guide to cross-validation for artificial intelligence in medical imaging," *Radiology: Artificial Intelligence*, 2023. [Online]. Available: https://pmc.ncbi.nlm.nih.gov/articles/PMC10388213/

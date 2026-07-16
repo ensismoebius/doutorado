@@ -57,8 +57,13 @@ struct Adam : public Optimizer
 ### Per-Parameter-Group Learning Rates
 
 SNN biophysical parameters (R, C, V_th) require a much smaller learning rate than
-weight matrices.  Literature recommends a 10× reduction: lr_SNN ≈ 1e-4 when
-global lr = 1e-3 [37].  Use `attach_with_scales()` to set per-parameter lr multipliers:
+weight matrices, since large updates can push them into the `1e-6` clamp region
+(see [Membrane-Dynamics](../Concepts/Membrane-Dynamics.md)) and destabilize $\tau=R\cdot C$
+or the spike threshold. This project's own empirical default is a 10× reduction:
+lr_SNN ≈ 1e-4 when global lr = 1e-3 (`TrainerConfig::snn_lr_scale = 0.1`) — an internal
+engineering heuristic, not a literature-sourced figure (audit m-3: the citation
+previously attached to this claim could not be verified and was removed).
+Use `attach_with_scales()` to set per-parameter lr multipliers:
 
 ```cpp
 // File: include/optimizers/Adam.hpp
@@ -208,5 +213,3 @@ for (int epoch = 0; epoch < epochs; ++epoch)
 [1] D. P. Kingma and J. Ba, "Adam: A method for stochastic optimization," in *Proc. 3rd Int. Conf. on Learning Representations (ICLR)*, 2015. [Online]. Available: https://arxiv.org/abs/1412.6980
 
 [2] S. Ruder, "An overview of gradient descent optimization algorithms," arXiv preprint arXiv:1609.04747, 2016. [Online]. Available: https://arxiv.org/abs/1609.04747
-
-[37] Y. Cao et al., "Direct training of spiking neural networks: Challenges and insights," *Frontiers in Neuroscience*, 2025. [Online]. Available: https://www.frontiersin.org/journals/neuroscience

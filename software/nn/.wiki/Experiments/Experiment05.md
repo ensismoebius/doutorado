@@ -104,7 +104,9 @@ All 18 profile names (`profiles/phase00/`):
 
 Each profile is identical except `feature_extraction.autoencoder.{encoding, time_steps, voltage_threshold}` and `encoder_layer_spec`/`decoder_layer_spec` widths (per size, see table below). `direct` profiles use `time_steps: 1` (ignored by the encoder anyway — a single analog frame) and `voltage_threshold: 1.0` (the LIF default — appropriate since `direct` is meant to reproduce the *un-encoded* baseline, not a tuned spiking regime); `poisson`/`latency` use `time_steps: 16`, `voltage_threshold: 0.2`.
 
-**Measured separability (tiny/eeg, 20 epochs, 2-fold, `experiment.seed=42`)** — smaller `α` and larger `D_truth` mean better paraconsistent separability (α is the falsity/inconsistency degree; the ideal vertex is `α→0, D_truth` maximal):
+**Measured separability (tiny/eeg, 20 epochs, 2-fold, `experiment.seed=42`)**. Per the convention established above (and in [Core/Paraconsistent.md](../Core/Paraconsistent.md)), **larger `α`** (intraclass compactness) **and smaller `D_truth`** (distance to the "Truth" vertex) mean better paraconsistent separability.
+
+> **Note (audit m-2):** the `α`/`D_truth` values and "reading" column below have not been re-verified against the correct direction convention — a previous revision of this table stated the direction backwards (and mislabeled `α` as a "falsity/inconsistency degree"), which has now been corrected here, but the ranking/labels themselves need to be re-checked against `results/phase00/*_paraconsistent.csv` before being relied on.
 
 | encoding | α | D_truth | reading |
 |---|---|---|---|

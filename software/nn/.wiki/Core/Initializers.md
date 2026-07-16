@@ -18,15 +18,16 @@ This maintains variance of activations: $\text{Var}(y) = \text{Var}(x)$ across l
 
 ### Kaiming/He Initialization
 
-Designed for ReLU and variants. Weights sampled from:
+Designed for ReLU and spiking (LIF) activations. This project uses the **He-uniform**
+form implemented by `kaimingSNNInitializer` below, not a Gaussian:
 
-$$W \sim \mathcal{N}\left(0, \frac{2}{n_{in}}\right)$$
+$$\ell = \sqrt{\frac{6}{n_{in}}}, \qquad W_{ij} \sim \mathcal{U}(-\ell, +\ell), \qquad b = 0,$$
 
-The factor of 2accounts for ReLU zeroing half the values [4].
-
-For Lif ReLU with leak rate $\alpha$:
-
-$$W \sim \mathcal{N}\left(0, \frac{1}{1 - \alpha^2}\right)$$
+where $n_{in}$ is the fan-in. The uniform interval $[-\ell,\ell]$ has variance
+$\ell^2/3 = 2/n_{in}$ — the same He target variance, reached via a uniform rather than
+normal draw. This accounts for ReLU/spike-threshold nonlinearities zeroing about half
+the values [4]. See [Weight-Initialisation](../Concepts/Weight-Initialisation.md) for
+the full derivation.
 
 ## How It Is Implemented Here
 

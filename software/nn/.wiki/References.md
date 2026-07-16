@@ -96,8 +96,8 @@ This page contains all bibliographic citations used throughout the wiki in IEEE 
 
 [36] F. Zenke and T. Vogels, "The remarkable robustness of surrogate gradient learning for instilling complex function in spiking neural networks," Neural Computation, vol. 33, no. 4, pp. 899–925, 2021.
 
-[37] H. Fang et al., "Adaptive and lightweight surrogate gradients: enhancing training efficiency of spiking neural networks," Frontiers in Neuroscience, 2026. [Online]. Available: https://doi.org/10.3389/fnins.2026.1795946
-⚠️ **Date note:** Publication year listed as 2026 — verify this is not a misdated preprint before citing in conference/journal submissions (current year: 2026, so may be a future-dated accepted paper or a publisher date error).
+[37] K. Hou, K. Wu, and Y. Zhou, "Adaptive and lightweight surrogate gradients: enhancing training efficiency of spiking neural networks," Frontiers in Neuroscience, 2026. [Online]. Available: https://doi.org/10.3389/fnins.2026.1795946
+⚠️ **Correction (audit m-3):** author list was previously misattributed to "H. Fang et al." — verified via web search to be Hou, Wu, and Zhou. This entry was also, until audit m-3, incorrectly cited elsewhere (Core/Optimizers.md, Core/Training.md, Adam.hpp) as support for an unrelated claim about SNN biophysical-parameter learning rates; that citation has been removed from those pages since this paper's actual topic (adaptive surrogate-gradient efficiency) does not cover it. Publication year still listed as 2026 — verify this is not a misdated preprint before citing in conference/journal submissions.
 
 ## SNN Temporal Processing and Comparisons
 
