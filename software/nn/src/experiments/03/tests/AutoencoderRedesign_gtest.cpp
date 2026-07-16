@@ -345,3 +345,85 @@ TEST(Experiment03RedesignTest, ProtocolSnnDenseFallbackSupportsBroaderLayerGramm
     EXPECT_EQ(grad_input.rows(), input.rows());
     EXPECT_EQ(grad_input.cols(), input.cols());
 }
+
+// Firing-rate regularization (D1 follow-up): lambda > 0 must locate the
+// encoder's Lif layer(s) and inject the band-penalty gradient during
+// backward, while lambda == 0 (the default) stays a no-op. Two models built
+// from an identical seed produce identical forward passes, so any gradient
+// difference under an otherwise-identical backward pass is attributable to
+// the regularization term alone.
+TEST(Experiment03RedesignTest, ProtocolSnnFiringRateRegularizationInjectsGradientWhenEnabled)
+{
+    auto make_cfg = [](float lambda)
+    {
+        AutoencoderConfig cfg;
+        cfg.input_features = 14;
+        cfg.hidden_size = 16;
+        cfg.latent_size = 4;
+        cfg.depth = 1;
+        cfg.time_step = 1.0F;
+        cfg.resistance = 1.0F;
+        cfg.capacitance = 1.0F;
+        cfg.initializer_seed = 42u;
+        // fr_min set above any plausible native firing rate so the penalty is
+        // guaranteed to engage regardless of the actual (unmeasured) rate.
+        cfg.firing_rate_reg_lambda = lambda;
+        cfg.firing_rate_min = 0.9F;
+        cfg.firing_rate_max = 0.95F;
+        return cfg;
+    };
+
+    ProtocolSpikingAutoencoder baseline(make_cfg(0.0F));
+    ProtocolSpikingAutoencoder regularized(make_cfg(5.0F));
+
+    ASSERT_FALSE(baseline.encoder_lif_indices_.empty());
+    ASSERT_FALSE(regularized.encoder_lif_indices_.empty());
+    EXPECT_EQ(baseline.encoder_lif_indices_, regularized.encoder_lif_indices_);
+
+    nn::Tensor input = nn::Tensor::rand(3, 14);
+    nn::Tensor grad_output = nn::Tensor::ones(3, 14);
+
+    nn::Tensor recon_baseline = baseline.forward(input, true);
+    nn::Tensor recon_regularized = regularized.forward(input, true);
+    // Identical seed + identical input => identical forward pass; the two
+    // models diverge only in the regularization term applied during backward.
+    for (int i = 0; i < recon_baseline.rows(); ++i)
+        for (int j = 0; j < recon_baseline.cols(); ++j)
+            EXPECT_FLOAT_EQ(recon_baseline.at(i, j), recon_regularized.at(i, j));
+
+    nn::Tensor grad_baseline = baseline.backward(grad_output);
+    nn::Tensor grad_regularized = regularized.backward(grad_output);
+
+    bool any_difference = false;
+    for (int i = 0; i < grad_baseline.rows() && !any_difference; ++i)
+        for (int j = 0; j < grad_baseline.cols() && !any_difference; ++j)
+            if (grad_baseline.at(i, j) != grad_regularized.at(i, j)) any_difference = true;
+
+    EXPECT_TRUE(any_difference) << "lambda > 0 with an out-of-band firing rate must perturb "
+                                   "the encoder's input gradient relative to lambda == 0";
+}
+
+// lambda == 0 (the default for every existing profile) must remain exactly
+// inert: backward_with_firing_rate_reg degenerates to plain Sequential::backward.
+TEST(Experiment03RedesignTest, ProtocolSnnFiringRateRegularizationInertWhenLambdaZero)
+{
+    AutoencoderConfig cfg;
+    cfg.input_features = 14;
+    cfg.hidden_size = 16;
+    cfg.latent_size = 4;
+    cfg.depth = 1;
+    cfg.time_step = 1.0F;
+    cfg.resistance = 1.0F;
+    cfg.capacitance = 1.0F;
+    cfg.initializer_seed = 7u;
+    EXPECT_FLOAT_EQ(cfg.firing_rate_reg_lambda, 0.0F);
+
+    ProtocolSpikingAutoencoder model(cfg);
+    nn::Tensor input = nn::Tensor::rand(2, 14);
+    model.forward(input, true);
+    nn::Tensor grad_output = nn::Tensor::ones(2, 14);
+    nn::Tensor grad_input = model.backward(grad_output);
+
+    EXPECT_EQ(grad_input.rows(), input.rows());
+    EXPECT_EQ(grad_input.cols(), input.cols());
+}

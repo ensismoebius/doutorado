@@ -9,9 +9,63 @@
 
 #include "ProtocolSpikingAutoencoder.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include "AutoencoderBuilders.hpp"
+#include "layers/Layers.hpp"
+
+namespace
+{
+// Indices of Lif layers within a Sequential, in construction order. Computed once
+// since encoder structure is static after the constructor builds it.
+auto find_lif_layer_indices(const nn::Sequential& seq) -> std::vector<size_t>
+{
+    std::vector<size_t> indices;
+    for (size_t i = 0; i < seq.layers.size(); ++i)
+        if (dynamic_cast<nn::Lif*>(seq.layers[i].get()) != nullptr) indices.push_back(i);
+    return indices;
+}
+
+// Backward through `seq`, injecting a firing-rate band-penalty gradient into the
+// spike output of each Lif layer listed in `lif_indices` before propagating through
+// it. Mirrors E05DsnnClassifier::add_firing_rate_grad's math exactly:
+//   reg = lambda * (max(0, fr_min - r)^2 + max(0, r - fr_max)^2)
+//   d_reg/d_spike = 2*lambda*(r - clamp(r, fr_min, fr_max)) / n
+// Inert (identity to plain Sequential::backward) when lambda <= 0.
+auto backward_with_firing_rate_reg(nn::Sequential& seq,
+    const std::vector<size_t>& lif_indices,
+    float lambda,
+    float fr_min,
+    float fr_max,
+    const ProtocolSpikingAutoencoder::Tensor& grad_output) -> ProtocolSpikingAutoencoder::Tensor
+{
+    ProtocolSpikingAutoencoder::Tensor grad = grad_output;
+    for (size_t i = seq.layers.size(); i-- > 0;)
+    {
+        if (lambda > 0.0F && i < seq.outputs.size() &&
+            std::find(lif_indices.begin(), lif_indices.end(), i) != lif_indices.end())
+        {
+            const auto& spikes = seq.outputs[i];
+            if (spikes.size() > 0)
+            {
+                const float n = static_cast<float>(spikes.size());
+                const float r = spikes.sum() / n;
+                const float clamped = std::clamp(r, fr_min, fr_max);
+                const float d_reg = 2.0F * lambda * (r - clamped) / n;
+                if (d_reg != 0.0F) grad.add_scalar_inplace(d_reg);
+            }
+        }
+        grad = seq.layers[i]->backward(grad);
+    }
+    return grad;
+}
+} // namespace
 
 ProtocolSpikingAutoencoder::ProtocolSpikingAutoencoder(const AutoencoderConfig& cfg)
+    : fr_lambda_(cfg.firing_rate_reg_lambda),
+      fr_min_(cfg.firing_rate_min),
+      fr_max_(cfg.firing_rate_max)
 {
     use_dual_branch_ = cfg.architecture == AutoencoderArchitecture::DualBranchFusion &&
                        cfg.eeg_features > 0 && cfg.audio_features > 0 &&
@@ -41,6 +95,17 @@ ProtocolSpikingAutoencoder::ProtocolSpikingAutoencoder(const AutoencoderConfig& 
             experiment03::autoencoders::build_snn_encoder(cfg, cfg.input_features, cfg.hidden_size);
         decoder_ =
             experiment03::autoencoders::build_snn_decoder(cfg, cfg.input_features, cfg.hidden_size);
+    }
+
+    if (use_dual_branch_)
+    {
+        eeg_encoder_lif_indices_ = find_lif_layer_indices(eeg_encoder_);
+        audio_encoder_lif_indices_ = find_lif_layer_indices(audio_encoder_);
+        fusion_encoder_lif_indices_ = find_lif_layer_indices(fusion_encoder_);
+    }
+    else
+    {
+        encoder_lif_indices_ = find_lif_layer_indices(encoder_);
     }
 }
 
@@ -86,7 +151,8 @@ auto ProtocolSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
     if (!use_dual_branch_)
     {
         Tensor grad = decoder_.backward(grad_output);
-        return encoder_.backward(grad);
+        return backward_with_firing_rate_reg(
+            encoder_, encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, grad);
     }
 
     auto eeg_grad = experiment03::autoencoders::slice_columns(grad_output, 0, eeg_features_);
@@ -97,13 +163,20 @@ auto ProtocolSpikingAutoencoder::backward(const Tensor& grad_output) -> Tensor
     auto fused_branch_grad =
         experiment03::autoencoders::concat_columns(eeg_branch_grad, audio_branch_grad);
     auto latent_grad = fusion_decoder_.backward(fused_branch_grad);
-    auto fused_encoder_grad = fusion_encoder_.backward(latent_grad);
+    auto fused_encoder_grad = backward_with_firing_rate_reg(
+        fusion_encoder_, fusion_encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, latent_grad);
     auto eeg_encoder_grad =
         experiment03::autoencoders::slice_columns(fused_encoder_grad, 0, eeg_branch_grad.cols());
     auto audio_encoder_grad = experiment03::autoencoders::slice_columns(
         fused_encoder_grad, eeg_branch_grad.cols(), audio_branch_grad.cols());
-    auto eeg_input_grad = eeg_encoder_.backward(eeg_encoder_grad);
-    auto audio_input_grad = audio_encoder_.backward(audio_encoder_grad);
+    auto eeg_input_grad = backward_with_firing_rate_reg(
+        eeg_encoder_, eeg_encoder_lif_indices_, fr_lambda_, fr_min_, fr_max_, eeg_encoder_grad);
+    auto audio_input_grad = backward_with_firing_rate_reg(audio_encoder_,
+        audio_encoder_lif_indices_,
+        fr_lambda_,
+        fr_min_,
+        fr_max_,
+        audio_encoder_grad);
     return experiment03::autoencoders::concat_columns(eeg_input_grad, audio_input_grad);
 }
 

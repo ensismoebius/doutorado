@@ -580,6 +580,9 @@ std::vector<std::vector<double>> run_protocol_ae(
     ae_cfg.loss_type = "mse";
     ae_cfg.time_step = 1.0f;
     ae_cfg.voltage_threshold = voltage_threshold;
+    ae_cfg.firing_rate_reg_lambda = spec.firing_rate_reg_lambda;
+    ae_cfg.firing_rate_min = spec.firing_rate_min;
+    ae_cfg.firing_rate_max = spec.firing_rate_max;
 
     AEType model(ae_cfg);
 

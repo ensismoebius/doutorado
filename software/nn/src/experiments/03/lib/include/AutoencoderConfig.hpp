@@ -54,6 +54,16 @@ struct AutoencoderConfig
                                     ///< the input current is small (e.g. normalized spike frames)
                                     ///< so encoder neurons actually fire.
 
+    /// Firing-rate regularization weight for the SNN encoder. 0 = disabled.
+    /// Pushes each encoder Lif layer's mean firing rate into
+    /// [firing_rate_min, firing_rate_max], preventing dead (rate->0, latent
+    /// collapse) and bursting (rate->1) neurons. Mirrors the mechanism used by
+    /// the dsnn classifier (Training::firing_rate_reg_lambda). Ignored by the
+    /// ANN autoencoder (no spiking layers).
+    float firing_rate_reg_lambda = 0.0F;
+    float firing_rate_min = 0.05F; ///< Lower band edge (dead-neuron guard).
+    float firing_rate_max = 0.80F; ///< Upper band edge (burst guard).
+
     // Initializer controls propagated from sampler options for reproducibility.
     std::optional<unsigned int> initializer_seed = std::nullopt;
     std::string initializer_sampler_type;

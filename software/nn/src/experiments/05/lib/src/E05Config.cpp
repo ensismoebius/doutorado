@@ -95,6 +95,16 @@ void E05Config::validate() const
                 "E05Config: autoencoder.encoding must be poisson, latency, or direct");
         if (feature_extraction.autoencoder.time_steps < 1)
             throw std::invalid_argument("E05Config: autoencoder.time_steps must be >= 1");
+        if (feature_extraction.autoencoder.firing_rate_reg_lambda < 0.0f)
+            throw std::invalid_argument(
+                "E05Config: autoencoder.firing_rate_reg_lambda must be >= 0");
+        if (feature_extraction.autoencoder.firing_rate_min < 0.0f ||
+            feature_extraction.autoencoder.firing_rate_max > 1.0f ||
+            feature_extraction.autoencoder.firing_rate_min >
+                feature_extraction.autoencoder.firing_rate_max)
+            throw std::invalid_argument(
+                "E05Config: require 0 <= autoencoder.firing_rate_min <= "
+                "autoencoder.firing_rate_max <= 1");
     }
 
     if (classifier.type != "rnn" && classifier.type != "dsnn")
@@ -224,6 +234,15 @@ E05Config E05Config::from_json(const nlohmann::json& j)
                 cfg.feature_extraction.autoencoder.time_steps = ae["time_steps"];
             if (ae.contains("voltage_threshold"))
                 cfg.feature_extraction.autoencoder.voltage_threshold = ae["voltage_threshold"];
+            if (ae.contains("firing_rate_reg_lambda"))
+                cfg.feature_extraction.autoencoder.firing_rate_reg_lambda =
+                    ae["firing_rate_reg_lambda"].get<float>();
+            if (ae.contains("firing_rate_min"))
+                cfg.feature_extraction.autoencoder.firing_rate_min =
+                    ae["firing_rate_min"].get<float>();
+            if (ae.contains("firing_rate_max"))
+                cfg.feature_extraction.autoencoder.firing_rate_max =
+                    ae["firing_rate_max"].get<float>();
         }
     }
 

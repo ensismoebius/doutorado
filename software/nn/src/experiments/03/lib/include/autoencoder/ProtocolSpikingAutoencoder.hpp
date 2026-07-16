@@ -39,6 +39,16 @@ struct ProtocolSpikingAutoencoder : Module<nn::Backend>
     int eeg_features_ = 0;
     int audio_features_ = 0;
 
+    // Firing-rate regularization (see AutoencoderConfig::firing_rate_reg_lambda).
+    // Applies only to encoder Lif layers, identified once at construction time.
+    float fr_lambda_ = 0.0F;
+    float fr_min_ = 0.05F;
+    float fr_max_ = 0.80F;
+    std::vector<size_t> encoder_lif_indices_;
+    std::vector<size_t> eeg_encoder_lif_indices_;
+    std::vector<size_t> audio_encoder_lif_indices_;
+    std::vector<size_t> fusion_encoder_lif_indices_;
+
     explicit ProtocolSpikingAutoencoder(const AutoencoderConfig& cfg);
 
     /// Run the encoder and return spike tensors for the latent layer.

@@ -1009,6 +1009,42 @@
 
 				\par \textbf{Limitações.} Um único par escala/deslocamento por canal é menos expressivo do que esquemas que atribuem parâmetros distintos a cada passo de tempo; para valores muito pequenos de $T$, a TEBN \cite{duan2022tebn} pode superá-la. A tdBN também pressupõe uma população de lote e tempo suficientemente grande para estimativas estáveis de média e variância. Variantes posteriores, como a MPBN \cite{guo2023mpbn}, normalizam o potencial de membrana após a sua atualização, antes da função de disparo.
 
+			\subsubsection{Regularização da taxa de disparo}
+				\label{sec:frReg}
+
+				\par Enquanto a tdBN (\autoref{sec:tdbn}) ataca o problema da ausência de disparos \textbf{estruturalmente} --- reescalando a corrente para que uma fração fixa de neurônios ultrapasse o limiar, independentemente da profundidade --- uma segunda estratégia, complementar, atua sobre a \textbf{função de perda}: penalizar a taxa média de disparo de cada camada pulsante quando ela sai de uma faixa-alvo $[r_{min}, r_{max}]$. Diferente da tdBN, essa penalidade não garante estruturalmente uma taxa de disparo saudável --- ela apenas empurra o gradiente nessa direção --- mas dispensa qualquer camada de normalização adicional e se aplica mesmo quando a rede pulsante já está construída sem tdBN, como é o caso do \textit{autoencoder} de RNP deste trabalho (\autoref{sec:snnAeFrReg}).
+
+				\par \textbf{Formulação.} Seja $S_l \in \mathbb{R}^{N_l}$ o tensor de pulsos (0 ou 1) emitido pela camada pulsante $l$ ao longo do lote e do tempo, com $N_l$ elementos. A taxa de disparo dessa camada é a sua média:
+
+				\begin{equation}
+					\label{eq:frrate}
+					r_l = \frac{1}{N_l}\sum_{i=1}^{N_l} S_{l,i}.
+				\end{equation}
+
+				\par A penalidade, somada à perda de reconstrução (ou de classificação), é uma função de banda quadrática --- nula dentro da faixa-alvo, crescendo quadraticamente fora dela:
+
+				\begin{equation}
+					\label{eq:frreg}
+					\mathcal{L}_{fr} = \lambda \sum_{l} \Big[\max(0,\, r_{min} - r_l)^2 + \max(0,\, r_l - r_{max})^2\Big],
+				\end{equation}
+
+				\par em que $\lambda \geq 0$ é o peso da regularização (inerte quando $\lambda=0$), $r_{min}$ é a borda inferior da faixa (guarda contra neurônios mortos) e $r_{max}$ é a borda superior (guarda contra disparo excessivo, que satura a seletividade do neurônio). Sua derivada em relação a cada pulso individual é constante dentro de uma mesma camada:
+
+				\begin{equation}
+					\label{eq:frreggrad}
+					\frac{\partial \mathcal{L}_{fr}}{\partial S_{l,i}} = \frac{2\lambda\big(r_l - \operatorname{clamp}(r_l,\, r_{min},\, r_{max})\big)}{N_l}, \qquad \forall i,
+				\end{equation}
+
+				\par ou seja, o efeito da regularização sobre o \textit{backward} é somar essa mesma constante a todo elemento do gradiente que chega na saída da camada pulsante $l$, imediatamente antes de retropropagá-lo através do neurônio LIF. Quando $r_l$ já está dentro da faixa, o gradiente adicional é zero e a regularização não interfere no treinamento.
+
+				\par \textbf{Exemplo numérico.} Considere $\lambda=0{,}1$, faixa $[r_{min}, r_{max}] = [0{,}05,\ 0{,}80]$ e uma camada com $N_l=1024$ elementos disparando a uma taxa $r_l=0{,}02$ (abaixo da borda inferior, sinal de colapso). O termo de clamp vale $\operatorname{clamp}(0{,}02;\,0{,}05;\,0{,}80)=0{,}05$, e o gradiente adicional é
+				\begin{equation}
+					\frac{2\times0{,}1\times(0{,}02-0{,}05)}{1024} = \frac{2\times0{,}1\times(-0{,}03)}{1024} \approx -5{,}86\times10^{-6},
+				\end{equation}
+				\par um empurrão negativo (uniforme, em todo elemento do gradiente) que incentiva o otimizador a aumentar a corrente de entrada da camada, elevando a taxa de disparo até que ela reentre na faixa-alvo.
+
+				\par \textbf{Limitação conhecida.} A penalidade opera sobre a taxa \textbf{média} da camada, um sinal agregado. Uma camada pode satisfazer $r_l \in [r_{min}, r_{max}]$ mesmo com uma distribuição desigual entre neurônios --- alguns disparando muito, outros nunca --- sem que a média o revele. A eficácia depende também de $r_{min}$ estar acima do ponto de equilíbrio para o qual o treinamento convergeria de outra forma: se a rede já converge, sem regularização, para uma taxa dentro da faixa (o que ocorre, por exemplo, com a taxa observada na inicialização de He/Kaiming --- \autoref{sec:snnAeFrReg}), a penalidade permanece inerte durante boa parte do treinamento e só atua quando a taxa realmente cruza a borda.
+
 			\subsubsection{Inicialização de Pesos}
 				\label{sec:init}
 
@@ -1129,7 +1165,40 @@
 					\legend{Fonte: Elaborado pelo autor, 2024.}
 					\label{fig:denoisingAutoencoder}
 				\end{figure}
-							
+
+			\subsubsection{Colapso do latente no autoencoder pulsante e regularização da taxa de disparo}
+				\label{sec:snnAeFrReg}
+
+				\par Esta subseção descreve um problema encontrado no \textit{autoencoder} de \ac{RNP} deste trabalho (o ramo \texttt{snn-ae} da Fase~00, \autoref{sec:dPenalizado}) e a correção implementada: a regularização da taxa de disparo (\autoref{sec:frReg}) aplicada ao codificador.
+
+				\par \textbf{Investigação da causa-raiz.} O latente morto identificado em \autoref{sec:dPenalizado} ($\alpha=\beta=1$, saída constante) motivou uma investigação sobre por quê o codificador do \texttt{snn-ae} deixa de aprender. A arquitetura declarada para os perfis da Fase~00 --- \texttt{linear:16:leaky, linear:8:identity} --- resolve-se em $\text{Linear}(256,16) \to \text{LIF}(V_{th}) \to \text{Linear}(16,8) \to \text{identidade}$: o token \texttt{identity} é um \textit{no-op} literal, de modo que o latente de 8 dimensões é a saída \textbf{crua} da segunda camada Linear, sem qualquer não-linearidade adicional. Com a codificação \texttt{direct} ($T=1$), a recorrência do LIF, $V_{mem} = \beta_{LIF} V_{mem}^{(t-1)} + I_{in}$, perde o termo de estado anterior (reiniciado a cada amostra) e se reduz a um teste de limiar puro sobre a saída da primeira Linear --- ou seja, todo o poder de discriminação do codificador depende de quantos, dentre os 16 neurônios dessa única camada pulsante, efetivamente disparam.
+
+				\par Um teste diagnóstico instrumentado diretamente sobre essa camada (com pesos inicializados por He/Kaiming, \autoref{sec:init}, e entradas uniformes em $[0,1]$) mediu a taxa de disparo média em função da escala dos pesos:
+
+				\begin{center}
+					\begin{tabular}{lccccc}
+						\hline
+						Escala dos pesos & $1\times$ & $2\times$ & $5\times$ & $10\times$ & $20\times$ \\
+						\hline
+						Taxa de disparo & $8{,}30\%$ & $24{,}51\%$ & $35{,}45\%$ & $37{,}11\%$ & $39{,}06\%$ \\
+						\hline
+					\end{tabular}
+				\end{center}
+
+				\par Na escala nativa ($1\times$, a produzida pela inicialização de He/Kaiming sem reescalonamento), apenas $8{,}3\%$ dos disparos ocorrem ($85$ de $1024$ combinações neurônio$\times$amostra testadas), e a taxa cresce monotonicamente --- mas de forma decrescentemente marginal --- com a magnitude dos pesos. Esse é exatamente o \textbf{problema da ausência de disparos} descrito em \autoref{sec:tdbn}: pré-ativação predominantemente abaixo do limiar $\Rightarrow$ poucos disparos $\Rightarrow$ gradiente substituto (\autoref{sec:tdbn}, antes da fórmula de tdBN) próximo de zero para a maioria dos neurônios $\Rightarrow$ esses neurônios deixam de ser ajustados e permanecem mortos. Como a única camada pulsante do encoder já nasce com disparo escasso, e o restante da rede (a segunda Linear, a \texttt{identity}) não introduz nenhuma outra dinâmica de disparo, o codificador inteiro herda essa fragilidade.
+
+				\par O framework já possuía, antes desta investigação, duas defesas contra o problema da ausência de disparos --- a tdBN (\autoref{sec:tdbn}) e a regularização de taxa de disparo (\autoref{sec:frReg}) --- mas ambas estavam conectadas apenas ao classificador DSNN, nunca ao \textit{autoencoder}. Sem nenhuma delas, um \textit{autoencoder} treinado por erro quadrático médio sobre um canal de informação faminto converge para a solução trivial: o decodificador aprende a ignorar o latente e emitir a média do conjunto de dados, já que essa é a saída que minimiza o erro quadrático médio quando o latente carrega pouca ou nenhuma informação distintiva --- mecanicamente forçando o vértice Ambiguidade ($\alpha=\beta=1$) descrito em \autoref{sec:dPenalizado}.
+
+				\par \textbf{Correção implementada.} Portou-se a regularização de taxa de disparo (\autoref{eq:frreg}--\autoref{eq:frreggrad}) do classificador DSNN para o \textit{autoencoder} pulsante, com a mesma matemática e os mesmos parâmetros ($\lambda$, $r_{min}$, $r_{max}$), agora aplicados à(s) camada(s) LIF do codificador do \textit{autoencoder}. A diferença está na integração: o codificador do classificador é uma sequência de camadas nomeadas explicitamente, o que permite injetar o gradiente de regularização exatamente no ponto certo do \textit{backward}; o codificador do \textit{autoencoder}, por sua vez, é montado dinamicamente a partir da especificação declarativa do perfil (\texttt{encoder\_layer\_spec}) em um contêiner genérico de camadas, sem pontos de extensão para injeção de gradiente em posições internas. A solução adotada localiza as camadas LIF desse contêiner uma única vez, na construção do modelo, por introspecção de tipo, e substitui a chamada de \textit{backward} do contêiner por um laço equivalente que replica sua ordem reversa, inserindo a regularização exatamente antes de retropropagar através de cada camada LIF identificada --- sem alterar o contêiner genérico, que continua sendo usado, sem modificação, por todo o restante do framework.
+
+				\par Os parâmetros $\lambda$, $r_{min}$ e $r_{max}$ tornaram-se campos opcionais da configuração do \textit{autoencoder}, com o mesmo padrão \textbf{desligado} ($\lambda=0$) do classificador, de modo que nenhum perfil já executado da Fase~00 muda de comportamento --- a regularização é estritamente opt-in.
+
+				\par \textbf{Validação empírica.} Executou-se o perfil \texttt{p00\_ae\_snn\_direct\_tiny\_eeg} a uma taxa de aprendizado baixa o suficiente para produzir um latente quase colapsado ($\alpha=0{,}875$, $\beta\approx0{,}9999$, próximo do vértice Ambiguidade), com e sem a regularização. Sem regularização ($\lambda=0$), o resultado permanece quase colapsado. Com $\lambda=5{,}0$ e faixa-alvo $[r_{min}, r_{max}]=[0{,}10;\,0{,}60]$ --- acima, portanto, da taxa de equilíbrio nativa de $8{,}3\%$ medida na inicialização (\autoref{sec:frReg}, limitação conhecida) --- $\alpha$ cai para $0{,}25$: o latente deixa de ser quase-constante e passa a variar de fato entre amostras de classes diferentes, confirmando que o gradiente de regularização efetivamente alcança e altera o treinamento do codificador. Já $\beta$ permanece próximo de $1$ nesse perfil específico --- esperado, pois $\beta$ mede a sobreposição entre classes no sinal de EEG bruto, um problema de separabilidade dos dados diferente do colapso do latente, que a regularização de taxa de disparo não tem por objetivo resolver.
+
+				\par \textbf{Valor recomendado.} Os 18 perfis reais \texttt{snn-ae} da Fase~00 (e os 18 perfis \texttt{smoke} correspondentes) passaram a declarar $\lambda=0{,}5$, $r_{min}=0{,}10$ e $r_{max}=0{,}80$. $r_{max}$ mantém o padrão já usado pelo classificador DSNN; $r_{min}=0{,}10$ foi colocado acima da taxa de disparo nativa medida na inicialização de He/Kaiming ($8{,}3\%$, valor da tabela acima), garantindo que a penalidade realmente entre em ação em vez de ficar inerte; $\lambda=0{,}5$ foi validado na codificação \texttt{direct} sob a taxa de aprendizado real do perfil (não artificialmente reduzida): sem regularização $\alpha=0{,}5$, e com $\lambda=0{,}5$ o mesmo experimento produz $\alpha=0{,}375$, confirmando engajamento sem recorrer ao valor extremo ($\lambda=5$) usado apenas no teste de colapso forçado descrito acima. Uma tentativa de repetir essa validação nas codificações \texttt{poisson} e \texttt{latency} ($T=16$ passos de tempo) foi interrompida após quase duas horas sem terminar --- ficou evidente que essas duas codificações, por si só, constituem um experimento caro nessa escala, e uma bateria de comparação nelas exige planejamento e confirmação explícita à parte.
+
+				\par \textbf{Situação em aberto.} Os 300 resultados armazenados da Fase~00 foram gerados \textbf{antes} desta mudança e não refletem mais a configuração atual dos 18 perfis \texttt{snn-ae} (agora com $\lambda=0{,}5$). Reexecutá-los e reclassificá-los pela métrica $D_{\text{penalizado}}$ (\autoref{sec:dPenalizado}) é, pela evidência acima, uma operação de custo real (as variantes \texttt{poisson}/\texttt{latency} sozinhas ultrapassam duas horas cada) e permanece pendente no momento da escrita deste texto.
+
 		\subsection{Redes neurais residuais (ResNets)}
 			\par Segundo \cite{DBLP:journals/corr/HeZRS15} a ideia-chave por trás das \textit{ResNets} é a inclusão de conexões de salto como ilustrado na  \autoref{fig:residualblock}, também conhecidas como mapeamentos de identidade, permitindo que a saída de uma camada seja adicionada elemento-a-elemento diretamente à entrada de uma camada subsequente. Para que isso aconteça é importante que tanto a saída quanto a entrada tenham a mesma dimensão.
 			
