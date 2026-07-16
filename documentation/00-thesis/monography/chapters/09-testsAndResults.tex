@@ -32,16 +32,13 @@
 		\tableZebraStripe
 		\begin{longtable}{@{}rlrrrr@{}}
 			\caption{#2} \label{#3} \\
-			\toprule
 			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
-			\midrule
 			\endfirsthead
-			\toprule
 			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
-			\midrule
 			\endhead
-			\bottomrule
 			\endfoot
+			\bottomrule
+			\endlastfoot
 			\csvreader{#1}{}%
 				{\csvcoli & \csvcolii & \csvcoliii & \csvcoliv & \csvcolv & \csvcolvi \\}%
 		\end{longtable}%

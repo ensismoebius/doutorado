@@ -16,6 +16,12 @@
 % Enable long tables
 \usepackage{longtable}
 
+% Enables m{}/b{} paragraph column types with configurable vertical
+% alignment (used so wide text columns vertically CENTER like plain
+% c/l/r columns instead of top-aligning — avoids a baseline mismatch
+% against \rowcolor-filled header rows, see chapters/data/tableStyle.tex)
+\usepackage{array}
+
 % Enable cvs data load
 \usepackage{csvsimple, booktabs}
 

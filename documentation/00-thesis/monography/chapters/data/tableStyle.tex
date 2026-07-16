@@ -17,27 +17,41 @@
 \definecolor{cbGrey}{RGB}{166,166,166}
 
 % ── Semantic roles (used by every table in the thesis) ───────────────────
-% Header row: solid blue background, white bold text.
+% Tint levels below are chosen against two constraints, not eyeballed:
+%  1. WCAG 1.4.11 (non-text contrast, >=3:1) / 1.4.3 (text contrast, >=4.5:1)
+%     — verified against black text for the band colors below (~9-13:1,
+%     comfortably AAA) and against white text for the solid header (~5.2:1,
+%     AA). A pale tint (e.g. !35 or lower) still clears contrast but reads
+%     as washed-out/grey on paper — the "too dull" failure mode — because
+%     contrast alone doesn't capture perceived saturation/vividness.
+%  2. Okabe & Ito (2008) hue choices are kept exactly (blue/orange is the
+%     most CVD-robust 2-hue pair); only the tint (mix-with-white) percentage
+%     is raised for a visibly saturated, "colorful but not extravagant" look.
+%
+% Header row: solid (untinted) blue background, white bold text.
 \colorlet{tableHeaderColor}{cbBlue}
-% Zebra striping on long/data-heavy tables: a faint tint of the header hue,
-% so it reads purely as a lightness cue (works for every CVD type) while
-% still tying visually back to the header color.
-\colorlet{tableAltRowColor}{cbBlue!6}
+% Zebra striping on long/data-heavy tables: a visible-but-subtle tint of the
+% header hue — enough to guide the eye across a row without competing with
+% the semantic band colors below. Kept lighter than those on purpose: zebra
+% striping is a navigation aid, not information-bearing.
+\colorlet{tableAltRowColor}{cbBlue!12}
 % Wavelet coefficient examples (tables/{regular,packet}WaveletExample.tex):
 % grey = raw signal label, sky blue = row/column index label,
 % blue = approximation band (cA), orange = detail band (cD).
 % Blue/orange is the single most robust 2-hue pair across all CVD types.
+% These ARE information-bearing (which band a cell belongs to), so they are
+% tinted much more strongly than the zebra stripe above.
 \colorlet{tableSignalLabelColor}{cbGrey}
 \colorlet{tableIndexLabelColor}{cbSkyBlue}
-\colorlet{tableSignalValuesColor}{cbGreen!35}
-\colorlet{tableApproxBandColor}{cbBlue!35}
-\colorlet{tableDetailBandColor}{cbOrange!35}
+\colorlet{tableSignalValuesColor}{cbGreen!55}
+\colorlet{tableApproxBandColor}{cbBlue!55}
+\colorlet{tableDetailBandColor}{cbOrange!55}
 
 % Gantt chart (chapters/08-proposedApproach.tex, tab:cronogramaGantt):
 % same palette, kept here so the chart matches the tables it sits beside.
 \colorlet{ganttBarColor}{cbGreen}
 \colorlet{ganttMilestoneColor}{cbGreen}
-\colorlet{ganttTitleColor}{cbBlue!30}
+\colorlet{ganttTitleColor}{cbBlue!45}
 \colorlet{ganttHighlightColor}{cbOrange}
 
 % ── Reusable header row ────────────────────────────────────────────────────
@@ -53,3 +67,12 @@
 % token of a row — never wrap it in another macro (e.g. a counter-stepper),
 % since colortbl's \noalign trick requires nothing to precede it.
 \newcommand{\tableZebraStripe}{\rowcolors{2}{white}{tableAltRowColor}}
+
+% ── Wide/wrapping text column, vertically centered ────────────────────────
+% Plain p{<width>} columns top-align their content, while ordinary c/l/r
+% columns baseline/vertically-center theirs — invisible in a plain \hline
+% table, but a visible split (header text sitting below the colored fill)
+% once a \rowcolor-filled header row mixes p{} with c/l/r columns. Use the
+% column type Y{<width>} instead of p{<width>} in any column spec that will
+% share a row with \tableHeaderRow, e.g. \begin{tabular}{@{}Y{10cm}cc@{}}.
+\newcolumntype{Y}[1]{>{\raggedright\arraybackslash}m{#1}}
