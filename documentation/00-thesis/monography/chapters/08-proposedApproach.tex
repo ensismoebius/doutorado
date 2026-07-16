@@ -180,24 +180,19 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 		\begin{table}[h!]
 			\centering
 			\caption{Datas dos trabalhos a serem realizados}
-			\begin{tabular}{|p{10cm}|c|c|}
-				\hline
-				\textbf{Etapa} & \textbf{Início} & \textbf{Fim} \\
-				\hline
+			\tableZebraStripe
+			\begin{tabular}{@{}p{10cm}cc@{}}
+				\toprule
+				\tableHeaderRow \textbf{Etapa} & \textbf{Início} & \textbf{Fim} \\
+				\midrule
 				Programação do sistema de coleta de dados & 01/09/2024 & 01/12/2024 \\
-				\hline
 				Criação da base de dados & 01/01/2025 & 01/12/2025 \\
-				\hline
 				Extração e seleção de características & 01/02/2025 & 01/12/2025 \\
-				\hline
 				Desenvolvimento de classificadores & 01/12/2025 & 01/12/2026 \\
-				\hline
 				Validação experimental e comparação & 01/03/2026 & 01/02/2027 \\
-				\hline
 				Divulgação e publicação dos resultados & 01/02/2027 & 01/04/2027 \\
-				\hline
 				Redação da dissertação e preparação para defesa & 01/09/2024 & 01/03/2027 \\
-				\hline
+				\bottomrule
 			\end{tabular}
 			\label{tab:cronograma}
 		\end{table}
@@ -210,16 +205,16 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				vgrid, % Adiciona linhas verticais de grade
 				x unit=.455cm, % Define a largura de cada unidade de tempo (neste caso, um mês) em centímetros
 				y unit chart=0.8cm, % Define a altura de cada linha de tarefa no gráfico em centímetros
-				bar/.append style={fill=green, draw=green}, % Estilo padrão para as barras: cor de preenchimento verde e borda verde
+				bar/.append style={fill=ganttBarColor, draw=ganttBarColor}, % Estilo padrão para as barras (paleta colorblind-safe, tableStyle.tex)
 				bar label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos das barras (pequeno e em negrito)
 				bar label node/.append style={text=black, anchor=west, xshift=0.2cm}, % Alinha o texto da barra ao início da barra com um pequeno deslocamento horizontal
 				group label node/.append style={anchor=east, font=\small}, % Define o estilo dos rótulos de grupo com ânfora à esquerda e fonte pequena
 				time slot format=isodate, % Define o formato de data para os slots de tempo (ISO: ano-mês-dia)
-				milestone/.append style={fill=green}, % Estilo para marcos: preenchimento verde
-				title/.append style={fill=blue, draw=black}, % Estilo do título: preenchimento azul e borda preta
+				milestone/.append style={fill=ganttMilestoneColor}, % Estilo para marcos
+				title/.append style={fill=tableHeaderColor, draw=black}, % Estilo do título: preenchimento azul e borda preta
 				title label font=\bfseries\footnotesize, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
 				title label anchor/.style={below=0ex}, % Ajusta a âncora do rótulo do título para baixo
-				title/.style={fill=blue!30, draw=none}, % Estilo do título: preenchimento azul claro e sem borda
+				title/.style={fill=ganttTitleColor, draw=none}, % Estilo do título: preenchimento azul claro e sem borda
 				title label font=\scriptsize\bfseries, % Define o estilo da fonte para os rótulos do título (pequeno e em negrito)
 				milestone label font=\small\bfseries, % Define o estilo da fonte para os rótulos de marcos (pequeno e em negrito)
 				bar height=0.5, % Define a altura das barras
@@ -249,7 +244,7 @@ Cada combinação gera um vetor de características, avaliado pela distância $D
 				bar label node/.append style={xshift=230pt} % Ajusta o texto da barra para começar no início da barra
 				]{Divulgação e publicação dos resultados}{2027-02-01}{2027-04-01} \\
 				\ganttbar[
-				bar/.append style={fill=orange}, % Altera a cor da barra para laranja
+				bar/.append style={fill=ganttHighlightColor}, % Barra em destaque (paleta colorblind-safe, tableStyle.tex)
 				bar label node/.append style={xshift=4pt} % Ajusta o texto da barra para começar no início da barra
 				]{Redação da dissertação e preparação para defesa}{2024-09-01}{2027-03-01}
 			\end{ganttchart}

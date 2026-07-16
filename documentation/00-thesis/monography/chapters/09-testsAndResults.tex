@@ -27,15 +27,17 @@
 
 	% Cria um longtable a partir de um CSV com colunas:
 	% rank,configuration,mean_d_truth,std_d_truth,mean_alpha,mean_beta
+	% Cabeçalho e zebra striping vêm de chapters/data/tableStyle.tex (SSOT).
 	\newcommand{\Phasezerotable}[3]{%
+		\tableZebraStripe
 		\begin{longtable}{@{}rlrrrr@{}}
 			\caption{#2} \label{#3} \\
 			\toprule
-			\textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\midrule
 			\endfirsthead
 			\toprule
-			\textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
+			\tableHeaderRow \textbf{\#} & \textbf{Configuração} & \textbf{$\bar{d}$} & \textbf{$\sigma_d$} & \textbf{$\bar{\alpha}$} & \textbf{$\bar{\beta}$} \\
 			\midrule
 			\endhead
 			\bottomrule

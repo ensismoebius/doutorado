@@ -260,7 +260,7 @@
 	
 			\par Embora haja um limite, que será mencionado adiante, é possível aplicar mais de um nível de decomposição ao sinal. Para que se possa fazer isso, a Transformada \textit{Wavelet} nível 2 deve considerar apenas a parte de baixas frequências da primeira transformada; a transformada de nível 3 deve considerar apenas a parte de baixas frequências da transformada nível 2, e assim consecutivamente.
 			
-			\par A fim de facilitar o entendimento, para fabricar os exemplos numéricos mostrados na \autoref{tab:regularWaveletExample}, \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF}, foi usado um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{amarelo} correspondem às porções de \textbf{altas frequências}.
+			\par A fim de facilitar o entendimento, para fabricar os exemplos numéricos mostrados na \autoref{tab:regularWaveletExample}, \autoref{tab:packetWaveletExampleLF} e \autoref{tab:packetWaveletExampleHF}, foi usado um filtro normalizado cujos coeficientes são $\{\dfrac{1}{2},-\dfrac{1}{2}\}$. Os dados destacados em \textbf{verde} correspondem ao \textbf{vetor original} que será tratado. Cada uma das linhas são os resultados das transformações nos níveis 1, 2, 3 e 4, respectivamente. As partes em \textbf{azul} correspondem à porção de \textbf{baixas frequências}, enquanto que as partes em \textbf{laranja} correspondem às porções de \textbf{altas frequências}.
 			
 			\par Percebe-se que na \autoref{tab:regularWaveletExample}, a partir da transformação nível 2, apenas as partes de baixa frequência são modificadas. Isso implica que, no momento da implementação do algoritmo de Mallat \textbf{para níveis maiores que 1}, a abordagem será \textbf{recursiva}. Em outras palavras, a partir do nível 1 se deve aplicar Mallat apenas às porções de baixas-frequências geradas pela transformação anterior.
 	
@@ -439,22 +439,18 @@
 			\begin{table}[H]
 				\begin{center}
 					\caption{Tarefas cerebrais e suas regiões correspondentes}
-					\begin{tabular}{|c|c|p{0.4\textwidth}|}
-						\hline
-						Região & Canais & Tarefas\\
-						\hline
+					\tableZebraStripe
+					\begin{tabular}{@{}ccp{0.4\textwidth}@{}}
+						\toprule
+						\tableHeaderRow \textbf{Região} & \textbf{Canais} & \textbf{Tarefas}\\
+						\midrule
 						Lobo frontal & Fp1, Fp2, Fpz, Pz, F3, F7, F4, F8 & Memória, concentração, emoções.\\
-						\hline
 						Lobo parietal & P3, P4, Pz & Resolução de problemas, atenção, sentido do tato. \\
-						\hline
 						Lobo temporal & T3, T5, T4, T6 & Memória, reconhecimento de faces, audição, palavras e percepção social. \\
-						\hline
 						Lobo occipital & O1, O2, Oz & Leitura, visão.\\
-						\hline
 						Cerebelo && Controle motor, equilíbrio. \\
-						\hline
 						Córtex senso-motor & C3, C4, Cz& Atenção, processamento mental, controle motor fino, integração sensorial. \\
-						\hline
+						\bottomrule
 					\end{tabular}
 					\label{tb:brainRegions}
 				\end{center}

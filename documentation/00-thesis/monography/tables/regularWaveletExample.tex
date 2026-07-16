@@ -1,10 +1,10 @@
 \begin{table}[h]
 	\fontsize{9}{\baselineskip} \selectfont
 	\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
-	\definecolor{tcA}{rgb}{0.65098,0.65098,0.65098}
-	\definecolor{tcD}{rgb}{1,0.94902,0}
-	\definecolor{tcC}{rgb}{0,0.5,1}
-	\definecolor{tcB}{rgb}{0.447059,0.74902,0.266667}
+	\colorlet{tcA}{tableSignalLabelColor}
+	\colorlet{tcD}{tableDetailBandColor}
+	\colorlet{tcC}{tableApproxBandColor}
+	\colorlet{tcB}{tableSignalValuesColor}
 	\begin{center}
 		\caption[Exemplo numérico da transformação \textit{wavelet}]{Exemplo numérico da transformação \textit{wavelet} aplicada a um vetor. Tabela completa no \autoref{sec:aplicaWavelet}.}
 		\begin{tabular}{c|ccccccccccccccc|c}

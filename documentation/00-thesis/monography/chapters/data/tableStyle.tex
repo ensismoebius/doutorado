@@ -1,0 +1,55 @@
+% tableStyle.tex — Single source of truth for table/figure colors and
+% header/zebra styling used across the whole thesis.
+%
+% Palette: Okabe & Ito (2008), "Color Universal Design" — the standard
+% categorical palette distinguishable under protanopia, deuteranopia and
+% tritanopia. Every table/gantt-chart color in the thesis must come from
+% here; do not \definecolor ad hoc inside chapters/tables/*.tex.
+
+% ── Okabe-Ito base palette ────────────────────────────────────────────────
+\definecolor{cbOrange}{RGB}{230,159,0}
+\definecolor{cbSkyBlue}{RGB}{86,180,233}
+\definecolor{cbGreen}{RGB}{0,158,115}     % bluish green
+\definecolor{cbYellow}{RGB}{240,228,66}
+\definecolor{cbBlue}{RGB}{0,114,178}
+\definecolor{cbVermillion}{RGB}{213,94,0}
+\definecolor{cbPurple}{RGB}{204,121,167}
+\definecolor{cbGrey}{RGB}{166,166,166}
+
+% ── Semantic roles (used by every table in the thesis) ───────────────────
+% Header row: solid blue background, white bold text.
+\colorlet{tableHeaderColor}{cbBlue}
+% Zebra striping on long/data-heavy tables: a faint tint of the header hue,
+% so it reads purely as a lightness cue (works for every CVD type) while
+% still tying visually back to the header color.
+\colorlet{tableAltRowColor}{cbBlue!6}
+% Wavelet coefficient examples (tables/{regular,packet}WaveletExample.tex):
+% grey = raw signal label, sky blue = row/column index label,
+% blue = approximation band (cA), orange = detail band (cD).
+% Blue/orange is the single most robust 2-hue pair across all CVD types.
+\colorlet{tableSignalLabelColor}{cbGrey}
+\colorlet{tableIndexLabelColor}{cbSkyBlue}
+\colorlet{tableSignalValuesColor}{cbGreen!35}
+\colorlet{tableApproxBandColor}{cbBlue!35}
+\colorlet{tableDetailBandColor}{cbOrange!35}
+
+% Gantt chart (chapters/08-proposedApproach.tex, tab:cronogramaGantt):
+% same palette, kept here so the chart matches the tables it sits beside.
+\colorlet{ganttBarColor}{cbGreen}
+\colorlet{ganttMilestoneColor}{cbGreen}
+\colorlet{ganttTitleColor}{cbBlue!30}
+\colorlet{ganttHighlightColor}{cbOrange}
+
+% ── Reusable header row ────────────────────────────────────────────────────
+% Usage inside a tabular/longtable, as the first thing in a header row:
+%   \tableHeaderRow \textbf{A} & \textbf{B} \\
+\newcommand{\tableHeaderRow}{\rowcolor{tableHeaderColor}\color{white}}
+
+% ── Zebra striping for table/longtable bodies ─────────────────────────────
+% Call once, right before \begin{tabular}/\begin{longtable}. Colors rows
+% 2, 4, 6, ... (i.e. every data row after a 1-row header) with
+% tableAltRowColor; row 1 (the header) is left untouched so \tableHeaderRow
+% still controls it. NOTE: \rowcolor itself must always be the literal first
+% token of a row — never wrap it in another macro (e.g. a counter-stepper),
+% since colortbl's \noalign trick requires nothing to precede it.
+\newcommand{\tableZebraStripe}{\rowcolors{2}{white}{tableAltRowColor}}

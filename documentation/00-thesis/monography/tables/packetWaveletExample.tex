@@ -1,9 +1,9 @@
 \begin{table}[h]
 	\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
-	\definecolor{tcA}{rgb}{0.65098,0.65098,0.65098}
-	\definecolor{tcD}{rgb}{1,0.94902,0}
-	\definecolor{tcC}{rgb}{0,0.5,1}
-	\definecolor{tcB}{rgb}{0.447059,0.74902,0.266667}
+	\colorlet{tcA}{tableSignalLabelColor}
+	\colorlet{tcD}{tableDetailBandColor}
+	\colorlet{tcC}{tableApproxBandColor}
+	\colorlet{tcB}{tableSignalValuesColor}
 	\begin{center}
 		\caption[Exemplo numérico de \textit{wavelet-packet} - porção das baixas frequências]{Exemplo numérico de \textit{wavelet-packet} Haar aplicada ao vetor da Tabela \ref{tab:regularWaveletExample} (porção das baixas frequências). Tabela completa no \autoref{sec:aplicaWavelet}.}
 		\begin{tabular}{l|llllllll|}
@@ -29,10 +29,10 @@
 
 \begin{table}[h]
 	\newcommand{\mc}[3]{\multicolumn{#1}{#2}{#3}}
-	\definecolor{tcA}{rgb}{0.65098,0.65098,0.65098}
-	\definecolor{tcC}{rgb}{1,0.94902,0}
-	\definecolor{tcD}{rgb}{0,0.5,1}
-	\definecolor{tcB}{rgb}{0.447059,0.74902,0.266667}
+	\colorlet{tcA}{tableSignalLabelColor}
+	\colorlet{tcC}{tableDetailBandColor}
+	\colorlet{tcD}{tableApproxBandColor}
+	\colorlet{tcB}{tableSignalValuesColor}
 	\begin{center}
 		\caption[Exemplo numérico de \textit{wavelet-packet} - porção das altas frequências]{Exemplo numérico de \textit{wavelet-packet} Haar aplicada ao vetor da Tabela \ref{tab:regularWaveletExample} (porção das altas frequências). Tabela completa no \autoref{sec:aplicaWavelet}.}
 		\begin{tabular}{c|cccccccc}
