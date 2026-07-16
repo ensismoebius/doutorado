@@ -32,10 +32,16 @@ set -u
 cd "$(dirname "$0")/../.." # -> software/nn
 
 # Locate the experiment05 binary under any CMake build profile.
+# Auto-pick prefers the CPU (max-performance) build when it exists: these
+# profiles' networks are tiny (kernel-launch-bound on GPU), and "most recently
+# built" silently switched runs to the OpenCL build whenever it happened to be
+# rebuilt last. Override with E05_BUILD/E05_BIN to target another backend.
 if [ -n "${E05_BIN:-}" ]; then
     BIN="$E05_BIN"
 elif [ -n "${E05_BUILD:-}" ]; then
     BIN="out/build/${E05_BUILD}/src/experiments/05/experiment05"
+elif [ -x "out/build/max-performance/src/experiments/05/experiment05" ]; then
+    BIN="out/build/max-performance/src/experiments/05/experiment05"
 else
     BIN=$(find out/build -maxdepth 5 -type f -name experiment05 \
               -path '*/experiments/05/experiment05' -printf '%T@ %p\n' 2>/dev/null \
@@ -436,13 +442,30 @@ else
     # count markers rather than `jobs` to avoid counting it as a worker).
     [ "$MON" -eq 1 ] && { : > "$TMP/mon.on"; monitor_loop & mon_pid=$!; }
     idx=0; worker_pids=()
+    # Throttle on live worker PIDs, not on $TMP/active marker files: a worker
+    # stopped by SIGTTOU/SIGTTIN (script backgrounded while something touches
+    # the TTY) never removes its marker, and a signal-interrupted `wait -n`
+    # returns without reaping — the marker-count loop then spun straight
+    # through and launched EVERY pending profile at once (observed twice: ~30
+    # concurrent experiment05 processes, OOM-killing unrelated work).
+    prune_workers() {
+        local alive=() p
+        for p in "${worker_pids[@]}"; do
+            kill -0 "$p" 2>/dev/null && alive+=("$p")
+        done
+        worker_pids=("${alive[@]}")
+    }
     for f in "${PENDING[@]}"; do
         idx=$((idx + 1)); name=$(basename "$f" .json)
         printf '%s\n%s\n' "$name" "$(date +%s)" > "$TMP/active/$idx"
         [ "$MON" -eq 0 ] && printf 'start: %s\n' "$name"
         run_profile "$idx" "$f" &
         worker_pids+=("$!")
-        while [ "$(ls "$TMP/active" 2>/dev/null | wc -l)" -ge "$JOBS" ]; do wait -n; done
+        prune_workers
+        while [ "${#worker_pids[@]}" -ge "$JOBS" ]; do
+            wait -n 2>/dev/null || sleep 1
+            prune_workers
+        done
     done
     # Drain workers ONLY (bare `wait` would also block on the monitor, which does
     # not stop until mon.on is removed below — a deadlock).

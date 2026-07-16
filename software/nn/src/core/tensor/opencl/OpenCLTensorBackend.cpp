@@ -9673,6 +9673,67 @@ tensor::GPUBufferPool* OpenCLTensorBackend::get_buffer_pool()
 
 // ── Device-resident fast path (see header) ─────────────────────────────────
 
+bool OpenCLTensorBackend::adam_step_inplace(OpenCLTensorBackend& moment1,
+    OpenCLTensorBackend& moment2,
+    const OpenCLTensorBackend& grad,
+    float lr,
+    float beta1,
+    float beta2,
+    float epsilon,
+    float bias_correction1,
+    float bias_correction2)
+{
+    // cppcheck-suppress knownConditionTrueFalse
+    if (!can_use_opencl("adam_step_inplace")) return false;
+    if (shape() != moment1.shape() || shape() != moment2.shape() || shape() != grad.shape())
+        return false;
+    try
+    {
+        if (!ensure_device_current("adam_step, param") ||
+            !moment1.ensure_device_current("adam_step, m1") ||
+            !moment2.ensure_device_current("adam_step, m2") ||
+            !grad.ensure_device_current("adam_step, grad"))
+            return false;
+
+        const auto& ctx = opencl::OpenCLContext::instance();
+        cl_kernel kernel = opencl::KernelManager::instance().get_kernel("adam_step_kernel");
+        const cl_mem p_mem = m_gpu_buffer->buffer;
+        const cl_mem m1_mem = moment1.m_gpu_buffer->buffer;
+        const cl_mem m2_mem = moment2.m_gpu_buffer->buffer;
+        const cl_mem g_mem = grad.m_gpu_buffer->buffer;
+        const cl_uint n_u32 = static_cast<cl_uint>(size());
+
+        check_cl_error(clSetKernelArg(kernel, 0, sizeof(cl_mem), &p_mem), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 1, sizeof(cl_mem), &m1_mem), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 2, sizeof(cl_mem), &m2_mem), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 3, sizeof(cl_mem), &g_mem), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 4, sizeof(float), &lr), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 5, sizeof(float), &beta1), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 6, sizeof(float), &beta2), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 7, sizeof(float), &epsilon), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 8, sizeof(float), &bias_correction1), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 9, sizeof(float), &bias_correction2), "adam_step");
+        check_cl_error(clSetKernelArg(kernel, 10, sizeof(cl_uint), &n_u32), "adam_step");
+
+        const std::size_t local = 256;
+        const std::size_t global = round_up(size(), local);
+        check_cl_error(
+            clEnqueueNDRangeKernel(
+                ctx.get_queue(), kernel, 1, nullptr, &global, &local, 0, nullptr, nullptr),
+            "adam_step");
+        finish_queue_if_not_batching(ctx.get_queue(), "adam_step");
+        mark_device_result();
+        moment1.mark_device_result();
+        moment2.mark_device_result();
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        NN_LOG_DEBUG(std::string("adam_step_inplace fast path failed, falling back: ") + e.what());
+        return false;
+    }
+}
+
 bool OpenCLTensorBackend::ensure_device_current(const char* what) const
 {
     if (!m_backend || size() == 0) return false;

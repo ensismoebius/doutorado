@@ -171,6 +171,22 @@ class OpenCLTensorBackend
         bool use_adaptation);
     OpenCLTensorBackend lif_grad(float threshold, float sharpness) const;
 
+    // Fused Adam update: param/moment1/moment2 updated in place from grad in a
+    // single kernel (adam_step_kernel) instead of ~15 elementwise ops with
+    // intermediate tensors. Returns false when the fast path can't run
+    // (OpenCL unavailable / buffer allocation failed) — caller falls back to
+    // the generic tensor-op implementation. Decoupled weight decay is NOT
+    // applied here; the caller layers it on top exactly as in the generic path.
+    bool adam_step_inplace(OpenCLTensorBackend& moment1,
+        OpenCLTensorBackend& moment2,
+        const OpenCLTensorBackend& grad,
+        float lr,
+        float beta1,
+        float beta2,
+        float epsilon,
+        float bias_correction1,
+        float bias_correction2);
+
     OpenCLTensorBackend add(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend subtract(const OpenCLTensorBackend& other) const;
     OpenCLTensorBackend multiply(const OpenCLTensorBackend& other) const;

@@ -34,9 +34,9 @@
 #include <utility>
 #include <vector>
 
+#include "Backend.hpp"
 #include "core/training/EpochResult.hpp"
 #include "core/training/TrainerConfig.hpp"
-#include "Backend.hpp"
 #include "layers/losses/MSELoss.hpp"
 #include "optimizers/Adam.hpp"
 #include "tensor/Tensor.hpp"
@@ -326,14 +326,17 @@ class Trainer
                 state.batch_progress = 0.45F;
                 cb_batch_progress(state);
 
-                // zero_grad BEFORE forward (bug 1 fix)
-                optimizer_.zero_grad(model_.params());
-
                 float loss_val = 0.0F;
                 {
 #if defined(NN_BACKEND_OPENCL)
+                    // Covers zero_grad + forward + loss + backward + clip +
+                    // optimizer step: without the optimizer inside the scope,
+                    // Adam's per-parameter kernels each paid a full clFinish.
                     nn::opencl::OpenCLContext::BatchScope _gpu_batch;
 #endif
+                    // zero_grad BEFORE forward (bug 1 fix)
+                    optimizer_.zero_grad(model_.params());
+
                     // Single forward+loss+backward (bug 2 fix)
                     Tensor output = model_.forward(batch, true);
                     state.batch_progress = 0.65F;
@@ -347,15 +350,15 @@ class Trainer
 
                     Tensor d_out = loss_.backward(output);
                     model_.backward(d_out);
+
+                    state.batch_progress = 0.9F;
+                    cb_batch_progress(state);
+
+                    if (cfg_.grad_clip_norm > 0.0F)
+                        clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                    optimizer_.step(model_.params());
                 } // BatchScope destructs here: single clFinish per batch
-
-                state.batch_progress = 0.9F;
-                cb_batch_progress(state);
-
-                if (cfg_.grad_clip_norm > 0.0F)
-                    clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-
-                optimizer_.step(model_.params());
 
                 const int bs = static_cast<int>(batch_end - batch_start);
                 train_loss_sum += loss_val * static_cast<float>(bs);
@@ -469,13 +472,17 @@ class Trainer
 
                 // True-batch forward: stack samples into (B, D) then one fwd+bwd per batch.
                 float batch_loss_sum = 0.0F;
-                optimizer_.zero_grad(model_.params()); // zero BEFORE forward
                 const std::size_t batch_sample_count = batch_end - batch_start;
 
                 {
 #if defined(NN_BACKEND_OPENCL)
+                    // Covers zero_grad + forward + loss + backward + clip +
+                    // optimizer step: without the optimizer inside the scope,
+                    // Adam's per-parameter kernels each paid a full clFinish.
                     nn::opencl::OpenCLContext::BatchScope _gpu_batch;
 #endif
+                    optimizer_.zero_grad(model_.params()); // zero BEFORE forward
+
                     const auto B = static_cast<nn::Index>(batch_sample_count);
                     const nn::Index in_cols =
                         transform(train_inputs[indices[batch_start]], indices[batch_start]).cols();
@@ -510,15 +517,15 @@ class Trainer
                     model_.backward(d_out);
                     state.batch_progress = 0.9F;
                     cb_batch_progress(state);
+
+                    if (cfg_.grad_clip_norm > 0.0F)
+                        clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
+
+                    state.batch_progress = 0.92F;
+                    cb_batch_progress(state);
+
+                    optimizer_.step(model_.params());
                 } // BatchScope destructs here: single clFinish per mini-batch
-
-                if (cfg_.grad_clip_norm > 0.0F)
-                    clip_grad_norm(model_.params(), cfg_.grad_clip_norm);
-
-                state.batch_progress = 0.92F;
-                cb_batch_progress(state);
-
-                optimizer_.step(model_.params());
 
                 const int bs = static_cast<int>(batch_end - batch_start);
                 const float avg_batch_loss = batch_loss_sum / static_cast<float>(bs);

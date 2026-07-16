@@ -1,6 +1,7 @@
 #ifndef ADAM_HPP
 #define ADAM_HPP
 
+#include <concepts>
 #include <stdexcept>
 
 #include "optimizers/Optimizer.hpp"
@@ -189,6 +190,42 @@ struct Adam : public Optimizer
     //   m̂_t = m_t / (1 - β1^t)
     //   v̂_t = v_t / (1 - β2^t)
     //   θ = θ - learning_rate * m̂_t / (sqrt(v̂_t) + ε)
+    // Dispatches to the backend's fused Adam kernel when one exists (must be a
+    // template: `if constexpr` only discards the untaken branch during template
+    // instantiation, so a plain member function would fail to compile for
+    // backends without adam_step_inplace).
+    template <typename B>
+    auto try_fused_step(
+        nn::TensorImpl<B>& param, nn::TensorImpl<B>& m1, nn::TensorImpl<B>& m2, float lr_i) -> bool
+    {
+        if constexpr (requires(B& p, B& a, B& b, const B& g) {
+                          {
+                              p.adam_step_inplace(a, b, g, 0.F, 0.F, 0.F, 0.F, 1.F, 1.F)
+                          } -> std::convertible_to<bool>;
+                      })
+        {
+            const float bc1 =
+                static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment1),
+                                             static_cast<double>(time_step)));
+            const float bc2 =
+                static_cast<float>(1.0 - std::pow(static_cast<double>(decay_rate_moment2),
+                                             static_cast<double>(time_step)));
+            return param.get_backend().adam_step_inplace(m1.get_backend(),
+                m2.get_backend(),
+                param.get_backend().grad_ref(),
+                lr_i,
+                decay_rate_moment1,
+                decay_rate_moment2,
+                epsilon,
+                bc1,
+                bc2);
+        }
+        else
+        {
+            return false;
+        }
+    }
+
     auto step(std::span<Tensor*> paramsList) -> void override
     {
         // Numerical note: bias correction uses pow(beta, t). For large t, beta^t → 0.
@@ -202,6 +239,20 @@ struct Adam : public Optimizer
             auto& param = *paramsList[i];
             // Per-parameter lr: use scale if provided, otherwise 1.0 (global lr).
             const float lr_i = learning_rate * (i < lr_scales_.size() ? lr_scales_[i] : 1.0f);
+
+            // Fused single-kernel update when the backend provides it (OpenCL:
+            // adam_step_kernel) — same math as the generic path below, without
+            // ~15 kernel launches and intermediate tensors per parameter.
+            if (try_fused_step(param, moment1[i], moment2[i], lr_i))
+            {
+                // Decoupled weight decay, same rule as the generic path below.
+                if (weight_decay > 0.0f && param.rows() > 1 && param.cols() > 1)
+                {
+                    param = param.add(param.multiply_scalar(-lr_i * weight_decay));
+                }
+                continue;
+            }
+
             // Atualiza as médias móveis dos gradientes e dos quadrados dos gradientes
             // moment1[i] = decay_rate_moment1 * moment1[i] + (1 - decay_rate_moment1) * grad
             // Precondition: `param.grad()` must be meaningful. If the model did not run

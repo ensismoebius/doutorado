@@ -113,6 +113,25 @@ Wired from `TrainerConfig::weight_decay` in the `Trainer` constructor
 (`optimizer_.weight_decay = cfg_.weight_decay;`). For Experiment05 it is set from
 `training.weight_decay` in the profile JSON.
 
+### Fused Backend Step (2026-07-15)
+
+`Adam::step()` dispatches to a backend-fused kernel when the backend provides
+one, via the concept-guarded template helper `try_fused_step()` (a template
+because `if constexpr` only discards branches during template instantiation).
+`OpenCLTensorBackend::adam_step_inplace()` runs the whole per-parameter update
+(moment EMAs, bias correction, parameter step) as **one** `adam_step_kernel`
+launch on device-resident buffers — the kernel had existed in
+`KernelManager.cpp` but was never wired. The generic ~15-tensor-op path
+remains for XTensor/Device/SYCL and as runtime fallback; decoupled weight
+decay is layered identically on both paths. Gradients enter through
+`grad_ref()` (no copy) instead of `param.grad()` (which copies and, on
+OpenCL, forced a device→host→device round-trip per parameter per batch).
+
+The `Trainer` batch loop's OpenCL `BatchScope` now also covers `zero_grad`,
+gradient clipping, and `optimizer_.step()` — previously the optimizer ran
+outside it, so each of its per-parameter kernels paid a full `clFinish`
+(~250 per batch on the SNN-AE).
+
 ## Data Flow
 
 ```mermaid
