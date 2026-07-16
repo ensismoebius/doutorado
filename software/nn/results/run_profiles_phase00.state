@@ -213,3 +213,15 @@ PASS src/experiments/05/profiles/phase00/p00_hc_daub40_lfcc_c2_voice.json
 PASS src/experiments/05/profiles/phase00/p00_hc_daub40_mel_c1_eeg.json
 PASS src/experiments/05/profiles/phase00/p00_hc_daub40_mel_c1_voice.json
 PASS src/experiments/05/profiles/phase00/p00_hc_daub40_mel_c2_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub40_mel_c2_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_bark_c1_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_bark_c1_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_bark_c2_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_bark_c2_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_lfcc_c1_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_lfcc_c1_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_lfcc_c2_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_lfcc_c2_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_mel_c1_eeg.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_mel_c1_voice.json
+PASS src/experiments/05/profiles/phase00/p00_hc_daub42_mel_c2_eeg.json
