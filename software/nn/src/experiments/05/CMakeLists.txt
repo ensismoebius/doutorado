@@ -81,7 +81,7 @@ endif()
 
 # ── smoke-test profile mirroring ─────────────────────────────────────────────
 # Regenerate profiles/smoke/ whenever any source profile (or the generator)
-# changes. make_smoke_profiles.py is stdlib-only (no torch/numpy), so any
+# changes. e05_make_smoke_profiles.py is stdlib-only (no torch/numpy), so any
 # python3 works. CONFIGURE_DEPENDS re-globs when profiles are added/removed.
 # Only the source phase directories are globbed (never profiles/smoke/) so the
 # generated mirror is not an input to its own generation.
@@ -96,7 +96,7 @@ if(Python3_EXECUTABLE)
         "${CMAKE_CURRENT_SOURCE_DIR}/profiles/phase01/*.json")
     list(APPEND E05_SOURCE_PROFILES "${CMAKE_CURRENT_SOURCE_DIR}/profiles/debug.json")
 
-    set(E05_SMOKE_GEN "${CMAKE_SOURCE_DIR}/scripts/testing/make_smoke_profiles.py")
+    set(E05_SMOKE_GEN "${CMAKE_SOURCE_DIR}/scripts/testing/e05_make_smoke_profiles.py")
     set(E05_SMOKE_STAMP "${CMAKE_CURRENT_BINARY_DIR}/e05_smoke_profiles.stamp")
 
     add_custom_command(

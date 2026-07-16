@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-mat_to_sqlite_redo.py
+import_mat_dataset_to_sqlite.py
 
 Import EEG and Audio data from the Imagined Speech dataset into SQLite
 according to the requested schema (per-channel EEG BLOBs, audio BLOBs).
 
 Usage:
-    python scripts/mat_to_sqlite_redo.py <dataset_root> <output_db>
+    python scripts/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>
 
 This script expects the .mat files organized per-subject under folders
 S01..S15 with files named `SXX_EEG.mat` and `SXX_Audio.mat`.
@@ -395,7 +395,7 @@ def process_subject(conn, subject_path, subject_name):
 
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python scripts/mat_to_sqlite_redo.py <dataset_root> <output_db>")
+        print("Usage: python scripts/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>")
         sys.exit(1)
     root, db_path = sys.argv[1:3]
     conn = sqlite3.connect(db_path)

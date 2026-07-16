@@ -161,7 +161,7 @@ classifier.type, nested_cv, standardize_features) but shrinking run parameters:
 ### Automated mirroring (CMake)
 
 The `e05_smoke_profiles` target (in `ALL`) regenerates the mirror whenever any
-source profile or `make_smoke_profiles.py` changes — a normal `cmake --build`
+source profile or `e05_make_smoke_profiles.py` changes — a normal `cmake --build`
 keeps `profiles/smoke/` in sync. `GLOB_RECURSE ... CONFIGURE_DEPENDS` picks up
 added/removed profiles; the generator is stdlib-only (any `python3`, no torch).
 
@@ -169,7 +169,7 @@ added/removed profiles; the generator is stdlib-only (any `python3`, no torch).
 
 ```bash
 cmake --build out/build/max-performance --target experiment05 -j$(nproc)
-./scripts/testing/run_smoke.sh [phase00|phase01|all]   # needs the dataset present
+./scripts/testing/run_e05_smoke.sh [phase00|phase01|all]   # needs the dataset present
 ```
 
 The runner reports `PASS`/`FAIL` per profile with the captured error line and a

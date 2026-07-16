@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate smoke-test copies of every Experiment05 profile.
+"""e05_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
 
 Mirrors src/experiments/05/profiles/{debug.json,phase00/*,phase01/*} into
 src/experiments/05/profiles/smoke/ with the SAME code-path-selecting fields
@@ -9,8 +9,8 @@ every profile's code path quickly and surfaces runtime errors that compilation
 cannot catch.
 
 Run:
-    software/nn/.venv/bin/python software/nn/scripts/testing/make_smoke_profiles.py
-Then drive them with scripts/testing/run_smoke.sh.
+    software/nn/.venv/bin/python software/nn/scripts/testing/e05_make_smoke_profiles.py
+Then drive them with scripts/testing/run_e05_smoke.sh.
 """
 import glob
 import json

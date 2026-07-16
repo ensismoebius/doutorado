@@ -162,7 +162,7 @@ Accessible explanations without heavy math — good starting point before readin
 - See [Core/Layers](./Core/Layers.md) and [Core/Tensor](./Core/Tensor.md).
 - `GPUBufferPool` gained a 1 GiB global cache ceiling (previously only
     capped per-bucket, letting cached pinned buffers accumulate unbounded over
-    a long run). `run_profiles.sh`'s per-job memory budget was also bumped
+    a long run). `run_e05_profiles.sh`'s per-job memory budget was also bumped
     2048MB → 5120MB after measuring real `experiment05` phase00 peaks
     (~4.4GB for voice, ~2.1GB for EEG) — the old default let 4 heavy jobs
     oversubscribe a 17GB box into swap thrashing.

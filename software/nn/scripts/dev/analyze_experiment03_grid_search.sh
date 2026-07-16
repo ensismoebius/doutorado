@@ -1,12 +1,12 @@
 #!/bin/bash
-# run_analysis.sh — Analyze Experiment 03 grid search results.
+# analyze_experiment03_grid_search.sh — Analyze Experiment 03 grid search results.
 #
 # Reads completed run CSVs from src/experiments/03/results/ and generates
 # comprehensive comparison tables under analysis/.  Runs the Python analysis
 # pipeline (scripts/data/ helpers) and prints a summary to stdout.
 #
 # Usage:
-#   scripts/dev/run_analysis.sh
+#   scripts/dev/analyze_experiment03_grid_search.sh
 #
 # Run from the repo root (software/nn/) or any subdirectory; script resolves
 # PROJECT_ROOT via __BASH_SOURCE[0].

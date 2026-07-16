@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_article_profiles.sh — Full paper pipeline: build → run → aggregate.
+# e04_run_article_profiles.sh — Experiment 04 full paper pipeline: build → run → aggregate.
 #
 # Builds the experiment04 binary (OpenCL preset), runs all four article
 # profiles (LSTM-AE, SNN-dense, SNN-conv1d, SNN-recurrent), converts model
@@ -11,7 +11,7 @@
 #
 # Usage:
 #   cd software/nn
-#   ./scripts/pipeline/run_article_profiles.sh
+#   ./scripts/pipeline/e04_run_article_profiles.sh
 #
 # Runtime: ~2.5 h total (LSTM ~10 min, each SNN ~45 min).
 # Requires: cmake, OpenCL runtime, Python 3 with numpy.
@@ -42,7 +42,7 @@ echo "[article-run] converting NPZ artifacts to PT"
 python3 scripts/data/npz_to_pytorch.py --models-dir results/models || true
 
 echo "[article-run] building paper aggregate CSV files"
-python3 scripts/pipeline/build_paper_data.py \
+python3 scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /home/ensismoebius/Repos/doutorado/documentation/07-articlesProduced/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

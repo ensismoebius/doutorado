@@ -58,7 +58,7 @@ Project Context (nn framework)
 - `src/experiments/04/` — LSTM vs SNN comparative
 
 **Article pipeline chain:**
-`scripts/pipeline/run_article_profiles.sh` → CSVs → `scripts/pipeline/build_paper_data.py` → DAT → `pdflatex paper.tex`
+`scripts/pipeline/e04_run_article_profiles.sh` → CSVs → `scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py` → DAT → `pdflatex paper.tex`
 
 **Wiki & knowledge graph:**
 - Documentation at `.wiki/` — theory, guides, experiment pages, concept definitions

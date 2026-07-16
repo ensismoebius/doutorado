@@ -3,7 +3,7 @@
 sqlite_reader.py
 
 Small stable API to fetch and deserialize trials from the sqlite DB produced by
-`mat_to_sqlite_redo.py`.
+`import_mat_dataset_to_sqlite.py`.
 
 Functions:
  - connect(db_path) -> sqlite3.Connection

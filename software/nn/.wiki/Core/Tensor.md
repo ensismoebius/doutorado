@@ -244,7 +244,7 @@ this (integrated-GPU / unified-memory) hardware the pool's memory is real host
 RAM, not separate VRAM — it shows up directly in `ps`/`free`.
 
 It wasn't an active leak (memory was confirmed flat over repeated sampling
-once a run plateaued) — the real trigger was `scripts/testing/run_profiles.sh`
+once a run plateaued) — the real trigger was `scripts/testing/run_e05_profiles.sh`
 under-budgeting per-job RAM and oversubscribing concurrency (see
 [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md)).
 This pool fix is a bound on the secondary inefficiency, not the root cause.

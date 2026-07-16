@@ -16,18 +16,18 @@ scripts/
 
 ## pipeline/ — Paper generation chain
 
-Full chain: `run_article_profiles.sh` → CSVs → `build_paper_data.py` → DAT files → `pdflatex`
+Full chain: `e04_run_article_profiles.sh` → CSVs → `e04_build_lstm_vs_snn_paper_data.py` → DAT files → `pdflatex`
 
 | Script | Role |
 |---|---|
-| `run_article_profiles.sh` | Run all 4 article profiles; calls `build_paper_data.py` when done |
-| `run_backend_comparison.sh` | Run CPU vs OpenCL backend comparison |
-| `build_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
+| `e04_run_article_profiles.sh` | Run all 4 article profiles; calls `e04_build_lstm_vs_snn_paper_data.py` when done |
+| `e04_run_backend_comparison.sh` | Run CPU vs OpenCL backend comparison |
+| `e04_build_lstm_vs_snn_paper_data.py` | Aggregate `*_comparative_metrics.csv` → pgfplots DAT files |
 
 Quick start:
 ```bash
 cd software/nn
-./scripts/pipeline/run_article_profiles.sh
+./scripts/pipeline/e04_run_article_profiles.sh
 ```
 
 ---
@@ -36,10 +36,10 @@ cd software/nn
 
 | Script | Role |
 |---|---|
-| `mat_to_sqlite_redo.py` | Convert `.mat` files to SQLite database |
+| `import_mat_dataset_to_sqlite.py` | Convert `.mat` files to SQLite database |
 | `sqlite_reader.py` | Read and inspect SQLite datasets |
 | `npz_to_pytorch.py` | Convert `.npz` model artifacts to PyTorch `.pt` |
-| `dedup_master_table.py` | Remove duplicate rows from master results table |
+| `e03_dedup_master_table.py` | Remove duplicate rows from master results table |
 | `verify_sqlite_roundtrip.py` | Verify MAT → SQLite roundtrip fidelity |
 | `verify_sqlite_full.py` | Full integrity check on SQLite database |
 
@@ -70,7 +70,7 @@ python3 scripts/ci/validate_static_analysis.py --list-approved
 | `clang-format-changed.sh` | Format staged C/C++ files (used by pre-commit hook) |
 | `export_wiki_for_anytype.sh` | Export `.wiki/` as a clean Markdown folder for Anytype import |
 | `sync_cross_project_skills.sh` | Publish skill catalog to other projects and global Claude dirs |
-| `run_analysis.sh` | Exp03 grid search analyzer (one-off, run from repo root) |
+| `analyze_experiment03_grid_search.sh` | Exp03 grid search analyzer (one-off, run from repo root) |
 | `apply_header_style.py` | Apply file header style to C++ sources |
 | `check_core_coverage.py` | Check coverage report locally (CI uses `check_core_coverage_gate.sh`) |
 

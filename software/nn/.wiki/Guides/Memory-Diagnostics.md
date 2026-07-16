@@ -52,7 +52,7 @@ to a genuinely leaking one; only a second sample distinguishes them.
 Several heavy processes that each plateau at a "reasonable" size can still
 exhaust system RAM if a wrapper script fans out more concurrent jobs than the
 box can hold. Trace `ps -o pid,ppid,pgid,cmd` up to the parent; if it's a
-sweep/launcher script (e.g. `run_profiles.sh`), check its concurrency-vs-memory
+sweep/launcher script (e.g. `run_e05_profiles.sh`), check its concurrency-vs-memory
 math before assuming the child binary leaks.
 
 ## Case study (2026-07-14)
@@ -67,7 +67,7 @@ Symptom: 16/17GB RAM used, 14/25GB swap used, system sluggish.
 3. Sampled `VmRSS+VmSwap` for those four PIDs 90s apart → totals flat to
    within a few KB. **Not** an active leak.
 4. `ps -o pid,ppid,pgid,cmd` traced all four back to one launcher:
-   `scripts/testing/run_profiles.sh phase00` (shared PGID). Each of the 4
+   `scripts/testing/run_e05_profiles.sh phase00` (shared PGID). Each of the 4
    profiles (`base_voice`, `base_eeg`, `small_voice`, `small_eeg`) was an
    independent job.
 5. Root cause: the launcher's job-sizing math assumed 2048MB/job
@@ -81,7 +81,7 @@ Symptom: 16/17GB RAM used, 14/25GB swap used, system sluggish.
 7. Outcome: while investigating, the sweep exited on its own (no OOM-kill
    trace found in `dmesg`/`journalctl` — exact cause unconfirmed) after
    18/300 phase00 profiles had checkpointed successfully. The 4 in-progress
-   profiles were lost — resumable, since `run_profiles.sh` checkpoints per
+   profiles were lost — resumable, since `run_e05_profiles.sh` checkpoints per
    completed profile, not per epoch — and were skip-resumed automatically on
    relaunch. See
    [Running Experiment05 Profiles § Crash / power-loss recovery](./Running-Experiment05-Profiles.md#crash--power-loss-recovery).

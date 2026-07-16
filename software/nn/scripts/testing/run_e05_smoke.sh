@@ -6,15 +6,15 @@
 #
 # Requires: the experiment05 binary built, and the dataset (dataset.root) present.
 # Long-running (~315 runs). Regenerate the smoke profiles with
-#   .venv/bin/python scripts/testing/make_smoke_profiles.py
+#   .venv/bin/python scripts/testing/e05_make_smoke_profiles.py
 # after editing any real profile.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
-# Usage:  ./scripts/testing/run_smoke.sh [phase00|phase01|all]   # default: all
+# Usage:  ./scripts/testing/run_e05_smoke.sh [phase00|phase01|all]   # default: all
 # Binary selection (works with any CMake profile):
 #   auto: most recently built out/build/*/…/experiment05
-#   E05_BUILD=max-performance-opencl ./scripts/testing/run_smoke.sh
-#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_smoke.sh
+#   E05_BUILD=max-performance-opencl ./scripts/testing/run_e05_smoke.sh
+#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_e05_smoke.sh
 set -u
 
 cd "$(dirname "$0")/../.." # -> software/nn
@@ -60,7 +60,7 @@ i=0
 mapfile -t PROFILES < <(find "$ROOT" -name '*.json' | sort)
 total=${#PROFILES[@]}
 if [ "$total" -eq 0 ]; then
-    echo "no smoke profiles under $ROOT — build (regenerates mirror) or run make_smoke_profiles.py"
+    echo "no smoke profiles under $ROOT — build (regenerates mirror) or run e05_make_smoke_profiles.py"
     exit 1
 fi
 

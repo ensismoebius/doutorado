@@ -216,7 +216,7 @@ The total network is built by concatenating these specs.
   --comparative-config src/experiments/04/profiles/article-lstm-ae.json
 
 # Run all article profiles + build paper CSVs (~2.5 h)
-./scripts/pipeline/run_article_profiles.sh
+./scripts/pipeline/e04_run_article_profiles.sh
 ```
 
 Both `--comparative-config` and `--profile` are accepted as the flag name.
@@ -231,7 +231,7 @@ Results written to `results/` (or `dataset.results_dir` from profile):
 | `{run_tag}_publication_table.csv` | Aggregated, formatted for paper tables |
 | `{run_tag}_summary.json` | Config hash, per-model stats |
 | `data/{run_tag}_*.dat` | pgfplots DAT files for paper figures |
-| `data/paper_*.csv` | Aggregated across all runs (written by `build_paper_data.py`) |
+| `data/paper_*.csv` | Aggregated across all runs (written by `e04_build_lstm_vs_snn_paper_data.py`) |
 
 Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
@@ -239,7 +239,7 @@ Checkpoints in `results/checkpoints/` — safe to interrupt and resume.
 
 ```bash
 # After all article runs complete:
-python3 scripts/pipeline/build_paper_data.py \
+python3 scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir /path/to/conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles

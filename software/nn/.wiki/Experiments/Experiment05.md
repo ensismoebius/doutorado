@@ -401,7 +401,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 ### Two-phase protocol
 
-> **Running it:** step-by-step commands (build → phase00 → rank → apply → phase01, with the `run_profiles.sh` runner and live progress) are in [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md).
+> **Running it:** step-by-step commands (build → phase00 → rank → apply → phase01, with the `run_e05_profiles.sh` runner and live progress) are in [Running Experiment05 Profiles](../Guides/Running-Experiment05-Profiles.md).
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
@@ -532,7 +532,7 @@ reported** (emitted as NaN); **EER and AUC are the primary metrics**.
 
 Beyond the unit tests (`e05_*_gtest`), two extra layers guard this experiment:
 
-- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `e05_smoke_profiles` target when any source profile changes.
+- **Per-profile smoke runs** — `profiles/smoke/` mirrors all 315 profiles with tiny run parameters; `scripts/testing/run_e05_smoke.sh` runs each end-to-end to catch runtime errors compilation cannot. The mirror auto-regenerates via the CMake `e05_smoke_profiles` target when any source profile changes.
 - **PyTorch / snnTorch parity** — layer-level numerical ground truth (Linear, activations, MSE/CE losses, LSTM, LifBPTT, Conv1d/2d, MaxPool).
 
 Both are documented in [Ground-Truth and Smoke Testing](../Guides/Ground-Truth-and-Smoke-Testing.md).

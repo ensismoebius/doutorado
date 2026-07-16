@@ -25,7 +25,7 @@ EOF
 rm -f "$tmpfile"
 
 # Patterns for expensive runs: full pipeline, long timeout experiments, all-profiles runs
-if echo "$cmd" | grep -qE '(run_article_profiles\.sh|timeout[[:space:]]+[0-9]{3,}|experiment0[0-9][[:space:]]--profile|ctest[[:space:]].*-j[0-9]+[[:space:]]*$)'; then
+if echo "$cmd" | grep -qE '(e04_run_article_profiles\.sh|timeout[[:space:]]+[0-9]{3,}|experiment0[0-9][[:space:]]--profile|ctest[[:space:]].*-j[0-9]+[[:space:]]*$)'; then
     # Allow if user added explicit "CONFIRMED:" prefix in comment or env
     if echo "$cmd" | grep -qiE '(#[[:space:]]*CONFIRMED|EXPERIMENT_CONFIRMED=1)'; then
         exit 0

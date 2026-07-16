@@ -306,8 +306,8 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp05 classifiers | `src/experiments/05/lib/src/E05Classifiers.cpp` |
 | Exp05 output writers | `src/experiments/05/lib/src/E05Output.cpp` |
 | Exp05 profile audit tests | `src/experiments/05/tests/e05_profile_audit_gtest.cpp` |
-| Paper CSV aggregator | `scripts/pipeline/build_paper_data.py` |
-| Article run script | `scripts/pipeline/run_article_profiles.sh` |
+| Paper CSV aggregator | `scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py` |
+| Article run script | `scripts/pipeline/e04_run_article_profiles.sh` |
 
 ---
 
@@ -318,12 +318,12 @@ Full chain from profiles to compiled PDF:
 ```bash
 # 1. Run all article profiles (~2.5 h: LSTM ~10 min + 3×SNN ~45 min each)
 cd software/nn
-./scripts/pipeline/run_article_profiles.sh
+./scripts/pipeline/e04_run_article_profiles.sh
 # writes results/article_{lstm_ae,snn_dense,snn_conv1d,snn_recurrent}_comparative_metrics.csv
 # writes .../conference71070Guaiaquil/data/article_*_*.dat  (pgfplots DAT files)
 
-# 2. Aggregate into paper_*.csv (called automatically by run_article_profiles.sh)
-python3 scripts/pipeline/build_paper_data.py \
+# 2. Aggregate into paper_*.csv (called automatically by e04_run_article_profiles.sh)
+python3 scripts/pipeline/e04_build_lstm_vs_snn_paper_data.py \
   --results-dir results \
   --data-dir .../conference71070Guaiaquil/data \
   --profiles-dir src/experiments/04/profiles
@@ -333,7 +333,7 @@ cd documentation/07-articlesProduced/conference71070Guaiaquil
 pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 ```
 
-**Column mapping** (`build_paper_data.py` reads `comparative_metrics.csv`):
+**Column mapping** (`e04_build_lstm_vs_snn_paper_data.py` reads `comparative_metrics.csv`):
 - `model == "lstm-ae"` → label `LSTM-AE`
 - `model == "snn-ae"` + `architecture == "dense/conv1d/recurrent"` → label `SNN-{arch}`
 

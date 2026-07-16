@@ -1,3 +1,27 @@
 \chapter{Testes e Resultados} \label{chap:testsResults}
 	\section{Procedimento 01}
 	\label{chap:testsResults:sec:Experimento01}
+
+	\section{Fase 00 --- Ranking por grau de verdade paraconsistente}
+	\label{chap:testsResults:sec:Fase00}
+
+	As tabelas a seguir apresentam todas as configurações avaliadas na fase 00
+	do Experimento 05, ordenadas de forma decrescente pelo grau de verdade
+	paraconsistente médio ($\bar{d}$, Seção~\ref{chap:propApproach}),
+	calculado a partir dos três valores de $\alpha$ (grau de crença) e $\beta$
+	(grau de descrença) obtidos nas repetições de cada configuração. As
+	Tabelas~\ref{tab:phase00ae_eeg} e~\ref{tab:phase00ae_voice} comparam as
+	variantes de \textit{autoencoder} (ANN-AE e SNN-AE nas codificações direta,
+	de latência e de Poisson) para EEG e voz, respectivamente. As
+	Tabelas~\ref{tab:phase00hc_eeg} e~\ref{tab:phase00hc_voice} comparam as
+	configurações de características manuais (família \textit{wavelet}
+	$\times$ característica espectral $\times$ categoria) para EEG e voz.
+	As tabelas são geradas automaticamente pelo script
+	\texttt{software/nn/scripts/pipeline/\allowbreak e05\_build\_phase00\_paraconsistent\_tables.py}
+	a partir dos arquivos \texttt{results/phase00/*\_summary.json}, e devem ser
+	regeneradas sempre que a fase 00 for reexecutada.
+
+	\input{tables/phase00_ae_eeg.tex}
+	\input{tables/phase00_ae_voice.tex}
+	\input{tables/phase00_hc_eeg.tex}
+	\input{tables/phase00_hc_voice.tex}

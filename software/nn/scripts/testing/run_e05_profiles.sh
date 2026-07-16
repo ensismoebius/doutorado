@@ -4,10 +4,10 @@
 # experiment, not the smoke mirror). Shows live progress and captures failures.
 #
 # Pipeline order:
-#   1) run_profiles.sh phase00     → paraconsistent ranking CSVs in results/phase00
+#   1) run_e05_profiles.sh phase00     → paraconsistent ranking CSVs in results/phase00
 #   2) e05_phase00_rank.py         → winners.json
 #   3) e05_apply_winner.py         → injects the winner into the phase01 profiles
-#   4) run_profiles.sh phase01     → DSNN authentication, EER/AUC in results/phase01
+#   4) run_e05_profiles.sh phase01     → DSNN authentication, EER/AUC in results/phase01
 #
 # Requires: experiment05 built, and the dataset (dataset.root) present.
 # HEAVY: phase00 = 300 profiles, phase01 = 32, each with experiment.repeats runs.
@@ -20,13 +20,13 @@
 # resume (skip completed) vs. start over. Non-interactive default = resume.
 #   RESUME=1 → force resume    FRESH=1 → force start over
 #
-# Usage:  ./scripts/testing/run_profiles.sh [phase00|phase01|all]
+# Usage:  ./scripts/testing/run_e05_profiles.sh [phase00|phase01|all]
 #         No argument on a terminal → interactive menu. No argument in a
 #         pipe/CI → defaults to `all`.
 # Binary selection (any CMake profile):
 #   auto: most recently built out/build/*/…/experiment05
-#   E05_BUILD=max-performance ./scripts/testing/run_profiles.sh phase00
-#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_profiles.sh
+#   E05_BUILD=max-performance ./scripts/testing/run_e05_profiles.sh phase00
+#   E05_BIN=/abs/path/to/experiment05 ./scripts/testing/run_e05_profiles.sh
 set -u
 
 cd "$(dirname "$0")/../.." # -> software/nn
