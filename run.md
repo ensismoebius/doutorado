@@ -88,10 +88,10 @@ weight 10× slower than the LSTM baseline it is compared against (D3).
 
 It **asks which build to use**, because that choice is part of the measurement rather than a
 convenience: the paper reports **`train_ms` / `infer_ms` / latency**, and
-`02_e04_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables. Running the
-profiles on the CPU `max-performance` build reports CPU latency for a comparison the paper
-presents as GPU. `max-performance-opencl` is the reference and the default; picking anything
-else prints a warning and must be reported as a different setup.
+`02_e04_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables, so all four
+profiles must run on the **same** backend. **`max-performance` (CPU/XTensor) is the reference
+and the default — the same backend the thesis (§2/§3) uses**, so both experiments report from
+one setup. Picking anything else prints a warning and must be reported as a different backend.
 
 ```bash
 cd software/nn
@@ -101,20 +101,29 @@ cd software/nn
 ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
 
+While it runs, an **`Overall [i/4] … ETA`** line sits at the top of each profile's TUI —
+the same mean-time-per-completed-profile estimate `run_e05_profiles.sh` uses, refined at each
+profile boundary. It is optimistic right after the fast LSTM and corrects upward once the
+first SNN lands; treat it as a guide, not a promise.
+
 The prompt lists every preset, marks which already have an `experiment04` binary `[built]`,
-flags the reference, and defaults to it — so pressing Enter is always the paper-correct
-choice. Non-interactive runs (pipe/CI) skip the prompt and use the reference.
+flags the reference, and defaults to it — so pressing Enter is the reference choice.
+Non-interactive runs (pipe/CI) skip the prompt and use the reference.
 
 ```bash
 # Choose non-interactively (required in a pipe/CI):
-E04_BUILD=max-performance-opencl ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+E04_BUILD=max-performance ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 
 # Reuse the existing binary instead of rebuilding — only when you know it is current:
-SKIP_BUILD=1 E04_BUILD=max-performance-opencl ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+SKIP_BUILD=1 E04_BUILD=max-performance ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
 
 The first run of a preset also **configures** it (a few minutes on top of the runtime); later
-runs are incremental no-ops. The reference preset needs an OpenCL runtime.
+runs are incremental no-ops.
+
+> Your earlier article results (`results/article_*_comparative_metrics.csv`) predate this
+> default and may have been produced on OpenCL — the summaries don't record the backend, so
+> it can't be told from disk. For a clean paper, run all four fresh on `max-performance`.
 
 Then recompile the paper:
 

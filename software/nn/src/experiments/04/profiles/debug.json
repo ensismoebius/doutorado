@@ -1,6 +1,6 @@
 {
     "_comment": "Minimal profile for debugging",
-    "dataset_root": "/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset",
+    "dataset_root": "/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset",
     "results_dir": "results",
     "run_tag": "debug",
     "seed": 42,

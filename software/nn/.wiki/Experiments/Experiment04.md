@@ -94,7 +94,7 @@ Profile validation test: `profile_audit_gtest` (25 tests). Run after every profi
 ### Dataset Support
 
 **FSDD (Free Spoken Digit Dataset)**:
-- Location: `/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset`
+- Location: `/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset`
 - Format: `.wav` audio files (16-bit PCM, mono, 8kHz)
 - Organization: `{digit}_{speaker}_{index}.wav`
 - Samples: ~3,000 recordings (50 digits × 6 speakers)
@@ -270,7 +270,7 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 
 4. **SNN architecture modes are signal transforms, not layers.** `conv1d`/`recurrent` in `snn_architectures` do not add conv or LSTM layers to the network — they pre-process the input window before it enters the autoencoder.
 
-5. **FSDD path must match `dataset_root` in profile.** Default: `/home/ensismoebius/Documentos/UNESP/doutorado/databases/fsdDataset`.
+5. **FSDD path must match `dataset_root` in profile.** Default: `/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/fsdDataset`.
 
 6. **F1/precision/recall are always 0 for FSDD.** FSDD has no anomaly labels. These fields exist in the output CSV but should not be cited.
 

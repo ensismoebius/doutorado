@@ -1,5 +1,1 @@
-model,infer_ms,train_ms,infer_speedup
-LSTM-AE,1540.09,265972.61,1.00
-SNN-dense,3.46,4578.90,445.11
-SNN-conv1d,2.03,2044.72,758.67
-SNN-recurrent,226.17,14293.49,6.81
+operation,xtensor_ms,opencl_ms,speedup

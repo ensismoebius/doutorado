@@ -32,10 +32,12 @@ set -u
 cd "$(dirname "$0")/../.." # -> software/nn
 
 # Locate the experiment05 binary under any CMake build profile.
-# Auto-pick prefers the CPU (max-performance) build when it exists: these
-# profiles' networks are tiny (kernel-launch-bound on GPU), and "most recently
-# built" silently switched runs to the OpenCL build whenever it happened to be
-# rebuilt last. Override with E05_BUILD/E05_BIN to target another backend.
+# Auto-pick prefers the CPU (max-performance) build when it exists. This is the reference
+# backend for the thesis — the same one the Guayaquil paper pipeline defaults to
+# (01_e04_run_article_profiles.sh), so both experiments report from one backend. It is also
+# the right default on the merits: these profiles' networks are tiny (kernel-launch-bound on
+# GPU), and "most recently built" used to silently switch runs to whatever was rebuilt last.
+# Override with E05_BUILD/E05_BIN to target another backend.
 if [ -n "${E05_BIN:-}" ]; then
     BIN="$E05_BIN"
 elif [ -n "${E05_BUILD:-}" ]; then

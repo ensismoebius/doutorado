@@ -1,17 +1,17 @@
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <fstream>
 #include <span>
 #include <string>
 
-#include "logging/Logger.hpp"  // IWYU pragma: keep — provides NN_LOG_* macros
-
+#include "../include/E04Checkpoint.hpp"
 #include "../include/E04Cli.hpp"
 #include "../include/E04Dataset.hpp"
 #include "../include/E04Output.hpp"
-#include "../include/E04Training.hpp"
 #include "../include/E04Runner.hpp"
-#include "../include/E04Checkpoint.hpp"
+#include "../include/E04Training.hpp"
+#include "logging/Logger.hpp" // IWYU pragma: keep — provides NN_LOG_* macros
 #include "progress/ProgressManager.hpp"
 #include "utility/progress.hpp"
 
@@ -175,14 +175,24 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
         std::vector<ResultRow> all_rows;
 
         // Total individual runs: datasets × encodings × repeats × (1 LSTM + SNN sweep).
-        const int snn_per_combo =
-            static_cast<int>(config.evaluation.snn_architectures.size()) *
-            static_cast<int>(config.evaluation.v_th_values.size()) *
-            static_cast<int>(config.evaluation.alpha_values.size());
+        const int snn_per_combo = static_cast<int>(config.evaluation.snn_architectures.size()) *
+                                  static_cast<int>(config.evaluation.v_th_values.size()) *
+                                  static_cast<int>(config.evaluation.alpha_values.size());
         const int total_outer_runs = static_cast<int>(config.evaluation.datasets.size()) *
                                      static_cast<int>(config.evaluation.encodings.size()) *
-                                     config.experiment.repeats *
-                                     (1 + snn_per_combo);
+                                     config.experiment.repeats * (1 + snn_per_combo);
+
+        // Overall-progress banner across the whole 4-profile run. Each profile is a separate
+        // process, so this process cannot know the outer progress on its own — the wrapper
+        // (01_e04_run_article_profiles.sh) computes it the same way run_e05_profiles.sh does
+        // (mean wall-clock per completed profile, refined at each boundary) and passes the
+        // ready-made line in via E04_OVERALL. Logging it renders it as a persistent top line
+        // above the per-profile bars; empty/unset when run standalone, so the TUI is unchanged.
+        if (const char* overall = std::getenv("E04_OVERALL");
+            overall != nullptr && overall[0] != '\0')
+        {
+            nn::progress::ProgressManager::instance().log(std::string(overall));
+        }
 
         const uint32_t run_bar = nn::progress::ProgressManager::instance().create_bar(
             "Profile: " + config.experiment.run_tag, static_cast<float>(total_outer_runs));
@@ -199,16 +209,22 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
             {
                 for (int run_id = 0; run_id < config.experiment.repeats; ++run_id)
                 {
-                    (void)completed_runs; // updated inside each LSTM/SNN block
+                    (void) completed_runs; // updated inside each LSTM/SNN block
                     const std::uint32_t run_seed =
                         config.experiment.seed_deterministic
                             ? config.experiment.seed
                             : config.experiment.seed + static_cast<std::uint32_t>(run_id);
 
                     {
-                        const CheckpointKey lstm_key{
-                            config.experiment.run_tag, backend_name, dataset_name,
-                            "lstm-ae", encoding, "lstm", 0.0f, 0.0f, run_id + 1};
+                        const CheckpointKey lstm_key{config.experiment.run_tag,
+                            backend_name,
+                            dataset_name,
+                            "lstm-ae",
+                            encoding,
+                            "lstm",
+                            0.0f,
+                            0.0f,
+                            run_id + 1};
                         const auto lstm_chk = checkpoint_path(chk_dir, lstm_key);
 
                         if (checkpoint_is_valid(lstm_chk, cfg_hash))
@@ -228,14 +244,14 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                             TrainResult train_result = train_with_early_stopping_lstm( //
                                 lstm_model,                                            //
                                 config,                                                //
-                                split.train_samples,                                 //
-                                split.val_samples,                                   //
-                                encoding,                                            //
-                                run_seed,                                            //
-                                static_cast<std::size_t>(run_id),                    //
-                                static_cast<std::size_t>(config.experiment.repeats), //
-                                train_ms,                                            //
-                                infer_ms                                             //
+                                split.train_samples,                                   //
+                                split.val_samples,                                     //
+                                encoding,                                              //
+                                run_seed,                                              //
+                                static_cast<std::size_t>(run_id),                      //
+                                static_cast<std::size_t>(config.experiment.repeats),   //
+                                train_ms,                                              //
+                                infer_ms                                               //
                             );
                             RunMetrics metrics = train_result.metrics;
                             metrics.train_ms = train_ms;
@@ -245,30 +261,43 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                 const std::filesystem::path latex_dir =
                                     std::filesystem::path(config.dataset.latex_data_dir);
                                 write_epoch_history_dat(
-                                    latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
-                                                 "_run" + std::to_string(run_id + 1) + "_history.dat"),
-                                    "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                    latex_dir /
+                                        (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
+                                            std::to_string(run_id + 1) + "_history.dat"),
+                                    "lstm-ae",
+                                    encoding,
+                                    "",
+                                    0.0f,
+                                    0.0f,
+                                    run_id + 1,
                                     train_result.history);
                                 write_batch_convergence_dat(
-                                    latex_dir / (config.experiment.run_tag + "_lstm_" + encoding +
-                                                 "_run" + std::to_string(run_id + 1) + "_convergence.dat"),
-                                    "lstm-ae", encoding, "", 0.0f, 0.0f, run_id + 1,
+                                    latex_dir /
+                                        (config.experiment.run_tag + "_lstm_" + encoding + "_run" +
+                                            std::to_string(run_id + 1) + "_convergence.dat"),
+                                    "lstm-ae",
+                                    encoding,
+                                    "",
+                                    0.0f,
+                                    0.0f,
+                                    run_id + 1,
                                     train_result.history);
                             }
 
                             if (config.dataset.save_models)
                             {
-                                const std::string base_name =
-                                    sanitize_name(config.experiment.run_tag + "_lstm_" + dataset_name +
-                                                  "_" + encoding + "_run" + std::to_string(run_id + 1));
+                                const std::string base_name = sanitize_name(
+                                    config.experiment.run_tag + "_lstm_" + dataset_name + "_" +
+                                    encoding + "_run" + std::to_string(run_id + 1));
                                 const std::filesystem::path state_txt =
                                     models_dir / (base_name + "_state_dict.txt");
                                 const bool ok =
                                     save_state_dict_text(state_txt, lstm_model.state_dict());
                                 if (!ok)
                                 {
-                                    NN_LOG_WARN("[comparative] failed to save LSTM state_dict for " +
-                                                base_name);
+                                    NN_LOG_WARN(
+                                        "[comparative] failed to save LSTM state_dict for " +
+                                        base_name);
                                 }
                             }
 
@@ -289,7 +318,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                     metrics                    //
                                 } //
                             );
-                            checkpoint_save(lstm_chk, all_rows.back(), train_result.history, cfg_hash);
+                            checkpoint_save(
+                                lstm_chk, all_rows.back(), train_result.history, cfg_hash);
                             nn::progress::ProgressManager::instance().update_bar(
                                 run_bar, static_cast<float>(++completed_runs));
                         }
@@ -301,10 +331,15 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                         {
                             for (float alpha : config.evaluation.alpha_values)
                             {
-                                const CheckpointKey snn_key{
-                                    config.experiment.run_tag, backend_name, dataset_name,
-                                    "snn-ae", encoding, architecture,
-                                    voltage_threshold, alpha, run_id + 1};
+                                const CheckpointKey snn_key{config.experiment.run_tag,
+                                    backend_name,
+                                    dataset_name,
+                                    "snn-ae",
+                                    encoding,
+                                    architecture,
+                                    voltage_threshold,
+                                    alpha,
+                                    run_id + 1};
                                 const auto snn_chk = checkpoint_path(chk_dir, snn_key);
 
                                 if (checkpoint_is_valid(snn_chk, cfg_hash))
@@ -328,9 +363,11 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         "comparative|" + dataset_name + "|" + encoding + "|" +
                                         architecture + "|" +
                                         std::to_string(
-                                            extract_layer_sizes(config.model.encoder_layer_spec).empty()
+                                            extract_layer_sizes(config.model.encoder_layer_spec)
+                                                    .empty()
                                                 ? 0
-                                                : extract_layer_sizes(config.model.encoder_layer_spec)
+                                                : extract_layer_sizes(
+                                                      config.model.encoder_layer_spec)
                                                       .front()) +
                                         "|" + std::to_string(voltage_threshold) + "|" +
                                         std::to_string(alpha);
@@ -340,18 +377,18 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                     TrainResult train_result = train_with_early_stopping_snn( //
                                         snn_model,                                            //
                                         config,                                               //
-                                        split.train_samples,                                 //
-                                        split.val_samples,                                   //
-                                        split.val_labels,                                    //
-                                        encoding,                                            //
-                                        architecture,                                        //
-                                        alpha,                                               //
-                                        voltage_threshold,                                   //
-                                        run_seed,                                            //
-                                        static_cast<std::size_t>(run_id),                    //
-                                        static_cast<std::size_t>(config.experiment.repeats), //
-                                        train_ms,                                            //
-                                        infer_ms                                             //
+                                        split.train_samples,                                  //
+                                        split.val_samples,                                    //
+                                        split.val_labels,                                     //
+                                        encoding,                                             //
+                                        architecture,                                         //
+                                        alpha,                                                //
+                                        voltage_threshold,                                    //
+                                        run_seed,                                             //
+                                        static_cast<std::size_t>(run_id),                     //
+                                        static_cast<std::size_t>(config.experiment.repeats),  //
+                                        train_ms,                                             //
+                                        infer_ms                                              //
                                     );
 
                                     RunMetrics metrics = train_result.metrics;
@@ -362,28 +399,40 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                         const std::filesystem::path latex_dir =
                                             std::filesystem::path(config.dataset.latex_data_dir);
                                         write_epoch_history_dat(
-                                            latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
-                                                         "_" + architecture + "_vth" +
-                                                         std::to_string(voltage_threshold) + "_a" +
-                                                         std::to_string(alpha) + "_run" +
-                                                         std::to_string(run_id + 1) + "_history.dat"),
-                                            "snn-ae", encoding, architecture, voltage_threshold, alpha,
-                                            run_id + 1, train_result.history);
+                                            latex_dir /
+                                                (config.experiment.run_tag + "_snn_" + encoding +
+                                                    "_" + architecture + "_vth" +
+                                                    std::to_string(voltage_threshold) + "_a" +
+                                                    std::to_string(alpha) + "_run" +
+                                                    std::to_string(run_id + 1) + "_history.dat"),
+                                            "snn-ae",
+                                            encoding,
+                                            architecture,
+                                            voltage_threshold,
+                                            alpha,
+                                            run_id + 1,
+                                            train_result.history);
                                         write_batch_convergence_dat(
-                                            latex_dir / (config.experiment.run_tag + "_snn_" + encoding +
-                                                         "_" + architecture + "_vth" +
-                                                         std::to_string(voltage_threshold) + "_a" +
-                                                         std::to_string(alpha) + "_run" +
-                                                         std::to_string(run_id + 1) + "_convergence.dat"),
-                                            "snn-ae", encoding, architecture, voltage_threshold, alpha,
-                                            run_id + 1, train_result.history);
+                                            latex_dir / (config.experiment.run_tag + "_snn_" +
+                                                            encoding + "_" + architecture + "_vth" +
+                                                            std::to_string(voltage_threshold) +
+                                                            "_a" + std::to_string(alpha) + "_run" +
+                                                            std::to_string(run_id + 1) +
+                                                            "_convergence.dat"),
+                                            "snn-ae",
+                                            encoding,
+                                            architecture,
+                                            voltage_threshold,
+                                            alpha,
+                                            run_id + 1,
+                                            train_result.history);
                                     }
 
                                     if (config.dataset.save_models)
                                     {
                                         const std::string base_name = sanitize_name(
-                                            config.experiment.run_tag + "_snn_" + dataset_name + "_" +
-                                            encoding + "_" + architecture + "_vth" +
+                                            config.experiment.run_tag + "_snn_" + dataset_name +
+                                            "_" + encoding + "_" + architecture + "_vth" +
                                             std::to_string(voltage_threshold) + "_a" +
                                             std::to_string(alpha) + "_run" +
                                             std::to_string(run_id + 1));
@@ -397,29 +446,33 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                                             decoder_txt, snn_model.decoder_.params(), "decoder");
                                         if (!enc_ok || !dec_ok)
                                         {
-                                            NN_LOG_WARN("[comparative] failed to save SNN model artifacts for " +
-                                                        base_name);
+                                            NN_LOG_WARN(
+                                                "[comparative] failed to save SNN model artifacts "
+                                                "for " +
+                                                base_name);
                                         }
                                     }
 
                                     all_rows.push_back( //
                                         ResultRow{
-                                            backend_name,                                             //
-                                            config.experiment.run_tag,                                //
-                                            dataset_name,                                             //
-                                            "snn-ae",                                                 //
-                                            encoding,                                                 //
-                                            architecture,                                             //
-                                            static_cast<int>(config.model.encoder_layer_spec.size()), //
-                                            voltage_threshold,                                        //
-                                            alpha,                                                    //
-                                            run_id + 1,                                               //
-                                            run_seed,                                                 //
-                                            cfg_hash,                                                 //
-                                            metrics                                                   //
+                                            backend_name,              //
+                                            config.experiment.run_tag, //
+                                            dataset_name,              //
+                                            "snn-ae",                  //
+                                            encoding,                  //
+                                            architecture,              //
+                                            static_cast<int>(
+                                                config.model.encoder_layer_spec.size()), //
+                                            voltage_threshold,                           //
+                                            alpha,                                       //
+                                            run_id + 1,                                  //
+                                            run_seed,                                    //
+                                            cfg_hash,                                    //
+                                            metrics                                      //
                                         } //
                                     );
-                                    checkpoint_save(snn_chk, all_rows.back(), train_result.history, cfg_hash);
+                                    checkpoint_save(
+                                        snn_chk, all_rows.back(), train_result.history, cfg_hash);
                                     nn::progress::ProgressManager::instance().update_bar(
                                         run_bar, static_cast<float>(++completed_runs));
                                 }
@@ -462,9 +515,8 @@ auto run_comparative_experiment(int argc, char* argv[]) -> int
                 latex_dir / (config.experiment.run_tag + "_sweep.dat"), all_rows);
         }
 
-        NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() +
-                    ", " + table_path.string() +
-                    ", " + summary_json.string());
+        NN_LOG_INFO("[comparative] Results written to: " + csv_path.string() + ", " +
+                    table_path.string() + ", " + summary_json.string());
 
         flushProgressAsync();
         return 0;
