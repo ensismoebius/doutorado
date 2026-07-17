@@ -83,14 +83,38 @@ Highest priority: it is the only artifact with an external audience, and its cur
 SNN-vs-LSTM table is **unfair to the paper's own contribution** — the SNN side trained every
 weight 10× slower than the LSTM baseline it is compared against (D3).
 
+**Do not pre-build anything for this one.** The script builds its own binary from the preset
+*it* selects; a binary you built from some other preset is ignored unless you pick that preset.
+
+It **asks which build to use**, because that choice is part of the measurement rather than a
+convenience: the paper reports **`train_ms` / `infer_ms` / latency**, and
+`02_e04_build_lstm_vs_snn_paper_data.py` feeds those straight into its tables. Running the
+profiles on the CPU `max-performance` build reports CPU latency for a comparison the paper
+presents as GPU. `max-performance-opencl` is the reference and the default; picking anything
+else prints a warning and must be reported as a different setup.
+
 ```bash
 cd software/nn
-cmake --build out/build/max-performance --target experiment04 -j$(nproc)
 
-# ~2.5 h (LSTM ~10 min, each SNN ~45 min).
-# Builds, runs all 4 article profiles, and aggregates the paper CSV/DAT files itself.
+# ~2.5 h (LSTM ~10 min, each SNN ~45 min). Asks which build, then configures + builds it,
+# runs all 4 article profiles, converts the NPZ artifacts, and aggregates the paper CSV/DAT.
 ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
 ```
+
+The prompt lists every preset, marks which already have an `experiment04` binary `[built]`,
+flags the reference, and defaults to it — so pressing Enter is always the paper-correct
+choice. Non-interactive runs (pipe/CI) skip the prompt and use the reference.
+
+```bash
+# Choose non-interactively (required in a pipe/CI):
+E04_BUILD=max-performance-opencl ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+
+# Reuse the existing binary instead of rebuilding — only when you know it is current:
+SKIP_BUILD=1 E04_BUILD=max-performance-opencl ./scripts/pipeline/e04/01_e04_run_article_profiles.sh
+```
+
+The first run of a preset also **configures** it (a few minutes on top of the runtime); later
+runs are incremental no-ops. The reference preset needs an OpenCL runtime.
 
 Then recompile the paper:
 
