@@ -35,4 +35,4 @@ were gitignored and are not.
 To regenerate (expensive — see the guard in CLAUDE.md; poisson/latency at T=16 exceeded 2h
 per run in testing):
 
-    ./scripts/pipeline/run_e05_profiles.sh phase00
+    ./scripts/testing/run_e05_profiles.sh phase00

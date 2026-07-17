@@ -10,7 +10,7 @@
 #   4) run_e05_profiles.sh phase01              → DSNN authentication, EER/AUC in results/phase01
 #
 # Requires: experiment05 built, and the dataset (dataset.root) present.
-# HEAVY: phase00 = 300 profiles, phase01 = 32, each with experiment.repeats runs.
+# HEAVY: phase00 = 208 profiles, phase01 = 32, each with experiment.repeats runs.
 # Run in the background / overnight.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
@@ -94,7 +94,7 @@ binary      : $BIN
 parallelism : JOBS=$JOBS  (${cpus} cpus, ${avail_mb}MB free / ${per_mb}MB per job)
 
 What do you want to do?
-  1) phase00 — feature construction + paraconsistent ranking  (300 profiles)
+  1) phase00 — feature construction + paraconsistent ranking  (208 profiles)
   2) phase01 — DSNN authentication                            (32 profiles)
   3) all     — phase00 + phase01 + debug
   j) set parallel job count (currently $JOBS; auto-detected default $auto_jobs)
