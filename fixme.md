@@ -9,7 +9,7 @@
 | D3 | ~~`snn_lr_scale` quebrado~~ → **CORRIGIDO no código**, também afeta o artigo E04 (Guaiaquil, rascunho) | 🟡 re-execução pendente | D4, reprodutibilidade, artigo E04 |
 | ~~D4~~ | ~~Seção da tese sobre lr por grupo~~ → **ESCRITA** (§2.1.10.10) | ✅ | --- |
 | D5 | ~~Item 51: otimizadores~~ → **framework FEITO** (otimizador polimórfico + escalas por grupo na base); ablação pendente | 🟡 ablação pendente | item 51 |
-| D6 | Eixo `scale` do EEG é inócuo | 🟡 médio | contagem da grade na tese |
+| ~~D6~~ | ~~Eixo `scale` do EEG é inócuo~~ → **RESOLVIDO** (removido para EEG; grade 300→208) | ✅ | --- |
 
 ---
 
@@ -181,15 +181,40 @@ O bloqueio original: avaliar outros otimizadores não era uma questão de gerar 
 
 ---
 
-### D6 --- O eixo `scale` do EEG é inócuo 🟡
+### D6 --- O eixo `scale` do EEG é inócuo ✅ RESOLVIDO (2026-07-16, opção A)
 
-No EEG, as três escalas (bark, mel e lfcc) produzem d_truth **idêntico** em 44 dos 46 grupos. Na voz, todos os 46 diferem entre si.
+**Fato confirmado, e mais forte do que o texto original dizia.** Verifiquei contra os 300 resultados armazenados em vez de confiar na anotação: no EEG, as três escalas dão `d_truth` idêntico **bit a bit** em **46/46** grupos wavelet×categoria --- não 44/46. As 2 exceções aparentes eram todas `daub32`, com diferença de ~1,5e-6, isto é **ruído de ponto flutuante** da reexecução individual daqueles perfis (documentada na seção "Resolvidas" acima), não um efeito de escala. Na voz, os 138 grupos diferem, como dizia.
 
-A causa é simples: Bark e Mel são escalas perceptuais de *áudio*, e o conteúdo do EEG fica abaixo da estrutura de bandas delas, de modo que o agrupamento espectral colapsa no mesmo particionamento.
+**A causa registrada estava ERRADA.** O texto anterior dizia que "o conteúdo do EEG fica abaixo da estrutura de bandas delas, de modo que o agrupamento espectral colapsa no mesmo particionamento". Duas coisas erradas:
+1. Não há estrutura absoluta para ficar "abaixo": `group_by_scale()` normaliza pelo Nyquist **do próprio sinal** (`max_sv = hz_to_bark(nyquist)`), então a curva é esticada para caber em qualquer taxa de amostragem.
+2. Nada "colapsa" no EEG --- ocorre o **oposto**. As 16 sub-bandas do EEG caem em **16 bins distintos** (nada funde), e é exatamente por isso que o agrupamento degenera no `lfcc` (um grupo por sub-banda). Quem funde é a **voz** (bark→9 grupos, mel→11).
 
-Na prática, dos 138 perfis handcrafted de EEG apenas 46 são realmente distintos --- cerca de 92 execuções são duplicatas. Isso também torna enganosa, para o EEG, a afirmação de que há "23 × 3 × 2 = 138 combinações manuais por sinal".
+**A causa real:** Bark é uma escala **absoluta** --- ~24 Barks cobrem a faixa audível, e `n_bands=24`. Para a voz o fator de normalização é **0,97 ≈ no-op** (o bin *é* o número de Bark). Para o EEG (Nyquist 512 Hz) o fator é **4,96**: a curva é esticada 5× para preencher os 24 bins. Como Bark/Mel são ~lineares nessa faixa, o mapeamento vira injetor → 1:1 → idêntico ao linear. **"Bark" no EEG nunca foi Bark**: era uma pseudo-escala reescalada linearmente. Ou seja, a normalização foi desenhada para áudio (onde é inócua) e se comporta mal em qualquer outra taxa de amostragem.
 
-Duas opções: remover o eixo `scale` do EEG e corrigir a contagem na tese, ou mantê-lo e documentar a redundância.
+**Isso já contaminava um resultado relatado.** O vencedor da Fase 00 no EEG era `haar_bark_c1` (d_penalized=1,58826668) --- mas `haar/lfcc/c1` e `haar/mel/c1` têm **exatamente o mesmo valor**. Os três primeiros eram um empate perfeito, e "bark venceu" era puro artefato da ordem de desempate. Escrever "a escala Bark venceu para o EEG" seria uma afirmação falsa: a Bark não fez efeito nenhum e o vetor vencedor é literalmente o linear.
+
+**Decisão do autor: opção A --- remover o eixo `scale` do EEG**, justificada por princípio (escalas cocleares não têm base fisiológica para EEG) e não apenas por redundância. Implementado:
+- **Perfis:** removidos os 92 perfis `p00_hc_*_{bark,mel}_*_eeg.json` da phase00 + os 92 espelhos de smoke (184 arquivos, **rastreados no git** --- diferente dos perfis de AE, que são untracked por `*.json` no .gitignore). Grade: phase00 **300 → 208** (46 hc eeg + 138 hc voz + 24 AE). **Nenhuma reexecução necessária**: os resultados `lfcc` do EEG já *são* a resposta; os 92 resultados bark/mel em `results/phase00/` ficam órfãos mas **não foram apagados** (são dados de execução longa).
+- **Guarda estrutural:** `E05Config::validate()` rejeita `handcrafted.scale != "lfcc"` quando `modality=eeg`, com a justificativa no comentário. `fused` é deliberadamente não restrito (a metade de voz usa bark/mel legitimamente). Teste: `E05EegScaleAxis.BarkAndMelAreRejectedForEeg`.
+- **Ranking expõe empates** (decisão do autor): `01_e05_phase00_rank.py` detecta empates exatos (tolerância 1e-5, que absorve o ruído do daub32) e grava `tie_count`/`tied_with` no `winners.json`, além de imprimir um aviso `[TIE]` explícito. Validado reconstruindo o estado pré-D6 a partir do git: o detector marca corretamente o empate bark/lfcc e avisa para não atribuir o resultado à "bark". Depois da remoção dos perfis degenerados, **o empate do EEG deixa de existir** (vencedor único `handcrafted/haar/lfcc/c1`).
+- **Rótulo do extrator agora é único:** `extractor_label()` omitia a categoria cepstral, então `haar/lfcc/c1` e `haar/lfcc/c2` imprimiam ambos como `handcrafted/haar/lfcc` --- duas linhas do ranking pareciam duplicadas com notas diferentes. Passou a incluir `c1`/`c2` e, nos autoencoders, a codificação e o tamanho latente.
+- **Tese:** 4 afirmações de contagem corrigidas no §08 (138/sinal → 138 voz + 46 EEG; 300 → 208 execuções; 300 → 208 perfis) e nova subseção §2.1.3.x "Aplicabilidade das escalas Bark e Mel ao EEG" (`\label{sec:escalaEeg}`) com o argumento fisiológico, o mecanismo da normalização (fatores 0,97 vs 4,96), a verificação empírica 46/46 e a nota sobre o falso "Bark venceu". Compila limpo (121 pág.).
+- **Wiki:** `Experiment05.md` --- contagens e a nota sobre o eixo ser voice-only.
+- **Testes:** lista fixa de perfis do `e05_profile_audit_gtest` limpa (92 entradas removidas; 0 referências pendentes a arquivos apagados); suite 1935 verdes.
+
+- **Gerador de tabelas da tese:** `e05_build_phase00_paraconsistent_tables.py` monta as tabelas a partir de `results/`, **não** do conjunto de perfis --- então os 276 arquivos de resultado órfãos (92 perfis × 3 reps) do EEG bark/mel continuariam emitindo linhas duplicadas na tese mesmo com os perfis apagados. Adicionado filtro explícito (imprime `[info] skipped 276 retired EEG bark/mel run(s)`, não silencioso). Verificado: tabela hc do EEG 138 → **46 linhas, só LFCC**; a da voz permanece **138 (46 bark + 46 mel + 46 lfcc)**.
+
+**Resultados da Fase 00 apagados (2026-07-16, decisão do autor: "remove All phase00 results and postpone the rerun for now").** Removidos os 1800 arquivos (900 CSVs + 900 summaries, 7,1 MB) e zerado o `results/run_profiles_phase00.state` (dizia 300/300 PASS, desatualizado desde que a grade virou 208). Deixado um `results/phase00/README.md` explicando por que estão vazios e como regenerar.
+
+Não é trabalho perdido: os resultados já estavam invalidados por três correções do mesmo dia --- **D3** (os 24 perfis de AE treinaram todos os pesos a 1e-4 declarando 1e-3), **D1** (os 18 `snn-ae` agora declaram `firing_rate_reg_lambda=0,5`, que não existia quando rodaram) e **D6** (os 276 arquivos do EEG bark/mel ficaram sem perfil que os gerasse). Some-se a correção da ordem do weight decay do Adam, que afeta qualquer modelo treinado.
+
+Registro honesto: os **184 perfis handcrafted não estavam numericamente obsoletos** --- extração manual não treina nada, então uma reexecução os reproduz bit a bit. Foram apagados junto assim mesmo, para que a fase inteira seja regenerada como um conjunto único e coerente cujos summaries carreguem o novo bloco `training` (otimizador + lr resolvido + origem do lr), que os antigos não tinham --- exatamente a lacuna de proveniência que tornou D3 possível.
+
+**Ordem importava:** as tabelas da tese são geradas a partir de `results/`, não dos perfis, e as versões commitadas ainda tinham **136 linhas com bark/mel no EEG** --- contradizendo diretamente o §08 recém-corrigido (46, só lfcc). Regenerei as 4 tabelas **antes** de apagar os dados: `phase00_hc_eeg` 136 → **46 linhas, só LFCC**; `phase00_hc_voice` **138** (46 bark + 46 mel + 46 lfcc). A tese continua compilando e seus números handcrafted são válidos; as linhas de AE são provisórias até a reexecução.
+
+Recuperabilidade: os 900 CSVs eram **rastreados** e estão no histórico do git; os 900 `*_summary.json` eram gitignored e só voltam com a reexecução (que está adiada por decisão do autor).
+
+**Pendente:** o F5 (contagem "138 variantes handcrafted por sinal" na seção "Referência" abaixo) --- corrigido junto, ver F5.
 
 ---
 
@@ -218,7 +243,7 @@ Varredura pedida pelo autor ("scan the code looking for untrustworthy comments")
 - [x] **F2.** Nenhum teste cobria o caminho em que `snn_lr_scale` é diferente de 1.0. Adicionado `TrainerGenericity.SnnLrScaleOnlyAppliesToSizeOneParams` (`trainer_genericity_gtest.cpp`): modelo com um parâmetro 1×1 e um 2×2, mesmo gradiente fixo nos dois, confirma que só o 1×1 recebe a escala reduzida. Verde.
 - [ ] **F3.** O diretório `results/phase00/` não é reproduzível a partir dos perfis: quem rodá-los como estão (agora com a correção de D3 já no código) obtém resultados **diferentes** dos publicados (que rodaram sob o bug, taxa efetiva 1e-4 nos pesos). D3 já foi decidido/corrigido no código --- falta só a re-execução dos 24 perfis AE para que `results/phase00/` volte a bater com os perfis atuais (ver decisão de re-execução em D3).
 - [ ] **F4.** A tabela de `.wiki/Experiments/Experiment05.md` já foi corrigida no item 59. A seção de SNN-AE agora também menciona D1 (via link para `D_penalized`) e traz a regularização de taxa de disparo, mas **ainda não** menciona explicitamente que os números da tabela "Measured separability" (linha ~107) vêm de execuções feitas sob o bug de D3 (taxa efetiva 1e-4 nos pesos, não 1e-3). Atualizar quando os 24 perfis forem re-executados sob D3 corrigido --- caso contrário a tabela ficaria com um aviso sobre dados que estão prestes a mudar.
-- [ ] **F5.** A contagem "138 variantes handcrafted por sinal", na seção "Referência" mais abaixo, continua enganosa para o EEG. Ver D6.
+- [x] **F5.** A contagem "138 variantes handcrafted por sinal" era enganosa para o EEG. Corrigida na tese (§08: 138 voz + 46 EEG; grade 300 → 208) e na wiki junto com **D6**. A seção "Referência" abaixo foi atualizada.
 
 ---
 
@@ -239,7 +264,7 @@ Varredura pedida pelo autor ("scan the code looking for untrustworthy comments")
 
 ## Pipeline Experiment05 (crítico para a tese, ordem de prioridade)
 
-1. **[DESBLOQUEADO POR D1 --- pendente de execução]** Rodar `01_e05_phase00_rank.py` sobre o conjunto de 300 perfis para produzir `winners.json`. D1 já foi decidido e implementado (o script agora seleciona por `d_penalized`, não mais por `D_truth` cru), então o bloqueio original caiu --- mas o script ainda não foi de fato executado contra o conjunto completo (`winners.json` não existe em disco). Falta só rodar. Considerar também se vale esperar a re-execução dos 24 perfis AE sob D3 (ver D3) antes, já que os resultados armazenados desses 24 ainda refletem a taxa de aprendizado efetiva errada.
+1. **[BLOQUEADO PELA REEXECUÇÃO]** Rodar `01_e05_phase00_rank.py` para produzir `winners.json`. D1 já foi decidido e implementado (o script seleciona por `d_penalized` e agora também detecta/reporta empates exatos --- ver D6), então o bloqueio *conceitual* caiu. Mas os resultados da Fase 00 foram **apagados** (ver D3) e a reexecução está **adiada por decisão do autor**, logo não há dado de entrada: rodar agora não produz nada. Ordem correta: reexecutar os 208 perfis → rodar este script → item 2.
 2. Rodar `02_e05_apply_winner.py` para injetar o vencedor real nos 32 perfis da phase01, substituindo o bloco `feature_extraction` provisório.
 3. Executar os 32 perfis `classifier.type=dsnn` da phase01 (`run_e05_profiles.sh phase01`) --- este é o experimento de autenticação real da tese e atualmente não tem nenhum resultado.
 4. Com resultados reais do DSNN em mãos, considerar uma rodada explícita de ablação para `weight_decay`, `firing_rate_reg_lambda` e tdBN --- nenhum dos três jamais foi exercitado fora do perfil debug/smoke:
@@ -309,7 +334,7 @@ Ação:
 
 ## Falhas do lote da phase00 (4 perfis daub32)
 
-`lfcc_c2`×{eeg,voice}, `mel_c1`×{eeg,voice} falharam na execução original em lote paralelo dos 300 perfis. Reexecutados individualmente em 2026-07-16 e passaram sem problemas — contenção transitória de recursos por causa dos jobs paralelos, não um defeito de código. `results/run_profiles_phase00.state` agora mostra 300/300 PASS.
+`lfcc_c2`×{eeg,voice}, `mel_c1`×{eeg,voice} falharam na execução original em lote paralelo dos 300 perfis. Reexecutados individualmente em 2026-07-16 e passaram sem problemas — contenção transitória de recursos por causa dos jobs paralelos, não um defeito de código. `results/run_profiles_phase00.state` mostrava 300/300 PASS. ⚠️ Obsoleto: os resultados da Fase 00 foram apagados e o state zerado em 2026-07-16 (ver D3); a grade agora é 208, não 300.
 
 ## tempStrategy.tex incluído por acidente na tese compilada
 
@@ -376,10 +401,10 @@ Candidatos por sinal (voz e EEG recebem ranking próprio cada --- os vetores fun
   - wavelet: 23 opções (`haar` + `daub4`...`daub46`)
   - escala: bark, mel, lfcc; e `cepstral` (booleano): false = Categoria 1 (energias de banda), true = Categoria 2 (log+DCT-II → LFCC/MFCC/BFCC)
 
-  cada uma carregando o conjunto de descritores: energy, ZCR, entropy, Teager-Kaiser, jitter, shimmer. Logo 23 × 3 = 69 combos handcrafted (wavelet × escala) por sinal, ×2 pelo `cepstral` (Categoria 1 / Categoria 2) = 138 variantes handcrafted por sinal.
+  cada uma carregando o conjunto de descritores: energy, ZCR, entropy, Teager-Kaiser, jitter, shimmer. Para a **voz**: 23 × 3 = 69 combos (wavelet × escala), ×2 pelo `cepstral` = **138** variantes. Para o **EEG**: a escala não se aplica (ver **D6** --- bark/mel são escalas cocleares sem base fisiológica para EEG, e degeneram no linear), logo 23 × 1 × 2 = **46** variantes.
 - **Autoencoder** --- 12 AEs compactos por sinal: 9 SNN-AE (pulsante; 3 tamanhos × 3 codificações temporais --- poisson/latency/direct) e 3 ANN-AE (denso; 3 tamanhos), latente 8/16/32, 2:1 na camada oculta.
 
-Logo a grade da Phase 00 = 2 sinais × (138 handcrafted + 12 autoencoder) = **300 rankings**, cada um pontuado por α, β, G1, G2, D_truth (sec:conceitos). Saída desta fase: um vetor de características vencedor para voz, um para EEG.
+Logo a grade da Phase 00 = (138 + 12) voz + (46 + 12) EEG = **208 rankings**, cada um pontuado por α, β, G1, G2, D_truth (sec:conceitos). Saída desta fase: um vetor de características vencedor para voz, um para EEG.
 
 Os 12 autoencoders por sinal são SNN-AEs compactos de camada única (poisson/latency/direct × 3 tamanhos) e ANN-AEs (3 tamanhos), ambas as famílias integradas; as variantes handcrafted cepstrais da Categoria 2 também estão implementadas e publicadas. Os quadros de pulso do SNN-AE usam integração temporal (estado reiniciado uma vez por amostra, depois integrado ao longo de `time_steps`=16 quadros, leitura pela média do latente) e um limiar de disparo do codificador reduzido (`voltage_threshold`=0.2 para poisson/latency; o padrão LIF de 1.0 para direct, que reproduz a linha de base sem codificação). 
 > 🚫 **OBSOLETO** (ver itens 59, D1, D2). O texto abaixo, antes aqui, estava **invertido**:
@@ -419,7 +444,7 @@ A grade publicada também cruza um terceiro eixo fora do plano original, `traini
 _Status extraído de: `src/experiments/05/lib/{include,src}/E05Config.{hpp,cpp}`, `E05FeatureExtraction.cpp`, `E05Classifiers.cpp`, `profiles/*.json`, `results/run_profiles_phase00.state`, `results/phase00/`, `results/phase01/`._
 `[x]` = implementado, tem perfil publicado, E foi executado (arquivos de resultado em disco). `[~]` = implementado + perfil publicado existe, mas nunca executado. `[ ]` = não implementado / rejeitado por validate().
 
-## Phase 00 --- extração de características (300 perfis: 2 sinais × (69 handcrafted × 2 categorias + 12 autoencoder))
+## Phase 00 --- extração de características (208 perfis: voz 138 handcrafted + EEG 46 handcrafted + 24 autoencoder)
 
 **Categoria 1 vs 2** (auditoria G2, implementada): `handcrafted.scale` agrupa as sub-bandas da DTWPT por frequência (linear/Bark/Mel). Com `cepstral=false` as energias por banda são usadas diretamente (Categoria 1); com `cepstral=true` um estágio log+DCT-II sobre essas energias produz os coeficientes cepstrais LFCC/MFCC/BFCC (Categoria 2). Ambas as categorias são selecionáveis e publicadas.
 
@@ -431,7 +456,7 @@ Voz e EEG (mesmo status, mesmo caminho de código, agnóstico ao sinal):
 
 O próprio ranking paraconsistente (α, β, G1, G2, D_truth): **[x] implementado**, `E05Paraconsistent.cpp`, exercitado por `e05_profile_audit_gtest`.
 
-**Phase 00 está totalmente executada**: `results/run_profiles_phase00.state` mostra **300/300 PASS** (ver "Resolvidas" acima sobre os 4 perfis daub32 que precisaram de reexecução). Todo perfil tem seu CSV/JSON de ranking paraconsistente de 3 repetições em `results/phase00/`.
+**⚠️ Phase 00 NÃO tem resultados (2026-07-16).** Todos os 1800 arquivos de `results/phase00/` foram apagados e o `run_profiles_phase00.state` zerado, porque estavam invalidados por D1/D3/D6 (ver D3 para o detalhamento). A reexecução dos 208 perfis está **adiada por decisão do autor**. Os `[x]` abaixo indicam apenas que o perfil existe e o caminho de código está implementado --- **não** que haja resultado em disco. As tabelas da tese foram regeneradas a partir dos dados antigos antes da remoção, então a tese ainda compila (números handcrafted válidos; linhas de AE provisórias).
 
 **Lacuna restante**: `scripts/pipeline/e05/01_e05_phase00_rank.py` (lê os 300 resultados, escolhe o vencedor por sinal, grava `winners.json`) ainda não foi rodado contra o conjunto de resultados agora completo --- `winners.json` não existe. Os perfis da Phase 01 ainda carregam um extrator provisório `daub4/lfcc` em vez do vencedor real da Phase 00. → item 1 do TODO.
 

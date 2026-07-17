@@ -53,6 +53,34 @@ void E05Config::validate() const
         if (!valid_scale)
             throw std::invalid_argument("E05Config: handcrafted.scale must be bark/mel/lfcc");
 
+        // Bark and Mel are cochlear scales: they model the frequency resolution of human
+        // HEARING. There is no physiological basis for applying them to EEG, which is not
+        // sound. They are rejected for modality=eeg on that principle (fixme.md D6).
+        //
+        // Empirically they were also inert here, which is what exposed the problem: for EEG
+        // all three scales produced bit-identical d_truth in 46/46 wavelet x category groups
+        // (the only apparent exceptions were daub32 at ~1e-6, i.e. float noise from that
+        // profile's individual re-run). The mechanism is group_by_scale()'s normalization by
+        // the signal's own Nyquist: Bark spans ~24 Barks over the audible range and n_bands
+        // is 24, so for voice the factor is ~0.97 (a no-op — the bin IS the Bark number),
+        // but for EEG's 512 Hz Nyquist it is ~4.96, stretching the curve 5x. That stretch
+        // makes the mapping injective, so each sub-band lands in its own bin and the
+        // grouping degenerates to exactly lfcc's one-group-per-sub-band. "Bark" for EEG was
+        // therefore never Bark — just a linearly rescaled pseudo-scale identical to linear.
+        //
+        // Note this makes the grid deliberately asymmetric: voice sweeps all three scales
+        // (where they genuinely differ), EEG uses lfcc only. Phase 00 handcrafted is thus
+        // 138 voice + 46 eeg, not 138 x 2.
+        //
+        // modality=fused is intentionally NOT covered: its voice half legitimately uses
+        // bark/mel. In late fusion the EEG half degenerates to lfcc as above (harmless but
+        // mislabeled); in early fusion the concatenated signal runs at the voice rate.
+        if (dataset.modality == "eeg" && feature_extraction.handcrafted.scale != "lfcc")
+            throw std::invalid_argument(
+                "E05Config: handcrafted.scale must be lfcc for modality=eeg — bark/mel are "
+                "cochlear (hearing) scales with no physiological basis for EEG, and are "
+                "provably degenerate to lfcc there (see fixme.md D6)");
+
         // Mother wavelets with coefficient traits in include/wavelet/Types.hpp.
         static const std::vector<std::string> valid_wavelets = {"haar",
             "daub4",

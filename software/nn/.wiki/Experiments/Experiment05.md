@@ -71,6 +71,12 @@ At each leaf node (sub-band), the following descriptors are computed:
 
 Frequency scales evaluated: **BARK**, **MEL**, **LFCC** (see [LFCC](../Concepts/LFCC.md)).
 
+> **The `scale` axis is voice-only (fixme.md D6).** Bark and Mel are **cochlear** scales — they model the frequency resolution of human *hearing*. There is no physiological basis for applying them to EEG, which is not sound, so `E05Config::validate()` rejects `scale != lfcc` when `modality=eeg`.
+>
+> They were also provably inert there, which is what exposed the problem. `group_by_scale()` normalizes the perceptual curve by the signal's **own Nyquist**. Bark spans ~24 Barks over the audible range and `n_bands=24`, so for voice the factor is ~0.97 — a no-op, the bin *is* the Bark number, and the curve's compression at high frequency genuinely merges sub-bands (bark→9 groups, mel→11, vs lfcc's 16). For EEG (Nyquist 512 Hz) the factor is ~4.96: the curve is stretched 5× to fill 24 bins. Bark/Mel are ~linear over that range, so the mapping becomes injective — each sub-band lands in its own bin and the grouping degenerates to *exactly* lfcc's one-group-per-sub-band. "Bark" for EEG was never Bark; it was a linearly rescaled pseudo-scale identical to linear. Verified on the stored results: all three scales gave bit-identical `D_truth` in **46/46** EEG wavelet×category groups (the only apparent exceptions, `daub32`, differed by ~1e-6 — float noise from that profile's individual re-run).
+>
+> Consequence worth knowing: because the three tied exactly, the EEG Phase-00 winner was decided by the ranking's **sort tie-break** and came out labelled `bark`. Reporting "the Bark scale won for EEG" would have been false — Bark did nothing, and the winning vector is literally the linear one. `01_e05_phase00_rank.py` now detects and reports exact ties so an arbitrary tie-break can't be mistaken for a result. Guarded by `E05EegScaleAxis.BarkAndMelAreRejectedForEeg`.
+
 **Category 1 vs Category 2** (`handcrafted.cepstral`). With `cepstral=false` the per-band energies are the features (Category 1: linear/Mel/Bark-band energies). With `cepstral=true` a **log + DCT-II** is applied over the band energies, yielding cepstral coefficients — **LFCC / MFCC / BFCC** for `scale = lfcc / mel / bark` (Category 2). The cepstral coefficients replace the raw energy descriptor; other descriptors (ZCR, entropy, …) are still appended per band.
 
 ### Learned Feature Extraction (Autoencoders)
@@ -232,13 +238,15 @@ src/experiments/05/
 ├── profiles/
 │   ├── debug.json                              (RNN quick smoke)
 │   ├── phase00/  Phase 00 — feature construction + paraconsistent ranking (classifier.enabled=false)
-│   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<source>.json  wavelet(23) × scale(bark/mel/lfcc) ×
-│   │   │       cat ∈ {c1=energy, c2=cepstral LFCC/MFCC/BFCC} × source ∈ {voice,eeg} = 276
+│   │   ├── p00_hc_<wavelet>_<scale>_<cat>_<source>.json  wavelet(23) ×
+│   │   │       cat ∈ {c1=energy, c2=cepstral LFCC/MFCC/BFCC} ×
+│   │   │       scale: voice = bark/mel/lfcc (138); eeg = lfcc only (46)  = 184
+│   │   │       (eeg drops bark/mel: cochlear scales, no basis for EEG — see D6 note below)
 │   │   ├── p00_ae_ann_<size>_<source>.json           ANN-AE, size ∈ {tiny,small,base}
 │   │   │                                              (latent 8/16/32, 2:1 hidden) × source(2) = 6
 │   │   └── p00_ae_snn_<encoding>_<size>_<source>.json SNN-AE, encoding ∈ {poisson,latency,direct}
 │   │                                                × size ∈ {tiny,small,base} × source(2) = 18
-│   │                                                (6 ann + 18 snn = 24 AE)   → 300 total
+│   │                                                (6 ann + 18 snn = 24 AE)   → 208 total
 │   └── phase01/  Phase 01 — DSNN authentication, best combo only (classifier.enabled=true)
 │       └── p01_dsnn_<source>_<text>_<cv>_<std>.json   source(4) × text(dep/indep) ×
 │           cv(nested/flat) × std ∈ {std,raw} (standardize_features ablation) = 32
@@ -422,7 +430,7 @@ cmake --build out/build/max-performance --target experiment05 -j$(nproc)
 
 The experiment is split into two profile sets, gated by `classifier.enabled`:
 
-- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **scale** (`bark`, `mel`, `lfcc`) × **category** (`c1` energy / `c2` cepstral) = 276, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24, for **300** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
+- **Phase 00 — feature-vector construction** (`profiles/phase00/`, `classifier.enabled=false`, `paraconsistent.enabled=true`). For each signal (`voice`, `eeg`), sweep the handcrafted extractor over **mother wavelet** (`handcrafted.wavelet`, 23 options with coefficient traits in `include/wavelet/Types.hpp`: `haar` + `daub4`…`daub46`) × **category** (`c1` energy / `c2` cepstral) × **scale** — `bark`/`mel`/`lfcc` for voice (138) but **`lfcc` only for EEG** (46; see the scale note below) = 184, plus the **compact AE sweep** — ANN-AE × `tiny`/`small`/`base` (6) and SNN-AE × `poisson`/`latency`/`direct` encoding × `tiny`/`small`/`base` (18) = 24 per signal, for **208** rankings, and score every combination with the paraconsistent metric. The run stops after ranking — no classifier is trained, and `layer_spec` is not required. Output: paraconsistent CSV + summary JSON only. Pick the lowest-`D_truth` combination per signal; fused vectors are built afterward from each side's winner.
 - **Phase 01 — authentication** (`profiles/phase01/`, `classifier.enabled=true`, `paraconsistent.enabled=false`). Feed **only the Phase-00 winning combination** into the DSNN and report EER/AUC. The `feature_extraction` block in these profiles is a placeholder (handcrafted / lfcc / daub4) — set the winning wavelet+scale (or `strategy=autoencoder`) before running. Crosses source (`voice`, `eeg`, `fused-early`, `fused-late`) × text mode × CV scheme × `standardize_features` (on/off ablation) = 32.
 
 **Automating the Phase 00 → Phase 01 hand-off** — two scripts remove the manual seams:

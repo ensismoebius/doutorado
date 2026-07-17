@@ -147,6 +147,70 @@
 				\legend{Fonte: Elaborado pelo autor, 2024.}
 			\end{figure}
 
+		\subsubsection{Aplicabilidade das escalas Bark e Mel ao EEG}
+			\label{sec:escalaEeg}
+
+			\par As escalas Bark e Mel apresentadas acima não são escalas de frequência genéricas: ambas são \textbf{escalas cocleares}, isto é, modelos empíricos da resolução em frequência da \emph{audição} humana. A Bark corresponde às bandas críticas da membrana basilar e a Mel a julgamentos perceptuais de igual distância tonal; ambas são definidas em Hz e calibradas sobre a faixa audível ($\approx\!24$ Barks entre $0$ e $\approx\!16$~kHz). Aplicá-las a um sinal de \ac{EEG} --- que não é som --- carece de base fisiológica: não há membrana basilar segmentando o eletroencefalograma em bandas críticas. Esta subseção mostra que, além dessa objeção conceitual, o eixo da escala é \emph{numericamente inócuo} para o EEG, e explica por quê.
+
+			\par \textbf{Parâmetros concretos.} O agrupamento parte da \ac{DTWPT} com \texttt{dtwpt\_level}~$=4$, que particiona uniformemente o intervalo $[0, f_{Nyq}]$ em $2^{4} = 16$ sub-bandas de largura $\Delta f = f_{Nyq}/16$. Os dois sinais deste trabalho diferem drasticamente em taxa de amostragem, e é daí que tudo decorre:
+
+			\begin{table}[H]
+				\centering
+				\caption[Particionamento espectral da DTWPT por sinal]{Particionamento espectral da DTWPT ($2^4=16$ sub-bandas uniformes) para cada sinal. A faixa útil do EEG é três ordens de grandeza mais estreita que a da voz.}
+				\label{tab:particaoEspectral}
+				\begin{tabular}{lcc}
+					\hline
+					& \textbf{EEG} & \textbf{Voz} \\
+					\hline
+					Taxa de amostragem $f_s$        & $1024$~Hz  & $44100$~Hz \\
+					Frequência de Nyquist $f_{Nyq}$ & $512$~Hz   & $22050$~Hz \\
+					Número de sub-bandas            & $16$       & $16$ \\
+					Largura de cada sub-banda $\Delta f$ & $32$~Hz & $1378{,}125$~Hz \\
+					Sub-banda $0$ (faixa / centro)  & $0$--$32$~Hz / $16$~Hz & $0$--$1378{,}1$~Hz / $689{,}06$~Hz \\
+					Sub-banda $15$ (faixa / centro) & $480$--$512$~Hz / $496$~Hz & $20671{,}9$--$22050$~Hz / $21360{,}9$~Hz \\
+					\hline
+				\end{tabular}
+				\legend{Fonte: Elaborado pelo autor, 2026.}
+			\end{table}
+
+			\par \textbf{O mecanismo do agrupamento.} Para \textit{bark} e \textit{mel}, cada sub-banda $p$ tem sua frequência central $f_p = (p+\tfrac{1}{2})\Delta f$ mapeada pela escala, e o valor resultante é normalizado \textbf{pelo valor da escala na frequência de Nyquist do próprio sinal} antes de ser distribuído entre $N$ bins ($N=24$ para Bark, $N=20$ para Mel):
+
+			\begin{equation}
+				\label{eq:binEscala}
+				\text{bin}(p) = \left\lfloor \frac{\mathcal{S}(f_p)}{\mathcal{S}(f_{Nyq})} \cdot N \right\rfloor,
+				\qquad \mathcal{S} \in \{\text{Bark}, \text{Mel}\}.
+			\end{equation}
+
+			\par Sub-bandas que caem no mesmo bin têm seus coeficientes concatenados num único grupo; bins vazios são descartados. A escala \textit{lfcc} não passa por isso: cada sub-banda é um grupo, dando sempre $16$ grupos. A normalização por $\mathcal{S}(f_{Nyq})$ em \autoref{eq:binEscala} é decisiva --- ela remove qualquer ancoragem \emph{absoluta} em Hz e estica a curva para preencher os $N$ bins seja qual for a taxa de amostragem.
+
+			\par \textbf{Por que o EEG degenera.} Tanto Bark quanto Mel são aproximadamente \emph{lineares} perto da origem ($\arctan x \approx x$ e $\log_{10}(1+x) \approx x/\ln 10$ para $x \ll 1$) e só se tornam fortemente compressivas em altas frequências. A faixa do EEG ($0$--$512$~Hz) está inteiramente nesse trecho quase-linear; a da voz ($0$--$22$~kHz) cobre justamente o trecho compressivo. A \autoref{tab:escalaValores} quantifica isso: mede-se a razão entre o valor da escala no centro da última e da primeira sub-banda e compara-se com a razão que uma escala perfeitamente linear daria ($496/16 = 21360{,}9/689{,}06 = 31$).
+
+			\begin{table}[H]
+				\centering
+				\caption[Valores das escalas nos extremos e agrupamento resultante]{Valores das escalas nos centros das sub-bandas extremas, grau de linearidade sobre a faixa usada, e número de grupos resultante. Para o EEG o mapeamento é injetor (16 sub-bandas $\to$ 16 grupos), degenerando exatamente na escala linear; para a voz há fusão real de sub-bandas.}
+				\label{tab:escalaValores}
+				\begin{tabular}{llccccc}
+					\hline
+					\textbf{Sinal} & \textbf{Escala} & $\mathcal{S}(f_{Nyq})$ & $\mathcal{S}$(centro$_0$) & $\mathcal{S}$(centro$_{15}$) & \textbf{Linearidade} & \textbf{Grupos} \\
+					\hline
+					EEG & Bark & $4{,}84$    & $0{,}158$  & $4{,}702$   & $95{,}9\%$ & $\mathbf{16}$ \\
+					EEG & Mel  & $618{,}66$  & $25{,}47$  & $603{,}68$  & $76{,}5\%$ & $\mathbf{16}$ \\
+					EEG & \textit{lfcc} & --- & --- & --- & (linear) & $\mathbf{16}$ \\
+					\hline
+					Voz & Bark & $24{,}74$   & $6{,}301$  & $24{,}689$  & $12{,}6\%$ & $9$ \\
+					Voz & Mel  & $3923{,}34$ & $772{,}33$ & $3888{,}68$ & $16{,}2\%$ & $11$ \\
+					Voz & \textit{lfcc} & --- & --- & --- & (linear) & $16$ \\
+					\hline
+				\end{tabular}
+				\legend{Fonte: Elaborado pelo autor, 2026.}
+			\end{table}
+
+			\par Com $95{,}9\%$ de linearidade (Bark) sobre a faixa do EEG, a \autoref{eq:binEscala} vira uma função praticamente afim e monótona, e como há $24$ (ou $20$) bins para apenas $16$ sub-bandas, o mapeamento resulta \textbf{injetor}: os bins obtidos são $[0, 2, 3, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 21, 23]$ para Bark e $[0, 2, 3, 5, 6, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19]$ para Mel --- todos distintos. Nenhuma sub-banda funde com outra, cada grupo contém exatamente uma sub-banda, e o agrupamento coincide \emph{termo a termo} com o da escala \textit{lfcc}. Já para a voz, a compressão em altas frequências faz as sub-bandas superiores se aglomerarem: os bins da Bark são $[6, 12, 15, 17, 19, 20, 21, 21, 22, 22, 23, 23, 23, 23, 23, 23]$ --- as seis últimas sub-bandas caem todas no bin $23$ --- restando $9$ grupos; a Mel deixa $11$. Aí, sim, a escala carrega informação: ela decide \emph{quais} sub-bandas são somadas.
+
+			\par \textbf{Consequência.} Para o EEG, a ``escala Bark'' nunca foi Bark: era uma reescala linear disfarçada, produzindo um vetor de características idêntico ao da escala linear. Isso foi confirmado empiricamente sobre as execuções da Fase 00: nos $46$ pares \textit{wavelet}~$\times$~categoria do EEG, as três escalas produziram $D_{\text{verdade}}$ idêntico \emph{bit a bit} --- $46$ de $46$. As únicas exceções aparentes, da \textit{wavelet} \texttt{daub32}, diferiam em $\approx\!1{,}5\times10^{-6}$, ruído de ponto flutuante originado da reexecução isolada daqueles perfis. Dos $138$ perfis manuais de EEG, portanto, apenas $46$ eram genuinamente distintos: $92$ execuções eram duplicatas exatas. Por esse motivo o eixo da escala é aplicado somente à voz, e o EEG usa apenas a escala linear (\autoref{chap:propApproach}), reduzindo a grade da Fase 00 de $300$ para $208$ execuções sem perda de informação alguma.
+
+			\par Vale registrar a consequência metodológica de não ter percebido isso antes. Como as três variantes empatavam exatamente, o vencedor da Fase 00 para o EEG era determinado pela ordem de desempate da rotina de ranqueamento, e vinha rotulado como \textit{bark}. Afirmar que ``a escala Bark venceu para o EEG'' seria falso: a Bark não produziu efeito algum, e o vetor vencedor é literalmente o da escala linear. A rotina de ranqueamento passou a detectar e reportar empates exatos de forma explícita, de modo que um desempate arbitrário não possa ser confundido com um resultado experimental.
+
 		\subsection{Filtros digitais \textit{wavelet}}
 			\par Filtros digitais \textit{wavelet} têm sido utilizados com sucesso para suprir as deficiências de janelamento de sinal apresentadas pelas Transformadas de Fourier e de Fourier de Tempo Reduzido. \textit{Wavelets} contam com variadas funções-filtro e têm tamanho de janela variável, o que permite uma análise multirresolução \cite{Rod5254905}. Particularmente, as \textit{wavelets} proporcionam a análise do sinal de forma detalhada tanto no espectro de baixa frequência quanto no de alta contando com diferentes funções-base não periódicas diferentemente da tradicional transformada de Fourier que utilizam somente as bases periódicas senoidal e cossenoidal.
 			
