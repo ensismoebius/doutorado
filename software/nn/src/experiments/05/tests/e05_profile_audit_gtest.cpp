@@ -356,6 +356,35 @@ TEST_P(E05ProfileAuditTest, TrainingParamsPositive)
     EXPECT_GE(cfg.training.k_folds, 2);
 }
 
+// PyTorch/snnTorch is this project's correctness reference, so the defaults must BE the
+// reference: exact activations on, gradient clipping off. A profile can trade either away,
+// but only explicitly.
+TEST(E05Fidelity, DefaultsMatchTheReferenceAndAreOverridable)
+{
+    E05Config c;
+    c.experiment.run_tag = "t";
+    c.dataset.root = "/tmp/x";
+    c.classifier.enabled = false;
+
+    // Exact sigmoid/tanh by default -> our LSTM equals torch.nn.LSTM. The fast softsign
+    // gates are ~2x quicker but provably not torch (|tanh - tanh_fast| reaches 0.306).
+    EXPECT_TRUE(c.numerics.exact_activations);
+
+    // No clipping by default, like PyTorch. This is the ONLY clipping knob: MSELoss/MAELoss
+    // used to clip themselves at norm 1.0 unconditionally, overriding this very field.
+    EXPECT_FLOAT_EQ(c.training.gradient_clip_norm, 0.0f);
+    EXPECT_NO_THROW(c.validate());
+
+    // Both are overridable...
+    c.numerics.exact_activations = false;
+    c.training.gradient_clip_norm = 0.5f;
+    EXPECT_NO_THROW(c.validate());
+
+    // ...but a negative clip is meaningless and must be rejected rather than silently used.
+    c.training.gradient_clip_norm = -1.0f;
+    EXPECT_THROW(c.validate(), std::invalid_argument);
+}
+
 // fixme.md D6: bark/mel are cochlear (hearing) scales with no physiological basis for EEG,
 // and group_by_scale()'s Nyquist normalization made them provably degenerate to lfcc there
 // (16 sub-bands -> 16 distinct bins -> one group each == lfcc). They are rejected for

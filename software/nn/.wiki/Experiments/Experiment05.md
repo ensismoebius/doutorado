@@ -317,6 +317,12 @@ src/experiments/05/
       "firing_rate_max": 0.80
     }
   },
+  "numerics": {
+    // false = FastActivations' softsign gates (~2x faster LSTM, provably NOT torch:
+    // |tanh - tanh_fast| reaches 0.306). PyTorch/snnTorch is this project's correctness
+    // reference, so exact is the default and the approximation is an explicit opt-in.
+    "exact_activations": true
+  },
   "paraconsistent": {
     "enabled": true
   },
@@ -334,6 +340,9 @@ src/experiments/05/
     "nested_cv": true,
     "optimizer_type": "adam",        // adam | sgd | lion | schedule-free-adamw
     "optimizer_momentum": 0.0,       // sgd only
+    "gradient_clip_norm": 0.0,       // 0 = OFF (default), matching PyTorch. The ONLY
+                                     // clipping knob: MSELoss/MAELoss used to also clip
+                                     // themselves at norm 1.0, silently, overriding this.
     // learning_rate is OPTIONAL: omit it and each optimizer gets its own reference
     // default (adam 1e-3, sgd 1e-2, lion 1e-4, schedule-free-adamw 2.5e-3). Set it
     // explicitly only to sweep. Either way the resolved value + its source land in

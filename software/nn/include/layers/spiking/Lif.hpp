@@ -24,6 +24,25 @@
  * membrane potential `v_mem` across calls to `forward()`, emits spikes when
  * crossing a threshold, and then resets.
  *
+ * SCOPE OF THAT EQUIVALENCE (measured, not assumed — see micro_network_parity_gtest):
+ * - `reset_zero = true` (the DEFAULT, and the only mode any production code uses):
+ *   EXACT match with snnTorch's snn.Leaky, verified under a hard drive (~17% firing).
+ *   Our "reset to 0 now" is equivalent to snnTorch's "zero beta*mem_prev next step",
+ *   because 0 stays 0 through the decay.
+ * - `reset_zero = false` (soft/subtract reset): **NOT** equivalent. We subtract V_th
+ *   immediately, so the reset term is decayed by beta on the next step; snnTorch subtracts
+ *   it un-decayed one step later:
+ *       ours     : v[t]   = beta*v[t-1]   + I[t] - V_th*spk[t]
+ *       snnTorch : mem[t] = beta*mem[t-1] + I[t] - V_th*spk[t-1]
+ *   Measured disagreement: ~2-3% of spikes. Ours is the textbook soft-reset LIF; snnTorch's
+ *   is snnTorch's convention — neither is wrong, but they are NOT the same neuron. This
+ *   divergence is deliberately left in place (fixme.md) rather than "fixed", because no
+ *   production path selects subtract; aligning it would mean inverting the stored state from
+ *   post-reset to un-reset through both forward and the BPTT backward. It is pinned by
+ *   MicroNetworkParity.LifSubtractResetDivergesFromSnntorchAsDocumented, which asserts the
+ *   gap stays inside its measured band, so it cannot drift unnoticed while it waits.
+ *   If you ever set reset_zero=false, do NOT assume snn.Leaky parity.
+ *
  * Shape contract:
  * - Input is a 2D tensor (rows x cols). In non-temporal use, rows usually act as
  *   batch and cols as features.

@@ -229,6 +229,30 @@ Já existia paridade **por camada** (`pytorch_parity_gtest` + `gen_pytorch_refs.
 
 ---
 
+## Referência = PyTorch/snnTorch: fidelidade configurável por perfil (2026-07-16)
+
+Decisão do autor, em quatro partes: (1) os perfis devem poder escolher se usam ou não as aproximações rápidas; (2) o grampeamento de gradiente deve ser configurável no perfil, **default OFF**; (3) nosso código deve casar também com o modo `subtract` do SNN; (4) **como o comportamento do snnTorch/PyTorch é a referência, o nosso deve se comportar igual**. O item (4) decidiu os outros: onde havia escolha, o default passou a ser o que casa com a referência.
+
+**1. `training.gradient_clip_norm` (default `0.0` = OFF).** Plumbado nos três pontos que constroem `TrainerConfig` → `grad_clip_norm`, validado (`>= 0`). Junto com a correção do `MSELoss`/`MAELoss` (que grampeava sozinho, sempre, em norma 1,0), agora existe **um único** knob de clipping, honesto e visível no perfil, em vez de um escondido sobrepondo o configurado.
+
+**2. `numerics.exact_activations` (default `true` = exato).** Como o PyTorch é a referência, o **exato virou o default** e a aproximação virou opt-in explícito. Adicionados `sigmoid_exact_block`/`tanh_exact_block`/`tanh_exact_tensor` + dispatchers em `FastActivations.hpp`; `LSTMLayer` ganhou o flag `exact_activations` (default `true`), usado no forward **e** no backward.
+
+> **Resultado: nosso LSTM agora casa com o `torch.nn.LSTM` exatamente**, elemento a elemento, em todos os backends. O teste `PyTorchParityTyped.LSTMLayerForward` usava um **bound frouxo de 0,25** justamente porque a camada usava softsign incondicionalmente; agora é comparação apertada contra o PyTorch. Os dois modos ficam fixados: exato ≡ torch, rápido ≡ aproximação --- então o trade velocidade/fidelidade continua existindo, exercitado, e não pode virar mentira em silêncio.
+
+**3. 🔴 Segundo bug real, achado ao fazer o (2): o backward do LSTM não correspondia ao seu forward.** O backward calculava `y(1-y)` e `1-y²` --- as derivadas do sigmoid/tanh **exatos** --- enquanto o forward rodava as aproximações racionais. Ou seja, no modo rápido o gradiente era a derivada de uma função que o forward nunca avaliou, **errado por até 5×** (em x=2: `1-y²` dá 0,556 onde `rat_tanh'(2) = 0,111`). O exato-por-default corrige isso de graça (aí `y(1-y)` e `1-y²` *são* as derivadas certas). Para o modo rápido, derivei as formas fechadas a partir da saída em cache (o backward não tem a pré-ativação): com `s = y - 0,5`, `rat_sig' = (1-2|s|)²/2` e `rat_tanh' = (1-|y|)²` --- verificadas contra as derivadas analíticas com erro ~1e-16. Agora o modo rápido é uma aproximação de verdade, não um gradiente errado.
+
+**4. Modo `subtract` do LIF: divergência mantida, documentada e fixada (decisão do autor).** Determinei a semântica exata do snnTorch por tracing (não por leitura de código):
+   - `subtract`: `mem[t] = beta*mem[t-1] + I[t] - V_th*spk[t-1]` --- reset **não-decaído**, aplicado no passo seguinte; o `mem` fica **sem reset** (no trace, `mem_out = 1,5 > V_th`).
+   - `zero`: `mem[t] = beta*mem[t-1]*(1-spk[t-1]) + I[t]` --- o reset mata o `beta*mem` anterior mas **mantém a entrada nova** (t=1: `mem_out = 0,9 = I` exatamente).
+
+   Nosso `zero` **já é equivalente** (guardar 0 pós-reset ≡ zerar `beta*mem_prev`), o que explica os 0,0% de desacordo --- e é o modo que a tese usa. Só o `subtract` diverge (~2--3% dos disparos), porque aplicamos o reset imediatamente e ele acaba multiplicado por `beta`.
+
+   **Decisão do autor: deixar fixado como divergência documentada de caminho não usado.** Alinhá-lo exigiria inverter o estado guardado de pós-reset para sem-reset no forward **e** no backward BPTT do `LifBPTT` (que encadeia `v_post_history` em `dL/dR`, `dL/dC` e no termo de reset de `dL/dVth`) --- cirurgia no neurônio de que toda a tese depende, para consertar um caminho que **nenhum código de produção seleciona** (`reset_zero = true` é o default). Fixado por `MicroNetworkParity.LifSubtractResetDivergesFromSnntorchAsDocumented`, que assevera que a diferença fica dentro da banda medida --- não pode crescer despercebida enquanto espera. Documentado no cabeçalho do `Lif.hpp` **e** do `LifBPTT.hpp` (ambos afirmavam equivalência com o snnTorch sem ressalva) e no `gen_pytorch_refs.py`.
+
+**Arquivos:** `FastActivations.hpp`, `LSTMLayer.hpp`, `MSELoss.hpp`, `MAELoss.hpp`, `Lif.hpp`, `LifBPTT.hpp`, `E05Config.{hpp,cpp}`, `E05Classifiers.cpp`, `E05FeatureExtraction.cpp`, `pytorch_parity_gtest.cpp`, `micro_network_parity_gtest.cpp`, `layers_gtest.cpp`, `gen_pytorch_refs.py`, `gen_micro_network_refs.py`.
+
+---
+
 ## Auditoria de comentários não-confiáveis (2026-07-16)
 
 Varredura pedida pelo autor ("scan the code looking for untrustworthy comments"). Priorizei a classe de defeito que já mordeu este projeto duas vezes: **comentário que afirma um contrato que o código não cumpre** (D3, D5) e **citação vaga/errada** (item 57). Não é uma varredura exaustiva de todo comentário do repo.
