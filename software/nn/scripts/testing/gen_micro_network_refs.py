@@ -17,8 +17,9 @@ Covered (all forward AND backward, i.e. parameter gradients after one loss):
               vs snnTorch snn.Leaky. Forward is exact. Backward is pinned in
               READOUT mode only — see the note below.
 
-  micro_lstm  LSTM(3->4) -> Linear(4->2), MSE loss
-              vs a NumPy model of our own recurrence. NOT vs torch.nn.LSTM — see below.
+  micro_lstm  LSTM(3->4) -> Linear(4->2)
+              vs REAL torch.nn.LSTM (exact activations are the default). The opt-in fast
+              softsign-gate mode is pinned separately against a model of that approximation.
 
 --------------------------------------------------------------------------------
 Two honest limits, both deliberate and both encoded here rather than hidden:
@@ -161,7 +162,9 @@ snn_case("ro",  T=5, Bs=2, D=4, H=3, O=2, beta=0.9, vth=1.0, readout=1, seed=2) 
 
 
 # ══ micro_lstm: LSTM(3->4) -> Linear(4->2) ═══════════════════════════════════
-# Pinned against a NumPy model of OUR recurrence (softsign gates), NOT torch — see header.
+# Pinned against REAL torch.nn.LSTM: exact activations are now the default, so our LSTM is a
+# genuine LSTM and must match the reference element-wise. `lstm_approx_out` additionally pins
+# the opt-in fast (softsign-gate) mode against a NumPy model of that approximation.
 def rat_sig(x):
     return np.where(x <= -10, 0.0, np.where(x >= 10, 1.0, 0.5 + x / (2.0 * (1.0 + np.abs(x)))))
 
@@ -216,14 +219,13 @@ put("lstm_W", W); put("lstm_U", U); put("lstm_b", bmerged)
 put("lstm_hw", head.weight); put("lstm_hb", head.bias)
 put("lstm_x", xl.reshape(Bl * Tl, Dl))         # (B*T, D), batch-major rows
 put("lstm_h_seq", h_seq.reshape(Bl * Tl, Hl))  # our recurrence's hidden states
-put("lstm_out", ours_out)                      # (B, O) — the reference our C++ must match
+put("lstm_approx_out", ours_out)               # fast/softsign mode reference (opt-in)
 
-# What a REAL torch LSTM gives from the same weights, recorded so the C++ test can assert
-# the divergence stays the expected size rather than silently growing.
+# REAL torch.nn.LSTM from the same weights — the DEFAULT reference our C++ must match exactly.
 with torch.no_grad():
     th_seq, _ = lstm(xl)
     torch_out = head(th_seq[:, -1, :])
-put("lstm_torch_out", torch_out)
+put("lstm_out", torch_out)                     # exact mode: our C++ must match this
 put("lstm_torch_h_seq", th_seq.reshape(Bl * Tl, Hl))
 
 # ══ LIF reset-mode divergence: measured, recorded, asserted in C++ ═══════════

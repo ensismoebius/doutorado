@@ -199,6 +199,10 @@ void E05Config::validate() const
             "adam, sgd, lion, schedule-free-adamw");
     if (training.optimizer_momentum < 0.0f || training.optimizer_momentum >= 1.0f)
         throw std::invalid_argument("E05Config: require 0 <= training.optimizer_momentum < 1");
+    if (training.gradient_clip_norm < 0.0f)
+        throw std::invalid_argument(
+            "E05Config: training.gradient_clip_norm must be >= 0 "
+            "(0 = off, the default)");
     if (training.weight_decay < 0.0f)
         throw std::invalid_argument("E05Config: training.weight_decay must be >= 0");
     if (training.firing_rate_reg_lambda < 0.0f)
@@ -231,6 +235,13 @@ E05Config E05Config::from_json(const nlohmann::json& j)
     }
 
     // Dataset
+    if (j.contains("numerics"))
+    {
+        const auto& n = j["numerics"];
+        if (n.contains("exact_activations"))
+            cfg.numerics.exact_activations = n["exact_activations"].get<bool>();
+    }
+
     if (j.contains("dataset"))
     {
         const auto& d = j["dataset"];
@@ -328,6 +339,8 @@ E05Config E05Config::from_json(const nlohmann::json& j)
             cfg.training.optimizer_type = t["optimizer_type"].get<std::string>();
         if (t.contains("optimizer_momentum"))
             cfg.training.optimizer_momentum = t["optimizer_momentum"].get<float>();
+        if (t.contains("gradient_clip_norm"))
+            cfg.training.gradient_clip_norm = t["gradient_clip_norm"].get<float>();
         if (t.contains("weight_decay")) cfg.training.weight_decay = t["weight_decay"].get<float>();
         if (t.contains("firing_rate_reg_lambda"))
             cfg.training.firing_rate_reg_lambda = t["firing_rate_reg_lambda"].get<float>();

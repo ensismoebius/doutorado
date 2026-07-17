@@ -336,12 +336,16 @@ TEST(MicroNetworkParity, LifSubtractResetDivergesFromSnntorchAsDocumented)
 // it proves nothing. This reference still pins gate order (i,f,o,g vs torch's i,f,g,o), the
 // c/h update order, the merged bias, and composition with the head — everything except the
 // activation choice, which is a documented design decision rather than a bug.
-TEST(MicroNetworkParity, LstmMatchesOurRecurrenceModel)
+// Exact activations are the DEFAULT, so our LSTM is a genuine LSTM and must match
+// torch.nn.LSTM element-wise through a real stack (recurrence + gate order i,f,o,g vs
+// torch's i,f,g,o + merged bias + composition with the head).
+TEST(MicroNetworkParity, LstmExactMatchesTorchLstm)
 {
     const int T = dim("lstm_dims", 0), B = dim("lstm_dims", 1);
     const int D = dim("lstm_dims", 2), H = dim("lstm_dims", 3), O = dim("lstm_dims", 4);
 
     nn::LSTMLayer lstm(D, H);
+    ASSERT_TRUE(lstm.exact_activations) << "exact activations must be the default";
     fill(lstm.W_, "lstm_W");
     fill(lstm.U_, "lstm_U");
     fill(lstm.b_, "lstm_b");
@@ -350,45 +354,58 @@ TEST(MicroNetworkParity, LstmMatchesOurRecurrenceModel)
     fill(head.weight, "lstm_hw");
     fill(head.bias, "lstm_hb");
 
-    // (B*T, D) rows, batch-major — reshaped by the layer into (B, T, D).
     Tensor x = to_tensor("lstm_x");
     x.reshape({static_cast<nn::Index>(B), static_cast<nn::Index>(T), static_cast<nn::Index>(D)});
     Tensor h_seq = lstm.forward(x, true);
 
-    // Read the last timestep's hidden state per batch (the AE's latent readout).
     Tensor last(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
     for (nn::Index b = 0; b < B; ++b)
         for (nn::Index f = 0; f < H; ++f) last.at(b, f) = h_seq.at(b, T - 1, f);
 
     Tensor out = head.forward(last, true);
-    expect_close(out, "lstm_out", 1e-4F);
+    expect_close(out, "lstm_out", 1e-4F); // vs torch.nn.LSTM
 }
 
-// Guard on the documented divergence. Our softsign gates make the LSTM differ from a real
-// torch LSTM by a KNOWN, bounded amount. Asserting the size keeps two things honest: the
-// approximation cannot silently drift larger, and nobody can later read "LSTM" here and
-// assume standard sigmoid/tanh semantics. If this fails, either FastActivations changed or
-// someone made the gates exact — both are real news, not noise.
-TEST(MicroNetworkParity, LstmDivergenceFromRealTorchIsBoundedAndExpected)
+// The opt-in fast mode (numerics.exact_activations=false) is a real speed/fidelity trade:
+// softsign gates, ~2x cheaper, provably NOT torch (|tanh - tanh_fast| reaches 0.306 on
+// [-4,4]). Pinned against a model of that approximation so the trade stays exercised and
+// cannot drift, and so nobody enables it believing it is still torch-equivalent.
+TEST(MicroNetworkParity, LstmFastModeMatchesApproximationAndDivergesFromTorch)
 {
-    const int T = dim("lstm_dims", 0), B = dim("lstm_dims", 1), H = dim("lstm_dims", 3);
+    const int T = dim("lstm_dims", 0), B = dim("lstm_dims", 1);
+    const int D = dim("lstm_dims", 2), H = dim("lstm_dims", 3), O = dim("lstm_dims", 4);
 
-    const Tensor ours = to_tensor("lstm_h_seq");          // (B*T, H), our recurrence
-    const Tensor torch_h = to_tensor("lstm_torch_h_seq"); // (B*T, H), real torch LSTM
+    nn::LSTMLayer lstm(D, H);
+    lstm.exact_activations = false; // opt in to the approximation
+    fill(lstm.W_, "lstm_W");
+    fill(lstm.U_, "lstm_U");
+    fill(lstm.b_, "lstm_b");
 
+    nn::Linear head(H, O);
+    fill(head.weight, "lstm_hw");
+    fill(head.bias, "lstm_hb");
+
+    Tensor x = to_tensor("lstm_x");
+    x.reshape({static_cast<nn::Index>(B), static_cast<nn::Index>(T), static_cast<nn::Index>(D)});
+    Tensor h_seq = lstm.forward(x, true);
+
+    Tensor last(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
+    for (nn::Index b = 0; b < B; ++b)
+        for (nn::Index f = 0; f < H; ++f) last.at(b, f) = h_seq.at(b, T - 1, f);
+    Tensor out = head.forward(last, true);
+
+    // It matches the approximation it claims to implement...
+    expect_close(out, "lstm_approx_out", 1e-4F);
+
+    // ...and it must NOT match torch, or the "fast" path is silently no longer fast/approx.
+    const Tensor torch_out = to_tensor("lstm_out");
     float max_abs = 0.0F;
-    for (nn::Index i = 0; i < ours.rows(); ++i)
-        for (nn::Index j = 0; j < ours.cols(); ++j)
-            max_abs = std::max(max_abs, std::abs(ours.at(i, j) - torch_h.at(i, j)));
-
-    // They must NOT be equal — that would mean the gates are no longer approximate...
+    for (nn::Index i = 0; i < out.rows(); ++i)
+        for (nn::Index j = 0; j < out.cols(); ++j)
+            max_abs = std::max(max_abs, std::abs(out.at(i, j) - torch_out.at(i, j)));
     EXPECT_GT(max_abs, 1e-3F)
-        << "our LSTM now matches torch exactly; FastActivations may have been replaced — if "
-           "intentional, this test and Concepts/LSTM-and-BPTT.md need updating";
-    // ...but the gap must stay in the range the softsign approximation predicts.
-    EXPECT_LT(max_abs, 0.5F) << "divergence from real torch LSTM grew beyond the known bound";
-    EXPECT_EQ(ours.rows(), static_cast<nn::Index>(B * T));
-    EXPECT_EQ(ours.cols(), static_cast<nn::Index>(H));
+        << "fast mode now equals torch; FastActivations may have changed — if intentional, "
+           "the speed/fidelity trade no longer exists and this test should go";
 }
 
 } // namespace

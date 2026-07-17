@@ -363,7 +363,6 @@ TYPED_TEST(PyTorchParityTyped, LSTMLayerForward)
     using Tensor = typename TestFixture::Tensor;
     const float tol = TestFixture::tol();
 
-    constexpr float kApproxBound = 0.25F; // max deviation vs. exact-activation LSTM
     const int n = static_cast<int>(arr("lstm_num").data<int64_t>()[0]);
     for (int i = 0; i < n; ++i)
     {
@@ -372,36 +371,41 @@ TYPED_TEST(PyTorchParityTyped, LSTMLayerForward)
         const int D = static_cast<int>(dims[2]);
         const int H = static_cast<int>(dims[3]);
 
-        LSTMLayerImpl<B> layer(D, H);
-        // Fixture weights are already in our gate order (i,f,o,g) with merged bias.
-        fill_from(layer.W_, arr(p + "W"));
-        fill_from(layer.U_, arr(p + "U"));
-        fill_from(layer.b_, arr(p + "b"));
-
-        Tensor x = make_from<Tensor>(arr(p + "input"));
-        layer.reset_state();
-        Tensor y = layer.forward(x, false);
-
-        // (1) Exact match against the same rational-approx recurrence.
-        expect_close(y, arr(p + "output_approx"), p + "output_approx", tol);
-
-        // (2) Bounded deviation from PyTorch's exact LSTM.
-        const auto& torch_out = arr(p + "output");
-        ASSERT_EQ(static_cast<size_t>(y.size()), torch_out.num_vals);
-        const float* d = torch_out.data<float>();
-        float max_abs = 0.0F;
+        // ── (1) DEFAULT: exact activations must match torch.nn.LSTM exactly ──
+        // exact_activations defaults to true, so our gates are the real sigmoid/tanh and
+        // there is nothing left to approximate: this is a tight, element-wise comparison
+        // against PyTorch itself. It used to be a loose 0.25 bound because the layer
+        // unconditionally used FastActivations' softsign gates.
         {
-            const Shape s = shape_of(torch_out);
-            size_t k = 0;
-            Shape idx(s.size(), 0);
-            do
-            {
-                max_abs = std::max(max_abs, std::abs(elem(y, idx) - d[k]));
-                ++k;
-            } while (next_index(idx, s));
+            LSTMLayerImpl<B> layer(D, H);
+            // Fixture weights are already in our gate order (i,f,o,g) with merged bias.
+            fill_from(layer.W_, arr(p + "W"));
+            fill_from(layer.U_, arr(p + "U"));
+            fill_from(layer.b_, arr(p + "b"));
+            ASSERT_TRUE(layer.exact_activations) << "exact activations must be the default";
+
+            Tensor x = make_from<Tensor>(arr(p + "input"));
+            layer.reset_state();
+            Tensor y = layer.forward(x, false);
+            expect_close(y, arr(p + "output"), p + "output (vs torch.nn.LSTM)", tol);
         }
-        EXPECT_LT(max_abs, kApproxBound)
-            << p << "max deviation vs. exact PyTorch LSTM = " << max_abs;
+
+        // ── (2) OPT-IN fast mode: matches the rational-approx recurrence, not torch ──
+        // Kept so the speed/fidelity trade stays exercised and honest: when a profile sets
+        // numerics.exact_activations=false the layer becomes a softsign-gated LSTM, which is
+        // ~2x cheaper but provably NOT torch (|tanh - tanh_fast| reaches 0.306 on [-4,4]).
+        {
+            LSTMLayerImpl<B> layer(D, H);
+            layer.exact_activations = false;
+            fill_from(layer.W_, arr(p + "W"));
+            fill_from(layer.U_, arr(p + "U"));
+            fill_from(layer.b_, arr(p + "b"));
+
+            Tensor x = make_from<Tensor>(arr(p + "input"));
+            layer.reset_state();
+            Tensor y = layer.forward(x, false);
+            expect_close(y, arr(p + "output_approx"), p + "output_approx (fast mode)", tol);
+        }
     }
 }
 

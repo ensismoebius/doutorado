@@ -63,6 +63,16 @@ class LSTMLayerImpl : public Module<Backend>
     int input_size_;
     int hidden_size_;
 
+    /// Numerical fidelity of the gate activations.
+    ///
+    /// true (DEFAULT) = exact sigmoid/tanh, matching torch.nn.LSTM. false = the rational
+    /// approximations in FastActivations.hpp (softsign gates), which are ~2x faster but are
+    /// NOT close: |tanh - tanh_fast| reaches 0.306 on [-4,4], so the layer stops being
+    /// comparable to the reference implementation. PyTorch is this project's correctness
+    /// reference, hence exact by default; set false only as a deliberate speed/fidelity
+    /// trade (E05Config::Numerics::exact_activations).
+    bool exact_activations = true;
+
     Tensor W_;
     Tensor U_;
     Tensor b_;
@@ -172,13 +182,13 @@ class LSTMLayerImpl : public Module<Backend>
                 x_t.matmul_transposed(W_).add(h.matmul_transposed(U_)).add_row_broadcast(b_T);
 
             // Opt: fused block+activation — reads column range directly, skips intermediate copy.
-            Tensor i_g = nn::activations::sigmoid_fast_block(pre, 0 * H, H);
-            Tensor f_g = nn::activations::sigmoid_fast_block(pre, 1 * H, H);
-            Tensor o_g = nn::activations::sigmoid_fast_block(pre, 2 * H, H);
-            Tensor g_g = nn::activations::tanh_fast_block(pre, 3 * H, H);
+            Tensor i_g = nn::activations::sigmoid_block(pre, 0 * H, H, exact_activations);
+            Tensor f_g = nn::activations::sigmoid_block(pre, 1 * H, H, exact_activations);
+            Tensor o_g = nn::activations::sigmoid_block(pre, 2 * H, H, exact_activations);
+            Tensor g_g = nn::activations::tanh_block(pre, 3 * H, H, exact_activations);
 
             Tensor c_new = (f_g * c).add(i_g * g_g);
-            Tensor tc = nn::activations::tanh_fast_tensor(c_new);
+            Tensor tc = nn::activations::tanh_tensor(c_new, exact_activations);
             Tensor h_new = o_g * tc;
 
             if (requires_grad) cache_.push_back({x_t, h, c, i_g, f_g, o_g, g_g, tc});
@@ -286,15 +296,43 @@ class LSTMLayerImpl : public Module<Backend>
         Tensor dh_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
         Tensor dc_next = Tensor::zeros(static_cast<nn::Index>(B), static_cast<nn::Index>(H));
 
-        auto sigmoid_grad_from_output = [](const Tensor& y) -> Tensor
+        // The derivative MUST correspond to whichever activation the forward actually ran.
+        // y*(1-y) and 1-y^2 are the derivatives of the EXACT sigmoid/tanh. They were
+        // previously used unconditionally while the forward computed the rational
+        // approximations — so in fast mode the backward was the derivative of a function the
+        // forward never evaluated (off by up to 5x: at x=2, 1-y^2 gives 0.556 where
+        // rat_tanh'(2) = 0.111). Both branches below are exact for their own forward.
+        //
+        // Closed forms for the fast variants, derived from the cached OUTPUT (backward has no
+        // pre-activation): with s = y - 0.5, rat_sig'  = (1 - 2|s|)^2 / 2
+        //                                    rat_tanh' = (1 - |y|)^2
+        // (verified against the analytic derivatives to ~1e-16).
+        const bool exact = exact_activations;
+        auto sigmoid_grad_from_output = [exact](const Tensor& y) -> Tensor
         {
             const Tensor ones = Tensor::ones(y.rows(), y.cols());
-            return y * (ones - y);
+            if (exact) return y * (ones - y);
+            Tensor d(y.rows(), y.cols());
+            for (nn::Index i = 0; i < y.rows(); ++i)
+                for (nn::Index j = 0; j < y.cols(); ++j)
+                {
+                    const float t = 1.0F - (2.0F * std::fabs(y.at(i, j) - 0.5F));
+                    d.at(i, j) = (t * t) * 0.5F;
+                }
+            return d;
         };
-        auto tanh_grad_from_output = [](const Tensor& y) -> Tensor
+        auto tanh_grad_from_output = [exact](const Tensor& y) -> Tensor
         {
             const Tensor ones = Tensor::ones(y.rows(), y.cols());
-            return ones - (y * y);
+            if (exact) return ones - (y * y);
+            Tensor d(y.rows(), y.cols());
+            for (nn::Index i = 0; i < y.rows(); ++i)
+                for (nn::Index j = 0; j < y.cols(); ++j)
+                {
+                    const float t = 1.0F - std::fabs(y.at(i, j));
+                    d.at(i, j) = t * t;
+                }
+            return d;
         };
 
         // Opt: pre-allocate dpre once; overwrite each timestep via setBlock.

@@ -83,6 +83,22 @@ struct E05Config
         float firing_rate_max = 0.80f;
     };
 
+    /// Numerical fidelity of activation functions.
+    ///
+    /// The LSTM uses rational approximations from FastActivations.hpp by default in this
+    /// codebase's history — rat_sig(x)=0.5+x/(2(1+|x|)) and rat_tanh(x)=x/(1+|x|), i.e.
+    /// softsign-based gates chosen for speed. They are NOT close to the real thing:
+    /// |tanh - rat_tanh| reaches 0.306 on [-4,4] (at x=2, tanh=0.964 vs approx 0.667), which
+    /// makes our LSTM a *softsign-gated* LSTM that cannot match torch.nn.LSTM.
+    ///
+    /// Since PyTorch/snnTorch is this project's reference for correctness, `true` (exact
+    /// sigmoid/tanh, matching torch) is the DEFAULT. Set false only to trade fidelity for
+    /// speed, and expect divergence from the reference.
+    struct Numerics
+    {
+        bool exact_activations = true;
+    };
+
     struct FeatureExtraction
     {
         std::string strategy = "handcrafted"; // "handcrafted" | "autoencoder"
@@ -138,6 +154,17 @@ struct E05Config
         /// Momentum for optimizer_type="sgd" (Polyak). Ignored by the others.
         float optimizer_momentum = 0.0f;
 
+        /// Gradient-norm clipping, applied by Trainer to the model's parameter gradients
+        /// after backward. **0 = OFF (default)**, which is what PyTorch does unless the
+        /// caller explicitly clips, and what keeps our training numerically comparable to
+        /// the reference.
+        ///
+        /// Historically MSELoss/MAELoss ALSO clipped their own gradient, unconditionally, at
+        /// norm 1.0 — silently, non-configurably, and overriding this field. That is now
+        /// off by default too (see MSELoss::max_gradient_norm); this is the single, honest,
+        /// profile-visible clipping knob.
+        float gradient_clip_norm = 0.0f;
+
         /// The lr this run will actually train with: the explicit `learning_rate` when the
         /// profile sets one, otherwise `optimizer_type`'s reference default. Single accessor
         /// so no caller can accidentally read an unresolved nullopt or hard-code 1e-3.
@@ -177,6 +204,7 @@ struct E05Config
     };
 
     Experiment experiment;
+    Numerics numerics;
     Dataset dataset;
     FeatureExtraction feature_extraction;
     Paraconsistent paraconsistent;

@@ -103,4 +103,72 @@ inline auto tanh_fast_block(
     return result;
 } //
 
+// ── Exact counterparts ───────────────────────────────────────────────────────
+// Same signatures as the *_fast_* helpers, but computing the real sigmoid/tanh, so a caller
+// can switch fidelity with a flag rather than a different code path.
+//
+// Why these exist: the rational approximations above are NOT close to the real functions.
+// |tanh - tanh_fast| reaches 0.306 on [-4,4] (at x=2: tanh=0.964 vs tanh_fast=0.667), which
+// makes any LSTM built on them a *softsign-gated* LSTM that cannot match torch.nn.LSTM. Since
+// PyTorch/snnTorch is this project's correctness reference, exact is the default and the fast
+// forms are an explicit speed/fidelity trade (E05Config::Numerics::exact_activations).
+
+template <typename Backend>
+inline auto sigmoid_exact_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::TensorImpl<Backend>
+{
+    nn::TensorImpl<Backend> result(src.rows(), gate_size);
+    for (nn::Index i = 0; i < src.rows(); ++i)
+        for (nn::Index j = 0; j < gate_size; ++j)
+            result.at(i, j) = 1.0F / (1.0F + std::exp(-src.at(i, col_start + j)));
+    return result;
+}
+
+template <typename Backend>
+inline auto tanh_exact_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size)
+    -> nn::TensorImpl<Backend>
+{
+    nn::TensorImpl<Backend> result(src.rows(), gate_size);
+    for (nn::Index i = 0; i < src.rows(); ++i)
+        for (nn::Index j = 0; j < gate_size; ++j)
+            result.at(i, j) = std::tanh(src.at(i, col_start + j));
+    return result;
+}
+
+template <typename Backend>
+inline auto tanh_exact_tensor(const nn::TensorImpl<Backend>& x) -> nn::TensorImpl<Backend>
+{
+    nn::TensorImpl<Backend> result(x.rows(), x.cols());
+    for (nn::Index i = 0; i < x.rows(); ++i)
+        for (nn::Index j = 0; j < x.cols(); ++j) result.at(i, j) = std::tanh(x.at(i, j));
+    return result;
+}
+
+// Dispatchers: pick fidelity at run time from a single flag.
+template <typename Backend>
+inline auto sigmoid_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size, bool exact)
+    -> nn::TensorImpl<Backend>
+{
+    return exact ? sigmoid_exact_block(src, col_start, gate_size)
+                 : sigmoid_fast_block(src, col_start, gate_size);
+}
+
+template <typename Backend>
+inline auto tanh_block(
+    const nn::TensorImpl<Backend>& src, nn::Index col_start, nn::Index gate_size, bool exact)
+    -> nn::TensorImpl<Backend>
+{
+    return exact ? tanh_exact_block(src, col_start, gate_size)
+                 : tanh_fast_block(src, col_start, gate_size);
+}
+
+template <typename Backend>
+inline auto tanh_tensor(const nn::TensorImpl<Backend>& x, bool exact) -> nn::TensorImpl<Backend>
+{
+    return exact ? tanh_exact_tensor(x) : tanh_fast_tensor(x);
+}
+
 } // namespace nn::activations

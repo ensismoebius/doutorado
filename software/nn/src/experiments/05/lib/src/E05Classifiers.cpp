@@ -1021,6 +1021,7 @@ auto run_classifier(const E05DatasetView& view,
     trainer_cfg.learning_rate = cfg.training.effective_learning_rate();
     trainer_cfg.optimizer_type = cfg.training.optimizer_type;
     trainer_cfg.optimizer_momentum = cfg.training.optimizer_momentum;
+    trainer_cfg.grad_clip_norm = cfg.training.gradient_clip_norm;
     trainer_cfg.batch_size = cfg.training.samples_per_batch;
     trainer_cfg.weight_decay = cfg.training.weight_decay; // decoupled L2 (rnn + dsnn)
 

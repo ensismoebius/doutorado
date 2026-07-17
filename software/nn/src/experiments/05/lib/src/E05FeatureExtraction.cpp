@@ -591,6 +591,7 @@ std::vector<std::vector<double>> run_protocol_ae(
     trainer_cfg.learning_rate = training.effective_learning_rate();
     trainer_cfg.optimizer_type = training.optimizer_type;
     trainer_cfg.optimizer_momentum = training.optimizer_momentum;
+    trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
     trainer_cfg.batch_size = std::max(1, batch_size);
 
     nn::training::Trainer<AEType> trainer(model, trainer_cfg);
@@ -762,6 +763,7 @@ auto extract_features_core(const E05DatasetView& view,
             trainer_cfg.learning_rate = training.effective_learning_rate();
             trainer_cfg.optimizer_type = training.optimizer_type;
             trainer_cfg.optimizer_momentum = training.optimizer_momentum;
+            trainer_cfg.grad_clip_norm = training.gradient_clip_norm;
             trainer_cfg.batch_size = training.samples_per_batch;
 
             nn::training::Trainer<nn::models::lstm::LSTMAutoencoder> trainer(model, trainer_cfg);
